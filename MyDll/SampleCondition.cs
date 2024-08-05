@@ -175,6 +175,7 @@ namespace MyDll
 
                 var tcs = MyPlc.CreateTcs(triggerType);
                 var result = await tcs.Task;
+
                 Interlocked.Increment(ref MyPlc.Count); // 原子自增
                 Console.WriteLine($"信号触发[{triggerType}] : {MyPlc.Count}");
                 return new FlipflopContext(FfState.Succeed, MyPlc.Count);

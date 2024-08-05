@@ -1,5 +1,6 @@
 ﻿using Serein.DynamicFlow.SerinExpression;
 using Serein.DynamicFlow.Tool;
+using System;
 using System.Diagnostics;
 using System.Linq.Expressions;
 
@@ -22,7 +23,9 @@ namespace Serein.DynamicFlow.NodeModel
         /// <summary>
         /// 条件表达式
         /// </summary>
+
         public string Expression { get; set; }
+
 
         public override object? Execute(DynamicContext context)
         {

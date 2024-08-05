@@ -398,7 +398,9 @@ namespace Serein.Helper
 
                 isHaveErr = true;
                 ErrMsg = ex.Message;
+
                 return null;
+
             }
         }
 
@@ -503,7 +505,9 @@ namespace Serein.Helper
         }
 
 
+
         public virtual string GetPageList(Pagination pagination, Expression<Func<TEntity, bool>> where = null)
+
         {
             //DatabaseSync.StartcaControls();
             return new
@@ -523,7 +527,9 @@ namespace Serein.Helper
         }
 
 
+
         public virtual List<TEntity> GetTop(int Top, Expression<Func<TEntity, object>> expression, OrderByType _OrderByType = OrderByType.Asc, Expression<Func<TEntity, bool>> where = null, string selstr = "*")
+
         {
             return SyncRead(db => db.Queryable<TEntity>().Select(selstr).WhereIF(where != null, where)
                         .Take(Top)
@@ -539,14 +545,18 @@ namespace Serein.Helper
         /// <param name="_OrderByType"></param>
         /// <param name="where"></param>
         /// <returns></returns>
+
         public virtual TEntity GetFirst(Expression<Func<TEntity, object>> OrderExpression, OrderByType _OrderByType = OrderByType.Asc, Expression<Func<TEntity, bool>> where = null)
+
         {
             return SyncRead(db => db.Queryable<TEntity>().Filter(filterName, isDisabledGobalFilter: true).WhereIF(where != null, where)
                         .OrderBy(OrderExpression, _OrderByType)
                         .First());
         }
 
+
         public virtual List<TEntity> GetList(Pagination pagination, Expression<Func<TEntity, bool>> where = null)
+
         {
             int totalNumber = 0;
             List<TEntity> result = SyncRead(db => db.Queryable<TEntity>().WhereIF(where != null, where).OrderBy(pagination.sidx + " " + pagination.sord)
@@ -557,7 +567,9 @@ namespace Serein.Helper
         }
 
 
+
         public virtual List<TEntity> GetList(Expression<Func<TEntity, bool>> where = null)
+
         {
             return SyncRead(db => db.Queryable<TEntity>().WhereIF(where != null, where).Filter(filterName, isDisabledGobalFilter: true)
                         .ToList());
@@ -569,7 +581,11 @@ namespace Serein.Helper
         }
 
 
+
+
         public virtual DataTable GetDataTable(Expression<Func<TEntity, bool>> where = null, Pagination pagination = null)
+
+
         {
             if (pagination != null)
             {
@@ -598,7 +614,9 @@ namespace Serein.Helper
                 return 0;
             });
 
+
             filterName = null;
+
         }
 
 
@@ -818,12 +836,16 @@ namespace Serein.Helper
         /// <summary>
         /// /排序列
         /// </summary>
+
         public string sidx { get; set; }
+
 
         /// <summary>
         /// 排序类型
         /// </summary>
+
         public string sord { get; set; }
+
 
         /// <summary>
         /// 总记录数

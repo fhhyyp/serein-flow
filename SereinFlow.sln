@@ -9,6 +9,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.WorkBench", "WorkBen
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Library", "Library\Serein.Library.csproj", "{4A7D23E7-B05C-4B6D-A8B9-1A488DC356FD}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Module.WAT", "SereinWAT\Serein.Module.WAT.csproj", "{C2F68A15-5D07-4418-87C0-E7402DD9F83A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{4A7D23E7-B05C-4B6D-A8B9-1A488DC356FD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4A7D23E7-B05C-4B6D-A8B9-1A488DC356FD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4A7D23E7-B05C-4B6D-A8B9-1A488DC356FD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C2F68A15-5D07-4418-87C0-E7402DD9F83A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C2F68A15-5D07-4418-87C0-E7402DD9F83A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C2F68A15-5D07-4418-87C0-E7402DD9F83A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C2F68A15-5D07-4418-87C0-E7402DD9F83A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

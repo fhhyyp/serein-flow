@@ -13,8 +13,6 @@ namespace Serein.WorkBench.Node.ViewModel
         public ActionNodeControlViewModel(SingleActionNode node)
         {
             this.node = node;
-
-
             MethodDetails = node.MethodDetails;
             //if (node.MethodDetails.ExplicitDatas.Length == 0)
             //{

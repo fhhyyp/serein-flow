@@ -92,7 +92,9 @@ namespace Serein.DynamicFlow.SerinExpression
                                         .Select((p, index) => Convert.ChangeType(parameters[index], p.ParameterType))
                                         .ToArray();
 
+
             return method.Invoke(target, parameterValues);
+
         }
 
         private static object GetMember(object target, string memberPath)
@@ -100,19 +102,25 @@ namespace Serein.DynamicFlow.SerinExpression
             var members = memberPath.Split('.');
             foreach (var member in members)
             {
+
                 if (target == null) return null;
+
 
                 var property = target.GetType().GetProperty(member);
                 if (property != null)
                 {
+
                     target = property.GetValue(target);
+
                 }
                 else
                 {
                     var field = target.GetType().GetField(member);
                     if (field != null)
                     {
+
                         target = field.GetValue(target);
+
                     }
                     else
                     {
@@ -121,7 +129,9 @@ namespace Serein.DynamicFlow.SerinExpression
                 }
             }
 
+
             return target;
+
         }
 
         private static object SetMember(object target, string assignment)
@@ -139,17 +149,23 @@ namespace Serein.DynamicFlow.SerinExpression
             for (int i = 0; i < members.Length - 1; i++)
             {
                 var member = members[i];
+
                 var property = target.GetType().GetProperty(member);
+
                 if (property != null)
                 {
+
                     target = property.GetValue(target);
+
                 }
                 else
                 {
                     var field = target.GetType().GetField(member);
                     if (field != null)
                     {
+
                         target = field.GetValue(target);
+
                     }
                     else
                     {
@@ -159,7 +175,9 @@ namespace Serein.DynamicFlow.SerinExpression
             }
 
             var lastMember = members.Last();
+
             var lastProperty = target.GetType().GetProperty(lastMember);
+
             if (lastProperty != null)
             {
                 var convertedValue = Convert.ChangeType(value, lastProperty.PropertyType);

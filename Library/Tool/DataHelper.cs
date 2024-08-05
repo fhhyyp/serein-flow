@@ -42,13 +42,17 @@ namespace Serein.Tool
                 {
 
                 }
+
                 return JsonConvert.DeserializeObject<T>(input);
+
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
                 // return default(T);
+
                 return default;
+
             }
         }
 
@@ -79,7 +83,9 @@ namespace Serein.Tool
                 return dataTable;
             }
 
+
             return null;
+
         }
 
         public static bool IsExistRows(DataTable dt)
@@ -111,10 +117,14 @@ namespace Serein.Tool
         {
             if (entitys == null || entitys.Count < 1)
             {
+
                 return null;
+
             }
 
+
             Type type = entitys[0].GetType();
+
             PropertyInfo[] properties = type.GetProperties();
             DataTable dataTable = new DataTable();
             for (int i = 0; i < properties.Length; i++)
@@ -124,16 +134,22 @@ namespace Serein.Tool
 
             foreach (T entity in entitys)
             {
+
                 object obj = entity;
+
+
                 if (obj.GetType() != type)
                 {
                     throw new Exception("要转换的集合元素类型不一致");
                 }
 
+
                 object[] array = new object[properties.Length];
                 for (int j = 0; j < properties.Length; j++)
                 {
+
                     array[j] = properties[j].GetValue(obj, null);
+
                 }
 
                 dataTable.Rows.Add(array);

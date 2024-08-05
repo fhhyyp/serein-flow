@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 
 namespace Serein.DynamicFlow.SerinExpression;
@@ -10,7 +11,9 @@ public class SerinConditionParser
     {
         try
         {
+
             return ConditionParse(data, expression).Evaluate(data);
+
         }
         catch (Exception ex)
         {
@@ -30,10 +33,12 @@ public class SerinConditionParser
             return ParseSimpleExpression(data, expression);
         }
 
+
         bool ContainsArithmeticOperators(string expression)
         {
             return expression.Contains('+') || expression.Contains('-') || expression.Contains('*') || expression.Contains('/');
         }
+
     }
 
     private static string GetArithmeticExpression(string part)
@@ -44,7 +49,9 @@ public class SerinConditionParser
         {
             return part.Substring(startIndex + 1, endIndex - startIndex - 1);
         }
+
         return null;
+
     }
     private static object? GetMemberValue(object? obj, string memberPath)
     {
@@ -81,7 +88,9 @@ public class SerinConditionParser
         {
             memberPath = operatorStr;
             targetObj = GetMemberValue(data, operatorStr);
+
             type = targetObj.GetType();
+
             operatorStr = parts[1].ToLower();
             valueStr = string.Join(' ', parts.Skip(2));
         }
@@ -105,14 +114,16 @@ public class SerinConditionParser
                 valueStr = string.Join(' ', parts.Skip(1));
             }
             targetObj = GetMemberValue(data, memberPath);
-            Type tempType = typeStr switch
+
+            Type? tempType = typeStr switch
             {
                 "int" => typeof(int),
                 "double" => typeof(double),
                 "bool" => typeof(bool),
                 "string" => typeof(string),
+                _ => Type.GetType(typeStr)
             };
-            type = (tempType ?? Type.GetType(typeStr)) ?? throw new ArgumentException("对象表达式无效的类型声明");
+            type = tempType ?? throw new ArgumentException("对象表达式无效的类型声明");
         }
 
        

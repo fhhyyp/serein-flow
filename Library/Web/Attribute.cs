@@ -1,4 +1,6 @@
-﻿namespace Serein.Web
+﻿using System;
+
+namespace Serein.Web
 {
     /// <summary>
     /// 表示参数为url中的数据（Get请求中不需要显式标注）
@@ -61,7 +63,9 @@
     /// <param name="http"></param>
     /// <param name="url"></param>
     [AttributeUsage(AttributeTargets.Method)]
+
     public sealed class WebApiAttribute() : Attribute
+
     {
         public API Type ;
         public string Url ;
@@ -71,7 +75,9 @@
         public bool IsUrl;
     }
     [AttributeUsage(AttributeTargets.Method)]
+
     public sealed class ApiPostAttribute() : Attribute
+
     {
         public string Url;
         /// <summary>
@@ -80,7 +86,9 @@
         public bool IsUrl = true;
     }
     [AttributeUsage(AttributeTargets.Method)]
+
     public sealed class ApiGetAttribute() : Attribute
+
     {
         public string Url;
         /// <summary>

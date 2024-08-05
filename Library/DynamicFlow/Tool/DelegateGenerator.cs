@@ -3,8 +3,11 @@ using Serein.DynamicFlow;
 using Serein.DynamicFlow.NodeModel;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Serein.DynamicFlow.Tool;
 
@@ -38,7 +41,9 @@ public static class DelegateGenerator
 
         foreach (var method in methods)
         {
+
             var methodDetails = CreateMethodDetails(serviceContainer, type, method, assemblyName);
+
             methodDetailsDictionary.TryAdd(methodDetails.MethodName, methodDetails);
         }
 
@@ -76,6 +81,7 @@ public static class DelegateGenerator
         var dllTypeMethodName = $"{assemblyName}.{type.Name}.{method.Name}";
 
         
+
         return new MethodDetails
         {
             ActingInstanceType = type,
@@ -88,6 +94,7 @@ public static class DelegateGenerator
             ExplicitDatas = explicitDataOfParameters,
             ReturnType = method.ReturnType,
         };
+
     }
 
     private static ExplicitData[] GetExplicitDataOfParameters(ParameterInfo[] parameters)
@@ -99,6 +106,9 @@ public static class DelegateGenerator
             string explicitTypeName = GetExplicitTypeName(it.ParameterType);
             var items = GetExplicitItems(it.ParameterType, explicitTypeName);
             if ("Bool".Equals(explicitTypeName)) explicitTypeName = "Select"; // 布尔值 转为 可选类型
+
+
+
             return new ExplicitData
             {
                 IsExplicitData = it.GetCustomAttribute(typeof(ExplicitAttribute)) is ExplicitAttribute,
@@ -110,6 +120,9 @@ public static class DelegateGenerator
                 DataValue = it.HasDefaultValue ? it.DefaultValue.ToString() : "",
                 Items = items.ToArray(),
             };
+
+
+
         }).ToArray();
     }
 

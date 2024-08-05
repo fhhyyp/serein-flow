@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System;
+using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace Serein.DynamicFlow.SerinExpression
@@ -72,7 +73,9 @@ namespace Serein.DynamicFlow.SerinExpression
         public T Value { get; set; }
         public T RangeStart { get; set; }
         public T RangeEnd { get; set; }
+
         public string ArithmeticExpression { get; set; }
+
 
         public override bool Evaluate(object obj)
         {
@@ -179,7 +182,9 @@ namespace Serein.DynamicFlow.SerinExpression
         }
 
         public Operator Op { get; set; }
+
         public string Value { get; set; }
+
 
         public override bool Evaluate(object obj)
         {
@@ -221,7 +226,9 @@ namespace Serein.DynamicFlow.SerinExpression
         public ValueTypeConditionResolver<T>.Operator Op { get; set; }
         public object? TargetObj { get; set; }
         public T Value { get; set; }
+
         public string ArithmeticExpression { get; set; }
+
         public override bool Evaluate(object? obj)
         {
             //object? memberValue = GetMemberValue(obj, MemberPath);
@@ -259,9 +266,13 @@ namespace Serein.DynamicFlow.SerinExpression
 
     public class MemberStringConditionResolver : ConditionResolver
     {
+
         public string MemberPath { get; set; }
+
         public StringConditionResolver.Operator Op { get; set; }
+
         public string Value { get; set; }
+
 
         public override bool Evaluate(object obj)
         {
@@ -282,7 +293,9 @@ namespace Serein.DynamicFlow.SerinExpression
             string[] members = memberPath[1..].Split('.');
             foreach (var member in members)
             {
+
                 if (obj == null) return null;
+
                 Type type = obj.GetType();
                 PropertyInfo? propertyInfo = type.GetProperty(member);
                 FieldInfo? fieldInfo = type.GetField(member);
@@ -293,7 +306,9 @@ namespace Serein.DynamicFlow.SerinExpression
                 else
                     throw new ArgumentException($"Member {member} not found in type {type.FullName}");
             }
+
             return obj;
+
         }
 
 
@@ -308,7 +323,9 @@ namespace Serein.DynamicFlow.SerinExpression
             {
                 return part.Substring(startIndex + 1, endIndex - startIndex - 1);
             }
+
             return null;
+
         }
 
 

@@ -3,6 +3,10 @@ using Microsoft.Win32;
 using NetTaste;
 using System.Collections.Concurrent;
 using System.Reflection;
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using SqlSugar;
 
 namespace Serein
 {
@@ -46,10 +50,12 @@ namespace Serein
 
         public ServiceContainer()
         {
+
             _dependencies = new ConcurrentDictionary<string, object>
             {
                 [typeof(IServiceContainer).FullName] = this
             };
+
             _typeMappings = new ConcurrentDictionary<string, Type>();
             _waitingForInstantiation = [];
         }
@@ -57,16 +63,24 @@ namespace Serein
         {
             Register(type);
             object instance;
+
             if (_dependencies.ContainsKey(type.FullName))
             {
                 instance = _dependencies[type.FullName];
             }
             else
             {
+
                 instance = Activator.CreateInstance(type);
+
+
                 _dependencies[type.FullName] = instance;
+
             }
+
+
             return instance;
+
         }
         public T CreateServiceInstance<T>(params object[] parameters)
         {
@@ -90,10 +104,12 @@ namespace Serein
 
         public IServiceContainer Register(Type type, params object[] parameters)
         {
+
             if (!_typeMappings.ContainsKey(type.FullName))
             {
                 _typeMappings[type.FullName] = type;
             }
+
             return this;
         }
         public IServiceContainer Register<T>(params object[] parameters)
@@ -111,34 +127,56 @@ namespace Serein
 
         public object Get(Type type)
         {
+
+
             if (!_dependencies.TryGetValue(type.FullName, out object value))
             {
                 Register(type);
+
                 value = Instantiate(type);
+
                 InjectDependencies(type);
             }
+
+
+
             return value;
+
         }
 
 
         public T Get<T>()
         {
+
+
             if(!_dependencies.TryGetValue(typeof(T).FullName, out object value))
             {
                 Register<T>();
+
                 value = Instantiate(typeof(T));
+
             }
+
+
+
+
             return (T)value;
+
+
             //throw new InvalidOperationException("目标类型未创建实例");
         }
         public IServiceContainer Build()
         {
             foreach (var type in _typeMappings.Values)
             {
+
                 if(!_dependencies.ContainsKey(type.FullName))
                 {
+
                     _dependencies[type.FullName] = Activator.CreateInstance(type);
+
                 }
+
             }
 
             foreach (var instance in _dependencies.Values)
@@ -171,10 +209,12 @@ namespace Serein
             foreach (var property in properties)
             {
                 var propertyType = property.PropertyType;
+
                 if (_dependencies.TryGetValue(propertyType.FullName, out var dependencyInstance))
                 {
                     property.SetValue(instance, dependencyInstance);
                 }
+
             }
         }
 
@@ -187,7 +227,9 @@ namespace Serein
                     var instance = Instantiate(implementationType);
                     if (instance != null)
                     {
+
                         _dependencies[waitingType.FullName] = instance;
+
                         _waitingForInstantiation.Remove(waitingType);
                     }
                 }

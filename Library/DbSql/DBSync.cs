@@ -114,7 +114,9 @@ namespace Serein.DbSql
                 {
                     // Console.WriteLine($"主数据库无法连接，IP:{IP},端口:{Port}");
                     DBSync.SetIsNeedSyncData(true); // 网络不可达
+
                     return null;
+
                 }
 
                 // 检查是否需要同步数据
@@ -134,7 +136,9 @@ namespace Serein.DbSql
             catch //  (Exception ex)
             {
                 // Console.WriteLine($"发生异常：{ex.Message}");
+
                 return null;
+
             }
         }
 
@@ -168,8 +172,14 @@ namespace Serein.DbSql
         }
         public static string GetDescription(DBSyncExType value)
         {
+
             FieldInfo field = value.GetType().GetField(value.ToString());
+
+
+
             DescriptionAttribute attribute = (DescriptionAttribute)field.GetCustomAttribute(typeof(DescriptionAttribute));
+
+
             return attribute == null ? value.ToString() : attribute.Description;
         }
 
@@ -184,15 +194,21 @@ namespace Serein.DbSql
         /// <summary>
         /// 主数据库配置
         /// </summary>
+
         private static ConnectionConfig PrimaryConfig { get; set; }
+
         /// <summary>
         /// 从数据库配置
         /// </summary>
+
         private static ConnectionConfig SecondaryConfig { get; set; }
+
         /// <summary>
         /// 主数据库IP
         /// </summary>
+
         private static string Host { get; set; }
+
         /// <summary>
         /// 主数据库端口
         /// </summary>
@@ -200,8 +216,12 @@ namespace Serein.DbSql
         /// <summary>
         /// 同步数据事件（远程数据库，本地数据库，是否执行成功）
         /// </summary>
+
         private static Func<SqlSugarClient, SqlSugarClient, bool> SyncDataEvent { get; set; }
+
+
         private static Action<bool> StateChangeEvent { get; set; }
+
         /// <summary>
         /// 数据库设置锁
         /// </summary>
@@ -467,8 +487,14 @@ namespace Serein.DbSql
 
         public static string GetDescription(DBSyncStart value)
         {
+
             FieldInfo field = value.GetType().GetField(value.ToString());
+
+
+
             DescriptionAttribute attribute = (DescriptionAttribute)field.GetCustomAttribute(typeof(DescriptionAttribute));
+
+
             return attribute == null ? value.ToString() : attribute.Description;
         }
 
@@ -565,10 +591,14 @@ namespace Serein.DbSql
                     };
                     break;
                 default:
+
                     config = null;
+
                     break;
             }
+
             return config;
+
 
         }
     }

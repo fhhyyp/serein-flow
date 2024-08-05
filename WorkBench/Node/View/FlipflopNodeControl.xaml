@@ -16,7 +16,7 @@
     
     <Grid>
         <Grid.ToolTip>
-            <ToolTip Background="LightYellow" Foreground="Black" Content="{Binding MethodDetails.MethodTips, UpdateSourceTrigger=PropertyChanged}" />
+            <ToolTip Background="LightYellow" Foreground="Black" Content="{Binding MethodDetails.MethodName, UpdateSourceTrigger=PropertyChanged}" />
         </Grid.ToolTip>
 
         <Grid.RowDefinitions>
@@ -25,7 +25,7 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         <Border Grid.Row="0" Background="#FFFFD2" BorderBrush="Black" BorderThickness="1">
-            <TextBlock Text="{Binding MethodDetails.MethodName, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding MethodDetails.MethodTips, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </Border>
         <!--<themes:ExplicitDataControl Grid.Row="1" ExplicitDatas="{Binding ExplicitDatas}" />-->
         <themes:MethodDetailsControl Grid.Row="1" MethodDetails="{Binding MethodDetails}" />

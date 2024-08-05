@@ -2,6 +2,11 @@
 using Serein.DynamicFlow.Tool;
 using Newtonsoft.Json;
 using SqlSugar;
+using System;
+using System.Threading.Tasks;
+using System.Threading;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Serein.DynamicFlow.NodeModel
 {
@@ -18,11 +23,19 @@ namespace Serein.DynamicFlow.NodeModel
     /// </summary>
     public abstract class NodeBase : IDynamicFlowNode
     {
+
         public MethodDetails MethodDetails { get; set; }
+
+
         public string Guid { get; set; }
+
+
         public string DisplayName { get; set; }
+
         public bool IsStart { get; set; }
+
         public string DelegateName { get; set; }
+
 
         /// <summary>
         /// 运行时的上一节点
@@ -63,6 +76,7 @@ namespace Serein.DynamicFlow.NodeModel
         {
             MethodDetails md = MethodDetails;
             object? result = null;
+
             if (DelegateCache.GlobalDicDelegates.TryGetValue(md.MethodName, out Delegate del))
             {
                 if (md.ExplicitDatas.Length == 0)
@@ -81,16 +95,25 @@ namespace Serein.DynamicFlow.NodeModel
                     object?[]? parameters = GetParameters(context, MethodDetails);
                     if (md.ReturnType == typeof(void))
                     {
+
+
                         ((Action<object, object[]>)del).Invoke(md.ActingInstance, parameters);
+
+
                     }
                     else
                     {
+
+
                         result = ((Func<object, object[], object>)del).Invoke(md.ActingInstance, parameters);
+
+
                     }
                 }
                 // context.SetFlowData(result);
                 // CurrentData = result;
             }
+
             return result;
         }
 
@@ -99,6 +122,7 @@ namespace Serein.DynamicFlow.NodeModel
         {
             MethodDetails md = MethodDetails;
             object? result = null;
+
             if (DelegateCache.GlobalDicDelegates.TryGetValue(md.MethodName, out Delegate del))
             {
                 if (md.ExplicitDatas.Length == 0)
@@ -130,7 +154,11 @@ namespace Serein.DynamicFlow.NodeModel
                 {
                     object?[]? parameters = GetParameters(context, MethodDetails);
                     // 调用委托并获取结果
+
+
                     FlipflopContext flipflopContext = await ((Func<object, object[], Task<FlipflopContext>>)del).Invoke(MethodDetails.ActingInstance, parameters);
+
+
 
                     if (flipflopContext != null)
                     {
@@ -148,6 +176,7 @@ namespace Serein.DynamicFlow.NodeModel
                 // context.SetFlowData(result);
                 // CurrentData = result;
             }
+
             return result;
         }
 
@@ -251,7 +280,11 @@ namespace Serein.DynamicFlow.NodeModel
                     }
                     else
                     {
+
+
                         parameters[i] = ConvertValue(mdEd.DataValue, mdEd.ExplicitType);
+
+
                     }
                 }
                 else
@@ -261,30 +294,42 @@ namespace Serein.DynamicFlow.NodeModel
                     var tmpParameter = PreviousNode?.FlowData?.ToString();
                     if (mdEd.DataType.IsEnum)
                     {
+
                         var enumValue = Enum.Parse(mdEd.DataType, tmpParameter);
+
                         parameters[i] = enumValue;
                     }
                     else if (mdEd.DataType == typeof(string))
                     {
+
                         parameters[i] = tmpParameter;
+
                     }
                     else if (mdEd.DataType == typeof(bool))
                     {
+
                         parameters[i] = bool.Parse(tmpParameter);
+
                     }
                     else if (mdEd.DataType == typeof(int))
                     {
+
                         parameters[i] = int.Parse(tmpParameter);
+
                     }
                     else if (mdEd.DataType == typeof(double))
                     {
+
                         parameters[i] = double.Parse(tmpParameter);
+
                     }
                     else
                     {
                         if (tmpParameter != null && mdEd.DataType!= null)
                         {
+
                             parameters[i] = ConvertValue(tmpParameter, mdEd.DataType);
+
                         }
                     }
                 }

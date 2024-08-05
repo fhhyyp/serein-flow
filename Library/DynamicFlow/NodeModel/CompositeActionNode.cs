@@ -1,4 +1,5 @@
 ﻿using Serein.DynamicFlow;
+using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace Serein.DynamicFlow.NodeModel

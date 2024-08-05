@@ -29,15 +29,15 @@ namespace Serein.DynamicFlow.Tool
             {
                 while (waitTcss.Count > 0)
                 {
+
                     waitTcss.Pop().SetResult(state);
+
                 }
                 return true;
             }
             return false;
-            lock (TcsEvent)
-            {
-                
-            }
+
+
         }
         
         public TaskCompletionSource<object> CreateTcs(TSignal signal)
@@ -46,18 +46,9 @@ namespace Serein.DynamicFlow.Tool
             var tcs = new TaskCompletionSource<object>();
             TcsEvent.GetOrAdd(signal, _ => new Stack<TaskCompletionSource<object>>()).Push(tcs);
             return tcs;
-            lock (TcsEvent)
-            {
-                /*if(TcsEvent.TryRemove(signal, out var tcss))
-                {
-                    //tcs.TrySetException(new TcsSignalException("试图获取已存在的任务"));
-                    throw new TcsSignalException("试图获取已存在的任务");
-                }*/
-                
-               
-                /*TcsEvent.TryAdd(signal, tcs);
-                return tcs;*/
-            }
+
+
+
         }
         //public TaskCompletionSource<object> GetOrCreateTcs(TSignal signal)
         //{

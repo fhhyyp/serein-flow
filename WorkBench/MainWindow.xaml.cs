@@ -202,7 +202,9 @@ namespace Serein.WorkBench
 
 
 
+
         public MainWindow()
+
         {
             InitializeComponent();
             logWindow = new LogWindow();
@@ -231,8 +233,8 @@ namespace Serein.WorkBench
             if (nf != null)
             {
                 InitializeCanvas(nf.basic.canvas.width, nf.basic.canvas.lenght);
-                LoadDll(nf);
-                LoadNodes(nf);
+                LoadDll(nf); // 加载DLL
+                LoadNodeControls(nf); // 加载节点
 
                 var startNode = nodeControls.FirstOrDefault(item => item.Node.Guid.Equals(nf.startNode));
                 if (startNode != null)
@@ -242,7 +244,7 @@ namespace Serein.WorkBench
                 }
             }
         }
-
+        // 设置画布宽度高度
         private void InitializeCanvas(double width, double height)
         {
             FlowChartCanvas.Width = width;
@@ -267,7 +269,7 @@ namespace Serein.WorkBench
         /// 加载配置文件时加载节点/区域
         /// </summary>
         /// <param name="nf"></param>
-        private void LoadNodes(SereinOutputFileData nf)
+        private void LoadNodeControls(SereinOutputFileData nf)
         {
             var nodeControls = new Dictionary<string, NodeControlBase>();
             var regionControls = new Dictionary<string, NodeControlBase>();
@@ -413,25 +415,28 @@ namespace Serein.WorkBench
 
 
         /// <summary>
-        /// 加载配置文件时配置节点
+        /// 配置节点（加载配置文件时）
         /// </summary>
-        /// <param name="nodeConfig">节点配置数据</param>
+        /// <param name="nodeInfo">节点配置数据</param>
         /// <param name="nodeControl">需要配置的节点</param>
         /// <param name="nodeControls">节点列表</param>
         /// <param name="regionControls">区域列表</param>
-        private void ConfigureNodeControl(NodeInfo nodeConfig, NodeControlBase nodeControl, Dictionary<string, NodeControlBase> nodeControls, Dictionary<string, NodeControlBase> regionControls)
+        private void ConfigureNodeControl(NodeInfo nodeInfo,
+                                          NodeControlBase nodeControl,
+                                          Dictionary<string, NodeControlBase> nodeControls,
+                                          Dictionary<string, NodeControlBase> regionControls)
         {
             FlowChartCanvas.Dispatcher.Invoke(() =>
             {
                 FlowChartCanvas.Children.Add(nodeControl);
-                Canvas.SetLeft(nodeControl, nodeConfig.position.x);
-                Canvas.SetTop(nodeControl, nodeConfig.position.y);
-                nodeControls[nodeConfig.guid] = nodeControl;
+                Canvas.SetLeft(nodeControl, nodeInfo.position.x);
+                Canvas.SetTop(nodeControl, nodeInfo.position.y);
+                nodeControls[nodeInfo.guid] = nodeControl;
                 this.nodeControls.Add(nodeControl);
 
                 if (nodeControl is ActionRegionControl || nodeControl is ConditionRegionControl)//如果是区域，则需要创建区域
                 {
-                    regionControls[nodeConfig.guid] = nodeControl;
+                    regionControls[nodeInfo.guid] = nodeControl;
                 }
 
                 ConfigureContextMenu(nodeControl); // 创建区域
@@ -440,7 +445,7 @@ namespace Serein.WorkBench
         }
 
         /// <summary>
-        /// 加载配置文件时创建控件
+        /// 创建控件并配置节点数据(加载配置文件时)
         /// </summary>
         /// <param name="nodeInfo"></param>
         /// <returns></returns>
@@ -449,9 +454,10 @@ namespace Serein.WorkBench
             if (!DllMethodDetails.TryGetValue(nodeInfo.name, out var md))
             {
                 WriteLog($"目标节点不存在方法信息: {nodeInfo.name}\r\n"); 
-                return null;
-            }
 
+                return null;
+
+            }
             NodeControlBase control = nodeInfo.type switch
             {
                 $"{NodeSpaceName}.{nameof(SingleActionNode)}" => CreateNodeControl<SingleActionNode, ActionNodeControl>(md),
@@ -471,11 +477,20 @@ namespace Serein.WorkBench
                     flipflopNodes.Add(flipflopNode);
                 }
             }
-            return control;// DNF文件加载时创建
-
+            var node = control.Node;
+            if (node != null)
+            {
+                for (int i = 0; i < nodeInfo.parameterData.Length; i++)
+                {
+                    Parameterdata? pd = nodeInfo.parameterData[i];
+                    node.MethodDetails.ExplicitDatas[i].IsExplicitData = pd.state;
+                    node.MethodDetails.ExplicitDatas[i].DataValue = pd.value;
+                }
+            }
             
 
 
+            return control;// DNF文件加载时创建
             /* NodeControl? nodeControl = nodeInfo.type switch
            {
                $"{NodeSpaceName}.{nameof(SingleActionNode)}" => CreateActionNodeControl(md),
@@ -490,7 +505,7 @@ namespace Serein.WorkBench
 
         #region 节点控件的创建
 
-        private static TControl CreateNodeControl<TNode, TControl>(MethodDetails? md = null) 
+        private static TControl CreateNodeControl<TNode, TControl>(MethodDetails? methodDetails = null) 
             where TNode : NodeBase
             where TControl : NodeControlBase
         {
@@ -502,10 +517,12 @@ namespace Serein.WorkBench
             }
 
             nodeBase.Guid = Guid.NewGuid().ToString();
-            if (md != null)
+
+            if (methodDetails != null)
             {
+                var md = methodDetails.Clone();
                 nodeBase.DelegateName = md.MethodName;
-                nodeBase.DisplayName = md.MethodName;
+                nodeBase.DisplayName = md.MethodTips;
                 nodeBase.MethodDetails = md;
             }
 
@@ -618,7 +635,7 @@ namespace Serein.WorkBench
         /// </summary>
         // private static ConcurrentDictionary<string, Delegate> globalDicDelegates = new ConcurrentDictionary<string, Delegate>();
 
-        private static readonly ConcurrentDictionary<string, MethodDetails> DllMethodDetails = [];
+        private static ConcurrentDictionary<string, MethodDetails> DllMethodDetails { get; } = [];
         /// <summary>
         /// 加载指定路径的DLL文件
         /// </summary>
@@ -767,18 +784,14 @@ namespace Serein.WorkBench
                 Header = "DLL name :  " + assembly.GetName().Name // 设置控件标题为程序集名称
             };
 
-            foreach (var item in conditionTypes)
-            {
-                dllControl.AddCondition(item);  // 添加动作类型到控件
-            }
 
             foreach (var item in actionTypes)
             {
-                dllControl.AddAction(item);  // 添加状态类型到控件
+                dllControl.AddAction(item.Clone());  // 添加动作类型到控件
             }
             foreach (var item in flipflopMethods)
             {
-                dllControl.AddFlipflop(item);  // 添加触发器方法到控件
+                dllControl.AddFlipflop(item.Clone());  // 添加触发器方法到控件
             }
 
             /*foreach (var item in stateTypes)
@@ -996,6 +1009,7 @@ namespace Serein.WorkBench
             {
                 var data = e.Data.GetData(MouseNodeType.BaseNodeType);
 
+
                 if (data == typeof(ConditionNodeControl))
                 {
 
@@ -1009,6 +1023,7 @@ namespace Serein.WorkBench
 
 
                 }
+
 
                 //if (e.Data.GetData(MouseNodeType.DllNodeType) is MethodDetails methodDetails)
                 //{
@@ -1070,11 +1085,15 @@ namespace Serein.WorkBench
             {
                 if (element is T)
                 {
+
                     return element as T;
+
                 }
                 element = VisualTreeHelper.GetParent(element);
             }
+
             return null;
+
         }
 
         /// <summary>
@@ -1787,6 +1806,27 @@ namespace Serein.WorkBench
                     var trueNodes = item.Node.TrueBranch.Select(item => item.Guid).ToArray();
                     var falseNodes = item.Node.FalseBranch.Select(item => item.Guid).ToArray();
 
+                    IEnumerable<object?>? parameterData = []; 
+                    if (node?.MethodDetails?.ExplicitDatas is not null)
+                    {
+                        parameterData = node?.MethodDetails.ExplicitDatas.Select(it => {
+
+                            if (it != null)
+                            {
+                                return new
+                                {
+                                    state = it.IsExplicitData,
+                                    value = it.DataValue,
+                                };
+                            }
+                            else
+                            {
+                                return null;
+                            }
+                        });
+                    }
+
+
                     return new
                     {
                         guid = node.Guid,
@@ -1800,7 +1840,9 @@ namespace Serein.WorkBench
                         },
                         trueNodes = trueNodes,
                         falseNodes = falseNodes,
+                        parameterData = parameterData,
                     };
+
                 }).ToList();
 
 
@@ -1881,8 +1923,12 @@ namespace Serein.WorkBench
                 var dlls = loadedAssemblies.Select(assembly =>
                 {
                     var temp = assembly.GetName();
+
                     string codeBasePath = assembly.CodeBase;
+
+
                     string filePath = new Uri(codeBasePath).LocalPath;
+
                     string relativePath;
                     if (string.IsNullOrEmpty(App.FileDataPath))
                     {
@@ -1932,11 +1978,15 @@ namespace Serein.WorkBench
                 {
                     try
                     {
+
                         string targetPath = System.IO.Path.Combine(savePath, System.IO.Path.GetFileName(dll.CodeBase));
+
 
                         // 确保目标目录存在
                         Directory.CreateDirectory(savePath);
+
                         var sourceFile = new Uri(dll.CodeBase).LocalPath;
+
                         // 复制文件到目标目录
                         File.Copy(sourceFile, targetPath, true);
                     }

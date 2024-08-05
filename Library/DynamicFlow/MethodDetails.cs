@@ -34,16 +34,22 @@ namespace Serein.DynamicFlow
         /// 方法需要的类型
         /// </summary>
         public Type DataType { get; set; }
+
         /// <summary>
         /// 方法入参参数名称
         /// </summary>
         public string ParameterName { get; set; }
+
         /// <summary>
         /// 入参值
         /// </summary>
+
         public string DataValue { get; set; }
 
+
+
         public string[] Items { get; set; }
+
 
 
 
@@ -64,7 +70,7 @@ namespace Serein.DynamicFlow
 
     public class MethodDetails
     {
-        public MethodDetails CpoyNew()
+        public MethodDetails Clone()
         {
             return new MethodDetails
             {
@@ -73,37 +79,45 @@ namespace Serein.DynamicFlow
                 MethodDelegate = MethodDelegate,
                 MethodDynamicType = MethodDynamicType,
                 MethodGuid = Guid.NewGuid().ToString(),
-                MethodTips = MethodTips + " Cpoy",
-                //ParameterTypes = ParameterTypes,
+                MethodTips = MethodTips ,
                 ReturnType = ReturnType,
                 MethodName = MethodName,
                 MethodLockName = MethodLockName,
-                //ExplicitDataValues = ExplicitDataValues.Select(it => "").ToArray(),
+                
                 ExplicitDatas = ExplicitDatas.Select(it => it.Clone()).ToArray(),
-                //IsExplicits = IsExplicits,
             };
         }
 
         /// <summary>
         /// 作用实例
         /// </summary>
+
         public Type ActingInstanceType { get; set; }
+
         /// <summary>
         /// 作用实例
         /// </summary>
+
         public object ActingInstance { get; set; }
+
         /// <summary>
         /// 方法GUID
         /// </summary>
+
         public string MethodGuid { get; set; }
+
         /// <summary>
         /// 方法名称
         /// </summary>
+
         public string MethodName { get; set; }
+
         /// <summary>
         /// 方法委托
         /// </summary>
+
         public Delegate MethodDelegate { get; set; }
+
         /// <summary>
         /// 节点类型
         /// </summary>
@@ -111,23 +125,31 @@ namespace Serein.DynamicFlow
         /// <summary>
         /// 锁名称
         /// </summary>
+
         public string MethodLockName { get; set; }
+
 
         /// <summary>
         /// 方法说明
         /// </summary>
+
         public string MethodTips { get; set; }
+
 
         /// <summary>
         /// 参数内容
         /// </summary>
+
         public ExplicitData[] ExplicitDatas { get; set; }
+
 
 
         /// <summary>
         /// 出参类型
         /// </summary>
+
         public Type ReturnType { get; set; }
+
 
 
 

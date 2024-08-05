@@ -12,22 +12,16 @@ namespace Serein.DynamicFlow.NodeModel
     /// </summary>
     public class SingleExpOpNode : NodeBase
     {
+
         public string Expression { get; set; }
 
 
         public override object? Execute(DynamicContext context)
         {
-            //if (PreviousNode != null && PreviousNode.FlowData == null)
-            //{
-            //    // 存在
-            //    throw new InvalidOperationException("previous node data is null.");
-            //}
-            //else
-            //{
-
-            //}
             var data = PreviousNode?.FlowData;
+
             var newData = SerinExpressionEvaluator.Evaluate(Expression, data, out bool isChange);
+
             FlowState = true;
             Console.WriteLine(newData);
             if (isChange)

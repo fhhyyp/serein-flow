@@ -20,7 +20,9 @@ namespace Serein.WorkBench.Themes
     /// </summary>
     public partial class TypeViewerWindow : Window
     {
+
         public TypeViewerWindow()
+
         {
             InitializeComponent();
         }

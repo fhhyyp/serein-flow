@@ -17,12 +17,16 @@ namespace Serein.WorkBench
     {
         public class TestObject
         {
+
             public NestedObject Data { get; set; }
+
             public class NestedObject
             {
                 public int Code { get; set; }
                 public int Code2 { get; set; }
+
                 public string Tips { get; set; }
+
             }
             public string ToUpper(string input)
             {

@@ -17,12 +17,15 @@ namespace Serein.WorkBench.Node.View
     public abstract class NodeControlBase : UserControl, IDynamicFlowNode
     {
         public NodeBase Node { get; set; }
+
         protected NodeControlBase()
+
         {
             this.Background = Brushes.Transparent;
         }
         protected NodeControlBase(NodeBase node)
         {
+            this.Background = Brushes.Transparent;
             Node = node;
         }
     }
@@ -32,7 +35,9 @@ namespace Serein.WorkBench.Node.View
     public abstract class NodeControlViewModel : INotifyPropertyChanged
     {
 
+
         public MethodDetails methodDetails;
+
 
         public MethodDetails MethodDetails
         {
@@ -44,9 +49,15 @@ namespace Serein.WorkBench.Node.View
             }
         }
 
+
+
         public event PropertyChangedEventHandler PropertyChanged;
 
+
+
+
         protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
+
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }

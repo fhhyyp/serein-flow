@@ -15,7 +15,9 @@ namespace Serein.WorkBench.Node.View
         private Point _dragStartPoint;
 
         private new readonly CompositeActionNode Node;
+
         public ActionRegionControl() : base()
+
         {
             InitializeComponent();
         }

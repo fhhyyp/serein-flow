@@ -89,12 +89,16 @@ namespace Serein.Web
                         continue;
                     }
 
+
+
                     WebApiAttribute webApiAttribute = new WebApiAttribute()
                     {
                         Type = apiGetAttribute != null ? API.GET : API.POST,
                         Url = apiGetAttribute != null ? apiGetAttribute.Url : apiPostAttribute.Url,
                         IsUrl = apiGetAttribute != null ? apiGetAttribute.IsUrl : apiPostAttribute.IsUrl,
                     };
+
+
 
                     if (apiPostAttribute != null) // 如果存在 WebAPIAttribute 属性
                     {
@@ -105,7 +109,9 @@ namespace Serein.Web
                         if (url == null) continue;
                         _controllerAutoHosting[url] = true;
                         _controllerTypes[url] = controllerType;
+
                         _controllerInstances[url] = null;
+
                     }
 
 
@@ -137,17 +143,25 @@ namespace Serein.Web
                     continue;
                 }
 
+
+
                 WebApiAttribute webApiAttribute = new WebApiAttribute()
                 {
                     Type = apiGetAttribute != null ? API.GET : API.POST,
                     Url = apiGetAttribute != null ? apiGetAttribute.Url : apiPostAttribute.Url,
                     IsUrl = apiGetAttribute != null ? apiGetAttribute.IsUrl : apiPostAttribute.IsUrl,
                 };
+
+
+
                 var url = AddRoutesUrl(null, webApiAttribute, controllerType, method);
+
                 if (url == null) continue;
                 _controllerAutoHosting[url] = true;
                 _controllerTypes[url] = controllerType;
+
                 _controllerInstances[url] = null;
+
             }
         }
 
@@ -169,13 +183,19 @@ namespace Serein.Web
                     continue;
                 }
 
+
+
                 WebApiAttribute webApiAttribute = new WebApiAttribute()
                 {
                     Type = apiGetAttribute != null ? API.GET : API.POST,
                     Url = apiGetAttribute != null ? apiGetAttribute.Url : apiPostAttribute.Url,
                     IsUrl = apiGetAttribute != null ? apiGetAttribute.IsUrl : apiPostAttribute.IsUrl,
                 };
+
+
+
                 var url = AddRoutesUrl(null, webApiAttribute, controllerType, method);
+
                 if (url == null) continue;
                 _controllerInstances[url] = controllerInstance;
                 _controllerAutoHosting[url] = false;
@@ -275,13 +295,19 @@ namespace Serein.Web
             var response = context.Response; // 获取响应对象
             var url = request.Url; // 获取请求的 URL
             var httpMethod = request.HttpMethod; // 获取请求的 HTTP 方法
+
             var template = request.Url.AbsolutePath.ToLower();
+
+
             if (!_routes[httpMethod].TryGetValue(template, out MethodInfo method))
             {
                 return false;
             }
 
+
+
             var routeValues = GetUrlData(url); // 解析 URL 获取路由参数
+
             ControllerBase controllerInstance;
             if (!_controllerAutoHosting[template])
             {
@@ -289,7 +315,9 @@ namespace Serein.Web
             }
             else
             {
+
                  controllerInstance = (ControllerBase)serviceRegistry.Instantiate(_controllerTypes[template]);// 使用反射创建控制器实例
+
 
             }
 
@@ -313,10 +341,14 @@ namespace Serein.Web
                     result = InvokeControllerMethod(method, controllerInstance, requestJObject, routeValues);
                     break;
                 default:
+
                     result = null;
+
                     break;
             }
+
             Return(response, result); // 返回结果
+
             return true;
         }
 
@@ -343,10 +375,12 @@ namespace Serein.Web
         public object InvokeControllerMethod(MethodInfo method, object controllerInstance, dynamic requestData, Dictionary<string, string> routeValues)
         {
             object?[]? cachedMethodParameters;
+
             if (!methodParameterCache.TryGetValue(method, out ParameterInfo[] parameters))
             {
                 parameters = method.GetParameters();
             }
+
             cachedMethodParameters = new object[parameters.Length];
 
             for (int i = 0; i < parameters.Length; i++)
@@ -407,7 +441,9 @@ namespace Serein.Web
 
 
             // 调用方法
+
             return method.Invoke(controllerInstance, cachedMethodParameters);
+
         }
 
 
@@ -424,15 +460,21 @@ namespace Serein.Web
 
             for (int i = 0; i < methodParameters.Length; i++)
             {
+
                 string paramName = methodParameters[i].Name;
+
+
                 if (routeValues.TryGetValue(paramName, out string? value))
                 {
                     parameters[i] = ConvertValue(value, methodParameters[i].ParameterType);
                 }
                 else
                 {
+
                     parameters[i] = null;
+
                 }
+
             }
 
             return parameters;
@@ -479,9 +521,12 @@ namespace Serein.Web
             {
                 return value;
             }
+
             try
             {
+
                 return JsonConvert.DeserializeObject(value.ToString(), targetType);
+
             }
             catch (JsonReaderException ex)
             {
@@ -493,7 +538,9 @@ namespace Serein.Web
                 int startIndex = ex.Message.IndexOf("to type '") + "to type '".Length; // 查找类型信息开始的索引
                 int endIndex = ex.Message.IndexOf('\'');  // 查找类型信息结束的索引
                 var typeInfo = ex.Message[startIndex..endIndex]; // 提取出错类型信息，该怎么传出去？
+
                 return null;
+
             }
             catch // (Exception ex)
             {
@@ -510,10 +557,14 @@ namespace Serein.Web
         /// <returns></returns>
         private static object InvokeMethod(MethodInfo method, object controllerInstance, object[] methodParameters)
         {
+
             object result = null;
+
             try
             {
+
                 result = method?.Invoke(controllerInstance, methodParameters);
+
             }
             catch (ArgumentException ex)
             {
@@ -539,7 +590,9 @@ namespace Serein.Web
             {
                 Console.WriteLine(ex.ToString());
             }
+
             return result; // 调用方法并返回结果
+
         }
 
 
@@ -561,7 +614,9 @@ namespace Serein.Web
                 foreach (string key in queryParams) // 遍历查询字符串的键值对
                 {
                     if (key == null) continue;
+
                     routeValues[key] = queryParams[key]; // 将键值对添加到路由参数字典中
+
                 }
             }
 
@@ -685,7 +740,9 @@ namespace Serein.Web
                 }
             }
 
+
             return null;
+
         }
     }
 }

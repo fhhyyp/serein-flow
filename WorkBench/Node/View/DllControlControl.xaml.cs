@@ -41,16 +41,6 @@ namespace Serein.WorkBench.Node.View
 
 
 
-
-        /// <summary>
-        /// 向条件面板添加类型的文本块
-        /// </summary>
-        /// <param name="type">要添加的类型</param>
-        public void AddCondition(MethodDetails md)
-        {
-            AddTypeToListBox(md, ConditionsListBox);
-        }
-
         /// <summary>
         /// 向动作面板添加类型的文本块
         /// </summary>
@@ -61,7 +51,7 @@ namespace Serein.WorkBench.Node.View
         }
 
         /// <summary>
-        /// 向状态面板添加类型的文本块
+        /// 向触发器面板添加类型的文本块
         /// </summary>
         /// <param name="type">要添加的类型</param>
         public void AddFlipflop(MethodDetails md)
@@ -79,7 +69,7 @@ namespace Serein.WorkBench.Node.View
             // 创建一个新的 TextBlock 并设置其属性
             TextBlock typeText = new TextBlock
             {
-                Text = $"{md.MethodName}",
+                Text = $"{md.MethodTips}",
                 Margin = new Thickness(10, 2, 0, 0),
                 Tag = md
             };
@@ -125,7 +115,9 @@ namespace Serein.WorkBench.Node.View
                  Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance))
             {
                 // 获取触发事件的 TextBlock
+
                 TextBlock typeText = sender as TextBlock;
+
                 if (typeText != null)
                 {
                     // 创建一个 DataObject 用于拖拽操作，并设置拖拽效果

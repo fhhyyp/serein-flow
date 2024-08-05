@@ -4,7 +4,12 @@ using Serein.DynamicFlow.NodeModel;
 using Serein.DynamicFlow.Tool;
 using Serein.Web;
 using SqlSugar;
+using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace DynamicDemo.Node
 {
@@ -14,12 +19,18 @@ namespace DynamicDemo.Node
         
     }
 
+
     public class NodeFlowStarter(IServiceContainer serviceContainer,List<MethodDetails> methodDetails)
+
     {
         private readonly IServiceContainer ServiceContainer = serviceContainer;
         private readonly List<MethodDetails> methodDetails = methodDetails;
+
         private Action ExitAction = null;
+
+
         private DynamicContext context = null;
+
 
         public NodeRunTcs MainCts;
 
@@ -28,6 +39,11 @@ namespace DynamicDemo.Node
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
+        //public async Task RunAsync1(List<NodeBase> nodes)
+        //{
+        //    await Task.Run(async ()=> await StartRunAsync(nodes));
+        //}
+
         public async Task RunAsync(List<NodeBase> nodes)
         {
             var startNode = nodes.FirstOrDefault(p => p.IsStart);
@@ -109,17 +125,23 @@ namespace DynamicDemo.Node
             
             try
             {
+
                 if (!DelegateCache.GlobalDicDelegates.TryGetValue(md.MethodName, out Delegate del))
                 {
                     return;
                 }
+
                 var func = md.ExplicitDatas.Length == 0 ? ((Func<object, object, Task<FlipflopContext>>)del) : ((Func<object, object[], Task<FlipflopContext>>)del);
                 
                 while (!MainCts.IsCancellationRequested) // 循环中直到栈为空才会退出
                 {
                     object?[]? parameters = singleFlipFlopNode.GetParameters(context, md);
                     // 调用委托并获取结果
+
+
                     FlipflopContext flipflopContext = await func.Invoke(md.ActingInstance, parameters);
+
+
 
                     if (flipflopContext == null)
                     {

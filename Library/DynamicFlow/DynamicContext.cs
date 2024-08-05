@@ -39,7 +39,9 @@ namespace Serein.DynamicFlow
     /// <summary>
     /// 动态流程上下文
     /// </summary>
+
     public class DynamicContext(IServiceContainer serviceContainer)
+
     {
 
         private readonly string contextGuid = "";//System.Guid.NewGuid().ToString();
