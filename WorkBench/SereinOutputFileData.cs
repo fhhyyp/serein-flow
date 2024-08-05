@@ -144,6 +144,7 @@ namespace Serein.WorkBench
         /// </summary>
 
         public string[] falseNodes { get; set; }
+        public string[] upstreamNodes { get; set; }
 
 
 
@@ -154,7 +155,6 @@ namespace Serein.WorkBench
     public class Parameterdata
     {
         public bool state { get; set; }
-
         public string value { get; set; }
         public string expression { get; set; }
 

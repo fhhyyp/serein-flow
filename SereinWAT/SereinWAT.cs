@@ -72,6 +72,7 @@ namespace Serein.Module
         public void Wait([Explicit]int time = 1000)
         {
             Thread.Sleep(time);
+            
         }
 
         [MethodDetail(DynamicNodeType.Action,"启动浏览器")]
@@ -145,7 +146,7 @@ namespace Serein.Module
 
 
         [MethodDetail(DynamicNodeType.Action,"定位元素")]
-        public IWebElement FindElement(string key, [Explicit] ByType byType = ByType.Id, [Explicit] int index = 0)
+        public IWebElement FindElement([Explicit] string key = "", [Explicit] ByType byType = ByType.XPath, [Explicit] int index = 0)
         {
             By by = byType switch
             {
@@ -176,6 +177,8 @@ namespace Serein.Module
                     actions.ContextClick(element).Perform();
                     break;
                 case ActionType.SendKeys:
+                    element.Click();
+                    element.Clear();
                     element.SendKeys(text);
                     break;
             }

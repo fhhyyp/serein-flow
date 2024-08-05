@@ -21,6 +21,7 @@ using System.Windows.Shapes;
 using static Serein.WorkBench.Connection;
 using DynamicDemo.Node;
 using Npgsql.Logging;
+using System.Threading.Tasks.Dataflow;
 
 namespace Serein.WorkBench
 {
@@ -38,8 +39,6 @@ namespace Serein.WorkBench
     /// </summary>
     public class Connection
     {
-        
-
         public required NodeControlBase Start { get; set; } // 起始TextBlock
         public required NodeControlBase End { get; set; }   // 结束TextBlock
         public required Line Line { get; set; }       // 连接的线
@@ -79,9 +78,10 @@ namespace Serein.WorkBench
             };
 
             // 设置线条的样式
-            Line.Stroke = Type == ConnectionType.IsTrue ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10"))
-                        : Type == ConnectionType.IsFalse ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F18905"))
-                                                         : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#AB616B"));
+            Line.Stroke = Type == ConnectionType.IsSucceed ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10"))
+                        : Type == ConnectionType.IsFail ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F18905"))
+                        : Type == ConnectionType.IsError ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#AB616B"))
+                                                                    : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4A82E4"));
             Line.StrokeDashArray = [dashLength, dashLength];
 
             // 创建新的 Storyboard
@@ -102,9 +102,10 @@ namespace Serein.WorkBench
             if (_animationStoryboard != null)
             {
                 _animationStoryboard.Stop();
-                Line.Stroke = Type == ConnectionType.IsTrue ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10"))
-                            : Type == ConnectionType.IsFalse ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F18905"))
-                                                         : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#AB616B"));
+                Line.Stroke = Type == ConnectionType.IsSucceed ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10"))
+                            : Type == ConnectionType.IsFail ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F18905"))
+                            : Type == ConnectionType.IsError ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#AB616B"))
+                                                                    : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4A82E4"));
                 Line.StrokeDashArray = null;
             }
         }
@@ -339,8 +340,10 @@ namespace Serein.WorkBench
             {
                 if (nodeControls.TryGetValue(node.guid, out var fromNode))
                 {
-                    ConnectNodeControlChildren(fromNode, node.trueNodes, nodeControls, ConnectionType.IsTrue);
-                    ConnectNodeControlChildren(fromNode, node.falseNodes, nodeControls, ConnectionType.IsFalse);
+                    ConnectNodeControlChildren(fromNode, node.trueNodes, nodeControls, ConnectionType.IsSucceed);
+                    ConnectNodeControlChildren(fromNode, node.falseNodes, nodeControls, ConnectionType.IsFail);
+                    //ConnectNodeControlChildren(fromNode, node.errorNodes, nodeControls, ConnectionType.IsError);
+                    ConnectNodeControlChildren(fromNode, node.upstreamNodes, nodeControls, ConnectionType.Upstream);
                 }
             }
         }
@@ -380,9 +383,10 @@ namespace Serein.WorkBench
                 {
 
                     IsHitTestVisible = true,
-                    Stroke = connectionType == ConnectionType.IsTrue ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10"))
-                            : connectionType == ConnectionType.IsFalse ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F18905"))
-                                             : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#AB616B")),
+                    Stroke = connectionType == ConnectionType.IsSucceed ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10"))
+                            : connectionType == ConnectionType.IsFail ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F18905"))
+                           : connectionType == ConnectionType.IsError ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#AB616B"))
+                                                                    : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4A82E4")),
 
                     StrokeThickness = 2,
                     X1 = Canvas.GetLeft(fromNode) + fromNode.ActualWidth / 2,
@@ -394,17 +398,21 @@ namespace Serein.WorkBench
                 ConfigureLineContextMenu(line);
                 FlowChartCanvas.Children.Add(line);
 
-                if (connectionType == ConnectionType.IsTrue)
+                if (connectionType == ConnectionType.IsSucceed)
                 {
-                    fromNode.Node.TrueBranch.Add(toNode.Node);
+                    fromNode.Node.SucceedBranch.Add(toNode.Node);
                 }
-                else if (connectionType == ConnectionType.IsFalse)
+                else if (connectionType == ConnectionType.IsFail)
                 {
-                    fromNode.Node.FalseBranch.Add(toNode.Node);
+                    fromNode.Node.FailBranch.Add(toNode.Node);
                 }
-                else if (connectionType == ConnectionType.IsEx)
+                else if (connectionType == ConnectionType.IsError)
                 {
-                    fromNode.Node.ExBranch.Add(toNode.Node);
+                    fromNode.Node.ErrorBranch.Add(toNode.Node);
+                }
+                else if (connectionType == ConnectionType.Upstream)
+                {
+                    fromNode.Node.UpstreamBranch.Add(toNode.Node);
                 }
 
                 toNode.Node.PreviousNodes.Add(fromNode.Node);
@@ -564,17 +572,20 @@ namespace Serein.WorkBench
         private void ConfigureContextMenu(NodeControlBase nodeControl)
         {
             var contextMenu = new ContextMenu();
-            contextMenu.Items.Add(CreateMenuItem("查看返回类型", (s, e) =>
+
+            if (nodeControl.Node?.MethodDetails?.ReturnType is Type returnType && returnType != typeof(void))
             {
-                if (nodeControl.Node?.MethodDetails?.ReturnType is Type returnType && returnType != typeof(void))
+                contextMenu.Items.Add(CreateMenuItem("查看返回类型", (s, e) =>
                 {
                     DisplayReturnTypeTreeViewer(returnType);
-                }
-            }));
+                }));
+            }
             contextMenu.Items.Add(CreateMenuItem("设为起点", (s, e) => SetIsStartBlock(nodeControl)));
             contextMenu.Items.Add(CreateMenuItem("删除", (s, e) => DeleteBlock(nodeControl)));
-            contextMenu.Items.Add(CreateMenuItem("添加 真分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsTrue)));
-            contextMenu.Items.Add(CreateMenuItem("添加 假分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsFalse)));
+            contextMenu.Items.Add(CreateMenuItem("添加 真分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsSucceed)));
+            contextMenu.Items.Add(CreateMenuItem("添加 假分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsFail)));
+            contextMenu.Items.Add(CreateMenuItem("添加 异常分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsError)));
+            contextMenu.Items.Add(CreateMenuItem("添加 上游分支", (s, e) => StartConnection(nodeControl, ConnectionType.Upstream)));
 
             nodeControl.ContextMenu = contextMenu;
         }
@@ -1011,10 +1022,6 @@ namespace Serein.WorkBench
 
 
 
-
-
-
-
         /// <summary>
         /// 尝试将节点放置在区域中
         /// </summary>
@@ -1285,9 +1292,10 @@ namespace Serein.WorkBench
             // 确保起点和终点位置的正确顺序
             currentLine = new Line
             {
-                Stroke = connectionType == ConnectionType.IsTrue ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10"))
-                        : connectionType == ConnectionType.IsFalse ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F18905"))
-                                                         : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#AB616B")),
+                Stroke = connectionType == ConnectionType.IsSucceed ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10"))
+                        : connectionType == ConnectionType.IsFail   ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F18905"))
+                        : connectionType == ConnectionType.IsError  ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#AB616B"))
+                                                                    : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4A82E4")),
                 StrokeDashArray = new DoubleCollection([2]),
                 StrokeThickness = 2,
                 X1 = Canvas.GetLeft(startConnectBlock) + startConnectBlock.ActualWidth / 2,
@@ -1397,9 +1405,10 @@ namespace Serein.WorkBench
                     Line line = new()
                     {
                         IsHitTestVisible = true,
-                        Stroke = currentConnectionType == ConnectionType.IsTrue ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10"))
-                                : currentConnectionType == ConnectionType.IsFalse ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F18905"))
-                                                                                  : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#AB616B")),
+                        Stroke = currentConnectionType == ConnectionType.IsSucceed ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10"))
+                                : currentConnectionType == ConnectionType.IsFail ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F18905"))
+                                : currentConnectionType == ConnectionType.IsError ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#AB616B"))
+                                                                    : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4A82E4")),
                         StrokeThickness = 2,
                         X1 = Canvas.GetLeft(startConnectBlock) + startConnectBlock.ActualWidth / 2,
                         Y1 = Canvas.GetTop(startConnectBlock) + startConnectBlock.ActualHeight / 2,
@@ -1419,17 +1428,21 @@ namespace Serein.WorkBench
                     FlowChartCanvas.Children.Add(line);
 
 
-                    if (currentConnectionType == ConnectionType.IsTrue)
+                    if (currentConnectionType == ConnectionType.IsSucceed)
                     {
-                        startConnectBlock.Node.TrueBranch.Add(targetBlock.Node);
+                        startConnectBlock.Node.SucceedBranch.Add(targetBlock.Node);
                     }
-                    else if (currentConnectionType == ConnectionType.IsFalse)
+                    else if (currentConnectionType == ConnectionType.IsFail)
                     {
-                        startConnectBlock.Node.FalseBranch.Add(targetBlock.Node);
+                        startConnectBlock.Node.FailBranch.Add(targetBlock.Node);
                     }
-                    else if (currentConnectionType == ConnectionType.IsEx)
+                    else if (currentConnectionType == ConnectionType.IsError)
                     {
-                        startConnectBlock.Node.ExBranch.Add(targetBlock.Node);
+                        startConnectBlock.Node.ErrorBranch.Add(targetBlock.Node);
+                    }
+                    else if (currentConnectionType == ConnectionType.Upstream)
+                    {
+                        startConnectBlock.Node.UpstreamBranch.Add(targetBlock.Node);
                     }
 
                     targetBlock.Node.PreviousNodes.Add(startConnectBlock.Node); // 将当前发起连接的节点，添加到被连接的节点的上一节点队列。（用于回溯）
@@ -1597,46 +1610,57 @@ namespace Serein.WorkBench
             {
                 var startNode = connection.Start.Node;
                 var endNode = connection.End.Node;
-                bool IsStart = false;
+                bool IsStartInThisConnection = false;
                 // 要删除的节点（targetNode），在连接关系中是否为起点
                 // 如果是，则需要从 targetNode 中删除子节点。
                 // 如果不是，则需要从连接关系中的起始节点删除 targetNode 。
                 if (startNode.Guid.Equals(targetNode.Guid))
                 {
-                    IsStart = true;
+                    IsStartInThisConnection = true;
                 }
 
-                if (connection.Type == ConnectionType.IsTrue)
+                if (connection.Type == ConnectionType.IsSucceed)
                 {
-                    if (IsStart)
+                    if (IsStartInThisConnection)
                     {
-                        targetNode.TrueBranch.Remove(endNode);
+                        targetNode.SucceedBranch.Remove(endNode);
                     }
                     else
                     {
-                        startNode.TrueBranch.Remove(targetNode);
+                        startNode.SucceedBranch.Remove(targetNode);
                     }
                 }
-                else if (connection.Type == ConnectionType.IsFalse)
+                else if (connection.Type == ConnectionType.IsFail)
                 {
-                    if (IsStart)
+                    if (IsStartInThisConnection)
                     {
-                        targetNode.FalseBranch.Remove(endNode);
+                        targetNode.FailBranch.Remove(endNode);
                     }
                     else
                     {
-                        startNode.FalseBranch.Remove(targetNode);
+                        startNode.FailBranch.Remove(targetNode);
                     }
                 }
-                else if (connection.Type == ConnectionType.IsEx)
+                else if (connection.Type == ConnectionType.IsError)
                 {
-                    if (IsStart)
+                    if (IsStartInThisConnection)
                     {
-                        targetNode.ExBranch.Remove(endNode);
+                        targetNode.ErrorBranch.Remove(endNode);
                     }
                     else
                     {
-                        startNode.ExBranch.Remove(targetNode);
+                        startNode.ErrorBranch.Remove(targetNode);
+                    }
+                }
+                else if (connection.Type == ConnectionType.Upstream)
+                {
+                    if (IsStartInThisConnection)
+                    {
+                        targetNode.UpstreamBranch.Remove(endNode);
+                    }
+                    else
+                    {
+                        endNode.UpstreamBranch.Remove(targetNode);
                     }
                 }
 
@@ -1725,17 +1749,17 @@ namespace Serein.WorkBench
             var StartNode = connectionToRemove.Start.Node;
             var EndNode = connectionToRemove.End.Node;
 
-            if (connectionToRemove.Type == ConnectionType.IsTrue)
+            if (connectionToRemove.Type == ConnectionType.IsSucceed)
             {
-                StartNode.TrueBranch.Remove(EndNode);
+                StartNode.SucceedBranch.Remove(EndNode);
             }
-            else if (connectionToRemove.Type == ConnectionType.IsFalse)
+            else if (connectionToRemove.Type == ConnectionType.IsFail)
             {
-                StartNode.FalseBranch.Remove(EndNode);
+                StartNode.FailBranch.Remove(EndNode);
             }
-            else if (connectionToRemove.Type == ConnectionType.IsEx)
+            else if (connectionToRemove.Type == ConnectionType.IsError)
             {
-                StartNode.ExBranch.Remove(EndNode);
+                StartNode.ErrorBranch.Remove(EndNode);
             }
 
     
@@ -1823,8 +1847,9 @@ namespace Serein.WorkBench
                 {
                     var node = item.Node;
                     Point positionRelativeToParent = item.TranslatePoint(new Point(0, 0), FlowChartCanvas);
-                    var trueNodes = item.Node.TrueBranch.Select(item => item.Guid); // 真分支
-                    var falseNodes = item.Node.FalseBranch.Select(item => item.Guid);// 加分制
+                    var trueNodes = item.Node.SucceedBranch.Select(item => item.Guid); // 真分支
+                    var falseNodes = item.Node.FailBranch.Select(item => item.Guid);// 假分支
+                    var upstreamNodes = item.Node.UpstreamBranch.Select(item => item.Guid);// 上游分支
 
                     // 常规节点的参数信息
                     List<Parameterdata> parameterData = []; 
@@ -1883,6 +1908,7 @@ namespace Serein.WorkBench
                         },
                         trueNodes = trueNodes.ToArray(),
                         falseNodes = falseNodes.ToArray(),
+                        upstreamNodes = upstreamNodes.ToArray(),
                         parameterData = parameterData.ToArray(),
                     };
 

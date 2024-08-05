@@ -13,9 +13,22 @@ namespace Serein.DynamicFlow.NodeModel
 
     public enum ConnectionType
     {
-        IsTrue,
-        IsFalse,
-        IsEx,
+        /// <summary>
+        /// 真分支
+        /// </summary>
+        IsSucceed,
+        /// <summary>
+        /// 假分支
+        /// </summary>
+        IsFail,
+        /// <summary>
+        /// 异常发生分支
+        /// </summary>
+        IsError,
+        /// <summary>
+        /// 上游分支（执行当前节点前会执行一次上游分支）
+        /// </summary>
+        Upstream,
     }
 
     /// <summary>
@@ -49,16 +62,19 @@ namespace Serein.DynamicFlow.NodeModel
         /// <summary>
         /// 下一节点集合（真分支）
         /// </summary>
-        public List<NodeBase> TrueBranch { get; set; } = [];
+        public List<NodeBase> SucceedBranch { get; set; } = [];
         /// <summary>
         /// 下一节点集合（假分支）
         /// </summary>
-        public List<NodeBase> FalseBranch { get; set; } = [];
+        public List<NodeBase> FailBranch { get; set; } = [];
         /// <summary>
         /// 异常分支
         /// </summary>
-        public List<NodeBase> ExBranch { get; set; } = [];
-
+        public List<NodeBase> ErrorBranch { get; set; } = [];
+        /// <summary>
+        /// 上游分支
+        /// </summary>
+        public List<NodeBase> UpstreamBranch { get; set; } = [];
 
         /// <summary>
         /// 当前状态（进入真分支还是假分支，异常分支在异常中确定）
@@ -95,16 +111,10 @@ namespace Serein.DynamicFlow.NodeModel
                     object?[]? parameters = GetParameters(context, MethodDetails);
                     if (md.ReturnType == typeof(void))
                     {
-
-
                         ((Action<object, object[]>)del).Invoke(md.ActingInstance, parameters);
-
-
                     }
                     else
                     {
-
-
                         result = ((Func<object, object[], object>)del).Invoke(md.ActingInstance, parameters);
 
 
@@ -173,16 +183,20 @@ namespace Serein.DynamicFlow.NodeModel
                         }
                     }
                 }
-                // context.SetFlowData(result);
-                // CurrentData = result;
             }
 
             return result;
         }
 
-
-
         public async Task ExecuteStack(DynamicContext context)
+        {
+            await Task.Run(async () =>
+            {
+                await ExecuteStackTmp(context);
+            });
+        }
+
+        public async Task ExecuteStackTmp(DynamicContext context)
         {
             var cts = context.ServiceContainer.Get<CancellationTokenSource>();
            
@@ -191,18 +205,22 @@ namespace Serein.DynamicFlow.NodeModel
 
             while (stack.Count > 0 && !cts.IsCancellationRequested) // 循环中直到栈为空才会退出循环
             {
-
                 // 从栈中弹出一个节点作为当前节点进行处理
                 var currentNode = stack.Pop();
-
-                //currentNode.MethodDetails.ActingInstance ??= context.ServiceContainer.Get(
-                //        currentNode.MethodDetails.ActingInstanceType
-                //    );
 
                 if (currentNode.MethodDetails != null)
                 {
                     currentNode.MethodDetails.ActingInstance ??= context.ServiceContainer.Get(MethodDetails.ActingInstanceType);
+                } // 设置方法执行的对象
+
+                // 获取上游分支，首先执行一次
+                var upstreamNodes = currentNode.UpstreamBranch;
+                for (int i = upstreamNodes.Count - 1; i >= 0; i--)
+                {
+                    upstreamNodes[i].PreviousNode = currentNode;
+                    await upstreamNodes[i].ExecuteStack(context);
                 }
+
 
                 if (currentNode.MethodDetails != null && currentNode.MethodDetails.MethodDynamicType == DynamicNodeType.Flipflop)
                 {
@@ -214,8 +232,8 @@ namespace Serein.DynamicFlow.NodeModel
                 }
                 
 
-                var nextNodes = currentNode.FlowState ? currentNode.TrueBranch 
-                                                         : currentNode.FalseBranch;
+                var nextNodes = currentNode.FlowState ? currentNode.SucceedBranch 
+                                                         : currentNode.FailBranch;
 
                 // 将下一个节点集合中的所有节点逆序推入栈中
                 for (int i = nextNodes.Count - 1; i >= 0; i--)
@@ -243,6 +261,9 @@ namespace Serein.DynamicFlow.NodeModel
 
                 var mdEd = md.ExplicitDatas[i];
                 Type type = mdEd.DataType;
+
+                var f1 = PreviousNode?.FlowData?.GetType();
+                var f2 = mdEd.DataType;
                 if (type == typeof(DynamicContext))
                 {
                     parameters[i] = context;
@@ -280,17 +301,19 @@ namespace Serein.DynamicFlow.NodeModel
                     }
                     else
                     {
+                        parameters[i] = "";
 
-
-                        parameters[i] = ConvertValue(mdEd.DataValue, mdEd.ExplicitType);
-
-
+                        //parameters[i] = ConvertValue(mdEd.DataValue, mdEd.ExplicitType);
                     }
+                }
+                else if ((f1 != null && f2 != null) &&  f2.IsAssignableFrom(f1) || f2.FullName.Equals(f1.FullName))
+                {
+                    parameters[i] = PreviousNode?.FlowData;
                 }
                 else
                 {
+                   
 
-                    //var tmpParameter = context.GetFlowData()?.ToString();
                     var tmpParameter = PreviousNode?.FlowData?.ToString();
                     if (mdEd.DataType.IsEnum)
                     {

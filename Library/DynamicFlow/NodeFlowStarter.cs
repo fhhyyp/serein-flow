@@ -106,7 +106,6 @@ namespace DynamicDemo.Node
             }).ToArray();
 
             
-
             try
             {
                 await Task.WhenAll([startNode.ExecuteStack(context),.. tasks]);
@@ -138,9 +137,7 @@ namespace DynamicDemo.Node
                     object?[]? parameters = singleFlipFlopNode.GetParameters(context, md);
                     // 调用委托并获取结果
 
-
                     FlipflopContext flipflopContext = await func.Invoke(md.ActingInstance, parameters);
-
 
 
                     if (flipflopContext == null)
@@ -155,7 +152,7 @@ namespace DynamicDemo.Node
                     {
                         singleFlipFlopNode.FlowState = true;
                         singleFlipFlopNode.FlowData = flipflopContext.Data;
-                        var tasks =  singleFlipFlopNode.TrueBranch.Select(nextNode =>
+                        var tasks = singleFlipFlopNode.SucceedBranch.Select(nextNode =>
                         {
                             var context = new DynamicContext(ServiceContainer);
                             nextNode.PreviousNode = singleFlipFlopNode;

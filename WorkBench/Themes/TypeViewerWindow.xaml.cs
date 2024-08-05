@@ -45,7 +45,16 @@ namespace Serein.WorkBench.Themes
             var members = type.GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
             foreach (var member in members)
             {
-                var memberNode = new TreeViewItem { Header = member.Name };
+                TreeViewItem memberNode;
+                try
+                {
+                    memberNode = new TreeViewItem { Header = member.Name };
+                }
+                catch 
+                {
+                    return;
+                }
+                
                 if (member is PropertyInfo property)
                 {
                     var propertyType = property.PropertyType;
