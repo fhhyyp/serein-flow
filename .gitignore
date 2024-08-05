@@ -1,0 +1,22 @@
+# 排除 Visual Studio 相关文件夹
+.vs/
+*.user
+*.suo
+
+# 排除编译输出文件夹
+bin/
+obj/
+
+# 排除其他常见的文件
+*.log
+*.tmp
+*.bak
+*.swp
+
+# 排除库文件
+*.dll
+*.exe
+
+# 排除发布文件夹
+.Output/
+/.git1
