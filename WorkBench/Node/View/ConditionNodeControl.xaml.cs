@@ -14,21 +14,21 @@ namespace Serein.WorkBench.Node.View
     /// </summary>
     public partial class ConditionNodeControl : NodeControlBase
     {
-        private readonly ConditionNodeControlViewModel viewModel;
+        public ConditionNodeControlViewModel ViewModel { get; }
 
         public ConditionNodeControl() : base()
         {
-            
-            viewModel = new (new ());
-            DataContext = viewModel;
+
+            ViewModel = new (new ());
+            DataContext = ViewModel;
             InitializeComponent();
         }
 
         public ConditionNodeControl(SingleConditionNode node) : base(node)
         {
             Node = node;
-            viewModel = new ConditionNodeControlViewModel(node);
-            DataContext = viewModel;
+            ViewModel = new ConditionNodeControlViewModel(node);
+            DataContext = ViewModel;
             InitializeComponent();
         }
 

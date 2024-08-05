@@ -22,20 +22,19 @@ namespace Serein.WorkBench.Node.View
     /// </summary>
     public partial class ExpOpNodeControl : NodeControlBase
     {
-        private readonly ExpOpNodeViewModel viewModel;
-
+        public ExpOpNodeViewModel ViewModel { get; }
 
         public ExpOpNodeControl()
         {
-            viewModel = new (new());
-            DataContext = viewModel;
+            ViewModel = new (new());
+            DataContext = ViewModel;
             InitializeComponent();
         }
         public ExpOpNodeControl(SingleExpOpNode node):base(node)
         {
             Node = node;
-            viewModel = new(node);
-            DataContext = viewModel;
+            ViewModel = new(node);
+            DataContext = ViewModel;
             InitializeComponent();
         }
 

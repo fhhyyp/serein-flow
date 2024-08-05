@@ -12,7 +12,9 @@ namespace Serein.DynamicFlow.NodeModel
     /// </summary>
     public class SingleExpOpNode : NodeBase
     {
-
+        /// <summary>
+        /// 表达式
+        /// </summary>
         public string Expression { get; set; }
 
 

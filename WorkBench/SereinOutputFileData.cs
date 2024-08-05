@@ -156,6 +156,7 @@ namespace Serein.WorkBench
         public bool state { get; set; }
 
         public string value { get; set; }
+        public string expression { get; set; }
 
     }
 
@@ -175,10 +176,7 @@ namespace Serein.WorkBench
     /// </summary>
     public class Region
     {
-
         public string guid { get; set; }
-
-
         public NodeInfo[] childNodes { get; set; }
 
     }

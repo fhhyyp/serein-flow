@@ -20,6 +20,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Shapes;
 using static Serein.WorkBench.Connection;
 using DynamicDemo.Node;
+using Npgsql.Logging;
 
 namespace Serein.WorkBench
 {
@@ -451,18 +452,20 @@ namespace Serein.WorkBench
         /// <returns></returns>
         private NodeControlBase CreateNodeControl(NodeInfo nodeInfo)
         {
-            if (!DllMethodDetails.TryGetValue(nodeInfo.name, out var md))
+            MethodDetails md = null;
+            if (!string.IsNullOrWhiteSpace(nodeInfo.name))
             {
-                WriteLog($"目标节点不存在方法信息: {nodeInfo.name}\r\n"); 
-
-                return null;
-
+                DllMethodDetails.TryGetValue(nodeInfo.name, out md);
             }
+           
             NodeControlBase control = nodeInfo.type switch
             {
                 $"{NodeSpaceName}.{nameof(SingleActionNode)}" => CreateNodeControl<SingleActionNode, ActionNodeControl>(md),
-                $"{NodeSpaceName}.{nameof(SingleConditionNode)}" => CreateNodeControl<SingleConditionNode, ConditionNodeControl>(md),
                 $"{NodeSpaceName}.{nameof(SingleFlipflopNode)}" => CreateNodeControl<SingleFlipflopNode, FlipflopNodeControl>(md),
+
+                $"{NodeSpaceName}.{nameof(SingleConditionNode)}" => CreateNodeControl<SingleConditionNode, ConditionNodeControl>(), // 条件表达式控件
+                $"{NodeSpaceName}.{nameof(SingleExpOpNode)}"  => CreateNodeControl<SingleExpOpNode, ExpOpNodeControl>(), // 操作表达式控件
+
                 $"{NodeSpaceName}.{nameof(CompositeActionNode)}" => CreateNodeControl<CompositeActionNode, ActionRegionControl>(),
                 $"{NodeSpaceName}.{nameof(CompositeConditionNode)}" => CreateNodeControl<CompositeConditionNode, ConditionRegionControl>(),
                 _ => throw new NotImplementedException($"非预期的节点类型{nodeInfo.type}"),
@@ -480,14 +483,30 @@ namespace Serein.WorkBench
             var node = control.Node;
             if (node != null)
             {
+                node.Guid = nodeInfo.guid;
                 for (int i = 0; i < nodeInfo.parameterData.Length; i++)
                 {
                     Parameterdata? pd = nodeInfo.parameterData[i];
-                    node.MethodDetails.ExplicitDatas[i].IsExplicitData = pd.state;
-                    node.MethodDetails.ExplicitDatas[i].DataValue = pd.value;
+                    if (control is  ConditionNodeControl conditionNodeControl)
+                    {
+                        conditionNodeControl.ViewModel.IsCustomData = pd.state;
+                        conditionNodeControl.ViewModel.CustomData = pd.value;
+                        conditionNodeControl.ViewModel.Expression = pd.expression;
+                    }
+                    else if (control is ExpOpNodeControl expOpNodeControl)
+                    {
+                        expOpNodeControl.ViewModel.Expression = pd.expression;
+                    }
+                    else 
+                    {
+                        node.MethodDetails.ExplicitDatas[i].IsExplicitData = pd.state;
+                        node.MethodDetails.ExplicitDatas[i].DataValue = pd.value;
+                    }
                 }
             }
-            
+
+           
+           
 
 
             return control;// DNF文件加载时创建
@@ -516,6 +535,7 @@ namespace Serein.WorkBench
                 throw new Exception("无法创建节点控件");
             }
 
+            
             nodeBase.Guid = Guid.NewGuid().ToString();
 
             if (methodDetails != null)
@@ -1798,49 +1818,72 @@ namespace Serein.WorkBench
         {
             try
             {
-                // 保存节点
-                var nodeObjs = nodeControls.Select(item =>
+                // 生成节点信息
+                var nodeInfos = nodeControls.Select(item =>
                 {
                     var node = item.Node;
                     Point positionRelativeToParent = item.TranslatePoint(new Point(0, 0), FlowChartCanvas);
-                    var trueNodes = item.Node.TrueBranch.Select(item => item.Guid).ToArray();
-                    var falseNodes = item.Node.FalseBranch.Select(item => item.Guid).ToArray();
+                    var trueNodes = item.Node.TrueBranch.Select(item => item.Guid); // 真分支
+                    var falseNodes = item.Node.FalseBranch.Select(item => item.Guid);// 加分制
 
-                    IEnumerable<object?>? parameterData = []; 
-                    if (node?.MethodDetails?.ExplicitDatas is not null)
+                    // 常规节点的参数信息
+                    List<Parameterdata> parameterData = []; 
+                    if (node?.MethodDetails?.ExplicitDatas is not null
+                        && (node.MethodDetails.MethodDynamicType == DynamicNodeType.Action
+                         || node.MethodDetails.MethodDynamicType == DynamicNodeType.Flipflop))
                     {
-                        parameterData = node?.MethodDetails.ExplicitDatas.Select(it => {
-
-                            if (it != null)
+                        parameterData = node.MethodDetails
+                                            .ExplicitDatas
+                                            .Where(it => it is not null)
+                                            .Select(it => new Parameterdata
+                                            {
+                                                state = it.IsExplicitData,
+                                                value = it.DataValue
+                                            })
+                                            .ToList();
+                    }
+                    else if (node is SingleExpOpNode expOpNode)
+                    {
+                        parameterData.Add(new Parameterdata
+                        {
+                            state = true,
+                            expression = expOpNode.Expression,
+                        });
+                    }
+                    else if (node is SingleConditionNode conditionNode)
+                    {
+                        parameterData.Add(new Parameterdata
+                        {
+                            state = conditionNode.IsCustomData,
+                            expression = conditionNode.Expression,
+                            value = conditionNode.CustomData switch
                             {
-                                return new
-                                {
-                                    state = it.IsExplicitData,
-                                    value = it.DataValue,
-                                };
-                            }
-                            else
-                            {
-                                return null;
+                                Type when conditionNode.CustomData.GetType() == typeof(int)
+                                           && conditionNode.CustomData.GetType() == typeof(double) 
+                                           && conditionNode.CustomData.GetType() == typeof(float) 
+                                                => ((double)conditionNode.CustomData).ToString(),
+                                Type when conditionNode.CustomData.GetType() == typeof(bool) => ((bool)conditionNode.CustomData).ToString(),
+                                _ => conditionNode.CustomData?.ToString()!,
                             }
                         });
                     }
 
+                    
 
-                    return new
+                    return new NodeInfo
                     {
                         guid = node.Guid,
                         name = node.MethodDetails?.MethodName,
                         label = node.DisplayName ?? "",
                         type = node.GetType().ToString(),
-                        position = new
+                        position = new Position
                         {
-                            x = positionRelativeToParent.X,
-                            y = positionRelativeToParent.Y,
+                            x = (float)positionRelativeToParent.X,
+                            y = (float)positionRelativeToParent.Y,
                         },
-                        trueNodes = trueNodes,
-                        falseNodes = falseNodes,
-                        parameterData = parameterData,
+                        trueNodes = trueNodes.ToArray(),
+                        falseNodes = falseNodes.ToArray(),
+                        parameterData = parameterData.ToArray(),
                     };
 
                 }).ToList();
@@ -1962,7 +2005,7 @@ namespace Serein.WorkBench
                     },
                     ["library"] = JArray.FromObject(dlls),
                     ["startNode"] = flowStartBlock == null ? "" : flowStartBlock.Node.Guid,
-                    ["nodes"] = JArray.FromObject(nodeObjs),
+                    ["nodes"] = JArray.FromObject(nodeInfos),
                     ["regions"] = JArray.FromObject(regionObjs),
                 };
                 // WriteLog(keyValuePairs.ToString());
