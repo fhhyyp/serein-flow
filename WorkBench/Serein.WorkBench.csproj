@@ -1,0 +1,52 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows7.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>True</UseWPF>
+    <BaseOutputPath>D:\Project\C#\DynamicControl\SereinFlow\.Output</BaseOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Node\NodeModel\**" />
+    <Compile Remove="Themes\Condition\**" />
+    <EmbeddedResource Remove="Node\NodeModel\**" />
+    <EmbeddedResource Remove="Themes\Condition\**" />
+    <None Remove="Node\NodeModel\**" />
+    <None Remove="Themes\Condition\**" />
+    <Page Remove="Node\NodeModel\**" />
+    <Page Remove="Themes\Condition\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Node\FlipflopRegionControl.xaml.cs" />
+    <Compile Remove="Node\NodeBase.cs" />
+    <Compile Remove="Themes\ConditionControl.xaml.cs" />
+    <Compile Remove="Themes\ConditionControlModel.cs" />
+    <Compile Remove="Themes\ExplicitDataControl.xaml.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Page Remove="Node\FlipflopRegionControl.xaml" />
+    <Page Remove="Themes\ConditionControl.xaml" />
+    <Page Remove="Themes\ExplicitDataControl.xaml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--<ProjectReference Include="..\DynamicControl\DynamicControl.csproj" />-->
+    <ProjectReference Include="..\Library\Serein.Library.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Themes\MethodDetailsControl.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+  </ItemGroup>
+
+</Project>
