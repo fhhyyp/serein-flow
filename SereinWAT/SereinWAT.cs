@@ -17,6 +17,29 @@ namespace Serein.Module
         IE,
         Firefox,
     }
+    public enum ByType
+    {
+        XPath,
+        Id,
+        Class,
+        Name,
+        CssSelector,
+        PartialLinkText,
+    }
+    public enum ScriptOp
+    {
+        Add,
+        Modify,
+        Delete,
+    }
+    public enum ActionType
+    {
+        Click,
+        DoubleClick,
+        RightClick,
+        SendKeys
+    }
+
 
     /// <summary>
     /// 网页自动化测试
@@ -45,9 +68,14 @@ namespace Serein.Module
         }
         #endregion
 
+        [MethodDetail(DynamicNodeType.Action,"等待")]
+        public void Wait([Explicit]int time = 1000)
+        {
+            Thread.Sleep(time);
+        }
+
         [MethodDetail(DynamicNodeType.Action,"启动浏览器")]
-        public WebDriver OpenDriver([Explicit] bool isVisible = true,
-                                    [Explicit] DriverType driverType = DriverType.Chrome)
+        public WebDriver OpenDriver([Explicit] bool isVisible = true,[Explicit] DriverType driverType = DriverType.Chrome)
         {
 
 
@@ -102,12 +130,6 @@ namespace Serein.Module
             
         }
 
-        [MethodDetail(DynamicNodeType.Action,"等待")]
-        public void Wait([Explicit]int time = 1000)
-        {
-            Thread.Sleep(time);
-        }
-
         [MethodDetail(DynamicNodeType.Action,"进入网页")]
         public void ToPage([Explicit] string url)
         {
@@ -121,29 +143,64 @@ namespace Serein.Module
             }
         }
 
-        [MethodDetail(DynamicNodeType.Action,"XPath定位元素")]
-        public IWebElement XPathFind(string xpath,
-                              [Explicit] int index = 0)
+
+        [MethodDetail(DynamicNodeType.Action,"定位元素")]
+        public IWebElement FindElement(string key, [Explicit] ByType byType = ByType.Id, [Explicit] int index = 0)
         {
-            var element = WebDriver.FindElements(By.XPath(xpath))[0];
+            By by = byType switch
+            {
+                ByType.Id => By.Id(key),
+                ByType.XPath => By.XPath(key),
+                ByType.Class => By.ClassName(key),
+                ByType.Name => By.Name(key),
+                ByType.CssSelector => By.CssSelector(key),
+                ByType.PartialLinkText => By.PartialLinkText(key),
+            };
+            var element = WebDriver.FindElements(by)[index];
             return element;
         }
-
-        [MethodDetail(DynamicNodeType.Action,"Js添加元素内部属性")]
-        public void AddAttribute(IWebElement element, [Explicit] string attributeName = "", [Explicit] string value = "")
+        [MethodDetail(DynamicNodeType.Action, "操作元素")]
+        public void PerformAction(IWebElement element, [Explicit] ActionType actionType = ActionType.Click, [Explicit] string text = "")
         {
-            //IJavaScriptExecutor js = (IJavaScriptExecutor)Driver;
-            WebDriver.ExecuteScript($"arguments[0].{attributeName} = arguments[1];", element, value);
+            var actions = new OpenQA.Selenium.Interactions.Actions(WebDriver);
+
+            switch (actionType)
+            {
+                case ActionType.Click:
+                    actions.Click(element).Perform();
+                    break;
+                case ActionType.DoubleClick:
+                    actions.DoubleClick(element).Perform();
+                    break;
+                case ActionType.RightClick:
+                    actions.ContextClick(element).Perform();
+                    break;
+                case ActionType.SendKeys:
+                    element.SendKeys(text);
+                    break;
+            }
         }
 
-        [MethodDetail(DynamicNodeType.Action, "Js设置元素内部属性")]
-        public void SetAttribute(IWebElement element, [Explicit] string attributeName = "", [Explicit] string value = "")
+
+        [MethodDetail(DynamicNodeType.Action,"Js操作元素属性")]
+        public void AddAttribute(IWebElement element, [Explicit] ScriptOp scriptOp = ScriptOp.Modify,[Explicit] string attributeName = "", [Explicit] string value = "")
         {
-            //IJavaScriptExecutor js = (IJavaScriptExecutor)Driver;
-            WebDriver.ExecuteScript("arguments[0].setAttribute(arguments[1], arguments[2]);", element, attributeName, value);
+            if(scriptOp == ScriptOp.Add)
+            {
+                WebDriver.ExecuteScript($"arguments[0].{attributeName} = arguments[1];", element, value);
+            }
+            else if (scriptOp == ScriptOp.Modify)
+            {
+                WebDriver.ExecuteScript("arguments[0].setAttribute(arguments[1], arguments[2]);", element, attributeName, value);
+            }
+            else if (scriptOp == ScriptOp.Delete)
+            {
+                WebDriver.ExecuteScript("arguments[0].removeAttribute(arguments[1]);", element, attributeName);
+            }
         }
 
-        [MethodDetail(DynamicNodeType.Action, "Js获取元素内部属性")]
+
+        [MethodDetail(DynamicNodeType.Action, "Js获取元素属性")]
         public string GetAttribute(IWebElement element, [Explicit] string attributeName = "")
         {
             return element.GetAttribute(attributeName);
