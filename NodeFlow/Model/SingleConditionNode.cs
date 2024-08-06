@@ -1,6 +1,6 @@
-﻿using Serein.Flow.SerinExpression;
+﻿using Serein.NodeFlow.SerinExpression;
 
-namespace Serein.Flow.NodeModel
+namespace Serein.NodeFlow.Model
 {
     /// <summary>
     /// 条件节点（用于条件控件）

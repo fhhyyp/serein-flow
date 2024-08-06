@@ -1,7 +1,8 @@
 ﻿using Newtonsoft.Json;
-using Serein.Flow.Tool;
+using Serein.NodeFlow;
+using Serein.NodeFlow.Tool;
 
-namespace Serein.Flow.NodeModel
+namespace Serein.NodeFlow.Model
 {
 
     public enum ConnectionType
@@ -192,8 +193,8 @@ namespace Serein.Flow.NodeModel
         public async Task ExecuteStackTmp(DynamicContext context)
         {
             var cts = context.ServiceContainer.Get<CancellationTokenSource>();
-           
-            Stack<NodeBase> stack =[];
+
+            Stack<NodeBase> stack = [];
             stack.Push(this);
 
             while (stack.Count > 0 && !cts.IsCancellationRequested) // 循环中直到栈为空才会退出循环
@@ -223,9 +224,9 @@ namespace Serein.Flow.NodeModel
                 {
                     currentNode.FlowData = currentNode.Execute(context);
                 }
-                
 
-                var nextNodes = currentNode.FlowState ? currentNode.SucceedBranch 
+
+                var nextNodes = currentNode.FlowState ? currentNode.SucceedBranch
                                                          : currentNode.FailBranch;
 
                 // 将下一个节点集合中的所有节点逆序推入栈中
@@ -236,7 +237,7 @@ namespace Serein.Flow.NodeModel
                 }
             }
         }
-        
+
 
         public object[]? GetParameters(DynamicContext context, MethodDetails md)
         {
@@ -248,7 +249,7 @@ namespace Serein.Flow.NodeModel
             }
 
             object[]? parameters = new object[types.Length];
-            
+
             for (int i = 0; i < types.Length; i++)
             {
 
@@ -299,13 +300,13 @@ namespace Serein.Flow.NodeModel
                         //parameters[i] = ConvertValue(mdEd.DataValue, mdEd.ExplicitType);
                     }
                 }
-                else if ((f1 != null && f2 != null) &&  f2.IsAssignableFrom(f1) || f2.FullName.Equals(f1.FullName))
+                else if (f1 != null && f2 != null && f2.IsAssignableFrom(f1) || f2.FullName.Equals(f1.FullName))
                 {
                     parameters[i] = PreviousNode?.FlowData;
                 }
                 else
                 {
-                   
+
 
                     var tmpParameter = PreviousNode?.FlowData?.ToString();
                     if (mdEd.DataType.IsEnum)
@@ -341,7 +342,7 @@ namespace Serein.Flow.NodeModel
                     }
                     else
                     {
-                        if (tmpParameter != null && mdEd.DataType!= null)
+                        if (tmpParameter != null && mdEd.DataType != null)
                         {
 
                             parameters[i] = ConvertValue(tmpParameter, mdEd.DataType);
@@ -379,7 +380,7 @@ namespace Serein.Flow.NodeModel
                 int startIndex = ex.Message.IndexOf("to type '") + "to type '".Length; // 查找类型信息开始的索引
                 int endIndex = ex.Message.IndexOf('\'');  // 查找类型信息结束的索引
                 var typeInfo = ex.Message[startIndex..endIndex]; // 提取出错类型信息，该怎么传出去？
-                Console.WriteLine("无法转为对应的JSON对象:"+typeInfo);
+                Console.WriteLine("无法转为对应的JSON对象:" + typeInfo);
                 return null;
             }
             catch // (Exception ex)

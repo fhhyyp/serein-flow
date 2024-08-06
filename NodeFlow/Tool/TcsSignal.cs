@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
+using Serein.NodeFlow;
 
-namespace Serein.Flow.Tool
+namespace Serein.NodeFlow.Tool
 {
     public class TcsSignalException : Exception
     {
@@ -34,10 +35,10 @@ namespace Serein.Flow.Tool
 
 
         }
-        
+
         public TaskCompletionSource<object> CreateTcs(TSignal signal)
         {
-            
+
             var tcs = new TaskCompletionSource<object>();
             TcsEvent.GetOrAdd(signal, _ => new Stack<TaskCompletionSource<object>>()).Push(tcs);
             return tcs;
@@ -62,7 +63,7 @@ namespace Serein.Flow.Tool
 
         public void CancelTask()
         {
-            lock(TcsEvent)
+            lock (TcsEvent)
             {
 
                 foreach (var tcss in TcsEvent.Values)

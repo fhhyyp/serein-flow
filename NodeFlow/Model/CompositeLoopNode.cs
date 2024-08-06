@@ -1,4 +1,4 @@
-﻿namespace Serein.Flow.NodeModel
+﻿namespace Serein.NodeFlow.Model
 {
     public class CompositeLoopNode : NodeBase
     {

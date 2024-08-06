@@ -1,4 +1,4 @@
-﻿using Serein.Flow.NodeModel;
+﻿using Serein.NodeFlow.Model;
 using Serein.WorkBench.Node.ViewModel;
 
 namespace Serein.WorkBench.Node.View

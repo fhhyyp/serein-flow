@@ -1,13 +1,12 @@
-﻿using Serein.WorkBench.Node;
+﻿using Microsoft.Win32;
+using Newtonsoft.Json.Linq;
+using Serein.Library.IOC;
+using Serein.NodeFlow;
+using Serein.NodeFlow.Model;
+using Serein.NodeFlow.Tool;
 using Serein.WorkBench.Node.View;
 using Serein.WorkBench.Themes;
 using Serein.WorkBench.tool;
-using Microsoft.Win32;
-using Newtonsoft.Json.Linq;
-using Serein;
-using Serein.Flow;
-using Serein.Flow.NodeModel;
-using Serein.Flow.Tool;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
@@ -18,11 +17,6 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Shapes;
-using static Serein.WorkBench.Connection;
-using DynamicDemo.Node;
-using Npgsql.Logging;
-using System.Threading.Tasks.Dataflow;
-using Serein.Library.IOC;
 
 namespace Serein.WorkBench
 {
@@ -121,7 +115,7 @@ namespace Serein.WorkBench
         /// <summary>
         /// 节点的命名空间
         /// </summary>
-        public const string NodeSpaceName = $"{nameof(Serein)}.{nameof(Serein.Flow)}.{nameof(Serein.Flow.NodeModel)}";
+        public const string NodeSpaceName = $"{nameof(Serein)}.{nameof(Serein.NodeFlow)}.{nameof(Serein.NodeFlow.Model)}";
         /// <summary>
         /// 一种轻量的IOC容器
         /// </summary>

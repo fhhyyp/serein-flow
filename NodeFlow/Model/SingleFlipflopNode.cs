@@ -1,4 +1,6 @@
-﻿namespace Serein.Flow.NodeModel
+﻿using Serein.NodeFlow;
+
+namespace Serein.NodeFlow.Model
 {
 
     public class SingleFlipflopNode : NodeBase

@@ -1,13 +1,11 @@
-﻿
-namespace Serein.Flow.NodeModel
+﻿namespace Serein.NodeFlow.Model
 {
-
     /// <summary>
     /// 组合条件节点（用于条件区域）
     /// </summary>
     public class CompositeConditionNode : NodeBase
     {
-        public List<SingleConditionNode> ConditionNodes { get; } =[];
+        public List<SingleConditionNode> ConditionNodes { get; } = [];
 
 
         public void AddNode(SingleConditionNode node)

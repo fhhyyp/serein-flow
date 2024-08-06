@@ -1,8 +1,5 @@
-﻿using Serein.Flow;
-using Serein.Flow.NodeModel;
+﻿using Serein.NodeFlow.Model;
 using Serein.WorkBench.Node.View;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace Serein.WorkBench.Node.ViewModel
 {

@@ -1,8 +1,9 @@
 ﻿using Serein.Library.IOC;
+using Serein.NodeFlow;
 using System.Collections.Concurrent;
 using System.Reflection;
 
-namespace Serein.Flow.Tool;
+namespace Serein.NodeFlow.Tool;
 
 
 public static class DelegateCache
@@ -10,7 +11,7 @@ public static class DelegateCache
     /// <summary>
     /// 委托缓存全局字典
     /// </summary>
-    public static ConcurrentDictionary<string, Delegate> GlobalDicDelegates { get;  } = new ConcurrentDictionary<string, Delegate>();
+    public static ConcurrentDictionary<string, Delegate> GlobalDicDelegates { get; } = new ConcurrentDictionary<string, Delegate>();
 }
 
 public static class DelegateGenerator
@@ -73,7 +74,7 @@ public static class DelegateGenerator
         object instance = serviceContainer.GetOrCreateServiceInstance(type);
         var dllTypeMethodName = $"{assemblyName}.{type.Name}.{method.Name}";
 
-        
+
 
         return new MethodDetails
         {
@@ -140,7 +141,7 @@ public static class DelegateGenerator
             "Bool" => ["True", "False"],
             _ => []
         };
-        
+
     }
 
     private static Delegate GenerateMethodDelegate(Type type, MethodInfo methodInfo, ParameterInfo[] parameters, Type returnType)
@@ -158,7 +159,7 @@ public static class DelegateGenerator
             else
             {
                 // 无返回值，有参数
-                return  ExpressionHelper.MethodCaller(type, methodInfo, parameterTypes);
+                return ExpressionHelper.MethodCaller(type, methodInfo, parameterTypes);
             }
         }
         else if (returnType == typeof(Task<FlipflopContext>)) // 触发器
@@ -166,26 +167,26 @@ public static class DelegateGenerator
             if (parameterCount == 0)
             {
                 // 有返回值，无参数
-                return ExpressionHelper.MethodCallerAsync(type, methodInfo); 
-            }
-            else
-            { 
-                // 有返回值，有参数
-                return  ExpressionHelper.MethodCallerAsync(type, methodInfo, parameterTypes); 
-            } 
-        }
-        else
-        {
-            if (parameterCount == 0)
-            { 
-                // 有返回值，无参数
-                return ExpressionHelper.MethodCallerHaveResult(type, methodInfo); 
+                return ExpressionHelper.MethodCallerAsync(type, methodInfo);
             }
             else
             {
                 // 有返回值，有参数
-                return ExpressionHelper.MethodCallerHaveResult(type, methodInfo, parameterTypes); 
-            } 
+                return ExpressionHelper.MethodCallerAsync(type, methodInfo, parameterTypes);
+            }
+        }
+        else
+        {
+            if (parameterCount == 0)
+            {
+                // 有返回值，无参数
+                return ExpressionHelper.MethodCallerHaveResult(type, methodInfo);
+            }
+            else
+            {
+                // 有返回值，有参数
+                return ExpressionHelper.MethodCallerHaveResult(type, methodInfo, parameterTypes);
+            }
         }
     }
 

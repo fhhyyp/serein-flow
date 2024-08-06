@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Library\Serein.Library.csproj" />
+    <ProjectReference Include="..\NodeFlow\Serein.NodeFlow.csproj" />
   </ItemGroup>
 
 </Project>

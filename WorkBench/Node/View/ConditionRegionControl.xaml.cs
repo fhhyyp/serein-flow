@@ -1,10 +1,8 @@
-﻿using Serein.Flow;
-using Serein.Flow.NodeModel;
+﻿using Serein.NodeFlow.Model;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
-using static Serein.WorkBench.MainWindow;
 
 namespace Serein.WorkBench.Node.View
 {

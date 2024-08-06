@@ -1,4 +1,4 @@
-﻿namespace Serein.Flow.NodeModel
+﻿namespace Serein.NodeFlow.Model
 {
     /// <summary>
     /// 单动作节点（用于动作控件)

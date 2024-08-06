@@ -1,6 +1,12 @@
-﻿using Serein.Flow.SerinExpression;
+﻿using Serein.NodeFlow;
+using Serein.NodeFlow.SerinExpression;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace Serein.Flow.NodeModel
+namespace Serein.NodeFlow.Model
 {
     /// <summary>
     /// Expression Operation - 表达式操作

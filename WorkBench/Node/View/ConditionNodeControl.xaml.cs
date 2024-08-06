@@ -1,11 +1,5 @@
-﻿using Serein.Flow;
-using Serein.Flow.NodeModel;
+﻿using Serein.NodeFlow.Model;
 using Serein.WorkBench.Node.ViewModel;
-using static Serein.WorkBench.MainWindow;
-using System.Windows.Controls;
-using System.Windows.Input;
-using System.Windows;
-using static Dm.net.buffer.ByteArrayBuffer;
 
 namespace Serein.WorkBench.Node.View
 {

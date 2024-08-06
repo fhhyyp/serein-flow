@@ -1,8 +1,9 @@
 ﻿using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
+using Serein.NodeFlow;
 
-namespace Serein.Flow.Tool
+namespace Serein.NodeFlow.Tool
 {
     /// <summary>
     /// 对于实例创建的表达式树反射
@@ -191,7 +192,7 @@ namespace Serein.Flow.Tool
             var methodCall = Expression.Call(
                 Expression.Convert(instanceParam, type),
                 methodInfo,
-                (Expression[])convertedArgs
+                convertedArgs
             );
 
             // 创建 lambda 表达式
@@ -299,7 +300,7 @@ namespace Serein.Flow.Tool
         /// </summary>
         public static Delegate MethodCallerAsync(Type type, MethodInfo method, params Type[] parameterTypes)
         {
-            
+
             string cacheKey = $"{type.FullName}.{method.Name}.MethodCallerAsync";
             return Cache.GetOrAdd(cacheKey, _ => CreateMethodCallerDelegateAsync(type, method, parameterTypes));
         }
@@ -312,8 +313,8 @@ namespace Serein.Flow.Tool
             var argsParam = Expression.Parameter(typeof(object[]), "args");
 
             // 创建参数表达式
-            var convertedArgs = parameterTypes.Select((paramType, index) => 
-                Expression.Convert(Expression.ArrayIndex(argsParam, Expression.Constant(index)),paramType)
+            var convertedArgs = parameterTypes.Select((paramType, index) =>
+                Expression.Convert(Expression.ArrayIndex(argsParam, Expression.Constant(index)), paramType)
             ).ToArray();
 
 
@@ -321,7 +322,7 @@ namespace Serein.Flow.Tool
             var methodCall = Expression.Call(
                 Expression.Convert(instanceParam, type),
                 methodInfo,
-                (Expression[])convertedArgs
+                convertedArgs
             );
 
             // 创建 lambda 表达式

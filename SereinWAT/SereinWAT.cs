@@ -3,9 +3,7 @@ using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Edge;
 using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.IE;
-using Serein.Flow;
-using Serein.Flow.Tool;
-using System.Diagnostics.CodeAnalysis;
+using Serein.NodeFlow;
 
 namespace Serein.Module
 {
