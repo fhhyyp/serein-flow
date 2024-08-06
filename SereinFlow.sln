@@ -11,7 +11,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Library", "Library\S
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Module.WAT", "SereinWAT\Serein.Module.WAT.csproj", "{C2F68A15-5D07-4418-87C0-E7402DD9F83A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Serein.NodeFlow", "NodeFlow\Serein.NodeFlow.csproj", "{5C8444EB-A8D6-48BE-915D-82A585B93F2E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.NodeFlow", "NodeFlow\Serein.NodeFlow.csproj", "{7B51A19A-88AB-471E-BCE3-3888C67C936D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -35,10 +35,10 @@ Global
 		{C2F68A15-5D07-4418-87C0-E7402DD9F83A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C2F68A15-5D07-4418-87C0-E7402DD9F83A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C2F68A15-5D07-4418-87C0-E7402DD9F83A}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5C8444EB-A8D6-48BE-915D-82A585B93F2E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5C8444EB-A8D6-48BE-915D-82A585B93F2E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5C8444EB-A8D6-48BE-915D-82A585B93F2E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5C8444EB-A8D6-48BE-915D-82A585B93F2E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7B51A19A-88AB-471E-BCE3-3888C67C936D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7B51A19A-88AB-471E-BCE3-3888C67C936D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7B51A19A-88AB-471E-BCE3-3888C67C936D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7B51A19A-88AB-471E-BCE3-3888C67C936D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
