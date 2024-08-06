@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using static Dm.net.buffer.ByteArrayBuffer;
 
-namespace Serein.DynamicFlow
+namespace Serein.Flow
 {
     /// <summary>
     /// 显式参数

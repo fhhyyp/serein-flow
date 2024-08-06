@@ -2,7 +2,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-namespace Serein.DynamicFlow.SerinExpression
+namespace Serein.Flow.SerinExpression
 {
 
     public abstract class ConditionResolver

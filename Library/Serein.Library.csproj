@@ -15,7 +15,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="ServiceContainer.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="SqlSugarCore" Version="5.1.4.166" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LibraryIOC\Serein.Library.IOC.csproj" />
   </ItemGroup>
 
 </Project>

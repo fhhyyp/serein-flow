@@ -3,9 +3,8 @@ using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Edge;
 using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.IE;
-using Serein.DynamicFlow;
-using Serein.DynamicFlow.Tool;
-using Serein.Web;
+using Serein.Flow;
+using Serein.Flow.Tool;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Serein.Module

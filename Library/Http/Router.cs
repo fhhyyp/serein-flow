@@ -1,8 +1,10 @@
-﻿using Serein.Tool;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Serein.Library.IOC;
+using Serein.Tool;
 using System.Collections;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Net;
 using System.Reflection;
 using System.Text;
@@ -10,7 +12,7 @@ using System.Web;
 using Enum = System.Enum;
 using Type = System.Type;
 
-namespace Serein.Web
+namespace Serein.Library.Http
 {
 
 

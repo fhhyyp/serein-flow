@@ -1,4 +1,4 @@
-﻿using Serein.DynamicFlow.NodeModel;
+﻿using Serein.Flow.NodeModel;
 using Serein.WorkBench.Node.ViewModel;
 using System;
 using System.Collections.Generic;

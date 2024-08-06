@@ -1,4 +1,5 @@
 ﻿using DynamicDemo.Node;
+using Serein.Library.IOC;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -9,7 +10,7 @@ using System.Threading.Tasks;
 using static System.Collections.Specialized.BitVector32;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
-namespace Serein.DynamicFlow
+namespace Serein.Flow
 {
 
     public enum FfState

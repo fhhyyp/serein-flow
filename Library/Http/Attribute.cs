@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Serein.Web
+namespace Serein.Library.Http
 {
     /// <summary>
     /// 表示参数为url中的数据（Get请求中不需要显式标注）

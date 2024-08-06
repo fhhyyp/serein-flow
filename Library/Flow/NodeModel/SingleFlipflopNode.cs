@@ -1,6 +1,6 @@
-﻿using Serein.DynamicFlow.Tool;
+﻿using Serein.Flow.Tool;
 
-namespace Serein.DynamicFlow.NodeModel
+namespace Serein.Flow.NodeModel
 {
 
     public class SingleFlipflopNode : NodeBase

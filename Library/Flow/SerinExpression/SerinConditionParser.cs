@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Linq;
 using System.Reflection;
 
-namespace Serein.DynamicFlow.SerinExpression;
+namespace Serein.Flow.SerinExpression;
 
 public class SerinConditionParser
 {

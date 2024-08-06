@@ -6,7 +6,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading.Tasks;
 
-namespace Serein.DynamicFlow.Tool
+namespace Serein.Flow.Tool
 {
     /// <summary>
     /// 对于实例创建的表达式树反射

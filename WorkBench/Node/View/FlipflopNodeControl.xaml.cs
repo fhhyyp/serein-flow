@@ -1,5 +1,5 @@
-﻿using Serein.DynamicFlow;
-using Serein.DynamicFlow.NodeModel;
+﻿using Serein.Flow;
+using Serein.Flow.NodeModel;
 using Serein.WorkBench.Node.ViewModel;
 using System.Windows;
 using System.Windows.Controls;

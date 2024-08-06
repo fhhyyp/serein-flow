@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Serein.DynamicFlow.NodeModel
+namespace Serein.Flow.NodeModel
 {
     public class CompositeLoopNode : NodeBase
     {

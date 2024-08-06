@@ -1,7 +1,7 @@
-﻿using Serein.DynamicFlow.Tool;
+﻿using Serein.Flow.Tool;
 using System.Diagnostics;
 
-namespace Serein.DynamicFlow.NodeModel
+namespace Serein.Flow.NodeModel
 {
     /// <summary>
     /// 单动作节点（用于动作控件)

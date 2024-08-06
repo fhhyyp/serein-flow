@@ -1,4 +1,4 @@
-﻿namespace Serein.Web
+﻿namespace Serein.Library.Http
 {
     public class ControllerBase
     {

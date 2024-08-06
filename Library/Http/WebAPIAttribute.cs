@@ -1,8 +1,9 @@
-﻿using System.Collections.Concurrent;
+﻿using Serein.Library.IOC;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Security.AccessControl;
 
-namespace Serein.Web
+namespace Serein.Library.Http
 {
 
     /// <summary>

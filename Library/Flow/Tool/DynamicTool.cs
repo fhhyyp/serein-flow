@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Serein.DynamicFlow.Tool
+namespace Serein.Flow.Tool
 {
 
     #region 锁、tsk工具 (已注释）

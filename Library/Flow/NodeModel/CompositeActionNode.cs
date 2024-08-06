@@ -1,8 +1,8 @@
-﻿using Serein.DynamicFlow;
+﻿using Serein.Flow;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-namespace Serein.DynamicFlow.NodeModel
+namespace Serein.Flow.NodeModel
 {
 
     /// <summary>

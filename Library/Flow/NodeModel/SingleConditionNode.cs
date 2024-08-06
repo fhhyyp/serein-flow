@@ -1,10 +1,10 @@
-﻿using Serein.DynamicFlow.SerinExpression;
-using Serein.DynamicFlow.Tool;
+﻿using Serein.Flow.SerinExpression;
+using Serein.Flow.Tool;
 using System;
 using System.Diagnostics;
 using System.Linq.Expressions;
 
-namespace Serein.DynamicFlow.NodeModel
+namespace Serein.Flow.NodeModel
 {
     /// <summary>
     /// 条件节点（用于条件控件）

@@ -1,5 +1,5 @@
-﻿using Serein.DynamicFlow;
-using Serein.DynamicFlow.Tool;
+﻿using Serein.Flow;
+using Serein.Flow.Tool;
 using Newtonsoft.Json;
 using SqlSugar;
 using System;
@@ -8,7 +8,7 @@ using System.Threading;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Serein.DynamicFlow.NodeModel
+namespace Serein.Flow.NodeModel
 {
 
     public enum ConnectionType

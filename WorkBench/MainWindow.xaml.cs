@@ -5,9 +5,9 @@ using Serein.WorkBench.tool;
 using Microsoft.Win32;
 using Newtonsoft.Json.Linq;
 using Serein;
-using Serein.DynamicFlow;
-using Serein.DynamicFlow.NodeModel;
-using Serein.DynamicFlow.Tool;
+using Serein.Flow;
+using Serein.Flow.NodeModel;
+using Serein.Flow.Tool;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
@@ -22,6 +22,7 @@ using static Serein.WorkBench.Connection;
 using DynamicDemo.Node;
 using Npgsql.Logging;
 using System.Threading.Tasks.Dataflow;
+using Serein.Library.IOC;
 
 namespace Serein.WorkBench
 {
@@ -120,7 +121,7 @@ namespace Serein.WorkBench
         /// <summary>
         /// 节点的命名空间
         /// </summary>
-        public const string NodeSpaceName = $"{nameof(Serein)}.{nameof(Serein.DynamicFlow)}.{nameof(Serein.DynamicFlow.NodeModel)}";
+        public const string NodeSpaceName = $"{nameof(Serein)}.{nameof(Serein.Flow)}.{nameof(Serein.Flow.NodeModel)}";
         /// <summary>
         /// 一种轻量的IOC容器
         /// </summary>
@@ -1328,7 +1329,6 @@ namespace Serein.WorkBench
             }
         }
 
-
         /// <summary>
         /// 控件的鼠标左键松开事件，结束拖动操作，创建连线
         /// </summary>
@@ -1378,24 +1378,6 @@ namespace Serein.WorkBench
                 if (targetBlock == null)
                 {
                     return;
-                }
-
-                if (startConnectBlock != null && isRegion && startConnectBlock.Node.MethodDetails != null && startConnectBlock.Node.MethodDetails.MethodDynamicType == DynamicNodeType.Action)
-                {
-                    if (!targetBlock.Node.MethodDetails.IsCanConnect(startConnectBlock.Node.MethodDetails.ReturnType))
-                    {
-                       
-                        string mboxStr = "类型不匹配。" +
-                                        "\r\n" +
-                                         $"起始节点：{startConnectBlock.Node.MethodDetails.MethodName}" + "\r\n" +
-                                         $"返回类型：{startConnectBlock.Node.MethodDetails.ReturnType.Name}" + "\r\n" +
-                                         "\r\n" +
-                                         $"起始节点：{targetBlock.Node.MethodDetails.MethodName}" + "\r\n" +
-                                         $"接收类型：{string.Join("\r\n", targetBlock.Node.MethodDetails.ExplicitDatas.Select(it => it.ToString()))}" + "\r\n";
-
-                        MessageBox.Show(mboxStr);
-                        return;
-                    }
                 }
 
                 if (startConnectBlock != null && targetBlock != null && startConnectBlock != targetBlock)
@@ -1523,6 +1505,8 @@ namespace Serein.WorkBench
                 FlowChartCanvas.Height = scrollViewerViewportHeight;
             }
         }
+
+
         /// <summary>
         /// 删除该控件，以及与该控件相关的所有连线
         /// </summary>
@@ -1717,6 +1701,10 @@ namespace Serein.WorkBench
 
              }*/
         }
+        /// <summary>
+        /// 树形结构展开类型的成员
+        /// </summary>
+        /// <param name="type"></param>
         private void DisplayReturnTypeTreeViewer(Type type)
         {
             try
