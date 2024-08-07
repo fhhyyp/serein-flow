@@ -1,5 +1,7 @@
 ﻿using Serein.NodeFlow.Model;
 using Serein.WorkBench.Node.ViewModel;
+using System.Runtime.CompilerServices;
+using System.Windows.Controls;
 
 namespace Serein.WorkBench.Node.View
 {
@@ -15,6 +17,7 @@ namespace Serein.WorkBench.Node.View
             actionNodeControlViewModel = new ActionNodeControlViewModel(node);
             DataContext = actionNodeControlViewModel;
             InitializeComponent();
+
         }
 
 

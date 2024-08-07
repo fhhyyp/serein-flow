@@ -6,8 +6,6 @@
              xmlns:local="clr-namespace:Serein.WorkBench.Node.View"
              xmlns:vm="clr-namespace:Serein.WorkBench.Node.ViewModel"
              xmlns:themes="clr-namespace:Serein.WorkBench.Themes"
-             mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800"
              >
     <Grid>
         <Grid.ToolTip>

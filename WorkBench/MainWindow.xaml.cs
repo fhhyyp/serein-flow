@@ -8,15 +8,20 @@ using Serein.WorkBench.Node.View;
 using Serein.WorkBench.Themes;
 using Serein.WorkBench.tool;
 using System.Collections.Concurrent;
+using System.Configuration;
 using System.Diagnostics;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Reflection;
+using System.Threading.Tasks.Dataflow;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Ink;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Shapes;
+using static Serein.WorkBench.MainWindow;
 
 namespace Serein.WorkBench
 {
@@ -32,79 +37,79 @@ namespace Serein.WorkBench
     /// <summary>
     /// 表示两个节点之间的连接关系（UI层面）
     /// </summary>
-    public class Connection
-    {
-        public required NodeControlBase Start { get; set; } // 起始TextBlock
-        public required NodeControlBase End { get; set; }   // 结束TextBlock
-        public required Line Line { get; set; }       // 连接的线
-        public ConnectionType Type { get; set; }       // 连接的线是否为真分支或者假分支
+    //public class Connection
+    //{
+    //    public required NodeControlBase Start { get; set; } // 起始TextBlock
+    //    public required NodeControlBase End { get; set; }   // 结束TextBlock
+    //    public required Line Line { get; set; }       // 连接的线
+    //    public ConnectionType Type { get; set; }       // 连接的线是否为真分支或者假分支
 
-        private Storyboard? _animationStoryboard; // 动画Storyboard
+    //    private Storyboard? _animationStoryboard; // 动画Storyboard
 
-        /// <summary>
-        /// 从Canvas中移除连接线
-        /// </summary>
-        /// <param name="canvas"></param>
-        public void RemoveFromCanvas(Canvas canvas)
-        {
-            canvas.Children.Remove(Line); // 移除线
-            _animationStoryboard?.Stop(); // 停止动画
-        }
+    //    /// <summary>
+    //    /// 从Canvas中移除连接线
+    //    /// </summary>
+    //    /// <param name="canvas"></param>
+    //    public void RemoveFromCanvas(Canvas canvas)
+    //    {
+    //        canvas.Children.Remove(Line); // 移除线
+    //        _animationStoryboard?.Stop(); // 停止动画
+    //    }
 
-        /// <summary>
-        /// 开始动画
-        /// </summary>
-        public void StartAnimation()
-        {
-            // 停止现有的动画
-            _animationStoryboard?.Stop();
+    //    /// <summary>
+    //    /// 开始动画
+    //    /// </summary>
+    //    public void StartAnimation()
+    //    {
+    //        // 停止现有的动画
+    //        _animationStoryboard?.Stop();
 
-            // 计算线条的长度
-            double length = Math.Sqrt(Math.Pow(Line.X2 - Line.X1, 4) + Math.Pow(Line.Y2 - Line.Y1, 4));
-            double dashLength = length / 200;
+    //        // 计算线条的长度
+    //        double length = Math.Sqrt(Math.Pow(Line.X2 - Line.X1, 4) + Math.Pow(Line.Y2 - Line.Y1, 4));
+    //        double dashLength = length / 200;
 
-            // 创建新的 DoubleAnimation 反转方向
-            var animation = new DoubleAnimation
-            {
-                From = dashLength,
-                To = 0,
-                Duration = TimeSpan.FromSeconds(0.5),
-                RepeatBehavior = RepeatBehavior.Forever
-            };
+    //        // 创建新的 DoubleAnimation 反转方向
+    //        var animation = new DoubleAnimation
+    //        {
+    //            From = dashLength,
+    //            To = 0,
+    //            Duration = TimeSpan.FromSeconds(0.5),
+    //            RepeatBehavior = RepeatBehavior.Forever
+    //        };
 
-            // 设置线条的样式
-            Line.Stroke = Type == ConnectionType.IsSucceed ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10"))
-                        : Type == ConnectionType.IsFail ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F18905"))
-                        : Type == ConnectionType.IsError ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#AB616B"))
-                                                                    : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4A82E4"));
-            Line.StrokeDashArray = [dashLength, dashLength];
+    //        // 设置线条的样式
+    //        Line.Stroke = Type == ConnectionType.IsSucceed ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10"))
+    //                    : Type == ConnectionType.IsFail ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F18905"))
+    //                    : Type == ConnectionType.IsError ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#AB616B"))
+    //                                                                : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4A82E4"));
+    //        Line.StrokeDashArray = [dashLength, dashLength];
 
-            // 创建新的 Storyboard
-            _animationStoryboard = new Storyboard();
-            _animationStoryboard.Children.Add(animation);
-            Storyboard.SetTarget(animation, Line);
-            Storyboard.SetTargetProperty(animation, new PropertyPath(Line.StrokeDashOffsetProperty));
+    //        // 创建新的 Storyboard
+    //        _animationStoryboard = new Storyboard();
+    //        _animationStoryboard.Children.Add(animation);
+    //        Storyboard.SetTarget(animation, Line);
+    //        Storyboard.SetTargetProperty(animation, new PropertyPath(Line.StrokeDashOffsetProperty));
 
-            // 开始动画
-            _animationStoryboard.Begin();
-        }
+    //        // 开始动画
+    //        _animationStoryboard.Begin();
+    //    }
 
-        /// <summary>
-        /// 停止动画
-        /// </summary>
-        public void StopAnimation()
-        {
-            if (_animationStoryboard != null)
-            {
-                _animationStoryboard.Stop();
-                Line.Stroke = Type == ConnectionType.IsSucceed ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10"))
-                            : Type == ConnectionType.IsFail ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F18905"))
-                            : Type == ConnectionType.IsError ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#AB616B"))
-                                                                    : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4A82E4"));
-                Line.StrokeDashArray = null;
-            }
-        }
-    }
+    //    /// <summary>
+    //    /// 停止动画
+    //    /// </summary>
+    //    public void StopAnimation()
+    //    {
+    //        if (_animationStoryboard != null)
+    //        {
+    //            _animationStoryboard.Stop();
+    //            Line.Stroke = Type == ConnectionType.IsSucceed ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10"))
+    //                        : Type == ConnectionType.IsFail ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F18905"))
+    //                        : Type == ConnectionType.IsError ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#AB616B"))
+    //                                                                : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4A82E4"));
+    //            Line.StrokeDashArray = null;
+    //        }
+    //    }
+    //}
 
 
     /// <summary>
@@ -190,7 +195,7 @@ namespace Serein.WorkBench
         /// <summary>
         /// 标记是否正在进行连接操作
         /// </summary>
-        private bool IsConnecting;
+        private bool IsConnecting { get; set; }
         /// <summary>
         /// 标记是否正在拖动控件
         /// </summary>
@@ -374,25 +379,6 @@ namespace Serein.WorkBench
         {
             if (fromNode != null && toNode != null && fromNode != toNode)
             {
-                var line = new Line
-                {
-
-                    IsHitTestVisible = true,
-                    Stroke = connectionType == ConnectionType.IsSucceed ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10"))
-                            : connectionType == ConnectionType.IsFail ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F18905"))
-                           : connectionType == ConnectionType.IsError ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#AB616B"))
-                                                                    : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4A82E4")),
-
-                    StrokeThickness = 2,
-                    X1 = Canvas.GetLeft(fromNode) + fromNode.ActualWidth / 2,
-                    Y1 = Canvas.GetTop(fromNode) + fromNode.ActualHeight / 2,
-                    X2 = Canvas.GetLeft(toNode) + toNode.ActualWidth / 2,
-                    Y2 = Canvas.GetTop(toNode) + toNode.ActualHeight / 2
-                };
-
-                ConfigureLineContextMenu(line);
-                FlowChartCanvas.Children.Add(line);
-
                 if (connectionType == ConnectionType.IsSucceed)
                 {
                     fromNode.Node.SucceedBranch.Add(toNode.Node);
@@ -409,11 +395,12 @@ namespace Serein.WorkBench
                 {
                     fromNode.Node.UpstreamBranch.Add(toNode.Node);
                 }
-
+                var connection = new Connection { Start = fromNode, End = toNode, Type = connectionType };
                 toNode.Node.PreviousNodes.Add(fromNode.Node);
-                connections.Add(new Connection { Start = fromNode, End = toNode, Line = line, Type = connectionType });
+                DraggableControl.CreateLinx(FlowChartCanvas, connection);
+                ConfigureLineContextMenu(connection);
+                connections.Add(connection);
             }
-
             EndConnection();
         }
 
@@ -599,15 +586,16 @@ namespace Serein.WorkBench
         }
 
         /// <summary>
-        /// 配置节点/区域连接的线
+        /// 配置节点/区域连接的右键菜单
         /// </summary>
         /// <param name="line"></param>
-        private void ConfigureLineContextMenu(Line line)
+        private void ConfigureLineContextMenu(Connection connection)
         {
             var contextMenu = new ContextMenu();
-            contextMenu.Items.Add(CreateMenuItem("删除连线", (s, e) => DeleteConnection(line)));
-            contextMenu.Items.Add(CreateMenuItem("连线动画", (s, e) => AnimateConnection(line)));
-            line.ContextMenu = contextMenu;
+            contextMenu.Items.Add(CreateMenuItem("删除连线", (s, e) => DeleteConnection(connection)));
+            connection.ArrowPath.ContextMenu = contextMenu;
+            connection.BezierPath.ContextMenu = contextMenu;
+
         }
 
         /// <summary>
@@ -619,7 +607,6 @@ namespace Serein.WorkBench
             nodeControl.MouseLeftButtonDown += Block_MouseLeftButtonDown;
             nodeControl.MouseMove += Block_MouseMove;
             nodeControl.MouseLeftButtonUp += Block_MouseLeftButtonUp;
-            nodeControl.MouseLeftButtonUp += Block_MouseLeftButtonUp_Animation;
         }
 
         #endregion 
@@ -1125,11 +1112,11 @@ namespace Serein.WorkBench
         /// <param name="e"></param>
         private void FlowChartCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            // 关闭所有连线的动画效果
-            foreach (var connection in connections)
-            {
-                connection.StopAnimation();
-            }
+            //// 关闭所有连线的动画效果
+            //foreach (var connection in connections)
+            //{
+            //    connection.StopAnimation();
+            //}
         }
 
         /// <summary>
@@ -1150,26 +1137,6 @@ namespace Serein.WorkBench
                 e.Effects = DragDropEffects.None;
             }
             e.Handled = true;
-        }
-
-
-        /// <summary>
-        /// 处理控件的鼠标左键松开事件，启动或停止连接的动画效果
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void Block_MouseLeftButtonUp_Animation(object sender, MouseButtonEventArgs e)
-        {
-            if (sender is UserControl clickedBlock)
-            {
-                foreach (var connection in connections)
-                {
-                    if (connection.Start == clickedBlock)
-                    {
-                        connection.StartAnimation(); // 开启动画
-                    }
-                }
-            }
         }
 
         /// <summary>
@@ -1279,9 +1246,8 @@ namespace Serein.WorkBench
                 return;
             }*/
 
-            currentConnectionType = connectionType;
-
             IsConnecting = true;
+            currentConnectionType = connectionType;
             startConnectBlock = startBlock;
 
             // 确保起点和终点位置的正确顺序
@@ -1335,7 +1301,6 @@ namespace Serein.WorkBench
             }
             else if (IsConnecting)
             {
-
                 bool isRegion = false;
                 NodeControlBase? targetBlock;
 
@@ -1377,33 +1342,8 @@ namespace Serein.WorkBench
                 if (startConnectBlock != null && targetBlock != null && startConnectBlock != targetBlock)
                 {
 
-                    // 创建连接线
-                    Line line = new()
-                    {
-                        IsHitTestVisible = true,
-                        Stroke = currentConnectionType == ConnectionType.IsSucceed ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10"))
-                                : currentConnectionType == ConnectionType.IsFail ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F18905"))
-                                : currentConnectionType == ConnectionType.IsError ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#AB616B"))
-                                                                    : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4A82E4")),
-                        StrokeThickness = 2,
-                        X1 = Canvas.GetLeft(startConnectBlock) + startConnectBlock.ActualWidth / 2,
-                        Y1 = Canvas.GetTop(startConnectBlock) + startConnectBlock.ActualHeight / 2,
-                        X2 = Canvas.GetLeft(targetBlock) + targetBlock.ActualWidth / 2,
-                        Y2 = Canvas.GetTop(targetBlock) + targetBlock.ActualHeight / 2
-                    };
-
-                    // 添加右键菜单删除连线
-                    ContextMenu lineContextMenu = new();
-                    MenuItem deleteLineMenuItem = new() { Header = "删除连线" };
-                    deleteLineMenuItem.Click += (s, args) => DeleteConnection(line);
-                    MenuItem animateLineMenuItem = new() { Header = "连线动画" };
-                    animateLineMenuItem.Click += (s, args) => AnimateConnection(line);
-                    lineContextMenu.Items.Add(deleteLineMenuItem);
-                    lineContextMenu.Items.Add(animateLineMenuItem);
-                    line.ContextMenu = lineContextMenu;
-                    FlowChartCanvas.Children.Add(line);
-
-
+                    var connection = new Connection { Start = startConnectBlock, End = targetBlock, Type = currentConnectionType };
+                    
                     if (currentConnectionType == ConnectionType.IsSucceed)
                     {
                         startConnectBlock.Node.SucceedBranch.Add(targetBlock.Node);
@@ -1421,10 +1361,12 @@ namespace Serein.WorkBench
                         startConnectBlock.Node.UpstreamBranch.Add(targetBlock.Node);
                     }
 
-                    targetBlock.Node.PreviousNodes.Add(startConnectBlock.Node); // 将当前发起连接的节点，添加到被连接的节点的上一节点队列。（用于回溯）
-
                     // 保存连接关系
-                    connections.Add(new Connection { Start = startConnectBlock, End = targetBlock, Line = line, Type = currentConnectionType });
+                    DraggableControl.CreateLinx(FlowChartCanvas, connection);
+                    ConfigureLineContextMenu(connection);
+                    
+                    targetBlock.Node.PreviousNodes.Add(startConnectBlock.Node); // 将当前发起连接的节点，添加到被连接的节点的上一节点队列。（用于回溯）
+                    connections.Add(connection);
                 }
                 EndConnection();
             }
@@ -1470,10 +1412,7 @@ namespace Serein.WorkBench
             {
                 if (connection.Start == block || connection.End == block)
                 {
-                    connection.Line.X1 = Canvas.GetLeft(connection.Start) + connection.Start.ActualWidth / 2;
-                    connection.Line.Y1 = Canvas.GetTop(connection.Start) + connection.Start.ActualHeight / 2;
-                    connection.Line.X2 = Canvas.GetLeft(connection.End) + connection.End.ActualWidth / 2;
-                    connection.Line.Y2 = Canvas.GetTop(connection.End) + connection.End.ActualHeight / 2;
+                    BezierLineDrawer.UpdateBezierLine(FlowChartCanvas, connection.Start, connection.End, connection.BezierPath, connection.ArrowPath);
                 }
             }
         }
@@ -1520,57 +1459,11 @@ namespace Serein.WorkBench
                                                         || c.End.Node.Guid.Equals(nodeControl.Node.Guid)).ToList();
 
             Remove(RemoveEonnections, nodeControl.Node);
-            // 获取起点是该控件的所有连线（获取该节点的子节点）
-            //var IsStartConnections = connections.Where(c => c.Start == nodeControl).ToList();
-            //// 获取终点是该控件的所有连线（获取该节点的父节点）
-            //var EndConnectionsToRemove = connections.Where(c => c.End == nodeControl).ToList();
-
             // 删除控件
             FlowChartCanvas.Children.Remove(nodeControl);
             nodeControls.Remove(nodeControl);
 
-
-            /*foreach (var connection in StartConnectionsToRemove)
-            {
-                var StartNode = node.Node;
-                var EndNode = connection.End.Node;
-                if (connection.TorF)
-                {
-                    StartNode.TrueBranchNextNodes.Remove(EndNode);
-                }
-                else
-                {
-                    StartNode.FalseBranchNextNodes.Remove(EndNode);
-                }
-                EndNode.PreviousNodes.Remove(StartNode);
-
-                connection.RemoveFromCanvas(FlowChartCanvas);
-                connections.Remove(connection);
-
-               if(node is FlipflopNodeControl flipflopNodeControl && flipflopNodeControl.Node is SingleFlipflopNode singleFlipflop)
-               {
-                    flipflopNodes.Remove(singleFlipflop);
-               }
-            }*/
-
-
-            /*foreach (var connection in EndConnectionsToRemove)
-            {
-                var StartNode = connection.Start.Node;
-                var EndNode = node.Node;
-                if (connection.TorF)
-                {
-                    StartNode.TrueBranchNextNodes.Remove(EndNode);
-                }
-                else
-                {
-                    StartNode.FalseBranchNextNodes.Remove(EndNode);
-                }
-                EndNode.PreviousNodes.Remove(StartNode);
-
-                connection.RemoveFromCanvas(FlowChartCanvas);
-                connections.Remove(connection);
-            }*/
+           
         }
         /// <summary>
         /// 移除控件连接关系
@@ -1653,15 +1546,6 @@ namespace Serein.WorkBench
         }
 
         /// <summary>
-        /// 开启以该控件为起点的动画效果
-        /// </summary>
-        /// <param name="line"></param>
-        private void AnimateConnection(Line line)
-        {
-            var connectionToAnimate = connections.FirstOrDefault(c => c.Line == line);
-            connectionToAnimate?.StartAnimation();
-        }
-        /// <summary>
         /// 设为起点
         /// </summary>
         /// <param name="node"></param>
@@ -1681,19 +1565,6 @@ namespace Serein.WorkBench
             nodeControl.BorderThickness = new Thickness(2);
 
             flowStartBlock = nodeControl;
-            /* foreach (var node in _nodeControls)
-             {
-                 if(node == setNode)
-                 {
-
-                 }
-                 else
-                 {
-                     node.Node.IsStart = false;
-
-                 }
-
-             }*/
         }
         /// <summary>
         /// 树形结构展开类型的成员
@@ -1720,9 +1591,9 @@ namespace Serein.WorkBench
         /// 删除该连线
         /// </summary>
         /// <param name="line"></param>
-        private void DeleteConnection(Line line)
+        private void DeleteConnection(Connection connection)
         {
-            var connectionToRemove = connections.FirstOrDefault(c => c.Line == line);
+            var connectionToRemove = connection;
             if (connectionToRemove == null)
             {
                 return;
@@ -1744,7 +1615,7 @@ namespace Serein.WorkBench
                 StartNode.ErrorBranch.Remove(EndNode);
             }
 
-    
+
             EndNode.PreviousNodes.Remove(StartNode);
 
 
@@ -2126,7 +1997,292 @@ namespace Serein.WorkBench
             return Uri.UnescapeDataString(relativeUri.ToString().Replace('/', System.IO.Path.DirectorySeparatorChar));
         }
 
-        
+
+
+
+
+        #region 创建两个控件之间的连接关系，在UI层面上显示为 带箭头指向的贝塞尔曲线
+
+
+        public static class DraggableControl
+        {
+            public static Connection CreateLinx(Canvas canvas, Connection connection)
+            {
+                UpdateBezierLine(canvas, connection);
+                //MakeDraggable(canvas, connection, connection.Start);
+                //MakeDraggable(canvas, connection, connection.End);
+
+                if (connection.BezierPath == null)
+                {
+                    connection.BezierPath = new System.Windows.Shapes.Path { Stroke = BezierLineDrawer.GetStroke(connection.Type), StrokeThickness = 1 };
+                    Canvas.SetZIndex(connection.BezierPath, -1);
+                    canvas.Children.Add(connection.BezierPath);
+                }
+                if (connection.ArrowPath == null)
+                {
+                    connection.ArrowPath = new System.Windows.Shapes.Path { Stroke = BezierLineDrawer.GetStroke(connection.Type), Fill = BezierLineDrawer.GetStroke(connection.Type), StrokeThickness = 1 };
+                    Canvas.SetZIndex(connection.ArrowPath, -1);
+                    canvas.Children.Add(connection.ArrowPath);
+                }
+
+                BezierLineDrawer.UpdateBezierLine(canvas, connection.Start, connection.End, connection.BezierPath, connection.ArrowPath);
+                return connection;
+            }
+
+            private static bool isUpdating = false; // 是否正在更新线条显示
+
+
+            // 拖动时重新绘制
+            public static void UpdateBezierLine(Canvas canvas, Connection connection)
+            {
+                if (isUpdating)
+                    return;
+
+                isUpdating = true;
+
+                canvas.Dispatcher.InvokeAsync(() =>
+                {
+                    if (connection != null && connection.BezierPath == null)
+                    {
+                        connection.BezierPath = new System.Windows.Shapes.Path { Stroke = BezierLineDrawer.GetStroke(connection.Type), StrokeThickness = 1 };
+                        //Canvas.SetZIndex(connection.BezierPath, -1);
+                        canvas.Children.Add(connection.BezierPath);
+                    }
+
+                    if (connection != null && connection.ArrowPath == null)
+                    {
+                        connection.ArrowPath = new System.Windows.Shapes.Path { Stroke = BezierLineDrawer.GetStroke(connection.Type), Fill = BezierLineDrawer.GetStroke(connection.Type), StrokeThickness = 1 };
+                        //Canvas.SetZIndex(connection.ArrowPath, -1);
+                        canvas.Children.Add(connection.ArrowPath);
+                    }
+
+                    BezierLineDrawer.UpdateBezierLine(canvas, connection.Start, connection.End, connection.BezierPath, connection.ArrowPath);
+                    isUpdating = false;
+                });
+            }
+            
+            // private static Point clickPosition; // 当前点击事件
+             // private static bool isDragging = false; // 是否正在移动控件
+             //private static void MakeDraggable(Canvas canvas, Connection connection, UIElement element)
+             //{
+             //    if (connection.IsSetEven)
+             //    {
+             //        return;
+             //    }
+
+            //    element.MouseLeftButtonDown += (sender, e) =>
+            //    {
+            //        isDragging = true;
+            //        //clickPosition = e.GetPosition(element);
+            //        //element.CaptureMouse();
+            //    };
+            //    element.MouseLeftButtonUp += (sender, e) =>
+            //    {
+            //        isDragging = false;
+            //        //element.ReleaseMouseCapture();
+            //    };
+
+            //    element.MouseMove += (sender, e) =>
+            //    {
+            //        if (isDragging)
+            //        {
+            //            if (VisualTreeHelper.GetParent(element) is Canvas canvas)
+            //            {
+            //                Point currentPosition = e.GetPosition(canvas);
+            //                double newLeft = currentPosition.X - clickPosition.X;
+            //                double newTop = currentPosition.Y - clickPosition.Y;
+
+            //                Canvas.SetLeft(element, newLeft);
+            //                Canvas.SetTop(element, newTop);
+            //                UpdateBezierLine(canvas, connection);
+            //            }
+            //        }
+            //    };
+
+
+            //}
+
+        }
+
+
+        public class Connection
+        {
+            public ConnectionType Type { get; set; }
+            public System.Windows.Shapes.Path BezierPath { get; set; }// 贝塞尔曲线路径
+            public System.Windows.Shapes.Path ArrowPath { get; set; } // 箭头路径
+
+            public required NodeControlBase Start { get; set; } // 起始
+            public required NodeControlBase End { get; set; }   // 结束
+
+            private Storyboard? _animationStoryboard; // 动画Storyboard
+
+            public void RemoveFromCanvas(Canvas canvas)
+            {
+                canvas.Children.Remove(BezierPath); // 移除线
+                canvas.Children.Remove(ArrowPath); // 移除线
+                _animationStoryboard?.Stop(); // 停止动画
+            }
+        }
+
+        public class BezierLineDrawer
+        {
+            public enum Localhost
+            {
+                Left,
+                Right,
+                Top,
+                Bottom,
+            }
+
+            // 绘制曲线
+            public static void UpdateBezierLine(Canvas canvas,
+                                                FrameworkElement startElement,
+                                                FrameworkElement endElement,
+                                                System.Windows.Shapes.Path bezierPath,
+                                                System.Windows.Shapes.Path arrowPath)
+            {
+                Point startPoint = startElement.TranslatePoint(new Point(startElement.ActualWidth / 2, startElement.ActualHeight / 2), canvas);
+                Point endPoint = CalculateEndpointOutsideElement(endElement, canvas, startPoint, out Localhost localhost);
+
+                PathFigure pathFigure = new PathFigure { StartPoint = startPoint };
+                BezierSegment bezierSegment;
+
+                if (localhost == Localhost.Left || localhost == Localhost.Right)
+                {
+                    bezierSegment = new BezierSegment
+                    {
+                        Point1 = new Point((startPoint.X + endPoint.X) / 2, startPoint.Y),
+                        Point2 = new Point((startPoint.X + endPoint.X) / 2, endPoint.Y),
+                        Point3 = endPoint,
+                    };
+                }
+                else // if (localhost == Localhost.Top || localhost == Localhost.Bottom)
+                {
+
+                    bezierSegment = new BezierSegment
+                    {
+                        Point1 = new Point(startPoint.X, (startPoint.Y + endPoint.Y) / 2),
+                        Point2 = new Point(endPoint.X, (startPoint.Y + endPoint.Y) / 2),
+                        Point3 = endPoint,
+                    };
+                }
+
+
+                pathFigure.Segments.Add(bezierSegment);
+
+                PathGeometry pathGeometry = new PathGeometry();
+                pathGeometry.Figures.Add(pathFigure);
+                bezierPath.Data = pathGeometry;
+
+                Point arrowStartPoint = CalculateBezierTangent(startPoint, bezierSegment.Point3, bezierSegment.Point2, endPoint);
+                UpdateArrowPath(endPoint, arrowStartPoint, arrowPath);
+            }
+
+            private static Point CalculateBezierTangent(Point startPoint, Point controlPoint1, Point controlPoint2, Point endPoint)
+            {
+                double t = 10.0; // 末端点
+
+                // 计算贝塞尔曲线在 t = 1 处的一阶导数
+                double dx = 3 * Math.Pow(1 - t, 2) * (controlPoint1.X - startPoint.X) +
+                            6 * (1 - t) * t * (controlPoint2.X - controlPoint1.X) +
+                            3 * Math.Pow(t, 2) * (endPoint.X - controlPoint2.X);
+
+                double dy = 3 * Math.Pow(1 - t, 2) * (controlPoint1.Y - startPoint.Y) +
+                            6 * (1 - t) * t * (controlPoint2.Y - controlPoint1.Y) +
+                            3 * Math.Pow(t, 2) * (endPoint.Y - controlPoint2.Y);
+
+                // 返回切线向量
+                return new Point(dx, dy);
+            }
+
+            // 绘制箭头
+            private static void UpdateArrowPath(Point endPoint,
+                                                Point controlPoint,
+                                                System.Windows.Shapes.Path arrowPath)
+            {
+
+                double arrowLength = 10;
+                double arrowWidth = 5;
+
+                Vector direction = endPoint - controlPoint;
+                direction.Normalize();
+
+                Point arrowPoint1 = endPoint + direction * arrowLength + new Vector(-direction.Y, direction.X) * arrowWidth;
+                Point arrowPoint2 = endPoint + direction * arrowLength + new Vector(direction.Y, -direction.X) * arrowWidth;
+
+                PathFigure arrowFigure = new PathFigure { StartPoint = endPoint };
+                arrowFigure.Segments.Add(new LineSegment(arrowPoint1, true));
+                arrowFigure.Segments.Add(new LineSegment(arrowPoint2, true));
+                arrowFigure.Segments.Add(new LineSegment(endPoint, true));
+
+                PathGeometry arrowGeometry = new PathGeometry();
+                arrowGeometry.Figures.Add(arrowFigure);
+
+                arrowPath.Data = arrowGeometry;
+            }
+            // 计算终点落点位置
+            private static Point CalculateEndpointOutsideElement(FrameworkElement element, Canvas canvas, Point startPoint, out Localhost localhost)
+            {
+                Point centerPoint = element.TranslatePoint(new Point(element.ActualWidth/2, element.ActualHeight/2), canvas);
+                Vector direction = centerPoint - startPoint;
+                direction.Normalize();
+
+
+                
+                var tx = centerPoint.X - startPoint.X;
+                var ty = startPoint.Y - centerPoint.Y;
+
+
+                localhost = (tx < ty, Math.Abs(tx) > Math.Abs(ty)) switch
+                {
+                    (true, true) => Localhost.Right,
+                    (true, false) => Localhost.Bottom,
+                    (false, true) => Localhost.Left,
+                    (false, false) => Localhost.Top,
+                };
+
+                double halfWidth = element.ActualWidth / 2 + 6;
+                double halfHeight = element.ActualHeight / 2 + 6;
+                double margin = 0;
+
+                if (localhost == Localhost.Left)
+                {
+                    centerPoint.X -=  halfWidth;
+                    centerPoint.Y -= direction.Y / Math.Abs(direction.X) * halfHeight - margin;
+                }
+                else if (localhost == Localhost.Right)
+                {
+                    centerPoint.X += halfWidth;
+                    centerPoint.Y -= direction.Y / Math.Abs(direction.X) * halfHeight - margin;
+                }
+                else if (localhost == Localhost.Top)
+                {
+                    centerPoint.Y -= halfHeight;
+                    centerPoint.X -= direction.X / Math.Abs(direction.Y) * halfWidth - margin;
+                }
+                else if (localhost == Localhost.Bottom)
+                {
+                    centerPoint.Y += halfHeight;
+                    centerPoint.X -= direction.X / Math.Abs(direction.Y) * halfWidth - margin;
+                }
+
+                return centerPoint;
+            }
+
+            public static SolidColorBrush GetStroke(ConnectionType currentConnectionType)
+            {
+                return currentConnectionType switch
+                {
+                    ConnectionType.IsSucceed => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10")),
+                    ConnectionType.IsFail => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F18905")),
+                    ConnectionType.IsError => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FE1343")),
+                    ConnectionType.Upstream => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4A82E4")),
+                    _ => throw new Exception(),
+                };
+            }
+
+        }
+        #endregion
     }
 
 }
