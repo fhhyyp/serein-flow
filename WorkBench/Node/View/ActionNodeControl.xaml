@@ -6,7 +6,7 @@
              xmlns:local="clr-namespace:Serein.WorkBench.Node.View"
              xmlns:vm="clr-namespace:Serein.WorkBench.Node.ViewModel"
              xmlns:themes="clr-namespace:Serein.WorkBench.Themes"
-             >
+             MaxWidth="300">
     <Grid>
         <Grid.ToolTip>
             <ToolTip Background="LightYellow" Foreground="Black" Content="{Binding MethodDetails.MethodName, UpdateSourceTrigger=PropertyChanged}" />
@@ -17,10 +17,18 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <Border Grid.Row="0" Background="#FFCFDF" BorderBrush="#FFCFDF" BorderThickness="1">
-            <TextBlock Text="{Binding  MethodDetails.MethodTips, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-        </Border>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Background="#FFCFDF">
+            <CheckBox VerticalContentAlignment="Center">
+                
+            </CheckBox>
+            <TextBlock Text="测试方法" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </StackPanel>
+        
+        
+        
         <themes:MethodDetailsControl Grid.Row="1" MethodDetails="{Binding MethodDetails}" />
+        
         <Grid Grid.Row="2" >
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="50"/>

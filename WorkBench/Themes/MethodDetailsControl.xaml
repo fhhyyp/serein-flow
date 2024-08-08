@@ -35,7 +35,7 @@
                                                                         <ColumnDefinition Width="*"/>
                                                                     </Grid.ColumnDefinitions>
                                                                     <TextBlock Grid.Column="0" Text="{Binding Index,StringFormat=agr{0}}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                                    <CheckBox  Grid.Column="1" IsChecked="{Binding IsExplicitData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"></CheckBox>
+                                                                    <CheckBox  Grid.Column="1" IsChecked="{Binding IsExplicitData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  VerticalContentAlignment="Center"/>
                                                                     <TextBlock Grid.Column="2" MinWidth="50" Text="{Binding ParameterName}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                                                                     <TextBlock Grid.Column="3" MinWidth="50" Text="无须指定参数"/>
                                                                 </Grid>
@@ -60,7 +60,7 @@
                                                                         <ColumnDefinition Width="*"/>
                                                                     </Grid.ColumnDefinitions>
                                                                     <TextBlock Grid.Column="0" Text="{Binding Index,StringFormat=agr{0}}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                                    <CheckBox  Grid.Column="1" IsChecked="{Binding IsExplicitData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"></CheckBox>
+                                                                    <CheckBox  Grid.Column="1" IsChecked="{Binding IsExplicitData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  VerticalContentAlignment="Center"/>
                                                                     <TextBlock Grid.Column="2" MinWidth="50" Text="{Binding ParameterName}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                                                                     <ComboBox Grid.Column="3"
                                                                               MinWidth="50"
@@ -90,7 +90,7 @@
                                                                         <ColumnDefinition Width="*"/>
                                                                     </Grid.ColumnDefinitions>
                                                                     <TextBlock Grid.Column="0" Text="{Binding Index,StringFormat=agr{0}}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                                    <CheckBox  Grid.Column="1" IsChecked="{Binding IsExplicitData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"></CheckBox>
+                                                                    <CheckBox  Grid.Column="1" IsChecked="{Binding IsExplicitData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center"/>
                                                                     <TextBlock Grid.Column="2" MinWidth="50" Text="{Binding ParameterName}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                                                                     <TextBox Grid.Column="3" MinWidth="50" Text="{Binding DataValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                                                 </Grid>

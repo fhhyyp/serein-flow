@@ -5,7 +5,8 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Serein.WorkBench.Node.View"
              xmlns:vm="clr-namespace:Serein.WorkBench.Node.ViewModel"
-             xmlns:themes="clr-namespace:Serein.WorkBench.Themes">
+             xmlns:themes="clr-namespace:Serein.WorkBench.Themes"
+                       MaxWidth="300">
 
     <UserControl.Resources>
         <vm:TypeToStringConverter x:Key="TypeToStringConverter"/>

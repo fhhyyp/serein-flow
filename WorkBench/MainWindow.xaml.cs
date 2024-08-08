@@ -397,7 +397,7 @@ namespace Serein.WorkBench
                 }
                 var connection = new Connection { Start = fromNode, End = toNode, Type = connectionType };
                 toNode.Node.PreviousNodes.Add(fromNode.Node);
-                DraggableControl.CreateLinx(FlowChartCanvas, connection);
+                BsControl.Draw(FlowChartCanvas, connection);
                 ConfigureLineContextMenu(connection);
                 connections.Add(connection);
             }
@@ -1362,7 +1362,7 @@ namespace Serein.WorkBench
                     }
 
                     // 保存连接关系
-                    DraggableControl.CreateLinx(FlowChartCanvas, connection);
+                    BsControl.Draw(FlowChartCanvas, connection);
                     ConfigureLineContextMenu(connection);
                     
                     targetBlock.Node.PreviousNodes.Add(startConnectBlock.Node); // 将当前发起连接的节点，添加到被连接的节点的上一节点队列。（用于回溯）
@@ -2004,9 +2004,9 @@ namespace Serein.WorkBench
         #region 创建两个控件之间的连接关系，在UI层面上显示为 带箭头指向的贝塞尔曲线
 
 
-        public static class DraggableControl
+        public static class BsControl
         {
-            public static Connection CreateLinx(Canvas canvas, Connection connection)
+            public static Connection Draw(Canvas canvas, Connection connection)
             {
                 UpdateBezierLine(canvas, connection);
                 //MakeDraggable(canvas, connection, connection.Start);
@@ -2101,7 +2101,6 @@ namespace Serein.WorkBench
 
 
             //}
-
         }
 
 

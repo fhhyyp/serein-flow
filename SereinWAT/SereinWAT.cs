@@ -4,6 +4,7 @@ using OpenQA.Selenium.Edge;
 using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.IE;
 using Serein.NodeFlow;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Serein.Module
 {
@@ -69,14 +70,11 @@ namespace Serein.Module
         public void Wait([Explicit]int time = 1000)
         {
             Thread.Sleep(time);
-            
         }
 
         [MethodDetail(DynamicNodeType.Action,"启动浏览器")]
         public WebDriver OpenDriver([Explicit] bool isVisible = true,[Explicit] DriverType driverType = DriverType.Chrome)
         {
-
-
             if(driverType == DriverType.Chrome)
             {
                 ChromeOptions options = new ChromeOptions();
@@ -154,9 +152,58 @@ namespace Serein.Module
                 ByType.CssSelector => By.CssSelector(key),
                 ByType.PartialLinkText => By.PartialLinkText(key),
             };
+            if(index == -1)
+            {
+                return WebDriver.FindElements(by).First();
+            }
+            else
+            {
+                return WebDriver.FindElements(by)[index];
+            }
+        }
+
+        [MethodDetail(DynamicNodeType.Action, "定位并操作元素")]
+        public IWebElement FindAndUseElement([Explicit] ByType byType = ByType.XPath,
+                                             [Explicit] string key = "",
+                                             [Explicit] ActionType actionType = ActionType.Click,
+                                             [Explicit] string text = "",
+                                             [Explicit] int index = 0,
+                                             [Explicit] int waitTime = 0)
+        {
+            Thread.Sleep(waitTime);
+            By by = byType switch
+            {
+                ByType.Id => By.Id(key),
+                ByType.XPath => By.XPath(key),
+                ByType.Class => By.ClassName(key),
+                ByType.Name => By.Name(key),
+                ByType.CssSelector => By.CssSelector(key),
+                ByType.PartialLinkText => By.PartialLinkText(key),
+            };
             var element = WebDriver.FindElements(by)[index];
+            Thread.Sleep(waitTime);
+            var actions = new OpenQA.Selenium.Interactions.Actions(WebDriver);
+            switch (actionType)
+            {
+                case ActionType.Click:
+                    actions.Click(element).Perform();
+                    break;
+                case ActionType.DoubleClick:
+                    actions.DoubleClick(element).Perform();
+                    break;
+                case ActionType.RightClick:
+                    actions.ContextClick(element).Perform();
+                    break;
+                case ActionType.SendKeys:
+                    element.Click();
+                    element.Clear();
+                    element.SendKeys(text);
+                    break;
+            }
+
             return element;
         }
+
         [MethodDetail(DynamicNodeType.Action, "操作元素")]
         public void PerformAction(IWebElement element, [Explicit] ActionType actionType = ActionType.Click, [Explicit] string text = "")
         {
@@ -191,6 +238,10 @@ namespace Serein.Module
             }
             else if (scriptOp == ScriptOp.Modify)
             {
+                element.SetAttribute(WebDriver, attributeName, value);
+                string newHref = element.GetAttribute("href");
+                Console.WriteLine("New href value: " + newHref);
+
                 WebDriver.ExecuteScript("arguments[0].setAttribute(arguments[1], arguments[2]);", element, attributeName, value);
             }
             else if (scriptOp == ScriptOp.Delete)
@@ -204,6 +255,15 @@ namespace Serein.Module
         public string GetAttribute(IWebElement element, [Explicit] string attributeName = "")
         {
             return element.GetAttribute(attributeName);
+        }
+    }
+
+    public static class MyExtension
+    {
+        public static void SetAttribute(this IWebElement element, IWebDriver driver, string attributeName, string value)
+        {
+            IJavaScriptExecutor js = (IJavaScriptExecutor)driver;
+            js.ExecuteScript($"arguments[0].setAttribute('{attributeName}', '{value}');", element);
         }
     }
 }
