@@ -15,6 +15,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="IoTClient" Version="1.0.40" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Library\Serein.Library.csproj" />
     <ProjectReference Include="..\NodeFlow\Serein.NodeFlow.csproj" />
     <ProjectReference Include="..\WorkBench\Serein.WorkBench.csproj" />

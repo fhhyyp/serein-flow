@@ -22,7 +22,7 @@
             <CheckBox VerticalContentAlignment="Center">
                 
             </CheckBox>
-            <TextBlock Text="测试方法" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding MethodDetails.MethodTips}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </StackPanel>
         
         

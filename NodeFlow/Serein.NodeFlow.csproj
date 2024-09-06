@@ -9,8 +9,11 @@
 
   <ItemGroup>
     <Compile Remove="bin\**" />
+    <Compile Remove="SerinExpression\**" />
     <EmbeddedResource Remove="bin\**" />
+    <EmbeddedResource Remove="SerinExpression\**" />
     <None Remove="bin\**" />
+    <None Remove="SerinExpression\**" />
   </ItemGroup>
 
   <ItemGroup>

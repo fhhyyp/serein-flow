@@ -25,7 +25,9 @@ using static Serein.WorkBench.MainWindow;
 
 namespace Serein.WorkBench
 {
-
+    /// <summary>
+    /// 拖拽创建节点类型
+    /// </summary>
     public static class MouseNodeType
     {
         public static string RegionType { get; } = nameof(RegionType);
@@ -1997,10 +1999,6 @@ namespace Serein.WorkBench
             return Uri.UnescapeDataString(relativeUri.ToString().Replace('/', System.IO.Path.DirectorySeparatorChar));
         }
 
-
-
-
-
         #region 创建两个控件之间的连接关系，在UI层面上显示为 带箭头指向的贝塞尔曲线
 
 
@@ -2251,7 +2249,7 @@ namespace Serein.WorkBench
                 }
                 else if (localhost == Localhost.Right)
                 {
-                    centerPoint.X += halfWidth;
+                    centerPoint.X -= -halfWidth;
                     centerPoint.Y -= direction.Y / Math.Abs(direction.X) * halfHeight - margin;
                 }
                 else if (localhost == Localhost.Top)
@@ -2261,7 +2259,7 @@ namespace Serein.WorkBench
                 }
                 else if (localhost == Localhost.Bottom)
                 {
-                    centerPoint.Y += halfHeight;
+                    centerPoint.Y -= -halfHeight;
                     centerPoint.X -= direction.X / Math.Abs(direction.Y) * halfWidth - margin;
                 }
 
