@@ -8,20 +8,18 @@ using Serein.WorkBench.Node.View;
 using Serein.WorkBench.Themes;
 using Serein.WorkBench.tool;
 using System.Collections.Concurrent;
-using System.Configuration;
 using System.Diagnostics;
-using System.Drawing.Drawing2D;
 using System.IO;
 using System.Reflection;
-using System.Threading.Tasks.Dataflow;
+using System.Security.Cryptography.Xml;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Ink;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Media3D;
 using System.Windows.Shapes;
-using static Serein.WorkBench.MainWindow;
+using DataObject = System.Windows.DataObject;
 
 namespace Serein.WorkBench
 {
@@ -202,7 +200,9 @@ namespace Serein.WorkBench
         /// 标记是否正在拖动控件
         /// </summary>
         private bool IsDragging;
-
+        private bool IsCanvasDragging;
+        private Point startMousePosition;
+        private TranslateTransform transform;
 
 
 
@@ -217,6 +217,9 @@ namespace Serein.WorkBench
             // 重定向 Console 输出
             var logTextWriter = new LogTextWriter(WriteLog);
             Console.SetOut(logTextWriter);
+
+            transform = new TranslateTransform();
+            FlowChartCanvas.RenderTransform = transform;
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -397,7 +400,7 @@ namespace Serein.WorkBench
                 {
                     fromNode.Node.UpstreamBranch.Add(toNode.Node);
                 }
-                var connection = new Connection { Start = fromNode, End = toNode, Type = connectionType };
+                var connection = new Connection {  Start = fromNode, End = toNode, Type = connectionType };
                 toNode.Node.PreviousNodes.Add(fromNode.Node);
                 BsControl.Draw(FlowChartCanvas, connection);
                 ConfigureLineContextMenu(connection);
@@ -1268,9 +1271,118 @@ namespace Serein.WorkBench
             };
              
             FlowChartCanvas.Children.Add(currentLine);
-            FlowChartCanvas.MouseMove += FlowChartCanvas_MouseMove;
+            //FlowChartCanvas.MouseMove += FlowChartCanvas_MouseMove;
             this.KeyDown += MainWindow_KeyDown;
         }
+
+
+        #region 拖动画布实现缩放平移效果
+        private void FlowChartCanvas_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.MiddleButton == MouseButtonState.Pressed)
+            {
+                IsCanvasDragging = true;
+                startMousePosition = e.GetPosition(this);
+                FlowChartCanvas.CaptureMouse();
+            }
+        }
+
+        private void FlowChartCanvas_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (IsCanvasDragging)
+            {
+                IsCanvasDragging = false;
+                FlowChartCanvas.ReleaseMouseCapture();
+
+                foreach(var line in connections)
+                {
+                    line.Refresh();
+                }
+            }
+        }
+
+        private void FlowChartCanvas_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
+            {
+                double scale = e.Delta > 0 ? 1.1 : 0.9;
+
+                foreach (UIElement element in FlowChartCanvas.Children)
+                {
+                    element.RenderTransformOrigin = new Point(0.5, 0.5);
+                    var transform = element.RenderTransform as ScaleTransform;
+                    if (transform == null)
+                    {
+                        transform = new ScaleTransform();
+                        element.RenderTransform = transform;
+                    }
+                    transform.ScaleX *= scale;
+                    transform.ScaleY *= scale;
+                }
+
+                foreach (var line in connections)
+                {
+                    line.Refresh();
+                }
+            }
+        }
+        private void AdjustCanvasSizeAndContent(double deltaX, double deltaY)
+        {
+            var myCanvas = FlowChartCanvas;
+
+
+            // 获取画布的边界框
+            Rect transformedBounds = myCanvas.RenderTransform.TransformBounds(new Rect(myCanvas.RenderSize));
+
+            // 检查画布的左边缘是否超出视图
+            if (transformedBounds.Left > 0)
+            {
+                double offsetX = transformedBounds.Left;
+                myCanvas.Width += offsetX;
+                transform.X -= offsetX;
+
+                // 移动所有控件的位置
+                foreach (UIElement child in myCanvas.Children)
+                {
+                    Canvas.SetLeft(child, Canvas.GetLeft(child) + offsetX);
+                }
+            }
+
+            // 检查画布的上边缘是否超出视图
+            if (transformedBounds.Top > 0)
+            {
+                double offsetY = transformedBounds.Top;
+                myCanvas.Height += offsetY;
+                transform.Y -= offsetY;
+
+                // 移动所有控件的位置
+                foreach (UIElement child in myCanvas.Children)
+                {
+                    Canvas.SetTop(child, Canvas.GetTop(child) + offsetY);
+                }
+            }
+
+            //Debug.Print($" {FlowChartScrollViewer.ActualWidth} / {FlowChartScrollViewer.ActualHeight} -- {transformedBounds.Right} / {transformedBounds.Bottom}");
+
+            var size = 50;
+            // 检查画布的右边缘是否超出当前宽度
+            if (transformedBounds.Right + size < FlowChartScrollViewer.ActualWidth)
+            {
+
+                double extraWidth = FlowChartScrollViewer.ActualWidth - transformedBounds.Right;
+                FlowChartCanvas.Width += extraWidth;
+            }
+
+            // 检查画布的下边缘是否超出当前高度
+            if (transformedBounds.Bottom + size < FlowChartScrollViewer.ActualHeight)
+            {
+                double extraHeight = FlowChartScrollViewer.ActualHeight - transformedBounds.Bottom;
+                FlowChartCanvas.Height += extraHeight;
+            }
+
+        }
+
+        #endregion
 
         /// <summary>
         /// FlowChartCanvas中移动时处理，用于实时更新连接线的终点位置。
@@ -1288,6 +1400,22 @@ namespace Serein.WorkBench
                 currentLine.Y1 = Canvas.GetTop(startConnectBlock) + startConnectBlock.ActualHeight / 2;
                 currentLine.X2 = position.X;
                 currentLine.Y2 = position.Y;
+            }
+
+            if (IsCanvasDragging)
+            {
+                Point currentMousePosition = e.GetPosition(this);
+                double deltaX = currentMousePosition.X - startMousePosition.X;
+                double deltaY = currentMousePosition.Y - startMousePosition.Y;
+
+                transform.X += deltaX;
+                transform.Y += deltaY;
+
+
+                startMousePosition = currentMousePosition;
+
+                // 调整画布大小和控件位置
+                AdjustCanvasSizeAndContent(deltaX, deltaY);
             }
         }
 
@@ -1395,7 +1523,7 @@ namespace Serein.WorkBench
         {
             IsConnecting = false;
             startConnectBlock = null;
-            FlowChartCanvas.MouseMove -= FlowChartCanvas_MouseMove;
+            //FlowChartCanvas.MouseMove -= FlowChartCanvas_MouseMove;
 
             // 移除虚线
             if (currentLine != null)
@@ -2006,6 +2134,7 @@ namespace Serein.WorkBench
         {
             public static Connection Draw(Canvas canvas, Connection connection)
             {
+                connection.Canvas = canvas;
                 UpdateBezierLine(canvas, connection);
                 //MakeDraggable(canvas, connection, connection.Start);
                 //MakeDraggable(canvas, connection, connection.End);
@@ -2105,6 +2234,8 @@ namespace Serein.WorkBench
         public class Connection
         {
             public ConnectionType Type { get; set; }
+            public Canvas Canvas { get; set; }// 贝塞尔曲线所在画布
+
             public System.Windows.Shapes.Path BezierPath { get; set; }// 贝塞尔曲线路径
             public System.Windows.Shapes.Path ArrowPath { get; set; } // 箭头路径
 
@@ -2119,9 +2250,14 @@ namespace Serein.WorkBench
                 canvas.Children.Remove(ArrowPath); // 移除线
                 _animationStoryboard?.Stop(); // 停止动画
             }
+
+            public void Refresh()
+            {
+                BsControl.Draw(Canvas,this);
+            }
         }
 
-        public class BezierLineDrawer
+        public static class BezierLineDrawer
         {
             public enum Localhost
             {
@@ -2280,6 +2416,8 @@ namespace Serein.WorkBench
 
         }
         #endregion
+
+
     }
 
 }
