@@ -1,5 +1,5 @@
 # 自述
-基于WPF（Dotnet 8）的流程可视化编辑器，需二次开发。Bilibili个人空间：https://space.bilibili.com/33526379，不定期更新相关的视频。
+基于WPF（Dotnet 8）的流程可视化编辑器，需二次开发。Bilibili个人空间（不定期更新相关的视频。）：https://space.bilibili.com/33526379
 
 # 如何加载我的DLL？
 使用 **DynamicFlow** 特性标记你的类，可以参照 **MyDll** 与 **SereinWAT** 的实现。编译为 Dll文件 后，拖入到软件中即可。
