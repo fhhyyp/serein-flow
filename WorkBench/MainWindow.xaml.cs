@@ -19,6 +19,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Media3D;
 using System.Windows.Shapes;
+using System.Xml.Linq;
 using DataObject = System.Windows.DataObject;
 
 namespace Serein.WorkBench
@@ -202,8 +203,11 @@ namespace Serein.WorkBench
         private bool IsDragging;
         private bool IsCanvasDragging;
         private Point startMousePosition;
-        private TranslateTransform transform;
+        private TranslateTransform transform1;
 
+        private TransformGroup canvasTransformGroup;
+        private ScaleTransform scaleTransform;
+        private TranslateTransform translateTransform;
 
 
 
@@ -218,8 +222,18 @@ namespace Serein.WorkBench
             var logTextWriter = new LogTextWriter(WriteLog);
             Console.SetOut(logTextWriter);
 
-            transform = new TranslateTransform();
-            FlowChartCanvas.RenderTransform = transform;
+            //transform = new TranslateTransform();
+            //FlowChartCanvas.RenderTransform = transform;
+
+             canvasTransformGroup = new TransformGroup();
+    scaleTransform = new ScaleTransform();
+    translateTransform = new TranslateTransform();
+
+    canvasTransformGroup.Children.Add(scaleTransform);
+    canvasTransformGroup.Children.Add(translateTransform);
+
+    FlowChartCanvas.RenderTransform = canvasTransformGroup;
+    FlowChartCanvas.RenderTransformOrigin = new Point(0.5, 0.5);
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -1306,24 +1320,8 @@ namespace Serein.WorkBench
             if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
             {
                 double scale = e.Delta > 0 ? 1.1 : 0.9;
-
-                foreach (UIElement element in FlowChartCanvas.Children)
-                {
-                    element.RenderTransformOrigin = new Point(0.5, 0.5);
-                    var transform = element.RenderTransform as ScaleTransform;
-                    if (transform == null)
-                    {
-                        transform = new ScaleTransform();
-                        element.RenderTransform = transform;
-                    }
-                    transform.ScaleX *= scale;
-                    transform.ScaleY *= scale;
-                }
-
-                foreach (var line in connections)
-                {
-                    line.Refresh();
-                }
+                scaleTransform.ScaleX *= scale;
+                scaleTransform.ScaleY *= scale;
             }
         }
         private void AdjustCanvasSizeAndContent(double deltaX, double deltaY)
@@ -1339,7 +1337,7 @@ namespace Serein.WorkBench
             {
                 double offsetX = transformedBounds.Left;
                 myCanvas.Width += offsetX;
-                transform.X -= offsetX;
+                translateTransform.X -= offsetX;
 
                 // 移动所有控件的位置
                 foreach (UIElement child in myCanvas.Children)
@@ -1353,7 +1351,7 @@ namespace Serein.WorkBench
             {
                 double offsetY = transformedBounds.Top;
                 myCanvas.Height += offsetY;
-                transform.Y -= offsetY;
+                translateTransform.Y -= offsetY;
 
                 // 移动所有控件的位置
                 foreach (UIElement child in myCanvas.Children)
@@ -1408,13 +1406,12 @@ namespace Serein.WorkBench
                 double deltaX = currentMousePosition.X - startMousePosition.X;
                 double deltaY = currentMousePosition.Y - startMousePosition.Y;
 
-                transform.X += deltaX;
-                transform.Y += deltaY;
-
+                translateTransform.X += deltaX;
+                translateTransform.Y += deltaY;
 
                 startMousePosition = currentMousePosition;
 
-                // 调整画布大小和控件位置
+                // Adjust canvas size and content if necessary
                 AdjustCanvasSizeAndContent(deltaX, deltaY);
             }
         }
