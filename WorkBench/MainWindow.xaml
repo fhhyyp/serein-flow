@@ -5,6 +5,7 @@
         xmlns:custom="clr-namespace:Serein.WorkBench.Node.View"
         Title="Dynamic Node Flow" Height="700" Width="1200"
         AllowDrop="True" Drop="Window_Drop" DragOver="Window_DragOver"
+        SizeChanged ="Window_SizeChanged"
         Loaded="Window_Loaded"
         Closing="Window_Closing">
 
@@ -77,17 +78,19 @@
                            x:Name="FlowChartScrollViewer"
                            HorizontalScrollBarVisibility="Auto"
                            VerticalScrollBarVisibility="Auto">
-                
-                <Canvas x:Name="FlowChartCanvas" 
-                        Background="#F2EEE8"
-                        AllowDrop="True" 
-                        MouseDown="FlowChartCanvas_MouseDown"
-                        MouseMove="FlowChartCanvas_MouseMove"
-                        MouseUp="FlowChartCanvas_MouseUp"
-                        MouseWheel="FlowChartCanvas_MouseWheel"
-                        Drop="FlowChartCanvas_Drop" 
-                        DragOver="FlowChartCanvas_DragOver"/>
+                    <Canvas 
+                 x:Name="FlowChartCanvas" 
+                Background="#F2EEE8"
+                AllowDrop="True" 
+                MouseDown="FlowChartCanvas_MouseDown"
+                MouseMove="FlowChartCanvas_MouseMove"
+                MouseUp="FlowChartCanvas_MouseUp"
+                MouseWheel="FlowChartCanvas_MouseWheel"
+                Drop="FlowChartCanvas_Drop" 
+                DragOver="FlowChartCanvas_DragOver"/>
             </ScrollViewer>
+            
+            
         </Grid>
         
     </Grid>

@@ -1294,8 +1294,9 @@ namespace Serein.WorkBench
             if (e.MiddleButton == MouseButtonState.Pressed)
             {
                 IsCanvasDragging = true;
-                startPoint = e.GetPosition(this);
+                startPoint = e.GetPosition(FlowChartScrollViewer);
                 FlowChartCanvas.CaptureMouse();
+                e.Handled = true; // 防止事件传播影响其他控件
             }
         }
 
@@ -1305,79 +1306,130 @@ namespace Serein.WorkBench
             {
                 IsCanvasDragging = false;
                 FlowChartCanvas.ReleaseMouseCapture();
-
-                foreach(var line in connections)
-                {
-                    line.Refresh();
-                }
             }
         }
 
+        // 缩放功能有问题
         private void FlowChartCanvas_MouseWheel(object sender, MouseWheelEventArgs e)
         {
             
             if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
             {
-                double scale = e.Delta > 0 ? 1.1 : 0.9;
-                scaleTransform.ScaleX *= scale;
-                scaleTransform.ScaleY *= scale;
+                //double scale = e.Delta > 0 ? 0.1 : -0.1;
+                //scaleTransform.ScaleX += scale;
+                //scaleTransform.ScaleY += scale;
+                //AdjustCanvasSize();
+
+
+                //double zoomFactor = e.Delta > 0 ? 1.1 : 0.9;
+
+                //// 获取鼠标相对于Canvas的位置
+                //Point mousePosition = e.GetPosition(FlowChartCanvas);
+
+                //// 计算缩放后的Canvas中心位置
+                //double absoluteX = mousePosition.X * scaleTransform.ScaleX;
+                //double absoluteY = mousePosition.Y * scaleTransform.ScaleY;
+
+                //// 应用缩放
+                //scaleTransform.ScaleX *= zoomFactor;
+                //scaleTransform.ScaleY *= zoomFactor;
+
+                //// 平移，使缩放中心保持在鼠标光标处
+                //translateTransform.X = mousePosition.X - absoluteX * zoomFactor;
+                //translateTransform.Y = mousePosition.Y - absoluteY * zoomFactor;
+
+                // 调整画布大小，使其始终占据整个容器
+                //AdjustCanvasSizeToContainer();
             }
         }
+
+        private void AdjustCanvasSizeToContainer()
+        {
+            // 获取当前缩放后的画布大小
+            double newWidth = FlowChartCanvas.Width * scaleTransform.ScaleX;
+            double newHeight = FlowChartCanvas.Height * scaleTransform.ScaleY;
+
+            // 设置画布大小，使其至少与ScrollViewer的可视区域大小相同
+            FlowChartCanvas.Width = Math.Max(FlowChartScrollViewer.Width, newWidth);
+            FlowChartCanvas.Height = Math.Max(FlowChartScrollViewer.Height, newHeight);
+        }
+
+        private void AdjustCanvasSize()
+        {
+            // 获取 ScrollViewer 可视区域的宽度和高度
+            double scrollViewerWidth = FlowChartScrollViewer.Width * scaleTransform.ScaleX;
+            double scrollViewerHeight = FlowChartScrollViewer.Height * scaleTransform.ScaleY;
+
+            // 调整 Canvas 大小
+            if (scrollViewerWidth > 0 && scrollViewerHeight > 0)
+            {
+                FlowChartCanvas.Width = scrollViewerWidth;
+                FlowChartCanvas.Height = scrollViewerHeight;
+            }
+        }
+
+
         private void AdjustCanvasSizeAndContent(double deltaX, double deltaY)
         {
-            var myCanvas = FlowChartCanvas;
-
+            
 
             // 获取画布的边界框
-            Rect transformedBounds = myCanvas.RenderTransform.TransformBounds(new Rect(myCanvas.RenderSize));
+            Rect transformedBounds = FlowChartCanvas.RenderTransform.TransformBounds(new Rect(FlowChartCanvas.RenderSize));
+            // Debug.Print($" {FlowChartScrollViewer.ActualWidth} / {FlowChartScrollViewer.ActualHeight} -- {transformedBounds.Right} / {transformedBounds.Bottom}");
+            // Debug.Print($" {transformedBounds.Left} / {transformedBounds.Top} -- {deltaX} / {deltaY}");
+
+            
+           
 
             // 检查画布的左边缘是否超出视图
-            if (transformedBounds.Left > 0)
+            if (deltaX > 0 && transformedBounds.Left > 0)
             {
                 double offsetX = transformedBounds.Left;
-                myCanvas.Width += offsetX;
+                FlowChartCanvas.Width += offsetX;
                 translateTransform.X -= offsetX;
 
+                Debug.Print($" offsetX : {offsetX}");
                 // 移动所有控件的位置
-                foreach (UIElement child in myCanvas.Children)
+                foreach (UIElement child in FlowChartCanvas.Children)
                 {
                     Canvas.SetLeft(child, Canvas.GetLeft(child) + offsetX);
                 }
             }
 
             // 检查画布的上边缘是否超出视图
-            if (transformedBounds.Top > 0)
+            //if (transformedBounds.Top > 0)
+            if (deltaY > 0 & transformedBounds.Top > 0)
             {
                 double offsetY = transformedBounds.Top;
-                myCanvas.Height += offsetY;
+                FlowChartCanvas.Height += offsetY;
                 translateTransform.Y -= offsetY;
+                Debug.Print($" offsetY : {offsetY}");
 
                 // 移动所有控件的位置
-                foreach (UIElement child in myCanvas.Children)
+                foreach (UIElement child in FlowChartCanvas.Children)
                 {
                     Canvas.SetTop(child, Canvas.GetTop(child) + offsetY);
                 }
             }
 
-            //Debug.Print($" {FlowChartScrollViewer.ActualWidth} / {FlowChartScrollViewer.ActualHeight} -- {transformedBounds.Right} / {transformedBounds.Bottom}");
-
             var size = 50;
             // 检查画布的右边缘是否超出当前宽度
-            if (transformedBounds.Right + size < FlowChartScrollViewer.ActualWidth)
+            if ( transformedBounds.Right + size < FlowChartScrollViewer.ActualWidth)
             {
 
                 double extraWidth = FlowChartScrollViewer.ActualWidth - transformedBounds.Right;
-                FlowChartCanvas.Width += extraWidth;
+                this.FlowChartCanvas.Width += extraWidth;
             }
 
             // 检查画布的下边缘是否超出当前高度
             if (transformedBounds.Bottom + size < FlowChartScrollViewer.ActualHeight)
             {
                 double extraHeight = FlowChartScrollViewer.ActualHeight - transformedBounds.Bottom;
-                FlowChartCanvas.Height += extraHeight;
+                this.FlowChartCanvas.Height += extraHeight;
             }
 
         }
+
 
         #endregion
 
@@ -1398,10 +1450,9 @@ namespace Serein.WorkBench
                 currentLine.X2 = position.X;
                 currentLine.Y2 = position.Y;
             }
-
             if (IsCanvasDragging)
             {
-                Point currentMousePosition = e.GetPosition(this);
+                Point currentMousePosition = e.GetPosition(FlowChartScrollViewer);
                 double deltaX = currentMousePosition.X - startPoint.X;
                 double deltaY = currentMousePosition.Y - startPoint.Y;
 
@@ -1410,9 +1461,15 @@ namespace Serein.WorkBench
 
                 startPoint = currentMousePosition;
 
-                // Adjust canvas size and content if necessary
                 AdjustCanvasSizeAndContent(deltaX, deltaY);
+                foreach (var line in connections)
+                {
+                    line.Refresh();
+                }
+
+                e.Handled = true; // 防止事件传播影响其他控件
             }
+
         }
 
         /// <summary>
@@ -1550,19 +1607,19 @@ namespace Serein.WorkBench
         /// <param name="e"></param>
         private void FlowChartScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            // 确保 FlowChartCanvas 的最小尺寸等于 ScrollViewer 的可见尺寸
-            var scrollViewerViewportWidth = FlowChartScrollViewer.ViewportWidth;
-            var scrollViewerViewportHeight = FlowChartScrollViewer.ViewportHeight;
+            //// 确保 FlowChartCanvas 的最小尺寸等于 ScrollViewer 的可见尺寸
+            //var scrollViewerViewportWidth = FlowChartScrollViewer.ViewportWidth;
+            //var scrollViewerViewportHeight = FlowChartScrollViewer.ViewportHeight;
 
-            if (FlowChartCanvas.Width < scrollViewerViewportWidth)
-            {
-                FlowChartCanvas.Width = scrollViewerViewportWidth;
-            }
+            //if (FlowChartCanvas.Width < scrollViewerViewportWidth)
+            //{
+            //    FlowChartCanvas.Width = scrollViewerViewportWidth;
+            //}
 
-            if (FlowChartCanvas.Height < scrollViewerViewportHeight)
-            {
-                FlowChartCanvas.Height = scrollViewerViewportHeight;
-            }
+            //if (FlowChartCanvas.Height < scrollViewerViewportHeight)
+            //{
+            //    FlowChartCanvas.Height = scrollViewerViewportHeight;
+            //}
         }
 
 
@@ -2124,7 +2181,10 @@ namespace Serein.WorkBench
             return Uri.UnescapeDataString(relativeUri.ToString().Replace('/', System.IO.Path.DirectorySeparatorChar));
         }
 
-       
+        private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            AdjustCanvasSize();
+        }
     }
     #region 创建两个控件之间的连接关系，在UI层面上显示为 带箭头指向的贝塞尔曲线
 

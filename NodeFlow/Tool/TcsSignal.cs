@@ -15,68 +15,43 @@ namespace Serein.NodeFlow.Tool
 
     public class TcsSignal<TSignal> where TSignal : struct, Enum
     {
+        //public ConcurrentDictionary<TSignal, Queue<TaskCompletionSource<object>>> TcsEvent { get; } = new();
+        public ConcurrentDictionary<TSignal, TaskCompletionSource<object>> TcsEvent { get; } = new();
+        public ConcurrentDictionary<TSignal, object> TcsValue { get; } = new();
 
-        public ConcurrentDictionary<TSignal, Stack<TaskCompletionSource<object>>> TcsEvent { get; } = new();
-
-        // public object tcsObj = new object();
-
-        public bool TriggerSignal<T>(TSignal signal, T state)
+        /// <summary>
+        /// 触发信号
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="signal">信号</param>
+        /// <param name="value">传递的参数</param>
+        /// <returns>是否成功触发</returns>
+        public bool TriggerSignal<T>(TSignal signal, T value)
         {
-            if (TcsEvent.TryRemove(signal, out var waitTcss))
+            if (TcsEvent.TryRemove(signal, out var waitTcs))
             {
-                while (waitTcss.Count > 0)
-                {
-
-                    waitTcss.Pop().SetResult(state);
-
-                }
+                waitTcs.SetResult(value);
                 return true;
             }
             return false;
-
-
         }
 
         public TaskCompletionSource<object> CreateTcs(TSignal signal)
         {
-
-            var tcs = new TaskCompletionSource<object>();
-            TcsEvent.GetOrAdd(signal, _ => new Stack<TaskCompletionSource<object>>()).Push(tcs);
+            var tcs = TcsEvent.GetOrAdd(signal,_ = new TaskCompletionSource<object>());
             return tcs;
-
-
-
         }
-        //public TaskCompletionSource<object> GetOrCreateTcs(TSignal signal)
-        //{
-        //    lock (tcsObj)
-        //    {
-        //        var tcs = TcsEvent.GetOrAdd(signal, _ => new TaskCompletionSource<object>());
-        //        if (tcs.Task.IsCompleted)
-        //        {
-        //            TcsEvent.TryRemove(signal, out _);
-        //            tcs = new TaskCompletionSource<object>();
-        //            TcsEvent[signal] = tcs;
-        //        }
-        //        return tcs;
-        //    }
-        //}
 
         public void CancelTask()
         {
             lock (TcsEvent)
             {
-
-                foreach (var tcss in TcsEvent.Values)
+                foreach (var tcs in TcsEvent.Values)
                 {
-                    while (tcss.Count > 0)
-                    {
-                        tcss.Pop().SetException(new TcsSignalException("Task Cancel"));
-                    }
+                    tcs.SetException(new TcsSignalException("任务取消"));
                 }
                 TcsEvent.Clear();
             }
         }
-
     }
 }
