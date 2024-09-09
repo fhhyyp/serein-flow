@@ -25,7 +25,7 @@ namespace Serein.NodeFlow.Model
 
             var newData = SerinExpressionEvaluator.Evaluate(Expression, data, out bool isChange);
 
-            FlowState = true;
+            FlowState = FlowStateType.Succeed;
             Console.WriteLine(newData);
             if (isChange)
             {

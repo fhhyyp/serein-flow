@@ -120,10 +120,6 @@ namespace Serein.WorkBench
         public static string FileDataPath = "";
         private void Application_Startup(object sender, StartupEventArgs e)
         {
-          
-            // 示例：写入调试信息
-            Debug.WriteLine("应用程序启动");
-
             // 检查是否传入了参数
             if (e.Args.Length == 1)
             {

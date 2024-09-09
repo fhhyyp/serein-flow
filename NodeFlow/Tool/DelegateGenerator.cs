@@ -105,7 +105,7 @@ public static class DelegateGenerator
 
             return new ExplicitData
             {
-                IsExplicitData = it.GetCustomAttribute(typeof(ExplicitAttribute)) is ExplicitAttribute,
+                IsExplicitData = it.HasDefaultValue,
                 Index = index,
                 ExplicitType = it.ParameterType,
                 ExplicitTypeName = explicitTypeName,

@@ -1,5 +1,6 @@
 ﻿using Serein.Library.Http;
 using Serein.NodeFlow;
+using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Tool;
 using static MyDll.PlcDevice;
 namespace MyDll
@@ -135,7 +136,7 @@ namespace MyDll
         #region 触发器
 
         [MethodDetail(DynamicNodeType.Flipflop, "等待信号触发")]
-        public async Task<FlipflopContext> WaitTask([Explicit] SignalType triggerType = SignalType.光电1)
+        public async Task<FlipflopContext> WaitTask(SignalType triggerType = SignalType.光电1)
         {
             /*if (!Enum.TryParse(triggerValue, out SignalType triggerType) && Enum.IsDefined(typeof(SignalType), triggerType))
             {
@@ -150,16 +151,16 @@ namespace MyDll
                 var result = await tcs.Task;
                 //Interlocked.Increment(ref MyPlc.Count); // 原子自增
                 //Console.WriteLine($"信号触发[{triggerType}] : {MyPlc.Count}{Environment.NewLine} thread :{Thread.CurrentThread.ManagedThreadId}{Environment.NewLine}");
-                return new FlipflopContext(FfState.Succeed, MyPlc.Count);
+                return new FlipflopContext(FlowStateType.Succeed, MyPlc.Count);
             }
             catch (TcsSignalException)
             {
                 // await Console.Out.WriteLineAsync($"取消等待信号[{triggerType}]");
-                return new FlipflopContext(FfState.Cancel);
+                return new FlipflopContext(FlowStateType.Error);
             }
         }
         [MethodDetail(DynamicNodeType.Flipflop, "等待信号触发")]
-        public async Task<FlipflopContext> WaitTask2([Explicit] string triggerValue = nameof(SignalType.光电1))
+        public async Task<FlipflopContext> WaitTask2(string triggerValue = nameof(SignalType.光电1))
         {
             try
             {
@@ -173,12 +174,12 @@ namespace MyDll
 
                 Interlocked.Increment(ref MyPlc.Count); // 原子自增
                 Console.WriteLine($"信号触发[{triggerType}] : {MyPlc.Count}");
-                return new FlipflopContext(FfState.Succeed, MyPlc.Count);
+                return new FlipflopContext(FlowStateType.Succeed, MyPlc.Count);
             }
             catch(TcsSignalException ex)
             {
                 // await Console.Out.WriteLineAsync($"取消等待信号[{triggerValue}]");
-                return new FlipflopContext(ex.FfState);
+                return new FlipflopContext(ex.FsState);
             }
         }
 
@@ -187,15 +188,17 @@ namespace MyDll
         #region 动作
 
         [MethodDetail(DynamicNodeType.Action, "初始化")]
-        public PlcDevice PlcInit([Explicit] string ip = "192.168.1.1",
-                                 [Explicit] int port = 6688,
-                                 [Explicit] string tips = "测试")
+        public PlcDevice PlcInit(string ip = "192.168.1.1",
+                                 int port = 6688,
+                                 string tips = "测试")
         {
             MyPlc.InitDevice(ip, port, tips);
             return MyPlc;
         }
+
+
         [MethodDetail(DynamicNodeType.Action, "自增")]
-        public PlcDevice 自增([Explicit] int number = 1)
+        public PlcDevice 自增(int number = 1)
         {
             MyPlc.Count += number;
             return MyPlc;
@@ -204,9 +207,9 @@ namespace MyDll
 
         [MethodDetail(DynamicNodeType.Action, "模拟循环触发")]
         public void 模拟循环触发(DynamicContext context, 
-                                [Explicit] int time = 20,
-                                [Explicit] int count = 5, 
-                                [Explicit] SignalType signal = SignalType.光电1)
+                                int time = 20,
+                                int count = 5, 
+                                SignalType signal = SignalType.光电1)
         {
             Action action = () =>
             {

@@ -18,8 +18,8 @@ namespace Serein.Library.IOC
         IServiceContainer Register(Type type, params object[] parameters);
         IServiceContainer Register<T>(params object[] parameters);
         IServiceContainer Register<TService, TImplementation>(params object[] parameters) where TImplementation : TService;
-        T Get<T>();
-        object Get(Type type);
+        T GetOrInstantiate<T>();
+        object GetOrInstantiate(Type type);
 
         /// <summary>
         /// 创建目标类型的对象， 并注入依赖项
@@ -120,7 +120,7 @@ namespace Serein.Library.IOC
             return this;
         }
 
-        public object Get(Type type)
+        public object GetOrInstantiate(Type type)
         {
 
 
@@ -140,24 +140,16 @@ namespace Serein.Library.IOC
         }
 
 
-        public T Get<T>()
+        public T GetOrInstantiate<T>()
         {
-
-
             if(!_dependencies.TryGetValue(typeof(T).FullName, out object value))
             {
                 Register<T>();
 
                 value = Instantiate(typeof(T));
-
             }
 
-
-
-
             return (T)value;
-
-
             //throw new InvalidOperationException("目标类型未创建实例");
         }
         public IServiceContainer Build()
@@ -234,7 +226,7 @@ namespace Serein.Library.IOC
         #region run()
         public IServiceContainer Run<T>(Action<T> action)
         {
-            var service = Get<T>();
+            var service = GetOrInstantiate<T>();
             if (service != null)
             {
                 action(service);
@@ -244,8 +236,8 @@ namespace Serein.Library.IOC
 
         public IServiceContainer Run<T1, T2>(Action<T1, T2> action)
         {
-            var service1 = Get<T1>();
-            var service2 = Get<T2>();
+            var service1 = GetOrInstantiate<T1>();
+            var service2 = GetOrInstantiate<T2>();
 
             action(service1, service2);
             return this;
@@ -253,69 +245,69 @@ namespace Serein.Library.IOC
 
         public IServiceContainer Run<T1, T2, T3>(Action<T1, T2, T3> action)
         {
-            var service1 = Get<T1>();
-            var service2 = Get<T2>();
-            var service3 = Get<T3>();
+            var service1 = GetOrInstantiate<T1>();
+            var service2 = GetOrInstantiate<T2>();
+            var service3 = GetOrInstantiate<T3>();
             action(service1, service2, service3);
             return this;
         }
 
         public IServiceContainer Run<T1, T2, T3, T4>(Action<T1, T2, T3, T4> action)
         {
-            var service1 = Get<T1>();
-            var service2 = Get<T2>();
-            var service3 = Get<T3>();
-            var service4 = Get<T4>();
+            var service1 = GetOrInstantiate<T1>();
+            var service2 = GetOrInstantiate<T2>();
+            var service3 = GetOrInstantiate<T3>();
+            var service4 = GetOrInstantiate<T4>();
             action(service1, service2, service3, service4);
             return this;
         }
 
         public IServiceContainer Run<T1, T2, T3, T4, T5>(Action<T1, T2, T3, T4, T5> action)
         {
-            var service1 = Get<T1>();
-            var service2 = Get<T2>();
-            var service3 = Get<T3>();
-            var service4 = Get<T4>();
-            var service5 = Get<T5>();
+            var service1 = GetOrInstantiate<T1>();
+            var service2 = GetOrInstantiate<T2>();
+            var service3 = GetOrInstantiate<T3>();
+            var service4 = GetOrInstantiate<T4>();
+            var service5 = GetOrInstantiate<T5>();
             action(service1, service2, service3, service4, service5);
             return this;
         }
 
         public IServiceContainer Run<T1, T2, T3, T4, T5, T6>(Action<T1, T2, T3, T4, T5, T6> action)
         {
-            var service1 = Get<T1>();
-            var service2 = Get<T2>();
-            var service3 = Get<T3>();
-            var service4 = Get<T4>();
-            var service5 = Get<T5>();
-            var service6 = Get<T6>();
+            var service1 = GetOrInstantiate<T1>();
+            var service2 = GetOrInstantiate<T2>();
+            var service3 = GetOrInstantiate<T3>();
+            var service4 = GetOrInstantiate<T4>();
+            var service5 = GetOrInstantiate<T5>();
+            var service6 = GetOrInstantiate<T6>();
             action(service1, service2, service3, service4, service5, service6);
             return this;
         }
 
         public IServiceContainer Run<T1, T2, T3, T4, T5, T6, T7>(Action<T1, T2, T3, T4, T5, T6, T7> action)
         {
-            var service1 = Get<T1>();
-            var service2 = Get<T2>();
-            var service3 = Get<T3>();
-            var service4 = Get<T4>();
-            var service5 = Get<T5>();
-            var service6 = Get<T6>();
-            var service7 = Get<T7>();
+            var service1 = GetOrInstantiate<T1>();
+            var service2 = GetOrInstantiate<T2>();
+            var service3 = GetOrInstantiate<T3>();
+            var service4 = GetOrInstantiate<T4>();
+            var service5 = GetOrInstantiate<T5>();
+            var service6 = GetOrInstantiate<T6>();
+            var service7 = GetOrInstantiate<T7>();
             action(service1, service2, service3, service4, service5, service6, service7);
             return this;
         }
 
         public IServiceContainer Run<T1, T2, T3, T4, T5, T6, T7, T8>(Action<T1, T2, T3, T4, T5, T6, T7, T8> action)
         {
-            var service1 = Get<T1>();
-            var service2 = Get<T2>();
-            var service3 = Get<T3>();
-            var service4 = Get<T4>();
-            var service5 = Get<T5>();
-            var service6 = Get<T6>();
-            var service7 = Get<T7>();
-            var service8 = Get<T8>();
+            var service1 = GetOrInstantiate<T1>();
+            var service2 = GetOrInstantiate<T2>();
+            var service3 = GetOrInstantiate<T3>();
+            var service4 = GetOrInstantiate<T4>();
+            var service5 = GetOrInstantiate<T5>();
+            var service6 = GetOrInstantiate<T6>();
+            var service7 = GetOrInstantiate<T7>();
+            var service8 = GetOrInstantiate<T8>();
             action(service1, service2, service3, service4, service5, service6, service7, service8);
             return this;
         }

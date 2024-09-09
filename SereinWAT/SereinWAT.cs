@@ -67,13 +67,13 @@ namespace Serein.Module
         #endregion
 
         [MethodDetail(DynamicNodeType.Action,"等待")]
-        public void Wait([Explicit]int time = 1000)
+        public void Wait(int time = 1000)
         {
             Thread.Sleep(time);
         }
 
         [MethodDetail(DynamicNodeType.Action,"启动浏览器")]
-        public WebDriver OpenDriver([Explicit] bool isVisible = true,[Explicit] DriverType driverType = DriverType.Chrome)
+        public WebDriver OpenDriver( bool isVisible = true, DriverType driverType = DriverType.Chrome)
         {
             if(driverType == DriverType.Chrome)
             {
@@ -127,7 +127,7 @@ namespace Serein.Module
         }
 
         [MethodDetail(DynamicNodeType.Action,"进入网页")]
-        public void ToPage([Explicit] string url)
+        public void ToPage( string url)
         {
             if (url.StartsWith("https://") || url.StartsWith("http://"))
             {
@@ -141,7 +141,7 @@ namespace Serein.Module
 
 
         [MethodDetail(DynamicNodeType.Action,"定位元素")]
-        public IWebElement FindElement([Explicit] string key = "", [Explicit] ByType byType = ByType.XPath, [Explicit] int index = 0)
+        public IWebElement FindElement( string key = "",  ByType byType = ByType.XPath,  int index = 0)
         {
             By by = byType switch
             {
@@ -163,12 +163,12 @@ namespace Serein.Module
         }
 
         [MethodDetail(DynamicNodeType.Action, "定位并操作元素")]
-        public IWebElement FindAndUseElement([Explicit] ByType byType = ByType.XPath,
-                                             [Explicit] string key = "",
-                                             [Explicit] ActionType actionType = ActionType.Click,
-                                             [Explicit] string text = "",
-                                             [Explicit] int index = 0,
-                                             [Explicit] int waitTime = 0)
+        public IWebElement FindAndUseElement( ByType byType = ByType.XPath,
+                                              string key = "",
+                                              ActionType actionType = ActionType.Click,
+                                              string text = "",
+                                              int index = 0,
+                                              int waitTime = 0)
         {
             Thread.Sleep(waitTime);
             By by = byType switch
@@ -205,7 +205,7 @@ namespace Serein.Module
         }
 
         [MethodDetail(DynamicNodeType.Action, "操作元素")]
-        public void PerformAction(IWebElement element, [Explicit] ActionType actionType = ActionType.Click, [Explicit] string text = "")
+        public void PerformAction(IWebElement element,  ActionType actionType = ActionType.Click,  string text = "")
         {
             var actions = new OpenQA.Selenium.Interactions.Actions(WebDriver);
 
@@ -230,7 +230,7 @@ namespace Serein.Module
 
 
         [MethodDetail(DynamicNodeType.Action,"Js操作元素属性")]
-        public void AddAttribute(IWebElement element, [Explicit] ScriptOp scriptOp = ScriptOp.Modify,[Explicit] string attributeName = "", [Explicit] string value = "")
+        public void AddAttribute(IWebElement element,  ScriptOp scriptOp = ScriptOp.Modify, string attributeName = "",  string value = "")
         {
             if(scriptOp == ScriptOp.Add)
             {
@@ -252,7 +252,7 @@ namespace Serein.Module
 
 
         [MethodDetail(DynamicNodeType.Action, "Js获取元素属性")]
-        public string GetAttribute(IWebElement element, [Explicit] string attributeName = "")
+        public string GetAttribute(IWebElement element,  string attributeName = "")
         {
             return element.GetAttribute(attributeName);
         }

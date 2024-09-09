@@ -1,14 +1,15 @@
 ﻿using System.Collections.Concurrent;
 using Serein.NodeFlow;
+using Serein.NodeFlow.Model;
 
 namespace Serein.NodeFlow.Tool
 {
     public class TcsSignalException : Exception
     {
-        public FfState FfState { get; set; }
+        public FlowStateType FsState { get; set; }
         public TcsSignalException(string? message) : base(message)
         {
-            FfState = FfState.Cancel;
+            FsState = FlowStateType.Error;
         }
     }
 

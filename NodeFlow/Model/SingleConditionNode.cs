@@ -36,7 +36,17 @@ namespace Serein.NodeFlow.Model
             {
                 result = PreviousNode?.FlowData;
             }
-            FlowState = SerinConditionParser.To(result, Expression);
+            try
+            {
+                var isPass = SerinConditionParser.To(result, Expression);
+                FlowState = isPass ? FlowStateType.Succeed : FlowStateType.Fail;
+            }
+            catch (Exception ex)
+            {
+                FlowState = FlowStateType.Error;
+                Exception = ex;
+            }
+            
             Console.WriteLine($"{result} {Expression}  -> " + FlowState);
             return result;
         }

@@ -145,33 +145,19 @@ namespace Serein.WorkBench
         /// 存储所有方法信息
         /// </summary>
         ConcurrentDictionary<string, MethodDetails> DictMethodDetail = [];
+
         /// <summary>
         /// 存储所有与节点有关的控件
         /// </summary>
         private readonly List<NodeControlBase> nodeControls = [];
-        // private readonly List<NodeBase> nodeBases = [];
         /// <summary>
         /// 存储所有的连接
         /// </summary>
         private readonly List<Connection> connections = [];
-
         /// <summary>
         /// 存放触发器节点（运行时全部调用）
         /// </summary>
         private readonly List<SingleFlipflopNode> flipflopNodes = [];
-
-        ///// <summary>
-        ///// 运行前的初始化（实例化类型）
-        ///// </summary>
-        //private readonly List<MethodDetails> loadingMethods = [];
-        ///// <summary>
-        ///// 初始化后属性注入以及某些需要设置的状态（注入依赖项）
-        ///// </summary>
-        //private readonly List<MethodDetails> initMethods = [];
-        ///// <summary>
-        ///// 结束运行时需要调用的方法
-        ///// </summary>
-        //private readonly List<MethodDetails> exitMethods = [];
 
         /// <summary>
         /// 记录拖动开始时的鼠标位置
@@ -196,20 +182,32 @@ namespace Serein.WorkBench
         /// <summary>
         /// 标记是否正在进行连接操作
         /// </summary>
-        private bool IsConnecting { get; set; }
+        private bool IsConnecting;
         /// <summary>
         /// 标记是否正在拖动控件
         /// </summary>
-        private bool IsDragging;
+        private bool IsControlDragging;
+        /// <summary>
+        /// 标记是否正在拖动画布
+        /// </summary>
         private bool IsCanvasDragging;
-        private Point startMousePosition;
-        private TranslateTransform transform1;
-
+        /// <summary>
+        /// 组合变换容器
+        /// </summary>
         private TransformGroup canvasTransformGroup;
+        /// <summary>
+        /// 缩放画布
+        /// </summary>
         private ScaleTransform scaleTransform;
+        /// <summary>
+        /// 平移画布 
+        /// </summary>
         private TranslateTransform translateTransform;
 
-
+        /// <summary>
+        /// 流程起点
+        /// </summary>
+        private NodeFlowStarter nodeFlowStarter;
 
         public MainWindow()
 
@@ -225,15 +223,15 @@ namespace Serein.WorkBench
             //transform = new TranslateTransform();
             //FlowChartCanvas.RenderTransform = transform;
 
-             canvasTransformGroup = new TransformGroup();
-    scaleTransform = new ScaleTransform();
-    translateTransform = new TranslateTransform();
+            canvasTransformGroup = new TransformGroup();
+            scaleTransform = new ScaleTransform();
+            translateTransform = new TranslateTransform();
 
-    canvasTransformGroup.Children.Add(scaleTransform);
-    canvasTransformGroup.Children.Add(translateTransform);
+            canvasTransformGroup.Children.Add(scaleTransform);
+            canvasTransformGroup.Children.Add(translateTransform);
 
-    FlowChartCanvas.RenderTransform = canvasTransformGroup;
-    FlowChartCanvas.RenderTransformOrigin = new Point(0.5, 0.5);
+            FlowChartCanvas.RenderTransform = canvasTransformGroup;
+            FlowChartCanvas.RenderTransformOrigin = new Point(0.5, 0.5);
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -1166,7 +1164,7 @@ namespace Serein.WorkBench
             if (IsConnecting)
                 return;
 
-            IsDragging = true;
+            IsControlDragging = true;
             startPoint = e.GetPosition(FlowChartCanvas); // 记录鼠标按下时的位置
             ((UIElement)sender).CaptureMouse(); // 捕获鼠标
         }
@@ -1179,7 +1177,7 @@ namespace Serein.WorkBench
         /// </summary>
         private void Block_MouseMove(object sender, MouseEventArgs e)
         {
-            if (IsDragging)
+            if (IsControlDragging)
             {
                 Point currentPosition = e.GetPosition(FlowChartCanvas); // 获取当前鼠标位置
                                                                         // 获取引发事件的控件
@@ -1296,7 +1294,7 @@ namespace Serein.WorkBench
             if (e.MiddleButton == MouseButtonState.Pressed)
             {
                 IsCanvasDragging = true;
-                startMousePosition = e.GetPosition(this);
+                startPoint = e.GetPosition(this);
                 FlowChartCanvas.CaptureMouse();
             }
         }
@@ -1317,6 +1315,7 @@ namespace Serein.WorkBench
 
         private void FlowChartCanvas_MouseWheel(object sender, MouseWheelEventArgs e)
         {
+            
             if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
             {
                 double scale = e.Delta > 0 ? 1.1 : 0.9;
@@ -1403,13 +1402,13 @@ namespace Serein.WorkBench
             if (IsCanvasDragging)
             {
                 Point currentMousePosition = e.GetPosition(this);
-                double deltaX = currentMousePosition.X - startMousePosition.X;
-                double deltaY = currentMousePosition.Y - startMousePosition.Y;
+                double deltaX = currentMousePosition.X - startPoint.X;
+                double deltaY = currentMousePosition.Y - startPoint.Y;
 
                 translateTransform.X += deltaX;
                 translateTransform.Y += deltaY;
 
-                startMousePosition = currentMousePosition;
+                startPoint = currentMousePosition;
 
                 // Adjust canvas size and content if necessary
                 AdjustCanvasSizeAndContent(deltaX, deltaY);
@@ -1421,9 +1420,9 @@ namespace Serein.WorkBench
         /// </summary>
         private void Block_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
-            if (IsDragging)
+            if (IsControlDragging)
             {
-                IsDragging = false;
+                IsControlDragging = false;
                 ((UIElement)sender).ReleaseMouseCapture();  // 释放鼠标捕获
             }
             else if (IsConnecting)
@@ -1787,7 +1786,7 @@ namespace Serein.WorkBench
         }
 
 
-        private NodeFlowStarter nodeFlowStarter;
+        
 
         /// <summary>
         /// 运行测试
@@ -1804,8 +1803,11 @@ namespace Serein.WorkBench
             WriteLog("----------------\r\n");
         }
 
-
-
+        /// <summary>
+        /// 退出
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void ButtonDebugFlipflopNode_Click(object sender, RoutedEventArgs e)
         {
            nodeFlowStarter?.Exit();
@@ -2080,7 +2082,6 @@ namespace Serein.WorkBench
             }
 
         }
-
         public static string? SaveContentToFile(string content)
         {
             // 创建一个新的保存文件对话框
@@ -2115,7 +2116,6 @@ namespace Serein.WorkBench
             }
             return null;
         }
-        // 计算相对路径的方法
         public static string GetRelativePath(string baseDirectory, string fullPath)
         {
             Uri baseUri = new(baseDirectory + System.IO.Path.DirectorySeparatorChar);
@@ -2124,297 +2124,296 @@ namespace Serein.WorkBench
             return Uri.UnescapeDataString(relativeUri.ToString().Replace('/', System.IO.Path.DirectorySeparatorChar));
         }
 
-        #region 创建两个控件之间的连接关系，在UI层面上显示为 带箭头指向的贝塞尔曲线
+       
+    }
+    #region 创建两个控件之间的连接关系，在UI层面上显示为 带箭头指向的贝塞尔曲线
 
 
-        public static class BsControl
+    public static class BsControl
+    {
+        public static Connection Draw(Canvas canvas, Connection connection)
         {
-            public static Connection Draw(Canvas canvas, Connection connection)
-            {
-                connection.Canvas = canvas;
-                UpdateBezierLine(canvas, connection);
-                //MakeDraggable(canvas, connection, connection.Start);
-                //MakeDraggable(canvas, connection, connection.End);
+            connection.Canvas = canvas;
+            UpdateBezierLine(canvas, connection);
+            //MakeDraggable(canvas, connection, connection.Start);
+            //MakeDraggable(canvas, connection, connection.End);
 
-                if (connection.BezierPath == null)
+            if (connection.BezierPath == null)
+            {
+                connection.BezierPath = new System.Windows.Shapes.Path { Stroke = BezierLineDrawer.GetStroke(connection.Type), StrokeThickness = 1 };
+                Canvas.SetZIndex(connection.BezierPath, -1);
+                canvas.Children.Add(connection.BezierPath);
+            }
+            if (connection.ArrowPath == null)
+            {
+                connection.ArrowPath = new System.Windows.Shapes.Path { Stroke = BezierLineDrawer.GetStroke(connection.Type), Fill = BezierLineDrawer.GetStroke(connection.Type), StrokeThickness = 1 };
+                Canvas.SetZIndex(connection.ArrowPath, -1);
+                canvas.Children.Add(connection.ArrowPath);
+            }
+
+            BezierLineDrawer.UpdateBezierLine(canvas, connection.Start, connection.End, connection.BezierPath, connection.ArrowPath);
+            return connection;
+        }
+
+        private static bool isUpdating = false; // 是否正在更新线条显示
+
+
+        // 拖动时重新绘制
+        public static void UpdateBezierLine(Canvas canvas, Connection connection)
+        {
+            if (isUpdating)
+                return;
+
+            isUpdating = true;
+
+            canvas.Dispatcher.InvokeAsync(() =>
+            {
+                if (connection != null && connection.BezierPath == null)
                 {
                     connection.BezierPath = new System.Windows.Shapes.Path { Stroke = BezierLineDrawer.GetStroke(connection.Type), StrokeThickness = 1 };
-                    Canvas.SetZIndex(connection.BezierPath, -1);
+                    //Canvas.SetZIndex(connection.BezierPath, -1);
                     canvas.Children.Add(connection.BezierPath);
                 }
-                if (connection.ArrowPath == null)
+
+                if (connection != null && connection.ArrowPath == null)
                 {
                     connection.ArrowPath = new System.Windows.Shapes.Path { Stroke = BezierLineDrawer.GetStroke(connection.Type), Fill = BezierLineDrawer.GetStroke(connection.Type), StrokeThickness = 1 };
-                    Canvas.SetZIndex(connection.ArrowPath, -1);
+                    //Canvas.SetZIndex(connection.ArrowPath, -1);
                     canvas.Children.Add(connection.ArrowPath);
                 }
 
                 BezierLineDrawer.UpdateBezierLine(canvas, connection.Start, connection.End, connection.BezierPath, connection.ArrowPath);
-                return connection;
-            }
-
-            private static bool isUpdating = false; // 是否正在更新线条显示
-
-
-            // 拖动时重新绘制
-            public static void UpdateBezierLine(Canvas canvas, Connection connection)
-            {
-                if (isUpdating)
-                    return;
-
-                isUpdating = true;
-
-                canvas.Dispatcher.InvokeAsync(() =>
-                {
-                    if (connection != null && connection.BezierPath == null)
-                    {
-                        connection.BezierPath = new System.Windows.Shapes.Path { Stroke = BezierLineDrawer.GetStroke(connection.Type), StrokeThickness = 1 };
-                        //Canvas.SetZIndex(connection.BezierPath, -1);
-                        canvas.Children.Add(connection.BezierPath);
-                    }
-
-                    if (connection != null && connection.ArrowPath == null)
-                    {
-                        connection.ArrowPath = new System.Windows.Shapes.Path { Stroke = BezierLineDrawer.GetStroke(connection.Type), Fill = BezierLineDrawer.GetStroke(connection.Type), StrokeThickness = 1 };
-                        //Canvas.SetZIndex(connection.ArrowPath, -1);
-                        canvas.Children.Add(connection.ArrowPath);
-                    }
-
-                    BezierLineDrawer.UpdateBezierLine(canvas, connection.Start, connection.End, connection.BezierPath, connection.ArrowPath);
-                    isUpdating = false;
-                });
-            }
-            
-            // private static Point clickPosition; // 当前点击事件
-             // private static bool isDragging = false; // 是否正在移动控件
-             //private static void MakeDraggable(Canvas canvas, Connection connection, UIElement element)
-             //{
-             //    if (connection.IsSetEven)
-             //    {
-             //        return;
-             //    }
-
-            //    element.MouseLeftButtonDown += (sender, e) =>
-            //    {
-            //        isDragging = true;
-            //        //clickPosition = e.GetPosition(element);
-            //        //element.CaptureMouse();
-            //    };
-            //    element.MouseLeftButtonUp += (sender, e) =>
-            //    {
-            //        isDragging = false;
-            //        //element.ReleaseMouseCapture();
-            //    };
-
-            //    element.MouseMove += (sender, e) =>
-            //    {
-            //        if (isDragging)
-            //        {
-            //            if (VisualTreeHelper.GetParent(element) is Canvas canvas)
-            //            {
-            //                Point currentPosition = e.GetPosition(canvas);
-            //                double newLeft = currentPosition.X - clickPosition.X;
-            //                double newTop = currentPosition.Y - clickPosition.Y;
-
-            //                Canvas.SetLeft(element, newLeft);
-            //                Canvas.SetTop(element, newTop);
-            //                UpdateBezierLine(canvas, connection);
-            //            }
-            //        }
-            //    };
-
-
-            //}
+                isUpdating = false;
+            });
         }
 
+        // private static Point clickPosition; // 当前点击事件
+        // private static bool isDragging = false; // 是否正在移动控件
+        //private static void MakeDraggable(Canvas canvas, Connection connection, UIElement element)
+        //{
+        //    if (connection.IsSetEven)
+        //    {
+        //        return;
+        //    }
 
-        public class Connection
+        //    element.MouseLeftButtonDown += (sender, e) =>
+        //    {
+        //        isDragging = true;
+        //        //clickPosition = e.GetPosition(element);
+        //        //element.CaptureMouse();
+        //    };
+        //    element.MouseLeftButtonUp += (sender, e) =>
+        //    {
+        //        isDragging = false;
+        //        //element.ReleaseMouseCapture();
+        //    };
+
+        //    element.MouseMove += (sender, e) =>
+        //    {
+        //        if (isDragging)
+        //        {
+        //            if (VisualTreeHelper.GetParent(element) is Canvas canvas)
+        //            {
+        //                Point currentPosition = e.GetPosition(canvas);
+        //                double newLeft = currentPosition.X - clickPosition.X;
+        //                double newTop = currentPosition.Y - clickPosition.Y;
+
+        //                Canvas.SetLeft(element, newLeft);
+        //                Canvas.SetTop(element, newTop);
+        //                UpdateBezierLine(canvas, connection);
+        //            }
+        //        }
+        //    };
+
+
+        //}
+    }
+
+
+    public class Connection
+    {
+        public ConnectionType Type { get; set; }
+        public Canvas Canvas { get; set; }// 贝塞尔曲线所在画布
+
+        public System.Windows.Shapes.Path BezierPath { get; set; }// 贝塞尔曲线路径
+        public System.Windows.Shapes.Path ArrowPath { get; set; } // 箭头路径
+
+        public required NodeControlBase Start { get; set; } // 起始
+        public required NodeControlBase End { get; set; }   // 结束
+
+        private Storyboard? _animationStoryboard; // 动画Storyboard
+
+        public void RemoveFromCanvas(Canvas canvas)
         {
-            public ConnectionType Type { get; set; }
-            public Canvas Canvas { get; set; }// 贝塞尔曲线所在画布
-
-            public System.Windows.Shapes.Path BezierPath { get; set; }// 贝塞尔曲线路径
-            public System.Windows.Shapes.Path ArrowPath { get; set; } // 箭头路径
-
-            public required NodeControlBase Start { get; set; } // 起始
-            public required NodeControlBase End { get; set; }   // 结束
-
-            private Storyboard? _animationStoryboard; // 动画Storyboard
-
-            public void RemoveFromCanvas(Canvas canvas)
-            {
-                canvas.Children.Remove(BezierPath); // 移除线
-                canvas.Children.Remove(ArrowPath); // 移除线
-                _animationStoryboard?.Stop(); // 停止动画
-            }
-
-            public void Refresh()
-            {
-                BsControl.Draw(Canvas,this);
-            }
+            canvas.Children.Remove(BezierPath); // 移除线
+            canvas.Children.Remove(ArrowPath); // 移除线
+            _animationStoryboard?.Stop(); // 停止动画
         }
 
-        public static class BezierLineDrawer
+        public void Refresh()
         {
-            public enum Localhost
+            BsControl.Draw(Canvas, this);
+        }
+    }
+
+    public static class BezierLineDrawer
+    {
+        public enum Localhost
+        {
+            Left,
+            Right,
+            Top,
+            Bottom,
+        }
+
+        // 绘制曲线
+        public static void UpdateBezierLine(Canvas canvas,
+                                            FrameworkElement startElement,
+                                            FrameworkElement endElement,
+                                            System.Windows.Shapes.Path bezierPath,
+                                            System.Windows.Shapes.Path arrowPath)
+        {
+            Point startPoint = startElement.TranslatePoint(new Point(startElement.ActualWidth / 2, startElement.ActualHeight / 2), canvas);
+            Point endPoint = CalculateEndpointOutsideElement(endElement, canvas, startPoint, out Localhost localhost);
+
+            PathFigure pathFigure = new PathFigure { StartPoint = startPoint };
+            BezierSegment bezierSegment;
+
+            if (localhost == Localhost.Left || localhost == Localhost.Right)
             {
-                Left,
-                Right,
-                Top,
-                Bottom,
-            }
-
-            // 绘制曲线
-            public static void UpdateBezierLine(Canvas canvas,
-                                                FrameworkElement startElement,
-                                                FrameworkElement endElement,
-                                                System.Windows.Shapes.Path bezierPath,
-                                                System.Windows.Shapes.Path arrowPath)
-            {
-                Point startPoint = startElement.TranslatePoint(new Point(startElement.ActualWidth / 2, startElement.ActualHeight / 2), canvas);
-                Point endPoint = CalculateEndpointOutsideElement(endElement, canvas, startPoint, out Localhost localhost);
-
-                PathFigure pathFigure = new PathFigure { StartPoint = startPoint };
-                BezierSegment bezierSegment;
-
-                if (localhost == Localhost.Left || localhost == Localhost.Right)
+                bezierSegment = new BezierSegment
                 {
-                    bezierSegment = new BezierSegment
-                    {
-                        Point1 = new Point((startPoint.X + endPoint.X) / 2, startPoint.Y),
-                        Point2 = new Point((startPoint.X + endPoint.X) / 2, endPoint.Y),
-                        Point3 = endPoint,
-                    };
-                }
-                else // if (localhost == Localhost.Top || localhost == Localhost.Bottom)
-                {
-
-                    bezierSegment = new BezierSegment
-                    {
-                        Point1 = new Point(startPoint.X, (startPoint.Y + endPoint.Y) / 2),
-                        Point2 = new Point(endPoint.X, (startPoint.Y + endPoint.Y) / 2),
-                        Point3 = endPoint,
-                    };
-                }
-
-
-                pathFigure.Segments.Add(bezierSegment);
-
-                PathGeometry pathGeometry = new PathGeometry();
-                pathGeometry.Figures.Add(pathFigure);
-                bezierPath.Data = pathGeometry;
-
-                Point arrowStartPoint = CalculateBezierTangent(startPoint, bezierSegment.Point3, bezierSegment.Point2, endPoint);
-                UpdateArrowPath(endPoint, arrowStartPoint, arrowPath);
-            }
-
-            private static Point CalculateBezierTangent(Point startPoint, Point controlPoint1, Point controlPoint2, Point endPoint)
-            {
-                double t = 10.0; // 末端点
-
-                // 计算贝塞尔曲线在 t = 1 处的一阶导数
-                double dx = 3 * Math.Pow(1 - t, 2) * (controlPoint1.X - startPoint.X) +
-                            6 * (1 - t) * t * (controlPoint2.X - controlPoint1.X) +
-                            3 * Math.Pow(t, 2) * (endPoint.X - controlPoint2.X);
-
-                double dy = 3 * Math.Pow(1 - t, 2) * (controlPoint1.Y - startPoint.Y) +
-                            6 * (1 - t) * t * (controlPoint2.Y - controlPoint1.Y) +
-                            3 * Math.Pow(t, 2) * (endPoint.Y - controlPoint2.Y);
-
-                // 返回切线向量
-                return new Point(dx, dy);
-            }
-
-            // 绘制箭头
-            private static void UpdateArrowPath(Point endPoint,
-                                                Point controlPoint,
-                                                System.Windows.Shapes.Path arrowPath)
-            {
-
-                double arrowLength = 10;
-                double arrowWidth = 5;
-
-                Vector direction = endPoint - controlPoint;
-                direction.Normalize();
-
-                Point arrowPoint1 = endPoint + direction * arrowLength + new Vector(-direction.Y, direction.X) * arrowWidth;
-                Point arrowPoint2 = endPoint + direction * arrowLength + new Vector(direction.Y, -direction.X) * arrowWidth;
-
-                PathFigure arrowFigure = new PathFigure { StartPoint = endPoint };
-                arrowFigure.Segments.Add(new LineSegment(arrowPoint1, true));
-                arrowFigure.Segments.Add(new LineSegment(arrowPoint2, true));
-                arrowFigure.Segments.Add(new LineSegment(endPoint, true));
-
-                PathGeometry arrowGeometry = new PathGeometry();
-                arrowGeometry.Figures.Add(arrowFigure);
-
-                arrowPath.Data = arrowGeometry;
-            }
-            // 计算终点落点位置
-            private static Point CalculateEndpointOutsideElement(FrameworkElement element, Canvas canvas, Point startPoint, out Localhost localhost)
-            {
-                Point centerPoint = element.TranslatePoint(new Point(element.ActualWidth/2, element.ActualHeight/2), canvas);
-                Vector direction = centerPoint - startPoint;
-                direction.Normalize();
-
-
-                
-                var tx = centerPoint.X - startPoint.X;
-                var ty = startPoint.Y - centerPoint.Y;
-
-
-                localhost = (tx < ty, Math.Abs(tx) > Math.Abs(ty)) switch
-                {
-                    (true, true) => Localhost.Right,
-                    (true, false) => Localhost.Bottom,
-                    (false, true) => Localhost.Left,
-                    (false, false) => Localhost.Top,
+                    Point1 = new Point((startPoint.X + endPoint.X) / 2, startPoint.Y),
+                    Point2 = new Point((startPoint.X + endPoint.X) / 2, endPoint.Y),
+                    Point3 = endPoint,
                 };
-
-                double halfWidth = element.ActualWidth / 2 + 6;
-                double halfHeight = element.ActualHeight / 2 + 6;
-                double margin = 0;
-
-                if (localhost == Localhost.Left)
-                {
-                    centerPoint.X -=  halfWidth;
-                    centerPoint.Y -= direction.Y / Math.Abs(direction.X) * halfHeight - margin;
-                }
-                else if (localhost == Localhost.Right)
-                {
-                    centerPoint.X -= -halfWidth;
-                    centerPoint.Y -= direction.Y / Math.Abs(direction.X) * halfHeight - margin;
-                }
-                else if (localhost == Localhost.Top)
-                {
-                    centerPoint.Y -= halfHeight;
-                    centerPoint.X -= direction.X / Math.Abs(direction.Y) * halfWidth - margin;
-                }
-                else if (localhost == Localhost.Bottom)
-                {
-                    centerPoint.Y -= -halfHeight;
-                    centerPoint.X -= direction.X / Math.Abs(direction.Y) * halfWidth - margin;
-                }
-
-                return centerPoint;
             }
-
-            public static SolidColorBrush GetStroke(ConnectionType currentConnectionType)
+            else // if (localhost == Localhost.Top || localhost == Localhost.Bottom)
             {
-                return currentConnectionType switch
+
+                bezierSegment = new BezierSegment
                 {
-                    ConnectionType.IsSucceed => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10")),
-                    ConnectionType.IsFail => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F18905")),
-                    ConnectionType.IsError => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FE1343")),
-                    ConnectionType.Upstream => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4A82E4")),
-                    _ => throw new Exception(),
+                    Point1 = new Point(startPoint.X, (startPoint.Y + endPoint.Y) / 2),
+                    Point2 = new Point(endPoint.X, (startPoint.Y + endPoint.Y) / 2),
+                    Point3 = endPoint,
                 };
             }
 
-        }
-        #endregion
 
+            pathFigure.Segments.Add(bezierSegment);
+
+            PathGeometry pathGeometry = new PathGeometry();
+            pathGeometry.Figures.Add(pathFigure);
+            bezierPath.Data = pathGeometry;
+
+            Point arrowStartPoint = CalculateBezierTangent(startPoint, bezierSegment.Point3, bezierSegment.Point2, endPoint);
+            UpdateArrowPath(endPoint, arrowStartPoint, arrowPath);
+        }
+
+        private static Point CalculateBezierTangent(Point startPoint, Point controlPoint1, Point controlPoint2, Point endPoint)
+        {
+            double t = 10.0; // 末端点
+
+            // 计算贝塞尔曲线在 t = 1 处的一阶导数
+            double dx = 3 * Math.Pow(1 - t, 2) * (controlPoint1.X - startPoint.X) +
+                        6 * (1 - t) * t * (controlPoint2.X - controlPoint1.X) +
+                        3 * Math.Pow(t, 2) * (endPoint.X - controlPoint2.X);
+
+            double dy = 3 * Math.Pow(1 - t, 2) * (controlPoint1.Y - startPoint.Y) +
+                        6 * (1 - t) * t * (controlPoint2.Y - controlPoint1.Y) +
+                        3 * Math.Pow(t, 2) * (endPoint.Y - controlPoint2.Y);
+
+            // 返回切线向量
+            return new Point(dx, dy);
+        }
+
+        // 绘制箭头
+        private static void UpdateArrowPath(Point endPoint,
+                                            Point controlPoint,
+                                            System.Windows.Shapes.Path arrowPath)
+        {
+
+            double arrowLength = 10;
+            double arrowWidth = 5;
+
+            Vector direction = endPoint - controlPoint;
+            direction.Normalize();
+
+            Point arrowPoint1 = endPoint + direction * arrowLength + new Vector(-direction.Y, direction.X) * arrowWidth;
+            Point arrowPoint2 = endPoint + direction * arrowLength + new Vector(direction.Y, -direction.X) * arrowWidth;
+
+            PathFigure arrowFigure = new PathFigure { StartPoint = endPoint };
+            arrowFigure.Segments.Add(new LineSegment(arrowPoint1, true));
+            arrowFigure.Segments.Add(new LineSegment(arrowPoint2, true));
+            arrowFigure.Segments.Add(new LineSegment(endPoint, true));
+
+            PathGeometry arrowGeometry = new PathGeometry();
+            arrowGeometry.Figures.Add(arrowFigure);
+
+            arrowPath.Data = arrowGeometry;
+        }
+        // 计算终点落点位置
+        private static Point CalculateEndpointOutsideElement(FrameworkElement element, Canvas canvas, Point startPoint, out Localhost localhost)
+        {
+            Point centerPoint = element.TranslatePoint(new Point(element.ActualWidth / 2, element.ActualHeight / 2), canvas);
+            Vector direction = centerPoint - startPoint;
+            direction.Normalize();
+
+
+
+            var tx = centerPoint.X - startPoint.X;
+            var ty = startPoint.Y - centerPoint.Y;
+
+
+            localhost = (tx < ty, Math.Abs(tx) > Math.Abs(ty)) switch
+            {
+                (true, true) => Localhost.Right,
+                (true, false) => Localhost.Bottom,
+                (false, true) => Localhost.Left,
+                (false, false) => Localhost.Top,
+            };
+
+            double halfWidth = element.ActualWidth / 2 + 6;
+            double halfHeight = element.ActualHeight / 2 + 6;
+            double margin = 0;
+
+            if (localhost == Localhost.Left)
+            {
+                centerPoint.X -= halfWidth;
+                centerPoint.Y -= direction.Y / Math.Abs(direction.X) * halfHeight - margin;
+            }
+            else if (localhost == Localhost.Right)
+            {
+                centerPoint.X -= -halfWidth;
+                centerPoint.Y -= direction.Y / Math.Abs(direction.X) * halfHeight - margin;
+            }
+            else if (localhost == Localhost.Top)
+            {
+                centerPoint.Y -= halfHeight;
+                centerPoint.X -= direction.X / Math.Abs(direction.Y) * halfWidth - margin;
+            }
+            else if (localhost == Localhost.Bottom)
+            {
+                centerPoint.Y -= -halfHeight;
+                centerPoint.X -= direction.X / Math.Abs(direction.Y) * halfWidth - margin;
+            }
+
+            return centerPoint;
+        }
+
+        public static SolidColorBrush GetStroke(ConnectionType currentConnectionType)
+        {
+            return currentConnectionType switch
+            {
+                ConnectionType.IsSucceed => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10")),
+                ConnectionType.IsFail => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F18905")),
+                ConnectionType.IsError => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FE1343")),
+                ConnectionType.Upstream => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4A82E4")),
+                _ => throw new Exception(),
+            };
+        }
 
     }
+    #endregion
 
 }

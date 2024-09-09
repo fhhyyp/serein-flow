@@ -25,6 +25,22 @@ namespace Serein.NodeFlow.Model
         Upstream,
     }
 
+    public enum FlowStateType
+    {
+        /// <summary>
+        /// 成功（方法成功执行）
+        /// </summary>
+        Succeed,
+        /// <summary>
+        /// 失败（方法没有成功执行，不过执行时没有发生非预期的错误）
+        /// </summary>
+        Fail,
+        /// <summary>
+        /// 异常（节点没有
+        /// </summary>
+        Error,
+    }
+
     /// <summary>
     /// 节点基类（数据）：条件控件，动作控件，条件区域，动作区域
     /// </summary>
@@ -73,21 +89,30 @@ namespace Serein.NodeFlow.Model
         /// <summary>
         /// 当前状态（进入真分支还是假分支，异常分支在异常中确定）
         /// </summary>
-        public bool FlowState { get; set; } = true;
-        //public ConnectionType NextType { get; set; } = ConnectionType.IsTrue;
+        public FlowStateType FlowState { get; set; } = FlowStateType.Succeed;
+        public Exception Exception { get; set; } = null;
+
         /// <summary>
         /// 当前传递数据
         /// </summary>
         public object? FlowData { get; set; } = null;
 
 
-        // 正常流程节点调用
+        /// <summary>
+        /// 执行节点对应的方法
+        /// </summary>
+        /// <param name="context">流程上下文</param>
+        /// <returns>节点传回数据对象</returns>
         public virtual object? Execute(DynamicContext context)
         {
             MethodDetails md = MethodDetails;
             object? result = null;
+            if (!DelegateCache.GlobalDicDelegates.TryGetValue(md.MethodName, out Delegate del))
+            {
+                return result;
+            }
 
-            if (DelegateCache.GlobalDicDelegates.TryGetValue(md.MethodName, out Delegate del))
+            try
             {
                 if (md.ExplicitDatas.Length == 0)
                 {
@@ -110,89 +135,76 @@ namespace Serein.NodeFlow.Model
                     else
                     {
                         result = ((Func<object, object[], object>)del).Invoke(md.ActingInstance, parameters);
-
-
                     }
                 }
-                // context.SetFlowData(result);
-                // CurrentData = result;
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                FlowState = FlowStateType.Error;
+                Exception = ex;
             }
 
             return result;
         }
 
-        // 触发器调用
+        /// <summary>
+        /// 执行等待触发器的方法
+        /// </summary>
+        /// <param name="context"></param>
+        /// <returns>节点传回数据对象</returns>
+        /// <exception cref="Exception"></exception>
         public virtual async Task<object?> ExecuteAsync(DynamicContext context)
         {
             MethodDetails md = MethodDetails;
             object? result = null;
 
-            if (DelegateCache.GlobalDicDelegates.TryGetValue(md.MethodName, out Delegate del))
+            if (!DelegateCache.GlobalDicDelegates.TryGetValue(md.MethodName, out Delegate del))
             {
+                return result;
+            }
+
+            FlipflopContext flipflopContext = null;
+            try
+            {
+                // 调用委托并获取结果
                 if (md.ExplicitDatas.Length == 0)
                 {
-                    // 调用委托并获取结果
-                    FlipflopContext flipflopContext = await ((Func<object, Task<FlipflopContext>>)del).Invoke(MethodDetails.ActingInstance);
-
-                    if (flipflopContext != null)
-                    {
-                        if (flipflopContext.State == FfState.Cancel)
-                        {
-                            throw new Exception("this async task is cancel.");
-                        }
-                        else
-                        {
-                            if (flipflopContext.State == FfState.Succeed)
-                            {
-                                FlowState = true;
-                                result = flipflopContext.Data;
-                            }
-                            else
-                            {
-                                FlowState = false;
-                            }
-                        }
-                    }
+                    flipflopContext = await ((Func<object, Task<FlipflopContext>>)del).Invoke(MethodDetails.ActingInstance);
                 }
                 else
                 {
                     object?[]? parameters = GetParameters(context, MethodDetails);
-                    // 调用委托并获取结果
+                    flipflopContext = await ((Func<object, object[], Task<FlipflopContext>>)del).Invoke(MethodDetails.ActingInstance, parameters);
+                }
 
-
-                    FlipflopContext flipflopContext = await ((Func<object, object[], Task<FlipflopContext>>)del).Invoke(MethodDetails.ActingInstance, parameters);
-
-
-
-                    if (flipflopContext != null)
+                if (flipflopContext != null)
+                {
+                    FlowState = flipflopContext.State;
+                    if (flipflopContext.State == FlowStateType.Succeed)
                     {
-                        if (flipflopContext.State == FfState.Cancel)
-                        {
-                            throw new Exception("取消此异步");
-                        }
-                        else
-                        {
-                            FlowState = flipflopContext.State == FfState.Succeed;
-                            result = flipflopContext.Data;
-                        }
+                        result = flipflopContext.Data;
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                FlowState = FlowStateType.Error;
+                Exception = ex;
             }
 
             return result;
         }
 
-        public async Task ExecuteStack(DynamicContext context)
+        /// <summary>
+        /// 开始执行
+        /// </summary>
+        /// <param name="context"></param>
+        /// <returns></returns>
+        public async Task StartExecution(DynamicContext context)
         {
-            await Task.Run(async () =>
-            {
-                await ExecuteStackTmp(context);
-            });
-        }
-
-        public async Task ExecuteStackTmp(DynamicContext context)
-        {
-            var cts = context.ServiceContainer.Get<CancellationTokenSource>();
+            var cts = context.ServiceContainer.GetOrInstantiate<CancellationTokenSource>();
 
             Stack<NodeBase> stack = [];
             stack.Push(this);
@@ -202,32 +214,38 @@ namespace Serein.NodeFlow.Model
                 // 从栈中弹出一个节点作为当前节点进行处理
                 var currentNode = stack.Pop();
 
+                // 设置方法执行的对象
                 if (currentNode.MethodDetails != null)
                 {
-                    currentNode.MethodDetails.ActingInstance ??= context.ServiceContainer.Get(MethodDetails.ActingInstanceType);
-                } // 设置方法执行的对象
+                    currentNode.MethodDetails.ActingInstance ??= context.ServiceContainer.GetOrInstantiate(MethodDetails.ActingInstanceType);
+                }
 
                 // 获取上游分支，首先执行一次
                 var upstreamNodes = currentNode.UpstreamBranch;
                 for (int i = upstreamNodes.Count - 1; i >= 0; i--)
                 {
                     upstreamNodes[i].PreviousNode = currentNode;
-                    await upstreamNodes[i].ExecuteStack(context);
+                    await upstreamNodes[i].StartExecution(context);
                 }
-
 
                 if (currentNode.MethodDetails != null && currentNode.MethodDetails.MethodDynamicType == DynamicNodeType.Flipflop)
                 {
+                    // 触发器节点
                     currentNode.FlowData = await currentNode.ExecuteAsync(context);
                 }
                 else
                 {
+                    // 动作节点
                     currentNode.FlowData = currentNode.Execute(context);
                 }
 
-
-                var nextNodes = currentNode.FlowState ? currentNode.SucceedBranch
-                                                         : currentNode.FailBranch;
+                var nextNodes = currentNode.FlowState switch
+                {
+                    FlowStateType.Succeed => currentNode.SucceedBranch,
+                    FlowStateType.Fail => currentNode.FailBranch,
+                    FlowStateType.Error => currentNode.ErrorBranch,
+                    _ => throw new Exception("非预期的枚举值")
+                };
 
                 // 将下一个节点集合中的所有节点逆序推入栈中
                 for (int i = nextNodes.Count - 1; i >= 0; i--)
@@ -238,7 +256,9 @@ namespace Serein.NodeFlow.Model
             }
         }
 
-
+        /// <summary>
+        /// 获取对应的参数数组
+        /// </summary>
         public object[]? GetParameters(DynamicContext context, MethodDetails md)
         {
             // 用正确的大小初始化参数数组
@@ -355,7 +375,12 @@ namespace Serein.NodeFlow.Model
             return parameters;
         }
 
-
+        /// <summary>
+        /// json文本反序列化为对象
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="targetType"></param>
+        /// <returns></returns>
         private dynamic? ConvertValue(string value, Type targetType)
         {
             try

@@ -14,16 +14,22 @@
             MethodDetails ??= node.MethodDetails;
         }
 
+        /// <summary>
+        /// 条件节点重写执行方法
+        /// </summary>
+        /// <param name="context"></param>
+        /// <returns></returns>
         public override object? Execute(DynamicContext context)
         {
             // bool allTrue = ConditionNodes.All(condition => Judge(context,condition.MethodDetails));
             // bool IsAllTrue = true; // 初始化为 true
-            FlowState = true;
+            FlowState = FlowStateType.Succeed;
             foreach (SingleConditionNode? node in ConditionNodes)
             {
-                if (!Judge(context, node))
+                var state = Judge(context, node);
+                if (state == FlowStateType.Fail || FlowStateType.Fail == FlowStateType.Error)
                 {
-                    FlowState = false;
+                    FlowState = state;
                     break;// 一旦发现条件为假，立即退出循环
                 }
             }
@@ -44,7 +50,7 @@
             //    }
             //}
         }
-        private bool Judge(DynamicContext context, SingleConditionNode node)
+        private FlowStateType Judge(DynamicContext context, SingleConditionNode node)
         {
             try
             {
@@ -54,8 +60,8 @@
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
+                return FlowStateType.Error;
             }
-            return false;
         }
 
 

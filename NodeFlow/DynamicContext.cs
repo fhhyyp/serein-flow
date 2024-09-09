@@ -1,4 +1,5 @@
 ﻿using Serein.Library.IOC;
+using Serein.NodeFlow.Model;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -12,23 +13,24 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 namespace Serein.NodeFlow
 {
 
-    public enum FfState
-    {
-        Succeed,
-        Cancel,
-    }
+    //public enum FfState
+    //{
+    //    Succeed,
+    //    Cancel,
+    //    Error,
+    //}
     /// <summary>
     /// 触发器上下文
     /// </summary>
     public class FlipflopContext
     {
-        public FfState State { get; set; }
+        public FlowStateType State { get; set; }
         public object? Data { get; set; }
         /*public FlipflopContext()
         {
             State = FfState.Cancel;
         }*/
-        public FlipflopContext(FfState ffState, object? data = null)
+        public FlipflopContext(FlowStateType ffState, object? data = null)
         {
             State = ffState;
             Data = data;
@@ -144,7 +146,7 @@ namespace Serein.NodeFlow
         public NodeRunTcs NodeRunCts { get; set; }
         public Task CreateTimingTask(Action action, int time = 100, int count = -1)
         {
-            NodeRunCts ??= ServiceContainer.Get<NodeRunTcs>();
+            NodeRunCts ??= ServiceContainer.GetOrInstantiate<NodeRunTcs>();
             return Task.Factory.StartNew(async () =>
             {
                 for (int i = 0; i < count; i++)

@@ -8,17 +8,17 @@ using System.Threading.Tasks;
 
 namespace MyDll
 {
-    internal class test
+    internal class IoTClientTest
     {
         private void T()
         {
             SiemensClient client = new SiemensClient(SiemensVersion.S7_200Smart, "127.0.0.1", 102);
 
             //2、写操作
-            client.Write("Q1.3", true);
-            client.Write("V2205", (short)11);
-            client.Write("V2209", 33);
-            client.Write("V2305", "orderCode");             //写入字符串
+            //client.Write("Q1.3", true);
+            //client.Write("V2205", (short)11);
+            //client.Write("V2209", 33);
+            //client.Write("V2305", "orderCode");             //写入字符串
 
             //3、读操作
             var value1 = client.ReadBoolean("Q1.3").Value;

@@ -74,7 +74,9 @@
             </StackPanel>
             
             <ScrollViewer  Grid.Row="1"
-                  x:Name="FlowChartScrollViewer">
+                           x:Name="FlowChartScrollViewer"
+                           HorizontalScrollBarVisibility="Auto"
+                           VerticalScrollBarVisibility="Auto">
                 
                 <Canvas x:Name="FlowChartCanvas" 
                         Background="#F2EEE8"

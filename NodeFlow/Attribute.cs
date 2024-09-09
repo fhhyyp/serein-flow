@@ -65,9 +65,9 @@ namespace Serein.NodeFlow
     /// <summary>
     /// 是否为显式参数
     /// </summary>
-    [AttributeUsage(AttributeTargets.Parameter)]
-    public class ExplicitAttribute : Attribute // where TEnum : Enum
-    {
-    }
+    //[AttributeUsage(AttributeTargets.Parameter)]
+    //public class ExplicitAttribute : Attribute // where TEnum : Enum
+    //{
+    //}
 
 }

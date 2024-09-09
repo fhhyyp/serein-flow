@@ -102,7 +102,10 @@ namespace Serein.NodeFlow
 
             try
             {
-                await Task.WhenAll([startNode.ExecuteStack(context), .. tasks]);
+                await Task.Run(async () =>
+                {
+                    await Task.WhenAll([startNode.StartExecution(context), .. tasks]);
+                });
             }
             catch (Exception ex)
             {
@@ -133,24 +136,27 @@ namespace Serein.NodeFlow
 
                     FlipflopContext flipflopContext = await func.Invoke(md.ActingInstance, parameters);
 
-
                     if (flipflopContext == null)
                     {
                         break;
                     }
-                    else if (flipflopContext.State == FfState.Cancel)
+                    else if (flipflopContext.State == FlowStateType.Error)
                     {
                         break;
                     }
-                    else if (flipflopContext.State == FfState.Succeed)
+                    else if (flipflopContext.State == FlowStateType.Fail)
                     {
-                        singleFlipFlopNode.FlowState = true;
+                        break;
+                    }
+                    else if (flipflopContext.State == FlowStateType.Succeed)
+                    {
+                        singleFlipFlopNode.FlowState = FlowStateType.Succeed;
                         singleFlipFlopNode.FlowData = flipflopContext.Data;
                         var tasks = singleFlipFlopNode.SucceedBranch.Select(nextNode =>
                         {
                             var context = new DynamicContext(ServiceContainer);
                             nextNode.PreviousNode = singleFlipFlopNode;
-                            return nextNode.ExecuteStack(context);
+                            return nextNode.StartExecution(context);
                         }).ToArray();
                         Task.WaitAll(tasks);
                     }
