@@ -87,14 +87,11 @@
             </StackPanel>
 
             <StackPanel  Grid.Row="1"
-                         x:Name="FlowChartStackPanel">
-
-                    
+                         x:Name="FlowChartStackPanel"
+                         ClipToBounds="True">
                 <Canvas 
-                    
                     x:Name="FlowChartCanvas" 
-                    
-                    Background="#F2EEE8"
+                    Background="#D9FFEA"
                     AllowDrop="True" 
                     MouseDown="FlowChartCanvas_MouseDown"
                     MouseMove="FlowChartCanvas_MouseMove"
@@ -111,12 +108,12 @@
                            Canvas.Left="0" Canvas.Top="0"/>-->
 
                     <!-- Top-Right Thumb -->
-                    <Thumb x:Name="TopRightThumb" 
+                    <!--<Thumb x:Name="TopRightThumb" 
                            Width="10" Height="10"
                            DragDelta="Thumb_DragDelta_TopRight"
                            Cursor="SizeNESW"
                            Canvas.Left="{Binding ActualWidth, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource RightThumbPositionConverter}}" 
-                           Canvas.Top="0"/>
+                           Canvas.Top="0"/>-->
 
                     <!-- Bottom-Left Thumb -->
                     <!--<Thumb x:Name="BottomLeftThumb" 
@@ -143,12 +140,15 @@
                            Canvas.Top="{Binding ActualHeight, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource VerticalCenterThumbPositionConverter}}"/>-->
 
                     <!-- Right Thumb -->
-                    <Thumb x:Name="RightThumb" 
-                           Width="10" Height="10"
-                           DragDelta="Thumb_DragDelta_Right"
-                           Cursor="SizeWE"
-                           Canvas.Left="{Binding ActualWidth, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource RightThumbPositionConverter}}" 
-                           Canvas.Top="{Binding ActualHeight, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource VerticalCenterThumbPositionConverter}}"/>
+                    <!--Canvas.Left="{Binding ActualWidth, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource RightThumbPositionConverter}}" 
+Canvas.Top="{Binding ActualHeight, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource VerticalCenterThumbPositionConverter}}"-->
+                    <Thumb x:Name="RightThumb" Width="5" Cursor="SizeWE" Canvas.Top="0" Canvas.Right="0" DragDelta="Thumb_DragDelta_Right">
+                        <Thumb.Template>
+                            <ControlTemplate>
+                                <Border Background="#B1B9F8" Width="5" Height="{Binding RelativeSource={RelativeSource AncestorType=Canvas}, Path=ActualHeight}" />
+                            </ControlTemplate>
+                        </Thumb.Template>
+                    </Thumb>
 
                     <!-- Top Thumb -->
                     <!--<Thumb x:Name="TopThumb" 
@@ -159,12 +159,15 @@
                            Canvas.Top="0"/>-->
 
                     <!-- Bottom Thumb -->
-                    <Thumb x:Name="BottomThumb" 
-                           Width="10" Height="10"
-                           DragDelta="Thumb_DragDelta_Bottom"
-                           Cursor="SizeNS"
-                           Canvas.Left="{Binding ActualWidth, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource HorizontalCenterThumbPositionConverter}}" 
-                           Canvas.Top="{Binding ActualHeight, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource BottomThumbPositionConverter}}"/>
+                    <!--Canvas.Left="{Binding ActualWidth, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource HorizontalCenterThumbPositionConverter}}" 
+ Canvas.Top="{Binding ActualHeight, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource BottomThumbPositionConverter}}"-->
+                    <Thumb x:Name="BottomThumb" Height="5" Cursor="SizeNS" Canvas.Bottom="0" Canvas.Left="0"  DragDelta="Thumb_DragDelta_Bottom">
+                        <Thumb.Template>
+                            <ControlTemplate>
+                                <Border Background="#B1B9F8" Height="5" Width="{Binding RelativeSource={RelativeSource AncestorType=Canvas}, Path=ActualWidth}" />
+                            </ControlTemplate>
+                        </Thumb.Template>
+                    </Thumb>
                 </Canvas>
 
 

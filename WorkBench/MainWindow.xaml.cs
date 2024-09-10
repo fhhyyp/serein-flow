@@ -221,9 +221,11 @@ namespace Serein.WorkBench
             var logTextWriter = new LogTextWriter(WriteLog);
             Console.SetOut(logTextWriter);
 
-            //transform = new TranslateTransform();
-            //FlowChartCanvas.RenderTransform = transform;
+            UIInit();
+        }
 
+        private void UIInit()
+        {
             canvasTransformGroup = new TransformGroup();
             scaleTransform = new ScaleTransform();
             translateTransform = new TranslateTransform();
@@ -232,6 +234,7 @@ namespace Serein.WorkBench
             canvasTransformGroup.Children.Add(translateTransform);
 
             FlowChartCanvas.RenderTransform = canvasTransformGroup;
+
             FlowChartCanvas.RenderTransformOrigin = new Point(0.5, 0.5);
         }
 
@@ -1164,9 +1167,6 @@ namespace Serein.WorkBench
             ((UIElement)sender).CaptureMouse(); // 捕获鼠标
         }
 
-
-
-
         /// <summary>
         /// 控件的鼠标移动事件，根据鼠标拖动更新控件的位置。
         /// </summary>
@@ -1203,6 +1203,7 @@ namespace Serein.WorkBench
 
             }
         }
+
         /// <summary>
         /// 调整FlowChartCanvas的尺寸，确保显示所有控件。
         /// </summary>
@@ -1284,7 +1285,9 @@ namespace Serein.WorkBench
 
 
         /// <summary>
-        /// FlowChartCanvas中移动时处理，用于实时更新连接线的终点位置。
+        /// 鼠标在画布移动。
+        /// 连接状态下，实时更新连接线的终点位置。
+        /// 移动画布状态下，移动画布。
         /// </summary>
         private void FlowChartCanvas_MouseMove(object sender, MouseEventArgs e)
         {
@@ -1667,33 +1670,13 @@ namespace Serein.WorkBench
 
             if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
             {
-                if (e.Delta  < 0 && scaleTransform.ScaleX < 0.4) return;
-                if (e.Delta  > 0 && scaleTransform.ScaleX > 3.0) return;
+                if (e.Delta  < 0 && scaleTransform.ScaleX < 0.2) return;
+                if (e.Delta  > 0 && scaleTransform.ScaleX > 2.0) return;
                 double scale = e.Delta > 0 ? 0.1 : -0.1;
+
+
                 scaleTransform.ScaleX += scale;
                 scaleTransform.ScaleY += scale;
-                //AdjustCanvasSize();
-
-
-                //double zoomFactor = e.Delta > 0 ? 1.1 : 0.9;
-
-                //// 获取鼠标相对于Canvas的位置
-                //Point mousePosition = e.GetPosition(this);
-
-                //// 计算缩放后的Canvas中心位置
-                //double absoluteX = mousePosition.X * scaleTransform.ScaleX;
-                //double absoluteY = mousePosition.Y * scaleTransform.ScaleY;
-
-                //// 应用缩放
-                //scaleTransform.ScaleX *= zoomFactor;
-                //scaleTransform.ScaleY *= zoomFactor;
-
-                //// 平移，使缩放中心保持在鼠标光标处
-                //translateTransform.X = mousePosition.X - absoluteX * zoomFactor;
-                //translateTransform.Y = mousePosition.Y - absoluteY * zoomFactor;
-
-                //// 调整画布大小，使其始终占据整个容器
-                //AdjustCanvasSizeToContainer();
             }
         }
 
@@ -1795,84 +1778,92 @@ namespace Serein.WorkBench
 
 
         #region 动态调整区域大小
-        private void Thumb_DragDelta_TopLeft(object sender, DragDeltaEventArgs e)
-        {
-            // 从左上角调整大小
-            double newWidth = Math.Max(FlowChartCanvas.ActualWidth - e.HorizontalChange, 0);
-            double newHeight = Math.Max(FlowChartCanvas.ActualHeight - e.VerticalChange, 0);
+        //private void Thumb_DragDelta_TopLeft(object sender, DragDeltaEventArgs e)
+        //{
+        //    // 从左上角调整大小
+        //    double newWidth = Math.Max(FlowChartCanvas.ActualWidth - e.HorizontalChange, 0);
+        //    double newHeight = Math.Max(FlowChartCanvas.ActualHeight - e.VerticalChange, 0);
 
-            FlowChartCanvas.Width = newWidth;
-            FlowChartCanvas.Height = newHeight;
+        //    FlowChartCanvas.Width = newWidth;
+        //    FlowChartCanvas.Height = newHeight;
 
-            Canvas.SetLeft(FlowChartCanvas, Canvas.GetLeft(FlowChartCanvas) + e.HorizontalChange);
-            Canvas.SetTop(FlowChartCanvas, Canvas.GetTop(FlowChartCanvas) + e.VerticalChange);
-        }
+        //    Canvas.SetLeft(FlowChartCanvas, Canvas.GetLeft(FlowChartCanvas) + e.HorizontalChange);
+        //    Canvas.SetTop(FlowChartCanvas, Canvas.GetTop(FlowChartCanvas) + e.VerticalChange);
+        //}
 
-        private void Thumb_DragDelta_TopRight(object sender, DragDeltaEventArgs e)
-        {
-            // 从右上角调整大小
-            double newWidth = Math.Max(FlowChartCanvas.ActualWidth + e.HorizontalChange, 0);
-            double newHeight = Math.Max(FlowChartCanvas.ActualHeight - e.VerticalChange, 0);
+        //private void Thumb_DragDelta_TopRight(object sender, DragDeltaEventArgs e)
+        //{
+        //    // 从右上角调整大小
+        //    double newWidth = Math.Max(FlowChartCanvas.ActualWidth + e.HorizontalChange, 0);
+        //    double newHeight = Math.Max(FlowChartCanvas.ActualHeight - e.VerticalChange, 0);
 
-            FlowChartCanvas.Width = newWidth;
-            FlowChartCanvas.Height = newHeight;
+        //    FlowChartCanvas.Width = newWidth;
+        //    FlowChartCanvas.Height = newHeight;
 
-            Canvas.SetTop(FlowChartCanvas, Canvas.GetTop(FlowChartCanvas) + e.VerticalChange);
-        }
+        //    Canvas.SetTop(FlowChartCanvas, Canvas.GetTop(FlowChartCanvas) + e.VerticalChange);
+        //}
 
-        private void Thumb_DragDelta_BottomLeft(object sender, DragDeltaEventArgs e)
-        {
-            // 从左下角调整大小
-            double newWidth = Math.Max(FlowChartCanvas.ActualWidth - e.HorizontalChange, 0);
-            double newHeight = Math.Max(FlowChartCanvas.ActualHeight + e.VerticalChange, 0);
+        //private void Thumb_DragDelta_BottomLeft(object sender, DragDeltaEventArgs e)
+        //{
+        //    // 从左下角调整大小
+        //    double newWidth = Math.Max(FlowChartCanvas.ActualWidth - e.HorizontalChange, 0);
+        //    double newHeight = Math.Max(FlowChartCanvas.ActualHeight + e.VerticalChange, 0);
 
-            FlowChartCanvas.Width = newWidth;
-            FlowChartCanvas.Height = newHeight;
+        //    FlowChartCanvas.Width = newWidth;
+        //    FlowChartCanvas.Height = newHeight;
 
-            Canvas.SetLeft(FlowChartCanvas, Canvas.GetLeft(FlowChartCanvas) + e.HorizontalChange);
-        }
+        //    Canvas.SetLeft(FlowChartCanvas, Canvas.GetLeft(FlowChartCanvas) + e.HorizontalChange);
+        //}
 
         private void Thumb_DragDelta_BottomRight(object sender, DragDeltaEventArgs e)
         {
             // 从右下角调整大小
-            double newWidth = Math.Max(FlowChartCanvas.ActualWidth + e.HorizontalChange, 0);
-            double newHeight = Math.Max(FlowChartCanvas.ActualHeight + e.VerticalChange, 0);
+            double newWidth = Math.Max(FlowChartCanvas.ActualWidth + e.HorizontalChange * scaleTransform.ScaleX, 0);
+            double newHeight = Math.Max(FlowChartCanvas.ActualHeight + e.VerticalChange * scaleTransform.ScaleY, 0);
+
+
+
+            newWidth = newWidth < 400 ? 400 : newWidth;
+            newHeight = newHeight < 400 ? 400 : newHeight;
 
             FlowChartCanvas.Width = newWidth;
             FlowChartCanvas.Height = newHeight;
+
+
         }
 
-        private void Thumb_DragDelta_Left(object sender, DragDeltaEventArgs e)
-        {
-            // 从左侧调整大小
-            double newWidth = Math.Max(FlowChartCanvas.ActualWidth - e.HorizontalChange, 0);
+        //private void Thumb_DragDelta_Left(object sender, DragDeltaEventArgs e)
+        //{
+        //    // 从左侧调整大小
+        //    double newWidth = Math.Max(FlowChartCanvas.ActualWidth - e.HorizontalChange, 0);
 
-            FlowChartCanvas.Width = newWidth;
-            Canvas.SetLeft(FlowChartCanvas, Canvas.GetLeft(FlowChartCanvas) + e.HorizontalChange);
-        }
+        //    FlowChartCanvas.Width = newWidth;
+        //    Canvas.SetLeft(FlowChartCanvas, Canvas.GetLeft(FlowChartCanvas) + e.HorizontalChange);
+        //}
 
         private void Thumb_DragDelta_Right(object sender, DragDeltaEventArgs e)
         {
             //从右侧调整大小
-            double newWidth = Math.Max(FlowChartCanvas.ActualWidth + e.HorizontalChange, 0);
+            double newWidth = Math.Max(FlowChartCanvas.ActualWidth + e.HorizontalChange * scaleTransform.ScaleX, 0);
+            newWidth = newWidth < 400 ? 400 : newWidth;
 
             FlowChartCanvas.Width = newWidth;
         }
 
-        private void Thumb_DragDelta_Top(object sender, DragDeltaEventArgs e)
-        {
-            // 从顶部调整大小
-            double newHeight = Math.Max(FlowChartCanvas.ActualHeight - e.VerticalChange, 0);
-
-            FlowChartCanvas.Height = newHeight;
-            Canvas.SetTop(FlowChartCanvas, Canvas.GetTop(FlowChartCanvas) + e.VerticalChange);
-        }
+        //private void Thumb_DragDelta_Top(object sender, DragDeltaEventArgs e)
+        //{
+        //    // 从顶部调整大小
+        //    double newHeight = Math.Max(FlowChartCanvas.ActualHeight - e.VerticalChange, 0);
+            
+        //    FlowChartCanvas.Height = newHeight;
+        //    Canvas.SetTop(FlowChartCanvas, Canvas.GetTop(FlowChartCanvas) + e.VerticalChange);
+        //}
 
         private void Thumb_DragDelta_Bottom(object sender, DragDeltaEventArgs e)
         {
             // 从底部调整大小
-            double newHeight = Math.Max(FlowChartCanvas.ActualHeight + e.VerticalChange, 0);
-
+            double newHeight = Math.Max(FlowChartCanvas.ActualHeight + e.VerticalChange * scaleTransform.ScaleY, 0);
+            newHeight = newHeight < 400 ? 400 : newHeight;
             FlowChartCanvas.Height = newHeight;
         }
 

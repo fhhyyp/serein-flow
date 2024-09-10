@@ -16,14 +16,6 @@
             </StackPanel>
         </Border>
     
-        <Thumb x:Name="ResizeTop" Cursor="SizeNS" Height="4" HorizontalAlignment="Stretch" VerticalAlignment="Top"
-               DragDelta="ResizeTop_DragDelta"/>
-        <Thumb x:Name="ResizeBottom" Cursor="SizeNS" Height="4" HorizontalAlignment="Stretch" VerticalAlignment="Bottom"
-               DragDelta="ResizeBottom_DragDelta"/>
-        <Thumb x:Name="ResizeLeft" Cursor="SizeWE" Width="4" HorizontalAlignment="Left" VerticalAlignment="Stretch"
-               DragDelta="ResizeLeft_DragDelta"/>
-        <Thumb x:Name="ResizeRight" Cursor="SizeWE" Width="4" HorizontalAlignment="Right" VerticalAlignment="Stretch"
-               DragDelta="ResizeRight_DragDelta"/>
     </Grid>
 
 </local:NodeControlBase>

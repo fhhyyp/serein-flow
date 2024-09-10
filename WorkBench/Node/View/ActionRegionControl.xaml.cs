@@ -16,7 +16,6 @@ namespace Serein.WorkBench.Node.View
         private new readonly CompositeActionNode Node;
 
         public ActionRegionControl() : base()
-
         {
             InitializeComponent();
         }
@@ -26,38 +25,6 @@ namespace Serein.WorkBench.Node.View
             Node = node;
             base.Name = "动作组合节点";
         }
-
-        #region 动态调整区域大小
-        private void ResizeTop_DragDelta(object sender, DragDeltaEventArgs e)
-        {
-            double oldHeight = Height;
-            double newHeight = Math.Max(MinHeight, oldHeight - e.VerticalChange);
-            Height = newHeight;
-            Canvas.SetTop(this, Canvas.GetTop(this) + (oldHeight - newHeight));
-        }
-
-        private void ResizeBottom_DragDelta(object sender, DragDeltaEventArgs e)
-        {
-            double newHeight = Math.Max(MinHeight, Height + e.VerticalChange);
-            Height = newHeight;
-        }
-
-        private void ResizeLeft_DragDelta(object sender, DragDeltaEventArgs e)
-        {
-            double oldWidth = Width;
-            double newWidth = Math.Max(MinWidth, oldWidth - e.HorizontalChange);
-            Width = newWidth;
-            Canvas.SetLeft(this, Canvas.GetLeft(this) + (oldWidth - newWidth));
-        }
-
-        private void ResizeRight_DragDelta(object sender, DragDeltaEventArgs e)
-        {
-            double newWidth = Math.Max(MinWidth, Width + e.HorizontalChange);
-            Width = newWidth;
-        }
-
-#endregion
-
 
         public void AddAction(NodeControlBase node, bool isTask = false)
         {
