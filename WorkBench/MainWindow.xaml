@@ -9,8 +9,17 @@
         Loaded="Window_Loaded"
         Closing="Window_Closing">
 
+    <Window.Resources>
+        <local:RightThumbPositionConverter x:Key="RightThumbPositionConverter" />
+        <local:BottomThumbPositionConverter x:Key="BottomThumbPositionConverter" />
+        <local:VerticalCenterThumbPositionConverter x:Key="VerticalCenterThumbPositionConverter" />
+        <local:HorizontalCenterThumbPositionConverter x:Key="HorizontalCenterThumbPositionConverter" />
+    </Window.Resources>
+
     <Window.InputBindings>
         <KeyBinding Key="Escape" Command="{Binding CancelConnectionCommand}"/>
+        
+        
     </Window.InputBindings>
     <Grid>
         <Grid.ColumnDefinitions>
@@ -65,6 +74,9 @@
         <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="Gray"/>
 
         <Grid  Grid.Column="2" >
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"></ColumnDefinition>
+            </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="60"></RowDefinition>
                 <RowDefinition Height="*"></RowDefinition>
@@ -73,22 +85,93 @@
                 <Button x:Name="ButtonDebugRun"  Content="运行" Width="100" Margin="10" Click="ButtonDebugRun_Click"></Button>
                 <Button x:Name="ButtonDebugFlipflopNode"  Content="停止" Width="100" Margin="10" Click="ButtonDebugFlipflopNode_Click"></Button>
             </StackPanel>
-            
-            <ScrollViewer  Grid.Row="1"
-                           x:Name="FlowChartScrollViewer"
-                           HorizontalScrollBarVisibility="Auto"
-                           VerticalScrollBarVisibility="Auto">
-                    <Canvas 
-                 x:Name="FlowChartCanvas" 
-                Background="#F2EEE8"
-                AllowDrop="True" 
-                MouseDown="FlowChartCanvas_MouseDown"
-                MouseMove="FlowChartCanvas_MouseMove"
-                MouseUp="FlowChartCanvas_MouseUp"
-                MouseWheel="FlowChartCanvas_MouseWheel"
-                Drop="FlowChartCanvas_Drop" 
-                DragOver="FlowChartCanvas_DragOver"/>
-            </ScrollViewer>
+
+            <StackPanel  Grid.Row="1"
+                         x:Name="FlowChartStackPanel">
+
+                    
+                <Canvas 
+                    
+                    x:Name="FlowChartCanvas" 
+                    
+                    Background="#F2EEE8"
+                    AllowDrop="True" 
+                    MouseDown="FlowChartCanvas_MouseDown"
+                    MouseMove="FlowChartCanvas_MouseMove"
+                    MouseUp="FlowChartCanvas_MouseUp"
+                    MouseWheel="FlowChartCanvas_MouseWheel"
+                    Drop="FlowChartCanvas_Drop" 
+                    DragOver="FlowChartCanvas_DragOver">
+
+                    <!-- Top-Left Thumb -->
+                    <!--<Thumb x:Name="TopLeftThumb" 
+                           Width="10" Height="10"
+                           DragDelta="Thumb_DragDelta_TopLeft"
+                           Cursor="SizeNWSE"
+                           Canvas.Left="0" Canvas.Top="0"/>-->
+
+                    <!-- Top-Right Thumb -->
+                    <Thumb x:Name="TopRightThumb" 
+                           Width="10" Height="10"
+                           DragDelta="Thumb_DragDelta_TopRight"
+                           Cursor="SizeNESW"
+                           Canvas.Left="{Binding ActualWidth, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource RightThumbPositionConverter}}" 
+                           Canvas.Top="0"/>
+
+                    <!-- Bottom-Left Thumb -->
+                    <!--<Thumb x:Name="BottomLeftThumb" 
+                           Width="10" Height="10"
+                           DragDelta="Thumb_DragDelta_BottomLeft"
+                           Cursor="SizeNESW"
+                           Canvas.Left="0" 
+                           Canvas.Top="{Binding ActualHeight, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource BottomThumbPositionConverter}}"/>-->
+
+                    <!-- Bottom-Right Thumb -->
+                    <Thumb x:Name="BottomRightThumb" 
+                           Width="10" Height="10"
+                           DragDelta="Thumb_DragDelta_BottomRight"
+                           Cursor="SizeNWSE"
+                           Canvas.Left="{Binding ActualWidth, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource RightThumbPositionConverter}}" 
+                           Canvas.Top="{Binding ActualHeight, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource BottomThumbPositionConverter}}"/>
+
+                    <!-- Left Thumb -->
+                    <!--<Thumb x:Name="LeftThumb" 
+                           Width="10" Height="10"
+                           DragDelta="Thumb_DragDelta_Left"
+                           Cursor="SizeWE"
+                           Canvas.Left="0" 
+                           Canvas.Top="{Binding ActualHeight, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource VerticalCenterThumbPositionConverter}}"/>-->
+
+                    <!-- Right Thumb -->
+                    <Thumb x:Name="RightThumb" 
+                           Width="10" Height="10"
+                           DragDelta="Thumb_DragDelta_Right"
+                           Cursor="SizeWE"
+                           Canvas.Left="{Binding ActualWidth, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource RightThumbPositionConverter}}" 
+                           Canvas.Top="{Binding ActualHeight, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource VerticalCenterThumbPositionConverter}}"/>
+
+                    <!-- Top Thumb -->
+                    <!--<Thumb x:Name="TopThumb" 
+                           Width="10" Height="10"
+                           DragDelta="Thumb_DragDelta_Top"
+                           Cursor="SizeNS"
+                           Canvas.Left="{Binding ActualWidth, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource HorizontalCenterThumbPositionConverter}}" 
+                           Canvas.Top="0"/>-->
+
+                    <!-- Bottom Thumb -->
+                    <Thumb x:Name="BottomThumb" 
+                           Width="10" Height="10"
+                           DragDelta="Thumb_DragDelta_Bottom"
+                           Cursor="SizeNS"
+                           Canvas.Left="{Binding ActualWidth, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource HorizontalCenterThumbPositionConverter}}" 
+                           Canvas.Top="{Binding ActualHeight, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource BottomThumbPositionConverter}}"/>
+                </Canvas>
+
+
+
+                    
+                
+            </StackPanel>
             
             
         </Grid>
