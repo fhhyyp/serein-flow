@@ -1,26 +1,25 @@
 ﻿using Microsoft.Win32;
 using Newtonsoft.Json.Linq;
-using Serein.Library.IOC;
+using Serein.Library.Attributes;
+using Serein.Library.Utils;
 using Serein.NodeFlow;
 using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Tool;
 using Serein.WorkBench.Node.View;
+using Serein.WorkBench.Node.ViewModel;
 using Serein.WorkBench.Themes;
 using Serein.WorkBench.tool;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
-using System.Security.Cryptography.Xml;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using System.Windows.Media.Media3D;
 using System.Windows.Shapes;
-using System.Xml.Linq;
 using DataObject = System.Windows.DataObject;
 
 namespace Serein.WorkBench
@@ -126,7 +125,7 @@ namespace Serein.WorkBench
         /// <summary>
         /// 一种轻量的IOC容器
         /// </summary>
-        private ServiceContainer ServiceContainer { get; } = new ServiceContainer();
+        private SereinIoc ServiceContainer { get; } = new SereinIoc();
 
         /// <summary>
         /// 全局捕获Console输出事件，打印在这个窗体里面
@@ -160,6 +159,20 @@ namespace Serein.WorkBench
         /// </summary>
         private readonly List<SingleFlipflopNode> flipflopNodes = [];
 
+
+
+        /// <summary>
+        /// 流程启动器
+        /// </summary>
+        private NodeFlowStarter nodeFlowStarter;
+
+        #region 与画布相关的字段
+
+        /// <summary>
+        /// 当前选取的控件
+        /// </summary>
+        private readonly List<NodeControlBase> selectControls = [];
+
         /// <summary>
         /// 记录拖动开始时的鼠标位置
         /// </summary>
@@ -185,6 +198,10 @@ namespace Serein.WorkBench
         /// </summary>
         private bool IsConnecting;
         /// <summary>
+        /// 标记是否正在尝试选取控件
+        /// </summary>
+        private bool IsSelectControl;
+        /// <summary>
         /// 标记是否正在拖动控件
         /// </summary>
         private bool IsControlDragging;
@@ -203,12 +220,10 @@ namespace Serein.WorkBench
         /// <summary>
         /// 平移画布 
         /// </summary>
-        private TranslateTransform translateTransform;
+        private TranslateTransform translateTransform; 
+        #endregion
 
-        /// <summary>
-        /// 流程起点
-        /// </summary>
-        private NodeFlowStarter nodeFlowStarter;
+
 
         public MainWindow()
 
@@ -259,10 +274,10 @@ namespace Serein.WorkBench
                 LoadDll(nf); // 加载DLL
                 LoadNodeControls(nf); // 加载节点
 
-                var startNode = nodeControls.FirstOrDefault(item => item.Node.Guid.Equals(nf.startNode));
+                var startNode = nodeControls.FirstOrDefault(control => control.ViewModel.Node.Guid.Equals(nf.startNode));
                 if (startNode != null)
                 {
-                    startNode.Node.IsStart = true;
+                    startNode.ViewModel.Node.IsStart = true;
                     SetIsStartBlock(startNode);
                 }
             }
@@ -332,7 +347,7 @@ namespace Serein.WorkBench
                             }
                             else if (regionControl is ActionRegionControl actionRegionControl)
                             {
-                                actionRegionControl.AddAction(nodeControl);
+                                //actionRegionControl.AddAction(nodeControl);
                             }
                         }
                         else
@@ -396,22 +411,22 @@ namespace Serein.WorkBench
             {
                 if (connectionType == ConnectionType.IsSucceed)
                 {
-                    fromNode.Node.SucceedBranch.Add(toNode.Node);
+                    fromNode.ViewModel.Node.SucceedBranch.Add(toNode.ViewModel.Node);
                 }
                 else if (connectionType == ConnectionType.IsFail)
                 {
-                    fromNode.Node.FailBranch.Add(toNode.Node);
+                    fromNode.ViewModel.Node.FailBranch.Add(toNode.ViewModel.Node);
                 }
                 else if (connectionType == ConnectionType.IsError)
                 {
-                    fromNode.Node.ErrorBranch.Add(toNode.Node);
+                    fromNode.ViewModel.Node.ErrorBranch.Add(toNode.ViewModel.Node);
                 }
                 else if (connectionType == ConnectionType.Upstream)
                 {
-                    fromNode.Node.UpstreamBranch.Add(toNode.Node);
+                    fromNode.ViewModel.Node.UpstreamBranch.Add(toNode.ViewModel.Node);
                 }
                 var connection = new Connection {  Start = fromNode, End = toNode, Type = connectionType };
-                toNode.Node.PreviousNodes.Add(fromNode.Node);
+                toNode.ViewModel.Node.PreviousNodes.Add(fromNode.ViewModel.Node);
                 BsControl.Draw(FlowChartCanvas, connection);
                 ConfigureLineContextMenu(connection);
                 connections.Add(connection);
@@ -465,19 +480,19 @@ namespace Serein.WorkBench
            
             NodeControlBase control = nodeInfo.type switch
             {
-                $"{NodeSpaceName}.{nameof(SingleActionNode)}" => CreateNodeControl<SingleActionNode, ActionNodeControl>(md),
-                $"{NodeSpaceName}.{nameof(SingleFlipflopNode)}" => CreateNodeControl<SingleFlipflopNode, FlipflopNodeControl>(md),
+                $"{NodeSpaceName}.{nameof(SingleActionNode)}" => CreateNodeControl<SingleActionNode, ActionNodeControl,ActionNodeControlViewModel>(md),
+                $"{NodeSpaceName}.{nameof(SingleFlipflopNode)}" => CreateNodeControl<SingleFlipflopNode, FlipflopNodeControl,FlipflopNodeControlViewModel>(md),
 
-                $"{NodeSpaceName}.{nameof(SingleConditionNode)}" => CreateNodeControl<SingleConditionNode, ConditionNodeControl>(), // 条件表达式控件
-                $"{NodeSpaceName}.{nameof(SingleExpOpNode)}"  => CreateNodeControl<SingleExpOpNode, ExpOpNodeControl>(), // 操作表达式控件
+                $"{NodeSpaceName}.{nameof(SingleConditionNode)}" => CreateNodeControl<SingleConditionNode, ConditionNodeControl,ConditionNodeControlViewModel>(), // 条件表达式控件
+                $"{NodeSpaceName}.{nameof(SingleExpOpNode)}"  => CreateNodeControl<SingleExpOpNode, ExpOpNodeControl,ExpOpNodeViewModel>(), // 操作表达式控件
 
-                $"{NodeSpaceName}.{nameof(CompositeActionNode)}" => CreateNodeControl<CompositeActionNode, ActionRegionControl>(),
-                $"{NodeSpaceName}.{nameof(CompositeConditionNode)}" => CreateNodeControl<CompositeConditionNode, ConditionRegionControl>(),
+                //$"{NodeSpaceName}.{nameof(CompositeActionNode)}" => CreateNodeControl<CompositeActionNode, ActionRegionControl>(),
+                $"{NodeSpaceName}.{nameof(CompositeConditionNode)}" => CreateNodeControl<CompositeConditionNode, ConditionRegionControl, ConditionRegionNodeControlViewModel>(),
                 _ => throw new NotImplementedException($"非预期的节点类型{nodeInfo.type}"),
             };
 
             // 如果是触发器，则需要添加到集合中
-            if (control is FlipflopNodeControl flipflopNodeControl && flipflopNodeControl.Node is SingleFlipflopNode flipflopNode)
+            if (control is FlipflopNodeControl flipflopNodeControl && flipflopNodeControl.ViewModel.Node is SingleFlipflopNode flipflopNode)
             {
                 var guid = flipflopNode.Guid;
                 if (!flipflopNodes.Exists(it => it.Guid.Equals(guid)))
@@ -485,22 +500,22 @@ namespace Serein.WorkBench
                     flipflopNodes.Add(flipflopNode);
                 }
             }
-            var node = control.Node;
+            var node = control.ViewModel.Node;
             if (node != null)
             {
                 node.Guid = nodeInfo.guid;
                 for (int i = 0; i < nodeInfo.parameterData.Length; i++)
                 {
                     Parameterdata? pd = nodeInfo.parameterData[i];
-                    if (control is  ConditionNodeControl conditionNodeControl)
+                    if (control is  ConditionNodeControl conditionNodeControl && conditionNodeControl.ViewModel is ConditionNodeControlViewModel conditionNodeControlViewModel)
                     {
-                        conditionNodeControl.ViewModel.IsCustomData = pd.state;
-                        conditionNodeControl.ViewModel.CustomData = pd.value;
-                        conditionNodeControl.ViewModel.Expression = pd.expression;
+                        conditionNodeControlViewModel.IsCustomData = pd.state;
+                        conditionNodeControlViewModel.CustomData = pd.value;
+                        conditionNodeControlViewModel.Expression = pd.expression;
                     }
-                    else if (control is ExpOpNodeControl expOpNodeControl)
+                    else if (control is ExpOpNodeControl expOpNodeControl && expOpNodeControl.ViewModel is ExpOpNodeViewModel expOpNodeViewModel)
                     {
-                        expOpNodeControl.ViewModel.Expression = pd.expression;
+                        expOpNodeViewModel.Expression = pd.expression;
                     }
                     else 
                     {
@@ -529,9 +544,10 @@ namespace Serein.WorkBench
 
         #region 节点控件的创建
 
-        private static TControl CreateNodeControl<TNode, TControl>(MethodDetails? methodDetails = null) 
+        private static TControl CreateNodeControl<TNode, TControl,TViewModel>(MethodDetails? methodDetails = null) 
             where TNode : NodeBase
             where TControl : NodeControlBase
+            where TViewModel : NodeControlViewModelBase
         {
             var nodeObj = Activator.CreateInstance(typeof(TNode));
             var nodeBase = nodeObj as NodeBase;
@@ -551,7 +567,8 @@ namespace Serein.WorkBench
                 nodeBase.MethodDetails = md;
             }
 
-            var controlObj = Activator.CreateInstance(typeof(TControl), [nodeObj] );
+            var viewModel = Activator.CreateInstance(typeof(TViewModel), [nodeObj]);
+            var controlObj = Activator.CreateInstance(typeof(TControl), [viewModel] );
             if(controlObj is TControl control)
             {
                 return control;
@@ -570,7 +587,7 @@ namespace Serein.WorkBench
         {
             var contextMenu = new ContextMenu();
 
-            if (nodeControl.Node?.MethodDetails?.ReturnType is Type returnType && returnType != typeof(void))
+            if (nodeControl.ViewModel.Node?.MethodDetails?.ReturnType is Type returnType && returnType != typeof(void))
             {
                 contextMenu.Items.Add(CreateMenuItem("查看返回类型", (s, e) =>
                 {
@@ -673,39 +690,37 @@ namespace Serein.WorkBench
             try
             {
                 Assembly assembly = Assembly.LoadFrom(dllPath); // 加载DLL文件
+                Type[] types = assembly.GetTypes(); // 获取程序集中的所有类型
+               
+                List<Type> scanTypes = assembly.GetTypes().Where(t => t.GetCustomAttribute<DynamicFlowAttribute>()?.Scan == true ).ToList();
+                //List<(bool, Type)> scanTypes = scanTypesTemp.Select(t => (t.GetCustomAttribute<Serein.Library.Framework.NodeFlow.Tool.DynamicFlowAttribute>()?.Scan == true, t)).ToList();
+
+                //bool isNetFramework = false;
+                //if(scanTypes.Count == 0)
+                //{
+                //    scanTypes = assembly.GetTypes().Where(t => t.GetCustomAttribute<Library.Framework.NodeFlow.Tool.DynamicFlowAttribute>()?.Scan == true).ToList();
+                //    if(scanTypes.Count == 0)
+                //    {
+                //        return;
+                //    }
+                //    else
+                //    {
+                //        isNetFramework = true;
+                //    }
+                //}
+
                 loadedAssemblies.Add(assembly); // 将加载的程序集添加到列表中
                 loadedAssemblyPaths.Add(dllPath); // 记录加载的DLL路径
-
-                Type[] types = assembly.GetTypes(); // 获取程序集中的所有类型
-
                 List<MethodDetails> conditionMethods = [];
                 List<MethodDetails> actionMethods = [];
                 List<MethodDetails> flipflopMethods = [];
 
-                /* // 遍历类型，根据接口分类
-                 foreach (Type type in types)
-                 {
-                     if (typeof(ICondition).IsAssignableFrom(type) && type.IsClass)
-                     {
-                         conditionTypes.Add(type); // 条件类型
-                     }
-                     if (typeof(IAction).IsAssignableFrom(type) && type.IsClass)
-                     {
-                         actionTypes.Add(type); // 动作类型
-                     }
-                     if (typeof(IState).IsAssignableFrom(type) && type.IsClass)
-                     {
-                         stateTypes.Add(type); // 状态类型
-                     }
-                 }*/
 
-                var scanTypes = assembly.GetTypes()
-                           .Where(t => t.GetCustomAttribute<DynamicFlowAttribute>()?.Scan == true).ToList();
-
-                foreach (var type in scanTypes)
+                // foreach ((bool isNetFramework,Type type) item in scanTypes)
+                foreach (var item in scanTypes)
                 {
                     //加载DLL
-                    var dict = DelegateGenerator.GenerateMethodDetails(ServiceContainer, type);
+                    var dict = DelegateGenerator.GenerateMethodDetails(ServiceContainer, item, false);
 
                     foreach (var detail in dict)
                     {
@@ -713,33 +728,22 @@ namespace Serein.WorkBench
                         DllMethodDetails.TryAdd(detail.Key, detail.Value);
 
                         // 根据 DynamicType 分类
-                        switch (detail.Value.MethodDynamicType)
+                        switch (detail.Value.MethodDynamicType.ToString())
                         {
-                            case DynamicNodeType.Condition:
+                            case nameof(Serein.Library.Enums.NodeType.Condition):
                                 conditionMethods.Add(detail.Value);
                                 break;
-                            case DynamicNodeType.Action:
+                            case nameof(Serein.Library.Enums.NodeType.Action):
                                 actionMethods.Add(detail.Value);
                                 break;
-                            case DynamicNodeType.Flipflop:
+                            case nameof(Serein.Library.Enums.NodeType.Flipflop):
                                 flipflopMethods.Add(detail.Value);
                                 break;
-                            //case DynamicNodeType.Init:
-                            //    initMethods.Add(detail.Value);
-                            //    break;
-                            //case DynamicNodeType.Loading:
-                            //    loadingMethods.Add(detail.Value);
-                            //    break;
-                            //case DynamicNodeType.Exit:
-                            //    exitMethods.Add(detail.Value);
-                            //    break;
                         }
 
                         DictMethodDetail.TryAdd(detail.Key, detail.Value);
                         // 将委托缓存到全局字典
                         DelegateCache.GlobalDicDelegates.TryAdd(detail.Key, detail.Value.MethodDelegate);
-                        //globalDicDelegates.TryAdd(kvp.Key, kvp.Value.MethodDelegate);
-
                     }
                 }
 
@@ -941,13 +945,16 @@ namespace Serein.WorkBench
 
             if (nodeControl != null)
             {
-                // 尝试放置节点
+                //  首先判断是否为区域，如果是，则尝试将节点放置在区域中
                 if (TryPlaceNodeInRegion(nodeControl, dropPosition, e)) 
                 {
                     return;
                 }
-
-                PlaceNodeOnCanvas(nodeControl, dropPosition);
+                else
+                {
+                    // 放置在画布上
+                    PlaceNodeOnCanvas(nodeControl, dropPosition);
+                }
             }
 
             e.Handled = true;
@@ -963,7 +970,7 @@ namespace Serein.WorkBench
             return droppedType switch
             {
                 Type when typeof(ConditionRegionControl).IsAssignableFrom(droppedType) 
-                    => CreateNodeControl<CompositeConditionNode, ConditionRegionControl>(), // 条件区域
+                    => CreateNodeControl<CompositeConditionNode, ConditionRegionControl, ConditionRegionNodeControlViewModel>(), // 条件区域
 
                 //Type when typeof(CompositeActionNode).IsAssignableFrom(droppedType) 
                 //    => CreateNodeControl<CompositeActionNode,ActionRegionControl>(),   // 动作区域
@@ -982,9 +989,9 @@ namespace Serein.WorkBench
             return droppedType switch
             {
                 Type when typeof(ConditionNodeControl).IsAssignableFrom(droppedType)
-                    => CreateNodeControl<SingleConditionNode, ConditionNodeControl>(), // 条件控件
+                    => CreateNodeControl<SingleConditionNode, ConditionNodeControl,ConditionNodeControlViewModel>(), // 条件控件
                 Type when typeof(ExpOpNodeControl).IsAssignableFrom(droppedType)
-                    => CreateNodeControl<SingleExpOpNode, ExpOpNodeControl>(), // 操作表达式控件
+                    => CreateNodeControl<SingleExpOpNode, ExpOpNodeControl,ExpOpNodeViewModel>(), // 操作表达式控件
                 _ => throw new NotImplementedException("非预期的基础节点类型"),
             };
         }
@@ -1000,13 +1007,13 @@ namespace Serein.WorkBench
             NodeControlBase control = methodDetails.MethodDynamicType switch
             {
                 //DynamicNodeType.Condition => CreateNodeControl(typeof(SingleConditionNode), methodDetails), // 单个条件控件
-                DynamicNodeType.Action => CreateNodeControl<SingleActionNode, ActionNodeControl>(methodDetails),// 单个动作控件
-                DynamicNodeType.Flipflop => CreateNodeControl<SingleFlipflopNode, FlipflopNodeControl>(methodDetails), // 单个动作控件
+                Serein.Library.Enums.NodeType.Action => CreateNodeControl<SingleActionNode, ActionNodeControl, ActionNodeControlViewModel>(methodDetails),// 单个动作控件
+                Serein.Library.Enums.NodeType.Flipflop => CreateNodeControl<SingleFlipflopNode, FlipflopNodeControl, FlipflopNodeControlViewModel>(methodDetails), // 单个动作控件
                 _ => throw new NotImplementedException("非预期的Dll节点类型"),
             };
 
             // 如果是触发器，则需要添加到集合中
-            if (control is FlipflopNodeControl flipflopNodeControl && flipflopNodeControl.Node is SingleFlipflopNode flipflopNode)
+            if (control is FlipflopNodeControl flipflopNodeControl && flipflopNodeControl.ViewModel.Node is SingleFlipflopNode flipflopNode)
             {
                 var guid = flipflopNode.Guid;
                 if (!flipflopNodes.Exists(it => it.Guid.Equals(guid)))
@@ -1032,45 +1039,19 @@ namespace Serein.WorkBench
             if (hitTestResult != null && hitTestResult.VisualHit is UIElement hitElement)
             {
                 var data = e.Data.GetData(MouseNodeType.BaseNodeType);
-
-
+                if(data is null)
+                {
+                    return false;
+                }
                 if (data == typeof(ConditionNodeControl))
                 {
-
                     ConditionRegionControl conditionRegion = GetParentOfType<ConditionRegionControl>(hitElement);
                     if (conditionRegion != null)
                     {
                         conditionRegion.AddCondition(nodeControl);
                         return true;
                     }
-
-
-
                 }
-
-
-                //if (e.Data.GetData(MouseNodeType.DllNodeType) is MethodDetails methodDetails)
-                //{
-                //    if (methodDetails.MethodDynamicType == DynamicNodeType.Condition)
-                //    {
-                //        ConditionRegionControl conditionRegion = GetParentOfType<ConditionRegionControl>(hitElement);
-                //        if (conditionRegion != null)
-                //        {
-                //            conditionRegion.AddCondition(nodeControl);
-                //            return true;
-                //        }
-                //    }
-                //    else if (methodDetails.MethodDynamicType == DynamicNodeType.Action)
-                //    {
-                //        ActionRegionControl actionRegion = GetParentOfType<ActionRegionControl>(hitElement);
-                //        if (actionRegion != null)
-                //        {
-                //            actionRegion.AddAction(nodeControl);
-                //            return true;
-                //        }
-                //    }
-                //}
-
             }
             return false;
         }
@@ -1098,7 +1079,7 @@ namespace Serein.WorkBench
 
 
         /// <summary>
-        /// 获得目标类型的父类
+        /// 判断当前元素是否是泛型类型
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="element"></param>
@@ -1120,19 +1101,7 @@ namespace Serein.WorkBench
 
         }
 
-        /// <summary>
-        /// 鼠标左键按下事件，关闭所有连接的动画效果
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void FlowChartCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            //// 关闭所有连线的动画效果
-            //foreach (var connection in connections)
-            //{
-            //    connection.StopAnimation();
-            //}
-        }
+
 
         /// <summary>
         /// 拖动效果，根据拖放数据是否为指定类型设置拖放效果
@@ -1285,12 +1254,101 @@ namespace Serein.WorkBench
 
 
         /// <summary>
+        /// 在画布中按下鼠标左键
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FlowChartCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift))
+            {
+                IsSelectControl = true;
+
+                // 开始选取时，记录鼠标起始点
+                startPoint = e.GetPosition(FlowChartCanvas);
+
+                // 初始化选取矩形的位置和大小
+                Canvas.SetLeft(SelectionRectangle, startPoint.X);
+                Canvas.SetTop(SelectionRectangle, startPoint.Y);
+                SelectionRectangle.Width = 0;
+                SelectionRectangle.Height = 0;
+
+                // 显示选取矩形
+                SelectionRectangle.Visibility = Visibility.Visible;
+
+                // 捕获鼠标，以便在鼠标移动到Canvas外部时仍能处理事件
+                FlowChartCanvas.CaptureMouse();
+            }
+        }
+        /// <summary>
+        /// 在画布中释放鼠标按下，结束选取状态
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FlowChartCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (IsSelectControl)
+            {
+
+                IsSelectControl = false;
+                // 释放鼠标捕获
+                FlowChartCanvas.ReleaseMouseCapture();
+
+                // 隐藏选取矩形（如果需要保持选取状态，可以删除此行）
+                SelectionRectangle.Visibility = Visibility.Collapsed;
+
+                // 处理选取区域内的元素（例如，获取选取范围内的控件）
+                Rect selectionArea = new Rect(Canvas.GetLeft(SelectionRectangle),
+                                              Canvas.GetTop(SelectionRectangle),
+                                              SelectionRectangle.Width,
+                                              SelectionRectangle.Height);
+
+
+                selectControls.Clear();
+                // 在此处处理选取的逻辑
+                foreach (UIElement element in FlowChartCanvas.Children)
+                {
+                    Rect elementBounds = new Rect(Canvas.GetLeft(element), Canvas.GetTop(element),
+                                                  element.RenderSize.Width, element.RenderSize.Height);
+
+                    if (selectionArea.Contains(elementBounds))
+                    {
+                        // 选中元素，执行相应操作
+                        if (element is NodeControlBase control)
+                        {
+                            selectControls.Add(control);
+                        }
+                    }
+                }
+                Console.WriteLine($"一共选取了{selectControls.Count}个控件");
+            }
+           
+        }
+        /// <summary>
         /// 鼠标在画布移动。
+        /// 选择控件状态下，调整选择框大小
         /// 连接状态下，实时更新连接线的终点位置。
         /// 移动画布状态下，移动画布。
         /// </summary>
         private void FlowChartCanvas_MouseMove(object sender, MouseEventArgs e)
         {
+            if (IsSelectControl && e.LeftButton == MouseButtonState.Pressed)
+            {
+                // 获取当前鼠标位置
+                Point currentPoint = e.GetPosition(FlowChartCanvas);
+
+                // 更新选取矩形的位置和大小
+                double x = Math.Min(currentPoint.X, startPoint.X);
+                double y = Math.Min(currentPoint.Y, startPoint.Y);
+                double width = Math.Abs(currentPoint.X - startPoint.X);
+                double height = Math.Abs(currentPoint.Y - startPoint.Y);
+
+                Canvas.SetLeft(SelectionRectangle, x);
+                Canvas.SetTop(SelectionRectangle, y);
+                SelectionRectangle.Width = width;
+                SelectionRectangle.Height = height;
+            }
+
             if (IsConnecting)
             {
                 Point position = e.GetPosition(FlowChartCanvas);
@@ -1384,26 +1442,26 @@ namespace Serein.WorkBench
                     
                     if (currentConnectionType == ConnectionType.IsSucceed)
                     {
-                        startConnectBlock.Node.SucceedBranch.Add(targetBlock.Node);
+                        startConnectBlock.ViewModel.Node.SucceedBranch.Add(targetBlock.ViewModel.Node);
                     }
                     else if (currentConnectionType == ConnectionType.IsFail)
                     {
-                        startConnectBlock.Node.FailBranch.Add(targetBlock.Node);
+                        startConnectBlock.ViewModel.Node.FailBranch.Add(targetBlock.ViewModel.Node);
                     }
                     else if (currentConnectionType == ConnectionType.IsError)
                     {
-                        startConnectBlock.Node.ErrorBranch.Add(targetBlock.Node);
+                        startConnectBlock.ViewModel.Node.ErrorBranch.Add(targetBlock.ViewModel.Node);
                     }
                     else if (currentConnectionType == ConnectionType.Upstream)
                     {
-                        startConnectBlock.Node.UpstreamBranch.Add(targetBlock.Node);
+                        startConnectBlock.ViewModel.Node.UpstreamBranch.Add(targetBlock.ViewModel.Node);
                     }
 
                     // 保存连接关系
                     BsControl.Draw(FlowChartCanvas, connection);
                     ConfigureLineContextMenu(connection);
                     
-                    targetBlock.Node.PreviousNodes.Add(startConnectBlock.Node); // 将当前发起连接的节点，添加到被连接的节点的上一节点队列。（用于回溯）
+                    targetBlock.ViewModel.Node.PreviousNodes.Add(startConnectBlock.ViewModel.Node); // 将当前发起连接的节点，添加到被连接的节点的上一节点队列。（用于回溯）
                     connections.Add(connection);
                 }
                 EndConnection();
@@ -1461,7 +1519,7 @@ namespace Serein.WorkBench
         /// <param name="nodeControl"></param>
         private void DeleteBlock(NodeControlBase nodeControl)
         {
-            if (nodeControl.Node.IsStart)
+            if (nodeControl.ViewModel.Node.IsStart)
             {
                 if (nodeControls.Count > 1)
                 {
@@ -1470,10 +1528,10 @@ namespace Serein.WorkBench
                 }
                 flowStartBlock = null;
             }
-            var RemoveEonnections = connections.Where(c => c.Start.Node.Guid.Equals(nodeControl.Node.Guid)
-                                                        || c.End.Node.Guid.Equals(nodeControl.Node.Guid)).ToList();
+            var RemoveEonnections = connections.Where(c => c.Start.ViewModel.Node.Guid.Equals(nodeControl.ViewModel.Node.Guid)
+                                                        || c.End.ViewModel.Node.Guid.Equals(nodeControl.ViewModel.Node.Guid)).ToList();
 
-            Remove(RemoveEonnections, nodeControl.Node);
+            Remove(RemoveEonnections, nodeControl.ViewModel.Node);
             // 删除控件
             FlowChartCanvas.Children.Remove(nodeControl);
             nodeControls.Remove(nodeControl);
@@ -1494,8 +1552,8 @@ namespace Serein.WorkBench
             var tempArr = connections.ToArray();
             foreach (var connection in tempArr)
             {
-                var startNode = connection.Start.Node;
-                var endNode = connection.End.Node;
+                var startNode = connection.Start.ViewModel.Node;
+                var endNode = connection.End.ViewModel.Node;
                 bool IsStartInThisConnection = false;
                 // 要删除的节点（targetNode），在连接关系中是否为起点
                 // 如果是，则需要从 targetNode 中删除子节点。
@@ -1570,19 +1628,21 @@ namespace Serein.WorkBench
             if (nodeControl == null) { return; }
             if (flowStartBlock != null)
             {
-                flowStartBlock.Node.IsStart = false;
+                flowStartBlock.ViewModel.Node.IsStart = false;
                 flowStartBlock.BorderBrush = Brushes.Black;
                 flowStartBlock.BorderThickness = new Thickness(0);
             }
 
-            nodeControl.Node.IsStart = true;
+            nodeControl.ViewModel.Node.IsStart = true;
             nodeControl.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10"));
             nodeControl.BorderThickness = new Thickness(2);
 
             flowStartBlock = nodeControl;
         }
+
+
         /// <summary>
-        /// 树形结构展开类型的成员
+        /// 查看返回类型（树形结构展开类型的成员）
         /// </summary>
         /// <param name="type"></param>
         private void DisplayReturnTypeTreeViewer(Type type)
@@ -1614,8 +1674,8 @@ namespace Serein.WorkBench
                 return;
             }
             // 获取起始节点与终止节点，消除映射关系
-            var StartNode = connectionToRemove.Start.Node;
-            var EndNode = connectionToRemove.End.Node;
+            var StartNode = connectionToRemove.Start.ViewModel.Node;
+            var EndNode = connectionToRemove.End.ViewModel.Node;
 
             if (connectionToRemove.Type == ConnectionType.IsSucceed)
             {
@@ -1686,95 +1746,6 @@ namespace Serein.WorkBench
             FlowChartCanvas.Width = width;
             FlowChartCanvas.Height = height;
         }
-
-        #region 准备弃用
-        // 画布缩放时调整画布大小（已弃用）
-        private void AdjustCanvasSizeToContainer()
-        {
-            // 获取当前缩放后的画布大小
-            double newWidth = FlowChartCanvas.Width * scaleTransform.ScaleX;
-            double newHeight = FlowChartCanvas.Height * scaleTransform.ScaleY;
-
-            // 设置画布大小，使其至少与ScrollViewer的可视区域大小相同
-            FlowChartCanvas.Width = Math.Max(FlowChartStackPanel.Width, newWidth);
-            FlowChartCanvas.Height = Math.Max(FlowChartStackPanel.Height, newHeight);
-        }
-        // 窗体尺寸发生变化时调整画布大小（已弃用）
-        private void AdjustCanvasSize()
-        {
-            // 获取 ScrollViewer 可视区域的宽度和高度
-            double scrollViewerWidth = FlowChartStackPanel.Width * scaleTransform.ScaleX;
-            double scrollViewerHeight = FlowChartStackPanel.Height * scaleTransform.ScaleY;
-
-            // 调整 Canvas 大小
-            if (scrollViewerWidth > 0 && scrollViewerHeight > 0)
-            {
-                FlowChartCanvas.Width = scrollViewerWidth;
-                FlowChartCanvas.Height = scrollViewerHeight;
-            }
-        }
-
-        // 随着平移拖动动态调整画布大小（弃用）
-        private void AdjustCanvasSizeAndContent(double deltaX, double deltaY)
-        {
-
-            // 获取画布的边界框
-            Rect transformedBounds = FlowChartCanvas.RenderTransform.TransformBounds(new Rect(FlowChartCanvas.RenderSize));
-
-
-            Debug.WriteLine($"deltaX : {deltaX},{deltaY}");
-            Debug.WriteLine($" LTRP  : {transformedBounds.Left},{transformedBounds.Top},{transformedBounds.Right},{transformedBounds.Bottom}");
-
-
-            // 检查画布的左边缘是否超出视图
-            if (deltaX > 0 && transformedBounds.Left > 0)
-            {
-                double offsetX = transformedBounds.Left;
-                FlowChartCanvas.Width += offsetX;
-                translateTransform.X -= offsetX;
-
-                Debug.Print($" offsetX : {offsetX}");
-                // 移动所有控件的位置
-                foreach (UIElement child in FlowChartCanvas.Children)
-                {
-                    Canvas.SetLeft(child, Canvas.GetLeft(child) + offsetX);
-                }
-            }
-
-            // 检查画布的上边缘是否超出视图
-            //if (transformedBounds.Top > 0)
-            if (deltaY > 0 & transformedBounds.Top > 0)
-            {
-                double offsetY = transformedBounds.Top;
-                FlowChartCanvas.Height += offsetY;
-                translateTransform.Y -= offsetY;
-                Debug.Print($" offsetY : {offsetY}");
-
-                // 移动所有控件的位置
-                foreach (UIElement child in FlowChartCanvas.Children)
-                {
-                    Canvas.SetTop(child, Canvas.GetTop(child) + offsetY);
-                }
-            }
-
-            var size = 50;
-            // 检查画布的右边缘是否超出当前宽度
-            if (transformedBounds.Right + size < FlowChartStackPanel.ActualWidth)
-            {
-
-                double extraWidth = FlowChartStackPanel.ActualWidth - transformedBounds.Right;
-                this.FlowChartCanvas.Width += extraWidth;
-            }
-
-            // 检查画布的下边缘是否超出当前高度
-            if (transformedBounds.Bottom + size < FlowChartStackPanel.ActualHeight)
-            {
-                double extraHeight = FlowChartStackPanel.ActualHeight - transformedBounds.Bottom;
-                this.FlowChartCanvas.Height += extraHeight;
-            }
-
-        }
-        #endregion
 
 
         #region 动态调整区域大小
@@ -1913,7 +1884,7 @@ namespace Serein.WorkBench
         private async void ButtonDebugRun_Click(object sender, RoutedEventArgs e)
         {
             logWindow?.Show();
-            var nodes = nodeControls.Select(it => it.Node).ToList();
+            var nodes = nodeControls.Select(control => control.ViewModel.Node).ToList();
             var methodDetails = DictMethodDetail.Values.ToList();
             nodeFlowStarter ??= new NodeFlowStarter(ServiceContainer, methodDetails);
             await nodeFlowStarter.RunAsync(nodes);
@@ -1942,19 +1913,19 @@ namespace Serein.WorkBench
             try
             {
                 // 生成节点信息
-                var nodeInfos = nodeControls.Select(item =>
+                var nodeInfos = nodeControls.Select(control =>
                 {
-                    var node = item.Node;
-                    Point positionRelativeToParent = item.TranslatePoint(new Point(0, 0), FlowChartCanvas);
-                    var trueNodes = item.Node.SucceedBranch.Select(item => item.Guid); // 真分支
-                    var falseNodes = item.Node.FailBranch.Select(item => item.Guid);// 假分支
-                    var upstreamNodes = item.Node.UpstreamBranch.Select(item => item.Guid);// 上游分支
+                    var node = control.ViewModel.Node;
+                    Point positionRelativeToParent = control.TranslatePoint(new Point(0, 0), FlowChartCanvas);
+                    var trueNodes = control.ViewModel.Node.SucceedBranch.Select(item => item.Guid); // 真分支
+                    var falseNodes = control.ViewModel.Node.FailBranch.Select(item => item.Guid);// 假分支
+                    var upstreamNodes = control.ViewModel.Node.UpstreamBranch.Select(item => item.Guid);// 上游分支
 
                     // 常规节点的参数信息
                     List<Parameterdata> parameterData = []; 
                     if (node?.MethodDetails?.ExplicitDatas is not null
-                        && (node.MethodDetails.MethodDynamicType == DynamicNodeType.Action
-                         || node.MethodDetails.MethodDynamicType == DynamicNodeType.Flipflop))
+                        && (node.MethodDetails.MethodDynamicType == Serein.Library.Enums.NodeType.Action
+                         || node.MethodDetails.MethodDynamicType == Serein.Library.Enums.NodeType.Flipflop))
                     {
                         parameterData = node.MethodDetails
                                             .ExplicitDatas
@@ -2022,7 +1993,7 @@ namespace Serein.WorkBench
                     .Select(region =>
                     {
                         WriteLog(region.GetType().ToString() + "\r\n");
-                        if (region is ConditionRegionControl && region.Node is CompositeConditionNode conditionRegion) // 条件区域控件
+                        if (region is ConditionRegionControl && region.ViewModel.Node is CompositeConditionNode conditionRegion) // 条件区域控件
                         {
                             List<object> childNodes = [];
                             var tmpChildNodes = conditionRegion.ConditionNodes;
@@ -2046,11 +2017,11 @@ namespace Serein.WorkBench
                             }
                             return new
                             {
-                                guid = region.Node.Guid,
+                                guid = region.ViewModel.Node.Guid,
                                 childNodes = childNodes
                             };
                         }
-                        else if (region is ActionRegionControl && region.Node is CompositeActionNode actionRegion) // 动作区域控件
+                        else if (region is ActionRegionControl && region.ViewModel.Node is CompositeActionNode actionRegion) // 动作区域控件
                         {
                             //WriteLog(region.Node.GetType().ToString() + "\r\n");
 
@@ -2076,7 +2047,7 @@ namespace Serein.WorkBench
                             }
                             return new
                             {
-                                guid = region.Node.Guid,
+                                guid = region.ViewModel.Node.Guid,
                                 childNodes = childNodes
                             };
                         }
@@ -2129,7 +2100,7 @@ namespace Serein.WorkBench
                         ["versions"] = "1",
                     },
                     ["library"] = JArray.FromObject(dlls),
-                    ["startNode"] = flowStartBlock == null ? "" : flowStartBlock.Node.Guid,
+                    ["startNode"] = flowStartBlock == null ? "" : flowStartBlock.ViewModel.Node.Guid,
                     ["nodes"] = JArray.FromObject(nodeInfos),
                     ["regions"] = JArray.FromObject(regionObjs),
                 };
@@ -2245,6 +2216,8 @@ namespace Serein.WorkBench
         {
             // AdjustCanvasSize();
         }
+
+        
     }
     #region 创建两个控件之间的连接关系，在UI层面上显示为 带箭头指向的贝塞尔曲线
 

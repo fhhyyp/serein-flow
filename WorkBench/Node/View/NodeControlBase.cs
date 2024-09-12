@@ -15,27 +15,42 @@ namespace Serein.WorkBench.Node.View
     /// </summary>
     public abstract class NodeControlBase : UserControl, IDynamicFlowNode
     {
-        public NodeBase Node { get; set; }
+        public NodeControlViewModelBase ViewModel { get; set; }
+
 
         protected NodeControlBase()
 
         {
             this.Background = Brushes.Transparent;
         }
-        protected NodeControlBase(NodeBase node)
+        protected NodeControlBase(NodeControlViewModelBase viewModelBase)
         {
+            ViewModel = viewModelBase;
             this.Background = Brushes.Transparent;
-            Node = node;
         }
     }
 
 
 
-    public abstract class NodeControlViewModel : INotifyPropertyChanged
+    public abstract class NodeControlViewModelBase : INotifyPropertyChanged
     {
+        public NodeControlViewModelBase(NodeBase node)
+        {
+            this.Node = node;
+            MethodDetails = this.Node.MethodDetails;
+        }
 
+        /// <summary>
+        /// 对应的节点实体类
+        /// </summary>
+        public NodeBase Node { get; set; }
 
-        public MethodDetails methodDetails;
+        /// <summary>
+        /// 表示节点控件是否被选中
+        /// </summary>
+        public bool IsSelect { get; set; } = false;
+
+        private MethodDetails methodDetails;
 
 
         public MethodDetails MethodDetails

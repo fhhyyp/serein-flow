@@ -35,7 +35,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!--<ProjectReference Include="..\DynamicControl\DynamicControl.csproj" />-->
+
+    <ProjectReference Include="..\Library.Core\Serein.Library.Core.csproj" />
+    <ProjectReference Include="..\Library.Framework\Serein.Library.Framework.csproj" />
     <ProjectReference Include="..\Library\Serein.Library.csproj" />
     <ProjectReference Include="..\NodeFlow\Serein.NodeFlow.csproj" />
   </ItemGroup>

@@ -17,7 +17,8 @@ namespace Serein.NodeFlow.Tool
     {
         //public ConcurrentDictionary<TSignal, Queue<TaskCompletionSource<object>>> TcsEvent { get; } = new();
         public ConcurrentDictionary<TSignal, TaskCompletionSource<object>> TcsEvent { get; } = new();
-        public ConcurrentDictionary<TSignal, object> TcsValue { get; } = new();
+
+        public ConcurrentDictionary<TSignal, object> TcsLock { get; } = new();
 
         /// <summary>
         /// 触发信号
@@ -28,30 +29,36 @@ namespace Serein.NodeFlow.Tool
         /// <returns>是否成功触发</returns>
         public bool TriggerSignal<T>(TSignal signal, T value)
         {
-            if (TcsEvent.TryRemove(signal, out var waitTcs))
+            var tcsLock = TcsLock.GetOrAdd(signal, new object());
+            lock (tcsLock)
             {
-                waitTcs.SetResult(value);
-                return true;
+                if (TcsEvent.TryRemove(signal, out var waitTcs))
+                {
+                    waitTcs.SetResult(value);
+                    return true;
+                }
+                return false;
             }
-            return false;
         }
 
         public TaskCompletionSource<object> CreateTcs(TSignal signal)
         {
-            var tcs = TcsEvent.GetOrAdd(signal,_ = new TaskCompletionSource<object>());
-            return tcs;
+            var tcsLock = TcsLock.GetOrAdd(signal, new object());
+            lock (tcsLock)
+            {
+                var tcs = TcsEvent.GetOrAdd(signal, new TaskCompletionSource<object>());
+                return tcs;
+            }
+            
         }
 
         public void CancelTask()
         {
-            lock (TcsEvent)
+            foreach (var tcs in TcsEvent.Values)
             {
-                foreach (var tcs in TcsEvent.Values)
-                {
-                    tcs.SetException(new TcsSignalException("任务取消"));
-                }
-                TcsEvent.Clear();
+                tcs.SetException(new TcsSignalException("任务取消"));
             }
+            TcsEvent.Clear();
         }
     }
 }

@@ -3,7 +3,7 @@ using Serein.WorkBench.Node.View;
 
 namespace Serein.WorkBench.Node.ViewModel
 {
-    public class ConditionNodeControlViewModel : NodeControlViewModel
+    public class ConditionNodeControlViewModel : NodeControlViewModelBase
     {
         private readonly SingleConditionNode singleConditionNode;
 
@@ -32,10 +32,9 @@ namespace Serein.WorkBench.Node.ViewModel
             set { singleConditionNode.Expression = value; OnPropertyChanged(); }
         }
 
-        public ConditionNodeControlViewModel(SingleConditionNode node)
+        public ConditionNodeControlViewModel(SingleConditionNode node) : base(node)
         {
             this.singleConditionNode = node;
-            MethodDetails = node.MethodDetails;
             IsCustomData = false;
             CustomData = "";
             Expression = "PASS";

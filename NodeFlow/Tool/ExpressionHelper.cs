@@ -1,7 +1,8 @@
-﻿using System.Collections.Concurrent;
+﻿using Serein.Library.Api;
+using Serein.Library.Core.NodeFlow;
+using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
-using Serein.NodeFlow;
 
 namespace Serein.NodeFlow.Tool
 {
@@ -325,12 +326,22 @@ namespace Serein.NodeFlow.Tool
                 convertedArgs
             );
 
-            // 创建 lambda 表达式
-            var lambda = Expression.Lambda<Func<object, object[], Task<FlipflopContext>>>(
-                Expression.Convert(methodCall, typeof(Task<FlipflopContext>)),
-                instanceParam,
-                argsParam
-            );
+           // 创建 lambda 表达式
+           var lambda = Expression.Lambda<Func<object, object[], Task<IFlipflopContext>>>(
+               Expression.Convert(methodCall, typeof(Task<IFlipflopContext>)),
+               instanceParam,
+               argsParam
+           );
+            //获取返回类型
+            //var returnType = methodInfo.ReturnType;
+            //var lambda = Expression.Lambda(
+            //        typeof(Func<,,>).MakeGenericType(typeof(object), typeof(object[]), returnType),
+            //        Expression.Convert(methodCall, returnType),
+            //        instanceParam,
+            //        argsParam
+            //    );
+
+
             //var resule = task.DynamicInvoke((object)[Activator.CreateInstance(type), [new DynamicContext(null)]]);
             return lambda.Compile();
         }

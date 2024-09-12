@@ -8,31 +8,10 @@ namespace Serein.WorkBench.Node.View
     /// </summary>
     public partial class FlipflopNodeControl : NodeControlBase
     {
-        private readonly FlipflopNodeControlViewModel viewModel;
-
-        public FlipflopNodeControl(SingleFlipflopNode node) : base(node)
+        public FlipflopNodeControl(FlipflopNodeControlViewModel viewModel) : base(viewModel)
         {
-            Node = node;
-            viewModel = new FlipflopNodeControlViewModel(node);
             DataContext = viewModel;
             InitializeComponent();
-
         }
-
-        //private void ComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        //{
-        //    var comboBox = sender as ComboBox;
-        //    if (comboBox == null)
-        //    {
-        //        return;
-        //    }
-        //    var selectedExplicitData = comboBox.DataContext as ExplicitData;
-        //    if (selectedExplicitData == null)
-        //    {
-        //        return;
-        //    }
-
-        //    Console.WriteLine (selectedExplicitData.DataValue, "Selected Value");
-        //}
     }
 }

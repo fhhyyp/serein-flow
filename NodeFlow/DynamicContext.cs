@@ -1,4 +1,4 @@
-﻿using Serein.Library.IOC;
+﻿
 using Serein.NodeFlow.Model;
 using System;
 using System.Collections.Concurrent;
@@ -19,36 +19,97 @@ namespace Serein.NodeFlow
     //    Cancel,
     //    Error,
     //}
+
+    //public class FlipflopContext
+    //{
+    //    public FlowStateType State { get; set; }
+    //    public object? Data { get; set; }
+    //    public FlipflopContext(FlowStateType ffState, object? data = null)
+    //    {
+    //        State = ffState;
+    //        Data = data;
+    //    }
+    //}
+
+    public static class FlipflopFunc
+    {
+        /// <summary>
+        /// 传入触发器方法的返回类型，尝试获取Task[Flipflop[]] 中的泛型类型
+        /// </summary>
+        //public static Type GetFlipflopInnerType(Type type)
+        //{
+        //    // 检查是否为泛型类型且为 Task<>
+        //    if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Task<>))
+        //    {
+        //        // 获取 Task<> 的泛型参数类型，即 Flipflop<>
+        //        var innerType = type.GetGenericArguments()[0];
+
+        //        // 检查泛型参数是否为 Flipflop<>
+        //        if (innerType.IsGenericType && innerType.GetGenericTypeDefinition() == typeof(FlipflopContext<>))
+        //        {
+        //            // 获取 Flipflop<> 的泛型参数类型，即 T
+        //            var flipflopInnerType = innerType.GetGenericArguments()[0];
+
+        //            // 返回 Flipflop<> 中的具体类型
+        //            return flipflopInnerType;
+        //        }
+        //    }
+        //    // 如果不符合条件，返回 null
+        //    return null;
+        //}
+
+        public static bool IsTaskOfFlipflop(Type type)
+        {
+            // 检查是否为泛型类型且为 Task<>
+            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Task<>))
+            {
+                // 获取 Task<> 的泛型参数类型
+                var innerType = type.GetGenericArguments()[0];
+
+                // 检查泛型参数是否为 Flipflop<>
+                if (innerType == typeof(FlipflopContext))
+                //if (innerType.IsGenericType && innerType.GetGenericTypeDefinition() == typeof(FlipflopContext<>))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
     /// <summary>
     /// 触发器上下文
     /// </summary>
-    public class FlipflopContext
+    public class FlipflopContext//<TResult> 
     {
-        public FlowStateType State { get; set; }
+        public LibraryCore.NodeFlow.FlowStateType State { get; set; }
+        //public TResult? Data { get; set; }
         public object? Data { get; set; }
-        /*public FlipflopContext()
+        public FlipflopContext(FlowStateType ffState)
         {
-            State = FfState.Cancel;
-        }*/
-        public FlipflopContext(FlowStateType ffState, object? data = null)
+            State = ffState;
+        }
+        public FlipflopContext(FlowStateType ffState, object data)
         {
             State = ffState;
             Data = data;
         }
-    }
 
+
+    }
 
     /// <summary>
     /// 动态流程上下文
     /// </summary>
 
-    public class DynamicContext(IServiceContainer serviceContainer)
+    public class DynamicContext(ISereinIoc serviceContainer)
 
     {
 
         private readonly string contextGuid = "";//System.Guid.NewGuid().ToString();
 
-        public IServiceContainer ServiceContainer { get; } = serviceContainer;
+        public ISereinIoc ServiceContainer { get; } = serviceContainer;
         private List<Type> InitServices { get; set; } = [];
 
         // private ConcurrentDictionary<string, object?> ContextData { get; set; } = [];
@@ -152,7 +213,7 @@ namespace Serein.NodeFlow
                 for (int i = 0; i < count; i++)
                 {
                     NodeRunCts.Token.ThrowIfCancellationRequested();
-                    await time;
+                    await Task.Delay(time);
                     action.Invoke();
                 }
             });

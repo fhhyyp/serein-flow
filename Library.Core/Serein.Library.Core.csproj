@@ -1,0 +1,52 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <BaseOutputPath>D:\Project\C#\DynamicControl\SereinFlow\.Output</BaseOutputPath>
+    <OutputType>Library</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="DbSql\**" />
+    <Compile Remove="Flow\**" />
+    <Compile Remove="Http\**" />
+    <Compile Remove="IOC\**" />
+    <Compile Remove="NodeFlow\Tool\**" />
+    <Compile Remove="obj\**" />
+    <Compile Remove="SerinExpression\**" />
+    <Compile Remove="Tool\**" />
+    <EmbeddedResource Remove="DbSql\**" />
+    <EmbeddedResource Remove="Flow\**" />
+    <EmbeddedResource Remove="Http\**" />
+    <EmbeddedResource Remove="IOC\**" />
+    <EmbeddedResource Remove="NodeFlow\Tool\**" />
+    <EmbeddedResource Remove="obj\**" />
+    <EmbeddedResource Remove="SerinExpression\**" />
+    <EmbeddedResource Remove="Tool\**" />
+    <None Remove="DbSql\**" />
+    <None Remove="Flow\**" />
+    <None Remove="Http\**" />
+    <None Remove="IOC\**" />
+    <None Remove="NodeFlow\Tool\**" />
+    <None Remove="obj\**" />
+    <None Remove="SerinExpression\**" />
+    <None Remove="Tool\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="NodeFlow\DynamicNodeCoreType.cs" />
+    <Compile Remove="NodeFlow\FlowStateType.cs" />
+    <Compile Remove="ServiceContainer.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Library\Serein.Library.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -10,16 +10,10 @@ namespace Serein.WorkBench.Node.View
     /// </summary>
     public partial class ActionNodeControl : NodeControlBase
     {
-        private readonly ActionNodeControlViewModel actionNodeControlViewModel;
-        public ActionNodeControl(SingleActionNode node) : base(node)
+        public ActionNodeControl(ActionNodeControlViewModel viewModel):base(viewModel) 
         {
-            Node = node;
-            actionNodeControlViewModel = new ActionNodeControlViewModel(node);
-            DataContext = actionNodeControlViewModel;
+            DataContext = viewModel;
             InitializeComponent();
-
         }
-
-
     }
 }

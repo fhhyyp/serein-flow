@@ -17,6 +17,19 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="DynamicContext.cs" />
+    <Compile Remove="Tool\Attribute.cs" />
+    <Compile Remove="Tool\DynamicTool.cs" />
+    <Compile Remove="Tool\TcsSignal.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Library.Core\Serein.Library.Core.csproj" />
+    <ProjectReference Include="..\Library.Framework\Serein.Library.Framework.csproj" />
     <ProjectReference Include="..\Library\Serein.Library.csproj" />
   </ItemGroup>
 

@@ -1,9 +1,8 @@
-﻿using Serein.Library.Http;
-using Serein.Library.IOC;
-using Serein.NodeFlow;
+﻿using Serein.Library.Api;
+using Serein.Library.Enums;
+using Serein.Library.Core.NodeFlow;
 using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Tool;
-using SqlSugar;
 
 namespace Serein.NodeFlow
 {
@@ -14,16 +13,16 @@ namespace Serein.NodeFlow
     }
 
 
-    public class NodeFlowStarter(IServiceContainer serviceContainer, List<MethodDetails> methodDetails)
+    public class NodeFlowStarter(ISereinIoc serviceContainer, List<MethodDetails> methodDetails)
 
     {
-        private readonly IServiceContainer ServiceContainer = serviceContainer;
+        private readonly ISereinIoc ServiceContainer = serviceContainer;
         private readonly List<MethodDetails> methodDetails = methodDetails;
 
         private Action ExitAction = null;
 
 
-        private DynamicContext context = null;
+        private IDynamicContext context = null;
 
 
         public NodeRunTcs MainCts;
@@ -42,19 +41,26 @@ namespace Serein.NodeFlow
         {
             var startNode = nodes.FirstOrDefault(p => p.IsStart);
             if (startNode == null) { return; }
-            context = new(ServiceContainer);
+            if (false)
+            {
+                context = new Serein.Library.Core.NodeFlow.DynamicContext(ServiceContainer);
+            }
+            else
+            {
+                context = new Serein.Library.Framework.NodeFlow.DynamicContext(ServiceContainer);
+            }
 
             MainCts = ServiceContainer.CreateServiceInstance<NodeRunTcs>();
 
-            var initMethods = methodDetails.Where(it => it.MethodDynamicType == DynamicNodeType.Init).ToList();
-            var loadingMethods = methodDetails.Where(it => it.MethodDynamicType == DynamicNodeType.Loading).ToList();
-            var exitMethods = methodDetails.Where(it => it.MethodDynamicType == DynamicNodeType.Exit).ToList();
+            var initMethods = methodDetails.Where(it => it.MethodDynamicType == NodeType.Init).ToList();
+            var loadingMethods = methodDetails.Where(it => it.MethodDynamicType == NodeType.Loading).ToList();
+            var exitMethods = methodDetails.Where(it => it.MethodDynamicType == NodeType.Exit).ToList();
             ExitAction = () =>
             {
-                ServiceContainer.Run<WebServer>((web) =>
-                {
-                    web?.Stop();
-                });
+                //ServiceContainer.Run<WebServer>((web) =>
+                //{
+                //    web?.Stop();
+                //});
                 foreach (MethodDetails? md in exitMethods)
                 {
                     object?[]? args = [context];
@@ -77,7 +83,7 @@ namespace Serein.NodeFlow
                 object?[]? data = [md.ActingInstance, args];
                 md.MethodDelegate.DynamicInvoke(data);
             }
-            context.Biuld();
+            context.SereinIoc.Build();
 
             foreach (var md in loadingMethods) // 加载
             {
@@ -87,7 +93,7 @@ namespace Serein.NodeFlow
                 md.MethodDelegate.DynamicInvoke(data);
             }
 
-            var flipflopNodes = nodes.Where(it => it.MethodDetails?.MethodDynamicType == DynamicNodeType.Flipflop
+            var flipflopNodes = nodes.Where(it => it.MethodDetails?.MethodDynamicType == NodeType.Flipflop
                                                && it.PreviousNodes.Count == 0
                                                && it.IsStart != true).ToArray();
 
@@ -126,15 +132,17 @@ namespace Serein.NodeFlow
                 {
                     return;
                 }
+                
 
-                var func = md.ExplicitDatas.Length == 0 ? (Func<object, object, Task<FlipflopContext>>)del : (Func<object, object[], Task<FlipflopContext>>)del;
+                //var func = md.ExplicitDatas.Length == 0 ? (Func<object, object, Task<FlipflopContext<dynamic>>>)del : (Func<object, object[], Task<FlipflopContext<dynamic>>>)del;
+                var func = md.ExplicitDatas.Length == 0 ? (Func<object, object, Task<IFlipflopContext>>)del : (Func<object, object[], Task<IFlipflopContext>>)del;
 
                 while (!MainCts.IsCancellationRequested) // 循环中直到栈为空才会退出
                 {
                     object?[]? parameters = singleFlipFlopNode.GetParameters(context, md);
                     // 调用委托并获取结果
 
-                    FlipflopContext flipflopContext = await func.Invoke(md.ActingInstance, parameters);
+                    IFlipflopContext flipflopContext = await func.Invoke(md.ActingInstance, parameters);
 
                     if (flipflopContext == null)
                     {

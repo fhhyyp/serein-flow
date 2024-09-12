@@ -93,12 +93,24 @@
                     x:Name="FlowChartCanvas" 
                     Background="#D9FFEA"
                     AllowDrop="True" 
+                    Width="1000"
+                    Height="700"
+                    MouseLeftButtonDown ="FlowChartCanvas_MouseLeftButtonDown"
+                    MouseLeftButtonUp="FlowChartCanvas_MouseLeftButtonUp"
                     MouseDown="FlowChartCanvas_MouseDown"
                     MouseMove="FlowChartCanvas_MouseMove"
                     MouseUp="FlowChartCanvas_MouseUp"
                     MouseWheel="FlowChartCanvas_MouseWheel"
                     Drop="FlowChartCanvas_Drop" 
                     DragOver="FlowChartCanvas_DragOver">
+
+                    <Rectangle x:Name="SelectionRectangle" 
+                               Stroke="Blue" 
+                               StrokeThickness="2" 
+                               Fill="LightBlue" 
+                               Opacity="0.5" 
+                               Panel.ZIndex="999999"
+                               Visibility="Collapsed"/> 
 
                     <!-- Top-Left Thumb -->
                     <!--<Thumb x:Name="TopLeftThumb" 

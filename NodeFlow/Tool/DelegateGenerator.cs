@@ -1,5 +1,6 @@
-﻿using Serein.Library.IOC;
-using Serein.NodeFlow;
+﻿using Serein.Library.Api;
+using Serein.Library.Attributes;
+using Serein.Library.Core.NodeFlow;
 using System.Collections.Concurrent;
 using System.Reflection;
 
@@ -27,16 +28,16 @@ public static class DelegateGenerator
     /// <param name="serviceContainer"></param>
     /// <param name="type"></param>
     /// <returns></returns>
-    public static ConcurrentDictionary<string, MethodDetails> GenerateMethodDetails(IServiceContainer serviceContainer, Type type)
+    public static ConcurrentDictionary<string, MethodDetails> GenerateMethodDetails(ISereinIoc serviceContainer, Type type, bool isNetFramework)
     {
         var methodDetailsDictionary = new ConcurrentDictionary<string, MethodDetails>();
         var assemblyName = type.Assembly.GetName().Name;
-        var methods = GetMethodsToProcess(type);
+        var methods = GetMethodsToProcess(type, isNetFramework);
 
         foreach (var method in methods)
         {
 
-            var methodDetails = CreateMethodDetails(serviceContainer, type, method, assemblyName);
+            var methodDetails = CreateMethodDetails(serviceContainer, type, method, assemblyName, isNetFramework);
 
             methodDetailsDictionary.TryAdd(methodDetails.MethodName, methodDetails);
         }
@@ -47,48 +48,56 @@ public static class DelegateGenerator
     /// <summary>
     /// 获取处理方法
     /// </summary>
-    private static IEnumerable<MethodInfo> GetMethodsToProcess(Type type)
+    private static IEnumerable<MethodInfo> GetMethodsToProcess(Type type, bool isNetFramework)
     {
-        return type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-                   .Where(m => m.GetCustomAttribute<MethodDetailAttribute>()?.Scan == true);
+        if (isNetFramework)
+        {
+
+            return type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                       .Where(m => m.GetCustomAttribute<NodeActionAttribute>()?.Scan == true);
+        }
+        else
+        {
+
+            return type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                       .Where(m => m.GetCustomAttribute<NodeActionAttribute>()?.Scan == true);
+        }
     }
     /// <summary>
     /// 创建方法信息
     /// </summary>
     /// <returns></returns>
-    private static MethodDetails CreateMethodDetails(IServiceContainer serviceContainer, Type type, MethodInfo method, string assemblyName)
+    private static MethodDetails CreateMethodDetails(ISereinIoc serviceContainer, Type type, MethodInfo method, string assemblyName, bool isNetFramework)
     {
-        var methodName = method.Name;
-        var attribute = method.GetCustomAttribute<MethodDetailAttribute>();
-
-        var explicitDataOfParameters = GetExplicitDataOfParameters(method.GetParameters());
-        // 生成委托
-        var methodDelegate = GenerateMethodDelegate(type,   // 方法所在的对象类型
-                                                    method, // 方法信息
-                                                    method.GetParameters(),// 方法参数
-                                                    method.ReturnType);// 返回值
-
-
-        var dllTypeName = $"{assemblyName}.{type.Name}";
-        serviceContainer.Register(type);
-        object instance = serviceContainer.GetOrCreateServiceInstance(type);
-        var dllTypeMethodName = $"{assemblyName}.{type.Name}.{method.Name}";
+        
+            var methodName = method.Name;
+            var attribute = method.GetCustomAttribute<NodeActionAttribute>();
+            var explicitDataOfParameters = GetExplicitDataOfParameters(method.GetParameters());
+            // 生成委托
+            var methodDelegate = GenerateMethodDelegate(type,   // 方法所在的对象类型
+                                                        method, // 方法信息
+                                                        method.GetParameters(),// 方法参数
+                                                        method.ReturnType);// 返回值
 
 
+            var dllTypeName = $"{assemblyName}.{type.Name}";
+            serviceContainer.Register(type);
+            object instance = serviceContainer.GetOrCreateServiceInstance(type);
+            var dllTypeMethodName = $"{assemblyName}.{type.Name}.{method.Name}";
 
-        return new MethodDetails
-        {
-            ActingInstanceType = type,
-            ActingInstance = instance,
-            MethodName = dllTypeMethodName,
-            MethodDelegate = methodDelegate,
-            MethodDynamicType = attribute.MethodDynamicType,
-            MethodLockName = attribute.LockName,
-            MethodTips = attribute.MethodTips,
-            ExplicitDatas = explicitDataOfParameters,
-            ReturnType = method.ReturnType,
-        };
-
+            return new MethodDetails
+            {
+                ActingInstanceType = type,
+                ActingInstance = instance,
+                MethodName = dllTypeMethodName,
+                MethodDelegate = methodDelegate,
+                MethodDynamicType = attribute.MethodDynamicType,
+                MethodLockName = attribute.LockName,
+                MethodTips = attribute.MethodTips,
+                ExplicitDatas = explicitDataOfParameters,
+                ReturnType = method.ReturnType,
+            };
+        
     }
 
     private static ExplicitData[] GetExplicitDataOfParameters(ParameterInfo[] parameters)
@@ -162,7 +171,8 @@ public static class DelegateGenerator
                 return ExpressionHelper.MethodCaller(type, methodInfo, parameterTypes);
             }
         }
-        else if (returnType == typeof(Task<FlipflopContext>)) // 触发器
+        // else if (returnType == typeof(Task<FlipflopContext)) // 触发器
+        else if (FlipflopFunc.IsTaskOfFlipflop(returnType)) // 触发器
         {
             if (parameterCount == 0)
             {

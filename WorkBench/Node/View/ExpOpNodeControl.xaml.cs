@@ -8,21 +8,17 @@ namespace Serein.WorkBench.Node.View
     /// </summary>
     public partial class ExpOpNodeControl : NodeControlBase
     {
-        public ExpOpNodeViewModel ViewModel { get; }
-
-        public ExpOpNodeControl()
+        public ExpOpNodeControl() : base()
         {
-            ViewModel = new (new());
+            // 窗体初始化需要
+            ViewModel = new ExpOpNodeViewModel(new SingleExpOpNode());
             DataContext = ViewModel;
             InitializeComponent();
         }
-        public ExpOpNodeControl(SingleExpOpNode node):base(node)
+        public ExpOpNodeControl(ExpOpNodeViewModel viewModel) :base(viewModel)
         {
-            Node = node;
-            ViewModel = new(node);
-            DataContext = ViewModel;
+            DataContext = viewModel;
             InitializeComponent();
         }
-
     }
 }

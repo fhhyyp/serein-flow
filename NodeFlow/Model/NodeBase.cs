@@ -1,6 +1,9 @@
 ﻿using Newtonsoft.Json;
-using Serein.NodeFlow;
+using Serein.Library.Api;
+using Serein.Library.Enums;
+using Serein.Library.Core.NodeFlow;
 using Serein.NodeFlow.Tool;
+using Serein.NodeFlow.Tool.SerinExpression;
 
 namespace Serein.NodeFlow.Model
 {
@@ -25,21 +28,6 @@ namespace Serein.NodeFlow.Model
         Upstream,
     }
 
-    public enum FlowStateType
-    {
-        /// <summary>
-        /// 成功（方法成功执行）
-        /// </summary>
-        Succeed,
-        /// <summary>
-        /// 失败（方法没有成功执行，不过执行时没有发生非预期的错误）
-        /// </summary>
-        Fail,
-        /// <summary>
-        /// 异常（节点没有
-        /// </summary>
-        Error,
-    }
 
     /// <summary>
     /// 节点基类（数据）：条件控件，动作控件，条件区域，动作区域
@@ -103,7 +91,7 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         /// <param name="context">流程上下文</param>
         /// <returns>节点传回数据对象</returns>
-        public virtual object? Execute(DynamicContext context)
+        public virtual object? Execute(IDynamicContext context)
         {
             MethodDetails md = MethodDetails;
             object? result = null;
@@ -155,7 +143,7 @@ namespace Serein.NodeFlow.Model
         /// <param name="context"></param>
         /// <returns>节点传回数据对象</returns>
         /// <exception cref="Exception"></exception>
-        public virtual async Task<object?> ExecuteAsync(DynamicContext context)
+        public virtual async Task<object?> ExecuteAsync(IDynamicContext context)
         {
             MethodDetails md = MethodDetails;
             object? result = null;
@@ -165,18 +153,18 @@ namespace Serein.NodeFlow.Model
                 return result;
             }
 
-            FlipflopContext flipflopContext = null;
+            IFlipflopContext flipflopContext = null;
             try
             {
                 // 调用委托并获取结果
                 if (md.ExplicitDatas.Length == 0)
                 {
-                    flipflopContext = await ((Func<object, Task<FlipflopContext>>)del).Invoke(MethodDetails.ActingInstance);
+                    flipflopContext = await ((Func<object, Task<IFlipflopContext>>)del).Invoke(MethodDetails.ActingInstance);
                 }
                 else
                 {
                     object?[]? parameters = GetParameters(context, MethodDetails);
-                    flipflopContext = await ((Func<object, object[], Task<FlipflopContext>>)del).Invoke(MethodDetails.ActingInstance, parameters);
+                    flipflopContext = await ((Func<object, object[], Task<IFlipflopContext>>)del).Invoke(MethodDetails.ActingInstance, parameters);
                 }
 
                 if (flipflopContext != null)
@@ -185,6 +173,10 @@ namespace Serein.NodeFlow.Model
                     if (flipflopContext.State == FlowStateType.Succeed)
                     {
                         result = flipflopContext.Data;
+                    }
+                    else
+                    {
+                        result = null;
                     }
                 }
             }
@@ -202,9 +194,9 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        public async Task StartExecution(DynamicContext context)
+        public async Task StartExecution(IDynamicContext context)
         {
-            var cts = context.ServiceContainer.GetOrInstantiate<CancellationTokenSource>();
+            var cts = context.SereinIoc.GetOrInstantiate<CancellationTokenSource>();
 
             Stack<NodeBase> stack = [];
             stack.Push(this);
@@ -217,7 +209,7 @@ namespace Serein.NodeFlow.Model
                 // 设置方法执行的对象
                 if (currentNode.MethodDetails != null)
                 {
-                    currentNode.MethodDetails.ActingInstance ??= context.ServiceContainer.GetOrInstantiate(MethodDetails.ActingInstanceType);
+                    currentNode.MethodDetails.ActingInstance ??= context.SereinIoc.GetOrInstantiate(MethodDetails.ActingInstanceType);
                 }
 
                 // 获取上游分支，首先执行一次
@@ -228,7 +220,7 @@ namespace Serein.NodeFlow.Model
                     await upstreamNodes[i].StartExecution(context);
                 }
 
-                if (currentNode.MethodDetails != null && currentNode.MethodDetails.MethodDynamicType == DynamicNodeType.Flipflop)
+                if (currentNode.MethodDetails != null && currentNode.MethodDetails.MethodDynamicType == NodeType.Flipflop)
                 {
                     // 触发器节点
                     currentNode.FlowData = await currentNode.ExecuteAsync(context);
@@ -259,7 +251,7 @@ namespace Serein.NodeFlow.Model
         /// <summary>
         /// 获取对应的参数数组
         /// </summary>
-        public object[]? GetParameters(DynamicContext context, MethodDetails md)
+        public object[]? GetParameters(IDynamicContext context, MethodDetails md)
         {
             // 用正确的大小初始化参数数组
             var types = md.ExplicitDatas.Select(it => it.DataType).ToArray();
@@ -278,7 +270,7 @@ namespace Serein.NodeFlow.Model
 
                 var f1 = PreviousNode?.FlowData?.GetType();
                 var f2 = mdEd.DataType;
-                if (type == typeof(DynamicContext))
+                if (type == typeof(IDynamicContext))
                 {
                     parameters[i] = context;
                 }
@@ -292,37 +284,79 @@ namespace Serein.NodeFlow.Model
                 }
                 else if (mdEd.IsExplicitData) // 显式参数
                 {
-                    if (mdEd.DataType.IsEnum)
+                    // 判断是否使用表达式解析
+                    if (mdEd.DataValue[0] == '@')
                     {
-                        var enumValue = Enum.Parse(mdEd.DataType, mdEd.DataValue);
-                        parameters[i] = enumValue;
-                    }
-                    else if (mdEd.ExplicitType == typeof(string))
-                    {
-                        parameters[i] = mdEd.DataValue;
-                    }
-                    else if (mdEd.ExplicitType == typeof(bool))
-                    {
-                        parameters[i] = bool.Parse(mdEd.DataValue);
-                    }
-                    else if (mdEd.ExplicitType == typeof(int))
-                    {
-                        parameters[i] = int.Parse(mdEd.DataValue);
-                    }
-                    else if (mdEd.ExplicitType == typeof(double))
-                    {
-                        parameters[i] = double.Parse(mdEd.DataValue);
+                        var expResult = SerinExpressionEvaluator.Evaluate(mdEd.DataValue, PreviousNode?.FlowData, out bool isChange);
+   
+
+                        if (mdEd.DataType.IsEnum)
+                        {
+                            var enumValue = Enum.Parse(mdEd.DataType, mdEd.DataValue);
+                            parameters[i] = enumValue;
+                        }
+                        else if (mdEd.ExplicitType == typeof(string))
+                        {
+                            parameters[i] = Convert.ChangeType(expResult, typeof(string));
+                        }
+                        else if (mdEd.ExplicitType == typeof(bool))
+                        {
+                            parameters[i] = Convert.ChangeType(expResult, typeof(bool));
+                        }
+                        else if (mdEd.ExplicitType == typeof(int))
+                        {
+                            parameters[i] = Convert.ChangeType(expResult, typeof(int));
+                        }
+                        else if (mdEd.ExplicitType == typeof(double))
+                        {
+                            parameters[i] = Convert.ChangeType(expResult, typeof(double));
+                        }
+                        else
+                        {
+                            parameters[i] = expResult;
+                            //parameters[i] = ConvertValue(mdEd.DataValue, mdEd.ExplicitType);
+                        }
                     }
                     else
                     {
-                        parameters[i] = "";
+                        if (mdEd.DataType.IsEnum)
+                        {
+                            var enumValue = Enum.Parse(mdEd.DataType, mdEd.DataValue);
+                            parameters[i] = enumValue;
+                        }
+                        else if (mdEd.ExplicitType == typeof(string))
+                        {
+                            parameters[i] = mdEd.DataValue;
+                        }
+                        else if (mdEd.ExplicitType == typeof(bool))
+                        {
+                            parameters[i] = bool.Parse(mdEd.DataValue);
+                        }
+                        else if (mdEd.ExplicitType == typeof(int))
+                        {
+                            parameters[i] = int.Parse(mdEd.DataValue);
+                        }
+                        else if (mdEd.ExplicitType == typeof(double))
+                        {
+                            parameters[i] = double.Parse(mdEd.DataValue);
+                        }
+                        else
+                        {
+                            parameters[i] = "";
 
-                        //parameters[i] = ConvertValue(mdEd.DataValue, mdEd.ExplicitType);
+                            //parameters[i] = ConvertValue(mdEd.DataValue, mdEd.ExplicitType);
+                        }
                     }
+
+                    
                 }
-                else if (f1 != null && f2 != null && f2.IsAssignableFrom(f1) || f2.FullName.Equals(f1.FullName))
+                else if (f1 != null && f2 != null)
                 {
-                    parameters[i] = PreviousNode?.FlowData;
+                    if(f2.IsAssignableFrom(f1) || f2.FullName.Equals(f1.FullName))
+                    {
+                        parameters[i] = PreviousNode?.FlowData;
+
+                    }
                 }
                 else
                 {

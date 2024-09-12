@@ -1,5 +1,8 @@
 ﻿
-using Serein.Library.SerinExpression;
+using Serein.Library.Api;
+using Serein.Library.Enums;
+using Serein.Library.Core.NodeFlow;
+using Serein.NodeFlow.Tool.SerinExpression;
 
 namespace Serein.NodeFlow.Model
 {
@@ -24,7 +27,7 @@ namespace Serein.NodeFlow.Model
         public string Expression { get; set; }
 
 
-        public override object? Execute(DynamicContext context)
+        public override object? Execute(IDynamicContext context)
         {
             // 接收上一节点参数or自定义参数内容
             object? result;

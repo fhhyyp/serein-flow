@@ -1,4 +1,5 @@
 ﻿using Serein.NodeFlow.Model;
+using Serein.WorkBench.Node.ViewModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -12,16 +13,19 @@ namespace Serein.WorkBench.Node.View
     public partial class ConditionRegionControl : NodeControlBase
     {
         private Point _dragStartPoint;
+
         public ConditionRegionControl() : base()
         {
             InitializeComponent();
         }
 
-        public ConditionRegionControl(CompositeConditionNode node) : base(node)
+        public ConditionRegionControl(ConditionRegionNodeControlViewModel viewModel) : base(viewModel)
         {
-            Node = node;
+            DataContext = viewModel;
             InitializeComponent();
         }
+
+
 
 
 
@@ -31,7 +35,7 @@ namespace Serein.WorkBench.Node.View
         /// <param name="condition"></param>
         public void AddCondition(NodeControlBase node)
         {
-            ((CompositeConditionNode)Node).AddNode((SingleConditionNode)node.Node);
+            ((CompositeConditionNode)ViewModel.Node).AddNode((SingleConditionNode)node.ViewModel.Node);
 
             this.Width += node.Width;
             this.Height += node.Height;
@@ -46,27 +50,27 @@ namespace Serein.WorkBench.Node.View
         }
 
         // Mouse event handlers for dragging
-        private void TypeText_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            _dragStartPoint = e.GetPosition(null);
-        }
+        //private void TypeText_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        //{
+        //    _dragStartPoint = e.GetPosition(null);
+        //}
 
-        private void TypeText_MouseMove(object sender, MouseEventArgs e)
-        {
-            Point mousePos = e.GetPosition(null);
-            Vector diff = _dragStartPoint - mousePos;
+        //private void TypeText_MouseMove(object sender, MouseEventArgs e)
+        //{
+        //    Point mousePos = e.GetPosition(null);
+        //    Vector diff = _dragStartPoint - mousePos;
 
-            if (e.LeftButton == MouseButtonState.Pressed &&
-                (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
-                 Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance))
-            {
-                if (sender is TextBlock typeText)
-                {
-                    var dragData = new DataObject(MouseNodeType.RegionType, typeText.Tag);
-                    DragDrop.DoDragDrop(typeText, dragData, DragDropEffects.Move);
-                }
-            }
-        }
+        //    if (e.LeftButton == MouseButtonState.Pressed &&
+        //        (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
+        //         Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance))
+        //    {
+        //        if (sender is TextBlock typeText)
+        //        {
+        //            var dragData = new DataObject(MouseNodeType.RegionType, typeText.Tag);
+        //            DragDrop.DoDragDrop(typeText, dragData, DragDropEffects.Move);
+        //        }
+        //    }
+        //}
 
         
 
@@ -86,8 +90,7 @@ namespace Serein.WorkBench.Node.View
                     DragDrop.DoDragDrop(typeText, dragData, DragDropEffects.Move);
                 }
             }
-        }
-*/
+        }*/
 
     }
 }

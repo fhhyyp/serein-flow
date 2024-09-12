@@ -1,28 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows7.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <BaseOutputPath>D:\Project\C#\DynamicControl\SereinFlow\.Output</BaseOutputPath>
-    <OutputType>Library</OutputType>
+    <TargetFrameworks>netstandard2.0;net461</TargetFrameworks>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Compile Remove="Flow\**" />
-    <Compile Remove="obj\**" />
-    <EmbeddedResource Remove="Flow\**" />
-    <EmbeddedResource Remove="obj\**" />
-    <None Remove="Flow\**" />
-    <None Remove="obj\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Remove="ServiceContainer.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="SqlSugarCore" Version="5.1.4.166" />
-  </ItemGroup>
 
 </Project>

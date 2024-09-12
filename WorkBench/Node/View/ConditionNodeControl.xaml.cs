@@ -8,24 +8,19 @@ namespace Serein.WorkBench.Node.View
     /// </summary>
     public partial class ConditionNodeControl : NodeControlBase
     {
-        public ConditionNodeControlViewModel ViewModel { get; }
-
         public ConditionNodeControl() : base()
         {
-
-            ViewModel = new (new ());
+            // 窗体初始化需要
+            ViewModel = new ConditionNodeControlViewModel (new SingleConditionNode());
             DataContext = ViewModel;
             InitializeComponent();
         }
 
-        public ConditionNodeControl(SingleConditionNode node) : base(node)
+        public ConditionNodeControl(ConditionNodeControlViewModel viewModel):base(viewModel)
         {
-            Node = node;
-            ViewModel = new ConditionNodeControlViewModel(node);
-            DataContext = ViewModel;
+            DataContext = viewModel;
             InitializeComponent();
         }
-
 
     }
 }

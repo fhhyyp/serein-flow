@@ -7,9 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MyDll", "MyDll\MyDll.csproj
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.WorkBench", "WorkBench\Serein.WorkBench.csproj", "{EC933A9F-DAD3-4D26-BF27-DA9DE5263BCD}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Library", "Library\Serein.Library.csproj", "{4A7D23E7-B05C-4B6D-A8B9-1A488DC356FD}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Module.WAT", "SereinWAT\Serein.Module.WAT.csproj", "{C2F68A15-5D07-4418-87C0-E7402DD9F83A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Library.Core", "Library.Core\Serein.Library.Core.csproj", "{4A7D23E7-B05C-4B6D-A8B9-1A488DC356FD}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.NodeFlow", "NodeFlow\Serein.NodeFlow.csproj", "{7B51A19A-88AB-471E-BCE3-3888C67C936D}"
 EndProject
@@ -17,6 +15,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Serein.Library.Framework", "Library.Framework\Serein.Library.Framework.csproj", "{73B272E8-222D-4D08-A030-F1E1DB70B9D1}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Library", "Library\Serein.Library.csproj", "{5E19D0F2-913A-4D1C-A6F8-1E1227BAA0E3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -36,14 +38,18 @@ Global
 		{4A7D23E7-B05C-4B6D-A8B9-1A488DC356FD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4A7D23E7-B05C-4B6D-A8B9-1A488DC356FD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4A7D23E7-B05C-4B6D-A8B9-1A488DC356FD}.Release|Any CPU.Build.0 = Release|Any CPU
-		{C2F68A15-5D07-4418-87C0-E7402DD9F83A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C2F68A15-5D07-4418-87C0-E7402DD9F83A}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C2F68A15-5D07-4418-87C0-E7402DD9F83A}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C2F68A15-5D07-4418-87C0-E7402DD9F83A}.Release|Any CPU.Build.0 = Release|Any CPU
 		{7B51A19A-88AB-471E-BCE3-3888C67C936D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{7B51A19A-88AB-471E-BCE3-3888C67C936D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7B51A19A-88AB-471E-BCE3-3888C67C936D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7B51A19A-88AB-471E-BCE3-3888C67C936D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{73B272E8-222D-4D08-A030-F1E1DB70B9D1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{73B272E8-222D-4D08-A030-F1E1DB70B9D1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{73B272E8-222D-4D08-A030-F1E1DB70B9D1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{73B272E8-222D-4D08-A030-F1E1DB70B9D1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5E19D0F2-913A-4D1C-A6F8-1E1227BAA0E3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5E19D0F2-913A-4D1C-A6F8-1E1227BAA0E3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5E19D0F2-913A-4D1C-A6F8-1E1227BAA0E3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5E19D0F2-913A-4D1C-A6F8-1E1227BAA0E3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

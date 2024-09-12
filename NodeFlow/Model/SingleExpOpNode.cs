@@ -1,10 +1,7 @@
-﻿using Serein.Library.SerinExpression;
-using Serein.NodeFlow;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Serein.Library.Api;
+using Serein.Library.Enums;
+using Serein.Library.Core.NodeFlow;
+using Serein.NodeFlow.Tool.SerinExpression;
 
 namespace Serein.NodeFlow.Model
 {
@@ -19,7 +16,7 @@ namespace Serein.NodeFlow.Model
         public string Expression { get; set; }
 
 
-        public override object? Execute(DynamicContext context)
+        public override object? Execute(IDynamicContext context)
         {
             var data = PreviousNode?.FlowData;
 

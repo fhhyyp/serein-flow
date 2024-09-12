@@ -1,4 +1,8 @@
-﻿namespace Serein.NodeFlow.Model
+﻿using Serein.Library.Api;
+using Serein.Library.Enums;
+using Serein.Library.Core.NodeFlow;
+
+namespace Serein.NodeFlow.Model
 {
     /// <summary>
     /// 组合条件节点（用于条件区域）
@@ -19,7 +23,7 @@
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        public override object? Execute(DynamicContext context)
+        public override object? Execute(IDynamicContext context)
         {
             // bool allTrue = ConditionNodes.All(condition => Judge(context,condition.MethodDetails));
             // bool IsAllTrue = true; // 初始化为 true
@@ -50,7 +54,7 @@
             //    }
             //}
         }
-        private FlowStateType Judge(DynamicContext context, SingleConditionNode node)
+        private FlowStateType Judge(IDynamicContext context, SingleConditionNode node)
         {
             try
             {

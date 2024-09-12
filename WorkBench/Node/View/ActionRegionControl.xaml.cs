@@ -13,18 +13,21 @@ namespace Serein.WorkBench.Node.View
     {
         private Point _dragStartPoint;
 
-        private new readonly CompositeActionNode Node;
+        //private new readonly CompositeActionNode Node;
 
-        public ActionRegionControl() : base()
+        //public override NodeControlViewModel ViewModel { get ; set ; }
+
+        public ActionRegionControl() : base(null)
         {
             InitializeComponent();
         }
-        public ActionRegionControl(CompositeActionNode node) : base(node)
-        {
-            InitializeComponent();
-            Node = node;
-            base.Name = "动作组合节点";
-        }
+        //public ActionRegionControl(CompositeActionNode node)
+        //{
+        //    InitializeComponent();
+        //    //ViewModel = new NodeControlViewModel(node);
+        //    DataContext = ViewModel;
+        //    base.Name = "动作组合节点";
+        //}
 
         public void AddAction(NodeControlBase node, bool isTask = false)
         {
@@ -34,8 +37,8 @@ namespace Serein.WorkBench.Node.View
                 Margin = new Thickness(10, 2, 0, 0),
                 Tag = node.MethodDetails,
             };*/
-            Node?.AddNode((SingleActionNode)node.Node);
-            ActionsListBox.Items.Add(node);
+            /// Node?.AddNode((SingleActionNode)node.ViewModel.Node);
+            // ActionsListBox.Items.Add(node);
         }
 
        /* public async Task ExecuteActions(DynamicContext context)
