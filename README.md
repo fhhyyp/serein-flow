@@ -1,11 +1,13 @@
 # 自述
-基于WPF（Dotnet 8）的流程可视化编辑器，需二次开发。Bilibili个人空间（不定期更新相关的视频。）：https://space.bilibili.com/33526379
+基于WPF（Dotnet 8）的流程可视化编辑器，需二次开发。
+不定期在Bilibili个人空间上更新相关的视频。
+https://space.bilibili.com/33526379
 
 # 如何加载我的DLL？
 使用 **DynamicFlow** 特性标记你的类，可以参照 **MyDll** 与 **SereinWAT** 的实现。编译为 Dll文件 后，拖入到软件中即可。
 
 # 如何让我的方法成为节点？
-使用 **MethodDetail** 特性标记你的方法。
+使用 **NodeAction** 特性标记你的方法。
 * 动作节点 - Action
 * 触发器节点 - Flipflop
 
