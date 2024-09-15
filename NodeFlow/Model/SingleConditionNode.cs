@@ -1,7 +1,8 @@
 ﻿
 using Serein.Library.Api;
+using Serein.Library.Entity;
 using Serein.Library.Enums;
-using Serein.Library.Core.NodeFlow;
+using Serein.NodeFlow.Base;
 using Serein.NodeFlow.Tool.SerinExpression;
 
 namespace Serein.NodeFlow.Model
@@ -9,7 +10,7 @@ namespace Serein.NodeFlow.Model
     /// <summary>
     /// 条件节点（用于条件控件）
     /// </summary>
-    public class SingleConditionNode : NodeBase
+    public class SingleConditionNode : NodeModelBase
     {
 
         /// <summary>
@@ -47,11 +48,38 @@ namespace Serein.NodeFlow.Model
             catch (Exception ex)
             {
                 FlowState = FlowStateType.Error;
-                Exception = ex;
+                RuningException = ex;
             }
             
             Console.WriteLine($"{result} {Expression}  -> " + FlowState);
             return result;
+        }
+
+        public override Parameterdata[] GetParameterdatas()
+        {
+            if (base.MethodDetails.ExplicitDatas.Length > 0)
+            {
+                return MethodDetails.ExplicitDatas
+                                     .Select(it => new Parameterdata
+                                     {
+                                         state = IsCustomData,
+                                         expression = Expression,
+                                         value = CustomData switch
+                                         {
+                                             Type when CustomData.GetType() == typeof(int)
+                                                        && CustomData.GetType() == typeof(double)
+                                                        && CustomData.GetType() == typeof(float)
+                                                             => ((double)CustomData).ToString(),
+                                             Type when CustomData.GetType() == typeof(bool) => ((bool)CustomData).ToString(),
+                                             _ => CustomData?.ToString()!,
+                                         }
+                                     })
+                                     .ToArray();
+            }
+            else
+            {
+                return [];
+            }
         }
 
         //public override void Execute(DynamicContext context)

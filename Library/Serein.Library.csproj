@@ -4,4 +4,24 @@
     <TargetFrameworks>netstandard2.0;net461</TargetFrameworks>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Remove="Utils\SerinExpression\**" />
+    <EmbeddedResource Remove="Utils\SerinExpression\**" />
+    <None Remove="Utils\SerinExpression\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Base\NodeBase.cs" />
+    <Compile Remove="Base\NodeModelBaseData.cs" />
+    <Compile Remove="Base\NodeModelBaseFunc.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Base\" />
+  </ItemGroup>
+
 </Project>

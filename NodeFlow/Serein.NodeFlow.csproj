@@ -17,9 +17,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="ConnectionType.cs" />
     <Compile Remove="DynamicContext.cs" />
+    <Compile Remove="MethodDetails.cs" />
     <Compile Remove="Tool\Attribute.cs" />
     <Compile Remove="Tool\DynamicTool.cs" />
+    <Compile Remove="Tool\NodeModelBaseFunc.cs" />
     <Compile Remove="Tool\TcsSignal.cs" />
   </ItemGroup>
 

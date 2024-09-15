@@ -66,7 +66,7 @@ namespace Serein.Library.Core.NodeFlow
     public class FlipflopContext : IFlipflopContext
     {
         public FlowStateType State { get; set; }
-        //public TResult? Data { get; set; }
+
         public object Data { get; set; }
 
         public FlipflopContext(FlowStateType ffState)

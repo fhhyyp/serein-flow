@@ -1,4 +1,6 @@
 ﻿using Newtonsoft.Json;
+using Serein.Library.Entity;
+using Serein.NodeFlow;
 using System.Diagnostics;
 using System.Windows;
 
@@ -115,8 +117,10 @@ namespace Serein.WorkBench
                 window.Close();
             }
         }
-
-        public static SereinOutputFileData? FData;
+        /// <summary>
+        /// 成功加载的工程文件
+        /// </summary>
+        public static SereinOutputFileData? FData { get; set; }
         public static string FileDataPath = "";
         private void Application_Startup(object sender, StartupEventArgs e)
         {

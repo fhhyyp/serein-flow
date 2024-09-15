@@ -1,4 +1,5 @@
-﻿using Serein.NodeFlow;
+﻿using Serein.Library.Entity;
+using Serein.NodeFlow;
 using System.Collections;
 using System.Globalization;
 using System.Windows;

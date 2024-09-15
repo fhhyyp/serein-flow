@@ -1,4 +1,5 @@
-﻿using Serein.NodeFlow.Model;
+﻿using Serein.NodeFlow;
+using Serein.NodeFlow.Model;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -107,8 +108,19 @@ namespace Serein.WorkBench.Node.View
             {
                 if (sender is TextBlock typeText)
                 {
-                    var dragData = new DataObject(MouseNodeType.RegionType, typeText.Tag);
+                    MoveNodeData moveNodeData = new MoveNodeData
+                    {
+                        NodeControlType = Library.Enums.NodeControlType.ConditionRegion
+                    };
+
+                    // 创建一个 DataObject 用于拖拽操作，并设置拖拽效果
+                    DataObject dragData = new DataObject(MouseNodeType.CreateDllNodeInCanvas, moveNodeData);
+
                     DragDrop.DoDragDrop(typeText, dragData, DragDropEffects.Move);
+
+
+                    //var dragData = new DataObject(MouseNodeType.CreateNodeInCanvas, typeText.Tag);
+                    //DragDrop.DoDragDrop(typeText, dragData, DragDropEffects.Move);
                 }
             }
         }

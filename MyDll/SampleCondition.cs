@@ -136,7 +136,7 @@ namespace MyDll
 
         #region 触发器
 
-        [NodeAction(NodeType.Flipflop, "等待信号触发")]
+        [NodeAction(NodeType.Flipflop, "等待信号触发",ReturnType = typeof(int))]
         public async Task<IFlipflopContext> WaitTask(SignalType triggerType = SignalType.光电1)
         {
             /*if (!Enum.TryParse(triggerValue, out SignalType triggerType) && Enum.IsDefined(typeof(SignalType), triggerType))

@@ -1,5 +1,6 @@
-﻿using Serein.NodeFlow;
-using Serein.NodeFlow.Model;
+﻿using Serein.Library.Api;
+using Serein.Library.Entity;
+using Serein.NodeFlow.Base;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
@@ -34,7 +35,7 @@ namespace Serein.WorkBench.Node.View
 
     public abstract class NodeControlViewModelBase : INotifyPropertyChanged
     {
-        public NodeControlViewModelBase(NodeBase node)
+        public NodeControlViewModelBase(NodeModelBase node)
         {
             this.Node = node;
             MethodDetails = this.Node.MethodDetails;
@@ -43,7 +44,7 @@ namespace Serein.WorkBench.Node.View
         /// <summary>
         /// 对应的节点实体类
         /// </summary>
-        public NodeBase Node { get; set; }
+        public NodeModelBase Node { get; }
 
         /// <summary>
         /// 表示节点控件是否被选中
@@ -63,13 +64,7 @@ namespace Serein.WorkBench.Node.View
             }
         }
 
-
-
         public event PropertyChangedEventHandler PropertyChanged;
-
-
-
-
         protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
 
         {

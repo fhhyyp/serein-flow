@@ -5,7 +5,6 @@
         xmlns:custom="clr-namespace:Serein.WorkBench.Node.View"
         Title="Dynamic Node Flow" Height="700" Width="1200"
         AllowDrop="True" Drop="Window_Drop" DragOver="Window_DragOver"
-        SizeChanged ="Window_SizeChanged"
         Loaded="Window_Loaded"
         Closing="Window_Closing">
 
@@ -55,9 +54,9 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>-->
 
-                        <custom:ExpOpNodeControl x:Name="ExpOpNodeControl" Margin="10" AllowDrop="True" Drop="ConditionRegionControl_Drop" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
-                        <custom:ConditionNodeControl x:Name="ConditionNodeControl" Margin="10" AllowDrop="True" Drop="ConditionNodeControl_Drop" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
-                        <custom:ConditionRegionControl  x:Name="ConditionRegionControl" Margin="10" AllowDrop="True" Drop="ConditionRegionControl_Drop" PreviewMouseMove="RegionControl_PreviewMouseMove"/>
+                        <custom:ExpOpNodeControl x:Name="ExpOpNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
+                        <custom:ConditionNodeControl x:Name="ConditionNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
+                        <custom:ConditionRegionControl  x:Name="ConditionRegionControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                         <!--<custom:ActionRegionControl x:Name="ActionRegionControl" Grid.Column="1" Margin="10" AllowDrop="True" Drop="ActionRegionControl_Drop" PreviewMouseMove="RegionControl_PreviewMouseMove"/>-->
                         <!--<TextBlock Text="触发器"  Grid.Column="2"/>-->
                         <!--<custom:StateRegionControl x:Name="StateRegionControl" Grid.Column="2" Margin="10" AllowDrop="True" Drop="StateRegionControl_Drop" PreviewMouseMove="RegionControl_PreviewMouseMove"/>-->

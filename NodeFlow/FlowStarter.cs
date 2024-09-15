@@ -1,56 +1,51 @@
 ﻿using Serein.Library.Api;
-using Serein.Library.Enums;
 using Serein.Library.Core.NodeFlow;
+using Serein.Library.Entity;
+using Serein.Library.Enums;
+using Serein.Library.Utils;
+using Serein.NodeFlow.Base;
 using Serein.NodeFlow.Model;
-using Serein.NodeFlow.Tool;
 
 namespace Serein.NodeFlow
 {
 
-    public class NodeRunTcs : CancellationTokenSource
-    {
-
-    }
-
-
-    public class NodeFlowStarter(ISereinIoc serviceContainer, List<MethodDetails> methodDetails)
+    /// <summary>
+    /// 流程启动器
+    /// </summary>
+    /// <param name="serviceContainer"></param>
+    /// <param name="methodDetails"></param>
+    public class FlowStarter(ISereinIoc serviceContainer, List<MethodDetails> methodDetails)
 
     {
         private readonly ISereinIoc ServiceContainer = serviceContainer;
         private readonly List<MethodDetails> methodDetails = methodDetails;
-
-        private Action ExitAction = null;
-
-
-        private IDynamicContext context = null;
-
-
-        public NodeRunTcs MainCts;
+        private Action ExitAction = null; //退出方法
+        private IDynamicContext context = null;  //上下文
+        public NodeRunCts MainCts;
 
         /// <summary>
-        /// 运行测试
+        /// 开始运行
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        //public async Task RunAsync1(List<NodeBase> nodes)
-        //{
-        //    await Task.Run(async ()=> await StartRunAsync(nodes));
-        //}
-
-        public async Task RunAsync(List<NodeBase> nodes)
+        /// <param name="nodes"></param>
+        /// <returns></returns>
+        // public async Task RunAsync(List<NodeModelBase> nodes, IFlowEnvironment flowEnvironment)
+        public async Task RunAsync(NodeModelBase startNode, IFlowEnvironment flowEnvironment, List<SingleFlipflopNode> flipflopNodes)
         {
-            var startNode = nodes.FirstOrDefault(p => p.IsStart);
+            // var startNode = nodes.FirstOrDefault(p => p.IsStart);
             if (startNode == null) { return; }
-            if (false)
+
+            var isNetFramework = true;
+
+            if (isNetFramework)
             {
-                context = new Serein.Library.Core.NodeFlow.DynamicContext(ServiceContainer);
+                context = new Serein.Library.Framework.NodeFlow.DynamicContext(ServiceContainer, flowEnvironment);
             }
             else
             {
-                context = new Serein.Library.Framework.NodeFlow.DynamicContext(ServiceContainer);
+                context = new Serein.Library.Core.NodeFlow.DynamicContext(ServiceContainer, flowEnvironment);
             }
 
-            MainCts = ServiceContainer.CreateServiceInstance<NodeRunTcs>();
+            MainCts = ServiceContainer.CreateServiceInstance<NodeRunCts>();
 
             var initMethods = methodDetails.Where(it => it.MethodDynamicType == NodeType.Init).ToList();
             var loadingMethods = methodDetails.Where(it => it.MethodDynamicType == NodeType.Loading).ToList();
@@ -75,10 +70,8 @@ namespace Serein.NodeFlow
                 ServiceContainer.Reset();
             };
 
-
             foreach (var md in initMethods) // 初始化 - 调用方法
             {
-                //md.ActingInstance = context.ServiceContainer.Get(md.ActingInstanceType);
                 object?[]? args = [context];
                 object?[]? data = [md.ActingInstance, args];
                 md.MethodDelegate.DynamicInvoke(data);
@@ -87,24 +80,19 @@ namespace Serein.NodeFlow
 
             foreach (var md in loadingMethods) // 加载
             {
-                //md.ActingInstance = context.ServiceContainer.Get(md.ActingInstanceType);
                 object?[]? args = [context];
                 object?[]? data = [md.ActingInstance, args];
                 md.MethodDelegate.DynamicInvoke(data);
             }
 
-            var flipflopNodes = nodes.Where(it => it.MethodDetails?.MethodDynamicType == NodeType.Flipflop
-                                               && it.PreviousNodes.Count == 0
-                                               && it.IsStart != true).ToArray();
-
+            // 运行触发器节点
             var singleFlipflopNodes = flipflopNodes.Select(it => (SingleFlipflopNode)it).ToArray();
 
             // 使用 TaskCompletionSource 创建未启动的任务
             var tasks = singleFlipflopNodes.Select(async node =>
             {
-                await FlipflopExecute(node);
+                await FlipflopExecute(node, flowEnvironment);
             }).ToArray();
-
 
             try
             {
@@ -120,19 +108,17 @@ namespace Serein.NodeFlow
 
         }
 
-        private async Task FlipflopExecute(SingleFlipflopNode singleFlipFlopNode)
+        /// <summary>
+        /// 启动触发器
+        /// </summary>
+        private async Task FlipflopExecute(SingleFlipflopNode singleFlipFlopNode, IFlowEnvironment flowEnvironment)
         {
-            DynamicContext context = new DynamicContext(ServiceContainer);
+            DynamicContext context = new DynamicContext(ServiceContainer, flowEnvironment);
             MethodDetails md = singleFlipFlopNode.MethodDetails;
-
+            var del = md.MethodDelegate;
             try
             {
 
-                if (!DelegateCache.GlobalDicDelegates.TryGetValue(md.MethodName, out Delegate del))
-                {
-                    return;
-                }
-                
 
                 //var func = md.ExplicitDatas.Length == 0 ? (Func<object, object, Task<FlipflopContext<dynamic>>>)del : (Func<object, object[], Task<FlipflopContext<dynamic>>>)del;
                 var func = md.ExplicitDatas.Length == 0 ? (Func<object, object, Task<IFlipflopContext>>)del : (Func<object, object[], Task<IFlipflopContext>>)del;
@@ -144,29 +130,21 @@ namespace Serein.NodeFlow
 
                     IFlipflopContext flipflopContext = await func.Invoke(md.ActingInstance, parameters);
 
-                    if (flipflopContext == null)
-                    {
-                        break;
-                    }
-                    else if (flipflopContext.State == FlowStateType.Error)
-                    {
-                        break;
-                    }
-                    else if (flipflopContext.State == FlowStateType.Fail)
-                    {
-                        break;
-                    }
-                    else if (flipflopContext.State == FlowStateType.Succeed)
+                    if (flipflopContext.State == FlowStateType.Succeed)
                     {
                         singleFlipFlopNode.FlowState = FlowStateType.Succeed;
                         singleFlipFlopNode.FlowData = flipflopContext.Data;
-                        var tasks = singleFlipFlopNode.SucceedBranch.Select(nextNode =>
+                        var tasks = singleFlipFlopNode.PreviousNodes[ConnectionType.IsSucceed].Select(nextNode =>
                         {
-                            var context = new DynamicContext(ServiceContainer);
+                            var context = new DynamicContext(ServiceContainer,flowEnvironment);
                             nextNode.PreviousNode = singleFlipFlopNode;
                             return nextNode.StartExecution(context);
                         }).ToArray();
                         Task.WaitAll(tasks);
+                    }
+                    else
+                    {
+                        break;
                     }
                 }
             }

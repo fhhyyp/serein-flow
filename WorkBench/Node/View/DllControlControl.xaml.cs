@@ -1,5 +1,8 @@
-﻿using Serein.NodeFlow;
+﻿using Serein.Library.Entity;
+using Serein.Library.Enums;
+using Serein.NodeFlow;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
 
@@ -115,12 +118,26 @@ namespace Serein.WorkBench.Node.View
             {
                 // 获取触发事件的 TextBlock
 
-                TextBlock typeText = sender as TextBlock;
 
-                if (typeText != null)
+                if (sender is TextBlock typeText && typeText.Tag is MethodDetails md)
                 {
+                    MoveNodeData moveNodeData = new MoveNodeData
+                    {
+                        NodeControlType = md.MethodDynamicType switch
+                        {
+                            NodeType.Action => NodeControlType.Action,
+                            NodeType.Flipflop => NodeControlType.Flipflop,
+                            _ => NodeControlType.None,
+                        },
+                        MethodDetails = md,
+                    };
+                    if(moveNodeData.NodeControlType == NodeControlType.None)
+                    {
+                        return;
+                    }
+
                     // 创建一个 DataObject 用于拖拽操作，并设置拖拽效果
-                    DataObject dragData = new DataObject(MouseNodeType.DllNodeType, typeText.Tag);
+                    DataObject dragData = new DataObject(MouseNodeType.CreateDllNodeInCanvas, moveNodeData);
                     DragDrop.DoDragDrop(typeText, dragData, DragDropEffects.Move);
                 }
             }

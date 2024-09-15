@@ -10,6 +10,10 @@ namespace Serein.Library.Enums
     public enum FlowStateType
     {
         /// <summary>
+        /// 待执行
+        /// </summary>
+        None,
+        /// <summary>
         /// 成功（方法成功执行）
         /// </summary>
         Succeed,

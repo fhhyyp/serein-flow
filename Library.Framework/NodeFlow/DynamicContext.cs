@@ -12,13 +12,15 @@ namespace Serein.Library.Framework.NodeFlow
     /// </summary>
     public class DynamicContext : IDynamicContext
     {
-        public DynamicContext(ISereinIoc sereinIoc)
+        public DynamicContext(ISereinIoc sereinIoc, IFlowEnvironment flowEnvironment)
         {
             SereinIoc = sereinIoc;
+            FlowEnvironment = flowEnvironment;
         }
 
         public NodeRunCts NodeRunCts { get; set; }
         public ISereinIoc SereinIoc { get; }
+        public IFlowEnvironment FlowEnvironment { get; }
         public Task CreateTimingTask(Action action, int time = 100, int count = -1)
         {
             if(NodeRunCts == null)

@@ -1,43 +1,47 @@
-﻿using System;
+﻿using Serein.Library.Api;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Serein.WorkBench
+namespace Serein.Library.Entity
 {
 
+    /// <summary>
+    /// 输出文件
+    /// </summary>
     public class SereinOutputFileData
     {
         /// <summary>
         /// 基础
         /// </summary>
 
-        public Basic basic { get; set; }
+        public Basic Basic { get; set; }
 
         /// <summary>
         /// 依赖的DLL
         /// </summary>
 
-        public Library[] library { get; set; }
+        public Library[] Librarys { get; set; }
 
         /// <summary>
         /// 起始节点GUID
         /// </summary>
 
-        public string startNode { get; set; }
+        public string StartNode { get; set; }
 
         /// <summary>
-        /// 节点信息集合
+        /// 节点集合
         /// </summary>
 
-        public NodeInfo[] nodes { get; set; }
+        public NodeInfo[] Nodes { get; set; }
 
-        /// <summary>
-        /// 区域集合
-        /// </summary>
+        ///// <summary>
+        ///// 区域集合
+        ///// </summary>
 
-        public Region[] regions { get; set; }
+        //public Region[] Regions { get; set; }
 
     }
 
@@ -58,6 +62,9 @@ namespace Serein.WorkBench
 
         public string versions { get; set; }
 
+        // 预览位置
+
+        // 缩放比例
     }
     /// <summary>
     /// 画布
@@ -83,19 +90,14 @@ namespace Serein.WorkBench
         /// DLL名称
         /// </summary>
 
-        public string name { get; set; }
+        public string Name { get; set; }
 
         /// <summary>
         /// 路径
         /// </summary>
 
-        public string path { get; set; }
+        public string Path { get; set; }
 
-        /// <summary>
-        /// 提示
-        /// </summary>
-
-        public string tips { get; set; }
 
     }
     /// <summary>
@@ -107,49 +109,66 @@ namespace Serein.WorkBench
         /// GUID
         /// </summary>
 
-        public string guid { get; set; }
+        public string Guid { get; set; }
 
         /// <summary>
         /// 名称
         /// </summary>
 
-        public string name { get; set; }
+        public string MethodName { get; set; }
 
         /// <summary>
         /// 显示标签
         /// </summary>
 
-        public string label { get; set; }
+        public string Label { get; set; }
 
         /// <summary>
         /// 类型
         /// </summary>
-
-        public string type { get; set; }
-
-        /// <summary>
-        /// 于画布中的位置
-        /// </summary>
-
-        public Position position { get; set; }
+        public string Type { get; set; }
 
         /// <summary>
         /// 真分支节点GUID
         /// </summary>
 
-        public string[] trueNodes { get; set; }
+        public string[] TrueNodes { get; set; }
 
         /// <summary>
         /// 假分支节点
         /// </summary>
 
-        public string[] falseNodes { get; set; }
-        public string[] upstreamNodes { get; set; }
+        public string[] FalseNodes { get; set; }
+        /// <summary>
+        /// 上游分支
+        /// </summary>
+        public string[] UpstreamNodes { get; set; }
+        /// <summary>
+        /// 异常分支
+        /// </summary>
+        public string[] ErrorNodes { get; set; }
+
+        /// <summary>
+        /// 参数
+        /// </summary>
+        public Parameterdata[] ParameterData { get; set; }
+
+        /// <summary>
+        /// 如果是区域控件，则会存在子项。
+        /// </summary>
+        public NodeInfo[] ChildNodes { get; set; }
 
 
+        /// <summary>
+        /// 于画布中的位置
+        /// </summary>
 
-        public Parameterdata[] parameterData { get; set; }
+        public Position Position { get; set; }
 
+        /// <summary>
+        /// 是否选中
+        /// </summary>
+        public bool IsSelect { get; set; }
     }
 
     public class Parameterdata
@@ -166,8 +185,8 @@ namespace Serein.WorkBench
     /// </summary>
     public class Position
     {
-        public float x { get; set; }
-        public float y { get; set; }
+        public float X { get; set; }
+        public float Y { get; set; }
     }
 
 
@@ -177,7 +196,7 @@ namespace Serein.WorkBench
     public class Region
     {
         public string guid { get; set; }
-        public NodeInfo[] childNodes { get; set; }
+        public NodeInfo[] ChildNodes { get; set; }
 
     }
 }

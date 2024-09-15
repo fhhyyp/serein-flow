@@ -1,13 +1,14 @@
 ﻿using Serein.Library.Api;
+using Serein.Library.Entity;
 using Serein.Library.Enums;
-using Serein.Library.Core.NodeFlow;
+using Serein.NodeFlow.Base;
 
 namespace Serein.NodeFlow.Model
 {
     /// <summary>
     /// 组合条件节点（用于条件区域）
     /// </summary>
-    public class CompositeConditionNode : NodeBase
+    public class CompositeConditionNode : NodeModelBase
     {
         public List<SingleConditionNode> ConditionNodes { get; } = [];
 
@@ -54,6 +55,10 @@ namespace Serein.NodeFlow.Model
             //    }
             //}
         }
+
+        
+
+
         private FlowStateType Judge(IDynamicContext context, SingleConditionNode node)
         {
             try
@@ -68,7 +73,41 @@ namespace Serein.NodeFlow.Model
             }
         }
 
+        public override Parameterdata[] GetParameterdatas()
+        {
+            return [];
+        }
 
+        public override NodeInfo ToInfo()
+        {
+            if (MethodDetails == null) return null;
+
+            //var trueNodes = SucceedBranch.Select(item => item.Guid); // 真分支
+            //var falseNodes = FailBranch.Select(item => item.Guid);// 假分支
+            //var upstreamNodes = UpstreamBranch.Select(item => item.Guid);// 上游分支
+            //var errorNodes = ErrorBranch.Select(item => item.Guid);// 异常分支
+            var trueNodes = SuccessorNodes[ConnectionType.IsSucceed].Select(item => item.Guid); // 真分支
+            var falseNodes = SuccessorNodes[ConnectionType.IsFail].Select(item => item.Guid);// 假分支
+            var upstreamNodes = SuccessorNodes[ConnectionType.IsError].Select(item => item.Guid);// 上游分支
+            var errorNodes = SuccessorNodes[ConnectionType.Upstream].Select(item => item.Guid);// 异常分支
+
+            // 生成参数列表
+            Parameterdata[] parameterData = GetParameterdatas();
+
+            return new NodeInfo
+            {
+                Guid = Guid,
+                MethodName = MethodDetails?.MethodName,
+                Label = DisplayName ?? "",
+                Type = this.GetType().ToString(),
+                TrueNodes = trueNodes.ToArray(),
+                FalseNodes = falseNodes.ToArray(),
+                UpstreamNodes = upstreamNodes.ToArray(),
+                ParameterData = parameterData.ToArray(),
+                ErrorNodes = errorNodes.ToArray(),
+                ChildNodes = ConditionNodes.Select(node => node.ToInfo()).ToArray(),
+            };
+        }
 
     }
 
