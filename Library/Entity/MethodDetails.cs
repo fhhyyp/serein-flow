@@ -33,7 +33,7 @@ namespace Serein.Library.Entity
         }
 
         /// <summary>
-        /// 作用实例
+        /// 作用实例的类型
         /// </summary>
 
         public Type ActingInstanceType { get; set; }

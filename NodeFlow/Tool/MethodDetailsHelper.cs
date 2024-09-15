@@ -76,13 +76,13 @@ public static class MethodDetailsHelperTmp
 
 
         var dllTypeName = $"{assemblyName}.{type.Name}";
-        object instance = Activator.CreateInstance(type);
+        // object instance = Activator.CreateInstance(type);
         var dllTypeMethodName = $"{assemblyName}.{type.Name}.{method.Name}";
 
         return new MethodDetails
         {
             ActingInstanceType = type,
-            ActingInstance = instance,
+            // ActingInstance = instance,
             MethodName = dllTypeMethodName,
             MethodDelegate = methodDelegate,
             MethodDynamicType = attribute.MethodDynamicType,

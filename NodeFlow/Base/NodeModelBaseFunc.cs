@@ -44,6 +44,73 @@ namespace Serein.NodeFlow.Base
             };
         }
 
+
+
+
+        /// <summary>
+        /// 开始执行
+        /// </summary>
+        /// <param name="context"></param>
+        /// <returns></returns>
+        public async Task StartExecution(IDynamicContext context)
+        {
+            var cts = context.SereinIoc.GetOrInstantiate<CancellationTokenSource>();
+
+            Stack<NodeModelBase> stack = [];
+            stack.Push(this);
+
+            while (stack.Count > 0 && !cts.IsCancellationRequested) // 循环中直到栈为空才会退出循环
+            {
+                // 从栈中弹出一个节点作为当前节点进行处理
+                var currentNode = stack.Pop();
+
+                // 设置方法执行的对象
+                if (currentNode.MethodDetails is not null)
+                {
+                    // currentNode.MethodDetails.ActingInstance ??= context.SereinIoc.GetOrInstantiate(MethodDetails.ActingInstanceType);
+                    // currentNode.MethodDetails.ActingInstance = context.SereinIoc.GetOrInstantiate(MethodDetails.ActingInstanceType);
+
+                    currentNode.MethodDetails.ActingInstance = context.SereinIoc.GetOrInstantiate(currentNode.MethodDetails.ActingInstanceType);
+                }
+
+                // 获取上游分支，首先执行一次
+                var upstreamNodes = currentNode.SuccessorNodes[ConnectionType.Upstream];
+                for (int i = upstreamNodes.Count - 1; i >= 0; i--)
+                {
+                    upstreamNodes[i].PreviousNode = currentNode;
+                    await upstreamNodes[i].StartExecution(context);
+                }
+
+                if (currentNode.MethodDetails != null && currentNode.MethodDetails.MethodDynamicType == NodeType.Flipflop)
+                {
+                    // 触发器节点
+                    currentNode.FlowData = await currentNode.ExecuteAsync(context);
+                }
+                else
+                {
+                    // 动作节点
+                    currentNode.FlowData = currentNode.Execute(context);
+                }
+
+                ConnectionType connection = currentNode.FlowState switch
+                {
+                    FlowStateType.Succeed => ConnectionType.IsSucceed,
+                    FlowStateType.Fail => ConnectionType.IsFail,
+                    FlowStateType.Error => ConnectionType.IsError,
+                    _ => throw new Exception("非预期的枚举值")
+                };
+                var nextNodes = currentNode.SuccessorNodes[connection];
+
+                // 将下一个节点集合中的所有节点逆序推入栈中
+                for (int i = nextNodes.Count - 1; i >= 0; i--)
+                {
+                    nextNodes[i].PreviousNode = currentNode;
+                    stack.Push(nextNodes[i]);
+                }
+            }
+        }
+
+
         /// <summary>
         /// 执行节点对应的方法
         /// </summary>
@@ -76,10 +143,12 @@ namespace Serein.NodeFlow.Base
                     }
                     else
                     {
-                        result = ((Func<object, object[], object>)del).Invoke(md.ActingInstance, parameters);
+                        var func = del as Func<object, object[], object>;
+                        //result = ((Func<object, object[], object>)del).Invoke(md.ActingInstance, parameters);
+                        result = func?.Invoke(md.ActingInstance, parameters);
                     }
                 }
-
+                FlowState = FlowStateType.Succeed;
                 return result;
             }
             catch (Exception ex)
@@ -136,66 +205,6 @@ namespace Serein.NodeFlow.Base
             }
 
             return result;
-        }
-
-        /// <summary>
-        /// 开始执行
-        /// </summary>
-        /// <param name="context"></param>
-        /// <returns></returns>
-        public async Task StartExecution(IDynamicContext context)
-        {
-            var cts = context.SereinIoc.GetOrInstantiate<CancellationTokenSource>();
-
-            Stack<NodeModelBase> stack = [];
-            stack.Push(this);
-
-            while (stack.Count > 0 && !cts.IsCancellationRequested) // 循环中直到栈为空才会退出循环
-            {
-                // 从栈中弹出一个节点作为当前节点进行处理
-                var currentNode = stack.Pop();
-
-                // 设置方法执行的对象
-                if (currentNode.MethodDetails != null)
-                {
-                    currentNode.MethodDetails.ActingInstance ??= context.SereinIoc.GetOrInstantiate(MethodDetails.ActingInstanceType);
-                }
-
-                // 获取上游分支，首先执行一次
-                var upstreamNodes = currentNode.SuccessorNodes[ConnectionType.Upstream];
-                for (int i = upstreamNodes.Count - 1; i >= 0; i--)
-                {
-                    upstreamNodes[i].PreviousNode = currentNode;
-                    await upstreamNodes[i].StartExecution(context);
-                }
-
-                if (currentNode.MethodDetails != null && currentNode.MethodDetails.MethodDynamicType == NodeType.Flipflop)
-                {
-                    // 触发器节点
-                    currentNode.FlowData = await currentNode.ExecuteAsync(context);
-                }
-                else
-                {
-                    // 动作节点
-                    currentNode.FlowData = currentNode.Execute(context);
-                }
-
-                ConnectionType connection = currentNode.FlowState switch
-                {
-                    FlowStateType.Succeed => ConnectionType.IsSucceed,
-                    FlowStateType.Fail => ConnectionType.IsFail,
-                    FlowStateType.Error => ConnectionType.IsError,
-                    _ => throw new Exception("非预期的枚举值")
-                };
-                var nextNodes = currentNode.SuccessorNodes[connection];
-
-                // 将下一个节点集合中的所有节点逆序推入栈中
-                for (int i = nextNodes.Count - 1; i >= 0; i--)
-                {
-                    nextNodes[i].PreviousNode = currentNode;
-                    stack.Push(nextNodes[i]);
-                }
-            }
         }
 
         /// <summary>

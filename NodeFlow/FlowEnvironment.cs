@@ -100,6 +100,9 @@ namespace Serein.NodeFlow
 
         private NodeModelBase? _startNode = null;
 
+        /// <summary>
+        /// 起始节点
+        /// </summary>
         public NodeModelBase StartNode { 
             get 
             { 
@@ -119,17 +122,20 @@ namespace Serein.NodeFlow
                 }
             } }
 
+        /// <summary>
+        /// 异步运行
+        /// </summary>
+        /// <returns></returns>
         public async Task StartAsync()
         {
-            nodeFlowStarter = new FlowStarter(SereinIoc, MethodDetailss);
+            nodeFlowStarter = new FlowStarter(SereinIoc);
             var nodes = Nodes.Values.ToList();
             var flipflopNodes = nodes.Where(it => it.MethodDetails?.MethodDynamicType == NodeType.Flipflop
-                                               && it.PreviousNodes.Count == 0
-                                               && it.IsStart != true)
+                                               && it.IsStart == false)
                                      .Select(it => it as SingleFlipflopNode)
                                      .ToList();
-            await nodeFlowStarter.RunAsync(StartNode, this, flipflopNodes);
-            OnFlowRunComplete?.Invoke(new FlowEventArgs());
+
+            await nodeFlowStarter.RunAsync(StartNode, this, MethodDetailss, flipflopNodes);
         }
         public void Exit()
         {
@@ -150,7 +156,7 @@ namespace Serein.NodeFlow
         }
 
 
-        #region 数据交互
+        #region 对外暴露的接口
 
         /// <summary>
         /// 获取方法描述
@@ -328,8 +334,10 @@ namespace Serein.NodeFlow
             (var assembly, var list) = LoadAssembly(dllPath);
             if (assembly is not null && list.Count > 0)
             {
+                MethodDetailss.AddRange(list);
                 OnDllLoad?.Invoke(new LoadDLLEventArgs(assembly, list));
             }
+            
         }
 
         /// <summary>
@@ -480,11 +488,17 @@ namespace Serein.NodeFlow
                 // 遍历扫描的类型
                 foreach (var item in scanTypes)
                 {
-                    //加载DLL，创建 MethodDetails、实例作用对象、委托方法
+                    // 加载DLL，创建 MethodDetails、实例作用对象、委托方法
                     var itemMethodDetails = MethodDetailsHelperTmp.GetList(item, false);
+                    foreach(var md in itemMethodDetails)
+                    {
+                        // var instanceType =  
+                        // Activator.CreateInstance(md.ActingInstanceType);
+                        // SereinIoc.RegisterInstantiate(md.ActingInstance);
+                        SereinIoc.Register(md.ActingInstanceType);
+                    }
                     methodDetails.AddRange(itemMethodDetails);
                 }
-
                 LoadedAssemblies.Add(assembly); // 将加载的程序集添加到列表中
                 LoadedAssemblyPaths.Add(dllPath); // 记录加载的DLL路径
                 return (assembly, methodDetails);
@@ -570,8 +584,6 @@ namespace Serein.NodeFlow
             OnStartNodeChange?.Invoke(new StartNodeChangeEventArgs(oldNodeGuid, StartNode.Guid));
         }
         #endregion
-
-
 
         #region 视觉元素交互
 

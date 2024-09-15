@@ -35,7 +35,9 @@ namespace Serein.Library.Enums
         Action,
     }
 
-
+    /// <summary>
+    /// 生成的节点控件
+    /// </summary>
     public enum NodeControlType
     {
         None,

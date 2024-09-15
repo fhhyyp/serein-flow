@@ -11,11 +11,31 @@ namespace Serein.Library.Api
         /// </summary>
         object GetOrCreateServiceInstance(Type serviceType, params object[] parameters);
         T CreateServiceInstance<T>(params object[] parameters);
-        ISereinIoc Reset(); // 清空
+        /// <summary>
+        /// 清空
+        /// </summary>
+        /// <returns></returns>
+        ISereinIoc Reset();
+
+        /// <summary>
+        /// 以已存在的实例对象注册
+        /// </summary>
+        /// <param name="instantiate"></param>
+        /// <returns></returns>
+        ISereinIoc RegisterInstantiate(object instantiate);
+        /// <summary>
+        /// 注册实例
+        /// </summary>
         ISereinIoc Register(Type type, params object[] parameters);
         ISereinIoc Register<T>(params object[] parameters);
         ISereinIoc Register<TService, TImplementation>(params object[] parameters) where TImplementation : TService;
+        /// <summary>
+        /// 获取或创建并注入目标类型
+        /// </summary>
         T GetOrInstantiate<T>();
+        /// <summary>
+        /// 获取或创建并注入目标类型
+        /// </summary>
         object GetOrInstantiate(Type type);
 
         /// <summary>

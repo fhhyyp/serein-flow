@@ -70,6 +70,21 @@ namespace Serein.Library.Utils
             return this;
         }
 
+        public ISereinIoc RegisterInstantiate(object instantiate)
+        {
+            //var type = instantiate.GetType();
+            if (!_typeMappings.TryGetValue(instantiate.GetType().FullName,out var type))
+            {
+                _typeMappings[type.FullName] = type;
+            }
+            
+            if(!_dependencies.TryGetValue(type.FullName, out var instancei))
+            {
+                _dependencies[type.FullName] = Activator.CreateInstance(type);
+            }
+            // _dependencies.AddOrUpdate(type.FullName,s => instantiate, (s,o) => instantiate);
+            return this;
+        }
         public ISereinIoc Register(Type type, params object[] parameters)
         {
 
@@ -127,21 +142,20 @@ namespace Serein.Library.Utils
         }
         public ISereinIoc Build()
         {
+
+            // 遍历已注册类型
             foreach (var type in _typeMappings.Values)
             {
-
+                // 如果没有创建实例，则创建对应的实例
                 if(!_dependencies.ContainsKey(type.FullName))
                 {
-
                     _dependencies[type.FullName] = Activator.CreateInstance(type);
-
                 }
-
             }
 
+            // 注入实例的依赖项
             foreach (var instance in _dependencies.Values)
             {
-
                 InjectDependencies(instance); // 替换占位符
             }
 
@@ -155,7 +169,7 @@ namespace Serein.Library.Utils
         {
             var instance = Activator.CreateInstance(controllerType, parameters);
             if(instance != null)
-            {
+            {   
                 InjectDependencies(instance);
             }
             return instance;
@@ -284,6 +298,7 @@ namespace Serein.Library.Utils
             action(service1, service2, service3, service4, service5, service6, service7, service8);
             return this;
         }
+
 
         #endregion
     }
