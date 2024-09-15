@@ -4,7 +4,7 @@ namespace Serein.Library.Api
 {
     public interface IFlipflopContext
     {
-        FlowStateType State { get; set; }
+        FlipflopStateType State { get; set; }
         object Data { get; set; }
     }
 }

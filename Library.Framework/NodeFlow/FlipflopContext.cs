@@ -5,24 +5,6 @@ using System.Threading.Tasks;
 
 namespace Serein.Library.Framework.NodeFlow
 {
-    //public enum FfState
-    //{
-    //    Succeed,
-    //    Cancel,
-    //    Error,
-    //}
-
-    //public class FlipflopContext
-    //{
-    //    public FlowStateType State { get; set; }
-    //    public object? Data { get; set; }
-    //    public FlipflopContext(FlowStateType ffState, object? data = null)
-    //    {
-    //        State = ffState;
-    //        Data = data;
-    //    }
-    //}
-
     public static class FlipflopFunc
     {
         /// <summary>
@@ -75,20 +57,19 @@ namespace Serein.Library.Framework.NodeFlow
     /// </summary>
     public class FlipflopContext : IFlipflopContext
     {
-        public FlowStateType State { get; set; }
+        public FlipflopStateType State { get; set; }
         //public TResult? Data { get; set; }
         public object Data { get; set; }
-        public FlipflopContext(FlowStateType ffState)
+        public FlipflopContext(FlipflopStateType ffState)
         {
             State = ffState;
         }
-        public FlipflopContext(FlowStateType ffState, object data)
+        public FlipflopContext(FlipflopStateType ffState, object data)
         {
             State = ffState;
             Data = data;
         }
-
-
     }
+
 
 }

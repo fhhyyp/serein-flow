@@ -159,11 +159,14 @@ namespace Serein.NodeFlow
 
                     IFlipflopContext flipflopContext = await func.Invoke(md.ActingInstance, parameters);
 
-                    if (flipflopContext.State == FlowStateType.Succeed)
+                    ConnectionType connection = flipflopContext.State.ToContentType(); 
+
+                    if (connection != ConnectionType.None)
                     {
-                        singleFlipFlopNode.FlowState = FlowStateType.Succeed;
+                        singleFlipFlopNode.NextOrientation = connection;
                         singleFlipFlopNode.FlowData = flipflopContext.Data;
-                        var tasks = singleFlipFlopNode.SuccessorNodes[ConnectionType.IsSucceed].Select(nextNode =>
+
+                        var tasks = singleFlipFlopNode.SuccessorNodes[connection].Select(nextNode =>
                         {
                             var context = new DynamicContext(SereinIoc,flowEnvironment);
                             nextNode.PreviousNode = singleFlipFlopNode;

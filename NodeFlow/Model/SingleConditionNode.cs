@@ -43,15 +43,15 @@ namespace Serein.NodeFlow.Model
             try
             {
                 var isPass = SerinConditionParser.To(result, Expression);
-                FlowState = isPass ? FlowStateType.Succeed : FlowStateType.Fail;
+                NextOrientation = isPass ? ConnectionType.IsSucceed : ConnectionType.IsFail;
             }
             catch (Exception ex)
             {
-                FlowState = FlowStateType.Error;
+                NextOrientation = ConnectionType.IsError;
                 RuningException = ex;
             }
             
-            Console.WriteLine($"{result} {Expression}  -> " + FlowState);
+            Console.WriteLine($"{result} {Expression}  -> " + NextOrientation);
             return result;
         }
 

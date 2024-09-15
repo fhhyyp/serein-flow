@@ -7,12 +7,8 @@ using System.Threading.Tasks;
 namespace Serein.Library.Enums
 {
 
-    public enum FlowStateType
+    public enum FlipflopStateType
     {
-        /// <summary>
-        /// 待执行
-        /// </summary>
-        None,
         /// <summary>
         /// 成功（方法成功执行）
         /// </summary>
@@ -25,5 +21,11 @@ namespace Serein.Library.Enums
         /// 异常（节点没有成功执行，执行时发生非预期的错误）
         /// </summary>
         Error,
+        /// <summary>
+        /// 取消
+        /// </summary>
+        Cancel,
     }
+
+
 }

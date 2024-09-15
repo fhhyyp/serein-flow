@@ -67,6 +67,10 @@ public static class MethodDetailsHelperTmp
 
         var methodName = method.Name;
         var attribute = method.GetCustomAttribute<NodeActionAttribute>();
+        if(attribute is null)
+        {
+            return null;
+        }
         var explicitDataOfParameters = GetExplicitDataOfParameters(method.GetParameters());
         // 生成委托
         var methodDelegate = GenerateMethodDelegate(type,   // 方法所在的对象类型
@@ -74,6 +78,16 @@ public static class MethodDetailsHelperTmp
                                                     method.GetParameters(),// 方法参数
                                                     method.ReturnType);// 返回值
 
+        Type returnType;
+        if (attribute?.MethodDynamicType == Library.Enums.NodeType.Flipflop)
+        {
+            // 触发器节点
+            returnType = attribute.ReturnType;
+        }
+        else
+        {
+            returnType = method.ReturnType;
+        }
 
         var dllTypeName = $"{assemblyName}.{type.Name}";
         // object instance = Activator.CreateInstance(type);
@@ -89,7 +103,7 @@ public static class MethodDetailsHelperTmp
             MethodLockName = attribute.LockName,
             MethodTips = attribute.MethodTips,
             ExplicitDatas = explicitDataOfParameters,
-            ReturnType = method.ReturnType,
+            ReturnType = returnType,
         };
 
     }

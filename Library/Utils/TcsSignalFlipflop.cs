@@ -1,6 +1,7 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using Serein.Library.Ex;
+using System;
 using System.Collections.Concurrent;
+using System.Threading.Tasks;
 
 namespace Serein.Library.Core.NodeFlow.Tool
 {
@@ -13,9 +14,8 @@ namespace Serein.Library.Core.NodeFlow.Tool
     //    }
     //}
 
-    public class TcsSignal<TSignal> where TSignal : struct, Enum
+    public class TcsSignalFlipflop<TSignal> where TSignal : struct, Enum
     {
-        //public ConcurrentDictionary<TSignal, Queue<TaskCompletionSource<object>>> TcsEvent { get; } = new();
         public ConcurrentDictionary<TSignal, TaskCompletionSource<object>> TcsEvent { get; } = new ConcurrentDictionary<TSignal, TaskCompletionSource<object>>();
 
         public ConcurrentDictionary<TSignal, object> TcsLock { get; } = new ConcurrentDictionary<TSignal, object>();
@@ -56,7 +56,7 @@ namespace Serein.Library.Core.NodeFlow.Tool
         {
             foreach (var tcs in TcsEvent.Values)
             {
-                tcs.SetException(new Exception("任务取消"));
+                tcs.SetException(new FlipflopException("任务取消"));
             }
             TcsEvent.Clear();
         }

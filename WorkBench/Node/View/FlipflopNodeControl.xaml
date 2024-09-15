@@ -28,6 +28,18 @@
         </Border>
         <!--<themes:ExplicitDataControl Grid.Row="1" ExplicitDatas="{Binding ExplicitDatas}" />-->
         <themes:MethodDetailsControl Grid.Row="1" MethodDetails="{Binding MethodDetails}" />
+        <Grid Grid.Row="2" >
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="50"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Background="#EAFFD0" BorderBrush="#EAFFD0" BorderThickness="1">
+                <TextBlock Text="result"  HorizontalAlignment="Center"  VerticalAlignment="Center"/>
+            </Border>
+            <Border Grid.Column="1" Background="#EAFFD0" BorderBrush="#EAFFD0" BorderThickness="1">
+                <TextBlock Text="{Binding MethodDetails.ReturnType}"  HorizontalAlignment="Left" VerticalAlignment="Center"/>
+            </Border>
+        </Grid>
         <!--<themes:ConditionControl Grid.Row="2" ></themes:ConditionControl>-->
     </Grid>
 </local:NodeControlBase>

@@ -3,6 +3,7 @@ using Serein.Library.Entity;
 using Serein.Library.Enums;
 using Serein.NodeFlow.Base;
 using Serein.NodeFlow.Tool.SerinExpression;
+using System.Text;
 
 namespace Serein.NodeFlow.Model
 {
@@ -21,16 +22,27 @@ namespace Serein.NodeFlow.Model
         {
             var data = PreviousNode?.FlowData;
 
-            var newData = SerinExpressionEvaluator.Evaluate(Expression, data, out bool isChange);
+            try
+            {
+                var newData = SerinExpressionEvaluator.Evaluate(Expression, data, out bool isChange);
+                Console.WriteLine(newData);
+                object? result = null;
+                if (isChange)
+                {
+                    result =  newData;
+                }
+                else
+                {
+                    result =  PreviousNode?.FlowData;
+                }
 
-            FlowState = FlowStateType.Succeed;
-            Console.WriteLine(newData);
-            if (isChange)
-            {
-                return newData;
+                NextOrientation = ConnectionType.IsSucceed;
+                return result;
             }
-            else
+            catch (Exception ex)
             {
+                NextOrientation = ConnectionType.IsError;
+                RuningException = ex;
                 return PreviousNode?.FlowData;
             }
 

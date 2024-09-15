@@ -7,6 +7,10 @@ namespace Serein.Library.Enums
     public enum ConnectionType
     {
         /// <summary>
+        /// 不执行分支
+        /// </summary>
+        None,
+        /// <summary>
         /// 真分支
         /// </summary>
         IsSucceed,

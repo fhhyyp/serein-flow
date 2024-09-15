@@ -2,6 +2,7 @@
 using Serein.Library.Api;
 using Serein.Library.Entity;
 using Serein.Library.Enums;
+using Serein.Library.Ex;
 using Serein.NodeFlow.Tool.SerinExpression;
 using System;
 using System.Collections.Generic;
@@ -92,14 +93,13 @@ namespace Serein.NodeFlow.Base
                     currentNode.FlowData = currentNode.Execute(context);
                 }
 
-                ConnectionType connection = currentNode.FlowState switch
+                if(currentNode.NextOrientation == ConnectionType.None)
                 {
-                    FlowStateType.Succeed => ConnectionType.IsSucceed,
-                    FlowStateType.Fail => ConnectionType.IsFail,
-                    FlowStateType.Error => ConnectionType.IsError,
-                    _ => throw new Exception("非预期的枚举值")
-                };
-                var nextNodes = currentNode.SuccessorNodes[connection];
+                    // 不再执行
+                    break;
+                }
+
+                var nextNodes = currentNode.SuccessorNodes[currentNode.NextOrientation];
 
                 // 将下一个节点集合中的所有节点逆序推入栈中
                 for (int i = nextNodes.Count - 1; i >= 0; i--)
@@ -148,12 +148,12 @@ namespace Serein.NodeFlow.Base
                         result = func?.Invoke(md.ActingInstance, parameters);
                     }
                 }
-                FlowState = FlowStateType.Succeed;
+                NextOrientation = ConnectionType.IsSucceed;
                 return result;
             }
             catch (Exception ex)
             {
-                FlowState = FlowStateType.Error;
+                NextOrientation = ConnectionType.IsError;
                 RuningException = ex;
             }
 
@@ -184,23 +184,16 @@ namespace Serein.NodeFlow.Base
                     object?[]? parameters = GetParameters(context, MethodDetails);
                     flipflopContext = await ((Func<object, object[], Task<IFlipflopContext>>)md.MethodDelegate).Invoke(MethodDetails.ActingInstance, parameters);
                 }
-
-                if (flipflopContext != null)
+                if (flipflopContext == null)
                 {
-                    FlowState = flipflopContext.State;
-                    if (flipflopContext.State == FlowStateType.Succeed)
-                    {
-                        result = flipflopContext.Data;
-                    }
-                    else
-                    {
-                        result = null;
-                    }
+                    throw new FlipflopException("没有返回上下文");
                 }
+                NextOrientation = flipflopContext.State.ToContentType();
+                result = flipflopContext.Data;
             }
             catch (Exception ex)
             {
-                FlowState = FlowStateType.Error;
+                NextOrientation = ConnectionType.IsError;
                 RuningException = ex;
             }
 

@@ -27,7 +27,7 @@ namespace Serein.Library.Attributes
 
 
     /// <summary>
-    /// 标记一个方法是什么类型，加载dll后用来拖拽到画布中
+    /// 建议触发器手动设置返回类型
     /// </summary>
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
     public class NodeActionAttribute : Attribute
@@ -45,9 +45,6 @@ namespace Serein.Library.Attributes
         public bool Scan;
         public string MethodTips;
         public NodeType MethodDynamicType;
-        /// <summary>
-        /// 推荐触发器手动设置返回类型
-        /// </summary>
         public Type ReturnType;
         public string LockName;
     }

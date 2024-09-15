@@ -1,10 +1,6 @@
-﻿using Newtonsoft.Json;
-using Serein.Library.Api;
+﻿using Serein.Library.Api;
 using Serein.Library.Entity;
 using Serein.Library.Enums;
-using Serein.NodeFlow.Model;
-using Serein.NodeFlow.Tool.SerinExpression;
-using System.Xml.Linq;
 
 namespace Serein.NodeFlow.Base
 {
@@ -65,12 +61,14 @@ namespace Serein.NodeFlow.Base
         /// <summary>
         /// 不同分支的子节点
         /// </summary>
-        public Dictionary<ConnectionType,List<NodeModelBase>> SuccessorNodes { get; } 
+        public Dictionary<ConnectionType,List<NodeModelBase>> SuccessorNodes { get; }
+
+        public ConnectionType NextOrientation { get; set; } = ConnectionType.None;
 
         /// <summary>
         /// 当前执行状态（进入真分支还是假分支，异常分支在异常中确定）
         /// </summary>
-        public FlowStateType FlowState { get; set; } = FlowStateType.None;
+        // public FlowStateType FlowState { get; set; } = FlowStateType.Cancel;
 
         /// <summary>
         /// 运行时的异常信息（仅在 FlowState 为 Error 时存在对应值）

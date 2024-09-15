@@ -7,6 +7,7 @@ using Serein.NodeFlow.Base;
 using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Tool;
 using System.Diagnostics;
+using System.Net.Mime;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Xml.Linq;
@@ -616,6 +617,18 @@ namespace Serein.NodeFlow
             {
                 Name = assembly.GetName().Name,
                 Path = assembly.Location,
+            };
+        }
+
+        public static ConnectionType ToContentType(this FlipflopStateType flowStateType)
+        {
+            return flowStateType switch
+            {
+                FlipflopStateType.Succeed => ConnectionType.IsSucceed,
+                FlipflopStateType.Fail => ConnectionType.IsFail,
+                FlipflopStateType.Error => ConnectionType.IsError,
+                FlipflopStateType.Cancel => ConnectionType.None,
+                _ => throw new NotImplementedException("未定义的流程状态")
             };
         }
     }

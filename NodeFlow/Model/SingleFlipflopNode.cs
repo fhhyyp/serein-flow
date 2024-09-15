@@ -1,5 +1,6 @@
 ﻿using Serein.Library.Api;
 using Serein.Library.Entity;
+using Serein.Library.Ex;
 using Serein.NodeFlow.Base;
 
 namespace Serein.NodeFlow.Model
@@ -7,9 +8,11 @@ namespace Serein.NodeFlow.Model
 
     public class SingleFlipflopNode : NodeModelBase
     {
-        public override object Execute(IDynamicContext context)
+        public override object? Execute(IDynamicContext context)
         {
-            throw new NotImplementedException("无法以非await/async的形式调用触发器");
+            NextOrientation = Library.Enums.ConnectionType.IsError;
+            RuningException = new FlipflopException ("无法以非await/async的形式调用触发器");
+            return null;
         }
 
         public override Parameterdata[] GetParameterdatas()

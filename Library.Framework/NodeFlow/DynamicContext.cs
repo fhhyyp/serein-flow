@@ -17,7 +17,6 @@ namespace Serein.Library.Framework.NodeFlow
             SereinIoc = sereinIoc;
             FlowEnvironment = flowEnvironment;
         }
-
         public NodeRunCts NodeRunCts { get; set; }
         public ISereinIoc SereinIoc { get; }
         public IFlowEnvironment FlowEnvironment { get; }
