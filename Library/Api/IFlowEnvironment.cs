@@ -7,48 +7,22 @@ using System.Threading.Tasks;
 
 namespace Serein.Library.Api
 {
-
-    public class FlowEventArgs : EventArgs
-    {
-        public bool IsSucceed { get; protected set; } = true;
-        public string ErrorTips { get; protected set; } = string.Empty;
-    }
-
-
+    #region 环境委托
+    /// <summary>
+    /// 流程运行完成
+    /// </summary>
+    /// <param name="eventArgs"></param>
     public delegate void FlowRunCompleteHandler(FlowEventArgs eventArgs);
 
-
     /// <summary>
-    /// 加载节点
+    /// 加载项目文件时成功加载了节点
     /// </summary>
     public delegate void LoadNodeHandler(LoadNodeEventArgs eventArgs);
-    public class LoadNodeEventArgs : FlowEventArgs
-    {
-        public LoadNodeEventArgs(NodeInfo NodeInfo, MethodDetails MethodDetailss)
-        {
-            this.NodeInfo = NodeInfo;
-            this.MethodDetailss = MethodDetailss;  
-        }
-        public NodeInfo NodeInfo { get; protected set; }
-        public MethodDetails MethodDetailss { get; protected set; }
-    }
-
 
     /// <summary>
-    /// 加载DLL
+    /// 加载项目文件时成功加载了DLL文件
     /// </summary>
-    /// <param name="assembly"></param>
     public delegate void LoadDLLHandler(LoadDLLEventArgs eventArgs);
-    public class LoadDLLEventArgs : FlowEventArgs
-    {
-        public LoadDLLEventArgs(Assembly Assembly, List<MethodDetails> MethodDetailss)
-        {
-            this.Assembly = Assembly;
-            this.MethodDetailss = MethodDetailss;
-        }
-        public Assembly Assembly { get; protected set; }
-        public List<MethodDetails> MethodDetailss { get; protected set; }
-    }
 
     /// <summary>
     /// 运行环境节点连接发生了改变
@@ -57,43 +31,132 @@ namespace Serein.Library.Api
     /// <param name="toNodeGuid"></param>
     /// <param name="connectionType"></param>
     public delegate void NodeConnectChangeHandler(NodeConnectChangeEventArgs eventArgs);
+
+    /// <summary>
+    /// 环境中加载了一个节点
+    /// </summary>
+    /// <param name="fromNodeGuid"></param>
+    /// <param name="toNodeGuid"></param>
+    /// <param name="connectionType"></param>
+    public delegate void NodeCreateHandler(NodeCreateEventArgs eventArgs);
+
+    /// <summary>
+    /// 环境中流程起始节点发生了改变
+    /// </summary>
+    /// <param name="eventArgs"></param>
+    public delegate void StartNodeChangeHandler(StartNodeChangeEventArgs eventArgs); 
+    #endregion
+
+    #region 环境事件签名
+
+    /// <summary>
+    /// 流程事件签名基类
+    /// </summary>
+    public class FlowEventArgs : EventArgs
+    {
+        /// <summary>
+        /// 是否完成
+        /// </summary>
+        public bool IsSucceed { get; protected set; } = true;
+        /// <summary>
+        /// 错误提示
+        /// </summary>
+        public string ErrorTips { get; protected set; } = string.Empty;
+    }
+    public class LoadNodeEventArgs : FlowEventArgs
+    {
+        public LoadNodeEventArgs(NodeInfo NodeInfo, MethodDetails MethodDetailss)
+        {
+            this.NodeInfo = NodeInfo;
+            this.MethodDetailss = MethodDetailss;
+        }
+        /// <summary>
+        /// 项目文件节点信息参数
+        /// </summary>
+        public NodeInfo NodeInfo { get; protected set; }
+        /// <summary>
+        /// 已加载在环境中的方法描述
+        /// </summary>
+        public MethodDetails MethodDetailss { get; protected set; }
+    }
+
+
+    public class LoadDLLEventArgs : FlowEventArgs
+    {
+        public LoadDLLEventArgs(Assembly Assembly, List<MethodDetails> MethodDetailss)
+        {
+            this.Assembly = Assembly;
+            this.MethodDetailss = MethodDetailss;
+        }
+        /// <summary>
+        /// 已加载了的程序集
+        /// </summary>
+        public Assembly Assembly { get; protected set; }
+        /// <summary>
+        /// dll文件中有效的流程方法描述
+        /// </summary>
+        public List<MethodDetails> MethodDetailss { get; protected set; }
+    }
+
+
     public class NodeConnectChangeEventArgs : FlowEventArgs
     {
-        public enum ChangeTypeEnum
+        /// <summary>
+        /// 连接关系改变类型
+        /// </summary>
+        public enum ConnectChangeType
         {
+            /// <summary>
+            /// 创建
+            /// </summary>
             Create,
+            /// <summary>
+            /// 移除
+            /// </summary>
             Remote,
         }
-        public NodeConnectChangeEventArgs(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType, ChangeTypeEnum changeType)
+        public NodeConnectChangeEventArgs(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType, ConnectChangeType changeType)
         {
             this.FromNodeGuid = fromNodeGuid;
             this.ToNodeGuid = toNodeGuid;
             this.ConnectionType = connectionType;
             this.ChangeType = changeType;
         }
+        /// <summary>
+        /// 连接关系中始节点的Guid
+        /// </summary>
         public string FromNodeGuid { get; protected set; }
+        /// <summary>
+        /// 连接关系中目标节点的Guid
+        /// </summary>
         public string ToNodeGuid { get; protected set; }
+        /// <summary>
+        /// 连接类型
+        /// </summary>
         public ConnectionType ConnectionType { get; protected set; }
-        public ChangeTypeEnum ChangeType { get; protected set; }
+        /// <summary>
+        /// 表示此次需要在两个节点之间创建连接关系，或是移除连接关系
+        /// </summary>
+        public ConnectChangeType ChangeType { get; protected set; }
     }
 
-    /// <summary>
-    /// 添加了节点
-    /// </summary>
-    /// <param name="fromNodeGuid"></param>
-    /// <param name="toNodeGuid"></param>
-    /// <param name="connectionType"></param>
-    public delegate void NodeCreateHandler(NodeCreateEventArgs eventArgs);
+
     public class NodeCreateEventArgs : FlowEventArgs
     {
         public NodeCreateEventArgs(object nodeModel)
         {
             this.NodeModel = nodeModel;
         }
+        /// <summary>
+        /// 节点Model对象，目前需要手动转换对应的类型
+        /// </summary>
         public object NodeModel { get; private set; }
     }
 
-
+    /// <summary>
+    /// 环境中移除了一个节点
+    /// </summary>
+    /// <param name="eventArgs"></param>
 
     public delegate void NodeRemoteHandler(NodeRemoteEventArgs eventArgs);
     public class NodeRemoteEventArgs : FlowEventArgs
@@ -102,24 +165,32 @@ namespace Serein.Library.Api
         {
             this.NodeGuid = nodeGuid;
         }
+        /// <summary>
+        /// 被移除节点的Guid
+        /// </summary>
         public string NodeGuid { get; private set; }
     }
 
 
-    public delegate void StartNodeChangeHandler(StartNodeChangeEventArgs eventArgs);
 
 
-    public class StartNodeChangeEventArgs: FlowEventArgs
+    public class StartNodeChangeEventArgs : FlowEventArgs
     {
         public StartNodeChangeEventArgs(string oldNodeGuid, string newNodeGuid)
         {
             this.OldNodeGuid = oldNodeGuid;
             this.NewNodeGuid = newNodeGuid; ;
         }
-        public string OldNodeGuid {  get; private set; }
-        public string NewNodeGuid {  get; private set; }
-    }
-
+        /// <summary>
+        /// 原来的起始节点Guid
+        /// </summary>
+        public string OldNodeGuid { get; private set; }
+        /// <summary>
+        /// 新的起始节点Guid
+        /// </summary>
+        public string NewNodeGuid { get; private set; }
+    } 
+    #endregion
 
     public interface IFlowEnvironment
     {

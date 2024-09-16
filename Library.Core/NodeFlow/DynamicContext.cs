@@ -9,7 +9,7 @@ namespace Serein.Library.Core.NodeFlow
     /// </summary>
     public class DynamicContext: IDynamicContext
     {
-        public DynamicContext(ISereinIoc sereinIoc, IFlowEnvironment flowEnvironment)
+        public DynamicContext(ISereinIOC sereinIoc, IFlowEnvironment flowEnvironment)
         {
             SereinIoc = sereinIoc;
             FlowEnvironment = flowEnvironment;
@@ -17,7 +17,7 @@ namespace Serein.Library.Core.NodeFlow
         }
 
         public NodeRunCts NodeRunCts { get; set; }
-        public ISereinIoc SereinIoc { get; }
+        public ISereinIOC SereinIoc { get; }
         public IFlowEnvironment FlowEnvironment { get; }
 
         public Task CreateTimingTask(Action action, int time = 100, int count = -1)

@@ -16,69 +16,135 @@ namespace Serein.NodeFlow
     /// <param name="methodDetails"></param>
     public class FlowStarter
     {
-        public FlowStarter(ISereinIoc serviceContainer/*, List<MethodDetails> methodDetails*/)
+        public FlowStarter()
         {
-            SereinIoc = serviceContainer;
-            
+            SereinIOC = new SereinIOC();
         }
+        /// <summary>
+        /// 流程运行状态
+        /// </summary>
+        public enum RunState
+        {
+            /// <summary>
+            /// 等待开始
+            /// </summary>
+            NoStart,
+            /// <summary>
+            /// 正在运行
+            /// </summary>
+            Running,
+            /// <summary>
+            /// 运行完成
+            /// </summary>
+            Completion,
+        }
+        /// <summary>
+        /// 控制触发器的结束
+        /// </summary>
+        private NodeRunCts FlipFlopCts { get; set; } = null;
 
-        private ISereinIoc SereinIoc { get; }
-        // private List<MethodDetails> MethodDetailss { get; }
-        private Action ExitAction { get; set; }  = null; //退出方法
-        private IDynamicContext Context { get; set; }  = null;  //上下文
-        public NodeRunCts MainCts { get; set; }
+        /// <summary>
+        /// 运行状态
+        /// </summary>
+        public RunState FlowState { get; private set; } = RunState.NoStart;
+        public RunState FlipFlopState { get; private set; } = RunState.NoStart;
+
+        /// <summary>
+        /// 运行时的IOC容器
+        /// </summary>
+        private ISereinIOC SereinIOC { get; } = null; 
+
+        /// <summary>
+        /// 结束运行时需要执行的方法
+        /// </summary>
+        private Action ExitAction { get; set; }  = null; 
+        /// <summary>
+        /// 运行的上下文
+        /// </summary>
+        private IDynamicContext Context { get; set; }  = null; 
+
+
 
         /// <summary>
         /// 开始运行
         /// </summary>
-        /// <param name="nodes"></param>
+        /// <param name="startNode">起始节点</param>
+        /// <param name="env">运行环境</param>
+        /// <param name="runMd">环境中已加载的所有节点方法</param>
+        /// <param name="flipflopNodes">触发器节点</param>
         /// <returns></returns>
-        // public async Task RunAsync(List<NodeModelBase> nodes, IFlowEnvironment flowEnvironment)
-        public async Task RunAsync(NodeModelBase startNode, IFlowEnvironment flowEnvironment, List<MethodDetails> methodDetailss, List<SingleFlipflopNode> flipflopNodes)
+        public async Task RunAsync(NodeModelBase startNode,
+                                   IFlowEnvironment env,
+                                   List<MethodDetails> runMd,
+                                   List<MethodDetails> initMethods,
+                                   List<MethodDetails> loadingMethods,
+                                   List<MethodDetails> exitMethods,
+                                   List<SingleFlipflopNode> flipflopNodes)
         {
-            // var startNode = nodes.FirstOrDefault(p => p.IsStart);
-            if (startNode == null) { return; }
+            
+            FlowState = RunState.Running; // 开始运行
 
+            if (startNode == null) {
+                FlowState = RunState.Completion; // 不存在起点，退出流程
+                return; 
+            }
+
+            // 判断使用哪一种流程上下文
             var isNetFramework = true;
-
             if (isNetFramework)
             {
-                Context = new Serein.Library.Framework.NodeFlow.DynamicContext(SereinIoc, flowEnvironment);
+                Context = new Serein.Library.Framework.NodeFlow.DynamicContext(SereinIOC, env);
             }
             else
             {
-                Context = new Serein.Library.Core.NodeFlow.DynamicContext(SereinIoc, flowEnvironment);
+                Context = new Serein.Library.Core.NodeFlow.DynamicContext(SereinIOC, env);
             }
 
-            MainCts = SereinIoc.GetOrCreateServiceInstance<NodeRunCts>();
-  
-            foreach (var md in methodDetailss)
+            #region 初始化运行环境的Ioc容器
+            // 清除节点使用的对象
+            foreach (var nodeMd in runMd)
             {
-                SereinIoc.Register(md.ActingInstanceType);
+                nodeMd.ActingInstance = null;
             }
-            SereinIoc.Build();
-            foreach (var md in flipflopNodes.Select(it => it.MethodDetails).ToArray())
+            SereinIOC.Reset(); // 开始运行时清空ioc中注册的实例
+            // 初始化ioc容器中的类型对象
+            foreach (var md in runMd)
             {
-                md.ActingInstance = SereinIoc.GetOrCreateServiceInstance(md.ActingInstanceType);
+                SereinIOC.Register(md.ActingInstanceType);
             }
-            foreach (var md in methodDetailss)
+            SereinIOC.Build();
+            foreach (var md in runMd)
             {
-                md.ActingInstance = SereinIoc.GetOrCreateServiceInstance(md.ActingInstanceType);
+                md.ActingInstance = SereinIOC.GetOrInstantiate(md.ActingInstanceType);
             }
 
-            var initMethods = methodDetailss.Where(it => it.MethodDynamicType == NodeType.Init).ToList();
-            var loadingMethods = methodDetailss.Where(it => it.MethodDynamicType == NodeType.Loading).ToList();
-            var exitMethods = methodDetailss.Where(it => it.MethodDynamicType == NodeType.Exit).ToList();
+            //foreach (var md in flipflopNodes.Select(it => it.MethodDetails).ToArray())
+            //{
+            //    md.ActingInstance = SereinIoc.GetOrCreateServiceInstance(md.ActingInstanceType);
+            //}
+            #endregion
+
+
+            #region 创建Node中初始化、加载时、退出时调用的方法
+
+            foreach (var md in initMethods) // 初始化
+            {
+                md.ActingInstance ??= Context.SereinIoc.GetOrInstantiate(md.ActingInstanceType);
+            }
+            foreach (var md in loadingMethods) // 加载
+            {
+                md.ActingInstance ??= Context.SereinIoc.GetOrInstantiate(md.ActingInstanceType);
+            }
+            foreach (var md in exitMethods) // 初始化
+            {
+                md.ActingInstance ??= Context.SereinIoc.GetOrInstantiate(md.ActingInstanceType);
+            }
+
+            object?[]? args = [Context];
             ExitAction = () =>
             {
-                //ServiceContainer.Run<WebServer>((web) =>
-                //{
-                //    web?.Stop();
-                //});
                 foreach (MethodDetails? md in exitMethods)
                 {
-                    md.ActingInstance = Context.SereinIoc.GetOrInstantiate(md.ActingInstanceType);
-                    object?[]? args = [Context];
                     object?[]? data = [md.ActingInstance, args];
                     md.MethodDelegate.DynamicInvoke(data);
                 }
@@ -86,53 +152,62 @@ namespace Serein.NodeFlow
                 {
                     Context.NodeRunCts.Cancel();
                 }
-                if (MainCts != null && !MainCts.IsCancellationRequested) MainCts.Cancel();
-                SereinIoc.Reset();
+                if (FlipFlopCts != null && !FlipFlopCts.IsCancellationRequested)
+                {
+                    FlipFlopCts.Cancel();
+                }
+                FlowState = RunState.Completion;
+                FlipFlopState = RunState.Completion;
             };
             Context.SereinIoc.Build();
+            #endregion
+
+            #region 执行初始化，然后绑定IOC容器，再执行加载时
+            
             foreach (var md in initMethods) // 初始化 - 调用方法
             {
-                md.ActingInstance ??= Context.SereinIoc.GetOrInstantiate(md.ActingInstanceType);
-                object?[]? args = [Context];
                 object?[]? data = [md.ActingInstance, args];
                 md.MethodDelegate.DynamicInvoke(data);
             }
             Context.SereinIoc.Build();
             foreach (var md in loadingMethods) // 加载
             {
-                md.ActingInstance ??= Context.SereinIoc.GetOrInstantiate(md.ActingInstanceType);
-                object?[]? args = [Context];
                 object?[]? data = [md.ActingInstance, args];
                 md.MethodDelegate.DynamicInvoke(data);
-            }
+            } 
+            #endregion
 
-            // 运行触发器节点
-            var singleFlipflopNodes = flipflopNodes.Select(it => (SingleFlipflopNode)it).ToArray();
-
-            // 使用 TaskCompletionSource 创建未启动的任务
-            var tasks = singleFlipflopNodes.Select(async node =>
-            {
-                await FlipflopExecute(node, flowEnvironment);
-            }).ToArray();
-            _ = Task.WhenAll(tasks);
+            
+            // 节点任务的启动
             try
             {
-                await Task.Run(async () =>
+                
+                if (flipflopNodes.Count > 0)
                 {
-                    await startNode.StartExecution(Context);
-                    //await Task.WhenAll([startNode.StartExecution(Context), .. tasks]);
-                });
+                    FlipFlopState = RunState.Running;
+                    // 如果存在需要启动的触发器，则开始启动
+                    FlipFlopCts = SereinIOC.GetOrInstantiate<NodeRunCts>();
+                    // 使用 TaskCompletionSource 创建未启动的触发器任务
+                    var tasks = flipflopNodes.Select(async node =>
+                    {
+                        await FlipflopExecute(node, env);
+                    }).ToArray();
+                    _ = Task.WhenAll(tasks);
+                }
+                await startNode.StartExecution(Context);
                 // 等待结束
-                while (!MainCts.IsCancellationRequested)
+                if(FlipFlopCts != null)
                 {
-                    await Task.Delay(100);
+                    while (!FlipFlopCts.IsCancellationRequested)
+                    {
+                        await Task.Delay(100);
+                    }
                 }
             }
             catch (Exception ex)
             {
                 await Console.Out.WriteLineAsync(ex.ToString());
             }
-            
         }
 
         /// <summary>
@@ -140,17 +215,15 @@ namespace Serein.NodeFlow
         /// </summary>
         private async Task FlipflopExecute(SingleFlipflopNode singleFlipFlopNode, IFlowEnvironment flowEnvironment)
         {
-            DynamicContext context = new DynamicContext(SereinIoc, flowEnvironment);
+            DynamicContext context = new DynamicContext(SereinIOC, flowEnvironment);
             MethodDetails md = singleFlipFlopNode.MethodDetails;
             var del = md.MethodDelegate;
             try
             {
-
-
                 //var func = md.ExplicitDatas.Length == 0 ? (Func<object, object, Task<FlipflopContext<dynamic>>>)del : (Func<object, object[], Task<FlipflopContext<dynamic>>>)del;
                 var func = md.ExplicitDatas.Length == 0 ? (Func<object, object, Task<IFlipflopContext>>)del : (Func<object, object[], Task<IFlipflopContext>>)del;
 
-                while (!MainCts.IsCancellationRequested) // 循环中直到栈为空才会退出
+                while (!FlipFlopCts.IsCancellationRequested) // 循环中直到栈为空才会退出
                 {
                     object?[]? parameters = singleFlipFlopNode.GetParameters(context, md);
                     // 调用委托并获取结果
@@ -168,7 +241,7 @@ namespace Serein.NodeFlow
 
                         var tasks = singleFlipFlopNode.SuccessorNodes[connection].Select(nextNode =>
                         {
-                            var context = new DynamicContext(SereinIoc,flowEnvironment);
+                            var context = new DynamicContext(SereinIOC,flowEnvironment);
                             nextNode.PreviousNode = singleFlipFlopNode;
                             return nextNode.StartExecution(context);
                         }).ToArray();

@@ -46,63 +46,43 @@ namespace Serein.WorkBench
     public partial class MainWindow : Window
     {
         /// <summary>
-        /// 一种轻量的IOC容器
-        /// </summary>
-        private SereinIoc ServiceContainer { get; } = new SereinIoc();
-
-        /// <summary>
         /// 全局捕获Console输出事件，打印在这个窗体里面
         /// </summary>
         private readonly LogWindow logWindow;
-
-        /// <summary>
-        /// 存储加载的程序集
-        /// </summary>
-        // private readonly List<Assembly> loadedAssemblies = [];
-        /// <summary>
-        /// 存储加载的程序集路径
-        /// </summary>
-        // private readonly List<string> loadedAssemblyPaths = [];
-
-        /// <summary>
-        /// 存储所有方法信息
-        /// </summary>
-        // private static ConcurrentDictionary<string, MethodDetails> DllMethodDetails { get; } = [];
-
-        /// <summary>
-        /// 存储所有与节点有关的控件
-        /// </summary>
-        private readonly Dictionary<string, NodeControlBase> NodeControls = [];
-        /// <summary>
-        /// 存储所有的连接
-        /// </summary>
-        private readonly List<Connection> Connections = [];
-
-        /// <summary>
-        /// 存放触发器节点（运行时全部调用）
-        /// </summary>
-        // private readonly List<SingleFlipflopNode> flipflopNodes = [];
 
         /// <summary>
         /// 节点的命名空间
         /// </summary>
         public const string NodeSpaceName = $"{nameof(Serein)}.{nameof(Serein.NodeFlow)}.{nameof(Serein.NodeFlow.Model)}";
 
+
         /// <summary>
         /// 流程运行环境
         /// </summary>
-        private IFlowEnvironment FlowEnvironment;
+        private IFlowEnvironment FlowEnvironment { get; }
+        private MainWindowViewModel ViewModel { get; set; }
+
         /// <summary>
-        /// 流程启动器
+        /// 存储所有与节点有关的控件
         /// </summary>
-        // private FlowStarter nodeFlowStarter;
+        private Dictionary<string, NodeControlBase> NodeControls { get; } = [];
+        /// <summary>
+        /// 存储所有的连接
+        /// </summary>
+        private List<Connection> Connections { get; } = [];
+
+
 
         #region 与画布相关的字段
-
         /// <summary>
         /// 当前选取的控件
         /// </summary>
         private readonly List<NodeControlBase> selectControls = [];
+
+        /// <summary>
+        /// 拖动创建节点控件时的鼠标位置
+        /// </summary>
+        private Point canvasDropPosition;
 
         /// <summary>
         /// 记录拖动开始时的鼠标位置
@@ -154,20 +134,14 @@ namespace Serein.WorkBench
         private TranslateTransform translateTransform;
         #endregion
 
-        private Point canvasDropPosition;
-
-
-        // private MainWindowViewModel mainWindowViewModel { get; }
         public MainWindow()
         {
-            // mainWindowViewModel = new MainWindowViewModel(this);
-            InitializeComponent();
+            ViewModel = new MainWindowViewModel(this);
+            FlowEnvironment = ViewModel.FlowEnvironment;
 
-            
-            
+            InitializeComponent();
             logWindow = new LogWindow();
             logWindow.Show();
-
             // 重定向 Console 输出
             var logTextWriter = new LogTextWriter(WriteLog);
             Console.SetOut(logTextWriter);
@@ -177,7 +151,6 @@ namespace Serein.WorkBench
 
         private void InitFlowEvent()
         {
-            FlowEnvironment = new FlowEnvironment();
             FlowEnvironment.OnDllLoad += FlowEnvironment_DllLoadEvent;
             FlowEnvironment.OnLoadNode += FlowEnvironment_NodeLoadEvent;
             FlowEnvironment.OnStartNodeChange += FlowEnvironment_StartNodeChangeEvent;
@@ -187,8 +160,6 @@ namespace Serein.WorkBench
             FlowEnvironment.OnFlowRunComplete += FlowEnvironment_OnFlowRunComplete;
 
         }
-
-       
 
         private void InitUI()
         {
@@ -225,7 +196,6 @@ namespace Serein.WorkBench
         {
             WriteLog("-------运行完成---------\r\n");
         }
-
 
         /// <summary>
         /// 加载了DLL文件，dll内容
@@ -287,22 +257,7 @@ namespace Serein.WorkBench
 
             NodeControls.TryAdd(nodeInfo.Guid, nodeControl); // 存放对应的控件
             PlaceNodeOnCanvas(nodeControl, nodeInfo.Position.X, nodeInfo.Position.Y); // 配置节点，并放置在画布上
-
-
-            // 添加到画布
-            //FlowChartCanvas.Dispatcher.Invoke(() =>
-            //{
-            //    // 添加控件到画布
-            //    FlowChartCanvas.Children.Add(nodeControl);
-            //    Canvas.SetLeft(nodeControl, nodeInfo.Position.x);
-            //    Canvas.SetTop(nodeControl, nodeInfo.Position.y);
-            //    nodeControls.TryAdd(nodeInfo.Guid, nodeControl); // 存放对应的控件
-            //    ConfigureContextMenu(nodeControl); // 配置节点右键菜单
-            //    ConfigureNodeEvents(nodeControl); // 配置节点事件
-            //});
-
         }
-
 
         /// <summary>
         /// 节点连接关系变更
@@ -319,7 +274,7 @@ namespace Serein.WorkBench
                 return;
             }
             ConnectionType connectionType = eventArgs.ConnectionType;
-            if(eventArgs.ChangeType == NodeConnectChangeEventArgs.ChangeTypeEnum.Create)
+            if(eventArgs.ChangeType == NodeConnectChangeEventArgs.ConnectChangeType.Create)
             {
                 // 添加连接
                 var connection = new Connection
@@ -334,7 +289,7 @@ namespace Serein.WorkBench
                 Connections.Add(connection);
                 EndConnection();
             }
-            else if (eventArgs.ChangeType == NodeConnectChangeEventArgs.ChangeTypeEnum.Remote)
+            else if (eventArgs.ChangeType == NodeConnectChangeEventArgs.ConnectChangeType.Remote)
             {
                 // 需要移除连接
                 var removeConnections = Connections.Where(c => c.Start.ViewModel.Node.Guid.Equals(fromNodeGuid)
@@ -1403,7 +1358,7 @@ namespace Serein.WorkBench
         /// <param name="e"></param>
         private void ButtonDebugFlipflopNode_Click(object sender, RoutedEventArgs e)
         {
-            FlowEnvironment.Exit();
+            FlowEnvironment.Exit(); // 在运行平台上点击了退出
         }
 
         /// <summary>

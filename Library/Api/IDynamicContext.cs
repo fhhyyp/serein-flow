@@ -7,7 +7,7 @@ namespace Serein.Library.Api
     public interface IDynamicContext
     {
         IFlowEnvironment FlowEnvironment { get; }
-        ISereinIoc SereinIoc { get; }
+        ISereinIOC SereinIoc { get; }
         NodeRunCts NodeRunCts { get; set; }
         Task CreateTimingTask(Action action, int time = 100, int count = -1);
     }

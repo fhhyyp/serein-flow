@@ -40,6 +40,11 @@ namespace Serein.WorkBench.Themes
             TypeTreeView.Items.Add(rootNode);
         }
 
+        /// <summary>
+        /// 添加属性节点
+        /// </summary>
+        /// <param name="node"></param>
+        /// <param name="type"></param>
         private void AddMembersToTreeNode(TreeViewItem node, Type type)
         {
             var members = type.GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
@@ -61,6 +66,7 @@ namespace Serein.WorkBench.Themes
                     memberNode.Header = $"{member.Name} : {propertyType.Name}";
                     if (!propertyType.IsPrimitive && propertyType != typeof(string))
                     {
+                        // 递归显示类型属性的节点
                         AddMembersToTreeNode(memberNode, propertyType);
                     }
                 }

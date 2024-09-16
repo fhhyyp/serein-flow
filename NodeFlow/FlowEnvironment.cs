@@ -10,7 +10,9 @@ using System.Diagnostics;
 using System.Net.Mime;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Text;
 using System.Xml.Linq;
+using static Serein.NodeFlow.FlowStarter;
 
 namespace Serein.NodeFlow
 {
@@ -47,19 +49,28 @@ namespace Serein.NodeFlow
         /// </summary>
         public event LoadDLLHandler OnDllLoad;
         /// <summary>
-        /// 加载节点
+        /// 加载节点事件
         /// </summary>
         public event LoadNodeHandler OnLoadNode;
         /// <summary>
-        /// 连接节点
+        /// 节点连接属性改变事件
         /// </summary>
         public event NodeConnectChangeHandler OnNodeConnectChange;
         /// <summary>
-        /// 创建节点
+        /// 节点创建时间
         /// </summary>
         public event NodeCreateHandler OnNodeCreate;
+        /// <summary>
+        /// 移除节点事件
+        /// </summary>
         public event NodeRemoteHandler OnNodeRemote;
+        /// <summary>
+        /// 起始节点变化事件
+        /// </summary>
         public event StartNodeChangeHandler OnStartNodeChange;
+        /// <summary>
+        /// 流程运行完成时间
+        /// </summary>
         public event FlowRunCompleteHandler OnFlowRunComplete;
 
         private FlowStarter? nodeFlowStarter = null;
@@ -72,7 +83,7 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 一种轻量的IOC容器
         /// </summary>
-        public SereinIoc SereinIoc { get; } = new SereinIoc();
+        // public SereinIoc SereinIoc { get; } = new SereinIoc();
 
         /// <summary>
         /// 存储加载的程序集路径
@@ -92,15 +103,17 @@ namespace Serein.NodeFlow
 
         public Dictionary<string, NodeModelBase> Nodes { get; } = [];
 
-        public List<NodeModelBase> Regions { get; } = [];
+        // public List<NodeModelBase> Regions { get; } = [];
 
         /// <summary>
         /// 存放触发器节点（运行时全部调用）
         /// </summary>
         public List<SingleFlipflopNode> FlipflopNodes { get; } = [];
 
-        private NodeModelBase? _startNode = null;
-
+        /// <summary>
+        /// 私有属性
+        /// </summary>
+        private NodeModelBase _startNode;
         /// <summary>
         /// 起始节点
         /// </summary>
@@ -112,17 +125,12 @@ namespace Serein.NodeFlow
             }
             set
             {
-                if (_startNode is null)
-                {
-                    value.IsStart = true;
-                    _startNode = value;
-                }
-                else
-                {
+                if (_startNode is not null)
+                { 
                     _startNode.IsStart = false;
-                    value.IsStart = true;
-                    _startNode = value;
                 }
+                value.IsStart = true;
+                _startNode = value;
             }
         }
 
@@ -132,19 +140,32 @@ namespace Serein.NodeFlow
         /// <returns></returns>
         public async Task StartAsync()
         {
-            nodeFlowStarter = new FlowStarter(SereinIoc);
-            var nodes = Nodes.Values.ToList();
-            var flipflopNodes = nodes.Where(it => it.MethodDetails?.MethodDynamicType == NodeType.Flipflop
-                                               && it.IsStart == false)
-                                     .Select(it => it as SingleFlipflopNode)
-                                     .ToList();
+            nodeFlowStarter = new FlowStarter();
+            List<SingleFlipflopNode> flipflopNodes = Nodes.Values.Where(it => it.MethodDetails?.MethodDynamicType == NodeType.Flipflop && it.IsStart == false)
+                                                                 .Select(it => (SingleFlipflopNode)it)
+                                                                 .Where(node => node is SingleFlipflopNode flipflopNode && flipflopNode.NotExitPreviousNode())
+                                                                 .ToList();// 获取需要再运行开始之前启动的触发器节点
+            var runMethodDetailess = Nodes.Values.Select(item => item.MethodDetails).ToList(); // 获取环境中所有节点的方法信息
+            var initMethods = MethodDetailss.Where(it => it.MethodDynamicType == NodeType.Init).ToList();
+            var loadingMethods = MethodDetailss.Where(it => it.MethodDynamicType == NodeType.Loading).ToList();
+            var exitMethods = MethodDetailss.Where(it => it.MethodDynamicType == NodeType.Exit).ToList();
+            await nodeFlowStarter.RunAsync(StartNode,
+                                           this,
+                                           runMethodDetailess,
+                                           initMethods,
+                                           loadingMethods,
+                                           exitMethods,
+                                           flipflopNodes);
 
-            await nodeFlowStarter.RunAsync(StartNode, this, MethodDetailss, flipflopNodes);
+            if(nodeFlowStarter?.FlipFlopState == RunState.NoStart)
+            {
+                this.Exit(); // 未运行触发器时，才会调用结束方法
+            }
+            nodeFlowStarter = null;
         }
         public void Exit()
         {
             nodeFlowStarter?.Exit();
-            nodeFlowStarter = null;
             OnFlowRunComplete?.Invoke(new FlowEventArgs());
         }
 
@@ -161,19 +182,6 @@ namespace Serein.NodeFlow
 
 
         #region 对外暴露的接口
-
-        /// <summary>
-        /// 获取方法描述
-        /// </summary>
-        public bool TryGetMethodDetails(string name, out MethodDetails? md)
-        {
-            md = MethodDetailss.FirstOrDefault(it => it.MethodName == name);
-            if (md == null)
-            {
-                return false;
-            }
-            return true;
-        }
 
         /// <summary>
         /// 加载项目文件
@@ -247,27 +255,34 @@ namespace Serein.NodeFlow
         }
 
         /// <summary>
-        /// 连接节点
+        /// 保存项目为项目文件
         /// </summary>
-        /// <param name="fromNode">起始节点</param>
-        /// <param name="toNode">目标节点</param>
-        /// <param name="connectionType">连接关系</param>
-        public void ConnectNode(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
+        /// <returns></returns>
+        public SereinOutputFileData SaveProject()
         {
-            // 获取起始节点与目标节点
-            if (!Nodes.TryGetValue(fromNodeGuid, out NodeModelBase? fromNode) || !Nodes.TryGetValue(toNodeGuid, out NodeModelBase? toNode))
+            var projectData = new SereinOutputFileData()
             {
-                return;
-            }
-            if (fromNode is null || toNode is null)
+                Librarys = LoadedAssemblies.Select(assemblies => assemblies.ToLibrary()).ToArray(),
+                Nodes = Nodes.Values.Select(node => node.ToInfo()).Where(info => info is not null).ToArray(),
+                StartNode = Nodes.Values.FirstOrDefault(it => it.IsStart)?.Guid,
+            };
+            return projectData;
+        }
+        /// <summary>
+        /// 从文件路径中加载DLL
+        /// </summary>
+        /// <param name="dllPath"></param>
+        /// <returns></returns> 
+        public void LoadDll(string dllPath)
+        {
+            (var assembly, var list) = LoadAssembly(dllPath);
+            if (assembly is not null && list.Count > 0)
             {
-                return;
+                MethodDetailss.AddRange(list);
+                OnDllLoad?.Invoke(new LoadDLLEventArgs(assembly, list));
             }
-            // 开始连接
-            ConnectNode(fromNode, toNode, connectionType); // 外部调用连接方法
 
         }
-
         /// <summary>
         /// 创建节点
         /// </summary>
@@ -326,66 +341,6 @@ namespace Serein.NodeFlow
                 SetStartNode(nodeBase);
             }
         }
-
-
-        /// <summary>
-        /// 从文件路径中加载DLL
-        /// </summary>
-        /// <param name="dllPath"></param>
-        /// <returns></returns> 
-        public void LoadDll(string dllPath)
-        {
-            (var assembly, var list) = LoadAssembly(dllPath);
-            if (assembly is not null && list.Count > 0)
-            {
-                MethodDetailss.AddRange(list);
-                OnDllLoad?.Invoke(new LoadDLLEventArgs(assembly, list));
-            }
-
-        }
-
-        /// <summary>
-        /// 保存项目为项目文件
-        /// </summary>
-        /// <returns></returns>
-        public SereinOutputFileData SaveProject()
-        {
-            var projectData = new SereinOutputFileData()
-            {
-                Librarys = LoadedAssemblies.Select(assemblies => assemblies.ToLibrary()).ToArray(),
-                Nodes = Nodes.Values.Select(node => node.ToInfo()).Where(info => info is not null).ToArray(),
-                StartNode = Nodes.Values.FirstOrDefault(it => it.IsStart)?.Guid,
-            };
-            return projectData;
-        }
-
-        /// <summary>
-        /// 移除连接关系
-        /// </summary>
-        /// <param name="fromNodeGuid"></param>
-        /// <param name="toNodeGuid"></param>
-        /// <param name="connectionType"></param>
-        /// <exception cref="NotImplementedException"></exception>
-        public void RemoteConnect(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
-        {
-            // 获取起始节点与目标节点
-            if (!Nodes.TryGetValue(fromNodeGuid, out NodeModelBase? fromNode) || !Nodes.TryGetValue(toNodeGuid, out NodeModelBase? toNode))
-            {
-                return;
-            }
-            if (fromNode is null || toNode is null)
-            {
-                return;
-            }
-
-            fromNode.SuccessorNodes[connectionType].Remove(toNode);
-            toNode.PreviousNodes[connectionType].Remove(fromNode);
-            OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(fromNodeGuid,
-                                                                          toNodeGuid,
-                                                                          connectionType,
-                                                                          NodeConnectChangeEventArgs.ChangeTypeEnum.Remote));
-        }
-
         /// <summary>
         /// 移除节点
         /// </summary>
@@ -418,7 +373,7 @@ namespace Serein.NodeFlow
                     OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(pNode.Guid,
                                                                     remoteNode.Guid,
                                                                     pCType,
-                                                                    NodeConnectChangeEventArgs.ChangeTypeEnum.Remote)); // 通知UI
+                                                                    NodeConnectChangeEventArgs.ConnectChangeType.Remote)); // 通知UI
                 }
             }
 
@@ -433,7 +388,7 @@ namespace Serein.NodeFlow
                     OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(remoteNode.Guid,
                                                                     sNode.Guid,
                                                                     sCType,
-                                                                    NodeConnectChangeEventArgs.ChangeTypeEnum.Remote)); // 通知UI
+                                                                    NodeConnectChangeEventArgs.ConnectChangeType.Remote)); // 通知UI
 
                 }
             }
@@ -441,6 +396,68 @@ namespace Serein.NodeFlow
             // 从集合中移除节点
             Nodes.Remove(nodeGuid);
             OnNodeRemote?.Invoke(new NodeRemoteEventArgs(nodeGuid));
+        }
+
+        /// <summary>
+        /// 连接节点
+        /// </summary>
+        /// <param name="fromNode">起始节点</param>
+        /// <param name="toNode">目标节点</param>
+        /// <param name="connectionType">连接关系</param>
+        public void ConnectNode(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
+        {
+            // 获取起始节点与目标节点
+            if (!Nodes.TryGetValue(fromNodeGuid, out NodeModelBase? fromNode) || !Nodes.TryGetValue(toNodeGuid, out NodeModelBase? toNode))
+            {
+                return;
+            }
+            if (fromNode is null || toNode is null)
+            {
+                return;
+            }
+            // 开始连接
+            ConnectNode(fromNode, toNode, connectionType); // 外部调用连接方法
+
+        }
+
+        /// <summary>
+        /// 移除连接关系
+        /// </summary>
+        /// <param name="fromNodeGuid"></param>
+        /// <param name="toNodeGuid"></param>
+        /// <param name="connectionType"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        public void RemoteConnect(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
+        {
+            // 获取起始节点与目标节点
+            if (!Nodes.TryGetValue(fromNodeGuid, out NodeModelBase? fromNode) || !Nodes.TryGetValue(toNodeGuid, out NodeModelBase? toNode))
+            {
+                return;
+            }
+            if (fromNode is null || toNode is null)
+            {
+                return;
+            }
+
+            fromNode.SuccessorNodes[connectionType].Remove(toNode);
+            toNode.PreviousNodes[connectionType].Remove(fromNode);
+            OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(fromNodeGuid,
+                                                                          toNodeGuid,
+                                                                          connectionType,
+                                                                          NodeConnectChangeEventArgs.ConnectChangeType.Remote));
+        }
+
+        /// <summary>
+        /// 获取方法描述
+        /// </summary>
+        public bool TryGetMethodDetails(string name, out MethodDetails? md)
+        {
+            md = MethodDetailss.FirstOrDefault(it => it.MethodName == name);
+            if (md == null)
+            {
+                return false;
+            }
+            return true;
         }
 
         /// <summary>
@@ -494,14 +511,14 @@ namespace Serein.NodeFlow
                 {
                     // 加载DLL，创建 MethodDetails、实例作用对象、委托方法
                     var itemMethodDetails = MethodDetailsHelperTmp.GetList(item, false);
-                    foreach (var md in itemMethodDetails)
-                    {
-                        // var instanceType =  
-                        // Activator.CreateInstance(md.ActingInstanceType);
-                        // SereinIoc.RegisterInstantiate(md.ActingInstance);
-                        SereinIoc.Register(md.ActingInstanceType);
-                    }
                     methodDetails.AddRange(itemMethodDetails);
+                    //foreach (var md in itemMethodDetails)
+                    //{
+                    //    // var instanceType =  
+                    //    // Activator.CreateInstance(md.ActingInstanceType);
+                    //    // SereinIoc.RegisterInstantiate(md.ActingInstance);
+                    //    SereinIoc.Register(md.ActingInstanceType);
+                    //}
                 }
                 LoadedAssemblies.Add(assembly); // 将加载的程序集添加到列表中
                 LoadedAssemblyPaths.Add(dllPath); // 记录加载的DLL路径
@@ -513,7 +530,6 @@ namespace Serein.NodeFlow
                 return (null, []);
             }
         }
-
 
         /// <summary>
         /// 连接节点
@@ -573,7 +589,7 @@ namespace Serein.NodeFlow
             OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(fromNode.Guid,
                                                                     toNode.Guid,
                                                                     connectionType,
-                                                                    NodeConnectChangeEventArgs.ChangeTypeEnum.Create)); // 通知UI
+                                                                    NodeConnectChangeEventArgs.ConnectChangeType.Create)); // 通知UI
         }
 
         /// <summary>
@@ -589,20 +605,11 @@ namespace Serein.NodeFlow
         }
         #endregion
 
-        #region 视觉元素交互
-
-        #region 本地交互（WPF）
+        #region 网络交互
 
         #endregion
 
-        #region 网络交互（通过Socket的方式进行操作）
-
-        #endregion
-
-
-        #endregion
-
-}
+    }
     public static class FlowFunc
     {
         public static Library.Entity.Library ToLibrary(this Assembly assembly)
@@ -624,6 +631,22 @@ namespace Serein.NodeFlow
                 FlipflopStateType.Cancel => ConnectionType.None,
                 _ => throw new NotImplementedException("未定义的流程状态")
             };
+        }
+
+        public static bool NotExitPreviousNode(this SingleFlipflopNode node)
+        {
+            ConnectionType[] ct = [ConnectionType.IsSucceed,
+                                   ConnectionType.IsFail,
+                                   ConnectionType.IsError,
+                                   ConnectionType.Upstream];
+            foreach (ConnectionType ctType in ct)
+            {
+                if(node.PreviousNodes[ctType].Count > 0)
+                {
+                    return false;
+                }
+            }
+            return true;
         }
     }
 
