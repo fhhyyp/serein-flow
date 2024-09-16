@@ -90,7 +90,7 @@ namespace Serein.NodeFlow
         public List<MethodDetails> MethodDetailss { get; } = [];
 
 
-        public Dictionary<string,NodeModelBase> Nodes { get; } = [];
+        public Dictionary<string, NodeModelBase> Nodes { get; } = [];
 
         public List<NodeModelBase> Regions { get; } = [];
 
@@ -104,13 +104,15 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 起始节点
         /// </summary>
-        public NodeModelBase StartNode { 
-            get 
-            { 
+        public NodeModelBase StartNode
+        {
+            get
+            {
                 return _startNode;
             }
-            set {
-                if(_startNode is null)
+            set
+            {
+                if (_startNode is null)
                 {
                     value.IsStart = true;
                     _startNode = value;
@@ -121,7 +123,8 @@ namespace Serein.NodeFlow
                     value.IsStart = true;
                     _startNode = value;
                 }
-            } }
+            }
+        }
 
         /// <summary>
         /// 异步运行
@@ -165,7 +168,7 @@ namespace Serein.NodeFlow
         public bool TryGetMethodDetails(string name, out MethodDetails? md)
         {
             md = MethodDetailss.FirstOrDefault(it => it.MethodName == name);
-            if(md == null)
+            if (md == null)
             {
                 return false;
             }
@@ -187,7 +190,7 @@ namespace Serein.NodeFlow
             foreach (var dll in dllPaths)
             {
                 var dllFilePath = System.IO.Path.GetFullPath(System.IO.Path.Combine(filePath, dll));
-                (var assembly, var list) = LoadAssembly(dllFilePath); 
+                (var assembly, var list) = LoadAssembly(dllFilePath);
                 if (assembly is not null && list.Count > 0)
                 {
                     methodDetailss.AddRange(methodDetailss); // 暂存方法描述
@@ -195,7 +198,7 @@ namespace Serein.NodeFlow
                 }
             }
             // 方法加载完成，缓存到运行环境中。
-            MethodDetailss.AddRange(methodDetailss); 
+            MethodDetailss.AddRange(methodDetailss);
             methodDetailss.Clear();
 
 
@@ -216,7 +219,7 @@ namespace Serein.NodeFlow
                     // 不存在对应的起始节点
                     continue;
                 }
-                
+
 
                 List<(ConnectionType, string[])> nodeGuids = [(ConnectionType.IsSucceed,nodeInfo.TrueNodes),
                                                               (ConnectionType.IsFail,   nodeInfo.FalseNodes),
@@ -256,10 +259,10 @@ namespace Serein.NodeFlow
             {
                 return;
             }
-            if(fromNode is null || toNode is null)
+            if (fromNode is null || toNode is null)
             {
-                return ;
-            } 
+                return;
+            }
             // 开始连接
             ConnectNode(fromNode, toNode, connectionType); // 外部调用连接方法
 
@@ -282,7 +285,7 @@ namespace Serein.NodeFlow
                 NodeControlType.ConditionRegion => typeof(CompositeConditionNode),
                 _ => null
             };
-            if(nodeType == null)
+            if (nodeType == null)
             {
                 return;
             }
@@ -305,7 +308,7 @@ namespace Serein.NodeFlow
             Nodes[nodeBase.Guid] = nodeBase;
 
             // 如果是触发器，则需要添加到专属集合中
-            if (nodeControlType == NodeControlType.Flipflop && nodeBase is SingleFlipflopNode flipflopNode )
+            if (nodeControlType == NodeControlType.Flipflop && nodeBase is SingleFlipflopNode flipflopNode)
             {
                 var guid = flipflopNode.Guid;
                 if (!FlipflopNodes.Exists(it => it.Guid.Equals(guid)))
@@ -313,7 +316,7 @@ namespace Serein.NodeFlow
                     FlipflopNodes.Add(flipflopNode);
                 }
             }
-           
+
             // 通知UI更改
             OnNodeCreate?.Invoke(new NodeCreateEventArgs(nodeBase));
             // 因为需要UI先布置了元素，才能通知UI变更特效
@@ -338,7 +341,7 @@ namespace Serein.NodeFlow
                 MethodDetailss.AddRange(list);
                 OnDllLoad?.Invoke(new LoadDLLEventArgs(assembly, list));
             }
-            
+
         }
 
         /// <summary>
@@ -383,7 +386,7 @@ namespace Serein.NodeFlow
                                                                           NodeConnectChangeEventArgs.ChangeTypeEnum.Remote));
         }
 
-         /// <summary>
+        /// <summary>
         /// 移除节点
         /// </summary>
         /// <param name="nodeGuid"></param>
@@ -402,10 +405,10 @@ namespace Serein.NodeFlow
             {
                 return;
             }
-            
+
 
             // 遍历所有父节点，从那些父节点中的子节点集合移除该节点
-            foreach(var pnc in remoteNode.PreviousNodes)
+            foreach (var pnc in remoteNode.PreviousNodes)
             {
                 var pCType = pnc.Key; // 连接类型
                 for (int i = 0; i < pnc.Value.Count; i++)
@@ -446,9 +449,9 @@ namespace Serein.NodeFlow
         /// <param name="newNodeGuid"></param>
         public void SetStartNode(string newNodeGuid)
         {
-            if(Nodes.TryGetValue(newNodeGuid, out NodeModelBase? newStartNodeModel))
+            if (Nodes.TryGetValue(newNodeGuid, out NodeModelBase? newStartNodeModel))
             {
-                if(newStartNodeModel != null)
+                if (newStartNodeModel != null)
                 {
                     SetStartNode(newStartNodeModel);
                     //var oldNodeGuid = "";
@@ -491,7 +494,7 @@ namespace Serein.NodeFlow
                 {
                     // 加载DLL，创建 MethodDetails、实例作用对象、委托方法
                     var itemMethodDetails = MethodDetailsHelperTmp.GetList(item, false);
-                    foreach(var md in itemMethodDetails)
+                    foreach (var md in itemMethodDetails)
                     {
                         // var instanceType =  
                         // Activator.CreateInstance(md.ActingInstanceType);
@@ -599,16 +602,7 @@ namespace Serein.NodeFlow
 
         #endregion
 
-
-
-
-
-
-
-
-
-    }
-
+}
     public static class FlowFunc
     {
         public static Library.Entity.Library ToLibrary(this Assembly assembly)

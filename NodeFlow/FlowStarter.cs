@@ -50,7 +50,7 @@ namespace Serein.NodeFlow
                 Context = new Serein.Library.Core.NodeFlow.DynamicContext(SereinIoc, flowEnvironment);
             }
 
-            MainCts = SereinIoc.CreateServiceInstance<NodeRunCts>();
+            MainCts = SereinIoc.GetOrCreateServiceInstance<NodeRunCts>();
   
             foreach (var md in methodDetailss)
             {

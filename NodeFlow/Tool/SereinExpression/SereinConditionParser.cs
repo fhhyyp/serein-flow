@@ -1,10 +1,11 @@
-﻿using System.Globalization;
+﻿using Serein.NodeFlow.Tool.SereinExpression.Resolver;
+using System.Globalization;
 using System.Reflection;
 
-namespace Serein.NodeFlow.Tool.SerinExpression
+namespace Serein.NodeFlow.Tool.SereinExpression
 {
 
-    public class SerinConditionParser
+    public class SereinConditionParser
     {
         public static bool To<T>(T data, string expression)
         {
@@ -21,7 +22,7 @@ namespace Serein.NodeFlow.Tool.SerinExpression
             }
         }
 
-        public static ConditionResolver ConditionParse(object data, string expression)
+        public static SereinConditionResolver ConditionParse(object data, string expression)
         {
             if (expression.StartsWith('.')) // 表达式前缀属于从上一个节点数据对象获取成员值
             {
@@ -78,51 +79,57 @@ namespace Serein.NodeFlow.Tool.SerinExpression
             }
             return obj;
         }
+
+
         /// <summary>
         /// 解析对象表达式
         /// </summary>
-        private static ConditionResolver ParseObjectExpression(object data, string expression)
+        private static SereinConditionResolver ParseObjectExpression(object data, string expression)
         {
             var parts = expression.Split(' ');
-            string operatorStr = parts[0];
-            string valueStr = string.Join(' ', parts, 1, parts.Length - 1);
-
-            int typeStartIndex = expression.IndexOf('<');
-            int typeEndIndex = expression.IndexOf('>');
-
+            string operatorStr = parts[0]; // 获取操作类型
+            string valueStr; //= string.Join(' ', parts, 1, parts.Length - 1);
             string memberPath;
             Type type;
             object? targetObj;
+
+            // 尝试获取指定类型
+            int typeStartIndex = expression.IndexOf('<'); 
+            int typeEndIndex = expression.IndexOf('>');
             if (typeStartIndex + typeStartIndex == -2)
             {
+                // 如果不需要转为指定类型
                 memberPath = operatorStr;
                 targetObj = GetMemberValue(data, operatorStr);
-
                 type = targetObj.GetType();
-
-                operatorStr = parts[1].ToLower();
+                operatorStr = parts[1].ToLower(); // 
                 valueStr = string.Join(' ', parts.Skip(2));
             }
             else
             {
+                // 类型语法不正确
                 if (typeStartIndex >= typeEndIndex)
                 {
                     throw new ArgumentException("无效的表达式格式");
                 }
                 memberPath = expression.Substring(0, typeStartIndex).Trim();
-                string typeStr = expression.Substring(typeStartIndex + 1, typeEndIndex - typeStartIndex - 1).Trim().ToLower();
+                string typeStr = expression.Substring(typeStartIndex + 1, typeEndIndex - typeStartIndex - 1)
+                                            .Trim().ToLower(); // 手动置顶的类型
+
+                // 对象取值表达式
                 parts = expression.Substring(typeEndIndex + 1).Trim().Split(' ');
                 if (parts.Length == 3)
                 {
-                    operatorStr = parts[1].ToLower();
-                    valueStr = string.Join(' ', parts.Skip(2));
+                    operatorStr = parts[1].ToLower(); // 操作类型
+                    valueStr = string.Join(' ', parts.Skip(2)); // 表达式值
                 }
                 else
                 {
-                    operatorStr = parts[0].ToLower();
-                    valueStr = string.Join(' ', parts.Skip(1));
+                    operatorStr = parts[0].ToLower(); // 操作类型
+                    valueStr = string.Join(' ', parts.Skip(1)); // 表达式值
                 }
-                targetObj = GetMemberValue(data, memberPath);
+
+                targetObj = GetMemberValue(data, memberPath);// 获取对象成员，作为表达式的目标对象
 
                 Type? tempType = typeStr switch
                 {
@@ -135,8 +142,7 @@ namespace Serein.NodeFlow.Tool.SerinExpression
                 type = tempType ?? throw new ArgumentException("对象表达式无效的类型声明");
             }
 
-
-
+            #region 解析类型 int
             if (type == typeof(int))
             {
                 int value = int.Parse(valueStr, CultureInfo.InvariantCulture);
@@ -149,6 +155,8 @@ namespace Serein.NodeFlow.Tool.SerinExpression
                     ArithmeticExpression = GetArithmeticExpression(parts[0])
                 };
             }
+            #endregion
+            #region 解析类型 double
             else if (type == typeof(double))
             {
                 double value = double.Parse(valueStr, CultureInfo.InvariantCulture);
@@ -162,6 +170,8 @@ namespace Serein.NodeFlow.Tool.SerinExpression
                 };
 
             }
+            #endregion
+            #region 解析类型 bool
             else if (type == typeof(bool))
             {
                 return new MemberConditionResolver<bool>
@@ -171,6 +181,8 @@ namespace Serein.NodeFlow.Tool.SerinExpression
                     Op = (ValueTypeConditionResolver<bool>.Operator)ParseBoolOperator(operatorStr)
                 };
             }
+            #endregion
+            #region 解析类型 string
             else if (type == typeof(string))
             {
                 return new MemberStringConditionResolver
@@ -179,12 +191,22 @@ namespace Serein.NodeFlow.Tool.SerinExpression
                     Op = ParseStringOperator(operatorStr),
                     Value = valueStr
                 };
-            }
+            } 
+            #endregion
 
             throw new NotSupportedException($"Type {type} is not supported.");
         }
 
-        private static ConditionResolver ParseSimpleExpression(object data, string expression)
+
+        /// <summary>
+        /// 条件表达式解析
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="expression"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
+        private static SereinConditionResolver ParseSimpleExpression(object data, string expression)
         {
             if ("pass".Equals(expression.ToLower()))
             {
@@ -251,7 +273,6 @@ namespace Serein.NodeFlow.Tool.SerinExpression
                     };
 
                 }
-
             }
             else if (type == typeof(double))
             {
@@ -285,6 +306,14 @@ namespace Serein.NodeFlow.Tool.SerinExpression
         }
 
 
+
+        /// <summary>
+        /// 数值操作类型
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="operatorStr"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
         private static ValueTypeConditionResolver<T>.Operator ParseValueTypeOperator<T>(string operatorStr) where T : struct, IComparable<T>
         {
             return operatorStr switch
@@ -304,6 +333,12 @@ namespace Serein.NodeFlow.Tool.SerinExpression
             };
         }
 
+        /// <summary>
+        /// 布尔操作类型
+        /// </summary>
+        /// <param name="operatorStr"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
         private static BoolConditionResolver.Operator ParseBoolOperator(string operatorStr)
         {
             return operatorStr switch
@@ -316,6 +351,12 @@ namespace Serein.NodeFlow.Tool.SerinExpression
             };
         }
 
+        /// <summary>
+        /// 字符串操作类型
+        /// </summary>
+        /// <param name="operatorStr"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
         private static StringConditionResolver.Operator ParseStringOperator(string operatorStr)
         {
             return operatorStr switch
@@ -336,6 +377,6 @@ namespace Serein.NodeFlow.Tool.SerinExpression
                 _ => throw new ArgumentException($"Invalid operator {operatorStr} for string type.")
             };
         }
-    }
 
+    }
 }

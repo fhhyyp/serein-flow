@@ -2,7 +2,7 @@
 using Serein.Library.Entity;
 using Serein.Library.Enums;
 using Serein.NodeFlow.Base;
-using Serein.NodeFlow.Tool.SerinExpression;
+using Serein.NodeFlow.Tool.SereinExpression;
 using System.Text;
 
 namespace Serein.NodeFlow.Model

@@ -1,14 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static Serein.Flow.NodeModel.SingleExpOpNode;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+﻿using System.Data;
 
-namespace Serein.Flow.SerinExpression
+namespace Serein.NodeFlow.Tool.SereinExpression
 {
+    /// <summary>
+    /// 使用表达式操作/获取 对象的值
+    /// 获取值 @get .xx.xxx 
+    /// 设置值 @set .xx.xxx  = [data]
+    /// </summary>
+    /// <param name="obj">操作的对象</param>
+    /// <returns></returns>
     public class SerinArithmeticExpressionEvaluator
     {
         private static readonly DataTable table = new DataTable();
@@ -32,7 +32,16 @@ namespace Serein.Flow.SerinExpression
 
     public class SerinExpressionEvaluator
     {
-        public static object Evaluate(string expression, object targetObJ,out bool IsChange)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="expression">表达式</param>
+        /// <param name="targetObJ">操作对象</param>
+        /// <param name="isChange">是否改变了对象（Set语法）</param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
+        public static object Evaluate(string expression, object targetObJ, out bool isChange)
         {
             var parts = expression.Split([' '], 2);
             if (parts.Length != 2)
@@ -41,7 +50,7 @@ namespace Serein.Flow.SerinExpression
             }
 
             var operation = parts[0].ToLower();
-            var operand = parts[1][0] == '.' ? parts[1][1..]: parts[1];
+            var operand = parts[1][0] == '.' ? parts[1][1..] : parts[1];
 
             var result = operation switch
             {
@@ -52,13 +61,13 @@ namespace Serein.Flow.SerinExpression
                 _ => throw new NotSupportedException($"Operation {operation} is not supported.")
             };
 
-            IsChange = operation switch
+            isChange = operation switch
             {
-                "@num" => true,
+                /*"@num" => true,
                 "@call" => true,
-                "@get" => true,
+                "@get" => true,*/
                 "@set" => false,
-                _ => throw new NotSupportedException($"Operation {operation} is not supported.")
+                _ => true,
             };
 
             return result;
@@ -68,6 +77,13 @@ namespace Serein.Flow.SerinExpression
         private static readonly char[] separator = ['(', ')'];
         private static readonly char[] separatorArray = [','];
 
+        /// <summary>
+        /// 调用目标方法
+        /// </summary>
+        /// <param name="target">目标实例</param>
+        /// <param name="methodCall">方法名称</param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
         private static object InvokeMethod(object target, string methodCall)
         {
             var methodParts = methodCall.Split(separator, StringSplitOptions.RemoveEmptyEntries);
@@ -96,7 +112,13 @@ namespace Serein.Flow.SerinExpression
             return method.Invoke(target, parameterValues);
 
         }
-
+        /// <summary>
+        /// 获取值
+        /// </summary>
+        /// <param name="target">目标实例</param>
+        /// <param name="memberPath">属性路径</param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
         private static object GetMember(object target, string memberPath)
         {
             var members = memberPath.Split('.');
@@ -133,7 +155,13 @@ namespace Serein.Flow.SerinExpression
             return target;
 
         }
-
+        /// <summary>
+        /// 设置目标的值
+        /// </summary>
+        /// <param name="target">目标实例</param>
+        /// <param name="assignment">属性路径 </param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
         private static object SetMember(object target, string assignment)
         {
             var parts = assignment.Split(new[] { '=' }, 2);
@@ -200,7 +228,13 @@ namespace Serein.Flow.SerinExpression
             return target;
         }
 
-        private static double ComputedNumber(object value,string expression)
+        /// <summary>
+        /// 计算数学简单表达式
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="expression"></param>
+        /// <returns></returns>
+        private static double ComputedNumber(object value, string expression)
         {
             double numericValue = Convert.ToDouble(value);
             if (!string.IsNullOrEmpty(expression))

@@ -3,7 +3,7 @@ using Serein.Library.Api;
 using Serein.Library.Entity;
 using Serein.Library.Enums;
 using Serein.NodeFlow.Base;
-using Serein.NodeFlow.Tool.SerinExpression;
+using Serein.NodeFlow.Tool.SereinExpression;
 
 namespace Serein.NodeFlow.Model
 {
@@ -42,7 +42,7 @@ namespace Serein.NodeFlow.Model
             }
             try
             {
-                var isPass = SerinConditionParser.To(result, Expression);
+                var isPass = SereinConditionParser.To(result, Expression);
                 NextOrientation = isPass ? ConnectionType.IsSucceed : ConnectionType.IsFail;
             }
             catch (Exception ex)

@@ -8,55 +8,84 @@ using System.Reflection;
 
 namespace Serein.Library.Utils
 {
-
+    /// <summary>
+    /// IOC管理容器
+    /// </summary>
     public class SereinIoc : ISereinIoc
     {
-
+        /// <summary>
+        /// 实例集合
+        /// </summary>
         private readonly ConcurrentDictionary<string, object> _dependencies;
+        /// <summary>
+        /// 未完成注入的实例集合。
+        /// 键：需要的类型名称
+        /// 值：对象实例（存储对象）
+        /// </summary>
+        private readonly ConcurrentDictionary<string, List<(object,PropertyInfo)>> _unfinishedDependencies;
+
+        /// <summary>
+        /// 类型集合
+        /// </summary>
         private readonly ConcurrentDictionary<string, Type> _typeMappings;
+        /// <summary>
+        /// 待实例化的类型
+        /// </summary>
         private readonly List<Type> _waitingForInstantiation;
 
         public SereinIoc()
         {
-
+            // 首先注册自己
             _dependencies = new ConcurrentDictionary<string, object>
             {
                 [typeof(ISereinIoc).FullName] = this
             };
-
-            _typeMappings = new ConcurrentDictionary<string, Type>();
+            _typeMappings = new ConcurrentDictionary<string, Type>
+            {
+                [typeof(ISereinIoc).FullName] = typeof(ISereinIoc)
+            };
+            _unfinishedDependencies = new ConcurrentDictionary<string, List<(object, PropertyInfo)>>();
             _waitingForInstantiation = new List<Type>();
         }
+        /// <summary>
+        /// 获取或创建实例对象（不注入对象的依赖项）
+        /// </summary>
+        /// <param name="type">目标类型</param>
+        /// <param name="parameters">构造函数的参数</param>
+        /// <returns></returns>
         public object GetOrCreateServiceInstance(Type type, params object[] parameters)
         {
-            Register(type);
-            object instance;
-
             if (_dependencies.ContainsKey(type.FullName))
             {
-                instance = _dependencies[type.FullName];
+                return _dependencies[type.FullName];
             }
             else
             {
-
-                instance = Activator.CreateInstance(type);
-
-
-                _dependencies[type.FullName] = instance;
-
+                var instance = Activator.CreateInstance(type); // 创建目标类型的实例对象
+                InjectDependencies(instance);// 注入目标对象的依赖项
+                _dependencies[type.FullName] = instance; // 记录实例
+                return instance;
             }
-
-
-            return instance;
-
         }
-        public T CreateServiceInstance<T>(params object[] parameters)
+
+        /// <summary>
+        /// 泛型方法， 获取或创建实例对象（不注入对象的依赖项）
+        /// </summary>
+        /// <typeparam name="T">目标类型</typeparam>
+        /// <param name="parameters">构造函数的参数</param>
+        /// <returns></returns>
+        public T GetOrCreateServiceInstance<T>(params object[] parameters)
         {
             return (T)GetOrCreateServiceInstance(typeof(T), parameters);
         }
 
+        /// <summary>
+        /// 清空容器对象
+        /// </summary>
+        /// <returns></returns>
         public ISereinIoc Reset()
         {
+            // 检查是否存在非托管资源
             foreach(var instancei in _dependencies.Values)
             {
                 if (typeof(IDisposable).IsAssignableFrom(instancei.GetType()) && instancei is IDisposable disposable)
@@ -64,54 +93,52 @@ namespace Serein.Library.Utils
                     disposable.Dispose();
                 }
             }
+            _typeMappings.Clear();
             _dependencies.Clear();
             _waitingForInstantiation.Clear();
-            //_typeMappings.Clear();
             return this;
         }
 
-        public ISereinIoc RegisterInstantiate(object instantiate)
-        {
-            //var type = instantiate.GetType();
-            if (!_typeMappings.TryGetValue(instantiate.GetType().FullName,out var type))
-            {
-                _typeMappings[type.FullName] = type;
-            }
-            
-            if(!_dependencies.TryGetValue(type.FullName, out var instancei))
-            {
-                _dependencies[type.FullName] = Activator.CreateInstance(type);
-            }
-            // _dependencies.AddOrUpdate(type.FullName,s => instantiate, (s,o) => instantiate);
-            return this;
-        }
+        /// <summary>
+        /// 注册类型
+        /// </summary>
+        /// <param name="type">目标类型</param>
+        /// <param name="parameters">参数</param>
         public ISereinIoc Register(Type type, params object[] parameters)
         {
-
-            if (!_typeMappings.ContainsKey(type.FullName))
-            {
-                _typeMappings[type.FullName] = type;
-            }
-
+            RegisterType(type.FullName, type);
             return this;
         }
+        /// <summary>
+        /// 注册类型
+        /// </summary>
+        /// <param name="type">目标类型</param>
+        /// <param name="parameters">参数</param>
         public ISereinIoc Register<T>(params object[] parameters)
         {
-            Register(typeof(T), parameters);
+            var type = typeof(T);
+            RegisterType(type.FullName, type);
             return this;
         }
+
 
         public ISereinIoc Register<TService, TImplementation>(params object[] parameters)
             where TImplementation : TService
         {
-            _typeMappings[typeof(TService).FullName] = typeof(TImplementation);
+            var typeFullName = typeof(TService).FullName;
+            RegisterType(typeFullName, typeof(TImplementation));
             return this;
         }
 
+
+
+        /// <summary>
+        /// 注册
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
         public object GetOrInstantiate(Type type)
         {
-
-
             if (!_dependencies.TryGetValue(type.FullName, out object value))
             {
                 Register(type);
@@ -127,47 +154,57 @@ namespace Serein.Library.Utils
 
         }
 
-
         public T GetOrInstantiate<T>()
         {
             if(!_dependencies.TryGetValue(typeof(T).FullName, out object value))
             {
-                Register<T>();
-
+                Register(typeof(T));
                 value = Instantiate(typeof(T));
             }
 
             return (T)value;
             //throw new InvalidOperationException("目标类型未创建实例");
         }
+
+        /// <summary>
+        /// 实例化所有已注册的类型，并尝试绑定
+        /// </summary>
+        /// <returns></returns>
         public ISereinIoc Build()
         {
-
             // 遍历已注册类型
-            foreach (var type in _typeMappings.Values)
+            foreach (var type in _typeMappings.Values.ToArray())
             {
-                // 如果没有创建实例，则创建对应的实例
-                if(!_dependencies.ContainsKey(type.FullName))
+                
+                if(_dependencies.ContainsKey(type.FullName))
                 {
-                    _dependencies[type.FullName] = Activator.CreateInstance(type);
+                    // 已经存在实例，不用管
                 }
+                else
+                {
+                    // 如果没有创建实例，则创建对应的实例
+                    _dependencies[type.FullName] = CreateInstance(type);
+                }
+                // 移除类型的注册记录
+                _typeMappings.TryRemove(type.FullName,out _);
             }
 
             // 注入实例的依赖项
             foreach (var instance in _dependencies.Values)
             {
-                InjectDependencies(instance); // 替换占位符
+                InjectDependencies(instance);
             }
 
             //var instance = Instantiate(item.Value);
 
-            TryInstantiateWaitingDependencies();
+            // TryInstantiateWaitingDependencies();
+            
             return this;
         }
 
         public object Instantiate(Type controllerType, params object[] parameters)
         {
-            var instance = Activator.CreateInstance(controllerType, parameters);
+            var instance = CreateInstance(controllerType, parameters);
             if(instance != null)
             {   
                 InjectDependencies(instance);
@@ -175,23 +212,82 @@ namespace Serein.Library.Utils
             return instance;
         }
 
-        private void InjectDependencies(object instance)
+
+
+        /// <summary>
+        /// 注册类型
+        /// </summary>
+        /// <param name="typeFull"></param>
+        /// <param name="type"></param>
+        private void RegisterType(string typeFull, Type type)
         {
-            var properties = instance.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public).ToArray()
-                                              .Where(p => p.CanWrite && p.GetCustomAttribute<AutoInjectionAttribute>() != null);
-
-            foreach (var property in properties)
+            if (!_typeMappings.ContainsKey(typeFull))
             {
-                var propertyType = property.PropertyType;
-
-                if (_dependencies.TryGetValue(propertyType.FullName, out var dependencyInstance))
-                {
-                    property.SetValue(instance, dependencyInstance);
-                }
-
+                _typeMappings[typeFull] = type;
             }
         }
 
+        /// <summary>
+        /// 创建实例时，尝试注入到由ioc容器管理、并需要此实例的对象。
+        /// </summary>
+        private object CreateInstance(Type type, params object[] parameters)
+        {
+            var instance = Activator.CreateInstance(type);
+            if(_unfinishedDependencies.TryGetValue(type.FullName, out var unfinishedPropertyList))
+            {
+                foreach ((object obj, PropertyInfo property) in unfinishedPropertyList)
+                {
+                    property.SetValue(obj, instance); //注入依赖项
+                }
+                
+                if(_unfinishedDependencies.TryRemove(type.FullName, out unfinishedPropertyList))
+                {
+                    unfinishedPropertyList.Clear();
+                }
+            }
+            return instance;
+        }
+
+
+        /// <summary>
+        /// 注入目标实例的依赖项
+        /// </summary>
+        /// <param name="instance"></param>
+        private bool InjectDependencies(object instance)
+        {
+            var properties = instance.GetType()
+                                     .GetProperties(BindingFlags.Instance | BindingFlags.Public).ToArray()
+                                     .Where(p => p.CanWrite // 可写属性
+                                              && p.GetCustomAttribute<AutoInjectionAttribute>() != null // 有特性标注需要注入
+                                              && p.GetValue(instance) == null); // 属性为空
+            var isPass = true;
+            foreach (var property in properties)
+            {
+                var propertyType = property.PropertyType;
+                // 通过属性类型名称从ioc容器中获取对应的实例
+                if (_dependencies.TryGetValue(propertyType.FullName, out var dependencyInstance))
+                {
+                    property.SetValue(instance, dependencyInstance); // 尝试写入到目标实例的属性中
+                }
+                else
+                {
+                    // 存在依赖项，但目标类型的实例暂未加载，需要等待需要实例完成注册
+                   var unfinishedDependenciesList = _unfinishedDependencies.GetOrAdd(propertyType.FullName, _ = new List<(object, PropertyInfo)>());
+                    var data = (instance, property);
+                   if (!unfinishedDependenciesList.Contains(data))
+                   {
+                       unfinishedDependenciesList.Add(data);
+                   }
+                   isPass = false;
+                }
+            }
+            return isPass;
+        }
+
+     
+        /// <summary>
+        /// 再次尝试注入目标实例的依赖项
+        /// </summary>
         private void TryInstantiateWaitingDependencies()
         {
             foreach (var waitingType in _waitingForInstantiation.ToList())
