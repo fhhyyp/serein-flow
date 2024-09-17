@@ -399,10 +399,18 @@ namespace Serein.Library.Web
                 catch (Exception ex)
                 {
                     // If serialization fails, use the original message's string representation
-                    resultData = ex.ToString();
-                    byte[] buffer = Encoding.UTF8.GetBytes(resultData);
-                    response.ContentLength64 = buffer.Length;
-                    response.OutputStream.Write(buffer, 0, buffer.Length);
+                    try
+                    {
+                        resultData = ex.ToString();
+                        byte[] buffer = Encoding.UTF8.GetBytes(resultData);
+                        response.ContentLength64 = buffer.Length;
+                        response.OutputStream.Write(buffer, 0, buffer.Length);
+                    }
+                    catch (Exception ex1)
+                    {
+
+                        Console.WriteLine(ex1);
+                    }
                 }
 
 
