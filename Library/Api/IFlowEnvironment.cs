@@ -229,9 +229,9 @@ namespace Serein.Library.Api
         /// <summary>
         /// 加载项目文件
         /// </summary>
-        /// <param name="project"></param>
+        /// <param name="projectFile"></param>
         /// <param name="filePath"></param>
-        void LoadProject(SereinProjectData project, string filePath);
+        void LoadProject(SereinProjectData projectFile, string filePath);
         /// <summary>
         /// 从文件中加载Dll
         /// </summary>

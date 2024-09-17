@@ -91,32 +91,53 @@ namespace Serein.Library.Utils
             var typeFullName = typeof(TService).FullName;
             RegisterType(typeFullName, typeof(TImplementation));
             return this;
-        } 
+        }
         #endregion
 
 
         /// <summary>
-        /// 尝试从容器中获取对象，如果不存在目标类型的对象，则将类型信息登记到容器，并实例化注入依赖项。
+        /// 尝试从容器中获取对象，如果不存在目标类型的对象，则将类型信息登记到容器，并实例化注入依赖项。如果依然无法注册，则返回null。
         /// </summary>
         public object GetOrRegisterInstantiate(Type type)
         {
             // 尝试从容器中获取对象
             if (!_dependencies.TryGetValue(type.FullName, out object value))
             {
-                Register(type);// 注册类型信息
-                value = Instantiate(type); // 创建实例对象，并注入依赖
-                _dependencies.TryAdd(type.FullName, value); // 登记到IOC容器中
+                // 容器中不存在目标类型的对象
+                if (type.IsInterface)
+                {
+                    if (_typeMappings.TryGetValue(type.FullName, out Type implementationType))
+                    {
+                        // 是接口类型，存在注册信息
+                        Register(type);// 注册类型信息
+                        value = Instantiate(implementationType); // 创建实例对象，并注入依赖
+                        _dependencies.TryAdd(type.FullName, value); // 登记到IOC容器中
+                        _typeMappings.TryRemove(type.FullName, out _); // 取消类型的注册信息
+                    }
+                    else
+                    {
+                        //需要获取接口类型的实例，但不存在类型注册信息
+                        Console.WriteLine("当前需要获取接口，但没有注册实现类的类型，无法创建接口实例");
+                        return  null;
+                    }
+                }
+                else
+                {
+                    // 不是接口，直接注册
+                    Register(type);// 注册类型信息
+                    value = Instantiate(type); // 创建实例对象，并注入依赖
+                    _dependencies.TryAdd(type.FullName, value); // 登记到IOC容器中
+                }
             }
             return value; 
         }
 
         /// <summary>
-        /// 尝试从容器中获取对象，如果不存在目标类型的对象，则将类型信息登记到容器，并实例化注入依赖项。
+        /// 尝试从容器中获取对象，如果不存在目标类型的对象，则将类型信息登记到容器，并实例化注入依赖项。如果依然无法注册，则返回null。
         /// </summary>
         public T GetOrRegisterInstantiate<T>()
         {
-            var value = Instantiate(typeof(T));
-            return (T)value;
+            return (T)GetOrRegisterInstantiate(typeof(T));
         }
 
         /// <summary>

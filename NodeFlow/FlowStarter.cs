@@ -3,6 +3,7 @@ using Serein.Library.Core.NodeFlow;
 using Serein.Library.Entity;
 using Serein.Library.Enums;
 using Serein.Library.Utils;
+using Serein.Library.Web;
 using Serein.NodeFlow.Base;
 using Serein.NodeFlow.Model;
 
@@ -173,6 +174,10 @@ namespace Serein.NodeFlow
             Context.SereinIoc.Build(); // 预防有人在加载时才注册类型，再绑定一次
             ExitAction = () =>
             {
+                SereinIOC.Run<WebServer>(web => {
+                    web?.Stop();
+                });
+
                 foreach (MethodDetails? md in exitMethods)
                 {
                     object?[]? data = [md.ActingInstance, args];
@@ -188,6 +193,9 @@ namespace Serein.NodeFlow
                 }
                 FlowState = RunState.Completion;
                 FlipFlopState = RunState.Completion;
+
+                
+
             };
             #endregion
 

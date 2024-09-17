@@ -137,8 +137,9 @@ namespace Serein.Library.Web
             if (!controllerType.IsClass || controllerType.IsAbstract) return false; // 如果不是类或者是抽象类，则直接返回
 
             var autoHostingAttribute = controllerType.GetCustomAttribute<AutoHostingAttribute>();
+            var methods = controllerType.GetMethods().Where(m => m.GetCustomAttribute<WebApiAttribute>() != null).ToArray();
 
-            foreach (var method in controllerType.GetMethods()) // 遍历控制器类型的所有方法
+            foreach (var method in methods) // 遍历控制器类型的所有方法
             {
                 var routeAttribute = method.GetCustomAttribute<WebApiAttribute>(); // 获取方法上的 WebAPIAttribute 自定义属性
                 if (routeAttribute != null) // 如果存在 WebAPIAttribute 属性
@@ -354,6 +355,7 @@ namespace Serein.Library.Web
             {
                 return value;
             }
+#pragma warning restore CS0168 // 声明了变量，但从未使用过
         }
 
         /// <summary>
@@ -507,12 +509,17 @@ namespace Serein.Library.Web
 
             if (pathParts.Length > 1) // 如果包含查询字符串
             {
-                var queryParams = HttpUtility.ParseQueryString(pathParts[1]); // 解析查询字符串
-
-                foreach (string key in queryParams) // 遍历查询字符串的键值对
+                //var queryParams = HttpUtility.ParseQueryString(pathParts[1]); // 解析查询字符串
+                //foreach (string key in queryParams) // 遍历查询字符串的键值对
+                //{
+                //    if (key == null) continue;
+                //    routeValues[key] = queryParams[key]; // 将键值对添加到路由参数字典中
+                //}
+                var parsedQuery = QueryStringParser.ParseQueryString(pathParts[1]);
+                foreach (var kvp in parsedQuery)
                 {
-                    if (key == null) continue;
-                    routeValues[key] = queryParams[key]; // 将键值对添加到路由参数字典中
+                    //Console.WriteLine($"{kvp.Key}: {kvp.Value}");
+                    routeValues[kvp.Key] = kvp.Value; // 将键值对添加到路由参数字典中
                 }
             }
 

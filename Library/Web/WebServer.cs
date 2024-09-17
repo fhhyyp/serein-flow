@@ -1,4 +1,6 @@
 ﻿using Serein.Library.Api;
+using Serein.Library.Attributes;
+using Serein.Library.Utils;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -13,8 +15,11 @@ namespace Serein.Library.Web
     /// </summary>
     public class WebServer
     {
-        [AutoHosting]
+        [AutoInjection]
         public IRouter Router { get; set; } // 路由器
+
+        [AutoInjection]
+        public NodeRunCts nodeRunCts { get; set; }
 
         private HttpListener listener; // HTTP 监听器
         private RequestLimiter requestLimiter; //接口防刷
@@ -38,6 +43,21 @@ namespace Serein.Library.Web
 
             listener.Start(); // 开始监听
 
+            //_ = Task.Run(async () =>
+            //{
+            //    while (true)
+            //    {
+            //        await Task.Delay(100);
+            //        if (nodeRunCts.IsCancellationRequested)
+            //        {
+
+            //        }
+
+            //        var context = await listener.GetContextAsync(); // 获取请求上下文
+            //        ProcessRequestAsync(context); // 处理请求
+            //    }
+            //});
+
             Task.Run(async () =>
             {
                 while (listener.IsListening)
@@ -46,6 +66,7 @@ namespace Serein.Library.Web
                     ProcessRequestAsync(context); // 处理请求
                 }
             });
+            
             return this;
         }
 
