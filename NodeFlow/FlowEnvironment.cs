@@ -81,7 +81,7 @@ namespace Serein.NodeFlow
         /// </summary>
         public event FlowRunCompleteHandler OnFlowRunComplete;
 
-        private FlowStarter? nodeFlowStarter = null;
+        private FlowStarter? flowStarter = null;
 
         /// <summary>
         /// 一种轻量的IOC容器
@@ -117,6 +117,7 @@ namespace Serein.NodeFlow
         /// 私有属性
         /// </summary>
         private NodeModelBase _startNode;
+
         /// <summary>
         /// 起始节点
         /// </summary>
@@ -143,7 +144,7 @@ namespace Serein.NodeFlow
         /// <returns></returns>
         public async Task StartAsync()
         {
-            nodeFlowStarter = new FlowStarter();
+            flowStarter = new FlowStarter();
             List<SingleFlipflopNode> flipflopNodes = Nodes.Values.Where(it => it.MethodDetails?.MethodDynamicType == NodeType.Flipflop && it.IsStart == false)
                                                                  .Select(it => (SingleFlipflopNode)it)
                                                                  .Where(node => node is SingleFlipflopNode flipflopNode && flipflopNode.NotExitPreviousNode())
@@ -154,7 +155,7 @@ namespace Serein.NodeFlow
             var exitMethods = MethodDetailss.Where(it => it.MethodDynamicType == NodeType.Exit).ToList();
 
 
-            await nodeFlowStarter.RunAsync(StartNode,
+            await flowStarter.RunAsync(StartNode,
                                            this,
                                            runMethodDetailess,
                                            initMethods,
@@ -162,15 +163,15 @@ namespace Serein.NodeFlow
                                            exitMethods,
                                            flipflopNodes);
 
-            if(nodeFlowStarter?.FlipFlopState == RunState.NoStart)
+            if(flowStarter?.FlipFlopState == RunState.NoStart)
             {
                 this.Exit(); // 未运行触发器时，才会调用结束方法
             }
-            nodeFlowStarter = null;
+            flowStarter = null;
         }
         public void Exit()
         {
-            nodeFlowStarter?.Exit();
+            flowStarter?.Exit();
             OnFlowRunComplete?.Invoke(new FlowEventArgs());
         }
 
@@ -341,9 +342,6 @@ namespace Serein.NodeFlow
             OnProjectLoaded?.Invoke(new ProjectLoadedEventArgs());
         }
 
-     
-
-
         /// <summary>
         /// 保存项目为项目文件
         /// </summary>
@@ -381,6 +379,15 @@ namespace Serein.NodeFlow
         {
             var nodeModel = CreateNode(nodeControlType, methodDetails);
             TryAddNode(nodeModel);
+
+            if(flowStarter?.FlowState != RunState.Completion 
+                && nodeControlType == NodeControlType.Flipflop 
+                && nodeModel is SingleFlipflopNode flipflopNode)
+            {
+                // 当前添加节点属于触发器，且当前正在运行，则加载到运行环境中
+                flowStarter?.AddFlipflopInRuning(flipflopNode, this);
+            }
+
             // 通知UI更改
             OnNodeCreate?.Invoke(new NodeCreateEventArgs(nodeModel, position));
             // 因为需要UI先布置了元素，才能通知UI变更特效
@@ -391,8 +398,6 @@ namespace Serein.NodeFlow
             }
         }
 
-    
-        
         /// <summary>
         /// 移除节点
         /// </summary>
@@ -432,15 +437,18 @@ namespace Serein.NodeFlow
             // 遍历所有子节点，从那些子节点中的父节点集合移除该节点
             foreach (var snc in remoteNode.SuccessorNodes)
             {
-                var sCType = snc.Key; // 连接类型
+                var connectionType = snc.Key; // 连接类型
                 for (int i = 0; i < snc.Value.Count; i++)
                 {
-                    NodeModelBase? sNode = snc.Value[i];
-                    remoteNode.SuccessorNodes[sCType].RemoveAt(i);
-                    OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(remoteNode.Guid,
-                                                                    sNode.Guid,
-                                                                    sCType,
-                                                                    NodeConnectChangeEventArgs.ConnectChangeType.Remote)); // 通知UI
+                    NodeModelBase? toNode = snc.Value[i];
+
+                    RemoteConnect(remoteNode, toNode, connectionType);
+                    //remoteNode.SuccessorNodes[connectionType].RemoveAt(i);
+
+                    //OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(remoteNode.Guid,
+                    //                                                toNode.Guid,
+                    //                                                connectionType,
+                    //                                                NodeConnectChangeEventArgs.ConnectChangeType.Remote)); // 通知UI
 
                 }
             }
@@ -475,9 +483,9 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 移除连接关系
         /// </summary>
-        /// <param name="fromNodeGuid"></param>
-        /// <param name="toNodeGuid"></param>
-        /// <param name="connectionType"></param>
+        /// <param name="fromNodeGuid">起始节点Guid</param>
+        /// <param name="toNodeGuid">目标节点Guid</param>
+        /// <param name="connectionType">连接关系</param>
         /// <exception cref="NotImplementedException"></exception>
         public void RemoteConnect(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
         {
@@ -490,11 +498,41 @@ namespace Serein.NodeFlow
             {
                 return;
             }
+            RemoteConnect(fromNode, toNode, connectionType);
 
+            //fromNode.SuccessorNodes[connectionType].Remove(toNode);
+            //toNode.PreviousNodes[connectionType].Remove(fromNode);
+            //OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(fromNodeGuid,
+            //                                                              toNodeGuid,
+            //                                                              connectionType,
+            //                                                              NodeConnectChangeEventArgs.ConnectChangeType.Remote));
+        }
+
+
+        /// <summary>
+        /// 移除连接关系
+        /// </summary>
+        /// <param name="fromNodeGuid">起始节点Model</param>
+        /// <param name="toNodeGuid">目标节点Model</param>
+        /// <param name="connectionType">连接关系</param>
+        /// <exception cref="NotImplementedException"></exception>
+        private void RemoteConnect(NodeModelBase fromNode, NodeModelBase toNode, ConnectionType connectionType)
+        {
             fromNode.SuccessorNodes[connectionType].Remove(toNode);
             toNode.PreviousNodes[connectionType].Remove(fromNode);
-            OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(fromNodeGuid,
-                                                                          toNodeGuid,
+            if(toNode is SingleFlipflopNode flipflopNode)
+            {
+                if (flowStarter?.FlowState != RunState.Completion 
+                    && flipflopNode.NotExitPreviousNode())
+                {
+                    // 被父节点移除连接关系的子节点若为触发器，且无上级节点，则当前流程正在运行，则加载到运行环境中
+                    flowStarter?.AddFlipflopInRuning(flipflopNode, this);
+                }
+            }
+
+            // 通知UI
+            OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(fromNode.Guid,
+                                                                          toNode.Guid,
                                                                           connectionType,
                                                                           NodeConnectChangeEventArgs.ConnectChangeType.Remote));
         }
@@ -788,10 +826,6 @@ namespace Serein.NodeFlow
             };
             return controlType;
         }
-
-
-
-
 
         public static bool NotExitPreviousNode(this SingleFlipflopNode node)
         {

@@ -157,7 +157,7 @@ namespace Serein.NodeFlow
             }
             #endregion
 
-            #region 执行初始化，绑定IOC容器，再执行加载时，设置流程退出时的回调函数
+            #region 执行初始化，绑定IOC容器，再执行加载时
 
             object?[]? args = [Context];
             foreach (var md in initMethods) // 初始化
@@ -172,6 +172,9 @@ namespace Serein.NodeFlow
                 md.MethodDelegate.DynamicInvoke(data);
             }
             Context.SereinIoc.Build(); // 预防有人在加载时才注册类型，再绑定一次
+            #endregion
+
+            #region 设置流程退出时的回调函数
             ExitAction = () =>
             {
                 SereinIOC.Run<WebServer>(web => {
@@ -193,9 +196,6 @@ namespace Serein.NodeFlow
                 }
                 FlowState = RunState.Completion;
                 FlipFlopState = RunState.Completion;
-
-                
-
             };
             #endregion
 
@@ -233,6 +233,17 @@ namespace Serein.NodeFlow
             #endregion
         }
 
+        public void AddFlipflopInRuning(SingleFlipflopNode singleFlipFlopNode, IFlowEnvironment flowEnvironment)
+        {
+            _ = Task.Run(async () =>
+            {
+                // 设置对象
+                singleFlipFlopNode.MethodDetails.ActingInstance = SereinIOC.GetOrRegisterInstantiate(singleFlipFlopNode.MethodDetails.ActingInstanceType);
+                await FlipflopExecute(singleFlipFlopNode, flowEnvironment); // 启动触发器
+            });
+        }
+        
+
         /// <summary>
         /// 启动触发器
         /// </summary>
@@ -248,26 +259,39 @@ namespace Serein.NodeFlow
 
                 while (!FlipFlopCts.IsCancellationRequested) // 循环中直到栈为空才会退出
                 {
+                    if(singleFlipFlopNode.NotExitPreviousNode() == false)
+                    {
+                        // 存在上级节点时，退出触发器
+                        break;
+                    }
                     object?[]? parameters = singleFlipFlopNode.GetParameters(context, md);
                     // 调用委托并获取结果
-
                     md.ActingInstance = context.SereinIoc.GetOrRegisterInstantiate(md.ActingInstanceType);
 
                     IFlipflopContext flipflopContext = await func.Invoke(md.ActingInstance, parameters);
 
                     ConnectionType connection = flipflopContext.State.ToContentType(); 
 
+
                     if (connection != ConnectionType.None)
                     {
                         singleFlipFlopNode.NextOrientation = connection;
                         singleFlipFlopNode.FlowData = flipflopContext.Data;
 
-                        var tasks = singleFlipFlopNode.SuccessorNodes[connection].Select(nextNode =>
+                       var upstreamNodeTasks =  singleFlipFlopNode.SuccessorNodes[ConnectionType.Upstream].Select(nextNode =>
+                        {
+                            var context = new DynamicContext(SereinIOC, flowEnvironment);
+                            nextNode.PreviousNode = singleFlipFlopNode;
+                            return nextNode.StartExecution(context);
+                        }).ToArray();
+
+                        var tmpTasks = singleFlipFlopNode.SuccessorNodes[connection].Select(nextNode =>
                         {
                             var context = new DynamicContext(SereinIOC,flowEnvironment);
                             nextNode.PreviousNode = singleFlipFlopNode;
                             return nextNode.StartExecution(context);
                         }).ToArray();
+                        Task[] tasks = [..upstreamNodeTasks, .. tmpTasks];
                         Task.WaitAll(tasks);
                     }
                     else

@@ -141,7 +141,7 @@ namespace Serein.Library.Utils
         }
 
         /// <summary>
-        /// 根据类型生成对应的实例，并注入其中的依赖项（类型信息不登记到IOC容器中）
+        /// 根据类型生成对应的实例，并注入其中的依赖项（类型信息不登记到IOC容器中）,类型创建后自动注入其它需要此类型的对象
         /// </summary>
         /// <param name="controllerType"></param>
         /// <param name="parameters"></param>
