@@ -18,15 +18,15 @@ namespace Serein.NodeFlow.Base
     /// </summary>
     public abstract partial class NodeModelBase : IDynamicFlowNode
     {
-        public abstract Parameterdata[] GetParameterdatas();
-        public virtual NodeInfo ToInfo()
+        internal abstract Parameterdata[] GetParameterdatas();
+        internal virtual NodeInfo ToInfo()
         {
-            if (MethodDetails == null) return null;
+            // if (MethodDetails == null) return null;
 
             var trueNodes = SuccessorNodes[ConnectionType.IsSucceed].Select(item => item.Guid); // 真分支
             var falseNodes = SuccessorNodes[ConnectionType.IsFail].Select(item => item.Guid);// 假分支
-            var upstreamNodes = SuccessorNodes[ConnectionType.IsError].Select(item => item.Guid);// 上游分支
-            var errorNodes = SuccessorNodes[ConnectionType.Upstream].Select(item => item.Guid);// 异常分支
+            var errorNodes = SuccessorNodes[ConnectionType.IsError].Select(item => item.Guid);// 异常分支
+            var upstreamNodes = SuccessorNodes[ConnectionType.Upstream].Select(item => item.Guid);// 上游分支
 
             // 生成参数列表
             Parameterdata[] parameterData = GetParameterdatas();
@@ -42,9 +42,41 @@ namespace Serein.NodeFlow.Base
                 UpstreamNodes = upstreamNodes.ToArray(),
                 ParameterData = parameterData.ToArray(),
                 ErrorNodes = errorNodes.ToArray(),
+                
             };
         }
 
+        internal virtual NodeModelBase LoadInfo(NodeInfo nodeInfo)
+        {
+            var node = this;
+            if (node != null)
+            {
+                node.Guid = nodeInfo.Guid;
+                for (int i = 0; i < nodeInfo.ParameterData.Length; i++)
+                {
+                    Parameterdata? pd = nodeInfo.ParameterData[i];
+                    node.MethodDetails.ExplicitDatas[i].IsExplicitData = pd.State;
+                    node.MethodDetails.ExplicitDatas[i].DataValue = pd.Value;
+                }
+            }
+
+            //if (control is ConditionNodeControl conditionNodeControl)
+            //{
+            //    conditionNodeControl.ViewModel.IsCustomData = pd.state;
+            //    conditionNodeControl.ViewModel.CustomData = pd.value;
+            //    conditionNodeControl.ViewModel.Expression = pd.expression;
+            //}
+            //else if (control is ExpOpNodeControl expOpNodeControl)
+            //{
+            //    expOpNodeControl.ViewModel.Expression = pd.expression;
+            //}
+            //else
+            //{
+            //    node.MethodDetails.ExplicitDatas[i].IsExplicitData = pd.state;
+            //    node.MethodDetails.ExplicitDatas[i].DataValue = pd.value;
+            //}
+            return this;
+        }
 
 
 
@@ -55,7 +87,7 @@ namespace Serein.NodeFlow.Base
         /// <returns></returns>
         public async Task StartExecution(IDynamicContext context)
         {
-            var cts = context.SereinIoc.GetOrInstantiate<CancellationTokenSource>();
+            var cts = context.SereinIoc.GetOrRegisterInstantiate<CancellationTokenSource>();
 
             Stack<NodeModelBase> stack = [];
             stack.Push(this);
@@ -66,12 +98,12 @@ namespace Serein.NodeFlow.Base
                 var currentNode = stack.Pop();
 
                 // 设置方法执行的对象
-                if (currentNode.MethodDetails is not null)
+                if (currentNode.MethodDetails is not null && currentNode.MethodDetails.ActingInstanceType is not null)
                 {
                     // currentNode.MethodDetails.ActingInstance ??= context.SereinIoc.GetOrInstantiate(MethodDetails.ActingInstanceType);
                     // currentNode.MethodDetails.ActingInstance = context.SereinIoc.GetOrInstantiate(MethodDetails.ActingInstanceType);
 
-                    currentNode.MethodDetails.ActingInstance = context.SereinIoc.GetOrInstantiate(currentNode.MethodDetails.ActingInstanceType);
+                    currentNode.MethodDetails.ActingInstance = context.SereinIoc.GetOrRegisterInstantiate(currentNode.MethodDetails.ActingInstanceType);
                 }
 
                 // 获取上游分支，首先执行一次

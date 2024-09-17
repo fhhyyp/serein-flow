@@ -15,9 +15,9 @@ namespace Serein.Library.Api
     public delegate void FlowRunCompleteHandler(FlowEventArgs eventArgs);
 
     /// <summary>
-    /// 加载项目文件时成功加载了节点
+    /// 项目加载完成
     /// </summary>
-    public delegate void LoadNodeHandler(LoadNodeEventArgs eventArgs);
+    public delegate void ProjectLoadedHandler(ProjectLoadedEventArgs eventArgs);
 
     /// <summary>
     /// 加载项目文件时成功加载了DLL文件
@@ -63,23 +63,30 @@ namespace Serein.Library.Api
         /// </summary>
         public string ErrorTips { get; protected set; } = string.Empty;
     }
-    public class LoadNodeEventArgs : FlowEventArgs
-    {
-        public LoadNodeEventArgs(NodeInfo NodeInfo, MethodDetails MethodDetailss)
-        {
-            this.NodeInfo = NodeInfo;
-            this.MethodDetailss = MethodDetailss;
-        }
-        /// <summary>
-        /// 项目文件节点信息参数
-        /// </summary>
-        public NodeInfo NodeInfo { get; protected set; }
-        /// <summary>
-        /// 已加载在环境中的方法描述
-        /// </summary>
-        public MethodDetails MethodDetailss { get; protected set; }
-    }
 
+    //public class LoadNodeEventArgs : FlowEventArgs
+    //{
+    //    public LoadNodeEventArgs(NodeInfo NodeInfo, MethodDetails MethodDetailss)
+    //    {
+    //        this.NodeInfo = NodeInfo;
+    //        this.MethodDetailss = MethodDetailss;
+    //    }
+    //    /// <summary>
+    //    /// 项目文件节点信息参数
+    //    /// </summary>
+    //    public NodeInfo NodeInfo { get; protected set; }
+    //    /// <summary>
+    //    /// 已加载在环境中的方法描述
+    //    /// </summary>
+    //    public MethodDetails MethodDetailss { get; protected set; }
+    //}
+
+    public class ProjectLoadedEventArgs : FlowEventArgs
+    {
+        public ProjectLoadedEventArgs()
+        {
+        }
+    }
 
     public class LoadDLLEventArgs : FlowEventArgs
     {
@@ -143,14 +150,25 @@ namespace Serein.Library.Api
 
     public class NodeCreateEventArgs : FlowEventArgs
     {
-        public NodeCreateEventArgs(object nodeModel)
+        public NodeCreateEventArgs(object nodeModel, Position position)
         {
             this.NodeModel = nodeModel;
+            this.Position = position;
         }
+        public NodeCreateEventArgs(object nodeModel, bool isAddInRegion, string regeionGuid)
+        {
+            this.NodeModel = nodeModel;
+            this.RegeionGuid = regeionGuid;
+            this.IsAddInRegion = isAddInRegion;
+        }
+
         /// <summary>
         /// 节点Model对象，目前需要手动转换对应的类型
         /// </summary>
         public object NodeModel { get; private set; }
+        public Position Position { get; private set; }
+        public bool IsAddInRegion { get; private set; }
+        public string RegeionGuid { get; private set; }
     }
 
     /// <summary>
@@ -189,13 +207,14 @@ namespace Serein.Library.Api
         /// 新的起始节点Guid
         /// </summary>
         public string NewNodeGuid { get; private set; }
-    } 
+    }
     #endregion
 
     public interface IFlowEnvironment
     {
+
         event FlowRunCompleteHandler OnFlowRunComplete;
-        event LoadNodeHandler OnLoadNode;
+        event ProjectLoadedHandler OnProjectLoaded;
         event LoadDLLHandler OnDllLoad;
         event NodeConnectChangeHandler OnNodeConnectChange;
         event NodeCreateHandler OnNodeCreate;
@@ -256,7 +275,7 @@ namespace Serein.Library.Api
         /// </summary>
         /// <param name="nodeBase">节点/区域/基础控件</param>
         /// <param name="methodDetails">节点绑定的方法说明（</param>
-        void CreateNode(NodeControlType nodeBase, MethodDetails methodDetails = null);
+        void CreateNode(NodeControlType nodeBase, Position position, MethodDetails methodDetails = null);
         /// <summary>
         /// 移除两个节点之间的连接关系
         /// </summary>

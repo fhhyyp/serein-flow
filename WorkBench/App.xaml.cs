@@ -150,13 +150,13 @@ namespace Serein.WorkBench
                     Shutdown(); // 关闭应用程序
                 }
             }
-           else if (1 == 11)
+           else if (1 == 1)
            {
-               string filePath = @"F:\临时\project\U9 project.dnf";
+               string filePath = @"F:\临时\project\new project.dnf";
                //string filePath = @"D:\Project\C#\DynamicControl\SereinFlow\.Output\Debug\net8.0-windows7.0\U9 project.dnf";
                string content = System.IO.File.ReadAllText(filePath); // 读取整个文件内容
-               FData = JsonConvert.DeserializeObject<SereinOutputFileData>(content);
-               App.FileDataPath = System.IO.Path.GetDirectoryName(filePath);
+               App.FData = JsonConvert.DeserializeObject<SereinOutputFileData>(content);
+                App.FileDataPath = filePath;//System.IO.Path.GetDirectoryName(filePath)!;
            }
 
         }

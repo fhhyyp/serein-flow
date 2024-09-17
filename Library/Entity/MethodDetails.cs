@@ -28,7 +28,7 @@ namespace Serein.Library.Entity
                 MethodName = MethodName,
                 MethodLockName = MethodLockName,
                 IsNetFramework = IsNetFramework,
-                ExplicitDatas = ExplicitDatas.Select(it => it.Clone()).ToArray(),
+                ExplicitDatas = ExplicitDatas?.Select(it => it.Clone()).ToArray(),
             };
         }
 

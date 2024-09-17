@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Serein.WorkBench"
         mc:Ignorable="d"
+        Topmost="False"
         Title="LogWindow" Height="600" Width="400"
         Closing="Window_Closing">
     <Grid>

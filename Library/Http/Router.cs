@@ -1,18 +1,22 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Serein.Library.Api.Api;
-using Serein.Library.Core.IOC;
-using Serein.Tool;
+using Serein.Library.Api;
+using Serein.Library.Utils;
+using System;
 using System.Collections;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Text;
+using System.Threading.Tasks;
 using System.Web;
 using Enum = System.Enum;
 using Type = System.Type;
 
-namespace Serein.Library.Core.Http
+namespace Serein.Library.Http
 {
     /*
      Router类负责解析请求的url，url参数，boby参数
@@ -37,11 +41,11 @@ namespace Serein.Library.Core.Http
         private readonly ConcurrentDictionary<string, object> _controllerInstances; // 存储控制器实例对象
         private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, MethodInfo>> _routes; // 用于存储路由信息
 
-        private readonly ISereinIoc serviceRegistry; // 用于存储路由信息
+        private readonly SereinIOC serviceRegistry; // 用于存储路由信息
 
         //private Type PostRequest;
 
-        public Router(ISereinIoc serviceRegistry) // 构造函数，初始化 Router 类的新实例
+        public Router(ISereinIOC serviceRegistry) // 构造函数，初始化 Router 类的新实例
         {
             this.serviceRegistry = serviceRegistry;
 
@@ -381,13 +385,13 @@ namespace Serein.Library.Core.Http
             return InvokeMethod(method, controllerInstance, parameters);
         }
 
-        private static readonly Dictionary<MethodInfo, ParameterInfo[]> methodParameterCache = [];
+        private static readonly Dictionary<MethodInfo, ParameterInfo[]> methodParameterCache = new Dictionary<MethodInfo, ParameterInfo[]>();
         /// <summary>
         /// POST请求的调用控制器方法
         /// </summary>
         public object InvokeControllerMethod(MethodInfo method, object controllerInstance, dynamic requestData, Dictionary<string, string> routeValues)
         {
-            object?[]? cachedMethodParameters;
+            object[] cachedMethodParameters;
 
             if (!methodParameterCache.TryGetValue(method, out ParameterInfo[] parameters))
             {
@@ -398,13 +402,13 @@ namespace Serein.Library.Core.Http
 
             for (int i = 0; i < parameters.Length; i++)
             {
-                string? paramName = parameters[i].Name;
+                string paramName = parameters[i].Name;
                 bool isUrlData = parameters[i].GetCustomAttribute(typeof(IsUrlDataAttribute)) != null;
                 bool isBobyData = parameters[i].GetCustomAttribute(typeof(IsBobyDataAttribute)) != null;
 
                 if (isUrlData)
                 {
-                    if (!string.IsNullOrEmpty(paramName) && routeValues.TryGetValue(paramName, out string? value))
+                    if (!string.IsNullOrEmpty(paramName) && routeValues.TryGetValue(paramName, out string value))
                     {
                         cachedMethodParameters[i] = ConvertValue(value, parameters[i].ParameterType);
                     }
@@ -477,7 +481,7 @@ namespace Serein.Library.Core.Http
                 string paramName = methodParameters[i].Name;
 
 
-                if (routeValues.TryGetValue(paramName, out string? value))
+                if (routeValues.TryGetValue(paramName, out string value))
                 {
                     parameters[i] = ConvertValue(value, methodParameters[i].ParameterType);
                 }
@@ -643,9 +647,11 @@ namespace Serein.Library.Core.Http
         /// <returns></returns>
         private static async Task<string> ReadRequestBodyAsync(HttpListenerRequest request)
         {
-            using Stream stream = request.InputStream;
-            using StreamReader reader = new(stream, Encoding.UTF8);
-            return await reader.ReadToEndAsync();
+            using (Stream stream = request.InputStream)
+            using (StreamReader reader = new StreamReader(stream, Encoding.UTF8))
+            {
+                return await reader.ReadToEndAsync();
+            }
         }
         /// <summary>
         /// 返回响应消息

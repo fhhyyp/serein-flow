@@ -25,7 +25,7 @@ namespace Serein.Library.Framework.NodeFlow
             if(NodeRunCts == null)
             {
 
-                NodeRunCts = SereinIoc.GetOrInstantiate<NodeRunCts>();
+                NodeRunCts = SereinIoc.GetOrRegisterInstantiate<NodeRunCts>();
             }
             return Task.Factory.StartNew(async () =>
             {

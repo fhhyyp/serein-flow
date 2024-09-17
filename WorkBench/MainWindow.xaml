@@ -6,6 +6,7 @@
         Title="Dynamic Node Flow" Height="700" Width="1200"
         AllowDrop="True" Drop="Window_Drop" DragOver="Window_DragOver"
         Loaded="Window_Loaded"
+        ContentRendered="Window_ContentRendered"
         Closing="Window_Closing">
 
     <Window.Resources>
@@ -136,7 +137,7 @@
 
                     <!-- Bottom-Right Thumb -->
                     <Thumb x:Name="BottomRightThumb" 
-                           Width="10" Height="10"
+                           Width="40" Height="40"
                            DragDelta="Thumb_DragDelta_BottomRight"
                            Cursor="SizeNWSE"
                            Canvas.Left="{Binding ActualWidth, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource RightThumbPositionConverter}}" 

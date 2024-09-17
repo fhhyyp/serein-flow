@@ -12,7 +12,9 @@ namespace Serein.NodeFlow.Tool.SereinExpression
             try
             {
 
-                return ConditionParse(data, expression).Evaluate(data);
+                var parse = ConditionParse(data, expression);
+                var result = parse.Evaluate(data);
+                return result;
 
             }
             catch (Exception ex)
@@ -24,7 +26,7 @@ namespace Serein.NodeFlow.Tool.SereinExpression
 
         public static SereinConditionResolver ConditionParse(object data, string expression)
         {
-            if (expression.StartsWith('.')) // 表达式前缀属于从上一个节点数据对象获取成员值
+            if (expression.StartsWith('.') || expression.StartsWith('<')) // 表达式前缀属于从上一个节点数据对象获取成员值
             {
                 return ParseObjectExpression(data, expression);
             }
@@ -128,9 +130,6 @@ namespace Serein.NodeFlow.Tool.SereinExpression
                     operatorStr = parts[0].ToLower(); // 操作类型
                     valueStr = string.Join(' ', parts.Skip(1)); // 表达式值
                 }
-
-                targetObj = GetMemberValue(data, memberPath);// 获取对象成员，作为表达式的目标对象
-
                 Type? tempType = typeStr switch
                 {
                     "int" => typeof(int),
@@ -140,6 +139,15 @@ namespace Serein.NodeFlow.Tool.SereinExpression
                     _ => Type.GetType(typeStr)
                 };
                 type = tempType ?? throw new ArgumentException("对象表达式无效的类型声明");
+                if (string.IsNullOrWhiteSpace(memberPath))
+                {
+                    targetObj = Convert.ChangeType(data, type);
+                }
+                else
+                {
+                    targetObj = GetMemberValue(data, memberPath);// 获取对象成员，作为表达式的目标对象
+                }
+
             }
 
             #region 解析类型 int

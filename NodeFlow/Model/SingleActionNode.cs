@@ -64,15 +64,15 @@ namespace Serein.NodeFlow.Model
         //        context.SetFlowData(result);
         //    }
         //}
-        public override Parameterdata[] GetParameterdatas()
+        internal override Parameterdata[] GetParameterdatas()
         {
             if (base.MethodDetails.ExplicitDatas.Length > 0)
             {
                 return MethodDetails.ExplicitDatas
                                      .Select(it => new Parameterdata
                                      {
-                                         state = it.IsExplicitData,
-                                         value = it.DataValue,
+                                         State = it.IsExplicitData,
+                                         Value = it.DataValue,
                                      })
                                      .ToArray();
             }

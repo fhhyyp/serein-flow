@@ -1,7 +1,9 @@
 ﻿using Serein.Library.Api;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -54,13 +56,13 @@ namespace Serein.Library.Entity
         /// 画布
         /// </summary>
 
-        public FlowCanvas canvas { get; set; }
+        public FlowCanvas Canvas { get; set; }
 
         /// <summary>
         /// 版本
         /// </summary>
 
-        public string versions { get; set; }
+        public string Versions { get; set; }
 
         // 预览位置
 
@@ -74,11 +76,11 @@ namespace Serein.Library.Entity
         /// <summary>
         /// 宽度
         /// </summary>
-        public float width { get; set; }
+        public float Width { get; set; }
         /// <summary>
         /// 高度
         /// </summary>
-        public float lenght { get; set; }
+        public float Lenght { get; set; }
     }
 
     /// <summary>
@@ -156,7 +158,7 @@ namespace Serein.Library.Entity
         /// <summary>
         /// 如果是区域控件，则会存在子项。
         /// </summary>
-        public NodeInfo[] ChildNodes { get; set; }
+        public string[] ChildNodeGuids { get; set; }
 
 
         /// <summary>
@@ -173,9 +175,9 @@ namespace Serein.Library.Entity
 
     public class Parameterdata
     {
-        public bool state { get; set; }
-        public string value { get; set; }
-        public string expression { get; set; }
+        public bool State { get; set; }
+        public string Value { get; set; }
+        public string Expression { get; set; }
 
     }
 
@@ -185,8 +187,13 @@ namespace Serein.Library.Entity
     /// </summary>
     public class Position
     {
-        public float X { get; set; }
-        public float Y { get; set; }
+        public Position(double x, double y)
+        {
+            this.X = x; this.Y = y;
+        }
+
+        public double X { get; set; } = 0;
+        public double Y { get; set; } = 0;
     }
 
 
