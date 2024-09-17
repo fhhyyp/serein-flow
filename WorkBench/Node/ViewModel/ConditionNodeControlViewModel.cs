@@ -35,9 +35,9 @@ namespace Serein.WorkBench.Node.ViewModel
         public ConditionNodeControlViewModel(SingleConditionNode node) : base(node)
         {
             this.singleConditionNode = node;
-            IsCustomData = false;
-            CustomData = "";
-            Expression = "PASS";
+            //IsCustomData = false;
+            //CustomData = "";
+            //Expression = "PASS";
         }
 
     }

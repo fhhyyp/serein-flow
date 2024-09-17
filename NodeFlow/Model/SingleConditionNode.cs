@@ -55,31 +55,43 @@ namespace Serein.NodeFlow.Model
             return result;
         }
 
-        public override Parameterdata[] GetParameterdatas()
+        internal override Parameterdata[] GetParameterdatas()
         {
-            if (base.MethodDetails.ExplicitDatas.Length > 0)
+            var value = CustomData switch
             {
-                return MethodDetails.ExplicitDatas
-                                     .Select(it => new Parameterdata
-                                     {
-                                         state = IsCustomData,
-                                         expression = Expression,
-                                         value = CustomData switch
-                                         {
-                                             Type when CustomData.GetType() == typeof(int)
-                                                        && CustomData.GetType() == typeof(double)
-                                                        && CustomData.GetType() == typeof(float)
-                                                             => ((double)CustomData).ToString(),
-                                             Type when CustomData.GetType() == typeof(bool) => ((bool)CustomData).ToString(),
-                                             _ => CustomData?.ToString()!,
-                                         }
-                                     })
-                                     .ToArray();
-            }
-            else
+                Type when CustomData.GetType() == typeof(int)
+                           && CustomData.GetType() == typeof(double)
+                           && CustomData.GetType() == typeof(float)
+                                => ((double)CustomData).ToString(),
+                Type when CustomData.GetType() == typeof(bool) => ((bool)CustomData).ToString(),
+                _ => CustomData?.ToString()!,
+            };
+            return [new Parameterdata
             {
-                return [];
+                State = IsCustomData,
+                Expression = Expression,
+                Value = value,
+            }];
+        }
+
+
+
+        internal override NodeModelBase LoadInfo(NodeInfo nodeInfo)
+        {
+            var node = this;
+            if (node != null)
+            {
+                node.Guid = nodeInfo.Guid;
+                for (int i = 0; i < nodeInfo.ParameterData.Length; i++)
+                {
+                    Parameterdata? pd = nodeInfo.ParameterData[i];
+                    node.IsCustomData = pd.State;
+                    node.CustomData = pd.Value;
+                    node.Expression = pd.Expression;
+
+                }
             }
+            return this;
         }
 
         //public override void Execute(DynamicContext context)

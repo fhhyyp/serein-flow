@@ -19,13 +19,13 @@ namespace Serein.NodeFlow.Model
             ActionNodes = actionNodes;
         }
 
-   
 
-        public override Parameterdata[] GetParameterdatas()
+
+        internal override Parameterdata[] GetParameterdatas()
         {
             return [];
         }
-        public override NodeInfo ToInfo()
+        internal override NodeInfo ToInfo()
         {
             if (MethodDetails == null) return null;
 
@@ -35,8 +35,8 @@ namespace Serein.NodeFlow.Model
             //var errorNodes = ErrorBranch.Select(item => item.Guid);// 异常分支
             var trueNodes = SuccessorNodes[ConnectionType.IsSucceed].Select(item => item.Guid); // 真分支
             var falseNodes = SuccessorNodes[ConnectionType.IsFail].Select(item => item.Guid);// 假分支
-            var upstreamNodes = SuccessorNodes[ConnectionType.IsError].Select(item => item.Guid);// 上游分支
-            var errorNodes = SuccessorNodes[ConnectionType.Upstream].Select(item => item.Guid);// 异常分支
+            var errorNodes = SuccessorNodes[ConnectionType.IsError].Select(item => item.Guid);// 异常分支
+            var upstreamNodes = SuccessorNodes[ConnectionType.Upstream].Select(item => item.Guid);// 上游分支
             // 生成参数列表
             Parameterdata[] parameterData = GetParameterdatas();
 
@@ -51,7 +51,7 @@ namespace Serein.NodeFlow.Model
                 UpstreamNodes = upstreamNodes.ToArray(),
                 ParameterData = parameterData.ToArray(),
                 ErrorNodes = errorNodes.ToArray(),
-                ChildNodes = ActionNodes.Select(node => node.ToInfo()).ToArray(),
+                ChildNodeGuids = ActionNodes.Select(node => node.Guid).ToArray(),
             };
         }
     }

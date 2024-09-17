@@ -48,23 +48,25 @@ namespace Serein.NodeFlow.Model
 
         }
 
-        public override Parameterdata[] GetParameterdatas()
+        internal override Parameterdata[] GetParameterdatas()
         {
-            if (base.MethodDetails.ExplicitDatas.Length > 0)
+            return [new Parameterdata{ Expression = Expression}];
+        }
+
+
+
+        internal override NodeModelBase LoadInfo(NodeInfo nodeInfo)
+        {
+            var node = this;
+            if (node != null)
             {
-                return MethodDetails.ExplicitDatas
-                                     .Select(it => new Parameterdata
-                                     {
-                                         state = it.IsExplicitData,
-                                         // value = it.DataValue,
-                                         expression = Expression,
-                                     })
-                                     .ToArray();
+                node.Guid = nodeInfo.Guid;
+                for (int i = 0; i < nodeInfo.ParameterData.Length; i++)
+                {
+                    node.Expression = nodeInfo.ParameterData[i].Expression;
+                }
             }
-            else
-            {
-                return [];
-            }
+            return this;
         }
     }
 }

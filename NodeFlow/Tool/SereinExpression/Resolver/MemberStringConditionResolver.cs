@@ -18,7 +18,16 @@ namespace Serein.NodeFlow.Tool.SereinExpression.Resolver
 
         public override bool Evaluate(object obj)
         {
-            object memberValue = GetMemberValue(obj, MemberPath);
+            object memberValue;
+            if (!string.IsNullOrWhiteSpace(MemberPath)) 
+            {
+                memberValue = GetMemberValue(obj, MemberPath);
+            }
+            else
+            {
+                memberValue = obj;
+            }
+            
             if (memberValue is string strObj)
             {
                 return new StringConditionResolver

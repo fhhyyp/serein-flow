@@ -22,7 +22,7 @@ namespace Serein.Library.Core.NodeFlow
 
         public Task CreateTimingTask(Action action, int time = 100, int count = -1)
         {
-            NodeRunCts ??= SereinIoc.GetOrInstantiate<NodeRunCts>();
+            NodeRunCts ??= SereinIoc.GetOrRegisterInstantiate<NodeRunCts>();
             return Task.Factory.StartNew(async () =>
             {
                 for (int i = 0; i < count; i++)

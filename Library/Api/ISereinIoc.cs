@@ -20,11 +20,11 @@ namespace Serein.Library.Api
         /// <summary>
         /// 获取或创建并注入目标类型
         /// </summary>
-        T GetOrInstantiate<T>();
+        T GetOrRegisterInstantiate<T>();
         /// <summary>
         /// 获取或创建并注入目标类型
         /// </summary>
-        object GetOrInstantiate(Type type);
+        object GetOrRegisterInstantiate(Type type);
 
         /// <summary>
         /// 创建目标类型的对象， 并注入依赖项

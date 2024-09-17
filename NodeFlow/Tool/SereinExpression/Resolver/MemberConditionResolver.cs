@@ -18,6 +18,8 @@ namespace Serein.NodeFlow.Tool.SereinExpression.Resolver
         public override bool Evaluate(object? obj)
         {
             //object? memberValue = GetMemberValue(obj, MemberPath);
+
+
             if (TargetObj is T typedObj)
             {
                 return new ValueTypeConditionResolver<T>

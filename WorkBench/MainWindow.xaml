@@ -6,6 +6,7 @@
         Title="Dynamic Node Flow" Height="700" Width="1200"
         AllowDrop="True" Drop="Window_Drop" DragOver="Window_DragOver"
         Loaded="Window_Loaded"
+        ContentRendered="Window_ContentRendered"
         Closing="Window_Closing">
 
     <Window.Resources>
@@ -82,7 +83,7 @@
             </Grid.RowDefinitions>
             <StackPanel Grid.Row="0" Background="#F5F5F5" Orientation="Horizontal" >
                 <Button x:Name="ButtonDebugRun"  Content="运行" Width="100" Margin="10" Click="ButtonDebugRun_Click"></Button>
-                <Button x:Name="ButtonDebugFlipflopNode"  Content="停止" Width="100" Margin="10" Click="ButtonDebugFlipflopNode_Click"></Button>
+                <Button x:Name="ButtonDebugFlipflopNode"  Content="结束" Width="100" Margin="10" Click="ButtonDebugFlipflopNode_Click"></Button>
             </StackPanel>
 
             <StackPanel  Grid.Row="1"
@@ -136,7 +137,7 @@
 
                     <!-- Bottom-Right Thumb -->
                     <Thumb x:Name="BottomRightThumb" 
-                           Width="10" Height="10"
+                           Width="40" Height="40"
                            DragDelta="Thumb_DragDelta_BottomRight"
                            Cursor="SizeNWSE"
                            Canvas.Left="{Binding ActualWidth, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource RightThumbPositionConverter}}" 

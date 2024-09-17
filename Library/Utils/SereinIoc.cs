@@ -1,5 +1,6 @@
 ﻿using Serein.Library.Api;
 using Serein.Library.Attributes;
+using Serein.Library.Web;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -14,41 +15,46 @@ namespace Serein.Library.Utils
     public class SereinIOC : ISereinIOC
     {
         /// <summary>
-        /// 实例集合
+        /// 类型集合，暂放待实例化的类型，完成实例化之后移除
+        /// </summary>
+        private readonly ConcurrentDictionary<string, Type> _typeMappings;
+
+        /// <summary>
+        /// 实例集合（包含已完成注入、未完成注入的对象实例，计划在未来的版本中区分：）
         /// </summary>
         private readonly ConcurrentDictionary<string, object> _dependencies;
+
         /// <summary>
         /// 未完成注入的实例集合。
         /// 键：需要的类型名称
-        /// 值：对象实例（存储对象）
+        /// 值：元组（对象实例，对象的属性）
         /// </summary>
         private readonly ConcurrentDictionary<string, List<(object,PropertyInfo)>> _unfinishedDependencies;
 
-        /// <summary>
-        /// 类型集合
-        /// </summary>
-        private readonly ConcurrentDictionary<string, Type> _typeMappings;
+
         /// <summary>
         /// 待实例化的类型
         /// </summary>
-        private readonly List<Type> _waitingForInstantiation;
+        // private readonly List<Type> _waitingForInstantiation;
 
         public SereinIOC()
         {
             // 首先注册自己
-            _dependencies = new ConcurrentDictionary<string, object>
-            {
-                [typeof(ISereinIOC).FullName] = this
-            };
-            _typeMappings = new ConcurrentDictionary<string, Type>
-            {
-                [typeof(ISereinIOC).FullName] = typeof(ISereinIOC)
-            };
+            _dependencies = new ConcurrentDictionary<string, object>();
+            _typeMappings = new ConcurrentDictionary<string, Type>(); 
             _unfinishedDependencies = new ConcurrentDictionary<string, List<(object, PropertyInfo)>>();
-            _waitingForInstantiation = new List<Type>();
         }
 
-
+        public void InitRegister()
+        {
+            _dependencies[typeof(ISereinIOC).FullName] = this;
+            Register<IRouter, Router>();
+            /*foreach (var type in _typeMappings.Values)
+            {
+                Register(type);
+            }
+            Build();*/
+        }
 
         #region 类型的注册
 
@@ -59,7 +65,7 @@ namespace Serein.Library.Utils
         /// <param name="parameters">参数</param>
         public ISereinIOC Register(Type type, params object[] parameters)
         {
-            RegisterType(type.FullName, type);
+            RegisterType(type?.FullName, type);
             return this;
         }
         /// <summary>
@@ -74,7 +80,11 @@ namespace Serein.Library.Utils
             return this;
         }
 
-
+        /// <summary>
+        /// 注册接口类型
+        /// </summary>
+        /// <param name="type">目标类型</param>
+        /// <param name="parameters">参数</param>
         public ISereinIOC Register<TService, TImplementation>(params object[] parameters)
             where TImplementation : TService
         {
@@ -88,7 +98,7 @@ namespace Serein.Library.Utils
         /// <summary>
         /// 尝试从容器中获取对象，如果不存在目标类型的对象，则将类型信息登记到容器，并实例化注入依赖项。
         /// </summary>
-        public object GetOrInstantiate(Type type)
+        public object GetOrRegisterInstantiate(Type type)
         {
             // 尝试从容器中获取对象
             if (!_dependencies.TryGetValue(type.FullName, out object value))
@@ -103,7 +113,7 @@ namespace Serein.Library.Utils
         /// <summary>
         /// 尝试从容器中获取对象，如果不存在目标类型的对象，则将类型信息登记到容器，并实例化注入依赖项。
         /// </summary>
-        public T GetOrInstantiate<T>()
+        public T GetOrRegisterInstantiate<T>()
         {
             var value = Instantiate(typeof(T));
             return (T)value;
@@ -144,7 +154,7 @@ namespace Serein.Library.Utils
             _unfinishedDependencies?.Clear();
             _typeMappings?.Clear();
             _dependencies?.Clear();
-            _waitingForInstantiation?.Clear();
+            // _waitingForInstantiation?.Clear();
             return this;
         }
 
@@ -154,6 +164,7 @@ namespace Serein.Library.Utils
         /// <returns></returns>
         public ISereinIOC Build()
         {
+            InitRegister();
             // 遍历已注册类型
             foreach (var type in _typeMappings.Values.ToArray())
             {
@@ -262,29 +273,29 @@ namespace Serein.Library.Utils
         /// <summary>
         /// 再次尝试注入目标实例的依赖项
         /// </summary>
-        private void TryInstantiateWaitingDependencies()
-        {
-            foreach (var waitingType in _waitingForInstantiation.ToList())
-            {
-                if (_typeMappings.TryGetValue(waitingType.FullName, out var implementationType))
-                {
-                    var instance = Instantiate(implementationType);
-                    if (instance != null)
-                    {
+        //private void TryInstantiateWaitingDependencies()
+        //{
+        //    foreach (var waitingType in _waitingForInstantiation.ToList())
+        //    {
+        //        if (_typeMappings.TryGetValue(waitingType.FullName, out var implementationType))
+        //        {
+        //            var instance = Instantiate(implementationType);
+        //            if (instance != null)
+        //            {
 
-                        _dependencies[waitingType.FullName] = instance;
+        //                _dependencies[waitingType.FullName] = instance;
 
-                        _waitingForInstantiation.Remove(waitingType);
-                    }
-                }
-            }
-        } 
+        //                _waitingForInstantiation.Remove(waitingType);
+        //            }
+        //        }
+        //    }
+        //} 
         #endregion
 
         #region run()
         public ISereinIOC Run<T>(Action<T> action)
         {
-            var service = GetOrInstantiate<T>();
+            var service = GetOrRegisterInstantiate<T>();
             if (service != null)
             {
                 action(service);
@@ -294,8 +305,8 @@ namespace Serein.Library.Utils
 
         public ISereinIOC Run<T1, T2>(Action<T1, T2> action)
         {
-            var service1 = GetOrInstantiate<T1>();
-            var service2 = GetOrInstantiate<T2>();
+            var service1 = GetOrRegisterInstantiate<T1>();
+            var service2 = GetOrRegisterInstantiate<T2>();
 
             action(service1, service2);
             return this;
@@ -303,69 +314,69 @@ namespace Serein.Library.Utils
 
         public ISereinIOC Run<T1, T2, T3>(Action<T1, T2, T3> action)
         {
-            var service1 = GetOrInstantiate<T1>();
-            var service2 = GetOrInstantiate<T2>();
-            var service3 = GetOrInstantiate<T3>();
+            var service1 = GetOrRegisterInstantiate<T1>();
+            var service2 = GetOrRegisterInstantiate<T2>();
+            var service3 = GetOrRegisterInstantiate<T3>();
             action(service1, service2, service3);
             return this;
         }
 
         public ISereinIOC Run<T1, T2, T3, T4>(Action<T1, T2, T3, T4> action)
         {
-            var service1 = GetOrInstantiate<T1>();
-            var service2 = GetOrInstantiate<T2>();
-            var service3 = GetOrInstantiate<T3>();
-            var service4 = GetOrInstantiate<T4>();
+            var service1 = GetOrRegisterInstantiate<T1>();
+            var service2 = GetOrRegisterInstantiate<T2>();
+            var service3 = GetOrRegisterInstantiate<T3>();
+            var service4 = GetOrRegisterInstantiate<T4>();
             action(service1, service2, service3, service4);
             return this;
         }
 
         public ISereinIOC Run<T1, T2, T3, T4, T5>(Action<T1, T2, T3, T4, T5> action)
         {
-            var service1 = GetOrInstantiate<T1>();
-            var service2 = GetOrInstantiate<T2>();
-            var service3 = GetOrInstantiate<T3>();
-            var service4 = GetOrInstantiate<T4>();
-            var service5 = GetOrInstantiate<T5>();
+            var service1 = GetOrRegisterInstantiate<T1>();
+            var service2 = GetOrRegisterInstantiate<T2>();
+            var service3 = GetOrRegisterInstantiate<T3>();
+            var service4 = GetOrRegisterInstantiate<T4>();
+            var service5 = GetOrRegisterInstantiate<T5>();
             action(service1, service2, service3, service4, service5);
             return this;
         }
 
         public ISereinIOC Run<T1, T2, T3, T4, T5, T6>(Action<T1, T2, T3, T4, T5, T6> action)
         {
-            var service1 = GetOrInstantiate<T1>();
-            var service2 = GetOrInstantiate<T2>();
-            var service3 = GetOrInstantiate<T3>();
-            var service4 = GetOrInstantiate<T4>();
-            var service5 = GetOrInstantiate<T5>();
-            var service6 = GetOrInstantiate<T6>();
+            var service1 = GetOrRegisterInstantiate<T1>();
+            var service2 = GetOrRegisterInstantiate<T2>();
+            var service3 = GetOrRegisterInstantiate<T3>();
+            var service4 = GetOrRegisterInstantiate<T4>();
+            var service5 = GetOrRegisterInstantiate<T5>();
+            var service6 = GetOrRegisterInstantiate<T6>();
             action(service1, service2, service3, service4, service5, service6);
             return this;
         }
 
         public ISereinIOC Run<T1, T2, T3, T4, T5, T6, T7>(Action<T1, T2, T3, T4, T5, T6, T7> action)
         {
-            var service1 = GetOrInstantiate<T1>();
-            var service2 = GetOrInstantiate<T2>();
-            var service3 = GetOrInstantiate<T3>();
-            var service4 = GetOrInstantiate<T4>();
-            var service5 = GetOrInstantiate<T5>();
-            var service6 = GetOrInstantiate<T6>();
-            var service7 = GetOrInstantiate<T7>();
+            var service1 = GetOrRegisterInstantiate<T1>();
+            var service2 = GetOrRegisterInstantiate<T2>();
+            var service3 = GetOrRegisterInstantiate<T3>();
+            var service4 = GetOrRegisterInstantiate<T4>();
+            var service5 = GetOrRegisterInstantiate<T5>();
+            var service6 = GetOrRegisterInstantiate<T6>();
+            var service7 = GetOrRegisterInstantiate<T7>();
             action(service1, service2, service3, service4, service5, service6, service7);
             return this;
         }
 
         public ISereinIOC Run<T1, T2, T3, T4, T5, T6, T7, T8>(Action<T1, T2, T3, T4, T5, T6, T7, T8> action)
         {
-            var service1 = GetOrInstantiate<T1>();
-            var service2 = GetOrInstantiate<T2>();
-            var service3 = GetOrInstantiate<T3>();
-            var service4 = GetOrInstantiate<T4>();
-            var service5 = GetOrInstantiate<T5>();
-            var service6 = GetOrInstantiate<T6>();
-            var service7 = GetOrInstantiate<T7>();
-            var service8 = GetOrInstantiate<T8>();
+            var service1 = GetOrRegisterInstantiate<T1>();
+            var service2 = GetOrRegisterInstantiate<T2>();
+            var service3 = GetOrRegisterInstantiate<T3>();
+            var service4 = GetOrRegisterInstantiate<T4>();
+            var service5 = GetOrRegisterInstantiate<T5>();
+            var service6 = GetOrRegisterInstantiate<T6>();
+            var service7 = GetOrRegisterInstantiate<T7>();
+            var service8 = GetOrRegisterInstantiate<T8>();
             action(service1, service2, service3, service4, service5, service6, service7, service8);
             return this;
         }
