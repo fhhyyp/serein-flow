@@ -114,8 +114,6 @@ public static class MethodDetailsHelperTmp
             {
                 IsExplicitData = it.HasDefaultValue,
                 Index = index,
-                ExplicitType = it.ParameterType,
-                ExplicitTypeName = explicitTypeName,
                 DataType = it.ParameterType,
                 ParameterName = it.Name,
                 DataValue = it.HasDefaultValue ? it.DefaultValue.ToString() : "",

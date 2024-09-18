@@ -23,6 +23,12 @@ namespace Serein.NodeFlow.Base
                 SuccessorNodes[ctType] = [];
             }
         }
+
+        /// <summary>
+        /// 是否中断（调试中断功能）
+        /// </summary>
+        public bool IsInterrupt { get; set; }
+
         /// <summary>
         /// 节点对应的控件类型
         /// </summary>
@@ -66,11 +72,6 @@ namespace Serein.NodeFlow.Base
         public ConnectionType NextOrientation { get; set; } = ConnectionType.None;
 
         /// <summary>
-        /// 当前执行状态（进入真分支还是假分支，异常分支在异常中确定）
-        /// </summary>
-        // public FlowStateType FlowState { get; set; } = FlowStateType.Cancel;
-
-        /// <summary>
         /// 运行时的异常信息（仅在 FlowState 为 Error 时存在对应值）
         /// </summary>
         public Exception RuningException { get; set; } = null;
@@ -80,9 +81,16 @@ namespace Serein.NodeFlow.Base
         /// </summary>
         public object? FlowData { get; set; } = null;
 
-        // public NodeModelBaseBuilder Build() => new NodeModelBaseBuilder(this);
     }
 
+
+    public class DebugInfo
+    {
+        /// <summary>
+        /// 是否中断
+        /// </summary>
+        public bool IsInterrupt { get;set; }
+    }
 
 
     /// <summary>

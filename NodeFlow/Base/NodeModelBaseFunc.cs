@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Serein.Library.Api;
 using Serein.Library.Entity;
 using Serein.Library.Enums;
@@ -7,6 +8,7 @@ using Serein.NodeFlow.Tool.SereinExpression;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -18,6 +20,8 @@ namespace Serein.NodeFlow.Base
     /// </summary>
     public abstract partial class NodeModelBase : IDynamicFlowNode
     {
+        #region 导出/导入项目文件节点信息
+
         internal abstract Parameterdata[] GetParameterdatas();
         internal virtual NodeInfo ToInfo()
         {
@@ -42,7 +46,7 @@ namespace Serein.NodeFlow.Base
                 UpstreamNodes = upstreamNodes.ToArray(),
                 ParameterData = parameterData.ToArray(),
                 ErrorNodes = errorNodes.ToArray(),
-                
+
             };
         }
 
@@ -78,6 +82,7 @@ namespace Serein.NodeFlow.Base
             return this;
         }
 
+        #endregion
 
 
         /// <summary>
@@ -89,7 +94,7 @@ namespace Serein.NodeFlow.Base
         {
             var cts = context.SereinIoc.GetOrRegisterInstantiate<CancellationTokenSource>();
 
-            Stack<NodeModelBase> stack = [];
+            Stack<NodeModelBase> stack = new Stack<NodeModelBase>();
             stack.Push(this);
 
             while (stack.Count > 0 && !cts.IsCancellationRequested) // 循环中直到栈为空才会退出循环
@@ -98,31 +103,28 @@ namespace Serein.NodeFlow.Base
                 var currentNode = stack.Pop();
 
                 // 设置方法执行的对象
-                if (currentNode.MethodDetails is not null && currentNode.MethodDetails.ActingInstanceType is not null)
+                if (currentNode.MethodDetails?.ActingInstance == null && currentNode.MethodDetails?.ActingInstanceType is not null)
                 {
-                    // currentNode.MethodDetails.ActingInstance ??= context.SereinIoc.GetOrInstantiate(MethodDetails.ActingInstanceType);
-                    // currentNode.MethodDetails.ActingInstance = context.SereinIoc.GetOrInstantiate(MethodDetails.ActingInstanceType);
-
-                    currentNode.MethodDetails.ActingInstance = context.SereinIoc.GetOrRegisterInstantiate(currentNode.MethodDetails.ActingInstanceType);
+                    currentNode.MethodDetails.ActingInstance ??= context.SereinIoc.GetOrRegisterInstantiate(currentNode.MethodDetails.ActingInstanceType);
                 }
 
-                // 获取上游分支，首先执行一次
+                // 首先执行上游分支
                 var upstreamNodes = currentNode.SuccessorNodes[ConnectionType.Upstream];
                 for (int i = upstreamNodes.Count - 1; i >= 0; i--)
                 {
                     upstreamNodes[i].PreviousNode = currentNode;
-                    await upstreamNodes[i].StartExecution(context);
+                    await upstreamNodes[i].StartExecution(context); // 执行上游分支
                 }
 
+                // 判断是否为触发器节点，如果是，则开始等待。
                 if (currentNode.MethodDetails != null && currentNode.MethodDetails.MethodDynamicType == NodeType.Flipflop)
                 {
-                    // 触发器节点
-                    currentNode.FlowData = await currentNode.ExecuteAsync(context);
+                    
+                    currentNode.FlowData = await currentNode.ExecuteAsync(context); // 流程中遇到了触发器
                 }
                 else
                 {
-                    // 动作节点
-                    currentNode.FlowData = currentNode.Execute(context);
+                    currentNode.FlowData = currentNode.Execute(context); // 流程中正常执行
                 }
 
                 if(currentNode.NextOrientation == ConnectionType.None)
@@ -131,6 +133,7 @@ namespace Serein.NodeFlow.Base
                     break;
                 }
 
+                // 获取下一分支
                 var nextNodes = currentNode.SuccessorNodes[currentNode.NextOrientation];
 
                 // 将下一个节点集合中的所有节点逆序推入栈中
@@ -151,35 +154,21 @@ namespace Serein.NodeFlow.Base
         public virtual object? Execute(IDynamicContext context)
         {
             MethodDetails md = MethodDetails;
-            object? result = null;
             var del = md.MethodDelegate;
+            object instance = md.ActingInstance;
+
+            var haveParameter = md.ExplicitDatas.Length > 0;
+            var haveResult = md.ReturnType != typeof(void);
             try
             {
-                if (md.ExplicitDatas.Length == 0)
+                // Action/Func([方法作用的实例],[可能的参数值],[可能的返回值])
+                object? result = (haveParameter, haveResult) switch
                 {
-                    if (md.ReturnType == typeof(void))
-                    {
-                        ((Action<object>)del).Invoke(md.ActingInstance);
-                    }
-                    else
-                    {
-                        result = ((Func<object, object>)del).Invoke(md.ActingInstance);
-                    }
-                }
-                else
-                {
-                    object?[]? parameters = GetParameters(context, MethodDetails);
-                    if (md.ReturnType == typeof(void))
-                    {
-                        ((Action<object, object[]>)del).Invoke(md.ActingInstance, parameters);
-                    }
-                    else
-                    {
-                        var func = del as Func<object, object[], object>;
-                        //result = ((Func<object, object[], object>)del).Invoke(md.ActingInstance, parameters);
-                        result = func?.Invoke(md.ActingInstance, parameters);
-                    }
-                }
+                    (false, false) => Execution((Action<object>)del, instance), // 调用节点方法，返回null
+                    (true, false) => Execution((Action<object, object?[]?>)del, instance, GetParameters(context, md)),  // 调用节点方法，返回null
+                    (false, true) => Execution((Func<object, object?>)del, instance),  // 调用节点方法，返回方法传回类型
+                    (true, true) => Execution((Func<object, object?[]?, object?>)del, instance, GetParameters(context, md)), // 调用节点方法，获取入参参数，返回方法忏悔类型
+                };
                 NextOrientation = ConnectionType.IsSucceed;
                 return result;
             }
@@ -187,9 +176,8 @@ namespace Serein.NodeFlow.Base
             {
                 NextOrientation = ConnectionType.IsError;
                 RuningException = ex;
+                return null;
             }
-
-            return result;
         }
 
         /// <summary>
@@ -201,41 +189,63 @@ namespace Serein.NodeFlow.Base
         public virtual async Task<object?> ExecuteAsync(IDynamicContext context)
         {
             MethodDetails md = MethodDetails;
-            object? result = null;
-
-            IFlipflopContext flipflopContext = null;
+            Delegate del = md.MethodDelegate;
+            object instance = md.ActingInstance;
+            var haveParameter = md.ExplicitDatas.Length >= 0;
             try
             {
                 // 调用委托并获取结果
-                if (md.ExplicitDatas.Length == 0)
+                Task<IFlipflopContext> flipflopTask = haveParameter switch
                 {
-                    flipflopContext = await ((Func<object, Task<IFlipflopContext>>)md.MethodDelegate).Invoke(MethodDetails.ActingInstance);
-                }
-                else
-                {
-                    object?[]? parameters = GetParameters(context, MethodDetails);
-                    flipflopContext = await ((Func<object, object[], Task<IFlipflopContext>>)md.MethodDelegate).Invoke(MethodDetails.ActingInstance, parameters);
-                }
-                if (flipflopContext == null)
-                {
-                    throw new FlipflopException("没有返回上下文");
-                }
+                    true => ((Func<object, object?[]?, Task<IFlipflopContext>>)del).Invoke(instance, GetParameters(context, md)), // 执行流程中的触发器方法时获取入参参数
+                    false => ((Func<object, Task<IFlipflopContext>>)del).Invoke(instance),
+                };
+
+                IFlipflopContext flipflopContext = (await flipflopTask) ?? throw new FlipflopException("没有返回上下文");
                 NextOrientation = flipflopContext.State.ToContentType();
-                result = flipflopContext.Data;
+                return flipflopContext.Data;
             }
+            //catch(FlipflopException ex)
+            //{
+            //    NextOrientation = ConnectionType.IsError;
+            //    RuningException = ex;
+            //    return null;
+            //}
             catch (Exception ex)
             {
                 NextOrientation = ConnectionType.IsError;
                 RuningException = ex;
+                return null;
             }
-
-            return result;
         }
+
+
+        #region 节点转换的委托类型
+        public static object? Execution(Action<object> del, object instance)
+        {
+            del?.Invoke(instance);
+            return null;
+        }
+        public static object? Execution(Action<object, object?[]?> del, object instance, object?[]? parameters)
+        {
+            del?.Invoke(instance, parameters);
+            return null;
+        }
+        public static object? Execution(Func<object, object?> del, object instance)
+        {
+            return del?.Invoke(instance);
+        }
+        public static object? Execution(Func<object, object?[]?, object?> del, object instance, object?[]? parameters)
+        {
+            return del?.Invoke(instance, parameters);
+        }
+        #endregion
+
 
         /// <summary>
         /// 获取对应的参数数组
         /// </summary>
-        public object[]? GetParameters(IDynamicContext context, MethodDetails md)
+        public object?[]? GetParameters(IDynamicContext context, MethodDetails md)
         {
             // 用正确的大小初始化参数数组
             var types = md.ExplicitDatas.Select(it => it.DataType).ToArray();
@@ -244,151 +254,67 @@ namespace Serein.NodeFlow.Base
                 return [md.ActingInstance];
             }
 
-            object[]? parameters = new object[types.Length];
+            object?[]? parameters = new object[types.Length];
+            var flowData = PreviousNode?.FlowData; // 当前传递的数据
+            var previousDataType = flowData?.GetType();
 
             for (int i = 0; i < types.Length; i++)
             {
-
-                var mdEd = md.ExplicitDatas[i];
-                Type type = mdEd.DataType;
-
-                var f1 = PreviousNode?.FlowData?.GetType();
-                var f2 = mdEd.DataType;
-                if (type == typeof(IDynamicContext))
+                if (flowData is null)
                 {
-                    parameters[i] = context;
-                }
-                else if (type == typeof(MethodDetails))
-                {
-                    parameters[i] = md;
-                }
-                else if (type == typeof(NodeModelBase))
-                {
-                    parameters[i] = this;
-                }
-                else if (mdEd.IsExplicitData) // 显式参数
-                {
-                    // 判断是否使用表达式解析
-                    if (mdEd.DataValue[0] == '@')
+                    parameters[i] = md.ExplicitDatas[i].DataType switch
                     {
-                        var expResult = SerinExpressionEvaluator.Evaluate(mdEd.DataValue, PreviousNode?.FlowData, out bool isChange);
-
-
-                        if (mdEd.DataType.IsEnum)
-                        {
-                            var enumValue = Enum.Parse(mdEd.DataType, mdEd.DataValue);
-                            parameters[i] = enumValue;
-                        }
-                        else if (mdEd.ExplicitType == typeof(string))
-                        {
-                            parameters[i] = Convert.ChangeType(expResult, typeof(string));
-                        }
-                        else if (mdEd.ExplicitType == typeof(bool))
-                        {
-                            parameters[i] = Convert.ChangeType(expResult, typeof(bool));
-                        }
-                        else if (mdEd.ExplicitType == typeof(int))
-                        {
-                            parameters[i] = Convert.ChangeType(expResult, typeof(int));
-                        }
-                        else if (mdEd.ExplicitType == typeof(double))
-                        {
-                            parameters[i] = Convert.ChangeType(expResult, typeof(double));
-                        }
-                        else
-                        {
-                            parameters[i] = expResult;
-                            //parameters[i] = ConvertValue(mdEd.DataValue, mdEd.ExplicitType);
-                        }
-                    }
-                    else
-                    {
-                        if (mdEd.DataType.IsEnum)
-                        {
-                            var enumValue = Enum.Parse(mdEd.DataType, mdEd.DataValue);
-                            parameters[i] = enumValue;
-                        }
-                        else if (mdEd.ExplicitType == typeof(string))
-                        {
-                            parameters[i] = mdEd.DataValue;
-                        }
-                        else if (mdEd.ExplicitType == typeof(bool))
-                        {
-                            parameters[i] = bool.Parse(mdEd.DataValue);
-                        }
-                        else if (mdEd.ExplicitType == typeof(int))
-                        {
-                            parameters[i] = int.Parse(mdEd.DataValue);
-                        }
-                        else if (mdEd.ExplicitType == typeof(double))
-                        {
-                            parameters[i] = double.Parse(mdEd.DataValue);
-                        }
-                        else
-                        {
-                            parameters[i] = "";
-
-                            //parameters[i] = ConvertValue(mdEd.DataValue, mdEd.ExplicitType);
-                        }
-                    }
-
-
+                        Type t when t == typeof(IDynamicContext) => context, // 上下文
+                        Type t when t == typeof(MethodDetails) => md, // 节点方法描述
+                        Type t when t == typeof(NodeModelBase) => this, // 节点实体类
+                        _ => null,
+                    };
+                    continue; // 上一节点数据为空，提前跳过
                 }
-                else if (f1 != null && f2 != null)
-                {
-                    if (f2.IsAssignableFrom(f1) || f2.FullName.Equals(f1.FullName))
-                    {
-                        parameters[i] = PreviousNode?.FlowData;
+                object? inputParameter; // 
+                var ed = md.ExplicitDatas[i]; // 方法入参描述
 
-                    }
+                // 检测是否为表达式
+                if (ed.IsExplicitData && ed.DataValue.StartsWith("@get", StringComparison.OrdinalIgnoreCase))
+                {
+                    inputParameter = SerinExpressionEvaluator.Evaluate(ed.DataValue, flowData, out _);  // 执行表达式从上一节点获取对象
                 }
                 else
                 {
-
-
-                    var tmpParameter = PreviousNode?.FlowData?.ToString();
-                    if (mdEd.DataType.IsEnum)
-                    {
-
-                        var enumValue = Enum.Parse(mdEd.DataType, tmpParameter);
-
-                        parameters[i] = enumValue;
-                    }
-                    else if (mdEd.DataType == typeof(string))
-                    {
-
-                        parameters[i] = tmpParameter;
-
-                    }
-                    else if (mdEd.DataType == typeof(bool))
-                    {
-
-                        parameters[i] = bool.Parse(tmpParameter);
-
-                    }
-                    else if (mdEd.DataType == typeof(int))
-                    {
-
-                        parameters[i] = int.Parse(tmpParameter);
-
-                    }
-                    else if (mdEd.DataType == typeof(double))
-                    {
-
-                        parameters[i] = double.Parse(tmpParameter);
-
-                    }
-                    else
-                    {
-                        if (tmpParameter != null && mdEd.DataType != null)
-                        {
-
-                            parameters[i] = ConvertValue(tmpParameter, mdEd.DataType);
-
-                        }
-                    }
+                    inputParameter = flowData;   // 使用上一节点的对象
                 }
 
+                try
+                {
+                    parameters[i] = ed.DataType switch
+                    {
+                        Type t when t == previousDataType => context, // 上下文
+                        Type t when t == typeof(IDynamicContext) => context, // 上下文
+                        Type t when t == typeof(MethodDetails) => md, // 节点方法描述
+                        Type t when t == typeof(NodeModelBase) => this, // 节点实体类
+                        Type t when t == typeof(Guid) => new Guid(inputParameter?.ToString()),
+                        Type t when t == typeof(decimal) => decimal.Parse(inputParameter?.ToString()),
+                        Type t when t == typeof(string) => inputParameter?.ToString(),
+                        Type t when t == typeof(char) => char.Parse(inputParameter?.ToString()),
+                        Type t when t == typeof(bool) => bool.Parse(inputParameter?.ToString()),
+                        Type t when t == typeof(byte) => byte.Parse(inputParameter?.ToString()),
+                        Type t when t == typeof(int) => int.Parse(inputParameter?.ToString()),
+                        Type t when t == typeof(long) => long.Parse(inputParameter?.ToString()),
+                        Type t when t == typeof(DateTime) => DateTime.Parse(inputParameter?.ToString()),
+                        Type t when t == typeof(float) => float.Parse(inputParameter?.ToString()),
+                        Type t when t == typeof(double) => double.Parse(inputParameter?.ToString()),
+                        Type t when t.IsEnum => Enum.Parse(ed.DataType, ed.DataValue),// 需要枚举
+                        Type t when t.IsArray => (inputParameter as Array)?.Cast<object>().ToList(),
+                        Type t when t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>) => inputParameter,
+                        Type t when Nullable.GetUnderlyingType(t) != null => inputParameter == null ? null : Convert.ChangeType(inputParameter, Nullable.GetUnderlyingType(t)),
+                        _ => inputParameter,
+                    };
+                }
+                catch (Exception ex) // 节点参数类型转换异常
+                {
+                    parameters[i] = null;
+                    Console.WriteLine(ex);
+                }
             }
             return parameters;
         }
@@ -431,92 +357,5 @@ namespace Serein.NodeFlow.Base
                 return value;
             }
         }
-
-
-
-
-
-        #region 完整的ExecuteAsync调用方法（不要删除）
-        //public virtual async Task<object?> ExecuteAsync(DynamicContext context)
-        //{
-        //    MethodDetails md = MethodDetails;
-        //    object? result = null;
-        //    if (DelegateCache.GlobalDicDelegates.TryGetValue(md.MethodName, out Delegate del))
-        //    {
-        //        if (md.ExplicitDatas.Length == 0)
-        //        {
-        //            if (md.ReturnType == typeof(void))
-        //            {
-        //                ((Action<object>)del).Invoke(md.ActingInstance);
-        //            }
-        //            else if (md.ReturnType == typeof(Task<FlipflopContext>))
-        //            {
-        //                // 调用委托并获取结果
-        //                FlipflopContext flipflopContext = await ((Func<object, Task<FlipflopContext>>)del).Invoke(MethodDetails.ActingInstance);
-
-        //                if (flipflopContext != null)
-        //                {
-        //                    if (flipflopContext.State == FfState.Cancel)
-        //                    {
-        //                        throw new Exception("this async task is cancel.");
-        //                    }
-        //                    else
-        //                    {
-        //                        if (flipflopContext.State == FfState.Succeed)
-        //                        {
-        //                            CurrentState = true;
-        //                            result = flipflopContext.Data;
-        //                        }
-        //                        else
-        //                        {
-        //                            CurrentState = false;
-        //                        }
-        //                    }
-        //                }
-        //            }
-        //            else
-        //            {
-        //                result = ((Func<object, object>)del).Invoke(md.ActingInstance);
-        //            }
-        //        }
-        //        else
-        //        {
-        //            object?[]? parameters = GetParameters(context, MethodDetails);
-        //            if (md.ReturnType == typeof(void))
-        //            {
-        //                ((Action<object, object[]>)del).Invoke(md.ActingInstance, parameters);
-        //            }
-        //            else if (md.ReturnType == typeof(Task<FlipflopContext>))
-        //            {
-        //                // 调用委托并获取结果
-        //                FlipflopContext flipflopContext = await ((Func<object, object[], Task<FlipflopContext>>)del).Invoke(MethodDetails.ActingInstance, parameters);
-
-        //                if (flipflopContext != null)
-        //                {
-        //                    if (flipflopContext.State == FfState.Cancel)
-        //                    {
-        //                        throw new Exception("取消此异步");
-        //                    }
-        //                    else
-        //                    {
-        //                        CurrentState = flipflopContext.State == FfState.Succeed;
-        //                        result = flipflopContext.Data;
-        //                    }
-        //                }
-        //            }
-        //            else
-        //            {
-        //                result = ((Func<object, object[], object>)del).Invoke(md.ActingInstance, parameters);
-        //            }
-        //        }
-        //        context.SetFlowData(result);
-        //    }
-        //    return result;
-        //} 
-        #endregion
-
-
-
-
     }
 }
