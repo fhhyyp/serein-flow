@@ -19,14 +19,14 @@ namespace Serein.Library.Entity
         /// 是否为显式参数
         /// </summary>
         public bool IsExplicitData { get; set; }
-        /// <summary>
-        /// 显式类型
-        /// </summary>
-        public Type ExplicitType { get; set; }
+        ///// <summary>
+        ///// 显式类型
+        ///// </summary>
+        //public Type ExplicitType { get; set; }
 
-        /// <summary>
-        /// 显示类型编号>
-        /// </summary>
+        ///// <summary>
+        ///// 显示类型编号>
+        ///// </summary>
         public string ExplicitTypeName { get; set; }
 
         /// <summary>
@@ -56,7 +56,7 @@ namespace Serein.Library.Entity
         {
             Index = Index,
             IsExplicitData = IsExplicitData,
-            ExplicitType = ExplicitType,
+            // ExplicitType = ExplicitType,
             DataType = DataType,
             ParameterName = ParameterName,
             ExplicitTypeName = ExplicitTypeName,

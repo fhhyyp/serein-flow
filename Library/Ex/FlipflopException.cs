@@ -1,4 +1,5 @@
 ﻿using System;
+using System.CodeDom;
 
 namespace Serein.Library.Ex
 {
@@ -7,6 +8,7 @@ namespace Serein.Library.Ex
     /// </summary>
     public class FlipflopException: Exception
     {
+
         public bool IsCancel { get; }
         public FlipflopException(string message, bool isCancel = true) :base(message) 
         {

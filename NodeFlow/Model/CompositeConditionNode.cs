@@ -26,8 +26,6 @@ namespace Serein.NodeFlow.Model
         /// <returns></returns>
         public override object? Execute(IDynamicContext context)
         {
-            // NextOrientation = ConnectionType.IsSucceed;
-
             // 条件区域中遍历每个条件节点
             foreach (SingleConditionNode? node in ConditionNodes)
             {
@@ -39,9 +37,7 @@ namespace Serein.NodeFlow.Model
                     break;
                 }
             }
-           
             return PreviousNode?.FlowData;
-            
         }
 
         

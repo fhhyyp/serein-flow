@@ -40,8 +40,23 @@ namespace Serein.Library.Web
             }
 
             listener.Prefixes.Add(prefixe); // 添加监听前缀
-
-            listener.Start(); // 开始监听
+            try
+            {
+                listener.Start(); // 开始监听
+                Task.Run(async () =>
+                {
+                    while (listener.IsListening)
+                    {
+                        var context = await listener.GetContextAsync(); // 获取请求上下文
+                        ProcessRequestAsync(context); // 处理请求
+                    }
+                });
+            }
+            catch(Exception ex)
+            {
+                listener = null;
+                Console.WriteLine(ex);
+            }
 
             //_ = Task.Run(async () =>
             //{
@@ -58,14 +73,7 @@ namespace Serein.Library.Web
             //    }
             //});
 
-            Task.Run(async () =>
-            {
-                while (listener.IsListening)
-                {
-                    var context = await listener.GetContextAsync(); // 获取请求上下文
-                    ProcessRequestAsync(context); // 处理请求
-                }
-            });
+           
             
             return this;
         }
@@ -115,8 +123,8 @@ namespace Serein.Library.Web
         // 停止服务器
         public void Stop()
         {
-            listener.Stop(); // 停止监听
-            listener.Close(); // 关闭监听器
+            listener?.Stop(); // 停止监听
+            listener?.Close(); // 关闭监听器
         }
 
     }

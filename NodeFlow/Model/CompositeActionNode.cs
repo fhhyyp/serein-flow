@@ -1,4 +1,5 @@
-﻿using Serein.Library.Entity;
+﻿using Serein.Library.Api;
+using Serein.Library.Entity;
 using Serein.Library.Enums;
 using Serein.NodeFlow.Base;
 
@@ -19,7 +20,10 @@ namespace Serein.NodeFlow.Model
             ActionNodes = actionNodes;
         }
 
-
+        public override object? Execute(IDynamicContext context)
+        {
+            throw new NotImplementedException("动作区域暂未实现");
+        }
 
         internal override Parameterdata[] GetParameterdatas()
         {

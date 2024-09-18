@@ -114,7 +114,7 @@ public static class MethodDetailsHelperTmp
             {
                 IsExplicitData = it.HasDefaultValue,
                 Index = index,
-                ExplicitType = it.ParameterType,
+                // ExplicitType = it.ParameterType,
                 ExplicitTypeName = explicitTypeName,
                 DataType = it.ParameterType,
                 ParameterName = it.Name,
