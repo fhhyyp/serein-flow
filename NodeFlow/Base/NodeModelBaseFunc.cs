@@ -260,24 +260,34 @@ namespace Serein.NodeFlow.Base
 
             for (int i = 0; i < types.Length; i++)
             {
-                if (flowData is null)
-                {
-                    parameters[i] = md.ExplicitDatas[i].DataType switch
-                    {
-                        Type t when t == typeof(IDynamicContext) => context, // 上下文
-                        Type t when t == typeof(MethodDetails) => md, // 节点方法描述
-                        Type t when t == typeof(NodeModelBase) => this, // 节点实体类
-                        _ => null,
-                    };
-                    continue; // 上一节点数据为空，提前跳过
-                }
+                //if (flowData is null)
+                //{
+                //    parameters[i] = md.ExplicitDatas[i].DataType switch
+                //    {
+                //        Type t when t == typeof(IDynamicContext) => context, // 上下文
+                //        Type t when t == typeof(MethodDetails) => md, // 节点方法描述
+                //        Type t when t == typeof(NodeModelBase) => this, // 节点实体类
+                //        _ => null,
+                //    };
+                //    continue; // 上一节点数据为空，提前跳过
+                //}
                 object? inputParameter; // 
                 var ed = md.ExplicitDatas[i]; // 方法入参描述
 
-                // 检测是否为表达式
-                if (ed.IsExplicitData && ed.DataValue.StartsWith("@get", StringComparison.OrdinalIgnoreCase))
+                
+                if (ed.IsExplicitData)
                 {
-                    inputParameter = SerinExpressionEvaluator.Evaluate(ed.DataValue, flowData, out _);  // 执行表达式从上一节点获取对象
+                   
+                    if (ed.DataValue.StartsWith("@get", StringComparison.OrdinalIgnoreCase))  
+                    {
+                        // 执行表达式从上一节点获取对象
+                        inputParameter = SerinExpressionEvaluator.Evaluate(ed.DataValue, flowData, out _);  
+                    }
+                    else 
+                    {
+                        // 使用输入的固定值
+                        inputParameter = ed.DataValue;  
+                    }
                 }
                 else
                 {
