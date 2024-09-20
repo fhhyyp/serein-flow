@@ -55,7 +55,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Library\Serein.Library.csproj">
-      <Project>{9FCE93C2-2278-46F3-96AB-CDAAFF27A55F}</Project>
+      <Project>{5E19D0F2-913A-4D1C-A6F8-1E1227BAA0E3}</Project>
       <Name>Serein.Library</Name>
     </ProjectReference>
   </ItemGroup>

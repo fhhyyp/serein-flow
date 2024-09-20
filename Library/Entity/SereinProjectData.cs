@@ -63,10 +63,6 @@ namespace Serein.Library.Entity
         /// </summary>
 
         public string Versions { get; set; }
-
-        // 预览位置
-
-        // 缩放比例
     }
     /// <summary>
     /// 画布
@@ -76,11 +72,31 @@ namespace Serein.Library.Entity
         /// <summary>
         /// 宽度
         /// </summary>
-        public float Width { get; set; }
+        public double Width { get; set; }
         /// <summary>
         /// 高度
         /// </summary>
-        public float Lenght { get; set; }
+        public double Lenght { get; set; }
+
+        /// <summary>
+        /// 预览位置X
+        /// </summary>
+        public double ViewX { get; set; }
+
+        /// <summary>
+        /// 预览位置Y
+        /// </summary>
+        public double ViewY { get; set; }
+
+        /// <summary>
+        /// 缩放比例X
+        /// </summary>
+        public double ScaleX { get; set; }
+
+        /// <summary>
+        /// 缩放比例Y
+        /// </summary>
+        public double ScaleY { get; set; }
     }
 
     /// <summary>

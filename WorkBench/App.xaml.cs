@@ -120,7 +120,7 @@ namespace Serein.WorkBench
         /// <summary>
         /// 成功加载的工程文件
         /// </summary>
-        public static SereinProjectData? FData { get; set; }
+        public static SereinProjectData? FlowProjectData { get; set; }
         public static string FileDataPath = "";
         private void Application_Startup(object sender, StartupEventArgs e)
         {
@@ -141,7 +141,7 @@ namespace Serein.WorkBench
                 {
                     // 读取文件内容
                     string content = System.IO.File.ReadAllText(filePath); // 读取整个文件内容
-                    FData = JsonConvert.DeserializeObject<SereinProjectData>(content);
+                    FlowProjectData = JsonConvert.DeserializeObject<SereinProjectData>(content);
                     FileDataPath = System.IO.Path.GetDirectoryName(filePath) ?? "";
                 }
                 catch (Exception ex)
@@ -150,13 +150,16 @@ namespace Serein.WorkBench
                     Shutdown(); // 关闭应用程序
                 }
             }
-            else if (1 == 1)
+            else
             {
-                string filePath = @"F:\临时\project\new project.dnf";
+#if DEBUG
+                //string filePath = @"F:\临时\project\new project.dnf";
+                string filePath = @"F:\临时\project\tmp\project.dnf";
                 //string filePath = @"D:\Project\C#\DynamicControl\SereinFlow\.Output\Debug\net8.0-windows7.0\U9 project.dnf";
                 string content = System.IO.File.ReadAllText(filePath); // 读取整个文件内容
-                App.FData = JsonConvert.DeserializeObject<SereinProjectData>(content);
-                App.FileDataPath = filePath;//System.IO.Path.GetDirectoryName(filePath)!;
+                App.FlowProjectData = JsonConvert.DeserializeObject<SereinProjectData>(content);
+                App.FileDataPath = filePath;//System.IO.Path.GetDirectoryName(filePath)!;  
+#endif
             }
 
         }

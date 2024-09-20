@@ -20,8 +20,8 @@
 
     <Window.InputBindings>
         <KeyBinding Key="Escape" Command="{Binding CancelConnectionCommand}"/>
-        
-        
+
+
     </Window.InputBindings>
     <Grid>
         <Grid.ColumnDefinitions>
@@ -46,12 +46,12 @@
 
                 <Grid Margin="2,2,2,5">
                     <Button  Grid.Row="0"  Content="保存项目" Click="ButtonSaveFile_Click"  HorizontalAlignment="Left"  Margin="5,5,5,5"/>
-                    <Button  Grid.Row="0"  Content="卸载清空" Click="UnloadAllButton_Click"  HorizontalAlignment="Right"  Margin="5,5,5,5"/>
+                    <!--<Button  Grid.Row="0"  Content="卸载清空" Click="UnloadAllButton_Click"  HorizontalAlignment="Right"  Margin="5,5,5,5"/>-->
                 </Grid>
-                
+
                 <ScrollViewer  Grid.Row="1"  HorizontalScrollBarVisibility="Auto">
-                <StackPanel  Orientation="Horizontal">
-                    <!--<Grid>
+                    <StackPanel  Orientation="Horizontal">
+                        <!--<Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="*" />
@@ -63,8 +63,8 @@
                         <!--<custom:ActionRegionControl x:Name="ActionRegionControl" Grid.Column="1" Margin="10" AllowDrop="True" Drop="ActionRegionControl_Drop" PreviewMouseMove="RegionControl_PreviewMouseMove"/>-->
                         <!--<TextBlock Text="触发器"  Grid.Column="2"/>-->
                         <!--<custom:StateRegionControl x:Name="StateRegionControl" Grid.Column="2" Margin="10" AllowDrop="True" Drop="StateRegionControl_Drop" PreviewMouseMove="RegionControl_PreviewMouseMove"/>-->
-                    <!--</Grid>-->
-                </StackPanel>
+                        <!--</Grid>-->
+                    </StackPanel>
                 </ScrollViewer>
                 <ScrollViewer  Grid.Row="2"  VerticalScrollBarVisibility="Auto">
                     <StackPanel x:Name="DllStackPanel" Margin="5"/>
@@ -86,6 +86,8 @@
             <StackPanel Grid.Row="0" Background="#F5F5F5" Orientation="Horizontal" >
                 <Button x:Name="ButtonDebugRun"  Content="运行" Width="100" Margin="10" Click="ButtonDebugRun_Click"></Button>
                 <Button x:Name="ButtonDebugFlipflopNode"  Content="结束" Width="100" Margin="10" Click="ButtonDebugFlipflopNode_Click"></Button>
+                <!--<Button x:Name="ButtonReflushCanvasConfig"  Content="重置画布设置" Width="100" Margin="10" Click="ButtonReflushCanvasConfig_Click"></Button>-->
+                <!--<Button x:Name="ButtonLoadCanvasConfig"  Content="加载画布设置" Width="100" Margin="10" Click="ButtonLoadCanvasConfig_Click"></Button>-->
             </StackPanel>
 
             <StackPanel  Grid.Row="1"
@@ -112,7 +114,7 @@
                                Fill="LightBlue" 
                                Opacity="0.2" 
                                Panel.ZIndex="999999"
-                               Visibility="Collapsed"/> 
+                               Visibility="Collapsed"/>
 
                     <!-- Top-Left Thumb -->
                     <!--<Thumb x:Name="TopLeftThumb" 
@@ -186,12 +188,12 @@ Canvas.Top="{Binding ActualHeight, ElementName=FlowChartCanvas, Mode=OneWay, Con
 
 
 
-                    
-                
+
+
             </StackPanel>
-            
-            
+
+
         </Grid>
-        
+
     </Grid>
 </Window>

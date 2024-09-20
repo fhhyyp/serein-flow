@@ -61,6 +61,7 @@ namespace Serein.Library.Framework.NodeFlow
         public FlipflopStateType State { get; set; }
         //public TResult? Data { get; set; }
         public TriggerData TriggerData { get; set; }
+
         public FlipflopContext(FlipflopStateType ffState)
         {
             State = ffState;

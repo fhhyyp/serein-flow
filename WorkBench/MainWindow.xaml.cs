@@ -17,10 +17,12 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Media3D;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using DataObject = System.Windows.DataObject;
@@ -104,6 +106,7 @@ namespace Serein.WorkBench
         /// </summary>
         private Point startSelectControolPoint;
 
+
         /// <summary>
         /// 记录开始连接的文本块
         /// </summary>
@@ -148,12 +151,14 @@ namespace Serein.WorkBench
 
             InitUI();
 
-            var project = App.FData;
+            var project = App.FlowProjectData;
             if (project == null)
             {
                 return;
             }
             InitializeCanvas(project.Basic.Canvas.Width, project.Basic.Canvas.Lenght);// 设置画布大小
+            
+
             FlowEnvironment.LoadProject(project, App.FileDataPath); // 加载项目
         }
 
@@ -170,12 +175,14 @@ namespace Serein.WorkBench
 
         }
 
+
+
         private void InitUI()
         {
             canvasTransformGroup = new TransformGroup();
             scaleTransform = new ScaleTransform();
             translateTransform = new TranslateTransform();
-
+            
             canvasTransformGroup.Children.Add(scaleTransform);
             canvasTransformGroup.Children.Add(translateTransform);
 
@@ -183,7 +190,16 @@ namespace Serein.WorkBench
             //FlowChartCanvas.RenderTransformOrigin = new Point(0.5, 0.5);
         }
 
-        #region Main窗体加载方法
+        //private void ButtonReflushCanvasConfig_Click(object sender, RoutedEventArgs e)
+        //{
+        //    scaleTransform.ScaleX = 1;
+        //    scaleTransform.ScaleY = 1;
+        //    translateTransform.X = 0;
+        //    translateTransform.Y = 0;
+        //}
+
+
+        #region 窗体加载方法
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
         }
@@ -198,14 +214,36 @@ namespace Serein.WorkBench
             {
                 connection.Refresh();
             }
-        } 
+
+            var canvasData = App.FlowProjectData?.Basic.Canvas;
+            if (canvasData != null)
+            {
+
+                scaleTransform.ScaleX = 1;
+                scaleTransform.ScaleY = 1;
+                translateTransform.X = 0;
+                translateTransform.Y = 0;
+                scaleTransform.ScaleX = canvasData.ScaleX;
+                scaleTransform.ScaleY = canvasData.ScaleY;
+                translateTransform.X += canvasData.ViewX;
+                translateTransform.Y += canvasData.ViewY;
+                // 应用变换组
+                FlowChartCanvas.RenderTransform = canvasTransformGroup;
+            }
+
+        }
         #endregion
+
         public void WriteLog(string message)
         {
             logWindow.AppendText(message);
         }
 
         #region 运行环境事件
+        /// <summary>
+        /// 加载完成
+        /// </summary>
+        /// <param name="eventArgs"></param>
         private void FlowEnvironment_OnProjectLoaded(ProjectLoadedEventArgs eventArgs)
         {
             //foreach(var connection in Connections)
@@ -467,7 +505,7 @@ namespace Serein.WorkBench
 
         #endregion
 
-        #region 加载 DynamicNodeFlow 文件
+        #region 加载项目文件后触发事件相关方法
         
         /// <summary>
         /// 运行环节加载了项目文件，需要创建节点控件
@@ -590,7 +628,7 @@ namespace Serein.WorkBench
 
         #endregion
 
-        #region 右键菜单事件
+        #region 配置右键菜单
 
         /// <summary>
         /// 配置节点右键菜单
@@ -632,11 +670,29 @@ namespace Serein.WorkBench
             contextMenu.Items.Add(CreateMenuItem("删除", (s, e) => FlowEnvironment.RemoteNode(nodeGuid)));
 
 
+
+
             contextMenu.Items.Add(CreateMenuItem("添加 真分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsSucceed)));
             contextMenu.Items.Add(CreateMenuItem("添加 假分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsFail)));
             contextMenu.Items.Add(CreateMenuItem("添加 异常分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsError)));
             contextMenu.Items.Add(CreateMenuItem("添加 上游分支", (s, e) => StartConnection(nodeControl, ConnectionType.Upstream)));
 
+
+
+            var AvoidMenu = new MenuItem();
+            //AvoidMenu.Items.Add(CreateMenuItem("水平对齐", (s, e) => AlignHorizontallyAvoidOverlap(selectNodeControls)));
+            //AvoidMenu.Items.Add(CreateMenuItem("垂直对齐", (s, e) => VerticalAlignAvoidOverlap(selectNodeControls)));
+            AvoidMenu.Items.Add(CreateMenuItem("群组对齐", (s, e) => {
+                AlignControlsWithGrouping(selectNodeControls);
+                UpdateConnectedLines();
+            }));
+            AvoidMenu.Items.Add(CreateMenuItem("规划对齐", (s, e) =>
+            {
+                AlignControlsWithDynamicProgramming(selectNodeControls);
+                UpdateConnectedLines();
+            }));
+            AvoidMenu.Header = "对齐";
+            contextMenu.Items.Add(AvoidMenu);
 
             nodeControl.ContextMenu = contextMenu;
         }
@@ -749,7 +805,8 @@ namespace Serein.WorkBench
                 currentLine.X2 = position.X;
                 currentLine.Y2 = position.Y;
             }
-            if (IsCanvasDragging) // 正在移动画布
+
+            if (IsCanvasDragging && e.MiddleButton == MouseButtonState.Pressed) // 按住中键的同时进行画布的移动 IsCanvasDragging && 
             {
                 Point currentMousePosition = e.GetPosition(this);
                 double deltaX = currentMousePosition.X - startCanvasDragPoint.X;
@@ -766,7 +823,7 @@ namespace Serein.WorkBench
                 }
             }
 
-            if (IsSelectControl && e.LeftButton == MouseButtonState.Pressed) // 正在选取节点
+            if (IsSelectControl /*&& e.LeftButton == MouseButtonState.Pressed*/) // 正在选取节点
             {
                 // 获取当前鼠标位置
                 Point currentPoint = e.GetPosition(FlowChartCanvas);
@@ -776,10 +833,6 @@ namespace Serein.WorkBench
                 double y = Math.Min(currentPoint.Y, startSelectControolPoint.Y);
                 double width = Math.Abs(currentPoint.X - startSelectControolPoint.X);
                 double height = Math.Abs(currentPoint.Y - startSelectControolPoint.Y);
-                /*double x = Math.Min(currentPoint.X, startControlDragPoint.X);
-                double y = Math.Min(currentPoint.Y, startControlDragPoint.Y);
-                double width = Math.Abs(currentPoint.X - startControlDragPoint.X);
-                double height = Math.Abs(currentPoint.Y - startControlDragPoint.Y);*/
 
                 Canvas.SetLeft(SelectionRectangle, x);
                 Canvas.SetTop(SelectionRectangle, y);
@@ -922,7 +975,7 @@ namespace Serein.WorkBench
         }
 
         /// <summary>
-        /// 控件的鼠标移动事件，根据鼠标拖动更新控件的位置。
+        /// 控件的鼠标移动事件，根据鼠标拖动更新控件的位置。批量移动计算移动逻辑。
         /// </summary>
         private void Block_MouseMove(object sender, MouseEventArgs e)
         {
@@ -933,36 +986,88 @@ namespace Serein.WorkBench
             if (IsSelectControl)
                 return;
 
-            var IsSelect = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
-            if (!IsSelect && IsControlDragging) // 如果正在拖动控件
+            if (IsControlDragging) // 如果正在拖动控件
             {
-                Point currentPosition = e.GetPosition(FlowChartCanvas); // 获取当前鼠标位置
-                                                                        // 获取引发事件的控件
-                if (sender is not UserControl block)
+                Point currentPosition = e.GetPosition(FlowChartCanvas); // 获取当前鼠标位置 
+                // 批量移动 与 单个节点控件移动
+                if (selectNodeControls.Count > 0 && sender is NodeControlBase element && selectNodeControls.Contains(element))
                 {
-                    return;
+                    // 获取element控件的旧位置
+                    double oldLeft = Canvas.GetLeft(element);
+                    double oldTop = Canvas.GetTop(element);
+
+                    // 计算被选择控件的偏移量
+                    double deltaX = (int)(currentPosition.X - startControlDragPoint.X);
+                    double deltaY = (int)(currentPosition.Y - startControlDragPoint.Y);
+
+                    // 移动被选择的控件
+                    double newLeft = oldLeft + deltaX;
+                    double newTop = oldTop + deltaY;
+
+                    // 限制控件不超出FlowChartCanvas的边界
+                    if (newLeft >= 0 && newLeft + element.ActualWidth <= FlowChartCanvas.ActualWidth)
+                    {
+                        Canvas.SetLeft(element, newLeft);
+                    }
+                    if (newTop >= 0 && newTop + element.ActualHeight <= FlowChartCanvas.ActualHeight)
+                    {
+                        Canvas.SetTop(element, newTop);
+                    }
+
+                    // 计算element实际移动的距离
+                    double actualDeltaX = newLeft - oldLeft;
+                    double actualDeltaY = newTop - oldTop;
+                    // 移动其它选中的控件
+                    foreach (var nodeControl in selectNodeControls)
+                    {
+                        if (nodeControl != element) // 跳过已经移动的控件
+                        {
+                            double otherNewLeft = Canvas.GetLeft(nodeControl) + actualDeltaX;
+                            double otherNewTop = Canvas.GetTop(nodeControl) + actualDeltaY;
+
+                            // 限制控件不超出FlowChartCanvas的边界
+                            if (otherNewLeft >= 0 && otherNewLeft + nodeControl.ActualWidth <= FlowChartCanvas.ActualWidth)
+                            {
+                                Canvas.SetLeft(nodeControl, otherNewLeft);
+                            }
+                            if (otherNewTop >= 0 && otherNewTop + nodeControl.ActualHeight <= FlowChartCanvas.ActualHeight)
+                            {
+                                Canvas.SetTop(nodeControl, otherNewTop);
+                            }
+                        }
+                    }
+                    foreach (var nodeControl in selectNodeControls)
+                    {
+                        UpdateConnections(nodeControl);
+                    }
+                    startControlDragPoint = currentPosition; // 更新起始点位置
                 }
+                else
+                {                                                     // 获取引发事件的控件
+                    if (sender is not UserControl block)
+                    {
+                        return;
+                    }
 
-                double deltaX = currentPosition.X - startControlDragPoint.X; // 计算X轴方向的偏移量
-                double deltaY = currentPosition.Y - startControlDragPoint.Y; // 计算Y轴方向的偏移量
+                    double deltaX = currentPosition.X - startControlDragPoint.X; // 计算X轴方向的偏移量
+                    double deltaY = currentPosition.Y - startControlDragPoint.Y; // 计算Y轴方向的偏移量
 
-                double newLeft = Canvas.GetLeft(block) + deltaX; // 新的左边距
-                double newTop = Canvas.GetTop(block) + deltaY; // 新的上边距
+                    double newLeft = Canvas.GetLeft(block) + deltaX; // 新的左边距
+                    double newTop = Canvas.GetTop(block) + deltaY; // 新的上边距
 
-                // 限制控件不超出FlowChartCanvas的边界
-                if (newLeft >= 0 && newLeft + block.ActualWidth <= FlowChartCanvas.ActualWidth)
-                {
-                    Canvas.SetLeft(block, newLeft);
+                    // 限制控件不超出FlowChartCanvas的边界
+                    if (newLeft >= 0 && newLeft + block.ActualWidth <= FlowChartCanvas.ActualWidth)
+                    {
+                        Canvas.SetLeft(block, newLeft);
+                    }
+                    if (newTop >= 0 && newTop + block.ActualHeight <= FlowChartCanvas.ActualHeight)
+                    {
+                        Canvas.SetTop(block, newTop);
+                    }
+
+                    UpdateConnections(block);
                 }
-                if (newTop >= 0 && newTop + block.ActualHeight <= FlowChartCanvas.ActualHeight)
-                {
-                    Canvas.SetTop(block, newTop);
-                }
-
-                UpdateConnections(block);
-
                 startControlDragPoint = currentPosition; // 更新起始点位置
-
             }
         }
 
@@ -978,7 +1083,8 @@ namespace Serein.WorkBench
                 IsControlDragging = false;
                 ((UIElement)sender).ReleaseMouseCapture();  // 释放鼠标捕获
             }
-            else if (IsConnecting)
+
+            if (IsConnecting)
             {
                 var formNodeGuid = startConnectNodeControl?.ViewModel.Node.Guid;
                 var toNodeGuid = (sender as NodeControlBase)?.ViewModel.Node.Guid;
@@ -1112,10 +1218,6 @@ namespace Serein.WorkBench
             startCanvasDragPoint = e.GetPosition(this);
             FlowChartCanvas.CaptureMouse();
             e.Handled = true; // 防止事件传播影响其他控件
-            //if (e.MiddleButton == MouseButtonState.Pressed)
-            //{
-               
-            //}
         }
 
         private void FlowChartCanvas_MouseUp(object sender, MouseButtonEventArgs e)
@@ -1305,29 +1407,64 @@ namespace Serein.WorkBench
         /// <param name="e"></param>
         private void FlowChartCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            IsSelectControl = true;
+            // 如果正在选取状态，再次点击画布时自动确定选取范围，否则进入选取状态
+            if (IsSelectControl)
+            {
+                IsSelectControl = false;
+                // 释放鼠标捕获
+                FlowChartCanvas.ReleaseMouseCapture();
 
-            // 开始选取时，记录鼠标起始点
-            startSelectControolPoint = e.GetPosition(FlowChartCanvas);
+                // 隐藏选取矩形（如果需要保持选取状态显示，可以删除此行）
+                SelectionRectangle.Visibility = Visibility.Collapsed;
 
-            // 初始化选取矩形的位置和大小
-            Canvas.SetLeft(SelectionRectangle, startSelectControolPoint.X);
-            Canvas.SetTop(SelectionRectangle, startSelectControolPoint.Y);
-            SelectionRectangle.Width = 0;
-            SelectionRectangle.Height = 0;
+                // 处理选取区域内的元素（例如，获取选取范围内的控件）
+                Rect selectionArea = new Rect(Canvas.GetLeft(SelectionRectangle),
+                                              Canvas.GetTop(SelectionRectangle),
+                                              SelectionRectangle.Width,
+                                              SelectionRectangle.Height);
 
-            // 显示选取矩形
-            SelectionRectangle.Visibility = Visibility.Visible;
-            SelectionRectangle.ContextMenu ??= ConfiguerSelectionRectangle();
 
-            // 捕获鼠标，以便在鼠标移动到Canvas外部时仍能处理事件
-            FlowChartCanvas.CaptureMouse();
+                // 在此处处理选取的逻辑
+                foreach (UIElement element in FlowChartCanvas.Children)
+                {
+                    Rect elementBounds = new Rect(Canvas.GetLeft(element), Canvas.GetTop(element),
+                                                  element.RenderSize.Width, element.RenderSize.Height);
 
-            //if (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift))
-            //{
-               
-            //}
+                    if (selectionArea.Contains(elementBounds))
+                    {
+                        // 选中元素，执行相应操作
+                        if (element is NodeControlBase control)
+                        {
+                            selectNodeControls.Add(control);
+                        }
+                    }
+                }
+                SelectedNode();// 选择之后需要执行的操作
+            }
+            else
+            {
+                // 进入选取状态
+                IsSelectControl = true;
+
+                // 开始选取时，记录鼠标起始点
+                startSelectControolPoint = e.GetPosition(FlowChartCanvas);
+
+                // 初始化选取矩形的位置和大小
+                Canvas.SetLeft(SelectionRectangle, startSelectControolPoint.X);
+                Canvas.SetTop(SelectionRectangle, startSelectControolPoint.Y);
+                SelectionRectangle.Width = 0;
+                SelectionRectangle.Height = 0;
+
+                // 显示选取矩形
+                SelectionRectangle.Visibility = Visibility.Visible;
+                SelectionRectangle.ContextMenu ??= ConfiguerSelectionRectangle();
+
+                // 捕获鼠标，以便在鼠标移动到Canvas外部时仍能处理事件
+                FlowChartCanvas.CaptureMouse();
+
+            }
             e.Handled = true; // 防止事件传播影响其他控件
+           
         }
 
         private ContextMenu ConfiguerSelectionRectangle()
@@ -1361,38 +1498,7 @@ namespace Serein.WorkBench
         {
             if (IsSelectControl)
             {
-                CancelSelectNode(); // 取消之前选择的控件
-                IsSelectControl = false;
-                // 释放鼠标捕获
-                FlowChartCanvas.ReleaseMouseCapture();
-
-                // 隐藏选取矩形（如果需要保持选取状态显示，可以删除此行）
-                // SelectionRectangle.Visibility = Visibility.Collapsed;
-
-                // 处理选取区域内的元素（例如，获取选取范围内的控件）
-                Rect selectionArea = new Rect(Canvas.GetLeft(SelectionRectangle),
-                                              Canvas.GetTop(SelectionRectangle),
-                                              SelectionRectangle.Width,
-                                              SelectionRectangle.Height);
-
-
                
-                // 在此处处理选取的逻辑
-                foreach (UIElement element in FlowChartCanvas.Children)
-                {
-                    Rect elementBounds = new Rect(Canvas.GetLeft(element), Canvas.GetTop(element),
-                                                  element.RenderSize.Width, element.RenderSize.Height);
-
-                    if (selectionArea.Contains(elementBounds))
-                    {
-                        // 选中元素，执行相应操作
-                        if (element is NodeControlBase control)
-                        {
-                            selectNodeControls.Add(control);
-                        }
-                    }
-                }
-                SelectedNode();// 选择之后需要执行的操作
             }
         }
 
@@ -1404,7 +1510,7 @@ namespace Serein.WorkBench
                 SelectionRectangle.Visibility = Visibility.Collapsed;
                 return;
             }
-            Console.WriteLine($"一共选取了{selectNodeControls.Count}个控件");
+            //Console.WriteLine($"一共选取了{selectNodeControls.Count}个控件");
             foreach (var node in selectNodeControls)
             {
                 node.ViewModel.Selected();
@@ -1415,14 +1521,197 @@ namespace Serein.WorkBench
         }
         private void CancelSelectNode()
         {
-            foreach (var node in selectNodeControls)
+            IsSelectControl = false;
+            foreach (var nodeControl in selectNodeControls)
             {
-                node.ViewModel.CancelSelect();
-                node.BorderBrush = Brushes.Black;
-                node.BorderThickness = new Thickness(0);
+                nodeControl.ViewModel.CancelSelect();
+                nodeControl.BorderBrush = Brushes.Black;
+                nodeControl.BorderThickness = new Thickness(0);
+                if (nodeControl.ViewModel.Node.IsStart)
+                {
+                    nodeControl.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10"));
+                    nodeControl.BorderThickness = new Thickness(2);
+                }
             }
             selectNodeControls.Clear();
         }
+        #endregion
+
+        #region 节点对齐 （有些小瑕疵）
+
+        public void UpdateConnectedLines()
+        {
+            //foreach (var nodeControl in selectNodeControls)
+            //{
+            //    UpdateConnections(nodeControl);
+            //}
+            foreach (var line in Connections)
+            {
+                line.Refresh();
+            }
+        }
+
+
+        #region Plan A 群组对齐
+
+        public void AlignControlsWithGrouping(List<NodeControlBase> selectNodeControls, double proximityThreshold = 50, double spacing = 10)
+        {
+            if (selectNodeControls == null || selectNodeControls.Count < 2)
+                return;
+
+            // 按照控件的相对位置进行分组
+            var horizontalGroups = GroupByProximity(selectNodeControls, proximityThreshold, isHorizontal: true);
+            var verticalGroups = GroupByProximity(selectNodeControls, proximityThreshold, isHorizontal: false);
+
+            // 对每个水平群组进行垂直对齐
+            foreach (var group in horizontalGroups)
+            {
+                double avgY = group.Average(c => Canvas.GetTop(c)); // 计算Y坐标平均值
+                foreach (var control in group)
+                {
+                    Canvas.SetTop(control, avgY); // 对齐Y坐标
+                }
+            }
+
+            // 对每个垂直群组进行水平对齐
+            foreach (var group in verticalGroups)
+            {
+                double avgX = group.Average(c => Canvas.GetLeft(c)); // 计算X坐标平均值
+                foreach (var control in group)
+                {
+                    Canvas.SetLeft(control, avgX); // 对齐X坐标
+                }
+            }
+        }
+
+        // 基于控件间的距离来分组，按水平或垂直方向
+        private List<List<NodeControlBase>> GroupByProximity(List<NodeControlBase> controls, double proximityThreshold, bool isHorizontal)
+        {
+            var groups = new List<List<NodeControlBase>>();
+
+            foreach (var control in controls)
+            {
+                bool addedToGroup = false;
+
+                // 尝试将控件加入现有的群组
+                foreach (var group in groups)
+                {
+                    if (IsInProximity(group, control, proximityThreshold, isHorizontal))
+                    {
+                        group.Add(control);
+                        addedToGroup = true;
+                        break;
+                    }
+                }
+
+                // 如果没有加入任何群组，创建新群组
+                if (!addedToGroup)
+                {
+                    groups.Add(new List<NodeControlBase> { control });
+                }
+            }
+
+            return groups;
+        }
+
+        // 判断控件是否接近某个群组
+        private bool IsInProximity(List<NodeControlBase> group, NodeControlBase control, double proximityThreshold, bool isHorizontal)
+        {
+            foreach (var existingControl in group)
+            {
+                double distance = isHorizontal
+                    ? Math.Abs(Canvas.GetTop(existingControl) - Canvas.GetTop(control)) // 垂直方向的距离
+                    : Math.Abs(Canvas.GetLeft(existingControl) - Canvas.GetLeft(control)); // 水平方向的距离
+
+                if (distance <= proximityThreshold)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        #endregion
+
+        #region Plan B 规划对齐
+        public void AlignControlsWithDynamicProgramming(List<NodeControlBase> selectNodeControls, double spacing = 10)
+        {
+            if (selectNodeControls == null || selectNodeControls.Count < 2)
+                return;
+
+            int n = selectNodeControls.Count;
+            double[] dp = new double[n];
+            int[] split = new int[n];
+
+            // 初始化动态规划数组
+            for (int i = 1; i < n; i++)
+            {
+                dp[i] = double.MaxValue;
+                for (int j = 0; j < i; j++)
+                {
+                    double cost = CalculateAlignmentCost(selectNodeControls, j, i, spacing);
+                    if (dp[j] + cost < dp[i])
+                    {
+                        dp[i] = dp[j] + cost;
+                        split[i] = j;
+                    }
+                }
+            }
+
+            // 回溯找到最优的对齐方式
+            AlignWithSplit(selectNodeControls, split, n - 1, spacing);
+        }
+
+        // 计算从控件[j]到控件[i]的对齐代价，并考虑控件的大小和间距
+        private double CalculateAlignmentCost(List<NodeControlBase> controls, int start, int end, double spacing)
+        {
+            double totalWidth = 0;
+            double totalHeight = 0;
+
+            for (int i = start; i <= end; i++)
+            {
+                totalWidth += controls[i].ActualWidth;
+                totalHeight += controls[i].ActualHeight;
+            }
+
+            // 水平和垂直方向代价计算，包括控件大小和间距
+            double widthCost = totalWidth + (end - start) * spacing;
+            double heightCost = totalHeight + (end - start) * spacing;
+
+            // 返回较小的代价，表示更优的对齐方式
+            return Math.Min(widthCost, heightCost);
+        }
+
+        // 根据split数组调整控件位置，确保控件不重叠
+        private void AlignWithSplit(List<NodeControlBase> controls, int[] split, int end, double spacing)
+        {
+            if (end <= 0)
+                return;
+
+            AlignWithSplit(controls, split, split[end], spacing);
+
+            // 从split[end]到end的控件进行对齐操作
+            double currentX = Canvas.GetLeft(controls[split[end]]);
+            double currentY = Canvas.GetTop(controls[split[end]]);
+
+            for (int i = split[end] + 1; i <= end; i++)
+            {
+                // 水平或垂直对齐，确保控件之间有间距
+                if (currentX + controls[i].ActualWidth + spacing <= Canvas.GetLeft(controls[end]))
+                {
+                    Canvas.SetLeft(controls[i], currentX + controls[i].ActualWidth + spacing);
+                    currentX += controls[i].ActualWidth + spacing;
+                }
+                else
+                {
+                    Canvas.SetTop(controls[i], currentY + controls[i].ActualHeight + spacing);
+                    currentY += controls[i].ActualHeight + spacing;
+                }
+            }
+        }
+
+        #endregion
+
         #endregion
 
         #region 窗体静态方法
@@ -1575,21 +1864,24 @@ namespace Serein.WorkBench
         }
 
         /// <summary>
-        /// 保存为项目文件 （正在重写）
-        /// JsonConvert.SerializeObject 对象序列化字符串
-        /// JArray.FromObject           数组序列化
+        /// 保存为项目文件 
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
         private void ButtonSaveFile_Click(object sender, RoutedEventArgs e)
         {
             var projectData = FlowEnvironment.SaveProject();
+
             projectData.Basic = new Basic
             {
                 Canvas = new FlowCanvas
                 {
-                    Lenght = (float)FlowChartCanvas.Width,
-                    Width = (float)FlowChartCanvas.Height,
+                    Lenght = FlowChartCanvas.Width,
+                    Width = FlowChartCanvas.Height,
+                    ViewX = translateTransform.X,
+                    ViewY = translateTransform.Y,
+                    ScaleX = scaleTransform.ScaleX,
+                    ScaleY = scaleTransform.ScaleY,
                 },
                 Versions = "1",
             };
@@ -1603,39 +1895,50 @@ namespace Serein.WorkBench
                     node.Position = new Position(positionRelativeToParent.X, positionRelativeToParent.Y);
                 }
             }
-            var projectJsonData = JObject.FromObject(projectData);
-            var savePath = SaveContentToFile(projectJsonData.ToString());
-            savePath = System.IO.Path.GetDirectoryName(savePath);
+            var isPass = SaveContentToFile(out string savePath, out Action<string,string>? savaProjectFile);
+            if(!isPass)
+            {
+                return;
+            }
 
-            // 复制dll文件
-            //if (string.IsNullOrEmpty(savePath))
-            //{
-            //    return;
-            //}
-            //foreach (var dll in loadedAssemblies)
-            //{
-            //    try
-            //    {
-            //        string targetPath = System.IO.Path.Combine(savePath, System.IO.Path.GetFileName(dll.CodeBase));
-            //        // 确保目标目录存在
-            //        Directory.CreateDirectory(savePath);
-            //        var sourceFile = new Uri(dll.CodeBase).LocalPath;
-            //        // 复制文件到目标目录
-            //        File.Copy(sourceFile, targetPath, true);
-            //    }
-            //    catch (Exception ex)
-            //    {
-            //        WriteLog($"DLL复制失败：{dll.CodeBase} \r\n错误：{ex}\r\n");
-            //    }
-            //}
+            string librarySavePath = System.IO.Path.GetDirectoryName(savePath);
+            Console.WriteLine(savePath);
+            for (int index = 0; index < projectData.Librarys.Length; index++)
+            {
+                Library.Entity.Library? library = projectData.Librarys[index];
+                try
+                {
+                    string targetPath = System.IO.Path.Combine(librarySavePath, System.IO.Path.GetFileName(library.Path));
+                    //Console.WriteLine("targetPath:" + targetPath);
+
+                    string sourceFile = new Uri(library.Path).LocalPath;
+                    //Console.WriteLine("sourceFile:" + sourceFile);
+
+                    // 复制文件到目标目录
+                    File.Copy(sourceFile, targetPath, true);
+
+                    // 获取相对路径
+                    string relativePath = System.IO.Path.GetRelativePath(savePath, targetPath);
+                    //Console.WriteLine("Relative Path: " + relativePath);
+                    projectData.Librarys[index].Path = relativePath;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    //WriteLog($"DLL复制失败：{dll.CodeBase} \r\n错误：{ex}\r\n");
+                }
+            }
+
+            JObject projectJsonData = JObject.FromObject(projectData);
+            savaProjectFile?.Invoke(savePath, projectJsonData.ToString()); 
         }
-        public static string? SaveContentToFile(string content)
+        public static bool SaveContentToFile(out string savePath, out Action<string, string>? savaProjectFile)
         {
             // 创建一个新的保存文件对话框
             SaveFileDialog saveFileDialog = new()
             {
-                Filter = "NF Files (*.dnf)|*.dnf",
-                DefaultExt = "nf",
+                Filter = "DynamicNodeFlow Files (*.dnf)|*.dnf",
+                DefaultExt = "dnf",
                 FileName = "project.dnf"
             };
 
@@ -1645,23 +1948,13 @@ namespace Serein.WorkBench
             // 如果用户选择了文件并点击了保存按钮
             if (result == true)
             {
-                string filePath = saveFileDialog.FileName;
-
-                try
-                {
-                    // 将文本内容写入文件
-                    File.WriteAllText(filePath, content);
-                    MessageBox.Show($"文本已成功保存到文件: {filePath}", "保存成功", MessageBoxButton.OK, MessageBoxImage.Information);
-                    return filePath;
-
-                }
-                catch (Exception ex)
-                {
-
-                    MessageBox.Show($"保存文件时出现错误: {ex.Message}", "保存错误", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                savePath  = saveFileDialog.FileName;
+                savaProjectFile = File.WriteAllText;
+                return true;
             }
-            return null;
+            savePath = string.Empty;
+            savaProjectFile = null;
+            return false;
         }
         public static string GetRelativePath(string baseDirectory, string fullPath)
         {
@@ -1675,15 +1968,26 @@ namespace Serein.WorkBench
         {
 
         }
-
+        /// <summary>
+        /// 按键监听。esc取消操作
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            //if (e.KeyStates == Keyboard.GetKeyStates(Key.D8) && Keyboard.Modifiers == ModifierKeys.Shift)
+            if (e.KeyStates == Keyboard.GetKeyStates(Key.Escape))
             //if (Keyboard.Modifiers == ModifierKeys.Shift)
-            //{
-            //    startSelectControolPoint = e.GetPosition(FlowChartCanvas);
-            //}
+            {
+                IsConnecting = false;
+                IsControlDragging = false;
+                IsCanvasDragging = false;
+                EndConnection();
+                SelectionRectangle.Visibility = Visibility.Collapsed;
+                CancelSelectNode();
+            }
         }
+
+
     }
 
     #region 创建两个控件之间的连接关系，在UI层面上显示为 带箭头指向的贝塞尔曲线
