@@ -1,5 +1,6 @@
 ﻿using Serein.Library.Entity;
 using Serein.Library.Enums;
+using Serein.Library.Utils;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -212,6 +213,8 @@ namespace Serein.Library.Api
 
     public interface IFlowEnvironment
     {
+        ChannelFlowInterrupt ChannelFlowInterrupt { get; set; }
+
 
         event FlowRunCompleteHandler OnFlowRunComplete;
         event ProjectLoadedHandler OnProjectLoaded;
@@ -288,7 +291,6 @@ namespace Serein.Library.Api
         /// </summary>
         /// <param name="nodeGuid">待移除的节点Guid</param>
         void RemoteNode(string nodeGuid);
-
 
 
     }

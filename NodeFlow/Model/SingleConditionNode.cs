@@ -28,7 +28,8 @@ namespace Serein.NodeFlow.Model
         public string Expression { get; set; }
 
 
-        public override object? Execute(IDynamicContext context)
+        //public override object? Executing(IDynamicContext context)
+        public override Task<object?> ExecutingAsync(IDynamicContext context)
         {
             // 接收上一节点参数or自定义参数内容
             object? result;
@@ -52,7 +53,7 @@ namespace Serein.NodeFlow.Model
             }
             
             Console.WriteLine($"{result} {Expression}  -> " + NextOrientation);
-            return result;
+            return Task.FromResult(result);
         }
 
         internal override Parameterdata[] GetParameterdatas()

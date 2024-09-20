@@ -7,6 +7,7 @@ using Serein.Library.Web;
 using Serein.NodeFlow.Base;
 using Serein.NodeFlow.Model;
 using System.ComponentModel.Design;
+using static Serein.Library.Utils.ChannelFlowInterrupt;
 
 namespace Serein.NodeFlow
 {
@@ -22,6 +23,7 @@ namespace Serein.NodeFlow
         {
             SereinIOC = new SereinIOC();
         }
+
         /// <summary>
         /// 流程运行状态
         /// </summary>
@@ -60,12 +62,11 @@ namespace Serein.NodeFlow
         /// 结束运行时需要执行的方法
         /// </summary>
         private Action ExitAction { get; set; }  = null; 
+
         /// <summary>
         /// 运行的上下文
         /// </summary>
         private IDynamicContext Context { get; set; }  = null; 
-
-
 
         /// <summary>
         /// 开始运行
@@ -106,7 +107,7 @@ namespace Serein.NodeFlow
             #endregion
 
             #region 初始化运行环境的Ioc容器
-            // 清除节点使用的对象
+            // 清除节点使用的对象，筛选出需要初始化的方法描述
             var thisRuningMds = new List<MethodDetails>();
             thisRuningMds.AddRange(runNodeMd.Where(md => md is not null));
             thisRuningMds.AddRange(initMethods.Where(md => md is not null));
@@ -213,11 +214,11 @@ namespace Serein.NodeFlow
                     // 使用 TaskCompletionSource 创建未启动的触发器任务
                     var tasks = flipflopNodes.Select(async node =>
                     {
-                        await FlipflopExecute(node, env);
+                        await FlipflopExecute(env,node);
                     }).ToArray();
                     _ = Task.WhenAll(tasks);
                 }
-                await startNode.StartExecution(Context); // 从起始节点开始运行
+                await startNode.StartExecute(Context); // 开始运行时从起始节点开始运行
                 // 等待结束
                 if (FlipFlopCts != null)
                 {
@@ -240,15 +241,17 @@ namespace Serein.NodeFlow
             {
                 // 设置对象
                 singleFlipFlopNode.MethodDetails.ActingInstance = SereinIOC.GetOrRegisterInstantiate(singleFlipFlopNode.MethodDetails.ActingInstanceType);
-                await FlipflopExecute(singleFlipFlopNode, flowEnvironment); // 启动触发器
+                await FlipflopExecute(flowEnvironment,singleFlipFlopNode); // 启动触发器
             });
         }
-
 
         /// <summary>
         /// 启动全局触发器
         /// </summary>
-        private async Task FlipflopExecute(SingleFlipflopNode singleFlipFlopNode, IFlowEnvironment flowEnvironment)
+        /// <param name="flowEnvironment">流程运行全局环境</param>
+        /// <param name="singleFlipFlopNode">需要全局监听信号的触发器</param>
+        /// <returns></returns>
+        private async Task FlipflopExecute(IFlowEnvironment flowEnvironment,SingleFlipflopNode singleFlipFlopNode)
         {
             var context = new DynamicContext(SereinIOC, flowEnvironment);
             MethodDetails md = singleFlipFlopNode.MethodDetails;
@@ -259,6 +262,7 @@ namespace Serein.NodeFlow
             {
                 md.ActingInstance ??= context.SereinIoc.GetOrRegisterInstantiate(md.ActingInstanceType);
             }
+            object?[]? parameters = singleFlipFlopNode.GetParameters(context, singleFlipFlopNode.MethodDetails); // 启动全局触发器时获取入参参数
             // 设置委托对象
             var func = md.ExplicitDatas.Length == 0 ?
                 (Func<object, object, Task<IFlipflopContext>>)del :
@@ -267,49 +271,13 @@ namespace Serein.NodeFlow
             {
                 while (!FlipFlopCts.IsCancellationRequested)
                 {
-                    object?[]? parameters = singleFlipFlopNode.GetParameters(context, singleFlipFlopNode.MethodDetails); // 启动全局触发器时获取入参参数
-                    IFlipflopContext flipflopContext = await func.Invoke(md.ActingInstance, parameters);// 首先开始等待触发器
-                    _ = GlobalFlipflopExecute(singleFlipFlopNode, context);
+                    IFlipflopContext flipflopContext = await func.Invoke(md.ActingInstance, parameters);// 开始等待全局触发器的触发
+                    var  connectionType = flipflopContext.State.ToContentType();
+                    if (connectionType != ConnectionType.None)
+                    {
+                        await GlobalFlipflopExecute(context, singleFlipFlopNode, connectionType);
+                    }
                 }
-
-
-                //while (!FlipFlopCts.IsCancellationRequested)
-                //{
-                //    if (singleFlipFlopNode.NotExitPreviousNode() == false)
-                //    {
-                //        break;
-                //    }
-
-                //    object?[]? parameters = singleFlipFlopNode.GetParameters(context, md);
-                //    if (md.ActingInstance == null)
-                //    {
-                //        md.ActingInstance = context.SereinIoc.GetOrRegisterInstantiate(md.ActingInstanceType);
-                //    }
-
-                //    IFlipflopContext flipflopContext = await func.Invoke(md.ActingInstance, parameters);
-                //    ConnectionType connection = flipflopContext.State.ToContentType();
-
-                //    if (connection != ConnectionType.None)
-                //    {
-                //        singleFlipFlopNode.NextOrientation = connection;
-                //        singleFlipFlopNode.FlowData = flipflopContext.Data;
-
-                //        var tasks = singleFlipFlopNode.SuccessorNodes.Values
-                //            .SelectMany(nodeList => nodeList)
-                //            .Select(nextNode =>
-                //            {
-                //                var nextContext = new DynamicContext(SereinIOC, flowEnvironment);
-                //                nextNode.PreviousNode = singleFlipFlopNode;
-                //                return nextNode.StartExecution(nextContext); // 全局触发器收到信号，开始执行
-                //            }).ToArray();
-
-                //        await Task.WhenAll(tasks);
-                //    }
-                //    else
-                //    {
-                //        break;
-                //    }
-                //}
             }
             catch (Exception ex)
             {
@@ -317,18 +285,25 @@ namespace Serein.NodeFlow
             }
         }
 
-        public async Task GlobalFlipflopExecute(SingleFlipflopNode singleFlipFlopNode, IDynamicContext context)
+        /// <summary>
+        /// 全局触发器开始执行相关分支
+        /// </summary>
+        /// <param name="context">上下文</param>
+        /// <param name="singleFlipFlopNode">被触发的全局触发器</param>
+        /// <param name="connectionType">分支类型</param>
+        /// <returns></returns>
+        public async Task GlobalFlipflopExecute(IDynamicContext context, SingleFlipflopNode singleFlipFlopNode, ConnectionType connectionType)
         {
-            if (FlipFlopCts.IsCancellationRequested)
+            if (FlipFlopCts.IsCancellationRequested )
             {
                 return;
             }
+
             bool skip = true;
             var cts = context.SereinIoc.GetOrRegisterInstantiate<CancellationTokenSource>();
             Stack<NodeModelBase> stack = new Stack<NodeModelBase>();
             stack.Push(singleFlipFlopNode);
 
-            ConnectionType connectionType = ConnectionType.IsSucceed;
 
             while (stack.Count > 0 && !cts.IsCancellationRequested) // 循环中直到栈为空才会退出循环
             {
@@ -346,7 +321,7 @@ namespace Serein.NodeFlow
                 for (int i = upstreamNodes.Count - 1; i >= 0; i--)
                 {
                     upstreamNodes[i].PreviousNode = currentNode;
-                    await upstreamNodes[i].StartExecution(context); // 执行上游分支
+                    await upstreamNodes[i].StartExecute(context); // 执行全局触发器的上游分支
                 }
 
                 // 当前节点是已经触发了的全局触发器，所以跳过，难道每次都要判断一次？
@@ -356,15 +331,8 @@ namespace Serein.NodeFlow
                 }
                 else
                 {
-                    // 判断是否为触发器节点，如果是，则开始等待。
-                    if (currentNode.MethodDetails != null && currentNode.MethodDetails.MethodDynamicType == NodeType.Flipflop)
-                    {
-                        currentNode.FlowData = await currentNode.ExecuteAsync(context); // 流程中遇到了触发器
-                    }
-                    else
-                    {
-                        currentNode.FlowData = currentNode.Execute(context); // 流程中正常执行
-                    }
+                    currentNode.FlowData = await currentNode.ExecutingAsync(context); 
+
                     if (currentNode.NextOrientation == ConnectionType.None) 
                     {
                         break;  // 不再执行

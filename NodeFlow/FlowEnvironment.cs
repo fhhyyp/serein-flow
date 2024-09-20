@@ -7,14 +7,8 @@ using Serein.Library.Utils;
 using Serein.NodeFlow.Base;
 using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Tool;
-using System.Diagnostics;
-using System.Net.Mime;
-using System.Numerics;
+using System.Collections.Concurrent;
 using System.Reflection;
-using System.Reflection.Emit;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Xml.Linq;
 using static Serein.NodeFlow.FlowStarter;
 
 namespace Serein.NodeFlow
@@ -37,9 +31,8 @@ namespace Serein.NodeFlow
      */
 
 
-    /// <summary>
-    /// 运行环境
-    /// </summary>
+
+
 
 
     /// <summary>
@@ -47,74 +40,99 @@ namespace Serein.NodeFlow
     /// </summary>
     public class FlowEnvironment : IFlowEnvironment
     {
+        public FlowEnvironment()
+        {
+            ChannelFlowInterrupt = new ChannelFlowInterrupt();
+            LoadedAssemblyPaths = new List<string>();
+            LoadedAssemblies = new List<Assembly>();
+            MethodDetailss = new List<MethodDetails>();
+            Nodes = new Dictionary<string, NodeModelBase>();
+            FlipflopNodes = new List<SingleFlipflopNode>();
+            IsGlobalInterrupt = false;
+            flowStarter = null;
+        }
+
         /// <summary>
         /// 节点的命名空间
         /// </summary>
         public const string NodeSpaceName = $"{nameof(Serein)}.{nameof(Serein.NodeFlow)}.{nameof(Serein.NodeFlow.Model)}";
 
+        #region 环境接口事件
         /// <summary>
         /// 加载Dll
         /// </summary>
         public event LoadDLLHandler OnDllLoad;
+
         /// <summary>
         /// 项目加载完成
         /// </summary>
         public event ProjectLoadedHandler OnProjectLoaded;
+
         /// <summary>
         /// 节点连接属性改变事件
         /// </summary>
         public event NodeConnectChangeHandler OnNodeConnectChange;
+
         /// <summary>
         /// 节点创建事件
         /// </summary>
         public event NodeCreateHandler OnNodeCreate;
+
         /// <summary>
         /// 移除节点事件
         /// </summary>
         public event NodeRemoteHandler OnNodeRemote;
+
         /// <summary>
         /// 起始节点变化事件
         /// </summary>
         public event StartNodeChangeHandler OnStartNodeChange;
+
         /// <summary>
         /// 流程运行完成时间
         /// </summary>
         public event FlowRunCompleteHandler OnFlowRunComplete;
 
-        private FlowStarter? flowStarter = null;
+        #endregion
+
 
         /// <summary>
-        /// 一种轻量的IOC容器
+        /// 流程中断器
         /// </summary>
-        // public SereinIoc SereinIoc { get; } = new SereinIoc();
+        public ChannelFlowInterrupt ChannelFlowInterrupt { get; set; }
+        
+        /// <summary>
+        /// 是否全局中断
+        /// </summary>
+        public bool IsGlobalInterrupt { get; set; } 
 
         /// <summary>
         /// 存储加载的程序集路径
         /// </summary>
-        public List<string> LoadedAssemblyPaths { get; } = [];
+        public List<string> LoadedAssemblyPaths { get; }
 
         /// <summary>
         /// 存储加载的程序集
         /// </summary>
-        public List<Assembly> LoadedAssemblies { get; } = [];
+        public List<Assembly> LoadedAssemblies { get; } 
 
         /// <summary>
         /// 存储所有方法信息
         /// </summary>
-        public List<MethodDetails> MethodDetailss { get; } = [];
+        public List<MethodDetails> MethodDetailss { get; } 
 
-
-        public Dictionary<string, NodeModelBase> Nodes { get; } = [];
-
-        public List<NodeModelBase> Regions { get; } = [];
+        /// <summary>
+        /// 环境加载的节点集合
+        /// </summary>
+        public Dictionary<string, NodeModelBase> Nodes { get; }
 
         /// <summary>
         /// 存放触发器节点（运行时全部调用）
         /// </summary>
-        public List<SingleFlipflopNode> FlipflopNodes { get; } = [];
+        public List<SingleFlipflopNode> FlipflopNodes { get; }
 
         /// <summary>
-        /// 私有属性
+        /// 起始节点私有属性
         /// </summary>
         private NodeModelBase _startNode;
 
@@ -138,12 +156,19 @@ namespace Serein.NodeFlow
             }
         }
 
+        
+        /// <summary>
+        /// 流程启动器（每次运行时都会重新new一个）
+        /// </summary>
+        private FlowStarter? flowStarter;
+
         /// <summary>
         /// 异步运行
         /// </summary>
         /// <returns></returns>
         public async Task StartAsync()
         {
+            ChannelFlowInterrupt?.CancelAllTasks();
             flowStarter = new FlowStarter();
             List<SingleFlipflopNode> flipflopNodes = Nodes.Values.Where(it => it.MethodDetails?.MethodDynamicType == NodeType.Flipflop && it.IsStart == false)
                                                                  .Select(it => (SingleFlipflopNode)it)
@@ -171,6 +196,7 @@ namespace Serein.NodeFlow
         }
         public void Exit()
         {
+            ChannelFlowInterrupt?.CancelAllTasks();
             flowStarter?.Exit();
             OnFlowRunComplete?.Invoke(new FlowEventArgs());
         }

@@ -20,7 +20,8 @@ namespace Serein.NodeFlow.Model
             ActionNodes = actionNodes;
         }
 
-        public override object? Execute(IDynamicContext context)
+        //public override async Task<object?> Executing(IDynamicContext context)
+        public override Task<object?> ExecutingAsync(IDynamicContext context)
         {
             throw new NotImplementedException("动作区域暂未实现");
         }

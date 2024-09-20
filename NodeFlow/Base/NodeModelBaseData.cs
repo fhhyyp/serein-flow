@@ -22,12 +22,14 @@ namespace Serein.NodeFlow.Base
                 PreviousNodes[ctType] = [];
                 SuccessorNodes[ctType] = [];
             }
+            DebugSetting = new NodeDebugSetting();
         }
 
+
         /// <summary>
-        /// 是否中断（调试中断功能）
+        /// 调试功能
         /// </summary>
-        public bool IsInterrupt { get; set; }
+        public NodeDebugSetting DebugSetting { get; set; }
 
         /// <summary>
         /// 节点对应的控件类型
@@ -84,13 +86,7 @@ namespace Serein.NodeFlow.Base
     }
 
 
-    public class DebugInfo
-    {
-        /// <summary>
-        /// 是否中断
-        /// </summary>
-        public bool IsInterrupt { get;set; }
-    }
+
 
 
     /// <summary>

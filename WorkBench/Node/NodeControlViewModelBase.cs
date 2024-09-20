@@ -23,6 +23,9 @@ namespace Serein.WorkBench.Node.ViewModel
         /// </summary>
         internal NodeModelBase Node { get; }
 
+
+
+
         private bool isSelect;
         /// <summary>
         /// 表示节点控件是否被选中
@@ -37,29 +40,68 @@ namespace Serein.WorkBench.Node.ViewModel
             }
         }
 
-        private MethodDetails methodDetails;
 
-
-        public MethodDetails MethodDetails
+        public NodeDebugSetting DebugSetting
         {
-            get => methodDetails;
+            get => Node.DebugSetting;
             set
             {
-                methodDetails = value;
-                OnPropertyChanged();
+                if (value != null)
+                {
+                    Node.DebugSetting = value;
+                    OnPropertyChanged(nameof(DebugSetting));
+                }
             }
         }
 
+        public MethodDetails MethodDetails
+        {
+            get => Node.MethodDetails;
+            set
+            {
+                if(value != null)
+                {
+                    Node.MethodDetails = value;
+                    OnPropertyChanged(nameof(MethodDetails));
+                }
+            }
+        }
+
+        public bool IsInterrupt
+        {
+            get => Node.DebugSetting.IsInterrupt;
+            set
+            {
+                if (value)
+                {
+                    Node.Interrupt();
+                }
+                else
+                {
+                    Node.CancelInterrupt();
+                }
+                OnPropertyChanged(nameof(IsInterrupt));
+            }
+        }
+
+        //public bool IsProtectionParameter
+        //{
+        //    get => MethodDetails.IsProtectionParameter;
+        //    set
+        //    {
+        //        MethodDetails.IsProtectionParameter = value;
+        //        OnPropertyChanged(nameof(IsInterrupt));
+        //    }
+        //}
+
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
-
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        
+
         public void Selected()
         {
             IsSelect = true;
@@ -69,5 +111,7 @@ namespace Serein.WorkBench.Node.ViewModel
         {
             IsSelect = false;
         }
+
+
     }
 }

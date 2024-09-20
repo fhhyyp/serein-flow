@@ -6,7 +6,7 @@
              xmlns:local="clr-namespace:Serein.WorkBench.Node.View"
                        MaxWidth="300">
     <Grid>
-        <Border BorderBrush="Black" BorderThickness="1" Padding="10">
+        <!--<Border BorderBrush="Black" BorderThickness="1" Padding="10">
             <StackPanel>
                 <Grid Margin="2,2,2,5">
                     <TextBlock Text="动作区域" FontWeight="Bold" HorizontalAlignment="Left" FontSize="14" Margin="0,1,0,0"/>
@@ -14,7 +14,7 @@
                 </Grid>
                 <ListBox x:Name="ActionsListBox"  AllowDrop="True" Drop="ActionsListBox_Drop" />
             </StackPanel>
-        </Border>
+        </Border>-->
     
     </Grid>
 

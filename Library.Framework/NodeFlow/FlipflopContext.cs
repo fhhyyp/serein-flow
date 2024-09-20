@@ -1,5 +1,6 @@
 ﻿using Serein.Library.Api;
 using Serein.Library.Enums;
+using Serein.Library.NodeFlow.Tool;
 using System;
 using System.Threading.Tasks;
 
@@ -59,7 +60,7 @@ namespace Serein.Library.Framework.NodeFlow
     {
         public FlipflopStateType State { get; set; }
         //public TResult? Data { get; set; }
-        public object Data { get; set; }
+        public TriggerData TriggerData { get; set; }
         public FlipflopContext(FlipflopStateType ffState)
         {
             State = ffState;
@@ -67,7 +68,11 @@ namespace Serein.Library.Framework.NodeFlow
         public FlipflopContext(FlipflopStateType ffState, object data)
         {
             State = ffState;
-            Data = data;
+            TriggerData = new TriggerData
+            {
+                Type = TriggerType.External,
+                Value = data
+            };
         }
     }
 

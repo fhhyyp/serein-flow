@@ -11,12 +11,20 @@ namespace Serein.WorkBench
         {
             InitializeComponent();
         }
+
         public void AppendText(string text)
         {
             Dispatcher.BeginInvoke(() =>
             {
                 LogTextBox.AppendText(text);
                 LogTextBox.ScrollToEnd();
+            });
+        }
+        public void Clear()
+        {
+            Dispatcher.BeginInvoke(() =>
+            {
+                LogTextBox.Clear();
             });
         }
         private void ClearLog_Click(object sender, RoutedEventArgs e)

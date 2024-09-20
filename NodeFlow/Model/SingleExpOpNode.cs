@@ -18,7 +18,8 @@ namespace Serein.NodeFlow.Model
         public string Expression { get; set; }
 
 
-        public override object? Execute(IDynamicContext context)
+        //public override async Task<object?> Executing(IDynamicContext context)
+        public override Task<object?> ExecutingAsync(IDynamicContext context)
         {
             var data = PreviousNode?.FlowData;
 
@@ -37,13 +38,13 @@ namespace Serein.NodeFlow.Model
                 }
 
                 NextOrientation = ConnectionType.IsSucceed;
-                return result;
+                return Task.FromResult(result);
             }
             catch (Exception ex)
             {
                 NextOrientation = ConnectionType.IsError;
                 RuningException = ex;
-                return PreviousNode?.FlowData;
+                return Task.FromResult(PreviousNode?.FlowData);
             }
 
         }

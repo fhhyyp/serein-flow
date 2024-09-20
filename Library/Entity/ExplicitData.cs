@@ -16,7 +16,7 @@ namespace Serein.Library.Entity
         /// </summary>
         public int Index { get; set; }
         /// <summary>
-        /// 是否为显式参数
+        /// 是否为显式参数（固定值/表达式）
         /// </summary>
         public bool IsExplicitData { get; set; }
         ///// <summary>
@@ -45,21 +45,16 @@ namespace Serein.Library.Entity
 
         public string DataValue { get; set; }
 
-
-
         public string[] Items { get; set; }
-
-
-
 
         public ExplicitData Clone() => new ExplicitData()
         {
             Index = Index,
             IsExplicitData = IsExplicitData,
             // ExplicitType = ExplicitType,
+            ExplicitTypeName = ExplicitTypeName,
             DataType = DataType,
             ParameterName = ParameterName,
-            ExplicitTypeName = ExplicitTypeName,
             DataValue = string.IsNullOrEmpty(DataValue) ? string.Empty : DataValue,
             Items = Items.Select(it => it).ToArray(),
         };

@@ -92,9 +92,17 @@ namespace Serein.WorkBench
         private readonly List<NodeControlBase> selectNodeControls  = [];
 
         /// <summary>
-        /// 记录拖动开始时的鼠标位置
+        /// 记录开始拖动节点控件时的鼠标位置
         /// </summary>
-        private Point startPoint;
+        private Point startControlDragPoint;
+        /// <summary>
+        /// 记录移动画布开始时的鼠标位置
+        /// </summary>
+        private Point startCanvasDragPoint;
+        /// <summary>
+        /// 记录开始选取节点控件时的鼠标位置
+        /// </summary>
+        private Point startSelectControolPoint;
 
         /// <summary>
         /// 记录开始连接的文本块
@@ -134,8 +142,10 @@ namespace Serein.WorkBench
             logWindow = new LogWindow();
             logWindow.Show();
             // 重定向 Console 输出
-            var logTextWriter = new LogTextWriter(WriteLog);
+            var logTextWriter = new LogTextWriter(WriteLog,() => logWindow.Clear());;
             Console.SetOut(logTextWriter);
+
+
             InitUI();
 
             var project = App.FData;
@@ -202,7 +212,7 @@ namespace Serein.WorkBench
             //{
             //    connection.Refresh();
             //}
-            Console.WriteLine((FlowChartStackPanel.ActualWidth, FlowChartStackPanel.ActualHeight));
+            //Console.WriteLine((FlowChartStackPanel.ActualWidth, FlowChartStackPanel.ActualHeight));
         }
 
         /// <summary>
@@ -517,62 +527,6 @@ namespace Serein.WorkBench
 
         #region 节点控件的创建
 
-        private static TControl CreateNodeControl<TControl, TViewModel>(NodeModelBase model)
-            where TControl : NodeControlBase
-            where TViewModel : NodeControlViewModelBase
-        {
-
-            if (model == null)
-            {
-                throw new Exception("无法创建节点控件");
-            }
-
-            var viewModel = Activator.CreateInstance(typeof(TViewModel), [model]);
-            var controlObj = Activator.CreateInstance(typeof(TControl), [viewModel]);
-            if (controlObj is TControl control)
-            {
-                return control;
-            }
-            else
-            {
-                throw new Exception("无法创建节点控件");
-            }
-        }
-
-        private static TControl CreateNodeControl<TNode, TControl,TViewModel>(MethodDetails? methodDetails = null) 
-            where TNode : NodeModelBase
-            where TControl : NodeControlBase
-            where TViewModel : NodeControlViewModelBase
-        {
-            
-            var nodeObj = Activator.CreateInstance(typeof(TNode));
-            var nodeBase = nodeObj as NodeModelBase;
-            if (nodeBase == null)
-            {
-                throw new Exception("无法创建节点控件");
-            }
-
-            
-            nodeBase.Guid = Guid.NewGuid().ToString();
-
-            if (methodDetails != null)
-            {
-                var md = methodDetails.Clone();
-                nodeBase.DisplayName = md.MethodTips;
-                nodeBase.MethodDetails = md;
-            }
-
-            var viewModel = Activator.CreateInstance(typeof(TViewModel), [nodeObj]);
-            var controlObj = Activator.CreateInstance(typeof(TControl), [viewModel] );
-            if(controlObj is TControl control)
-            {
-                return control;
-            }
-            else
-            {
-                throw new Exception("无法创建节点控件");
-            }
-        }
 
         /// <summary>
         /// 创建了节点，添加到画布。配置默认事件
@@ -592,50 +546,6 @@ namespace Serein.WorkBench
                 ConfigureNodeEvents(nodeControl); // 配置节点事件
             });
         }
-
-        /// <summary>
-        /// 配置节点右键菜单
-        /// </summary>
-        /// <param name="nodeControl"></param>
-        private void ConfigureContextMenu(NodeControlBase nodeControl)
-        {
-            var contextMenu = new ContextMenu();
-
-            // var nodeModel = nodeControl.ViewModel.Node;
-
-            if (nodeControl.ViewModel.Node?.MethodDetails?.ReturnType is Type returnType && returnType != typeof(void))
-            {
-                contextMenu.Items.Add(CreateMenuItem("查看返回类型", (s, e) =>
-                {
-                    DisplayReturnTypeTreeViewer(returnType);
-                }));
-            }
-            var nodeGuid = nodeControl?.ViewModel?.Node?.Guid;
-            contextMenu.Items.Add(CreateMenuItem("设为起点", (s, e) => FlowEnvironment.SetStartNode(nodeGuid)));
-            contextMenu.Items.Add(CreateMenuItem("删除", (s, e) => FlowEnvironment.RemoteNode(nodeGuid)));
-
-            contextMenu.Items.Add(CreateMenuItem("添加 真分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsSucceed)));
-            contextMenu.Items.Add(CreateMenuItem("添加 假分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsFail)));
-            contextMenu.Items.Add(CreateMenuItem("添加 异常分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsError)));
-            contextMenu.Items.Add(CreateMenuItem("添加 上游分支", (s, e) => StartConnection(nodeControl, ConnectionType.Upstream)));
-
-
-            nodeControl.ContextMenu = contextMenu;
-        }
-
-        /// <summary>
-        /// 创建菜单子项
-        /// </summary>
-        /// <param name="header"></param>
-        /// <param name="handler"></param>
-        /// <returns></returns>
-        private static MenuItem CreateMenuItem(string header, RoutedEventHandler handler)
-        {
-            var menuItem = new MenuItem { Header = header };
-            menuItem.Click += handler;
-            return menuItem;
-        }
-
 
         /// <summary>
         /// 配置节点事件
@@ -683,6 +593,55 @@ namespace Serein.WorkBench
         #region 右键菜单事件
 
         /// <summary>
+        /// 配置节点右键菜单
+        /// </summary>
+        /// <param name="nodeControl"></param>
+        private void ConfigureContextMenu(NodeControlBase nodeControl)
+        {
+            var contextMenu = new ContextMenu();
+
+            // var nodeModel = nodeControl.ViewModel.Node;
+
+            if (nodeControl.ViewModel.Node?.MethodDetails?.ReturnType is Type returnType && returnType != typeof(void))
+            {
+                contextMenu.Items.Add(CreateMenuItem("查看返回类型", (s, e) =>
+                {
+                    DisplayReturnTypeTreeViewer(returnType);
+                }));
+            }
+            var nodeGuid = nodeControl?.ViewModel?.Node?.Guid;
+
+            MenuItem? debugMenu = null;
+            debugMenu = CreateMenuItem("在此中断", (s, e) =>
+            {
+                if (nodeControl!.ViewModel.DebugSetting.IsInterrupt)
+                {
+                    nodeControl.ViewModel.IsInterrupt = false;
+                    debugMenu!.Header = "在此中断";
+                }
+                else
+                {
+                    nodeControl.ViewModel.IsInterrupt = true;
+                    debugMenu!.Header = "取消中断";
+                }
+            });
+            contextMenu.Items.Add(debugMenu);
+
+
+            contextMenu.Items.Add(CreateMenuItem("设为起点", (s, e) => FlowEnvironment.SetStartNode(nodeGuid)));
+            contextMenu.Items.Add(CreateMenuItem("删除", (s, e) => FlowEnvironment.RemoteNode(nodeGuid)));
+
+
+            contextMenu.Items.Add(CreateMenuItem("添加 真分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsSucceed)));
+            contextMenu.Items.Add(CreateMenuItem("添加 假分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsFail)));
+            contextMenu.Items.Add(CreateMenuItem("添加 异常分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsError)));
+            contextMenu.Items.Add(CreateMenuItem("添加 上游分支", (s, e) => StartConnection(nodeControl, ConnectionType.Upstream)));
+
+
+            nodeControl.ContextMenu = contextMenu;
+        }
+
+        /// <summary>
         /// 配置连接曲线的右键菜单
         /// </summary>
         /// <param name="line"></param>
@@ -693,6 +652,7 @@ namespace Serein.WorkBench
             connection.ArrowPath.ContextMenu = contextMenu;
             connection.BezierPath.ContextMenu = contextMenu;
         }
+
         /// <summary>
         /// 删除该连线
         /// </summary>
@@ -776,24 +736,7 @@ namespace Serein.WorkBench
         /// </summary>
         private void FlowChartCanvas_MouseMove(object sender, MouseEventArgs e)
         {
-            if (IsSelectControl && e.LeftButton == MouseButtonState.Pressed) // 正在选取节点
-            {
-                // 获取当前鼠标位置
-                Point currentPoint = e.GetPosition(FlowChartCanvas);
-
-                // 更新选取矩形的位置和大小
-                double x = Math.Min(currentPoint.X, startPoint.X);
-                double y = Math.Min(currentPoint.Y, startPoint.Y);
-                double width = Math.Abs(currentPoint.X - startPoint.X);
-                double height = Math.Abs(currentPoint.Y - startPoint.Y);
-
-                Canvas.SetLeft(SelectionRectangle, x);
-                Canvas.SetTop(SelectionRectangle, y);
-                SelectionRectangle.Width = width;
-                SelectionRectangle.Height = height;
-            }
-
-
+            
             if (IsConnecting) // 正在连接节点
             {
                 Point position = e.GetPosition(FlowChartCanvas);
@@ -809,22 +752,41 @@ namespace Serein.WorkBench
             if (IsCanvasDragging) // 正在移动画布
             {
                 Point currentMousePosition = e.GetPosition(this);
-                double deltaX = currentMousePosition.X - startPoint.X;
-                double deltaY = currentMousePosition.Y - startPoint.Y;
+                double deltaX = currentMousePosition.X - startCanvasDragPoint.X;
+                double deltaY = currentMousePosition.Y - startCanvasDragPoint.Y;
 
                 translateTransform.X += deltaX;
                 translateTransform.Y += deltaY;
 
-                startPoint = currentMousePosition;
+                startCanvasDragPoint = currentMousePosition;
 
                 foreach (var line in Connections)
                 {
                     line.Refresh();
                 }
-
-                e.Handled = true; // 防止事件传播影响其他控件
             }
 
+            if (IsSelectControl && e.LeftButton == MouseButtonState.Pressed) // 正在选取节点
+            {
+                // 获取当前鼠标位置
+                Point currentPoint = e.GetPosition(FlowChartCanvas);
+
+                // 更新选取矩形的位置和大小
+                double x = Math.Min(currentPoint.X, startSelectControolPoint.X);
+                double y = Math.Min(currentPoint.Y, startSelectControolPoint.Y);
+                double width = Math.Abs(currentPoint.X - startSelectControolPoint.X);
+                double height = Math.Abs(currentPoint.Y - startSelectControolPoint.Y);
+                /*double x = Math.Min(currentPoint.X, startControlDragPoint.X);
+                double y = Math.Min(currentPoint.Y, startControlDragPoint.Y);
+                double width = Math.Abs(currentPoint.X - startControlDragPoint.X);
+                double height = Math.Abs(currentPoint.Y - startControlDragPoint.Y);*/
+
+                Canvas.SetLeft(SelectionRectangle, x);
+                Canvas.SetTop(SelectionRectangle, y);
+                SelectionRectangle.Width = width;
+                SelectionRectangle.Height = height;
+
+            }
         }
 
         /// <summary>
@@ -911,25 +873,6 @@ namespace Serein.WorkBench
         }
 
         /// <summary>
-        /// 穿透元素获取区域容器
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="element"></param>
-        /// <returns></returns>
-        private static T GetParentOfType<T>(DependencyObject element) where T : DependencyObject
-        {
-            while (element != null)
-            {
-                if (element is T)
-                {
-                    return element as T;
-                }
-                element = VisualTreeHelper.GetParent(element);
-            }
-            return null;
-        }
-
-        /// <summary>
         /// 将节点放在目标区域中
         /// </summary>
         /// <param name="regionControl">区域容器</param>
@@ -972,12 +915,10 @@ namespace Serein.WorkBench
         /// </summary>
         private void Block_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (IsConnecting)
-                return;
-
             IsControlDragging = true;
-            startPoint = e.GetPosition(FlowChartCanvas); // 记录鼠标按下时的位置
+            startControlDragPoint = e.GetPosition(FlowChartCanvas); // 记录鼠标按下时的位置
             ((UIElement)sender).CaptureMouse(); // 捕获鼠标
+            e.Handled = true; // 防止事件传播影响其他控件
         }
 
         /// <summary>
@@ -985,7 +926,15 @@ namespace Serein.WorkBench
         /// </summary>
         private void Block_MouseMove(object sender, MouseEventArgs e)
         {
-            if (IsControlDragging) // 如果正在拖动控件
+            if (IsConnecting)
+                return;
+            if (IsCanvasDragging)
+                return;
+            if (IsSelectControl)
+                return;
+
+            var IsSelect = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
+            if (!IsSelect && IsControlDragging) // 如果正在拖动控件
             {
                 Point currentPosition = e.GetPosition(FlowChartCanvas); // 获取当前鼠标位置
                                                                         // 获取引发事件的控件
@@ -994,8 +943,8 @@ namespace Serein.WorkBench
                     return;
                 }
 
-                double deltaX = currentPosition.X - startPoint.X; // 计算X轴方向的偏移量
-                double deltaY = currentPosition.Y - startPoint.Y; // 计算Y轴方向的偏移量
+                double deltaX = currentPosition.X - startControlDragPoint.X; // 计算X轴方向的偏移量
+                double deltaY = currentPosition.Y - startControlDragPoint.Y; // 计算Y轴方向的偏移量
 
                 double newLeft = Canvas.GetLeft(block) + deltaX; // 新的左边距
                 double newTop = Canvas.GetTop(block) + deltaY; // 新的上边距
@@ -1012,7 +961,7 @@ namespace Serein.WorkBench
 
                 UpdateConnections(block);
 
-                startPoint = currentPosition; // 更新起始点位置
+                startControlDragPoint = currentPosition; // 更新起始点位置
 
             }
         }
@@ -1159,13 +1108,14 @@ namespace Serein.WorkBench
         #region 拖动画布实现缩放平移效果
         private void FlowChartCanvas_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (e.MiddleButton == MouseButtonState.Pressed)
-            {
-                IsCanvasDragging = true;
-                startPoint = e.GetPosition(this);
-                FlowChartCanvas.CaptureMouse();
-                e.Handled = true; // 防止事件传播影响其他控件
-            }
+            IsCanvasDragging = true;
+            startCanvasDragPoint = e.GetPosition(this);
+            FlowChartCanvas.CaptureMouse();
+            e.Handled = true; // 防止事件传播影响其他控件
+            //if (e.MiddleButton == MouseButtonState.Pressed)
+            //{
+               
+            //}
         }
 
         private void FlowChartCanvas_MouseUp(object sender, MouseButtonEventArgs e)
@@ -1180,7 +1130,7 @@ namespace Serein.WorkBench
         // 单纯缩放画布，不改变画布大小
         private void FlowChartCanvas_MouseWheel(object sender, MouseWheelEventArgs e)
         {
-            if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
+            // if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
             {
                 if (e.Delta  < 0 && scaleTransform.ScaleX < 0.2) return;
                 if (e.Delta  > 0 && scaleTransform.ScaleY > 1.5) return;
@@ -1355,26 +1305,29 @@ namespace Serein.WorkBench
         /// <param name="e"></param>
         private void FlowChartCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift))
-            {
-                IsSelectControl = true;
+            IsSelectControl = true;
 
-                // 开始选取时，记录鼠标起始点
-                startPoint = e.GetPosition(FlowChartCanvas);
+            // 开始选取时，记录鼠标起始点
+            startSelectControolPoint = e.GetPosition(FlowChartCanvas);
 
-                // 初始化选取矩形的位置和大小
-                Canvas.SetLeft(SelectionRectangle, startPoint.X);
-                Canvas.SetTop(SelectionRectangle, startPoint.Y);
-                SelectionRectangle.Width = 0;
-                SelectionRectangle.Height = 0;
+            // 初始化选取矩形的位置和大小
+            Canvas.SetLeft(SelectionRectangle, startSelectControolPoint.X);
+            Canvas.SetTop(SelectionRectangle, startSelectControolPoint.Y);
+            SelectionRectangle.Width = 0;
+            SelectionRectangle.Height = 0;
 
-                // 显示选取矩形
-                SelectionRectangle.Visibility = Visibility.Visible;
-                SelectionRectangle.ContextMenu ??= ConfiguerSelectionRectangle();
+            // 显示选取矩形
+            SelectionRectangle.Visibility = Visibility.Visible;
+            SelectionRectangle.ContextMenu ??= ConfiguerSelectionRectangle();
 
-                // 捕获鼠标，以便在鼠标移动到Canvas外部时仍能处理事件
-                FlowChartCanvas.CaptureMouse();
-            }
+            // 捕获鼠标，以便在鼠标移动到Canvas外部时仍能处理事件
+            FlowChartCanvas.CaptureMouse();
+
+            //if (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift))
+            //{
+               
+            //}
+            e.Handled = true; // 防止事件传播影响其他控件
         }
 
         private ContextMenu ConfiguerSelectionRectangle()
@@ -1448,6 +1401,7 @@ namespace Serein.WorkBench
             if(selectNodeControls.Count == 0)
             {
                 Console.WriteLine($"没有选择控件");
+                SelectionRectangle.Visibility = Visibility.Collapsed;
                 return;
             }
             Console.WriteLine($"一共选取了{selectNodeControls.Count}个控件");
@@ -1455,6 +1409,8 @@ namespace Serein.WorkBench
             {
                 node.ViewModel.Selected();
                 node.ViewModel.CancelSelect();
+                node.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFC700"));
+                node.BorderThickness = new Thickness(4);
             }
         }
         private void CancelSelectNode()
@@ -1462,13 +1418,109 @@ namespace Serein.WorkBench
             foreach (var node in selectNodeControls)
             {
                 node.ViewModel.CancelSelect();
+                node.BorderBrush = Brushes.Black;
+                node.BorderThickness = new Thickness(0);
             }
             selectNodeControls.Clear();
         }
         #endregion
 
+        #region 窗体静态方法
 
 
+        private static TControl CreateNodeControl<TControl, TViewModel>(NodeModelBase model)
+            where TControl : NodeControlBase
+            where TViewModel : NodeControlViewModelBase
+        {
+
+            if (model == null)
+            {
+                throw new Exception("无法创建节点控件");
+            }
+
+            var viewModel = Activator.CreateInstance(typeof(TViewModel), [model]);
+            var controlObj = Activator.CreateInstance(typeof(TControl), [viewModel]);
+            if (controlObj is TControl control)
+            {
+                return control;
+            }
+            else
+            {
+                throw new Exception("无法创建节点控件");
+            }
+        }
+
+        private static TControl CreateNodeControl<TNode, TControl, TViewModel>(MethodDetails? methodDetails = null)
+            where TNode : NodeModelBase
+            where TControl : NodeControlBase
+            where TViewModel : NodeControlViewModelBase
+        {
+
+            var nodeObj = Activator.CreateInstance(typeof(TNode));
+            var nodeBase = nodeObj as NodeModelBase;
+            if (nodeBase == null)
+            {
+                throw new Exception("无法创建节点控件");
+            }
+
+
+            nodeBase.Guid = Guid.NewGuid().ToString();
+
+            if (methodDetails != null)
+            {
+                var md = methodDetails.Clone();
+                nodeBase.DisplayName = md.MethodTips;
+                nodeBase.MethodDetails = md;
+            }
+
+            var viewModel = Activator.CreateInstance(typeof(TViewModel), [nodeObj]);
+            var controlObj = Activator.CreateInstance(typeof(TControl), [viewModel]);
+            if (controlObj is TControl control)
+            {
+                return control;
+            }
+            else
+            {
+                throw new Exception("无法创建节点控件");
+            }
+        }
+
+
+        /// <summary>
+        /// 创建菜单子项
+        /// </summary>
+        /// <param name="header"></param>
+        /// <param name="handler"></param>
+        /// <returns></returns>
+        public static MenuItem CreateMenuItem(string header, RoutedEventHandler handler)
+        {
+            var menuItem = new MenuItem { Header = header };
+            menuItem.Click += handler;
+            return menuItem;
+        }
+
+
+
+        /// <summary>
+        /// 穿透元素获取区域容器
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="element"></param>
+        /// <returns></returns>
+        private static T GetParentOfType<T>(DependencyObject element) where T : DependencyObject
+        {
+            while (element != null)
+            {
+                if (element is T)
+                {
+                    return element as T;
+                }
+                element = VisualTreeHelper.GetParent(element);
+            }
+            return null;
+        }
+
+        #endregion
 
 
 
@@ -1505,7 +1557,11 @@ namespace Serein.WorkBench
         private async void ButtonDebugRun_Click(object sender, RoutedEventArgs e)
         {
             logWindow?.Show();
-            await FlowEnvironment.StartAsync();
+
+            await FlowEnvironment.StartAsync(); // 快
+
+            //await Task.Run( FlowEnvironment.StartAsync); // 上下文多次切换的场景中吗慢了1/5
+            //await Task.Factory.StartNew(FlowEnvironment.StartAsync); // 慢了1/5
         }
 
         /// <summary>
@@ -1613,6 +1669,20 @@ namespace Serein.WorkBench
             Uri fullUri = new(fullPath);
             Uri relativeUri = baseUri.MakeRelativeUri(fullUri);
             return Uri.UnescapeDataString(relativeUri.ToString().Replace('/', System.IO.Path.DirectorySeparatorChar));
+        }
+
+        private void Window_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+
+        }
+
+        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            //if (e.KeyStates == Keyboard.GetKeyStates(Key.D8) && Keyboard.Modifiers == ModifierKeys.Shift)
+            //if (Keyboard.Modifiers == ModifierKeys.Shift)
+            //{
+            //    startSelectControolPoint = e.GetPosition(FlowChartCanvas);
+            //}
         }
     }
 

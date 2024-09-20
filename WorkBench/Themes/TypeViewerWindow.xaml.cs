@@ -20,9 +20,7 @@ namespace Serein.WorkBench.Themes
     /// </summary>
     public partial class TypeViewerWindow : Window
     {
-
         public TypeViewerWindow()
-
         {
             InitializeComponent();
         }
@@ -34,55 +32,244 @@ namespace Serein.WorkBench.Themes
             if (Type == null)
                 return;
 
-            var rootNode = new TreeViewItem { Header = Type.Name };
-            AddMembersToTreeNode(rootNode, Type);
+            TypeNodeDetails typeNodeDetails = new TypeNodeDetails
+            {
+                Name = Type.Name,
+                DataType = Type,
+            };
+            var rootNode = new TreeViewItem { Header = Type.Name, Tag = typeNodeDetails };
+            AddPlaceholderNode(rootNode); // 添加占位符节点
             TypeTreeView.Items.Clear();
             TypeTreeView.Items.Add(rootNode);
+
+            rootNode.Expanded += TreeViewItem_Expanded; // 监听节点展开事件
+        }
+
+        /// <summary>
+        /// 添加占位符节点
+        /// </summary>
+        private void AddPlaceholderNode(TreeViewItem node)
+        {
+            node.Items.Add(new TreeViewItem { Header = "Loading..." });
+        }
+
+        /// <summary>
+        /// 节点展开事件，延迟加载子节点
+        /// </summary>
+        private void TreeViewItem_Expanded(object sender, RoutedEventArgs e)
+        {
+            var item = (TreeViewItem)sender;
+
+            // 如果已经加载过子节点，则不再重复加载
+            if (item.Items.Count == 1 && item.Items[0] is TreeViewItem placeholder && placeholder.Header.ToString() == "Loading...")
+            {
+                item.Items.Clear();
+                if (item.Tag is TypeNodeDetails typeNodeDetails)
+                {
+                    AddMembersToTreeNode(item, typeNodeDetails.DataType);
+                }
+                
+            }
+
+            
         }
 
         /// <summary>
         /// 添加属性节点
         /// </summary>
-        /// <param name="node"></param>
-        /// <param name="type"></param>
         private void AddMembersToTreeNode(TreeViewItem node, Type type)
         {
             var members = type.GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
             foreach (var member in members)
             {
-                TreeViewItem memberNode;
-                try
+                TreeViewItem memberNode = ConfigureTreeViewItem(member); // 生成类型节点的子项
+                if (ConfigureTreeItemMenu(memberNode,member, out ContextMenu? contextMenu))
                 {
-                    memberNode = new TreeViewItem { Header = member.Name };
-                }
-                catch 
-                {
-                    return;
-                }
-                
-                if (member is PropertyInfo property)
-                {
-                    var propertyType = property.PropertyType;
-                    memberNode.Header = $"{member.Name} : {propertyType.Name}";
-                    if (!propertyType.IsPrimitive && propertyType != typeof(string))
-                    {
-                        // 递归显示类型属性的节点
-                        AddMembersToTreeNode(memberNode, propertyType);
-                    }
-                }
-                else if (member is MethodInfo method)
-                {
-                    var parameters = method.GetParameters();
-                    var paramStr = string.Join(", ", parameters.Select(p => $"{p.ParameterType.Name} {p.Name}"));
-                    memberNode.Header = $"{member.Name}({paramStr})";
-                }
-                else if (member is FieldInfo field)
-                {
-                    memberNode.Header = $"{member.Name} : {field.FieldType.Name}";
+                    memberNode.ContextMenu = contextMenu; // 设置子项节点的事件
                 }
 
-                node.Items.Add(memberNode);
+                node.Items.Add(memberNode); // 添加到父节点中
             }
         }
+
+
+        /// <summary>
+        /// 生成类型节点的子项
+        /// </summary>
+        /// <param name="member"></param>
+        /// <returns></returns>
+        private TreeViewItem ConfigureTreeViewItem(MemberInfo member)
+        {
+            TreeViewItem memberNode = new TreeViewItem { Header = member.Name };
+            if (member is PropertyInfo property)
+            {
+                TypeNodeDetails typeNodeDetails = new TypeNodeDetails
+                {
+                    ItemType = TreeItemType.Property,
+                    DataType = property.PropertyType,
+                    Name = property.Name,
+                    DataValue = property,
+                };
+                memberNode.Tag = typeNodeDetails;
+
+                var propertyType = typeNodeDetails.DataType;
+                memberNode.Header = $"{member.Name} : {propertyType.Name}";
+                
+                if (!propertyType.IsPrimitive && propertyType != typeof(string))
+                {
+                    // 延迟加载类型的子属性，添加占位符节点
+                    AddPlaceholderNode(memberNode);
+                    memberNode.Expanded += TreeViewItem_Expanded; // 监听展开事件
+                }
+            }
+            else if (member is MethodInfo method)
+            {
+                TypeNodeDetails typeNodeDetails = new TypeNodeDetails
+                {
+                    ItemType = TreeItemType.Method,
+                    DataType = typeof(MethodInfo),
+                    Name = method.Name,
+                    DataValue = null,
+                };
+                memberNode.Tag = typeNodeDetails;
+
+                var parameters = method.GetParameters();
+                var paramStr = string.Join(", ", parameters.Select(p => $"{p.ParameterType.Name} {p.Name}"));
+                memberNode.Header = $"{member.Name}({paramStr})";
+            }
+            else if (member is FieldInfo field)
+            {
+                TypeNodeDetails typeNodeDetails = new TypeNodeDetails
+                {
+                    ItemType = TreeItemType.Field,
+                    DataType = field.FieldType,
+                    Name = field.Name,
+                    DataValue = field,
+                };
+                memberNode.Tag = typeNodeDetails;
+                memberNode.Header = $"{member.Name} : {field.FieldType.Name}";
+            }
+            return memberNode;
+        }
+
+
+        /// <summary>
+        /// 设置子项节点的事件
+        /// </summary>
+        /// <param name="member"></param>
+        /// <returns></returns>
+        private bool ConfigureTreeItemMenu(TreeViewItem memberNode, MemberInfo member,out ContextMenu? contextMenu)
+        {
+            bool isChange = false;
+            if (member is PropertyInfo property)
+            {
+                //isChange = true;
+                contextMenu = new ContextMenu();
+            }
+            else if (member is MethodInfo method)
+            {
+                //isChange = true;
+                contextMenu = new ContextMenu();
+            }
+            else if (member is FieldInfo field)
+            {
+                isChange = true; 
+                contextMenu = new ContextMenu();
+                contextMenu.Items.Add(MainWindow.CreateMenuItem($"取值表达式", (s, e) =>
+                {
+                    string fullPath = GetNodeFullPath(memberNode);
+                    string copyValue = "@Get " + fullPath;
+                    Clipboard.SetDataObject(copyValue);
+                }));
+            }
+            else
+            {
+                contextMenu = new ContextMenu();
+            }
+            return isChange;
+        }
+
+
+
+        /// <summary>
+        /// 获取当前节点的完整路径，例如 "node1.node2.node3.node4"
+        /// </summary>
+        /// <param name="node">目标节点</param>
+        /// <returns>节点路径</returns>
+        private string GetNodeFullPath(TreeViewItem node)
+        {
+            if (node == null)
+                return string.Empty;
+
+            TypeNodeDetails typeNodeDetails = (TypeNodeDetails)node.Tag;
+            var parent = GetParentTreeViewItem(node);
+            if (parent != null)
+            {
+                // 递归获取父节点的路径，并拼接当前节点的 Header
+                return $"{GetNodeFullPath(parent)}.{typeNodeDetails.Name}";
+            }
+            else
+            {
+                return ""; 
+
+
+                // 没有父节点，则说明这是根节点，直接返回 Header
+                // return typeNodeDetails.Name.ToString();
+            }
+        }
+
+        /// <summary>
+        /// 获取指定节点的父级节点
+        /// </summary>
+        /// <param name="node">目标节点</param>
+        /// <returns>父节点</returns>
+        private TreeViewItem GetParentTreeViewItem(TreeViewItem node)
+        {
+            DependencyObject parent = VisualTreeHelper.GetParent(node);
+            while (parent != null && !(parent is TreeViewItem))
+            {
+                parent = VisualTreeHelper.GetParent(parent);
+            }
+            return parent as TreeViewItem;
+        }
+
+
+
+        public class TypeNodeDetails
+        {
+            /// <summary>
+            /// 属性名称
+            /// </summary>
+            public string Name { get; set; }
+            /// <summary>
+            /// 属性类型
+            /// </summary>
+            public TreeItemType ItemType { get; set; }
+
+
+            /// <summary>
+            /// 数据类型
+            /// </summary>
+            public Type DataType { get; set; }
+            /// <summary>
+            /// 数据（调试用？）
+            /// </summary>
+            public object DataValue { get; set; }
+            /// <summary>
+            /// 数据路径
+            /// </summary>
+            public string DataPath { get; set; }
+        }
+
+        public enum TreeItemType
+        {
+            Property,
+            Method, 
+            Field
+        }
+
+
+
     }
+
 }

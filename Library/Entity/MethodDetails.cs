@@ -28,9 +28,16 @@ namespace Serein.Library.Entity
                 MethodName = MethodName,
                 MethodLockName = MethodLockName,
                 IsNetFramework = IsNetFramework,
+                IsProtectionParameter = IsProtectionParameter,
                 ExplicitDatas = ExplicitDatas?.Select(it => it.Clone()).ToArray(),
             };
         }
+
+
+        /// <summary>
+        /// 是否保护参数
+        /// </summary>
+        public bool IsProtectionParameter { get; set; }
 
         /// <summary>
         /// 作用实例的类型

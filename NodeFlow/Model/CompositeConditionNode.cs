@@ -24,7 +24,8 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        public override object? Execute(IDynamicContext context)
+        //public override object? Executing(IDynamicContext context)
+        public override Task<object?> ExecutingAsync(IDynamicContext context)
         {
             // 条件区域中遍历每个条件节点
             foreach (SingleConditionNode? node in ConditionNodes)
@@ -37,7 +38,7 @@ namespace Serein.NodeFlow.Model
                     break;
                 }
             }
-            return PreviousNode?.FlowData;
+            return Task.FromResult( PreviousNode?.FlowData);
         }
 
         
@@ -45,7 +46,7 @@ namespace Serein.NodeFlow.Model
         {
             try
             {
-                node.Execute(context);
+                node.ExecutingAsync(context);
                 return node.NextOrientation;
             }
             catch (Exception ex)

@@ -7,6 +7,8 @@
         AllowDrop="True" Drop="Window_Drop" DragOver="Window_DragOver"
         Loaded="Window_Loaded"
         ContentRendered="Window_ContentRendered"
+        PreviewKeyDown="Window_PreviewKeyDown"
+        PreviewTextInput="Window_PreviewTextInput"
         Closing="Window_Closing">
 
     <Window.Resources>
@@ -108,7 +110,7 @@
                                Stroke="Blue" 
                                StrokeThickness="2" 
                                Fill="LightBlue" 
-                               Opacity="0.5" 
+                               Opacity="0.2" 
                                Panel.ZIndex="999999"
                                Visibility="Collapsed"/> 
 

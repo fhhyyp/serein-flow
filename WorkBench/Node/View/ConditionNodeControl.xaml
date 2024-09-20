@@ -8,9 +8,7 @@
              xmlns:themes="clr-namespace:Serein.WorkBench.Themes"
                        MaxWidth="300">
 
-    <!--d:DataContext="{d:DesignInstance Type=vm:ConditionNodeControlViewModel}"-->
     <UserControl.Resources>
-        <!--<vm:TypeToStringConverter x:Key="TypeToStringConverter"/>-->
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
     </UserControl.Resources>
 
