@@ -24,17 +24,24 @@ namespace Serein.Library.Framework.NodeFlow
         {
             if(NodeRunCts == null)
             {
-
                 NodeRunCts = SereinIoc.GetOrRegisterInstantiate<NodeRunCts>();
             }
-            return Task.Factory.StartNew(async () =>
+            // 使用局部变量，避免捕获外部的 `action`
+            Action localAction = action;
+
+            return Task.Run(async () =>
             {
                 for (int i = 0; i < count; i++)
                 {
                     NodeRunCts.Token.ThrowIfCancellationRequested();
                     await Task.Delay(time);
-                    action.Invoke();
+
+                    // 确保对局部变量的引用
+                    localAction?.Invoke();
                 }
+
+                // 清理引用，避免闭包导致的内存泄漏
+                localAction = null;
             });
         }
     }

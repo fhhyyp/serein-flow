@@ -25,6 +25,12 @@ namespace Serein.Library.Api
         /// 获取或创建并注入目标类型
         /// </summary>
         object GetOrRegisterInstantiate(Type type);
+        object Get(Type type);
+
+
+        T Get<T>(string name);
+        object Get(string name);
+        void CustomRegisterInstance(string name, object instance, bool needInjectProperty = true);
 
         /// <summary>
         /// 创建目标类型的对象， 并注入依赖项

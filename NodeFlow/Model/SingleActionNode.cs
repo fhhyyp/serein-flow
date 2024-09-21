@@ -15,12 +15,12 @@ namespace Serein.NodeFlow.Model
             if (base.MethodDetails.ExplicitDatas.Length > 0)
             {
                 return MethodDetails.ExplicitDatas
-                                     .Select(it => new Parameterdata
-                                     {
-                                         State = it.IsExplicitData,
-                                         Value = it.DataValue,
-                                     })
-                                     .ToArray();
+                                    .Select(it => new Parameterdata
+                                    {
+                                        State = it.IsExplicitData,
+                                        Value = it.DataValue,
+                                    })
+                                    .ToArray();
             }
             else
             {

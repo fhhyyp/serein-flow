@@ -9,6 +9,7 @@ using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Tool;
 using System.Collections.Concurrent;
 using System.Reflection;
+using System.Xml.Linq;
 using static Serein.NodeFlow.FlowStarter;
 
 namespace Serein.NodeFlow
@@ -196,9 +197,20 @@ namespace Serein.NodeFlow
         }
         public void Exit()
         {
+            foreach (var node in Nodes.Values)
+            {
+                if (typeof(IDisposable).IsAssignableFrom(node?.FlowData?.GetType()) && node.FlowData is IDisposable disposable)
+                {
+                    disposable?.Dispose();
+                }
+                node!.FlowData = null;
+            }
+
             ChannelFlowInterrupt?.CancelAllTasks();
             flowStarter?.Exit();
             OnFlowRunComplete?.Invoke(new FlowEventArgs());
+
+            GC.Collect();
         }
 
         /// <summary>
@@ -452,7 +464,9 @@ namespace Serein.NodeFlow
                 for (int i = 0; i < pnc.Value.Count; i++)
                 {
                     NodeModelBase? pNode = pnc.Value[i];
-                    pNode.SuccessorNodes[pCType].RemoveAt(i);
+                    //pNode.SuccessorNodes[pCType].RemoveAt(i);
+                    pNode.SuccessorNodes[pCType].Remove(pNode);
+
                     OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(pNode.Guid,
                                                                     remoteNode.Guid,
                                                                     pCType,

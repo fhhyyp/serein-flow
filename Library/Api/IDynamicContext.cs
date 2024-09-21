@@ -8,7 +8,6 @@ namespace Serein.Library.Api
     {
         IFlowEnvironment FlowEnvironment { get; }
         ISereinIOC SereinIoc { get; }
-        NodeRunCts NodeRunCts { get; set; }
         Task CreateTimingTask(Action action, int time = 100, int count = -1);
     }
 }

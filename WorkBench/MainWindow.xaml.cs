@@ -87,6 +87,7 @@ namespace Serein.WorkBench
         /// 标记是否正在拖动画布
         /// </summary>
         private bool IsCanvasDragging;
+        private bool IsSelectDragging;
 
         /// <summary>
         /// 当前选取的控件
@@ -823,8 +824,9 @@ namespace Serein.WorkBench
                 }
             }
 
-            if (IsSelectControl /*&& e.LeftButton == MouseButtonState.Pressed*/) // 正在选取节点
+            if (IsSelectControl) // 正在选取节点
             {
+                IsSelectDragging = e.LeftButton == MouseButtonState.Pressed;
                 // 获取当前鼠标位置
                 Point currentPoint = e.GetPosition(FlowChartCanvas);
 
@@ -1407,6 +1409,36 @@ namespace Serein.WorkBench
         /// <param name="e"></param>
         private void FlowChartCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            if (!IsSelectControl)
+            {
+                // 进入选取状态
+                IsSelectControl = true;
+                IsSelectDragging = false; // 初始化为非拖动状态
+
+                // 记录鼠标起始点
+                startSelectControolPoint = e.GetPosition(FlowChartCanvas);
+
+                // 初始化选取矩形的位置和大小
+                Canvas.SetLeft(SelectionRectangle, startSelectControolPoint.X);
+                Canvas.SetTop(SelectionRectangle, startSelectControolPoint.Y);
+                SelectionRectangle.Width = 0;
+                SelectionRectangle.Height = 0;
+
+                // 显示选取矩形
+                SelectionRectangle.Visibility = Visibility.Visible;
+                SelectionRectangle.ContextMenu ??= ConfiguerSelectionRectangle();
+
+                // 捕获鼠标，以便在鼠标移动到Canvas外部时仍能处理事件
+                FlowChartCanvas.CaptureMouse();
+            }
+            else
+            {
+                // 如果已经是选取状态，单击则认为结束框选
+                CompleteSelection();
+            }
+
+            e.Handled = true; // 防止事件传播影响其他控件
+            return;
             // 如果正在选取状态，再次点击画布时自动确定选取范围，否则进入选取状态
             if (IsSelectControl)
             {
@@ -1467,14 +1499,71 @@ namespace Serein.WorkBench
            
         }
 
+        /// <summary>
+        /// 在画布中释放鼠标按下，结束选取状态
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FlowChartCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (IsSelectControl)
+            {
+                // 松开鼠标时判断是否为拖动操作
+                if (IsSelectDragging)
+                {
+                    // 完成拖动框选
+                    CompleteSelection();
+                }
+
+                // 释放鼠标捕获
+                FlowChartCanvas.ReleaseMouseCapture();
+            }
+
+            e.Handled = true;
+        }
+
+        /// 完成选取操作
+        /// </summary>
+        private void CompleteSelection()
+        {
+            IsSelectControl = false;
+
+            // 隐藏选取矩形
+            SelectionRectangle.Visibility = Visibility.Collapsed;
+
+            // 获取选取范围
+            Rect selectionArea = new Rect(Canvas.GetLeft(SelectionRectangle),
+                                          Canvas.GetTop(SelectionRectangle),
+                                          SelectionRectangle.Width,
+                                          SelectionRectangle.Height);
+
+            // 处理选取范围内的控件
+            // selectNodeControls.Clear();
+            foreach (UIElement element in FlowChartCanvas.Children)
+            {
+                Rect elementBounds = new Rect(Canvas.GetLeft(element), Canvas.GetTop(element),
+                                              element.RenderSize.Width, element.RenderSize.Height);
+
+                if (selectionArea.Contains(elementBounds))
+                {
+                    if (element is NodeControlBase control)
+                    {
+                        selectNodeControls.Add(control);
+                    }
+                }
+            }
+
+            // 选中后的操作
+            SelectedNode();
+        }
         private ContextMenu ConfiguerSelectionRectangle()
         {
             var contextMenu = new ContextMenu();
             contextMenu.Items.Add(CreateMenuItem("删除", (s, e) =>
             {
-                if(selectNodeControls.Count > 0)
+                if (selectNodeControls.Count > 0)
                 {
-                    foreach(var node in selectNodeControls.ToArray())
+                    foreach (var node in selectNodeControls.ToArray())
                     {
                         var guid = node?.ViewModel?.Node?.Guid;
                         if (!string.IsNullOrEmpty(guid))
@@ -1488,25 +1577,11 @@ namespace Serein.WorkBench
             return contextMenu;
             // nodeControl.ContextMenu = contextMenu;
         }
-
-        /// <summary>
-        /// 在画布中释放鼠标按下，结束选取状态
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void FlowChartCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            if (IsSelectControl)
-            {
-               
-            }
-        }
-
         private void SelectedNode()
         {
             if(selectNodeControls.Count == 0)
             {
-                Console.WriteLine($"没有选择控件");
+                //Console.WriteLine($"没有选择控件");
                 SelectionRectangle.Visibility = Visibility.Collapsed;
                 return;
             }
@@ -1514,7 +1589,7 @@ namespace Serein.WorkBench
             foreach (var node in selectNodeControls)
             {
                 node.ViewModel.Selected();
-                node.ViewModel.CancelSelect();
+                // node.ViewModel.CancelSelect();
                 node.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFC700"));
                 node.BorderThickness = new Thickness(4);
             }
@@ -1849,8 +1924,8 @@ namespace Serein.WorkBench
 
             await FlowEnvironment.StartAsync(); // 快
 
-            //await Task.Run( FlowEnvironment.StartAsync); // 上下文多次切换的场景中吗慢了1/5
-            //await Task.Factory.StartNew(FlowEnvironment.StartAsync); // 慢了1/5
+            //await Task.Run( FlowEnvironment.StartAsync); // 上下文多次切换的场景中慢了1/10,定时器精度丢失
+            //await Task.Factory.StartNew(FlowEnvironment.StartAsync); // 慢了1/5,定时器精度丢失
         }
 
         /// <summary>
@@ -1975,6 +2050,11 @@ namespace Serein.WorkBench
         /// <param name="e"></param>
         private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            if (e.Key == Key.Tab)
+            {
+                e.Handled = true; // 禁止默认的Tab键行为
+            }
+
             if (e.KeyStates == Keyboard.GetKeyStates(Key.Escape))
             //if (Keyboard.Modifiers == ModifierKeys.Shift)
             {
@@ -1984,6 +2064,7 @@ namespace Serein.WorkBench
                 EndConnection();
                 SelectionRectangle.Visibility = Visibility.Collapsed;
                 CancelSelectNode();
+                
             }
         }
 

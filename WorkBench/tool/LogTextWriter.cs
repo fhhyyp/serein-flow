@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.IO;
 using System.Text;
+using System.Threading.Channels;
 
 namespace Serein.WorkBench.tool
 {
@@ -9,21 +10,20 @@ namespace Serein.WorkBench.tool
     /// </summary>
     public class LogTextWriter : TextWriter
     {
-        private readonly Action<string> logAction;
-        private readonly StringWriter stringWriter = new();
-        private readonly BlockingCollection<string> logQueue = new();
-        private readonly Task logTask;
-
-        // 用于计数的字段
-        private int writeCount = 0;
-        private const int maxWrites = 500;
-        private readonly Action clearTextBoxAction;
+        private readonly Action<string> logAction; // 更新日志UI的委托
+        private readonly StringWriter stringWriter = new(); // 缓存日志内容
+        private readonly Channel<string> logChannel = Channel.CreateUnbounded<string>(); // 日志管道
+        private readonly Action clearTextBoxAction; // 清空日志UI的委托
+        private int writeCount = 0; // 写入计数器
+        private const int maxWrites = 500; // 写入最大计数
 
         public LogTextWriter(Action<string> logAction, Action clearTextBoxAction)
         {
             this.logAction = logAction;
             this.clearTextBoxAction = clearTextBoxAction;
-            logTask = Task.Run(ProcessLogQueue); // 异步处理日志
+
+            // 异步启动日志处理任务，不阻塞主线程
+            Task.Run(ProcessLogQueueAsync);
         }
 
         public override Encoding Encoding => Encoding.UTF8;
@@ -54,39 +54,32 @@ namespace Serein.WorkBench.tool
             EnqueueLog();
         }
 
+        // 将日志加入通道
         private void EnqueueLog()
         {
-            logQueue.Add(stringWriter.ToString());
+            var log = stringWriter.ToString();
             stringWriter.GetStringBuilder().Clear();
-        }
 
-        private async Task ProcessLogQueue()
-        {
-            foreach (var log in logQueue.GetConsumingEnumerable())
+            if (!logChannel.Writer.TryWrite(log))
             {
-                // 异步执行日志输出操作
-                await Task.Run(() =>
-                {
-                    logAction(log);
-
-                    // 计数器增加
-                    writeCount++;
-                    if (writeCount >= maxWrites)
-                    {
-                        // 计数器达到50，清空文本框
-                        clearTextBoxAction?.Invoke();
-                        writeCount = 0; // 重置计数器
-                    }
-                });
+                // 如果写入失败（不太可能），则直接丢弃日志或处理
             }
         }
 
-        public new void Dispose()
+        // 异步处理日志队列
+        private async Task ProcessLogQueueAsync()
         {
-            logQueue.CompleteAdding();
-            logTask.Wait();
-            base.Dispose();
+            await foreach (var log in logChannel.Reader.ReadAllAsync()) // 异步读取日志通道
+            {
+                logAction?.Invoke(log); // 执行日志写入到UI的委托
+
+                writeCount++;
+                if (writeCount >= maxWrites)
+                {
+                    clearTextBoxAction?.Invoke(); // 清空文本框
+                    writeCount = 0; // 重置计数器
+                }
+            }
         }
     }
-
 }

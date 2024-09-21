@@ -37,11 +37,19 @@ namespace Serein.Library.Utils
                 try
                 {
                     await Task.Delay(outTime, cts.Token);
-                    await channel.Writer.WriteAsync(CancelType.Overtime);
+                    if(!cts.Token.IsCancellationRequested)
+                    {
+                        await channel.Writer.WriteAsync(CancelType.Overtime);
+                    }
+                    
                 }
                 catch (OperationCanceledException)
                 {
                     // 超时任务被取消
+                }
+                finally
+                {
+                    cts?.Dispose();
                 }
             }, cts.Token);
 

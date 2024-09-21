@@ -1,4 +1,5 @@
-﻿using Serein.Library.Api;
+﻿using Newtonsoft.Json.Linq;
+using Serein.Library.Api;
 using Serein.Library.Attributes;
 using Serein.Library.Web;
 using System;
@@ -6,6 +7,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Xml;
 
 namespace Serein.Library.Utils
 {
@@ -88,8 +90,7 @@ namespace Serein.Library.Utils
         public ISereinIOC Register<TService, TImplementation>(params object[] parameters)
             where TImplementation : TService
         {
-            var typeFullName = typeof(TService).FullName;
-            RegisterType(typeFullName, typeof(TImplementation));
+            RegisterType(typeof(TService).FullName, typeof(TImplementation));
             return this;
         }
         #endregion
@@ -139,6 +140,57 @@ namespace Serein.Library.Utils
         {
             return (T)GetOrRegisterInstantiate(typeof(T));
         }
+
+
+
+        public void CustomRegisterInstance(string name,object instance, bool needInjectProperty = true)
+        {
+            // 不存在时才允许创建
+            if (!_dependencies.ContainsKey(name))
+            {
+                _dependencies.TryAdd(name, instance);
+            }
+
+            if (needInjectProperty) 
+            {
+                InjectDependencies(instance); // 注入实例需要的依赖项
+            }
+
+            // 检查是否存在其它实例
+            if (_unfinishedDependencies.TryGetValue(name, out var unfinishedPropertyList))
+            {
+                foreach ((object obj, PropertyInfo property) in unfinishedPropertyList)
+                {
+                    property.SetValue(obj, instance); //注入依赖项
+                }
+
+                if (_unfinishedDependencies.TryRemove(name, out unfinishedPropertyList))
+                {
+                    unfinishedPropertyList.Clear();
+                }
+            }
+        }
+        public object Get(Type type)
+        {
+            return Get(type.FullName);
+        }
+
+
+        public T Get<T>(string name)
+        {
+            return (T)Get(name);
+        }
+        public object Get(string name)
+        {
+            object value;
+            if (!_dependencies.TryGetValue(name, out value))
+            {
+                value = null;
+            }
+            return value;
+        }
+
+
 
         /// <summary>
         /// 根据类型生成对应的实例，并注入其中的依赖项（类型信息不登记到IOC容器中）,类型创建后自动注入其它需要此类型的对象
