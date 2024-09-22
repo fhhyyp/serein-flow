@@ -39,7 +39,7 @@ namespace Serein.NodeFlow.Model
             }
             else
             {
-                result = PreviousNode?.FlowData;
+                result = PreviousNode?.GetFlowData();
             }
             try
             {

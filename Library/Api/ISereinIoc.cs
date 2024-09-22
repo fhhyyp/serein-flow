@@ -32,6 +32,9 @@ namespace Serein.Library.Api
         object Get(string name);
         void CustomRegisterInstance(string name, object instance, bool needInjectProperty = true);
 
+        ISereinIOC Run<T>(string name, Action<T> action);
+
+
         /// <summary>
         /// 创建目标类型的对象， 并注入依赖项
         /// </summary>

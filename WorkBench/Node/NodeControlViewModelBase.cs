@@ -67,22 +67,34 @@ namespace Serein.WorkBench.Node.ViewModel
             }
         }
 
+        private bool isInterrupt;
         public bool IsInterrupt
         {
-            get => Node.DebugSetting.IsInterrupt;
+            get => isInterrupt;
             set
             {
-                if (value)
-                {
-                    Node.Interrupt();
-                }
-                else
-                {
-                    Node.CancelInterrupt();
-                }
+                isInterrupt = value;
                 OnPropertyChanged(nameof(IsInterrupt));
             }
         }
+
+
+        //public bool IsInterrupt
+        //{
+        //    get => Node.DebugSetting.IsInterrupt;
+        //    set
+        //    {
+        //        if (value)
+        //        {
+        //            Node.Interrupt();
+        //        }
+        //        else
+        //        {
+        //            Node.CancelInterrupt();
+        //        }
+        //        OnPropertyChanged(nameof(IsInterrupt));
+        //    }
+        //}
 
         //public bool IsProtectionParameter
         //{

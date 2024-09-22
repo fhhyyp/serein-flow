@@ -38,7 +38,7 @@ namespace Serein.NodeFlow.Model
                     break;
                 }
             }
-            return Task.FromResult( PreviousNode?.FlowData);
+            return Task.FromResult( PreviousNode?.GetFlowData());
         }
 
         

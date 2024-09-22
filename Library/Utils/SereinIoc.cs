@@ -366,6 +366,27 @@ namespace Serein.Library.Utils
         #endregion
 
         #region run()
+        public ISereinIOC Run<T>(string name, Action<T> action)
+        {
+            var obj  = Get(name);
+            if (obj != null)
+            {
+                if(obj is T service)
+                {
+                    try
+                    {
+                        action(service);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                    }
+                }
+            }
+            return this;
+        }
+
+
         public ISereinIOC Run<T>(Action<T> action)
         {
             var service = GetOrRegisterInstantiate<T>();

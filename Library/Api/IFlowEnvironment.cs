@@ -45,7 +45,7 @@ namespace Serein.Library.Api
     /// 环境中流程起始节点发生了改变
     /// </summary>
     /// <param name="eventArgs"></param>
-    public delegate void StartNodeChangeHandler(StartNodeChangeEventArgs eventArgs); 
+    public delegate void StartNodeChangeHandler(StartNodeChangeEventArgs eventArgs);
     #endregion
 
     #region 环境事件签名
@@ -211,18 +211,133 @@ namespace Serein.Library.Api
     }
     #endregion
 
+
+    /// <summary>
+    /// 被监视的对象改变事件
+    /// </summary>
+    /// <param name="eventArgs"></param>
+    public delegate void MonitorObjectChangeHandler(MonitorObjectEventArgs eventArgs);
+    /// <summary>
+    /// 节点中断状态改变事件（开启了中断/取消了中断）
+    /// </summary>
+    /// <param name="eventArgs"></param>
+    public delegate void NodeInterruptStateChangeHandler(NodeInterruptStateChangeEventArgs eventArgs);
+    /// <summary>
+    /// 节点触发中断事件
+    /// </summary>
+    /// <param name="eventArgs"></param>
+    public delegate void NodeInterruptTriggerHandler(NodeInterruptTriggerEventArgs eventArgs);
+
+    /// <summary>
+    /// 监视的节点数据发生变化
+    /// </summary>
+    public class MonitorObjectEventArgs : FlowEventArgs
+    {
+        public MonitorObjectEventArgs(string nodeGuid,object newData)
+        {
+            NodeGuid = nodeGuid;
+            NewData = newData;
+        }
+
+        /// <summary>
+        /// 中断的节点Guid
+        /// </summary>
+        public string NodeGuid { get; protected set; }
+
+        /// <summary>
+        /// 新的数据
+        /// </summary>
+        public object NewData {  get; protected set; }
+    }
+
+    /// <summary>
+    /// 节点中断状态改变事件参数
+    /// </summary>
+    public class NodeInterruptStateChangeEventArgs : FlowEventArgs
+    {
+        public NodeInterruptStateChangeEventArgs(string nodeGuid,InterruptClass @class)
+        {
+            NodeGuid = nodeGuid;
+            Class = @class;
+        }
+
+        /// <summary>
+        /// 中断的节点Guid
+        /// </summary>
+        public string NodeGuid { get; protected set; }
+        public InterruptClass Class { get; protected set; }
+    }
+    /// <summary>
+    /// 节点触发了中断事件参数
+    /// </summary>
+    public class NodeInterruptTriggerEventArgs : FlowEventArgs
+    {
+        public NodeInterruptTriggerEventArgs(string nodeGuid)
+        {
+            NodeGuid = nodeGuid;
+        }
+
+        /// <summary>
+        /// 中断的节点Guid
+        /// </summary>
+        public string NodeGuid { get; protected set; }
+    }
+
     public interface IFlowEnvironment
     {
         ChannelFlowInterrupt ChannelFlowInterrupt { get; set; }
 
 
-        event FlowRunCompleteHandler OnFlowRunComplete;
-        event ProjectLoadedHandler OnProjectLoaded;
+        /// <summary>
+        /// 加载Dll
+        /// </summary>
         event LoadDLLHandler OnDllLoad;
+
+        /// <summary>
+        /// 项目加载完成
+        /// </summary>
+        event ProjectLoadedHandler OnProjectLoaded;
+
+        /// <summary>
+        /// 节点连接属性改变事件
+        /// </summary>
         event NodeConnectChangeHandler OnNodeConnectChange;
+
+        /// <summary>
+        /// 节点创建事件
+        /// </summary>
         event NodeCreateHandler OnNodeCreate;
+
+        /// <summary>
+        /// 移除节点事件
+        /// </summary>
         event NodeRemoteHandler OnNodeRemote;
+
+        /// <summary>
+        /// 起始节点变化事件
+        /// </summary>
         event StartNodeChangeHandler OnStartNodeChange;
+
+        /// <summary>
+        /// 流程运行完成事件
+        /// </summary>
+        event FlowRunCompleteHandler OnFlowRunComplete;
+
+        /// <summary>
+        /// 被监视的对象改变事件
+        /// </summary>
+        event MonitorObjectChangeHandler OnMonitorObjectChange;
+
+        /// <summary>
+        /// 节点中断状态变化事件
+        /// </summary>
+        event NodeInterruptStateChangeHandler OnNodeInterruptStateChange;
+
+        /// <summary>
+        /// 节点触发中断
+        /// </summary>
+        event NodeInterruptTriggerHandler OnNodeInterruptTrigger;
+
 
         /// <summary>
         /// 保存当前项目
@@ -252,6 +367,7 @@ namespace Serein.Library.Api
         /// <returns></returns>
         bool TryGetMethodDetails(string methodName,out MethodDetails md);
 
+
         /// <summary>
         /// 开始运行
         /// </summary>
@@ -260,6 +376,8 @@ namespace Serein.Library.Api
         /// 结束运行
         /// </summary>
         void Exit();
+
+
 
         /// <summary>
         /// 设置流程起点节点
@@ -293,6 +411,27 @@ namespace Serein.Library.Api
         void RemoteNode(string nodeGuid);
 
 
-    }
+        /// <summary>
+        /// 设置节点中断级别
+        /// </summary>
+        /// <param name="nodeGuid">被中断的节点Guid</param>
+        /// <param name="interruptClass">新的中断级别</param>
+        /// <returns></returns>
+        bool NodeInterruptChange(string nodeGuid,InterruptClass interruptClass);
 
+        /// <summary>
+        ///         /// <summary>
+        /// 设置节点数据监视状态
+        /// </summary>
+        /// <param name="nodeGuid">需要监视的节点Guid</param>
+        /// <param name="isMonitor">是否监视</param>
+        void SetNodeFLowDataMonitorState(string nodeGuid, bool isMonitor);
+
+        /// <summary>
+        /// 节点数据更新通知
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        void FlowDataUpdateNotification(string nodeGuid, object flowData);
+
+    }
 }

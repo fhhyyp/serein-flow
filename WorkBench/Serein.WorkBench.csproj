@@ -26,12 +26,14 @@
     <Compile Remove="Themes\ConditionControl.xaml.cs" />
     <Compile Remove="Themes\ConditionControlModel.cs" />
     <Compile Remove="Themes\ExplicitDataControl.xaml.cs" />
+    <Compile Remove="Themes\ObjectViewerControl1.xaml.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <Page Remove="Node\FlipflopRegionControl.xaml" />
     <Page Remove="Themes\ConditionControl.xaml" />
     <Page Remove="Themes\ExplicitDataControl.xaml" />
+    <Page Remove="Themes\ObjectViewerControl1.xaml" />
   </ItemGroup>
 
   <ItemGroup>

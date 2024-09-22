@@ -6,6 +6,7 @@
         xmlns:local="clr-namespace:Serein.WorkBench.Themes"
         mc:Ignorable="d"
         Topmost="True"
+        
         Title="TypeViewerWindow" Height="300" Width="300">
     <Grid>
         <Grid>

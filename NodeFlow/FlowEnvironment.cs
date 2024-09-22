@@ -1,4 +1,5 @@
 ﻿
+using Newtonsoft.Json.Linq;
 using Serein.Library.Api;
 using Serein.Library.Attributes;
 using Serein.Library.Entity;
@@ -90,9 +91,24 @@ namespace Serein.NodeFlow
         public event StartNodeChangeHandler OnStartNodeChange;
 
         /// <summary>
-        /// 流程运行完成时间
+        /// 流程运行完成事件
         /// </summary>
         public event FlowRunCompleteHandler OnFlowRunComplete;
+
+        /// <summary>
+        /// 被监视的对象改变事件
+        /// </summary>
+        public event MonitorObjectChangeHandler OnMonitorObjectChange;
+
+        /// <summary>
+        /// 节点中断状态改变事件
+        /// </summary>
+        public event NodeInterruptStateChangeHandler OnNodeInterruptStateChange;
+
+        /// <summary>
+        /// 节点触发了中断
+        /// </summary>
+        public event NodeInterruptTriggerHandler OnNodeInterruptTrigger;
 
         #endregion
 
@@ -171,23 +187,25 @@ namespace Serein.NodeFlow
         {
             ChannelFlowInterrupt?.CancelAllTasks();
             flowStarter = new FlowStarter();
-            List<SingleFlipflopNode> flipflopNodes = Nodes.Values.Where(it => it.MethodDetails?.MethodDynamicType == NodeType.Flipflop && it.IsStart == false)
-                                                                 .Select(it => (SingleFlipflopNode)it)
-                                                                 .Where(node => node is SingleFlipflopNode flipflopNode && flipflopNode.NotExitPreviousNode())
-                                                                 .ToList();// 获取需要再运行开始之前启动的触发器节点
-            var runMethodDetailess = Nodes.Values.Select(item => item.MethodDetails).ToList(); // 获取环境中所有节点的方法信息
-            var initMethods = MethodDetailss.Where(it => it.MethodDynamicType == NodeType.Init).ToList();
-            var loadingMethods = MethodDetailss.Where(it => it.MethodDynamicType == NodeType.Loading).ToList();
-            var exitMethods = MethodDetailss.Where(it => it.MethodDynamicType == NodeType.Exit).ToList();
+            var nodes = Nodes.Values.ToList();
+
+            List<MethodDetails> initMethods;
+            List<MethodDetails> loadingMethods;
+            List<MethodDetails> exitMethods;
+            initMethods = MethodDetailss.Where(it => it.MethodDynamicType == NodeType.Init).ToList();
+            loadingMethods = MethodDetailss.Where(it => it.MethodDynamicType == NodeType.Loading).ToList();
+            exitMethods = MethodDetailss.Where(it => it.MethodDynamicType == NodeType.Exit).ToList();
+
+            await flowStarter.RunAsync(this, nodes, initMethods, loadingMethods, exitMethods);
 
 
-            await flowStarter.RunAsync(StartNode,
-                                           this,
-                                           runMethodDetailess,
-                                           initMethods,
-                                           loadingMethods,
-                                           exitMethods,
-                                           flipflopNodes);
+             //await flowStarter.RunAsync(StartNode,
+             //                              this,
+             //                              runMethodDetailess,
+             //                              initMethods,
+             //                              loadingMethods,
+             //                              exitMethods,
+             //                              flipflopNodes);
 
             if(flowStarter?.FlipFlopState == RunState.NoStart)
             {
@@ -195,19 +213,24 @@ namespace Serein.NodeFlow
             }
             flowStarter = null;
         }
+
+        /// <summary>
+        /// 退出
+        /// </summary>
         public void Exit()
         {
-            foreach (var node in Nodes.Values)
-            {
-                if (typeof(IDisposable).IsAssignableFrom(node?.FlowData?.GetType()) && node.FlowData is IDisposable disposable)
-                {
-                    disposable?.Dispose();
-                }
-                node!.FlowData = null;
-            }
-
             ChannelFlowInterrupt?.CancelAllTasks();
             flowStarter?.Exit();
+
+            foreach (var node in Nodes.Values)
+            {
+                if(node is not null)
+                {
+                    node.ReleaseFlowData(); // 退出时释放对象计数
+                }
+            }
+
+
             OnFlowRunComplete?.Invoke(new FlowEventArgs());
 
             GC.Collect();
@@ -443,19 +466,11 @@ namespace Serein.NodeFlow
         /// <exception cref="NotImplementedException"></exception>
         public void RemoteNode(string nodeGuid)
         {
-            if (!Nodes.TryGetValue(nodeGuid, out NodeModelBase? remoteNode))
-            {
-                return;
-            }
-            if (remoteNode is null)
-            {
-                return;
-            }
+            NodeModelBase remoteNode = GuidToModel(nodeGuid);
             if (remoteNode.IsStart)
             {
                 return;
             }
-
 
             // 遍历所有父节点，从那些父节点中的子节点集合移除该节点
             foreach (var pnc in remoteNode.PreviousNodes)
@@ -507,14 +522,8 @@ namespace Serein.NodeFlow
         public void ConnectNode(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
         {
             // 获取起始节点与目标节点
-            if (!Nodes.TryGetValue(fromNodeGuid, out NodeModelBase? fromNode) || !Nodes.TryGetValue(toNodeGuid, out NodeModelBase? toNode))
-            {
-                return;
-            }
-            if (fromNode is null || toNode is null)
-            {
-                return;
-            }
+            NodeModelBase fromNode = GuidToModel(fromNodeGuid);
+            NodeModelBase toNode = GuidToModel(toNodeGuid);
             // 开始连接
             ConnectNode(fromNode, toNode, connectionType); // 外部调用连接方法
 
@@ -530,14 +539,8 @@ namespace Serein.NodeFlow
         public void RemoteConnect(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
         {
             // 获取起始节点与目标节点
-            if (!Nodes.TryGetValue(fromNodeGuid, out NodeModelBase? fromNode) || !Nodes.TryGetValue(toNodeGuid, out NodeModelBase? toNode))
-            {
-                return;
-            }
-            if (fromNode is null || toNode is null)
-            {
-                return;
-            }
+            NodeModelBase fromNode = GuidToModel(fromNodeGuid);
+            NodeModelBase toNode = GuidToModel(toNodeGuid);
             RemoteConnect(fromNode, toNode, connectionType);
 
             //fromNode.SuccessorNodes[connectionType].Remove(toNode);
@@ -603,28 +606,83 @@ namespace Serein.NodeFlow
         /// <param name="newNodeGuid"></param>
         public void SetStartNode(string newNodeGuid)
         {
-            if (string.IsNullOrEmpty(newNodeGuid))
-            {
-                return;
-            }
-            if (Nodes.TryGetValue(newNodeGuid, out NodeModelBase? newStartNodeModel))
-            {
-                if (newStartNodeModel != null)
-                {
-                    SetStartNode(newStartNodeModel);
-                    //var oldNodeGuid = "";
-                    //if(StartNode != null)
-                    //{
-                    //    oldNodeGuid = StartNode.Guid;
-                    //    StartNode.IsStart = false;
-                    //}
-                    //newStartNodeModel.IsStart = true;
-                    //StartNode = newStartNodeModel;
-                    //OnStartNodeChange?.Invoke(new StartNodeChangeEventArgs(oldNodeGuid, newNodeGuid));
-                }
-            }
+            NodeModelBase newStartNodeModel = GuidToModel(newNodeGuid);
+            SetStartNode(newStartNodeModel);
+
+            //if (string.IsNullOrEmpty(newNodeGuid))
+            //{
+            //    return;
+            //}
+            //if (Nodes.TryGetValue(newNodeGuid, out NodeModelBase? newStartNodeModel))
+            //{
+            //    if (newStartNodeModel != null)
+            //    {
+            //        SetStartNode(newStartNodeModel);
+            //        //var oldNodeGuid = "";
+            //        //if(StartNode != null)
+            //        //{
+            //        //    oldNodeGuid = StartNode.Guid;
+            //        //    StartNode.IsStart = false;
+            //        //}
+            //        //newStartNodeModel.IsStart = true;
+            //        //StartNode = newStartNodeModel;
+            //        //OnStartNodeChange?.Invoke(new StartNodeChangeEventArgs(oldNodeGuid, newNodeGuid));
+            //    }
+            //}
         }
 
+        /// <summary>
+        /// 中断指定节点，并指定中断等级。
+        /// </summary>
+        /// <param name="nodeGuid">被中断的目标节点Guid</param>
+        /// <param name="interruptClass">中断级别</param>
+        /// <returns>操作是否成功</returns>
+        public bool NodeInterruptChange(string nodeGuid, InterruptClass interruptClass)
+        {
+            NodeModelBase nodeModel = GuidToModel(nodeGuid);
+            nodeModel.DebugSetting.InterruptClass = interruptClass;
+            OnNodeInterruptStateChange.Invoke(new NodeInterruptStateChangeEventArgs(nodeGuid, interruptClass));
+            return true;
+
+        }
+
+        /// <summary>
+        /// 监视节点的数据
+        /// </summary>
+        /// <param name="nodeGuid">需要监视的节点Guid</param>
+        public void SetNodeFLowDataMonitorState(string nodeGuid, bool isMonitor)
+        {
+            NodeModelBase nodeModel = GuidToModel(nodeGuid);
+            nodeModel.DebugSetting.IsMonitorFlowData = isMonitor;
+        }
+
+        /// <summary>
+        /// 节点数据更新通知
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        public void FlowDataUpdateNotification(string nodeGuid, object flowData)
+        {
+            OnMonitorObjectChange?.Invoke(new MonitorObjectEventArgs(nodeGuid, flowData));
+        }
+
+        /// <summary>
+        /// Guid 转 NodeModel
+        /// </summary>
+        /// <param name="nodeGuid">节点Guid</param>
+        /// <returns>节点Model</returns>
+        /// <exception cref="ArgumentNullException">无法获取节点、Guid/节点为null时报错</exception>
+        private NodeModelBase GuidToModel(string nodeGuid)
+        {
+            if (string.IsNullOrEmpty(nodeGuid))
+            {
+                throw new ArgumentNullException("not contains - Guid没有对应节点:" + (nodeGuid));
+            }
+            if (!Nodes.TryGetValue(nodeGuid, out NodeModelBase? nodeModel) || nodeModel is null)
+            {
+                throw new ArgumentNullException("null - Guid存在对应节点,但节点为null:" + (nodeGuid));
+            }
+            return nodeModel;
+        }
         #endregion
 
         #region 私有方法

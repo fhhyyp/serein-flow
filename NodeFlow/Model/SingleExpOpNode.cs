@@ -21,7 +21,7 @@ namespace Serein.NodeFlow.Model
         //public override async Task<object?> Executing(IDynamicContext context)
         public override Task<object?> ExecutingAsync(IDynamicContext context)
         {
-            var data = PreviousNode?.FlowData;
+            var data = PreviousNode?.GetFlowData();
 
             try
             {
@@ -34,7 +34,7 @@ namespace Serein.NodeFlow.Model
                 }
                 else
                 {
-                    result =  PreviousNode?.FlowData;
+                    result = data;
                 }
 
                 NextOrientation = ConnectionType.IsSucceed;
@@ -44,7 +44,7 @@ namespace Serein.NodeFlow.Model
             {
                 NextOrientation = ConnectionType.IsError;
                 RuningException = ex;
-                return Task.FromResult(PreviousNode?.FlowData);
+                return Task.FromResult(data);
             }
 
         }

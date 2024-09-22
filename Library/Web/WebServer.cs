@@ -123,8 +123,16 @@ namespace Serein.Library.Web
         // 停止服务器
         public void Stop()
         {
-            listener?.Stop(); // 停止监听
-            listener?.Close(); // 关闭监听器
+
+            try
+            {
+                listener?.Stop(); // 停止监听
+                listener?.Close(); // 关闭监听器
+            }
+            catch (Exception EX)
+            {
+                Console.WriteLine(EX);
+            }
         }
 
     }

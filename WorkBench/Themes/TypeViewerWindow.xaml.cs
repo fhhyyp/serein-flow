@@ -32,7 +32,7 @@ namespace Serein.WorkBench.Themes
             if (Type == null)
                 return;
 
-            TypeNodeDetails typeNodeDetails = new TypeNodeDetails
+            NodeFlowDataObjectDetails typeNodeDetails = new NodeFlowDataObjectDetails
             {
                 Name = Type.Name,
                 DataType = Type,
@@ -64,7 +64,7 @@ namespace Serein.WorkBench.Themes
             if (item.Items.Count == 1 && item.Items[0] is TreeViewItem placeholder && placeholder.Header.ToString() == "Loading...")
             {
                 item.Items.Clear();
-                if (item.Tag is TypeNodeDetails typeNodeDetails)
+                if (item.Tag is NodeFlowDataObjectDetails typeNodeDetails)
                 {
                     AddMembersToTreeNode(item, typeNodeDetails.DataType);
                 }
@@ -103,7 +103,7 @@ namespace Serein.WorkBench.Themes
             TreeViewItem memberNode = new TreeViewItem { Header = member.Name };
             if (member is PropertyInfo property)
             {
-                TypeNodeDetails typeNodeDetails = new TypeNodeDetails
+                NodeFlowDataObjectDetails typeNodeDetails = new NodeFlowDataObjectDetails
                 {
                     ItemType = TreeItemType.Property,
                     DataType = property.PropertyType,
@@ -124,7 +124,7 @@ namespace Serein.WorkBench.Themes
             }
             else if (member is MethodInfo method)
             {
-                TypeNodeDetails typeNodeDetails = new TypeNodeDetails
+                NodeFlowDataObjectDetails typeNodeDetails = new NodeFlowDataObjectDetails
                 {
                     ItemType = TreeItemType.Method,
                     DataType = typeof(MethodInfo),
@@ -139,7 +139,7 @@ namespace Serein.WorkBench.Themes
             }
             else if (member is FieldInfo field)
             {
-                TypeNodeDetails typeNodeDetails = new TypeNodeDetails
+                NodeFlowDataObjectDetails typeNodeDetails = new NodeFlowDataObjectDetails
                 {
                     ItemType = TreeItemType.Field,
                     DataType = field.FieldType,
@@ -201,7 +201,7 @@ namespace Serein.WorkBench.Themes
             if (node == null)
                 return string.Empty;
 
-            TypeNodeDetails typeNodeDetails = (TypeNodeDetails)node.Tag;
+            NodeFlowDataObjectDetails typeNodeDetails = (NodeFlowDataObjectDetails)node.Tag;
             var parent = GetParentTreeViewItem(node);
             if (parent != null)
             {
@@ -210,10 +210,8 @@ namespace Serein.WorkBench.Themes
             }
             else
             {
-                return ""; 
-
-
                 // 没有父节点，则说明这是根节点，直接返回 Header
+                return ""; 
                 // return typeNodeDetails.Name.ToString();
             }
         }
@@ -235,7 +233,7 @@ namespace Serein.WorkBench.Themes
 
 
 
-        public class TypeNodeDetails
+        public class NodeFlowDataObjectDetails
         {
             /// <summary>
             /// 属性名称
@@ -245,8 +243,6 @@ namespace Serein.WorkBench.Themes
             /// 属性类型
             /// </summary>
             public TreeItemType ItemType { get; set; }
-
-
             /// <summary>
             /// 数据类型
             /// </summary>

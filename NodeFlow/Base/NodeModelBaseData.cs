@@ -81,7 +81,7 @@ namespace Serein.NodeFlow.Base
         /// <summary>
         /// 当前传递数据（执行了节点对应的方法，才会存在值）
         /// </summary>
-        public object? FlowData { get; set; } = null;
+        protected object? FlowData { get; set; } = null;
 
     }
 
