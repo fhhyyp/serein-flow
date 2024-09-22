@@ -5,7 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Serein.WorkBench.Themes"
              mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800">
+             d:DesignHeight="400" d:DesignWidth="400">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -14,16 +14,18 @@
             <!-- 树视图 -->
         </Grid.RowDefinitions>
 
-        <StackPanel Orientation="Horizontal">
-            <!--Click="RefreshButton_Click"
-             Click="TimerRefreshButton_Click"-->
-            <!--<Button Grid.Row="0" HorizontalAlignment="Left" Margin="4,2,4,2" Content="刷新" Width="100" Height="20"  Name="RefreshButton"/>-->
+        <StackPanel Orientation="Horizontal" Grid.Row="0" >
+            <!---->
             <!--<Button Grid.Row="0" HorizontalAlignment="Left" Margin="14,2,4,2" Content="监视" Width="100" Height="20" Name="TimerRefreshButton"/>-->
-            <Button Grid.Row="0" HorizontalAlignment="Left" Margin="14,2,4,2" Content="添加监视表达式" Width="100" Height="20" Name="AddMonitorExpressionButton" Click="AddMonitorExpressionButton_Click"/>
+            <!--<Button Grid.Row="0" HorizontalAlignment="Left" Margin="14,2,4,2" Content="添加监视表达式" Width="100" Height="20" Name="AddMonitorExpressionButton" Click="AddMonitorExpressionButton_Click"/>-->
+            <Button Grid.Row="0" HorizontalAlignment="Left" Margin="4,2,4,2" Content="刷新" Width="40" Height="20"  Name="RefreshButton" Click="RefreshButton_Click"/>
+            <Button Grid.Row="0" HorizontalAlignment="Left" Margin="4,2,4,2" Content="添加监视表达式" Width="80" Height="20"  Name="UpMonitorExpressionButton" Click="UpMonitorExpressionButton_Click"/>
+            <TextBox x:Name="ExpressionTextBox"  Margin="4,2,4,2" Width="300"/>
+        
         </StackPanel>
         <!-- 刷新按钮 -->
 
         <!-- 树视图，用于显示对象属性 -->
-        <TreeView FontSize="13" x:Name="ObjectTreeView" Grid.Row="1" />
+        <TreeView FontSize="14" x:Name="ObjectTreeView" Grid.Row="1" />
     </Grid>
 </UserControl>

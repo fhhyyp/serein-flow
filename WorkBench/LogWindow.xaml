@@ -10,6 +10,7 @@
         Closing="Window_Closing">
     <Grid>
         <TextBox x:Name="LogTextBox" 
+                 FontSize="14"
                  VerticalScrollBarVisibility="Auto"
                  HorizontalScrollBarVisibility="Auto"
                  IsReadOnly="True"

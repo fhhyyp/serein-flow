@@ -68,7 +68,7 @@ namespace Serein.Library.Web
         /// </summary>
         /// <param name="http"></param>
         /// <param name="url"></param>
-        public WebApiAttribute(API http = API.POST, bool isUrl = false, string url = "")
+        public WebApiAttribute(API http = API.POST, bool isUrl = true, string url = "")
         {
             Http = http;
             Url = url;

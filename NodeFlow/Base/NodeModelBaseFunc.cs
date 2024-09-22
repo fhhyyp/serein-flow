@@ -27,15 +27,6 @@ namespace Serein.NodeFlow.Base
 
         #region 调试中断
 
-        public Action? CancelInterruptCallback;
-
-        /// <summary>
-        /// 中断节点
-        /// </summary>
-        public void Interrupt()
-        {
-            this.DebugSetting.InterruptClass = InterruptClass.Branch;
-        }
 
         /// <summary>
         /// 不再中断
@@ -43,9 +34,9 @@ namespace Serein.NodeFlow.Base
         public void CancelInterrupt()
         {
             this.DebugSetting.InterruptClass = InterruptClass.None;
-            CancelInterruptCallback?.Invoke();
-            CancelInterruptCallback = null;
+            DebugSetting.CancelInterruptCallback?.Invoke();
         }
+
         #endregion
 
         #region 导出/导入项目文件节点信息
@@ -105,12 +96,13 @@ namespace Serein.NodeFlow.Base
         /// <returns></returns>
         public async Task StartExecute(IDynamicContext context)
         {
-
             Stack<NodeModelBase> stack = new Stack<NodeModelBase>();
             stack.Push(this);
             var cts = context.SereinIoc.Get<CancellationTokenSource>(FlowStarter.FlipFlopCtsName);
             while (stack.Count > 0 && !cts.IsCancellationRequested) // 循环中直到栈为空才会退出循环
             {
+                // 节点执行异常时跳过执行
+
                 // 从栈中弹出一个节点作为当前节点进行处理
                 var currentNode = stack.Pop();
 
@@ -126,27 +118,32 @@ namespace Serein.NodeFlow.Base
                 var upstreamNodes = currentNode.SuccessorNodes[ConnectionType.Upstream];
                 for (int i = upstreamNodes.Count - 1; i >= 0; i--)
                 {
-                    if (upstreamNodes[i].DebugSetting.IsEnable) // 排除未启用的上游节点
+                    // 筛选出启用的节点
+                    if (upstreamNodes[i].DebugSetting.IsEnable)
                     {
+                        if (upstreamNodes[i].DebugSetting.InterruptClass != InterruptClass.None) // 执行触发前
+                        {
+                            var cancelType = await upstreamNodes[i].DebugSetting.GetInterruptTask();
+                            await Console.Out.WriteLineAsync($"[{upstreamNodes[i].MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");
+                        }
                         upstreamNodes[i].PreviousNode = currentNode;
-                        var upNewFlowData =  await upstreamNodes[i].ExecutingAsync(context); // 执行流程节点的上游分支
-                        await FlowRefreshDataOrInterrupt(context, upstreamNodes[i], upNewFlowData); // 执行上游分支后刷新上游节点数据
+                        await upstreamNodes[i].StartExecute(context); // 执行流程节点的上游分支
                     }
                 }
 
+
                 // 执行当前节点
-                var newFlowData = await currentNode.ExecutingAsync(context);
-                await FlowRefreshDataOrInterrupt(context, currentNode, newFlowData); // 执行当前节点后刷新数据
-                #endregion
-
-
-                #region 执行完成
+                object? newFlowData = await currentNode.ExecutingAsync(context);
                 if (cts == null || cts.IsCancellationRequested || currentNode.NextOrientation == ConnectionType.None)
                 {
                     // 不再执行
                     break;
                 }
+                await RefreshFlowDataAndExpInterrupt(context, currentNode, newFlowData); // 执行当前节点后刷新数据
+                #endregion
 
+
+                #region 执行完成
 
                 // 选择后继分支
                 var nextNodes = currentNode.SuccessorNodes[currentNode.NextOrientation];
@@ -154,17 +151,24 @@ namespace Serein.NodeFlow.Base
                 // 将下一个节点集合中的所有节点逆序推入栈中
                 for (int i = nextNodes.Count - 1; i >= 0; i--)
                 {
-                    // 排除未启用的节点
-                    if (nextNodes[i].DebugSetting.IsEnable)
+                    // 筛选出启用的节点、未被中断的节点
+                    if (nextNodes[i].DebugSetting.IsEnable /*&& nextNodes[i].DebugSetting.InterruptClass == InterruptClass.None*/)
                     {
+                        if (nextNodes[i].DebugSetting.InterruptClass != InterruptClass.None) // 执行触发前
+                        {
+                            var cancelType = await nextNodes[i].DebugSetting.GetInterruptTask();
+                            await Console.Out.WriteLineAsync($"[{nextNodes[i].MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");
+                        }
                         nextNodes[i].PreviousNode = currentNode;
                         stack.Push(nextNodes[i]);
                     }
                 }
                 #endregion
+
             }
         }
 
+        
         /// <summary>
         /// 执行节点对应的方法
         /// </summary>
@@ -173,12 +177,16 @@ namespace Serein.NodeFlow.Base
         public virtual async Task<object?> ExecutingAsync(IDynamicContext context)
         {
             #region 调试中断
-            if (DebugSetting.InterruptClass != InterruptClass.None && TryCreateInterruptTask(context, this, out Task<CancelType>? task)) // 执行节点前检查中断
+
+            if (DebugSetting.InterruptClass != InterruptClass.None) // 执行触发前
             {
-                string guid = this.Guid.ToString();
-                this.CancelInterruptCallback ??= () => context.FlowEnvironment.ChannelFlowInterrupt.TriggerSignal(guid);
-                var cancelType = await task!;
-                await Console.Out.WriteLineAsync($"[{this.MethodDetails.MethodName}]中断已{(cancelType == CancelType.Manual ? "手动取消" : "自动取消")}，开始执行后继分支");
+                var cancelType = await this.DebugSetting.GetInterruptTask();
+                //if(cancelType == CancelType.Discard)
+                //{
+                //    this.NextOrientation = ConnectionType.None;
+                //    return null;
+                //}
+                await Console.Out.WriteLineAsync($"[{this.MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");
             }
 
             #endregion
@@ -192,7 +200,7 @@ namespace Serein.NodeFlow.Base
             try
             {
                 // Action/Func([方法作用的实例],[可能的参数值],[可能的返回值])
-                object?[]? parameters = GetParameters(context,this, md);
+                object?[]? parameters = GetParameters(context, this, md);
                 object? result = (haveParameter, haveResult) switch
                 {
                     (false, false) => Execution((Action<object>)del, instance), // 调用节点方法，返回null
@@ -211,7 +219,6 @@ namespace Serein.NodeFlow.Base
                 return null;
             }
         }
-
 
 
         #region 节点转换的委托类型
@@ -326,63 +333,49 @@ namespace Serein.NodeFlow.Base
         /// 更新节点数据，并检查监视表达式
         /// </summary>
         /// <param name="newData"></param>
-        public static async Task FlowRefreshDataOrInterrupt(IDynamicContext context , NodeModelBase nodeModel, object? newData = null)
+        public static async Task RefreshFlowDataAndExpInterrupt(IDynamicContext context, NodeModelBase nodeModel, object? newData = null)
         {
             string guid = nodeModel.Guid;
-            if (newData is not null)
+            // 检查是否存在监视表达式
+            if (newData is not null && nodeModel.DebugSetting.InterruptExpressions.Count > 0)
             {
-                // 判断是否存在表达式
-                bool isInterrupt = false;
-                // 判断监视表达式
-                for (int i = 0; i < nodeModel.DebugSetting.InterruptExpression.Count && !isInterrupt; i++)
+                // 表达式环境下判断是否需要执行中断
+                bool isExpInterrupt = false;
+                string? exp = "";
+                // 判断执行监视表达式，直到为 true 时退出
+                for (int i = 0; i < nodeModel.DebugSetting.InterruptExpressions.Count && !isExpInterrupt; i++)
                 {
-                    string? exp = nodeModel.DebugSetting.InterruptExpression[i];
-                    isInterrupt = SereinConditionParser.To(newData, exp);
+                    exp = nodeModel.DebugSetting.InterruptExpressions[i];
+                    isExpInterrupt = SereinConditionParser.To(newData, exp);
                 }
-                if (isInterrupt) // 触发中断
+
+                if (isExpInterrupt) // 触发中断
                 {
-                    nodeModel.Interrupt();
-                    if(TryCreateInterruptTask(context, nodeModel, out Task<CancelType>? task))
+                    InterruptClass interruptClass = InterruptClass.Branch; // 分支中断
+                    if (context.FlowEnvironment.SetNodeInterrupt(nodeModel.Guid, interruptClass))
                     {
-                        
-                        nodeModel.CancelInterruptCallback ??= () => context.FlowEnvironment.ChannelFlowInterrupt.TriggerSignal(guid);
-                        var cancelType = await task!;
-                        await Console.Out.WriteLineAsync($"[{nodeModel.MethodDetails.MethodName}]中断已{(cancelType == CancelType.Manual ? "手动取消" : "自动取消")}，开始执行后继分支");
+                        context.FlowEnvironment.TriggerInterrupt(guid, exp, InterruptTriggerEventArgs.InterruptTriggerType.Exp);
+                        var cancelType = await nodeModel.DebugSetting.GetInterruptTask();
+                        await Console.Out.WriteLineAsync($"[{nodeModel.MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");
                     }
+
                 }
             }
-            nodeModel.FlowData = newData;
-            // 节点是否监视了数据，如果是，调用环境接口触发其相关事件。
+            //else if (nodeModel.DebugSetting.InterruptClass != InterruptClass.None)
+            //{
+            //    var cancelType = await nodeModel.DebugSetting.InterruptTask;
+            //    await Console.Out.WriteLineAsync($"[{nodeModel.MethodDetails.MethodName}]中断已{(cancelType == CancelType.Manual ? "手动取消" : "自动取消")}，开始执行后继分支");
+            //}
+
+            nodeModel.FlowData = newData; // 替换数据
+                                          // 节点是否监视了数据，如果是，调用环境接口触发其相关事件。
             if (nodeModel.DebugSetting.IsMonitorFlowData)
             {
-                context.FlowEnvironment.FlowDataUpdateNotification(guid, newData);
+                context.FlowEnvironment.FlowDataNotification(guid, newData);
+
             }
+
         }
-
-        public static bool TryCreateInterruptTask(IDynamicContext context, NodeModelBase currentNode, out Task<CancelType>? task)
-        {
-            bool haveTask;
-            Console.WriteLine($"[{currentNode.MethodDetails.MethodName}]在当前分支中断");
-
-            if (currentNode.DebugSetting.InterruptClass == InterruptClass.None)
-            {
-                haveTask = false;
-                task = null;
-            }
-            else if (currentNode.DebugSetting.InterruptClass == InterruptClass.Branch) // 中断当前分支
-            {
-                haveTask = true;
-                task = context.FlowEnvironment.ChannelFlowInterrupt.CreateChannelWithTimeoutAsync(currentNode.Guid, TimeSpan.FromSeconds(60 * 30)); // 中断30分钟
-            }
-            else
-            {
-                haveTask = false;
-                task = null;
-            }
-
-            return haveTask;
-        }
-
 
         /// <summary>
         /// 释放对象
@@ -402,7 +395,7 @@ namespace Serein.NodeFlow.Base
         /// <returns></returns>
         public object? GetFlowData()
         {
-            return this.FlowData ;
+            return this.FlowData;
         }
         #endregion
 

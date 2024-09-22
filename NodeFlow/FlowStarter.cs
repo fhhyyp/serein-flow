@@ -270,6 +270,7 @@ namespace Serein.NodeFlow
             catch (Exception ex)
             {
                 await Console.Out.WriteLineAsync(ex.ToString());
+                // await Console.Out.WriteLineAsync(ex.Message);
             }
             finally
             {
@@ -303,20 +304,27 @@ namespace Serein.NodeFlow
                 
                 while (!_flipFlopCts.IsCancellationRequested)
                 {
-                    var newFlowData = await singleFlipFlopNode.ExecutingAsync(context);
-                    await NodeModelBase.FlowRefreshDataOrInterrupt(context, singleFlipFlopNode, newFlowData); // 全局触发器触发后刷新该触发器的节点数据
+                    var newFlowData = await singleFlipFlopNode.ExecutingAsync(context); // 获取触发器等待Task
+                    await NodeModelBase.RefreshFlowDataAndExpInterrupt(context, singleFlipFlopNode, newFlowData); // 全局触发器触发后刷新该触发器的节点数据
                     if (singleFlipFlopNode.NextOrientation != ConnectionType.None)
                     {
                         var nextNodes = singleFlipFlopNode.SuccessorNodes[singleFlipFlopNode.NextOrientation];
                         for (int i = nextNodes.Count - 1; i >= 0 && !_flipFlopCts.IsCancellationRequested; i--)
                         {
-                            if (nextNodes[i].DebugSetting.IsEnable) // 排除未启用的后继节点
+                            // 筛选出启用的节点
+                            if (nextNodes[i].DebugSetting.IsEnable) 
                             {
                                 nextNodes[i].PreviousNode = singleFlipFlopNode;
+                                if (nextNodes[i].DebugSetting.InterruptClass != InterruptClass.None) // 执行触发前
+                                {
+                                    var cancelType = await nextNodes[i].DebugSetting.GetInterruptTask();
+                                    await Console.Out.WriteLineAsync($"[{nextNodes[i].MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");
+                                }
                                 await nextNodes[i].StartExecute(context); // 启动执行触发器后继分支的节点
                             }
                         }
                     }
+
                 }
             }
             catch (Exception ex)

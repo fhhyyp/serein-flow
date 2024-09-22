@@ -49,7 +49,7 @@ namespace Serein.WorkBench.Node.ViewModel
                 if (value != null)
                 {
                     Node.DebugSetting = value;
-                    OnPropertyChanged(nameof(DebugSetting));
+                    OnPropertyChanged(/*nameof(DebugSetting)*/);
                 }
             }
         }
@@ -62,7 +62,7 @@ namespace Serein.WorkBench.Node.ViewModel
                 if(value != null)
                 {
                     Node.MethodDetails = value;
-                    OnPropertyChanged(nameof(MethodDetails));
+                    OnPropertyChanged(/*nameof(MethodDetails)*/);
                 }
             }
         }
@@ -74,7 +74,7 @@ namespace Serein.WorkBench.Node.ViewModel
             set
             {
                 isInterrupt = value;
-                OnPropertyChanged(nameof(IsInterrupt));
+                OnPropertyChanged(/*nameof(IsInterrupt)*/);
             }
         }
 

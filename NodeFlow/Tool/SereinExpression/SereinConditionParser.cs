@@ -1,4 +1,6 @@
-﻿using Serein.NodeFlow.Tool.SereinExpression.Resolver;
+﻿using Newtonsoft.Json.Linq;
+using Serein.NodeFlow.Tool.SereinExpression.Resolver;
+using System.ComponentModel.Design;
 using System.Globalization;
 using System.Reflection;
 
@@ -153,15 +155,52 @@ namespace Serein.NodeFlow.Tool.SereinExpression
             #region 解析类型 int
             if (type == typeof(int))
             {
-                int value = int.Parse(valueStr, CultureInfo.InvariantCulture);
-                return new MemberConditionResolver<int>
+                var op = ParseValueTypeOperator<int>(operatorStr);
+                if (op == ValueTypeConditionResolver<int>.Operator.InRange || op == ValueTypeConditionResolver<int>.Operator.OutOfRange)
                 {
+                    var temp = valueStr.Split('-');
+                    if (temp.Length < 2)
+                        throw new ArgumentException($"范围无效：{valueStr}。");
+                    int rangeStart = int.Parse(temp[0], CultureInfo.InvariantCulture);
+                    int rangeEnd = int.Parse(temp[1], CultureInfo.InvariantCulture);
+                    return new MemberConditionResolver<int>
+                    {
+                        Op = op,
+                        RangeStart = rangeStart,
+                        RangeEnd = rangeEnd,
+                        TargetObj = targetObj,
+                        ArithmeticExpression = GetArithmeticExpression(parts[0]),
+                    };
+                }
+                else
+                {
+
+                    int value = int.Parse(valueStr, CultureInfo.InvariantCulture);
+
+
+                   return new MemberConditionResolver<int>
+                   {
                     TargetObj = targetObj,
-                    //MemberPath = memberPath,
+                       //MemberPath = memberPath,
                     Op = ParseValueTypeOperator<int>(operatorStr),
                     Value = value,
                     ArithmeticExpression = GetArithmeticExpression(parts[0])
-                };
+                   };
+
+
+                }
+                
+
+               //int value = int.Parse(valueStr, CultureInfo.InvariantCulture);
+
+                //return new MemberConditionResolver<int>
+                //{
+                //    TargetObj = targetObj,
+                //    //MemberPath = memberPath,
+                //    Op = ParseValueTypeOperator<int>(operatorStr),
+                //    Value = value,
+                //    ArithmeticExpression = GetArithmeticExpression(parts[0])
+                //};
             }
             #endregion
             #region 解析类型 double

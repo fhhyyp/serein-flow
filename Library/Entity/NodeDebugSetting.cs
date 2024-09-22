@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
+using static Serein.Library.Utils.ChannelFlowInterrupt;
 
 namespace Serein.Library.Entity
 {
@@ -21,8 +23,21 @@ namespace Serein.Library.Entity
         /// </summary>
         public InterruptClass InterruptClass { get; set; } = InterruptClass.None;
 
+        /// <summary>
+        /// 中断表达式
+        /// </summary>
+        public List<string> InterruptExpressions {  get; } = new List<string>();
 
-        public List<string> InterruptExpression {  get; } = new List<string>();
+
+        /// <summary>
+        /// 取消中断的回调函数
+        /// </summary>
+        public Action CancelInterruptCallback { get; set; }
+
+        /// <summary>
+        /// 中断Task
+        /// </summary>
+        public Func<Task<CancelType>> GetInterruptTask { get; set; }
     }
 
     /// <summary>
@@ -41,7 +56,7 @@ namespace Serein.Library.Entity
         /// <summary>
         /// 分组中断，中断进入指定节点分组的分支。（暂未实现相关）
         /// </summary>
-        Group,
+        // Group,
         /// <summary>
         /// 全局中断，中断全局所有节点的运行。（暂未实现相关）
         /// </summary>

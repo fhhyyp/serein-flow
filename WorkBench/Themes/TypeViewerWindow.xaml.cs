@@ -163,8 +163,14 @@ namespace Serein.WorkBench.Themes
             bool isChange = false;
             if (member is PropertyInfo property)
             {
-                //isChange = true;
+                isChange = true;
                 contextMenu = new ContextMenu();
+                contextMenu.Items.Add(MainWindow.CreateMenuItem($"取值表达式", (s, e) =>
+                {
+                    string fullPath = GetNodeFullPath(memberNode);
+                    string copyValue = "@Get " + fullPath;
+                    Clipboard.SetDataObject(copyValue);
+                }));
             }
             else if (member is MethodInfo method)
             {

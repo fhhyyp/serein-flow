@@ -78,10 +78,42 @@ namespace Serein.NodeFlow.Base
         /// </summary>
         public Exception RuningException { get; set; } = null;
 
+
         /// <summary>
-        /// 当前传递数据（执行了节点对应的方法，才会存在值）
+        /// 控制FlowData在同一时间只会被同一个线程更改。
         /// </summary>
-        protected object? FlowData { get; set; } = null;
+        private readonly ReaderWriterLockSlim _flowDataLock = new ReaderWriterLockSlim();
+        private object? _flowData;
+        /// <summary>
+        /// 当前传递数据（执行了节点对应的方法，才会存在值）。
+        /// </summary>
+        protected object? FlowData
+        {
+            get
+            {
+                _flowDataLock.EnterReadLock();
+                try
+                {
+                    return _flowData;
+                }
+                finally
+                {
+                    _flowDataLock.ExitReadLock();
+                }
+            }
+            set
+            {
+                _flowDataLock.EnterWriteLock();
+                try
+                {
+                    _flowData = value;
+                }
+                finally
+                {
+                    _flowDataLock.ExitWriteLock();
+                }
+            }
+        }
 
     }
 

@@ -14,6 +14,8 @@ namespace Serein.NodeFlow.Tool.SereinExpression.Resolver
         public T Value { get; set; }
 
         public string ArithmeticExpression { get; set; }
+        public T RangeEnd { get; internal set; }
+        public T RangeStart { get; internal set; }
 
         public override bool Evaluate(object? obj)
         {
@@ -24,6 +26,8 @@ namespace Serein.NodeFlow.Tool.SereinExpression.Resolver
             {
                 return new ValueTypeConditionResolver<T>
                 {
+                    RangeStart = RangeStart,
+                    RangeEnd = RangeEnd,
                     Op = Op,
                     Value = Value,
                     ArithmeticExpression = ArithmeticExpression,

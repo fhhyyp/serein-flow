@@ -4,7 +4,7 @@
         xmlns:local="clr-namespace:Serein.WorkBench"
         xmlns:custom="clr-namespace:Serein.WorkBench.Node.View"
         xmlns:themes="clr-namespace:Serein.WorkBench.Themes"
-        Title="Dynamic Node Flow" Height="700" Width="1200"
+        Title="Dynamic Node Flow" Height="900" Width="1400"
         AllowDrop="True" Drop="Window_Drop" DragOver="Window_DragOver"
         Loaded="Window_Loaded"
         ContentRendered="Window_ContentRendered"
@@ -26,44 +26,47 @@
     </Window.InputBindings>
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="1*"/>
+            <ColumnDefinition Width="300"/>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="3*"/>
         </Grid.ColumnDefinitions>
 
-        <DockPanel Grid.Column="0" Background="#F5F5F5">
+        <DockPanel  Grid.Column="0" Background="#F5F5F5">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="40"></RowDefinition>
                     <RowDefinition Height="Auto"></RowDefinition>
                     <RowDefinition Height="2*"></RowDefinition>
-                    <RowDefinition Height="*"></RowDefinition>
+                    <RowDefinition Height="3"></RowDefinition>
+                    <RowDefinition Height="3*"></RowDefinition>
                 </Grid.RowDefinitions>
 
-                <Grid Margin="2,2,2,5"  Grid.Row="0" >
+                <Grid Margin="2,2,2,5"  Grid.Row="0" Grid.ColumnSpan="2" >
                     <Button  Grid.Row="0"  Content="保存项目" Click="ButtonSaveFile_Click"  HorizontalAlignment="Left"  Margin="5,5,5,5"/>
                     <!--<Button  Grid.Row="0"  Content="卸载清空" Click="UnloadAllButton_Click"  HorizontalAlignment="Right"  Margin="5,5,5,5"/>-->
                 </Grid>
-                
-                <ScrollViewer  Grid.Row="1"  HorizontalScrollBarVisibility="Auto">
+
+                <ScrollViewer  Grid.Row="1"  HorizontalScrollBarVisibility="Auto" Grid.ColumnSpan="2">
                     <StackPanel  Orientation="Horizontal">
                         <custom:ExpOpNodeControl x:Name="ExpOpNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                         <custom:ConditionNodeControl x:Name="ConditionNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                         <custom:ConditionRegionControl  x:Name="ConditionRegionControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                     </StackPanel>
                 </ScrollViewer>
-                <ScrollViewer  Grid.Row="2"  VerticalScrollBarVisibility="Auto" MaxHeight="400">
+                <ScrollViewer  Grid.Row="1"  VerticalScrollBarVisibility="Auto" MaxHeight="400" Grid.ColumnSpan="2" Margin="0,72,0,5" Grid.RowSpan="3">
                     <StackPanel x:Name="DllStackPanel" Margin="5"/>
                 </ScrollViewer>
-                <Grid  Grid.Row="3" >
-                    
+                <GridSplitter Grid.Row="3" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Center" ResizeBehavior="PreviousAndNext" Background="Gray" Grid.ColumnSpan="2"/>
+                <Grid  Grid.Row="4" Grid.ColumnSpan="2">
+
                     <themes:ObjectViewerControl x:Name="ObjectViewer"/>
                 </Grid>
             </Grid>
         </DockPanel>
 
 
-        <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="Gray"/>
+        <!--<GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="Gray" DragDelta="GridSplitter_DragDelta"/>-->
+        <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="Gray" />
 
         <Grid  Grid.Column="2" >
             <Grid.ColumnDefinitions>

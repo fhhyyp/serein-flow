@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading.Tasks;
+using static Serein.Library.Utils.ChannelFlowInterrupt;
 
 namespace Serein.Library.Api
 {
@@ -226,7 +227,7 @@ namespace Serein.Library.Api
     /// 节点触发中断事件
     /// </summary>
     /// <param name="eventArgs"></param>
-    public delegate void NodeInterruptTriggerHandler(NodeInterruptTriggerEventArgs eventArgs);
+    public delegate void ExpInterruptTriggerHandler(InterruptTriggerEventArgs eventArgs);
 
     /// <summary>
     /// 监视的节点数据发生变化
@@ -270,23 +271,54 @@ namespace Serein.Library.Api
     /// <summary>
     /// 节点触发了中断事件参数
     /// </summary>
-    public class NodeInterruptTriggerEventArgs : FlowEventArgs
+    public class InterruptTriggerEventArgs : FlowEventArgs
     {
-        public NodeInterruptTriggerEventArgs(string nodeGuid)
+        public enum InterruptTriggerType
         {
-            NodeGuid = nodeGuid;
+            /// <summary>
+            /// 主动监视中断
+            /// </summary>
+            Monitor,
+            /// <summary>
+            /// 表达式中断
+            /// </summary>
+            Exp,
+        }
+
+        public InterruptTriggerEventArgs(string nodeGuid, string expression, InterruptTriggerType type)
+        {
+            this.NodeGuid = nodeGuid;
+            this.Expression = expression;
+            this.Type = type;
         }
 
         /// <summary>
         /// 中断的节点Guid
         /// </summary>
         public string NodeGuid { get; protected set; }
+        public string Expression { get; protected set; }
+        public InterruptTriggerType Type { get; protected set; }
     }
 
     public interface IFlowEnvironment
     {
-        ChannelFlowInterrupt ChannelFlowInterrupt { get; set; }
+        /// <summary>
+        /// 环境名称
+        /// </summary>
+        string EnvName {get;}
+        /// <summary>
+        /// 是否全局中断
+        /// </summary>
+        bool IsGlobalInterrupt { get; }
+        /// <summary>
+        /// 设置中断时的中断级别
+        /// </summary>
+        //InterruptClass EnvInterruptClass { get; set; }
 
+        /// <summary>
+        /// 调试管理
+        /// </summary>
+        //ChannelFlowInterrupt ChannelFlowInterrupt { get; set; }
 
         /// <summary>
         /// 加载Dll
@@ -334,9 +366,9 @@ namespace Serein.Library.Api
         event NodeInterruptStateChangeHandler OnNodeInterruptStateChange;
 
         /// <summary>
-        /// 节点触发中断
+        /// 触发中断
         /// </summary>
-        event NodeInterruptTriggerHandler OnNodeInterruptTrigger;
+        event ExpInterruptTriggerHandler OnInterruptTrigger;
 
 
         /// <summary>
@@ -417,21 +449,51 @@ namespace Serein.Library.Api
         /// <param name="nodeGuid">被中断的节点Guid</param>
         /// <param name="interruptClass">新的中断级别</param>
         /// <returns></returns>
-        bool NodeInterruptChange(string nodeGuid,InterruptClass interruptClass);
+        bool SetNodeInterrupt(string nodeGuid, InterruptClass interruptClass);
 
         /// <summary>
-        ///         /// <summary>
+        /// 添加中断表达式
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        /// <param name="expression"></param>
+        /// <returns></returns>
+        bool AddInterruptExpression(string nodeGuid,string expression);
+
+        /// <summary>
         /// 设置节点数据监视状态
         /// </summary>
         /// <param name="nodeGuid">需要监视的节点Guid</param>
         /// <param name="isMonitor">是否监视</param>
         void SetNodeFLowDataMonitorState(string nodeGuid, bool isMonitor);
 
+
+
+
+
         /// <summary>
-        /// 节点数据更新通知
+        /// 流程启动器调用，节点数据更新通知
         /// </summary>
-        /// <param name="nodeGuid"></param>
-        void FlowDataUpdateNotification(string nodeGuid, object flowData);
+        /// <param name="nodeGuid">更新了数据的节点Guid</param>
+        /// <param name="flowData">更新的数据</param>
+        void FlowDataNotification(string nodeGuid, object flowData);
+
+        /// <summary>
+        /// 流程启动器调用，节点触发了中断
+        /// </summary>
+        /// <param name="nodeGuid">被中断的节点Guid</param>
+        /// <param name="expression">被触发的表达式</param>
+        /// <param name="type">中断类型。0主动监视，1表达式</param>
+        void TriggerInterrupt(string nodeGuid,string expression, InterruptTriggerEventArgs.InterruptTriggerType type);
+
+        /// <summary>
+        /// 全局中断
+        /// </summary>
+        /// <param name="signal"></param>
+        /// <param name="interruptClass"></param>
+        /// <returns></returns>
+        Task<CancelType> GetOrCreateGlobalInterruptAsync();
+
+
 
     }
 }
