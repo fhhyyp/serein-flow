@@ -11,6 +11,7 @@ using Serein.NodeFlow.Tool;
 using System.Collections.Concurrent;
 using System.Reflection;
 using System.Xml.Linq;
+using static Serein.Library.Utils.ChannelFlowInterrupt;
 using static Serein.NodeFlow.FlowStarter;
 
 namespace Serein.NodeFlow
@@ -57,7 +58,7 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 节点的命名空间
         /// </summary>
-        public const string NodeSpaceName = $"{nameof(Serein)}.{nameof(Serein.NodeFlow)}.{nameof(Serein.NodeFlow.Model)}";
+        public const string SpaceName = $"{nameof(Serein)}.{nameof(Serein.NodeFlow)}.{nameof(Serein.NodeFlow.Model)}";
 
         #region 环境接口事件
         /// <summary>
@@ -112,16 +113,21 @@ namespace Serein.NodeFlow
 
         #endregion
 
+        /// <summary>
+        /// 环境名称
+        /// </summary>
+        public string EnvName { get; set; } = SpaceName;
+
+        /// <summary>
+        /// 是否全局中断
+        /// </summary>
+        public bool IsGlobalInterrupt { get; set; } 
 
         /// <summary>
         /// 流程中断器
         /// </summary>
         public ChannelFlowInterrupt ChannelFlowInterrupt { get; set; }
         
-        /// <summary>
-        /// 是否全局中断
-        /// </summary>
-        public bool IsGlobalInterrupt { get; set; } 
 
         /// <summary>
         /// 存储加载的程序集路径
@@ -466,7 +472,8 @@ namespace Serein.NodeFlow
         /// <exception cref="NotImplementedException"></exception>
         public void RemoteNode(string nodeGuid)
         {
-            NodeModelBase remoteNode = GuidToModel(nodeGuid);
+            var remoteNode = GuidToModel(nodeGuid);
+            if (remoteNode is null) return;
             if (remoteNode.IsStart)
             {
                 return;
@@ -522,8 +529,10 @@ namespace Serein.NodeFlow
         public void ConnectNode(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
         {
             // 获取起始节点与目标节点
-            NodeModelBase fromNode = GuidToModel(fromNodeGuid);
-            NodeModelBase toNode = GuidToModel(toNodeGuid);
+            var fromNode = GuidToModel(fromNodeGuid);
+            var toNode = GuidToModel(toNodeGuid);
+            if (fromNode is null) return;
+            if (toNode is null) return;
             // 开始连接
             ConnectNode(fromNode, toNode, connectionType); // 外部调用连接方法
 
@@ -539,8 +548,10 @@ namespace Serein.NodeFlow
         public void RemoteConnect(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
         {
             // 获取起始节点与目标节点
-            NodeModelBase fromNode = GuidToModel(fromNodeGuid);
-            NodeModelBase toNode = GuidToModel(toNodeGuid);
+            var fromNode = GuidToModel(fromNodeGuid);
+            var toNode = GuidToModel(toNodeGuid);
+            if (fromNode is null) return;
+            if (toNode is null) return;
             RemoteConnect(fromNode, toNode, connectionType);
 
             //fromNode.SuccessorNodes[connectionType].Remove(toNode);
@@ -606,29 +617,9 @@ namespace Serein.NodeFlow
         /// <param name="newNodeGuid"></param>
         public void SetStartNode(string newNodeGuid)
         {
-            NodeModelBase newStartNodeModel = GuidToModel(newNodeGuid);
+            var newStartNodeModel = GuidToModel(newNodeGuid);
+            if (newStartNodeModel is null) return;
             SetStartNode(newStartNodeModel);
-
-            //if (string.IsNullOrEmpty(newNodeGuid))
-            //{
-            //    return;
-            //}
-            //if (Nodes.TryGetValue(newNodeGuid, out NodeModelBase? newStartNodeModel))
-            //{
-            //    if (newStartNodeModel != null)
-            //    {
-            //        SetStartNode(newStartNodeModel);
-            //        //var oldNodeGuid = "";
-            //        //if(StartNode != null)
-            //        //{
-            //        //    oldNodeGuid = StartNode.Guid;
-            //        //    StartNode.IsStart = false;
-            //        //}
-            //        //newStartNodeModel.IsStart = true;
-            //        //StartNode = newStartNodeModel;
-            //        //OnStartNodeChange?.Invoke(new StartNodeChangeEventArgs(oldNodeGuid, newNodeGuid));
-            //    }
-            //}
         }
 
         /// <summary>
@@ -637,14 +628,54 @@ namespace Serein.NodeFlow
         /// <param name="nodeGuid">被中断的目标节点Guid</param>
         /// <param name="interruptClass">中断级别</param>
         /// <returns>操作是否成功</returns>
-        public bool NodeInterruptChange(string nodeGuid, InterruptClass interruptClass)
+        public bool SetNodeInterrupt(string nodeGuid, InterruptClass interruptClass)
         {
-            NodeModelBase nodeModel = GuidToModel(nodeGuid);
+            var nodeModel = GuidToModel(nodeGuid);
+            if (nodeModel is null) return false;
+            if (interruptClass == InterruptClass.None)
+            {
+                nodeModel.CancelInterrupt();
+            }
+            else if (interruptClass == InterruptClass.Branch)
+            {
+                nodeModel.DebugSetting.CancelInterruptCallback?.Invoke();
+                nodeModel.DebugSetting.GetInterruptTask = () => 
+                {
+                    //ChannelFlowInterrupt.EnableDiscardMode(nodeGuid,true);
+                    return ChannelFlowInterrupt.GetOrCreateChannelAsync(nodeGuid);
+                };
+                nodeModel.DebugSetting.CancelInterruptCallback = () =>
+                {
+                    ChannelFlowInterrupt.TriggerSignal(nodeGuid);
+                    //ChannelFlowInterrupt.EnableDiscardMode(nodeGuid, false);
+                };
+               
+            }
+            else if (interruptClass == InterruptClass.Global) // 全局……做不了omg
+            {
+                return false;
+            }
             nodeModel.DebugSetting.InterruptClass = interruptClass;
             OnNodeInterruptStateChange.Invoke(new NodeInterruptStateChangeEventArgs(nodeGuid, interruptClass));
             return true;
-
         }
+
+        public bool AddInterruptExpression(string nodeGuid, string expression)
+        {
+            var nodeModel = GuidToModel(nodeGuid);
+            if (nodeModel is null) return false;
+            if (nodeModel.DebugSetting.InterruptExpressions.Contains(expression))
+            {
+                Console.WriteLine("表达式已存在");
+                return false;
+            }
+            else
+            {
+                nodeModel.DebugSetting.InterruptExpressions.Add(expression);
+                return true;
+            }
+        }
+
 
         /// <summary>
         /// 监视节点的数据
@@ -652,7 +683,8 @@ namespace Serein.NodeFlow
         /// <param name="nodeGuid">需要监视的节点Guid</param>
         public void SetNodeFLowDataMonitorState(string nodeGuid, bool isMonitor)
         {
-            NodeModelBase nodeModel = GuidToModel(nodeGuid);
+            var nodeModel = GuidToModel(nodeGuid);
+            if (nodeModel is null) return;
             nodeModel.DebugSetting.IsMonitorFlowData = isMonitor;
         }
 
@@ -660,10 +692,29 @@ namespace Serein.NodeFlow
         /// 节点数据更新通知
         /// </summary>
         /// <param name="nodeGuid"></param>
-        public void FlowDataUpdateNotification(string nodeGuid, object flowData)
+        public void FlowDataNotification(string nodeGuid, object flowData)
         {
             OnMonitorObjectChange?.Invoke(new MonitorObjectEventArgs(nodeGuid, flowData));
         }
+
+
+        public Task<CancelType> GetOrCreateGlobalInterruptAsync()
+        {
+            IsGlobalInterrupt = true;
+            return ChannelFlowInterrupt.GetOrCreateChannelAsync(this.EnvName);
+        }
+
+
+
+
+
+
+
+
+
+
+
+
 
         /// <summary>
         /// Guid 转 NodeModel
@@ -671,18 +722,21 @@ namespace Serein.NodeFlow
         /// <param name="nodeGuid">节点Guid</param>
         /// <returns>节点Model</returns>
         /// <exception cref="ArgumentNullException">无法获取节点、Guid/节点为null时报错</exception>
-        private NodeModelBase GuidToModel(string nodeGuid)
+        private NodeModelBase? GuidToModel(string nodeGuid)
         {
             if (string.IsNullOrEmpty(nodeGuid))
             {
-                throw new ArgumentNullException("not contains - Guid没有对应节点:" + (nodeGuid));
+                //throw new ArgumentNullException("not contains - Guid没有对应节点:" + (nodeGuid));
+                return null;
             }
             if (!Nodes.TryGetValue(nodeGuid, out NodeModelBase? nodeModel) || nodeModel is null)
             {
-                throw new ArgumentNullException("null - Guid存在对应节点,但节点为null:" + (nodeGuid));
+                //throw new ArgumentNullException("null - Guid存在对应节点,但节点为null:" + (nodeGuid));
+                return null;
             }
             return nodeModel;
         }
+
         #endregion
 
         #region 私有方法

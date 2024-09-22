@@ -144,19 +144,21 @@ namespace Serein.WorkBench
 
         public MainWindow()
         {
+            InitializeComponent();
+
             ViewModel = new MainWindowViewModel(this);
             FlowEnvironment = ViewModel.FlowEnvironment;
-            InitFlowEvent();
+            ObjectViewer.FlowEnvironment = FlowEnvironment;
 
-            InitializeComponent();
+            InitFlowEnvironmentEvent(); // 配置环境事件
+            
             logWindow = new LogWindow();
             logWindow.Show();
             // 重定向 Console 输出
-            var logTextWriter = new LogTextWriter(WriteLog,() => logWindow.Clear());;
+            var logTextWriter = new LogTextWriter(msg => logWindow.AppendText(msg), () => logWindow.Clear());;
             Console.SetOut(logTextWriter);
 
-
-            InitUI();
+            InitCanvasUI(); 
 
             var project = App.FlowProjectData;
             if (project == null)
@@ -164,12 +166,10 @@ namespace Serein.WorkBench
                 return;
             }
             InitializeCanvas(project.Basic.Canvas.Width, project.Basic.Canvas.Lenght);// 设置画布大小
-            
-
             FlowEnvironment.LoadProject(project, App.FileDataPath); // 加载项目
         }
 
-        private void InitFlowEvent()
+        private void InitFlowEnvironmentEvent()
         {
             FlowEnvironment.OnDllLoad += FlowEnvironment_DllLoadEvent;
             // FlowEnvironment.OnLoadNode += FlowEnvironment_NodeLoadEvent;
@@ -189,7 +189,7 @@ namespace Serein.WorkBench
 
         
 
-        private void InitUI()
+        private void InitCanvasUI()
         {
             canvasTransformGroup = new TransformGroup();
             scaleTransform = new ScaleTransform();
@@ -239,10 +239,7 @@ namespace Serein.WorkBench
         }
         #endregion
 
-        public void WriteLog(string message)
-        {
-            logWindow.AppendText(message);
-        }
+        
 
         #region 运行环境事件
         /// <summary>
@@ -265,7 +262,7 @@ namespace Serein.WorkBench
         /// <exception cref="NotImplementedException"></exception>
         private void FlowEnvironment_OnFlowRunComplete(FlowEventArgs eventArgs)
         {
-            WriteLog("-------运行完成---------\r\n");
+            Console.WriteLine("-------运行完成---------\r\n"); 
         }
 
         /// <summary>
@@ -462,20 +459,30 @@ namespace Serein.WorkBench
         private void FlowEnvironment_OnMonitorObjectChange(MonitorObjectEventArgs eventArgs)
         {
             string nodeGuid = eventArgs.NodeGuid;
-            if (string.IsNullOrEmpty(ObjectViewer.NodeGuid)) // 如果没有加载过
-            {
-                ObjectViewer.NodeGuid = nodeGuid;
-                ObjectViewer.LoadObjectInformation(eventArgs.NewData); // 加载节点
-            }
-            else
-            { 
-                // 加载过，如果显示的对象来源并非同一个节点，则停止监听之前的节点
-                if (!ObjectViewer.NodeGuid.Equals(nodeGuid))
+
+            ObjectViewer.Dispatcher.BeginInvoke(() => {
+                if (string.IsNullOrEmpty(ObjectViewer.NodeGuid)) // 如果没有加载过
                 {
-                    FlowEnvironment.SetNodeFLowDataMonitorState(ObjectViewer.NodeGuid, false);
+                    ObjectViewer.NodeGuid = nodeGuid;
+                    ObjectViewer.LoadObjectInformation(eventArgs.NewData); // 加载节点
                 }
-                ObjectViewer.RefreshObjectTree(eventArgs.NewData);
-            }
+                else
+                {
+                    // 加载过，如果显示的对象来源并非同一个节点，则停止监听之前的节点
+                    if (!ObjectViewer.NodeGuid.Equals(nodeGuid))
+                    {
+                        FlowEnvironment.SetNodeFLowDataMonitorState(ObjectViewer.NodeGuid, false);
+                        ObjectViewer.NodeGuid = nodeGuid;
+                        ObjectViewer.LoadObjectInformation(eventArgs.NewData); // 加载节点
+                    }
+                    else
+                    {
+                        ObjectViewer.RefreshObjectTree(eventArgs.NewData);
+                    }
+                }
+
+            });
+            
 
         }
 
@@ -497,7 +504,6 @@ namespace Serein.WorkBench
                 nodeControl.ViewModel.IsInterrupt = true;
             }
 
-
         }
 
         /// <summary>
@@ -509,7 +515,6 @@ namespace Serein.WorkBench
         {
             string nodeGuid = eventArgs.NodeGuid;
             NodeControlBase nodeControl =  GuidToControl(nodeGuid);
-
             Console.WriteLine("节点触发了中断");
         }
 
@@ -579,7 +584,7 @@ namespace Serein.WorkBench
                     var childNodeControl = CreateNodeControlOfNodeInfo(childNode, md);
                     if (childNodeControl == null)
                     {
-                        WriteLog($"无法为节点类型创建节点控件: {childNode.MethodName}\r\n");
+                        Console.WriteLine($"无法为节点类型创建节点控件: {childNode.MethodName}\r\n");
                         continue;
                     }
 
@@ -687,13 +692,13 @@ namespace Serein.WorkBench
                 {
                     if (nodeControl?.ViewModel?.Node?.DebugSetting?.InterruptClass == InterruptClass.None)
                     {
-                        FlowEnvironment.NodeInterruptChange(nodeGuid, InterruptClass.Branch);
+                        FlowEnvironment.SetNodeInterrupt(nodeGuid, InterruptClass.Branch);
 
                         menuItem.Header = "取消中断";
                     }
                     else
                     {
-                        FlowEnvironment.NodeInterruptChange(nodeGuid, InterruptClass.None);
+                        FlowEnvironment.SetNodeInterrupt(nodeGuid, InterruptClass.None);
                         menuItem.Header = "在此中断";
 
                     }
@@ -707,6 +712,8 @@ namespace Serein.WorkBench
                 var node = nodeControl?.ViewModel?.Node;
                 if(node is not null)
                 {
+                    FlowEnvironment.SetNodeFLowDataMonitorState(ObjectViewer.NodeGuid, false); // 通知环境，该节点的数据更新后需要传到UI
+                    ObjectViewer.NodeGuid = node.Guid;
                     FlowEnvironment.SetNodeFLowDataMonitorState(node.Guid, true); // 通知环境，该节点的数据更新后需要传到UI
                 }
 
@@ -2532,6 +2539,23 @@ namespace Serein.WorkBench
                     point = new Point(element.ActualWidth / 2, element.ActualHeight); // 下边中心
                     break;
             }
+
+            // 计算角落
+            //switch (localhost)
+            //{
+            //    case Localhost.Right:
+            //        point = new Point(0, element.ActualHeight / 2); // 左边中心
+            //        break;
+            //    case Localhost.Left:
+            //        point = new Point(element.ActualWidth, element.ActualHeight / 2); // 右边中心
+            //        break;
+            //    case Localhost.Bottom:
+            //        point = new Point(element.ActualWidth / 2, 0); // 上边中心
+            //        break;
+            //    case Localhost.Top:
+            //        point = new Point(element.ActualWidth / 2, element.ActualHeight); // 下边中心
+            //        break;
+            //}
 
             // 将相对控件的坐标转换到画布中的全局坐标
             return element.TranslatePoint(point, canvas);

@@ -24,7 +24,6 @@
                     <Setter Property="BorderBrush" Value="Transparent" />
                     <Setter Property="BorderThickness" Value="0" />
                     <Style.Triggers>
-                        <!-- 当 DebugSetting.IsInterrupt 为 True 时，显示红色边框 -->
                         <DataTrigger Binding="{Binding IsInterrupt}" Value="True">
                             <Setter Property="BorderBrush" Value="Red" />
                             <Setter Property="BorderThickness" Value="2" />

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading.Tasks;
+using static Serein.Library.Utils.ChannelFlowInterrupt;
 
 namespace Serein.Library.Api
 {
@@ -285,8 +286,23 @@ namespace Serein.Library.Api
 
     public interface IFlowEnvironment
     {
-        ChannelFlowInterrupt ChannelFlowInterrupt { get; set; }
+        /// <summary>
+        /// 环境名称
+        /// </summary>
+        string EnvName {get;}
+        /// <summary>
+        /// 是否全局中断
+        /// </summary>
+        bool IsGlobalInterrupt { get; }
+        /// <summary>
+        /// 设置中断时的中断级别
+        /// </summary>
+        //InterruptClass EnvInterruptClass { get; set; }
 
+        /// <summary>
+        /// 调试管理
+        /// </summary>
+        //ChannelFlowInterrupt ChannelFlowInterrupt { get; set; }
 
         /// <summary>
         /// 加载Dll
@@ -417,7 +433,15 @@ namespace Serein.Library.Api
         /// <param name="nodeGuid">被中断的节点Guid</param>
         /// <param name="interruptClass">新的中断级别</param>
         /// <returns></returns>
-        bool NodeInterruptChange(string nodeGuid,InterruptClass interruptClass);
+        bool SetNodeInterrupt(string nodeGuid, InterruptClass interruptClass);
+
+        /// <summary>
+        /// 添加中断表达式
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        /// <param name="expression"></param>
+        /// <returns></returns>
+        bool AddInterruptExpression(string nodeGuid,string expression);
 
         /// <summary>
         ///         /// <summary>
@@ -431,7 +455,15 @@ namespace Serein.Library.Api
         /// 节点数据更新通知
         /// </summary>
         /// <param name="nodeGuid"></param>
-        void FlowDataUpdateNotification(string nodeGuid, object flowData);
+        void FlowDataNotification(string nodeGuid, object flowData);
+
+        /// <summary>
+        /// 全局中断
+        /// </summary>
+        /// <param name="signal"></param>
+        /// <param name="interruptClass"></param>
+        /// <returns></returns>
+        Task<CancelType> GetOrCreateGlobalInterruptAsync();
 
     }
 }

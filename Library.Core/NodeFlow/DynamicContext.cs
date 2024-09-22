@@ -22,15 +22,29 @@ namespace Serein.Library.Core.NodeFlow
 
         public Task CreateTimingTask(Action action, int time = 100, int count = -1)
         {
-            NodeRunCts ??= SereinIoc.GetOrRegisterInstantiate<NodeRunCts>();
-            return Task.Factory.StartNew(async () =>
+            if (NodeRunCts == null)
             {
-                for (int i = 0; i < count; i++)
+                NodeRunCts = SereinIoc.GetOrRegisterInstantiate<NodeRunCts>();
+            }
+            // 使用局部变量，避免捕获外部的 `action`
+            Action localAction = action;
+
+            return Task.Run(async () =>
+            {
+                for (int i = 0; i < count && !NodeRunCts.IsCancellationRequested; i++)
                 {
-                    NodeRunCts.Token.ThrowIfCancellationRequested();
                     await Task.Delay(time);
-                    action.Invoke();
+                    if (NodeRunCts.IsCancellationRequested) { break; }
+                    if (FlowEnvironment.IsGlobalInterrupt)
+                    {
+                        await FlowEnvironment.GetOrCreateGlobalInterruptAsync();
+                    }
+                    // 确保对局部变量的引用
+                    localAction?.Invoke();
                 }
+
+                // 清理引用，避免闭包导致的内存泄漏
+                localAction = null;
             });
         }
     }

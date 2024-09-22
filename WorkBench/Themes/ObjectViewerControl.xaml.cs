@@ -1,4 +1,5 @@
-﻿using Serein.NodeFlow.Base;
+﻿using Serein.Library.Api;
+using Serein.NodeFlow.Base;
 using Serein.NodeFlow.Tool.SereinExpression;
 using System;
 using System.Collections.Generic;
@@ -55,6 +56,7 @@ namespace Serein.WorkBench.Themes
     {
         private object _objectInstance;
         public string NodeGuid { get;set; }
+        public IFlowEnvironment FlowEnvironment { get;set; }
 
         // private NodeModelBase _nodeFlowData;
 
@@ -79,9 +81,28 @@ namespace Serein.WorkBench.Themes
            
         }
 
+        /// <summary>
+        /// 添加表达式
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void AddMonitorExpressionButton_Click(object sender, RoutedEventArgs e)
         {
+            //string fullPath = GetNodeFullPath(memberNode);
+            //Clipboard.SetDataObject(fullPath);
+            OpenInputDialog((exp) =>
+            {
+                FlowEnvironment.AddInterruptExpression(NodeGuid, exp);
 
+                //if (node.DebugSetting.InterruptExpression.Contains(exp))
+                //{
+                //    Console.WriteLine("表达式已存在");
+                //}
+                //else
+                //{
+                //    node.DebugSetting.InterruptExpression.Add(exp);
+                //}
+            });
         }
 
 

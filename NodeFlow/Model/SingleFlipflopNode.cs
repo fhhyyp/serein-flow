@@ -22,12 +22,16 @@ namespace Serein.NodeFlow.Model
         public override async Task<object?> ExecutingAsync(IDynamicContext context)
         {
             #region 执行前中断
-            if (DebugSetting.InterruptClass != InterruptClass.None && TryCreateInterruptTask(context, this, out Task<CancelType>? task)) // 执行触发前
+            if (DebugSetting.InterruptClass != InterruptClass.None) // 执行触发前
             {
                 string guid = this.Guid.ToString();
-                this.CancelInterruptCallback ??= () => context.FlowEnvironment.ChannelFlowInterrupt.TriggerSignal(guid);
-                var cancelType = await task!;
-                await Console.Out.WriteLineAsync($"[{this.MethodDetails.MethodName}]中断已{(cancelType == CancelType.Manual ? "手动取消" : "自动取消")}，开始执行后继分支");
+                var cancelType = await this.DebugSetting.GetInterruptTask();
+                //if (cancelType == CancelType.Discard)
+                //{
+                //    this.NextOrientation = ConnectionType.None;
+                //    return null;
+                //}
+                await Console.Out.WriteLineAsync($"[{this.MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");
             }
             #endregion
 

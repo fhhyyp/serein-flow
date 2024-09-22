@@ -1,6 +1,7 @@
 ﻿using Serein.Library.Api;
 using Serein.Library.Utils;
 using System;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace Serein.Library.Framework.NodeFlow
@@ -17,9 +18,11 @@ namespace Serein.Library.Framework.NodeFlow
             SereinIoc = sereinIoc;
             FlowEnvironment = flowEnvironment;
         }
+
         public NodeRunCts NodeRunCts { get; set; }
         public ISereinIOC SereinIoc { get; }
         public IFlowEnvironment FlowEnvironment { get; }
+
         public Task CreateTimingTask(Action action, int time = 100, int count = -1)
         {
             if(NodeRunCts == null)
@@ -31,11 +34,14 @@ namespace Serein.Library.Framework.NodeFlow
 
             return Task.Run(async () =>
             {
-                for (int i = 0; i < count; i++)
+                for (int i = 0; i < count && !NodeRunCts.IsCancellationRequested; i++)
                 {
-                    NodeRunCts.Token.ThrowIfCancellationRequested();
                     await Task.Delay(time);
-
+                    if (NodeRunCts.IsCancellationRequested) { break; }
+                    if (FlowEnvironment.IsGlobalInterrupt)
+                    {
+                        await FlowEnvironment.GetOrCreateGlobalInterruptAsync();
+                    }
                     // 确保对局部变量的引用
                     localAction?.Invoke();
                 }
