@@ -217,19 +217,18 @@ namespace Serein.WorkBench.Themes
         /// <param name="e"></param>
         private  void TreeViewItem_Expanded(object sender, RoutedEventArgs e)
         {
-            var item = (TreeViewItem)sender;
-            
-           
-            // 判断有没有加载过
-            //if (item.Items.Count == 1 && item.Items[0] is TreeViewItem placeholder && placeholder.Header.ToString() == "Loading...")
-            if (item.Items.Count == 0)
+            if (sender is TreeViewItem item)
             {
                 if (item.Tag is FlowDataDetails flowDataDetails) // FlowDataDetails flowDataDetails  object obj
                 {
-                    // 记录当前节点的路径
-                    var path = flowDataDetails.DataPath;
-                    expandedNodePaths.Add(path);
-                    AddMembersToTreeNode(item, flowDataDetails.DataValue, flowDataDetails.DataType);
+                    if (flowDataDetails.ItemType == TreeItemType.Item || item.Items.Count == 0)
+                    {
+                        // 记录当前节点的路径
+                        var path = flowDataDetails.DataPath;
+                        expandedNodePaths.Add(path);
+                        AddMembersToTreeNode(item, flowDataDetails.DataValue, flowDataDetails.DataType);
+                    }
+                    
                 }
             }
         }
@@ -241,9 +240,7 @@ namespace Serein.WorkBench.Themes
         /// <param name="e"></param>
         private void TreeViewItem_Collapsed(object sender, RoutedEventArgs e)
         {
-            var item = (TreeViewItem)sender;
-
-            if (item.Items.Count > 0)
+            if (sender is TreeViewItem item && item.Items.Count > 0)
             {
                 if (item.Tag is FlowDataDetails flowDataDetails) 
                 {
@@ -309,13 +306,14 @@ namespace Serein.WorkBench.Themes
         /// <returns></returns>
         private TreeViewItem ConfigureTreeViewItem(object obj, MemberInfo member)
         {
-            TreeViewItem memberNode = new TreeViewItem { Header = member.Name };
+            
             #region 属性
             if (member is PropertyInfo property)
             {
-                
+                #region 集合类型
                 if (typeof(IEnumerable).IsAssignableFrom(property.PropertyType) && property.GetValue(obj) is IEnumerable collection && collection is not null)
                 {
+                    TreeViewItem memberNode = new TreeViewItem { Header = member.Name };
                     // 处理集合类型的属性
                     memberNode.Tag = new FlowDataDetails
                     {
@@ -328,7 +326,7 @@ namespace Serein.WorkBench.Themes
                     int index = 0;
                     foreach (var item in collection)
                     {
-                        var itemNode = new TreeViewItem { Header = $"[{index++}] {item}"  ?? "null" };
+                        var itemNode = new TreeViewItem { Header = $"[{index++}] {item}" ?? "null" };
                         memberNode.Tag = new FlowDataDetails
                         {
                             ItemType = TreeItemType.Item,
@@ -339,10 +337,18 @@ namespace Serein.WorkBench.Themes
                         memberNode.Items.Add(itemNode);
                     }
                     memberNode.Header = $"{property.Name} : {property.PropertyType.Name} [{index}]";
+                    if (!property.PropertyType.IsPrimitive && property.PropertyType != typeof(string))
+                    {
+                        memberNode.Expanded += TreeViewItem_Expanded;
+                        memberNode.Collapsed += TreeViewItem_Collapsed;
+                    }
                     return memberNode;
                 }
+                #endregion
+                #region 值类型与未判断的类型
                 else
                 {
+                    TreeViewItem memberNode = new TreeViewItem { Header = member.Name };
                     string propertyValue = GetPropertyValue(obj, property, out object value);
                     memberNode.Tag = new FlowDataDetails
                     {
@@ -353,23 +359,24 @@ namespace Serein.WorkBench.Themes
                     }; ;
 
                     memberNode.Header = $"{property.Name} : {property.PropertyType.Name} = {propertyValue}";
-
                     if (!property.PropertyType.IsPrimitive && property.PropertyType != typeof(string))
                     {
                         memberNode.Expanded += TreeViewItem_Expanded;
                         memberNode.Collapsed += TreeViewItem_Collapsed;
                     }
                     return memberNode;
-                }
-                
+                } 
+
+                #endregion
             }
             #endregion
             #region 字段
             else if (member is FieldInfo field)
             {
-
+                #region 集合类型
                 if (typeof(IEnumerable).IsAssignableFrom(field.FieldType) && field.GetValue(obj) is IEnumerable collection && collection is not null)
                 {
+                    TreeViewItem memberNode = new TreeViewItem { Header = member.Name };
                     // 处理集合类型的字段
                     memberNode.Tag = new FlowDataDetails
                     {
@@ -378,7 +385,7 @@ namespace Serein.WorkBench.Themes
                         Name = field.Name,
                         DataValue = collection,
                     };
-                    
+
                     int index = 0;
                     foreach (var item in collection)
                     {
@@ -394,11 +401,18 @@ namespace Serein.WorkBench.Themes
                         memberNode.Items.Add(itemNode);
                     }
                     memberNode.Header = $"{field.Name} : {field.FieldType.Name} [{index}]";
+                    if (!field.FieldType.IsPrimitive && field.FieldType != typeof(string))
+                    {
+                        memberNode.Expanded += TreeViewItem_Expanded;
+                        memberNode.Collapsed += TreeViewItem_Collapsed;
+                    }
                     return memberNode;
                 }
+                #endregion
+                #region 值类型与未判断的类型
                 else
                 {
-
+                    TreeViewItem memberNode = new TreeViewItem { Header = member.Name };
                     string fieldValue = GetFieldValue(obj, field, out object value);
 
                     memberNode.Tag = new FlowDataDetails
@@ -417,7 +431,8 @@ namespace Serein.WorkBench.Themes
                         memberNode.Collapsed += TreeViewItem_Collapsed;
                     }
                     return memberNode;
-                }
+                } 
+                #endregion
             }
             #endregion
             #region 返回null
