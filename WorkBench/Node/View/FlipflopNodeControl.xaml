@@ -12,10 +12,13 @@
         <vm:TypeToStringConverter x:Key="TypeToStringConverter"/>
         <!--<themes:ConditionControl x:Key="ConditionControl"/>-->
     </UserControl.Resources>
-    
+
+    <Border  BorderBrush="#FCB334" BorderThickness="1">
+
+   
     <Grid>
         <Grid.ToolTip>
-            <ToolTip Background="LightYellow" Foreground="Black" Content="{Binding MethodDetails.MethodName, UpdateSourceTrigger=PropertyChanged}" />
+            <ToolTip Background="LightYellow" Foreground="#071042" Content="{Binding MethodDetails.MethodName, UpdateSourceTrigger=PropertyChanged}" />
         </Grid.ToolTip>
 
         <Grid.RowDefinitions>
@@ -23,23 +26,25 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <Border Grid.Row="0" Background="#FFFFD2" BorderBrush="Black" BorderThickness="1">
-            <TextBlock Text="{Binding MethodDetails.MethodTips, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+            <Border   Background="#FCB334" >
+            <TextBlock Grid.Row="0"  Text="{Binding MethodDetails.MethodTips, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </Border>
         <!--<themes:ExplicitDataControl Grid.Row="1" ExplicitDatas="{Binding ExplicitDatas}" />-->
         <themes:MethodDetailsControl Grid.Row="1" MethodDetails="{Binding MethodDetails}" />
-        <Grid Grid.Row="2" >
+        <Grid Grid.Row="2"  Background="#D5F0FC" >
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="50"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-            <Border Grid.Column="0" Background="#EAFFD0" BorderBrush="#EAFFD0" BorderThickness="1">
+            <Border Grid.Column="0" BorderThickness="1">
                 <TextBlock Text="result"  HorizontalAlignment="Center"  VerticalAlignment="Center"/>
             </Border>
-            <Border Grid.Column="1" Background="#EAFFD0" BorderBrush="#EAFFD0" BorderThickness="1">
+            <Border Grid.Column="1" BorderThickness="1">
                 <TextBlock Text="{Binding MethodDetails.ReturnType}"  HorizontalAlignment="Left" VerticalAlignment="Center"/>
             </Border>
         </Grid>
         <!--<themes:ConditionControl Grid.Row="2" ></themes:ConditionControl>-->
-    </Grid>
+        </Grid>
+    </Border>
 </local:NodeControlBase>

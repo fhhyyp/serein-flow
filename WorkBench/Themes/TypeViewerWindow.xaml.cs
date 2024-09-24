@@ -267,7 +267,9 @@ namespace Serein.WorkBench.Themes
         {
             Property,
             Method, 
-            Field
+            Field,
+            IEnumerable,
+            Item,
         }
 
 

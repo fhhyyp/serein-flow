@@ -14,7 +14,7 @@ namespace Serein.Library.Utils
     /// <summary>
     /// IOC管理容器
     /// </summary>
-    public class SereinIOC : ISereinIOC
+    public class SereinIOC/* : ISereinIOC*/
     {
         /// <summary>
         /// 类型集合，暂放待实例化的类型，完成实例化之后移除
@@ -22,7 +22,7 @@ namespace Serein.Library.Utils
         private readonly ConcurrentDictionary<string, Type> _typeMappings;
 
         /// <summary>
-        /// 实例集合（包含已完成注入、未完成注入的对象实例，计划在未来的版本中区分：）
+        /// 已完成注入的实例集合
         /// </summary>
         private readonly ConcurrentDictionary<string, object> _dependencies;
 
@@ -34,10 +34,6 @@ namespace Serein.Library.Utils
         private readonly ConcurrentDictionary<string, List<(object,PropertyInfo)>> _unfinishedDependencies;
 
 
-        /// <summary>
-        /// 待实例化的类型
-        /// </summary>
-        // private readonly List<Type> _waitingForInstantiation;
 
         public SereinIOC()
         {
@@ -49,13 +45,13 @@ namespace Serein.Library.Utils
 
         public void InitRegister()
         {
-            _dependencies[typeof(ISereinIOC).FullName] = this;
+            //_dependencies[typeof(ISereinIOC).FullName] = this;
             Register<IRouter, Router>();
-            /*foreach (var type in _typeMappings.Values)
-            {
-                Register(type);
-            }
-            Build();*/
+            //foreach (var type in _typeMappings.Values)
+            //{
+            //    Register(type);
+            //}
+            //Build();
         }
 
         #region 类型的注册
@@ -65,21 +61,19 @@ namespace Serein.Library.Utils
         /// </summary>
         /// <param name="type">目标类型</param>
         /// <param name="parameters">参数</param>
-        public ISereinIOC Register(Type type, params object[] parameters)
+        public bool Register(Type type, params object[] parameters)
         {
-            RegisterType(type?.FullName, type);
-            return this;
+            return RegisterType(type?.FullName, type);
         }
         /// <summary>
         /// 注册类型
         /// </summary>
         /// <param name="type">目标类型</param>
         /// <param name="parameters">参数</param>
-        public ISereinIOC Register<T>(params object[] parameters)
+        public bool Register<T>(params object[] parameters)
         {
             var type = typeof(T);
-            RegisterType(type.FullName, type);
-            return this;
+            return RegisterType(type.FullName, type);
         }
 
         /// <summary>
@@ -87,14 +81,20 @@ namespace Serein.Library.Utils
         /// </summary>
         /// <param name="type">目标类型</param>
         /// <param name="parameters">参数</param>
-        public ISereinIOC Register<TService, TImplementation>(params object[] parameters)
+        public bool Register<TService, TImplementation>(params object[] parameters)
             where TImplementation : TService
         {
-            RegisterType(typeof(TService).FullName, typeof(TImplementation));
-            return this;
+            return RegisterType(typeof(TService).FullName, typeof(TImplementation));
         }
         #endregion
 
+        /// <summary>
+        /// 尝试从容器中获取对象，如果不存在目标类型的对象，则将类型信息登记到容器，并实例化注入依赖项。如果依然无法注册，则返回null。
+        /// </summary>
+        public T GetOrRegisterInstantiate<T>()
+        {
+            return (T)GetOrRegisterInstantiate(typeof(T));
+        }
 
         /// <summary>
         /// 尝试从容器中获取对象，如果不存在目标类型的对象，则将类型信息登记到容器，并实例化注入依赖项。如果依然无法注册，则返回null。
@@ -134,16 +134,25 @@ namespace Serein.Library.Utils
         }
 
         /// <summary>
-        /// 尝试从容器中获取对象，如果不存在目标类型的对象，则将类型信息登记到容器，并实例化注入依赖项。如果依然无法注册，则返回null。
+        /// 用于临时实例的创建，不登记到IOC容器中，依赖项注入失败时也不记录。
         /// </summary>
-        public T GetOrRegisterInstantiate<T>()
+        /// <param name="controllerType"></param>
+        /// <param name="parameters"></param>
+        /// <returns></returns>
+        public object Instantiate(Type controllerType, params object[] parameters)
         {
-            return (T)GetOrRegisterInstantiate(typeof(T));
+            var instance = Activator.CreateInstance(controllerType, parameters); //  CreateInstance(controllerType, parameters); // 创建目标类型的实例
+            if (instance != null)
+            {
+                InjectDependencies(instance, false); // 完成创建后注入实例需要的依赖项
+            }
+            return instance;
         }
 
+        #region 通过名称记录或获取一个实例
 
 
-        public void CustomRegisterInstance(string name,object instance, bool needInjectProperty = true)
+        public void CustomRegisterInstance(string name, object instance, bool needInjectProperty = true)
         {
             // 不存在时才允许创建
             if (!_dependencies.ContainsKey(name))
@@ -151,7 +160,7 @@ namespace Serein.Library.Utils
                 _dependencies.TryAdd(name, instance);
             }
 
-            if (needInjectProperty) 
+            if (needInjectProperty)
             {
                 InjectDependencies(instance); // 注入实例需要的依赖项
             }
@@ -180,7 +189,7 @@ namespace Serein.Library.Utils
         {
             return (T)Get(name);
         }
-        public object Get(string name)
+        private object Get(string name)
         {
             object value;
             if (!_dependencies.TryGetValue(name, out value))
@@ -190,23 +199,10 @@ namespace Serein.Library.Utils
             return value;
         }
 
+        #endregion
 
 
-        /// <summary>
-        /// 根据类型生成对应的实例，并注入其中的依赖项（类型信息不登记到IOC容器中）,类型创建后自动注入其它需要此类型的对象
-        /// </summary>
-        /// <param name="controllerType"></param>
-        /// <param name="parameters"></param>
-        /// <returns></returns>
-        public object Instantiate(Type controllerType, params object[] parameters)
-        {
-            var instance = CreateInstance(controllerType, parameters); // 创建目标类型的实例
-            if(instance != null)
-            {   
-                InjectDependencies(instance); // 完成创建后注入实例需要的依赖项
-            }
-            return instance;
-        }
+
 
         #region 容器管理（清空，绑定）
 
@@ -214,7 +210,7 @@ namespace Serein.Library.Utils
         /// 清空容器对象
         /// </summary>
         /// <returns></returns>
-        public ISereinIOC Reset()
+        public bool Reset()
         {
             // 检查是否存在非托管资源
             foreach (var instancei in _dependencies.Values)
@@ -228,14 +224,14 @@ namespace Serein.Library.Utils
             _typeMappings?.Clear();
             _dependencies?.Clear();
             // _waitingForInstantiation?.Clear();
-            return this;
+            return true;
         }
 
         /// <summary>
         /// 实例化所有已注册的类型，并尝试绑定
         /// </summary>
         /// <returns></returns>
-        public ISereinIOC Build()
+        public bool Build()
         {
             InitRegister();
             // 遍历已注册类型
@@ -265,7 +261,7 @@ namespace Serein.Library.Utils
 
             // TryInstantiateWaitingDependencies();
 
-            return this;
+            return true;
         } 
         #endregion
 
@@ -277,11 +273,16 @@ namespace Serein.Library.Utils
         /// </summary>
         /// <param name="typeFull"></param>
         /// <param name="type"></param>
-        private void RegisterType(string typeFull, Type type)
+        private bool RegisterType(string typeFull, Type type)
         {
             if (!_typeMappings.ContainsKey(typeFull))
             {
                 _typeMappings[typeFull] = type;
+                return true;
+            }
+            else
+            {
+                return false;
             }
         }
 
@@ -310,8 +311,9 @@ namespace Serein.Library.Utils
         /// <summary>
         /// 注入目标实例的依赖项
         /// </summary>
-        /// <param name="instance"></param>
-        private bool InjectDependencies(object instance)
+        /// <param name="instance">实例</param>
+        /// <param name="isRecord">未完成依赖项注入时是否记录</param>
+        private bool InjectDependencies(object instance,bool isRecord = true)
         {
             var properties = instance.GetType()
                                      .GetProperties(BindingFlags.Instance | BindingFlags.Public).ToArray()
@@ -327,7 +329,7 @@ namespace Serein.Library.Utils
                 {
                     property.SetValue(instance, dependencyInstance); // 尝试写入到目标实例的属性中
                 }
-                else
+                else if(isRecord)
                 {
                     // 存在依赖项，但目标类型的实例暂未加载，需要等待需要实例完成注册
                     var unfinishedDependenciesList = _unfinishedDependencies.GetOrAdd(propertyType.FullName, _ = new List<(object, PropertyInfo)>());
@@ -366,66 +368,62 @@ namespace Serein.Library.Utils
         #endregion
 
         #region run()
-        public ISereinIOC Run<T>(string name, Action<T> action)
-        {
-            var obj  = Get(name);
-            if (obj != null)
-            {
-                if(obj is T service)
-                {
-                    try
-                    {
-                        action(service);
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine(ex.Message);
-                    }
-                }
-            }
-            return this;
-        }
+        //public bool Run<T>(string name, Action<T> action)
+        //{
+        //    var obj  = Get(name);
+        //    if (obj != null)
+        //    {
+        //        if(obj is T service)
+        //        {
+        //            try
+        //            {
+        //                action(service);
+        //            }
+        //            catch (Exception ex)
+        //            {
+        //                Console.WriteLine(ex.Message);
+        //            }
+        //        }
+        //    }
+        //    return this;
+        //}
 
 
-        public ISereinIOC Run<T>(Action<T> action)
+        public void Run<T>(Action<T> action)
         {
             var service = GetOrRegisterInstantiate<T>();
             if (service != null)
             {
                 action(service);
             }
-            return this;
         }
 
-        public ISereinIOC Run<T1, T2>(Action<T1, T2> action)
+        public void Run<T1, T2>(Action<T1, T2> action)
         {
             var service1 = GetOrRegisterInstantiate<T1>();
             var service2 = GetOrRegisterInstantiate<T2>();
 
             action(service1, service2);
-            return this;
         }
 
-        public ISereinIOC Run<T1, T2, T3>(Action<T1, T2, T3> action)
+        public void Run<T1, T2, T3>(Action<T1, T2, T3> action)
         {
             var service1 = GetOrRegisterInstantiate<T1>();
             var service2 = GetOrRegisterInstantiate<T2>();
             var service3 = GetOrRegisterInstantiate<T3>();
             action(service1, service2, service3);
-            return this;
         }
 
-        public ISereinIOC Run<T1, T2, T3, T4>(Action<T1, T2, T3, T4> action)
+        public void Run<T1, T2, T3, T4>(Action<T1, T2, T3, T4> action)
         {
             var service1 = GetOrRegisterInstantiate<T1>();
             var service2 = GetOrRegisterInstantiate<T2>();
             var service3 = GetOrRegisterInstantiate<T3>();
             var service4 = GetOrRegisterInstantiate<T4>();
             action(service1, service2, service3, service4);
-            return this;
         }
 
-        public ISereinIOC Run<T1, T2, T3, T4, T5>(Action<T1, T2, T3, T4, T5> action)
+        public void Run<T1, T2, T3, T4, T5>(Action<T1, T2, T3, T4, T5> action)
         {
             var service1 = GetOrRegisterInstantiate<T1>();
             var service2 = GetOrRegisterInstantiate<T2>();
@@ -433,10 +431,9 @@ namespace Serein.Library.Utils
             var service4 = GetOrRegisterInstantiate<T4>();
             var service5 = GetOrRegisterInstantiate<T5>();
             action(service1, service2, service3, service4, service5);
-            return this;
         }
 
-        public ISereinIOC Run<T1, T2, T3, T4, T5, T6>(Action<T1, T2, T3, T4, T5, T6> action)
+        public void Run<T1, T2, T3, T4, T5, T6>(Action<T1, T2, T3, T4, T5, T6> action)
         {
             var service1 = GetOrRegisterInstantiate<T1>();
             var service2 = GetOrRegisterInstantiate<T2>();
@@ -445,10 +442,9 @@ namespace Serein.Library.Utils
             var service5 = GetOrRegisterInstantiate<T5>();
             var service6 = GetOrRegisterInstantiate<T6>();
             action(service1, service2, service3, service4, service5, service6);
-            return this;
         }
 
-        public ISereinIOC Run<T1, T2, T3, T4, T5, T6, T7>(Action<T1, T2, T3, T4, T5, T6, T7> action)
+        public void Run<T1, T2, T3, T4, T5, T6, T7>(Action<T1, T2, T3, T4, T5, T6, T7> action)
         {
             var service1 = GetOrRegisterInstantiate<T1>();
             var service2 = GetOrRegisterInstantiate<T2>();
@@ -458,10 +454,9 @@ namespace Serein.Library.Utils
             var service6 = GetOrRegisterInstantiate<T6>();
             var service7 = GetOrRegisterInstantiate<T7>();
             action(service1, service2, service3, service4, service5, service6, service7);
-            return this;
         }
 
-        public ISereinIOC Run<T1, T2, T3, T4, T5, T6, T7, T8>(Action<T1, T2, T3, T4, T5, T6, T7, T8> action)
+        public void Run<T1, T2, T3, T4, T5, T6, T7, T8>(Action<T1, T2, T3, T4, T5, T6, T7, T8> action)
         {
             var service1 = GetOrRegisterInstantiate<T1>();
             var service2 = GetOrRegisterInstantiate<T2>();
@@ -472,7 +467,6 @@ namespace Serein.Library.Utils
             var service7 = GetOrRegisterInstantiate<T7>();
             var service8 = GetOrRegisterInstantiate<T8>();
             action(service1, service2, service3, service4, service5, service6, service7, service8);
-            return this;
         }
 
 

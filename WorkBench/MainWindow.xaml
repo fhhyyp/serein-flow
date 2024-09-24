@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:Serein.WorkBench"
-        xmlns:custom="clr-namespace:Serein.WorkBench.Node.View"
+        xmlns:nodeView="clr-namespace:Serein.WorkBench.Node.View"
         xmlns:themes="clr-namespace:Serein.WorkBench.Themes"
         Title="Dynamic Node Flow" Height="900" Width="1400"
         AllowDrop="True" Drop="Window_Drop" DragOver="Window_DragOver"
@@ -21,51 +21,49 @@
 
     <Window.InputBindings>
         <KeyBinding Key="Escape" Command="{Binding CancelConnectionCommand}"/>
-
-
     </Window.InputBindings>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="300"/>
-            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="5"/>
             <ColumnDefinition Width="3*"/>
+            <ColumnDefinition Width="5"/>
+            <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
         <DockPanel  Grid.Column="0" Background="#F5F5F5">
             <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="40"></RowDefinition>
                     <RowDefinition Height="Auto"></RowDefinition>
                     <RowDefinition Height="2*"></RowDefinition>
-                    <RowDefinition Height="3"></RowDefinition>
-                    <RowDefinition Height="3*"></RowDefinition>
+                    <!--<RowDefinition Height="3"></RowDefinition>-->
+                    <!--<RowDefinition Height="3*"></RowDefinition>-->
                 </Grid.RowDefinitions>
 
-                <Grid Margin="2,2,2,5"  Grid.Row="0" Grid.ColumnSpan="2" >
+                <Grid Margin="2,2,1,5"  Grid.Row="0" >
                     <Button  Grid.Row="0"  Content="保存项目" Click="ButtonSaveFile_Click"  HorizontalAlignment="Left"  Margin="5,5,5,5"/>
                     <!--<Button  Grid.Row="0"  Content="卸载清空" Click="UnloadAllButton_Click"  HorizontalAlignment="Right"  Margin="5,5,5,5"/>-->
                 </Grid>
 
-                <ScrollViewer  Grid.Row="1"  HorizontalScrollBarVisibility="Auto" Grid.ColumnSpan="2">
+                <ScrollViewer  Grid.Row="1"  HorizontalScrollBarVisibility="Auto">
                     <StackPanel  Orientation="Horizontal">
-                        <custom:ExpOpNodeControl x:Name="ExpOpNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
-                        <custom:ConditionNodeControl x:Name="ConditionNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
-                        <custom:ConditionRegionControl  x:Name="ConditionRegionControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
+                        <nodeView:ExpOpNodeControl x:Name="ExpOpNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
+                        <nodeView:ConditionNodeControl x:Name="ConditionNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
+                        <nodeView:ConditionRegionControl  x:Name="ConditionRegionControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                     </StackPanel>
                 </ScrollViewer>
-                <ScrollViewer  Grid.Row="1"  VerticalScrollBarVisibility="Auto" MaxHeight="400" Grid.ColumnSpan="2" Margin="0,72,0,5" Grid.RowSpan="3">
+                <ScrollViewer  Grid.Row="2"  VerticalScrollBarVisibility="Auto" MaxHeight="400" Grid.RowSpan="2">
                     <StackPanel x:Name="DllStackPanel" Margin="5"/>
                 </ScrollViewer>
-                <GridSplitter Grid.Row="3" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Center" ResizeBehavior="PreviousAndNext" Background="Gray" Grid.ColumnSpan="2"/>
-                <Grid  Grid.Row="4" Grid.ColumnSpan="2">
-
-                    <themes:ObjectViewerControl x:Name="ObjectViewer"/>
-                </Grid>
+                <!--<GridSplitter Grid.Row="3" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Center" ResizeBehavior="PreviousAndNext" Background="Gray"/>-->
+                
             </Grid>
         </DockPanel>
 
-
-        <!--<GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="Gray" DragDelta="GridSplitter_DragDelta"/>-->
         <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="Gray" />
 
         <Grid  Grid.Column="2" >
@@ -79,18 +77,23 @@
             <StackPanel Grid.Row="0" Background="#F5F5F5" Orientation="Horizontal" >
                 <Button x:Name="ButtonDebugRun"  Content="运行" Width="100" Margin="10" Click="ButtonDebugRun_Click"></Button>
                 <Button x:Name="ButtonDebugFlipflopNode"  Content="结束" Width="100" Margin="10" Click="ButtonDebugFlipflopNode_Click"></Button>
+                <Button x:Name="ButtonStartFlowInSelectNode"  Content="从选定节点开始" Width="100" Margin="10" Click="ButtonStartFlowInSelectNode_Click"></Button>
                 <!--<Button x:Name="ButtonReflushCanvasConfig"  Content="重置画布设置" Width="100" Margin="10" Click="ButtonReflushCanvasConfig_Click"></Button>-->
                 <!--<Button x:Name="ButtonLoadCanvasConfig"  Content="加载画布设置" Width="100" Margin="10" Click="ButtonLoadCanvasConfig_Click"></Button>-->
             </StackPanel>
-
+            
+            <!--HorizontalAlignment="Center"
+            VerticalAlignment="Center"-->
+            
             <StackPanel  Grid.Row="1"
                          x:Name="FlowChartStackPanel"
+                         
                          ClipToBounds="True">
                 <Canvas 
                     x:Name="FlowChartCanvas" 
-                    Background="#D9FFEA"
+                    Background="#E1FBEA"
                     AllowDrop="True" 
-                    Width="1000"
+                    Width="700"
                     Height="700"
                     MouseLeftButtonDown ="FlowChartCanvas_MouseLeftButtonDown"
                     MouseLeftButtonUp="FlowChartCanvas_MouseLeftButtonUp"
@@ -132,14 +135,6 @@
                            Canvas.Left="0" 
                            Canvas.Top="{Binding ActualHeight, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource BottomThumbPositionConverter}}"/>-->
 
-                    <!-- Bottom-Right Thumb -->
-                    <Thumb x:Name="BottomRightThumb" 
-                           Width="40" Height="40"
-                           DragDelta="Thumb_DragDelta_BottomRight"
-                           Cursor="SizeNWSE"
-                           Canvas.Left="{Binding ActualWidth, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource RightThumbPositionConverter}}" 
-                           Canvas.Top="{Binding ActualHeight, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource BottomThumbPositionConverter}}"/>
-
                     <!-- Left Thumb -->
                     <!--<Thumb x:Name="LeftThumb" 
                            Width="10" Height="10"
@@ -149,15 +144,6 @@
                            Canvas.Top="{Binding ActualHeight, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource VerticalCenterThumbPositionConverter}}"/>-->
 
                     <!-- Right Thumb -->
-                    <!--Canvas.Left="{Binding ActualWidth, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource RightThumbPositionConverter}}" 
-Canvas.Top="{Binding ActualHeight, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource VerticalCenterThumbPositionConverter}}"-->
-                    <Thumb x:Name="RightThumb" Width="5" Cursor="SizeWE" Canvas.Top="0" Canvas.Right="0" DragDelta="Thumb_DragDelta_Right">
-                        <Thumb.Template>
-                            <ControlTemplate>
-                                <Border Background="#B1B9F8" Width="5" Height="{Binding RelativeSource={RelativeSource AncestorType=Canvas}, Path=ActualHeight}" />
-                            </ControlTemplate>
-                        </Thumb.Template>
-                    </Thumb>
 
                     <!-- Top Thumb -->
                     <!--<Thumb x:Name="TopThumb" 
@@ -168,24 +154,59 @@ Canvas.Top="{Binding ActualHeight, ElementName=FlowChartCanvas, Mode=OneWay, Con
                            Canvas.Top="0"/>-->
 
                     <!-- Bottom Thumb -->
+                    <!-- Bottom-Right Thumb -->
+                    <Thumb x:Name="BottomRightThumb" 
+                           Width="15" Height="15"
+                           DragDelta="Thumb_DragDelta_BottomRight"
+                           Cursor="SizeNWSE"
+                           Canvas.Left="{Binding ActualWidth, Converter={StaticResource RightThumbPositionConverter}, ElementName=FlowChartCanvas, Mode=OneWay}" 
+                           Canvas.Top="{Binding ActualHeight, Converter={StaticResource BottomThumbPositionConverter}, ElementName=FlowChartCanvas, Mode=OneWay}"/>
+
+                    <!--Canvas.Left="{Binding ActualWidth, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource RightThumbPositionConverter}}" 
+Canvas.Top="{Binding ActualHeight, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource VerticalCenterThumbPositionConverter}}"-->
+                    <Thumb x:Name="RightThumb" Width="5" Cursor="SizeWE" Canvas.Top="0" Canvas.Right="0" DragDelta="Thumb_DragDelta_Right">
+                        <Thumb.Template>
+                            <ControlTemplate>
+                                <Border Background="#B1B9F8" Width="5" Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type Canvas}}}" />
+                            </ControlTemplate>
+                        </Thumb.Template>
+                    </Thumb>
+
                     <!--Canvas.Left="{Binding ActualWidth, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource HorizontalCenterThumbPositionConverter}}" 
  Canvas.Top="{Binding ActualHeight, ElementName=FlowChartCanvas, Mode=OneWay, Converter={StaticResource BottomThumbPositionConverter}}"-->
                     <Thumb x:Name="BottomThumb" Height="5" Cursor="SizeNS" Canvas.Bottom="0" Canvas.Left="0"  DragDelta="Thumb_DragDelta_Bottom">
                         <Thumb.Template>
                             <ControlTemplate>
-                                <Border Background="#B1B9F8" Height="5" Width="{Binding RelativeSource={RelativeSource AncestorType=Canvas}, Path=ActualWidth}" />
+                                <Border Background="#B1B9F8" Height="5" Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType={x:Type Canvas}}}" />
                             </ControlTemplate>
                         </Thumb.Template>
                     </Thumb>
                 </Canvas>
 
 
-
-
-
             </StackPanel>
-
-
+        </Grid>
+        <GridSplitter Grid.Column="3" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="Gray" />
+        <!--IOC容器属性-->
+        <Grid Grid.Column="4" >
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Grid Grid.Row="0" >
+                <!--<themes:LazyTreeView x:Name="lazyTreeView" />-->
+            </Grid>
+            <Grid Grid.Row="1" >
+                <themes:IOCObjectViewControl x:Name="IOCObjectViewer">
+                    <!--<x:Arguments>
+                        <x:String>Apple</x:String>
+                    </x:Arguments>-->
+                </themes:IOCObjectViewControl>
+            </Grid>
+            <Grid  Grid.Row="3"  Margin="0,3,0,0" Grid.RowSpan="2">
+                <themes:ObjectViewerControl x:Name="ViewObjectViewer"></themes:ObjectViewerControl>
+            </Grid>
         </Grid>
 
     </Grid>

@@ -9,12 +9,12 @@ namespace Serein.NodeFlow.Base
     /// </summary>
     public abstract partial class NodeModelBase :IDynamicFlowNode
     {
+        private static readonly ConnectionType[] ct = [ConnectionType.IsSucceed,
+                                                       ConnectionType.IsFail,
+                                                       ConnectionType.IsError,
+                                                       ConnectionType.Upstream];
         public NodeModelBase()
         {
-            ConnectionType[] ct = [ConnectionType.IsSucceed,
-                                   ConnectionType.IsFail,
-                                   ConnectionType.IsError, 
-                                   ConnectionType.Upstream];
             PreviousNodes = [];
             SuccessorNodes = [];
             foreach (ConnectionType ctType in ct)

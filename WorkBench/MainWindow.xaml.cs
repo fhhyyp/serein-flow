@@ -148,25 +148,15 @@ namespace Serein.WorkBench
 
             ViewModel = new MainWindowViewModel(this);
             FlowEnvironment = ViewModel.FlowEnvironment;
-            ObjectViewer.FlowEnvironment = FlowEnvironment;
+            ViewObjectViewer.FlowEnvironment = FlowEnvironment;
 
             InitFlowEnvironmentEvent(); // 配置环境事件
-            
-            logWindow = new LogWindow();
-            logWindow.Show();
-            // 重定向 Console 输出
-            var logTextWriter = new LogTextWriter(msg => logWindow.AppendText(msg), () => logWindow.Clear());;
-            Console.SetOut(logTextWriter);
+            logWindow =  InitConsoleOut(); // 重定向 Console 输出
 
-            InitCanvasUI(); 
+            InitCanvasUI();  // 配置画布
 
-            var project = App.FlowProjectData;
-            if (project == null)
-            {
-                return;
-            }
-            InitializeCanvas(project.Basic.Canvas.Width, project.Basic.Canvas.Lenght);// 设置画布大小
-            FlowEnvironment.LoadProject(project, App.FileDataPath); // 加载项目
+
+            FlowEnvironment.LoadProject(App.FlowProjectData, App.FileDataPath); // 加载项目
         }
 
         private void InitFlowEnvironmentEvent()
@@ -186,9 +176,6 @@ namespace Serein.WorkBench
             FlowEnvironment.OnInterruptTrigger += FlowEnvironment_OnInterruptTrigger;
 
         }
-
-        
-
         private void InitCanvasUI()
         {
             canvasTransformGroup = new TransformGroup();
@@ -202,7 +189,15 @@ namespace Serein.WorkBench
             //FlowChartCanvas.RenderTransformOrigin = new Point(0.5, 0.5);
         }
 
-
+        private LogWindow InitConsoleOut()
+        {
+            var logWindow = new LogWindow();
+            logWindow.Show();
+            // 重定向 Console 输出
+            var logTextWriter = new LogTextWriter(msg => logWindow.AppendText(msg), () => logWindow.Clear()); ;
+            Console.SetOut(logTextWriter);
+            return logWindow;
+        }
 
         #region 窗体加载方法
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -215,15 +210,20 @@ namespace Serein.WorkBench
         }
         private void Window_ContentRendered(object sender, EventArgs e)
         {
+            var project = App.FlowProjectData;
+            if (project == null)
+            {
+                return;
+            }
+            InitializeCanvas(project.Basic.Canvas.Width, project.Basic.Canvas.Lenght);// 设置画布大小
             foreach (var connection in Connections)
             {
                 connection.Refresh();
             }
 
-            var canvasData = App.FlowProjectData?.Basic.Canvas;
+            var canvasData = project.Basic.Canvas;
             if (canvasData != null)
             {
-
                 scaleTransform.ScaleX = 1;
                 scaleTransform.ScaleY = 1;
                 translateTransform.X = 0;
@@ -453,35 +453,36 @@ namespace Serein.WorkBench
 
 
         /// <summary>
-        /// 被监视的对象发生改变（节点执行了一次）
+        /// 被监视的对象发生改变
         /// </summary>
         /// <param name="eventArgs"></param>
         private void FlowEnvironment_OnMonitorObjectChange(MonitorObjectEventArgs eventArgs)
         {
             string nodeGuid = eventArgs.NodeGuid;
-            NodeControlBase nodeControl = GuidToControl(nodeGuid);
-            ObjectViewer.Dispatcher.BeginInvoke(() => {
-                if (string.IsNullOrEmpty(ObjectViewer.NodeGuid)) // 如果没有加载过
+
+            object monitorKey =  MonitorObjectEventArgs.ObjSourceType.NodeFlowData switch
+            {
+                MonitorObjectEventArgs.ObjSourceType.NodeFlowData => nodeGuid,
+                _ => eventArgs.NewData,
+            };
+
+            //NodeControlBase nodeControl = GuidToControl(nodeGuid);
+            ViewObjectViewer.Dispatcher.BeginInvoke(() => {
+                if (ViewObjectViewer.MonitorObj is null) // 如果没有加载过对象
                 {
-                    ObjectViewer.NodeGuid = nodeGuid;
-                    ObjectViewer.LoadObjectInformation(eventArgs.NewData); // 加载节点
-                    //ObjectViewer.LoadObjectInformation(eventArgs.NewData); // 加载节点
-                }
+                    ViewObjectViewer.LoadObjectInformation(monitorKey, eventArgs.NewData); // 加载对象 ViewObjectViewerControl.MonitorType.Obj
+  }
                 else
                 {
-                    // 加载过，如果显示的对象来源并非同一个节点，则停止监听之前的节点
-                    if (!ObjectViewer.NodeGuid.Equals(nodeGuid))
+                    if (ViewObjectViewer.MonitorKey.Equals(monitorKey)) // 相同对象
                     {
-                        FlowEnvironment.SetNodeFLowDataMonitorState(ObjectViewer.NodeGuid, false);
-                        ObjectViewer.NodeGuid = nodeGuid;
-                        //ObjectViewer.LoadObjectInformation(eventArgs.NewData); // 加载节点
+                        ViewObjectViewer.RefreshObjectTree(eventArgs.NewData); // 刷新
                     }
                     else
                     {
-                        ObjectViewer.RefreshObjectTree(eventArgs.NewData);
+                        ViewObjectViewer.LoadObjectInformation(monitorKey, eventArgs.NewData); // 加载对象
                     }
                 }
-
             });
             
 
@@ -733,18 +734,6 @@ namespace Serein.WorkBench
 
             #endregion
 
-            contextMenu.Items.Add(CreateMenuItem("查看数据", (s, e) =>
-            {
-                var node = nodeControl?.ViewModel?.Node;
-                if(node is not null)
-                {
-                    FlowEnvironment.SetNodeFLowDataMonitorState(ObjectViewer.NodeGuid, false); // 通知环境，该节点的数据更新后需要传到UI
-                    ObjectViewer.NodeGuid = node.Guid;
-                    FlowEnvironment.SetNodeFLowDataMonitorState(node.Guid, true); // 通知环境，该节点的数据更新后需要传到UI
-                }
-
-            }));
-
             contextMenu.Items.Add(CreateMenuItem("设为起点", (s, e) => FlowEnvironment.SetStartNode(nodeGuid)));
             contextMenu.Items.Add(CreateMenuItem("删除", (s, e) => FlowEnvironment.RemoteNode(nodeGuid)));
 
@@ -847,7 +836,7 @@ namespace Serein.WorkBench
         //{
         //    try
         //    {
-        //        var typeViewerWindow = new ObjectViewerWindow();
+        //        var typeViewerWindow = new ViewObjectViewerWindow();
         //        typeViewerWindow.LoadObjectInformation(@object);
         //        typeViewerWindow.Show();
         //    }
@@ -1076,16 +1065,59 @@ namespace Serein.WorkBench
         }
 
         /// <summary>
-        /// 控件的鼠标左键按下事件，启动拖动操作。
+        /// 控件的鼠标左键按下事件，启动拖动操作。同时显示当前正在传递的数据。
         /// </summary>
         private void Block_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            IsControlDragging = true;
-            startControlDragPoint = e.GetPosition(FlowChartCanvas); // 记录鼠标按下时的位置
-            ((UIElement)sender).CaptureMouse(); // 捕获鼠标
-            e.Handled = true; // 防止事件传播影响其他控件
+            if(sender is NodeControlBase nodeControl)
+            {
+                ChangeViewerObjOfNode(nodeControl);
+                if (nodeControl.ViewModel.Node.MethodDetails.IsProtectionParameter) return;
+                IsControlDragging = true;
+                startControlDragPoint = e.GetPosition(FlowChartCanvas); // 记录鼠标按下时的位置
+                ((UIElement)sender).CaptureMouse(); // 捕获鼠标
+                e.Handled = true; // 防止事件传播影响其他控件
+
+                
+            }
+            
         }
 
+        private void ChangeViewerObjOfNode(NodeControlBase nodeControl)
+        {
+            // int i = false;
+            var node = nodeControl?.ViewModel?.Node;
+            if (node is not null && node.MethodDetails.ReturnType != typeof(void))
+            {
+                if (ViewObjectViewer.MonitorObj is null)
+                {
+                    FlowEnvironment.SetMonitorObjState(node.Guid, true); // 通知环境，该节点的数据更新后需要传到UI
+                    // FlowEnvironment.SetMonitorObjState(nodeObj, true); // 通知环境，该节点的数据更新后需要传到UI
+                    return;
+                }
+                var nodeObj = node.GetFlowData();
+                if (nodeObj is null)
+                {
+                    return;
+                }
+                //if (nodeObj.Equals(ViewObjectViewer.MonitorObj) == true)
+                //{
+                //    // 选择同一个控件，不再监视
+                //    ViewObjectViewer.RefreshObjectTree(nodeObj);
+                //    return;
+                //}
+                if (node.Guid.Equals(ViewObjectViewer.MonitorKey) == true)
+                {
+                    ViewObjectViewer.RefreshObjectTree(nodeObj);
+                    return;
+                }
+                else
+                {
+                    FlowEnvironment.SetMonitorObjState(ViewObjectViewer.MonitorKey, false); // 取消对旧节点的监视
+                    FlowEnvironment.SetMonitorObjState(node.Guid, true); // 通知环境，该节点的数据更新后需要传到UI
+                }
+            }
+        }
         /// <summary>
         /// 控件的鼠标移动事件，根据鼠标拖动更新控件的位置。批量移动计算移动逻辑。
         /// </summary>
@@ -1691,12 +1723,18 @@ namespace Serein.WorkBench
         }
         private void SelectedNode()
         {
-            if(selectNodeControls.Count == 0)
+
+            if (selectNodeControls.Count == 0)
             {
                 //Console.WriteLine($"没有选择控件");
                 SelectionRectangle.Visibility = Visibility.Collapsed;
                 return;
             }
+            if(selectNodeControls.Count == 1)
+            {
+                // ChangeViewerObjOfNode(selectNodeControls[0]);
+            }
+
             //Console.WriteLine($"一共选取了{selectNodeControls.Count}个控件");
             foreach (var node in selectNodeControls)
             {
@@ -2018,7 +2056,7 @@ namespace Serein.WorkBench
 
         #endregion
 
-        #region 窗体静态方法
+        #region 静态方法：创建节点，创建菜单子项，获取区域
 
 
         private static TControl CreateNodeControl<TControl, TViewModel>(NodeModelBase model)
@@ -2115,6 +2153,12 @@ namespace Serein.WorkBench
 
         #endregion
 
+        #region IOC视图管理
+        void LoadIOCObjectViewer()
+        {
+
+        }
+        #endregion
 
 
         /// <summary>
@@ -2165,6 +2209,27 @@ namespace Serein.WorkBench
         private void ButtonDebugFlipflopNode_Click(object sender, RoutedEventArgs e)
         {
             FlowEnvironment?.Exit(); // 在运行平台上点击了退出
+        }
+
+        /// <summary>
+        /// 从选定的节点开始运行
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void ButtonStartFlowInSelectNode_Click(object sender, RoutedEventArgs e)
+        {
+            if(selectNodeControls.Count == 0)
+            {
+                Console.WriteLine("请至少选择一个节点");
+            }
+            else if (selectNodeControls.Count > 1)
+            {
+                Console.WriteLine("请只选择一个节点");
+            }
+            else
+            {
+                await this.FlowEnvironment.StartFlowInSelectNodeAsync(selectNodeControls[0].ViewModel.Node.Guid);
+            }
 
         }
 

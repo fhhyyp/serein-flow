@@ -12,9 +12,13 @@
         <!--<BooleanToVisibilityConverter x:Key="BoolToVisConverter" />-->
         <Converters:InvertableBooleanToVisibilityConverter x:Key="InvertedBoolConverter"/>
     </UserControl.Resources>
+
+    <Border BorderBrush="#8DE9FD" BorderThickness="1">
+
+   
     <Grid>
         <Grid.ToolTip>
-            <ToolTip Background="LightYellow" Foreground="Black" Content="{Binding MethodDetails.MethodName, UpdateSourceTrigger=PropertyChanged}" />
+            <ToolTip Background="LightYellow" Foreground="#071042" Content="{Binding MethodDetails.MethodName, UpdateSourceTrigger=PropertyChanged}" />
         </Grid.ToolTip>
 
         <Border>
@@ -40,9 +44,7 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                
-
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Background="#FFCFDF">
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Background="#8DE9FD">
                     <CheckBox  IsChecked="{Binding DebugSetting.IsEnable, Mode=TwoWay}" VerticalContentAlignment="Center"/>
                     <CheckBox  IsChecked="{Binding MethodDetails.IsProtectionParameter, Mode=TwoWay}" VerticalContentAlignment="Center"/>
                     <TextBlock Text="{Binding MethodDetails.MethodTips}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -50,17 +52,17 @@
                 <themes:MethodDetailsControl Grid.Row="1" MethodDetails="{Binding MethodDetails}"/>
                 <!-- ParameterProtectionMask 参数保护 -->
                 <!--取反 Visibility="{Binding DebugSetting.IsEnable, Converter={StaticResource InvertedBoolConverter}, ConverterParameter=Inverted}"-->
-                <Border Grid.Row="1" x:Name="ParameterProtectionMask" Background="LightBlue" Opacity="0.5" BorderBrush="Black" BorderThickness="0" 
+                <Border Grid.Row="1" x:Name="ParameterProtectionMask" Background="LightBlue" Opacity="0.5" BorderBrush="#0A4651" BorderThickness="0" 
                         Visibility="{Binding MethodDetails.IsProtectionParameter, Converter={StaticResource InvertedBoolConverter},ConverterParameter=Normal}" />
-                <Grid Grid.Row="2" >
+                <Grid Grid.Row="2"   Background="#D5F0FC" >
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="50"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Background="#EAFFD0" BorderBrush="#EAFFD0" BorderThickness="1">
-                        <TextBlock Text="result"  HorizontalAlignment="Center"  VerticalAlignment="Center"/>
+                    <Border Grid.Column="0"  BorderThickness="1">
+                        <TextBlock Text="result"  HorizontalAlignment="Center"  VerticalAlignment="Center" />
                     </Border>
-                    <Border Grid.Column="1" Background="#EAFFD0" BorderBrush="#EAFFD0" BorderThickness="1">
+                    <Border Grid.Column="1"  BorderThickness="1">
                         <TextBlock Text="{Binding MethodDetails.ReturnType}"  HorizontalAlignment="Left" VerticalAlignment="Center"/>
                     </Border>
                 </Grid>
@@ -71,6 +73,7 @@
         
         <!--Visibility="{Binding IsEnable, Converter={StaticResource BoolToVisConverter}, ConverterParameter=False}"-->
 
-        
-    </Grid>
+
+        </Grid>
+    </Border>
 </local:NodeControlBase>

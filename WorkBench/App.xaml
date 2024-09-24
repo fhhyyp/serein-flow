@@ -11,6 +11,13 @@
                 <ResourceDictionary Source="/Themes/MethodDetailsControl.xaml" />
 
             </ResourceDictionary.MergedDictionaries>
+
+            <Style TargetType="{x:Type TextBlock }">
+                <!--<Setter Property="FontFamily" Value="Comic Sans MS"/>-->
+                <Setter Property="Foreground" Value="#071042"/>
+            </Style>
         </ResourceDictionary>
+       
     </Application.Resources>
+
 </Application>

@@ -16,7 +16,7 @@ namespace Serein.Library.Entity
         /// <summary>
         /// 是否监视数据改变
         /// </summary>
-        public bool IsMonitorFlowData { get; set; } = false;
+        // public bool IsMonitorFlowData { get; set; } = false;
 
         /// <summary>
         ///  中断级别，暂时停止继续执行后继分支。
@@ -26,8 +26,7 @@ namespace Serein.Library.Entity
         /// <summary>
         /// 中断表达式
         /// </summary>
-        public List<string> InterruptExpressions {  get; } = new List<string>();
-
+        // public List<string> InterruptExpressions {  get; } = new List<string>();
 
         /// <summary>
         /// 取消中断的回调函数

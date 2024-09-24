@@ -9,22 +9,22 @@ namespace Serein.Library.Core.NodeFlow
     /// </summary>
     public class DynamicContext: IDynamicContext
     {
-        public DynamicContext(ISereinIOC sereinIoc, IFlowEnvironment flowEnvironment)
+        public DynamicContext(/*ISereinIOC sereinIoc, */IFlowEnvironment flowEnvironment)
         {
-            SereinIoc = sereinIoc;
-            FlowEnvironment = flowEnvironment;
+            //SereinIoc = sereinIoc;
+            Env = flowEnvironment;
 
         }
 
         public NodeRunCts NodeRunCts { get; set; }
-        public ISereinIOC SereinIoc { get; }
-        public IFlowEnvironment FlowEnvironment { get; }
+        //public ISereinIOC SereinIoc { get; }
+        public IFlowEnvironment Env { get; }
 
         public Task CreateTimingTask(Action action, int time = 100, int count = -1)
         {
             if (NodeRunCts == null)
             {
-                NodeRunCts = SereinIoc.GetOrRegisterInstantiate<NodeRunCts>();
+                NodeRunCts = Env.IOC.GetOrRegisterInstantiate<NodeRunCts>();
             }
             // 使用局部变量，避免捕获外部的 `action`
             Action localAction = action;

@@ -98,7 +98,7 @@ namespace Serein.NodeFlow.Base
         {
             Stack<NodeModelBase> stack = new Stack<NodeModelBase>();
             stack.Push(this);
-            var cts = context.SereinIoc.Get<CancellationTokenSource>(FlowStarter.FlipFlopCtsName);
+            var cts = context.Env.IOC.Get<CancellationTokenSource>(FlowStarter.FlipFlopCtsName);
             while (stack.Count > 0 && !cts.IsCancellationRequested) // 循环中直到栈为空才会退出循环
             {
                 // 节点执行异常时跳过执行
@@ -109,7 +109,7 @@ namespace Serein.NodeFlow.Base
                 // 设置方法执行的对象
                 if (currentNode.MethodDetails?.ActingInstance == null && currentNode.MethodDetails?.ActingInstanceType is not null)
                 {
-                    currentNode.MethodDetails.ActingInstance ??= context.SereinIoc.GetOrRegisterInstantiate(currentNode.MethodDetails.ActingInstanceType);
+                    currentNode.MethodDetails.ActingInstance ??= context.Env.IOC.GetOrRegisterInstantiate(currentNode.MethodDetails.ActingInstanceType);
                 }
 
                 #region 执行相关
@@ -330,52 +330,139 @@ namespace Serein.NodeFlow.Base
         }
 
         /// <summary>
-        /// 更新节点数据，并检查监视表达式
+        /// 更新节点数据，并检查监视表达式是否生效
         /// </summary>
         /// <param name="newData"></param>
-        public static async Task RefreshFlowDataAndExpInterrupt(IDynamicContext context, NodeModelBase nodeModel, object? newData = null)
+        public static async Task RefreshFlowDataAndExpInterrupt(IDynamicContext context,NodeModelBase nodeModel, object? newData = null)
         {
+
             string guid = nodeModel.Guid;
-            // 检查是否存在监视表达式
-            if (newData is not null && nodeModel.DebugSetting.InterruptExpressions.Count > 0)
+            if(newData is not null)
             {
-                // 表达式环境下判断是否需要执行中断
-                bool isExpInterrupt = false;
-                string? exp = "";
-                // 判断执行监视表达式，直到为 true 时退出
-                for (int i = 0; i < nodeModel.DebugSetting.InterruptExpressions.Count && !isExpInterrupt; i++)
-                {
-                    exp = nodeModel.DebugSetting.InterruptExpressions[i];
-                    isExpInterrupt = SereinConditionParser.To(newData, exp);
-                }
-
-                if (isExpInterrupt) // 触发中断
-                {
-                    InterruptClass interruptClass = InterruptClass.Branch; // 分支中断
-                    if (context.FlowEnvironment.SetNodeInterrupt(nodeModel.Guid, interruptClass))
-                    {
-                        context.FlowEnvironment.TriggerInterrupt(guid, exp, InterruptTriggerEventArgs.InterruptTriggerType.Exp);
-                        var cancelType = await nodeModel.DebugSetting.GetInterruptTask();
-                        await Console.Out.WriteLineAsync($"[{nodeModel.MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");
-                    }
-
-                }
+                await MonitorObjExpInterrupt(context, nodeModel, newData, 0); // 首先监视对象
+                await MonitorObjExpInterrupt(context, nodeModel, newData, 1); // 然后监视节点
+                nodeModel.FlowData = newData; // 替换数据
             }
+
+
+
+            //if(context.Env.CheckObjMonitorState(newData, out List<string> exps)) // 如果新的数据处于查看状态，通知UI进行更新？交给运行环境判断？
+            //{
+            //    context.Env.MonitorObjectNotification(guid, newData); // 对象处于监视状态，通知UI更新数据显示
+            //    if (exps.Count > 0)
+            //    {
+            //        // 表达式环境下判断是否需要执行中断
+            //        bool isExpInterrupt = false;
+            //        string? exp = "";
+            //        // 判断执行监视表达式，直到为 true 时退出
+            //        for (int i = 0; i < exps.Count && !isExpInterrupt; i++)
+            //        {
+            //            exp = exps[i];
+            //            isExpInterrupt = SereinConditionParser.To(newData, exp);
+            //        }
+
+            //        if (isExpInterrupt) // 触发中断
+            //        {
+            //            InterruptClass interruptClass = InterruptClass.Branch; // 分支中断
+            //            if (context.Env.SetNodeInterrupt(nodeModel.Guid, interruptClass))
+            //            {
+            //                context.Env.TriggerInterrupt(guid, exp, InterruptTriggerEventArgs.InterruptTriggerType.Obj);
+            //                var cancelType = await nodeModel.DebugSetting.GetInterruptTask();
+            //                await Console.Out.WriteLineAsync($"[{newData}]中断已{cancelType}，开始执行后继分支");
+            //            }
+            //        }
+            //    }
+
+            //}
+
+
+            //if (newData is not null && nodeModel.DebugSetting.InterruptExpressions.Count > 0)  // 检查节点是否存在监视表达式
+            //{
+            //    // 表达式环境下判断是否需要执行中断
+            //    bool isExpInterrupt = false;
+            //    string? exp = "";
+            //    // 判断执行监视表达式，直到为 true 时退出
+            //    for (int i = 0; i < nodeModel.DebugSetting.InterruptExpressions.Count && !isExpInterrupt; i++)
+            //    {
+            //        exp = nodeModel.DebugSetting.InterruptExpressions[i];
+            //        isExpInterrupt = SereinConditionParser.To(newData, exp);
+            //    }
+
+            //    if (isExpInterrupt) // 触发中断
+            //    {
+            //        InterruptClass interruptClass = InterruptClass.Branch; // 分支中断
+            //        if (context.Env.SetNodeInterrupt(nodeModel.Guid, interruptClass))
+            //        {
+            //            context.Env.TriggerInterrupt(guid, exp, InterruptTriggerEventArgs.InterruptTriggerType.Exp);
+            //            var cancelType = await nodeModel.DebugSetting.GetInterruptTask();
+            //            await Console.Out.WriteLineAsync($"[{nodeModel.MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");
+            //        }
+
+            //    }
+            //}
+
+
+
             //else if (nodeModel.DebugSetting.InterruptClass != InterruptClass.None)
             //{
             //    var cancelType = await nodeModel.DebugSetting.InterruptTask;
             //    await Console.Out.WriteLineAsync($"[{nodeModel.MethodDetails.MethodName}]中断已{(cancelType == CancelType.Manual ? "手动取消" : "自动取消")}，开始执行后继分支");
             //}
 
-            nodeModel.FlowData = newData; // 替换数据
-                                          // 节点是否监视了数据，如果是，调用环境接口触发其相关事件。
-            if (nodeModel.DebugSetting.IsMonitorFlowData)
+
+
+            //if (nodeModel.DebugSetting.IsMonitorFlowData)
+            //{
+            //    // 节点是否监视了数据，如果是，调用环境接口触发其相关事件。
+            //    context.Env.FlowDataNotification(guid, newData);
+            //}
+        }
+
+        private static async Task MonitorObjExpInterrupt(IDynamicContext context, NodeModelBase nodeModel, object data, int type)
+        {
+            MonitorObjectEventArgs.ObjSourceType sourceType;
+            object key;
+            if(type == 0)
             {
-                context.FlowEnvironment.FlowDataNotification(guid, newData);
+                key = data;
+                sourceType = MonitorObjectEventArgs.ObjSourceType.IOCObj;
+            }
+            else
+            {
+                key = nodeModel.Guid;
+                sourceType = MonitorObjectEventArgs.ObjSourceType.IOCObj;
 
             }
+            if (context.Env.CheckObjMonitorState(key, out List<string> exps)) // 如果新的数据处于查看状态，通知UI进行更新？交给运行环境判断？
+            {
+                context.Env.MonitorObjectNotification(nodeModel.Guid, data, sourceType); // 对象处于监视状态，通知UI更新数据显示
+                if (exps.Count > 0)
+                {
+                    // 表达式环境下判断是否需要执行中断
+                    bool isExpInterrupt = false;
+                    string? exp = "";
+                    // 判断执行监视表达式，直到为 true 时退出
+                    for (int i = 0; i < exps.Count && !isExpInterrupt; i++)
+                    {
+                        exp = exps[i];
+                        isExpInterrupt = SereinConditionParser.To(data, exp);
+                    }
 
+                    if (isExpInterrupt) // 触发中断
+                    {
+                        InterruptClass interruptClass = InterruptClass.Branch; // 分支中断
+                        if (context.Env.SetNodeInterrupt(nodeModel.Guid, interruptClass))
+                        {
+                            context.Env.TriggerInterrupt(nodeModel.Guid, exp, InterruptTriggerEventArgs.InterruptTriggerType.Obj);
+                            var cancelType = await nodeModel.DebugSetting.GetInterruptTask();
+                            await Console.Out.WriteLineAsync($"[{data}]中断已{cancelType}，开始执行后继分支");
+                        }
+                    }
+                }
+
+            }
         }
+      
 
         /// <summary>
         /// 释放对象
