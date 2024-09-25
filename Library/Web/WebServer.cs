@@ -100,18 +100,22 @@ namespace Serein.Library.Web
             }
 
             var isPass = requestLimiter.AllowRequest(context.Request);
+            if (!isPass)
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.NotFound; // 返回 404 错误
+            }
+            isPass = await Router.ProcessingAsync(context); // 路由解析
             if (isPass)
             {
-                // 如果路由没有匹配，会返回 404
-                await Router.ProcessingAsync(context); // 路由解析
+                context.Response.StatusCode = (int)HttpStatusCode.OK; // 返回 404 错误
+               
             }
             else
             {
                 context.Response.StatusCode = (int)HttpStatusCode.NotFound; // 返回 404 错误
-                context.Response.Close(); // 关闭响应
             }
-
-           // var request = context.Request;
+            context.Response.Close(); // 关闭响应
+            // var request = context.Request;
             // 获取远程终结点信息
             var remoteEndPoint = context.Request.RemoteEndPoint;
             // 获取用户的IP地址和端口

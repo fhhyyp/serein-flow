@@ -99,17 +99,22 @@ namespace Serein.NodeFlow.Base
             Stack<NodeModelBase> stack = new Stack<NodeModelBase>();
             stack.Push(this);
             var cts = context.Env.IOC.Get<CancellationTokenSource>(FlowStarter.FlipFlopCtsName);
-            while (stack.Count > 0 && !cts.IsCancellationRequested) // 循环中直到栈为空才会退出循环
+            while (stack.Count > 0 ) // 循环中直到栈为空才会退出循环
             {
+                if(cts is not null)
+                {
+                    if (cts.IsCancellationRequested)
+                        break;
+                }
                 // 节点执行异常时跳过执行
 
                 // 从栈中弹出一个节点作为当前节点进行处理
                 var currentNode = stack.Pop();
 
                 // 设置方法执行的对象
-                if (currentNode.MethodDetails?.ActingInstance == null && currentNode.MethodDetails?.ActingInstanceType is not null)
+                if (currentNode.MethodDetails?.ActingInstance is not null && currentNode.MethodDetails?.ActingInstanceType is not null)
                 {
-                    currentNode.MethodDetails.ActingInstance ??= context.Env.IOC.GetOrRegisterInstantiate(currentNode.MethodDetails.ActingInstanceType);
+                    currentNode.MethodDetails.ActingInstance = context.Env.IOC.GetOrRegisterInstantiate(currentNode.MethodDetails.ActingInstanceType);
                 }
 
                 #region 执行相关
@@ -134,7 +139,7 @@ namespace Serein.NodeFlow.Base
 
                 // 执行当前节点
                 object? newFlowData = await currentNode.ExecutingAsync(context);
-                if (cts == null || cts.IsCancellationRequested || currentNode.NextOrientation == ConnectionType.None)
+                if (cts is  null || cts.IsCancellationRequested || currentNode.NextOrientation == ConnectionType.None)
                 {
                     // 不再执行
                     break;
@@ -316,7 +321,7 @@ namespace Serein.NodeFlow.Base
                         Type t when t.IsEnum => Enum.Parse(ed.DataType, ed.DataValue),// 需要枚举
                         Type t when t.IsArray => (inputParameter as Array)?.Cast<object>().ToList(),
                         Type t when t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>) => inputParameter,
-                        Type t when Nullable.GetUnderlyingType(t) != null => inputParameter == null ? null : Convert.ChangeType(inputParameter, Nullable.GetUnderlyingType(t)),
+                        Type t when Nullable.GetUnderlyingType(t) != null => inputParameter is null ? null : Convert.ChangeType(inputParameter, Nullable.GetUnderlyingType(t)),
                         _ => inputParameter,
                     };
                 }

@@ -37,7 +37,7 @@ namespace Serein.Library.Entity
         /// <summary>
         /// 是否保护参数
         /// </summary>
-        public bool IsProtectionParameter { get; set; }
+        public bool IsProtectionParameter { get; set; } = true;
 
         /// <summary>
         /// 作用实例的类型

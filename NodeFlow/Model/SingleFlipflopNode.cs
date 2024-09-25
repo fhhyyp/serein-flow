@@ -46,7 +46,7 @@ namespace Serein.NodeFlow.Model
                 {
                     0 => ((Func<object, Task<IFlipflopContext>>)del).Invoke(md.ActingInstance),
                     _ => ((Func<object, object?[]?, Task<IFlipflopContext>>)del).Invoke(md.ActingInstance, GetParameters(context, this, md)), // 执行流程中的触发器方法时获取入参参数
-                };
+                };  
 
                 IFlipflopContext flipflopContext = (await flipflopTask) ?? throw new FlipflopException("没有返回上下文");
                 NextOrientation = flipflopContext.State.ToContentType();

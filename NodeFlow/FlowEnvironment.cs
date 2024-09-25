@@ -322,11 +322,21 @@ namespace Serein.NodeFlow
                 else
                 {
                     TryGetMethodDetails(nodeInfo.MethodName, out MethodDetails? methodDetails); // 加载项目时尝试获取方法信息
-                    methodDetails ??= new MethodDetails();
+                    if(controlType == NodeControlType.ExpOp || controlType == NodeControlType.ExpOp)
+                    {
+                        methodDetails ??= new MethodDetails();
+                    }
+                    if(methodDetails is null)
+                    {
+                        continue; // 节点对应的方法不存在于DLL中
+                    }
+
+
                     var nodeModel = CreateNode(controlType, methodDetails);
                     nodeModel.LoadInfo(nodeInfo); // 创建节点model
                     if (nodeModel is null)
                     {
+                        nodeInfo.Guid = string.Empty;
                         continue;
                     }
                     TryAddNode(nodeModel);
@@ -393,8 +403,8 @@ namespace Serein.NodeFlow
 
                 List<(ConnectionType, NodeModelBase[])> fromNodes = allToNodes.Where(info => info.guids.Length > 0)
                                                                      .Select(info => (info.connectionType,
-                                                                                      info.guids.Select(guid => Nodes[guid])
-                                                                                                .ToArray()))
+                                                                                      info.guids.Where(guid => Nodes.ContainsKey(guid)).Select(guid => Nodes[guid])
+                                                                                        .ToArray()))
                                                                      .ToList();
                 // 遍历每种类型的节点分支（四种）
                 foreach ((ConnectionType connectionType, NodeModelBase[] toNodes) item in fromNodes)
@@ -841,7 +851,7 @@ namespace Serein.NodeFlow
                 foreach (var item in scanTypes)
                 {
                     // 加载DLL，创建 MethodDetails、实例作用对象、委托方法
-                    var itemMethodDetails = MethodDetailsHelperTmp.GetList(item, false);
+                    var itemMethodDetails = MethodDetailsHelperTmp.GetList(item);
                     methodDetails.AddRange(itemMethodDetails);
                     //foreach (var md in itemMethodDetails)
                     //{
@@ -905,7 +915,7 @@ namespace Serein.NodeFlow
                 _ => null
             };
 
-            if (nodeType == null)
+            if (nodeType is null)
             {
                 throw new Exception($"节点类型错误[{nodeControlType}]");
             }
@@ -953,7 +963,7 @@ namespace Serein.NodeFlow
         /// <param name="connectionType">连接关系</param>
         private void ConnectNode(NodeModelBase fromNode, NodeModelBase toNode, ConnectionType connectionType)
         {
-            if (fromNode == null || toNode == null || fromNode == toNode)
+            if (fromNode is null || toNode is null || fromNode == toNode)
             {
                 return;
             }

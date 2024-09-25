@@ -46,39 +46,38 @@ namespace Serein.Library.NodeFlow.Tool
         public async Task<TriggerData> CreateChannelWithTimeoutAsync<TResult>(TSignal signal, TimeSpan outTime, TResult outValue)
         {
             var channel = GetOrCreateChannel(signal);
-            //var cts = new CancellationTokenSource();
-            //// 异步任务：超时后自动触发信号
-            //_ = Task.Run(async () =>
-            //{
-            //    try
-            //    {
-            //        await Task.Delay(outTime, cts.Token);
-            //        if(!cts.IsCancellationRequested) // 如果还没有被取消
-            //        {
-            //            TriggerData triggerData = new TriggerData()
-            //            {
-            //                Value = outValue,
-            //                Type = TriggerType.Overtime,
-            //            };
-            //            await channel.Writer.WriteAsync(triggerData);
-            //        }
-            //    }
-            //    catch (OperationCanceledException)
-            //    {
-            //        // 超时任务被取消
-            //    }
-            //    finally
-            //    {
-            //        cts?.Cancel();
-            //        cts?.Dispose();  // 确保 cts 被释放
-            //    }
-            //}, cts.Token);
+            var cts = new CancellationTokenSource();
+            // 异步任务：超时后自动触发信号
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(outTime, cts.Token);
+                    if(!cts.IsCancellationRequested) // 如果还没有被取消
+                    {
+                        TriggerData triggerData = new TriggerData()
+                        {
+                            Value = outValue,
+                            Type = TriggerType.Overtime,
+                        };
+                        await channel.Writer.WriteAsync(triggerData);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    // 超时任务被取消
+                }
+                finally
+                {
+                    cts?.Cancel();
+                    cts?.Dispose();  // 确保 cts 被释放
+                }
+            }, cts.Token);
             
 
             // 等待信号传入（超时或手动触发）
             var result = await channel.Reader.ReadAsync();
-            //cts?.Cancel();
-            //cts?.Dispose();
+            cts?.Cancel();
             return result;
         }
 

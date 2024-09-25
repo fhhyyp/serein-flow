@@ -156,7 +156,10 @@ namespace Serein.WorkBench
             InitCanvasUI();  // 配置画布
 
 
-            FlowEnvironment.LoadProject(App.FlowProjectData, App.FileDataPath); // 加载项目
+            if(App.FlowProjectData is not null)
+            {
+                FlowEnvironment.LoadProject(App.FlowProjectData, App.FileDataPath); // 加载项目
+            }
         }
 
         private void InitFlowEnvironmentEvent()
@@ -211,7 +214,7 @@ namespace Serein.WorkBench
         private void Window_ContentRendered(object sender, EventArgs e)
         {
             var project = App.FlowProjectData;
-            if (project == null)
+            if (project is null)
             {
                 return;
             }
@@ -396,7 +399,7 @@ namespace Serein.WorkBench
                     NodeControlType.ConditionRegion => CreateNodeControl<ConditionRegionControl, ConditionRegionNodeControlViewModel>(nodeModelBase),
                     _ => null,
                 };
-                if (nodeControl == null)
+                if (nodeControl is null)
                 {
                     return;
                 }
@@ -609,7 +612,7 @@ namespace Serein.WorkBench
                 if (FlowEnvironment.TryGetMethodDetails(childNode.MethodName, out MethodDetails md))
                 {
                     var childNodeControl = CreateNodeControlOfNodeInfo(childNode, md);
-                    if (childNodeControl == null)
+                    if (childNodeControl is null)
                     {
                         Console.WriteLine($"无法为节点类型创建节点控件: {childNode.MethodName}\r\n");
                         continue;
@@ -801,7 +804,7 @@ namespace Serein.WorkBench
         private void DeleteConnection(Connection connection)
         {
             var connectionToRemove = connection;
-            if (connectionToRemove == null)
+            if (connectionToRemove is null)
             {
                 return;
             }
@@ -896,7 +899,7 @@ namespace Serein.WorkBench
             if (IsConnecting) // 正在连接节点
             {
                 Point position = e.GetPosition(FlowChartCanvas);
-                if (currentLine == null || startConnectNodeControl == null)
+                if (currentLine is null || startConnectNodeControl is null)
                 {
                     return;
                 }
@@ -1785,7 +1788,7 @@ namespace Serein.WorkBench
 
         public void AlignControlsWithGrouping(List<NodeControlBase> selectNodeControls, double proximityThreshold = 50, double spacing = 10)
         {
-            if (selectNodeControls == null || selectNodeControls.Count < 2)
+            if (selectNodeControls is null || selectNodeControls.Count < 2)
                 return;
 
             // 按照控件的相对位置进行分组
@@ -1865,7 +1868,7 @@ namespace Serein.WorkBench
         #region Plan B 规划对齐
         public void AlignControlsWithDynamicProgramming(List<NodeControlBase> selectNodeControls, double spacing = 10)
         {
-            if (selectNodeControls == null || selectNodeControls.Count < 2)
+            if (selectNodeControls is null || selectNodeControls.Count < 2)
                 return;
 
             int n = selectNodeControls.Count;
@@ -1973,7 +1976,7 @@ namespace Serein.WorkBench
 
         public void AlignControlsWithGrouping(List<NodeControlBase> selectNodeControls, AlignMode alignMode, double proximityThreshold = 50, double spacing = 10)
         {
-            if (selectNodeControls == null || selectNodeControls.Count < 2)
+            if (selectNodeControls is null || selectNodeControls.Count < 2)
                 return;
 
             switch (alignMode)
@@ -2064,7 +2067,7 @@ namespace Serein.WorkBench
             where TViewModel : NodeControlViewModelBase
         {
 
-            if (model == null)
+            if (model is null)
             {
                 throw new Exception("无法创建节点控件");
             }
@@ -2089,7 +2092,7 @@ namespace Serein.WorkBench
 
             var nodeObj = Activator.CreateInstance(typeof(TNode));
             var nodeBase = nodeObj as NodeModelBase;
-            if (nodeBase == null)
+            if (nodeBase is null)
             {
                 throw new Exception("无法创建节点控件");
             }
@@ -2378,13 +2381,13 @@ namespace Serein.WorkBench
             //MakeDraggable(canvas, connection, connection.Start);
             //MakeDraggable(canvas, connection, connection.End);
 
-            if (connection.BezierPath == null)
+            if (connection.BezierPath is null)
             {
                 connection.BezierPath = new System.Windows.Shapes.Path { Stroke = BezierLineDrawer.GetLineColor(connection.Type), StrokeThickness = 1 };
                 Canvas.SetZIndex(connection.BezierPath, -1);
                 canvas.Children.Add(connection.BezierPath);
             }
-            if (connection.ArrowPath == null)
+            if (connection.ArrowPath is null)
             {
                 connection.ArrowPath = new System.Windows.Shapes.Path { Stroke = BezierLineDrawer.GetLineColor(connection.Type), Fill = BezierLineDrawer.GetLineColor(connection.Type), StrokeThickness = 1 };
                 Canvas.SetZIndex(connection.ArrowPath, -1);
@@ -2410,14 +2413,14 @@ namespace Serein.WorkBench
 
             canvas.Dispatcher.InvokeAsync(() =>
             {
-                if (connection != null && connection.BezierPath == null)
+                if (connection is not null && connection.BezierPath is null)
                 {
                     connection.BezierPath = new System.Windows.Shapes.Path { Stroke = BezierLineDrawer.GetLineColor(connection.Type), StrokeThickness = 1 };
                     //Canvas.SetZIndex(connection.BezierPath, -1);
                     canvas.Children.Add(connection.BezierPath);
                 }
 
-                if (connection != null && connection.ArrowPath == null)
+                if (connection is not null && connection.ArrowPath is null)
                 {
                     connection.ArrowPath = new System.Windows.Shapes.Path { Stroke = BezierLineDrawer.GetLineColor(connection.Type), Fill = BezierLineDrawer.GetLineColor(connection.Type), StrokeThickness = 1 };
                     //Canvas.SetZIndex(connection.ArrowPath, -1);

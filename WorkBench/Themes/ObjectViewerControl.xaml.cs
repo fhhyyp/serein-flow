@@ -492,7 +492,7 @@ namespace Serein.WorkBench.Themes
 
 
 /// <summary>
-/// 上次刷新事件
+/// 上次刷新时间
 /// </summary>
 //private DateTime lastRefreshTime = DateTime.MinValue; 
 /// <summary>

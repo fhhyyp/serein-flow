@@ -45,7 +45,7 @@ namespace Serein.NodeFlow.Tool.SereinExpression.Resolver
             foreach (var member in members)
             {
 
-                if (obj == null) return null;
+                if (obj is null) return null;
 
                 Type type = obj.GetType();
                 PropertyInfo? propertyInfo = type.GetProperty(member);

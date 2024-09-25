@@ -19,6 +19,10 @@ namespace Serein.Library.Entity
         /// 是否为显式参数（固定值/表达式）
         /// </summary>
         public bool IsExplicitData { get; set; }
+        /// <summary>
+        /// 是否为值转换器
+        /// </summary>
+        public bool IsEnumConvertor { get; set; }
         ///// <summary>
         ///// 显式类型
         ///// </summary>
@@ -45,7 +49,7 @@ namespace Serein.Library.Entity
 
         public string DataValue { get; set; }
 
-        public string[] Items { get; set; }
+        public object[] Items { get; set; }
 
         public ExplicitData Clone() => new ExplicitData()
         {

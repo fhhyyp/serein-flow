@@ -99,7 +99,7 @@ namespace Serein.NodeFlow.Tool.SereinExpression
                                           .ToArray();
 
             var method = target.GetType().GetMethod(methodName);
-            if (method == null)
+            if (method is null)
             {
                 throw new ArgumentException($"Method {methodName} not found on target.");
             }
@@ -125,7 +125,7 @@ namespace Serein.NodeFlow.Tool.SereinExpression
             foreach (var member in members)
             {
 
-                if (target == null) return null;
+                if (target is null) return null;
 
 
                 var property = target.GetType().GetProperty(member);

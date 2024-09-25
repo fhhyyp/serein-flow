@@ -15,16 +15,16 @@ public static class MethodDetailsHelperTmp
     /// <param name="serviceContainer"></param>
     /// <param name="type"></param>
     /// <returns></returns>
-    public static List<MethodDetails> GetList(Type type, bool isNetFramework)
+    public static List<MethodDetails> GetList(Type type)
     {
         var methodDetailsDictionary = new List<MethodDetails>();
         var assemblyName = type.Assembly.GetName().Name;
-        var methods = GetMethodsToProcess(type, isNetFramework);
+        var methods = GetMethodsToProcess(type);
 
         foreach (var method in methods)
         {
 
-            var methodDetails = CreateMethodDetails(type, method, assemblyName, isNetFramework);
+            var methodDetails = CreateMethodDetails(type, method, assemblyName);
             methodDetailsDictionary.Add(methodDetails);
         }
 
@@ -33,26 +33,16 @@ public static class MethodDetailsHelperTmp
     /// <summary>
     /// 获取处理方法
     /// </summary>
-    private static IEnumerable<MethodInfo> GetMethodsToProcess(Type type, bool isNetFramework)
+    private static IEnumerable<MethodInfo> GetMethodsToProcess(Type type)
     {
-        if (isNetFramework)
-        {
-
-            return type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+        return type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
                        .Where(m => m.GetCustomAttribute<NodeActionAttribute>()?.Scan == true);
-        }
-        else
-        {
-
-            return type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-                       .Where(m => m.GetCustomAttribute<NodeActionAttribute>()?.Scan == true);
-        }
     }
     /// <summary>
     /// 创建方法信息
     /// </summary>
     /// <returns></returns>
-    private static MethodDetails CreateMethodDetails(Type type, MethodInfo method, string assemblyName, bool isNetFramework)
+    private static MethodDetails CreateMethodDetails(Type type, MethodInfo method, string assemblyName)
     {
 
         var methodName = method.Name;
@@ -98,18 +88,31 @@ public static class MethodDetailsHelperTmp
 
     }
 
+    /// <summary>
+    /// 获取参数信息
+    /// </summary>
+    /// <param name="parameters"></param>
+    /// <returns></returns>
     private static ExplicitData[] GetExplicitDataOfParameters(ParameterInfo[] parameters)
     {
 
         return parameters.Select((it, index) =>
         {
-            //Console.WriteLine($"{it.Name}-{it.HasDefaultValue}-{it.DefaultValue}");
-            string explicitTypeName = GetExplicitTypeName(it.ParameterType);
-            var items = GetExplicitItems(it.ParameterType, explicitTypeName);
+            Type paremType;
+            //var attribute = it.ParameterType.GetCustomAttribute<EnumConvertorAttribute>();
+            //if (attribute is not null && attribute.Enum.IsEnum)
+            //{
+            //    // 存在选择器
+            //    paremType = attribute.Enum;
+            //}
+            //else
+            //{
+            //    paremType = it.ParameterType;
+            //}
+            paremType = it.ParameterType;
+            string explicitTypeName = GetExplicitTypeName(paremType);
+            var items = GetExplicitItems(paremType, explicitTypeName);
             if ("Bool".Equals(explicitTypeName)) explicitTypeName = "Select"; // 布尔值 转为 可选类型
-
-
-
             return new ExplicitData
             {
                 IsExplicitData = it.HasDefaultValue,
@@ -127,6 +130,11 @@ public static class MethodDetailsHelperTmp
         }).ToArray();
     }
 
+    /// <summary>
+    /// 判断使用输入器还是选择器
+    /// </summary>
+    /// <param name="type"></param>
+    /// <returns></returns>
     private static string GetExplicitTypeName(Type type)
     {
         return type switch
@@ -140,15 +148,22 @@ public static class MethodDetailsHelperTmp
         };
     }
 
+
+    /// <summary>
+    /// 获取参数列表选项
+    /// </summary>
+    /// <param name="type"></param>
+    /// <param name="explicitTypeName"></param>
+    /// <returns></returns>
     private static IEnumerable<string> GetExplicitItems(Type type, string explicitTypeName)
     {
-        return explicitTypeName switch
+        IEnumerable<string>  items =  explicitTypeName switch
         {
             "Select" => Enum.GetNames(type),
             "Bool" => ["True", "False"],
             _ => []
         };
-
+        return items;
     }
 
     private static Delegate GenerateMethodDelegate(Type type, MethodInfo methodInfo, ParameterInfo[] parameters, Type returnType)

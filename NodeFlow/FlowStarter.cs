@@ -308,10 +308,9 @@ namespace Serein.NodeFlow
         {
 
             var context = new DynamicContext(env); // 启动全局触发器时新建上下文
-            try
+            while (!_flipFlopCts.IsCancellationRequested)
             {
-                
-                while (!_flipFlopCts.IsCancellationRequested)
+                try
                 {
                     var newFlowData = await singleFlipFlopNode.ExecutingAsync(context); // 获取触发器等待Task
                     await NodeModelBase.RefreshFlowDataAndExpInterrupt(context, singleFlipFlopNode, newFlowData); // 全局触发器触发后刷新该触发器的节点数据
@@ -321,7 +320,7 @@ namespace Serein.NodeFlow
                         for (int i = nextNodes.Count - 1; i >= 0 && !_flipFlopCts.IsCancellationRequested; i--)
                         {
                             // 筛选出启用的节点
-                            if (nextNodes[i].DebugSetting.IsEnable) 
+                            if (nextNodes[i].DebugSetting.IsEnable)
                             {
                                 nextNodes[i].PreviousNode = singleFlipFlopNode;
                                 if (nextNodes[i].DebugSetting.InterruptClass != InterruptClass.None) // 执行触发前
@@ -333,14 +332,12 @@ namespace Serein.NodeFlow
                             }
                         }
                     }
-
+                }
+                catch (Exception ex)
+                {
+                    await Console.Out.WriteLineAsync(ex.ToString());
                 }
             }
-            catch (Exception ex)
-            {
-                await Console.Out.WriteLineAsync(ex.ToString());
-            }
-
 
             //MethodDetails md = singleFlipFlopNode.MethodDetails;
             //var del = md.MethodDelegate;

@@ -70,7 +70,7 @@ namespace Serein.NodeFlow.Tool.SereinExpression
             string[] members = memberPath[1..].Split('.');
             foreach (var member in members)
             {
-                if (obj == null) return null;
+                if (obj is null) return null;
                 Type type = obj.GetType();
                 PropertyInfo? propertyInfo = type.GetProperty(member);
                 FieldInfo? fieldInfo = type.GetField(member);

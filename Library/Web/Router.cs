@@ -21,7 +21,7 @@ namespace Serein.Library.Web
     public interface IRouter
     {
         bool RegisterController(Type controllerType);
-        Task ProcessingAsync(HttpListenerContext context);
+        Task<bool> ProcessingAsync(HttpListenerContext context);
     }
 
     /// <summary>
@@ -75,7 +75,7 @@ namespace Serein.Library.Web
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        public async Task ProcessingAsync(HttpListenerContext context)
+        public async Task<bool> ProcessingAsync(HttpListenerContext context)
         {
             var request = context.Request; // 获取请求对象
             var response = context.Response; // 获取响应对象
@@ -84,16 +84,16 @@ namespace Serein.Library.Web
             var template = request.Url.AbsolutePath.ToLower();
             if (!_routes[httpMethod].TryGetValue(template, out MethodInfo method))
             {
-                return;
+                return false;
             }
 
             var routeValues = GetUrlData(url); // 解析 URL 获取路由参数
 
             ControllerBase controllerInstance = (ControllerBase)SereinIOC.Instantiate(_controllerTypes[template]);// 使用反射创建控制器实例
 
-            if (controllerInstance == null)
+            if (controllerInstance is null)
             {
-                return; // 未找到控制器实例
+                return false; // 未找到控制器实例
             }
 
             controllerInstance.Url = url.AbsolutePath;
@@ -119,11 +119,13 @@ namespace Serein.Library.Web
                         break;
                 }
                 Return(response, result); // 返回结果
+                return true;
             }
             catch (Exception ex)
             {
                 response.StatusCode = (int)HttpStatusCode.NotFound; // 返回 404 错误
                 Return(response, ex.Message); // 返回结果
+                return true;
             }
 
         }
@@ -146,7 +148,7 @@ namespace Serein.Library.Web
                 {
                     var url = AddRoutesUrl(autoHostingAttribute, routeAttribute, controllerType, method);
                     Console.WriteLine(url);
-                    if (url == null) continue;
+                    if (url is null) continue;
                     _controllerTypes[url] = controllerType;
                 }
             }
@@ -211,7 +213,7 @@ namespace Serein.Library.Web
         /// </summary>
         public object InvokeControllerMethod(MethodInfo method, object controllerInstance, JObject requestData, Dictionary<string, string> routeValues)
         {
-            if (requestData == null) return null;
+            if (requestData is null) return null;
             ParameterInfo[] parameters;
             object[] cachedMethodParameters;
             if (!methodParameterCache.TryGetValue(method, out parameters))
@@ -355,7 +357,6 @@ namespace Serein.Library.Web
             {
                 return value;
             }
-#pragma warning restore CS0168 // 声明了变量，但从未使用过
         }
 
         /// <summary>
@@ -554,7 +555,7 @@ namespace Serein.Library.Web
             }
 
             return null;
-        } 
+        }
         #endregion
     }
 
@@ -562,7 +563,7 @@ namespace Serein.Library.Web
 
     internal static class WebFunc
     {
-        public static bool ToBool(this JToken token,bool defult = false)
+        public static bool ToBool(this JToken token, bool defult = false)
         {
             var value = token?.ToString();
             if (string.IsNullOrWhiteSpace(value))
