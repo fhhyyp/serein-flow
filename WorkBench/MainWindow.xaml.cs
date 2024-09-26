@@ -75,6 +75,11 @@ namespace Serein.WorkBench
         /// </summary>
         private List<Connection> Connections { get; } = [];
 
+        /// <summary>
+        /// 起始节点
+        /// </summary>
+        //private NodeControlBase StartNodeControl{ get; set; }
+
         #region 与画布相关的字段
 
         /// <summary>
@@ -149,6 +154,7 @@ namespace Serein.WorkBench
             ViewModel = new MainWindowViewModel(this);
             FlowEnvironment = ViewModel.FlowEnvironment;
             ViewObjectViewer.FlowEnvironment = FlowEnvironment;
+            IOCObjectViewer.FlowEnvironment = FlowEnvironment;
 
             InitFlowEnvironmentEvent(); // 配置环境事件
             logWindow =  InitConsoleOut(); // 重定向 Console 输出
@@ -160,6 +166,9 @@ namespace Serein.WorkBench
             {
                 FlowEnvironment.LoadProject(App.FlowProjectData, App.FileDataPath); // 加载项目
             }
+
+
+            IOCObjectViewer.SelectObj += ViewObjectViewer.LoadObjectInformation;
         }
 
         private void InitFlowEnvironmentEvent()
@@ -177,6 +186,8 @@ namespace Serein.WorkBench
             FlowEnvironment.OnMonitorObjectChange += FlowEnvironment_OnMonitorObjectChange;
             FlowEnvironment.OnNodeInterruptStateChange += FlowEnvironment_OnNodeInterruptStateChange;
             FlowEnvironment.OnInterruptTrigger += FlowEnvironment_OnInterruptTrigger;
+
+            FlowEnvironment.OnIOCMembersChanged += FlowEnvironment_OnIOCMembersChanged;
 
         }
         private void InitCanvasUI()
@@ -242,8 +253,6 @@ namespace Serein.WorkBench
         }
         #endregion
 
-        
-
         #region 运行环境事件
         /// <summary>
         /// 加载完成
@@ -265,7 +274,8 @@ namespace Serein.WorkBench
         /// <exception cref="NotImplementedException"></exception>
         private void FlowEnvironment_OnFlowRunComplete(FlowEventArgs eventArgs)
         {
-            Console.WriteLine("-------运行完成---------\r\n"); 
+            Console.WriteLine("-------运行完成---------\r\n");
+            IOCObjectViewer.ClearObjItem();
         }
 
         /// <summary>
@@ -307,47 +317,68 @@ namespace Serein.WorkBench
         /// <param name="connectionType"></param>
         private void FlowEnvironment_NodeConnectChangeEvemt(NodeConnectChangeEventArgs eventArgs)
         {
-            this.Dispatcher.Invoke(() =>
+            string fromNodeGuid = eventArgs.FromNodeGuid;
+            string toNodeGuid = eventArgs.ToNodeGuid;
+            NodeControlBase fromNode = GuidToControl(fromNodeGuid);
+            NodeControlBase toNode = GuidToControl(toNodeGuid);
+
+            ConnectionType connectionType = eventArgs.ConnectionType;
+            Action? action = null;
+            if (eventArgs.ChangeType == NodeConnectChangeEventArgs.ConnectChangeType.Create) // 添加连接
             {
-                string fromNodeGuid = eventArgs.FromNodeGuid;
-                string toNodeGuid = eventArgs.ToNodeGuid;
-                NodeControlBase fromNode = GuidToControl(fromNodeGuid);
-                NodeControlBase toNode = GuidToControl(toNodeGuid);
-                ConnectionType connectionType = eventArgs.ConnectionType;
-                if (eventArgs.ChangeType == NodeConnectChangeEventArgs.ConnectChangeType.Create)
+                // 添加连接
+                var connection = new Connection
                 {
-                    lock (Connections)
-                    {
-                        // 添加连接
-                        var connection = new Connection
-                        {
-                            Start = fromNode,
-                            End = toNode,
-                            Type = connectionType
-                        };
-
-                        BsControl.Draw(FlowChartCanvas, connection); // 添加贝塞尔曲线显示
-                        ConfigureLineContextMenu(connection); // 设置连接右键事件
-                        Connections.Add(connection);
-                        EndConnection();
-
-                    }
-
+                    Start = fromNode,
+                    End = toNode,
+                    Type = connectionType
+                };
+                if (toNode is FlipflopNodeControl flipflopControl) // 某个节点连接到了触发器，尝试从全局触发器视图中移除该触发器
+                {
+                    var nodeModel = flipflopControl?.ViewModel?.Node;
+                    NodeTreeViewer.RemoteGlobalFlipFlop(nodeModel); // 从全局触发器树树视图中移除
                 }
-                else if (eventArgs.ChangeType == NodeConnectChangeEventArgs.ConnectChangeType.Remote)
+
+                action = () => {
+                    BsControl.Draw(FlowChartCanvas, connection); // 添加贝塞尔曲线显示
+                    ConfigureLineContextMenu(connection); // 设置连接右键事件
+                    Connections.Add(connection);
+                    EndConnection();
+                };
+
+
+
+            }
+            else if (eventArgs.ChangeType == NodeConnectChangeEventArgs.ConnectChangeType.Remote) // 移除连接
+            {
+                // 需要移除连接
+                var removeConnections = Connections.Where(c => c.Start.ViewModel.Node.Guid.Equals(fromNodeGuid)
+                                       && c.End.ViewModel.Node.Guid.Equals(toNodeGuid))
+                                        .ToList();
+
+                
+                action = () =>
                 {
-                    // 需要移除连接
-                    var removeConnections = Connections.Where(c => c.Start.ViewModel.Node.Guid.Equals(fromNodeGuid)
-                                           && c.End.ViewModel.Node.Guid.Equals(toNodeGuid))
-                                .ToList();
                     foreach (var connection in removeConnections)
                     {
                         connection.RemoveFromCanvas();
                         Connections.Remove(connection);
+                        JudgmentFlipFlopNode(connection.End); // 连接关系变更时判断
                     }
-                }
+                };
+            }
+
+
+            this.Dispatcher.Invoke(() =>
+            {
+                action?.Invoke();
             });
+
+            
+           
         }
+
+        
 
         /// <summary>
         /// 节点移除事件
@@ -364,9 +395,19 @@ namespace Serein.WorkBench
                     selectNodeControls.Remove(nodeControl);
                 }
             }
+            #region 节点树视图
+            if (nodeControl is FlipflopNodeControl flipflopControl) // 判断是否为触发器
+            {
+                var node = flipflopControl?.ViewModel?.Node;
+                if (node is not null)
+                {
+                    NodeTreeViewer.RemoteGlobalFlipFlop(node); // 从全局触发器树树视图中移除
+                }
+            }
+            #endregion
+
             this.Dispatcher.Invoke(() =>
             {
-               
                 FlowChartCanvas.Children.Remove(nodeControl);
                 NodeControls.Remove(nodeControl.ViewModel.Node.Guid);
             });
@@ -404,7 +445,6 @@ namespace Serein.WorkBench
                     return;
                 }
                 NodeControls.TryAdd(nodeModelBase.Guid, nodeControl);
-
                 if (eventArgs.IsAddInRegion && NodeControls.TryGetValue(eventArgs.RegeionGuid, out NodeControlBase? regionControl))
                 {
                     if (regionControl is not null)
@@ -415,13 +455,23 @@ namespace Serein.WorkBench
                 }
                 else
                 {
-                    if (!TryPlaceNodeInRegion(nodeControl, position))
+                    if (!TryPlaceNodeInRegion(nodeControl, position)) // 将节点放置在区域中
                     {
-                        PlaceNodeOnCanvas(nodeControl, position.X, position.Y);
+                        PlaceNodeOnCanvas(nodeControl, position.X, position.Y); // 将节点放置在画布上
                     }
                 }
 
 
+                #region 节点树视图
+                if (nodeModelBase.ControlType == NodeControlType.Flipflop) 
+                {
+                    var node = nodeControl?.ViewModel?.Node;
+                    if(node is not null)
+                    {
+                        NodeTreeViewer.AddGlobalFlipFlop(FlowEnvironment, node); // 新增的触发器节点添加到全局触发器
+                    }
+                } 
+                #endregion
 
 
             });
@@ -450,6 +500,11 @@ namespace Serein.WorkBench
 
                 newStartNodeControl.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10"));
                 newStartNodeControl.BorderThickness = new Thickness(2);
+                var node = newStartNodeControl?.ViewModel?.Node;
+                if (node is not null)
+                {
+                    NodeTreeViewer.LoadNodeTreeOfStartNode(FlowEnvironment, node);
+                }
             });
 
         }
@@ -463,10 +518,10 @@ namespace Serein.WorkBench
         {
             string nodeGuid = eventArgs.NodeGuid;
 
-            object monitorKey =  MonitorObjectEventArgs.ObjSourceType.NodeFlowData switch
+            string monitorKey =  MonitorObjectEventArgs.ObjSourceType.NodeFlowData switch
             {
                 MonitorObjectEventArgs.ObjSourceType.NodeFlowData => nodeGuid,
-                _ => eventArgs.NewData,
+                _ => eventArgs.NewData.GetType().FullName,
             };
 
             //NodeControlBase nodeControl = GuidToControl(nodeGuid);
@@ -548,6 +603,15 @@ namespace Serein.WorkBench
             }
         }
 
+        /// <summary>
+        /// IOC变更
+        /// </summary>
+        /// <param name="eventArgs"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        private void FlowEnvironment_OnIOCMembersChanged(IOCMembersChangedEventArgs eventArgs)
+        {
+            IOCObjectViewer.AddDependenciesInstance(eventArgs.Key, eventArgs.Instance);
+        }
 
         /// <summary>
         /// Guid 转 NodeControl
@@ -568,7 +632,6 @@ namespace Serein.WorkBench
             return nodeControl;
         }
         #endregion
-
 
         #region 加载项目文件后触发事件相关方法
 
@@ -1081,45 +1144,8 @@ namespace Serein.WorkBench
                 ((UIElement)sender).CaptureMouse(); // 捕获鼠标
                 e.Handled = true; // 防止事件传播影响其他控件
 
-                
             }
             
-        }
-
-        private void ChangeViewerObjOfNode(NodeControlBase nodeControl)
-        {
-            // int i = false;
-            var node = nodeControl?.ViewModel?.Node;
-            if (node is not null && node.MethodDetails.ReturnType != typeof(void))
-            {
-                if (ViewObjectViewer.MonitorObj is null)
-                {
-                    FlowEnvironment.SetMonitorObjState(node.Guid, true); // 通知环境，该节点的数据更新后需要传到UI
-                    // FlowEnvironment.SetMonitorObjState(nodeObj, true); // 通知环境，该节点的数据更新后需要传到UI
-                    return;
-                }
-                var nodeObj = node.GetFlowData();
-                if (nodeObj is null)
-                {
-                    return;
-                }
-                //if (nodeObj.Equals(ViewObjectViewer.MonitorObj) == true)
-                //{
-                //    // 选择同一个控件，不再监视
-                //    ViewObjectViewer.RefreshObjectTree(nodeObj);
-                //    return;
-                //}
-                if (node.Guid.Equals(ViewObjectViewer.MonitorKey) == true)
-                {
-                    ViewObjectViewer.RefreshObjectTree(nodeObj);
-                    return;
-                }
-                else
-                {
-                    FlowEnvironment.SetMonitorObjState(ViewObjectViewer.MonitorKey, false); // 取消对旧节点的监视
-                    FlowEnvironment.SetMonitorObjState(node.Guid, true); // 通知环境，该节点的数据更新后需要传到UI
-                }
-            }
         }
         /// <summary>
         /// 控件的鼠标移动事件，根据鼠标拖动更新控件的位置。批量移动计算移动逻辑。
@@ -1217,6 +1243,41 @@ namespace Serein.WorkBench
                 startControlDragPoint = currentPosition; // 更新起始点位置
             }
         }
+        private void ChangeViewerObjOfNode(NodeControlBase nodeControl)
+        {
+
+            var node = nodeControl?.ViewModel?.Node;
+            if (node is not null && node.MethodDetails.ReturnType != typeof(void))
+            {
+                var key = node.Guid;
+                var instance = node.GetFlowData();
+                ViewObjectViewer.LoadObjectInformation(key, instance);
+                ChangeViewerObj(key, instance);
+            }
+        }
+        public void ChangeViewerObj(string key, object instance)
+        {
+            if (ViewObjectViewer.MonitorObj is null)
+            {
+                FlowEnvironment.SetMonitorObjState(key, true); // 通知环境，该节点的数据更新后需要传到UI
+                return;
+            }
+            if (instance is null)
+            {
+                return;
+            }
+            if (key.Equals(ViewObjectViewer.MonitorKey) == true)
+            {
+                ViewObjectViewer.RefreshObjectTree(instance);
+                return;
+            }
+            else
+            {
+                FlowEnvironment.SetMonitorObjState(ViewObjectViewer.MonitorKey,false); // 取消对旧节点的监视
+                FlowEnvironment.SetMonitorObjState(key, true); // 通知环境，该节点的数据更新后需要传到UI
+            }
+        }
+
 
         #region UI连接控件操作
 
@@ -1229,6 +1290,7 @@ namespace Serein.WorkBench
             {
                 IsControlDragging = false;
                 ((UIElement)sender).ReleaseMouseCapture();  // 释放鼠标捕获
+                
             }
 
             if (IsConnecting)
@@ -1240,6 +1302,7 @@ namespace Serein.WorkBench
                     return;
                 }
                 FlowEnvironment.ConnectNode(formNodeGuid, toNodeGuid, currentConnectionType);
+                
             }
             /*else if (IsConnecting)
             {
@@ -2156,7 +2219,28 @@ namespace Serein.WorkBench
 
         #endregion
 
-        #region IOC视图管理
+        #region 节点数、IOC视图管理
+
+        private void JudgmentFlipFlopNode(NodeControlBase nodeControl)
+        {
+            if (nodeControl is FlipflopNodeControl flipflopControl) // 判断是否为触发器
+            {
+                var nodeModel = flipflopControl?.ViewModel?.Node;
+                int count = 0;
+                foreach (var ct in NodeStaticConfig.ConnectionTypes)
+                {
+                    count += nodeModel.PreviousNodes[ct].Count;
+                }
+                if (count == 0)
+                {
+                    NodeTreeViewer.AddGlobalFlipFlop(FlowEnvironment, nodeModel); // 添加到全局触发器树树视图
+                }
+                else
+                {
+                    NodeTreeViewer.RemoteGlobalFlipFlop(nodeModel); // 从全局触发器树树视图中移除
+                }
+            }
+        }
         void LoadIOCObjectViewer()
         {
 
@@ -2365,7 +2449,6 @@ namespace Serein.WorkBench
                 
             }
         }
-
 
     }
 

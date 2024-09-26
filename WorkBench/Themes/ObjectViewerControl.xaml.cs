@@ -85,7 +85,7 @@ namespace Serein.WorkBench.Themes
         /// <summary>
         /// 监视对象的键
         /// </summary>
-        public object MonitorKey { get => monitorKey; }
+        public string MonitorKey { get => monitorKey; }
         /// <summary>
         /// 正在监视的对象
         /// </summary>
@@ -96,7 +96,7 @@ namespace Serein.WorkBench.Themes
         /// </summary>
         public string MonitorExpression { get => ExpressionTextBox.Text.ToString(); }
 
-        private object monitorKey;
+        private string monitorKey;
         private object monitorObj;
 
         // 用于存储当前展开的节点路径
@@ -107,7 +107,7 @@ namespace Serein.WorkBench.Themes
         /// 加载对象信息，展示其成员
         /// </summary>
         /// <param name="obj">要展示的对象</param>
-        public void LoadObjectInformation(object key, object obj)
+        public void LoadObjectInformation(string key, object obj)
         {
             if (obj == null) return;
             monitorKey = key;
@@ -171,6 +171,7 @@ namespace Serein.WorkBench.Themes
             // 这里创建了一个子项，并给这个子项创建了“正在加载”的子项
             // 然后移除了原来对象树的所有项，再把这个新创建的子项添加上去
             // 绑定了展开/折叠事件后，自动展开第一层，开始反射obj的成员，并判断obj的成员生成什么样的节点
+            rootNode.IsExpanded = true;
             return rootNode;
         }
 
@@ -454,6 +455,11 @@ namespace Serein.WorkBench.Themes
         { 
             try
             {
+                if(obj is null)
+                {
+                    value = null;
+                    return "Error";
+                }
                 var properties = obj.GetType().GetProperties();
 
                 // 获取实例属性值

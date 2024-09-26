@@ -55,7 +55,11 @@ namespace Serein.NodeFlow
             FlipflopNodes = new List<SingleFlipflopNode>();
             IsGlobalInterrupt = false;
             flowStarter = null;
+
+            sereinIOC.OnIOCMembersChanged += e => this?.OnIOCMembersChanged?.Invoke(e) ; // 监听IOC容器的注册
         }
+
+        
 
         /// <summary>
         /// 节点的命名空间
@@ -113,6 +117,11 @@ namespace Serein.NodeFlow
         /// </summary>
         public event ExpInterruptTriggerHandler OnInterruptTrigger;
 
+        /// <summary>
+        /// 容器改变
+        /// </summary>
+        public event IOCMembersChangedHandler OnIOCMembersChanged;
+
         #endregion
 
         #region 属性
@@ -133,13 +142,14 @@ namespace Serein.NodeFlow
         public ChannelFlowInterrupt ChannelFlowInterrupt { get; set; }
 
         public ISereinIOC IOC { get => this; }
+
         #endregion
 
         #region 私有变量
         /// <summary>
         /// 容器管理
         /// </summary>
-        private SereinIOC sereinIOC;
+        private readonly SereinIOC sereinIOC;
 
         /// <summary>
         /// 存储加载的程序集路径
@@ -666,9 +676,9 @@ namespace Serein.NodeFlow
         /// <param name="nodeGuid"></param>
         /// <param name="expression"></param>
         /// <returns></returns>
-        public bool AddInterruptExpression(object obj, string expression)
+        public bool AddInterruptExpression(string key, string expression)
         {
-            if (dictMonitorObjExpInterrupt.TryGetValue(obj, out var condition))
+            if (dictMonitorObjExpInterrupt.TryGetValue(key, out var condition))
             {
                 condition.Clear(); // 暂时
                 condition.Add(expression);// 暂时
@@ -678,7 +688,7 @@ namespace Serein.NodeFlow
             {
                 var exps = new List<string>();
                 exps.Add(expression);
-                dictMonitorObjExpInterrupt.TryAdd(obj, exps);
+                dictMonitorObjExpInterrupt.TryAdd(key, exps);
                 return true;
             }
         }
@@ -735,7 +745,7 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 要监视的对象，以及与其关联的表达式
         /// </summary>
-        private ConcurrentDictionary<object, List<string>> dictMonitorObjExpInterrupt = [];
+        private ConcurrentDictionary<string, List<string>> dictMonitorObjExpInterrupt = [];
 
         /// <summary>
         /// 设置对象的监视状态
@@ -743,22 +753,22 @@ namespace Serein.NodeFlow
         /// <param name="obj"></param>
         /// <param name="isMonitor"></param>
         /// <returns></returns>
-        public void SetMonitorObjState(object obj, bool isMonitor)
+        public void SetMonitorObjState(string key,  bool isMonitor)
         {
-            if (obj is null) { return; }
-            var isExist = dictMonitorObjExpInterrupt.ContainsKey(obj);
+            if (string.IsNullOrEmpty(key)) { return; }
+            var isExist = dictMonitorObjExpInterrupt.ContainsKey(key);
             if (isExist)
             {
                 if (!isMonitor) // 对象存在且需要不监视
                 {
-                    dictMonitorObjExpInterrupt.Remove(obj, out _);
+                    dictMonitorObjExpInterrupt.Remove(key, out _);
                 }
             }
             else
             {
                 if (isMonitor) // 对象不存在且需要监视，添加在集合中。
                 {
-                    dictMonitorObjExpInterrupt.TryAdd(obj, new List<string>()); ;
+                    dictMonitorObjExpInterrupt.TryAdd(key, new List<string>()); ;
                 }
             }
         }
@@ -769,10 +779,10 @@ namespace Serein.NodeFlow
         /// <param name="nodeGuid"></param>
         /// <param name="obj"></param>
         /// <returns></returns>
-        public bool CheckObjMonitorState(object obj, out List<string>? exps)
+        public bool CheckObjMonitorState(string key, out List<string>? exps)
         {
-            if (obj is null) { exps = null; return false; }
-            return dictMonitorObjExpInterrupt.TryGetValue(obj, out exps);
+            if (string.IsNullOrEmpty(key)) { exps = null; return false; }
+            return dictMonitorObjExpInterrupt.TryGetValue(key, out exps);
         }
 
         /// <summary>

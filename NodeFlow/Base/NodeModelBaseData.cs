@@ -7,17 +7,14 @@ namespace Serein.NodeFlow.Base
     /// <summary>
     /// 节点基类（数据）：条件控件，动作控件，条件区域，动作区域
     /// </summary>
-    public abstract partial class NodeModelBase :IDynamicFlowNode
+    public abstract partial class NodeModelBase : IDynamicFlowNode
     {
-        private static readonly ConnectionType[] ct = [ConnectionType.IsSucceed,
-                                                       ConnectionType.IsFail,
-                                                       ConnectionType.IsError,
-                                                       ConnectionType.Upstream];
+        
         public NodeModelBase()
         {
             PreviousNodes = [];
             SuccessorNodes = [];
-            foreach (ConnectionType ctType in ct)
+            foreach (ConnectionType ctType in NodeStaticConfig.ConnectionTypes)
             {
                 PreviousNodes[ctType] = [];
                 SuccessorNodes[ctType] = [];
@@ -71,6 +68,9 @@ namespace Serein.NodeFlow.Base
         /// </summary>
         public Dictionary<ConnectionType,List<NodeModelBase>> SuccessorNodes { get; }
 
+        /// <summary>
+        /// 当前节点执行完毕后需要执行的下一个分支的类别
+        /// </summary>
         public ConnectionType NextOrientation { get; set; } = ConnectionType.None;
 
         /// <summary>

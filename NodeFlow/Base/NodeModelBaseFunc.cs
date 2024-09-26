@@ -426,10 +426,10 @@ namespace Serein.NodeFlow.Base
         private static async Task MonitorObjExpInterrupt(IDynamicContext context, NodeModelBase nodeModel, object data, int type)
         {
             MonitorObjectEventArgs.ObjSourceType sourceType;
-            object key;
+            string key;
             if(type == 0)
             {
-                key = data;
+                key = data.GetType().FullName;
                 sourceType = MonitorObjectEventArgs.ObjSourceType.IOCObj;
             }
             else
@@ -450,6 +450,7 @@ namespace Serein.NodeFlow.Base
                     for (int i = 0; i < exps.Count && !isExpInterrupt; i++)
                     {
                         exp = exps[i];
+                        if (string.IsNullOrEmpty(exp)) continue;
                         isExpInterrupt = SereinConditionParser.To(data, exp);
                     }
 
@@ -458,7 +459,7 @@ namespace Serein.NodeFlow.Base
                         InterruptClass interruptClass = InterruptClass.Branch; // 分支中断
                         if (context.Env.SetNodeInterrupt(nodeModel.Guid, interruptClass))
                         {
-                            context.Env.TriggerInterrupt(nodeModel.Guid, exp, InterruptTriggerEventArgs.InterruptTriggerType.Obj);
+                            context.Env.TriggerInterrupt(nodeModel.Guid, exp, InterruptTriggerEventArgs.InterruptTriggerType.Exp);
                             var cancelType = await nodeModel.DebugSetting.GetInterruptTask();
                             await Console.Out.WriteLineAsync($"[{data}]中断已{cancelType}，开始执行后继分支");
                         }

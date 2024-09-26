@@ -1,4 +1,5 @@
 ﻿using Serein.Library.Api;
+using Serein.Library.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,6 +15,10 @@ namespace Serein.NodeFlow
         /// </summary>
         public const string NodeSpaceName = $"{nameof(Serein)}.{nameof(Serein.NodeFlow)}.{nameof(Serein.NodeFlow.Model)}";
 
-        
+        public static readonly ConnectionType[] ConnectionTypes = [
+                                                        ConnectionType.Upstream,
+                                                        ConnectionType.IsSucceed,
+                                                        ConnectionType.IsFail,
+                                                        ConnectionType.IsError];
     }
 }

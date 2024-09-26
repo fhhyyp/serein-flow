@@ -33,7 +33,7 @@ namespace Serein.Library.Utils
         /// </summary>
         private readonly ConcurrentDictionary<string, List<(object,PropertyInfo)>> _unfinishedDependencies;
 
-
+        public event IOCMembersChangedHandler OnIOCMembersChanged;
 
         public SereinIOC()
         {
@@ -112,7 +112,7 @@ namespace Serein.Library.Utils
                         // 是接口类型，存在注册信息
                         Register(type);// 注册类型信息
                         value = Instantiate(implementationType); // 创建实例对象，并注入依赖
-                        _dependencies.TryAdd(type.FullName, value); // 登记到IOC容器中
+                        CustomRegisterInstance(type.FullName, value);// 登记到IOC容器中
                         _typeMappings.TryRemove(type.FullName, out _); // 取消类型的注册信息
                     }
                     else
@@ -127,7 +127,7 @@ namespace Serein.Library.Utils
                     // 不是接口，直接注册
                     Register(type);// 注册类型信息
                     value = Instantiate(type); // 创建实例对象，并注入依赖
-                    _dependencies.TryAdd(type.FullName, value); // 登记到IOC容器中
+                    CustomRegisterInstance(type.FullName, value);// 登记到IOC容器中
                 }
             }
             return value; 
@@ -151,33 +151,26 @@ namespace Serein.Library.Utils
 
         #region 通过名称记录或获取一个实例
 
-
-        public void CustomRegisterInstance(string name, object instance, bool needInjectProperty = true)
+        /// <summary>
+        /// 指定key值注册一个已经实例化的实例对象
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="instance"></param>
+        /// <param name="needInjectProperty"></param>
+        public void CustomRegisterInstance(string key, object instance, bool needInjectProperty = true)
         {
             // 不存在时才允许创建
-            if (!_dependencies.ContainsKey(name))
+            if (!_dependencies.ContainsKey(key))
             {
-                _dependencies.TryAdd(name, instance);
+                _dependencies.TryAdd(key, instance);
             }
 
             if (needInjectProperty)
             {
                 InjectDependencies(instance); // 注入实例需要的依赖项
             }
-
-            // 检查是否存在其它实例
-            if (_unfinishedDependencies.TryGetValue(name, out var unfinishedPropertyList))
-            {
-                foreach ((object obj, PropertyInfo property) in unfinishedPropertyList)
-                {
-                    property.SetValue(obj, instance); //注入依赖项
-                }
-
-                if (_unfinishedDependencies.TryRemove(name, out unfinishedPropertyList))
-                {
-                    unfinishedPropertyList.Clear();
-                }
-            }
+            InjectUnfinishedDependencies(key, instance); // 检查是否存在其它实例需要该类型
+            OnIOCMembersChanged?.Invoke(new IOCMembersChangedEventArgs(key, instance));
         }
         public object Get(Type type)
         {
@@ -237,29 +230,19 @@ namespace Serein.Library.Utils
             // 遍历已注册类型
             foreach (var type in _typeMappings.Values.ToArray())
             {
-
-                if (_dependencies.ContainsKey(type.FullName))
+                if (!_dependencies.ContainsKey(type.FullName))
                 {
-                    // 已经存在实例，不用管
+                    var value = CreateInstance(type); // 绑定时注册的类型如果没有创建实例，则创建对应的实例
+                    CustomRegisterInstance(type.FullName, value);// 登记到IOC容器中
                 }
-                else
-                {
-                    // 如果没有创建实例，则创建对应的实例
-                    _dependencies[type.FullName] = CreateInstance(type);
-                }
-                // 移除类型的注册记录
-                _typeMappings.TryRemove(type.FullName, out _);
+                _typeMappings.TryRemove(type.FullName, out _); // 移除类型的注册记录
             }
 
-            // 注入实例的依赖项
+           
             foreach (var instance in _dependencies.Values)
             {
-                InjectDependencies(instance);
+                InjectDependencies(instance);  // 绑定时注入实例的依赖项
             }
-
-            //var instance = Instantiate(item.Value);
-
-            // TryInstantiateWaitingDependencies();
 
             return true;
         } 
@@ -292,19 +275,24 @@ namespace Serein.Library.Utils
         private object CreateInstance(Type type, params object[] parameters)
         {
             var instance = Activator.CreateInstance(type);
-            if (_unfinishedDependencies.TryGetValue(type.FullName, out var unfinishedPropertyList))
+            InjectUnfinishedDependencies(type.FullName, instance);
+            return instance;
+        }
+
+        private void InjectUnfinishedDependencies(string key,object instance)
+        {
+            if (_unfinishedDependencies.TryGetValue(key, out var unfinishedPropertyList))
             {
                 foreach ((object obj, PropertyInfo property) in unfinishedPropertyList)
                 {
                     property.SetValue(obj, instance); //注入依赖项
                 }
 
-                if (_unfinishedDependencies.TryRemove(type.FullName, out unfinishedPropertyList))
+                if (_unfinishedDependencies.TryRemove(key, out unfinishedPropertyList))
                 {
                     unfinishedPropertyList.Clear();
                 }
             }
-            return instance;
         }
 
 

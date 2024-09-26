@@ -319,7 +319,7 @@ namespace Serein.Library.Api
     /// <summary>
     /// IOC容器发生变化
     /// </summary>
-    public delegate void IOCMembersChangedHandler();
+    public delegate void IOCMembersChangedHandler(IOCMembersChangedEventArgs eventArgs);
 
 
     /// <summary>
@@ -338,18 +338,39 @@ namespace Serein.Library.Api
             /// </summary>
             Completeuild,
         }
-        public IOCMembersChangedEventArgs(Type[] types, object[] dependencies, object[] unfinishedDependencies)
+        public IOCMembersChangedEventArgs(string key, object instance)
         {
-            this.Types = types;
-            this.Dependencies = dependencies;
-            this.UnfinishedDependencies = unfinishedDependencies;
+            this.Key = key;
+            this.Instance = instance;
         }
-        public Type[] Types { get; protected set; }
-        public object[] Dependencies { get; private set; }
-        public object[] UnfinishedDependencies { get; private set; }
+        public string Key { get; private set; }
+        public object Instance { get; private set; }
 
     }
+    //public class IOCMembersChangedEventArgs : FlowEventArgs
+    //{
+    //    //public enum EventType
+    //    //{
+    //    //    /// <summary>
+    //    //    /// 登记了类型
+    //    //    /// </summary>
+    //    //    Registered,
+    //    //    /// <summary>
+    //    //    /// 构建了类型
+    //    //    /// </summary>
+    //    //    Completeuild,
+    //    //}
+    //    public IOCMembersChangedEventArgs(Type[] types, object[] dependencies, object[] unfinishedDependencies)
+    //    {
+    //        this.Types = types;
+    //        this.Dependencies = dependencies;
+    //        this.UnfinishedDependencies = unfinishedDependencies;
+    //    }
+    //    public Type[] Types { get; protected set; }
+    //    public object[] Dependencies { get; private set; }
+    //    public object[] UnfinishedDependencies { get; private set; }
 
+    //}
     public interface IFlowEnvironment
     {
         #region 属性
@@ -420,8 +441,25 @@ namespace Serein.Library.Api
         /// </summary>
         event ExpInterruptTriggerHandler OnInterruptTrigger;
 
+        /// <summary>
+        /// IOC容器发生改变
+        /// </summary>
+        event IOCMembersChangedHandler OnIOCMembersChanged;
+
 
         #endregion
+
+
+        /// <summary>
+        /// 获取方法描述
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="md"></param>
+        /// <returns></returns>
+        bool TryGetMethodDetails(string methodName, out MethodDetails md);
+
+
+        //bool TryGetNodeData(string methodName, out NodeData node);
 
         #region Workbench
 
@@ -445,14 +483,7 @@ namespace Serein.Library.Api
         /// 清理加载的DLL（待更改）
         /// </summary>
         void ClearAll();
-        /// <summary>
-        /// 获取方法描述
-        /// </summary>
-        /// <param name="name"></param>
-        /// <param name="md"></param>
-        /// <returns></returns>
-        bool TryGetMethodDetails(string methodName, out MethodDetails md);
-
+        
 
         /// <summary>
         /// 开始运行
@@ -517,7 +548,7 @@ namespace Serein.Library.Api
         /// <param name="nodeGuid"></param>
         /// <param name="expression"></param>
         /// <returns></returns>
-        bool AddInterruptExpression(object obj, string expression);
+        bool AddInterruptExpression(string key, string expression);
         /// <summary>
         /// 添加作用于指定节点的中断表达式
         /// </summary>
@@ -538,7 +569,7 @@ namespace Serein.Library.Api
         /// </summary>
         /// <param name="obj">需要监视的对象</param>
         /// <param name="isMonitor">是否启用监视</param>
-        void SetMonitorObjState(object obj, bool isMonitor);
+        void SetMonitorObjState(string key,bool isMonitor);
 
         /// <summary>
         /// 检查一个对象是否处于监听状态，如果是，则传出与该对象相关的表达式（用于中断），如果不是，则返回false。
@@ -546,7 +577,7 @@ namespace Serein.Library.Api
         /// <param name="obj">判断的对象</param>
         /// <param name="exps">表达式</param>
         /// <returns></returns>
-        bool CheckObjMonitorState(object obj, out List<string> exps);
+        bool CheckObjMonitorState(string key, out List<string> exps);
 
 
         /// <summary>

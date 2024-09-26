@@ -9,15 +9,18 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="*"/>
+            <!--<RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>-->
         </Grid.RowDefinitions>
-        <GroupBox Grid.Row="0" Header="已注册待绑定的类型" Margin="5">
-            <ListBox x:Name="TypeListBox" Background="#E3F6FA"/>
-        </GroupBox>
-        <GroupBox Grid.Row="1" Header="完成注入的实例" Margin="5">
+        <GroupBox Grid.Row="1" Header="实例视图" Margin="5">
             <ListBox x:Name="DependenciesListBox" Background="#E3FAE9"/>
         </GroupBox>
+        <!--<GroupBox Grid.Row="0" Header="正在注册的类型" Margin="5">
+            <ListBox x:Name="TypeListBox" Background="#E3F6FA"/>
+        </GroupBox>-->
+        <!--<GroupBox Grid.Row="1" Header="实例视图" Margin="5">
+            <ListBox x:Name="DependenciesListBox" Background="#E3FAE9"/>
+        </GroupBox>-->
         <!--<GroupBox Grid.Row="3" Header="未完成注入的实例" Margin="5">
             <ListBox x:Name="UnfinishedDependenciesListBox" Background="#FFE9D7"/>
         </GroupBox>-->

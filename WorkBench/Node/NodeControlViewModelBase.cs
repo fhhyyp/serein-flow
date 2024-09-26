@@ -24,8 +24,6 @@ namespace Serein.WorkBench.Node.ViewModel
         internal NodeModelBase Node { get; }
 
 
-
-
         private bool isSelect;
         /// <summary>
         /// 表示节点控件是否被选中
