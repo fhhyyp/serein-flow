@@ -37,7 +37,7 @@ https://space.bilibili.com/33526379
     * 返回值：自定义，但软件目前不支持接收返回值。
     * 描述：当结束/手动结束运行时，会调用所有Dll的Exit方法。使用场景类似于：终止内部的其它线程，通知其它进程关闭，例如停止第三方服务。
   * **关于IDynamicContext说明**
-    * 基本说明：IDynamicContext是动态上下文接口，内部提供用以注册、获取实例的IOC容器SereinIoc接口，以及运行环境IFlowEnvironment接口，一般情况下，你无须关注IFlowEnvironment对外暴露的属性方法。除此之外，还有一个用以创建定时循环任务的方法CreateTimingTask，通过该方法可以实现类似于定时器的功能，它的运行周期由运行环境进行管理。
+    * 基本说明：IDynamicContext是动态上下文接口，内部提供全局单例的IFlowEnvironment环境接口，用以注册、获取实例（单例模式），一般情况下，你无须关注IFlowEnvironment对外暴露的属性方法。除此之外，还有一个用以创建定时循环任务的方法CreateTimingTask，通过该方法可以实现类似于定时器的功能，它的运行周期由运行环境进行管理。
 
 ## 2. 基础节点
  * 待更新
@@ -45,7 +45,7 @@ https://space.bilibili.com/33526379
 ## 3. 从DLL生成控件的枚举值：
   * **Action - 动作**
     * 入参：自定义。如果传入DynamicContext，会传入当前的上下文；如果传入NodeBase，会传入节点对应的Model。第一个非[Explicit]特性的参数会尝试从上一节点的获取FlowData变量，并根据当前入参类型，尝试进行类型转换。
-    * 返回值：自定义，返回值由对应的Model类的[object?]FlowData变量接收。
+    * 返回值：自定义，返回值由对应的Model类的object? FlowData变量接收。
     * 描述：同步执行对应的方法。
     
   * **Flipflop - 触发器**
@@ -65,4 +65,5 @@ https://space.bilibili.com/33526379
 演示：
 ![image](https://github.com/fhhyyp/serein-flow/blob/cc5f8255135b96c6bb3669bc4aa8d8167a71c262/Image/%E6%BC%94%E7%A4%BA%20-%201.png)
 ![image](https://github.com/fhhyyp/serein-flow/blob/cc5f8255135b96c6bb3669bc4aa8d8167a71c262/Image/%E6%BC%94%E7%A4%BA%20-%202.png)
-
+![image](Image/演示 - 3.png)
+![image](Image/演示 - 4.png)
