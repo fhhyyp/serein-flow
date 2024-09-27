@@ -12,7 +12,7 @@ https://space.bilibili.com/33526379
 
 
 # 如何加载我的DLL？
-使用 **DynamicFlow** 特性标记你的类，可以参照 **MyDll** 与 **SereinWAT** 的实现。编译为 Dll文件 后，拖入到软件中即可。
+使用 **DynamicFlow** 特性标记你的类，可以参照 **Net461DllTest** 的实现。编译为 Dll文件 后，拖入到软件中即可。
 
 # 如何让我的方法成为节点？
 使用 **NodeAction** 特性标记你的方法。

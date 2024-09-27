@@ -1,15 +1,18 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Serein.Library.Api;
+using Serein.Library.Attributes;
 using Serein.Library.Entity;
 using Serein.Library.Enums;
 using Serein.Library.Ex;
+using Serein.Library.Utils;
 using Serein.NodeFlow.Tool.SereinExpression;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Net.Http.Headers;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -111,11 +114,11 @@ namespace Serein.NodeFlow.Base
                 // 从栈中弹出一个节点作为当前节点进行处理
                 var currentNode = stack.Pop();
 
-                // 设置方法执行的对象
-                if (currentNode.MethodDetails?.ActingInstance is not null && currentNode.MethodDetails?.ActingInstanceType is not null)
-                {
-                    currentNode.MethodDetails.ActingInstance = context.Env.IOC.GetOrRegisterInstantiate(currentNode.MethodDetails.ActingInstanceType);
-                }
+                //// 设置方法执行的对象
+                //if (currentNode.MethodDetails?.ActingInstance is not null && currentNode.MethodDetails?.ActingInstanceType is not null)
+                //{
+                //    currentNode.MethodDetails.ActingInstance = context.Env.IOC.GetOrRegisterInstantiate(currentNode.MethodDetails.ActingInstanceType);
+                //}
 
                 #region 执行相关
 
@@ -198,6 +201,7 @@ namespace Serein.NodeFlow.Base
 
             MethodDetails md = MethodDetails;
             var del = md.MethodDelegate.Clone();
+            md.ActingInstance ??= context.Env.IOC.GetOrRegisterInstantiate(MethodDetails.ActingInstanceType);
             object instance = md.ActingInstance;
 
             var haveParameter = md.ExplicitDatas.Length > 0;
@@ -270,9 +274,8 @@ namespace Serein.NodeFlow.Base
                 var ed = md.ExplicitDatas[i]; // 方法入参描述
 
 
-                if (ed.IsExplicitData)
+                if (ed.IsExplicitData) // 判断是否使用显示的输入参数
                 {
-
                     if (ed.DataValue.StartsWith("@get", StringComparison.OrdinalIgnoreCase))
                     {
                         // 执行表达式从上一节点获取对象
@@ -289,11 +292,34 @@ namespace Serein.NodeFlow.Base
                     inputParameter = flowData;   // 使用上一节点的对象
                 }
 
+
+
+                //var attribute = ed.DataType.GetCustomAttribute<EnumTypeConvertorAttribute>();
+                //if (attribute is not null && attribute.EnumType.IsEnum) // 获取枚举转换器中记录的枚举
+                if ( ed.DataType != ed.ExplicitType) // 获取枚举转换器中记录的枚举
+                {
+                    if (ed.ExplicitType.IsEnum && Enum.TryParse(ed.ExplicitType, ed.DataValue, out var resultEnum)) // 获取对应的枚举项
+                    {
+                        var type = EnumHelper.GetBoundValue(ed.ExplicitType, resultEnum, attr => attr.Value);
+                        if(type is Type enumBindType && enumBindType is not null)
+                        {
+                            var value = context.Env.IOC.Instantiate(enumBindType);
+                            if(value is not null)
+                            {
+                                parameters[i] = value;
+                                continue;
+                            }
+                        }
+                    }
+                } 
+                
+
                 try
                 {
                     parameters[i] = ed.DataType switch
                     {
                         //Type t when t == previousDataType => inputParameter, // 上下文
+                        Type t when t.IsEnum => Enum.Parse(ed.DataType, ed.DataValue),// 需要枚举
                         Type t when t == typeof(IDynamicContext) => context, // 上下文
                         Type t when t == typeof(MethodDetails) => md, // 节点方法描述
                         Type t when t == typeof(NodeModelBase) => nodeModel, // 节点实体类
@@ -316,9 +342,6 @@ namespace Serein.NodeFlow.Base
                         Type t when t == typeof(nint) => inputParameter is null ? 0 : nint.Parse(inputParameter?.ToString()),
                         Type t when t == typeof(nuint) => inputParameter is null ? 0 : nuint.Parse(inputParameter?.ToString()),
 
-
-
-                        Type t when t.IsEnum => Enum.Parse(ed.DataType, ed.DataValue),// 需要枚举
                         Type t when t.IsArray => (inputParameter as Array)?.Cast<object>().ToList(),
                         Type t when t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>) => inputParameter,
                         Type t when Nullable.GetUnderlyingType(t) != null => inputParameter is null ? null : Convert.ChangeType(inputParameter, Nullable.GetUnderlyingType(t)),
@@ -340,7 +363,6 @@ namespace Serein.NodeFlow.Base
         /// <param name="newData"></param>
         public static async Task RefreshFlowDataAndExpInterrupt(IDynamicContext context,NodeModelBase nodeModel, object? newData = null)
         {
-
             string guid = nodeModel.Guid;
             if(newData is not null)
             {
@@ -348,79 +370,6 @@ namespace Serein.NodeFlow.Base
                 await MonitorObjExpInterrupt(context, nodeModel, newData, 1); // 然后监视节点
                 nodeModel.FlowData = newData; // 替换数据
             }
-
-
-
-            //if(context.Env.CheckObjMonitorState(newData, out List<string> exps)) // 如果新的数据处于查看状态，通知UI进行更新？交给运行环境判断？
-            //{
-            //    context.Env.MonitorObjectNotification(guid, newData); // 对象处于监视状态，通知UI更新数据显示
-            //    if (exps.Count > 0)
-            //    {
-            //        // 表达式环境下判断是否需要执行中断
-            //        bool isExpInterrupt = false;
-            //        string? exp = "";
-            //        // 判断执行监视表达式，直到为 true 时退出
-            //        for (int i = 0; i < exps.Count && !isExpInterrupt; i++)
-            //        {
-            //            exp = exps[i];
-            //            isExpInterrupt = SereinConditionParser.To(newData, exp);
-            //        }
-
-            //        if (isExpInterrupt) // 触发中断
-            //        {
-            //            InterruptClass interruptClass = InterruptClass.Branch; // 分支中断
-            //            if (context.Env.SetNodeInterrupt(nodeModel.Guid, interruptClass))
-            //            {
-            //                context.Env.TriggerInterrupt(guid, exp, InterruptTriggerEventArgs.InterruptTriggerType.Obj);
-            //                var cancelType = await nodeModel.DebugSetting.GetInterruptTask();
-            //                await Console.Out.WriteLineAsync($"[{newData}]中断已{cancelType}，开始执行后继分支");
-            //            }
-            //        }
-            //    }
-
-            //}
-
-
-            //if (newData is not null && nodeModel.DebugSetting.InterruptExpressions.Count > 0)  // 检查节点是否存在监视表达式
-            //{
-            //    // 表达式环境下判断是否需要执行中断
-            //    bool isExpInterrupt = false;
-            //    string? exp = "";
-            //    // 判断执行监视表达式，直到为 true 时退出
-            //    for (int i = 0; i < nodeModel.DebugSetting.InterruptExpressions.Count && !isExpInterrupt; i++)
-            //    {
-            //        exp = nodeModel.DebugSetting.InterruptExpressions[i];
-            //        isExpInterrupt = SereinConditionParser.To(newData, exp);
-            //    }
-
-            //    if (isExpInterrupt) // 触发中断
-            //    {
-            //        InterruptClass interruptClass = InterruptClass.Branch; // 分支中断
-            //        if (context.Env.SetNodeInterrupt(nodeModel.Guid, interruptClass))
-            //        {
-            //            context.Env.TriggerInterrupt(guid, exp, InterruptTriggerEventArgs.InterruptTriggerType.Exp);
-            //            var cancelType = await nodeModel.DebugSetting.GetInterruptTask();
-            //            await Console.Out.WriteLineAsync($"[{nodeModel.MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");
-            //        }
-
-            //    }
-            //}
-
-
-
-            //else if (nodeModel.DebugSetting.InterruptClass != InterruptClass.None)
-            //{
-            //    var cancelType = await nodeModel.DebugSetting.InterruptTask;
-            //    await Console.Out.WriteLineAsync($"[{nodeModel.MethodDetails.MethodName}]中断已{(cancelType == CancelType.Manual ? "手动取消" : "自动取消")}，开始执行后继分支");
-            //}
-
-
-
-            //if (nodeModel.DebugSetting.IsMonitorFlowData)
-            //{
-            //    // 节点是否监视了数据，如果是，调用环境接口触发其相关事件。
-            //    context.Env.FlowDataNotification(guid, newData);
-            //}
         }
 
         private static async Task MonitorObjExpInterrupt(IDynamicContext context, NodeModelBase nodeModel, object data, int type)

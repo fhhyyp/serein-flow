@@ -26,7 +26,7 @@ namespace Serein.Library.Entity
         ///// <summary>
         ///// 显式类型
         ///// </summary>
-        //public Type ExplicitType { get; set; }
+        public Type ExplicitType { get; set; }
 
         ///// <summary>
         ///// 显示类型编号>
@@ -55,7 +55,7 @@ namespace Serein.Library.Entity
         {
             Index = Index,
             IsExplicitData = IsExplicitData,
-            // ExplicitType = ExplicitType,
+            ExplicitType = ExplicitType,
             ExplicitTypeName = ExplicitTypeName,
             DataType = DataType,
             ParameterName = ParameterName,

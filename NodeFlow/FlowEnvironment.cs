@@ -606,7 +606,6 @@ namespace Serein.NodeFlow
         /// </summary>
         public bool TryGetMethodDetails(string name, out MethodDetails? md)
         {
-            var isPass = false;
             if (!string.IsNullOrEmpty(name))
             {
                 md = MethodDetailss.FirstOrDefault(it => it.MethodName == name);
@@ -617,8 +616,6 @@ namespace Serein.NodeFlow
                 md = null;
                 return false;
             }
-
-
         }
 
         /// <summary>

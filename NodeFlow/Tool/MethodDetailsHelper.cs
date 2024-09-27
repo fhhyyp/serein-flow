@@ -2,6 +2,7 @@
 using Serein.Library.Attributes;
 using Serein.Library.Core.NodeFlow;
 using Serein.Library.Entity;
+using System;
 using System.Collections.Concurrent;
 using System.Reflection;
 
@@ -99,26 +100,25 @@ public static class MethodDetailsHelperTmp
         return parameters.Select((it, index) =>
         {
             Type paremType;
-            //var attribute = it.ParameterType.GetCustomAttribute<EnumConvertorAttribute>();
-            //if (attribute is not null && attribute.Enum.IsEnum)
-            //{
-            //    // 存在选择器
-            //    paremType = attribute.Enum;
-            //}
-            //else
-            //{
-            //    paremType = it.ParameterType;
-            //}
-            paremType = it.ParameterType;
+            var attribute = it.GetCustomAttribute<EnumTypeConvertorAttribute>();
+            if (attribute is not null)
+            {
+                // 存在选择器
+                paremType = attribute.EnumType;
+            }
+            else
+            {
+                paremType = it.ParameterType;
+            }
             string explicitTypeName = GetExplicitTypeName(paremType);
             var items = GetExplicitItems(paremType, explicitTypeName);
             if ("Bool".Equals(explicitTypeName)) explicitTypeName = "Select"; // 布尔值 转为 可选类型
             return new ExplicitData
             {
-                IsExplicitData = it.HasDefaultValue,
+                IsExplicitData = attribute is null ? it.HasDefaultValue: true,
                 Index = index,
-                // ExplicitType = it.ParameterType,
                 ExplicitTypeName = explicitTypeName,
+                ExplicitType = paremType,
                 DataType = it.ParameterType,
                 ParameterName = it.Name,
                 DataValue = it.HasDefaultValue ? it.DefaultValue.ToString() : "",

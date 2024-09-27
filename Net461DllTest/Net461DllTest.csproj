@@ -1,0 +1,103 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{E40EE629-1A38-4011-88E3-9AD036869987}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Net461DllTest</RootNamespace>
+    <AssemblyName>Net461DllTest</AssemblyName>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <Deterministic>true</Deterministic>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject />
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.ValueTuple, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.ValueTuple.4.5.0\lib\net461\System.ValueTuple.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Data\MyData.cs" />
+    <Compile Include="Device\PlcDevice.cs" />
+    <Compile Include="Flow\LogicControl.cs" />
+    <Compile Include="Flow\ViewLogicControl.cs" />
+    <Compile Include="Signal\OrderSignal.cs" />
+    <Compile Include="ViewModel\FromWorkBenchViewModel.cs" />
+    <Compile Include="View\FromWorkBenchView.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="View\FromWorkBenchView.Designer.cs">
+      <DependentUpon>FromWorkBenchView.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Signal\Signal.cs" />
+    <Compile Include="View\TeseFormView.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="View\TeseFormView.Designer.cs">
+      <DependentUpon>TeseFormView.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Web\ApiController.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\DynamicControl\SereinFlow\Library.Framework\Serein.Library.Framework.csproj">
+      <Project>{73B272E8-222D-4D08-A030-F1E1DB70B9D1}</Project>
+      <Name>Serein.Library.Framework</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\DynamicControl\SereinFlow\Library\Serein.Library.csproj">
+      <Project>{9FCE93C2-2278-46F3-96AB-CDAAFF27A55F}</Project>
+      <Name>Serein.Library</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="View\FromWorkBenchView.resx">
+      <DependentUpon>FromWorkBenchView.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="View\TeseFormView.resx">
+      <DependentUpon>TeseFormView.cs</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Properties\" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
