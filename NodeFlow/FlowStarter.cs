@@ -150,10 +150,10 @@ namespace Serein.NodeFlow
             #region 初始化运行环境的Ioc容器
             // 清除节点使用的对象，筛选出需要初始化的方法描述
             var thisRuningMds = new List<MethodDetails>();
-            thisRuningMds.AddRange(runNodeMd.Where(md => md is not null));
-            thisRuningMds.AddRange(initMethods.Where(md => md is not null));
-            thisRuningMds.AddRange(loadingMethods.Where(md => md is not null));
-            thisRuningMds.AddRange(exitMethods.Where(md => md is not null));
+            thisRuningMds.AddRange(runNodeMd.Where(md => md?.ActingInstanceType is not null));
+            thisRuningMds.AddRange(initMethods.Where(md => md?.ActingInstanceType is not null));
+            thisRuningMds.AddRange(loadingMethods.Where(md => md?.ActingInstanceType is not null));
+            thisRuningMds.AddRange(exitMethods.Where(md => md?.ActingInstanceType is not null));
 
             // .AddRange(initMethods).AddRange(loadingMethods).a
             foreach (var nodeMd in thisRuningMds)

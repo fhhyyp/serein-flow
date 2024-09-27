@@ -345,32 +345,23 @@ namespace Serein.Library.Api
         }
         public string Key { get; private set; }
         public object Instance { get; private set; }
-
     }
-    //public class IOCMembersChangedEventArgs : FlowEventArgs
-    //{
-    //    //public enum EventType
-    //    //{
-    //    //    /// <summary>
-    //    //    /// 登记了类型
-    //    //    /// </summary>
-    //    //    Registered,
-    //    //    /// <summary>
-    //    //    /// 构建了类型
-    //    //    /// </summary>
-    //    //    Completeuild,
-    //    //}
-    //    public IOCMembersChangedEventArgs(Type[] types, object[] dependencies, object[] unfinishedDependencies)
-    //    {
-    //        this.Types = types;
-    //        this.Dependencies = dependencies;
-    //        this.UnfinishedDependencies = unfinishedDependencies;
-    //    }
-    //    public Type[] Types { get; protected set; }
-    //    public object[] Dependencies { get; private set; }
-    //    public object[] UnfinishedDependencies { get; private set; }
 
-    //}
+    /// <summary>
+    /// 节点需要定位
+    /// </summary>
+    /// <param name="eventArgs"></param>
+    public delegate void NodeLocatedHandler(NodeLocatedEventArgs eventArgs);
+
+    public class NodeLocatedEventArgs : FlowEventArgs
+    {
+        public NodeLocatedEventArgs(string nodeGuid)
+        {
+            NodeGuid = nodeGuid;
+        }
+        public string NodeGuid { get; private set; }
+    }
+
     public interface IFlowEnvironment
     {
         #region 属性
@@ -447,6 +438,11 @@ namespace Serein.Library.Api
         event IOCMembersChangedHandler OnIOCMembersChanged;
 
 
+        /// <summary>
+        /// 节点需要定位
+        /// </summary>
+        event NodeLocatedHandler OnNodeLocate;
+
         #endregion
 
 
@@ -461,7 +457,7 @@ namespace Serein.Library.Api
 
         //bool TryGetNodeData(string methodName, out NodeData node);
 
-        #region Workbench
+        #region 环境基础接口
 
         /// <summary>
         /// 保存当前项目
@@ -500,8 +496,6 @@ namespace Serein.Library.Api
         /// 结束运行
         /// </summary>
         void Exit();
-
-
 
         /// <summary>
         /// 设置流程起点节点
@@ -549,21 +543,7 @@ namespace Serein.Library.Api
         /// <param name="expression"></param>
         /// <returns></returns>
         bool AddInterruptExpression(string key, string expression);
-        /// <summary>
-        /// 添加作用于指定节点的中断表达式
-        /// </summary>
-        /// <param name="nodeGuid"></param>
-        /// <param name="expression"></param>
-        /// <returns></returns>
-        // bool AddInterruptExpression(string nodeGuid,string expression);
-
-        // <summary>
-        // 设置节点数据监视状态
-        // </summary>
-        // <param name="nodeGuid">需要监视的节点Guid</param>
-        // <param name="isMonitor">是否监视</param>
-        // void SetNodeFLowDataMonitorState(string nodeGuid, bool isMonitor);
-
+        
         /// <summary>
         /// 监视指定对象
         /// </summary>
@@ -591,7 +571,7 @@ namespace Serein.Library.Api
 
         #endregion
 
-        #region Start
+        #region 启动器调用
 
         /// <summary>
         /// 流程启动器调用，监视数据更新通知
@@ -608,6 +588,17 @@ namespace Serein.Library.Api
         /// <param name="type">中断类型。0主动监视，1表达式</param>
         void TriggerInterrupt(string nodeGuid, string expression, InterruptTriggerEventArgs.InterruptTriggerType type);
 
+
+        #endregion
+
+
+        #region UI视觉
+
+        /// <summary>
+        /// 节点定位
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        void NodeLocated(string nodeGuid);
 
         #endregion
     }

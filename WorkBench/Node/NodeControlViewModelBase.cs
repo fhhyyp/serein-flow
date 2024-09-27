@@ -34,7 +34,7 @@ namespace Serein.WorkBench.Node.ViewModel
             set
             {
                 isSelect = value;
-                // OnPropertyChanged();
+                OnPropertyChanged();
             }
         }
 

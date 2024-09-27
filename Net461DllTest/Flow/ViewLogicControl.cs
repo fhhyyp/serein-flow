@@ -19,12 +19,13 @@ namespace Net461DllTest.Flow
     {
 
         private List<Form> forms = new List<Form>();
-        public void OpenView(Form form)
+        public void OpenView(Form form, bool isTop)
         {
             form.FormClosing += (s, e) =>
             {
                 // 关闭窗体时执行一些关于逻辑层的操作
             };
+            form.TopMost = isTop;
             form.Show();
             forms.Add(form);
         }
@@ -67,21 +68,20 @@ namespace Net461DllTest.Flow
 
 
         [NodeAction(NodeType.Action, "打开窗体（指定枚举值）")]
-        public void OpenForm(IDynamicContext context, FromId fromId = FromId.None)
+        public void OpenForm(IDynamicContext context, FromId fromId = FromId.None, bool isTop = true)
         {
             var fromType = EnumHelper.GetBoundValue<FromId, Type>(fromId, attr => attr.Value);
             if (fromType is null) return;
             if (context.Env.IOC.Instantiate(fromType) is Form form)
             {
-                ViewManagement.OpenView(form);
-                
+                ViewManagement.OpenView(form, isTop);
             }
         }
 
         [NodeAction(NodeType.Action, "打开窗体（使用转换器）")]
-        public void OpenForm2([EnumTypeConvertor(typeof(FromId))] Form form)
+        public void OpenForm2([EnumTypeConvertor(typeof(FromId))] Form form, bool isTop = true)
         {
-            ViewManagement.OpenView(form);
+            ViewManagement.OpenView(form, isTop);
         }
 
 

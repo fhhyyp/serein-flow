@@ -7,6 +7,8 @@ using Serein.Library.Utils;
 using Serein.NodeFlow;
 using Serein.NodeFlow.Base;
 using Serein.NodeFlow.Model;
+using Serein.NodeFlow.Tool;
+using Serein.NodeFlow.Tool.SereinExpression;
 using Serein.WorkBench.Node;
 using Serein.WorkBench.Node.View;
 using Serein.WorkBench.Node.ViewModel;
@@ -14,6 +16,7 @@ using Serein.WorkBench.Themes;
 using Serein.WorkBench.tool;
 using System.IO;
 using System.Reflection;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -189,7 +192,12 @@ namespace Serein.WorkBench
 
             FlowEnvironment.OnIOCMembersChanged += FlowEnvironment_OnIOCMembersChanged;
 
+            FlowEnvironment.OnNodeLocate += FlowEnvironment_OnNodeLocate;
+
         }
+
+        
+
         private void InitCanvasUI()
         {
             canvasTransformGroup = new TransformGroup();
@@ -200,7 +208,6 @@ namespace Serein.WorkBench
             canvasTransformGroup.Children.Add(translateTransform);
 
             FlowChartCanvas.RenderTransform = canvasTransformGroup;
-            //FlowChartCanvas.RenderTransformOrigin = new Point(0.5, 0.5);
         }
 
         private LogWindow InitConsoleOut()
@@ -260,11 +267,6 @@ namespace Serein.WorkBench
         /// <param name="eventArgs"></param>
         private void FlowEnvironment_OnProjectLoaded(ProjectLoadedEventArgs eventArgs)
         {
-            //foreach(var connection in Connections)
-            //{
-            //    connection.Refresh();
-            //}
-            //Console.WriteLine((FlowChartStackPanel.ActualWidth, FlowChartStackPanel.ActualHeight));
         }
 
         /// <summary>
@@ -319,8 +321,16 @@ namespace Serein.WorkBench
         {
             string fromNodeGuid = eventArgs.FromNodeGuid;
             string toNodeGuid = eventArgs.ToNodeGuid;
-            NodeControlBase fromNode = GuidToControl(fromNodeGuid);
-            NodeControlBase toNode = GuidToControl(toNodeGuid);
+            NodeControlBase? fromNode = GuidToControl(fromNodeGuid);
+            NodeControlBase? toNode = GuidToControl(toNodeGuid);
+            if(fromNode != null && toNode != null)
+            {
+
+            }
+            else
+            {
+                return;
+            }
 
             ConnectionType connectionType = eventArgs.ConnectionType;
             Action? action = null;
@@ -387,7 +397,8 @@ namespace Serein.WorkBench
         private void FlowEnvironment_NodeRemoteEvent(NodeRemoteEventArgs eventArgs)
         {
             var nodeGuid = eventArgs.NodeGuid;
-            NodeControlBase nodeControl = GuidToControl(nodeGuid);
+            NodeControlBase? nodeControl = GuidToControl(nodeGuid);
+            if (nodeControl is null) return;
             if (selectNodeControls.Count > 0)
             {
                 if (selectNodeControls.Contains(nodeControl))
@@ -489,11 +500,12 @@ namespace Serein.WorkBench
             {
                 string oldNodeGuid = eventArgs.OldNodeGuid;
                 string newNodeGuid = eventArgs.NewNodeGuid;
-                NodeControlBase newStartNodeControl = GuidToControl(newNodeGuid);
-                
+                NodeControlBase? newStartNodeControl = GuidToControl(newNodeGuid);
+                if (newStartNodeControl is null) return;
                 if (!string.IsNullOrEmpty(oldNodeGuid))
                 {
-                    NodeControlBase oldStartNodeControl = GuidToControl(oldNodeGuid);
+                    NodeControlBase? oldStartNodeControl = GuidToControl(oldNodeGuid);
+                    if (oldStartNodeControl is null) return;
                     oldStartNodeControl.BorderBrush = Brushes.Black;
                     oldStartNodeControl.BorderThickness = new Thickness(0);
                 }
@@ -554,7 +566,8 @@ namespace Serein.WorkBench
         private void FlowEnvironment_OnNodeInterruptStateChange(NodeInterruptStateChangeEventArgs eventArgs)
         {
             string nodeGuid = eventArgs.NodeGuid;
-            NodeControlBase nodeControl = GuidToControl(nodeGuid);
+            NodeControlBase? nodeControl = GuidToControl(nodeGuid);
+            if (nodeControl is null) return;
             if (eventArgs.Class == InterruptClass.None)
             {
                 nodeControl.ViewModel.IsInterrupt = false;
@@ -591,7 +604,7 @@ namespace Serein.WorkBench
         private void FlowEnvironment_OnInterruptTrigger(InterruptTriggerEventArgs eventArgs)
         {
             string nodeGuid = eventArgs.NodeGuid;
-            NodeControlBase nodeControl =  GuidToControl(nodeGuid);
+            NodeControlBase? nodeControl =  GuidToControl(nodeGuid);
             if (nodeControl is null) return;
             if(eventArgs.Type == InterruptTriggerEventArgs.InterruptTriggerType.Exp)
             {
@@ -614,23 +627,117 @@ namespace Serein.WorkBench
         }
 
         /// <summary>
+        /// 节点需要定位
+        /// </summary>
+        /// <param name="eventArgs"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        private void FlowEnvironment_OnNodeLocate(NodeLocatedEventArgs eventArgs)
+        {
+            NodeControlBase? nodeControl = GuidToControl(eventArgs.NodeGuid);
+            if (nodeControl is null) return;
+            //scaleTransform.ScaleX = 1;
+            //scaleTransform.ScaleY = 1;
+            // 获取控件在 FlowChartCanvas 上的相对位置
+            Rect controlBounds = VisualTreeHelper.GetDescendantBounds(nodeControl);
+            Point controlPosition = nodeControl.TransformToAncestor(FlowChartCanvas).Transform(new Point(0, 0));
+
+            // 获取控件在画布上的中心点
+            double controlCenterX = controlPosition.X + controlBounds.Width / 2;
+            double controlCenterY = controlPosition.Y + controlBounds.Height / 2;
+            
+            // 考虑缩放因素计算目标位置的中心点
+            double scaledCenterX = controlCenterX * scaleTransform.ScaleX;
+            double scaledCenterY = controlCenterY * scaleTransform.ScaleY;
+
+
+            //// 计算画布的可视区域大小
+            //double visibleAreaLeft = scaledCenterX;
+            //double visibleAreaTop = scaledCenterY;
+            //double visibleAreaRight = scaledCenterX + FlowChartStackGrid.ActualWidth;
+            //double visibleAreaBottom = scaledCenterY + FlowChartStackGrid.ActualHeight;
+            //// 检查控件中心点是否在可视区域内
+            //bool isInView = scaledCenterX >= visibleAreaLeft && scaledCenterX <= visibleAreaRight &&
+            //                scaledCenterY >= visibleAreaTop && scaledCenterY <= visibleAreaBottom;
+
+            //Console.WriteLine($"isInView :{isInView}");
+
+            //if (!isInView)
+            //{
+
+            //} 
+            // 计算平移偏移量，使得控件在可视区域的中心
+            double translateX = scaledCenterX - FlowChartStackGrid.ActualWidth / 2;
+            double translateY = scaledCenterY - FlowChartStackGrid.ActualHeight / 2;
+
+            var translate = this.translateTransform;
+            // 应用平移变换
+            translate.X = 0;
+            translate.Y = 0;
+            translate.X -= translateX;
+            translate.Y -= translateY;
+
+            // 设置RenderTransform以实现移动效果
+            TranslateTransform translateTransform = new TranslateTransform();
+            nodeControl.RenderTransform = translateTransform;
+            ElasticAnimation(nodeControl, translateTransform, 4,1,0.5);
+          
+        }
+        /// <summary>
+        /// 控件抖动
+        /// 来源：https://www.cnblogs.com/RedSky/p/17705411.html
+        /// 作者：HotSky
+        /// （……太好用了）
+        /// </summary>
+        /// <param name="translate"></param>
+        /// <param name="power">抖动第一下偏移量</param>
+        /// <param name="range">减弱幅度（小于等于power，大于0）</param>
+        /// <param name="speed">持续系数(大于0)，越大时间越长，</param>
+        private static void ElasticAnimation(NodeControlBase? nodeControl, TranslateTransform translate, int power, int range = 1, double speed = 1)
+        {
+            DoubleAnimationUsingKeyFrames animation1 = new DoubleAnimationUsingKeyFrames();
+            for (int i = power, j = 1; i >= 0; i -= range)
+            {
+                animation1.KeyFrames.Add(new LinearDoubleKeyFrame(-i, TimeSpan.FromMilliseconds(j++ * 100 * speed)));
+                animation1.KeyFrames.Add(new LinearDoubleKeyFrame(i, TimeSpan.FromMilliseconds(j++ * 100 * speed)));
+            }
+            translate.BeginAnimation(TranslateTransform.YProperty, animation1);
+            DoubleAnimationUsingKeyFrames animation2 = new DoubleAnimationUsingKeyFrames();
+            for (int i = power, j = 1; i >= 0; i -= range)
+            {
+                animation2.KeyFrames.Add(new LinearDoubleKeyFrame(-i, TimeSpan.FromMilliseconds(j++ * 100 * speed)));
+                animation2.KeyFrames.Add(new LinearDoubleKeyFrame(i, TimeSpan.FromMilliseconds(j++ * 100 * speed)));
+            }
+            translate.BeginAnimation(TranslateTransform.XProperty, animation2);
+
+            animation2.Completed += (s, e) =>
+            {
+                nodeControl.RenderTransform = null; // 或者重新设置为默认值
+            };
+        }
+
+        /// <summary>
         /// Guid 转 NodeControl
         /// </summary>
         /// <param name="nodeGuid">节点Guid</param>
         /// <returns>节点Model</returns>
         /// <exception cref="ArgumentNullException">无法获取节点、Guid/节点为null时报错</exception>
-        private NodeControlBase GuidToControl(string nodeGuid)
+        private NodeControlBase? GuidToControl(string nodeGuid)
         {
             if (string.IsNullOrEmpty(nodeGuid))
             {
+                return null;
                 throw new ArgumentNullException("not contains - Guid没有对应节点:" + (nodeGuid));
             }
             if (!NodeControls.TryGetValue(nodeGuid, out NodeControlBase? nodeControl) || nodeControl is null)
             {
+                return null;
+
                 throw new ArgumentNullException("null - Guid存在对应节点,但节点为null:" + (nodeGuid));
             }
             return nodeControl;
         }
+
+
         #endregion
 
         #region 加载项目文件后触发事件相关方法
@@ -800,6 +907,7 @@ namespace Serein.WorkBench
 
             #endregion
 
+           
             contextMenu.Items.Add(CreateMenuItem("设为起点", (s, e) => FlowEnvironment.SetStartNode(nodeGuid)));
             contextMenu.Items.Add(CreateMenuItem("删除", (s, e) => FlowEnvironment.RemoteNode(nodeGuid)));
 
@@ -948,7 +1056,7 @@ namespace Serein.WorkBench
 
         #endregion
 
-        #region 与流程图相关的拖拽操作
+        #region 与流程图与节点相关
 
         /// <summary>
         /// 鼠标在画布移动。
@@ -1138,7 +1246,7 @@ namespace Serein.WorkBench
             if(sender is NodeControlBase nodeControl)
             {
                 ChangeViewerObjOfNode(nodeControl);
-                if (nodeControl.ViewModel.Node.MethodDetails.IsProtectionParameter) return;
+                if (nodeControl?.ViewModel?.Node?.MethodDetails?.IsProtectionParameter == true) return;
                 IsControlDragging = true;
                 startControlDragPoint = e.GetPosition(FlowChartCanvas); // 记录鼠标按下时的位置
                 ((UIElement)sender).CaptureMouse(); // 捕获鼠标
@@ -1168,7 +1276,7 @@ namespace Serein.WorkBench
                     // 获取element控件的旧位置
                     double oldLeft = Canvas.GetLeft(element);
                     double oldTop = Canvas.GetTop(element);
-
+                    
                     // 计算被选择控件的偏移量
                     double deltaX = (int)(currentPosition.X - startControlDragPoint.X);
                     double deltaY = (int)(currentPosition.Y - startControlDragPoint.Y);
@@ -1221,12 +1329,12 @@ namespace Serein.WorkBench
                     {
                         return;
                     }
-
                     double deltaX = currentPosition.X - startControlDragPoint.X; // 计算X轴方向的偏移量
                     double deltaY = currentPosition.Y - startControlDragPoint.Y; // 计算Y轴方向的偏移量
 
                     double newLeft = Canvas.GetLeft(block) + deltaX; // 新的左边距
                     double newTop = Canvas.GetTop(block) + deltaY; // 新的上边距
+                    //Console.WriteLine((Canvas.GetLeft(block), Canvas.GetTop(block)));
 
                     // 限制控件不超出FlowChartCanvas的边界
                     if (newLeft >= 0 && newLeft + block.ActualWidth <= FlowChartCanvas.ActualWidth)
@@ -1245,9 +1353,9 @@ namespace Serein.WorkBench
         }
         private void ChangeViewerObjOfNode(NodeControlBase nodeControl)
         {
-
             var node = nodeControl?.ViewModel?.Node;
-            if (node is not null && node.MethodDetails.ReturnType != typeof(void))
+            //if (node is not null && (node.MethodDetails is null || node.MethodDetails.ReturnType != typeof(void))
+            if (node is not null && node?.MethodDetails?.ReturnType != typeof(void))
             {
                 var key = node.Guid;
                 var instance = node.GetFlowData();
@@ -1421,8 +1529,6 @@ namespace Serein.WorkBench
         }
         #endregion
 
-        
-
         #region 拖动画布实现缩放平移效果
         private void FlowChartCanvas_MouseDown(object sender, MouseButtonEventArgs e)
         {
@@ -1446,19 +1552,19 @@ namespace Serein.WorkBench
         {
             // if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
             {
-                if (e.Delta  < 0 && scaleTransform.ScaleX < 0.2) return;
+                if (e.Delta  < 0 && scaleTransform.ScaleX < 0.05) return;
                 if (e.Delta  > 0 && scaleTransform.ScaleY > 1.5) return;
                 // 获取鼠标在 Canvas 内的相对位置
                 var mousePosition = e.GetPosition(FlowChartCanvas);
 
                 // 缩放因子，根据滚轮方向调整
-                double zoomFactor = e.Delta > 0 ? 0.1 : -0.1;
-                //double zoomFactor = e.Delta > 0 ? 1.1 : 0.9;
+                //double zoomFactor = e.Delta > 0 ? 0.1 : -0.1;
+                double zoomFactor = e.Delta > 0 ? 1.1 : 0.9;
 
                 // 当前缩放比例
                 double oldScale = scaleTransform.ScaleX;
-                // double newScale = oldScale * zoomFactor;
-                double newScale = oldScale + zoomFactor;
+                double newScale = oldScale * zoomFactor;
+                //double newScale = oldScale + zoomFactor;
                 // 更新缩放比例
                 scaleTransform.ScaleX = newScale;
                 scaleTransform.ScaleY = newScale;
@@ -1608,6 +1714,8 @@ namespace Serein.WorkBench
         #endregion
         #endregion
 
+        
+
         #endregion
 
         #region 画布中框选节点控件动作
@@ -1706,7 +1814,6 @@ namespace Serein.WorkBench
 
             }
             e.Handled = true; // 防止事件传播影响其他控件
-           
         }
 
         /// <summary>
@@ -2256,6 +2363,8 @@ namespace Serein.WorkBench
         private void UnloadAllButton_Click(object sender, RoutedEventArgs e)
         {
             FlowEnvironment.ClearAll();
+
+
         }
         /// <summary>
         /// 卸载DLL文件，清空当前项目
@@ -2448,6 +2557,70 @@ namespace Serein.WorkBench
                 CancelSelectNode();
                 
             }
+        }
+
+        /// <summary>
+        /// 对象装箱测试
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ButtonTestExpObj_Click(object sender, RoutedEventArgs e)
+        {
+            string jsonString = 
+            """
+            {
+                "Name": "张三",
+                "Age": 24,
+                "Address": {
+                    "City": "北京",
+                    "PostalCode": "10000"
+                }
+            }
+            """;
+
+           var externalData = new Dictionary<string, object>
+            {
+                { "Name", "John" },
+                { "Age", 30 },
+                { "Addresses", new List<Dictionary<string, object>>
+                    {
+                        new Dictionary<string, object>
+                        {
+                            { "Street", "123 Main St" },
+                            { "City", "New York" }
+                        },
+                        new Dictionary<string, object>
+                        {
+                            { "Street", "456 Another St" },
+                            { "City", "Los Angeles" }
+                        }
+                    }
+                }
+            };
+
+            if (!ObjDynamicCreateHelper.TryResolve(externalData, "RootType",out var result))
+            {
+                Console.WriteLine("赋值过程中有错误，请检查属性名和类型！");
+
+            }
+            ObjDynamicCreateHelper.PrintObjectProperties(result);
+            Console.WriteLine(  );
+            var exp = "@set .Addresses[1].Street = qwq";
+            var data = SerinExpressionEvaluator.Evaluate(exp, result, out bool isChange);
+            exp = "@get .Addresses[1].Street";
+            data = SerinExpressionEvaluator.Evaluate(exp,result, out isChange);
+            Console.WriteLine($"{exp} => {data}");
+        }
+
+        /// <summary>
+        /// 重置画布
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ButtonResetCanvas_Click(object sender, RoutedEventArgs e)
+        {
+            translateTransform.X = 0;
+            translateTransform.Y = 0;
         }
 
     }

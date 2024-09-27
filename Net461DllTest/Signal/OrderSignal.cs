@@ -10,12 +10,9 @@ namespace Net461DllTest.Signal
 {
     public enum OrderSignal
     {
-        A,
-        B,
-        C, 
-        D,
-        E,
-        F,
-        G
+        View_1,
+        View_2,
+        Command_1,
+        Command_2, 
     }
 }

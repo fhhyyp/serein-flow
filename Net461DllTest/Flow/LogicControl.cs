@@ -17,10 +17,10 @@ using System.Threading.Tasks;
 
 namespace Net461DllTest.Flow
 {
-    [DynamicFlow] // 标记该类存在节点方法
+    [DynamicFlow] 
     public class LogicControl
     {
-        [AutoInjection] // 标记该属性为依赖项，需要注入
+        [AutoInjection] 
         public PlcDevice MyPlc { get; set; }
 
 
@@ -58,7 +58,7 @@ namespace Net461DllTest.Flow
         #region 触发器
 
         [NodeAction(NodeType.Flipflop, "等待信号触发", ReturnType = typeof(int))]
-        public async Task<IFlipflopContext> WaitTask(OrderSignal order = OrderSignal.A)
+        public async Task<IFlipflopContext> WaitTask(OrderSignal order = OrderSignal.Command_1)
         {
             try
             {

@@ -74,9 +74,14 @@ namespace Serein.WorkBench.Themes
                     {ConnectionType.IsError, []},
                 }
             };
+            string itemName = rootNodeModel?.MethodDetails?.MethodTips;
+            if (string.IsNullOrEmpty(itemName))
+            {
+                itemName = rootNodeModel.ControlType.ToString();
+            }
             var rootNode = new TreeViewItem
             {
-                Header = rootNodeModel.MethodDetails.MethodTips,
+                Header = itemName,
                 Tag = nodeTreeModel,
             };
             LoadNodeItem(this, nodeTreeModel);
@@ -136,19 +141,27 @@ namespace Serein.WorkBench.Themes
                             RootNode = child,
                             ChildNodes = child.SuccessorNodes,
                         };
+                        string itemName = child?.MethodDetails?.MethodTips;
+                        if (string.IsNullOrEmpty(itemName))
+                        {
+                            itemName = child.ControlType.ToString();
+                        }
                         TreeViewItem treeViewItem = new TreeViewItem
                         {
-                            Header = child.MethodDetails.MethodTips,
+                            Header = itemName,
                             Tag = tmpNodeTreeModel
                         };
                         treeViewItem.Expanded += TreeViewItem_Expanded;
-                        ContextMenu contextMenu = new ContextMenu();
+
+                        var contextMenu = new ContextMenu();
                         contextMenu.Items.Add(MainWindow.CreateMenuItem("从此节点执行", (s, e) => 
                         {
                             flowEnvironment.StartFlowInSelectNodeAsync(tmpNodeTreeModel.RootNode.Guid);
                         }));
-                        treeViewItem.ContextMenu = contextMenu;
+                        contextMenu.Items.Add(MainWindow.CreateMenuItem("定位", (s, e) => flowEnvironment.NodeLocated(tmpNodeTreeModel.RootNode.Guid)));
 
+                        treeViewItem.ContextMenu = contextMenu;
+                        treeViewItem.Margin = new Thickness(-20, 0, 0, 0);
                         treeViewer.Items.Add(treeViewItem);
                     }
                     guid.Visibility = Visibility.Visible;
@@ -190,12 +203,18 @@ namespace Serein.WorkBench.Themes
                         RootNode = childNodeModel,
                         ChildNodes = childNodeModel.SuccessorNodes,
                     };
+
+                    string itemName = childNodeModel?.MethodDetails?.MethodTips;
+                    if (string.IsNullOrEmpty(itemName))
+                    {
+                        itemName = childNodeModel.ControlType.ToString();
+                    }
                     TreeViewItem treeViewItem = new TreeViewItem
                     {
-                        Header = childNodeModel.MethodDetails.MethodTips,
+                        Header = itemName,
                         Tag = tempNodeTreeModel
                     };
-                    treeViewItem.Margin = new Thickness(-15, 0, 0, 0);
+                    treeViewItem.Margin = new Thickness(-20, 0, 0, 0);
                     treeViewItem.Visibility = Visibility.Visible;
                     treeView.Items.Add(treeViewItem);
                 }

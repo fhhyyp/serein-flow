@@ -122,6 +122,10 @@ namespace Serein.NodeFlow
         /// </summary>
         public event IOCMembersChangedHandler OnIOCMembersChanged;
 
+        /// <summary>
+        /// 节点需要定位
+        /// </summary>
+        public event NodeLocatedHandler OnNodeLocate;
         #endregion
 
         #region 属性
@@ -1037,7 +1041,16 @@ namespace Serein.NodeFlow
 
         #endregion
 
-        #region 网络交互
+        #region 视觉效果
+
+        /// <summary>
+        /// 定位节点
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        public void NodeLocated(string nodeGuid)
+        {
+            OnNodeLocate?.Invoke(new NodeLocatedEventArgs(nodeGuid));
+        }
 
         #endregion
 

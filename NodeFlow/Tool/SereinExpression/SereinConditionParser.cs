@@ -13,7 +13,10 @@ namespace Serein.NodeFlow.Tool.SereinExpression
         {
             try
             {
-
+                if (string.IsNullOrEmpty(expression))
+                {
+                    return false;
+                }
                 var parse = ConditionParse(data, expression);
                 var result = parse.Evaluate(data);
                 return result;
@@ -104,7 +107,8 @@ namespace Serein.NodeFlow.Tool.SereinExpression
             {
                 // 如果不需要转为指定类型
                 memberPath = operatorStr;
-                targetObj = GetMemberValue(data, operatorStr);
+                targetObj = SerinExpressionEvaluator.Evaluate("@get " + operatorStr, data, out _);
+                //targetObj = GetMemberValue(data, operatorStr);
                 type = targetObj.GetType();
                 operatorStr = parts[1].ToLower(); // 
                 valueStr = string.Join(' ', parts.Skip(2));
@@ -189,18 +193,6 @@ namespace Serein.NodeFlow.Tool.SereinExpression
 
 
                 }
-                
-
-               //int value = int.Parse(valueStr, CultureInfo.InvariantCulture);
-
-                //return new MemberConditionResolver<int>
-                //{
-                //    TargetObj = targetObj,
-                //    //MemberPath = memberPath,
-                //    Op = ParseValueTypeOperator<int>(operatorStr),
-                //    Value = value,
-                //    ArithmeticExpression = GetArithmeticExpression(parts[0])
-                //};
             }
             #endregion
             #region 解析类型 double

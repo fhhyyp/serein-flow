@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using Serein.Library.Entity;
 using Serein.NodeFlow;
+using Serein.NodeFlow.Tool;
 using System.Diagnostics;
 using System.Windows;
 
@@ -34,6 +35,9 @@ namespace Serein.WorkBench
 
         public App()
         {
+
+
+           
 
 #if false //测试 操作表达式，条件表达式
             #region 测试数据

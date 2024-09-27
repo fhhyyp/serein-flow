@@ -23,7 +23,11 @@
         <KeyBinding Key="Escape" Command="{Binding CancelConnectionCommand}"/>
     </Window.InputBindings>
     <Grid>
-        <Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
             <ColumnDefinition Width="300"/>
             <ColumnDefinition Width="5"/>
             <ColumnDefinition Width="3*"/>
@@ -31,7 +35,15 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <DockPanel  Grid.Column="0" Background="#F5F5F5">
+        <StackPanel Grid.Row="0" Grid.ColumnSpan="5" Background="#F5F5F5" Orientation="Horizontal" >
+            <Button x:Name="ButtonDebugRun"  Content="运行" Width="100" Margin="10" Click="ButtonDebugRun_Click"></Button>
+            <Button x:Name="ButtonDebugFlipflopNode"  Content="结束" Width="100" Margin="10" Click="ButtonDebugFlipflopNode_Click"></Button>
+            <Button x:Name="ButtonStartFlowInSelectNode"  Content="从选定节点开始" Width="100" Margin="10" Click="ButtonStartFlowInSelectNode_Click"></Button>
+            <Button x:Name="ButtonResetCanvas"  Content="重置画布" Width="100" Margin="10" Click="ButtonResetCanvas_Click"></Button>
+            <Button x:Name="ButtonTestExpObj"  Content="测试对象表达式" Width="100" Margin="10" Click="ButtonTestExpObj_Click"></Button>
+        </StackPanel>
+
+        <DockPanel Grid.Row="1" Grid.Column="0" Background="#F5F5F5">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -64,31 +76,11 @@
             </Grid>
         </DockPanel>
 
-        <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="Gray" />
+        <GridSplitter  Grid.Row="1"   Grid.Column="1" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="Gray" />
 
-        <Grid  Grid.Column="2" >
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"></ColumnDefinition>
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="60"></RowDefinition>
-                <RowDefinition Height="*"></RowDefinition>
-            </Grid.RowDefinitions>
-            <StackPanel Grid.Row="0" Background="#F5F5F5" Orientation="Horizontal" >
-                <Button x:Name="ButtonDebugRun"  Content="运行" Width="100" Margin="10" Click="ButtonDebugRun_Click"></Button>
-                <Button x:Name="ButtonDebugFlipflopNode"  Content="结束" Width="100" Margin="10" Click="ButtonDebugFlipflopNode_Click"></Button>
-                <Button x:Name="ButtonStartFlowInSelectNode"  Content="从选定节点开始" Width="100" Margin="10" Click="ButtonStartFlowInSelectNode_Click"></Button>
-                <!--<Button x:Name="ButtonLoadStartNodeTree"  Content="加载起始节点树" Width="100" Margin="10" Click="ButtonLoadStartNodeTree_Click"></Button>-->
-                <!--<Button x:Name="ButtonReflushCanvasConfig"  Content="重置画布设置" Width="100" Margin="10" Click="ButtonReflushCanvasConfig_Click"></Button>-->
-                <!--<Button x:Name="ButtonLoadCanvasConfig"  Content="加载画布设置" Width="100" Margin="10" Click="ButtonLoadCanvasConfig_Click"></Button>-->
-            </StackPanel>
-            
-            <!--HorizontalAlignment="Center"
-            VerticalAlignment="Center"-->
-            
-            <StackPanel  Grid.Row="1"
-                         x:Name="FlowChartStackPanel"
-                         
+        <Grid  Grid.Row="1"  Grid.Column="2" x:Name="FlowChartStackGrid">
+
+            <StackPanel x:Name="FlowChartStackPanel"
                          ClipToBounds="True">
                 <Canvas 
                     x:Name="FlowChartCanvas" 
@@ -187,9 +179,9 @@ Canvas.Top="{Binding ActualHeight, ElementName=FlowChartCanvas, Mode=OneWay, Con
 
             </StackPanel>
         </Grid>
-        <GridSplitter Grid.Column="3" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="Gray" />
+        <GridSplitter  Grid.Row="1"  Grid.Column="3" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="Gray" />
         <!--IOC容器属性-->
-        <Grid Grid.Column="4" >
+        <Grid  Grid.Row="1"  Grid.Column="4" >
             <Grid.RowDefinitions>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="*"/>

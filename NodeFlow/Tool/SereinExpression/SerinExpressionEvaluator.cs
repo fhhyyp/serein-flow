@@ -121,40 +121,98 @@ namespace Serein.NodeFlow.Tool.SereinExpression
         /// <exception cref="ArgumentException"></exception>
         private static object GetMember(object target, string memberPath)
         {
+            // 分割成员路径，按 '.' 处理多级访问
             var members = memberPath.Split('.');
+
             foreach (var member in members)
             {
+                if (target == null) return null;
 
-                if (target is null) return null;
-
-
-                var property = target.GetType().GetProperty(member);
-                if (property != null)
+                // 检查成员是否包含数组索引，例如 "cars[0]"
+                var arrayIndexStart = member.IndexOf('[');
+                if (arrayIndexStart != -1)
                 {
-
-                    target = property.GetValue(target);
-
-                }
-                else
-                {
-                    var field = target.GetType().GetField(member);
-                    if (field != null)
+                    // 解析数组/集合名与索引部分
+                    var arrayName = member.Substring(0, arrayIndexStart);
+                    var arrayIndexEnd = member.IndexOf(']');
+                    if (arrayIndexEnd == -1 || arrayIndexEnd <= arrayIndexStart + 1)
                     {
+                        throw new ArgumentException($"Invalid array syntax for member {member}");
+                    }
 
-                        target = field.GetValue(target);
+                    // 提取数组索引
+                    var indexStr = member.Substring(arrayIndexStart + 1, arrayIndexEnd - arrayIndexStart - 1);
+                    if (!int.TryParse(indexStr, out int index))
+                    {
+                        throw new ArgumentException($"Invalid array index '{indexStr}' for member {member}");
+                    }
 
+                    // 获取数组或集合对象
+                    var arrayProperty = target.GetType().GetProperty(arrayName);
+                    if (arrayProperty != null)
+                    {
+                        target = arrayProperty.GetValue(target);
                     }
                     else
                     {
-                        throw new ArgumentException($"Member {member} not found on target.");
+                        var arrayField = target.GetType().GetField(arrayName);
+                        if (arrayField != null)
+                        {
+                            target = arrayField.GetValue(target);
+                        }
+                        else
+                        {
+                            throw new ArgumentException($"Member {arrayName} not found on target.");
+                        }
+                    }
+
+                    // 访问数组或集合中的指定索引
+                    if (target is Array array)
+                    {
+                        if (index < 0 || index >= array.Length)
+                        {
+                            throw new ArgumentException($"Index {index} out of bounds for array {arrayName}");
+                        }
+                        target = array.GetValue(index);
+                    }
+                    else if (target is IList<object> list)
+                    {
+                        if (index < 0 || index >= list.Count)
+                        {
+                            throw new ArgumentException($"Index {index} out of bounds for list {arrayName}");
+                        }
+                        target = list[index];
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"Member {arrayName} is not an array or list.");
+                    }
+                }
+                else
+                {
+                    // 处理非数组情况的属性或字段
+                    var property = target.GetType().GetProperty(member);
+                    if (property != null)
+                    {
+                        target = property.GetValue(target);
+                    }
+                    else
+                    {
+                        var field = target.GetType().GetField(member);
+                        if (field != null)
+                        {
+                            target = field.GetValue(target);
+                        }
+                        else
+                        {
+                            throw new ArgumentException($"Member {member} not found on target.");
+                        }
                     }
                 }
             }
-
-
             return target;
-
         }
+
         /// <summary>
         /// 设置目标的值
         /// </summary>
@@ -178,26 +236,85 @@ namespace Serein.NodeFlow.Tool.SereinExpression
             {
                 var member = members[i];
 
-                var property = target.GetType().GetProperty(member);
-
-                if (property != null)
+                // 检查是否包含数组索引
+                var arrayIndexStart = member.IndexOf('[');
+                if (arrayIndexStart != -1)
                 {
-
-                    target = property.GetValue(target);
-
-                }
-                else
-                {
-                    var field = target.GetType().GetField(member);
-                    if (field != null)
+                    // 解析数组名和索引
+                    var arrayName = member.Substring(0, arrayIndexStart);
+                    var arrayIndexEnd = member.IndexOf(']');
+                    if (arrayIndexEnd == -1 || arrayIndexEnd <= arrayIndexStart + 1)
                     {
+                        throw new ArgumentException($"Invalid array syntax for member {member}");
+                    }
 
-                        target = field.GetValue(target);
+                    var indexStr = member.Substring(arrayIndexStart + 1, arrayIndexEnd - arrayIndexStart - 1);
+                    if (!int.TryParse(indexStr, out int index))
+                    {
+                        throw new ArgumentException($"Invalid array index '{indexStr}' for member {member}");
+                    }
 
+                    // 获取数组或集合
+                    var arrayProperty = target.GetType().GetProperty(arrayName);
+                    if (arrayProperty != null)
+                    {
+                        target = arrayProperty.GetValue(target);
                     }
                     else
                     {
-                        throw new ArgumentException($"Member {member} not found on target.");
+                        var arrayField = target.GetType().GetField(arrayName);
+                        if (arrayField != null)
+                        {
+                            target = arrayField.GetValue(target);
+                        }
+                        else
+                        {
+                            throw new ArgumentException($"Member {arrayName} not found on target.");
+                        }
+
+                    }
+
+                    // 获取目标数组或集合中的指定元素
+                    if (target is Array array)
+                    {
+                        if (index < 0 || index >= array.Length)
+                        {
+                            throw new ArgumentException($"Index {index} out of bounds for array {arrayName}");
+                        }
+                        target = array.GetValue(index);
+                    }
+                    else if (target is IList<object> list)
+                    {
+                        if (index < 0 || index >= list.Count)
+                        {
+                            throw new ArgumentException($"Index {index} out of bounds for list {arrayName}");
+                        }
+                        target = list[index];
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"Member {arrayName} is not an array or list.");
+                    }
+                }
+                else
+                {
+                    // 处理非数组情况的属性或字段
+                    var property = target.GetType().GetProperty(member);
+                    if (property != null)
+                    {
+                        target = property.GetValue(target);
+                    }
+                    else
+                    {
+                        var field = target.GetType().GetField(member);
+                        if (field != null)
+                        {
+                            target = field.GetValue(target);
+                        }
+                        else
+                        {
+                            throw new ArgumentException($"Member {member} not found on target.");
+                        }
                     }
                 }
             }
@@ -205,7 +322,6 @@ namespace Serein.NodeFlow.Tool.SereinExpression
             var lastMember = members.Last();
 
             var lastProperty = target.GetType().GetProperty(lastMember);
-
             if (lastProperty != null)
             {
                 var convertedValue = Convert.ChangeType(value, lastProperty.PropertyType);
@@ -227,7 +343,6 @@ namespace Serein.NodeFlow.Tool.SereinExpression
 
             return target;
         }
-
         /// <summary>
         /// 计算数学简单表达式
         /// </summary>
