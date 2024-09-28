@@ -6,6 +6,7 @@ using Serein.Library.Utils;
 using Serein.Library.Web;
 using Serein.NodeFlow.Base;
 using Serein.NodeFlow.Model;
+using System.Collections.Concurrent;
 using System.ComponentModel.Design;
 using System.Runtime.CompilerServices;
 using System.Xml.Linq;
@@ -238,6 +239,8 @@ namespace Serein.NodeFlow
                     ((Action<object, object?[]?>)md.MethodDelegate).Invoke(md.ActingInstance, [Context]);
                 }
 
+                TerminateAllGlobalFlipflop();
+
                 if (_flipFlopCts != null && !_flipFlopCts.IsCancellationRequested)
                 {
                     _flipFlopCts?.Cancel();
@@ -245,6 +248,7 @@ namespace Serein.NodeFlow
                 }
                 FlowState = RunState.Completion;
                 FlipFlopState = RunState.Completion;
+
             };
             #endregion
 
@@ -263,7 +267,7 @@ namespace Serein.NodeFlow
                     // 使用 TaskCompletionSource 创建未启动的触发器任务
                     var tasks = flipflopNodes.Select(async node =>
                     {
-                        await FlipflopExecute(env,node);
+                        await RunGlobalFlipflopAsync(env,node);
                     }).ToArray();
                     _ = Task.WhenAll(tasks);
                 }
@@ -288,31 +292,68 @@ namespace Serein.NodeFlow
             #endregion
         }
 
-        public void AddFlipflopInRuning(SingleFlipflopNode singleFlipFlopNode, IFlowEnvironment env)
+        private ConcurrentDictionary<SingleFlipflopNode, CancellationTokenSource> dictGlobalFlipflop = [];
+
+        /// <summary>
+        /// 尝试添加全局触发器
+        /// </summary>
+        /// <param name="singleFlipFlopNode"></param>
+        /// <param name="env"></param>
+        public async Task RunGlobalFlipflopAsync(IFlowEnvironment env, SingleFlipflopNode singleFlipFlopNode)
         {
-            _ = Task.Run(async () =>
+            if (dictGlobalFlipflop.TryAdd(singleFlipFlopNode, new CancellationTokenSource()))
             {
-                // 设置对象
-                singleFlipFlopNode.MethodDetails.ActingInstance = env.IOC.GetOrRegisterInstantiate(singleFlipFlopNode.MethodDetails.ActingInstanceType);
-                await FlipflopExecute(env,singleFlipFlopNode); // 启动触发器
-            });
+                singleFlipFlopNode.MethodDetails.ActingInstance ??= env.IOC.GetOrRegisterInstantiate(singleFlipFlopNode.MethodDetails.ActingInstanceType);
+                await FlipflopExecuteAsync(env, singleFlipFlopNode, dictGlobalFlipflop[singleFlipFlopNode]);
+            }
         }
 
+        /// <summary>
+        /// 尝试移除全局触发器
+        /// </summary>
+        /// <param name="singleFlipFlopNode"></param>
+        public void TerminateGlobalFlipflopRuning(SingleFlipflopNode singleFlipFlopNode)
+        {
+            if (dictGlobalFlipflop.TryRemove(singleFlipFlopNode, out var cts))
+            {
+                if (!cts.IsCancellationRequested)
+                {
+                    cts.Cancel();
+                }
+                cts.Dispose();
+            }
+        }
+        
+        /// <summary>
+        /// 总结所有全局触发器
+        /// </summary>
+        private void TerminateAllGlobalFlipflop()
+        {
+            foreach ((var node, var cts) in dictGlobalFlipflop)
+            {
+                if (!cts.IsCancellationRequested)
+                {
+                    cts.Cancel();
+                }
+                cts.Dispose();
+            }
+            dictGlobalFlipflop.Clear();
+        }
         /// <summary>
         /// 启动全局触发器
         /// </summary>
         /// <param name="env">流程运行全局环境</param>
         /// <param name="singleFlipFlopNode">需要全局监听信号的触发器</param>
         /// <returns></returns>
-        private async Task FlipflopExecute(IFlowEnvironment env,SingleFlipflopNode singleFlipFlopNode)
+        private async Task FlipflopExecuteAsync(IFlowEnvironment env, SingleFlipflopNode singleFlipFlopNode, CancellationTokenSource cts)
         {
-
             var context = new DynamicContext(env); // 启动全局触发器时新建上下文
-            while (!_flipFlopCts.IsCancellationRequested)
+            while (!_flipFlopCts.IsCancellationRequested && !cts.IsCancellationRequested)
             {
                 try
                 {
-                    var newFlowData = await singleFlipFlopNode.ExecutingAsync(context); // 获取触发器等待Task
+                    var waitTask = singleFlipFlopNode.ExecutingAsync(context); // 获取触发器等待Task
+                    var newFlowData = await waitTask;
                     await NodeModelBase.RefreshFlowDataAndExpInterrupt(context, singleFlipFlopNode, newFlowData); // 全局触发器触发后刷新该触发器的节点数据
                     if (singleFlipFlopNode.NextOrientation != ConnectionType.None)
                     {
@@ -339,32 +380,6 @@ namespace Serein.NodeFlow
                 }
             }
 
-            //MethodDetails md = singleFlipFlopNode.MethodDetails;
-            //var del = md.MethodDelegate;
-            //object?[]? parameters = singleFlipFlopNode.GetParameters(context, singleFlipFlopNode.MethodDetails); // 启动全局触发器时获取入参参数
-            //// 设置委托对象
-            //var func = md.ExplicitDatas.Length == 0 ?
-            //    (Func<object, object, Task<IFlipflopContext>>)del :
-            //    (Func<object, object[], Task<IFlipflopContext>>)del;
-
-            //if(t)
-            //{
-            //    IFlipflopContext flipflopContext = await ((Func<object, Task<IFlipflopContext>>)del.Clone()).Invoke(md.ActingInstance);// 开始等待全局触发器的触发
-            //    var connectionType = flipflopContext.State.ToContentType();
-            //    if (connectionType != ConnectionType.None)
-            //    {
-            //        await GlobalFlipflopExecute(context, singleFlipFlopNode, connectionType, cts);
-            //    }
-            //}
-            //else
-            //{
-            //    IFlipflopContext flipflopContext = await ((Func<object, object[], Task<IFlipflopContext>>)del.Clone()).Invoke(md.ActingInstance, parameters);// 开始等待全局触发器的触发
-            //    var connectionType = flipflopContext.State.ToContentType();
-            //    if (connectionType != ConnectionType.None)
-            //    {
-            //        await GlobalFlipflopExecute(context, singleFlipFlopNode, connectionType, cts);
-            //    }
-            //}
         }
 
 

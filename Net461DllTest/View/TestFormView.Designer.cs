@@ -1,6 +1,8 @@
-﻿namespace Net461DllTest.View
+﻿using System;
+
+namespace Net461DllTest.View
 {
-    partial class TeseFormView
+    partial class TestFormView
     {
         /// <summary>
         /// Required designer variable.
@@ -37,17 +39,17 @@
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(75, 23);
             this.button1.TabIndex = 0;
-            this.button1.Text = "清空";
+            this.button1.Text = "测试";
             this.button1.UseVisualStyleBackColor = true;
             this.button1.Click += new System.EventHandler(this.button1_Click);
             // 
-            // TeseFormView
+            // TestFormView
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(254, 118);
             this.Controls.Add(this.button1);
-            this.Name = "TeseFormView";
+            this.Name = "TestFormView";
             this.Text = "TeseForm";
             this.ResumeLayout(false);
 

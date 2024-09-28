@@ -24,16 +24,16 @@ namespace Serein.Library.Utils
             return attribute != null ? valueSelector(attribute) : default;
         }
 
-        //public static TResult GetBoundValue<TEnum, TAttribute, TResult>(TEnum enumValue,
-        //                                                                Func<TAttribute, TResult> valueSelector)
-        //    where TEnum : Enum
-        //    where TAttribute : Attribute
-        //{
-        //    var fieldInfo = typeof(TEnum).GetField(enumValue.ToString());
-        //    var attribute = fieldInfo.GetCustomAttribute<TAttribute>();
+       public static TResult GetBoundValue<TEnum, TAttribute, TResult>(TEnum enumValue,
+                                                                       Func<TAttribute, TResult> valueSelector)
+           where TEnum : Enum
+           where TAttribute : Attribute
+       {
+           var fieldInfo = typeof(TEnum).GetField(enumValue.ToString());
+           var attribute = fieldInfo.GetCustomAttribute<TAttribute>();
 
-        //    return attribute != null ? valueSelector(attribute) : default;
-        //}
+           return attribute != null ? valueSelector(attribute) : default;
+       }
 
 
 

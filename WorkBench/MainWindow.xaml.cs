@@ -213,7 +213,7 @@ namespace Serein.WorkBench
         private LogWindow InitConsoleOut()
         {
             var logWindow = new LogWindow();
-            logWindow.Show();
+            //logWindow.Show();
             // 重定向 Console 输出
             var logTextWriter = new LogTextWriter(msg => logWindow.AppendText(msg), () => logWindow.Clear()); ;
             Console.SetOut(logTextWriter);

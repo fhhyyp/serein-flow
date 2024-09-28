@@ -7,11 +7,13 @@ namespace Serein.Library.Entity
 {
 
 
-
+    /// <summary>
+    /// 每个节点有独自的MethodDetails实例
+    /// </summary>
     public class MethodDetails 
     {
         /// <summary>
-        /// 拷贝
+        /// 从DLL拖动出来时拷贝新的实例
         /// </summary>
         /// <returns></returns>
         public MethodDetails Clone()
@@ -37,7 +39,7 @@ namespace Serein.Library.Entity
         /// <summary>
         /// 是否保护参数
         /// </summary>
-        public bool IsProtectionParameter { get; set; } = false;
+        public bool IsProtectionParameter { get; set; } = true;
 
         /// <summary>
         /// 作用实例的类型

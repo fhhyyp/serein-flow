@@ -14,7 +14,7 @@ namespace Net461DllTest.Web
     public class ApiController : ControllerBase
     {
         [AutoInjection] 
-        public PlcDevice PlcDevice { get; set; }
+        public SiemensPlcDevice PlcDevice { get; set; }
 
         [WebApi(API.POST)]
         public dynamic Trigger([Url] string type, int value)

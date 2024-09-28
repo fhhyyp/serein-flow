@@ -223,6 +223,7 @@ namespace Serein.NodeFlow.Base
             }
             catch (Exception ex)
             {
+                await Console.Out.WriteLineAsync(ex.ToString());
                 NextOrientation = ConnectionType.IsError;
                 RuningException = ex;
                 return null;
@@ -292,7 +293,23 @@ namespace Serein.NodeFlow.Base
                     inputParameter = flowData;   // 使用上一节点的对象
                 }
 
-
+                // 存在转换器
+                if (ed.Convertor is not null)
+                {
+                    if (Enum.TryParse(ed.ExplicitType, ed.DataValue, out var resultEnum))
+                    {
+                        var value = ed.Convertor(resultEnum);
+                        if (value is not null)
+                        {
+                            parameters[i] = value;
+                            continue;
+                        }
+                        else
+                        {
+                            throw new InvalidOperationException("转换器调用失败");
+                        }
+                    }
+                }
 
                 //var attribute = ed.DataType.GetCustomAttribute<EnumTypeConvertorAttribute>();
                 //if (attribute is not null && attribute.EnumType.IsEnum) // 获取枚举转换器中记录的枚举
@@ -312,6 +329,8 @@ namespace Serein.NodeFlow.Base
                         }
                     }
                 } 
+
+                
                 
 
                 try

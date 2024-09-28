@@ -19,6 +19,7 @@ namespace Serein.NodeFlow.Model
         //}
 
 
+
         public override async Task<object?> ExecutingAsync(IDynamicContext context)
         {
             #region 执行前中断
@@ -26,11 +27,6 @@ namespace Serein.NodeFlow.Model
             {
                 string guid = this.Guid.ToString();
                 var cancelType = await this.DebugSetting.GetInterruptTask();
-                //if (cancelType == CancelType.Discard)
-                //{
-                //    this.NextOrientation = ConnectionType.None;
-                //    return null;
-                //}
                 await Console.Out.WriteLineAsync($"[{this.MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");
             }
             #endregion
@@ -42,11 +38,21 @@ namespace Serein.NodeFlow.Model
             try
             {
                 // 调用委托并获取结果
-                Task<IFlipflopContext> flipflopTask = md.ExplicitDatas.Length  switch
+                //Task<IFlipflopContext> flipflopTask = md.ExplicitDatas.Length  switch
+                //{
+                //    0 => ((Func<object, Task<IFlipflopContext>>)del).Invoke(md.ActingInstance),
+                //    _ => ((Func<object, object?[]?, Task<IFlipflopContext>>)del).Invoke(md.ActingInstance, GetParameters(context, this, md)), // 执行流程中的触发器方法时获取入参参数
+                //};
+                Task<IFlipflopContext> flipflopTask;
+                if (md.ExplicitDatas.Length == 0)
                 {
-                    0 => ((Func<object, Task<IFlipflopContext>>)del).Invoke(md.ActingInstance),
-                    _ => ((Func<object, object?[]?, Task<IFlipflopContext>>)del).Invoke(md.ActingInstance, GetParameters(context, this, md)), // 执行流程中的触发器方法时获取入参参数
-                };  
+                    flipflopTask = ((Func<object, Task<IFlipflopContext>>)del).Invoke(md.ActingInstance);
+                }
+                else
+                {
+                    var parameters = GetParameters(context, this, md);
+                    flipflopTask = ((Func<object, object?[]?, Task<IFlipflopContext>>)del).Invoke(md.ActingInstance, parameters);
+                }
 
                 IFlipflopContext flipflopContext = (await flipflopTask) ?? throw new FlipflopException("没有返回上下文");
                 NextOrientation = flipflopContext.State.ToContentType();
@@ -58,12 +64,14 @@ namespace Serein.NodeFlow.Model
             }
             catch (FlipflopException ex)
             {
+                await Console.Out.WriteLineAsync(ex.ToString());
                 NextOrientation = ConnectionType.None;
                 RuningException = ex;
                 return null;
             }
             catch (Exception ex)
             {
+                await Console.Out.WriteLineAsync(ex.ToString());
                 NextOrientation = ConnectionType.IsError;
                 RuningException = ex;
                 return null;

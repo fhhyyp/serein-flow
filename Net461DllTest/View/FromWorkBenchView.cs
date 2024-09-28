@@ -31,17 +31,21 @@ namespace Net461DllTest
 
         private void button1_Click(object sender, EventArgs e)
         {
-            textBox1.Text =  ViewModel.GetDeviceInfo();
+            textBoxPlcInfo.Text =  ViewModel.GetDeviceInfo();
         }
 
         private void button2_Click(object sender, EventArgs e)
         {
+            if(listBox1.SelectedItem is null)
+            {
+                return;
+            }
             string type = listBox1.SelectedItem.ToString();
             
-            if (Enum.TryParse(type, out OrderSignal signal) && Enum.IsDefined(typeof(OrderSignal), signal))
+            if (!string.IsNullOrEmpty(type) &&  Enum.TryParse(type, out OrderSignal signal) && Enum.IsDefined(typeof(OrderSignal), signal))
             {
                 Console.WriteLine($"Trigger : {type}");
-                ViewModel.Trigger(signal);
+                ViewModel.Trigger(signal,textBoxSpaceNum.Text);
             }
             
         }

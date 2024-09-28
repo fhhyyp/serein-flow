@@ -311,11 +311,11 @@ namespace Serein.NodeFlow
             foreach (var dll in dllPaths)
             {
                 var dllFilePath = System.IO.Path.GetFullPath(System.IO.Path.Combine(filePath, dll));
-                (var assembly, var list) = LoadAssembly(dllFilePath);
-                if (assembly is not null && list.Count > 0)
+                (var assembly, var registerTypes, var mdlist) = LoadAssembly(dllFilePath);
+                if (assembly is not null && mdlist.Count > 0)
                 {
-                    MethodDetailss.AddRange(list); // 暂存方法描述
-                    OnDllLoad?.Invoke(new LoadDLLEventArgs(assembly, list)); // 通知UI创建dll面板显示
+                    MethodDetailss.AddRange(mdlist); // 暂存方法描述
+                    OnDllLoad?.Invoke(new LoadDLLEventArgs(assembly, mdlist)); // 通知UI创建dll面板显示
                 }
             }
             // 方法加载完成，缓存到运行环境中。
@@ -435,6 +435,7 @@ namespace Serein.NodeFlow
             OnProjectLoaded?.Invoke(new ProjectLoadedEventArgs());
         }
 
+
         /// <summary>
         /// 保存项目为项目文件
         /// </summary>
@@ -457,17 +458,20 @@ namespace Serein.NodeFlow
         /// <returns></returns> 
         public void LoadDll(string dllPath)
         {
-            (var assembly, var list) = LoadAssembly(dllPath);
+            (var assembly, _, var list) = LoadAssembly(dllPath);
             if (assembly is not null && list.Count > 0)
             {
                 MethodDetailss.AddRange(list);
                 OnDllLoad?.Invoke(new LoadDLLEventArgs(assembly, list));
             }
         }
+
         /// <summary>
         /// 运行时创建节点
         /// </summary>
-        /// <param name="nodeBase"></param>
+        /// <param name="nodeControlType"></param>
+        /// <param name="position"></param>
+        /// <param name="methodDetails"></param>
         public void CreateNode(NodeControlType nodeControlType, Position position, MethodDetails? methodDetails = null)
         {
             var nodeModel = CreateNode(nodeControlType, methodDetails);
@@ -477,8 +481,7 @@ namespace Serein.NodeFlow
                 && nodeControlType == NodeControlType.Flipflop
                 && nodeModel is SingleFlipflopNode flipflopNode)
             {
-                // 当前添加节点属于触发器，且当前正在运行，则加载到运行环境中
-                flowStarter?.AddFlipflopInRuning(flipflopNode, this);
+                _ = flowStarter?.RunGlobalFlipflopAsync(this, flipflopNode);  // 当前添加节点属于触发器，且当前正在运行，则加载到运行环境中
             }
 
             // 通知UI更改
@@ -504,6 +507,11 @@ namespace Serein.NodeFlow
             {
                 return;
             }
+            if (remoteNode is SingleFlipflopNode flipflopNode)
+            {
+                flowStarter?.TerminateGlobalFlipflopRuning(flipflopNode); // 假设被移除的是全局触发器，尝试从启动器移除
+            }
+
 
             // 遍历所有父节点，从那些父节点中的子节点集合移除该节点
             foreach (var pnc in remoteNode.PreviousNodes)
@@ -512,7 +520,6 @@ namespace Serein.NodeFlow
                 for (int i = 0; i < pnc.Value.Count; i++)
                 {
                     NodeModelBase? pNode = pnc.Value[i];
-                    //pNode.SuccessorNodes[pCType].RemoveAt(i);
                     pNode.SuccessorNodes[pCType].Remove(pNode);
 
                     OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(pNode.Guid,
@@ -588,13 +595,13 @@ namespace Serein.NodeFlow
         {
             fromNode.SuccessorNodes[connectionType].Remove(toNode);
             toNode.PreviousNodes[connectionType].Remove(fromNode);
-            if (toNode is SingleFlipflopNode flipflopNode)
+
+            if (toNode is SingleFlipflopNode flipflopNode) // 子节点为触发器
             {
-                if (flowStarter?.FlowState != RunState.Completion
-                    && flipflopNode.NotExitPreviousNode())
+                if (flowStarter?.FlowState != RunState.Completion 
+                    && flipflopNode.NotExitPreviousNode()) // 正在运行，且该触发器没有上游节点
                 {
-                    // 被父节点移除连接关系的子节点若为触发器，且无上级节点，则当前流程正在运行，则加载到运行环境中
-                    flowStarter?.AddFlipflopInRuning(flipflopNode, this);
+                    flowStarter?.RunGlobalFlipflopAsync(this, flipflopNode);  // 被父节点移除连接关系的子节点若为触发器，且无上级节点，则当前流程正在运行，则加载到运行环境中
                 }
             }
 
@@ -844,17 +851,19 @@ namespace Serein.NodeFlow
         /// 加载指定路径的DLL文件
         /// </summary>
         /// <param name="dllPath"></param>
-        private (Assembly?, List<MethodDetails>) LoadAssembly(string dllPath)
+        private (Assembly?, List<Type> ,List<MethodDetails>) LoadAssembly(string dllPath)
         {
             try
             {
                 Assembly assembly = Assembly.LoadFrom(dllPath); // 加载DLL文件
                 Type[] types = assembly.GetTypes(); // 获取程序集中的所有类型
 
+                List<Type> autoRegisterTypes = assembly.GetTypes().Where(t => t.GetCustomAttribute<AutoRegisterAttribute>() is not null).ToList();
+
                 List<Type> scanTypes = assembly.GetTypes().Where(t => t.GetCustomAttribute<DynamicFlowAttribute>()?.Scan == true).ToList();
                 if (scanTypes.Count == 0)
                 {
-                    return (null, []);
+                    return (null, [], []);
                 }
 
                 List<MethodDetails> methodDetails = new List<MethodDetails>();
@@ -874,14 +883,15 @@ namespace Serein.NodeFlow
                 }
                 LoadedAssemblies.Add(assembly); // 将加载的程序集添加到列表中
                 LoadedAssemblyPaths.Add(dllPath); // 记录加载的DLL路径
-                return (assembly, methodDetails);
+                return (assembly, autoRegisterTypes , methodDetails);
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.ToString());
-                return (null, []);
+                return (null, [],[]);
             }
         }
+
         /// <summary>
         /// 运行环节加载了项目文件，需要创建节点控件
         /// </summary>
@@ -985,6 +995,11 @@ namespace Serein.NodeFlow
                                    ConnectionType.IsFail,
                                    ConnectionType.IsError,
                                    ConnectionType.Upstream];
+
+            if (toNode is SingleFlipflopNode flipflopNode)
+            {
+                flowStarter?.TerminateGlobalFlipflopRuning(flipflopNode); // 假设被连接的是全局触发器，尝试移除
+            }
             foreach (ConnectionType ctType in ct)
             {
                 var FToTo = fromNode.SuccessorNodes[ctType].Where(it => it.Guid.Equals(toNode.Guid)).ToArray();

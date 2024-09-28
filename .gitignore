@@ -23,3 +23,4 @@ obj/
 
 
 # 排除某些项目
+Net461DllTest/Enums/PlcVarEnum.cs

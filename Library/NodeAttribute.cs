@@ -9,6 +9,14 @@ namespace Serein.Library.Attributes
     [AttributeUsage(AttributeTargets.Property)]
     public sealed class AutoInjectionAttribute : Attribute
     {
+    } 
+
+    /// <summary>
+    /// 表示该类自动注册
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Class)]
+    public sealed class AutoRegisterAttribute : Attribute
+    {
     }
 
     /// <summary>
@@ -95,54 +103,30 @@ namespace Serein.Library.Attributes
         }
     }
 
-
-
-    [AttributeUsage(AttributeTargets.Field)]
-    public class PLCValueAttribute : Attribute
+    /// <summary>
+    /// 绑定转换器
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Parameter)]
+    public class BindConvertorAttribute : Attribute
     {
-        public enum VarType
+        public Type EnumType { get; }
+        public Type ConvertorType { get; }
+
+        public BindConvertorAttribute(Type @enum,  Type convertor)
         {
-            /// <summary>
-            /// 可写入值
-            /// </summary>
-            Write,
-            /// <summary>
-            /// 定时读取的可写入值（用来写入前判断），应该几乎不会有这种类型？
-            /// </summary>
-            TimingReadOrWrite,
-            /// <summary>
-            /// 只读取值（使用时刷新）
-            /// </summary>
-            ReadOnly,
-            /// <summary>
-            /// 定时刷新的只读取值（定时刷新用来触发触发器）
-            /// </summary>
-            TimingReadOnly,
+            this.EnumType = @enum;
+            this.ConvertorType = convertor;
         }
+    }
 
-        public bool IsProtected { get; }
-        public Type DataType { get; }
-        public string Var { get; }
-        //public int Length { get; }
-        //public double Offset { get; }
-        public VarType Type { get; }
-        //public int RefreshInterval { get; }
-
-
-
-        public PLCValueAttribute(Type type,
-                                string @var,
-                                VarType varType
-                                //int refreshInterval = 100
-                                )
-        {
-            DataType = type;
-            Var = @var;
-            //Offset = offset;
-            //RefreshInterval = refreshInterval;
-            Type = varType;
-            //Length = length;
-        }
+    /// <summary>
+    /// 枚举转换器接口
+    /// </summary>
+    /// <typeparam name="TEnum"></typeparam>
+    /// <typeparam name="TValue"></typeparam>
+    public interface IEnumConvertor<TEnum, TValue>
+    {
+        TValue Convertor(TEnum e);
     }
 
 }

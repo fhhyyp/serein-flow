@@ -20,9 +20,9 @@ namespace Serein.Library.Entity
         /// </summary>
         public bool IsExplicitData { get; set; }
         /// <summary>
-        /// 是否为值转换器
+        /// 转换器 IEnumConvertor<,>
         /// </summary>
-        public bool IsEnumConvertor { get; set; }
+        public Func<object, object> Convertor { get; set; }
         ///// <summary>
         ///// 显式类型
         ///// </summary>
@@ -57,6 +57,7 @@ namespace Serein.Library.Entity
             IsExplicitData = IsExplicitData,
             ExplicitType = ExplicitType,
             ExplicitTypeName = ExplicitTypeName,
+            Convertor = Convertor,
             DataType = DataType,
             ParameterName = ParameterName,
             DataValue = string.IsNullOrEmpty(DataValue) ? string.Empty : DataValue,

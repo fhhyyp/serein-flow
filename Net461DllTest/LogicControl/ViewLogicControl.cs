@@ -1,6 +1,4 @@
-﻿using Net461DllTest.Data;
-using Net461DllTest.Device;
-using Net461DllTest.View;
+﻿using Net461DllTest.Signal;
 using Net461DllTest.ViewModel;
 using Serein.Library.Api;
 using Serein.Library.Attributes;
@@ -9,10 +7,9 @@ using Serein.Library.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Windows.Forms;
 
-namespace Net461DllTest.Flow
+namespace Net461DllTest.LogicControl
 {
 
     public class ViewManagement
@@ -44,14 +41,7 @@ namespace Net461DllTest.Flow
     }
 
 
-    public enum FromId
-    {
-        None,
-        [BindValue(typeof(FromWorkBenchView))]
-        FromWorkBenchView,
-        [BindValue(typeof(TeseFormView))]
-        TeseFormView,
-    }
+   
 
     [DynamicFlow]
     public class ViewLogicControl
@@ -68,9 +58,9 @@ namespace Net461DllTest.Flow
 
 
         [NodeAction(NodeType.Action, "打开窗体（指定枚举值）")]
-        public void OpenForm(IDynamicContext context, FromId fromId = FromId.None, bool isTop = true)
+        public void OpenForm(IDynamicContext context, FromValue fromId = FromValue.None, bool isTop = true)
         {
-            var fromType = EnumHelper.GetBoundValue<FromId, Type>(fromId, attr => attr.Value);
+            var fromType = EnumHelper.GetBoundValue<FromValue, Type>(fromId, attr => attr.Value);
             if (fromType is null) return;
             if (context.Env.IOC.Instantiate(fromType) is Form form)
             {
@@ -79,19 +69,21 @@ namespace Net461DllTest.Flow
         }
 
         [NodeAction(NodeType.Action, "打开窗体（使用转换器）")]
-        public void OpenForm2([EnumTypeConvertor(typeof(FromId))] Form form, bool isTop = true)
+        public void OpenForm2([EnumTypeConvertor(typeof(FromValue))] Form form, bool isTop = true)
         {
             ViewManagement.OpenView(form, isTop);
         }
 
 
+
         [NodeAction(NodeType.Action, "关闭窗体")]
-        public void CloseForm(IDynamicContext context, FromId fromId = FromId.None)
+        public void CloseForm(IDynamicContext context, FromValue fromId = FromValue.None)
         {
-            var fromType = EnumHelper.GetBoundValue<FromId, Type>(fromId, attr => attr.Value);
+            var fromType = EnumHelper.GetBoundValue<FromValue, Type>(fromId, attr => attr.Value);
             if (fromType is null) return;
             ViewManagement.CloseView(fromType);
         }
+
 
 
 
