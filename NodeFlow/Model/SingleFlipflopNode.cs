@@ -32,7 +32,10 @@ namespace Serein.NodeFlow.Model
             #endregion
 
             MethodDetails md = MethodDetails;
-            var del = md.MethodDelegate.Clone();
+            if (!context.Env.TryGetDelegate(md.MethodName, out var del))
+            {
+                throw new Exception("不存在对应委托");
+            }
             object instance = md.ActingInstance;
             // Task<IFlipflopContext>? flipflopTask = null;
             try

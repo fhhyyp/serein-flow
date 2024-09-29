@@ -13,13 +13,18 @@ namespace Serein.Library.Web
     /// <summary>
     /// HTTP接口监听类
     /// </summary>
+    [AutoRegister]
     public class WebServer
     {
-        [AutoInjection]
-        public IRouter Router { get; set; } // 路由器
+        private readonly IRouter Router;// 路由器
+        public WebServer(IRouter router)
+        {
+            this.Router = router;
+        }
 
-        [AutoInjection]
-        public NodeRunCts nodeRunCts { get; set; }
+
+        //[AutoInjection]
+        //public NodeRunCts nodeRunCts { get; set; }
 
         private HttpListener listener; // HTTP 监听器
         private RequestLimiter requestLimiter; //接口防刷

@@ -36,8 +36,7 @@ namespace Serein.NodeFlow
 
 
 
-
-
+   
 
     /// <summary>
     /// 运行环境
@@ -47,12 +46,12 @@ namespace Serein.NodeFlow
         public FlowEnvironment()
         {
             sereinIOC = new SereinIOC();
-            ChannelFlowInterrupt = new ChannelFlowInterrupt();
-            LoadedAssemblyPaths = new List<string>();
-            LoadedAssemblies = new List<Assembly>();
-            MethodDetailss = new List<MethodDetails>();
-            Nodes = new Dictionary<string, NodeModelBase>();
-            FlipflopNodes = new List<SingleFlipflopNode>();
+            //ChannelFlowInterrupt = new ChannelFlowInterrupt();
+            //LoadedAssemblyPaths = new List<string>();
+            //LoadedAssemblies = new List<Assembly>();
+            //MethodDetailss = new List<MethodDetails>();
+            //Nodes = new Dictionary<string, NodeModelBase>();
+            //FlipflopNodes = new List<SingleFlipflopNode>();
             IsGlobalInterrupt = false;
             flowStarter = null;
 
@@ -70,7 +69,12 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 加载Dll
         /// </summary>
-        public event LoadDLLHandler OnDllLoad;
+        public event LoadDllHandler OnDllLoad;
+
+        /// <summary>
+        /// 移除DLL
+        /// </summary>
+        public event RemoteDllHandler OnDllRemote;
 
         /// <summary>
         /// 项目加载完成
@@ -158,27 +162,36 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 存储加载的程序集路径
         /// </summary>
-        private List<string> LoadedAssemblyPaths { get; }
 
         /// <summary>
         /// 存储加载的程序集
         /// </summary>
-        private List<Assembly> LoadedAssemblies { get; }
+        private List<NodeLibrary> NodeLibrarys { get; } = [];
 
         /// <summary>
         /// 存储所有方法信息
         /// </summary>
-        private List<MethodDetails> MethodDetailss { get; }
+        //private  MethodDetailss { get; } = [];
+        private Dictionary<NodeLibrary, List<MethodDetails>> MethodDetailss { get; } = [];
 
         /// <summary>
         /// 环境加载的节点集合
+        /// Node Guid - Node Model
         /// </summary>
-        private Dictionary<string, NodeModelBase> Nodes { get; }
+        private Dictionary<string, NodeModelBase> Nodes { get; } = [];
 
         /// <summary>
         /// 存放触发器节点（运行时全部调用）
         /// </summary>
-        private List<SingleFlipflopNode> FlipflopNodes { get; }
+        private List<SingleFlipflopNode> FlipflopNodes { get; } = [];
+        private List<Type> AutoRegisterTypes { get; } = [];
+
+        /// <summary>
+        /// 存放委托
+        /// 
+        /// md.Methodname - delegate
+        /// </summary>
+        private ConcurrentDictionary<string, Delegate> MethodDelegates { get; } = [];
 
         /// <summary>
         /// 起始节点私有属性
@@ -225,14 +238,25 @@ namespace Serein.NodeFlow
             flowStarter = new FlowStarter();
             var nodes = Nodes.Values.ToList();
 
-            List<MethodDetails> initMethods;
-            List<MethodDetails> loadingMethods;
-            List<MethodDetails> exitMethods;
-            initMethods = MethodDetailss.Where(it => it.MethodDynamicType == NodeType.Init).ToList();
-            loadingMethods = MethodDetailss.Where(it => it.MethodDynamicType == NodeType.Loading).ToList();
-            exitMethods = MethodDetailss.Where(it => it.MethodDynamicType == NodeType.Exit).ToList();
-
-            await flowStarter.RunAsync(this, nodes, initMethods, loadingMethods, exitMethods);
+            List<MethodDetails> initMethods = [];
+            List<MethodDetails> loadMethods = [];
+            List<MethodDetails> exitMethods = [];
+            foreach(var mds in MethodDetailss.Values)
+            {
+                var initMds = mds.Where(it => it.MethodDynamicType == NodeType.Init);
+                var loadMds = mds.Where(it => it.MethodDynamicType == NodeType.Loading);
+                var exitMds = mds.Where(it => it.MethodDynamicType == NodeType.Exit);
+                initMethods.AddRange(initMds);
+                loadMethods.AddRange(loadMds);
+                exitMethods.AddRange(exitMds);
+            }
+            this.IOC.Reset(); // 开始运行时清空ioc中注册的实例
+            this.IOC.CustomRegisterInstance(typeof(IFlowEnvironment).FullName,this);
+            foreach (var type in AutoRegisterTypes)
+            {
+                this.IOC.Register(type);
+            }
+            await flowStarter.RunAsync(this, nodes, initMethods, loadMethods, exitMethods);
 
             if (flowStarter?.FlipFlopState == RunState.NoStart)
             {
@@ -289,8 +313,8 @@ namespace Serein.NodeFlow
         /// </summary>
         public void ClearAll()
         {
-            LoadedAssemblyPaths.Clear();
-            LoadedAssemblies.Clear();
+            //LoadedAssemblyPaths.Clear();
+            NodeLibrarys.Clear();
             MethodDetailss.Clear();
 
         }
@@ -311,12 +335,7 @@ namespace Serein.NodeFlow
             foreach (var dll in dllPaths)
             {
                 var dllFilePath = System.IO.Path.GetFullPath(System.IO.Path.Combine(filePath, dll));
-                (var assembly, var registerTypes, var mdlist) = LoadAssembly(dllFilePath);
-                if (assembly is not null && mdlist.Count > 0)
-                {
-                    MethodDetailss.AddRange(mdlist); // 暂存方法描述
-                    OnDllLoad?.Invoke(new LoadDLLEventArgs(assembly, mdlist)); // 通知UI创建dll面板显示
-                }
+                LoadDllNodeInfo(dllFilePath);
             }
             // 方法加载完成，缓存到运行环境中。
             //MethodDetailss.AddRange(methodDetailss);
@@ -434,8 +453,7 @@ namespace Serein.NodeFlow
             SetStartNode(project.StartNode);
             OnProjectLoaded?.Invoke(new ProjectLoadedEventArgs());
         }
-
-
+            
         /// <summary>
         /// 保存项目为项目文件
         /// </summary>
@@ -444,7 +462,7 @@ namespace Serein.NodeFlow
         {
             var projectData = new SereinProjectData()
             {
-                Librarys = LoadedAssemblies.Select(assemblies => assemblies.ToLibrary()).ToArray(),
+                Librarys = NodeLibrarys.Select(assemblies => assemblies.Assembly.ToLibrary()).ToArray(),
                 Nodes = Nodes.Values.Select(node => node.ToInfo()).Where(info => info is not null).ToArray(),
                 StartNode = Nodes.Values.FirstOrDefault(it => it.IsStart)?.Guid,
             };
@@ -458,13 +476,44 @@ namespace Serein.NodeFlow
         /// <returns></returns> 
         public void LoadDll(string dllPath)
         {
-            (var assembly, _, var list) = LoadAssembly(dllPath);
-            if (assembly is not null && list.Count > 0)
+            LoadDllNodeInfo(dllPath);
+        }
+
+        public bool RemoteDll(string assemblyFullName)
+        {
+            var library  = NodeLibrarys.FirstOrDefault(nl => nl.Assembly.FullName.Equals(assemblyFullName));
+            if(library is null)
             {
-                MethodDetailss.AddRange(list);
-                OnDllLoad?.Invoke(new LoadDLLEventArgs(assembly, list));
+                return false;
+            }
+
+            var nodes = Nodes.Values.ToDictionary(
+                key => key.MethodDetails.MethodName,
+                value => value
+                );
+            if(nodes.Count == 0)
+            {
+                return true; // 当前无节点，可以直接删除
+            }
+
+            if (MethodDetailss.TryGetValue(library,out var mds)) // 存在方法
+            {
+                foreach(var md in mds)
+                {
+                    if (nodes.ContainsKey(md.MethodName))
+                    {
+                        return false; // 创建过相关的节点
+                    }
+                }
+                MethodDetailss.Remove(library);
+                return true; // 没有创建相关的节点
+            }
+            else
+            {
+                return true;
             }
         }
+
 
         /// <summary>
         /// 运行时创建节点
@@ -503,10 +552,10 @@ namespace Serein.NodeFlow
         {
             var remoteNode = GuidToModel(nodeGuid);
             if (remoteNode is null) return;
-            if (remoteNode.IsStart)
-            {
-                return;
-            }
+            //if (remoteNode.IsStart)
+            //{
+            //    return;
+            //}
             if (remoteNode is SingleFlipflopNode flipflopNode)
             {
                 flowStarter?.TerminateGlobalFlipflopRuning(flipflopNode); // 假设被移除的是全局触发器，尝试从启动器移除
@@ -618,12 +667,33 @@ namespace Serein.NodeFlow
         {
             if (!string.IsNullOrEmpty(name))
             {
-                md = MethodDetailss.FirstOrDefault(it => it.MethodName == name);
-                return md != null;
+                foreach(var mds in MethodDetailss.Values)
+                {
+                    md = mds.FirstOrDefault(it => it.MethodName == name);
+                    if(md != null)
+                    {
+                        return true;
+                    }
+                }
+                md = null;
+                return false;
             }
             else
             {
                 md = null;
+                return false;
+            }
+        }
+
+        public bool TryGetDelegate(string methodName, out Delegate del)
+        {
+            if (MethodDelegates.TryGetValue(methodName, out del))
+            {
+                return del != null;
+            }
+            else
+            {
+                del = null;
                 return false;
             }
         }
@@ -850,7 +920,23 @@ namespace Serein.NodeFlow
         /// 加载指定路径的DLL文件
         /// </summary>
         /// <param name="dllPath"></param>
-        private (Assembly?, List<Type> ,List<MethodDetails>) LoadAssembly(string dllPath)
+        
+        private void LoadDllNodeInfo(string dllPath)
+        {
+            (var nodeLibrary, var registerTypes, var mdlist) = LoadAssembly(dllPath);
+            if (nodeLibrary is not null && mdlist.Count > 0)
+            {
+                MethodDetailss.Add(nodeLibrary, mdlist);
+                NodeLibrarys.Add(nodeLibrary);
+                AutoRegisterTypes.AddRange(registerTypes);
+
+                OnDllLoad?.Invoke(new LoadDllEventArgs(nodeLibrary, mdlist)); // 通知UI创建dll面板显示
+            }
+
+        }
+
+
+        private (NodeLibrary?, List<Type> ,List<MethodDetails>) LoadAssembly(string dllPath)
         {
             try
             {
@@ -867,22 +953,36 @@ namespace Serein.NodeFlow
 
                 List<MethodDetails> methodDetails = new List<MethodDetails>();
                 // 遍历扫描的类型
-                foreach (var item in scanTypes)
+                foreach (var type in scanTypes)
                 {
                     // 加载DLL，创建 MethodDetails、实例作用对象、委托方法
-                    var itemMethodDetails = MethodDetailsHelperTmp.GetList(item);
-                    methodDetails.AddRange(itemMethodDetails);
-                    //foreach (var md in itemMethodDetails)
-                    //{
-                    //    // var instanceType =  
-                    //    // Activator.CreateInstance(md.ActingInstanceType);
-                    //    // SereinIoc.RegisterInstantiate(md.ActingInstance);
-                    //    SereinIoc.Register(md.ActingInstanceType);
-                    //}
+                    var assemblyName = type.Assembly.GetName().Name;
+                    var methods = MethodDetailsHelperTmp.GetMethodsToProcess(type);
+                    foreach(var method in methods)
+                    {
+                        (var md, var del) = MethodDetailsHelperTmp.CreateMethodDetails(type, method, assemblyName);
+
+                        if (MethodDelegates.TryAdd(md.MethodName, del))
+                        {
+                            methodDetails.Add(md);
+                        }
+                        else
+                        {
+                            Console.WriteLine($"节点委托创建失败：{md.MethodName}");
+                        }
+                    }
+                    
+                    //methodDetails.AddRange(itemMethodDetails);
                 }
-                LoadedAssemblies.Add(assembly); // 将加载的程序集添加到列表中
-                LoadedAssemblyPaths.Add(dllPath); // 记录加载的DLL路径
-                return (assembly, autoRegisterTypes , methodDetails);
+
+                var nodeLibrary = new NodeLibrary
+                {
+                    Assembly = assembly,
+                    Path = dllPath,
+                };
+                //LoadedAssemblies.Add(assembly); // 将加载的程序集添加到列表中
+                //LoadedAssemblyPaths.Add(dllPath); // 记录加载的DLL路径
+                return (nodeLibrary, autoRegisterTypes , methodDetails);
             }
             catch (Exception ex)
             {
@@ -1068,8 +1168,6 @@ namespace Serein.NodeFlow
 
         #endregion
 
-
-
         #region IOC容器相关
         ISereinIOC ISereinIOC.Reset()
         {
@@ -1095,38 +1193,45 @@ namespace Serein.NodeFlow
             return this;
         }
 
-        T ISereinIOC.GetOrRegisterInstantiate<T>()
-        {
-            return sereinIOC.GetOrRegisterInstantiate<T>();
+        //T ISereinIOC.GetOrRegisterInstantiate<T>()
+        //{
+        //    return sereinIOC.GetOrRegisterInstantiate<T>();
 
-        }
+        //}
 
-        object ISereinIOC.GetOrRegisterInstantiate(Type type)
-        {
-            return sereinIOC.GetOrRegisterInstantiate(type);
-        }
+        //object ISereinIOC.GetOrRegisterInstantiate(Type type)
+        //{
+        //    return sereinIOC.GetOrRegisterInstantiate(type);
+        //}
 
         object ISereinIOC.Get(Type type)
         {
             return sereinIOC.Get(type);
 
         }
-
+        T ISereinIOC.Get<T>()
+        {
+            return (T)sereinIOC.Get(typeof(T));
+        }
         T ISereinIOC.Get<T>(string key)
         {
             return sereinIOC.Get<T>(key);
         }
+        
 
         void ISereinIOC.CustomRegisterInstance(string key, object instance, bool needInjectProperty)
         {
             sereinIOC.CustomRegisterInstance(key, instance, needInjectProperty);
         }
 
-        object ISereinIOC.Instantiate(Type type, params object[] parameters)
+        object ISereinIOC.Instantiate(Type type)
         {
-            return sereinIOC.Instantiate(type, parameters);
+            return sereinIOC.Instantiate(type);
         }
-
+        T ISereinIOC.Instantiate<T>()
+        {
+            return sereinIOC.Instantiate<T>();
+        }
         ISereinIOC ISereinIOC.Build()
         {
             sereinIOC.Build();

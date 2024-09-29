@@ -11,31 +11,39 @@ namespace Serein.NodeFlow.Tool;
 
 public static class MethodDetailsHelperTmp
 {
+    
     /// <summary>
     /// 生成方法信息
     /// </summary>
     /// <param name="serviceContainer"></param>
     /// <param name="type"></param>
     /// <returns></returns>
-    public static List<MethodDetails> GetList(Type type)
-    {
-        var methodDetailsDictionary = new List<MethodDetails>();
-        var assemblyName = type.Assembly.GetName().Name;
-        var methods = GetMethodsToProcess(type);
+    //public static List<MethodDetails> GetList(Type type)
+    //{
+    //    var methodDetailsDictionary = new List<MethodDetails>();
+    //    var delegateDictionary = new List<Delegate>();
+    //    var assemblyName = type.Assembly.GetName().Name;
+    //    var methods = GetMethodsToProcess(type);
 
-        foreach (var method in methods)
-        {
+    //    foreach (var method in methods)
+    //    {
 
-            var methodDetails = CreateMethodDetails(type, method, assemblyName);
-            methodDetailsDictionary.Add(methodDetails);
-        }
+    //        (var methodDetails,var methodDelegate) = CreateMethodDetails(type, method, assemblyName);
+ 
+    //        methodDetailsDictionary.Add(methodDetails);
+    //        delegateDictionary.Add(methodDelegate);
+    //    }
 
-        return methodDetailsDictionary.OrderBy(it => it.MethodName).ToList();
-    }
+    //    var mds = methodDetailsDictionary.OrderBy(it => it.MethodName).ToList();
+    //    var dels = delegateDictionary;
+
+    //    return mds;
+    //}
+   
     /// <summary>
     /// 获取处理方法
     /// </summary>
-    private static IEnumerable<MethodInfo> GetMethodsToProcess(Type type)
+    public static IEnumerable<MethodInfo> GetMethodsToProcess(Type type)
     {
         return type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
                        .Where(m => m.GetCustomAttribute<NodeActionAttribute>()?.Scan == true);
@@ -44,17 +52,17 @@ public static class MethodDetailsHelperTmp
     /// 创建方法信息
     /// </summary>
     /// <returns></returns>
-    private static MethodDetails CreateMethodDetails(Type type, MethodInfo method, string assemblyName)
+    public static (MethodDetails,Delegate) CreateMethodDetails(Type type, MethodInfo method, string assemblyName)
     {
 
         var methodName = method.Name;
         var attribute = method.GetCustomAttribute<NodeActionAttribute>();
         if(attribute is null)
         {
-            return null;
+            return (null, null);
         }
         var explicitDataOfParameters = GetExplicitDataOfParameters(method.GetParameters());
-        // 生成委托
+        //// 生成委托
         var methodDelegate = GenerateMethodDelegate(type,   // 方法所在的对象类型
                                                     method, // 方法信息
                                                     method.GetParameters(),// 方法参数
@@ -75,18 +83,19 @@ public static class MethodDetailsHelperTmp
         // object instance = Activator.CreateInstance(type);
         var dllTypeMethodName = $"{assemblyName}.{type.Name}.{method.Name}";
 
-        return new MethodDetails
+        var md = new MethodDetails
         {
             ActingInstanceType = type,
             // ActingInstance = instance,
             MethodName = dllTypeMethodName,
-            MethodDelegate = methodDelegate,
             MethodDynamicType = attribute.MethodDynamicType,
             MethodLockName = attribute.LockName,
             MethodTips = attribute.MethodTips,
             ExplicitDatas = explicitDataOfParameters,
             ReturnType = returnType,
         };
+
+        return (md, methodDelegate);
 
     }
 

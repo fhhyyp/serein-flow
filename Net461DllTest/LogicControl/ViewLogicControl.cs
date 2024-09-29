@@ -1,4 +1,5 @@
-﻿using Net461DllTest.Signal;
+﻿using Net461DllTest.Device;
+using Net461DllTest.Signal;
 using Net461DllTest.ViewModel;
 using Serein.Library.Api;
 using Serein.Library.Attributes;
@@ -11,7 +12,7 @@ using System.Windows.Forms;
 
 namespace Net461DllTest.LogicControl
 {
-
+    [AutoRegister]
     public class ViewManagement
     {
 
@@ -46,8 +47,11 @@ namespace Net461DllTest.LogicControl
     [DynamicFlow]
     public class ViewLogicControl
     {
-        [AutoInjection]
-        public ViewManagement ViewManagement { get; set; }
+        private readonly ViewManagement ViewManagement;
+        public ViewLogicControl(ViewManagement ViewManagement)
+        {
+            this.ViewManagement = ViewManagement;
+        }
 
         [NodeAction(NodeType.Init)] 
         public void Init(IDynamicContext context)

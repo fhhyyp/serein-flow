@@ -11,15 +11,18 @@ namespace Net461DllTest.ViewModel
 {
     public class FromWorkBenchViewModel
     {
-        [AutoInjection]
-        public SiemensPlcDevice Device { get; set; }
+        public FromWorkBenchViewModel(SiemensPlcDevice Device)
+        {
+            this.Device = Device;
+        }
+        private SiemensPlcDevice Device;
+
         public string Name { get; set; }
 
         public string GetDeviceInfo()
         {
             return Device?.ToString();
         }
-
 
         public void Trigger(OrderSignal signal,string spcaeNumber)
         {

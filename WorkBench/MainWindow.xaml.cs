@@ -283,16 +283,13 @@ namespace Serein.WorkBench
         /// <summary>
         /// 加载了DLL文件，dll内容
         /// </summary>
-        private void FlowEnvironment_DllLoadEvent(LoadDLLEventArgs eventArgs)
+        private void FlowEnvironment_DllLoadEvent(LoadDllEventArgs eventArgs)
         {
             this.Dispatcher.Invoke(() => {
-                Assembly assembly = eventArgs.Assembly;
+                NodeLibrary nodeLibrary = eventArgs.NodeLibrary;
                 List<MethodDetails> methodDetailss = eventArgs.MethodDetailss;
 
-                var dllControl = new DllControl
-                {
-                    Header = "DLL name :  " + assembly.GetName().Name // 设置控件标题为程序集名称
-                };
+                var dllControl = new DllControl(nodeLibrary);
 
                 foreach (var methodDetails in methodDetailss)
                 {
@@ -306,6 +303,21 @@ namespace Serein.WorkBench
                             break;
                     }
                 }
+                var menu = new ContextMenu();
+                menu.Items.Add(CreateMenuItem("卸载", (s,e) =>
+                {
+                    if (this.FlowEnvironment.RemoteDll(nodeLibrary.Assembly.FullName))
+                    {
+                        DllStackPanel.Children.Remove(dllControl);
+                    }
+                    else
+                    {
+                        Console.WriteLine("卸载失败");
+                    }
+                }));
+
+                dllControl.ContextMenu = menu;
+
                 DllStackPanel.Children.Add(dllControl);  // 将控件添加到界面上显示
             });
             
@@ -775,26 +787,26 @@ namespace Serein.WorkBench
         /// </summary>
         /// <param name="regionControl"></param>
         /// <param name="childNodes"></param>
-        private void AddNodeControlInRegeionControl(NodeControlBase regionControl, NodeInfo[] childNodes)
-        {
-            foreach (var childNode in childNodes)
-            {
-                if (FlowEnvironment.TryGetMethodDetails(childNode.MethodName, out MethodDetails md))
-                {
-                    var childNodeControl = CreateNodeControlOfNodeInfo(childNode, md);
-                    if (childNodeControl is null)
-                    {
-                        Console.WriteLine($"无法为节点类型创建节点控件: {childNode.MethodName}\r\n");
-                        continue;
-                    }
+        //private void AddNodeControlInRegeionControl(NodeControlBase regionControl, NodeInfo[] childNodes)
+        //{
+        //    foreach (var childNode in childNodes)
+        //    {
+        //        if (FlowEnvironment.TryGetMethodDetails(childNode.MethodName, out MethodDetails md))
+        //        {
+        //            var childNodeControl = CreateNodeControlOfNodeInfo(childNode, md);
+        //            if (childNodeControl is null)
+        //            {
+        //                Console.WriteLine($"无法为节点类型创建节点控件: {childNode.MethodName}\r\n");
+        //                continue;
+        //            }
 
-                    if (regionControl is ConditionRegionControl conditionRegion)
-                    {
-                        conditionRegion.AddCondition(childNodeControl);
-                    }
-                }
-            }
-        }
+        //            if (regionControl is ConditionRegionControl conditionRegion)
+        //            {
+        //                conditionRegion.AddCondition(childNodeControl);
+        //            }
+        //        }
+        //    }
+        //}
        
         #endregion
 

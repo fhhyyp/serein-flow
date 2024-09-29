@@ -29,6 +29,12 @@ namespace Serein.Library.Web
     /// </summary>
     public class Router : IRouter
     {
+        private readonly ISereinIOC SereinIOC; // 用于存储路由信息
+
+        public Router(ISereinIOC SereinIOC)
+        {
+            this.SereinIOC = SereinIOC;
+        }
         /// <summary>
         /// 控制器实例对象的类型，每次调用都会重新实例化，[Url - ControllerType]
         /// </summary>
@@ -39,8 +45,7 @@ namespace Serein.Library.Web
         /// </summary>
         private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, MethodInfo>> _routes;
 
-        [AutoInjection]
-        public ISereinIOC SereinIOC { get; set; } // 用于存储路由信息
+        
         // private readonly ILoggerService loggerService; // 用于存储路由信息
 
         //private Type PostRequest;

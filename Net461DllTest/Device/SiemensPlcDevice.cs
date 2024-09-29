@@ -2,6 +2,7 @@
 using Net461DllTest.Enums;
 using Net461DllTest.Signal;
 using Net461DllTest.Utils;
+using Serein.Library.Attributes;
 using Serein.Library.NodeFlow.Tool;
 using System;
 
@@ -11,6 +12,7 @@ namespace Net461DllTest.Device
     /// <summary>
     /// 官方文档：如果没有主动Open，则会每次读写操作的时候自动打开自动和关闭连接，这样会使读写效率大大减低。所以建议手动Open和Close。
     /// </summary>
+    [AutoRegister]
     public class SiemensPlcDevice : ChannelFlowTrigger<OrderSignal>
     {
         public SiemensClient Client { get; set; }

@@ -21,21 +21,16 @@ namespace Net461DllTest.LogicControl
         GetPparkingSpace,
     }
 
-
+    [AutoRegister]
     [DynamicFlow]
     public class ParkingLogicControl
     {
-        [AutoInjection]
-        public PrakingDevice PrakingDevice { get; set; }
+        private readonly PrakingDevice PrakingDevice;
 
-
-        [NodeAction(NodeType.Init)]
-        public void Init(IDynamicContext context)
+        public ParkingLogicControl(PrakingDevice PrakingDevice)
         {
-            
-            context.Env.IOC.Register<PrakingDevice>();
+            this.PrakingDevice = PrakingDevice;
         }
-
 
 
         [NodeAction(NodeType.Flipflop, "等待车位调取命令",ReturnType=typeof(string))]

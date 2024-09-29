@@ -24,7 +24,7 @@ namespace Serein.Library.Core.NodeFlow
         {
             if (NodeRunCts == null)
             {
-                NodeRunCts = Env.IOC.GetOrRegisterInstantiate<NodeRunCts>();
+                NodeRunCts = Env.IOC.Get<NodeRunCts>();
             }
             // 使用局部变量，避免捕获外部的 `action`
             Action localAction = action;

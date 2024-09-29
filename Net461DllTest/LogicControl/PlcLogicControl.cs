@@ -19,21 +19,21 @@ using System.Threading.Tasks;
 
 namespace Net461DllTest.LogicControl
 {
+    [AutoRegister]
     [DynamicFlow] 
     public class PlcLogicControl
     {
-        [AutoInjection] 
-        public SiemensPlcDevice MyPlc { get; set; }
+        private readonly SiemensPlcDevice MyPlc;
 
-
-
+        public PlcLogicControl(SiemensPlcDevice MyPlc)
+        {
+            this.MyPlc = MyPlc;
+        }
 
         #region 初始化、初始化完成以及退出的事件
         [NodeAction(NodeType.Init)] // Init ： 初始化事件，流程启动时执行
         public void Init(IDynamicContext context)
         {
-            context.Env.IOC.Register<SiemensPlcDevice>(); // 注册Plc设备
-            context.Env.IOC.Register<WebServer>(); // 注册Web服务
             // // 注册控制器
             context.Env.IOC.Run<IRouter>(router => {
                 router.RegisterController(typeof(ApiController));
@@ -146,14 +146,14 @@ namespace Net461DllTest.LogicControl
             
             if (MyPlc.State == PlcState.Runing)
             {
-                if (!varInfo.IsProtected)
+                if (varInfo.IsProtected)
                 {
-                    MyPlc.Write(varInfo, value);
-                    Console.WriteLine($"PLC变量{varInfo}写入数据：{value}");
+                    Console.WriteLine($"PLC变量{varInfo}当前禁止写入");
                 }
                 else
                 {
-                    Console.WriteLine($"PLC变量{varInfo}当前禁止写入");
+                    MyPlc.Write(varInfo, value);
+                    Console.WriteLine($"PLC变量{varInfo}写入数据：{value}");
                 }
             }
             else

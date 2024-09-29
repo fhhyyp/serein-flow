@@ -200,8 +200,12 @@ namespace Serein.NodeFlow.Base
             #endregion
 
             MethodDetails md = MethodDetails;
-            var del = md.MethodDelegate.Clone();
-            md.ActingInstance ??= context.Env.IOC.GetOrRegisterInstantiate(MethodDetails.ActingInstanceType);
+            //var del = md.MethodDelegate.Clone();
+            if (!context.Env.TryGetDelegate(md.MethodName, out var del))
+            {
+                throw new Exception("不存在对应委托");
+            }
+            md.ActingInstance ??= context.Env.IOC.Get(MethodDetails.ActingInstanceType);
             object instance = md.ActingInstance;
 
             var haveParameter = md.ExplicitDatas.Length > 0;

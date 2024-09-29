@@ -24,7 +24,13 @@ namespace Serein.Library.Api
     /// <summary>
     /// 加载项目文件时成功加载了DLL文件
     /// </summary>
-    public delegate void LoadDLLHandler(LoadDLLEventArgs eventArgs);
+    public delegate void LoadDllHandler(LoadDllEventArgs eventArgs);
+
+    /// <summary>
+    /// 移除了加载的dll
+    /// </summary>
+    /// <param name="eventArgs"></param>
+    public delegate void RemoteDllHandler(RemoteDllEventArgs eventArgs);
 
     /// <summary>
     /// 运行环境节点连接发生了改变
@@ -110,21 +116,28 @@ namespace Serein.Library.Api
         }
     }
 
-    public class LoadDLLEventArgs : FlowEventArgs
+    public class LoadDllEventArgs : FlowEventArgs
     {
-        public LoadDLLEventArgs(Assembly Assembly, List<MethodDetails> MethodDetailss)
+        public LoadDllEventArgs(NodeLibrary nodeLibrary, List<MethodDetails> MethodDetailss)
         {
-            this.Assembly = Assembly;
+            this.NodeLibrary = nodeLibrary;
             this.MethodDetailss = MethodDetailss;
         }
         /// <summary>
         /// 已加载了的程序集
         /// </summary>
-        public Assembly Assembly { get; protected set; }
+        public NodeLibrary NodeLibrary { get; protected set; }
         /// <summary>
         /// dll文件中有效的流程方法描述
         /// </summary>
         public List<MethodDetails> MethodDetailss { get; protected set; }
+    }
+
+    public class RemoteDllEventArgs : FlowEventArgs
+    {
+        public RemoteDllEventArgs()
+        {
+        }
     }
 
 
@@ -385,7 +398,7 @@ namespace Serein.Library.Api
         /// <summary>
         /// 加载Dll
         /// </summary>
-        event LoadDLLHandler OnDllLoad;
+        event LoadDllHandler OnDllLoad;
 
         /// <summary>
         /// 项目加载完成
@@ -455,6 +468,8 @@ namespace Serein.Library.Api
         bool TryGetMethodDetails(string methodName, out MethodDetails md);
 
 
+        bool TryGetDelegate(string methodName, out Delegate del);
+
         //bool TryGetNodeData(string methodName, out NodeData node);
 
         #region 环境基础接口
@@ -475,6 +490,12 @@ namespace Serein.Library.Api
         /// </summary>
         /// <param name="dllPath"></param>
         void LoadDll(string dllPath);
+        /// <summary>
+        /// 移除DLL
+        /// </summary>
+        /// <param name="dllPath"></param>
+        bool RemoteDll(string assemblyFullName);
+
         /// <summary>
         /// 清理加载的DLL（待更改）
         /// </summary>

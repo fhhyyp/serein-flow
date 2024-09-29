@@ -9,10 +9,10 @@ namespace Serein.Library.Attributes
     [AttributeUsage(AttributeTargets.Property)]
     public sealed class AutoInjectionAttribute : Attribute
     {
-    } 
+    }
 
     /// <summary>
-    /// 表示该类自动注册
+    /// 表示该类自动注册（单例模式）
     /// </summary>
     [AttributeUsage(AttributeTargets.Class)]
     public sealed class AutoRegisterAttribute : Attribute
@@ -20,7 +20,7 @@ namespace Serein.Library.Attributes
     }
 
     /// <summary>
-    /// 用来判断一个类是否需要注册并构建实例（单例模式场景使用）
+    /// 用来判断一个类是否需要注册并构建节点
     /// </summary>
     [AttributeUsage(AttributeTargets.Class)]
     public class DynamicFlowAttribute : Attribute

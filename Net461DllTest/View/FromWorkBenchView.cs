@@ -1,6 +1,7 @@
 ﻿using Net461DllTest.Device;
 using Net461DllTest.Signal;
 using Net461DllTest.ViewModel;
+using Serein.Library.Api;
 using Serein.Library.Attributes;
 using System;
 using System.Collections.Generic;
@@ -16,11 +17,17 @@ namespace Net461DllTest
 {
     public partial class FromWorkBenchView : Form
     {
-        [AutoInjection]
-        public FromWorkBenchViewModel ViewModel { get; set; }
-        public FromWorkBenchView()
+        private FromWorkBenchViewModel ViewModel;
+
+        public FromWorkBenchView(IFlowEnvironment env)
         {
+            ViewModel = env.IOC.Instantiate<FromWorkBenchViewModel>();
             InitializeComponent();
+            Init();
+        }
+
+        public void Init()
+        {
             listBox1.Items.Clear();
             var enumValues = Enum.GetValues(typeof(OrderSignal)).Cast<OrderSignal>();
             foreach (var value in enumValues)

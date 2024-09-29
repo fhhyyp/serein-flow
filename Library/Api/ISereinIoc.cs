@@ -30,20 +30,21 @@ namespace Serein.Library.Api
         /// <param name="parameters"></param>
         /// <returns></returns>
         ISereinIOC Register<TService, TImplementation>(params object[] parameters) where TImplementation : TService;
-        /// <summary>
-        /// 获取或创建并注入目标类型，会记录到IOC容器中。
-        /// </summary>
-        T GetOrRegisterInstantiate<T>();
-        /// <summary>
-        /// 获取或创建并注入目标类型，会记录到IOC容器中。
-        /// </summary>
-        object GetOrRegisterInstantiate(Type type);
+        ///// <summary>
+        ///// 获取或创建并注入目标类型，会记录到IOC容器中。
+        ///// </summary>
+        //T GetOrRegisterInstantiate<T>();
+        ///// <summary>
+        ///// 获取或创建并注入目标类型，会记录到IOC容器中。
+        ///// </summary>
+        //object GetOrRegisterInstantiate(Type type);
         /// <summary>
         /// 获取类型的实例
         /// </summary>
         /// <param name="type"></param>
         /// <returns></returns>
         object Get(Type type);
+        T Get<T>();
 
         /// <summary>
         /// 获取指定名称的实例
@@ -64,8 +65,11 @@ namespace Serein.Library.Api
         /// <summary>
         /// 用于临时实例的创建，不注册到IOC容器中，依赖项注入失败时也不记录。
         /// </summary>
-        object Instantiate(Type type, params object[] parameters);
-
+        object Instantiate(Type type);
+        /// <summary>
+        /// 用于临时实例的创建，不注册到IOC容器中，依赖项注入失败时也不记录。
+        /// </summary>
+        T Instantiate<T>();
         /// <summary>
         /// 实例化注册的类型，并注入依赖项
         /// </summary>

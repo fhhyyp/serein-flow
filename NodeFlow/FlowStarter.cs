@@ -161,7 +161,7 @@ namespace Serein.NodeFlow
             {
                 nodeMd.ActingInstance = null;
             }
-            env.IOC.Reset(); // 开始运行时清空ioc中注册的实例
+            
             env.IOC.CustomRegisterInstance(typeof(ISereinIOC).FullName, env);
             // 初始化ioc容器中的类型对象
             foreach (var md in thisRuningMds)
@@ -178,12 +178,11 @@ namespace Serein.NodeFlow
             }
             CheckStartState(); // 初始化IOC后检查状态
 
-
             env.IOC.Build(); // 流程启动前的初始化
 
             foreach (var md in thisRuningMds)
             {
-                md.ActingInstance = env.IOC.GetOrRegisterInstantiate(md.ActingInstanceType);
+                md.ActingInstance = env.IOC.Get(md.ActingInstanceType);
                 if(md.ActingInstance is null)
                 {
                     await Console.Out.WriteLineAsync($"{md.MethodName} - 无法获取类型[{md.ActingInstanceType}]的实例");
@@ -215,14 +214,22 @@ namespace Serein.NodeFlow
             //object?[]? args = [Context];
             foreach (var md in initMethods) // 初始化
             {
-                ((Action<object, object?[]?>)md.MethodDelegate).Invoke(md.ActingInstance, [Context]);
+                if (!env.TryGetDelegate(md.MethodName, out var del))
+                {
+                    throw new Exception("不存在对应委托");
+                }
+                ((Action<object, object?[]?>)del).Invoke(md.ActingInstance, [Context]);
             }
             Context.Env.IOC.Build(); // 绑定初始化时注册的类型
             foreach (var md in loadingMethods) // 加载
             {
                 //object?[]? data = [md.ActingInstance, args];
                 //md.MethodDelegate.DynamicInvoke(data);
-                ((Action<object, object?[]?>)md.MethodDelegate).Invoke(md.ActingInstance, [Context]);
+                if (!env.TryGetDelegate(md.MethodName, out var del))
+                {
+                    throw new Exception("不存在对应委托");
+                }
+                ((Action<object, object?[]?>)del).Invoke(md.ActingInstance, [Context]);
             }
             Context.Env.IOC.Build(); // 预防有人在加载时才注册类型，再绑定一次
             #endregion
@@ -236,7 +243,11 @@ namespace Serein.NodeFlow
 
                 foreach (MethodDetails? md in exitMethods)
                 {
-                    ((Action<object, object?[]?>)md.MethodDelegate).Invoke(md.ActingInstance, [Context]);
+                    if (!env.TryGetDelegate(md.MethodName, out var del))
+                    {
+                        throw new Exception("不存在对应委托");
+                    }
+                    ((Action<object, object?[]?>)del).Invoke(md.ActingInstance, [Context]);
                 }
 
                 TerminateAllGlobalFlipflop();
@@ -303,7 +314,7 @@ namespace Serein.NodeFlow
         {
             if (dictGlobalFlipflop.TryAdd(singleFlipFlopNode, new CancellationTokenSource()))
             {
-                singleFlipFlopNode.MethodDetails.ActingInstance ??= env.IOC.GetOrRegisterInstantiate(singleFlipFlopNode.MethodDetails.ActingInstanceType);
+                singleFlipFlopNode.MethodDetails.ActingInstance ??= env.IOC.Get(singleFlipFlopNode.MethodDetails.ActingInstanceType);
                 await FlipflopExecuteAsync(env, singleFlipFlopNode, dictGlobalFlipflop[singleFlipFlopNode]);
             }
         }

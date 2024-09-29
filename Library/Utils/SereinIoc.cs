@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Xml;
+using System.Xml.Schema;
 
 namespace Serein.Library.Utils
 {
@@ -43,10 +44,14 @@ namespace Serein.Library.Utils
             _unfinishedDependencies = new ConcurrentDictionary<string, List<(object, PropertyInfo)>>();
         }
 
+        /// <summary>
+        /// 绑定之前进行的默认绑定
+        /// </summary>
         public void InitRegister()
         {
-            //_dependencies[typeof(ISereinIOC).FullName] = this;
+            _dependencies[typeof(ISereinIOC).FullName] = this;
             Register<IRouter, Router>();
+
             //foreach (var type in _typeMappings.Values)
             //{
             //    Register(type);
@@ -91,47 +96,47 @@ namespace Serein.Library.Utils
         /// <summary>
         /// 尝试从容器中获取对象，如果不存在目标类型的对象，则将类型信息登记到容器，并实例化注入依赖项。如果依然无法注册，则返回null。
         /// </summary>
-        public T GetOrRegisterInstantiate<T>()
-        {
-            return (T)GetOrRegisterInstantiate(typeof(T));
-        }
+        //public T GetOrRegisterInstantiate<T>()
+        //{
+        //    return (T)GetOrRegisterInstantiate(typeof(T));
+        //}
 
-        /// <summary>
-        /// 尝试从容器中获取对象，如果不存在目标类型的对象，则将类型信息登记到容器，并实例化注入依赖项。如果依然无法注册，则返回null。
-        /// </summary>
-        public object GetOrRegisterInstantiate(Type type)
-        {
-            // 尝试从容器中获取对象
-            if (!_dependencies.TryGetValue(type.FullName, out object value))
-            {
-                // 容器中不存在目标类型的对象
-                if (type.IsInterface)
-                {
-                    if (_typeMappings.TryGetValue(type.FullName, out Type implementationType))
-                    {
-                        // 是接口类型，存在注册信息
-                        Register(type);// 注册类型信息
-                        value = Instantiate(implementationType); // 创建实例对象，并注入依赖
-                        CustomRegisterInstance(type.FullName, value);// 登记到IOC容器中
-                        _typeMappings.TryRemove(type.FullName, out _); // 取消类型的注册信息
-                    }
-                    else
-                    {
-                        //需要获取接口类型的实例，但不存在类型注册信息
-                        Console.WriteLine("当前需要获取接口，但没有注册实现类的类型，无法创建接口实例");
-                        return  null;
-                    }
-                }
-                else
-                {
-                    // 不是接口，直接注册
-                    Register(type);// 注册类型信息
-                    value = Instantiate(type); // 创建实例对象，并注入依赖
-                    CustomRegisterInstance(type.FullName, value);// 登记到IOC容器中
-                }
-            }
-            return value; 
-        }
+        ///// <summary>
+        ///// 尝试从容器中获取对象，如果不存在目标类型的对象，则将类型信息登记到容器，并实例化注入依赖项。如果依然无法注册，则返回null。
+        ///// </summary>
+        //public object GetOrRegisterInstantiate(Type type)
+        //{
+        //    // 尝试从容器中获取对象
+        //    if (!_dependencies.TryGetValue(type.FullName, out object value))
+        //    {
+        //        // 容器中不存在目标类型的对象
+        //        if (type.IsInterface)
+        //        {
+        //            if (_typeMappings.TryGetValue(type.FullName, out Type implementationType))
+        //            {
+        //                // 是接口类型，存在注册信息
+        //                Register(type);// 注册类型信息
+        //                value = Instantiate(implementationType); // 创建实例对象，并注入依赖
+        //                CustomRegisterInstance(type.FullName, value);// 登记到IOC容器中
+        //                _typeMappings.TryRemove(type.FullName, out _); // 取消类型的注册信息
+        //            }
+        //            else
+        //            {
+        //                //需要获取接口类型的实例，但不存在类型注册信息
+        //                Console.WriteLine("当前需要获取接口，但没有注册实现类的类型，无法创建接口实例");
+        //                return  null;
+        //            }
+        //        }
+        //        else
+        //        {
+        //            // 不是接口，直接注册
+        //            Register(type);// 注册类型信息
+        //            value = Instantiate(type); // 创建实例对象，并注入依赖
+        //            CustomRegisterInstance(type.FullName, value);// 登记到IOC容器中
+        //        }
+        //    }
+        //    return value; 
+        //}
 
         /// <summary>
         /// 用于临时实例的创建，不登记到IOC容器中，依赖项注入失败时也不记录。
@@ -139,16 +144,25 @@ namespace Serein.Library.Utils
         /// <param name="controllerType"></param>
         /// <param name="parameters"></param>
         /// <returns></returns>
-        public object Instantiate(Type controllerType, params object[] parameters)
+        public object Instantiate(Type type)
         {
-            var instance = Activator.CreateInstance(controllerType, parameters); //  CreateInstance(controllerType, parameters); // 创建目标类型的实例
+            var constructor = type.GetConstructors().First(); // 获取第一个构造函数
+            var parameters = constructor.GetParameters(); // 获取参数列表
+            var parameterValues = parameters.Select(param => ResolveDependency(param.ParameterType)).ToArray();
+            var instance = Activator.CreateInstance(type, parameterValues);
+
+            //var instance =CreateInstance(controllerType, parameters); //  CreateInstance(controllerType, parameters); // 创建目标类型的实例
             if (instance != null)
             {
-                InjectDependencies(instance, false); // 完成创建后注入实例需要的依赖项
+                InjectDependencies(instance, false); // 完成创建后注入实例需要的特性依赖项
             }
             return instance;
         }
 
+        public T Instantiate<T>()
+        {
+            return (T)Instantiate(typeof(T));
+        }
         #region 通过名称记录或获取一个实例
 
         /// <summary>
@@ -177,15 +191,17 @@ namespace Serein.Library.Utils
             return Get(type.FullName);
         }
 
-
+        public T Get<T>()
+        {
+            return (T)Get(typeof(T).FullName);
+        }
         public T Get<T>(string name)
         {
             return (T)Get(name);
         }
         private object Get(string name)
         {
-            object value;
-            if (!_dependencies.TryGetValue(name, out value))
+            if (!_dependencies.TryGetValue(name, out object value))
             {
                 value = null;
             }
@@ -193,9 +209,6 @@ namespace Serein.Library.Utils
         }
 
         #endregion
-
-
-
 
         #region 容器管理（清空，绑定）
 
@@ -224,9 +237,9 @@ namespace Serein.Library.Utils
         /// 实例化所有已注册的类型，并尝试绑定
         /// </summary>
         /// <returns></returns>
-        public bool Build()
+        public bool Build2()
         {
-            InitRegister();
+            InitRegister(); 
             // 遍历已注册类型
             foreach (var type in _typeMappings.Values.ToArray())
             {
@@ -245,7 +258,105 @@ namespace Serein.Library.Utils
             }
 
             return true;
-        } 
+        }
+
+        public bool Build()
+        {
+            InitRegister();
+            var graph = new Dictionary<string, List<Type>>();
+            //var graph = new Dictionary<string, List<string>>();
+
+            // 构建依赖关系图
+            foreach (var type in _typeMappings.Values)
+            {
+                var constructor = type.GetConstructors()
+                    .OrderByDescending(c => c.GetParameters().Length)
+                    .FirstOrDefault();
+
+                if (constructor != null)
+                {
+                    var parameters = constructor.GetParameters();
+                    foreach (var param in parameters)
+                    {
+                        var paramTypeName = param.ParameterType.FullName;
+                        if (!graph.ContainsKey(paramTypeName))
+                        {
+                            graph[paramTypeName] = new List<Type>();
+                        }
+                        graph[paramTypeName].Add(type); // 使用 Type 而不是字符串
+                    }
+                }
+            }
+
+            // 执行拓扑排序
+            var sortedTypes = TopologicalSort(graph);
+
+            // 创建实例并注册
+            foreach (var type in sortedTypes)
+            {
+                var typeName = type.FullName;
+                if (!_dependencies.ContainsKey(typeName))
+                {
+                    
+                    var value = CreateInstance(type);
+                    CustomRegisterInstance(typeName, value);
+                    //if (graph.ContainsKey(typeName))
+                    //{
+                        
+                        
+                    //}
+                    //else
+                    //{
+                    //    Console.WriteLine("error:"+typeName);
+                    //}
+                }
+                else
+                {
+                    Console.WriteLine("not create:" + type);
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// 执行拓扑排序
+        /// </summary>
+        /// <param name="graph"></param>
+        /// <returns></returns>
+        private List<Type> TopologicalSort(Dictionary<string, List<Type>> graph)
+        {
+            var sorted = new List<Type>();
+            var visited = new HashSet<string>();
+
+            void Visit(Type node)
+            {
+                var nodeName = node.FullName;
+                if (visited.Contains(nodeName)) return;
+                visited.Add(nodeName);
+                if (graph.TryGetValue(nodeName, out var neighbors))
+                {
+                    foreach (var neighbor in neighbors)
+                    {
+                        Visit(neighbor);
+                    }
+                }
+                sorted.Add(node);
+            }
+
+            foreach (var node in graph.Keys)
+            {
+                if (!_dependencies.ContainsKey(node))
+                {
+                    var type = _typeMappings[node]; // 获取对应的 Type
+                    Visit(type);
+                }
+                
+            }
+
+            sorted.Reverse(); // 反转以得到正确顺序
+            return sorted;
+        }
         #endregion
 
         #region 私有方法
@@ -272,13 +383,29 @@ namespace Serein.Library.Utils
         /// <summary>
         /// 创建实例时，尝试注入到由ioc容器管理、并需要此实例的对象。
         /// </summary>
-        private object CreateInstance(Type type, params object[] parameters)
+        private object CreateInstance(Type type)
         {
-            var instance = Activator.CreateInstance(type);
+            var constructor = type.GetConstructors().First(); // 获取第一个构造函数
+            var parameters = constructor.GetParameters(); // 获取参数列表
+            var parameterValues = parameters.Select(param => ResolveDependency(param.ParameterType)).ToArray();
+            var instance = Activator.CreateInstance(type, parameterValues);
             InjectUnfinishedDependencies(type.FullName, instance);
             return instance;
         }
 
+        private object ResolveDependency(Type parameterType)
+        {
+            var obj = Get(parameterType);
+            if (obj is null)
+            {
+                throw new InvalidOperationException($"构造函数注入时类型[{parameterType}]不存在实例");
+            }
+            return obj;
+        }
+
+        /// <summary>
+        /// 如果其它实例想要该对象时，注入过去
+        /// </summary>
         private void InjectUnfinishedDependencies(string key,object instance)
         {
             if (_unfinishedDependencies.TryGetValue(key, out var unfinishedPropertyList))
@@ -379,7 +506,7 @@ namespace Serein.Library.Utils
 
         public void Run<T>(Action<T> action)
         {
-            var service = GetOrRegisterInstantiate<T>();
+            var service = Get<T>();
             if (service != null)
             {
                 action(service);
@@ -388,72 +515,72 @@ namespace Serein.Library.Utils
 
         public void Run<T1, T2>(Action<T1, T2> action)
         {
-            var service1 = GetOrRegisterInstantiate<T1>();
-            var service2 = GetOrRegisterInstantiate<T2>();
+            var service1 = Get<T1>();
+            var service2 = Get<T2>();
 
             action(service1, service2);
         }
 
         public void Run<T1, T2, T3>(Action<T1, T2, T3> action)
         {
-            var service1 = GetOrRegisterInstantiate<T1>();
-            var service2 = GetOrRegisterInstantiate<T2>();
-            var service3 = GetOrRegisterInstantiate<T3>();
+            var service1 = Get<T1>();
+            var service2 = Get<T2>();
+            var service3 = Get<T3>();
             action(service1, service2, service3);
         }
 
-        public void Run<T1, T2, T3, T4>(Action<T1, T2, T3, T4> action)
+        public void Run<T1, T2, T3, T4>(Action<T1, T2, T3, T4> action)  
         {
-            var service1 = GetOrRegisterInstantiate<T1>();
-            var service2 = GetOrRegisterInstantiate<T2>();
-            var service3 = GetOrRegisterInstantiate<T3>();
-            var service4 = GetOrRegisterInstantiate<T4>();
+            var service1 = Get<T1>();
+            var service2 = Get<T2>();
+            var service3 = Get<T3>();
+            var service4 = Get<T4>();
             action(service1, service2, service3, service4);
         }
 
         public void Run<T1, T2, T3, T4, T5>(Action<T1, T2, T3, T4, T5> action)
         {
-            var service1 = GetOrRegisterInstantiate<T1>();
-            var service2 = GetOrRegisterInstantiate<T2>();
-            var service3 = GetOrRegisterInstantiate<T3>();
-            var service4 = GetOrRegisterInstantiate<T4>();
-            var service5 = GetOrRegisterInstantiate<T5>();
+            var service1 = Get<T1>();
+            var service2 = Get<T2>();
+            var service3 = Get<T3>();
+            var service4 = Get<T4>();
+            var service5 = Get<T5>();
             action(service1, service2, service3, service4, service5);
         }
 
         public void Run<T1, T2, T3, T4, T5, T6>(Action<T1, T2, T3, T4, T5, T6> action)
         {
-            var service1 = GetOrRegisterInstantiate<T1>();
-            var service2 = GetOrRegisterInstantiate<T2>();
-            var service3 = GetOrRegisterInstantiate<T3>();
-            var service4 = GetOrRegisterInstantiate<T4>();
-            var service5 = GetOrRegisterInstantiate<T5>();
-            var service6 = GetOrRegisterInstantiate<T6>();
+            var service1 = Get<T1>();
+            var service2 = Get<T2>();
+            var service3 = Get<T3>();
+            var service4 = Get<T4>();
+            var service5 = Get<T5>();
+            var service6 = Get<T6>();
             action(service1, service2, service3, service4, service5, service6);
         }
 
         public void Run<T1, T2, T3, T4, T5, T6, T7>(Action<T1, T2, T3, T4, T5, T6, T7> action)
         {
-            var service1 = GetOrRegisterInstantiate<T1>();
-            var service2 = GetOrRegisterInstantiate<T2>();
-            var service3 = GetOrRegisterInstantiate<T3>();
-            var service4 = GetOrRegisterInstantiate<T4>();
-            var service5 = GetOrRegisterInstantiate<T5>();
-            var service6 = GetOrRegisterInstantiate<T6>();
-            var service7 = GetOrRegisterInstantiate<T7>();
+            var service1 = Get<T1>();
+            var service2 = Get<T2>();
+            var service3 = Get<T3>();
+            var service4 = Get<T4>();
+            var service5 = Get<T5>();
+            var service6 = Get<T6>();
+            var service7 = Get<T7>();
             action(service1, service2, service3, service4, service5, service6, service7);
         }
 
         public void Run<T1, T2, T3, T4, T5, T6, T7, T8>(Action<T1, T2, T3, T4, T5, T6, T7, T8> action)
         {
-            var service1 = GetOrRegisterInstantiate<T1>();
-            var service2 = GetOrRegisterInstantiate<T2>();
-            var service3 = GetOrRegisterInstantiate<T3>();
-            var service4 = GetOrRegisterInstantiate<T4>();
-            var service5 = GetOrRegisterInstantiate<T5>();
-            var service6 = GetOrRegisterInstantiate<T6>();
-            var service7 = GetOrRegisterInstantiate<T7>();
-            var service8 = GetOrRegisterInstantiate<T8>();
+            var service1 = Get<T1>();
+            var service2 = Get<T2>();
+            var service3 = Get<T3>();
+            var service4 = Get<T4>();
+            var service5 = Get<T5>();
+            var service6 = Get<T6>();
+            var service7 = Get<T7>();
+            var service8 = Get<T8>();
             action(service1, service2, service3, service4, service5, service6, service7, service8);
         }
 

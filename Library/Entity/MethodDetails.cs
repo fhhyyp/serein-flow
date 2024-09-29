@@ -22,7 +22,6 @@ namespace Serein.Library.Entity
             {
                 ActingInstance = ActingInstance,
                 ActingInstanceType = ActingInstanceType,
-                MethodDelegate = MethodDelegate,
                 MethodDynamicType = MethodDynamicType,
                 MethodGuid = Guid.NewGuid().ToString(),
                 MethodTips = MethodTips,
@@ -68,8 +67,7 @@ namespace Serein.Library.Entity
         /// <summary>
         /// 方法委托
         /// </summary>
-
-        public Delegate MethodDelegate { get; set; }
+        // public Delegate MethodDelegate { get; set; }
 
         /// <summary>
         /// 节点类型

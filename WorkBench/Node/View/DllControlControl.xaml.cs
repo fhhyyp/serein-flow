@@ -1,6 +1,8 @@
-﻿using Serein.Library.Entity;
+﻿using Serein.Library.Api;
+using Serein.Library.Entity;
 using Serein.Library.Enums;
 using Serein.NodeFlow;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
@@ -18,12 +20,20 @@ namespace Serein.WorkBench.Node.View
     /// </summary>
     public partial class DllControl : UserControl
     {
+        private readonly NodeLibrary nodeLibrary;
 
         public DllControl()
         {
             Header = "DLL文件"; // 设置初始值
             InitializeComponent();
         }
+        public DllControl(NodeLibrary nodeLibrary)
+        {
+            this.nodeLibrary = nodeLibrary;
+            Header = "DLL name :  " + nodeLibrary.Assembly.GetName().Name;
+            InitializeComponent();
+        }
+
 
 
         /// <summary>
@@ -37,10 +47,6 @@ namespace Serein.WorkBench.Node.View
 
         public static readonly DependencyProperty HeaderProperty =
             DependencyProperty.Register("Header", typeof(string), typeof(DllControl), new PropertyMetadata(string.Empty));
-
-
-
-
 
 
         /// <summary>
