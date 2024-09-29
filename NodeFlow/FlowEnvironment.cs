@@ -520,7 +520,7 @@ namespace Serein.NodeFlow
                 for (int i = 0; i < pnc.Value.Count; i++)
                 {
                     NodeModelBase? pNode = pnc.Value[i];
-                    pNode.SuccessorNodes[pCType].Remove(pNode);
+                    pNode.SuccessorNodes[pCType].Remove(remoteNode);
 
                     OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(pNode.Guid,
                                                                     remoteNode.Guid,
@@ -582,7 +582,6 @@ namespace Serein.NodeFlow
             RemoteConnect(fromNode, toNode, connectionType);
 
         }
-
 
         /// <summary>
         /// 移除连接关系
