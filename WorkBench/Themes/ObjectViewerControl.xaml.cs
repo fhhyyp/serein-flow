@@ -307,7 +307,10 @@ namespace Serein.WorkBench.Themes
         /// <returns></returns>
         private TreeViewItem ConfigureTreeViewItem(object obj, MemberInfo member)
         {
-            
+            if (obj == null)
+            {
+                return null;
+            }
             #region 属性
             if (member is PropertyInfo property)
             {
