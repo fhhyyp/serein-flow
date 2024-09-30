@@ -314,8 +314,8 @@ namespace Serein.WorkBench.Themes
             #region 属性
             if (member is PropertyInfo property)
             {
-                #region 集合类型
-                if (typeof(IEnumerable).IsAssignableFrom(property.PropertyType) && property.GetValue(obj) is IEnumerable collection && collection is not null)
+                #region 集合类型(非字符串）
+                if (property.PropertyType != typeof(string) && typeof(IEnumerable).IsAssignableFrom(property.PropertyType) && property.GetValue(obj) is IEnumerable collection && collection is not null)
                 {
                     TreeViewItem memberNode = new TreeViewItem { Header = member.Name };
                     // 处理集合类型的属性
@@ -377,8 +377,8 @@ namespace Serein.WorkBench.Themes
             #region 字段
             else if (member is FieldInfo field)
             {
-                #region 集合类型
-                if (typeof(IEnumerable).IsAssignableFrom(field.FieldType) && field.GetValue(obj) is IEnumerable collection && collection is not null)
+                #region 集合类型(非字符串）
+                if (field.FieldType != typeof(string) && typeof(IEnumerable).IsAssignableFrom(field.FieldType) && field.GetValue(obj) is IEnumerable collection && collection is not null)
                 {
                     TreeViewItem memberNode = new TreeViewItem { Header = member.Name };
                     // 处理集合类型的字段

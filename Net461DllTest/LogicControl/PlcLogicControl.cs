@@ -13,6 +13,7 @@ using Serein.Library.NodeFlow.Tool;
 using Serein.Library.Utils;
 using Serein.Library.Web;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -131,19 +132,20 @@ namespace Net461DllTest.LogicControl
             
         }
 
-
+        // [BindConvertor(typeof(PlcVarEnum), typeof(PlcVarConvertor))]
         [NodeAction(NodeType.Action, "PLC获取变量")]
-        public object ReadVar([BindConvertor(typeof(PlcVarEnum), typeof(PlcVarConvertor))] PlcVarInfo varInfo)
+        public object ReadVar(PlcVarEnum plcVarEnum)
         {
+            var varInfo = Convertor(plcVarEnum);
             var result = MyPlc.Read(varInfo);
             Console.WriteLine($"获取变量成功：({varInfo})\t result = {result}");
             return result;
         }
 
         [NodeAction(NodeType.Action, "PLC写入变量")]
-        public SiemensPlcDevice WriteVar2(object value, [BindConvertor(typeof(PlcVarEnum), typeof(PlcVarConvertor))] PlcVarInfo varInfo)
+        public SiemensPlcDevice WriteVar2(object value, PlcVarEnum plcVarEnum)
         {
-            
+            var varInfo = Convertor(plcVarEnum);
             if (MyPlc.State == PlcState.Runing)
             {
                 if (varInfo.IsProtected)
@@ -164,27 +166,48 @@ namespace Net461DllTest.LogicControl
         }
 
 
+        private readonly Dictionary<PlcVarEnum, PlcVarInfo> VarInfoDict;
+        public PlcVarInfo Convertor(PlcVarEnum plcVarEnum)
+        {
+            if (VarInfoDict.ContainsKey(plcVarEnum))
+            {
+                return VarInfoDict[plcVarEnum];
+            }
+            if (plcVarEnum == PlcVarEnum.None)
+            {
+                throw new Exception("非预期枚举值");
+            }
+            var plcValue = EnumHelper.GetBoundValue<PlcVarEnum, PlcValueAttribute, PlcVarInfo>(plcVarEnum, attr => attr.PlcInfo)
+                     ?? throw new Exception($"获取变量异常：{plcVarEnum}，没有标记PlcValueAttribute");
+            if (string.IsNullOrEmpty(plcValue.VarAddress))
+            {
+                throw new Exception($"获取变量异常：{plcVarEnum}，变量地址为空");
+            }
+            VarInfoDict.Add(plcVarEnum, plcValue);
+            return plcValue;
+        }
+
         /// <summary>
         /// 转换器，用于将枚举转为自定义特性中的数据
         /// </summary>
-        public class PlcVarConvertor: IEnumConvertor<PlcVarEnum, PlcVarInfo>
-        {
-            public PlcVarInfo Convertor(PlcVarEnum plcVarValue)
-            {
-                if (plcVarValue == PlcVarEnum.None)
-                {
-                    throw new Exception("非预期枚举值");
-                }
-                var plcValue = EnumHelper.GetBoundValue<PlcVarEnum, PlcValueAttribute, PlcVarInfo>(plcVarValue, attr => attr.PlcInfo)
-                         ?? throw new Exception($"获取变量异常：{plcVarValue}，没有标记PlcValueAttribute");
-                if (string.IsNullOrEmpty(plcValue.VarAddress))
-                {
-                    throw new Exception($"获取变量异常：{plcVarValue}，变量地址为空");
-                }
-                return plcValue;
-            }
+        //public class PlcVarConvertor: IEnumConvertor<PlcVarEnum, PlcVarInfo>
+        //{
+        //    public PlcVarInfo Convertor(PlcVarEnum plcVarValue)
+        //    {
+        //        if (plcVarValue == PlcVarEnum.None)
+        //        {
+        //            throw new Exception("非预期枚举值");
+        //        }
+        //        var plcValue = EnumHelper.GetBoundValue<PlcVarEnum, PlcValueAttribute, PlcVarInfo>(plcVarValue, attr => attr.PlcInfo)
+        //                 ?? throw new Exception($"获取变量异常：{plcVarValue}，没有标记PlcValueAttribute");
+        //        if (string.IsNullOrEmpty(plcValue.VarAddress))
+        //        {
+        //            throw new Exception($"获取变量异常：{plcVarValue}，变量地址为空");
+        //        }
+        //        return plcValue;
+        //    }
 
-        }
+        //}
 
         #endregion
     }

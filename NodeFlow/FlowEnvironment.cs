@@ -755,6 +755,7 @@ namespace Serein.NodeFlow
         /// <returns></returns>
         public bool AddInterruptExpression(string key, string expression)
         {
+            if(string.IsNullOrEmpty(expression)) return false;
             if (dictMonitorObjExpInterrupt.TryGetValue(key, out var condition))
             {
                 condition.Clear(); // 暂时
