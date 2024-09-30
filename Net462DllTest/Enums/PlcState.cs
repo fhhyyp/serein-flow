@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Net461DllTest.Enums
+namespace Net462DllTest.Enums
 {
     public enum PlcState
     {

@@ -32,7 +32,7 @@ namespace Serein.WorkBench.Themes
         /// <summary>
         /// 属性名称
         /// </summary>
-        public string Name { get; set; }
+        public string? Name { get; set; }
         /// <summary>
         /// 属性类型
         /// </summary>
@@ -40,15 +40,15 @@ namespace Serein.WorkBench.Themes
         /// <summary>
         /// 数据类型
         /// </summary>
-        public Type DataType { get; set; }
+        public Type? DataType { get; set; }
         /// <summary>
         /// 数据
         /// </summary>
-        public object DataValue { get; set; }
+        public object? DataValue { get; set; }
         /// <summary>
         /// 数据路径
         /// </summary>
-        public string DataPath { get; set; }
+        public string DataPath { get; set; } = string.Empty;
     }
 
 
@@ -80,24 +80,24 @@ namespace Serein.WorkBench.Themes
         /// <summary>
         /// 运行环境
         /// </summary>
-        public IFlowEnvironment FlowEnvironment { get; set; }
+        public IFlowEnvironment? FlowEnvironment { get; set; }
 
         /// <summary>
         /// 监视对象的键
         /// </summary>
-        public string MonitorKey { get => monitorKey; }
+        public string? MonitorKey { get => monitorKey; }
         /// <summary>
         /// 正在监视的对象
         /// </summary>
-        public object MonitorObj { get => monitorObj; }
+        public object? MonitorObj { get => monitorObj; }
 
         /// <summary>
         /// 监视表达式
         /// </summary>
-        public string MonitorExpression { get => ExpressionTextBox.Text.ToString(); }
+        public string? MonitorExpression { get => ExpressionTextBox.Text.ToString(); }
 
-        private string monitorKey;
-        private object monitorObj;
+        private string? monitorKey;
+        private object? monitorObj;
 
         // 用于存储当前展开的节点路径
         private HashSet<string> expandedNodePaths = new HashSet<string>();
@@ -133,7 +133,7 @@ namespace Serein.WorkBench.Themes
         /// <param name="e"></param>
         private void UpMonitorExpressionButton_Click(object sender, RoutedEventArgs e)
         {
-            if (FlowEnvironment.AddInterruptExpression(monitorKey, MonitorExpression)) // 对象预览器尝试添加中断表达式
+            if (FlowEnvironment is not null && FlowEnvironment.AddInterruptExpression(monitorKey, MonitorExpression)) // 对象预览器尝试添加中断表达式
             {
                 if (string.IsNullOrEmpty(MonitorExpression))
                 {
@@ -146,7 +146,7 @@ namespace Serein.WorkBench.Themes
             }
         }
 
-        private TreeViewItem? LoadTree(object obj)
+        private TreeViewItem? LoadTree(object? obj)
         {
             if (obj is null) return null;
             var objectType = obj.GetType();
@@ -178,7 +178,7 @@ namespace Serein.WorkBench.Themes
         /// <summary>
         /// 刷新对象属性树
         /// </summary>
-        public void RefreshObjectTree(object obj)
+        public void RefreshObjectTree(object? obj)
         {
             monitorObj = obj;
             var rootNode =  LoadTree(obj);
@@ -222,14 +222,20 @@ namespace Serein.WorkBench.Themes
             {
                 if (item.Tag is FlowDataDetails flowDataDetails) // FlowDataDetails flowDataDetails  object obj
                 {
-                    if (flowDataDetails.ItemType == TreeItemType.Item || item.Items.Count == 0)
+                    if (flowDataDetails.ItemType != TreeItemType.Item && item.Items.Count != 0)
                     {
-                        // 记录当前节点的路径
-                        var path = flowDataDetails.DataPath;
-                        expandedNodePaths.Add(path);
-                        AddMembersToTreeNode(item, flowDataDetails.DataValue, flowDataDetails.DataType);
+                        return;
                     }
-                    
+                    if(flowDataDetails.DataValue is null || flowDataDetails.DataType is null)
+                    {
+                        return;
+                    }
+
+                    // 记录当前节点的路径
+                    var path = flowDataDetails.DataPath;
+                    expandedNodePaths.Add(path);
+                    AddMembersToTreeNode(item, flowDataDetails.DataValue, flowDataDetails.DataType);
+
                 }
             }
         }
@@ -276,8 +282,8 @@ namespace Serein.WorkBench.Themes
                     continue;
                 }
 
-                TreeViewItem memberNode = ConfigureTreeViewItem(obj, member); // 根据对象成员生成节点对象
-                if (memberNode != null)
+                TreeViewItem? memberNode = ConfigureTreeViewItem(obj, member); // 根据对象成员生成节点对象
+                if (memberNode is not null)
                 {
                     treeViewNode.Items.Add(memberNode); // 添加到当前节点
 
@@ -305,7 +311,7 @@ namespace Serein.WorkBench.Themes
         /// <param name="obj"></param>
         /// <param name="member"></param>
         /// <returns></returns>
-        private TreeViewItem ConfigureTreeViewItem(object obj, MemberInfo member)
+        private TreeViewItem? ConfigureTreeViewItem(object obj, MemberInfo member)
         {
             if (obj == null)
             {
@@ -353,7 +359,7 @@ namespace Serein.WorkBench.Themes
                 else
                 {
                     TreeViewItem memberNode = new TreeViewItem { Header = member.Name };
-                    string propertyValue = GetPropertyValue(obj, property, out object value);
+                    string propertyValue = GetPropertyValue(obj, property, out object? value);
                     memberNode.Tag = new FlowDataDetails
                     {
                         ItemType = TreeItemType.Property,
@@ -417,7 +423,7 @@ namespace Serein.WorkBench.Themes
                 else
                 {
                     TreeViewItem memberNode = new TreeViewItem { Header = member.Name };
-                    string fieldValue = GetFieldValue(obj, field, out object value);
+                    string fieldValue = GetFieldValue(obj, field, out object? value);
 
                     memberNode.Tag = new FlowDataDetails
                     {
@@ -454,7 +460,7 @@ namespace Serein.WorkBench.Themes
         /// <param name="obj"></param>
         /// <param name="property"></param>
         /// <returns></returns>
-        private string GetPropertyValue(object obj, PropertyInfo property,out object value)
+        private string GetPropertyValue(object obj, PropertyInfo property,out object? value)
         { 
             try
             {
@@ -482,7 +488,7 @@ namespace Serein.WorkBench.Themes
         /// <param name="obj"></param>
         /// <param name="field"></param>
         /// <returns></returns>
-        private string GetFieldValue(object obj, FieldInfo field, out object value)
+        private string GetFieldValue(object obj, FieldInfo field, out object? value)
         {
             try
             {

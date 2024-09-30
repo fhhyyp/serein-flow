@@ -6,9 +6,9 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{E40EE629-1A38-4011-88E3-9AD036869987}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>Net461DllTest</RootNamespace>
-    <AssemblyName>Net461DllTest</AssemblyName>
-    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <RootNamespace>Net462DllTest</RootNamespace>
+    <AssemblyName>Net462DllTest</AssemblyName>
+    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>

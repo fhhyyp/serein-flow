@@ -1,4 +1,4 @@
-﻿namespace Net461DllTest
+﻿namespace Net462DllTest
 {
     partial class FromWorkBenchView
     {

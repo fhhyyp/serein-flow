@@ -41,7 +41,7 @@ namespace Serein.NodeFlow.Tool.SereinExpression
         /// <returns></returns>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="NotSupportedException"></exception>
-        public static object Evaluate(string expression, object targetObJ, out bool isChange)
+        public static object? Evaluate(string expression, object targetObJ, out bool isChange)
         {
             var parts = expression.Split([' '], 2);
             if (parts.Length != 2)
@@ -84,7 +84,7 @@ namespace Serein.NodeFlow.Tool.SereinExpression
         /// <param name="methodCall">方法名称</param>
         /// <returns></returns>
         /// <exception cref="ArgumentException"></exception>
-        private static object InvokeMethod(object target, string methodCall)
+        private static object? InvokeMethod(object target, string methodCall)
         {
             var methodParts = methodCall.Split(separator, StringSplitOptions.RemoveEmptyEntries);
             if (methodParts.Length != 2)
@@ -98,12 +98,7 @@ namespace Serein.NodeFlow.Tool.SereinExpression
                                           .Select(p => p.Trim())
                                           .ToArray();
 
-            var method = target.GetType().GetMethod(methodName);
-            if (method is null)
-            {
-                throw new ArgumentException($"Method {methodName} not found on target.");
-            }
-
+            var method = target.GetType().GetMethod(methodName) ?? throw new ArgumentException($"Method {methodName} not found on target.");
             var parameterValues = method.GetParameters()
                                         .Select((p, index) => Convert.ChangeType(parameters[index], p.ParameterType))
                                         .ToArray();
@@ -119,15 +114,14 @@ namespace Serein.NodeFlow.Tool.SereinExpression
         /// <param name="memberPath">属性路径</param>
         /// <returns></returns>
         /// <exception cref="ArgumentException"></exception>
-        private static object GetMember(object target, string memberPath)
+        private static object? GetMember(object? target, string memberPath)
         {
+            if (target is null) return null;
             // 分割成员路径，按 '.' 处理多级访问
             var members = memberPath.Split('.');
 
             foreach (var member in members)
             {
-                if (target == null) return null;
-
                 // 检查成员是否包含数组索引，例如 "cars[0]"
                 var arrayIndexStart = member.IndexOf('[');
                 if (arrayIndexStart != -1)
@@ -148,22 +142,22 @@ namespace Serein.NodeFlow.Tool.SereinExpression
                     }
 
                     // 获取数组或集合对象
-                    var arrayProperty = target.GetType().GetProperty(arrayName);
-                    if (arrayProperty != null)
+                    var arrayProperty = target?.GetType().GetProperty(arrayName);
+                    if (arrayProperty is null)
                     {
-                        target = arrayProperty.GetValue(target);
-                    }
-                    else
-                    {
-                        var arrayField = target.GetType().GetField(arrayName);
-                        if (arrayField != null)
-                        {
-                            target = arrayField.GetValue(target);
-                        }
-                        else
+                        var arrayField = target?.GetType().GetField(arrayName);
+                        if (arrayField is null)
                         {
                             throw new ArgumentException($"Member {arrayName} not found on target.");
                         }
+                        else
+                        {
+                            target = arrayField.GetValue(target);
+                        }
+                    }
+                    else
+                    {
+                        target = arrayProperty.GetValue(target);
                     }
 
                     // 访问数组或集合中的指定索引
@@ -191,22 +185,22 @@ namespace Serein.NodeFlow.Tool.SereinExpression
                 else
                 {
                     // 处理非数组情况的属性或字段
-                    var property = target.GetType().GetProperty(member);
-                    if (property != null)
+                    var property = target?.GetType().GetProperty(member);
+                    if (property is null)
                     {
-                        target = property.GetValue(target);
-                    }
-                    else
-                    {
-                        var field = target.GetType().GetField(member);
-                        if (field != null)
-                        {
-                            target = field.GetValue(target);
-                        }
-                        else
+                        var field = target?.GetType().GetField(member);
+                        if (field is null)
                         {
                             throw new ArgumentException($"Member {member} not found on target.");
                         }
+                        else
+                        {
+                            target = field.GetValue(target);
+                        }
+                    }
+                    else
+                    {
+                        target = property.GetValue(target);
                     }
                 }
             }
@@ -220,7 +214,7 @@ namespace Serein.NodeFlow.Tool.SereinExpression
         /// <param name="assignment">属性路径 </param>
         /// <returns></returns>
         /// <exception cref="ArgumentException"></exception>
-        private static object SetMember(object target, string assignment)
+        private static object? SetMember(object? target, string assignment)
         {
             var parts = assignment.Split(new[] { '=' }, 2);
             if (parts.Length != 2)
@@ -238,7 +232,7 @@ namespace Serein.NodeFlow.Tool.SereinExpression
 
                 // 检查是否包含数组索引
                 var arrayIndexStart = member.IndexOf('[');
-                if (arrayIndexStart != -1)
+                if (arrayIndexStart != -1) 
                 {
                     // 解析数组名和索引
                     var arrayName = member.Substring(0, arrayIndexStart);
@@ -255,23 +249,23 @@ namespace Serein.NodeFlow.Tool.SereinExpression
                     }
 
                     // 获取数组或集合
-                    var arrayProperty = target.GetType().GetProperty(arrayName);
-                    if (arrayProperty != null)
+                    var arrayProperty = target?.GetType().GetProperty(arrayName);
+                    if (arrayProperty is null)
                     {
-                        target = arrayProperty.GetValue(target);
-                    }
-                    else
-                    {
-                        var arrayField = target.GetType().GetField(arrayName);
-                        if (arrayField != null)
-                        {
-                            target = arrayField.GetValue(target);
-                        }
-                        else
+                        var arrayField = target?.GetType().GetField(arrayName);
+                        if (arrayField is null)
                         {
                             throw new ArgumentException($"Member {arrayName} not found on target.");
                         }
+                        else
+                        {
+                            target = arrayField.GetValue(target);
+                        }
 
+                    }
+                    else
+                    {
+                        target = arrayProperty.GetValue(target);
                     }
 
                     // 获取目标数组或集合中的指定元素
@@ -299,46 +293,47 @@ namespace Serein.NodeFlow.Tool.SereinExpression
                 else
                 {
                     // 处理非数组情况的属性或字段
-                    var property = target.GetType().GetProperty(member);
-                    if (property != null)
+                    var property = target?.GetType().GetProperty(member);
+                    if (property is null)
                     {
-                        target = property.GetValue(target);
-                    }
-                    else
-                    {
-                        var field = target.GetType().GetField(member);
-                        if (field != null)
-                        {
-                            target = field.GetValue(target);
-                        }
-                        else
+                        var field = target?.GetType().GetField(member);
+                        if (field is null)
                         {
                             throw new ArgumentException($"Member {member} not found on target.");
                         }
+                        else
+                        {
+                            target = field.GetValue(target);
+                        }
+                    }
+                    else
+                    {
+                        target = property.GetValue(target);
                     }
                 }
             }
 
+            // 设置值
             var lastMember = members.Last();
 
-            var lastProperty = target.GetType().GetProperty(lastMember);
-            if (lastProperty != null)
+            var lastProperty = target?.GetType().GetProperty(lastMember);
+            if (lastProperty is null)
             {
-                var convertedValue = Convert.ChangeType(value, lastProperty.PropertyType);
-                lastProperty.SetValue(target, convertedValue);
-            }
-            else
-            {
-                var lastField = target.GetType().GetField(lastMember);
-                if (lastField != null)
+                var lastField = target?.GetType().GetField(lastMember);
+                if (lastField is null)
+                {
+                    throw new ArgumentException($"Member {lastMember} not found on target.");
+                }
+                else
                 {
                     var convertedValue = Convert.ChangeType(value, lastField.FieldType);
                     lastField.SetValue(target, convertedValue);
                 }
-                else
-                {
-                    throw new ArgumentException($"Member {lastMember} not found on target.");
-                }
+            }
+            else
+            {
+                var convertedValue = Convert.ChangeType(value, lastProperty.PropertyType);
+                lastProperty.SetValue(target, convertedValue);
             }
 
             return target;

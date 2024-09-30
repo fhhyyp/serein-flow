@@ -1,6 +1,6 @@
-﻿using Net461DllTest.Device;
-using Net461DllTest.Signal;
-using Net461DllTest.ViewModel;
+﻿using Net462DllTest.Device;
+using Net462DllTest.Signal;
+using Net462DllTest.ViewModel;
 using Serein.Library.Api;
 using Serein.Library.Attributes;
 using System;
@@ -13,7 +13,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace Net461DllTest
+namespace Net462DllTest
 {
     public partial class FromWorkBenchView : Form
     {

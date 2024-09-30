@@ -1,7 +1,7 @@
 ﻿using IoTClient;
 using IoTClient.Clients.PLC;
 using IoTClient.Enums;
-using Net461DllTest.Signal;
+using Net462DllTest.Signal;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,7 +9,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Net461DllTest.Utils
+namespace Net462DllTest.Utils
 {
     internal static class MyPlcExtension
     {

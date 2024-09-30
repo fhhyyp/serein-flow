@@ -7,196 +7,193 @@ using System.Threading.Tasks;
 
 namespace Serein.Library.Utils
 {
-/// <summary>
-/// 流程中断管理
-/// </summary>
-public class ChannelFlowInterrupt
-{
-
-
-
-/// <summary>
-/// 中断取消类型
-/// </summary>
-public enum CancelType
-{
-    Manual,
-    Error,
-    Overtime
-}
-
-// 使用并发字典管理每个信号对应的 Channel
-private readonly ConcurrentDictionary<string, Channel<CancelType>> _channels = new ConcurrentDictionary<string, Channel<CancelType>>();
-
-/// <summary>
-/// 创建信号并指定超时时间，到期后自动触发（异步方法）
-/// </summary>
-/// <param name="signal">信号标识符</param>
-/// <param name="outTime">超时时间</param>
-/// <returns>等待任务</returns>
-public async Task<CancelType> GetCreateChannelWithTimeoutAsync(string signal, TimeSpan outTime)
-{
-    var channel = GetOrCreateChannel(signal);
-    var cts = new CancellationTokenSource();
-
-    // 异步任务：超时后自动触发信号
-    _ = Task.Run(async () =>
+    /// <summary>
+    /// 流程中断管理
+    /// </summary>
+    public class ChannelFlowInterrupt
     {
-        try
+        /// <summary>
+        /// 中断取消类型
+        /// </summary>
+        public enum CancelType
         {
-            await Task.Delay(outTime, cts.Token);
-            if (!cts.Token.IsCancellationRequested)
+            Manual,
+            Error,
+            Overtime
+        }
+
+        // 使用并发字典管理每个信号对应的 Channel
+        private readonly ConcurrentDictionary<string, Channel<CancelType>> _channels = new ConcurrentDictionary<string, Channel<CancelType>>();
+
+        /// <summary>
+        /// 创建信号并指定超时时间，到期后自动触发（异步方法）
+        /// </summary>
+        /// <param name="signal">信号标识符</param>
+        /// <param name="outTime">超时时间</param>
+        /// <returns>等待任务</returns>
+        public async Task<CancelType> GetCreateChannelWithTimeoutAsync(string signal, TimeSpan outTime)
+        {
+            var channel = GetOrCreateChannel(signal);
+            var cts = new CancellationTokenSource();
+
+            // 异步任务：超时后自动触发信号
+            _ = Task.Run(async () =>
             {
-                await channel.Writer.WriteAsync(CancelType.Overtime);
+                try
+                {
+                    await Task.Delay(outTime, cts.Token);
+                    if (!cts.Token.IsCancellationRequested)
+                    {
+                        await channel.Writer.WriteAsync(CancelType.Overtime);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    // 超时任务被取消
+                }
+                finally
+                {
+                    cts?.Dispose();
+                }
+            }, cts.Token);
+
+            // 等待信号传入（超时或手动触发）
+            try
+            {
+                var result = await channel.Reader.ReadAsync();
+                return result;
             }
+            catch
+            {
+                return CancelType.Error;
+            }
+
         }
-        catch (OperationCanceledException)
-        {
-            // 超时任务被取消
-        }
-        finally
-        {
-            cts?.Dispose();
-        }
-    }, cts.Token);
-
-    // 等待信号传入（超时或手动触发）
-    try
-    {
-        var result = await channel.Reader.ReadAsync();
-        return result;
-    }
-    catch 
-    {
-        return CancelType.Error;
-    }
-
-}
 
 
-/// <summary>
-/// 创建信号，直到手动触发（异步方法）
-/// </summary>
-/// <param name="signal">信号标识符</param>
-/// <param name="outTime">超时时间</param>
-/// <returns>等待任务</returns>
-public async Task<CancelType> GetOrCreateChannelAsync(string signal)
-{
-    try
-    {
-        var channel = GetOrCreateChannel(signal);
-        // 等待信号传入（超时或手动触发）
-        var result = await channel.Reader.ReadAsync();
-        return result;
-    }
-    catch
-    {
-        return CancelType.Manual;
-    }
-}
-
-/// <summary>
-/// 创建信号并指定超时时间，到期后自动触发（同步阻塞方法）
-/// </summary>
-/// <param name="signal">信号标识符</param>
-/// <param name="timeout">超时时间</param>
-public CancelType CreateChannelWithTimeoutSync(string signal, TimeSpan timeout)
-{
-        var channel = GetOrCreateChannel(signal);
-        var cts = new CancellationTokenSource();
-        CancellationToken token = cts.Token;
-
-        // 异步任务：超时后自动触发信号
-        _ = Task.Run(async () =>
+        /// <summary>
+        /// 创建信号，直到手动触发（异步方法）
+        /// </summary>
+        /// <param name="signal">信号标识符</param>
+        /// <param name="outTime">超时时间</param>
+        /// <returns>等待任务</returns>
+        public async Task<CancelType> GetOrCreateChannelAsync(string signal)
         {
             try
             {
-                await Task.Delay(timeout, token);
-                await channel.Writer.WriteAsync(CancelType.Overtime);
+                var channel = GetOrCreateChannel(signal);
+                // 等待信号传入（超时或手动触发）
+                var result = await channel.Reader.ReadAsync();
+                return result;
             }
-            catch (OperationCanceledException ex)
+            catch
             {
-                // 任务被取消
-                await Console.Out.WriteLineAsync(ex.Message);
+                return CancelType.Manual;
             }
-        });
-
-        // 同步阻塞直到信号触发或超时
-        var result = channel.Reader.ReadAsync().AsTask().GetAwaiter().GetResult();
-        return result;
-
-}
-
-/// <summary>
-/// 触发信号
-/// </summary>
-/// <param name="signal">信号字符串</param>
-/// <returns>是否成功触发</returns>
-public bool TriggerSignal(string signal)
-{
-    //if (_channels.TryGetValue(signal, out var channel))
-    //{
-    //    // 手动触发信号
-    //    channel.Writer.TryWrite(CancelType.Manual);
-    //    return true;
-    //}
-    //return false;
-
-
-    try
-    {
-        if (_channels.TryGetValue(signal, out var channel))
-        {
-            // 手动触发信号
-            channel.Writer.TryWrite(CancelType.Manual);
-
-            // 完成写入，标记该信号通道不再接受新写入
-            channel.Writer.Complete();
-
-            // 触发后移除信号
-            _channels.TryRemove(signal, out _);
-
-            return true;
         }
-        return false;
-    }
-    catch 
-    {
 
-        return false;
-    }
-
-}
-
-/// <summary>
-/// 取消所有任务
-/// </summary>
-public void CancelAllTasks()
-{
-    foreach (var channel in _channels.Values)
-    {
-        try
+        /// <summary>
+        /// 创建信号并指定超时时间，到期后自动触发（同步阻塞方法）
+        /// </summary>
+        /// <param name="signal">信号标识符</param>
+        /// <param name="timeout">超时时间</param>
+        public CancelType CreateChannelWithTimeoutSync(string signal, TimeSpan timeout)
         {
-            channel.Writer.Complete();
-        }
-        finally
-        {
+            var channel = GetOrCreateChannel(signal);
+            var cts = new CancellationTokenSource();
+            CancellationToken token = cts.Token;
+
+            // 异步任务：超时后自动触发信号
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(timeout, token);
+                    await channel.Writer.WriteAsync(CancelType.Overtime);
+                }
+                catch (OperationCanceledException ex)
+                {
+                    // 任务被取消
+                    await Console.Out.WriteLineAsync(ex.Message);
+                }
+            });
+
+            // 同步阻塞直到信号触发或超时
+            var result = channel.Reader.ReadAsync().AsTask().GetAwaiter().GetResult();
+            return result;
 
         }
-    }
-    _channels.Clear();
-}
 
-/// <summary>
-/// 获取或创建指定信号的 Channel
-/// </summary>
-/// <param name="signal">信号字符串</param>
-/// <returns>对应的 Channel</returns>
-private Channel<CancelType> GetOrCreateChannel(string signal)
-{
-    return _channels.GetOrAdd(signal, _ => Channel.CreateUnbounded<CancelType>());
-}
-}
+        /// <summary>
+        /// 触发信号
+        /// </summary>
+        /// <param name="signal">信号字符串</param>
+        /// <returns>是否成功触发</returns>
+        public bool TriggerSignal(string signal)
+        {
+            //if (_channels.TryGetValue(signal, out var channel))
+            //{
+            //    // 手动触发信号
+            //    channel.Writer.TryWrite(CancelType.Manual);
+            //    return true;
+            //}
+            //return false;
+
+
+            try
+            {
+                if (_channels.TryGetValue(signal, out var channel))
+                {
+                    // 手动触发信号
+                    channel.Writer.TryWrite(CancelType.Manual);
+
+                    // 完成写入，标记该信号通道不再接受新写入
+                    channel.Writer.Complete();
+
+                    // 触发后移除信号
+                    _channels.TryRemove(signal, out _);
+
+                    return true;
+                }
+                return false;
+            }
+            catch
+            {
+
+                return false;
+            }
+
+        }
+
+        /// <summary>
+        /// 取消所有任务
+        /// </summary>
+        public void CancelAllTasks()
+        {
+            foreach (var channel in _channels.Values)
+            {
+                try
+                {
+                    channel.Writer.Complete();
+                }
+                finally
+                {
+
+                }
+            }
+            _channels.Clear();
+        }
+
+        /// <summary>
+        /// 获取或创建指定信号的 Channel
+        /// </summary>
+        /// <param name="signal">信号字符串</param>
+        /// <returns>对应的 Channel</returns>
+        private Channel<CancelType> GetOrCreateChannel(string signal)
+        {
+            return _channels.GetOrAdd(signal, _ => Channel.CreateUnbounded<CancelType>());
+        }
+    }
 }
 
 #endregion

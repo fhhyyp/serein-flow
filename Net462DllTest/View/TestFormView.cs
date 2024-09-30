@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Windows.Forms;
 
-namespace Net461DllTest.View
+namespace Net462DllTest.View
 {
     public partial class TestFormView : Form
     {

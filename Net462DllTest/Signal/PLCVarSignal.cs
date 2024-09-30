@@ -1,8 +1,8 @@
 ﻿using Serein.Library.Attributes;
 using System;
-using static Net461DllTest.Signal.PlcValueAttribute;
+using static Net462DllTest.Signal.PlcValueAttribute;
 
-namespace Net461DllTest.Signal
+namespace Net462DllTest.Signal
 {
 
     [AttributeUsage(AttributeTargets.Field)]

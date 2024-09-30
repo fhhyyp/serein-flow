@@ -22,7 +22,6 @@ namespace Serein.WorkBench.Themes
     /// </summary>
     public partial class NodeTreeViewControl : UserControl
     {
-        private IFlowEnvironment FlowEnvironment { get; set; }
         public NodeTreeViewControl()
         {
             InitializeComponent();

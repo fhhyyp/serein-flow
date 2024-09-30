@@ -1,13 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection.Emit;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
-using System;
-using System.Collections.Generic;
-using System.Reflection;
+﻿using System.Reflection;
 using System.Reflection.Emit;
 
 
@@ -78,7 +69,7 @@ namespace Serein.NodeFlow.Tool
             // 如果类型已经缓存，直接返回缓存的类型
             if (typeCache.ContainsKey(typeName))
             {
-                return Activator.CreateInstance(typeCache[typeName]);
+                return Activator.CreateInstance(typeCache[typeName])!;
             }
 
             // 定义动态程序集和模块
@@ -98,7 +89,7 @@ namespace Serein.NodeFlow.Tool
 
                 if (propValue is IList<Dictionary<string, object>>) // 处理数组类型
                 {
-                    var nestedPropValue = (propValue as IList<Dictionary<string, object>>)[0];
+                    var nestedPropValue = (propValue as IList<Dictionary<string, object>>)![0];
                     var nestedType = CreateObjectWithProperties(nestedPropValue, $"{propName}Element");
                     propType = nestedType.GetType().MakeArrayType(); // 创建数组类型
                 }
@@ -152,7 +143,7 @@ namespace Serein.NodeFlow.Tool
             typeCache[typeName] = dynamicType;
 
             // 创建对象实例
-            return Activator.CreateInstance(dynamicType);
+            return Activator.CreateInstance(dynamicType)!;
         }
 
         // 方法 2: 递归设置对象的属性值
@@ -169,10 +160,10 @@ namespace Serein.NodeFlow.Tool
                 if (value is Dictionary<string, object> nestedProperties)
                 {
                     // 创建嵌套对象
-                    var nestedObj = Activator.CreateInstance(propInfo.PropertyType);
+                    var nestedObj = Activator.CreateInstance(propInfo!.PropertyType);
 
                     // 递归设置嵌套对象的值
-                    SetPropertyValues(nestedObj, nestedProperties);
+                    SetPropertyValues(nestedObj!, nestedProperties);
 
                     // 将嵌套对象赋值给属性
                     propInfo.SetValue(obj, nestedObj);
@@ -180,7 +171,7 @@ namespace Serein.NodeFlow.Tool
                 else
                 {
                     // 直接赋值给属性
-                    propInfo.SetValue(obj, value);
+                    propInfo!.SetValue(obj, value);
                 }
             }
         }
@@ -222,7 +213,7 @@ namespace Serein.NodeFlow.Tool
                     if (propValue is Dictionary<string, object> nestedProperties)
                     {
                         var nestedObj = Activator.CreateInstance(propInfo.PropertyType);
-                        if (SetPropertyValuesWithValidation(nestedObj, nestedProperties))
+                        if (nestedObj is not null && SetPropertyValuesWithValidation(nestedObj, nestedProperties))
                         {
                             propInfo.SetValue(obj, nestedObj);
                         }
@@ -235,22 +226,24 @@ namespace Serein.NodeFlow.Tool
                     {
                         // 获取目标类型的数组元素类型
                         var elementType = propInfo.PropertyType.GetElementType();
-                        var array = Array.CreateInstance(elementType, list.Count);
-
-                        for (int i = 0; i < list.Count; i++)
+                        if (elementType is not null)
                         {
-                            var item = Activator.CreateInstance(elementType);
-                            if (SetPropertyValuesWithValidation(item, list[i]))
-                            {
-                                array.SetValue(item, i);
-                            }
-                            else
-                            {
-                                allSuccessful = false; // 赋值失败
-                            }
-                        }
+                            var array = Array.CreateInstance(elementType, list.Count);
 
-                        propInfo.SetValue(obj, array);
+                            for (int i = 0; i < list.Count; i++)
+                            {
+                                var item = Activator.CreateInstance(elementType);
+                                if (item is not null && SetPropertyValuesWithValidation(item, list[i]))
+                                {
+                                    array.SetValue(item, i);
+                                }
+                                else
+                                {
+                                    allSuccessful = false; // 赋值失败
+                                }
+                            }
+                            propInfo.SetValue(obj, array);
+                        }
                     }
                     else
                     {

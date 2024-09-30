@@ -18,7 +18,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Serein.Library.Framework", 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Library", "Library\Serein.Library.csproj", "{5E19D0F2-913A-4D1C-A6F8-1E1227BAA0E3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Net461DllTest", "Net461DllTest\Net461DllTest.csproj", "{E40EE629-1A38-4011-88E3-9AD036869987}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Net462DllTest", "Net462DllTest\Net462DllTest.csproj", "{E40EE629-1A38-4011-88E3-9AD036869987}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -41,12 +41,12 @@ namespace Serein.NodeFlow.Base
         /// <summary>
         /// 节点guid
         /// </summary>
-        public string Guid { get; set; }
+        public string Guid { get; set; } = string.Empty;
 
         /// <summary>
         /// 显示名称
         /// </summary>
-        public string DisplayName { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
 
         /// <summary>
         /// 是否为起点控件
@@ -76,7 +76,7 @@ namespace Serein.NodeFlow.Base
         /// <summary>
         /// 运行时的异常信息（仅在 FlowState 为 Error 时存在对应值）
         /// </summary>
-        public Exception RuningException { get; set; } = null;
+        public Exception? RuningException { get; set; } = null;
 
 
         /// <summary>

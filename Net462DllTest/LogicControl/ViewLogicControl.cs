@@ -1,6 +1,6 @@
-﻿using Net461DllTest.Device;
-using Net461DllTest.Signal;
-using Net461DllTest.ViewModel;
+﻿using Net462DllTest.Device;
+using Net462DllTest.Signal;
+using Net462DllTest.ViewModel;
 using Serein.Library.Api;
 using Serein.Library.Attributes;
 using Serein.Library.Enums;
@@ -10,7 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
 
-namespace Net461DllTest.LogicControl 
+namespace Net462DllTest.LogicControl 
 { 
 
     /// <summary>

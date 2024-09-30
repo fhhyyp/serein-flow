@@ -1,12 +1,12 @@
-﻿using Net461DllTest.Signal;
+﻿using Net462DllTest.Signal;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static Net461DllTest.Signal.PlcValueAttribute;
+using static Net462DllTest.Signal.PlcValueAttribute;
 
-namespace Net461DllTest.Enums
+namespace Net462DllTest.Enums
 {
 
 

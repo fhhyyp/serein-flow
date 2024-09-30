@@ -1,4 +1,4 @@
-﻿namespace Net461DllTest.Signal
+﻿namespace Net462DllTest.Signal
 {
     public enum CommandSignal
     {

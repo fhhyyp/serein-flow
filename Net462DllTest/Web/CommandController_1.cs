@@ -1,5 +1,5 @@
-﻿using Net461DllTest.Device;
-using Net461DllTest.Signal;
+﻿using Net462DllTest.Device;
+using Net462DllTest.Signal;
 using Serein.Library.Attributes;
 using Serein.Library.Web;
 using System;
@@ -8,7 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Net461DllTest.Web
+namespace Net462DllTest.Web
 {
     [AutoHosting]
     public class CommandController : ControllerBase

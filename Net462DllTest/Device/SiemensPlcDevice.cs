@@ -1,13 +1,13 @@
 ﻿using IoTClient;
 using IoTClient.Clients.PLC;
 using IoTClient.Enums;
-using Net461DllTest.Enums;
-using Net461DllTest.Signal;
+using Net462DllTest.Enums;
+using Net462DllTest.Signal;
 using Serein.Library.Attributes;
 using Serein.Library.NodeFlow.Tool;
 using System;
 
-namespace Net461DllTest.Device
+namespace Net462DllTest.Device
 {
 
     /// <summary>

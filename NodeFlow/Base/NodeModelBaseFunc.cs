@@ -74,17 +74,17 @@ namespace Serein.NodeFlow.Base
 
         internal virtual NodeModelBase LoadInfo(NodeInfo nodeInfo)
         {
-            var node = this;
-            if (node != null)
+            this.Guid = nodeInfo.Guid;
+            if(this.MethodDetails is not null)
             {
-                node.Guid = nodeInfo.Guid;
                 for (int i = 0; i < nodeInfo.ParameterData.Length; i++)
                 {
                     Parameterdata? pd = nodeInfo.ParameterData[i];
-                    node.MethodDetails.ExplicitDatas[i].IsExplicitData = pd.State;
-                    node.MethodDetails.ExplicitDatas[i].DataValue = pd.Value;
+                    this.MethodDetails.ExplicitDatas[i].IsExplicitData = pd.State;
+                    this.MethodDetails.ExplicitDatas[i].DataValue = pd.Value;
                 }
             }
+           
             return this;
         }
 
@@ -132,7 +132,7 @@ namespace Serein.NodeFlow.Base
                         if (upstreamNodes[i].DebugSetting.InterruptClass != InterruptClass.None) // 执行触发前
                         {
                             var cancelType = await upstreamNodes[i].DebugSetting.GetInterruptTask();
-                            await Console.Out.WriteLineAsync($"[{upstreamNodes[i].MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");
+                            await Console.Out.WriteLineAsync($"[{upstreamNodes[i]?.MethodDetails?.MethodName}]中断已{cancelType}，开始执行后继分支");
                         }
                         upstreamNodes[i].PreviousNode = currentNode;
                         await upstreamNodes[i].StartExecute(context); // 执行流程节点的上游分支
@@ -165,7 +165,7 @@ namespace Serein.NodeFlow.Base
                         if (nextNodes[i].DebugSetting.InterruptClass != InterruptClass.None) // 执行触发前
                         {
                             var cancelType = await nextNodes[i].DebugSetting.GetInterruptTask();
-                            await Console.Out.WriteLineAsync($"[{nextNodes[i].MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");
+                            await Console.Out.WriteLineAsync($"[{nextNodes[i]?.MethodDetails?.MethodName}]中断已{cancelType}，开始执行后继分支");
                         }
                         nextNodes[i].PreviousNode = currentNode;
                         stack.Push(nextNodes[i]);
@@ -194,18 +194,22 @@ namespace Serein.NodeFlow.Base
                 //    this.NextOrientation = ConnectionType.None;
                 //    return null;
                 //}
-                await Console.Out.WriteLineAsync($"[{this.MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");
+                await Console.Out.WriteLineAsync($"[{this.MethodDetails?.MethodName}]中断已{cancelType}，开始执行后继分支");
             }
 
             #endregion
 
-            MethodDetails md = MethodDetails;
+            MethodDetails? md = MethodDetails;
             //var del = md.MethodDelegate.Clone();
+            if (md is null)
+            {
+                throw new Exception($"节点{this.Guid}不存在方法信息，请检查是否需要重写节点的ExecutingAsync");
+            }
             if (!context.Env.TryGetDelegate(md.MethodName, out var del))
             {
-                throw new Exception("不存在对应委托");
+                throw new Exception($"节点{this.Guid}不存在对应委托");
             }
-            md.ActingInstance ??= context.Env.IOC.Get(MethodDetails.ActingInstanceType);
+            md.ActingInstance ??= context.Env.IOC.Get(md.ActingInstanceType);
             object instance = md.ActingInstance;
 
             var haveParameter = md.ExplicitDatas.Length > 0;
@@ -281,7 +285,7 @@ namespace Serein.NodeFlow.Base
 
                 if (ed.IsExplicitData) // 判断是否使用显示的输入参数
                 {
-                    if (ed.DataValue.StartsWith("@get", StringComparison.OrdinalIgnoreCase))
+                    if (ed.DataValue.StartsWith("@get", StringComparison.OrdinalIgnoreCase) && flowData is not null)
                     {
                         // 执行表达式从上一节点获取对象
                         inputParameter = SerinExpressionEvaluator.Evaluate(ed.DataValue, flowData, out _);
@@ -315,8 +319,6 @@ namespace Serein.NodeFlow.Base
                     }
                 }
 
-                //var attribute = ed.DataType.GetCustomAttribute<EnumTypeConvertorAttribute>();
-                //if (attribute is not null && attribute.EnumType.IsEnum) // 获取枚举转换器中记录的枚举
                 if ( ed.DataType != ed.ExplicitType) // 获取枚举转换器中记录的枚举
                 {
                     if (ed.ExplicitType.IsEnum && Enum.TryParse(ed.ExplicitType, ed.DataValue, out var resultEnum)) // 获取对应的枚举项
@@ -339,41 +341,43 @@ namespace Serein.NodeFlow.Base
 
                 try
                 {
+                    string? valueStr = inputParameter?.ToString();
                     parameters[i] = ed.DataType switch
                     {
-                        //Type t when t == previousDataType => inputParameter, // 上下文
-                        Type t when t.IsEnum => Enum.Parse(ed.DataType, ed.DataValue),// 需要枚举
                         Type t when t == typeof(IDynamicContext) => context, // 上下文
+                        Type t when t.IsEnum => Enum.Parse(ed.DataType, ed.DataValue),// 需要枚举
+                        Type t when t == typeof(string) => inputParameter?.ToString(),
+                        Type t when t == typeof(char)    && !string.IsNullOrEmpty(valueStr) =>  char.Parse(valueStr),
+                        Type t when t == typeof(bool)    && !string.IsNullOrEmpty(valueStr) =>  inputParameter is not null && bool.Parse(valueStr),
+                        Type t when t == typeof(float)   && !string.IsNullOrEmpty(valueStr) =>  float.Parse(valueStr),
+                        Type t when t == typeof(decimal) && !string.IsNullOrEmpty(valueStr) =>  decimal.Parse(valueStr),
+                        Type t when t == typeof(double)  && !string.IsNullOrEmpty(valueStr) =>  double.Parse(valueStr),
+                        Type t when t == typeof(sbyte)   && !string.IsNullOrEmpty(valueStr) =>  sbyte.Parse(valueStr),
+                        Type t when t == typeof(byte)    && !string.IsNullOrEmpty(valueStr) =>  byte.Parse(valueStr),
+                        Type t when t == typeof(short)   && !string.IsNullOrEmpty(valueStr) =>  short.Parse(valueStr),
+                        Type t when t == typeof(ushort)  && !string.IsNullOrEmpty(valueStr) =>  ushort.Parse(valueStr),
+                        Type t when t == typeof(int)     && !string.IsNullOrEmpty(valueStr) =>  int.Parse(valueStr),
+                        Type t when t == typeof(uint)    && !string.IsNullOrEmpty(valueStr) =>  uint.Parse(valueStr),
+                        Type t when t == typeof(long)    && !string.IsNullOrEmpty(valueStr) =>  long.Parse(valueStr),
+                        Type t when t == typeof(ulong)   && !string.IsNullOrEmpty(valueStr) =>  ulong.Parse(valueStr),
+                        Type t when t == typeof(nint)    && !string.IsNullOrEmpty(valueStr) =>  nint.Parse(valueStr),
+                        Type t when t == typeof(nuint)   && !string.IsNullOrEmpty(valueStr) =>  nuint.Parse(valueStr),
+                        //Type t when t == typeof(DateTime)  => string.IsNullOrEmpty(valueStr) ? 0 :  DateTime.Parse(valueStr),
+
                         Type t when t == typeof(MethodDetails) => md, // 节点方法描述
                         Type t when t == typeof(NodeModelBase) => nodeModel, // 节点实体类
-                        Type t when t == typeof(Guid) => new Guid(inputParameter?.ToString()),
-                        Type t when t == typeof(DateTime) => DateTime.Parse(inputParameter?.ToString()),
-                        Type t when t == typeof(string) => inputParameter?.ToString(),
-                        Type t when t == typeof(char) => char.Parse(inputParameter?.ToString()),
-                        Type t when t == typeof(bool) => inputParameter is null ? false : bool.Parse(inputParameter?.ToString()),
-                        Type t when t == typeof(float) => inputParameter is null ? 0F : float.Parse(inputParameter?.ToString()),
-                        Type t when t == typeof(decimal) => inputParameter is null ? 0 : decimal.Parse(inputParameter?.ToString()),
-                        Type t when t == typeof(double) => inputParameter is null ? 0 : double.Parse(inputParameter?.ToString()),
-                        Type t when t == typeof(sbyte) => inputParameter is null ? 0 : sbyte.Parse(inputParameter?.ToString()),
-                        Type t when t == typeof(byte) => inputParameter is null ? 0 : byte.Parse(inputParameter?.ToString()),
-                        Type t when t == typeof(short) => inputParameter is null ? 0 : short.Parse(inputParameter?.ToString()),
-                        Type t when t == typeof(ushort) => inputParameter is null ? 0U : ushort.Parse(inputParameter?.ToString()),
-                        Type t when t == typeof(int) => inputParameter is null ? 0 : int.Parse(inputParameter?.ToString()),
-                        Type t when t == typeof(uint) => inputParameter is null ? 0U : uint.Parse(inputParameter?.ToString()),
-                        Type t when t == typeof(long) => inputParameter is null ? 0L : long.Parse(inputParameter?.ToString()),
-                        Type t when t == typeof(ulong) => inputParameter is null ? 0UL : ulong.Parse(inputParameter?.ToString()),
-                        Type t when t == typeof(nint) => inputParameter is null ? 0 : nint.Parse(inputParameter?.ToString()),
-                        Type t when t == typeof(nuint) => inputParameter is null ? 0 : nuint.Parse(inputParameter?.ToString()),
 
                         Type t when t.IsArray => (inputParameter as Array)?.Cast<object>().ToList(),
                         Type t when t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>) => inputParameter,
-                        Type t when Nullable.GetUnderlyingType(t) != null => inputParameter is null ? null : Convert.ChangeType(inputParameter, Nullable.GetUnderlyingType(t)),
                         _ => inputParameter,
+                        // Type t when Nullable.GetUnderlyingType(t) != null => inputParameter is null ? null : Convert.ChangeType(inputParameter, Nullable.GetUnderlyingType(t)),
                     };
+
+
                 }
                 catch (Exception ex) // 节点参数类型转换异常
                 {
-                    parameters[i] = null;
+                    parameters[i] = new object();
                     Console.WriteLine(ex);
                 }
             }
@@ -395,21 +399,25 @@ namespace Serein.NodeFlow.Base
             }
         }
 
-        private static async Task MonitorObjExpInterrupt(IDynamicContext context, NodeModelBase nodeModel, object data, int type)
+        private static async Task MonitorObjExpInterrupt(IDynamicContext context, NodeModelBase nodeModel, object? data, int monitorType)
         {
             MonitorObjectEventArgs.ObjSourceType sourceType;
-            string key;
-            if(type == 0)
+            string? key;
+            if(monitorType == 0)
             {
-                key = data.GetType().FullName;
+                key = data?.GetType()?.FullName;
                 sourceType = MonitorObjectEventArgs.ObjSourceType.IOCObj;
             }
             else
             {
                 key = nodeModel.Guid;
                 sourceType = MonitorObjectEventArgs.ObjSourceType.IOCObj;
-
             }
+            if (string.IsNullOrEmpty(key))
+            {
+                return;
+            }
+
             if (context.Env.CheckObjMonitorState(key, out List<string> exps)) // 如果新的数据处于查看状态，通知UI进行更新？交给运行环境判断？
             {
                 context.Env.MonitorObjectNotification(nodeModel.Guid, data, sourceType); // 对象处于监视状态，通知UI更新数据显示

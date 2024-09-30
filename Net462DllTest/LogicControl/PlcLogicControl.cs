@@ -1,9 +1,9 @@
 ﻿using IoTClient.Clients.PLC;
 using IoTClient.Common.Enums;
-using Net461DllTest.Device;
-using Net461DllTest.Enums;
-using Net461DllTest.Signal;
-using Net461DllTest.Web;
+using Net462DllTest.Device;
+using Net462DllTest.Enums;
+using Net462DllTest.Signal;
+using Net462DllTest.Web;
 using Serein.Library.Api;
 using Serein.Library.Attributes;
 using Serein.Library.Enums;
@@ -18,7 +18,7 @@ using System.ComponentModel;
 using System.Reflection;
 using System.Threading.Tasks;
 
-namespace Net461DllTest.LogicControl
+namespace Net462DllTest.LogicControl
 {
     [AutoRegister]
     [DynamicFlow] 

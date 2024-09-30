@@ -74,7 +74,7 @@ namespace Serein.WorkBench.Themes
                     {ConnectionType.IsError, []},
                 }
             };
-            string itemName = rootNodeModel?.MethodDetails?.MethodTips;
+            string? itemName = rootNodeModel.MethodDetails?.MethodTips;
             if (string.IsNullOrEmpty(itemName))
             {
                 itemName = rootNodeModel.ControlType.ToString();
@@ -141,10 +141,10 @@ namespace Serein.WorkBench.Themes
                             RootNode = child,
                             ChildNodes = child.SuccessorNodes,
                         };
-                        string itemName = child?.MethodDetails?.MethodTips;
+                        string? itemName = child?.MethodDetails?.MethodTips;
                         if (string.IsNullOrEmpty(itemName))
                         {
-                            itemName = child.ControlType.ToString();
+                            itemName = child?.ControlType.ToString();
                         }
                         TreeViewItem treeViewItem = new TreeViewItem
                         {
@@ -204,10 +204,10 @@ namespace Serein.WorkBench.Themes
                         ChildNodes = childNodeModel.SuccessorNodes,
                     };
 
-                    string itemName = childNodeModel?.MethodDetails?.MethodTips;
+                    string? itemName = childNodeModel?.MethodDetails?.MethodTips;
                     if (string.IsNullOrEmpty(itemName))
                     {
-                        itemName = childNodeModel.ControlType.ToString();
+                        itemName = childNodeModel?.ControlType.ToString();
                     }
                     TreeViewItem treeViewItem = new TreeViewItem
                     {

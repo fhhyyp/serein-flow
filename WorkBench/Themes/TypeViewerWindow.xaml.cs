@@ -227,10 +227,10 @@ namespace Serein.WorkBench.Themes
         /// </summary>
         /// <param name="node">目标节点</param>
         /// <returns>父节点</returns>
-        private TreeViewItem GetParentTreeViewItem(TreeViewItem node)
+        private TreeViewItem? GetParentTreeViewItem(TreeViewItem node)
         {
             DependencyObject parent = VisualTreeHelper.GetParent(node);
-            while (parent != null && !(parent is TreeViewItem))
+            while (parent != null && parent is not TreeViewItem)
             {
                 parent = VisualTreeHelper.GetParent(parent);
             }

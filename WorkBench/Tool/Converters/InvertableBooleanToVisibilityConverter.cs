@@ -29,7 +29,7 @@ namespace Serein.WorkBench.Tool.Converters
             return boolValue ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        public object ConvertBack(object value, Type targetType,
+        public object? ConvertBack(object value, Type targetType,
             object parameter, CultureInfo culture)
         {
             return null;

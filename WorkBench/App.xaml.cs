@@ -12,24 +12,24 @@ namespace Serein.WorkBench
     /// </summary>
     public partial class App : Application
     {
-        public class TestObject
-        {
+        //public class TestObject
+        //{
 
-            public NestedObject Data { get; set; }
+        //    public NestedObject Data { get; set; }
 
-            public class NestedObject
-            {
-                public int Code { get; set; }
-                public int Code2 { get; set; }
+        //    public class NestedObject
+        //    {
+        //        public int Code { get; set; }
+        //        public int Code2 { get; set; }
 
-                public string Tips { get; set; }
+        //        public string Tips { get; set; }
 
-            }
-            public string ToUpper(string input)
-            {
-                return input.ToUpper();
-            }
-        }
+        //    }
+        //    public string ToUpper(string input)
+        //    {
+        //        return input.ToUpper();
+        //    }
+        //}
 
         
 
@@ -125,7 +125,7 @@ namespace Serein.WorkBench
         /// 成功加载的工程文件
         /// </summary>
         public static SereinProjectData? FlowProjectData { get; set; }
-        public static string FileDataPath = "";
+        public static string FileDataPath { get; set; } = "";
         private void Application_Startup(object sender, StartupEventArgs e)
         {
             // 检查是否传入了参数
@@ -163,7 +163,7 @@ namespace Serein.WorkBench
                 string filePath;
                 //filePath = @"F:\临时\project\tmp\project.dnf";
                 //filePath = @"D:\Project\C#\TestNetFramework\Net45DllTest\Net45DllTest\bin\Debug\project.dnf";
-                filePath = @"D:\Project\C#\DynamicControl\SereinFlow\Net461DllTest\bin\Debug\project.dnf";
+                filePath = @"D:\Project\C#\DynamicControl\SereinFlow\Net462DllTest\bin\Debug\project.dnf";
                 //string filePath = @"D:\Project\C#\DynamicControl\SereinFlow\.Output\Debug\net8.0-windows7.0\U9 project.dnf";
                 string content = System.IO.File.ReadAllText(filePath); // 读取整个文件内容
                 App.FlowProjectData = JsonConvert.DeserializeObject<SereinProjectData>(content);

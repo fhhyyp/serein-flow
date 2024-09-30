@@ -52,7 +52,7 @@ public static class MethodDetailsHelperTmp
     /// 创建方法信息
     /// </summary>
     /// <returns></returns>
-    public static (MethodDetails,Delegate) CreateMethodDetails(Type type, MethodInfo method, string assemblyName)
+    public static (MethodDetails?,Delegate?) CreateMethodDetails(Type type, MethodInfo method, string assemblyName)
     {
 
         var methodName = method.Name;

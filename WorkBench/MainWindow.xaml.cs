@@ -139,15 +139,15 @@ namespace Serein.WorkBench
         /// <summary>
         /// 组合变换容器
         /// </summary>
-        private TransformGroup canvasTransformGroup;
+        private readonly TransformGroup canvasTransformGroup;
         /// <summary>
         /// 缩放画布
         /// </summary>
-        private ScaleTransform scaleTransform;
+        private readonly ScaleTransform scaleTransform;
         /// <summary>
         /// 平移画布 
         /// </summary>
-        private TranslateTransform translateTransform;
+        private readonly TranslateTransform translateTransform;
         #endregion
 
         public MainWindow()
@@ -162,10 +162,17 @@ namespace Serein.WorkBench
             InitFlowEnvironmentEvent(); // 配置环境事件
             logWindow =  InitConsoleOut(); // 重定向 Console 输出
 
-            InitCanvasUI();  // 配置画布
+            canvasTransformGroup = new TransformGroup();
+            scaleTransform = new ScaleTransform();
+            translateTransform = new TranslateTransform();
+
+            canvasTransformGroup.Children.Add(scaleTransform);
+            canvasTransformGroup.Children.Add(translateTransform);
+
+            FlowChartCanvas.RenderTransform = canvasTransformGroup;
 
 
-            if(App.FlowProjectData is not null)
+            if (App.FlowProjectData is not null)
             {
                 FlowEnvironment.LoadProject(App.FlowProjectData, App.FileDataPath); // 加载项目
             }
@@ -198,17 +205,7 @@ namespace Serein.WorkBench
 
         
 
-        private void InitCanvasUI()
-        {
-            canvasTransformGroup = new TransformGroup();
-            scaleTransform = new ScaleTransform();
-            translateTransform = new TranslateTransform();
-            
-            canvasTransformGroup.Children.Add(scaleTransform);
-            canvasTransformGroup.Children.Add(translateTransform);
 
-            FlowChartCanvas.RenderTransform = canvasTransformGroup;
-        }
 
         private LogWindow InitConsoleOut()
         {
@@ -243,7 +240,7 @@ namespace Serein.WorkBench
             }
 
             var canvasData = project.Basic.Canvas;
-            if (canvasData != null)
+            if (canvasData is not null)
             {
                 scaleTransform.ScaleX = 1;
                 scaleTransform.ScaleY = 1;
@@ -355,9 +352,9 @@ namespace Serein.WorkBench
                     End = toNode,
                     Type = connectionType
                 };
-                if (toNode is FlipflopNodeControl flipflopControl) // 某个节点连接到了触发器，尝试从全局触发器视图中移除该触发器
+                if (toNode is FlipflopNodeControl flipflopControl 
+                    && flipflopControl?.ViewModel?.Node is NodeModelBase nodeModel) // 某个节点连接到了触发器，尝试从全局触发器视图中移除该触发器
                 {
-                    var nodeModel = flipflopControl?.ViewModel?.Node;
                     NodeTreeViewer.RemoteGlobalFlipFlop(nodeModel); // 从全局触发器树树视图中移除
                 }
 
@@ -556,7 +553,7 @@ namespace Serein.WorkBench
   }
                 else
                 {
-                    if (ViewObjectViewer.MonitorKey.Equals(monitorKey)) // 相同对象
+                    if (monitorKey.Equals(ViewObjectViewer.MonitorKey)) // 相同对象
                     {
                         ViewObjectViewer.RefreshObjectTree(eventArgs.NewData); // 刷新
                     }
@@ -704,7 +701,7 @@ namespace Serein.WorkBench
         /// <param name="power">抖动第一下偏移量</param>
         /// <param name="range">减弱幅度（小于等于power，大于0）</param>
         /// <param name="speed">持续系数(大于0)，越大时间越长，</param>
-        private static void ElasticAnimation(NodeControlBase? nodeControl, TranslateTransform translate, int power, int range = 1, double speed = 1)
+        private static void ElasticAnimation(NodeControlBase nodeControl, TranslateTransform translate, int power, int range = 1, double speed = 1)
         {
             DoubleAnimationUsingKeyFrames animation1 = new DoubleAnimationUsingKeyFrames();
             for (int i = power, j = 1; i >= 0; i -= range)
@@ -883,10 +880,10 @@ namespace Serein.WorkBench
         /// <param name="nodeControl"><para> 任何情景下都尽量避免直接操作 ViewModel 中的 NodeModel 节点，而是应该调用 FlowEnvironment 提供接口进行操作。</para> 因为 Workbench 应该更加关注UI视觉效果，而非直接干扰流程环境运行的逻辑。<para> 之所以暴露 NodeModel 属性，因为有些场景下不可避免的需要直接获取节点的属性。</para> </param>
         private void ConfigureContextMenu(NodeControlBase nodeControl)
         {
+            
             var contextMenu = new ContextMenu();
 
-            // var nodeModel = nodeControl.ViewModel.Node;
-
+           
             if (nodeControl.ViewModel.Node?.MethodDetails?.ReturnType is Type returnType && returnType != typeof(void))
             {
                 contextMenu.Items.Add(CreateMenuItem("查看返回类型", (s, e) =>
@@ -894,7 +891,7 @@ namespace Serein.WorkBench
                     DisplayReturnTypeTreeViewer(returnType);
                 }));
             }
-            var nodeGuid = nodeControl?.ViewModel?.Node?.Guid;
+            var nodeGuid = nodeControl.ViewModel?.Node?.Guid;
 
             #region 右键菜单功能 - 中断
 
@@ -923,10 +920,10 @@ namespace Serein.WorkBench
             contextMenu.Items.Add(CreateMenuItem("设为起点", (s, e) => FlowEnvironment.SetStartNode(nodeGuid)));
             contextMenu.Items.Add(CreateMenuItem("删除", (s, e) => FlowEnvironment.RemoteNode(nodeGuid)));
 
-            contextMenu.Items.Add(CreateMenuItem("添加 真分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsSucceed)));
-            contextMenu.Items.Add(CreateMenuItem("添加 假分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsFail)));
-            contextMenu.Items.Add(CreateMenuItem("添加 异常分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsError)));
-            contextMenu.Items.Add(CreateMenuItem("添加 上游分支", (s, e) => StartConnection(nodeControl, ConnectionType.Upstream)));
+            contextMenu.Items.Add(CreateMenuItem("添加 真分支", (s, e) => StartConnection((NodeControlBase)s, ConnectionType.IsSucceed)));
+            contextMenu.Items.Add(CreateMenuItem("添加 假分支", (s, e) => StartConnection((NodeControlBase)s, ConnectionType.IsFail)));
+            contextMenu.Items.Add(CreateMenuItem("添加 异常分支", (s, e) => StartConnection((NodeControlBase)s, ConnectionType.IsError)));
+            contextMenu.Items.Add(CreateMenuItem("添加 上游分支", (s, e) => StartConnection((NodeControlBase)s, ConnectionType.Upstream)));
 
 
 
@@ -976,6 +973,10 @@ namespace Serein.WorkBench
         {
             var contextMenu = new ContextMenu();
             contextMenu.Items.Add(CreateMenuItem("删除连线", (s, e) => DeleteConnection(connection)));
+            if (connection.ArrowPath is null || connection.BezierPath is null)
+            {
+                return;
+            }
             connection.ArrowPath.ContextMenu = contextMenu;
             connection.BezierPath.ContextMenu = contextMenu;
         }
@@ -1198,8 +1199,8 @@ namespace Serein.WorkBench
                 // 准备放置条件表达式控件
                 if (nodeControl.ViewModel.Node.ControlType == NodeControlType.ExpCondition)
                 {
-                    ConditionRegionControl conditionRegion = GetParentOfType<ConditionRegionControl>(hitElement);
-                    if (conditionRegion != null)
+                    ConditionRegionControl? conditionRegion = GetParentOfType<ConditionRegionControl>(hitElement);
+                    if (conditionRegion is not null)
                     {
                         TryPlaceNodeInRegion(conditionRegion, nodeControl);
                         //// 如果存在条件区域容器
@@ -1222,8 +1223,8 @@ namespace Serein.WorkBench
             // 准备放置条件表达式控件
             if (nodeControl.ViewModel.Node.ControlType == NodeControlType.ExpCondition)
             {
-                ConditionRegionControl conditionRegion = regionControl as ConditionRegionControl;
-                if (conditionRegion != null)
+                ConditionRegionControl? conditionRegion = regionControl as ConditionRegionControl;
+                if (conditionRegion is not null)
                 {
                     // 如果存在条件区域容器
                     conditionRegion.AddCondition(nodeControl);
@@ -1365,14 +1366,17 @@ namespace Serein.WorkBench
         }
         private void ChangeViewerObjOfNode(NodeControlBase nodeControl)
         {
-            var node = nodeControl?.ViewModel?.Node;
+            var node = nodeControl.ViewModel.Node;
             //if (node is not null && (node.MethodDetails is null || node.MethodDetails.ReturnType != typeof(void))
-            if (node is not null && node?.MethodDetails?.ReturnType != typeof(void))
+            if (node is not null && node.MethodDetails?.ReturnType != typeof(void))
             {
                 var key = node.Guid;
                 var instance = node.GetFlowData();
-                ViewObjectViewer.LoadObjectInformation(key, instance);
-                ChangeViewerObj(key, instance);
+                if(instance is not null)
+                {
+                    ViewObjectViewer.LoadObjectInformation(key, instance);
+                    ChangeViewerObj(key, instance);
+                }
             }
         }
         public void ChangeViewerObj(string key, object instance)
@@ -1767,64 +1771,6 @@ namespace Serein.WorkBench
                 CompleteSelection();
             }
 
-            e.Handled = true; // 防止事件传播影响其他控件
-            return;
-            // 如果正在选取状态，再次点击画布时自动确定选取范围，否则进入选取状态
-            if (IsSelectControl)
-            {
-                IsSelectControl = false;
-                // 释放鼠标捕获
-                FlowChartCanvas.ReleaseMouseCapture();
-
-                // 隐藏选取矩形（如果需要保持选取状态显示，可以删除此行）
-                SelectionRectangle.Visibility = Visibility.Collapsed;
-
-                // 处理选取区域内的元素（例如，获取选取范围内的控件）
-                Rect selectionArea = new Rect(Canvas.GetLeft(SelectionRectangle),
-                                              Canvas.GetTop(SelectionRectangle),
-                                              SelectionRectangle.Width,
-                                              SelectionRectangle.Height);
-
-
-                // 在此处处理选取的逻辑
-                foreach (UIElement element in FlowChartCanvas.Children)
-                {
-                    Rect elementBounds = new Rect(Canvas.GetLeft(element), Canvas.GetTop(element),
-                                                  element.RenderSize.Width, element.RenderSize.Height);
-
-                    if (selectionArea.Contains(elementBounds))
-                    {
-                        // 选中元素，执行相应操作
-                        if (element is NodeControlBase control)
-                        {
-                            selectNodeControls.Add(control);
-                        }
-                    }
-                }
-                SelectedNode();// 选择之后需要执行的操作
-            }
-            else
-            {
-                // 进入选取状态
-                IsSelectControl = true;
-
-                // 开始选取时，记录鼠标起始点
-                startSelectControolPoint = e.GetPosition(FlowChartCanvas);
-
-                // 初始化选取矩形的位置和大小
-                Canvas.SetLeft(SelectionRectangle, startSelectControolPoint.X);
-                Canvas.SetTop(SelectionRectangle, startSelectControolPoint.Y);
-                SelectionRectangle.Width = 0;
-                SelectionRectangle.Height = 0;
-
-                // 显示选取矩形
-                SelectionRectangle.Visibility = Visibility.Visible;
-                SelectionRectangle.ContextMenu ??= ConfiguerSelectionRectangle();
-
-                // 捕获鼠标，以便在鼠标移动到Canvas外部时仍能处理事件
-                FlowChartCanvas.CaptureMouse();
-
-            }
             e.Handled = true; // 防止事件传播影响其他控件
         }
 
@@ -2323,13 +2269,13 @@ namespace Serein.WorkBench
         /// <typeparam name="T"></typeparam>
         /// <param name="element"></param>
         /// <returns></returns>
-        private static T GetParentOfType<T>(DependencyObject element) where T : DependencyObject
+        private static T? GetParentOfType<T>(DependencyObject element) where T : DependencyObject
         {
             while (element != null)
             {
-                if (element is T)
+                if (element is T e)
                 {
-                    return element as T;
+                    return e;
                 }
                 element = VisualTreeHelper.GetParent(element);
             }
@@ -2342,9 +2288,9 @@ namespace Serein.WorkBench
 
         private void JudgmentFlipFlopNode(NodeControlBase nodeControl)
         {
-            if (nodeControl is FlipflopNodeControl flipflopControl) // 判断是否为触发器
+            if (nodeControl is FlipflopNodeControl flipflopControl
+                && flipflopControl?.ViewModel?.Node is NodeModelBase nodeModel) // 判断是否为触发器
             {
-                var nodeModel = flipflopControl?.ViewModel?.Node;
                 int count = 0;
                 foreach (var ct in NodeStaticConfig.ConnectionTypes)
                 {
@@ -2473,13 +2419,18 @@ namespace Serein.WorkBench
                     node.Position = new Position(positionRelativeToParent.X, positionRelativeToParent.Y);
                 }
             }
-            var isPass = SaveContentToFile(out string savePath, out Action<string,string>? savaProjectFile);
-            if(!isPass)
+            if (!SaveContentToFile(out string savePath, out Action<string, string>? savaProjectFile))
             {
+                Console.WriteLine("保存项目DLL时返回了意外的文件保存路径");
                 return;
             }
 
-            string librarySavePath = System.IO.Path.GetDirectoryName(savePath);
+            string? librarySavePath = System.IO.Path.GetDirectoryName(savePath);
+            if (string.IsNullOrEmpty(librarySavePath))
+            {
+                Console.WriteLine("保存项目DLL时返回了意外的文件保存路径");
+                return;
+            }
             Console.WriteLine(savePath);
             for (int index = 0; index < projectData.Librarys.Length; index++)
             {
@@ -2578,17 +2529,17 @@ namespace Serein.WorkBench
         /// <param name="e"></param>
         private void ButtonTestExpObj_Click(object sender, RoutedEventArgs e)
         {
-            string jsonString = 
-            """
-            {
-                "Name": "张三",
-                "Age": 24,
-                "Address": {
-                    "City": "北京",
-                    "PostalCode": "10000"
-                }
-            }
-            """;
+            //string jsonString = 
+            //"""
+            //{
+            //    "Name": "张三",
+            //    "Age": 24,
+            //    "Address": {
+            //        "City": "北京",
+            //        "PostalCode": "10000"
+            //    }
+            //}
+            //""";
 
            var externalData = new Dictionary<string, object>
             {
@@ -2615,12 +2566,12 @@ namespace Serein.WorkBench
                 Console.WriteLine("赋值过程中有错误，请检查属性名和类型！");
 
             }
-            ObjDynamicCreateHelper.PrintObjectProperties(result);
+            ObjDynamicCreateHelper.PrintObjectProperties(result!);
             Console.WriteLine(  );
             var exp = "@set .Addresses[1].Street = qwq";
-            var data = SerinExpressionEvaluator.Evaluate(exp, result, out bool isChange);
+            var data = SerinExpressionEvaluator.Evaluate(exp, result!, out bool isChange);
             exp = "@get .Addresses[1].Street";
-            data = SerinExpressionEvaluator.Evaluate(exp,result, out isChange);
+            data = SerinExpressionEvaluator.Evaluate(exp,result!, out isChange);
             Console.WriteLine($"{exp} => {data}");
         }
 
@@ -2681,22 +2632,29 @@ namespace Serein.WorkBench
 
             canvas.Dispatcher.InvokeAsync(() =>
             {
-                if (connection is not null && connection.BezierPath is null)
+                if (connection is null)
+                {
+                    return;
+                }
+
+                if (connection.BezierPath is null)
                 {
                     connection.BezierPath = new System.Windows.Shapes.Path { Stroke = BezierLineDrawer.GetLineColor(connection.Type), StrokeThickness = 1 };
                     //Canvas.SetZIndex(connection.BezierPath, -1);
                     canvas.Children.Add(connection.BezierPath);
                 }
 
-                if (connection is not null && connection.ArrowPath is null)
+                if (connection.ArrowPath is null)
                 {
                     connection.ArrowPath = new System.Windows.Shapes.Path { Stroke = BezierLineDrawer.GetLineColor(connection.Type), Fill = BezierLineDrawer.GetLineColor(connection.Type), StrokeThickness = 1 };
                     //Canvas.SetZIndex(connection.ArrowPath, -1);
                     canvas.Children.Add(connection.ArrowPath);
                 }
 
+                
                 BezierLineDrawer.UpdateBezierLine(canvas, connection.Start, connection.End, connection.BezierPath, connection.ArrowPath);
                 isUpdating = false;
+
             });
         }
 
@@ -2746,10 +2704,10 @@ namespace Serein.WorkBench
     public class Connection
     {
         public ConnectionType Type { get; set; }
-        public Canvas Canvas { get; set; }// 贝塞尔曲线所在画布
+        public Canvas? Canvas { get; set; }// 贝塞尔曲线所在画布
 
-        public System.Windows.Shapes.Path BezierPath { get; set; }// 贝塞尔曲线路径
-        public System.Windows.Shapes.Path ArrowPath { get; set; } // 箭头路径
+        public System.Windows.Shapes.Path? BezierPath { get; set; }// 贝塞尔曲线路径
+        public System.Windows.Shapes.Path? ArrowPath { get; set; } // 箭头路径
 
         public required NodeControlBase Start { get; set; } // 起始
         public required NodeControlBase End { get; set; }   // 结束
@@ -2757,8 +2715,11 @@ namespace Serein.WorkBench
 
         public void RemoveFromCanvas()
         {
-            Canvas.Children.Remove(BezierPath); // 移除线
-            Canvas.Children.Remove(ArrowPath); // 移除线
+            if(Canvas != null)
+            {
+                Canvas.Children.Remove(BezierPath); // 移除线
+                Canvas.Children.Remove(ArrowPath); // 移除线
+            }
         }
 
         /// <summary>
@@ -2766,6 +2727,10 @@ namespace Serein.WorkBench
         /// </summary>
         public void Refresh()
         {
+            if(Canvas is null || BezierPath is null || ArrowPath is null)
+            {
+                return;
+            }
             BezierLineDrawer.UpdateBezierLine(Canvas, Start, End, BezierPath, ArrowPath);
         }
     }

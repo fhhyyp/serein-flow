@@ -46,7 +46,7 @@ namespace Serein.NodeFlow
         public FlowEnvironment()
         {
             sereinIOC = new SereinIOC();
-            //ChannelFlowInterrupt = new ChannelFlowInterrupt();
+            ChannelFlowInterrupt = new ChannelFlowInterrupt();
             //LoadedAssemblyPaths = new List<string>();
             //LoadedAssemblies = new List<Assembly>();
             //MethodDetailss = new List<MethodDetails>();
@@ -69,67 +69,67 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 加载Dll
         /// </summary>
-        public event LoadDllHandler OnDllLoad;
+        public event LoadDllHandler? OnDllLoad;
 
         /// <summary>
         /// 移除DLL
         /// </summary>
-        public event RemoteDllHandler OnDllRemote;
+        public event RemoteDllHandler? OnDllRemote;
 
         /// <summary>
         /// 项目加载完成
         /// </summary>
-        public event ProjectLoadedHandler OnProjectLoaded;
+        public event ProjectLoadedHandler? OnProjectLoaded;
 
         /// <summary>
         /// 节点连接属性改变事件
         /// </summary>
-        public event NodeConnectChangeHandler OnNodeConnectChange;
+        public event NodeConnectChangeHandler? OnNodeConnectChange;
 
         /// <summary>
         /// 节点创建事件
         /// </summary>
-        public event NodeCreateHandler OnNodeCreate;
+        public event NodeCreateHandler? OnNodeCreate;
 
         /// <summary>
         /// 移除节点事件
         /// </summary>
-        public event NodeRemoteHandler OnNodeRemote;
+        public event NodeRemoteHandler? OnNodeRemote;
 
         /// <summary>
         /// 起始节点变化事件
         /// </summary>
-        public event StartNodeChangeHandler OnStartNodeChange;
+        public event StartNodeChangeHandler? OnStartNodeChange;
 
         /// <summary>
         /// 流程运行完成事件
         /// </summary>
-        public event FlowRunCompleteHandler OnFlowRunComplete;
+        public event FlowRunCompleteHandler? OnFlowRunComplete;
 
         /// <summary>
         /// 被监视的对象改变事件
         /// </summary>
-        public event MonitorObjectChangeHandler OnMonitorObjectChange;
+        public event MonitorObjectChangeHandler? OnMonitorObjectChange;
 
         /// <summary>
         /// 节点中断状态改变事件
         /// </summary>
-        public event NodeInterruptStateChangeHandler OnNodeInterruptStateChange;
+        public event NodeInterruptStateChangeHandler? OnNodeInterruptStateChange;
 
         /// <summary>
         /// 节点触发了中断
         /// </summary>
-        public event ExpInterruptTriggerHandler OnInterruptTrigger;
+        public event ExpInterruptTriggerHandler? OnInterruptTrigger;
 
         /// <summary>
         /// 容器改变
         /// </summary>
-        public event IOCMembersChangedHandler OnIOCMembersChanged;
+        public event IOCMembersChangedHandler? OnIOCMembersChanged;
 
         /// <summary>
         /// 节点需要定位
         /// </summary>
-        public event NodeLocatedHandler OnNodeLocate;
+        public event NodeLocatedHandler? OnNodeLocate;
         #endregion
 
         #region 属性
@@ -196,12 +196,12 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 起始节点私有属性
         /// </summary>
-        private NodeModelBase _startNode;
+        private NodeModelBase? _startNode = null;
 
         /// <summary>
         /// 起始节点
         /// </summary>
-        private NodeModelBase StartNode
+        private NodeModelBase? StartNode
         {
             get
             {
@@ -209,6 +209,10 @@ namespace Serein.NodeFlow
             }
             set
             {
+                if (value is null)
+                {
+                    return;
+                }
                 if (_startNode is not null)
                 {
                     _startNode.IsStart = false;
@@ -481,17 +485,19 @@ namespace Serein.NodeFlow
 
         public bool RemoteDll(string assemblyFullName)
         {
-            var library  = NodeLibrarys.FirstOrDefault(nl => nl.Assembly.FullName.Equals(assemblyFullName));
+            var library  = NodeLibrarys.FirstOrDefault(nl => assemblyFullName.Equals(nl.Assembly.FullName));
             if(library is null)
             {
                 return false;
             }
-
-            var nodes = Nodes.Values.ToDictionary(
-                key => key.MethodDetails.MethodName,
-                value => value
-                );
-            if(nodes.Count == 0)
+            var groupedNodes = Nodes.Values
+                .Where(node => node.MethodDetails is not null)
+                .ToArray()
+                .GroupBy(node => node.MethodDetails!.MethodName)
+                .ToDictionary(
+                key => key.Key,
+                group => group.Count());
+            if(Nodes.Count == 0)
             {
                 return true; // 当前无节点，可以直接删除
             }
@@ -500,9 +506,12 @@ namespace Serein.NodeFlow
             {
                 foreach(var md in mds)
                 {
-                    if (nodes.ContainsKey(md.MethodName))
+                    if(groupedNodes.TryGetValue(md.MethodName,out int count))
                     {
-                        return false; // 创建过相关的节点
+                        if (count > 0)
+                        {
+                            return false; // 创建过相关的节点
+                        }
                     }
                 }
                 MethodDetailss.Remove(library);
@@ -510,7 +519,7 @@ namespace Serein.NodeFlow
             }
             else
             {
-                return true;
+                return true; 
             }
         }
 
@@ -685,9 +694,10 @@ namespace Serein.NodeFlow
             }
         }
 
-        public bool TryGetDelegate(string methodName, out Delegate del)
+        public bool TryGetDelegate(string methodName, out Delegate? del)
         {
-            if (MethodDelegates.TryGetValue(methodName, out del))
+
+            if (!string.IsNullOrEmpty(methodName) && MethodDelegates.TryGetValue(methodName, out del))
             {
                 return del != null;
             }
@@ -742,7 +752,7 @@ namespace Serein.NodeFlow
                 return false;
             }
             nodeModel.DebugSetting.InterruptClass = interruptClass;
-            OnNodeInterruptStateChange.Invoke(new NodeInterruptStateChangeEventArgs(nodeGuid, interruptClass));
+            OnNodeInterruptStateChange?.Invoke(new NodeInterruptStateChangeEventArgs(nodeGuid, interruptClass));
             return true;
         }
 
@@ -958,11 +968,19 @@ namespace Serein.NodeFlow
                 {
                     // 加载DLL，创建 MethodDetails、实例作用对象、委托方法
                     var assemblyName = type.Assembly.GetName().Name;
+                    if (string.IsNullOrEmpty(assemblyName))
+                    {
+                        continue;
+                    }
                     var methods = MethodDetailsHelperTmp.GetMethodsToProcess(type);
                     foreach(var method in methods)
                     {
                         (var md, var del) = MethodDetailsHelperTmp.CreateMethodDetails(type, method, assemblyName);
-
+                        if(md is null || del is null)
+                        {
+                            Console.WriteLine($"无法加载方法信息：{assemblyName}-{type}-{method}");
+                            continue;
+                        }
                         if (MethodDelegates.TryAdd(md.MethodName, del))
                         {
                             methodDetails.Add(md);

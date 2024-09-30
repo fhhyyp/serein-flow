@@ -29,7 +29,7 @@ namespace Serein.NodeFlow.Tool.SereinExpression
             }
         }
 
-        public static SereinConditionResolver ConditionParse(object data, string expression)
+        public static SereinConditionResolver ConditionParse(object? data, string expression)
         {
             if (expression.StartsWith('.') || expression.StartsWith('<')) // 表达式前缀属于从上一个节点数据对象获取成员值
             {
@@ -91,7 +91,7 @@ namespace Serein.NodeFlow.Tool.SereinExpression
         /// <summary>
         /// 解析对象表达式
         /// </summary>
-        private static SereinConditionResolver ParseObjectExpression(object data, string expression)
+        private static SereinConditionResolver ParseObjectExpression(object? data, string expression)
         {
             var parts = expression.Split(' ');
             string operatorStr = parts[0]; // 获取操作类型

@@ -345,6 +345,7 @@ namespace Serein.Library.Web
             }
             catch (JsonReaderException ex)
             {
+                Console.WriteLine(ex);
                 return value;
             }
             catch (JsonSerializationException ex)

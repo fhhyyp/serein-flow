@@ -12,7 +12,6 @@ namespace Serein.WorkBench.Node.View
     /// </summary>
     public partial class ConditionRegionControl : NodeControlBase
     {
-        private Point _dragStartPoint;
 
         public ConditionRegionControl() : base()
         {

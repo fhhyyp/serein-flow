@@ -39,7 +39,7 @@ namespace Serein.NodeFlow.Tool.SereinExpression.Resolver
             return false;
         }
 
-        private object GetMemberValue(object? obj, string memberPath)
+        private object? GetMemberValue(object? obj, string memberPath)
         {
             string[] members = memberPath[1..].Split('.');
             foreach (var member in members)

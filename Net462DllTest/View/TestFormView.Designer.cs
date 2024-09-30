@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Net461DllTest.View
+namespace Net462DllTest.View
 {
     partial class TestFormView
     {
