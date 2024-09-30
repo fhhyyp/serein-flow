@@ -31,10 +31,7 @@ namespace Serein.Library.Web
     {
         private readonly ISereinIOC SereinIOC; // 用于存储路由信息
 
-        public Router(ISereinIOC SereinIOC)
-        {
-            this.SereinIOC = SereinIOC;
-        }
+
         /// <summary>
         /// 控制器实例对象的类型，每次调用都会重新实例化，[Url - ControllerType]
         /// </summary>
@@ -50,9 +47,9 @@ namespace Serein.Library.Web
 
         //private Type PostRequest;
 
-        public Router()
+        public Router(ISereinIOC SereinIOC)
         {
-
+            this.SereinIOC = SereinIOC;
             _routes = new ConcurrentDictionary<string, ConcurrentDictionary<string, MethodInfo>>(); // 初始化路由字典
             _controllerTypes = new ConcurrentDictionary<string, Type>(); // 初始化控制器实例对象字典
             foreach (API method in Enum.GetValues(typeof(API))) // 遍历 HTTP 枚举类型的所有值

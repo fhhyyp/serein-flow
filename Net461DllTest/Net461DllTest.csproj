@@ -68,7 +68,7 @@
     <Compile Include="LogicControl\ParkingLogicControl.cs" />
     <Compile Include="LogicControl\ViewLogicControl.cs" />
     <Compile Include="Enums\FromValue.cs" />
-    <Compile Include="Signal\OrderSignal.cs" />
+    <Compile Include="Signal\CommandSignal_1.cs" />
     <Compile Include="Signal\PLCVarSignal.cs" />
     <Compile Include="Utils\ToValue.cs" />
     <Compile Include="ViewModel\FromWorkBenchViewModel.cs" />
@@ -84,7 +84,7 @@
     <Compile Include="View\TestFormView.Designer.cs">
       <DependentUpon>TestFormView.cs</DependentUpon>
     </Compile>
-    <Compile Include="Web\ApiController.cs" />
+    <Compile Include="Web\CommandController_1.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\DynamicControl\SereinFlow\Library.Framework\Serein.Library.Framework.csproj">

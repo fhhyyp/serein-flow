@@ -20,6 +20,8 @@ namespace Serein.Library.Web
         public WebServer(IRouter router)
         {
             this.Router = router;
+            listener = new HttpListener();
+            requestLimiter = new RequestLimiter(5, 8);
         }
 
 
@@ -29,11 +31,6 @@ namespace Serein.Library.Web
         private HttpListener listener; // HTTP 监听器
         private RequestLimiter requestLimiter; //接口防刷
 
-        public WebServer()
-        {
-            listener = new HttpListener();
-            requestLimiter = new RequestLimiter(5, 8);
-        }
 
         // 启动服务器
         public WebServer Start(string prefixe)

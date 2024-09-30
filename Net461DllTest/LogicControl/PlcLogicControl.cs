@@ -29,30 +29,43 @@ namespace Net461DllTest.LogicControl
         public PlcLogicControl(SiemensPlcDevice MyPlc)
         {
             this.MyPlc = MyPlc;
+           
+            
         }
 
         #region 初始化、初始化完成以及退出的事件
         [NodeAction(NodeType.Init)] // Init ： 初始化事件，流程启动时执行
         public void Init(IDynamicContext context)
         {
-            // // 注册控制器
-            context.Env.IOC.Run<IRouter>(router => {
-                router.RegisterController(typeof(ApiController));
-            });
+            context.Env.IOC.Register<IRouter, Router>();
+            context.Env.IOC.Register<WebServer>();
+           
         }
 
         [NodeAction(NodeType.Loading)] // Loading 初始化完成已注入依赖项，可以开始逻辑上的操作
         public void Loading(IDynamicContext context)
         {
-            context.Env.IOC.Run<WebServer>((web) =>
-            {
-                web.Start("http://*:8089/"); // 开启 Web 服务
+            // 注册控制器
+            context.Env.IOC.Run<IRouter, WebServer>((router, web) => {
+                try
+                {
+                    router.RegisterController(typeof(CommandController));
+                    web.Start("http://*:8089/"); // 开启 Web 服务
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                }
             });
         }
 
         [NodeAction(NodeType.Exit)] // 流程结束时自动执行
         public void Exit(IDynamicContext context)
         {
+            context.Env.IOC.Run<WebServer>((web) =>
+            {
+                web?.Stop(); // 关闭 Web 服务
+            });
             MyPlc.ResetDevice();
             MyPlc.CancelAllTasks();
         }
@@ -62,7 +75,7 @@ namespace Net461DllTest.LogicControl
         #region 触发器节点
 
         [NodeAction(NodeType.Flipflop, "等待信号触发", ReturnType = typeof(int))]
-        public async Task<IFlipflopContext> WaitTask(OrderSignal order = OrderSignal.Command_1)
+        public async Task<IFlipflopContext> WaitTask(CommandSignal order = CommandSignal.Command_1)
         {
             try
             {
@@ -113,7 +126,6 @@ namespace Net461DllTest.LogicControl
             return MyPlc;
         }
 
-        
         [NodeAction(NodeType.Action, "设置PLC状态")]
         public SiemensPlcDevice SetState(PlcState state = PlcState.PowerOff)
         {
@@ -129,14 +141,12 @@ namespace Net461DllTest.LogicControl
                 Console.WriteLine($"PLC尚未初始化");
                 return MyPlc;
             }
-            
         }
 
-        // [BindConvertor(typeof(PlcVarEnum), typeof(PlcVarConvertor))]
         [NodeAction(NodeType.Action, "PLC获取变量")]
         public object ReadVar(PlcVarEnum plcVarEnum)
         {
-            var varInfo = Convertor(plcVarEnum);
+            var varInfo = ToVarInfo(plcVarEnum);
             var result = MyPlc.Read(varInfo);
             Console.WriteLine($"获取变量成功：({varInfo})\t result = {result}");
             return result;
@@ -145,7 +155,7 @@ namespace Net461DllTest.LogicControl
         [NodeAction(NodeType.Action, "PLC写入变量")]
         public SiemensPlcDevice WriteVar2(object value, PlcVarEnum plcVarEnum)
         {
-            var varInfo = Convertor(plcVarEnum);
+            var varInfo = ToVarInfo(plcVarEnum);
             if (MyPlc.State == PlcState.Runing)
             {
                 if (varInfo.IsProtected)
@@ -165,9 +175,12 @@ namespace Net461DllTest.LogicControl
             return MyPlc;
         }
 
-
-        private readonly Dictionary<PlcVarEnum, PlcVarInfo> VarInfoDict;
-        public PlcVarInfo Convertor(PlcVarEnum plcVarEnum)
+        /// <summary>
+        /// 缓存变量信息
+        /// </summary>
+        private readonly Dictionary<PlcVarEnum, PlcVarInfo> VarInfoDict = new Dictionary<PlcVarEnum, PlcVarInfo>();
+        
+        private PlcVarInfo ToVarInfo(PlcVarEnum plcVarEnum)
         {
             if (VarInfoDict.ContainsKey(plcVarEnum))
             {
@@ -186,28 +199,6 @@ namespace Net461DllTest.LogicControl
             VarInfoDict.Add(plcVarEnum, plcValue);
             return plcValue;
         }
-
-        /// <summary>
-        /// 转换器，用于将枚举转为自定义特性中的数据
-        /// </summary>
-        //public class PlcVarConvertor: IEnumConvertor<PlcVarEnum, PlcVarInfo>
-        //{
-        //    public PlcVarInfo Convertor(PlcVarEnum plcVarValue)
-        //    {
-        //        if (plcVarValue == PlcVarEnum.None)
-        //        {
-        //            throw new Exception("非预期枚举值");
-        //        }
-        //        var plcValue = EnumHelper.GetBoundValue<PlcVarEnum, PlcValueAttribute, PlcVarInfo>(plcVarValue, attr => attr.PlcInfo)
-        //                 ?? throw new Exception($"获取变量异常：{plcVarValue}，没有标记PlcValueAttribute");
-        //        if (string.IsNullOrEmpty(plcValue.VarAddress))
-        //        {
-        //            throw new Exception($"获取变量异常：{plcVarValue}，变量地址为空");
-        //        }
-        //        return plcValue;
-        //    }
-
-        //}
 
         #endregion
     }
