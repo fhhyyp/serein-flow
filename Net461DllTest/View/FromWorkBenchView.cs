@@ -21,7 +21,7 @@ namespace Net461DllTest
 
         public FromWorkBenchView(IFlowEnvironment env)
         {
-            ViewModel = env.IOC.Instantiate<FromWorkBenchViewModel>();
+            ViewModel = env.IOC.Instantiate<FromWorkBenchViewModel>(); // 创建对象并注入依赖项
             InitializeComponent();
             Init();
         }
@@ -29,7 +29,7 @@ namespace Net461DllTest
         public void Init()
         {
             listBox1.Items.Clear();
-            var enumValues = Enum.GetValues(typeof(OrderSignal)).Cast<OrderSignal>();
+            var enumValues = Enum.GetValues(typeof(CommandSignal)).Cast<CommandSignal>();
             foreach (var value in enumValues)
             {
                 listBox1.Items.Add(value.ToString());
@@ -49,7 +49,7 @@ namespace Net461DllTest
             }
             string type = listBox1.SelectedItem.ToString();
             
-            if (!string.IsNullOrEmpty(type) &&  Enum.TryParse(type, out OrderSignal signal) && Enum.IsDefined(typeof(OrderSignal), signal))
+            if (!string.IsNullOrEmpty(type) &&  Enum.TryParse(type, out CommandSignal signal) && Enum.IsDefined(typeof(CommandSignal), signal))
             {
                 Console.WriteLine($"Trigger : {type}");
                 ViewModel.Trigger(signal,textBoxSpaceNum.Text);

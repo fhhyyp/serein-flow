@@ -5,6 +5,7 @@ using Serein.Library.Web;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Xml;
@@ -12,6 +13,7 @@ using System.Xml.Schema;
 
 namespace Serein.Library.Utils
 {
+    
     /// <summary>
     /// IOC管理容器
     /// </summary>
@@ -44,20 +46,7 @@ namespace Serein.Library.Utils
             _unfinishedDependencies = new ConcurrentDictionary<string, List<(object, PropertyInfo)>>();
         }
 
-        /// <summary>
-        /// 绑定之前进行的默认绑定
-        /// </summary>
-        public void InitRegister()
-        {
-            _dependencies[typeof(ISereinIOC).FullName] = this;
-            Register<IRouter, Router>();
 
-            //foreach (var type in _typeMappings.Values)
-            //{
-            //    Register(type);
-            //}
-            //Build();
-        }
 
         #region 类型的注册
 
@@ -92,51 +81,6 @@ namespace Serein.Library.Utils
             return RegisterType(typeof(TService).FullName, typeof(TImplementation));
         }
         #endregion
-
-        /// <summary>
-        /// 尝试从容器中获取对象，如果不存在目标类型的对象，则将类型信息登记到容器，并实例化注入依赖项。如果依然无法注册，则返回null。
-        /// </summary>
-        //public T GetOrRegisterInstantiate<T>()
-        //{
-        //    return (T)GetOrRegisterInstantiate(typeof(T));
-        //}
-
-        ///// <summary>
-        ///// 尝试从容器中获取对象，如果不存在目标类型的对象，则将类型信息登记到容器，并实例化注入依赖项。如果依然无法注册，则返回null。
-        ///// </summary>
-        //public object GetOrRegisterInstantiate(Type type)
-        //{
-        //    // 尝试从容器中获取对象
-        //    if (!_dependencies.TryGetValue(type.FullName, out object value))
-        //    {
-        //        // 容器中不存在目标类型的对象
-        //        if (type.IsInterface)
-        //        {
-        //            if (_typeMappings.TryGetValue(type.FullName, out Type implementationType))
-        //            {
-        //                // 是接口类型，存在注册信息
-        //                Register(type);// 注册类型信息
-        //                value = Instantiate(implementationType); // 创建实例对象，并注入依赖
-        //                CustomRegisterInstance(type.FullName, value);// 登记到IOC容器中
-        //                _typeMappings.TryRemove(type.FullName, out _); // 取消类型的注册信息
-        //            }
-        //            else
-        //            {
-        //                //需要获取接口类型的实例，但不存在类型注册信息
-        //                Console.WriteLine("当前需要获取接口，但没有注册实现类的类型，无法创建接口实例");
-        //                return  null;
-        //            }
-        //        }
-        //        else
-        //        {
-        //            // 不是接口，直接注册
-        //            Register(type);// 注册类型信息
-        //            value = Instantiate(type); // 创建实例对象，并注入依赖
-        //            CustomRegisterInstance(type.FullName, value);// 登记到IOC容器中
-        //        }
-        //    }
-        //    return value; 
-        //}
 
         /// <summary>
         /// 用于临时实例的创建，不登记到IOC容器中，依赖项注入失败时也不记录。
@@ -229,134 +173,162 @@ namespace Serein.Library.Utils
             _unfinishedDependencies?.Clear();
             _typeMappings?.Clear();
             _dependencies?.Clear();
-            // _waitingForInstantiation?.Clear();
             return true;
         }
-
-        /// <summary>
-        /// 实例化所有已注册的类型，并尝试绑定
-        /// </summary>
-        /// <returns></returns>
-        public bool Build2()
+        public class TypeKeyValue
         {
-            InitRegister(); 
-            // 遍历已注册类型
-            foreach (var type in _typeMappings.Values.ToArray())
+            public TypeKeyValue(string name, Type type)
             {
-                if (!_dependencies.ContainsKey(type.FullName))
-                {
-                    var value = CreateInstance(type); // 绑定时注册的类型如果没有创建实例，则创建对应的实例
-                    CustomRegisterInstance(type.FullName, value);// 登记到IOC容器中
-                }
-                _typeMappings.TryRemove(type.FullName, out _); // 移除类型的注册记录
+                this.Type = type;
+                this.Name = name;
             }
-
-           
-            foreach (var instance in _dependencies.Values)
-            {
-                InjectDependencies(instance);  // 绑定时注入实例的依赖项
-            }
-
-            return true;
+            public string Name { get; set; }
+            public Type Type { get; set; }
         }
+
+        public Dictionary<string, List<string>> BuildDependencyTree()
+        {
+            var dependencyMap = new Dictionary<string, List<string>>();
+
+            foreach (var typeMapping in _typeMappings)
+            {
+                var constructor = GetConstructorWithMostParameters(typeMapping.Value); // 获取参数最多的构造函数
+                if (constructor != null)
+                {
+                    var parameters = constructor.GetParameters()
+                        .Select(p => p.ParameterType)
+                        .ToList();
+
+                    foreach (var param in parameters)
+                    {
+                        if (!dependencyMap.ContainsKey(param.FullName))
+                        {
+                            dependencyMap[param.FullName] = new List<string>();
+                        }
+                        dependencyMap[param.FullName].Add(typeMapping.Key);
+                    }
+                }
+            }
+
+            return dependencyMap;
+        }
+        // 获取参数最多的构造函数
+        private ConstructorInfo GetConstructorWithMostParameters(Type type)
+        {
+            return type.GetConstructors()
+                       .OrderByDescending(c => c.GetParameters().Length)
+                       .FirstOrDefault();
+        }
+        // 生成顺序
+        public List<string> GetCreationOrder(Dictionary<string, List<string>> dependencyMap)
+        {
+            var graph = new Dictionary<string, List<string>>();
+            var indegree = new Dictionary<string, int>();
+
+            foreach (var entry in dependencyMap)
+            {
+                var key = entry.Key;
+                if (!graph.ContainsKey(key))
+                {
+                    graph[key] = new List<string>();
+                }
+
+                foreach (var dependent in entry.Value)
+                {
+                    if (!graph.ContainsKey(dependent))
+                    {
+                        graph[dependent] = new List<string>();
+                    }
+                    graph[key].Add(dependent);
+
+                    // 更新入度
+                    if (!indegree.ContainsKey(dependent))
+                    {
+                        indegree[dependent] = 0;
+                    }
+                    indegree[dependent]++;
+                }
+
+                if (!indegree.ContainsKey(key))
+                {
+                    indegree[key] = 0;
+                }
+            }
+
+            // 拓扑排序
+            var creationOrder = new List<string>();
+            var queue = new Queue<string>(indegree.Where(x => x.Value == 0).Select(x => x.Key));
+
+            while (queue.Count > 0)
+            {
+                var current = queue.Dequeue();
+                creationOrder.Add(current);
+
+                foreach (var neighbor in graph[current])
+                {
+                    indegree[neighbor]--;
+                    if (indegree[neighbor] == 0)
+                    {
+                        queue.Enqueue(neighbor);
+                    }
+                }
+            }
+
+            return creationOrder;
+        }
+
+        public object CreateInstance(string typeName)
+        {
+            if (_typeMappings.TryGetValue(typeName, out var type))
+            {
+                var constructor = GetConstructorWithMostParameters(type);
+                var parameters = constructor.GetParameters();
+                var args = new object[parameters.Length];
+
+
+                for (int i = 0; i < parameters.Length; i++)
+                {
+                    var fullName = parameters[i].ParameterType.FullName;
+                    if (!_dependencies.TryGetValue(fullName, out var argObj))
+                    {
+                        argObj = CreateInstance(parameters[i].ParameterType.FullName);
+                    }
+                    args[i] = argObj;
+                }
+                var value = Activator.CreateInstance(type, args);
+                
+                return value;
+            }
+
+            return null;
+        }
+
 
         public bool Build()
         {
-            InitRegister();
-            var graph = new Dictionary<string, List<Type>>();
-            //var graph = new Dictionary<string, List<string>>();
+            var dependencyTree = BuildDependencyTree();
+            var creationOrder = GetCreationOrder(dependencyTree);
 
-            // 构建依赖关系图
-            foreach (var type in _typeMappings.Values)
+            // 输出创建顺序
+            Debug.WriteLine("创建顺序: " + string.Join(" → ", creationOrder));
+
+            // 创建对象
+            foreach (var typeName in creationOrder)
             {
-                var constructor = type.GetConstructors()
-                    .OrderByDescending(c => c.GetParameters().Length)
-                    .FirstOrDefault();
-
-                if (constructor != null)
+                if (_dependencies.ContainsKey(typeName))
                 {
-                    var parameters = constructor.GetParameters();
-                    foreach (var param in parameters)
-                    {
-                        var paramTypeName = param.ParameterType.FullName;
-                        if (!graph.ContainsKey(paramTypeName))
-                        {
-                            graph[paramTypeName] = new List<Type>();
-                        }
-                        graph[paramTypeName].Add(type); // 使用 Type 而不是字符串
-                    }
+                    continue;
                 }
+                var value = CreateInstance(typeName);
+                _dependencies[typeName] = value;
+                OnIOCMembersChanged.Invoke(new IOCMembersChangedEventArgs(typeName, value));
             }
-
-            // 执行拓扑排序
-            var sortedTypes = TopologicalSort(graph);
-
-            // 创建实例并注册
-            foreach (var type in sortedTypes)
-            {
-                var typeName = type.FullName;
-                if (!_dependencies.ContainsKey(typeName))
-                {
-                    
-                    var value = CreateInstance(type);
-                    CustomRegisterInstance(typeName, value);
-                    //if (graph.ContainsKey(typeName))
-                    //{
-                        
-                        
-                    //}
-                    //else
-                    //{
-                    //    Console.WriteLine("error:"+typeName);
-                    //}
-                }
-                else
-                {
-                    Console.WriteLine("not create:" + type);
-                }
-            }
-
+            _typeMappings.Clear();
             return true;
+
         }
 
-        /// <summary>
-        /// 执行拓扑排序
-        /// </summary>
-        /// <param name="graph"></param>
-        /// <returns></returns>
-        private List<Type> TopologicalSort(Dictionary<string, List<Type>> graph)
-        {
-            var sorted = new List<Type>();
-            var visited = new HashSet<string>();
-
-            void Visit(Type node)
-            {
-                var nodeName = node.FullName;
-                if (visited.Contains(nodeName)) return;
-                visited.Add(nodeName);
-                if (graph.TryGetValue(nodeName, out var neighbors))
-                {
-                    foreach (var neighbor in neighbors)
-                    {
-                        Visit(neighbor);
-                    }
-                }
-                sorted.Add(node);
-            }
-
-            foreach (var node in graph.Keys)
-            {
-                if (!_dependencies.ContainsKey(node))
-                {
-                    var type = _typeMappings[node]; // 获取对应的 Type
-                    Visit(type);
-                }
-                
-            }
-
-            sorted.Reverse(); // 反转以得到正确顺序
-            return sorted;
-        }
+        
         #endregion
 
         #region 私有方法
@@ -378,19 +350,6 @@ namespace Serein.Library.Utils
             {
                 return false;
             }
-        }
-
-        /// <summary>
-        /// 创建实例时，尝试注入到由ioc容器管理、并需要此实例的对象。
-        /// </summary>
-        private object CreateInstance(Type type)
-        {
-            var constructor = type.GetConstructors().First(); // 获取第一个构造函数
-            var parameters = constructor.GetParameters(); // 获取参数列表
-            var parameterValues = parameters.Select(param => ResolveDependency(param.ParameterType)).ToArray();
-            var instance = Activator.CreateInstance(type, parameterValues);
-            InjectUnfinishedDependencies(type.FullName, instance);
-            return instance;
         }
 
         private object ResolveDependency(Type parameterType)
@@ -459,55 +418,16 @@ namespace Serein.Library.Utils
             return isPass;
         }
 
-
-        /// <summary>
-        /// 再次尝试注入目标实例的依赖项
-        /// </summary>
-        //private void TryInstantiateWaitingDependencies()
-        //{
-        //    foreach (var waitingType in _waitingForInstantiation.ToList())
-        //    {
-        //        if (_typeMappings.TryGetValue(waitingType.FullName, out var implementationType))
-        //        {
-        //            var instance = Instantiate(implementationType);
-        //            if (instance != null)
-        //            {
-
-        //                _dependencies[waitingType.FullName] = instance;
-
-        //                _waitingForInstantiation.Remove(waitingType);
-        //            }
-        //        }
-        //    }
-        //} 
-        #endregion
-
-        #region run()
-        //public bool Run<T>(string name, Action<T> action)
-        //{
-        //    var obj  = Get(name);
-        //    if (obj != null)
-        //    {
-        //        if(obj is T service)
-        //        {
-        //            try
-        //            {
-        //                action(service);
-        //            }
-        //            catch (Exception ex)
-        //            {
-        //                Console.WriteLine(ex.Message);
-        //            }
-        //        }
-        //    }
-        //    return this;
-        //}
-
-
+       
         public void Run<T>(Action<T> action)
         {
             var service = Get<T>();
-            if (service != null)
+            if (service == null)
+            {
+                throw new Exception("类型没有注册："+typeof(T).FullName);
+               
+            }
+            else
             {
                 action(service);
             }

@@ -10,19 +10,23 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
 
-namespace Net461DllTest.LogicControl
-{
+namespace Net461DllTest.LogicControl 
+{ 
+
+    /// <summary>
+    /// 视图管理
+    /// </summary>
     [AutoRegister]
     public class ViewManagement
     {
-
         private List<Form> forms = new List<Form>();
+        /// <summary>
+        /// 打开窗口
+        /// </summary>
+        /// <param name="form">要打开的窗口类型</param>
+        /// <param name="isTop">是否置顶</param>
         public void OpenView(Form form, bool isTop)
         {
-            form.FormClosing += (s, e) =>
-            {
-                // 关闭窗体时执行一些关于逻辑层的操作
-            };
             form.TopMost = isTop;
             form.Show();
             forms.Add(form);
@@ -36,8 +40,6 @@ namespace Net461DllTest.LogicControl
                 f.Dispose();
                 this.forms.Remove(f);
             }
-
-            
         }
     }
 

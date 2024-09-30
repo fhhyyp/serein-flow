@@ -1,6 +1,6 @@
 ﻿namespace Net461DllTest.Signal
 {
-    public enum OrderSignal
+    public enum CommandSignal
     {
         Command_1,
         Command_2, 

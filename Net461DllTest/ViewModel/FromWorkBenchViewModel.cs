@@ -24,7 +24,7 @@ namespace Net461DllTest.ViewModel
             return Device?.ToString();
         }
 
-        public void Trigger(OrderSignal signal,string spcaeNumber)
+        public void Trigger(CommandSignal signal,string spcaeNumber)
         {
             _ = Task.Run(() =>
             {

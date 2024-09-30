@@ -11,15 +11,30 @@ using System.Threading.Tasks;
 namespace Net461DllTest.Web
 {
     [AutoHosting]
-    public class ApiController : ControllerBase
+    public class CommandController : ControllerBase
     {
-        [AutoInjection] 
-        public SiemensPlcDevice PlcDevice { get; set; }
+        private SiemensPlcDevice PlcDevice;
 
-        [WebApi(API.POST)]
-        public dynamic Trigger([Url] string type, int value)
+        public CommandController(SiemensPlcDevice PlcDevice)
         {
-            if (Enum.TryParse(type, out OrderSignal signal) && Enum.IsDefined(typeof(OrderSignal), signal))
+            this.PlcDevice = PlcDevice;
+        }
+
+
+        /*
+         * 类型 ：POST
+         * url  :  http://127.0.0.1:8089/command/trigger?command=
+         * body ：[JSON]
+         * 
+         *      {
+         *          "value":0,
+         *      }
+         * 
+         */
+        [WebApi(API.POST)]
+        public dynamic Trigger([Url] string command, int value)
+        {
+            if (Enum.TryParse(command, out CommandSignal signal) && Enum.IsDefined(typeof(CommandSignal), signal))
             {
                 Console.WriteLine($"外部触发 {signal} 信号，信号内容 ： {value} ");
                 PlcDevice.TriggerSignal(signal, value);// 通过 Web Api 模拟外部输入信号
