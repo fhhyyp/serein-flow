@@ -20,7 +20,3 @@ obj/
 # 排除发布文件夹
 .Output/
 /.git1
-
-
-# 排除某些项目
-Net461DllTest/Enums/PlcVarEnum.cs
