@@ -920,10 +920,10 @@ namespace Serein.WorkBench
             contextMenu.Items.Add(CreateMenuItem("设为起点", (s, e) => FlowEnvironment.SetStartNode(nodeGuid)));
             contextMenu.Items.Add(CreateMenuItem("删除", (s, e) => FlowEnvironment.RemoteNode(nodeGuid)));
 
-            contextMenu.Items.Add(CreateMenuItem("添加 真分支", (s, e) => StartConnection((NodeControlBase)s, ConnectionType.IsSucceed)));
-            contextMenu.Items.Add(CreateMenuItem("添加 假分支", (s, e) => StartConnection((NodeControlBase)s, ConnectionType.IsFail)));
-            contextMenu.Items.Add(CreateMenuItem("添加 异常分支", (s, e) => StartConnection((NodeControlBase)s, ConnectionType.IsError)));
-            contextMenu.Items.Add(CreateMenuItem("添加 上游分支", (s, e) => StartConnection((NodeControlBase)s, ConnectionType.Upstream)));
+            contextMenu.Items.Add(CreateMenuItem("添加 真分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsSucceed)));
+            contextMenu.Items.Add(CreateMenuItem("添加 假分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsFail)));
+            contextMenu.Items.Add(CreateMenuItem("添加 异常分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsError)));
+            contextMenu.Items.Add(CreateMenuItem("添加 上游分支", (s, e) => StartConnection(nodeControl, ConnectionType.Upstream)));
 
 
 
