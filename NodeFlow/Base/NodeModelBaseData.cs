@@ -41,7 +41,7 @@ namespace Serein.NodeFlow.Base
         /// <summary>
         /// 节点guid
         /// </summary>
-        public string Guid { get; set; } = string.Empty;
+        public string Guid { get; set; } 
 
         /// <summary>
         /// 显示名称

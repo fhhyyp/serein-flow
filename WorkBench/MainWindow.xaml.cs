@@ -2199,7 +2199,10 @@ namespace Serein.WorkBench
             {
                 throw new Exception("无法创建节点控件");
             }
-
+            if (string.IsNullOrEmpty(model.Guid))
+            {
+                model.Guid = Guid.NewGuid().ToString();
+            }
             var viewModel = Activator.CreateInstance(typeof(TViewModel), [model]);
             var controlObj = Activator.CreateInstance(typeof(TControl), [viewModel]);
             if (controlObj is TControl control)
@@ -2219,15 +2222,13 @@ namespace Serein.WorkBench
         {
 
             var nodeObj = Activator.CreateInstance(typeof(TNode));
-            var nodeBase = nodeObj as NodeModelBase;
-            if (nodeBase is null)
+            var nodeBase = nodeObj as NodeModelBase ?? throw new Exception("无法创建节点控件");
+            
+
+            if (string.IsNullOrEmpty(nodeBase.Guid))
             {
-                throw new Exception("无法创建节点控件");
+                nodeBase.Guid = Guid.NewGuid().ToString();
             }
-
-
-            nodeBase.Guid = Guid.NewGuid().ToString();
-
             if (methodDetails != null)
             {
                 var md = methodDetails.Clone();
