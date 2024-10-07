@@ -25,10 +25,12 @@ namespace Serein.Library.Attributes
     [AttributeUsage(AttributeTargets.Class)]
     public class DynamicFlowAttribute : Attribute
     {
-        public DynamicFlowAttribute(bool scan = true)
+        public DynamicFlowAttribute(string name = "",bool scan = true)
         {
+            Name = name;
             Scan = scan;
         }
+        public string Name { get; set; }
         public bool Scan { get; set; } = true;
     }
 
@@ -70,7 +72,7 @@ namespace Serein.Library.Attributes
     //    }
     //}
 
-    [AttributeUsage(AttributeTargets.Field)]
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class BindValueAttribute : Attribute
     {
         public object Value { get; }

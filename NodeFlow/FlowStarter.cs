@@ -2,6 +2,7 @@
 using Serein.Library.Core.NodeFlow;
 using Serein.Library.Entity;
 using Serein.Library.Enums;
+using Serein.Library.Ex;
 using Serein.Library.Utils;
 using Serein.Library.Web;
 using Serein.NodeFlow.Base;
@@ -385,9 +386,17 @@ namespace Serein.NodeFlow
                         }
                     }
                 }
+                catch(FlipflopException ex) 
+                {
+                    await Console.Out.WriteLineAsync($"触发器[{singleFlipFlopNode.MethodDetails.MethodName}]因非预期异常终止。"+ex.Message);
+                    if (ex.Clsss == FlipflopException.CancelClass.Flow)
+                    {
+                        break;
+                    }
+                }
                 catch (Exception ex)
                 {
-                    await Console.Out.WriteLineAsync(ex.ToString());
+                    await Console.Out.WriteLineAsync(ex.Message);
                 }
             }
 

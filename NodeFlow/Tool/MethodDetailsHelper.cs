@@ -6,6 +6,7 @@ using System;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Reflection;
+using System.Text.RegularExpressions;
 
 namespace Serein.NodeFlow.Tool;
 
@@ -54,13 +55,14 @@ public static class MethodDetailsHelperTmp
     /// <returns></returns>
     public static (MethodDetails?,Delegate?) CreateMethodDetails(Type type, MethodInfo method, string assemblyName)
     {
-
-        var methodName = method.Name;
         var attribute = method.GetCustomAttribute<NodeActionAttribute>();
         if(attribute is null)
         {
             return (null, null);
         }
+        //var dllTypeName = $"{assemblyName}.{type.Name}";
+        var dllTypeMethodName = $"{assemblyName}.{type.Name}.{method.Name}";
+
         var explicitDataOfParameters = GetExplicitDataOfParameters(method.GetParameters());
         //// 生成委托
         var methodDelegate = GenerateMethodDelegate(type,   // 方法所在的对象类型
@@ -68,20 +70,38 @@ public static class MethodDetailsHelperTmp
                                                     method.GetParameters(),// 方法参数
                                                     method.ReturnType);// 返回值
 
+
         Type returnType;
-        if (attribute?.MethodDynamicType == Library.Enums.NodeType.Flipflop)
+        bool isTask = IsGenericTask(method.ReturnType, out var taskResult);
+
+        if (attribute.MethodDynamicType == Library.Enums.NodeType.Flipflop)
         {
-            // 触发器节点
             returnType = attribute.ReturnType;
+            if (!isTask || taskResult != typeof(IFlipflopContext))
+            {
+                Console.WriteLine($"触发器节点的返回类型非预期类型，可能会导致流程异常。[{dllTypeMethodName}]当前返回类型为[{method.ReturnType}]，而预期的返回类型应为[Task<IFlipflopContext>]");
+            }
+            
+        }
+        else if(isTask)
+        {
+            returnType = taskResult;
         }
         else
         {
             returnType = method.ReturnType;
         }
 
-        var dllTypeName = $"{assemblyName}.{type.Name}";
-        // object instance = Activator.CreateInstance(type);
-        var dllTypeMethodName = $"{assemblyName}.{type.Name}.{method.Name}";
+        if (string.IsNullOrEmpty(attribute.MethodTips)){
+            attribute.MethodTips = method.Name;
+        }
+
+
+       
+        var asyncPrefix = "[异步]"; // IsGenericTask(returnType) ? "[async]" : ;
+        var methodTips = isTask ? asyncPrefix + attribute.MethodTips : attribute.MethodTips;
+
+
 
         var md = new MethodDetails
         {
@@ -90,13 +110,36 @@ public static class MethodDetailsHelperTmp
             MethodName = dllTypeMethodName,
             MethodDynamicType = attribute.MethodDynamicType,
             MethodLockName = attribute.LockName,
-            MethodTips = attribute.MethodTips,
+            MethodTips = methodTips,
             ExplicitDatas = explicitDataOfParameters,
             ReturnType = returnType,
         };
 
         return (md, methodDelegate);
 
+    }
+
+    public static bool IsGenericTask(Type returnType, out Type taskResult)
+    {
+        // 判断是否为 Task 类型或泛型 Task<T>
+        if (returnType == typeof(Task))
+        {
+            taskResult = returnType;
+            return true;
+        }
+        else if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
+        {
+            // 获取泛型参数类型
+            Type genericArgument = returnType.GetGenericArguments()[0];
+             taskResult = genericArgument;
+            return true;
+        }
+        else
+        {
+            taskResult = null;
+            return false;
+
+        }
     }
 
 

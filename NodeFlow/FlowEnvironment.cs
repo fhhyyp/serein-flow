@@ -956,7 +956,17 @@ namespace Serein.NodeFlow
 
                 List<Type> autoRegisterTypes = assembly.GetTypes().Where(t => t.GetCustomAttribute<AutoRegisterAttribute>() is not null).ToList();
 
-                List<Type> scanTypes = assembly.GetTypes().Where(t => t.GetCustomAttribute<DynamicFlowAttribute>()?.Scan == true).ToList();
+                List<(Type, string)> scanTypes = assembly.GetTypes().Select(t => {
+                    if (t.GetCustomAttribute<DynamicFlowAttribute>() is DynamicFlowAttribute dynamicFlowAttribute
+                       && dynamicFlowAttribute.Scan == true)
+                    {
+                        return (t, dynamicFlowAttribute.Name);
+                    }
+                    else
+                    {
+                        return (null, null);
+                    }
+                }).Where(it => it.t is not null) .ToList();
                 if (scanTypes.Count == 0)
                 {
                     return (null, [], []);
@@ -964,7 +974,7 @@ namespace Serein.NodeFlow
 
                 List<MethodDetails> methodDetails = new List<MethodDetails>();
                 // 遍历扫描的类型
-                foreach (var type in scanTypes)
+                foreach ((var type,var flowName ) in scanTypes)
                 {
                     // 加载DLL，创建 MethodDetails、实例作用对象、委托方法
                     var assemblyName = type.Assembly.GetName().Name;
@@ -981,6 +991,7 @@ namespace Serein.NodeFlow
                             Console.WriteLine($"无法加载方法信息：{assemblyName}-{type}-{method}");
                             continue;
                         }
+                        md.MethodTips = flowName + md.MethodTips;
                         if (MethodDelegates.TryAdd(md.MethodName, del))
                         {
                             methodDetails.Add(md);

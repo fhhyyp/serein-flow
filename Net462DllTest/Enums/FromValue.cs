@@ -10,7 +10,6 @@ namespace Net462DllTest.Signal
 {
     public enum FromValue
     {
-        None,
         [BindValue(typeof(FromWorkBenchView))]
         FromWorkBenchView,
         [BindValue(typeof(TestFormView))]

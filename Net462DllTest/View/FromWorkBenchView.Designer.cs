@@ -31,7 +31,7 @@
             this.button1 = new System.Windows.Forms.Button();
             this.textBoxPlcInfo = new System.Windows.Forms.TextBox();
             this.button2 = new System.Windows.Forms.Button();
-            this.listBox1 = new System.Windows.Forms.ListBox();
+            this.listBoxCommand = new System.Windows.Forms.ListBox();
             this.textBoxSpaceNum = new System.Windows.Forms.TextBox();
             this.SuspendLayout();
             // 
@@ -43,7 +43,6 @@
             this.button1.TabIndex = 0;
             this.button1.Text = "查看状态";
             this.button1.UseVisualStyleBackColor = true;
-            this.button1.Click += new System.EventHandler(this.button1_Click);
             // 
             // textBoxPlcInfo
             // 
@@ -61,16 +60,15 @@
             this.button2.TabIndex = 2;
             this.button2.Text = "触发";
             this.button2.UseVisualStyleBackColor = true;
-            this.button2.Click += new System.EventHandler(this.button2_Click);
             // 
-            // listBox1
+            // listBoxCommand
             // 
-            this.listBox1.FormattingEnabled = true;
-            this.listBox1.ItemHeight = 12;
-            this.listBox1.Location = new System.Drawing.Point(35, 85);
-            this.listBox1.Name = "listBox1";
-            this.listBox1.Size = new System.Drawing.Size(250, 88);
-            this.listBox1.TabIndex = 6;
+            this.listBoxCommand.FormattingEnabled = true;
+            this.listBoxCommand.ItemHeight = 12;
+            this.listBoxCommand.Location = new System.Drawing.Point(35, 85);
+            this.listBoxCommand.Name = "listBoxCommand";
+            this.listBoxCommand.Size = new System.Drawing.Size(250, 88);
+            this.listBoxCommand.TabIndex = 6;
             // 
             // textBoxSpaceNum
             // 
@@ -86,12 +84,13 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(341, 251);
             this.Controls.Add(this.textBoxSpaceNum);
-            this.Controls.Add(this.listBox1);
+            this.Controls.Add(this.listBoxCommand);
             this.Controls.Add(this.button2);
             this.Controls.Add(this.textBoxPlcInfo);
             this.Controls.Add(this.button1);
             this.Name = "FromWorkBenchView";
             this.Text = "Form1";
+            this.Load += new System.EventHandler(this.FromWorkBenchView_Load);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -102,7 +101,7 @@
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.TextBox textBoxPlcInfo;
         private System.Windows.Forms.Button button2;
-        private System.Windows.Forms.ListBox listBox1;
+        private System.Windows.Forms.ListBox listBoxCommand;
         private System.Windows.Forms.TextBox textBoxSpaceNum;
     }
 }

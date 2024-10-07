@@ -2352,7 +2352,7 @@ namespace Serein.WorkBench
 
             await FlowEnvironment.StartAsync(); // 快
 
-            //await Task.Run( FlowEnvironment.StartAsync); // 上下文多次切换的场景中慢了1/10,定时器精度丢失
+            //await Task.Run(FlowEnvironment.StartAsync); // 上下文多次切换的场景中慢了1/10,定时器精度丢失
             //await Task.Factory.StartNew(FlowEnvironment.StartAsync); // 慢了1/5,定时器精度丢失
         }
 

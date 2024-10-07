@@ -1,6 +1,9 @@
-﻿using Net461DllTest.Device;
-using Net461DllTest.Signal;
+﻿
+using Net462DllTest.Enums;
+using Net462DllTest.Signal;
+using Net462DllTest.Trigger;
 using Serein.Library.Attributes;
+using Serein.Library.Utils;
 using Serein.Library.Web;
 using System;
 using System.Collections.Generic;
@@ -8,18 +11,17 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Net461DllTest.Web
+namespace Net462DllTest.Web
 {
     [AutoHosting]
     public class CommandController : ControllerBase
     {
-        private SiemensPlcDevice PlcDevice;
+        private readonly SiemensPlcDevice plcDevice;
 
-        public CommandController(SiemensPlcDevice PlcDevice)
+        public CommandController(SiemensPlcDevice plcDevice)
         {
-            this.PlcDevice = PlcDevice;
+            this.plcDevice = plcDevice;
         }
-
 
         /*
          * 类型 ：POST
@@ -29,19 +31,26 @@ namespace Net461DllTest.Web
          *      {
          *          "value":0,
          *      }
-         * 
          */
         [WebApi(API.POST)]
-        public dynamic Trigger([Url] string command, int value)
+        public dynamic Trigger([Url] string var, int value)
         {
-            if (Enum.TryParse(command, out CommandSignal signal) && Enum.IsDefined(typeof(CommandSignal), signal))
+            if (EnumHelper.TryConvertEnum<PlcVarName>(var,out var signal))
             {
                 Console.WriteLine($"外部触发 {signal} 信号，信号内容 ： {value} ");
-                PlcDevice.TriggerSignal(signal, value);// 通过 Web Api 模拟外部输入信号
+                plcDevice.TriggerSignal(signal, value);// 通过 Web Api 模拟外部输入信号
                 return new { state = "succeed" };
             }
-            return new { state = "fail" };
+            else
+            {
+                return new { state = "fail" };
+            }
+          
         }
     }
 
+
+     
+
+     
 }

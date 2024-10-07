@@ -1,62 +1,96 @@
-﻿using Serein.Library.Attributes;
+﻿using IoTClient.Enums;
+using Net462DllTest.Enums;
+using Serein.Library.Attributes;
 using System;
-using static Net462DllTest.Signal.PlcValueAttribute;
+using static Net462DllTest.Signal.PlcVarInfoAttribute;
+using static Net462DllTest.Signal.PlcVarInfo;
 
 namespace Net462DllTest.Signal
 {
 
     [AttributeUsage(AttributeTargets.Field)]
-    public class PlcValueAttribute : Attribute
+    public class PlcVarInfoAttribute : Attribute
     {
-        /// <summary>
-        /// 变量类型
-        /// </summary>
-        public enum VarType
-        {
-            /// <summary>
-            /// 只读取的值
-            /// </summary>
-            ReadOnly,
-            /// <summary>
-            /// 可写入的值
-            /// </summary>
-            Writable,
-        }
-        
-        /// <summary>
-        /// 变量属性
-        /// </summary>
-        public PlcVarInfo PlcInfo { get; }
+        public PlcVarInfo Info { get; }
 
-
-        public PlcValueAttribute(Type type,
-                                string @var,
-                                VarType varType
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="dateType">数据类型</param>
+        /// <param name="address">变量地址</param>
+        /// <param name="notificationType">通知行为类型</param>
+        /// <param name="isReadOnly">是否只读</param>
+        /// <param name="isTimingRead">是否定时刷新</param>
+        /// <param name="interval">刷新间隔（ms）</param>
+        public PlcVarInfoAttribute(DataTypeEnum dateType,
+                                string address,
+                                OnNotificationType notificationType,
+                                bool isReadOnly = false,
+                                bool isTimingRead = true,
+                                int interval = 1000
                                 )
         {
-            PlcInfo = new PlcVarInfo(type, var, varType);
+            Info = new PlcVarInfo()
+            {
+                DataType = dateType,
+                IsReadOnly = isReadOnly,
+                Address = address,
+                Interval = interval,
+                IsTimingRead= isTimingRead,
+                NotificationType = notificationType,
+            };
         }
     }
 
     public class PlcVarInfo
     {
-        public PlcVarInfo(Type type,
-                        string @var,
-                        VarType varType
-                        )
+        public enum OnNotificationType
         {
-            DataType = type;
-            VarAddress = @var;
-            Type = varType;
+            /// <summary>
+            /// 刷新时通知（每次写入Model后都会触发相应的触发器）
+            /// </summary>
+            OnRefresh,
+            /// <summary>
+            /// 改变时才通知（与Model对应数据不一致时才会触发相应的触发器）
+            /// </summary>
+            OnChanged,
         }
-        public bool IsProtected { get; }
-        public Type DataType { get; }
-        public string VarAddress { get; }
-        public VarType Type { get; }
 
+        /// <summary>
+        /// 变量类型
+        /// </summary>
+        public PlcVarName Name { get; set; }
+        /// <summary>
+        /// 数据类型
+        /// </summary>
+        public DataTypeEnum DataType { get; set; }
+        /// <summary>
+        /// 变量地址
+        /// </summary>
+        public string Address { get; set; }
+        /// <summary>
+        /// 变量是否只读
+        /// </summary>
+        public bool IsReadOnly { get; set; }
+        /// <summary>
+        /// 是否定时刷新
+        /// </summary>
+        public bool IsTimingRead { get; set; }
+        /// <summary>
+        /// 刷新间隔（ms）
+        /// </summary>
+        public int Interval { get; set; } = 100; // 100ms
+        public OnNotificationType NotificationType { get; set; } = OnNotificationType.OnChanged;
         public override string ToString()
         {
-            return $"数据类型:{DataType} 地址:{VarAddress}";
+            if (IsTimingRead)
+            {
+                return $"数据:{Name},类型:{DataType},地址:{Address},只读:{IsReadOnly}，自动刷新:{IsTimingRead},刷新间隔:{Interval}";
+            }
+            else
+            {
+                return $"数据:{Name},类型:{DataType},地址:{Address},只读:{IsReadOnly}";
+            }
         }
     }
 

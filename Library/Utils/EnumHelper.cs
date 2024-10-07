@@ -8,6 +8,16 @@ namespace Serein.Library.Utils
 {
     public static class EnumHelper
     {
+        public static bool TryConvertEnum<T>(this string value, out T result) where T : struct, Enum
+        {
+            if (!string.IsNullOrEmpty(value) && Enum.TryParse(value, true, out T tempResult) && Enum.IsDefined(typeof(T), tempResult))
+            {
+                result = tempResult;
+                return true;
+            }
+            result = default;
+            return false;
+        }
         public static TResult GetBoundValue<TEnum, TResult>(TEnum enumValue, Func<BindValueAttribute, object> valueSelector)
             where TEnum : Enum
         {

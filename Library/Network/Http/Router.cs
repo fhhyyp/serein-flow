@@ -341,7 +341,15 @@ namespace Serein.Library.Web
         {
             try
             {
-                return JsonConvert.DeserializeObject(value.ToString(), targetType);
+                if (targetType == typeof(string))
+                {
+                    return value;
+                }
+                else
+                {
+                    return JsonConvert.DeserializeObject(value.ToString(), targetType);
+                }
+
             }
             catch (JsonReaderException ex)
             {

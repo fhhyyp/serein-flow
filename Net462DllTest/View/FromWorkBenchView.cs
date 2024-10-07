@@ -1,4 +1,4 @@
-﻿using Net462DllTest.Device;
+﻿
 using Net462DllTest.Signal;
 using Net462DllTest.ViewModel;
 using Serein.Library.Api;
@@ -19,44 +19,36 @@ namespace Net462DllTest
     {
         private FromWorkBenchViewModel ViewModel;
 
+
         public FromWorkBenchView(IFlowEnvironment env)
         {
-            ViewModel = env.IOC.Instantiate<FromWorkBenchViewModel>(); // 创建对象并注入依赖项
             InitializeComponent();
-            Init();
+            ViewModel = env.IOC.Get<FromWorkBenchViewModel>(); // 获取对象
+            if(ViewModel is null)
+            {
+                Console.WriteLine("创建对象并注入依赖项");
+                ViewModel = env.IOC.Instantiate<FromWorkBenchViewModel>(); 
+            }
+            BindData();
         }
 
-        public void Init()
+        private void BindData()
         {
-            listBox1.Items.Clear();
-            var enumValues = Enum.GetValues(typeof(CommandSignal)).Cast<CommandSignal>();
-            foreach (var value in enumValues)
-            {
-                listBox1.Items.Add(value.ToString());
-            }
+            textBoxPlcInfo.DataBindings.Add(nameof(textBoxPlcInfo.Text), ViewModel, nameof(ViewModel.DeviceInfo), false, DataSourceUpdateMode.OnPropertyChanged);
+            textBoxSpaceNum.DataBindings.Add(nameof(textBoxSpaceNum.Text), ViewModel, nameof(ViewModel.SpcaeNumber), false, DataSourceUpdateMode.OnPropertyChanged);
+
+            listBoxCommand.DataSource = Enum.GetValues(typeof(CommandSignal));
+            listBoxCommand.DataBindings.Add(nameof(listBoxCommand.SelectedItem), ViewModel, nameof(ViewModel.SelectedSignal), false, DataSourceUpdateMode.OnPropertyChanged);
+            listBoxCommand.SelectedIndexChanged += (s, e) => listBoxCommand.DataBindings[nameof(listBoxCommand.SelectedItem)].WriteValue();
+
+            button1.Click += (s, e) => ViewModel.CommandViewPlcInfo.Execute();
+            button2.Click += (s, e) => ViewModel.CommandGetParkingSpace.Execute();
+        }
+        private void FromWorkBenchView_Load(object sender, EventArgs e)
+        {
+
         }
 
-        private void button1_Click(object sender, EventArgs e)
-        {
-            textBoxPlcInfo.Text =  ViewModel.GetDeviceInfo();
-        }
 
-        private void button2_Click(object sender, EventArgs e)
-        {
-            if(listBox1.SelectedItem is null)
-            {
-                return;
-            }
-            string type = listBox1.SelectedItem.ToString();
-            
-            if (!string.IsNullOrEmpty(type) &&  Enum.TryParse(type, out CommandSignal signal) && Enum.IsDefined(typeof(CommandSignal), signal))
-            {
-                Console.WriteLine($"Trigger : {type}");
-                ViewModel.Trigger(signal,textBoxSpaceNum.Text);
-            }
-            
-        }
-        
-        
     }
 }

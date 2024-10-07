@@ -231,7 +231,7 @@ namespace Serein.NodeFlow.Base
             }
             catch (Exception ex)
             {
-                await Console.Out.WriteLineAsync(ex.ToString());
+                await Console.Out.WriteLineAsync($"节点[{this.MethodDetails?.MethodName}]异常：" + ex.Message);
                 NextOrientation = ConnectionType.IsError;
                 RuningException = ex;
                 return null;

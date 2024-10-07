@@ -60,17 +60,19 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Device\SiemensPlcDevice.cs" />
-    <Compile Include="Device\PrakingDevice.cs" />
+    <Compile Include="Model\PlcVarModel.cs" />
+    <Compile Include="Trigger\SiemensPlcDevice.cs" />
+    <Compile Include="Trigger\PrakingDevice.cs" />
     <Compile Include="Enums\PlcState.cs" />
-    <Compile Include="Enums\PlcVarEnum.cs" />
+    <Compile Include="Enums\PlcVarName.cs" />
     <Compile Include="LogicControl\PlcLogicControl.cs" />
     <Compile Include="LogicControl\ParkingLogicControl.cs" />
     <Compile Include="LogicControl\ViewLogicControl.cs" />
     <Compile Include="Enums\FromValue.cs" />
     <Compile Include="Signal\CommandSignal.cs" />
     <Compile Include="Signal\PLCVarSignal.cs" />
-    <Compile Include="Utils\ToValue.cs" />
+    <Compile Include="Utils\GSModel.cs" />
+    <Compile Include="Utils\RelayCommand.cs" />
     <Compile Include="ViewModel\FromWorkBenchViewModel.cs" />
     <Compile Include="View\FromWorkBenchView.cs">
       <SubType>Form</SubType>
@@ -84,7 +86,7 @@
     <Compile Include="View\TestFormView.Designer.cs">
       <DependentUpon>TestFormView.cs</DependentUpon>
     </Compile>
-    <Compile Include="Web\CommandController_1.cs" />
+    <Compile Include="Web\CommandController.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\DynamicControl\SereinFlow\Library.Framework\Serein.Library.Framework.csproj">

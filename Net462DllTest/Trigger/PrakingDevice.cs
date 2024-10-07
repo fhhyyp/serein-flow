@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Net462DllTest.Device
+namespace Net462DllTest.Trigger
 {
     [AutoRegister]
     public class PrakingDevice : ChannelFlowTrigger<ParkingCommand>

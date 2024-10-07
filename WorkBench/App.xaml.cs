@@ -36,9 +36,6 @@ namespace Serein.WorkBench
         public App()
         {
 
-
-           
-
 #if false //测试 操作表达式，条件表达式
             #region 测试数据
             string expression = "";

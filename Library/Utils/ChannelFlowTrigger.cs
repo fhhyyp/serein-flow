@@ -33,10 +33,15 @@ namespace Serein.Library.NodeFlow.Tool
     {
         // 使用并发字典管理每个枚举信号对应的 Channel
         private readonly ConcurrentDictionary<TSignal, Channel<TriggerData>> _channels = new ConcurrentDictionary<TSignal, Channel<TriggerData>>();
-
-
-        // 到期后自动触发。短时间内触发频率过高的情况下，请将 outTime 设置位短一些的时间，因为如果超时等待时间过长，会导致非预期的“托管内存泄露”。
-
+        /// <summary>
+        /// 获取或创建指定信号的 Channel
+        /// </summary>
+        /// <param name="signal">枚举信号标识符</param>
+        /// <returns>对应的 Channel</returns>
+        private Channel<TriggerData> GetOrCreateChannel(TSignal signal)
+        {
+            return _channels.GetOrAdd(signal, _ => Channel.CreateUnbounded<TriggerData>());
+        }
         /// <summary>
         /// 创建信号并指定超时时间的Channel.
         /// </summary>
@@ -96,6 +101,7 @@ namespace Serein.Library.NodeFlow.Tool
                     Type = TriggerType.External,
                 };
                 // 手动触发信号
+
                 channel.Writer.TryWrite(triggerData);
                 return true;
             }
@@ -114,14 +120,6 @@ namespace Serein.Library.NodeFlow.Tool
             _channels.Clear();
         }
 
-        /// <summary>
-        /// 获取或创建指定信号的 Channel
-        /// </summary>
-        /// <param name="signal">枚举信号标识符</param>
-        /// <returns>对应的 Channel</returns>
-        private Channel<TriggerData> GetOrCreateChannel(TSignal signal)
-        {
-            return _channels.GetOrAdd(signal, _ => Channel.CreateUnbounded<TriggerData>());
-        }
+
     }
 }

@@ -1,5 +1,6 @@
-﻿using Net462DllTest.Device;
+﻿
 using Net462DllTest.Signal;
+using Net462DllTest.Trigger;
 using Net462DllTest.ViewModel;
 using Serein.Library.Api;
 using Serein.Library.Attributes;
@@ -22,7 +23,7 @@ namespace Net462DllTest.LogicControl
     }
 
     [AutoRegister]
-    [DynamicFlow]
+    [DynamicFlow("[Parking]")]
     public class ParkingLogicControl
     {
         private readonly PrakingDevice PrakingDevice;
@@ -38,7 +39,7 @@ namespace Net462DllTest.LogicControl
         {
             try
             {
-                TriggerData triggerData = await PrakingDevice.CreateChannelWithTimeoutAsync(parkingCommand, TimeSpan.FromMinutes(5), 0);
+                TriggerData triggerData = await PrakingDevice.CreateChannelWithTimeoutAsync(parkingCommand, TimeSpan.FromMinutes(120), 0);
                 if (triggerData.Type == TriggerType.Overtime)
                 {
                     throw new FlipflopException("超时取消");
@@ -65,7 +66,7 @@ namespace Net462DllTest.LogicControl
         }
 
 
-        [NodeAction(NodeType.Action, "手动触发模拟调取车位")]
+        [NodeAction(NodeType.Action, "调取指定车位")]
         public void Storage(string spaceNum = "101")
         {
            if (PrakingDevice.TriggerSignal(ParkingCommand.GetPparkingSpace, spaceNum))
@@ -76,11 +77,7 @@ namespace Net462DllTest.LogicControl
             else
             {
                 Console.WriteLine("发送命令失败：调取车位" + spaceNum);
-
             }
         }
-
-
-
     }
 }

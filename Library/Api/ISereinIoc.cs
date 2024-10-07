@@ -30,6 +30,7 @@ namespace Serein.Library.Api
         /// <param name="parameters"></param>
         /// <returns></returns>
         ISereinIOC Register<TService, TImplementation>(params object[] parameters) where TImplementation : TService;
+
         ///// <summary>
         ///// 获取或创建并注入目标类型，会记录到IOC容器中。
         ///// </summary>

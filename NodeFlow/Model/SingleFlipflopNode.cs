@@ -37,24 +37,31 @@ namespace Serein.NodeFlow.Model
                 throw new Exception("不存在对应委托");
             }
             object instance = md.ActingInstance;
-            // Task<IFlipflopContext>? flipflopTask = null;
             try
             {
-                // 调用委托并获取结果
-                //Task<IFlipflopContext> flipflopTask = md.ExplicitDatas.Length  switch
-                //{
-                //    0 => ((Func<object, Task<IFlipflopContext>>)del).Invoke(md.ActingInstance),
-                //    _ => ((Func<object, object?[]?, Task<IFlipflopContext>>)del).Invoke(md.ActingInstance, GetParameters(context, this, md)), // 执行流程中的触发器方法时获取入参参数
-                //};
                 Task<IFlipflopContext> flipflopTask;
                 if (md.ExplicitDatas.Length == 0)
                 {
-                    flipflopTask = ((Func<object, Task<IFlipflopContext>>)del).Invoke(md.ActingInstance);
+                    if (del is Func<object, Task<IFlipflopContext>> function)
+                    {
+                        flipflopTask = function.Invoke(md.ActingInstance);
+                    }
+                    else
+                    {
+                        throw new FlipflopException("触发节点非预期的返回类型", true, FlipflopException.CancelClass.Flow);
+                    }
                 }
                 else
                 {
                     var parameters = GetParameters(context, this, md);
-                    flipflopTask = ((Func<object, object?[]?, Task<IFlipflopContext>>)del).Invoke(md.ActingInstance, parameters);
+                    if(del is Func<object, object?[]?, Task<IFlipflopContext>> function)
+                    {
+                        flipflopTask = function.Invoke(md.ActingInstance, parameters);
+                    }
+                    else
+                    {
+                        throw new FlipflopException("触发节点非预期的返回类型", true,FlipflopException.CancelClass.Flow);
+                    }
                 }
 
                 IFlipflopContext flipflopContext = (await flipflopTask) ?? throw new FlipflopException("没有返回上下文");
@@ -67,14 +74,18 @@ namespace Serein.NodeFlow.Model
             }
             catch (FlipflopException ex)
             {
-                await Console.Out.WriteLineAsync(ex.ToString());
+                if(ex.Clsss == FlipflopException.CancelClass.Flow)
+                {
+                    throw;
+                }
+                await Console.Out.WriteLineAsync($"触发器[{this.MethodDetails.MethodName}]异常：" + ex.Message);
                 NextOrientation = ConnectionType.None;
                 RuningException = ex;
                 return null;
             }
             catch (Exception ex)
             {
-                await Console.Out.WriteLineAsync(ex.ToString());
+                await Console.Out.WriteLineAsync($"触发器[{this.MethodDetails.MethodName}]异常：" + ex.Message);
                 NextOrientation = ConnectionType.IsError;
                 RuningException = ex;
                 return null;

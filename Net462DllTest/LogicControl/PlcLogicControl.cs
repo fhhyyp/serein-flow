@@ -1,8 +1,8 @@
 ﻿using IoTClient.Clients.PLC;
 using IoTClient.Common.Enums;
-using Net462DllTest.Device;
 using Net462DllTest.Enums;
 using Net462DllTest.Signal;
+using Net462DllTest.Trigger;
 using Net462DllTest.Web;
 using Serein.Library.Api;
 using Serein.Library.Attributes;
@@ -20,8 +20,17 @@ using System.Threading.Tasks;
 
 namespace Net462DllTest.LogicControl
 {
+    [AttributeUsage(AttributeTargets.Class)]
+    public sealed class AutoSocketAttribute : Attribute
+    {
+        public string BusinessField;
+    }
+
+
+
+
     [AutoRegister]
-    [DynamicFlow] 
+    [DynamicFlow("[SiemensPlc]")] 
     public class PlcLogicControl
     {
         private readonly SiemensPlcDevice MyPlc;
@@ -29,8 +38,6 @@ namespace Net462DllTest.LogicControl
         public PlcLogicControl(SiemensPlcDevice MyPlc)
         {
             this.MyPlc = MyPlc;
-           
-            
         }
 
         #region 初始化、初始化完成以及退出的事件
@@ -39,7 +46,9 @@ namespace Net462DllTest.LogicControl
         {
             context.Env.IOC.Register<IRouter, Router>();
             context.Env.IOC.Register<WebServer>();
-           
+
+            //context.Env.IOC.Register<SocketServer>();
+            //context.Env.IOC.Register<SocketClient>();
         }
 
         [NodeAction(NodeType.Loading)] // Loading 初始化完成已注入依赖项，可以开始逻辑上的操作
@@ -47,16 +56,13 @@ namespace Net462DllTest.LogicControl
         {
             // 注册控制器
             context.Env.IOC.Run<IRouter, WebServer>((router, web) => {
-                try
-                {
-                    router.RegisterController(typeof(CommandController));
-                    web.Start("http://*:8089/"); // 开启 Web 服务
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex);
-                }
+                router.RegisterController(typeof(CommandController));
+                web.Start("http://*:8089/"); // 开启 Web 服务
             });
+
+            //context.Env.IOC.Run<SocketServer>(server => {
+            //    server.Start(5000); // 开启 Socket 监听
+            //});
         }
 
         [NodeAction(NodeType.Exit)] // 流程结束时自动执行
@@ -66,7 +72,7 @@ namespace Net462DllTest.LogicControl
             {
                 web?.Stop(); // 关闭 Web 服务
             });
-            MyPlc.ResetDevice();
+            MyPlc.Close();
             MyPlc.CancelAllTasks();
         }
 
@@ -74,17 +80,17 @@ namespace Net462DllTest.LogicControl
 
         #region 触发器节点
 
-        [NodeAction(NodeType.Flipflop, "等待信号触发", ReturnType = typeof(int))]
-        public async Task<IFlipflopContext> WaitTask(CommandSignal order = CommandSignal.Command_1)
+        [NodeAction(NodeType.Flipflop, "等待变量更新", ReturnType = typeof(int))]
+        public async Task<IFlipflopContext> WaitTask(PlcVarName varName = PlcVarName.ErrorCode)
         {
             try
             {
-                TriggerData triggerData = await MyPlc.CreateChannelWithTimeoutAsync(order, TimeSpan.FromMinutes(5), 0);
+                TriggerData triggerData = await MyPlc.CreateChannelWithTimeoutAsync(varName, TimeSpan.FromMinutes(120), 0);
                 if (triggerData.Type == TriggerType.Overtime)
                 {
                     throw new FlipflopException("超时取消");
                 }
-                //int.TryParse(triggerData.Value.ToString(),out int result);
+                await Console.Out.WriteLineAsync($"PLC变量触发器[{varName}]传递数据：{triggerData.Value}");
                 return new FlipflopContext(FlipflopStateType.Succeed, triggerData.Value);
             }
             catch (FlipflopException)
@@ -102,11 +108,13 @@ namespace Net462DllTest.LogicControl
 
         #region 动作节点
 
-        [NodeAction(NodeType.Action, "初始化")]
+        [NodeAction(NodeType.Action, "PLC初始化")]
         public SiemensPlcDevice PlcInit(SiemensVersion version = SiemensVersion.None,
                                         string ip = "192.168.10.100",
                                         int port = 102)
         {
+            //MyPlc.Model.Set(PlcVarName.DoorVar,1);
+            //MyPlc.Model.Value.SpaceNum = 1;
             if (MyPlc.Client is null)
             {
                 try
@@ -129,41 +137,34 @@ namespace Net462DllTest.LogicControl
         [NodeAction(NodeType.Action, "设置PLC状态")]
         public SiemensPlcDevice SetState(PlcState state = PlcState.PowerOff)
         {
-            if(MyPlc.Client != null)
-            {
-                var oldState = MyPlc.State;
-                MyPlc.State = state;
-                Console.WriteLine($"PLC状态从[{oldState}]转为[{state}]");
-                return MyPlc;
-            }
-            else
-            {
-                Console.WriteLine($"PLC尚未初始化");
-                return MyPlc;
-            }
+            var oldState = MyPlc.State;
+            MyPlc.State = state;
+            Console.WriteLine($"PLC状态从[{oldState}]转为[{state}]");
+            return MyPlc;
         }
 
         [NodeAction(NodeType.Action, "PLC获取变量")]
-        public object ReadVar(PlcVarEnum plcVarEnum)
+        public object ReadVar(PlcVarName plcVarEnum)
         {
-            var varInfo = ToVarInfo(plcVarEnum);
+            var varInfo = plcVarEnum.ToVarInfo();
             var result = MyPlc.Read(varInfo);
             Console.WriteLine($"获取变量成功：({varInfo})\t result = {result}");
             return result;
         }
 
         [NodeAction(NodeType.Action, "PLC写入变量")]
-        public SiemensPlcDevice WriteVar2(object value, PlcVarEnum plcVarEnum)
+        public SiemensPlcDevice WriteVar2(object value, PlcVarName varName)
         {
-            var varInfo = ToVarInfo(plcVarEnum);
+            var varInfo = varName.ToVarInfo();
             if (MyPlc.State == PlcState.Runing)
             {
-                if (varInfo.IsProtected)
+                if (varInfo.IsReadOnly)
                 {
                     Console.WriteLine($"PLC变量{varInfo}当前禁止写入");
                 }
                 else
                 {
+                    
                     MyPlc.Write(varInfo, value);
                     Console.WriteLine($"PLC变量{varInfo}写入数据：{value}");
                 }
@@ -175,30 +176,24 @@ namespace Net462DllTest.LogicControl
             return MyPlc;
         }
 
-        /// <summary>
-        /// 缓存变量信息
-        /// </summary>
-        private readonly Dictionary<PlcVarEnum, PlcVarInfo> VarInfoDict = new Dictionary<PlcVarEnum, PlcVarInfo>();
-        
-        private PlcVarInfo ToVarInfo(PlcVarEnum plcVarEnum)
+
+        [NodeAction(NodeType.Action, "批量读取")]
+        public void BatchReadVar()
         {
-            if (VarInfoDict.ContainsKey(plcVarEnum))
-            {
-                return VarInfoDict[plcVarEnum];
-            }
-            if (plcVarEnum == PlcVarEnum.None)
-            {
-                throw new Exception("非预期枚举值");
-            }
-            var plcValue = EnumHelper.GetBoundValue<PlcVarEnum, PlcValueAttribute, PlcVarInfo>(plcVarEnum, attr => attr.PlcInfo)
-                     ?? throw new Exception($"获取变量异常：{plcVarEnum}，没有标记PlcValueAttribute");
-            if (string.IsNullOrEmpty(plcValue.VarAddress))
-            {
-                throw new Exception($"获取变量异常：{plcVarEnum}，变量地址为空");
-            }
-            VarInfoDict.Add(plcVarEnum, plcValue);
-            return plcValue;
+            MyPlc.BatchRefresh();
         }
+        [NodeAction(NodeType.Action, "开启定时刷新")]
+        public void OpenTimedRefresh()
+        {
+            Task.Run(async () => await MyPlc.OpenTimedRefreshAsync());
+        }
+
+        [NodeAction(NodeType.Action, "关闭定时刷新")]
+        public void CloseTimedRefresh()
+        {
+            MyPlc.CloseTimedRefresh();
+        }
+
 
         #endregion
     }
