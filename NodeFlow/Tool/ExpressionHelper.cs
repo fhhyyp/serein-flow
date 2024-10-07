@@ -146,9 +146,26 @@ namespace Serein.NodeFlow.Tool
         {
             var parameter = Expression.Parameter(typeof(object), "instance");
             var methodCall = Expression.Call(Expression.Convert(parameter, type), methodInfo);
-            var lambda = Expression.Lambda(Expression.Convert(methodCall, typeof(object)), parameter);
-            // Func<object, object>
-            return lambda.Compile();
+
+            if(MethodDetailsHelperTmp.IsGenericTask(methodInfo.ReturnType,out var taskResult))
+            {
+                if(taskResult is null)
+                {
+                    var lambda = Expression.Lambda<Func<object, Task>>(Expression.Convert(methodCall, typeof(Task)), parameter);
+                    return lambda.Compile();
+                }
+                else
+                {
+                    var lambda = Expression.Lambda<Func<object, Task<object>>>(Expression.Convert(methodCall, typeof(Task<object>)), parameter);
+                    return lambda.Compile();
+                }
+            }
+            else
+            {
+                var lambda = Expression.Lambda<Func<object, object>>(Expression.Convert(methodCall, typeof(object)), parameter);
+                return lambda.Compile();
+            }
+            
         }
 
 
@@ -262,14 +279,29 @@ namespace Serein.NodeFlow.Tool
                 convertedArgs
             );
 
-            // 创建 lambda 表达式
-            var lambda = Expression.Lambda<Func<object, object[], object>>(
-                Expression.Convert(methodCall, typeof(object)),
-                instanceParam,
-                argsParam
-            );
-            //var resule = task.DynamicInvoke((object)[Activator.CreateInstance(type), [new DynamicContext(null)]]);
-            return lambda.Compile();
+            if (MethodDetailsHelperTmp.IsGenericTask(methodInfo.ReturnType, out var taskResult))
+            {
+                if (taskResult is null)
+                {
+                    var lambda = Expression.Lambda<Func<object, object[], Task>>
+                        (Expression.Convert(methodCall, typeof(Task)), instanceParam, argsParam);
+                    return lambda.Compile();
+                }
+                else
+                {
+                    var lambda = Expression.Lambda<Func<object, object[], Task<object>>>
+                        (Expression.Convert(methodCall, typeof(Task<object>)), instanceParam, argsParam);
+                    return lambda.Compile();
+                }
+            }
+            else
+            {
+                var lambda = Expression.Lambda<Func<object, object[], object>>
+                        (Expression.Convert(methodCall, typeof(object)), instanceParam, argsParam);
+                return lambda.Compile();
+            }
+
+            
         }
 
 

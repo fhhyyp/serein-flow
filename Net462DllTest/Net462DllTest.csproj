@@ -61,6 +61,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Model\PlcVarModel.cs" />
+    <Compile Include="Main.cs" />
     <Compile Include="Trigger\SiemensPlcDevice.cs" />
     <Compile Include="Trigger\PrakingDevice.cs" />
     <Compile Include="Enums\PlcState.cs" />

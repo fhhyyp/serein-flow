@@ -9,21 +9,6 @@ using System.Threading.Tasks;
 
 namespace Net462DllTest.Model
 {
-
-    [AttributeUsage(AttributeTargets.Property)]
-    public class PlcValueAttribute : Attribute
-    {
-        /// <summary>
-        /// 变量类型
-        /// </summary>
-        public PlcVarName PlcVarEnum { get; }
-        public PlcValueAttribute(PlcVarName plcVarEnum)
-        {
-            this.PlcVarEnum = plcVarEnum;
-        }
-    }
-
-
     /// <summary>
     /// PLC变量
     /// </summary>

@@ -41,7 +41,7 @@ namespace Net462DllTest.LogicControl
         }
 
         #region 初始化、初始化完成以及退出的事件
-        [NodeAction(NodeType.Init)] // Init ： 初始化事件，流程启动时执行
+        [NodeAction(NodeType.Init)]
         public void Init(IDynamicContext context)
         {
             context.Env.IOC.Register<IRouter, Router>();
@@ -108,6 +108,15 @@ namespace Net462DllTest.LogicControl
 
         #region 动作节点
 
+        [NodeAction(NodeType.Action, "等待")]
+        public async Task Delay(int ms = 5000)
+        {
+            await Console.Out.WriteLineAsync("开始等待");
+            await Task.Delay(ms);
+            await Console.Out.WriteLineAsync("不再等待");
+
+        }
+
         [NodeAction(NodeType.Action, "PLC初始化")]
         public SiemensPlcDevice PlcInit(SiemensVersion version = SiemensVersion.None,
                                         string ip = "192.168.10.100",
@@ -153,7 +162,7 @@ namespace Net462DllTest.LogicControl
         }
 
         [NodeAction(NodeType.Action, "PLC写入变量")]
-        public SiemensPlcDevice WriteVar2(object value, PlcVarName varName)
+        public SiemensPlcDevice WriteVar(object value, PlcVarName varName)
         {
             var varInfo = varName.ToVarInfo();
             if (MyPlc.State == PlcState.Runing)
@@ -175,7 +184,6 @@ namespace Net462DllTest.LogicControl
             }
             return MyPlc;
         }
-
 
         [NodeAction(NodeType.Action, "批量读取")]
         public void BatchReadVar()

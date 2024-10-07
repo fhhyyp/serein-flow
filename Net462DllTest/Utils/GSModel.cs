@@ -53,6 +53,8 @@ namespace Net462DllTest.Utils
             il.Emit(OpCodes.Callvirt, property.GetSetMethod()); // 调用属性的Setter方法
             il.Emit(OpCodes.Ret); // 返回
 
+            
+
             return (Action<TModel, object>)method.CreateDelegate(typeof(Action<TModel, object>));
         }
 

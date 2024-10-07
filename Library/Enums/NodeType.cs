@@ -9,15 +9,15 @@ namespace Serein.Library.Enums
     public enum NodeType
     {
         /// <summary>
-        /// 初始化（事件，不生成节点）
+        /// 初始化，流程启动时执行（不生成节点）
         /// </summary>
         Init,
         /// <summary>
-        /// 开始载入（事件，不生成节点）
+        /// 开始载入，流程启动时执行（不生成节点）
         /// </summary>
         Loading,
         /// <summary>
-        /// 结束（事件，不生成节点）
+        /// 结束，流程结束时执行（不生成节点）
         /// </summary>
         Exit,
 

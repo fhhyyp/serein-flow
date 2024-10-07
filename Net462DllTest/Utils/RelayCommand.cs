@@ -7,6 +7,9 @@ using System.Windows.Input;
 
 namespace Net462DllTest.Utils
 {
+    /// <summary>
+    /// 用于窗体View与ViewModel进行交互
+    /// </summary>
     public class RelayCommand : ICommand
     {
         private readonly Action<object> _execute;

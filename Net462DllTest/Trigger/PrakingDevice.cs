@@ -12,7 +12,6 @@ namespace Net462DllTest.Trigger
     [AutoRegister]
     public class PrakingDevice : ChannelFlowTrigger<ParkingCommand>
     {
-
     }
 
 }

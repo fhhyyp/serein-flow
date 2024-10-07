@@ -71,7 +71,7 @@ public static class MethodDetailsHelperTmp
                                                     method.ReturnType);// 返回值
 
 
-        Type returnType;
+        Type? returnType;
         bool isTask = IsGenericTask(method.ReturnType, out var taskResult);
 
         if (attribute.MethodDynamicType == Library.Enums.NodeType.Flipflop)
@@ -85,7 +85,7 @@ public static class MethodDetailsHelperTmp
         }
         else if(isTask)
         {
-            returnType = taskResult;
+            returnType = taskResult is null ? typeof(Task) : taskResult;
         }
         else
         {
@@ -119,12 +119,12 @@ public static class MethodDetailsHelperTmp
 
     }
 
-    public static bool IsGenericTask(Type returnType, out Type taskResult)
+    public static bool IsGenericTask(Type returnType, out Type? taskResult)
     {
         // 判断是否为 Task 类型或泛型 Task<T>
         if (returnType == typeof(Task))
         {
-            taskResult = returnType;
+            taskResult = null;
             return true;
         }
         else if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
