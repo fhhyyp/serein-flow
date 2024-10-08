@@ -371,8 +371,7 @@ namespace Serein.NodeFlow
             {
                 try
                 {
-                    var waitTask = singleFlipFlopNode.ExecutingAsync(context); // 获取触发器等待Task
-                    var newFlowData = await waitTask;
+                    var newFlowData = await singleFlipFlopNode.ExecutingAsync(context); // 获取触发器等待Task
                     await NodeModelBase.RefreshFlowDataAndExpInterrupt(context, singleFlipFlopNode, newFlowData); // 全局触发器触发后刷新该触发器的节点数据
                     if (singleFlipFlopNode.NextOrientation != ConnectionType.None)
                     {

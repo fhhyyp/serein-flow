@@ -87,6 +87,7 @@ namespace Net462DllTest.LogicControl
         [NodeAction(NodeType.Flipflop, "等待变量更新", ReturnType = typeof(int))]
         public async Task<IFlipflopContext> WaitTask(PlcVarName varName = PlcVarName.ErrorCode)
         {
+
             try
             {
                 TriggerData triggerData = await MyPlc.CreateChannelWithTimeoutAsync(varName, TimeSpan.FromMinutes(120), 0);
