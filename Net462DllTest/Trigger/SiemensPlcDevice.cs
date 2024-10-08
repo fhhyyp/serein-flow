@@ -89,33 +89,35 @@ namespace Net462DllTest.Trigger
             Client = null;
         }
 
-        public void Write(PlcVarInfo varInfo, object value)
+        public void Write(PlcVarName varName, object value)
         {
-            try
+            var varInfo = varName.ToVarInfo();
+            if (this.State == PlcState.Runing)
             {
-                Client.WriteVar(varInfo, value); // 尝试写入PLC
-                Model.Set(varInfo.Name, value); // 新数据
+                if (varInfo.IsReadOnly)
+                {
+                    throw new Exception($"PLC变量{varInfo}当前禁止写入");
+                }
+                else
+                {
+
+                    Client.WriteVar(varInfo, value); // 尝试写入PLC
+                    Model.Set(varName, value);
+                    Console.WriteLine($"PLC变量{varInfo}写入数据：{value}");
+                }
             }
-            catch (Exception ex)
+            else
             {
-                Console.WriteLine($"写入出错:{this}{varInfo}。{ex.Message}");
-                throw;
+                throw new Exception($"PLC处于非预期状态{this.State}");
             }
         }
 
-        public object Read(PlcVarInfo varInfo)
+        public object Read(PlcVarName varName)
         {
-            try
-            {
-                var result = Client.ReadVar(varInfo);// 尝试读取数据
-                Model.Set(varInfo.Name, result);// 缓存读取的数据
-                return result;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"读取出错:{this}{varInfo}。{ex.Message}");
-                throw;
-            }
+            var varInfo = varName.ToVarInfo();
+            var result = Client.ReadVar(varInfo);// 尝试读取数据
+            Model.Set(varName, result); // 缓存读取的数据
+            return result;
 
         }
 
@@ -123,7 +125,7 @@ namespace Net462DllTest.Trigger
         {
             foreach(var varInfo in VarInfos)
             {
-                Read(varInfo); // 无条件批量读取
+                Read(varInfo.Name); // 无条件批量读取
             }
         }
 
@@ -186,7 +188,7 @@ namespace Net462DllTest.Trigger
                     if (!IsTimedRefresh || Client is null) break; 
                     
                     oldData = Model.Get(signal); // 暂存旧数据
-                    newData = Read(varInfo); // 获取新数据
+                    newData = Read(signal); // 获取新数据
                     if (varInfo.NotificationType == PlcVarInfo.OnNotificationType.OnRefresh)
                     { 
                         isNotification = true; // 无条件触发通知

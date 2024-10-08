@@ -177,7 +177,11 @@ namespace Serein.NodeFlow
                     IsStopStart = true;
                 }
             }
-            CheckStartState(); // 初始化IOC后检查状态
+            
+            if (IsStopStart)
+            {
+                return;// 初始化类型后检查状态
+            }
 
             env.IOC.Build(); // 流程启动前的初始化
 
@@ -190,8 +194,11 @@ namespace Serein.NodeFlow
                     IsStopStart = true;
                 }
             }
+            if (IsStopStart)
+            {
+                return;// 调用节点初始化后检查状态
+            }
 
-            CheckStartState();// 调用节点初始化后检查状态
 
             #endregion
 

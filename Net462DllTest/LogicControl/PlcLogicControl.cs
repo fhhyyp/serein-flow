@@ -1,6 +1,7 @@
 ﻿using IoTClient.Clients.PLC;
 using IoTClient.Common.Enums;
 using Net462DllTest.Enums;
+using Net462DllTest.Model;
 using Net462DllTest.Signal;
 using Net462DllTest.Trigger;
 using Net462DllTest.Web;
@@ -34,10 +35,13 @@ namespace Net462DllTest.LogicControl
     public class PlcLogicControl
     {
         private readonly SiemensPlcDevice MyPlc;
+        private readonly PlcVarModelDataProxy plcVarModelDataProxy;
 
-        public PlcLogicControl(SiemensPlcDevice MyPlc)
+        public PlcLogicControl(SiemensPlcDevice MyPlc,
+                                      PlcVarModelDataProxy plcVarModelDataProxy)
         {
             this.MyPlc = MyPlc;
+            this.plcVarModelDataProxy = plcVarModelDataProxy;
         }
 
         #region 初始化、初始化完成以及退出的事件
@@ -153,35 +157,17 @@ namespace Net462DllTest.LogicControl
         }
 
         [NodeAction(NodeType.Action, "PLC获取变量")]
-        public object ReadVar(PlcVarName plcVarEnum)
+        public object ReadVar(PlcVarName varName)
         {
-            var varInfo = plcVarEnum.ToVarInfo();
-            var result = MyPlc.Read(varInfo);
-            Console.WriteLine($"获取变量成功：({varInfo})\t result = {result}");
+            var result = MyPlc.Read(varName);
+            Console.WriteLine($"获取变量成功：({varName})\t result = {result}");
             return result;
         }
 
         [NodeAction(NodeType.Action, "PLC写入变量")]
         public SiemensPlcDevice WriteVar(object value, PlcVarName varName)
         {
-            var varInfo = varName.ToVarInfo();
-            if (MyPlc.State == PlcState.Runing)
-            {
-                if (varInfo.IsReadOnly)
-                {
-                    Console.WriteLine($"PLC变量{varInfo}当前禁止写入");
-                }
-                else
-                {
-                    
-                    MyPlc.Write(varInfo, value);
-                    Console.WriteLine($"PLC变量{varInfo}写入数据：{value}");
-                }
-            }
-            else
-            {
-                Console.WriteLine($"PLC处于非预期状态{MyPlc.State}");
-            }
+            MyPlc.Write(varName, value); // 新数据
             return MyPlc;
         }
 

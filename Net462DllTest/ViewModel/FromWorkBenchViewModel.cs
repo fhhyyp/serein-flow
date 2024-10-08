@@ -12,6 +12,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Net462DllTest.LogicControl;
+using Net462DllTest.Model;
 
 namespace Net462DllTest.ViewModel
 {
@@ -19,12 +20,18 @@ namespace Net462DllTest.ViewModel
     {
         private readonly SiemensPlcDevice Device;
         private readonly ViewManagement viewManagement;
-        public FromWorkBenchViewModel(SiemensPlcDevice Device,ViewManagement viewManagement)
+        private readonly PlcVarModelDataProxy plcVarModelDataProxy;
+        public FromWorkBenchViewModel(SiemensPlcDevice Device,
+                                      ViewManagement viewManagement,
+                                      PlcVarModelDataProxy plcVarModelDataProxy)
         {
             this.Device = Device;
             this.viewManagement = viewManagement;
-            InitCommand(); 
-            
+            this.plcVarModelDataProxy = plcVarModelDataProxy;
+
+
+           
+            InitCommand();
         }
 
 

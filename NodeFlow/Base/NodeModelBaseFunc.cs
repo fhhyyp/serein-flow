@@ -211,7 +211,7 @@ namespace Serein.NodeFlow.Base
             bool isTaskHaveResult = taskResult is not null;
             object? result;
 
-            Console.WriteLine($"(isTask, isTaskHaveResult):{(isTask, isTaskHaveResult)}");
+            //Console.WriteLine($"(isTask, isTaskHaveResult):{(isTask, isTaskHaveResult)}");
             try
             {
                 // Action/Func([方法作用的实例],[可能的参数值],[可能的返回值])

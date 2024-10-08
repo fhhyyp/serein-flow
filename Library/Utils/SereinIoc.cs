@@ -263,7 +263,6 @@ namespace Serein.Library.Utils
             {
                 var current = queue.Dequeue();
                 creationOrder.Add(current);
-
                 foreach (var neighbor in graph[current])
                 {
                     indegree[neighbor]--;
@@ -273,7 +272,17 @@ namespace Serein.Library.Utils
                     }
                 }
             }
-
+           
+            var tmpList = indegree.Where(kv => kv.Value > 0).Select(kv => kv.Key).ToList();
+            if (tmpList.Count > 0)
+            {
+                Console.WriteLine("以下类型可能产生循环依赖，请避免循环依赖，如果确实需要循环引用，请使用 [AutoInjection] 特性注入属性");
+                foreach (var kv in tmpList)
+                {
+                    Console.WriteLine($"Class Name : {kv}");
+                }
+            }
+            
             return creationOrder;
         }
 
@@ -296,7 +305,8 @@ namespace Serein.Library.Utils
                     args[i] = argObj;
                 }
                 var value = Activator.CreateInstance(type, args);
-                
+                InjectDependencies(value); // 完成创建后注入实例需要的特性依赖项
+
                 return value;
             }
 
@@ -403,7 +413,7 @@ namespace Serein.Library.Utils
                 {
                     property.SetValue(instance, dependencyInstance); // 尝试写入到目标实例的属性中
                 }
-                else if(isRecord)
+                else if( isRecord )
                 {
                     // 存在依赖项，但目标类型的实例暂未加载，需要等待需要实例完成注册
                     var unfinishedDependenciesList = _unfinishedDependencies.GetOrAdd(propertyType.FullName, _ = new List<(object, PropertyInfo)>());
