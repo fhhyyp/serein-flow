@@ -21,6 +21,6 @@ namespace Serein.Library.Api
         /// <param name="time"></param>
         /// <param name="count"></param>
         /// <returns></returns>
-        Task CreateTimingTask(Action callback, int time = 100, int count = -1);
+        // Task CreateTimingTask(Action callback, int time = 100, int count = -1);
     }
 }

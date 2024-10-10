@@ -28,6 +28,7 @@ namespace Serein.Library.Utils
         /// 已完成注入的实例集合
         /// </summary>
         private readonly ConcurrentDictionary<string, object> _dependencies;
+        private readonly ConcurrentDictionary<string, object[]> _registerParameterss;
 
         /// <summary>
         /// 未完成注入的实例集合。
@@ -40,9 +41,10 @@ namespace Serein.Library.Utils
 
         public SereinIOC()
         {
-            // 首先注册自己
             _dependencies = new ConcurrentDictionary<string, object>();
+            _registerParameterss = new ConcurrentDictionary<string, object[]>();
             _typeMappings = new ConcurrentDictionary<string, Type>(); 
+
             _unfinishedDependencies = new ConcurrentDictionary<string, List<(object, PropertyInfo)>>();
         }
 
@@ -57,7 +59,7 @@ namespace Serein.Library.Utils
         /// <param name="parameters">参数</param>
         public bool Register(Type type, params object[] parameters)
         {
-            return RegisterType(type?.FullName, type);
+            return RegisterType(type?.FullName, type, parameters);
         }
         /// <summary>
         /// 注册类型
@@ -67,7 +69,7 @@ namespace Serein.Library.Utils
         public bool Register<T>(params object[] parameters)
         {
             var type = typeof(T);
-            return RegisterType(type.FullName, type);
+            return RegisterType(type.FullName, type, parameters);
         }
 
         /// <summary>
@@ -78,7 +80,7 @@ namespace Serein.Library.Utils
         public bool Register<TService, TImplementation>(params object[] parameters)
             where TImplementation : TService
         {
-            return RegisterType(typeof(TService).FullName, typeof(TImplementation));
+            return RegisterType(typeof(TService).FullName, typeof(TImplementation), parameters);
         }
         #endregion
 
@@ -132,6 +134,12 @@ namespace Serein.Library.Utils
         }
         public object Get(Type type)
         {
+            var instance = Get(type.FullName);
+            if(instance is null)
+            {
+                Console.WriteLine("类型没有注册：" + type.FullName);
+            }
+            
             return Get(type.FullName);
         }
 
@@ -170,6 +178,7 @@ namespace Serein.Library.Utils
                     disposable?.Dispose();
                 }
             }
+            _registerParameterss?.Clear();
             _unfinishedDependencies?.Clear();
             _typeMappings?.Clear();
             _dependencies?.Clear();
@@ -185,11 +194,13 @@ namespace Serein.Library.Utils
             public string Name { get; set; }
             public Type Type { get; set; }
         }
-
+        private const string FlowBaseClassName = "<>$FlowBaseClass!@#";
         public Dictionary<string, List<string>> BuildDependencyTree()
         {
             var dependencyMap = new Dictionary<string, List<string>>();
-
+            //var tmpTypeFullName = new HashSet<string>();
+            //var tmpTypeFullName2 = new HashSet<string>();
+            dependencyMap[FlowBaseClassName] = new List<string>();
             foreach (var typeMapping in _typeMappings)
             {
                 var constructor = GetConstructorWithMostParameters(typeMapping.Value); // 获取参数最多的构造函数
@@ -198,18 +209,41 @@ namespace Serein.Library.Utils
                     var parameters = constructor.GetParameters()
                         .Select(p => p.ParameterType)
                         .ToList();
+                    //if(parameters.Count == 0)
+                    //{
+                    //    if (!dependencyMap.ContainsKey(typeMapping.Value.FullName))
+                    //    {
+                    //        dependencyMap[typeMapping.Value.FullName] = new List<string>();
+                    //    }
+                    //    dependencyMap[typeMapping.Value.FullName].Add(typeMapping.Key);
+                    //}
 
-                    foreach (var param in parameters)
+
+                    if(parameters .Count > 0)
                     {
-                        if (!dependencyMap.ContainsKey(param.FullName))
+                        // 从类型的构造函数中提取类型
+                        foreach (var param in parameters)
                         {
-                            dependencyMap[param.FullName] = new List<string>();
+                            if (!dependencyMap.ContainsKey(param.FullName))
+                            {
+                                dependencyMap[param.FullName] = new List<string>();
+                            }
+                            dependencyMap[param.FullName].Add(typeMapping.Key);
+                            //tmpTypeFullName.Add(param.FullName);
+                            //if (tmpTypeFullName2.Contains(param.FullName))
+                            //{
+                            //    tmpTypeFullName2.Remove(param.FullName);
+                            //}
                         }
-                        dependencyMap[param.FullName].Add(typeMapping.Key);
+                    }
+                    else
+                    {
+                        var type = typeMapping.Value;
+                        dependencyMap[FlowBaseClassName].Add(type.FullName);
                     }
                 }
             }
-
+            
             return dependencyMap;
         }
         // 获取参数最多的构造函数
@@ -288,29 +322,44 @@ namespace Serein.Library.Utils
 
         public object CreateInstance(string typeName)
         {
-            if (_typeMappings.TryGetValue(typeName, out var type))
+            if (!_typeMappings.TryGetValue(typeName, out var type))
             {
+                return null;
+            }
+            if (_dependencies.TryGetValue(typeName, out var instance))
+            {
+                return instance;
+            }
+            if (_registerParameterss.TryGetValue(typeName,out var @params))
+            {
+                instance = Activator.CreateInstance(type, @params);
+            }
+            else
+            {
+                // 没有显示指定构造函数入参，选择参数最多的构造函数
                 var constructor = GetConstructorWithMostParameters(type);
                 var parameters = constructor.GetParameters();
                 var args = new object[parameters.Length];
-
-
                 for (int i = 0; i < parameters.Length; i++)
                 {
+                    var argType = parameters[i].ParameterType;
                     var fullName = parameters[i].ParameterType.FullName;
                     if (!_dependencies.TryGetValue(fullName, out var argObj))
                     {
-                        argObj = CreateInstance(parameters[i].ParameterType.FullName);
+                        if (!_typeMappings.ContainsKey(fullName))
+                        {
+                            _typeMappings.TryAdd(fullName, argType);
+                        }
+                        argObj = CreateInstance(fullName);
                     }
                     args[i] = argObj;
                 }
-                var value = Activator.CreateInstance(type, args);
-                InjectDependencies(value); // 完成创建后注入实例需要的特性依赖项
-
-                return value;
+                instance = Activator.CreateInstance(type, args);
             }
 
-            return null;
+            InjectDependencies(instance); // 完成创建后注入实例需要的特性依赖项
+            _dependencies[typeName] = instance;
+            return instance;
         }
 
 
@@ -330,6 +379,10 @@ namespace Serein.Library.Utils
                     continue;
                 }
                 var value = CreateInstance(typeName);
+                if(value is null)
+                {
+                    continue;
+                }
                 _dependencies[typeName] = value;
                 OnIOCMembersChanged.Invoke(new IOCMembersChangedEventArgs(typeName, value));
             }
@@ -349,11 +402,15 @@ namespace Serein.Library.Utils
         /// </summary>
         /// <param name="typeFull"></param>
         /// <param name="type"></param>
-        private bool RegisterType(string typeFull, Type type)
+        private bool RegisterType(string typeFull, Type type, params object[] parameters)
         {
             if (!_typeMappings.ContainsKey(typeFull))
             {
                 _typeMappings[typeFull] = type;
+                if(parameters.Length > 0)
+                {
+                    _registerParameterss[typeFull] = parameters;
+                }
                 return true;
             }
             else
@@ -432,15 +489,8 @@ namespace Serein.Library.Utils
         public void Run<T>(Action<T> action)
         {
             var service = Get<T>();
-            if (service == null)
-            {
-                throw new Exception("类型没有注册："+typeof(T).FullName);
-               
-            }
-            else
-            {
-                action(service);
-            }
+            action(service);
+           
         }
 
         public void Run<T1, T2>(Action<T1, T2> action)

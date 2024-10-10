@@ -1,5 +1,6 @@
 ﻿
 using Net462DllTest.Signal;
+using Net462DllTest.Trigger;
 using Net462DllTest.ViewModel;
 using Serein.Library.Api;
 using Serein.Library.Attributes;
@@ -15,41 +16,12 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace Net462DllTest.LogicControl
-{ 
+{
 
-    /// <summary>
-    /// 视图管理
-    /// </summary>
+
+
+
     [AutoRegister]
-    public class ViewManagement:ChannelFlowTrigger<CommandSignal>
-    {
-        private readonly List<Form> forms = new List<Form>();
-        /// <summary>
-        /// 打开窗口
-        /// </summary>
-        /// <param name="form">要打开的窗口类型</param>
-        /// <param name="isTop">是否置顶</param>
-        public void OpenView(Form form, bool isTop)
-        {
-            form.TopMost = isTop;
-            form.Show();
-            forms.Add(form);
-        }
-        public void CloseView(Type formType)
-        {
-             var remoteForms =  forms.Where(f => f.GetType() == formType).ToArray();
-            foreach (Form f in remoteForms)
-            {
-                f.Close();
-                f.Dispose();
-                this.forms.Remove(f);
-            }
-        }
-    }
-
-
-   
-
     [DynamicFlow("[View]")]
     public class ViewLogicControl
     {
@@ -67,10 +39,10 @@ namespace Net462DllTest.LogicControl
         {
             try
             {
-                TriggerData triggerData = await ViewManagement.CreateChannelWithTimeoutAsync(command, TimeSpan.FromMinutes(120), 0);
+                TriggerData triggerData = await ViewManagement.CreateChannelWithTimeoutAsync(command, TimeSpan.FromHours(10), 0);
                 if (triggerData.Type == TriggerType.Overtime)
                 {
-                    throw new FlipflopException("超时取消");
+                    return new FlipflopContext(FlipflopStateType.Cancel, triggerData.Value);
                 }
                 return new FlipflopContext(FlipflopStateType.Succeed, triggerData.Value);
             }

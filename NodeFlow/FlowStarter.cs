@@ -1,4 +1,5 @@
 ﻿using Serein.Library.Api;
+using Serein.Library.Attributes;
 using Serein.Library.Core.NodeFlow;
 using Serein.Library.Entity;
 using Serein.Library.Enums;
@@ -109,6 +110,7 @@ namespace Serein.NodeFlow
         /// <returns></returns>
         public async Task RunAsync(IFlowEnvironment env,
                                    List<NodeModelBase> nodes,
+                                   Dictionary<RegisterSequence, List<Type>> autoRegisterTypes,
                                    List<MethodDetails> initMethods,
                                    List<MethodDetails> loadingMethods,
                                    List<MethodDetails> exitMethods)
@@ -150,6 +152,7 @@ namespace Serein.NodeFlow
             #endregion
 
             #region 初始化运行环境的Ioc容器
+
             // 清除节点使用的对象，筛选出需要初始化的方法描述
             var thisRuningMds = new List<MethodDetails>();
             thisRuningMds.AddRange(runNodeMd.Where(md => md?.ActingInstanceType is not null));
@@ -178,10 +181,7 @@ namespace Serein.NodeFlow
                 }
             }
             
-            if (IsStopStart)
-            {
-                return;// 初始化类型后检查状态
-            }
+            if (IsStopStart) return;// 检查所有dll节点是否存在类型
 
             env.IOC.Build(); // 流程启动前的初始化
 
@@ -219,25 +219,43 @@ namespace Serein.NodeFlow
 
             #region 执行初始化，绑定IOC容器，再执行加载时
 
+            if (autoRegisterTypes.TryGetValue(RegisterSequence.FlowInit, out var flowInitTypes))
+            {
+                foreach (var type in flowInitTypes)
+                {
+                    env.IOC.Register(type); // 初始化前注册
+                }
+            }
+            Context.Env.IOC.Build(); // 绑定初始化时注册的类型
             //object?[]? args = [Context];
             foreach (var md in initMethods) // 初始化
             {
-                if (!env.TryGetDelegate(md.MethodName, out var del))
+                if (!env.TryGetDelegateDetails(md.MethodName, out var dd))
                 {
                     throw new Exception("不存在对应委托");
                 }
-                ((Action<object, object?[]?>)del).Invoke(md.ActingInstance, [Context]);
+                ((Func<object, object[], object>)dd.EmitDelegate).Invoke(md.ActingInstance, [Context]);
+            }
+            Context.Env.IOC.Build(); // 绑定初始化时注册的类型
+
+            if(autoRegisterTypes.TryGetValue(RegisterSequence.FlowLoading,out var flowLoadingTypes))
+            {
+                foreach (var type in flowLoadingTypes)
+                {
+                    env.IOC.Register(type); // 初始化前注册
+                }
             }
             Context.Env.IOC.Build(); // 绑定初始化时注册的类型
             foreach (var md in loadingMethods) // 加载
             {
                 //object?[]? data = [md.ActingInstance, args];
                 //md.MethodDelegate.DynamicInvoke(data);
-                if (!env.TryGetDelegate(md.MethodName, out var del))
+                if (!env.TryGetDelegateDetails(md.MethodName, out var dd))
                 {
                     throw new Exception("不存在对应委托");
                 }
-                ((Action<object, object?[]?>)del).Invoke(md.ActingInstance, [Context]);
+                //((Action<object, object?[]?>)del).Invoke(md.ActingInstance, [Context]);
+                ((Func<object, object[], object>)dd.EmitDelegate).Invoke(md.ActingInstance, [Context]);
             }
             Context.Env.IOC.Build(); // 预防有人在加载时才注册类型，再绑定一次
             #endregion
@@ -245,17 +263,17 @@ namespace Serein.NodeFlow
             #region 设置流程退出时的回调函数
             ExitAction = () =>
             {
-                env.IOC.Run<WebServer>(web => {
+                env.IOC.Run<WebApiServer>(web => {
                     web?.Stop();
                 });
 
                 foreach (MethodDetails? md in exitMethods)
                 {
-                    if (!env.TryGetDelegate(md.MethodName, out var del))
+                    if (!env.TryGetDelegateDetails(md.MethodName, out var dd))
                     {
                         throw new Exception("不存在对应委托");
                     }
-                    ((Action<object, object?[]?>)del).Invoke(md.ActingInstance, [Context]);
+                    ((Func<object, object[], object>)dd.EmitDelegate).Invoke(md.ActingInstance, [Context]);
                 }
 
                 TerminateAllGlobalFlipflop();

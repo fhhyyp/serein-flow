@@ -184,14 +184,15 @@ namespace Serein.NodeFlow
         /// 存放触发器节点（运行时全部调用）
         /// </summary>
         private List<SingleFlipflopNode> FlipflopNodes { get; } = [];
-        private List<Type> AutoRegisterTypes { get; } = [];
+        private Dictionary<RegisterSequence,List<Type>> AutoRegisterTypes { get; } = [];
 
         /// <summary>
         /// 存放委托
         /// 
         /// md.Methodname - delegate
         /// </summary>
-        private ConcurrentDictionary<string, Delegate> MethodDelegates { get; } = [];
+        
+        private ConcurrentDictionary<string, DelegateDetails> MethodDelegates { get; } = [];
 
         /// <summary>
         /// 起始节点私有属性
@@ -256,11 +257,11 @@ namespace Serein.NodeFlow
             }
             this.IOC.Reset(); // 开始运行时清空ioc中注册的实例
             this.IOC.CustomRegisterInstance(typeof(IFlowEnvironment).FullName,this);
-            foreach (var type in AutoRegisterTypes)
-            {
-                this.IOC.Register(type);
-            }
-            await flowStarter.RunAsync(this, nodes, initMethods, loadMethods, exitMethods);
+            
+
+
+
+            await flowStarter.RunAsync(this, nodes, AutoRegisterTypes, initMethods, loadMethods, exitMethods);
 
             if (flowStarter?.FlipFlopState == RunState.NoStart)
             {
@@ -694,16 +695,16 @@ namespace Serein.NodeFlow
             }
         }
 
-        public bool TryGetDelegate(string methodName, out Delegate? del)
+        public bool TryGetDelegateDetails(string methodName, out DelegateDetails? delegateDetails)
         {
 
-            if (!string.IsNullOrEmpty(methodName) && MethodDelegates.TryGetValue(methodName, out del))
+            if (!string.IsNullOrEmpty(methodName) && MethodDelegates.TryGetValue(methodName, out delegateDetails))
             {
-                return del != null;
+                return delegateDetails != null;
             }
             else
             {
-                del = null;
+                delegateDetails = null;
                 return false;
             }
         }
@@ -939,7 +940,16 @@ namespace Serein.NodeFlow
             {
                 MethodDetailss.Add(nodeLibrary, mdlist);
                 NodeLibrarys.Add(nodeLibrary);
-                AutoRegisterTypes.AddRange(registerTypes);
+
+                foreach(var kv in registerTypes)
+                {
+                   if (!AutoRegisterTypes.TryGetValue(kv.Key, out var types))
+                    {
+                        types = new List<Type>();
+                        AutoRegisterTypes.Add(kv.Key, types);
+                    }
+                    types.AddRange(kv.Value);
+                }
 
                 OnDllLoad?.Invoke(new LoadDllEventArgs(nodeLibrary, mdlist)); // 通知UI创建dll面板显示
             }
@@ -947,16 +957,35 @@ namespace Serein.NodeFlow
         }
 
 
-        private (NodeLibrary?, List<Type> ,List<MethodDetails>) LoadAssembly(string dllPath)
+        private (NodeLibrary?, Dictionary<RegisterSequence, List<Type>>, List<MethodDetails>) LoadAssembly(string dllPath)
         {
             try
             {
                 Assembly assembly = Assembly.LoadFrom(dllPath); // 加载DLL文件
                 Type[] types = assembly.GetTypes(); // 获取程序集中的所有类型
 
-                List<Type> autoRegisterTypes = assembly.GetTypes().Where(t => t.GetCustomAttribute<AutoRegisterAttribute>() is not null).ToList();
+                Dictionary<RegisterSequence, List<Type>> autoRegisterTypes = new Dictionary<RegisterSequence, List<Type>>();
+                foreach (Type type in types)
+                {
+                    var autoRegisterAttribute = type.GetCustomAttribute<AutoRegisterAttribute>();
+                    if (autoRegisterAttribute is not null)
+                    {
+                        if(!autoRegisterTypes.TryGetValue(autoRegisterAttribute.Class,out var valus))
+                        {
+                            valus = new List<Type>();
+                            autoRegisterTypes.Add(autoRegisterAttribute.Class, valus);
+                        }
+                        valus.Add(type);
+                    }
+  
+                }
+                
 
-                List<(Type, string)> scanTypes = assembly.GetTypes().Select(t => {
+                //Dictionary<Sequence, Type> autoRegisterTypes = assembly.GetTypes().Where(t => t.GetCustomAttribute<AutoRegisterAttribute>() is not null).ToList();
+
+
+
+                List<(Type, string)> scanTypes = types.Select(t => {
                     if (t.GetCustomAttribute<DynamicFlowAttribute>() is DynamicFlowAttribute dynamicFlowAttribute
                        && dynamicFlowAttribute.Scan == true)
                     {
@@ -982,10 +1011,10 @@ namespace Serein.NodeFlow
                     {
                         continue;
                     }
-                    var methods = MethodDetailsHelperTmp.GetMethodsToProcess(type);
+                    var methods = MethodDetailsHelper.GetMethodsToProcess(type);
                     foreach(var method in methods)
                     {
-                        (var md, var del) = MethodDetailsHelperTmp.CreateMethodDetails(type, method, assemblyName);
+                        (var md, var del) = MethodDetailsHelper.CreateMethodDetails(type, method, assemblyName);
                         if(md is null || del is null)
                         {
                             Console.WriteLine($"无法加载方法信息：{assemblyName}-{type}-{method}");

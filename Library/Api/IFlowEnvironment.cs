@@ -468,7 +468,7 @@ namespace Serein.Library.Api
         bool TryGetMethodDetails(string methodName, out MethodDetails md);
 
 
-        bool TryGetDelegate(string methodName, out Delegate del);
+        bool TryGetDelegateDetails(string methodName, out DelegateDetails del);
 
         //bool TryGetNodeData(string methodName, out NodeData node);
 

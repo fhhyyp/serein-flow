@@ -11,12 +11,31 @@ namespace Serein.Library.Attributes
     {
     }
 
+    public enum RegisterSequence
+    {    /// <summary>
+         /// 不自动初始化
+         /// </summary>
+        Node,
+        /// <summary>
+        /// 初始化后
+        /// </summary>
+        FlowInit,
+        /// <summary>
+        /// 加载后
+        /// </summary>
+        FlowLoading,
+    }
     /// <summary>
     /// 表示该类自动注册（单例模式）
     /// </summary>
     [AttributeUsage(AttributeTargets.Class)]
     public sealed class AutoRegisterAttribute : Attribute
     {
+        public AutoRegisterAttribute(RegisterSequence Class = RegisterSequence.FlowInit)
+        {
+            this.Class = Class;
+        }
+        public RegisterSequence Class ;
     }
 
     /// <summary>

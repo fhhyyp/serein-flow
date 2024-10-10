@@ -2,6 +2,7 @@
 using Serein.Library.Attributes;
 using Serein.Library.Core.NodeFlow;
 using Serein.Library.Entity;
+using Serein.Library.Utils;
 using System;
 using System.Collections.Concurrent;
 using System.ComponentModel;
@@ -10,7 +11,7 @@ using System.Text.RegularExpressions;
 
 namespace Serein.NodeFlow.Tool;
 
-public static class MethodDetailsHelperTmp
+public static class MethodDetailsHelper
 {
     
     /// <summary>
@@ -53,7 +54,7 @@ public static class MethodDetailsHelperTmp
     /// 创建方法信息
     /// </summary>
     /// <returns></returns>
-    public static (MethodDetails?,Delegate?) CreateMethodDetails(Type type, MethodInfo method, string assemblyName)
+    public static (MethodDetails?, DelegateDetails?) CreateMethodDetails(Type type, MethodInfo method, string assemblyName)
     {
         var attribute = method.GetCustomAttribute<NodeActionAttribute>();
         if(attribute is null)
@@ -64,12 +65,14 @@ public static class MethodDetailsHelperTmp
         var dllTypeMethodName = $"{assemblyName}.{type.Name}.{method.Name}";
 
         var explicitDataOfParameters = GetExplicitDataOfParameters(method.GetParameters());
-        //// 生成委托
-        var methodDelegate = GenerateMethodDelegate(type,   // 方法所在的对象类型
-                                                    method, // 方法信息
-                                                    method.GetParameters(),// 方法参数
-                                                    method.ReturnType);// 返回值
+        //// 通过表达式树生成委托
+        //var methodDelegate = GenerateMethodDelegate(type,   // 方法所在的对象类型
+        //                                            method, // 方法信息
+        //                                            method.GetParameters(),// 方法参数
+        //                                            method.ReturnType);// 返回值
 
+        //// 通过表达式树生成委托
+        var emitMethodType = EmitHelper.CreateDynamicMethod(method, out var methodDelegate);// 返回值
 
         Type? returnType;
         bool isTask = IsGenericTask(method.ReturnType, out var taskResult);
@@ -114,8 +117,8 @@ public static class MethodDetailsHelperTmp
             ExplicitDatas = explicitDataOfParameters,
             ReturnType = returnType,
         };
-
-        return (md, methodDelegate);
+        var dd = new DelegateDetails( emitMethodType, methodDelegate) ;
+        return (md, dd);
 
     }
 
@@ -276,52 +279,52 @@ public static class MethodDetailsHelperTmp
         return items;
     }
 
-    private static Delegate GenerateMethodDelegate(Type type, MethodInfo methodInfo, ParameterInfo[] parameters, Type returnType)
-    {
-        var parameterTypes = parameters.Select(p => p.ParameterType).ToArray();
-        var parameterCount = parameters.Length;
+    //private static Delegate GenerateMethodDelegate(Type type, MethodInfo methodInfo, ParameterInfo[] parameters, Type returnType)
+    //{
+    //    var parameterTypes = parameters.Select(p => p.ParameterType).ToArray();
+    //    var parameterCount = parameters.Length;
 
-        if (returnType == typeof(void))
-        {
-            if (parameterCount == 0)
-            {
-                // 无返回值，无参数
-                return ExpressionHelper.MethodCaller(type, methodInfo);
-            }
-            else
-            {
-                // 无返回值，有参数
-                return ExpressionHelper.MethodCaller(type, methodInfo, parameterTypes);
-            }
-        }
-        // else if (returnType == typeof(Task<FlipflopContext)) // 触发器
-        else if (FlipflopFunc.IsTaskOfFlipflop(returnType)) // 触发器
-        {
-            if (parameterCount == 0)
-            {
-                // 有返回值，无参数
-                return ExpressionHelper.MethodCallerAsync(type, methodInfo);
-            }
-            else
-            {
-                // 有返回值，有参数
-                return ExpressionHelper.MethodCallerAsync(type, methodInfo, parameterTypes);
-            }
-        }
-        else
-        {
-            if (parameterCount == 0)
-            {
-                // 有返回值，无参数
-                return ExpressionHelper.MethodCallerHaveResult(type, methodInfo);
-            }
-            else
-            {
-                // 有返回值，有参数
-                return ExpressionHelper.MethodCallerHaveResult(type, methodInfo, parameterTypes);
-            }
-        }
-    }
+    //    if (returnType == typeof(void))
+    //    {
+    //        if (parameterCount == 0)
+    //        {
+    //            // 无返回值，无参数
+    //            return ExpressionHelper.MethodCaller(type, methodInfo);
+    //        }
+    //        else
+    //        {
+    //            // 无返回值，有参数
+    //            return ExpressionHelper.MethodCaller(type, methodInfo, parameterTypes);
+    //        }
+    //    }
+    //    // else if (returnType == typeof(Task<FlipflopContext)) // 触发器
+    //    else if (FlipflopFunc.IsTaskOfFlipflop(returnType)) // 触发器
+    //    {
+    //        if (parameterCount == 0)
+    //        {
+    //            // 有返回值，无参数
+    //            return ExpressionHelper.MethodCallerAsync(type, methodInfo);
+    //        }
+    //        else
+    //        {
+    //            // 有返回值，有参数
+    //            return ExpressionHelper.MethodCallerAsync(type, methodInfo, parameterTypes);
+    //        }
+    //    }
+    //    else
+    //    {
+    //        if (parameterCount == 0)
+    //        {
+    //            // 有返回值，无参数
+    //            return ExpressionHelper.MethodCallerHaveResult(type, methodInfo);
+    //        }
+    //        else
+    //        {
+    //            // 有返回值，有参数
+    //            return ExpressionHelper.MethodCallerHaveResult(type, methodInfo, parameterTypes);
+    //        }
+    //    }
+    //}
 
 }
 

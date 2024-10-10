@@ -23,7 +23,7 @@ namespace Serein.Library.Entity
                 ActingInstance = ActingInstance,
                 ActingInstanceType = ActingInstanceType,
                 MethodDynamicType = MethodDynamicType,
-                MethodGuid = Guid.NewGuid().ToString(),
+                // MethodGuid = Guid.NewGuid().ToString(),
                 MethodTips = MethodTips,
                 ReturnType = ReturnType,
                 MethodName = MethodName,
@@ -56,7 +56,7 @@ namespace Serein.Library.Entity
         /// 方法GUID
         /// </summary>
 
-        public string MethodGuid { get; set; }
+        // public string MethodGuid { get; set; }
 
         /// <summary>
         /// 方法名称

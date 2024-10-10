@@ -14,10 +14,10 @@ namespace Serein.Library.Web
     /// HTTP接口监听类
     /// </summary>
     [AutoRegister]
-    public class WebServer
+    public class WebApiServer
     {
         private readonly IRouter Router;// 路由器
-        public WebServer(IRouter router)
+        public WebApiServer(IRouter router)
         {
             this.Router = router;
             listener = new HttpListener();
@@ -33,7 +33,7 @@ namespace Serein.Library.Web
 
 
         // 启动服务器
-        public WebServer Start(string prefixe)
+        public WebApiServer Start(string prefixe)
         {
 
             if (!prefixe.Substring(prefixe.Length - 1, 1).Equals(@"/"))

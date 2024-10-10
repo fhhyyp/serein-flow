@@ -23,8 +23,8 @@ namespace Net462DllTest
         public FromWorkBenchView(IFlowEnvironment env)
         {
             InitializeComponent();
-            ViewModel = env.IOC.Get<FromWorkBenchViewModel>(); // 获取对象
-            if(ViewModel is null)
+            ViewModel = env.IOC.Get<FromWorkBenchViewModel>();
+            if (ViewModel is null)
             {
                 Console.WriteLine("创建对象并注入依赖项");
                 ViewModel = env.IOC.Instantiate<FromWorkBenchViewModel>(); 
@@ -41,14 +41,25 @@ namespace Net462DllTest
             listBoxCommand.DataBindings.Add(nameof(listBoxCommand.SelectedItem), ViewModel, nameof(ViewModel.SelectedSignal), false, DataSourceUpdateMode.OnPropertyChanged);
             listBoxCommand.SelectedIndexChanged += (s, e) => listBoxCommand.DataBindings[nameof(listBoxCommand.SelectedItem)].WriteValue();
 
-            button1.Click += (s, e) => ViewModel.CommandViewPlcInfo.Execute();
-            button2.Click += (s, e) => ViewModel.CommandGetParkingSpace.Execute();
         }
         private void FromWorkBenchView_Load(object sender, EventArgs e)
         {
 
         }
 
+        private void FromWorkBenchView_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            ViewModel.CommandCloseForm.Execute();
+        }
 
+        private void button2_Click(object sender, EventArgs e)
+        {
+            ViewModel.CommandGetParkingSpace.Execute();
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            ViewModel.CommandViewPlcInfo.Execute();
+        }
     }
 }

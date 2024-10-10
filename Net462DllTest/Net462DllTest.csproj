@@ -42,6 +42,9 @@
     <Reference Include="IoTClient, Version=1.0.40.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\IoTClient.1.0.40\lib\netstandard2.0\IoTClient.dll</HintPath>
     </Reference>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.13.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
@@ -72,6 +75,7 @@
     <Compile Include="Enums\FromValue.cs" />
     <Compile Include="Signal\CommandSignal.cs" />
     <Compile Include="Signal\PLCVarSignal.cs" />
+    <Compile Include="Trigger\ViewManagement.cs" />
     <Compile Include="Utils\GSModel.cs" />
     <Compile Include="Utils\RelayCommand.cs" />
     <Compile Include="ViewModel\FromWorkBenchViewModel.cs" />
@@ -87,7 +91,8 @@
     <Compile Include="View\TestFormView.Designer.cs">
       <DependentUpon>TestFormView.cs</DependentUpon>
     </Compile>
-    <Compile Include="Web\CommandController.cs" />
+    <Compile Include="Web\FlowController.cs" />
+    <Compile Include="Web\UserService.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\DynamicControl\SereinFlow\Library.Framework\Serein.Library.Framework.csproj">

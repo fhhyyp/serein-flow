@@ -43,6 +43,7 @@
             this.button1.TabIndex = 0;
             this.button1.Text = "查看状态";
             this.button1.UseVisualStyleBackColor = true;
+            this.button1.Click += new System.EventHandler(this.button1_Click);
             // 
             // textBoxPlcInfo
             // 
@@ -60,6 +61,7 @@
             this.button2.TabIndex = 2;
             this.button2.Text = "触发";
             this.button2.UseVisualStyleBackColor = true;
+            this.button2.Click += new System.EventHandler(this.button2_Click);
             // 
             // listBoxCommand
             // 
@@ -90,6 +92,7 @@
             this.Controls.Add(this.button1);
             this.Name = "FromWorkBenchView";
             this.Text = "Form1";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.FromWorkBenchView_FormClosing);
             this.Load += new System.EventHandler(this.FromWorkBenchView_Load);
             this.ResumeLayout(false);
             this.PerformLayout();

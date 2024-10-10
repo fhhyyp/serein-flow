@@ -1,8 +1,6 @@
-﻿using IoTClient.Clients.PLC;
-using IoTClient.Common.Enums;
+﻿using IoTClient.Common.Enums;
 using Net462DllTest.Enums;
 using Net462DllTest.Model;
-using Net462DllTest.Signal;
 using Net462DllTest.Trigger;
 using Net462DllTest.Web;
 using Serein.Library.Api;
@@ -10,25 +8,14 @@ using Serein.Library.Attributes;
 using Serein.Library.Enums;
 using Serein.Library.Ex;
 using Serein.Library.Framework.NodeFlow;
+using Serein.Library.Network.WebSocketCommunication;
 using Serein.Library.NodeFlow.Tool;
-using Serein.Library.Utils;
 using Serein.Library.Web;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Reflection;
 using System.Threading.Tasks;
 
 namespace Net462DllTest.LogicControl
 {
-    [AttributeUsage(AttributeTargets.Class)]
-    public sealed class AutoSocketAttribute : Attribute
-    {
-        public string BusinessField;
-    }
-
-
-
 
     [AutoRegister]
     [DynamicFlow("[SiemensPlc]")] 
@@ -48,33 +35,44 @@ namespace Net462DllTest.LogicControl
         [NodeAction(NodeType.Init)]
         public void Init(IDynamicContext context)
         {
-            context.Env.IOC.Register<IRouter, Router>();
-            context.Env.IOC.Register<WebServer>();
+            context.Env.IOC.Register<WebSocketServer>();
+            context.Env.IOC.Register<WebSocketClient>();
 
-            //context.Env.IOC.Register<SocketServer>();
-            //context.Env.IOC.Register<SocketClient>();
+            context.Env.IOC.Register<IRouter, Router>();
+            context.Env.IOC.Register<WebApiServer>();
+
+            
         }
 
         [NodeAction(NodeType.Loading)] // Loading 初始化完成已注入依赖项，可以开始逻辑上的操作
         public void Loading(IDynamicContext context)
         {
             // 注册控制器
-            context.Env.IOC.Run<IRouter, WebServer>((router, web) => {
-                router.RegisterController(typeof(CommandController));
-                web.Start("http://*:8089/"); // 开启 Web 服务
+            context.Env.IOC.Run<IRouter, WebApiServer>((router, apiServer) => {
+                router.RegisterController(typeof(FlowController));
+                apiServer.Start("http://*:8089/"); // 开启 Web Api 服务
             });
 
-            //context.Env.IOC.Run<SocketServer>(server => {
-            //    server.Start(5000); // 开启 Socket 监听
-            //});
+            context.Env.IOC.Run<WebSocketServer>(async (socketServer) => {
+                // socketServer.RegisterModuleInstance(userService);
+                await socketServer.StartAsync("http://localhost:5005/"); // 开启 Web Socket 监听
+            });
+            context.Env.IOC.Run<WebSocketClient>(async client => {
+                await client.ConnectAsync("ws://localhost:5005/"); // 连接到服务器
+            });
         }
 
         [NodeAction(NodeType.Exit)] // 流程结束时自动执行
         public void Exit(IDynamicContext context)
         {
-            context.Env.IOC.Run<WebServer>((web) =>
+            context.Env.IOC.Run<WebApiServer>((apiServer) =>
             {
-                web?.Stop(); // 关闭 Web 服务
+                apiServer?.Stop(); // 关闭 Web 服务
+
+            });
+            context.Env.IOC.Run<WebSocketServer>((socketServer) =>
+            {
+                socketServer?.Stop(); // 关闭 Web 服务
             });
             MyPlc.Close();
             MyPlc.CancelAllTasks();
