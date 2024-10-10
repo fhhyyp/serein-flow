@@ -82,6 +82,7 @@ namespace Net462DllTest.Web
             });
             context.Env.IOC.Run<WebSocketServer>((socketServer) =>
             {
+                socketServer.MsgHandleHelper.RemoteModule(this);
                 socketServer?.Stop(); // 关闭 Web 服务
             });
             MyPlc.Close();
@@ -105,8 +106,6 @@ namespace Net462DllTest.Web
                                         string ip = "192.168.10.100",
                                         int port = 102)
         {
-            MyPlc.Model.Set(PlcVarName.DoorVar, (Int16)1);
-            MyPlc.Model.Get(PlcVarName.DoorVar);
             if (MyPlc.Client is null)
             {
                 try

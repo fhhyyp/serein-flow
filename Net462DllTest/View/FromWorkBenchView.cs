@@ -49,7 +49,7 @@ namespace Net462DllTest
 
         private void FromWorkBenchView_FormClosing(object sender, FormClosingEventArgs e)
         {
-            ViewModel.CommandCloseForm?.Execute();
+            ViewModel.CommandCloseForm.Execute();
         }
 
         private void button2_Click(object sender, EventArgs e)

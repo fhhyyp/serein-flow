@@ -316,8 +316,14 @@ namespace Serein.Library.Web
             {
                 return false;
             }
-
-            var routeValues = GetUrlData(url); // 解析 URL 获取路由参数
+            if (!HandleModels.TryGetValue(httpMethod, out var modules))
+            {
+                return false;
+            }
+            if (!modules.TryGetValue(template, out var config))
+            {
+                return false;
+            }
 
             ControllerBase controllerInstance = (ControllerBase)SereinIOC.Instantiate(controllerType);
 
@@ -326,47 +332,25 @@ namespace Serein.Library.Web
                 return false; // 未找到控制器实例
             }
 
+            object invokeResult;
+            var routeValues = GetUrlData(url); // 解析 URL 获取路由参数
             controllerInstance.Url = url.AbsolutePath;
-
-
-            if (!HandleModels.TryGetValue(httpMethod, out var modules))
-            {
-                return false;
-            }
-            if (!modules.TryGetValue(template,out var config))
-            {
-                return false;
-            }
-            
-
-
-
-            dynamic invokeResult;
             switch (httpMethod) 
             {
                 case "GET":
-                     invokeResult = config.HandleGet(controllerInstance, routeValues);
+                     invokeResult = await config.HandleGet(controllerInstance, routeValues);
                     break;
                 case "POST":
                     var requestBody = await ReadRequestBodyAsync(request); // 读取请求体内容
                     controllerInstance.BobyData = requestBody;
                     var requestJObject = JObject.Parse(requestBody);
-                    invokeResult = config.HandlePost(controllerInstance,  requestJObject,  routeValues);
+                    invokeResult = await config.HandlePost(controllerInstance,  requestJObject,  routeValues);
                     break;
                 default:
                     invokeResult = null;
                     break;
             }
-            object result;
-            try
-            {
-                result = invokeResult.Result;
-            }
-            catch (Exception)
-            {
-                result = invokeResult;
-            }
-            Return(response, result); // 返回结果
+            Return(response, invokeResult); // 返回结果
             return true;
 
         }
