@@ -14,11 +14,12 @@ using System.Threading.Tasks;
 
 namespace Serein.Library.Network.WebSocketCommunication
 {
+    [AutoRegister]
     public class WebSocketServer
     {
-        public SocketMsgHandleHelper MsgHandleHelper { get; } = new SocketMsgHandleHelper();
+        public WebSocketMsgHandleHelper MsgHandleHelper { get; } = new WebSocketMsgHandleHelper();
 
-        HttpListener listener;
+        private HttpListener listener;
         public async Task StartAsync(string url)
         {
             listener = new HttpListener();

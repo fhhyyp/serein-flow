@@ -8,9 +8,9 @@ using System.Threading.Tasks;
 
 namespace Serein.Library.Network.WebSocketCommunication.Handle
 {
-    public class MyHandleModule
+    public class WebSocketHandleModule
     {
-        public MyHandleModule(string ThemeJsonKey, string DataJsonKey)
+        public WebSocketHandleModule(string ThemeJsonKey, string DataJsonKey)
         {
             this.ThemeJsonKey = ThemeJsonKey;
             this.DataJsonKey = DataJsonKey;
@@ -21,17 +21,17 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
 
 
 
-        public ConcurrentDictionary<string, MyHandleConfig> MyHandleConfigs = new ConcurrentDictionary<string, MyHandleConfig>();
-        public void AddHandleConfigs(SocketHandleModel model, ISocketControlBase instance, MethodInfo methodInfo
+        public ConcurrentDictionary<string, WebSocketHandleConfig> MyHandleConfigs = new ConcurrentDictionary<string, WebSocketHandleConfig>();
+        internal void AddHandleConfigs(SocketHandleModel model, ISocketHandleModule instance, MethodInfo methodInfo
             , Action<Exception, Action<object>> onExceptionTracking)
         {
             if (!MyHandleConfigs.ContainsKey(model.ThemeValue))
             {
-                var myHandleConfig = new MyHandleConfig(model,instance, methodInfo, onExceptionTracking);
+                var myHandleConfig = new WebSocketHandleConfig(model,instance, methodInfo, onExceptionTracking);
                 MyHandleConfigs[model.ThemeValue] = myHandleConfig;
             }
         }
-        public bool ResetConfig(ISocketControlBase socketControlBase)
+        public bool ResetConfig(ISocketHandleModule socketControlBase)
         {
             foreach (var kv in MyHandleConfigs.ToArray())
             {

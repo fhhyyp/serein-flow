@@ -24,6 +24,7 @@ namespace SereinFlowRemoteManagement
         {
             environment.IOC.Register<WebSocketServer>();
         }
+
         [NodeAction(NodeType.Loading)]
         public void Loading(IDynamicContext context)
         {
@@ -34,8 +35,11 @@ namespace SereinFlowRemoteManagement
             SereinProjectData projectData = environment.SaveProject();
         }
 
-        
 
+        public void GetAllNodeInfo()
+        {
+
+        }
 
     }
 }

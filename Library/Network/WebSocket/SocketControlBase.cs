@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Serein.Library.Network.WebSocketCommunication
 {
-    public interface ISocketControlBase
+    public interface ISocketHandleModule
     {
         Guid HandleGuid { get;  }
     }

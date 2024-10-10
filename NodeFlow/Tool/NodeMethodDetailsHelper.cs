@@ -11,7 +11,7 @@ using System.Text.RegularExpressions;
 
 namespace Serein.NodeFlow.Tool;
 
-public static class MethodDetailsHelper
+public static class NodeMethodDetailsHelper
 {
     
     /// <summary>
@@ -57,7 +57,7 @@ public static class MethodDetailsHelper
     public static (MethodDetails?, DelegateDetails?) CreateMethodDetails(Type type, MethodInfo method, string assemblyName)
     {
         var attribute = method.GetCustomAttribute<NodeActionAttribute>();
-        if(attribute is null)
+        if(attribute is null || attribute.Scan == false)
         {
             return (null, null);
         }

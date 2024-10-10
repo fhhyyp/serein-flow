@@ -984,10 +984,10 @@ namespace Serein.NodeFlow
                     {
                         continue;
                     }
-                    var methods = MethodDetailsHelper.GetMethodsToProcess(type);
+                    var methods = NodeMethodDetailsHelper.GetMethodsToProcess(type);
                     foreach(var method in methods)
                     {
-                        (var md, var del) = MethodDetailsHelper.CreateMethodDetails(type, method, assemblyName);
+                        (var md, var del) = NodeMethodDetailsHelper.CreateMethodDetails(type, method, assemblyName);
                         if(md is null || del is null)
                         {
                             Console.WriteLine($"无法加载方法信息：{assemblyName}-{type}-{method}");

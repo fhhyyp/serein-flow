@@ -20,13 +20,13 @@ using System.Security.Cryptography;
 namespace Serein.Library.Network.WebSocketCommunication.Handle
 {
 
-    public class SocketMsgHandleHelper
+    public class WebSocketMsgHandleHelper
     {
         /// <summary>
         /// (Theme Name ,Data Name) - HandleModule
         /// </summary>
-        public ConcurrentDictionary<(string, string), MyHandleModule> MyHandleModuleDict
-            = new ConcurrentDictionary<(string, string), MyHandleModule>();
+        public ConcurrentDictionary<(string, string), WebSocketHandleModule> MyHandleModuleDict
+            = new ConcurrentDictionary<(string, string), WebSocketHandleModule>();
 
         private Action<Exception, Action<object>> _onExceptionTracking;
         /// <summary>
@@ -34,18 +34,18 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// </summary>
         public event Action<Exception, Action<object>> OnExceptionTracking;
 
-        private MyHandleModule AddMyHandleModule(string themeKeyName, string dataKeyName)
+        private WebSocketHandleModule AddMyHandleModule(string themeKeyName, string dataKeyName)
         {
             var key = (themeKeyName, dataKeyName);
             if (!MyHandleModuleDict.TryGetValue(key, out var myHandleModule))
             {
-                myHandleModule = new MyHandleModule(themeKeyName, dataKeyName);
+                myHandleModule = new WebSocketHandleModule(themeKeyName, dataKeyName);
                 MyHandleModuleDict[key] = myHandleModule;
             }
             return myHandleModule;
         }
 
-        public void RemoteModule(ISocketControlBase socketControlBase)
+        public void RemoteModule(ISocketHandleModule socketControlBase)
         {
             var type = socketControlBase.GetType();
             var moduleAttribute = type.GetCustomAttribute<AutoSocketModuleAttribute>();
@@ -53,8 +53,8 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
             {
                 return;
             }
-            var themeKeyName = moduleAttribute.JsonThemeField;
-            var dataKeyName = moduleAttribute.JsonDataField;
+            var themeKeyName = moduleAttribute.ThemeKey;
+            var dataKeyName = moduleAttribute.DataKey;
             var key = (themeKeyName, dataKeyName);
             if (MyHandleModuleDict.TryGetValue(key, out var myHandleModules))
             {
@@ -63,7 +63,14 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
             }
 
         }
-        public void AddModule(ISocketControlBase socketControlBase, Action<Exception, Action<object>> onExceptionTracking)
+
+
+        /// <summary>
+        /// 添加
+        /// </summary>
+        /// <param name="socketControlBase"></param>
+        /// <param name="onExceptionTracking"></param>
+        public void AddModule(ISocketHandleModule socketControlBase, Action<Exception, Action<object>> onExceptionTracking)
         {
             var type = socketControlBase.GetType();
             var moduleAttribute = type.GetCustomAttribute<AutoSocketModuleAttribute>();
@@ -72,8 +79,8 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                 return;
             }
 
-            var themeKey = moduleAttribute.JsonThemeField;
-            var dataKey = moduleAttribute.JsonDataField;
+            var themeKey = moduleAttribute.ThemeKey;
+            var dataKey = moduleAttribute.DataKey;
           
             var handlemodule = AddMyHandleModule(themeKey, dataKey);
             var methods = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)

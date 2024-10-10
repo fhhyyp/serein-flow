@@ -27,5 +27,35 @@ namespace Serein.Library.Entity
         private EmitMethodType _emitMethodType;
         public Delegate EmitDelegate { get => _emitDelegate; }
         public EmitMethodType EmitMethodType { get => _emitMethodType; }
+
+        public async Task<object> Invoke(object instance, object[] args)
+        {
+            object result = null;
+            try
+            {
+                if (EmitMethodType == EmitMethodType.HasResultTask && EmitDelegate is Func<object, object[], Task<object>> hasResultTask)
+                {
+                    result = await hasResultTask(instance, args);
+                }
+                else if (EmitMethodType == EmitMethodType.Task && EmitDelegate is Func<object, object[], Task> task)
+                {
+                    await task.Invoke(instance, args);
+                    result = null;
+                }
+                else if (EmitMethodType == EmitMethodType.Func && EmitDelegate is Func<object, object[], object> func)
+                {
+                    result = func.Invoke(instance, args);
+                }
+                else
+                {
+                    throw new NotImplementedException("创建了非预期委托（应该不会出现）");
+                }
+                return result;
+            }
+            catch
+            {
+                throw;
+            }
+        }
     }
 }

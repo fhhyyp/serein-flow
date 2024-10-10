@@ -18,8 +18,8 @@ namespace Net462DllTest.Web
 
     [DynamicFlow("[PlcSocketService]")]
     [AutoRegister]
-    [AutoSocketModule(JsonThemeField = "theme", JsonDataField = "data")]
-    public class PlcSocketService : ISocketControlBase
+    [AutoSocketModule(ThemeKey = "theme", DataKey = "data")]
+    public class PlcSocketService : ISocketHandleModule
     {
         public Guid HandleGuid { get; } = new Guid();
 
@@ -101,6 +101,14 @@ namespace Net462DllTest.Web
 
         }
 
+        [AutoSocketHandle]
+        public object ReadVar(PlcVarName varName)
+        {
+            var result = MyPlc.Read(varName);
+            Console.WriteLine($"获取变量成功：({varName})\t result = {result}");
+            return result;
+        }
+
         [AutoSocketHandle(IsReturnValue = false)]
         public SiemensPlcDevice PlcInit(SiemensVersion version = SiemensVersion.None,
                                         string ip = "192.168.10.100",
@@ -134,13 +142,7 @@ namespace Net462DllTest.Web
             return MyPlc;
         }
 
-        [AutoSocketHandle]
-        public object ReadVar(PlcVarName varName)
-        {
-            var result = MyPlc.Read(varName);
-            Console.WriteLine($"获取变量成功：({varName})\t result = {result}");
-            return result;
-        }
+       
 
         [AutoSocketHandle(IsReturnValue = false)]
         public SiemensPlcDevice WriteVar(object value, PlcVarName varName)
@@ -149,9 +151,12 @@ namespace Net462DllTest.Web
             return MyPlc;
         }
 
-        public PlcVarModelDataProxy BatchReadVar()
+        [AutoSocketHandle]
+        public PlcVarModelDataProxy BatchReadVar(Func<string,Task> send)
         {
+            send("开始读取");
             MyPlc.BatchRefresh();
+            send("读取完成");
             return plcVarModelDataProxy;
         }
 

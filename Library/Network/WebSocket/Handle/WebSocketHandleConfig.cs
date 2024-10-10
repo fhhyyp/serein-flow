@@ -15,14 +15,14 @@ using System.Threading.Tasks;
 
 namespace Serein.Library.Network.WebSocketCommunication.Handle
 {
-    public class MyHandleConfig
+    public class WebSocketHandleConfig
     {
         private readonly Delegate EmitDelegate;
         private readonly EmitHelper.EmitMethodType EmitMethodType;
 
         private Action<Exception, Action<object>> OnExceptionTracking;
 
-        public MyHandleConfig(SocketHandleModel model,ISocketControlBase instance, MethodInfo methodInfo, Action<Exception, Action<object>> onExceptionTracking)
+        internal WebSocketHandleConfig(SocketHandleModel model,ISocketHandleModule instance, MethodInfo methodInfo, Action<Exception, Action<object>> onExceptionTracking)
         {
             EmitMethodType = EmitHelper.CreateDynamicMethod(methodInfo,out EmitDelegate);
             this.Model = model;
@@ -36,7 +36,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         }
 
         private SocketHandleModel Model;
-        private ISocketControlBase Instance;
+        private ISocketHandleModule Instance;
         public Guid HandleGuid { get;  }
         private string[] ParameterName;
         private Type[] ParameterType;
@@ -51,7 +51,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                 var argName = ParameterName[i];
                 if (type.IsGenericType)
                 {
-                    if (type.IsAssignableFrom(typeof(Func<object, Task>)))
+                   if (type.IsAssignableFrom(typeof(Func<object, Task>)))
                     {
                         args[i] = new Func<object, Task>(async data =>
                         {

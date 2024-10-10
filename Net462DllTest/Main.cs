@@ -8,17 +8,20 @@ namespace Net462DllTest.Properties
 {
     /*
      理想的项目架构：
+
+    每一种功能拆分为新的项目
+
     FlowEnv - LoginControl：
 
 
-                LoginControl     
+               LoginControl     
                ↙       ↘
-   (View-Interaction)   (Node-Interaction)  
-    ↓                          ↕                    
-    View ←→ ViewModel ←→ Trigger ← SingleEnum   
-                                ↓
-                               Model
-                               · DataChanged → Trigger
+   (View-Interaction)    (Node-Interaction)  
+     ↓                          ↕                    
+    View ←→ ViewModel ←→  Trigger ← SingleEnum   
+                 ↓             ↓  ↖  
+                 ↓             ↓     ↖
+                Node  →→→    Model →  Event(OnDataChanged)
 
 
     视图驱动触发器，触发器驱动数据。

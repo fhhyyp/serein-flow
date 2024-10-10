@@ -24,13 +24,12 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        //public override object? Executing(IDynamicContext context)
-        public override Task<object?> ExecutingAsync(IDynamicContext context)
+        public override async Task<object?> ExecutingAsync(IDynamicContext context)
         {
             // 条件区域中遍历每个条件节点
             foreach (SingleConditionNode? node in ConditionNodes)
             {
-                var state = Judge(context, node);
+                var state = await JudgeAsync(context, node);
                 NextOrientation = state; // 每次判读完成后，设置区域后继方向为判断结果
                 if (state != ConnectionType.IsSucceed)
                 {
@@ -42,11 +41,11 @@ namespace Serein.NodeFlow.Model
         }
 
         
-        private ConnectionType Judge(IDynamicContext context, SingleConditionNode node)
+        private async Task<ConnectionType> JudgeAsync(IDynamicContext context, SingleConditionNode node)
         {
             try
             {
-                node.ExecutingAsync(context);
+                await node.ExecutingAsync(context);
                 return node.NextOrientation;
             }
             catch (Exception ex)

@@ -40,32 +40,46 @@ namespace Serein.NodeFlow.Model
             object instance = md.ActingInstance;
             try
             {
-                Task<IFlipflopContext> flipflopTask;
                 var args = GetParameters(context, this, md);
-                var delType = dd.EmitMethodType;
-                var del = dd.EmitDelegate;
-                if (delType == EmitHelper.EmitMethodType.HasResultTask && del is Func<object, object?[]?, Task<object>> hasResultTask)
+                var result = await dd.Invoke(md.ActingInstance, args);
+                if (result is IFlipflopContext flipflopContext)
                 {
-                    var flipflopTaskObj =  await hasResultTask(instance, args);
-                    if(flipflopTaskObj is IFlipflopContext flipflopContext)
+                    NextOrientation = flipflopContext.State.ToContentType();
+                    if (flipflopContext.TriggerData is null || flipflopContext.TriggerData.Type == Library.NodeFlow.Tool.TriggerType.Overtime)
                     {
-                        NextOrientation = flipflopContext.State.ToContentType();
-                        if (flipflopContext.TriggerData is null || flipflopContext.TriggerData.Type == Library.NodeFlow.Tool.TriggerType.Overtime)
-                        {
-                            throw new FlipflopException(base.MethodDetails.MethodName + "触发器超时触发。Guid" + base.Guid);
-                        }
-                        return flipflopContext.TriggerData.Value;
+                        throw new FlipflopException(base.MethodDetails.MethodName + "触发器超时触发。Guid" + base.Guid);
                     }
-                    else
-                    {
-                        throw new FlipflopException("触发器节点返回了非预期的类型", true, FlipflopException.CancelClass.Flow);
-                    }
+                    return flipflopContext.TriggerData.Value;
                 }
                 else
                 {
-                    throw new FlipflopException("触发器节点构造了非预期的委托", true, FlipflopException.CancelClass.Flow);
+                    throw new FlipflopException("触发器节点返回了非预期的类型", true, FlipflopException.CancelClass.Flow);
                 }
-                
+                // Task<IFlipflopContext> flipflopTask;
+                //var delType = dd.EmitMethodType;
+                //var del = dd.EmitDelegate;
+                //if (delType == EmitHelper.EmitMethodType.HasResultTask && del is Func<object, object?[]?, Task<object>> hasResultTask)
+                //{
+                //    var flipflopTaskObj =  await hasResultTask(instance, args);
+                //    if(flipflopTaskObj is IFlipflopContext flipflopContext)
+                //    {
+                //        NextOrientation = flipflopContext.State.ToContentType();
+                //        if (flipflopContext.TriggerData is null || flipflopContext.TriggerData.Type == Library.NodeFlow.Tool.TriggerType.Overtime)
+                //        {
+                //            throw new FlipflopException(base.MethodDetails.MethodName + "触发器超时触发。Guid" + base.Guid);
+                //        }
+                //        return flipflopContext.TriggerData.Value;
+                //    }
+                //    else
+                //    {
+                //        throw new FlipflopException("触发器节点返回了非预期的类型", true, FlipflopException.CancelClass.Flow);
+                //    }
+                //}
+                //else
+                //{
+                //    throw new FlipflopException("触发器节点构造了非预期的委托", true, FlipflopException.CancelClass.Flow);
+                //}
+
             }
             catch (FlipflopException ex)
             {

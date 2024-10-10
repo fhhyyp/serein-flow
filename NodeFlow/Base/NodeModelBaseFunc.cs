@@ -204,11 +204,7 @@ namespace Serein.NodeFlow.Base
             md.ActingInstance ??= context.Env.IOC.Get(md.ActingInstanceType);
             object instance = md.ActingInstance;
 
-            //bool haveParameter = md.ExplicitDatas.Length > 0;
-            //bool haveResult = md.ReturnType != typeof(void);
-            // Type? taskResult = null;
-            //bool isTask = md.ReturnType is not null && MethodDetailsHelper.IsGenericTask(md.ReturnType, out taskResult);
-            //bool isTaskHaveResult = taskResult is not null;
+         
             object? result = null;
 
             //Console.WriteLine($"(isTask, isTaskHaveResult):{(isTask, isTaskHaveResult)}");
@@ -217,49 +213,7 @@ namespace Serein.NodeFlow.Base
                 // Action/Func([方法作用的实例],[可能的参数值],[可能的返回值])
 
                 object?[]? args = GetParameters(context, this, md);
-                var delType = dd.EmitMethodType;
-                var del = dd.EmitDelegate;
-                if (delType == EmitHelper.EmitMethodType.HasResultTask && del is Func<object, object?[]?, Task<object?>> hasResultTask)
-                {
-                    result = await hasResultTask(instance, args);
-                }
-                else if (delType == EmitHelper.EmitMethodType.Task && del is Func<object, object?[]?, Task> task)
-                {
-                    await task.Invoke(instance, args);
-                    result = null;
-                }
-                else if (delType == EmitHelper.EmitMethodType.Func && del is Func<object, object?[]?, object?> func)
-                {
-                    result = func.Invoke(instance, args);
-                }
-                else
-                {
-                    throw new NotImplementedException("构造委托无法正确调用");
-                }
-
-                //if (isTask)
-                //{
-                //    // 异步方法（因为返回了Task，所以排除Action<>委托的可能）
-                //    result = (haveParameter, isTaskHaveResult) switch
-                //    {
-                //        (false, false) => await ExecutionAsync((Func<object, Task>)del, instance),  // 调用节点方法，返回方法传回类型
-                //        (true, false) => await ExecutionAsync((Func<object, object?[]?, Task>)del, instance, parameters), // 调用节点方法，获取入参参数，返回方法返回类型
-                //        (false, true) => await ExecutionAsync((Func<object, Task<object?>>)del, instance),  // 调用节点方法，返回方法传回类型
-                //        (true, true) => await ExecutionAsync((Func<object, object?[]?, Task<object?>>)del, instance, parameters), // 调用节点方法，获取入参参数，返回方法返回类型
-                //    };
-                //}
-                //else
-                //{
-                //    // 非异步方法
-                //    result = (haveParameter, haveResult) switch
-                //    {
-                //        (false, false) => Execution((Action<object>)del, instance), // 调用节点方法，返回null
-                //        (true, false) => Execution((Action<object, object?[]?>)del, instance, parameters),  // 调用节点方法，返回null
-                //        (false, true) => Execution((Func<object, object?>)del, instance),  // 调用节点方法，返回方法传回类型
-                //        (true, true) => Execution((Func<object, object?[]?, object?>)del, instance, parameters), // 调用节点方法，获取入参参数，返回方法返回类型
-                //    };
-                //}
-
+                result = await dd.Invoke(md.ActingInstance, args);
                 NextOrientation = ConnectionType.IsSucceed;
                 return result;
             }
@@ -272,47 +226,6 @@ namespace Serein.NodeFlow.Base
             }
         }
 
-
-        #region 节点转换的委托类型
-        public static object? Execution(Action<object> del, object instance)
-        {
-            del.Invoke(instance);
-            return null;
-        }
-        public static object? Execution(Action<object, object?[]?> del, object instance, object?[]? parameters)
-        {
-            del.Invoke(instance, parameters);
-            return null;
-        }
-        public static object? Execution(Func<object, object?> del, object instance)
-        {
-            return del.Invoke(instance);
-        }
-        public static object? Execution(Func<object, object?[]?, object?> del, object instance, object?[]? parameters)
-        {
-            return del.Invoke(instance, parameters);
-        }
-
-
-        public static async Task<object?> ExecutionAsync(Func<object, Task> del, object instance)
-        {
-            await del.Invoke(instance);
-            return  null;
-        }
-        public static async Task<object?> ExecutionAsync(Func<object, object?[]?, Task> del, object instance, object?[]? parameters)
-        {
-            await del.Invoke(instance, parameters);
-            return null;
-        }
-        public static async Task<object?> ExecutionAsync(Func<object, Task<object?>> del, object instance)
-        {
-            return await del.Invoke(instance);
-        }
-        public static async Task<object?> ExecutionAsync(Func<object, object?[]?, Task<object?>> del, object instance, object?[]? parameters)
-        {
-            return await del.Invoke(instance, parameters);
-        }
-        #endregion
 
 
         /// <summary>

@@ -73,7 +73,7 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 结束运行时需要执行的方法
         /// </summary>
-        private Action ExitAction { get; set; }  = null; 
+        private Func<Task> ExitAction { get; set; }  = null; 
         /// <summary>
         /// 运行的上下文
         /// </summary>
@@ -135,7 +135,6 @@ namespace Serein.NodeFlow
 
 
             #endregion
-
 
             #region 选择运行环境的上下文
 
@@ -234,7 +233,8 @@ namespace Serein.NodeFlow
                 {
                     throw new Exception("不存在对应委托");
                 }
-                ((Func<object, object[], object>)dd.EmitDelegate).Invoke(md.ActingInstance, [Context]);
+                await dd.Invoke(md.ActingInstance, [Context]);
+                //((Func<object, object[], object>)dd.EmitDelegate).Invoke(md.ActingInstance, [Context]);
             }
             Context.Env.IOC.Build(); // 绑定初始化时注册的类型
 
@@ -254,14 +254,15 @@ namespace Serein.NodeFlow
                 {
                     throw new Exception("不存在对应委托");
                 }
+                await dd.Invoke(md.ActingInstance, [Context]);
                 //((Action<object, object?[]?>)del).Invoke(md.ActingInstance, [Context]);
-                ((Func<object, object[], object>)dd.EmitDelegate).Invoke(md.ActingInstance, [Context]);
+                //((Func<object, object[], object>)dd.EmitDelegate).Invoke(md.ActingInstance, [Context]);
             }
             Context.Env.IOC.Build(); // 预防有人在加载时才注册类型，再绑定一次
             #endregion
 
             #region 设置流程退出时的回调函数
-            ExitAction = () =>
+            ExitAction = async () =>
             {
                 env.IOC.Run<WebApiServer>(web => {
                     web?.Stop();
@@ -273,7 +274,8 @@ namespace Serein.NodeFlow
                     {
                         throw new Exception("不存在对应委托");
                     }
-                    ((Func<object, object[], object>)dd.EmitDelegate).Invoke(md.ActingInstance, [Context]);
+                    await dd.Invoke(md.ActingInstance, [Context]);
+                    //((Func<object, object[], object>)dd.EmitDelegate).Invoke(md.ActingInstance, [Context]);
                 }
 
                 TerminateAllGlobalFlipflop();
