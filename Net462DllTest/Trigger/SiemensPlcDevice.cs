@@ -17,6 +17,7 @@ using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.TrackBar;
 using System.Linq;
+using Serein.Library.Network.WebSocketCommunication;
 
 namespace Net462DllTest.Trigger
 {

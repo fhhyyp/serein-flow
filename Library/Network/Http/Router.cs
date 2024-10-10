@@ -2,14 +2,18 @@
 using Newtonsoft.Json.Linq;
 using Serein.Library.Api;
 using Serein.Library.Attributes;
+using Serein.Library.Entity;
+using Serein.Library.Utils;
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel.Design;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Reflection;
+using System.Security.AccessControl;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web;
@@ -20,9 +24,198 @@ namespace Serein.Library.Web
 {
     public interface IRouter
     {
-        bool RegisterController(Type controllerType);
+        void AddHandle(Type controllerType);
         Task<bool> ProcessingAsync(HttpListenerContext context);
     }
+
+
+
+    public class ApiHandleConfig
+    {
+        private readonly Delegate EmitDelegate;
+        private readonly EmitHelper.EmitMethodType EmitMethodType;
+
+        public enum PostArgType
+        {
+            None,   
+            IsUrlData,
+            IsBobyData,
+        }
+        public ApiHandleConfig(MethodInfo methodInfo)
+        {
+            EmitMethodType = EmitHelper.CreateDynamicMethod(methodInfo, out EmitDelegate);
+            var parameterInfos = methodInfo.GetParameters();
+            ParameterType = parameterInfos.Select(t => t.ParameterType).ToArray();
+            ParameterName = parameterInfos.Select(t => t.Name.ToLower()).ToArray();
+
+            PostArgTypes = parameterInfos.Select(p =>
+            {
+                bool isUrlData = p.GetCustomAttribute(typeof(UrlAttribute)) != null;
+                bool isBobyData = p.GetCustomAttribute(typeof(BobyAttribute)) != null;
+                if (isBobyData)
+                {
+                    return PostArgType.IsBobyData;
+                }
+                else if (isUrlData)
+                {
+                    return PostArgType.IsUrlData;
+                }
+                else
+                {
+                    return PostArgType.None;
+                }
+            }).ToArray();
+
+
+         
+        }
+        private readonly PostArgType[] PostArgTypes; 
+        private readonly string[] ParameterName;
+        private readonly Type[] ParameterType;
+
+
+        public async Task<object> HandleGet(object instance, Dictionary<string, string> routeData)
+        {
+            object[] args = new object[ParameterType.Length];
+            for (int i = 0; i < ParameterType.Length; i++)
+            {
+                var type = ParameterType[i];
+                var argName = ParameterName[i];
+                if (routeData.TryGetValue(argName, out var argValue))
+                {
+                    if (type == typeof(string))
+                    {
+                        args[i] = argValue;
+                    }
+                    else // if (type.IsValueType)
+                    {
+                        args[i] = JsonConvert.DeserializeObject(argValue, type);
+                    }
+                }
+                else
+                {
+                    args[i] = type.IsValueType ? Activator.CreateInstance(type) : null;
+                }
+                
+            }
+
+            object result;
+            try
+            {
+                if (EmitMethodType == EmitHelper.EmitMethodType.HasResultTask && EmitDelegate is Func<object, object[], Task<object>> hasResultTask)
+                {
+                    result = await hasResultTask(instance, args);
+                }
+                else if (EmitMethodType == EmitHelper.EmitMethodType.Task && EmitDelegate is Func<object, object[], Task> task)
+                {
+                    await task.Invoke(instance, args);
+                    result = null;
+                }
+                else if (EmitMethodType == EmitHelper.EmitMethodType.Func && EmitDelegate is Func<object, object[], object> func)
+                {
+                    result = func.Invoke(instance, args);
+                }
+                else
+                {
+                    result = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                result = null;
+                await Console.Out.WriteLineAsync(ex.Message);
+                
+            }
+            return result;
+           
+        }
+
+
+
+        public async Task<object> HandlePost(object instance, JObject jsonObject, Dictionary<string, string> routeData)
+        {
+            object[] args = new object[ParameterType.Length];
+            for (int i = 0; i < ParameterType.Length; i++)
+            {
+                var type = ParameterType[i];
+                var argName = ParameterName[i];
+                if (PostArgTypes[i] == PostArgType.IsUrlData)
+                {
+                    if (routeData.TryGetValue(argName, out var argValue))
+                    {
+                        if (type == typeof(string))
+                        {
+                            args[i] = argValue;
+                        }
+                        else // if (type.IsValueType)
+                        {
+                            args[i] = JsonConvert.DeserializeObject(argValue, type);
+                        }
+                    }
+                    else
+                    {
+                        args[i] = type.IsValueType ? Activator.CreateInstance(type) : null;
+                    }
+                }
+                else if (PostArgTypes[i] == PostArgType.IsBobyData)
+                {
+                    args[i] = jsonObject;
+                }
+                else
+                {
+                    var jsonValue = jsonObject.GetValue(argName);
+                    if (jsonValue is null)
+                    {
+                        // 值类型返回默认值，引用类型返回null
+                        args[i] = type.IsValueType ? Activator.CreateInstance(type) : null;
+                    }
+                    else
+                    {
+                        args[i] = jsonValue.ToObject(type);
+                    }
+                }
+                
+               
+            }
+
+            object result;
+            try
+            {
+                if (EmitMethodType == EmitHelper.EmitMethodType.HasResultTask && EmitDelegate is Func<object, object[], Task<object>> hasResultTask)
+                {
+                    result = await hasResultTask(instance, args);
+                }
+                else if (EmitMethodType == EmitHelper.EmitMethodType.Task && EmitDelegate is Func<object, object[], Task> task)
+                {
+                    await task.Invoke(instance, args);
+                    result = null;
+                }
+                else if (EmitMethodType == EmitHelper.EmitMethodType.Func && EmitDelegate is Func<object, object[], object> func)
+                {
+                    result = func.Invoke(instance, args);
+                }
+                else
+                {
+                    result = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                result = null;
+                await Console.Out.WriteLineAsync(ex.Message);
+
+            }
+            return result;
+
+        }
+
+        
+    }
+
+
+
+
+
 
     /// <summary>
     /// 路由注册与解析
@@ -35,29 +228,29 @@ namespace Serein.Library.Web
         /// <summary>
         /// 控制器实例对象的类型，每次调用都会重新实例化，[Url - ControllerType]
         /// </summary>
-        private readonly ConcurrentDictionary<string, Type> _controllerTypes; // 存储控制器类型
+        private readonly ConcurrentDictionary<string, Type> _controllerTypes = new ConcurrentDictionary<string, Type>();
 
         /// <summary>
         /// 用于存储路由信息，[GET|POST - [Url - Method]]
         /// </summary>
-        private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, MethodInfo>> _routes;
+        //private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, MethodInfo>> _routes = new ConcurrentDictionary<string, ConcurrentDictionary<string, MethodInfo>>();
 
-        
-        // private readonly ILoggerService loggerService; // 用于存储路由信息
 
-        //private Type PostRequest;
+        private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ApiHandleConfig>> HandleModels = new ConcurrentDictionary<string, ConcurrentDictionary<string, ApiHandleConfig>>();
+
+
 
         public Router(ISereinIOC SereinIOC)
         {
             this.SereinIOC = SereinIOC;
-            _routes = new ConcurrentDictionary<string, ConcurrentDictionary<string, MethodInfo>>(); // 初始化路由字典
-            _controllerTypes = new ConcurrentDictionary<string, Type>(); // 初始化控制器实例对象字典
-            foreach (API method in Enum.GetValues(typeof(API))) // 遍历 HTTP 枚举类型的所有值
+            foreach (ApiType method in Enum.GetValues(typeof(ApiType))) // 遍历 HTTP 枚举类型的所有值
             {
-                _routes.TryAdd(method.ToString(), new ConcurrentDictionary<string, MethodInfo>()); // 初始化每种 HTTP 方法对应的路由字典
+                HandleModels.TryAdd(method.ToString(), new ConcurrentDictionary<string, ApiHandleConfig>()); // 初始化每种 HTTP 方法对应的路由字典
             }
+#if false
             Type baseAttribute = typeof(AutoHostingAttribute);
             Type baseController = typeof(ControllerBase);
+
 
             // 获取当前程序集
             Assembly assembly = Assembly.GetExecutingAssembly();
@@ -69,8 +262,43 @@ namespace Serein.Library.Web
             foreach (var controllerType in controllerTypes)
             {
                 RegisterController(controllerType);
-            }
+            } 
+#endif
         }
+
+        public void AddHandle(Type controllerType)
+        {
+            if (!controllerType.IsClass || controllerType.IsAbstract) return; // 如果不是类或者是抽象类，则直接返回
+
+            var autoHostingAttribute = controllerType.GetCustomAttribute<AutoHostingAttribute>();
+            var methods = controllerType.GetMethods().Where(m => m.GetCustomAttribute<WebApiAttribute>() != null).ToArray();
+
+            
+            foreach (var method in methods) // 遍历控制器类型的所有方法
+            {
+                var routeAttribute = method.GetCustomAttribute<WebApiAttribute>(); // 获取方法上的 WebAPIAttribute 自定义属性
+                if (routeAttribute is null) // 如果存在 WebAPIAttribute 属性
+                {
+                    continue;
+                }
+                var url = AddRoutesUrl(autoHostingAttribute, routeAttribute, controllerType, method);
+                if (url is null) continue;
+
+                Console.WriteLine(url);
+                var apiType = routeAttribute.ApiType.ToString();
+
+                var config = new ApiHandleConfig(method);
+                if(!HandleModels.TryGetValue(apiType, out var configs))
+                {
+                    configs = new ConcurrentDictionary<string, ApiHandleConfig>();
+                    HandleModels[apiType] = configs;
+                }
+                configs.TryAdd(url, config);
+                _controllerTypes.TryAdd(url,controllerType);
+            }
+            return;
+        }
+
 
         /// <summary>
         /// 在外部调用API后，解析路由，调用对应的方法
@@ -84,14 +312,14 @@ namespace Serein.Library.Web
             var url = request.Url; // 获取请求的 URL
             var httpMethod = request.HttpMethod; // 获取请求的 HTTP 方法
             var template = request.Url.AbsolutePath.ToLower();
-            if (!_routes[httpMethod].TryGetValue(template, out MethodInfo method))
+            if (!_controllerTypes.TryGetValue(template, out Type controllerType))
             {
                 return false;
             }
 
             var routeValues = GetUrlData(url); // 解析 URL 获取路由参数
 
-            ControllerBase controllerInstance = (ControllerBase)SereinIOC.Instantiate(_controllerTypes[template]);// 使用反射创建控制器实例
+            ControllerBase controllerInstance = (ControllerBase)SereinIOC.Instantiate(controllerType);
 
             if (controllerInstance is null)
             {
@@ -99,195 +327,51 @@ namespace Serein.Library.Web
             }
 
             controllerInstance.Url = url.AbsolutePath;
+
+
+            if (!HandleModels.TryGetValue(httpMethod, out var modules))
+            {
+                return false;
+            }
+            if (!modules.TryGetValue(template,out var config))
+            {
+                return false;
+            }
+            
+
+
+
+            dynamic invokeResult;
+            switch (httpMethod) 
+            {
+                case "GET":
+                     invokeResult = config.HandleGet(controllerInstance, routeValues);
+                    break;
+                case "POST":
+                    var requestBody = await ReadRequestBodyAsync(request); // 读取请求体内容
+                    controllerInstance.BobyData = requestBody;
+                    var requestJObject = JObject.Parse(requestBody);
+                    invokeResult = config.HandlePost(controllerInstance,  requestJObject,  routeValues);
+                    break;
+                default:
+                    invokeResult = null;
+                    break;
+            }
+            object result;
             try
             {
-                object result;
-                switch (httpMethod) // 根据请求的 HTTP 方法执行不同的操作
-                {
-                    case "GET": // 如果是 GET 请求，传入方法、控制器、url参数
-                        // loggerService.Information(GetLog(template));
-                        result = InvokeControllerMethodWithRouteValues(method, controllerInstance, routeValues);
-                        break;
-                    case "POST": // POST 请求传入方法、控制器、请求体内容，url参数
-                        var requestBody = await ReadRequestBodyAsync(request); // 读取请求体内容
-                        controllerInstance.BobyData = requestBody;
-                        var requestJObject = JObject.Parse(requestBody);  //requestBody.FromJSON<JObject>();
-
-                        // loggerService.Information(GetLog(template, requestBody));
-                        result = InvokeControllerMethod(method, controllerInstance, requestJObject, routeValues);
-                        break;
-                    default:
-                        result = null;
-                        break;
-                }
-                Return(response, result); // 返回结果
-                return true;
+                result = invokeResult.Result;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                response.StatusCode = (int)HttpStatusCode.NotFound; // 返回 404 错误
-                Return(response, ex.Message); // 返回结果
-                return true;
+                result = invokeResult;
             }
-
-        }
-
-        /// <summary>
-        /// 自动注册并实例化控制器类型
-        /// </summary>
-        /// <param name="controllerType"></param>
-        public bool RegisterController(Type controllerType) // 方法声明，用于注册并实例化控制器类型
-        {
-            if (!controllerType.IsClass || controllerType.IsAbstract) return false; // 如果不是类或者是抽象类，则直接返回
-
-            var autoHostingAttribute = controllerType.GetCustomAttribute<AutoHostingAttribute>();
-            var methods = controllerType.GetMethods().Where(m => m.GetCustomAttribute<WebApiAttribute>() != null).ToArray();
-
-            foreach (var method in methods) // 遍历控制器类型的所有方法
-            {
-                var routeAttribute = method.GetCustomAttribute<WebApiAttribute>(); // 获取方法上的 WebAPIAttribute 自定义属性
-                if (routeAttribute != null) // 如果存在 WebAPIAttribute 属性
-                {
-                    var url = AddRoutesUrl(autoHostingAttribute, routeAttribute, controllerType, method);
-                    Console.WriteLine(url);
-                    if (url is null) continue;
-                    _controllerTypes[url] = controllerType;
-                }
-            }
+            Return(response, result); // 返回结果
             return true;
+
         }
 
-        #region 调用Get Post对应的方法
 
-        /// <summary>
-        ///  GET请求的控制器方法
-        /// </summary>
-        private object InvokeControllerMethodWithRouteValues(MethodInfo method, object controllerInstance, Dictionary<string, string> routeValues)
-        {
-            object[] parameters = GetMethodParameters(method, routeValues);
-            return InvokeMethod(method, controllerInstance, parameters);
-        }
-
-        /// <summary>
-        /// GET请求调用控制器方法传入参数
-        /// </summary>
-        /// <param name="method">方法</param>
-        /// <param name="controllerInstance">控制器实例</param>
-        /// <param name="methodParameters">参数列表</param>
-        /// <returns></returns>
-        private object InvokeMethod(MethodInfo method, object controllerInstance, object[] methodParameters)
-        {
-            object result = null;
-            try
-            {
-                result = method?.Invoke(controllerInstance, methodParameters);
-            }
-            catch (ArgumentException ex)
-            {
-                string targetType = ExtractTargetTypeFromExceptionMessage(ex.Message);
-
-                // 如果方法调用失败
-                result = new
-                {
-                    error = $"函数签名类型[{targetType}]不符合",
-                };
-            }
-            catch (JsonSerializationException ex)
-            {
-
-                // 查找类型信息开始的索引
-                int startIndex = ex.Message.IndexOf("to type '") + "to type '".Length;
-                // 查找类型信息结束的索引
-                int endIndex = ex.Message.IndexOf("'", startIndex);
-                // 提取类型信息
-                string typeInfo = ex.Message.Substring(startIndex, endIndex - startIndex);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.ToString());
-            }
-            return result; // 调用方法并返回结果
-        }
-
-        private readonly Dictionary<MethodInfo, ParameterInfo[]> methodParameterCache = new Dictionary<MethodInfo, ParameterInfo[]>();
-        /// <summary>
-        /// POST请求调用控制器方法传入参数
-        /// </summary>
-        public object InvokeControllerMethod(MethodInfo method, object controllerInstance, JObject requestData, Dictionary<string, string> routeValues)
-        {
-            if (requestData is null) return null;
-            ParameterInfo[] parameters;
-            object[] cachedMethodParameters;
-            if (!methodParameterCache.TryGetValue(method, out parameters))
-            {
-                parameters = method.GetParameters();
-            }
-            cachedMethodParameters = new object[parameters.Length];
-
-            for (int i = 0; i < parameters.Length; i++)
-            {
-                string paramName = parameters[i].Name;
-                bool isUrlData = parameters[i].GetCustomAttribute(typeof(UrlAttribute)) != null;
-                bool isBobyData = parameters[i].GetCustomAttribute(typeof(BobyAttribute)) != null;
-
-                if (isUrlData)
-                {
-                    if (routeValues.ContainsKey(paramName))
-                    {
-                        cachedMethodParameters[i] = ConvertValue(routeValues[paramName], parameters[i].ParameterType);
-                    }
-                    else
-                    {
-                        cachedMethodParameters[i] = null;
-                    }
-                }
-                else if (isBobyData)
-                {
-                    cachedMethodParameters[i] = ConvertValue(requestData.ToString(), parameters[i].ParameterType);
-                }
-                else
-                {
-                    if (requestData.ContainsKey(paramName))
-                    {
-                        var rd = requestData[paramName];
-                        if (parameters[i].ParameterType == typeof(string))
-                        {
-                            cachedMethodParameters[i] = rd.ToString();
-                        }
-                        else if (parameters[i].ParameterType == typeof(bool))
-                        {
-                            cachedMethodParameters[i] = rd.ToBool();
-                        }
-                        else if (parameters[i].ParameterType == typeof(int))
-                        {
-                            cachedMethodParameters[i] = rd.ToInt();
-                        }
-                        else if (parameters[i].ParameterType == typeof(double))
-                        {
-                            cachedMethodParameters[i] = rd.ToDouble();
-                        }
-                        else
-                        {
-                            cachedMethodParameters[i] = ConvertValue(rd, parameters[i].ParameterType);
-                        }
-                    }
-                    else
-                    {
-                        cachedMethodParameters[i] = null;
-                    }
-                }
-            }
-
-            // 缓存方法和参数的映射
-            //methodParameterCache[method] = cachedMethodParameters;
-
-
-            // 调用方法
-            return method.Invoke(controllerInstance, cachedMethodParameters);
-        }
-
-        #endregion
-        #region 工具方法
         /// <summary>
         /// 读取Body中的消息
         /// </summary>
@@ -301,72 +385,6 @@ namespace Serein.Library.Web
                 {
                     return await reader.ReadToEndAsync();
                 }
-            }
-        }
-
-        /// <summary>
-        /// 检查方法入参参数类型，返回对应的入参数组
-        /// </summary>
-        /// <param name="method"></param>
-        /// <param name="routeValues"></param>
-        /// <returns></returns>
-        private object[] GetMethodParameters(MethodInfo method, Dictionary<string, string> routeValues)
-        {
-            ParameterInfo[] methodParameters = method.GetParameters();
-            object[] parameters = new object[methodParameters.Length];
-
-            for (int i = 0; i < methodParameters.Length; i++)
-            {
-                string paramName = methodParameters[i].Name;
-                if (routeValues.ContainsKey(paramName))
-                {
-                    parameters[i] = ConvertValue(routeValues[paramName], methodParameters[i].ParameterType);
-                }
-                else
-                {
-                    parameters[i] = null;
-                }
-            }
-
-            return parameters;
-        }
-
-        /// <summary>
-        /// 转为对应的类型
-        /// </summary>
-        /// <param name="value"></param>
-        /// <param name="targetType"></param>
-        /// <returns></returns>
-        private object ConvertValue(object value, Type targetType)
-        {
-            try
-            {
-                if (targetType == typeof(string))
-                {
-                    return value;
-                }
-                else
-                {
-                    return JsonConvert.DeserializeObject(value.ToString(), targetType);
-                }
-
-            }
-            catch (JsonReaderException ex)
-            {
-                Console.WriteLine(ex);
-                return value;
-            }
-            catch (JsonSerializationException ex)
-            {
-                // 如果无法转为对应的JSON对象
-                int startIndex = ex.Message.IndexOf("to type '") + "to type '".Length; // 查找类型信息开始的索引
-                int endIndex = ex.Message.IndexOf("'", startIndex);  // 查找类型信息结束的索引
-                var typeInfo = ex.Message.Substring(startIndex, endIndex - startIndex); // 提取出错类型信息，该怎么传出去？
-                return null;
-            }
-            catch // (Exception ex)
-            {
-                return value;
             }
         }
 
@@ -449,7 +467,7 @@ namespace Serein.Library.Web
                 controllerName = autoHostingAttribute.Url;
             }
 
-            var httpMethod = webAttribute.Http; // 获取 HTTP 方法
+            var httpMethod = webAttribute.ApiType; // 获取 HTTP 方法
             var customUrl = webAttribute.Url; // 获取自定义 URL
 
             string url;
@@ -466,7 +484,7 @@ namespace Serein.Library.Web
                     customUrl = CleanUrl(customUrl);
                     url = $"/{controllerName}/{method.Name}/{customUrl}".ToLower();// 清理自定义 URL，并构建新的 URL
                 }
-                _routes[httpMethod.ToString()].TryAdd(url, method); // 将 URL 和方法添加到对应的路由字典中
+                 //HandleModels[httpMethod.ToString()].TryAdd(url ); // 将 URL 和方法添加到对应的路由字典中
             }
             else
             {
@@ -479,7 +497,7 @@ namespace Serein.Library.Web
                     customUrl = CleanUrl(customUrl);
                     url = $"/{controllerName}/{customUrl}".ToLower();// 清理自定义 URL，并构建新的 URL
                 }
-                _routes[httpMethod.ToString()].TryAdd(url, method); // 将 URL 和方法添加到对应的路由字典中
+                // _routes[httpMethod.ToString()].TryAdd(url, method); // 将 URL 和方法添加到对应的路由字典中
             }
 
             return url;
@@ -539,7 +557,7 @@ namespace Serein.Library.Web
                 foreach (var kvp in parsedQuery)
                 {
                     //Console.WriteLine($"{kvp.Key}: {kvp.Value}");
-                    routeValues[kvp.Key] = kvp.Value; // 将键值对添加到路由参数字典中
+                    routeValues[kvp.Key.ToLower()] = kvp.Value; // 将键值对添加到路由参数字典中
                 }
             }
 
@@ -567,7 +585,6 @@ namespace Serein.Library.Web
 
             return null;
         }
-        #endregion
     }
 
 

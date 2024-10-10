@@ -14,15 +14,8 @@ using System.Threading.Tasks;
 
 namespace Serein.Library.Network.WebSocketCommunication
 {
-    [AutoRegister]
     public class WebSocketServer
     {
-        public WebSocketServer()
-        {
-            
-        }
-
-
         public SocketMsgHandleHelper MsgHandleHelper { get; } = new SocketMsgHandleHelper();
 
         HttpListener listener;

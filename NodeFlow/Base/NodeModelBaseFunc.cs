@@ -395,37 +395,66 @@ namespace Serein.NodeFlow.Base
 
                 try
                 {
-                    string? valueStr = inputParameter?.ToString();
-                    parameters[i] = ed.DataType switch
+                    
+                    if (ed.DataType.IsValueType)
                     {
-                        Type t when t == typeof(IDynamicContext) => context, // 上下文
-                        Type t when t.IsEnum => Enum.Parse(ed.DataType, ed.DataValue),// 需要枚举
-                        Type t when t == typeof(string) => inputParameter?.ToString(),
-                        Type t when t == typeof(char)    && !string.IsNullOrEmpty(valueStr) =>  char.Parse(valueStr),
-                        Type t when t == typeof(bool)    && !string.IsNullOrEmpty(valueStr) =>  inputParameter is not null && bool.Parse(valueStr),
-                        Type t when t == typeof(float)   && !string.IsNullOrEmpty(valueStr) =>  float.Parse(valueStr),
-                        Type t when t == typeof(decimal) && !string.IsNullOrEmpty(valueStr) =>  decimal.Parse(valueStr),
-                        Type t when t == typeof(double)  && !string.IsNullOrEmpty(valueStr) =>  double.Parse(valueStr),
-                        Type t when t == typeof(sbyte)   && !string.IsNullOrEmpty(valueStr) =>  sbyte.Parse(valueStr),
-                        Type t when t == typeof(byte)    && !string.IsNullOrEmpty(valueStr) =>  byte.Parse(valueStr),
-                        Type t when t == typeof(short)   && !string.IsNullOrEmpty(valueStr) =>  short.Parse(valueStr),
-                        Type t when t == typeof(ushort)  && !string.IsNullOrEmpty(valueStr) =>  ushort.Parse(valueStr),
-                        Type t when t == typeof(int)     && !string.IsNullOrEmpty(valueStr) =>  int.Parse(valueStr),
-                        Type t when t == typeof(uint)    && !string.IsNullOrEmpty(valueStr) =>  uint.Parse(valueStr),
-                        Type t when t == typeof(long)    && !string.IsNullOrEmpty(valueStr) =>  long.Parse(valueStr),
-                        Type t when t == typeof(ulong)   && !string.IsNullOrEmpty(valueStr) =>  ulong.Parse(valueStr),
-                        Type t when t == typeof(nint)    && !string.IsNullOrEmpty(valueStr) =>  nint.Parse(valueStr),
-                        Type t when t == typeof(nuint)   && !string.IsNullOrEmpty(valueStr) =>  nuint.Parse(valueStr),
-                        //Type t when t == typeof(DateTime)  => string.IsNullOrEmpty(valueStr) ? 0 :  DateTime.Parse(valueStr),
+                        if (inputParameter is null)
+                        {
+                            parameters[i] = Activator.CreateInstance(ed.DataType);
+                        }
+                        else
+                        {
+                            string? valueStr = inputParameter?.ToString();
+                            if (string.IsNullOrEmpty(valueStr))
+                            {
+                                parameters[i] = Activator.CreateInstance(ed.DataType);
+                            }
+                            else
+                            {
+                                parameters[i] = ed.DataType switch
+                                {
+                                    Type t when t.IsEnum => Enum.Parse(ed.DataType, ed.DataValue),// 需要枚举
+                                    Type t when t == typeof(char) => char.Parse(valueStr),
+                                    Type t when t == typeof(bool) => bool.Parse(valueStr),
+                                    Type t when t == typeof(float) => float.Parse(valueStr),
+                                    Type t when t == typeof(decimal) => decimal.Parse(valueStr),
+                                    Type t when t == typeof(double) => double.Parse(valueStr),
+                                    Type t when t == typeof(sbyte) => sbyte.Parse(valueStr),
+                                    Type t when t == typeof(byte) => byte.Parse(valueStr),
+                                    Type t when t == typeof(short) => short.Parse(valueStr),
+                                    Type t when t == typeof(ushort) => ushort.Parse(valueStr),
+                                    Type t when t == typeof(int) => int.Parse(valueStr),
+                                    Type t when t == typeof(uint) => uint.Parse(valueStr),
+                                    Type t when t == typeof(long) => long.Parse(valueStr),
+                                    Type t when t == typeof(ulong) => ulong.Parse(valueStr),
+                                    Type t when t == typeof(nint) => nint.Parse(valueStr),
+                                    Type t when t == typeof(nuint) => nuint.Parse(valueStr),
+                                    _ => throw new Exception($"调用节点对应方法[{nodeModel.MethodDetails.MethodName}]时，遇到了未在预期内的值类型入参：{ed.DataType.FullName}"),
+                                    // Type t when Nullable.GetUnderlyingType(t) != null => inputParameter is null ? null : Convert.ChangeType(inputParameter, Nullable.GetUnderlyingType(t)),
+                                };
+                            }
+                          
+                        }
+                    }
+                    else
+                    {
+                        parameters[i] = ed.DataType switch
+                        {
+                            Type t when t == typeof(IDynamicContext) => context, // 上下文
+                            Type t when t == typeof(string) => inputParameter?.ToString(),
 
-                        Type t when t == typeof(MethodDetails) => md, // 节点方法描述
-                        Type t when t == typeof(NodeModelBase) => nodeModel, // 节点实体类
+                            //Type t when t == typeof(DateTime)  => string.IsNullOrEmpty(valueStr) ? 0 :  DateTime.Parse(valueStr),
 
-                        Type t when t.IsArray => (inputParameter as Array)?.Cast<object>().ToList(),
-                        Type t when t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>) => inputParameter,
-                        _ => inputParameter,
-                        // Type t when Nullable.GetUnderlyingType(t) != null => inputParameter is null ? null : Convert.ChangeType(inputParameter, Nullable.GetUnderlyingType(t)),
-                    };
+                            Type t when t == typeof(MethodDetails) => md, // 节点方法描述
+                            Type t when t == typeof(NodeModelBase) => nodeModel, // 节点实体类
+
+                            Type t when t.IsArray => (inputParameter as Array)?.Cast<object>().ToList(),
+                            Type t when t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>) => inputParameter,
+                            _ => inputParameter,
+                            // Type t when Nullable.GetUnderlyingType(t) != null => inputParameter is null ? null : Convert.ChangeType(inputParameter, Nullable.GetUnderlyingType(t)),
+                        };
+                    }
+                  
 
 
                 }

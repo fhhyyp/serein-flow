@@ -500,7 +500,7 @@ namespace Serein.Library.Api
         /// 清理加载的DLL（待更改）
         /// </summary>
         void ClearAll();
-        
+
 
         /// <summary>
         /// 开始运行
@@ -548,6 +548,11 @@ namespace Serein.Library.Api
         /// </summary>
         /// <param name="nodeGuid">待移除的节点Guid</param>
         void RemoteNode(string nodeGuid);
+
+        // 启动触发器
+        void ActivateFlipflopNode(string nodeGuid);
+        void TerminateFlipflopNode(string nodeGuid);
+
 
         /// <summary>
         /// 设置节点中断级别
@@ -611,7 +616,6 @@ namespace Serein.Library.Api
 
 
         #endregion
-
 
         #region UI视觉
 

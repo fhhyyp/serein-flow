@@ -304,7 +304,7 @@ namespace Serein.NodeFlow
                     // 使用 TaskCompletionSource 创建未启动的触发器任务
                     var tasks = flipflopNodes.Select(async node =>
                     {
-                        await RunGlobalFlipflopAsync(env,node);
+                        await RunGlobalFlipflopAsync(env,node); // 启动流程时启动全局触发器
                     }).ToArray();
                     _ = Task.WhenAll(tasks);
                 }
@@ -362,7 +362,7 @@ namespace Serein.NodeFlow
         }
         
         /// <summary>
-        /// 总结所有全局触发器
+        /// 终结所有全局触发器
         /// </summary>
         private void TerminateAllGlobalFlipflop()
         {

@@ -36,7 +36,7 @@ namespace Net462DllTest.Web
          *          "value":0,
          *      }
          */
-        [WebApi(API.POST)]
+        [WebApi(ApiType.POST)]
         public dynamic PlcOp([Url] string var, int value)
         {
             if (EnumHelper.TryConvertEnum<PlcVarName>(var,out var signal))
@@ -61,7 +61,7 @@ namespace Net462DllTest.Web
         *          "value":0,
         *      }
         */
-        [WebApi(API.POST)]
+        [WebApi(ApiType.POST)]
         public dynamic Trigger([Url] string command, int value)
         {
             if (EnumHelper.TryConvertEnum<CommandSignal>(command, out var signal))

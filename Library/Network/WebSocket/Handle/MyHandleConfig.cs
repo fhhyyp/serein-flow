@@ -20,17 +20,24 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         private readonly Delegate EmitDelegate;
         private readonly EmitHelper.EmitMethodType EmitMethodType;
 
-        public MyHandleConfig(ISocketControlBase instance, MethodInfo methodInfo)
+        private Action<Exception, Action<object>> OnExceptionTracking;
+
+        public MyHandleConfig(SocketHandleModel model,ISocketControlBase instance, MethodInfo methodInfo, Action<Exception, Action<object>> onExceptionTracking)
         {
             EmitMethodType = EmitHelper.CreateDynamicMethod(methodInfo,out EmitDelegate);
-
+            this.Model = model;
             Instance = instance;
             var parameterInfos = methodInfo.GetParameters();
             ParameterType = parameterInfos.Select(t => t.ParameterType).ToArray();
             ParameterName = parameterInfos.Select(t => t.Name).ToArray();
+            this.HandleGuid = instance.HandleGuid;
+            this.OnExceptionTracking = onExceptionTracking;
 
         }
-        public ISocketControlBase Instance { get; private set; }
+
+        private SocketHandleModel Model;
+        private ISocketControlBase Instance;
+        public Guid HandleGuid { get;  }
         private string[] ParameterName;
         private Type[] ParameterType;
 
@@ -92,30 +99,44 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
 
 
             }
-            Stopwatch sw = new Stopwatch();
-            sw.Start();
+            //Stopwatch sw = new Stopwatch();
+            //sw.Start();
             object result;
-            if (EmitMethodType == EmitHelper.EmitMethodType.HasResultTask && EmitDelegate is Func<object, object[], Task<object>> hasResultTask)
+            try
             {
-                result = await hasResultTask(Instance, args);
+                if (EmitMethodType == EmitHelper.EmitMethodType.HasResultTask && EmitDelegate is Func<object, object[], Task<object>> hasResultTask)
+                {
+                    result = await hasResultTask(Instance, args);
+                }
+                else if (EmitMethodType == EmitHelper.EmitMethodType.Task && EmitDelegate is Func<object, object[], Task> task)
+                {
+                    await task.Invoke(Instance, args);
+                    result = null;
+                }
+                else if (EmitMethodType == EmitHelper.EmitMethodType.Func && EmitDelegate is Func<object, object[], object> func)
+                {
+                    result = func.Invoke(Instance, args);
+                }
+                else
+                {
+                    result = null;
+                }
             }
-            else if (EmitMethodType == EmitHelper.EmitMethodType.Task && EmitDelegate is Func<object, object[], Task> task)
+            catch (Exception ex)
             {
-                await task.Invoke(Instance, args);
                 result = null;
-            }
-            else if (EmitMethodType == EmitHelper.EmitMethodType.Func &&  EmitDelegate is Func<object, object[], object> func)
-            {
-                result = func.Invoke(Instance, args);
-            }
-            else
-            {
-                throw new NotImplementedException("构造委托无法正确调用");
-            }
-           sw.Stop();
-           Console.WriteLine($"Emit Invoke：{sw.ElapsedTicks * 1000000F / Stopwatch.Frequency:n3}μs");
+                await Console.Out.WriteLineAsync(ex.Message);
+                this.OnExceptionTracking.Invoke(ex, (async data =>
+                {
 
-            if(result != null && result.GetType().IsClass)
+                    var jsonText = JsonConvert.SerializeObject(data);
+                    await RecoverAsync.Invoke(jsonText);
+                }));
+            }
+           //sw.Stop();
+           //Console.WriteLine($"Emit Invoke：{sw.ElapsedTicks * 1000000F / Stopwatch.Frequency:n3}μs");
+
+            if(Model.IsReturnValue &&  result != null && result.GetType().IsClass)
             {
                 var reusltJsonText = JsonConvert.SerializeObject(result);
                 _ = RecoverAsync.Invoke($"{reusltJsonText}");

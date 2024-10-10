@@ -8,6 +8,9 @@ using static Serein.Library.Utils.EmitHelper;
 
 namespace Serein.Library.Entity
 {
+    /// <summary>
+    /// 委托描述
+    /// </summary>
     public class DelegateDetails
     {
         public DelegateDetails(EmitMethodType EmitMethodType, Delegate EmitDelegate)

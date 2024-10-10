@@ -882,16 +882,40 @@ namespace Serein.WorkBench
         {
             
             var contextMenu = new ContextMenu();
+            var nodeGuid = nodeControl.ViewModel?.Node?.Guid;
+            #region 触发器节点
+            
+            if(nodeControl.ViewModel?.Node.ControlType == NodeControlType.Flipflop)
+            {
+                contextMenu.Items.Add(CreateMenuItem("启动触发器", (s, e) =>
+                {
+                    if (s is MenuItem menuItem)
+                    {
+                        if (menuItem.Header.ToString() == "启动触发器")
+                        {
+                            FlowEnvironment.ActivateFlipflopNode(nodeGuid);
 
-           
-            if (nodeControl.ViewModel.Node?.MethodDetails?.ReturnType is Type returnType && returnType != typeof(void))
+                            menuItem.Header = "终结触发器";
+                        }
+                        else
+                        {
+                            FlowEnvironment.TerminateFlipflopNode(nodeGuid);
+                            menuItem.Header = "启动触发器";
+
+                        }
+                    }
+                }));
+            }
+                
+            #endregion
+
+            if (nodeControl?.ViewModel?.Node?.MethodDetails?.ReturnType is Type returnType && returnType != typeof(void))
             {
                 contextMenu.Items.Add(CreateMenuItem("查看返回类型", (s, e) =>
                 {
                     DisplayReturnTypeTreeViewer(returnType);
                 }));
             }
-            var nodeGuid = nodeControl.ViewModel?.Node?.Guid;
 
             #region 右键菜单功能 - 中断
 
@@ -926,7 +950,7 @@ namespace Serein.WorkBench
             contextMenu.Items.Add(CreateMenuItem("添加 上游分支", (s, e) => StartConnection(nodeControl, ConnectionType.Upstream)));
 
 
-
+          
             #region 右键菜单功能 - 控件对齐
 
             var AvoidMenu = new MenuItem();

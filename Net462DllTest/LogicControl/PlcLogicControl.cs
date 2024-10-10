@@ -8,7 +8,6 @@ using Serein.Library.Attributes;
 using Serein.Library.Enums;
 using Serein.Library.Ex;
 using Serein.Library.Framework.NodeFlow;
-using Serein.Library.Network.WebSocketCommunication;
 using Serein.Library.NodeFlow.Tool;
 using Serein.Library.Web;
 using System;
@@ -16,64 +15,33 @@ using System.Threading.Tasks;
 
 namespace Net462DllTest.LogicControl
 {
-
     [AutoRegister]
-    [DynamicFlow("[SiemensPlc]")] 
-    public class PlcLogicControl
+    [DynamicFlow("[SiemensPlc]")]
+    public class PlcLogicControl 
     {
+        public Guid HandleGuid { get; } = new Guid();
+
         private readonly SiemensPlcDevice MyPlc;
         private readonly PlcVarModelDataProxy plcVarModelDataProxy;
 
         public PlcLogicControl(SiemensPlcDevice MyPlc,
-                                      PlcVarModelDataProxy plcVarModelDataProxy)
+                               PlcVarModelDataProxy plcVarModelDataProxy)
         {
             this.MyPlc = MyPlc;
             this.plcVarModelDataProxy = plcVarModelDataProxy;
         }
 
-        #region 初始化、初始化完成以及退出的事件
-        [NodeAction(NodeType.Init)]
-        public void Init(IDynamicContext context)
-        {
-            context.Env.IOC.Register<WebSocketServer>();
-            context.Env.IOC.Register<WebSocketClient>();
-
-            context.Env.IOC.Register<IRouter, Router>();
-            context.Env.IOC.Register<WebApiServer>();
-
-            
-        }
-
+        #region 初始化
         [NodeAction(NodeType.Loading)] // Loading 初始化完成已注入依赖项，可以开始逻辑上的操作
         public void Loading(IDynamicContext context)
         {
-            // 注册控制器
-            context.Env.IOC.Run<IRouter, WebApiServer>((router, apiServer) => {
-                router.RegisterController(typeof(FlowController));
-                apiServer.Start("http://*:8089/"); // 开启 Web Api 服务
-            });
+           
 
-            context.Env.IOC.Run<WebSocketServer>(async (socketServer) => {
-                // socketServer.RegisterModuleInstance(userService);
-                await socketServer.StartAsync("http://localhost:5005/"); // 开启 Web Socket 监听
-            });
-            context.Env.IOC.Run<WebSocketClient>(async client => {
-                await client.ConnectAsync("ws://localhost:5005/"); // 连接到服务器
-            });
         }
 
         [NodeAction(NodeType.Exit)] // 流程结束时自动执行
         public void Exit(IDynamicContext context)
         {
-            context.Env.IOC.Run<WebApiServer>((apiServer) =>
-            {
-                apiServer?.Stop(); // 关闭 Web 服务
-
-            });
-            context.Env.IOC.Run<WebSocketServer>((socketServer) =>
-            {
-                socketServer?.Stop(); // 关闭 Web 服务
-            });
             MyPlc.Close();
             MyPlc.CancelAllTasks();
         }
@@ -120,13 +88,14 @@ namespace Net462DllTest.LogicControl
 
         }
 
+
         [NodeAction(NodeType.Action, "PLC初始化")]
         public SiemensPlcDevice PlcInit(SiemensVersion version = SiemensVersion.None,
                                         string ip = "192.168.10.100",
                                         int port = 102)
         {
-            //MyPlc.Model.Set(PlcVarName.DoorVar,1);
-            //MyPlc.Model.Value.SpaceNum = 1;
+            MyPlc.Model.Set(PlcVarName.DoorVar,(Int16)1);
+            MyPlc.Model.Get(PlcVarName.DoorVar);
             if (MyPlc.Client is null)
             {
                 try
@@ -155,6 +124,7 @@ namespace Net462DllTest.LogicControl
             return MyPlc;
         }
 
+
         [NodeAction(NodeType.Action, "PLC获取变量")]
         public object ReadVar(PlcVarName varName)
         {
@@ -162,6 +132,7 @@ namespace Net462DllTest.LogicControl
             Console.WriteLine($"获取变量成功：({varName})\t result = {result}");
             return result;
         }
+
 
         [NodeAction(NodeType.Action, "PLC写入变量")]
         public SiemensPlcDevice WriteVar(object value, PlcVarName varName)
@@ -171,10 +142,13 @@ namespace Net462DllTest.LogicControl
         }
 
         [NodeAction(NodeType.Action, "批量读取")]
-        public void BatchReadVar()
+        public PlcVarModelDataProxy BatchReadVar()
         {
             MyPlc.BatchRefresh();
+            return plcVarModelDataProxy;
         }
+
+
         [NodeAction(NodeType.Action, "开启定时刷新")]
         public void OpenTimedRefresh()
         {

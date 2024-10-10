@@ -18,25 +18,30 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         public string ThemeJsonKey { get; }
         public string DataJsonKey { get; }
 
+
+
+
         public ConcurrentDictionary<string, MyHandleConfig> MyHandleConfigs = new ConcurrentDictionary<string, MyHandleConfig>();
-        public void AddHandleConfigs(string themeValue, ISocketControlBase instance, MethodInfo methodInfo)
+        public void AddHandleConfigs(SocketHandleModel model, ISocketControlBase instance, MethodInfo methodInfo
+            , Action<Exception, Action<object>> onExceptionTracking)
         {
-            if (!MyHandleConfigs.ContainsKey(themeValue))
+            if (!MyHandleConfigs.ContainsKey(model.ThemeValue))
             {
-                var myHandleConfig = new MyHandleConfig(instance, methodInfo);
-                MyHandleConfigs[themeValue] = myHandleConfig;
+                var myHandleConfig = new MyHandleConfig(model,instance, methodInfo, onExceptionTracking);
+                MyHandleConfigs[model.ThemeValue] = myHandleConfig;
             }
         }
-        public void ResetConfig(ISocketControlBase socketControlBase)
+        public bool ResetConfig(ISocketControlBase socketControlBase)
         {
             foreach (var kv in MyHandleConfigs.ToArray())
             {
                 var config = kv.Value;
-                if (config.Instance.HandleGuid.Equals(socketControlBase.HandleGuid))
+                if (config.HandleGuid.Equals(socketControlBase.HandleGuid))
                 {
                     MyHandleConfigs.TryRemove(kv.Key, out _);
                 }
             }
+            return MyHandleConfigs.Count == 0;
         }
 
         public void ResetConfig()

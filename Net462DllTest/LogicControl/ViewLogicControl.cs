@@ -35,7 +35,7 @@ namespace Net462DllTest.LogicControl
         #region 触发器节点
 
         [NodeAction(NodeType.Flipflop, "等待视图命令", ReturnType = typeof(int))]
-        public async Task<IFlipflopContext> WaitTask(CommandSignal command = CommandSignal.Command_1)
+        public async Task<IFlipflopContext> WaitTask(CommandSignal command)
         {
             try
             {

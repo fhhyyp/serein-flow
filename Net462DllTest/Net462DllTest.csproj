@@ -92,7 +92,7 @@
       <DependentUpon>TestFormView.cs</DependentUpon>
     </Compile>
     <Compile Include="Web\FlowController.cs" />
-    <Compile Include="Web\UserService.cs" />
+    <Compile Include="Web\PlcSocketService.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\DynamicControl\SereinFlow\Library.Framework\Serein.Library.Framework.csproj">

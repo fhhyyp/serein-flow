@@ -51,7 +51,7 @@ namespace Serein.Library.Web
     [AttributeUsage(AttributeTargets.Method)]
     public class WebApiAttribute : Attribute
     {
-        public API Http; // HTTP 请求类型
+        public ApiType ApiType; // HTTP 请求类型
         public string Url; // URL 路径
         /// <summary>
         /// 方法名称不作为url的部分
@@ -68,15 +68,15 @@ namespace Serein.Library.Web
         /// </summary>
         /// <param name="http"></param>
         /// <param name="url"></param>
-        public WebApiAttribute(API http = API.POST, bool isUrl = true, string url = "")
+        public WebApiAttribute(ApiType http = ApiType.POST, bool isUrl = true, string url = "")
         {
-            Http = http;
+            ApiType = http;
             Url = url;
             IsUrl = isUrl;
         }
     }
 
-    public enum API
+    public enum ApiType
     {
         POST,
         GET,

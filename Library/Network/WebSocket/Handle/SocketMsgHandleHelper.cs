@@ -28,7 +28,11 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         public ConcurrentDictionary<(string, string), MyHandleModule> MyHandleModuleDict
             = new ConcurrentDictionary<(string, string), MyHandleModule>();
 
-
+        private Action<Exception, Action<object>> _onExceptionTracking;
+        /// <summary>
+        /// 异常跟踪
+        /// </summary>
+        public event Action<Exception, Action<object>> OnExceptionTracking;
 
         private MyHandleModule AddMyHandleModule(string themeKeyName, string dataKeyName)
         {
@@ -52,13 +56,14 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
             var themeKeyName = moduleAttribute.JsonThemeField;
             var dataKeyName = moduleAttribute.JsonDataField;
             var key = (themeKeyName, dataKeyName);
-            if (MyHandleModuleDict.TryRemove(key, out var myHandleModules))
+            if (MyHandleModuleDict.TryGetValue(key, out var myHandleModules))
             {
-                myHandleModules.ResetConfig(socketControlBase);
+                var isRemote = myHandleModules.ResetConfig(socketControlBase);
+                if (isRemote) MyHandleModuleDict.TryGetValue(key, out _);
             }
 
         }
-        public void AddModule(ISocketControlBase socketControlBase)
+        public void AddModule(ISocketControlBase socketControlBase, Action<Exception, Action<object>> onExceptionTracking)
         {
             var type = socketControlBase.GetType();
             var moduleAttribute = type.GetCustomAttribute<AutoSocketModuleAttribute>();
@@ -67,10 +72,9 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                 return;
             }
 
-            // 添加处理模块
             var themeKey = moduleAttribute.JsonThemeField;
             var dataKey = moduleAttribute.JsonDataField;
-
+          
             var handlemodule = AddMyHandleModule(themeKey, dataKey);
             var methods = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
                 .Select(method =>
@@ -78,23 +82,35 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                     var methodsAttribute = method.GetCustomAttribute<AutoSocketHandleAttribute>();
                     if (methodsAttribute is null)
                     {
-                        return (string.Empty, null);
+                        return (null, null);
                     }
                     else
                     {
+                        if (string.IsNullOrEmpty(methodsAttribute.ThemeValue))
+                        {
+                            methodsAttribute.ThemeValue = method.Name;
+                        }
+                        var model = new SocketHandleModel
+                        {
+                            IsReturnValue = methodsAttribute.IsReturnValue,
+                            ThemeValue = methodsAttribute.ThemeValue,
+                        };
                         var value = methodsAttribute.ThemeValue;
-                        return (value, method);
+                        return (model, method);
                     }
                 })
-                .Where(x => !string.IsNullOrEmpty(x.value)).ToList();
+                .Where(x => !(x.model is null)).ToList();
             if (methods.Count == 0)
             {
                 return;
             }
 
-            foreach ((var value, var method) in methods)
+            Console.WriteLine($"add websocket handle model :");
+            Console.WriteLine($"theme key, data key : {themeKey}, {dataKey}");
+            foreach ((var model, var method) in methods)
             {
-                handlemodule.AddHandleConfigs(value, socketControlBase, method);
+                Console.WriteLine($"theme value  : {model.ThemeValue}");
+                handlemodule.AddHandleConfigs(model, socketControlBase, method, onExceptionTracking);
             }
 
         }
@@ -106,7 +122,9 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
             {
                 foreach (var module in MyHandleModuleDict.Values)
                 {
+
                     module.HandleSocketMsg(RecoverAsync, json);
+                    
                 }
             });
 

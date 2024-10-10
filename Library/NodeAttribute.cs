@@ -56,7 +56,7 @@ namespace Serein.Library.Attributes
 
 
     /// <summary>
-    /// 建议触发器手动设置返回类型
+    /// 生成的节点类型
     /// </summary>
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
     public class NodeActionAttribute : Attribute
