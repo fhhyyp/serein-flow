@@ -15,13 +15,11 @@ namespace Serein.Library.Api
         /// </summary>
         FlipflopStateType State { get; set; }
         /// <summary>
-        /// 触发传递的数据
+        /// 触发类型
         /// </summary>
-        //TriggerData TriggerData { get; set; }
-
         TriggerType Type { get; set; }
         /// <summary>
-        /// 触发传递的数据
+        /// 触发时传递的数据
         /// </summary>
         TResult Value { get; }
     }
