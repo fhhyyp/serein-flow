@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 
 namespace Serein.Library.Utils
 {
+    /// <summary>
+    /// 类型转换工具类
+    /// </summary>
     public static class ConvertHelper
     {
         public static TResult ToConvert<TResult>(this object data)

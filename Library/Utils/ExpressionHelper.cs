@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace Serein.Library.Utils
 {
     /// <summary>
-    /// 基于类型创建表达式树反射委托
+    /// 基于类型创建表达式树反射委托（目前已使用EmitHelper代替）
     /// </summary>
     public static class ExpressionHelper
     {

@@ -8,12 +8,24 @@ using System.Threading.Tasks;
 
 namespace Serein.Library.Utils
 {
+    /// <summary>
+    /// Emit创建委托工具类
+    /// </summary>
     public class EmitHelper
     {
         public enum EmitMethodType
         {
+            /// <summary>
+            /// 普通的方法。如果方法返回void时，将会返回null。
+            /// </summary>
             Func,
+            /// <summary>
+            /// 无返回值的异步方法
+            /// </summary>
             Task,
+            /// <summary>
+            /// 有返回值的异步方法
+            /// </summary>
             HasResultTask,
         }
         public static bool IsGenericTask(Type returnType, out Type taskResult)
@@ -38,11 +50,6 @@ namespace Serein.Library.Utils
 
             }
         }
-        //public static Delegate CreateDynamicMethod<T>(MethodInfo methodInfo)
-        //{
-        //    return CreateDynamicMethod(methodInfo);
-        //}
-
         public static EmitMethodType CreateDynamicMethod( MethodInfo methodInfo,out Delegate @delegate)
         {
             bool IsTask = IsGenericTask(methodInfo.ReturnType, out var taskGenericsType);

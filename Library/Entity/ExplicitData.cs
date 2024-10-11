@@ -7,12 +7,12 @@ namespace Serein.Library.Entity
 {
 
     /// <summary>
-    /// 参数
+    /// 节点入参参数信息
     /// </summary>
     public class ExplicitData
     {
         /// <summary>
-        /// 索引
+        /// 参数索引
         /// </summary>
         public int Index { get; set; }
         /// <summary>

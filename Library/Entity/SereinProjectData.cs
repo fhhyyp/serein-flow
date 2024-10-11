@@ -11,7 +11,7 @@ namespace Serein.Library.Entity
 {
 
     /// <summary>
-    /// 项目输出文件
+    /// 项目保存文件
     /// </summary>
     public class SereinProjectData
     {
@@ -39,11 +39,6 @@ namespace Serein.Library.Entity
 
         public NodeInfo[] Nodes { get; set; }
 
-        ///// <summary>
-        ///// 区域集合
-        ///// </summary>
-
-        //public Region[] Regions { get; set; }
 
     }
 
@@ -189,6 +184,9 @@ namespace Serein.Library.Entity
         public bool IsSelect { get; set; }
     }
 
+    /// <summary>
+    /// 显示参数
+    /// </summary>
     public class Parameterdata
     {
         public bool State { get; set; }
@@ -213,13 +211,5 @@ namespace Serein.Library.Entity
     }
 
 
-    /// <summary>
-    /// 区域
-    /// </summary>
-    public class Region
-    {
-        public string guid { get; set; }
-        public NodeInfo[] ChildNodes { get; set; }
 
-    }
 }

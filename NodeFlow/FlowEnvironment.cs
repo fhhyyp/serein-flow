@@ -1249,11 +1249,11 @@ namespace Serein.NodeFlow
         {
             return sereinIOC.Get<T>(key);
         }
-        
 
-        void ISereinIOC.CustomRegisterInstance(string key, object instance, bool needInjectProperty)
+
+        bool ISereinIOC.CustomRegisterInstance(string key, object instance, bool needInjectProperty)
         {
-            sereinIOC.CustomRegisterInstance(key, instance, needInjectProperty);
+            return sereinIOC.CustomRegisterInstance(key, instance, needInjectProperty);
         }
 
         object ISereinIOC.Instantiate(Type type)

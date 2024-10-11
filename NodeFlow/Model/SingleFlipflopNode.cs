@@ -55,7 +55,7 @@ namespace Serein.NodeFlow.Model
             }
             catch (FlipflopException ex)
             {
-                if(ex.Clsss == FlipflopException.CancelClass.Flow)
+                if(ex.Type == FlipflopException.CancelClass.Flow)
                 {
                     throw;
                 }

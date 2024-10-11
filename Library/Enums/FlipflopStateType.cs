@@ -6,7 +6,9 @@ using System.Threading.Tasks;
 
 namespace Serein.Library.Enums
 {
-
+    /// <summary>
+    /// 触发器说明
+    /// </summary>
     public enum FlipflopStateType
     {
         /// <summary>
@@ -22,7 +24,7 @@ namespace Serein.Library.Enums
         /// </summary>
         Error,
         /// <summary>
-        /// 取消
+        /// 取消（将不会执行触发器的后继节点）
         /// </summary>
         Cancel,
     }

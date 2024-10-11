@@ -51,18 +51,7 @@ namespace Net462DllTest.LogicControl
         }
 
         #endregion
-        //[NodeAction(NodeType.Action, "打开窗体（指定枚举值）")]
-        //public void OpenForm(IDynamicContext context,
-        //                     FromValue fromId = FromValue.FromWorkBenchView,
-        //                     bool isTop = true)
-        //{
-        //    var fromType = EnumHelper.GetBoundValue<FromValue, Type>(fromId, attr => attr.Value);
-        //    if (fromType is null) return;
-        //    if (context.Env.IOC.Instantiate(fromType) is Form form)
-        //    {
-        //        ViewManagement.OpenView(form, isTop);
-        //    }
-        //}
+
 
         [NodeAction(NodeType.Action, "打开窗体（转换器）")]
         public void OpenForm2([EnumTypeConvertor(typeof(FromValue))] Form form, bool isTop = true)

@@ -51,15 +51,13 @@ namespace Net462DllTest.LogicControl
         #region 触发器节点
 
         [NodeAction(NodeType.Flipflop, "等待变量更新")]
-        public async Task<IFlipflopContext<dynamic>> WaitTask(PlcVarName varName = PlcVarName.ErrorCode)
+        public async Task<IFlipflopContext<object>> WaitTask(PlcVarName varName = PlcVarName.ErrorCode)
         {
-
             try
             {
-                var triggerData = await MyPlc.CreateTaskAsync<dynamic>(varName);
-               
+                var triggerData = await MyPlc.CreateTaskAsync<object>(varName);
                 await Console.Out.WriteLineAsync($"PLC变量触发器[{varName}]传递数据：{triggerData}");
-                return new FlipflopContext<dynamic>(FlipflopStateType.Succeed, triggerData);
+                return new FlipflopContext<object>(FlipflopStateType.Succeed, triggerData);
             }
             catch (Exception)
             {

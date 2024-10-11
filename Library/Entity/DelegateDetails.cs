@@ -9,7 +9,8 @@ using static Serein.Library.Utils.EmitHelper;
 namespace Serein.Library.Entity
 {
     /// <summary>
-    /// 委托描述
+    /// Emit创建的委托描述，用于WebApi、WebSocket、NodeFlow动态调用方法的场景。
+    /// 一般情况下你无须内部细节，只需要调用 Invoke() 方法即可。
     /// </summary>
     public class DelegateDetails
     {
@@ -28,6 +29,13 @@ namespace Serein.Library.Entity
         public Delegate EmitDelegate { get => _emitDelegate; }
         public EmitMethodType EmitMethodType { get => _emitMethodType; }
 
+        /// <summary>
+        /// 异步等待Emit创建的委托。
+        /// 需要注意的是，传入的实例必须包含创建委托的方法信息，传入的参数也必须符合方法入参信息。
+        /// </summary>
+        /// <param name="instance">实例</param>
+        /// <param name="args">入参</param>
+        /// <returns>返回值</returns>
         public async Task<object> Invoke(object instance, object[] args)
         {
             object result = null;

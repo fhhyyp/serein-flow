@@ -117,20 +117,21 @@ namespace Serein.Library.Utils
         /// <param name="key"></param>
         /// <param name="instance"></param>
         /// <param name="needInjectProperty"></param>
-        public void CustomRegisterInstance(string key, object instance, bool needInjectProperty = true)
+        public bool CustomRegisterInstance(string key, object instance, bool needInjectProperty = true)
         {
             // 不存在时才允许创建
-            if (!_dependencies.ContainsKey(key))
+            if (_dependencies.ContainsKey(key))
             {
-                _dependencies.TryAdd(key, instance);
+                return false;
             }
-
+            _dependencies.TryAdd(key, instance);
             if (needInjectProperty)
             {
                 InjectDependencies(instance); // 注入实例需要的依赖项
             }
             InjectUnfinishedDependencies(key, instance); // 检查是否存在其它实例需要该类型
             OnIOCMembersChanged?.Invoke(new IOCMembersChangedEventArgs(key, instance));
+            return true;
         }
         public object Get(Type type)
         {

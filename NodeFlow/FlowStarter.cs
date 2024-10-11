@@ -415,7 +415,7 @@ namespace Serein.NodeFlow
                 catch(FlipflopException ex) 
                 {
                     await Console.Out.WriteLineAsync($"触发器[{singleFlipFlopNode.MethodDetails.MethodName}]因非预期异常终止。"+ex.Message);
-                    if (ex.Clsss == FlipflopException.CancelClass.Flow)
+                    if (ex.Type == FlipflopException.CancelClass.Flow)
                     {
                         break;
                     }

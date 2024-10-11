@@ -39,7 +39,7 @@ namespace Net462DllTest.Web
         [WebApi(ApiType.POST)]
         public dynamic PlcOp([Url] string var, int value)
         {
-            if (EnumHelper.TryConvertEnum<PlcVarName>(var,out var signal))
+            if (EnumHelper.TryConvertEnum<PlcVarName>(var, out var signal))
             {
                 Console.WriteLine($"外部触发 {signal} 信号，信号内容 ： {value} ");
                 plcDevice.Trigger(signal, value);// 通过 Web Api 模拟外部输入信号

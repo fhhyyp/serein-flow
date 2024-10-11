@@ -6,6 +6,9 @@ using static Serein.Library.Utils.ChannelFlowInterrupt;
 
 namespace Serein.Library.Entity
 {
+    /// <summary>
+    /// 节点调试设置，用于中断节点的运行
+    /// </summary>
     public class NodeDebugSetting
     {
         /// <summary>
@@ -14,19 +17,9 @@ namespace Serein.Library.Entity
         public bool IsEnable { get; set; } = true;
 
         /// <summary>
-        /// 是否监视数据改变
-        /// </summary>
-        // public bool IsMonitorFlowData { get; set; } = false;
-
-        /// <summary>
         ///  中断级别，暂时停止继续执行后继分支。
         /// </summary>
         public InterruptClass InterruptClass { get; set; } = InterruptClass.None;
-
-        /// <summary>
-        /// 中断表达式
-        /// </summary>
-        // public List<string> InterruptExpressions {  get; } = new List<string>();
 
         /// <summary>
         /// 取消中断的回调函数
@@ -34,10 +27,12 @@ namespace Serein.Library.Entity
         public Action CancelInterruptCallback { get; set; }
 
         /// <summary>
-        /// 中断Task
+        /// 中断Task（用来取消中断）
         /// </summary>
         public Func<Task<CancelType>> GetInterruptTask { get; set; }
     }
+
+
 
     /// <summary>
     /// 中断级别，暂时停止继续执行后继分支。
