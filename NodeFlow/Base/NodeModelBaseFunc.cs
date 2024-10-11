@@ -47,7 +47,7 @@ namespace Serein.NodeFlow.Base
         #region 导出/导入项目文件节点信息
 
         internal abstract Parameterdata[] GetParameterdatas();
-        internal virtual NodeInfo ToInfo()
+        public virtual NodeInfo ToInfo()
         {
             // if (MethodDetails == null) return null;
 
@@ -74,7 +74,7 @@ namespace Serein.NodeFlow.Base
             };
         }
 
-        internal virtual NodeModelBase LoadInfo(NodeInfo nodeInfo)
+        public virtual NodeModelBase LoadInfo(NodeInfo nodeInfo)
         {
             this.Guid = nodeInfo.Guid;
             if (this.MethodDetails is not null)
@@ -99,14 +99,15 @@ namespace Serein.NodeFlow.Base
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        public async Task StartExecute(IDynamicContext context)
+        public async Task StartFlowAsync(IDynamicContext context)
         {
             Stack<NodeModelBase> stack = new Stack<NodeModelBase>();
             stack.Push(this);
             var flowCts = context.Env.IOC.Get<CancellationTokenSource>(FlowStarter.FlipFlopCtsName);
+            bool hasFlipflow = flowCts != null;
             while (stack.Count > 0) // 循环中直到栈为空才会退出循环
             {
-                if (flowCts is not null)
+                if (hasFlipflow && flowCts is not null)
                 {
                     if (flowCts.IsCancellationRequested)
                         break;
@@ -131,7 +132,7 @@ namespace Serein.NodeFlow.Base
                             await Console.Out.WriteLineAsync($"[{upstreamNode.MethodDetails?.MethodName}]中断已{cancelType}，开始执行后继分支");
                         }
                         upstreamNode.PreviousNode = currentNode;
-                        await upstreamNode.StartExecute(context); // 执行流程节点的上游分支
+                        await upstreamNode.StartFlowAsync(context); // 执行流程节点的上游分支
                         if (upstreamNode.NextOrientation == ConnectionType.IsError)
                         {
                             // 如果上游分支执行失败，不再继续执行
@@ -144,7 +145,7 @@ namespace Serein.NodeFlow.Base
 
                 // 上游分支执行完成，才执行当前节点
                 object? newFlowData = await currentNode.ExecutingAsync(context);
-                if (flowCts is null || flowCts.IsCancellationRequested || currentNode.NextOrientation == ConnectionType.None)
+                if (hasFlipflow &&  (flowCts is null || flowCts.IsCancellationRequested || currentNode.NextOrientation == ConnectionType.None))
                 {
                     // 不再执行
                     break;

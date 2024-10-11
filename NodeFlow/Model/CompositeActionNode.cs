@@ -30,7 +30,7 @@ namespace Serein.NodeFlow.Model
         {
             return [];
         }
-        internal override NodeInfo? ToInfo()
+        public override NodeInfo? ToInfo()
         {
             if (MethodDetails is null) return null;
 

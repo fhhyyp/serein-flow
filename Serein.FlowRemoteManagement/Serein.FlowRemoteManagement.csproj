@@ -8,12 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Model\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\Library.Core\Serein.Library.Core.csproj" />
     <ProjectReference Include="..\Library\Serein.Library.csproj" />
+    <ProjectReference Include="..\NodeFlow\Serein.NodeFlow.csproj" />
   </ItemGroup>
 
 </Project>

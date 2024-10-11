@@ -157,7 +157,7 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 容器管理
         /// </summary>
-        private readonly SereinIOC sereinIOC;
+        public readonly SereinIOC sereinIOC;
 
         /// <summary>
         /// 存储加载的程序集路径
@@ -166,43 +166,43 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 存储加载的程序集
         /// </summary>
-        private List<NodeLibrary> NodeLibrarys { get; } = [];
+        public List<NodeLibrary> NodeLibrarys { get; } = [];
 
         /// <summary>
         /// 存储所有方法信息
         /// </summary>
         //private  MethodDetailss { get; } = [];
-        private Dictionary<NodeLibrary, List<MethodDetails>> MethodDetailss { get; } = [];
+        public Dictionary<NodeLibrary, List<MethodDetails>> MethodDetailss { get; } = [];
 
         /// <summary>
         /// 环境加载的节点集合
         /// Node Guid - Node Model
         /// </summary>
-        private Dictionary<string, NodeModelBase> Nodes { get; } = [];
+        public Dictionary<string, NodeModelBase> Nodes { get; } = [];
 
         /// <summary>
         /// 存放触发器节点（运行时全部调用）
         /// </summary>
-        private List<SingleFlipflopNode> FlipflopNodes { get; } = [];
-        private Dictionary<RegisterSequence,List<Type>> AutoRegisterTypes { get; } = [];
+        public List<SingleFlipflopNode> FlipflopNodes { get; } = [];
+        public Dictionary<RegisterSequence,List<Type>> AutoRegisterTypes { get; } = [];
 
         /// <summary>
         /// 存放委托
         /// 
         /// md.Methodname - delegate
         /// </summary>
-        
-        private ConcurrentDictionary<string, DelegateDetails> MethodDelegates { get; } = [];
+
+        public ConcurrentDictionary<string, DelegateDetails> MethodDelegates { get; } = [];
 
         /// <summary>
         /// 起始节点私有属性
         /// </summary>
-        private NodeModelBase? _startNode = null;
+        public NodeModelBase? _startNode = null;
 
         /// <summary>
         /// 起始节点
         /// </summary>
-        private NodeModelBase? StartNode
+        public NodeModelBase? StartNode
         {
             get
             {
@@ -226,7 +226,7 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 流程启动器（每次运行时都会重新new一个）
         /// </summary>
-        private FlowStarter? flowStarter;
+        public FlowStarter? flowStarter;
 
 
         #endregion
@@ -865,7 +865,7 @@ namespace Serein.NodeFlow
         /// <param name="nodeGuid">节点Guid</param>
         /// <returns>节点Model</returns>
         /// <exception cref="ArgumentNullException">无法获取节点、Guid/节点为null时报错</exception>
-        private NodeModelBase? GuidToModel(string nodeGuid)
+        public NodeModelBase? GuidToModel(string nodeGuid)
         {
             if (string.IsNullOrEmpty(nodeGuid))
             {

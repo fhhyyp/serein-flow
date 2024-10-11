@@ -56,7 +56,7 @@ namespace Serein.NodeFlow.Model
 
 
 
-        internal override NodeModelBase LoadInfo(NodeInfo nodeInfo)
+        public override NodeModelBase LoadInfo(NodeInfo nodeInfo)
         {
             var node = this;
             if (node != null)

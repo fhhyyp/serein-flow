@@ -95,7 +95,7 @@ namespace Serein.NodeFlow
         public async Task StartFlowInSelectNodeAsync(NodeModelBase startNode)
         {
             if (Context is null) return;
-            await startNode.StartExecute(Context); // 开始运行时从选定节点开始运行
+            await startNode.StartFlowAsync(Context); // 开始运行时从选定节点开始运行
         }
 
 
@@ -310,7 +310,7 @@ namespace Serein.NodeFlow
                     }).ToArray();
                     _ = Task.WhenAll(tasks);
                 }
-                await startNode.StartExecute(Context); // 开始运行时从起始节点开始运行
+                await startNode.StartFlowAsync(Context); // 开始运行时从起始节点开始运行
                 // 等待结束
                 if(FlipFlopState == RunState.Running && _flipFlopCts is not null)
                 {
@@ -407,7 +407,7 @@ namespace Serein.NodeFlow
                                     var cancelType = await nextNodes[i].DebugSetting.GetInterruptTask();
                                     await Console.Out.WriteLineAsync($"[{nextNodes[i].MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");
                                 }
-                                await nextNodes[i].StartExecute(context); // 启动执行触发器后继分支的节点
+                                await nextNodes[i].StartFlowAsync(context); // 启动执行触发器后继分支的节点
                             }
                         }
                     }
