@@ -22,17 +22,17 @@ https://space.bilibili.com/33526379
 ## 1. 不生成节点控件的枚举值：
   * **Init - 初始化方法**
     * 入参：**IDynamicContext**（有且只有一个参数）。
-    * 返回值：自定义，但软件目前不支持接收返回值。
+    * 返回值：自定义，但不会处理返回值，支持异步等待。
     * 描述：在运行时首先被调用。语义类似于构造方法。建议在Init方法内初始化类、注册类等一切需要在构造函数中执行的方法。
 
   * **Loading - 加载方法**
     * 入参：**IDynamicContext**（有且只有一个参数）。
-    * 返回值：自定义，但软件目前不支持接收返回值。
+    * 返回值：自定义，但不会处理返回值，支持异步等待。
     * 描述：当所有Dll的Init方法调用完成后，首先调用、也才会调用DLL的Loading方法。建议在Loading方法内进行业务上的初始化（例如启动Web，启动第三方服务）。
 
   * **Exit - 结束方法**
     * 入参：**IDynamicContext**（有且只有一个参数）。
-    * 返回值：自定义，但软件目前不支持接收返回值。
+    * 返回值：自定义，但不会处理返回值，支持异步等待。
     * 描述：当结束/手动结束运行时，会调用所有Dll的Exit方法。使用场景类似于：终止内部的其它线程，通知其它进程关闭，例如停止第三方服务。
   * **关于IDynamicContext说明**
     * 基本说明：IDynamicContext是动态上下文接口，内部提供全局单例的IFlowEnvironment环境接口，用以注册、获取实例（单例模式），一般情况下，你无须关注IFlowEnvironment对外暴露的属性方法。
@@ -43,17 +43,17 @@ https://space.bilibili.com/33526379
 ## 3. 从DLL生成控件的枚举值：
   * **Action - 动作**
     * 入参：自定义。如果传入DynamicContext，会传入当前的上下文；如果传入NodeBase，会传入节点对应的Model。第一个非[Explicit]特性的参数会尝试从上一节点的获取FlowData变量，并根据当前入参类型，尝试进行类型转换。
-    * 返回值：自定义，返回值由对应的Model类的object? FlowData变量接收。
+    * 返回值：自定义，返回值由对应的Model类的object? FlowData变量接收。支持异步等待。
     * 描述：同步执行对应的方法。
     
   * **Flipflop - 触发器**
     * 全局触发器
       * 入参：依照Action节点。
-      * 返回值：Task`<IFlipflopContext`<TResult>`>`
+      * 返回值：Task`<IFlipflopContext<TResult>>`
       * 描述：运行开始时，所有无上级节点的触发器节点（在当前分支中作为起始节点），分别建立新的线程运行，然后异步等待触发（如果有）。这种触发器拥有独自的DynamicContext上下文（共用同一个Ioc），执行完成之后，会重新从分支起点的触发器开始等待。
     * 分支中的触发器
         * 入参：依照Action节点。
-        * 返回值：Task`<IFlipflopContext`<TResult>`>`
+        * 返回值：Task`<IFlipflopContext<TResult>>`
         * 描述：接收上一节点传递的上下文，同样进入异步等待，但执行完成后不会再次等待自身（只会触发一次）。
     * IFlipflopContext`<TResult>`
       * 基本说明：IFlipflopContext是一个接口，你无须关心内部实现。
