@@ -2,6 +2,7 @@
 using Serein.Library.Entity;
 using Serein.Library.Enums;
 using Serein.Library.Ex;
+using Serein.Library.NodeFlow.Tool;
 using Serein.Library.Utils;
 using Serein.NodeFlow.Base;
 using static Serein.Library.Utils.ChannelFlowInterrupt;
@@ -42,44 +43,15 @@ namespace Serein.NodeFlow.Model
             {
                 var args = GetParameters(context, this, md);
                 var result = await dd.Invoke(md.ActingInstance, args);
-                if (result is IFlipflopContext flipflopContext)
+                dynamic flipflopContext = result;
+                FlipflopStateType flipflopStateType = flipflopContext.State;
+                NextOrientation = flipflopStateType.ToContentType();
+                if (flipflopContext.Type == TriggerType.Overtime)
                 {
-                    NextOrientation = flipflopContext.State.ToContentType();
-                    if (flipflopContext.TriggerData is null || flipflopContext.TriggerData.Type == Library.NodeFlow.Tool.TriggerType.Overtime)
-                    {
-                        throw new FlipflopException(base.MethodDetails.MethodName + "触发器超时触发。Guid" + base.Guid);
-                    }
-                    return flipflopContext.TriggerData.Value;
+                    throw new FlipflopException(base.MethodDetails.MethodName + "触发器超时触发。Guid" + base.Guid);
                 }
-                else
-                {
-                    throw new FlipflopException("触发器节点返回了非预期的类型", true, FlipflopException.CancelClass.Flow);
-                }
-                // Task<IFlipflopContext> flipflopTask;
-                //var delType = dd.EmitMethodType;
-                //var del = dd.EmitDelegate;
-                //if (delType == EmitHelper.EmitMethodType.HasResultTask && del is Func<object, object?[]?, Task<object>> hasResultTask)
-                //{
-                //    var flipflopTaskObj =  await hasResultTask(instance, args);
-                //    if(flipflopTaskObj is IFlipflopContext flipflopContext)
-                //    {
-                //        NextOrientation = flipflopContext.State.ToContentType();
-                //        if (flipflopContext.TriggerData is null || flipflopContext.TriggerData.Type == Library.NodeFlow.Tool.TriggerType.Overtime)
-                //        {
-                //            throw new FlipflopException(base.MethodDetails.MethodName + "触发器超时触发。Guid" + base.Guid);
-                //        }
-                //        return flipflopContext.TriggerData.Value;
-                //    }
-                //    else
-                //    {
-                //        throw new FlipflopException("触发器节点返回了非预期的类型", true, FlipflopException.CancelClass.Flow);
-                //    }
-                //}
-                //else
-                //{
-                //    throw new FlipflopException("触发器节点构造了非预期的委托", true, FlipflopException.CancelClass.Flow);
-                //}
-
+                return flipflopContext.Value;
+            
             }
             catch (FlipflopException ex)
             {
@@ -87,14 +59,14 @@ namespace Serein.NodeFlow.Model
                 {
                     throw;
                 }
-                await Console.Out.WriteLineAsync($"触发器[{this.MethodDetails.MethodName}]异常：" + ex.Message);
+                await Console.Out.WriteLineAsync($"触发器[{this.MethodDetails.MethodName}]异常：" + ex);
                 NextOrientation = ConnectionType.None;
                 RuningException = ex;
                 return null;
             }
             catch (Exception ex)
             {
-                await Console.Out.WriteLineAsync($"触发器[{this.MethodDetails.MethodName}]异常：" + ex.Message);
+                await Console.Out.WriteLineAsync($"触发器[{this.MethodDetails.MethodName}]异常：" + ex);
                 NextOrientation = ConnectionType.IsError;
                 RuningException = ex;
                 return null;
@@ -104,7 +76,10 @@ namespace Serein.NodeFlow.Model
                 // flipflopTask?.Dispose();
             }
         }
-
+        public static object GetContextValueDynamic(dynamic context)
+        {
+            return context.Value; // dynamic 会在运行时处理类型
+        }
         internal override Parameterdata[] GetParameterdatas()
         {
             if (base.MethodDetails.ExplicitDatas.Length > 0)

@@ -79,11 +79,31 @@ public static class NodeMethodDetailsHelper
 
         if (attribute.MethodDynamicType == Library.Enums.NodeType.Flipflop)
         {
-            returnType = attribute.ReturnType;
-            if (!isTask || taskResult != typeof(IFlipflopContext))
+            if (method.ReturnType.IsGenericType && method.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
             {
-                Console.WriteLine($"触发器节点的返回类型非预期类型，可能会导致流程异常。[{dllTypeMethodName}]当前返回类型为[{method.ReturnType}]，而预期的返回类型应为[Task<IFlipflopContext>]");
+                // 获取 Task<> 的泛型参数类型
+                var innerType = method.ReturnType.GetGenericArguments()[0];
+                if (innerType.IsGenericType && innerType.GetGenericTypeDefinition() == typeof(IFlipflopContext<>))
+                {
+                    var flipflopType = innerType.GetGenericArguments()[0];
+                    returnType = flipflopType;
+                }
+                else
+                {
+                    Console.WriteLine($"[{dllTypeMethodName}]跳过创建，返回类型非预期的Task<IFlipflopContext<TResult>>。");
+                    return (null, null);
+                }
             }
+            else
+            {
+                Console.WriteLine($"[{dllTypeMethodName}]跳过创建，因为触发器方法的返回值并非Task<>，将无法等待。");
+                return (null, null);
+            }
+              
+            //if (!isTask || taskResult != typeof(IFlipflopContext<object>))
+            //{
+            //    
+            //}
             
         }
         else if(isTask)

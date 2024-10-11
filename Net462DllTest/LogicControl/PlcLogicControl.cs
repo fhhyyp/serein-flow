@@ -50,27 +50,20 @@ namespace Net462DllTest.LogicControl
 
         #region 触发器节点
 
-        [NodeAction(NodeType.Flipflop, "等待变量更新", ReturnType = typeof(int))]
-        public async Task<IFlipflopContext> WaitTask(PlcVarName varName = PlcVarName.ErrorCode)
+        [NodeAction(NodeType.Flipflop, "等待变量更新")]
+        public async Task<IFlipflopContext<dynamic>> WaitTask(PlcVarName varName = PlcVarName.ErrorCode)
         {
 
             try
             {
-                TriggerData triggerData = await MyPlc.CreateChannelWithTimeoutAsync(varName, TimeSpan.FromMinutes(120), 0);
-                if (triggerData.Type == TriggerType.Overtime)
-                {
-                    throw new FlipflopException("超时取消");
-                }
-                await Console.Out.WriteLineAsync($"PLC变量触发器[{varName}]传递数据：{triggerData.Value}");
-                return new FlipflopContext(FlipflopStateType.Succeed, triggerData.Value);
-            }
-            catch (FlipflopException)
-            {
-                throw;
+                var triggerData = await MyPlc.CreateTaskAsync<dynamic>(varName);
+               
+                await Console.Out.WriteLineAsync($"PLC变量触发器[{varName}]传递数据：{triggerData}");
+                return new FlipflopContext<dynamic>(FlipflopStateType.Succeed, triggerData);
             }
             catch (Exception)
             {
-                return new FlipflopContext(FlipflopStateType.Error);
+                throw;
             }
 
         }
@@ -94,8 +87,8 @@ namespace Net462DllTest.LogicControl
                                         string ip = "192.168.10.100",
                                         int port = 102)
         {
-            MyPlc.Model.Set(PlcVarName.DoorVar,(Int16)1);
-            MyPlc.Model.Get(PlcVarName.DoorVar);
+            //MyPlc.Model.Set(PlcVarName.DoorVar,(Int16)1);
+            //MyPlc.Model.Get(PlcVarName.DoorVar);
             if (MyPlc.Client is null)
             {
                 try
@@ -144,7 +137,7 @@ namespace Net462DllTest.LogicControl
         [NodeAction(NodeType.Action, "批量读取")]
         public PlcVarModelDataProxy BatchReadVar()
         {
-            MyPlc.BatchRefresh();
+            //MyPlc.BatchRefresh();
             return plcVarModelDataProxy;
         }
 

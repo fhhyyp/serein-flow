@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Serein.Library.Utils;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -54,46 +55,73 @@ namespace Serein.NodeFlow.Tool.SereinExpression.Resolver
 
         public override bool Evaluate(object obj)
         {
-            if (obj is T typedObj)
+              
+            var evaluatedValue = obj.ToConvert<T>();
+            if (!string.IsNullOrEmpty(ArithmeticExpression))
             {
-                double numericValue = Convert.ToDouble(typedObj);
-                if (!string.IsNullOrEmpty(ArithmeticExpression))
-                {
-                    numericValue = SerinArithmeticExpressionEvaluator.Evaluate(ArithmeticExpression, numericValue);
-                }
+                evaluatedValue = SerinArithmeticExpressionEvaluator<T>.Evaluate(ArithmeticExpression, evaluatedValue);
+            }
 
-                T evaluatedValue = (T)Convert.ChangeType(numericValue, typeof(T));
-
-                /*return Op switch
-                {
-                    Operator.GreaterThan => evaluatedValue.CompareTo(Value) > 0,
-                    Operator.LessThan => evaluatedValue.CompareTo(Value) < 0,
-                    Operator.Equal => evaluatedValue.CompareTo(Value) == 0,
-                    Operator.GreaterThanOrEqual => evaluatedValue.CompareTo(Value) >= 0,
-                    Operator.LessThanOrEqual => evaluatedValue.CompareTo(Value) <= 0,
-                    Operator.InRange => evaluatedValue.CompareTo(RangeStart) >= 0 && evaluatedValue.CompareTo(RangeEnd) <= 0,
-                    Operator.OutOfRange => evaluatedValue.CompareTo(RangeStart) < 0 || evaluatedValue.CompareTo(RangeEnd) > 0,
-                    _ => throw new NotSupportedException("不支持的条件类型")
-                };*/
-                switch (Op)
-                {
-                    case Operator.GreaterThan:
-                        return evaluatedValue.CompareTo(Value) > 0;
-                    case Operator.LessThan:
-                        return evaluatedValue.CompareTo(Value) < 0;
-                    case Operator.Equal:
-                        return evaluatedValue.CompareTo(Value) == 0;
-                    case Operator.GreaterThanOrEqual:
-                        return evaluatedValue.CompareTo(Value) >= 0;
-                    case Operator.LessThanOrEqual:
-                        return evaluatedValue.CompareTo(Value) <= 0;
-                    case Operator.InRange:
-                        return evaluatedValue.CompareTo(RangeStart) >= 0 && evaluatedValue.CompareTo(RangeEnd) <= 0;
-                    case Operator.OutOfRange:
-                        return evaluatedValue.CompareTo(RangeStart) < 0 || evaluatedValue.CompareTo(RangeEnd) > 0;
-                }
+            switch (Op)
+            {
+                case Operator.GreaterThan:
+                    return evaluatedValue.CompareTo(Value) > 0;
+                case Operator.LessThan:
+                    return evaluatedValue.CompareTo(Value) < 0;
+                case Operator.Equal:
+                    return evaluatedValue.CompareTo(Value) == 0;
+                case Operator.GreaterThanOrEqual:
+                    return evaluatedValue.CompareTo(Value) >= 0;
+                case Operator.LessThanOrEqual:
+                    return evaluatedValue.CompareTo(Value) <= 0;
+                case Operator.InRange:
+                    return evaluatedValue.CompareTo(RangeStart) >= 0 && evaluatedValue.CompareTo(RangeEnd) <= 0;
+                case Operator.OutOfRange:
+                    return evaluatedValue.CompareTo(RangeStart) < 0 || evaluatedValue.CompareTo(RangeEnd) > 0;
             }
             return false;
+
+            //if (obj is T typedObj)
+            //{
+            //     numericValue = Convert.ToDouble(typedObj);
+            //     numericValue = Convert.ToDouble(obj);
+            //    if (!string.IsNullOrEmpty(ArithmeticExpression))
+            //    {
+            //        numericValue = SerinArithmeticExpressionEvaluator.Evaluate(ArithmeticExpression, numericValue);
+            //    }
+
+            //    T evaluatedValue = (T)Convert.ChangeType(numericValue, typeof(T));
+
+            //    /*return Op switch
+            //    {
+            //        Operator.GreaterThan => evaluatedValue.CompareTo(Value) > 0,
+            //        Operator.LessThan => evaluatedValue.CompareTo(Value) < 0,
+            //        Operator.Equal => evaluatedValue.CompareTo(Value) == 0,
+            //        Operator.GreaterThanOrEqual => evaluatedValue.CompareTo(Value) >= 0,
+            //        Operator.LessThanOrEqual => evaluatedValue.CompareTo(Value) <= 0,
+            //        Operator.InRange => evaluatedValue.CompareTo(RangeStart) >= 0 && evaluatedValue.CompareTo(RangeEnd) <= 0,
+            //        Operator.OutOfRange => evaluatedValue.CompareTo(RangeStart) < 0 || evaluatedValue.CompareTo(RangeEnd) > 0,
+            //        _ => throw new NotSupportedException("不支持的条件类型")
+            //    };*/
+            //    switch (Op)
+            //    {
+            //        case Operator.GreaterThan:
+            //            return evaluatedValue.CompareTo(Value) > 0;
+            //        case Operator.LessThan:
+            //            return evaluatedValue.CompareTo(Value) < 0;
+            //        case Operator.Equal:
+            //            return evaluatedValue.CompareTo(Value) == 0;
+            //        case Operator.GreaterThanOrEqual:
+            //            return evaluatedValue.CompareTo(Value) >= 0;
+            //        case Operator.LessThanOrEqual:
+            //            return evaluatedValue.CompareTo(Value) <= 0;
+            //        case Operator.InRange:
+            //            return evaluatedValue.CompareTo(RangeStart) >= 0 && evaluatedValue.CompareTo(RangeEnd) <= 0;
+            //        case Operator.OutOfRange:
+            //            return evaluatedValue.CompareTo(RangeStart) < 0 || evaluatedValue.CompareTo(RangeEnd) > 0;
+            //    }
+            //}
+            //return false;
         }
     }
 

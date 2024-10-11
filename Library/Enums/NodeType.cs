@@ -22,7 +22,7 @@ namespace Serein.Library.Enums
         Exit,
 
         /// <summary>
-        /// 触发器（建议手动设置返回类型，方便视图直观）
+        /// 触发器（返回值必须为Task&lt;IFlipflopContext&lt;TResult&gt;&gt;）
         /// </summary>
         Flipflop,
         /// <summary>

@@ -24,7 +24,7 @@ namespace Net462DllTest.Trigger
 
 
     [AutoRegister]
-    public class SiemensPlcDevice : ChannelFlowTrigger<PlcVarName>
+    public class SiemensPlcDevice : FlowTrigger<PlcVarName>
     {
         public SiemensClient Client { get; set; }
         public SiemensVersion Version { get; set; }
@@ -202,7 +202,7 @@ namespace Net462DllTest.Trigger
                     if (isNotification)
                     {
                         Console.WriteLine($"VarName: {signal}\t\tOld Data: {oldData}\tNew Data: {newData}");
-                        TriggerSignal(signal, newData);
+                        Trigger(signal, newData);
                     }
                   
                     

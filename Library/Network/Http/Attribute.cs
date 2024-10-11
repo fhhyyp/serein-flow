@@ -34,7 +34,7 @@ namespace Serein.Library.Web
 
     }
     /// <summary>
-    /// 自动注册控制器
+    /// 标记该类为 Web Api 处理类
     /// </summary>
     public class AutoHostingAttribute : Attribute
     {

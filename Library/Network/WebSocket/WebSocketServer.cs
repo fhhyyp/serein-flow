@@ -24,7 +24,16 @@ namespace Serein.Library.Network.WebSocketCommunication
         {
             listener = new HttpListener();
             listener.Prefixes.Add(url);
-            listener.Start();
+            try
+            {
+                listener.Start();
+            }
+            catch (Exception ex)
+            {
+                await Console.Out.WriteLineAsync(ex.Message);
+                return;
+            }
+            
 
             while (true)
             {

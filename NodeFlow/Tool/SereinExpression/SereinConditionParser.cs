@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json.Linq;
+using Serein.Library.Utils;
 using Serein.NodeFlow.Tool.SereinExpression.Resolver;
 using System.ComponentModel.Design;
 using System.Globalization;
@@ -31,7 +32,7 @@ namespace Serein.NodeFlow.Tool.SereinExpression
 
         public static SereinConditionResolver ConditionParse(object? data, string expression)
         {
-            if (expression.StartsWith('.') || expression.StartsWith('<')) // 表达式前缀属于从上一个节点数据对象获取成员值
+            if (expression.StartsWith('.')) // 表达式前缀属于从上一个节点数据对象获取成员值
             {
                 return ParseObjectExpression(data, expression);
             }
@@ -138,11 +139,22 @@ namespace Serein.NodeFlow.Tool.SereinExpression
                 }
                 Type? tempType = typeStr switch
                 {
-                    "int" => typeof(int),
-                    "double" => typeof(double),
                     "bool" => typeof(bool),
+                    "float" => typeof(float),
+                    "decimal" => typeof(decimal),
+                    "double" => typeof(double),
+                    "sbyte" => typeof(sbyte),
+                    "byte" => typeof(byte),
+                    "short" => typeof(short),
+                    "ushort" => typeof(ushort),
+                    "int" => typeof(int),
+                    "uint" => typeof(uint),
+                    "long" => typeof(long),
+                    "ulong" => typeof(ulong),
+                    "nint" => typeof(nint),
+                    "nuint" => typeof(nuint),
                     "string" => typeof(string),
-                    _ => Type.GetType(typeStr)
+                    _ => Type.GetType(typeStr),
                 };
                 type = tempType ?? throw new ArgumentException("对象表达式无效的类型声明");
                 if (string.IsNullOrWhiteSpace(memberPath))
@@ -157,6 +169,10 @@ namespace Serein.NodeFlow.Tool.SereinExpression
             }
 
             #region 解析类型 int
+            if (type.IsValueType)
+            {
+                //return GetValueResolver(type, valueStr, operatorStr, parts);
+            }
             if (type == typeof(int))
             {
                 var op = ParseValueTypeOperator<int>(operatorStr);
@@ -278,52 +294,76 @@ namespace Serein.NodeFlow.Tool.SereinExpression
             if (parts.Length < 2)
                 throw new ArgumentException("无效的表达式格式。");
 
-            //string typeStr = parts[0];
-            string operatorStr = parts[0];
-            string valueStr = string.Join(' ', parts, 1, parts.Length - 1);
-
-            Type type = data.GetType();//Type.GetType(typeStr);
-            if (type == typeof(int))
+            string operatorStr;
+            string valueStr;
+            Type type;
+            // 尝试获取指定类型
+            int typeStartIndex = expression.IndexOf('<');
+            int typeEndIndex = expression.IndexOf('>');
+            if (typeStartIndex + typeStartIndex == -2)
             {
-                var op = ParseValueTypeOperator<int>(operatorStr);
-                if (op == ValueTypeConditionResolver<int>.Operator.InRange || op == ValueTypeConditionResolver<int>.Operator.OutOfRange)
-                {
-                    var temp = valueStr.Split('-');
-                    if (temp.Length < 2)
-                        throw new ArgumentException($"范围无效：{valueStr}。");
-                    int rangeStart = int.Parse(temp[0], CultureInfo.InvariantCulture);
-                    int rangeEnd = int.Parse(temp[1], CultureInfo.InvariantCulture);
-                    return new ValueTypeConditionResolver<int>
-                    {
-                        Op = op,
-                        RangeStart = rangeStart,
-                        RangeEnd = rangeEnd,
-                        ArithmeticExpression = GetArithmeticExpression(parts[0]),
-                    };
-                }
-                else
-                {
-                    int value = int.Parse(valueStr, CultureInfo.InvariantCulture);
-                    return new ValueTypeConditionResolver<int>
-                    {
-                        Op = op,
-                        Value = value,
-                        ArithmeticExpression = GetArithmeticExpression(parts[0])
-                    };
-
-                }
+                // 如果不需要转为指定类型
+                 operatorStr = parts[0];
+                 valueStr = string.Join(' ', parts, 1, parts.Length - 1);
+                type = data.GetType();
             }
-            else if (type == typeof(double))
-            {
-                double value = double.Parse(valueStr, CultureInfo.InvariantCulture);
-                return new ValueTypeConditionResolver<double>
+            else
+            {//string typeStr = parts[0];
+                string typeStr = expression.Substring(typeStartIndex + 1, typeEndIndex - typeStartIndex - 1)
+                                            .Trim().ToLower(); // 手动置顶的类型
+                parts = expression.Substring(typeEndIndex + 1).Trim().Split(' ');
+                operatorStr = parts[0].ToLower(); // 操作类型
+                valueStr = string.Join(' ', parts.Skip(1)); // 表达式值
+
+
+                type = typeStr switch
                 {
-                    Op = ParseValueTypeOperator<double>(operatorStr),
-                    Value = value,
-                    ArithmeticExpression = GetArithmeticExpression(parts[0])
+                    "bool" => typeof(bool),
+                    "float" => typeof(float),
+                    "decimal" => typeof(decimal),
+                    "double" => typeof(double),
+                    "sbyte" => typeof(sbyte),
+                    "byte" => typeof(byte),
+                    "short" => typeof(short),
+                    "ushort" => typeof(ushort),
+                    "int" => typeof(int),
+                    "uint" => typeof(uint),
+                    "long" => typeof(long),
+                    "ulong" => typeof(ulong),
+                    "nint" => typeof(nint),
+                    "nuint" => typeof(nuint),
+                    _ => typeof(string),
                 };
             }
-            else if (type == typeof(bool))
+
+
+
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+
+
+
+
+
+
+
+
+
+
+
+            if (type == typeof(bool))
             {
                 bool value = bool.Parse(valueStr);
                 return new BoolConditionResolver
@@ -331,6 +371,10 @@ namespace Serein.NodeFlow.Tool.SereinExpression
                     Op = ParseBoolOperator(operatorStr),
                     Value = value,
                 };
+            }
+            else if (type.IsValueType)
+            {
+                return GetValueResolver(type, valueStr, operatorStr, parts);
             }
             else if (type == typeof(string))
             {
@@ -343,6 +387,133 @@ namespace Serein.NodeFlow.Tool.SereinExpression
 
             throw new NotSupportedException($"Type {type} is not supported.");
         }
+
+        public static SereinConditionResolver GetValueResolver(Type valueType, string valueStr, string operatorStr, string[] parts)// where T : struct, IComparable<T>
+        {
+            SereinConditionResolver resolver = valueType switch
+            {
+                Type t when t == typeof(float) => GetValueResolver<float>(valueStr, operatorStr, parts),
+                Type t when t == typeof(decimal) => GetValueResolver<decimal>(valueStr, operatorStr, parts),
+                Type t when t == typeof(double) => GetValueResolver<double>(valueStr, operatorStr, parts),
+                Type t when t == typeof(sbyte) => GetValueResolver<sbyte>(valueStr, operatorStr, parts),
+                Type t when t == typeof(byte) => GetValueResolver<byte>(valueStr, operatorStr, parts),
+                Type t when t == typeof(short) => GetValueResolver<short>(valueStr, operatorStr, parts),
+                Type t when t == typeof(ushort) => GetValueResolver<ushort>(valueStr, operatorStr, parts),
+                Type t when t == typeof(int) => GetValueResolver<int>(valueStr, operatorStr, parts),
+                Type t when t == typeof(uint) => GetValueResolver<uint>(valueStr, operatorStr, parts),
+                Type t when t == typeof(long) => GetValueResolver<long>(valueStr, operatorStr, parts),
+                Type t when t == typeof(ulong) => GetValueResolver<ulong>(valueStr, operatorStr, parts),
+                Type t when t == typeof(nint) => GetValueResolver<nint>(valueStr, operatorStr, parts),
+                Type t when t == typeof(nuint) => GetValueResolver<nuint>(valueStr, operatorStr, parts),
+                _ => throw new ArgumentException("非预期值类型")
+            };
+            return resolver;
+        }
+
+
+        private static ValueTypeConditionResolver<T> GetValueResolver<T>(string valueStr, string operatorStr, string[] parts)
+            where T :struct, IComparable<T>
+        {
+            var op = ParseValueTypeOperator<T>(operatorStr);
+            if (op == ValueTypeConditionResolver<T>.Operator.InRange || op == ValueTypeConditionResolver<T>.Operator.OutOfRange)
+            {
+                var temp = valueStr.Split('-');
+                var leftNum = string.Empty;
+                var rightNum = string.Empty;
+                if (temp.Length < 2 || temp.Length > 4)
+                {
+                    throw new ArgumentException($"范围无效：{valueStr}。");
+                }
+                else if (temp.Length == 2)
+                {
+                    leftNum = temp[0];
+                    rightNum = temp[1];
+                }
+                else if (temp.Length == 3)
+                {
+                    if (string.IsNullOrEmpty(temp[0]) 
+                        && !string.IsNullOrEmpty(temp[1]) 
+                        && !string.IsNullOrEmpty(temp[2]))
+                    {
+                        leftNum = "-" + temp[1];
+                        rightNum = temp[2];
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"范围无效：{valueStr}。");
+                    }
+                }
+                else if (temp.Length == 4)
+                {
+                    if (string.IsNullOrEmpty(temp[0])
+                        && !string.IsNullOrEmpty(temp[1])
+                        && string.IsNullOrEmpty(temp[2])
+                        && !string.IsNullOrEmpty(temp[3]))
+                    {
+                        leftNum = "-" + temp[1];
+                        rightNum = temp[3];
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"范围无效：{valueStr}。");
+                    }
+                }
+               
+                
+                
+                return new ValueTypeConditionResolver<T>
+                {
+                    Op = op,
+                    RangeStart = leftNum.ToValueData<T>(),
+                    RangeEnd = rightNum.ToValueData<T>(),
+                    ArithmeticExpression = GetArithmeticExpression(parts[0]),
+                };
+            }
+            else
+            {
+                return new ValueTypeConditionResolver<T>
+                {
+                    Op = op,
+                    Value = valueStr.ToValueData<T>(),
+                    ArithmeticExpression = GetArithmeticExpression(parts[0])
+                };
+
+            }
+        } 
+        //public static T ValueParse<T>(object value) where T : struct, IComparable<T>
+        //{
+        //    return (T)ValueParse(typeof(T), value);
+        //}
+
+        //public static object ValueParse(Type type, object value)
+        //{
+
+        //    string? valueStr = value.ToString();
+        //    if (string.IsNullOrEmpty(valueStr))
+        //    {
+        //        throw new ArgumentException("value is null"); 
+        //    }
+        //    object result = type switch
+        //    {
+        //        Type t when t.IsEnum => Enum.Parse(type, valueStr),
+        //        Type t when t == typeof(bool) => bool.Parse(valueStr),
+        //        Type t when t == typeof(float) => float.Parse(valueStr, CultureInfo.InvariantCulture),
+        //        Type t when t == typeof(decimal) => decimal.Parse(valueStr, CultureInfo.InvariantCulture),
+        //        Type t when t == typeof(double) => double.Parse(valueStr, CultureInfo.InvariantCulture),
+        //        Type t when t == typeof(sbyte) => sbyte.Parse(valueStr, CultureInfo.InvariantCulture),
+        //        Type t when t == typeof(byte) => byte.Parse(valueStr, CultureInfo.InvariantCulture),
+        //        Type t when t == typeof(short) => short.Parse(valueStr, CultureInfo.InvariantCulture),
+        //        Type t when t == typeof(ushort) => ushort.Parse(valueStr, CultureInfo.InvariantCulture),
+        //        Type t when t == typeof(int) => int.Parse(valueStr, CultureInfo.InvariantCulture),
+        //        Type t when t == typeof(uint) => uint.Parse(valueStr, CultureInfo.InvariantCulture),
+        //        Type t when t == typeof(long) => long.Parse(valueStr, CultureInfo.InvariantCulture),
+        //        Type t when t == typeof(ulong) => ulong.Parse(valueStr, CultureInfo.InvariantCulture),
+        //        Type t when t == typeof(nint) => nint.Parse(valueStr, CultureInfo.InvariantCulture),
+        //        Type t when t == typeof(nuint) => nuint.Parse(valueStr, CultureInfo.InvariantCulture),
+        //        _ => throw new ArgumentException("非预期值类型")
+        //    };
+        //    return result;
+        //}
 
 
 

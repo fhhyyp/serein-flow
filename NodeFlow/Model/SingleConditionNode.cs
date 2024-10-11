@@ -43,6 +43,23 @@ namespace Serein.NodeFlow.Model
             }
             try
             {
+                var getObjExp = CustomData?.ToString();
+               
+                if (IsCustomData && !string.IsNullOrEmpty(getObjExp) && getObjExp.Length >= 4)
+                {
+
+                    var ExpOpOption = getObjExp[..4];
+                    if(ExpOpOption.ToLower() == "@get")
+                    {
+                        result = PreviousNode?.GetFlowData();
+                        if (result is not null)
+                        {
+                            result = SerinExpressionEvaluator.Evaluate(getObjExp, result, out _);
+                        }
+
+                    }
+                    
+                }
                 var isPass = SereinConditionParser.To(result, Expression);
                 NextOrientation = isPass ? ConnectionType.IsSucceed : ConnectionType.IsFail;
             }

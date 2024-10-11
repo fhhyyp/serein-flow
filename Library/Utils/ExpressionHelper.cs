@@ -358,8 +358,8 @@ namespace Serein.Library.Utils
             );
 
             // 创建 lambda 表达式
-            var lambda = Expression.Lambda<Func<object, object[], Task<IFlipflopContext>>>(
-                Expression.Convert(methodCall, typeof(Task<IFlipflopContext>)),
+            var lambda = Expression.Lambda<Func<object, object[], Task<IFlipflopContext<object>>>>(
+                Expression.Convert(methodCall, typeof(Task<IFlipflopContext<object>>)),
                 instanceParam,
                 argsParam
             );

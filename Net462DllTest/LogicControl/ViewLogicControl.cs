@@ -34,25 +34,18 @@ namespace Net462DllTest.LogicControl
 
         #region 触发器节点
 
-        [NodeAction(NodeType.Flipflop, "等待视图命令", ReturnType = typeof(int))]
-        public async Task<IFlipflopContext> WaitTask(CommandSignal command)
+        [NodeAction(NodeType.Flipflop, "等待视图命令")]
+        public async Task<IFlipflopContext<int>> WaitTask(CommandSignal command)
         {
-            try
+            (var type, var result) = await ViewManagement.CreateTaskWithTimeoutAsync(command, TimeSpan.FromHours(10), 0);
+            if (type == TriggerType.Overtime)
             {
-                TriggerData triggerData = await ViewManagement.CreateChannelWithTimeoutAsync(command, TimeSpan.FromHours(10), 0);
-                if (triggerData.Type == TriggerType.Overtime)
-                {
-                    return new FlipflopContext(FlipflopStateType.Cancel, triggerData.Value);
-                }
-                return new FlipflopContext(FlipflopStateType.Succeed, triggerData.Value);
+                return new FlipflopContext<int>(FlipflopStateType.Cancel, result);
             }
-            catch (FlipflopException)
+            else
             {
-                throw;
-            }
-            catch (Exception)
-            {
-                return new FlipflopContext(FlipflopStateType.Error);
+
+                return new FlipflopContext<int>(FlipflopStateType.Succeed, result);
             }
 
         }

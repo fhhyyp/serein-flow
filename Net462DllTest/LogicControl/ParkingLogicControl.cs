@@ -28,42 +28,19 @@ namespace Net462DllTest.LogicControl
         }
 
 
-        [NodeAction(NodeType.Flipflop, "等待车位调取命令",ReturnType=typeof(string))]
-        public async Task<IFlipflopContext> GetPparkingSpace(ParkingCommand parkingCommand = ParkingCommand.GetPparkingSpace)
+        [NodeAction(NodeType.Flipflop, "等待车位调取命令")]
+        public async Task<IFlipflopContext<string>> GetPparkingSpace(ParkingCommand parkingCommand = ParkingCommand.GetPparkingSpace)
         {
-            try
-            {
-                TriggerData triggerData = await PrakingDevice.CreateChannelWithTimeoutAsync(parkingCommand, TimeSpan.FromMinutes(120), 0);
-                if (triggerData.Type == TriggerType.Overtime)
-                {
-                    throw new FlipflopException("超时取消");
-                }
-                if(triggerData.Value is string spaceNum)
-                {
-                    await Console.Out.WriteLineAsync("收到命令：调取车位，车位号"+ spaceNum);
-                    return new FlipflopContext(FlipflopStateType.Succeed, spaceNum);
-                }
-                else
-                {
-                    throw new FlipflopException("并非车位号");
-                }
-              
-            }
-            catch (FlipflopException)
-            {
-                throw;
-            }
-            catch (Exception)
-            {
-                return new FlipflopContext(FlipflopStateType.Error);
-            }
+            var spaceNum = await PrakingDevice.CreateTaskAsync<string>(parkingCommand);
+            await Console.Out.WriteLineAsync("收到命令：调取车位，车位号" + spaceNum);
+            return new FlipflopContext<string>(FlipflopStateType.Succeed, spaceNum);
         }
 
 
         [NodeAction(NodeType.Action, "调取指定车位")]
         public void Storage(string spaceNum = "101")
         {
-           if (PrakingDevice.TriggerSignal(ParkingCommand.GetPparkingSpace, spaceNum))
+           if (PrakingDevice.Trigger(ParkingCommand.GetPparkingSpace, spaceNum))
             {
                 Console.WriteLine("发送命令成功：调取车位" + spaceNum);
 

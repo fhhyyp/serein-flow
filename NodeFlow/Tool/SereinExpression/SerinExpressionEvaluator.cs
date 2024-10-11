@@ -1,4 +1,5 @@
-﻿using System.Data;
+﻿using Serein.Library.Utils;
+using System.Data;
 
 namespace Serein.NodeFlow.Tool.SereinExpression
 {
@@ -9,19 +10,20 @@ namespace Serein.NodeFlow.Tool.SereinExpression
     /// </summary>
     /// <param name="obj">操作的对象</param>
     /// <returns></returns>
-    public class SerinArithmeticExpressionEvaluator
+    public class SerinArithmeticExpressionEvaluator<T> where T : struct, IComparable<T>
     {
         private static readonly DataTable table = new DataTable();
 
-        public static double Evaluate(string expression, double inputValue)
+        public static T Evaluate(string expression, T inputValue)
         {
+            
             // 替换占位符@为输入值
             expression = expression.Replace("@", inputValue.ToString());
             try
             {
                 // 使用 DataTable.Compute 方法计算表达式
                 var result = table.Compute(expression, string.Empty);
-                return Convert.ToDouble(result);
+                return (T)result;
             }
             catch
             {
@@ -84,8 +86,9 @@ namespace Serein.NodeFlow.Tool.SereinExpression
         /// <param name="methodCall">方法名称</param>
         /// <returns></returns>
         /// <exception cref="ArgumentException"></exception>
-        private static object? InvokeMethod(object target, string methodCall)
+        private static object? InvokeMethod(object? target, string methodCall)
         {
+            if (target is null) return null;
             var methodParts = methodCall.Split(separator, StringSplitOptions.RemoveEmptyEntries);
             if (methodParts.Length != 2)
             {
@@ -344,15 +347,15 @@ namespace Serein.NodeFlow.Tool.SereinExpression
         /// <param name="value"></param>
         /// <param name="expression"></param>
         /// <returns></returns>
-        private static double ComputedNumber(object value, string expression)
+        private static decimal ComputedNumber(object value, string expression)
         {
-            double numericValue = Convert.ToDouble(value);
-            if (!string.IsNullOrEmpty(expression))
-            {
-                numericValue = SerinArithmeticExpressionEvaluator.Evaluate(expression, numericValue);
-            }
+            return ComputedNumber<decimal>(value, expression);
+        }
 
-            return numericValue;
+        private static T ComputedNumber<T>(object value, string expression) where T : struct, IComparable<T>
+        {
+            T result = value.ToConvert<T>();
+            return SerinArithmeticExpressionEvaluator<T>.Evaluate(expression, result); 
         }
     }
 }

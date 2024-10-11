@@ -40,13 +40,18 @@ namespace Serein.Library.Framework.NodeFlow
             {
                 // 获取 Task<> 的泛型参数类型
                 var innerType = type.GetGenericArguments()[0];
-
-                // 检查泛型参数是否为 Flipflop<>
-                if (innerType == typeof(FlipflopContext))
-                //if (innerType.IsGenericType && innerType.GetGenericTypeDefinition() == typeof(FlipflopContext<>))
+                if (innerType.IsGenericType && type.GetGenericTypeDefinition() == typeof(IFlipflopContext<>))
                 {
+                    var flipflop = type.GetGenericArguments()[0];
                     return true;
                 }
+
+                //// 检查泛型参数是否为 Flipflop<>
+                //if (innerType == typeof(FlipflopContext))
+                ////if (innerType.IsGenericType && innerType.GetGenericTypeDefinition() == typeof(FlipflopContext<>))
+                //{
+                //    return true;
+                //}
             }
 
             return false;
@@ -56,24 +61,22 @@ namespace Serein.Library.Framework.NodeFlow
     /// <summary>
     /// 触发器上下文
     /// </summary>
-    public class FlipflopContext : IFlipflopContext
+    public class FlipflopContext<TResult> : IFlipflopContext<TResult>
     {
         public FlipflopStateType State { get; set; }
-        //public TResult? Data { get; set; }
-        public TriggerData TriggerData { get; set; }
+
+        public TriggerType Type { get; set; }
+        public TResult Value { get; set; }
 
         public FlipflopContext(FlipflopStateType ffState)
         {
             State = ffState;
         }
-        public FlipflopContext(FlipflopStateType ffState, object data)
+       
+        public FlipflopContext(FlipflopStateType ffState, TResult value)
         {
             State = ffState;
-            TriggerData = new TriggerData
-            {
-                Type = TriggerType.External,
-                Value = data
-            };
+            Value = value;
         }
     }
 

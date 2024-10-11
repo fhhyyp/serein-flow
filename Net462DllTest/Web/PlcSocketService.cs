@@ -16,8 +16,8 @@ using System.Threading.Tasks;
 namespace Net462DllTest.Web
 {
 
-    [DynamicFlow("[PlcSocketService]")]
     [AutoRegister]
+    [DynamicFlow("[PlcSocketService]")]
     [AutoSocketModule(ThemeKey = "theme", DataKey = "data")]
     public class PlcSocketService : ISocketHandleModule
     {
@@ -42,8 +42,6 @@ namespace Net462DllTest.Web
 
             context.Env.IOC.Register<IRouter, Router>();
             context.Env.IOC.Register<WebApiServer>();
-
-
         }
 
         [NodeAction(NodeType.Loading)] // Loading 初始化完成已注入依赖项，可以开始逻辑上的操作
@@ -90,16 +88,17 @@ namespace Net462DllTest.Web
         }
 
         #endregion
-
-
-        [NodeAction(NodeType.Action, "等待")]
-        public async Task Delay(int ms = 5000)
+        [AutoSocketHandle]
+        public async Task BatchReadVar(Func<string, Task> SendMsg, Func<object, Task> SendObj)
         {
-            await Console.Out.WriteLineAsync("开始等待");
-            await Task.Delay(ms);
-            await Console.Out.WriteLineAsync("不再等待");
-
+            await SendMsg("开始刷新数据");
+            //MyPlc.BatchRefresh();
+            await Task.Delay(1000);
+            await SendMsg("刷新完成");
+            await SendObj(plcVarModelDataProxy);
+            await SendMsg("发送完成");
         }
+
 
         [AutoSocketHandle]
         public object ReadVar(PlcVarName varName)
@@ -109,6 +108,14 @@ namespace Net462DllTest.Web
             return result;
         }
 
+
+
+        [AutoSocketHandle(IsReturnValue = false)]
+        public SiemensPlcDevice WriteVar(object value, PlcVarName varName)
+        {
+            MyPlc.Write(varName, value); // 新数据
+            return MyPlc;
+        }
         [AutoSocketHandle(IsReturnValue = false)]
         public SiemensPlcDevice PlcInit(SiemensVersion version = SiemensVersion.None,
                                         string ip = "192.168.10.100",
@@ -142,24 +149,8 @@ namespace Net462DllTest.Web
             return MyPlc;
         }
 
-       
 
-        [AutoSocketHandle(IsReturnValue = false)]
-        public SiemensPlcDevice WriteVar(object value, PlcVarName varName)
-        {
-            MyPlc.Write(varName, value); // 新数据
-            return MyPlc;
-        }
-
-        [AutoSocketHandle]
-        public PlcVarModelDataProxy BatchReadVar(Func<string,Task> send)
-        {
-            send("开始读取");
-            MyPlc.BatchRefresh();
-            send("读取完成");
-            return plcVarModelDataProxy;
-        }
-
+ 
         public void OpenTimedRefresh()
         {
             Task.Run(async () => await MyPlc.OpenTimedRefreshAsync());

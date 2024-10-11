@@ -15,7 +15,7 @@ namespace Net462DllTest.Trigger
     /// 视图管理
     /// </summary>
     [AutoRegister]
-    public class ViewManagement : ChannelFlowTrigger<CommandSignal>
+    public class ViewManagement : FlowTrigger<CommandSignal>
     {
         public ViewManagement(IFlowEnvironment environment)
         {

@@ -131,7 +131,7 @@ namespace Net462DllTest.ViewModel
             });
             CommandGetParkingSpace = new RelayCommand((p) =>
             {
-                viewManagement.TriggerSignal(SelectedSignal, SpcaeNumber);
+                viewManagement.Trigger(SelectedSignal, SpcaeNumber);
             }); 
             CommandCloseForm = new RelayCommand((p) =>
             {

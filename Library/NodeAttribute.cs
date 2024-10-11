@@ -104,10 +104,6 @@ namespace Serein.Library.Attributes
         /// </summary>
         public NodeType MethodDynamicType;
         /// <summary>
-        /// 显示标注方法返回类型，不影响运行逻辑（用于表示触发器触发后返回的数据）
-        /// </summary>
-        public Type ReturnType;
-        /// <summary>
         /// 暂无意义
         /// </summary>
         public string LockName;

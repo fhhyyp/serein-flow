@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace Net462DllTest.Trigger
 {
     [AutoRegister]
-    public class PrakingDevice : ChannelFlowTrigger<ParkingCommand>
+    public class PrakingDevice : FlowTrigger<ParkingCommand>
     {
     }
 
