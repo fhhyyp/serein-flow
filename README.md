@@ -11,6 +11,7 @@ https://space.bilibili.com/33526379
 
 # 如何加载我的DLL？
 使用 **DynamicFlow** 特性标记你的类，可以参照 **Net461DllTest** 的实现。编译为 Dll文件 后，拖入到软件中即可。
+如果你不想下载整个工程文件，“FLowEdit”目录下放有“FlowEdit可视化流程编辑器.zip”压缩包，可以直接解压使用（但可能需要你安装 .Net8 运行环境）。
 
 # 如何让我的方法成为节点？
 使用 **NodeAction** 特性标记你的方法。

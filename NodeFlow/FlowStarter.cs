@@ -139,15 +139,11 @@ namespace Serein.NodeFlow
             #region 选择运行环境的上下文
 
             // 判断使用哪一种流程上下文
-            var isNetFramework = false;
-            if (isNetFramework)
-            {
-                Context = new Serein.Library.Framework.NodeFlow.DynamicContext(env);
-            }
-            else
-            {
-                Context = new Serein.Library.Core.NodeFlow.DynamicContext(env); // 从起始节点启动流程时创建上下文
-            }
+#if NET6_0_OR_GREATER 
+            Context = new Serein.Library.Core.NodeFlow.DynamicContext(env); // 从起始节点启动流程时创建上下文
+#else
+            Context = new Serein.Library.Framework.NodeFlow.DynamicContext(env);
+#endif
             #endregion
 
             #region 初始化运行环境的Ioc容器
