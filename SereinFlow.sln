@@ -22,6 +22,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Net462DllTest", "Net462DllT
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.FlowRemoteManagement", "Serein.FlowRemoteManagement\Serein.FlowRemoteManagement.csproj", "{3E568C47-74C6-4C28-9D43-C9BA29008DB7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Serein.FlowStartTool", "Serein.FlowStartTool\Serein.FlowStartTool.csproj", "{6FB346F6-B83D-49BC-AB4E-291AE6289BBE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -56,6 +58,10 @@ Global
 		{3E568C47-74C6-4C28-9D43-C9BA29008DB7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3E568C47-74C6-4C28-9D43-C9BA29008DB7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3E568C47-74C6-4C28-9D43-C9BA29008DB7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6FB346F6-B83D-49BC-AB4E-291AE6289BBE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6FB346F6-B83D-49BC-AB4E-291AE6289BBE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6FB346F6-B83D-49BC-AB4E-291AE6289BBE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6FB346F6-B83D-49BC-AB4E-291AE6289BBE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

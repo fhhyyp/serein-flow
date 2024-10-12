@@ -1,16 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net8-windows;net462</TargetFrameworks>
+    <TargetFrameworks>net8.0;net462</TargetFrameworks>
     <BaseOutputPath>D:\Project\C#\DynamicControl\SereinFlow\.Output</BaseOutputPath>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Title>SereinFow</Title>
     <Description>基础依赖</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/fhhyyp/serein-flow</RepositoryUrl>
-    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
-    
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -26,7 +26,7 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="System.Reactive" Version="6.0.1" />
     <PackageReference Include="System.Threading.Channels" Version="8.0.0" />
-    <PackageReference Include="System.ValueTuple" Version="4.5.0" />
+    <PackageReference Include="System.ValueTuple" Version="4.3.0" />
   </ItemGroup>
 
   <ItemGroup>

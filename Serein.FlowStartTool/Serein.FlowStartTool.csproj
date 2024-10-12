@@ -1,15 +1,18 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net8.0</TargetFrameworks>
+    <PublishSingleFile>true</PublishSingleFile>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <BaseOutputPath>D:\Project\C#\DynamicControl\SereinFlow\.Output</BaseOutputPath>
-    
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Library.Core\Serein.Library.Core.csproj" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Library\Serein.Library.csproj" />
     <ProjectReference Include="..\NodeFlow\Serein.NodeFlow.csproj" />
   </ItemGroup>
