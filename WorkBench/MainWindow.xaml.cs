@@ -203,9 +203,6 @@ namespace Serein.WorkBench
 
         }
 
-        
-
-
 
         private LogWindow InitConsoleOut()
         {

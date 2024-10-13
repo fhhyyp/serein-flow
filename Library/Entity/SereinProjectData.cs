@@ -39,7 +39,6 @@ namespace Serein.Library.Entity
 
         public NodeInfo[] Nodes { get; set; }
 
-
     }
 
     /// <summary>

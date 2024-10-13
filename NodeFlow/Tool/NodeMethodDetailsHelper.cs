@@ -134,7 +134,7 @@ public static class NodeMethodDetailsHelper
             MethodDynamicType = attribute.MethodDynamicType,
             MethodLockName = attribute.LockName,
             MethodTips = methodTips,
-            ExplicitDatas = explicitDataOfParameters,
+            ParameterDetailss = explicitDataOfParameters,
             ReturnType = returnType,
         };
         var dd = new DelegateDetails( emitMethodType, methodDelegate) ;
@@ -173,7 +173,7 @@ public static class NodeMethodDetailsHelper
     /// </summary>
     /// <param name="parameters"></param>
     /// <returns></returns>
-    private static ExplicitData[] GetExplicitDataOfParameters(ParameterInfo[] parameters)
+    private static ParameterDetails[] GetExplicitDataOfParameters(ParameterInfo[] parameters)
     {
 
         return parameters.Select((it, index) =>
@@ -212,7 +212,7 @@ public static class NodeMethodDetailsHelper
                     return methodInfo?.Invoke(obj, [enumValue]);
                 };
                 // 确保实例实现了所需接口
-                ExplicitData ed = GetExplicitDataOfParameter(it, index, paremType, true, func);
+                ParameterDetails ed = GetExplicitDataOfParameter(it, index, paremType, true, func);
 
                 return ed;
             }
@@ -237,7 +237,7 @@ public static class NodeMethodDetailsHelper
         }).ToArray();
     }
 
-    private static ExplicitData GetExplicitDataOfParameter(ParameterInfo parameterInfo,
+    private static ParameterDetails GetExplicitDataOfParameter(ParameterInfo parameterInfo,
                                                            int index,
                                                            Type paremType,
                                                            bool isExplicitData,
@@ -247,7 +247,7 @@ public static class NodeMethodDetailsHelper
         string explicitTypeName = GetExplicitTypeName(paremType);
         var items = GetExplicitItems(paremType, explicitTypeName);
         if ("Bool".Equals(explicitTypeName)) explicitTypeName = "Select"; // 布尔值 转为 可选类型
-        return new ExplicitData
+        return new ParameterDetails
         {
             IsExplicitData = isExplicitData, //attribute is null ? parameterInfo.HasDefaultValue : true,
             Index = index,
@@ -255,9 +255,9 @@ public static class NodeMethodDetailsHelper
             ExplicitType = paremType,
             Convertor = func,
             DataType = parameterInfo.ParameterType,
-            ParameterName = parameterInfo.Name,
-            DataValue = parameterInfo.HasDefaultValue ? parameterInfo?.DefaultValue?.ToString() : "",
-            Items = items.ToArray(),
+            Name = parameterInfo.Name,
+            DataValue = parameterInfo.HasDefaultValue ? parameterInfo?.DefaultValue?.ToString() : "", // 如果存在默认值，则使用默认值
+            Items = items.ToArray(), // 如果是枚举值入参，则获取枚举类型的字面量
         };
     }
 

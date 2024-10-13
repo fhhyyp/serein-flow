@@ -36,7 +36,26 @@ namespace Serein.NodeFlow
 
 
 
-   
+   /*
+    
+    public List<library> get(){
+   }
+
+    libray
+   {
+   string dllname,
+   MethodInfo[] nodeinfos
+   }
+
+    methodInfo{
+    
+    }
+    
+    
+    
+    */
+
+
 
     /// <summary>
     /// 运行环境
@@ -57,8 +76,6 @@ namespace Serein.NodeFlow
 
             sereinIOC.OnIOCMembersChanged += e => this?.OnIOCMembersChanged?.Invoke(e) ; // 监听IOC容器的注册
         }
-
-        
 
         /// <summary>
         /// 节点的命名空间
@@ -169,9 +186,8 @@ namespace Serein.NodeFlow
         public List<NodeLibrary> NodeLibrarys { get; } = [];
 
         /// <summary>
-        /// 存储所有方法信息
+        /// 描述所有DLL中NodeAction特性的方法的原始副本
         /// </summary>
-        //private  MethodDetailss { get; } = [];
         public Dictionary<NodeLibrary, List<MethodDetails>> MethodDetailss { get; } = [];
 
         /// <summary>
@@ -184,6 +200,10 @@ namespace Serein.NodeFlow
         /// 存放触发器节点（运行时全部调用）
         /// </summary>
         public List<SingleFlipflopNode> FlipflopNodes { get; } = [];
+
+        /// <summary>
+        /// 从dll中加载的类的注册类型
+        /// </summary>
         public Dictionary<RegisterSequence,List<Type>> AutoRegisterTypes { get; } = [];
 
         /// <summary>
@@ -336,16 +356,18 @@ namespace Serein.NodeFlow
             var dllPaths = project.Librarys.Select(it => it.Path).ToList();
             List<MethodDetails> methodDetailss = [];
 
+            //string currentPath = Environment.CurrentDirectory; // 获取当前目录
+            //string path = Assembly.GetExecutingAssembly().Location; // 获取当前正在执行的文件的路径
+            //string exePath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location); // 获取包含可执行文件的目录
+            //string basePath = AppDomain.CurrentDomain.BaseDirectory; // 获取应用程序的执行路径：
+
             // 遍历依赖项中的特性注解，生成方法详情
-            foreach (var dll in dllPaths)
+            foreach (var dllPath in dllPaths)
             {
-                var dllFilePath = System.IO.Path.GetFullPath(System.IO.Path.Combine(filePath, dll));
+                var dllFilePath = Path.GetFullPath(Path.Combine(filePath, dllPath));
+                //var dllFilePath = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(filePath)!, dllPath));
                 LoadDllNodeInfo(dllFilePath);
             }
-            // 方法加载完成，缓存到运行环境中。
-            //MethodDetailss.AddRange(methodDetailss);
-            //methodDetailss.Clear();
-
 
             List<(NodeModelBase, string[])> regionChildNodes = new List<(NodeModelBase, string[])>();
             List<(NodeModelBase, Position)> ordinaryNodes = new List<(NodeModelBase, Position)>();
@@ -1325,10 +1347,11 @@ namespace Serein.NodeFlow
     {
         public static Library.Entity.Library ToLibrary(this Assembly assembly)
         {
+            var tmp = assembly.ManifestModule.Name;
             return new Library.Entity.Library
             {
                 Name = assembly.GetName().Name,
-                Path = assembly.Location,
+                Path = assembly.ManifestModule.Name,
             };
         }
 

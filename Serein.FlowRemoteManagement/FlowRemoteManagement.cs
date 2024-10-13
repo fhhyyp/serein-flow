@@ -11,16 +11,10 @@ using Serein.Library.Core.NodeFlow;
 using Serein.Library.NodeFlow.Tool;
 using Serein.Library.Utils;
 using Serein.FlowRemoteManagement.Model;
+using System.Reflection;
 
 namespace SereinFlowRemoteManagement
 {
-    public enum FlowEnvCommand
-    {
-        A,
-        B,
-        C,
-        D
-    }
 
 
     /// <summary>
@@ -29,12 +23,12 @@ namespace SereinFlowRemoteManagement
     [DynamicFlow]
     [AutoRegister]
     [AutoSocketModule(ThemeKey ="theme",DataKey ="data")]
-    public class FlowRemoteManagement : FlowTrigger<FlowEnvCommand>, ISocketHandleModule
+    public class FlowRemoteManagement :  ISocketHandleModule
     {
         #region 初始化
         public Guid HandleGuid { get; } = new Guid();
 
-        private readonly  FlowEnvironment environment;
+        private readonly FlowEnvironment environment;
         public FlowRemoteManagement(IFlowEnvironment environment) 
         {
             if(environment is FlowEnvironment env)
@@ -67,6 +61,7 @@ namespace SereinFlowRemoteManagement
                         ex = ex.Message
                     });
                 });
+                await Console.Out.WriteLineAsync("启动远程管理模块");
                 await socketServer.StartAsync("http://*:7525/");
             });
             SereinProjectData projectData = environment.SaveProject();
@@ -76,7 +71,7 @@ namespace SereinFlowRemoteManagement
         #region 对外接口
 
         /// <summary>
-        /// 更改两个节点的连接关系
+        /// 远程更改两个节点的连接关系
         /// </summary>
         /// <param name="nodeInfo"></param>
         /// <param name="Send"></param>
@@ -107,36 +102,20 @@ namespace SereinFlowRemoteManagement
         /// 远程调用某个节点
         /// </summary>
         [AutoSocketHandle(ThemeValue = "InvokeNode")]
-        public async Task InvokeNode(bool isBranchEx, string nodeGuid, Func<object, Task> Send)
+        public async Task InvokeNode(string nodeGuid, Func<object, Task> Send)
         {
             if (string.IsNullOrEmpty(nodeGuid))
             {
                 throw new InvalidOperationException("Guid错误");
             }
-            if(!environment.Nodes.TryGetValue(nodeGuid, out var nodeModel) )
+
+            await environment.StartFlowInSelectNodeAsync(nodeGuid);
+
+            await Send(new
             {
-                throw new InvalidOperationException("不存在这样的节点");
-            }
-            IDynamicContext dynamicContext = new DynamicContext(environment);
-            object? result = null;
-            if(isBranchEx)
-            {
-                await nodeModel.StartFlowAsync(dynamicContext);
-            }
-            else
-            {
-                result = await nodeModel.ExecutingAsync(dynamicContext);
-            }
-           
-            if(result is not Task)
-            {
-                await Send(new
-                {
-                    state = 200,
-                    tips = "执行完成",
-                    data = result
-                }) ;
-            }
+                state = 200,
+                tips = "执行完成",
+            });
         }
 
         /// <summary>
@@ -150,37 +129,49 @@ namespace SereinFlowRemoteManagement
         }
 
 
+        /// <summary>
+        /// 连接到运行环境，获取当前的节点信息
+        /// </summary>
+        /// <param name="Send"></param>
+        /// <returns></returns>
+        [AutoSocketHandle]
+        public async Task<object?> ConnectWorkBench(Func<string, Task> Send)
+        {
+            await Send("尝试获取");
+
+            Dictionary<NodeLibrary, List<MethodDetailsInfo>> LibraryMds = [];
+
+            foreach (var mdskv in environment.MethodDetailss)
+            {
+                var library = mdskv.Key;
+                var mds = mdskv.Value;
+                foreach (var md in mds)
+                {
+                    if(!LibraryMds.TryGetValue(library, out var t_mds))
+                    {
+                        t_mds = new List<MethodDetailsInfo>();
+                        LibraryMds[library] = t_mds;
+                    }
+                    var mdInfo = md.ToInfo();
+                    mdInfo.LibraryName = library.Assembly.GetName().FullName;
+                    t_mds.Add(mdInfo);
+                }
+            }
+            try
+            {
+                var project = await GetProjectInfo();
+                return new
+                {
+                    project = project,
+                    envNode = LibraryMds.Values,
+                };
+            }
+            catch (Exception ex)
+            {
+                await Send(ex.Message);
+                return null;
+            }
+        }
         #endregion
-
-        #region 测试节点
-
-        [NodeAction(NodeType.Flipflop, "触发器等待")]
-        public async Task<IFlipflopContext<object>> WaitFlipflop(FlowEnvCommand flowEnvCommand)
-        {
-            var result = await this.CreateTaskAsync<object>(flowEnvCommand);
-            return new FlipflopContext<object>(FlipflopStateType.Succeed, result);
-        }
-
-        [NodeAction(NodeType.Action, "测试")]
-        public void Test()
-        {
-            Console.WriteLine("Hello World");
-        }
-
-        [NodeAction(NodeType.Action, "等待")]
-        public async Task Wait(int wait = 5)
-        {
-            await Task.Delay(1000 * wait);
-        }
-
-        [NodeAction(NodeType.Action, "输出")]
-        public void Console2(string value)
-        {
-            Console.WriteLine(value);
-        } 
-        #endregion
-
-
-
     }
 }

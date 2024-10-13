@@ -82,8 +82,8 @@ namespace Serein.NodeFlow.Base
                 for (int i = 0; i < nodeInfo.ParameterData.Length; i++)
                 {
                     Parameterdata? pd = nodeInfo.ParameterData[i];
-                    this.MethodDetails.ExplicitDatas[i].IsExplicitData = pd.State;
-                    this.MethodDetails.ExplicitDatas[i].DataValue = pd.Value;
+                    this.MethodDetails.ParameterDetailss[i].IsExplicitData = pd.State;
+                    this.MethodDetails.ParameterDetailss[i].DataValue = pd.Value;
                 }
             }
 
@@ -232,12 +232,12 @@ namespace Serein.NodeFlow.Base
         public static object?[]? GetParameters(IDynamicContext context, NodeModelBase nodeModel, MethodDetails md)
         {
             // 用正确的大小初始化参数数组
-            if (md.ExplicitDatas.Length == 0)
+            if (md.ParameterDetailss.Length == 0)
             {
                 return null;// md.ActingInstance
             }
 
-            object?[]? parameters = new object[md.ExplicitDatas.Length];
+            object?[]? parameters = new object[md.ParameterDetailss.Length];
             var flowData = nodeModel.PreviousNode?.FlowData; // 当前传递的数据
             var previousDataType = flowData?.GetType();
 
@@ -245,7 +245,7 @@ namespace Serein.NodeFlow.Base
             {
 
                 object? inputParameter; // 存放解析的临时参数
-                var ed = md.ExplicitDatas[i]; // 方法入参描述
+                var ed = md.ParameterDetailss[i]; // 方法入参描述
 
 
                 if (ed.IsExplicitData) // 判断是否使用显示的输入参数

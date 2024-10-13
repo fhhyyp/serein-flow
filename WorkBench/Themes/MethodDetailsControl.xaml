@@ -13,7 +13,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type local:MethodDetailsControl}">
 
-                    <ItemsControl ItemsSource="{Binding MethodDetails.ExplicitDatas, RelativeSource={RelativeSource TemplatedParent}}">
+                    <ItemsControl ItemsSource="{Binding MethodDetails.ParameterDetailss, RelativeSource={RelativeSource TemplatedParent}}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <ContentControl Content="{Binding}">
@@ -36,7 +36,7 @@
                                                                     </Grid.ColumnDefinitions>
                                                                     <TextBlock Grid.Column="0" Text="{Binding Index,StringFormat=agr{0}}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                                     <CheckBox  Grid.Column="1" IsChecked="{Binding IsExplicitData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  VerticalContentAlignment="Center"/>
-                                                                    <TextBlock Grid.Column="2" MinWidth="50" Text="{Binding ParameterName}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                                                    <TextBlock Grid.Column="2" MinWidth="50" Text="{Binding Name}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                                                                     <TextBlock Grid.Column="3" MinWidth="50" Text="无须指定参数"/>
                                                                 </Grid>
                                                             </DataTemplate>
@@ -61,7 +61,7 @@
                                                                     </Grid.ColumnDefinitions>
                                                                     <TextBlock Grid.Column="0" Text="{Binding Index,StringFormat=agr{0}}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                                     <CheckBox  Grid.Column="1" IsChecked="{Binding IsExplicitData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  VerticalContentAlignment="Center"/>
-                                                                    <TextBlock Grid.Column="2" MinWidth="50" Text="{Binding ParameterName}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                                                    <TextBlock Grid.Column="2" MinWidth="50" Text="{Binding Name}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                                                                     <ComboBox Grid.Column="3"
                                                                               MinWidth="50"
                                                                               ItemsSource="{Binding Items}"
@@ -91,7 +91,7 @@
                                                                     </Grid.ColumnDefinitions>
                                                                     <TextBlock Grid.Column="0" Text="{Binding Index,StringFormat=agr{0}}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                                     <CheckBox  Grid.Column="1" IsChecked="{Binding IsExplicitData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center"/>
-                                                                    <TextBlock Grid.Column="2" MinWidth="50" Text="{Binding ParameterName}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                                                    <TextBlock Grid.Column="2" MinWidth="50" Text="{Binding Name}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                                                                     <TextBox Grid.Column="3" MinWidth="50" Text="{Binding DataValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                                                 </Grid>
                                                             </DataTemplate>

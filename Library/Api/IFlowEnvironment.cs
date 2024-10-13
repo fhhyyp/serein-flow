@@ -390,7 +390,10 @@ namespace Serein.Library.Api
         /// <summary>
         /// 是否全局中断
         /// </summary>
-        bool IsGlobalInterrupt { get; } 
+        bool IsGlobalInterrupt { get; }
+
+        
+
         #endregion
 
         #region 事件

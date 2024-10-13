@@ -12,9 +12,9 @@ namespace Serein.NodeFlow.Model
 
         internal override Parameterdata[] GetParameterdatas()
         {
-            if (base.MethodDetails.ExplicitDatas.Length > 0)
+            if (base.MethodDetails.ParameterDetailss.Length > 0)
             {
-                return MethodDetails.ExplicitDatas
+                return MethodDetails.ParameterDetailss
                                     .Select(it => new Parameterdata
                                     {
                                         State = it.IsExplicitData,

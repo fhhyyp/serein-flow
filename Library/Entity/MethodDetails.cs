@@ -5,6 +5,44 @@ using System.Linq;
 
 namespace Serein.Library.Entity
 {
+    /// <summary>
+    /// 方法描述信息
+    /// </summary>
+    public class MethodDetailsInfo
+    {
+        /// <summary>
+        /// 属于哪个DLL文件
+        /// </summary>
+        public string LibraryName { get; set; }
+
+        /// <summary>
+        /// 方法名称
+        /// </summary>
+        public string MethodName { get; set; }
+
+        /// <summary>
+        /// 节点类型
+        /// </summary>
+        public string NodeType { get; set; }
+
+        /// <summary>
+        /// 方法说明
+        /// </summary>
+        public string MethodTips { get; set; }
+
+        /// <summary>
+        /// 参数内容
+        /// </summary>
+
+        public ParameterDetailsInfo[] ParameterDetailsInfos { get; set; }
+
+        /// <summary>
+        /// 出参类型
+        /// </summary>
+
+        public string ReturnTypeFullName { get; set; }
+    }
+
 
 
     /// <summary>
@@ -12,6 +50,24 @@ namespace Serein.Library.Entity
     /// </summary>
     public class MethodDetails 
     {
+        /// <summary>
+        /// 转为信息
+        /// </summary>
+        /// <returns></returns>
+        public MethodDetailsInfo ToInfo()
+        {
+            return new MethodDetailsInfo
+            {
+                MethodName = MethodName,
+                MethodTips = MethodTips,
+                NodeType = MethodDynamicType.ToString(),
+                ParameterDetailsInfos = this.ParameterDetailss.Select(p => p.ToInfo()).ToArray(),
+                ReturnTypeFullName = ReturnType.FullName,
+            
+            };
+        }
+
+
         /// <summary>
         /// 从DLL拖动出来时拷贝新的实例
         /// </summary>
@@ -28,7 +84,7 @@ namespace Serein.Library.Entity
                 MethodName = MethodName,
                 MethodLockName = MethodLockName,
                 IsProtectionParameter = IsProtectionParameter,
-                ExplicitDatas = ExplicitDatas?.Select(it => it.Clone()).ToArray(),
+                ParameterDetailss = ParameterDetailss?.Select(it => it.Clone()).ToArray(),
             };
         }
 
@@ -70,10 +126,10 @@ namespace Serein.Library.Entity
 
 
         /// <summary>
-        /// 参数内容
+        /// 参数描述
         /// </summary>
 
-        public ExplicitData[] ExplicitDatas { get; set; }
+        public ParameterDetails[] ParameterDetailss { get; set; }
 
         /// <summary>
         /// 出参类型
