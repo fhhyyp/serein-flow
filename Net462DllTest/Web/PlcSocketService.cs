@@ -6,7 +6,6 @@ using Serein.Library.Api;
 using Serein.Library.Attributes;
 using Serein.Library.Enums;
 using Serein.Library.Ex;
-using Serein.Library.Framework.NodeFlow;
 using Serein.Library.Network.WebSocketCommunication;
 using Serein.Library.NodeFlow.Tool;
 using Serein.Library.Web;
@@ -80,7 +79,7 @@ namespace Net462DllTest.Web
             });
             context.Env.IOC.Run<WebSocketServer>((socketServer) =>
             {
-                socketServer.MsgHandleHelper.RemoteModule(this);
+                socketServer.MsgHandleHelper.RemoveModule(this);
                 socketServer?.Stop(); // 关闭 Web 服务
             });
             MyPlc.Close();
@@ -88,6 +87,8 @@ namespace Net462DllTest.Web
         }
 
         #endregion
+
+
         [AutoSocketHandle]
         public async Task BatchReadVar(Func<string, Task> SendMsg, Func<object, Task> SendObj)
         {

@@ -379,7 +379,8 @@ namespace Serein.Library.Api
     {
         #region 属性
         /// <summary>
-        /// IOC容器
+        /// <para>单例模式IOC容器，内部维护了一个实例字典，默认使用类型的FullName作为Key，如果以“接口-实现类”的方式注册，那么将使用接口类型的FullName作为Key。</para>
+        /// <para>当某个类型注册绑定成功后，将不会因为其它地方尝试注册相同类型的行为导致类型被重新创建。</para>
         /// </summary>
         ISereinIOC IOC { get; }
 
@@ -387,12 +388,26 @@ namespace Serein.Library.Api
         /// 环境名称
         /// </summary>
         string EnvName { get; }
+
         /// <summary>
         /// 是否全局中断
         /// </summary>
         bool IsGlobalInterrupt { get; }
 
-        
+        /// <summary>
+        /// DLL中NodeAction特性的方法描述的所有原始副本
+        /// </summary>
+        Dictionary<NodeLibrary, List<MethodDetails>> MethodDetailss { get; }
+
+
+        /// <summary>
+        /// 流程运行状态
+        /// </summary>
+        RunState FlowState { get;  set; }
+        /// <summary>
+        /// 全局触发器运行状态
+        /// </summary>
+        RunState FlipFlopState { get;  set; }
 
         #endregion
 
@@ -545,15 +560,22 @@ namespace Serein.Library.Api
         /// <param name="fromNodeGuid">起始节点</param>
         /// <param name="toNodeGuid">目标节点</param>
         /// <param name="connectionType">连接类型</param>
-        void RemoteConnect(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType);
+        void RemoveConnect(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType);
         /// <summary>
         /// 移除节点/区域/基础控件
         /// </summary>
         /// <param name="nodeGuid">待移除的节点Guid</param>
-        void RemoteNode(string nodeGuid);
+        void RemoveNode(string nodeGuid);
 
-        // 启动触发器
+        /// <summary>
+        /// 激活未启动的全局触发器
+        /// </summary>
+        /// <param name="nodeGuid"></param>
         void ActivateFlipflopNode(string nodeGuid);
+        /// <summary>
+        /// 终结一个全局触发器，在它触发后将不会再次监听消息（表现为已经启动的触发器至少会再次处理一次消息，后面版本再修正这个非预期行为）
+        /// </summary>
+        /// <param name="nodeGuid"></param>
         void TerminateFlipflopNode(string nodeGuid);
 
 

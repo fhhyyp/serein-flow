@@ -54,19 +54,23 @@ namespace Serein.WorkBench.Themes
                 Key = key,
                 Instance = instance,
             };
-            TextBlock textBlock = new TextBlock();
-            textBlock.Text = key;
-            textBlock.Tag = iOCObj;
-            textBlock.MouseDown += (s, e) =>
+            Application.Current.Dispatcher.Invoke(() =>
             {
-                if(s is TextBlock block && block.Tag is IOCObj iocObj)
+                TextBlock textBlock = new TextBlock();
+                textBlock.Text = key;
+                textBlock.Tag = iOCObj;
+                textBlock.MouseDown += (s, e) =>
                 {
-                    SelectObj?.Invoke(iocObj.Key, iocObj.Instance);
-                    //FlowEnvironment.SetMonitorObjState(iocObj.Instance, true); // 通知环境，该节点的数据更新后需要传到UI
-                }
-            };
-            DependenciesListBox.Items.Add(textBlock);
-            SortLisbox(DependenciesListBox);
+                    if (s is TextBlock block && block.Tag is IOCObj iocObj)
+                    {
+                        SelectObj?.Invoke(iocObj.Key, iocObj.Instance);
+                        //FlowEnvironment.SetMonitorObjState(iocObj.Instance, true); // 通知环境，该节点的数据更新后需要传到UI
+                    }
+                };
+                DependenciesListBox.Items.Add(textBlock);
+                SortLisbox(DependenciesListBox);
+            });
+           
         }
 
         /// <summary>

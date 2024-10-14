@@ -1,0 +1,53 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Library.Core\Serein.Library.Core.csproj" />
+    <ProjectReference Include="..\Library\Serein.Library.csproj" />
+    <ProjectReference Include="..\NodeFlow\Serein.NodeFlow.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Node\View\ActionRegionControl.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="Node\View\ConditionRegionControl.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="Node\View\DllControlControl.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="Node\View\ExpOpNodeControl.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="Themes\InputDialog.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="Themes\IOCObjectViewControl.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="Themes\MethodDetailsControl.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="Themes\NodeTreeItemViewControl.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="Themes\NodeTreeViewControl.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="Themes\ObjectViewerControl.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="Themes\TypeViewerWindow.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+  </ItemGroup>
+
+</Project>

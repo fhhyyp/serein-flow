@@ -34,6 +34,12 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// </summary>
         public event Action<Exception, Action<object>> OnExceptionTracking;
 
+        /// <summary>
+        /// 添加消息处理与异常处理
+        /// </summary>
+        /// <param name="themeKeyName"></param>
+        /// <param name="dataKeyName"></param>
+        /// <returns></returns>
         private WebSocketHandleModule AddMyHandleModule(string themeKeyName, string dataKeyName)
         {
             var key = (themeKeyName, dataKeyName);
@@ -45,7 +51,11 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
             return myHandleModule;
         }
 
-        public void RemoteModule(ISocketHandleModule socketControlBase)
+        /// <summary>
+        /// 移除某个模块的WebSocket消息处理
+        /// </summary>
+        /// <param name="socketControlBase"></param>
+        public void RemoveModule(ISocketHandleModule socketControlBase)
         {
             var type = socketControlBase.GetType();
             var moduleAttribute = type.GetCustomAttribute<AutoSocketModuleAttribute>();
@@ -66,7 +76,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
 
 
         /// <summary>
-        /// 添加
+        /// 添加消息处理以及异常处理
         /// </summary>
         /// <param name="socketControlBase"></param>
         /// <param name="onExceptionTracking"></param>

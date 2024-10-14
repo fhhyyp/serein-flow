@@ -939,7 +939,7 @@ namespace Serein.WorkBench
 
            
             contextMenu.Items.Add(CreateMenuItem("设为起点", (s, e) => FlowEnvironment.SetStartNode(nodeGuid)));
-            contextMenu.Items.Add(CreateMenuItem("删除", (s, e) => FlowEnvironment.RemoteNode(nodeGuid)));
+            contextMenu.Items.Add(CreateMenuItem("删除", (s, e) => FlowEnvironment.RemoveNode(nodeGuid)));
 
             contextMenu.Items.Add(CreateMenuItem("添加 真分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsSucceed)));
             contextMenu.Items.Add(CreateMenuItem("添加 假分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsFail)));
@@ -1016,7 +1016,7 @@ namespace Serein.WorkBench
             // 获取起始节点与终止节点，消除映射关系
             var fromNodeGuid = connectionToRemove.Start.ViewModel.Node.Guid;
             var toNodeGuid = connectionToRemove.End.ViewModel.Node.Guid;
-            FlowEnvironment.RemoteConnect(fromNodeGuid, toNodeGuid, connection.Type);
+            FlowEnvironment.RemoveConnect(fromNodeGuid, toNodeGuid, connection.Type);
         }
 
         /// <summary>
@@ -1392,7 +1392,7 @@ namespace Serein.WorkBench
             if (node is not null && node.MethodDetails?.ReturnType != typeof(void))
             {
                 var key = node.Guid;
-                var instance = node.GetFlowData();
+                var instance = node.GetFlowData(); // 对象预览树视图获取（后期更改）
                 if(instance is not null)
                 {
                     ViewObjectViewer.LoadObjectInformation(key, instance);
@@ -1864,7 +1864,7 @@ namespace Serein.WorkBench
                         var guid = node?.ViewModel?.Node?.Guid;
                         if (!string.IsNullOrEmpty(guid))
                         {
-                            FlowEnvironment.RemoteNode(guid);
+                            FlowEnvironment.RemoveNode(guid);
                         }
                     }
                 }
@@ -2371,9 +2371,9 @@ namespace Serein.WorkBench
         {
             logWindow?.Show();
 
-            await FlowEnvironment.StartAsync(); // 快
+            // await FlowEnvironment.StartAsync(); // 快
 
-            //await Task.Run(FlowEnvironment.StartAsync); // 上下文多次切换的场景中慢了1/10,定时器精度丢失
+            await Task.Run(FlowEnvironment.StartAsync); // 上下文多次切换的场景中慢了1/10,定时器精度丢失
             //await Task.Factory.StartNew(FlowEnvironment.StartAsync); // 慢了1/5,定时器精度丢失
         }
 

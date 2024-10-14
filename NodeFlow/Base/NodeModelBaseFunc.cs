@@ -95,6 +95,36 @@ namespace Serein.NodeFlow.Base
         #region 节点方法的执行
 
         /// <summary>
+        /// 是否应该退出执行
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="flowCts"></param>
+        /// <returns></returns>
+        public static bool IsBradk(IDynamicContext context, CancellationTokenSource? flowCts)
+        {
+            // 上下文不再执行
+            if(context.RunState == RunState.Completion)
+            {
+                return true;
+            }
+
+            // 不存在全局触发器时，流程运行状态被设置为完成，退出执行，用于打断无限循环分支。
+            if (flowCts is null && context.Env.FlowState == RunState.Completion)
+            {
+                return true;
+            }
+            // 如果存在全局触发器，且触发器的执行任务已经被取消时，退出执行。
+            if (flowCts is not null)
+            {
+                if (flowCts.IsCancellationRequested)
+                   return true;
+            }
+            return false;
+        }
+
+
+
+        /// <summary>
         /// 开始执行
         /// </summary>
         /// <param name="context"></param>
@@ -107,24 +137,18 @@ namespace Serein.NodeFlow.Base
             bool hasFlipflow = flowCts != null;
             while (stack.Count > 0) // 循环中直到栈为空才会退出循环
             {
-                if (hasFlipflow && flowCts is not null)
-                {
-                    if (flowCts.IsCancellationRequested)
-                        break;
-                }
+                await Task.Delay(0);
                 // 从栈中弹出一个节点作为当前节点进行处理
                 var currentNode = stack.Pop();
 
                 #region 执行相关
 
                 // 筛选出上游分支
-                var upstreamNodes = currentNode.SuccessorNodes[ConnectionType.Upstream].Where(
-                     node => node.DebugSetting.IsEnable
-                    ).ToArray();
-                // 执行上游分支
-                foreach (var upstreamNode in upstreamNodes)
+                var upstreamNodes = currentNode.SuccessorNodes[ConnectionType.Upstream].ToArray();
+                for (int index = 0; index < upstreamNodes.Length; index++)
                 {
-                    if (upstreamNode.DebugSetting.IsEnable)
+                    NodeModelBase? upstreamNode = upstreamNodes[index];
+                    if (upstreamNode is not null && upstreamNode.DebugSetting.IsEnable)
                     {
                         if (upstreamNode.DebugSetting.InterruptClass != InterruptClass.None) // 执行触发前
                         {
@@ -142,14 +166,11 @@ namespace Serein.NodeFlow.Base
                         }
                     }
                 }
-
+                if (IsBradk(context, flowCts)) break; // 退出执行
                 // 上游分支执行完成，才执行当前节点
                 object? newFlowData = await currentNode.ExecutingAsync(context);
-                if (hasFlipflow &&  (flowCts is null || flowCts.IsCancellationRequested || currentNode.NextOrientation == ConnectionType.None))
-                {
-                    // 不再执行
-                    break;
-                }
+                if (IsBradk(context, flowCts)) break; // 退出执行
+
                 await RefreshFlowDataAndExpInterrupt(context, currentNode, newFlowData); // 执行当前节点后刷新数据
                 #endregion
 
@@ -169,6 +190,7 @@ namespace Serein.NodeFlow.Base
                         stack.Push(nextNodes[i]);
                     }
                 }
+
                 #endregion
 
             }
@@ -342,7 +364,10 @@ namespace Serein.NodeFlow.Base
         /// <summary>
         /// 更新节点数据，并检查监视表达式是否生效
         /// </summary>
-        /// <param name="newData"></param>
+        /// <param name="context">上下文</param>
+        /// <param name="nodeModel">节点Moel</param>
+        /// <param name="newData">新的数据</param>
+        /// <returns></returns>
         public static async Task RefreshFlowDataAndExpInterrupt(IDynamicContext context, NodeModelBase nodeModel, object? newData = null)
         {
             string guid = nodeModel.Guid;
@@ -351,6 +376,7 @@ namespace Serein.NodeFlow.Base
                 await MonitorObjExpInterrupt(context, nodeModel, newData, 0); // 首先监视对象
                 await MonitorObjExpInterrupt(context, nodeModel, newData, 1); // 然后监视节点
                 nodeModel.FlowData = newData; // 替换数据
+                context.AddOrUpdate(guid, nodeModel); // 上下文中更新数据
             }
         }
 

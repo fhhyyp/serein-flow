@@ -18,27 +18,30 @@ namespace SereinFlowRemoteManagement
 
 
     /// <summary>
-    /// SereinFlow 远程管理模块
+    /// SereinFlow 远程控制模块
     /// </summary>
     [DynamicFlow]
     [AutoRegister]
     [AutoSocketModule(ThemeKey ="theme",DataKey ="data")]
-    public class FlowRemoteManagement :  ISocketHandleModule
+    public class SereinFlowRemoteControl :  ISocketHandleModule
     {
-        #region 初始化
+        public int ServerPort { get; set; } = 7525;
+
+        #region 初始化服务端
         public Guid HandleGuid { get; } = new Guid();
 
-        private readonly FlowEnvironment environment;
-        public FlowRemoteManagement(IFlowEnvironment environment) 
+        private readonly IFlowEnvironment environment;
+        public SereinFlowRemoteControl(IFlowEnvironment environment) 
         {
-            if(environment is FlowEnvironment env)
-            {
-                this.environment = env;
-            }
-            else
-            {
-                throw new Exception();
-            }
+            this.environment = environment;
+            //if (environment is FlowEnvironment env)
+            //{
+            //    this.environment = env;
+            //}
+            //else
+            //{
+            //    throw new Exception();
+            //}
         }
 
         [NodeAction(NodeType.Init)]
@@ -62,13 +65,76 @@ namespace SereinFlowRemoteManagement
                     });
                 });
                 await Console.Out.WriteLineAsync("启动远程管理模块");
-                await socketServer.StartAsync("http://*:7525/");
+                await socketServer.StartAsync($"http://*:{ServerPort}/");
             });
             SereinProjectData projectData = environment.SaveProject();
-        } 
+        }
         #endregion
 
-        #region 对外接口
+        #region 流程运行接口
+
+        /// <summary>
+        /// 连接到运行环境，获取当前的节点信息
+        /// </summary>
+        /// <param name="Send"></param>
+        /// <returns></returns>
+        [AutoSocketHandle]
+        public async Task<object?> ConnectWorkBench(Func<string, Task> Send)
+        {
+            await Send("尝试获取");
+
+            Dictionary<NodeLibrary, List<MethodDetailsInfo>> LibraryMds = [];
+
+            foreach (var mdskv in environment.MethodDetailss)
+            {
+                var library = mdskv.Key;
+                var mds = mdskv.Value;
+                foreach (var md in mds)
+                {
+                    if (!LibraryMds.TryGetValue(library, out var t_mds))
+                    {
+                        t_mds = new List<MethodDetailsInfo>();
+                        LibraryMds[library] = t_mds;
+                    }
+                    var mdInfo = md.ToInfo();
+                    mdInfo.LibraryName = library.Assembly.GetName().FullName;
+                    t_mds.Add(mdInfo);
+                }
+            }
+            try
+            {
+                var project = await GetProjectInfo();
+                return new
+                {
+                    project = project,
+                    envNode = LibraryMds.Values,
+                };
+            }
+            catch (Exception ex)
+            {
+                await Send(ex.Message);
+                return null;
+            }
+        }
+
+        public void AddNode(string nodeType,string methodName,int x, int y)
+        {
+            if(x <= 0 || y <= 0)
+            {
+                throw new InvalidOperationException("坐标错误");
+            }
+            if (!EnumHelper.TryConvertEnum<NodeControlType>(nodeType, out var connectionType))
+            {
+                throw new InvalidOperationException("类型错误");
+            }
+
+            if (this.environment.TryGetMethodDetails(methodName,out var md))
+            {
+                this.environment.CreateNode(connectionType, new Position(x, y), md); ;
+            }
+
+
+        }
 
         /// <summary>
         /// 远程更改两个节点的连接关系
@@ -94,7 +160,7 @@ namespace SereinFlowRemoteManagement
             }
             else
             {
-                environment.RemoteConnect(nodeInfo.FromNodeGuid, nodeInfo.ToNodeGuid, connectionType);
+                environment.RemoveConnect(nodeInfo.FromNodeGuid, nodeInfo.ToNodeGuid, connectionType);
             }
         }
 
@@ -129,49 +195,6 @@ namespace SereinFlowRemoteManagement
         }
 
 
-        /// <summary>
-        /// 连接到运行环境，获取当前的节点信息
-        /// </summary>
-        /// <param name="Send"></param>
-        /// <returns></returns>
-        [AutoSocketHandle]
-        public async Task<object?> ConnectWorkBench(Func<string, Task> Send)
-        {
-            await Send("尝试获取");
-
-            Dictionary<NodeLibrary, List<MethodDetailsInfo>> LibraryMds = [];
-
-            foreach (var mdskv in environment.MethodDetailss)
-            {
-                var library = mdskv.Key;
-                var mds = mdskv.Value;
-                foreach (var md in mds)
-                {
-                    if(!LibraryMds.TryGetValue(library, out var t_mds))
-                    {
-                        t_mds = new List<MethodDetailsInfo>();
-                        LibraryMds[library] = t_mds;
-                    }
-                    var mdInfo = md.ToInfo();
-                    mdInfo.LibraryName = library.Assembly.GetName().FullName;
-                    t_mds.Add(mdInfo);
-                }
-            }
-            try
-            {
-                var project = await GetProjectInfo();
-                return new
-                {
-                    project = project,
-                    envNode = LibraryMds.Values,
-                };
-            }
-            catch (Exception ex)
-            {
-                await Send(ex.Message);
-                return null;
-            }
-        }
         #endregion
     }
 }

@@ -6,18 +6,24 @@ namespace Serein.WorkBench
     /// DebugWindow.xaml 的交互逻辑
     /// </summary>
     using System;
+    using System.IO;
     using System.Text;
     using System.Threading.Tasks;
     using System.Timers;
     using System.Windows;
 
+    /// <summary>
+    /// LogWindow.xaml 的交互逻辑
+    /// </summary>
     public partial class LogWindow : Window
     {
         private StringBuilder logBuffer = new StringBuilder();
-        private int logUpdateInterval = 100; // 批量更新的时间间隔（毫秒）
+        private int logUpdateInterval = 500; // 批量更新的时间间隔（毫秒）
         private Timer logUpdateTimer;
         private const int MaxLines = 1000; // 最大显示的行数
         private bool autoScroll = true; // 自动滚动标识
+        private int flushThreshold = 1000; // 设置日志刷新阈值
+        private const int maxFlushSize = 10000; // 每次最大刷新字符数
 
         public LogWindow()
         {
@@ -39,7 +45,16 @@ namespace Serein.WorkBench
         {
             lock (logBuffer)
             {
-                logBuffer.Append(text); // 将日志添加到缓冲区中
+                logBuffer.Append(text);
+
+                // 异步写入日志到文件
+                // Task.Run(() => File.AppendAllText("log.txt", text));
+
+                // 如果日志达到阈值，立即刷新
+                if (logBuffer.Length > flushThreshold)
+                {
+                    FlushLog();
+                }
             }
         }
 
@@ -50,17 +65,27 @@ namespace Serein.WorkBench
         {
             if (logBuffer.Length == 0) return;
 
-            Dispatcher.Invoke(() =>
+            Dispatcher.InvokeAsync(() =>
             {
                 lock (logBuffer)
                 {
-                    LogTextBox.AppendText(logBuffer.ToString());
-                    logBuffer.Clear(); // 清空缓冲区
+                    // 仅追加部分日志，避免一次更新过多内容
+                    string logContent = logBuffer.Length > maxFlushSize
+                        ? logBuffer.ToString(0, maxFlushSize)
+                        : logBuffer.ToString();
+                    logBuffer.Remove(0, logContent.Length); // 清空已更新的部分
+
+                    LogTextBox.AppendText(logContent);
                 }
 
-                TrimLog(); // 检查并修剪日志长度
-                ScrollToEndIfNeeded(); // 根据条件滚动到末尾
-            });
+                // 不必每次都修剪日志，当行数超过限制20%时再修剪
+                if (LogTextBox.LineCount > MaxLines * 1.2)
+                {
+                    TrimLog();
+                }
+
+                ScrollToEndIfNeeded(); // 根据是否需要自动滚动来决定
+            }, System.Windows.Threading.DispatcherPriority.Background);
         }
 
         /// <summary>
@@ -71,7 +96,8 @@ namespace Serein.WorkBench
             if (LogTextBox.LineCount > MaxLines)
             {
                 // 删除最早的多余行
-                LogTextBox.Text = LogTextBox.Text.Substring(LogTextBox.GetCharacterIndexFromLineIndex(LogTextBox.LineCount - MaxLines));
+                LogTextBox.Text = LogTextBox.Text.Substring(
+                    LogTextBox.GetCharacterIndexFromLineIndex(LogTextBox.LineCount - MaxLines));
             }
         }
 
@@ -83,7 +109,7 @@ namespace Serein.WorkBench
             if (e.ExtentHeightChange == 0) // 用户手动滚动时
             {
                 // 判断是否滚动到底部
-                // autoScroll = LogTextBox.VerticalOffset == LogTextBox.ScrollableHeight;
+                //autoScroll = LogTextBox.VerticalOffset == LogTextBox.ScrollableHeight;
             }
         }
 
@@ -122,9 +148,6 @@ namespace Serein.WorkBench
         /// </summary>
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            //logUpdateTimer?.Stop();
-            //logUpdateTimer?.Close();
-            //logUpdateTimer?.Dispose();
             logBuffer?.Clear();
             Clear();
             e.Cancel = true;  // 取消关闭操作

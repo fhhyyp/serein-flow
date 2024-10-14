@@ -32,35 +32,33 @@ namespace Serein.NodeFlow.Model
         public override Task<object?> ExecutingAsync(IDynamicContext context)
         {
             // 接收上一节点参数or自定义参数内容
-            object? result;
-            if (IsCustomData)
+            object? parameter;
+            object? result = PreviousNode?.GetFlowData();   // 条件节点透传上一节点的数据
+            if (IsCustomData) // 是否使用自定义参数
             {
-                result = CustomData;
+                // 表达式获取上一节点数据
+                var getObjExp = CustomData?.ToString();
+                if (!string.IsNullOrEmpty(getObjExp) && getObjExp.Length >= 4 && getObjExp[..4].Equals("@get", StringComparison.CurrentCultureIgnoreCase))
+                {
+                    parameter = result;
+                    if (parameter is not null)
+                    {
+                        parameter = SerinExpressionEvaluator.Evaluate(getObjExp, parameter, out _);
+                    }
+                }
+                else
+                {
+                    parameter = CustomData;
+                }
             }
             else
             {
-                result = PreviousNode?.GetFlowData();
+                parameter = result;
             }
             try
             {
-                var getObjExp = CustomData?.ToString();
-               
-                if (IsCustomData && !string.IsNullOrEmpty(getObjExp) && getObjExp.Length >= 4)
-                {
-
-                    var ExpOpOption = getObjExp[..4];
-                    if(ExpOpOption.ToLower() == "@get")
-                    {
-                        result = PreviousNode?.GetFlowData();
-                        if (result is not null)
-                        {
-                            result = SerinExpressionEvaluator.Evaluate(getObjExp, result, out _);
-                        }
-
-                    }
-                    
-                }
-                var isPass = SereinConditionParser.To(result, Expression);
+                
+                var isPass = SereinConditionParser.To(parameter, Expression);
                 NextOrientation = isPass ? ConnectionType.IsSucceed : ConnectionType.IsFail;
             }
             catch (Exception ex)

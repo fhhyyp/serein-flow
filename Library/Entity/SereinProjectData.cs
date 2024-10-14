@@ -178,7 +178,7 @@ namespace Serein.Library.Entity
         public Position Position { get; set; }
 
         /// <summary>
-        /// 是否选中
+        /// 是否选中（暂时无效）
         /// </summary>
         public bool IsSelect { get; set; }
     }
@@ -188,8 +188,17 @@ namespace Serein.Library.Entity
     /// </summary>
     public class Parameterdata
     {
+        /// <summary>
+        /// 参数类型，true时使用自定义的入参，false时由运行环境自动传参
+        /// </summary>
         public bool State { get; set; }
+        /// <summary>
+        /// 自定义入参
+        /// </summary>
         public string Value { get; set; }
+        /// <summary>
+        /// 表达式相关节点的表达式内容
+        /// </summary>
         public string Expression { get; set; }
 
     }
@@ -200,6 +209,9 @@ namespace Serein.Library.Entity
     /// </summary>
     public class Position
     {
+        /// <summary>
+        /// 构造一个坐标
+        /// </summary>
         public Position(double x, double y)
         {
             this.X = x; this.Y = y;

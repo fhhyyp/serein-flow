@@ -17,48 +17,28 @@ using static Serein.Library.Utils.ChannelFlowInterrupt;
 namespace Serein.NodeFlow
 {
 
+    
+
     /// <summary>
     /// 流程启动器
     /// </summary>
-    /// <param name="serviceContainer"></param>
-    /// <param name="methodDetails"></param>
     public class FlowStarter
     {
         /// <summary>
         /// 全局触发器CTS
         /// </summary>
         public const string FlipFlopCtsName = "<>.FlowFlipFlopCts";
+        /// <summary>
+        /// 流程运行CTS
+        /// </summary>
+        public const string FlowRungCtsName = "<>.FlowRungCtsName";
 
         public FlowStarter()
         {
         }
 
-        /// <summary>
-        /// 流程运行状态
-        /// </summary>
-        public enum RunState
-        {
-            /// <summary>
-            /// 等待开始
-            /// </summary>
-            NoStart,
-            /// <summary>
-            /// 正在运行
-            /// </summary>
-            Running,
-            /// <summary>
-            /// 运行完成
-            /// </summary>
-            Completion,
-        }
-        /// <summary>
-        /// 起点流程运行状态
-        /// </summary>
-        public RunState FlowState { get; private set; } = RunState.NoStart;
-        /// <summary>
-        /// 全局触发器运行状态
-        /// </summary>
-        public RunState FlipFlopState { get; private set; } = RunState.NoStart;
+       
+        
 
         /// <summary>
         /// 控制触发器
@@ -115,11 +95,11 @@ namespace Serein.NodeFlow
                                    List<MethodDetails> loadingMethods,
                                    List<MethodDetails> exitMethods)
         {
-            
-            FlowState = RunState.Running; // 开始运行
+
+            env.FlowState = RunState.Running; // 开始运行
             NodeModelBase? startNode = nodes.FirstOrDefault(node => node.IsStart);
             if (startNode is null) {
-                FlowState = RunState.Completion; // 不存在起点，退出流程
+                env.FlowState = RunState.Completion; // 不存在起点，退出流程
                 return; 
             }
 
@@ -281,8 +261,8 @@ namespace Serein.NodeFlow
                     _flipFlopCts?.Cancel();
                     _flipFlopCts?.Dispose();
                 }
-                FlowState = RunState.Completion;
-                FlipFlopState = RunState.Completion;
+                env.FlowState = RunState.Completion;
+                env.FlipFlopState = RunState.Completion;
 
             };
             #endregion
@@ -294,7 +274,7 @@ namespace Serein.NodeFlow
                 
                 if (flipflopNodes.Count > 0)
                 {
-                    FlipFlopState = RunState.Running;
+                    env.FlipFlopState = RunState.Running;
                     // 如果存在需要启动的触发器，则开始启动
                     _flipFlopCts = new CancellationTokenSource();
                     env.IOC.CustomRegisterInstance(FlipFlopCtsName, _flipFlopCts,false);
@@ -308,7 +288,7 @@ namespace Serein.NodeFlow
                 }
                 await startNode.StartFlowAsync(Context); // 开始运行时从起始节点开始运行
                 // 等待结束
-                if(FlipFlopState == RunState.Running && _flipFlopCts is not null)
+                if(env.FlipFlopState == RunState.Running && _flipFlopCts is not null)
                 {
                     while (!_flipFlopCts.IsCancellationRequested)
                     {
@@ -322,7 +302,7 @@ namespace Serein.NodeFlow
             }
             finally
             {
-                FlowState = RunState.Completion;
+                env.FlowState = RunState.Completion;
             }
             #endregion
         }

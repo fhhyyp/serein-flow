@@ -150,6 +150,14 @@ namespace Serein.NodeFlow
         #endregion
 
         #region 属性
+        /// <summary>
+        /// 如果没有全局触发器，且没有循环分支，流程执行完成后自动为 Completion 。
+        /// </summary>
+        public RunState FlowState { get;  set; } = RunState.NoStart;
+        /// <summary>
+        /// 如果全局触发器还在运行，则为 Running 。
+        /// </summary>
+        public RunState FlipFlopState { get;  set; } = RunState.NoStart;
 
         /// <summary>
         /// 环境名称
@@ -166,7 +174,17 @@ namespace Serein.NodeFlow
         /// </summary>
         public ChannelFlowInterrupt ChannelFlowInterrupt { get; set; }
 
+        /// <summary>
+        /// <para>单例模式IOC容器，内部维护了一个实例字典，默认使用类型的FullName作为Key，如果以“接口-实现类”的方式注册，那么将使用接口类型的FullName作为Key。</para>
+        /// <para>当某个类型注册绑定成功后，将不会因为其它地方尝试注册相同类型的行为导致类型被重新创建。</para>
+        /// </summary>
         public ISereinIOC IOC { get => this; }
+
+
+        /// <summary>
+        /// 描述所有DLL中NodeAction特性的方法的原始副本
+        /// </summary>
+        public Dictionary<NodeLibrary, List<MethodDetails>> MethodDetailss { get; } = [];
 
         #endregion
 
@@ -185,10 +203,7 @@ namespace Serein.NodeFlow
         /// </summary>
         public List<NodeLibrary> NodeLibrarys { get; } = [];
 
-        /// <summary>
-        /// 描述所有DLL中NodeAction特性的方法的原始副本
-        /// </summary>
-        public Dictionary<NodeLibrary, List<MethodDetails>> MethodDetailss { get; } = [];
+       
 
         /// <summary>
         /// 环境加载的节点集合
@@ -283,7 +298,7 @@ namespace Serein.NodeFlow
 
             await flowStarter.RunAsync(this, nodes, AutoRegisterTypes, initMethods, loadMethods, exitMethods);
 
-            if (flowStarter?.FlipFlopState == RunState.NoStart)
+            if (this.FlipFlopState == RunState.Completion)
             {
                 this.Exit(); // 未运行触发器时，才会调用结束方法
             }
@@ -296,7 +311,7 @@ namespace Serein.NodeFlow
             {
                 return;
             }
-            if (flowStarter.FlowState == RunState.Running || flowStarter.FlipFlopState == RunState.Running)
+            if (this.FlowState == RunState.Running || this.FlipFlopState == RunState.Running)
             {
                 NodeModelBase? nodeModel = GuidToModel(startNodeGuid);
                 if (nodeModel is null || nodeModel is SingleFlipflopNode)
@@ -580,7 +595,7 @@ namespace Serein.NodeFlow
         /// </summary>
         /// <param name="nodeGuid"></param>
         /// <exception cref="NotImplementedException"></exception>
-        public void RemoteNode(string nodeGuid)
+        public void RemoveNode(string nodeGuid)
         {
             var remoteNode = GuidToModel(nodeGuid);
             if (remoteNode is null) return;
@@ -653,7 +668,7 @@ namespace Serein.NodeFlow
         /// <param name="toNodeGuid">目标节点Guid</param>
         /// <param name="connectionType">连接关系</param>
         /// <exception cref="NotImplementedException"></exception>
-        public void RemoteConnect(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
+        public void RemoveConnect(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
         {
             // 获取起始节点与目标节点
             var fromNode = GuidToModel(fromNodeGuid);
@@ -853,7 +868,7 @@ namespace Serein.NodeFlow
             if (nodeModel is null) return;
             if (flowStarter is not null && nodeModel is SingleFlipflopNode flipflopNode) // 子节点为触发器
            {
-               if (flowStarter.FlowState != RunState.Completion 
+               if (this.FlowState != RunState.Completion 
                    && flipflopNode.NotExitPreviousNode()) // 正在运行，且该触发器没有上游节点
                {
                     _ = flowStarter.RunGlobalFlipflopAsync(this, flipflopNode);// 被父节点移除连接关系的子节点若为触发器，且无上级节点，则当前流程正在运行，则加载到运行环境中

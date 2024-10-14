@@ -37,7 +37,7 @@ namespace Serein.NodeFlow.Model
                     break;
                 }
             }
-            return Task.FromResult( PreviousNode?.GetFlowData());
+            return Task.FromResult(PreviousNode?.GetFlowData()); // 条件区域透传上一节点的数据
         }
 
         

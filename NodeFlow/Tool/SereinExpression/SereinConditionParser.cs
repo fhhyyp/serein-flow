@@ -530,13 +530,9 @@ namespace Serein.NodeFlow.Tool.SereinExpression
             {
                 ">" => ValueTypeConditionResolver<T>.Operator.GreaterThan,
                 "<" => ValueTypeConditionResolver<T>.Operator.LessThan,
-                "=" => ValueTypeConditionResolver<T>.Operator.Equal,
                 "==" => ValueTypeConditionResolver<T>.Operator.Equal,
-                ">=" => ValueTypeConditionResolver<T>.Operator.GreaterThanOrEqual,
-                "≥" => ValueTypeConditionResolver<T>.Operator.GreaterThanOrEqual,
-                "<=" => ValueTypeConditionResolver<T>.Operator.LessThanOrEqual,
-                "≤" => ValueTypeConditionResolver<T>.Operator.LessThanOrEqual,
-                "equals" => ValueTypeConditionResolver<T>.Operator.Equal,
+                ">=" or "≥" => ValueTypeConditionResolver<T>.Operator.GreaterThanOrEqual,
+                "<=" or "≤" => ValueTypeConditionResolver<T>.Operator.LessThanOrEqual,
                 "in" => ValueTypeConditionResolver<T>.Operator.InRange,
                 "!in" => ValueTypeConditionResolver<T>.Operator.OutOfRange,
                 _ => throw new ArgumentException($"Invalid operator {operatorStr} for value type.")
@@ -553,10 +549,7 @@ namespace Serein.NodeFlow.Tool.SereinExpression
         {
             return operatorStr switch
             {
-                "is" => BoolConditionResolver.Operator.Is,
-                "==" => BoolConditionResolver.Operator.Is,
-                "equals" => BoolConditionResolver.Operator.Is,
-                //"isFalse" => BoolConditionNode.Operator.IsFalse,
+                "is" or "==" or "equals" => BoolConditionResolver.Operator.Is,
                 _ => throw new ArgumentException($"Invalid operator {operatorStr} for bool type.")
             };
         }
@@ -569,21 +562,16 @@ namespace Serein.NodeFlow.Tool.SereinExpression
         /// <exception cref="ArgumentException"></exception>
         private static StringConditionResolver.Operator ParseStringOperator(string operatorStr)
         {
-            return operatorStr switch
+            return operatorStr.ToLower() switch
             {
-                "c" => StringConditionResolver.Operator.Contains,
-                "nc" => StringConditionResolver.Operator.DoesNotContain,
-                "sw" => StringConditionResolver.Operator.StartsWith,
-                "ew" => StringConditionResolver.Operator.EndsWith,
+                "c" or "contains" => StringConditionResolver.Operator.Contains,
+                "nc" or "doesnotcontain" => StringConditionResolver.Operator.DoesNotContain,
+                "sw" or "startswith" => StringConditionResolver.Operator.StartsWith,
+                "ew" or "endswith" => StringConditionResolver.Operator.EndsWith,
 
-                "contains" => StringConditionResolver.Operator.Contains,
-                "doesNotContain" => StringConditionResolver.Operator.DoesNotContain,
-                "equals" => StringConditionResolver.Operator.Equal,
-                "==" => StringConditionResolver.Operator.Equal,
-                "notEquals" => StringConditionResolver.Operator.NotEqual,
-                "!=" => StringConditionResolver.Operator.NotEqual,
-                "startsWith" => StringConditionResolver.Operator.StartsWith,
-                "endsWith" => StringConditionResolver.Operator.EndsWith,
+                "==" or "equals" => StringConditionResolver.Operator.Equal,
+                "!=" or "notequals" => StringConditionResolver.Operator.NotEqual,
+
                 _ => throw new ArgumentException($"Invalid operator {operatorStr} for string type.")
             };
         }

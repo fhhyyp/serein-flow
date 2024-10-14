@@ -50,6 +50,12 @@ namespace Serein.Library.Utils
 
             }
         }
+        /// <summary>
+        /// 根据方法信息创建动态调用的委托，返回方法类型，以及传出一个委托
+        /// </summary>
+        /// <param name="methodInfo"></param>
+        /// <param name="delegate"></param>
+        /// <returns></returns>
         public static EmitMethodType CreateDynamicMethod( MethodInfo methodInfo,out Delegate @delegate)
         {
             bool IsTask = IsGenericTask(methodInfo.ReturnType, out var taskGenericsType);
