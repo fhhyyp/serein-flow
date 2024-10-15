@@ -10,7 +10,7 @@ namespace Serein.NodeFlow.Model
     public class SingleActionNode : NodeModelBase
     {
 
-        internal override Parameterdata[] GetParameterdatas()
+        public override Parameterdata[] GetParameterdatas()
         {
             if (base.MethodDetails.ParameterDetailss.Length > 0)
             {

@@ -49,7 +49,7 @@ namespace Serein.NodeFlow.Model
 
         }
 
-        internal override Parameterdata[] GetParameterdatas()
+        public override Parameterdata[] GetParameterdatas()
         {
             return [new Parameterdata{ Expression = Expression}];
         }

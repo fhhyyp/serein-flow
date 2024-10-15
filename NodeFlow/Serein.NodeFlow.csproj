@@ -19,18 +19,25 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Base\**" />
     <Compile Remove="bin\**" />
     <Compile Remove="SerinExpression\**" />
+    <Compile Remove="Tool\SereinExpression\**" />
+    <EmbeddedResource Remove="Base\**" />
     <EmbeddedResource Remove="bin\**" />
     <EmbeddedResource Remove="SerinExpression\**" />
+    <EmbeddedResource Remove="Tool\SereinExpression\**" />
+    <None Remove="Base\**" />
     <None Remove="bin\**" />
     <None Remove="SerinExpression\**" />
+    <None Remove="Tool\SereinExpression\**" />
   </ItemGroup>
 
   <ItemGroup>
     <Compile Remove="ConnectionType.cs" />
     <Compile Remove="DynamicContext.cs" />
     <Compile Remove="MethodDetails.cs" />
+    <Compile Remove="NodeStaticConfig.cs" />
     <Compile Remove="Tool\Attribute.cs" />
     <Compile Remove="Tool\DynamicTool.cs" />
     <Compile Remove="Tool\ExpressionHelper.cs" />

@@ -37,7 +37,7 @@ namespace Serein.NodeFlow.Model
                     break;
                 }
             }
-            return Task.FromResult(PreviousNode?.GetFlowData()); // 条件区域透传上一节点的数据
+            return Task.FromResult( PreviousNode?.GetFlowData()); // 条件区域透传上一节点的数据
         }
 
         
@@ -57,7 +57,7 @@ namespace Serein.NodeFlow.Model
             }
         }
 
-        internal override Parameterdata[] GetParameterdatas()
+        public override Parameterdata[] GetParameterdatas()
         {
             return [];
         }

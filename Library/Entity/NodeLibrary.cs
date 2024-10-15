@@ -15,6 +15,7 @@ namespace Serein.Library.Entity
         /// </summary>
         public string Path { get; set; }
 
+        public string Name{ get; set; }
         public Assembly Assembly { get; set; }
     }
 

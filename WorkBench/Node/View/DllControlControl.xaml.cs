@@ -53,18 +53,18 @@ namespace Serein.WorkBench.Node.View
         /// 向动作面板添加类型的文本块
         /// </summary>
         /// <param name="type">要添加的类型</param>
-        public void AddAction(MethodDetails md)
+        public void AddAction(MethodDetailsInfo mdInfo)
         {
-            AddTypeToListBox(md, ActionsListBox);
+            AddTypeToListBox(mdInfo, ActionsListBox);
         }
 
         /// <summary>
         /// 向触发器面板添加类型的文本块
         /// </summary>
         /// <param name="type">要添加的类型</param>
-        public void AddFlipflop(MethodDetails md)
+        public void AddFlipflop(MethodDetailsInfo mdInfo)
         {
-            AddTypeToListBox(md, FlipflopsListBox);
+            AddTypeToListBox(mdInfo, FlipflopsListBox);
         }
 
         /// <summary>
@@ -72,14 +72,14 @@ namespace Serein.WorkBench.Node.View
         /// </summary>
         /// <param name="type">要添加的类型</param>
         /// <param name="panel">要添加到的面板</param>
-        private void AddTypeToListBox(MethodDetails md, ListBox listBox)
+        private void AddTypeToListBox(MethodDetailsInfo mdInfo, ListBox listBox)
         {
             // 创建一个新的 TextBlock 并设置其属性
             TextBlock typeText = new TextBlock
             {
-                Text = $"{md.MethodTips}",
+                Text = $"{mdInfo.MethodTips}",
                 Margin = new Thickness(10, 2, 0, 0),
-                Tag = md
+                Tag = mdInfo
             };
             // 为 TextBlock 添加鼠标左键按下事件处理程序
             typeText.MouseLeftButtonDown += TypeText_MouseLeftButtonDown;
@@ -125,17 +125,17 @@ namespace Serein.WorkBench.Node.View
                 // 获取触发事件的 TextBlock
 
 
-                if (sender is TextBlock typeText && typeText.Tag is MethodDetails md)
+                if (sender is TextBlock typeText && typeText.Tag is MethodDetailsInfo mdInfo)
                 {
                     MoveNodeData moveNodeData = new MoveNodeData
                     {
-                        NodeControlType = md.MethodDynamicType switch
+                        NodeControlType = mdInfo.NodeType switch
                         {
                             NodeType.Action => NodeControlType.Action,
                             NodeType.Flipflop => NodeControlType.Flipflop,
                             _ => NodeControlType.None,
                         },
-                        MethodDetails = md,
+                        MethodDetailsInfo = mdInfo,
                     };
                     if(moveNodeData.NodeControlType == NodeControlType.None)
                     {

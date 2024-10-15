@@ -31,7 +31,7 @@ namespace Serein.WorkBench.Node.View
         /// <summary>
         /// 添加条件控件
         /// </summary>
-        /// <param name="condition"></param>
+        /// <param name="node"></param>
         public void AddCondition(NodeControlBase node)
         {
             ((CompositeConditionNode)ViewModel.Node).AddNode((SingleConditionNode)node.ViewModel.Node);

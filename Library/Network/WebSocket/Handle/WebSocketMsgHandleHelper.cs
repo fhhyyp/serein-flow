@@ -19,7 +19,9 @@ using System.Security.Cryptography;
 
 namespace Serein.Library.Network.WebSocketCommunication.Handle
 {
-
+    /// <summary>
+    /// 适用于Json数据格式的WebSocket消息处理类
+    /// </summary>
     public class WebSocketMsgHandleHelper
     {
         /// <summary>
@@ -68,7 +70,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
             var key = (themeKeyName, dataKeyName);
             if (MyHandleModuleDict.TryGetValue(key, out var myHandleModules))
             {
-                var isRemote = myHandleModules.ResetConfig(socketControlBase);
+                var isRemote = myHandleModules.RemoveConfig(socketControlBase);
                 if (isRemote) MyHandleModuleDict.TryGetValue(key, out _);
             }
 
@@ -132,6 +134,12 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
 
         }
 
+        /// <summary>
+        /// 异步处理消息
+        /// </summary>
+        /// <param name="RecoverAsync"></param>
+        /// <param name="message"></param>
+        /// <returns></returns>
         public async Task HandleMsgAsync(Func<string, Task> RecoverAsync, string message)
         {
             JObject json = JObject.Parse(message);

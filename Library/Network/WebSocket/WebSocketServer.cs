@@ -14,12 +14,25 @@ using System.Threading.Tasks;
 
 namespace Serein.Library.Network.WebSocketCommunication
 {
+
+    /// <summary>
+    /// WebSocket服务类
+    /// </summary>
     [AutoRegister]
     public class WebSocketServer
     {
+        /// <summary>
+        /// 消息处理
+        /// </summary>
         public WebSocketMsgHandleHelper MsgHandleHelper { get; } = new WebSocketMsgHandleHelper();
 
         private HttpListener listener;
+
+        /// <summary>
+        /// 进行监听服务
+        /// </summary>
+        /// <param name="url"></param>
+        /// <returns></returns>
         public async Task StartAsync(string url)
         {
             listener = new HttpListener();
@@ -58,6 +71,9 @@ namespace Serein.Library.Network.WebSocketCommunication
             }
         }
 
+        /// <summary>
+        /// 停止监听服务
+        /// </summary>
         public void Stop()
         {
             listener?.Stop();
@@ -96,6 +112,12 @@ namespace Serein.Library.Network.WebSocketCommunication
             }
         }
 
+        /// <summary>
+        /// 发送消息
+        /// </summary>
+        /// <param name="webSocket"></param>
+        /// <param name="message"></param>
+        /// <returns></returns>
         public static async Task SendAsync(WebSocket webSocket, string message)
         {
             var buffer = Encoding.UTF8.GetBytes(message);

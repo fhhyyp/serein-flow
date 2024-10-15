@@ -26,7 +26,7 @@ namespace Serein.NodeFlow.Model
             throw new NotImplementedException("动作区域暂未实现");
         }
 
-        internal override Parameterdata[] GetParameterdatas()
+        public override Parameterdata[] GetParameterdatas()
         {
             return [];
         }

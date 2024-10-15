@@ -71,7 +71,7 @@ namespace Serein.NodeFlow.Model
             return Task.FromResult(result);
         }
 
-        internal override Parameterdata[] GetParameterdatas()
+        public override Parameterdata[] GetParameterdatas()
         {
             var value = CustomData switch
             {
@@ -89,8 +89,6 @@ namespace Serein.NodeFlow.Model
                 Value = value,
             }];
         }
-
-
 
         public override NodeModelBase LoadInfo(NodeInfo nodeInfo)
         {

@@ -24,15 +24,7 @@ namespace Serein.NodeFlow
     /// </summary>
     public class FlowStarter
     {
-        /// <summary>
-        /// 全局触发器CTS
-        /// </summary>
-        public const string FlipFlopCtsName = "<>.FlowFlipFlopCts";
-        /// <summary>
-        /// 流程运行CTS
-        /// </summary>
-        public const string FlowRungCtsName = "<>.FlowRungCtsName";
-
+       
         public FlowStarter()
         {
         }
@@ -209,7 +201,7 @@ namespace Serein.NodeFlow
                 {
                     throw new Exception("不存在对应委托");
                 }
-                await dd.Invoke(md.ActingInstance, [Context]);
+                await dd.InvokeAsync(md.ActingInstance, [Context]);
                 //((Func<object, object[], object>)dd.EmitDelegate).Invoke(md.ActingInstance, [Context]);
             }
             Context.Env.IOC.Build(); // 绑定初始化时注册的类型
@@ -230,7 +222,7 @@ namespace Serein.NodeFlow
                 {
                     throw new Exception("不存在对应委托");
                 }
-                await dd.Invoke(md.ActingInstance, [Context]);
+                await dd.InvokeAsync(md.ActingInstance, [Context]);
                 //((Action<object, object?[]?>)del).Invoke(md.ActingInstance, [Context]);
                 //((Func<object, object[], object>)dd.EmitDelegate).Invoke(md.ActingInstance, [Context]);
             }
@@ -250,7 +242,7 @@ namespace Serein.NodeFlow
                     {
                         throw new Exception("不存在对应委托");
                     }
-                    await dd.Invoke(md.ActingInstance, [Context]);
+                    await dd.InvokeAsync(md.ActingInstance, [Context]);
                     //((Func<object, object[], object>)dd.EmitDelegate).Invoke(md.ActingInstance, [Context]);
                 }
 
@@ -277,7 +269,7 @@ namespace Serein.NodeFlow
                     env.FlipFlopState = RunState.Running;
                     // 如果存在需要启动的触发器，则开始启动
                     _flipFlopCts = new CancellationTokenSource();
-                    env.IOC.CustomRegisterInstance(FlipFlopCtsName, _flipFlopCts,false);
+                    env.IOC.CustomRegisterInstance(NodeStaticConfig.FlipFlopCtsName, _flipFlopCts,false);
 
                     // 使用 TaskCompletionSource 创建未启动的触发器任务
                     var tasks = flipflopNodes.Select(async node =>

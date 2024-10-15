@@ -42,7 +42,7 @@ namespace Serein.NodeFlow.Model
             try
             {
                 var args = GetParameters(context, this, md);
-                var result = await dd.Invoke(md.ActingInstance, args);
+                var result = await dd.InvokeAsync(md.ActingInstance, args);
                 dynamic flipflopContext = result;
                 FlipflopStateType flipflopStateType = flipflopContext.State;
                 NextOrientation = flipflopStateType.ToContentType();
@@ -80,7 +80,7 @@ namespace Serein.NodeFlow.Model
         {
             return context.Value; // dynamic 会在运行时处理类型
         }
-        internal override Parameterdata[] GetParameterdatas()
+        public override Parameterdata[] GetParameterdatas()
         {
             if (base.MethodDetails.ParameterDetailss.Length > 0)
             {

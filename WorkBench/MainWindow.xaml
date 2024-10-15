@@ -10,7 +10,6 @@
         Loaded="Window_Loaded"
         ContentRendered="Window_ContentRendered"
         PreviewKeyDown="Window_PreviewKeyDown"
-        PreviewTextInput="Window_PreviewTextInput"
         Closing="Window_Closing">
 
     <Window.Resources>
@@ -36,40 +35,56 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <StackPanel Grid.Row="0" Grid.ColumnSpan="5" Background="#F5F5F5" Orientation="Horizontal" >
-            <Button x:Name="ButtonDebugRun"  Content="运行" Width="100" Margin="10" Click="ButtonDebugRun_Click"></Button>
-            <Button x:Name="ButtonDebugFlipflopNode"  Content="结束" Width="100" Margin="10" Click="ButtonDebugFlipflopNode_Click"></Button>
-            <Button x:Name="ButtonStartFlowInSelectNode"  Content="从选定节点开始" Width="100" Margin="10" Click="ButtonStartFlowInSelectNode_Click"></Button>
-            <Button x:Name="ButtonResetCanvas"  Content="重置画布" Width="100" Margin="10" Click="ButtonResetCanvas_Click"></Button>
-            <Button x:Name="ButtonTestExpObj"  Content="测试对象表达式" Width="100" Margin="10" Click="ButtonTestExpObj_Click"></Button>
-        </StackPanel>
-
+        <Menu DockPanel.Dock="Top" Grid.Row="0" Height="20">
+            <MenuItem Header="文件">
+                <!--菜单项为MenuItem，文字使用属性 Header-->
+                <MenuItem Header="保存项目" Click="ButtonSaveFile_Click" ></MenuItem>
+                <MenuItem Header="打开本地文件" Click="OpenLocalProject_Click"></MenuItem>
+                <MenuItem Header="连接远程环境" Click="OpenRemoteProject_Click"></MenuItem>
+            </MenuItem>
+            <MenuItem Header="调试">
+                <MenuItem Header="运行（从起始节点）" Click="ButtonDebugRun_Click"></MenuItem>
+                <MenuItem Header="运行（从选定节点）" Click="ButtonDebugFlipflopNode_Click"></MenuItem>
+                <MenuItem Header="结束流程" Click="ButtonDebugFlipflopNode_Click"></MenuItem>
+            </MenuItem>
+            <MenuItem Header="视图">
+                <MenuItem Header="输出窗口" Click="ButtonOpenConsoleOutWindow_Click"></MenuItem>
+                <MenuItem Header="重置画布" Click="ButtonResetCanvas_Click"></MenuItem>
+            </MenuItem>
+            <!--<MenuItem Header="说明"></MenuItem>-->
+        </Menu>
+        
         <DockPanel Grid.Row="1" Grid.Column="0" Background="#F5F5F5">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="40"></RowDefinition>
-                    <RowDefinition Height="Auto"></RowDefinition>
-                    <RowDefinition Height="2*"></RowDefinition>
+                    <RowDefinition Height="auto"></RowDefinition>
+                    <RowDefinition Height="*"></RowDefinition>
                     <!--<RowDefinition Height="3"></RowDefinition>-->
                     <!--<RowDefinition Height="3*"></RowDefinition>-->
                 </Grid.RowDefinitions>
 
-                <Grid Margin="2,2,1,5"  Grid.Row="0" >
-                    <Button  Grid.Row="0"  Content="保存项目" Click="ButtonSaveFile_Click"  HorizontalAlignment="Left"  Margin="5,5,5,5"/>
-                    <!--<Button  Grid.Row="0"  Content="卸载清空" Click="UnloadAllButton_Click"  HorizontalAlignment="Right"  Margin="5,5,5,5"/>-->
-                </Grid>
+                <!--<Grid Margin="2,2,1,5"  Grid.Row="0" >
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="auto"/>
+                        <ColumnDefinition Width="auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button  Grid.Column="0"  Content="保存项目" Click="ButtonSaveFile_Click"  HorizontalAlignment="Left"  Margin="5,5,5,5"/>
+                    --><!--<Button  Grid.Column="1"  Content="加载项目" Click="ButtonLoadProjectFile_Click"  HorizontalAlignment="Left"  Margin="5,5,5,5"/>-->
+                    <!--<Button  Grid.Row="0"  Content="卸载清空" Click="UnloadAllButton_Click"  HorizontalAlignment="Right"  Margin="5,5,5,5"/>--><!--
+                </Grid>-->
 
-                <ScrollViewer  Grid.Row="1"  HorizontalScrollBarVisibility="Auto">
+                <ScrollViewer  Grid.Row="0"  HorizontalScrollBarVisibility="Auto">
                     <StackPanel  Orientation="Horizontal">
                         <nodeView:ExpOpNodeControl x:Name="ExpOpNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                         <nodeView:ConditionNodeControl x:Name="ConditionNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                         <nodeView:ConditionRegionControl  x:Name="ConditionRegionControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                     </StackPanel>
                 </ScrollViewer>
-                <ScrollViewer  Grid.Row="2"  VerticalScrollBarVisibility="Auto" MaxHeight="400" Grid.RowSpan="2">
+                <ScrollViewer  Grid.Row="1"  VerticalScrollBarVisibility="Auto" MaxHeight="400" Grid.RowSpan="2">
                     <StackPanel x:Name="DllStackPanel" Margin="5"/>
                 </ScrollViewer>
                 <!--<GridSplitter Grid.Row="3" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Center" ResizeBehavior="PreviousAndNext" Background="Gray"/>-->

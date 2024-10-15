@@ -23,7 +23,7 @@ namespace Serein.Library.Entity
         /// <summary>
         /// 节点类型
         /// </summary>
-        public string NodeType { get; set; }
+        public NodeType NodeType { get; set; }
 
         /// <summary>
         /// 方法说明
@@ -39,7 +39,6 @@ namespace Serein.Library.Entity
         /// <summary>
         /// 出参类型
         /// </summary>
-
         public string ReturnTypeFullName { get; set; }
     }
 
@@ -60,7 +59,7 @@ namespace Serein.Library.Entity
             {
                 MethodName = MethodName,
                 MethodTips = MethodTips,
-                NodeType = MethodDynamicType.ToString(),
+                NodeType = MethodDynamicType,
                 ParameterDetailsInfos = this.ParameterDetailss.Select(p => p.ToInfo()).ToArray(),
                 ReturnTypeFullName = ReturnType.FullName,
             

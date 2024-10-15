@@ -2,6 +2,7 @@
 using Serein.Library.Enums;
 using Serein.Library.Utils;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -35,17 +36,13 @@ namespace Serein.Library.Api
     /// <summary>
     /// 运行环境节点连接发生了改变
     /// </summary>
-    /// <param name="fromNodeGuid"></param>
-    /// <param name="toNodeGuid"></param>
-    /// <param name="connectionType"></param>
+    /// <param name="eventArgs"></param>
     public delegate void NodeConnectChangeHandler(NodeConnectChangeEventArgs eventArgs);
 
     /// <summary>
     /// 环境中加载了一个节点
     /// </summary>
-    /// <param name="fromNodeGuid"></param>
-    /// <param name="toNodeGuid"></param>
-    /// <param name="connectionType"></param>
+    /// <param name="eventArgs"></param>
     public delegate void NodeCreateHandler(NodeCreateEventArgs eventArgs);
 
     /// <summary>
@@ -72,6 +69,16 @@ namespace Serein.Library.Api
     /// <param name="eventArgs"></param>
     public delegate void ExpInterruptTriggerHandler(InterruptTriggerEventArgs eventArgs);
 
+    /// <summary>
+    /// IOC容器发生变化
+    /// </summary>
+    public delegate void IOCMembersChangedHandler(IOCMembersChangedEventArgs eventArgs);
+
+    /// <summary>
+    /// 节点需要定位
+    /// </summary>
+    /// <param name="eventArgs"></param>
+    public delegate void NodeLocatedHandler(NodeLocatedEventArgs eventArgs);
 
     #endregion
 
@@ -118,7 +125,7 @@ namespace Serein.Library.Api
 
     public class LoadDllEventArgs : FlowEventArgs
     {
-        public LoadDllEventArgs(NodeLibrary nodeLibrary, List<MethodDetails> MethodDetailss)
+        public LoadDllEventArgs(NodeLibrary nodeLibrary, List<MethodDetailsInfo> MethodDetailss)
         {
             this.NodeLibrary = nodeLibrary;
             this.MethodDetailss = MethodDetailss;
@@ -130,7 +137,7 @@ namespace Serein.Library.Api
         /// <summary>
         /// dll文件中有效的流程方法描述
         /// </summary>
-        public List<MethodDetails> MethodDetailss { get; protected set; }
+        public List<MethodDetailsInfo> MethodDetailss { get; protected set; }
     }
 
     public class RemoteDllEventArgs : FlowEventArgs
@@ -251,11 +258,27 @@ namespace Serein.Library.Api
     /// </summary>
     public class MonitorObjectEventArgs : FlowEventArgs
     {
+        /// <summary>
+        /// 变化的数据类别
+        /// </summary>
         public enum ObjSourceType
         {
+            /// <summary>
+            /// 流程节点的数据
+            /// </summary>
             NodeFlowData,
+
+            /// <summary>
+            /// IOC容器对象
+            /// </summary>
             IOCObj,
         }
+        /// <summary>
+        /// 在某个节点运行时，监听的数据发生了改变
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        /// <param name="monitorData"></param>
+        /// <param name="objSourceType"></param>
         public MonitorObjectEventArgs(string nodeGuid, object monitorData, ObjSourceType objSourceType)
         {
             NodeGuid = nodeGuid;
@@ -267,6 +290,10 @@ namespace Serein.Library.Api
         /// 中断的节点Guid
         /// </summary>
         public string NodeGuid { get; protected set; }
+
+        /// <summary>
+        /// 监听对象类别
+        /// </summary>
         public ObjSourceType ObjSource { get; protected set; }
         /// <summary>
         /// 新的数据
@@ -326,13 +353,7 @@ namespace Serein.Library.Api
         public string Expression { get; protected set; }
         public InterruptTriggerType Type { get; protected set; }
     }
-    #endregion
 
-
-    /// <summary>
-    /// IOC容器发生变化
-    /// </summary>
-    public delegate void IOCMembersChangedHandler(IOCMembersChangedEventArgs eventArgs);
 
 
     /// <summary>
@@ -360,11 +381,6 @@ namespace Serein.Library.Api
         public object Instance { get; private set; }
     }
 
-    /// <summary>
-    /// 节点需要定位
-    /// </summary>
-    /// <param name="eventArgs"></param>
-    public delegate void NodeLocatedHandler(NodeLocatedEventArgs eventArgs);
 
     public class NodeLocatedEventArgs : FlowEventArgs
     {
@@ -375,6 +391,14 @@ namespace Serein.Library.Api
         public string NodeGuid { get; private set; }
     }
 
+    #endregion
+
+
+
+
+    /// <summary>
+    /// 运行环境
+    /// </summary>
     public interface IFlowEnvironment
     {
         #region 属性
@@ -397,7 +421,7 @@ namespace Serein.Library.Api
         /// <summary>
         /// DLL中NodeAction特性的方法描述的所有原始副本
         /// </summary>
-        Dictionary<NodeLibrary, List<MethodDetails>> MethodDetailss { get; }
+        // ConcurrentDictionary<string, MethodDetails> MethodDetailss { get; }
 
 
         /// <summary>
@@ -478,14 +502,19 @@ namespace Serein.Library.Api
 
 
         /// <summary>
-        /// 获取方法描述
+        /// 获取方法描述信息
         /// </summary>
-        /// <param name="name"></param>
-        /// <param name="md"></param>
+        /// <param name="methodName">方法描述</param>
+        /// <param name="mdInfo">方法信息</param>
         /// <returns></returns>
-        bool TryGetMethodDetails(string methodName, out MethodDetails md);
+        bool TryGetMethodDetailsInfo(string methodName, out MethodDetailsInfo mdInfo);
 
-
+        /// <summary>
+        /// 获取指定方法的Emit委托
+        /// </summary>
+        /// <param name="methodName"></param>
+        /// <param name="del"></param>
+        /// <returns></returns>
         bool TryGetDelegateDetails(string methodName, out DelegateDetails del);
 
         //bool TryGetNodeData(string methodName, out NodeData node);
@@ -496,13 +525,22 @@ namespace Serein.Library.Api
         /// 保存当前项目
         /// </summary>
         /// <returns></returns>
-        SereinProjectData SaveProject();
+        SereinProjectData GetProjectInfo();
         /// <summary>
         /// 加载项目文件
         /// </summary>
         /// <param name="projectFile"></param>
         /// <param name="filePath"></param>
         void LoadProject(SereinProjectData projectFile, string filePath);
+
+        /// <summary>
+        /// 加载远程项目
+        /// </summary>
+        /// <param name="addres">远程项目地址</param>
+        /// <param name="port">远程项目端口</param>
+        /// <param name="token">密码</param>
+        void LoadRemoteProject(string addres,int port, string token);
+
         /// <summary>
         /// 从文件中加载Dll
         /// </summary>
@@ -511,7 +549,7 @@ namespace Serein.Library.Api
         /// <summary>
         /// 移除DLL
         /// </summary>
-        /// <param name="dllPath"></param>
+        /// <param name="assemblyFullName">程序集的名称</param>
         bool RemoteDll(string assemblyFullName);
 
         /// <summary>
@@ -552,8 +590,10 @@ namespace Serein.Library.Api
         /// 创建节点/区域/基础控件
         /// </summary>
         /// <param name="nodeBase">节点/区域/基础控件</param>
-        /// <param name="methodDetails">节点绑定的方法说明（</param>
-        void CreateNode(NodeControlType nodeBase, Position position, MethodDetails methodDetails = null);
+        /// <param name="position">节点在画布上的位置（</param>
+        /// <param name="methodDetailsInfo">节点绑定的方法说明（</param>
+        void CreateNode(NodeControlType nodeBase, Position position, MethodDetailsInfo methodDetailsInfo = null);
+
         /// <summary>
         /// 移除两个节点之间的连接关系
         /// </summary>
@@ -590,15 +630,15 @@ namespace Serein.Library.Api
         /// <summary>
         /// 添加作用于某个对象的中断表达式
         /// </summary>
-        /// <param name="nodeGuid"></param>
+        /// <param name="key"></param>
         /// <param name="expression"></param>
         /// <returns></returns>
         bool AddInterruptExpression(string key, string expression);
-        
+
         /// <summary>
         /// 监视指定对象
         /// </summary>
-        /// <param name="obj">需要监视的对象</param>
+        /// <param name="key">需要监视的对象</param>
         /// <param name="isMonitor">是否启用监视</param>
         void SetMonitorObjState(string key,bool isMonitor);
 
@@ -620,6 +660,14 @@ namespace Serein.Library.Api
         Task<CancelType> GetOrCreateGlobalInterruptAsync();
 
 
+        #region 远程相关
+        /// <summary>
+        /// (适用于远程连接后获取环境的运行状态)获取当前环境的信息
+        /// </summary>
+        /// <returns></returns>
+        object GetEnvInfo();
+        #endregion
+
         #endregion
 
         #region 启动器调用
@@ -628,7 +676,8 @@ namespace Serein.Library.Api
         /// 流程启动器调用，监视数据更新通知
         /// </summary>
         /// <param name="nodeGuid">更新了数据的节点Guid</param>
-        /// <param name="flowData">更新的数据</param>
+        /// <param name="monitorData">更新的数据</param>
+        /// <param name="sourceType">更新的数据</param>
         void MonitorObjectNotification(string nodeGuid, object monitorData, MonitorObjectEventArgs.ObjSourceType sourceType);
 
         /// <summary>

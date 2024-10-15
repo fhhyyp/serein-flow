@@ -14,10 +14,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Entity\Base\**" />
     <Compile Remove="Http\**" />
     <Compile Remove="Utils\SerinExpression\**" />
+    <EmbeddedResource Remove="Entity\Base\**" />
     <EmbeddedResource Remove="Http\**" />
     <EmbeddedResource Remove="Utils\SerinExpression\**" />
+    <None Remove="Entity\Base\**" />
     <None Remove="Http\**" />
     <None Remove="Utils\SerinExpression\**" />
   </ItemGroup>

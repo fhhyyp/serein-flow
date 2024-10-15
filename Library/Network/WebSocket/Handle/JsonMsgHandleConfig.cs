@@ -15,14 +15,17 @@ using System.Threading.Tasks;
 
 namespace Serein.Library.Network.WebSocketCommunication.Handle
 {
-    public class WebSocketHandleConfig
+    /// <summary>
+    /// 
+    /// </summary>
+    public class JsonMsgHandleConfig
     {
         private readonly Delegate EmitDelegate;
         private readonly EmitHelper.EmitMethodType EmitMethodType;
 
         private Action<Exception, Action<object>> OnExceptionTracking;
 
-        internal WebSocketHandleConfig(SocketHandleModel model,ISocketHandleModule instance, MethodInfo methodInfo, Action<Exception, Action<object>> onExceptionTracking)
+        internal JsonMsgHandleConfig(SocketHandleModel model,ISocketHandleModule instance, MethodInfo methodInfo, Action<Exception, Action<object>> onExceptionTracking)
         {
             EmitMethodType = EmitHelper.CreateDynamicMethod(methodInfo,out EmitDelegate);
             this.Model = model;

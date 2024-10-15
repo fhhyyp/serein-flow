@@ -14,11 +14,21 @@ namespace Serein.Library.Entity
     /// </summary>
     public class DelegateDetails
     {
+        /// <summary>
+        /// 记录Emit委托
+        /// </summary>
+        /// <param name="EmitMethodType"></param>
+        /// <param name="EmitDelegate"></param>
         public DelegateDetails(EmitMethodType EmitMethodType, Delegate EmitDelegate)
         {
             this._emitMethodType = EmitMethodType;
             this._emitDelegate = EmitDelegate;
         }
+        /// <summary>
+        /// 更新委托方法
+        /// </summary>
+        /// <param name="EmitMethodType"></param>
+        /// <param name="EmitDelegate"></param>
         public void Upload(EmitMethodType EmitMethodType, Delegate EmitDelegate)
         {
             _emitMethodType = EmitMethodType;
@@ -26,18 +36,30 @@ namespace Serein.Library.Entity
         }
         private Delegate _emitDelegate;
         private EmitMethodType _emitMethodType;
+
+        /// <summary>
+        /// <para>普通方法：Func&lt;object,object[],object&gt;</para>
+        /// <para>异步方法：Func&lt;object,object[],Task&gt;</para>
+        /// <para>异步有返回值方法：Func&lt;object,object[],Task&lt;object&gt;&gt;</para>
+        /// </summary>
         public Delegate EmitDelegate { get => _emitDelegate; }
+        /// <summary>
+        /// 表示Emit构造的委托类型
+        /// </summary>
         public EmitMethodType EmitMethodType { get => _emitMethodType; }
 
         /// <summary>
-        /// 异步等待Emit创建的委托。
-        /// 需要注意的是，传入的实例必须包含创建委托的方法信息，传入的参数也必须符合方法入参信息。
-        /// </summary>
+        /// <para>使用的实例必须能够正确调用该委托，传入的参数也必须符合方法入参信息。</para>
+        ///  </summary>
         /// <param name="instance">实例</param>
         /// <param name="args">入参</param>
-        /// <returns>返回值</returns>
-        public async Task<object> Invoke(object instance, object[] args)
+        /// <returns>void方法自动返回null</returns>
+        public async Task<object> InvokeAsync(object instance, object[] args)
         {
+            if(args is null)
+            {
+                args = new object[0];
+            }
             object result = null;
             try
             {

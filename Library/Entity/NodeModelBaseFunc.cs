@@ -6,7 +6,6 @@ using Serein.Library.Entity;
 using Serein.Library.Enums;
 using Serein.Library.Ex;
 using Serein.Library.Utils;
-using Serein.NodeFlow.Tool;
 using Serein.NodeFlow.Tool.SereinExpression;
 using System;
 using System.Collections;
@@ -16,6 +15,7 @@ using System.Linq.Expressions;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using static Serein.Library.Utils.ChannelFlowInterrupt;
@@ -46,7 +46,7 @@ namespace Serein.NodeFlow.Base
 
         #region 导出/导入项目文件节点信息
 
-        internal abstract Parameterdata[] GetParameterdatas();
+        public abstract Parameterdata[] GetParameterdatas();
         public virtual NodeInfo ToInfo()
         {
             // if (MethodDetails == null) return null;
@@ -77,11 +77,11 @@ namespace Serein.NodeFlow.Base
         public virtual NodeModelBase LoadInfo(NodeInfo nodeInfo)
         {
             this.Guid = nodeInfo.Guid;
-            if (this.MethodDetails is not null)
+            if (this.MethodDetails != null)
             {
                 for (int i = 0; i < nodeInfo.ParameterData.Length; i++)
                 {
-                    Parameterdata? pd = nodeInfo.ParameterData[i];
+                    Parameterdata pd = nodeInfo.ParameterData[i];
                     this.MethodDetails.ParameterDetailss[i].IsExplicitData = pd.State;
                     this.MethodDetails.ParameterDetailss[i].DataValue = pd.Value;
                 }
@@ -100,7 +100,7 @@ namespace Serein.NodeFlow.Base
         /// <param name="context"></param>
         /// <param name="flowCts"></param>
         /// <returns></returns>
-        public static bool IsBradk(IDynamicContext context, CancellationTokenSource? flowCts)
+        public static bool IsBradk(IDynamicContext context, CancellationTokenSource flowCts)
         {
             // 上下文不再执行
             if(context.RunState == RunState.Completion)
@@ -114,7 +114,7 @@ namespace Serein.NodeFlow.Base
                 return true;
             }
             // 如果存在全局触发器，且触发器的执行任务已经被取消时，退出执行。
-            if (flowCts is not null)
+            if (flowCts != null)
             {
                 if (flowCts.IsCancellationRequested)
                    return true;
@@ -133,7 +133,7 @@ namespace Serein.NodeFlow.Base
         {
             Stack<NodeModelBase> stack = new Stack<NodeModelBase>();
             stack.Push(this);
-            var flowCts = context.Env.IOC.Get<CancellationTokenSource>(FlowStarter.FlipFlopCtsName);
+            var flowCts = context.Env.IOC.Get<CancellationTokenSource>(NodeStaticConfig.FlipFlopCtsName);
             bool hasFlipflow = flowCts != null;
             while (stack.Count > 0) // 循环中直到栈为空才会退出循环
             {
@@ -147,8 +147,8 @@ namespace Serein.NodeFlow.Base
                 var upstreamNodes = currentNode.SuccessorNodes[ConnectionType.Upstream].ToArray();
                 for (int index = 0; index < upstreamNodes.Length; index++)
                 {
-                    NodeModelBase? upstreamNode = upstreamNodes[index];
-                    if (upstreamNode is not null && upstreamNode.DebugSetting.IsEnable)
+                    NodeModelBase upstreamNode = upstreamNodes[index];
+                    if (!(upstreamNode is null) && upstreamNode.DebugSetting.IsEnable)
                     {
                         if (upstreamNode.DebugSetting.InterruptClass != InterruptClass.None) // 执行触发前
                         {
@@ -168,7 +168,7 @@ namespace Serein.NodeFlow.Base
                 }
                 if (IsBradk(context, flowCts)) break; // 退出执行
                 // 上游分支执行完成，才执行当前节点
-                object? newFlowData = await currentNode.ExecutingAsync(context);
+                object newFlowData = await currentNode.ExecutingAsync(context);
                 if (IsBradk(context, flowCts)) break; // 退出执行
 
                 await RefreshFlowDataAndExpInterrupt(context, currentNode, newFlowData); // 执行当前节点后刷新数据
@@ -202,7 +202,7 @@ namespace Serein.NodeFlow.Base
         /// </summary>
         /// <param name="context">流程上下文</param>
         /// <returns>节点传回数据对象</returns>
-        public virtual async Task<object?> ExecutingAsync(IDynamicContext context)
+        public virtual async Task<object> ExecutingAsync(IDynamicContext context)
         {
             #region 调试中断
 
@@ -214,7 +214,7 @@ namespace Serein.NodeFlow.Base
 
             #endregion
 
-            MethodDetails? md = MethodDetails;
+            MethodDetails md = MethodDetails;
             //var del = md.MethodDelegate.Clone();
             if (md is null)
             {
@@ -224,15 +224,19 @@ namespace Serein.NodeFlow.Base
             {
                 throw new Exception($"节点{this.Guid}不存在对应委托");
             }
-            md.ActingInstance ??= context.Env.IOC.Get(md.ActingInstanceType);
+            if(md.ActingInstance is null)
+            {
+                md.ActingInstance = context.Env.IOC.Get(md.ActingInstanceType);
+            }
+            // md.ActingInstance ??= context.Env.IOC.Get(md.ActingInstanceType);
             object instance = md.ActingInstance;
 
 
-            object? result = null;
+            object result = null;
 
             try
             {
-                object?[]? args = GetParameters(context, this, md);
+                object[] args = GetParameters(context, this, md);
                 result = await dd.InvokeAsync(md.ActingInstance, args);
                 NextOrientation = ConnectionType.IsSucceed;
                 return result;
@@ -251,7 +255,7 @@ namespace Serein.NodeFlow.Base
         /// <summary>
         /// 获取对应的参数数组
         /// </summary>
-        public static object?[]? GetParameters(IDynamicContext context, NodeModelBase nodeModel, MethodDetails md)
+        public static object[] GetParameters(IDynamicContext context, NodeModelBase nodeModel, MethodDetails md)
         {
             // 用正确的大小初始化参数数组
             if (md.ParameterDetailss.Length == 0)
@@ -259,20 +263,20 @@ namespace Serein.NodeFlow.Base
                 return null;// md.ActingInstance
             }
 
-            object?[]? parameters = new object[md.ParameterDetailss.Length];
+            object[] parameters = new object[md.ParameterDetailss.Length];
             var flowData = nodeModel.PreviousNode?.FlowData; // 当前传递的数据
             var previousDataType = flowData?.GetType();
 
             for (int i = 0; i < parameters.Length; i++)
             {
 
-                object? inputParameter; // 存放解析的临时参数
+                object inputParameter; // 存放解析的临时参数
                 var ed = md.ParameterDetailss[i]; // 方法入参描述
 
 
                 if (ed.IsExplicitData) // 判断是否使用显示的输入参数
                 {
-                    if (ed.DataValue.StartsWith("@get", StringComparison.OrdinalIgnoreCase) && flowData is not null)
+                    if (ed.DataValue.StartsWith("@get", StringComparison.OrdinalIgnoreCase) && !(flowData is null))
                     {
                         // 执行表达式从上一节点获取对象
                         inputParameter = SerinExpressionEvaluator.Evaluate(ed.DataValue, flowData, out _);
@@ -289,46 +293,48 @@ namespace Serein.NodeFlow.Base
                 }
 
                 // 入参存在取值转换器
-                if (ed.ExplicitType.IsEnum && ed.Convertor is not null)
+                if (ed.ExplicitType.IsEnum && !(ed.Convertor is null))
                 {
-                    if (Enum.TryParse(ed.ExplicitType, ed.DataValue, out var resultEnum))
+                    //var resultEnum = Enum.ToObject(ed.ExplicitType, ed.DataValue);
+                    var resultEnum = Enum.Parse(ed.ExplicitType, ed.DataValue);
+                    var value = ed.Convertor(resultEnum);
+                    if (value is null)
                     {
-                        var value = ed.Convertor(resultEnum);
-                        if (value is not null)
-                        {
-                            parameters[i] = value;
-                            continue;
-                        }
-                        else
-                        {
-                            throw new InvalidOperationException("转换器调用失败");
-                        }
+                        throw new InvalidOperationException("转换器调用失败");
+
                     }
+                    else
+                    {
+                        parameters[i] = value;
+                        continue;
+                    }
+                    //if (Enum.TryParse(ed.ExplicitType, ed.DataValue, out var resultEnum))
+                    //{
+                      
+                    //}
                 }
 
                 // 入参存在类型转换器，获取枚举转换器中记录的枚举
                 if (ed.ExplicitType.IsEnum && ed.DataType != ed.ExplicitType)
                 {
-                    if (Enum.TryParse(ed.ExplicitType, ed.DataValue, out var resultEnum)) // 获取对应的枚举项
+                    var resultEnum = Enum.Parse(ed.ExplicitType, ed.DataValue);
+                    // 获取绑定的类型
+                    var type = EnumHelper.GetBoundValue(ed.ExplicitType, resultEnum, attr => attr.Value);
+                    if (type is Type enumBindType && !(enumBindType is null))
                     {
-                        // 获取绑定的类型
-                        var type = EnumHelper.GetBoundValue(ed.ExplicitType, resultEnum, attr => attr.Value);
-                        if (type is Type enumBindType && enumBindType is not null)
+                        var value = context.Env.IOC.Instantiate(enumBindType);
+                        if (value is null)
                         {
-                            var value = context.Env.IOC.Instantiate(enumBindType);
-                            if (value is not null)
-                            {
-                                parameters[i] = value;
-                                continue;
-                            }
+
                         }
+                        else
+                        {
+                            parameters[i] = value;
+                            continue;
+                        }
+                    
                     }
                 }
-
-
-
-
-
 
 
 
@@ -340,19 +346,40 @@ namespace Serein.NodeFlow.Base
                 else
                 {
                     var valueStr = inputParameter?.ToString();
-                    parameters[i] = ed.DataType switch
+                    if(ed.DataType == typeof(string))
                     {
-                        Type t when t == typeof(string) => valueStr,
-                        Type t when t == typeof(IDynamicContext) => context, // 上下文
-                        Type t when t == typeof(DateTime)  => string.IsNullOrEmpty(valueStr) ? 0 :  DateTime.Parse(valueStr),
+                        parameters[i] = valueStr;
+                    }
+                    else if(ed.DataType == typeof(IDynamicContext))
+                    {
+                        parameters[i] = context;
+                    }
+                    else if(ed.DataType == typeof(MethodDetails))
+                    {
+                        parameters[i] = md;
+                    }
+                    else if(ed.DataType == typeof(NodeModelBase))
+                    {
+                        parameters[i] = nodeModel;
+                    }
+                    else
+                    {
+                        parameters[i] = inputParameter;
+                    }
 
-                        Type t when t == typeof(MethodDetails) => md, // 节点方法描述
-                        Type t when t == typeof(NodeModelBase) => nodeModel, // 节点实体类
+                    //parameters[i] = ed.DataType switch
+                    //{
+                    //    Type t when t == typeof(string) => valueStr,
+                    //    Type t when t == typeof(IDynamicContext) => context, // 上下文
+                    //    Type t when t == typeof(DateTime)  => string.IsNullOrEmpty(valueStr) ? null :  DateTime.Parse(valueStr),
 
-                        Type t when t.IsArray => (inputParameter as Array)?.Cast<object>().ToList(),
-                        Type t when t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>) => inputParameter,
-                        _ => inputParameter,
-                    };
+                    //    Type t when t == typeof(MethodDetails) => md, // 节点方法描述
+                    //    Type t when t == typeof(NodeModelBase) => nodeModel, // 节点实体类
+
+                    //    Type t when t.IsArray => (inputParameter as Array)?.Cast<object>().ToList(),
+                    //    Type t when t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>) => inputParameter,
+                    //    _ => inputParameter,
+                    //};
                 }
 
 
@@ -368,11 +395,14 @@ namespace Serein.NodeFlow.Base
         /// <param name="nodeModel">节点Moel</param>
         /// <param name="newData">新的数据</param>
         /// <returns></returns>
-        public static async Task RefreshFlowDataAndExpInterrupt(IDynamicContext context, NodeModelBase nodeModel, object? newData = null)
+        public static async Task RefreshFlowDataAndExpInterrupt(IDynamicContext context, NodeModelBase nodeModel, object newData = null)
         {
             string guid = nodeModel.Guid;
-            if (newData is not null)
+            if (newData is null)
             {
+            }
+            else
+            { 
                 await MonitorObjExpInterrupt(context, nodeModel, newData, 0); // 首先监视对象
                 await MonitorObjExpInterrupt(context, nodeModel, newData, 1); // 然后监视节点
                 nodeModel.FlowData = newData; // 替换数据
@@ -380,10 +410,10 @@ namespace Serein.NodeFlow.Base
             }
         }
 
-        private static async Task MonitorObjExpInterrupt(IDynamicContext context, NodeModelBase nodeModel, object? data, int monitorType)
+        private static async Task MonitorObjExpInterrupt(IDynamicContext context, NodeModelBase nodeModel, object data, int monitorType)
         {
             MonitorObjectEventArgs.ObjSourceType sourceType;
-            string? key;
+            string key;
             if (monitorType == 0)
             {
                 key = data?.GetType()?.FullName;
@@ -406,13 +436,13 @@ namespace Serein.NodeFlow.Base
                 {
                     // 表达式环境下判断是否需要执行中断
                     bool isExpInterrupt = false;
-                    string? exp = "";
+                    string exp = "";
                     // 判断执行监视表达式，直到为 true 时退出
                     for (int i = 0; i < exps.Count && !isExpInterrupt; i++)
                     {
                         exp = exps[i];
                         if (string.IsNullOrEmpty(exp)) continue;
-                        isExpInterrupt = SereinConditionParser.To(data, exp);
+                        // isExpInterrupt = SereinConditionParser.To(data, exp);
                     }
 
                     if (isExpInterrupt) // 触发中断
@@ -447,7 +477,7 @@ namespace Serein.NodeFlow.Base
         /// 获取节点数据
         /// </summary>
         /// <returns></returns>
-        public object? GetFlowData()
+        public object GetFlowData()
         {
             return this.FlowData;
         }

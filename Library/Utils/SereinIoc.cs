@@ -87,8 +87,7 @@ namespace Serein.Library.Utils
         /// <summary>
         /// 用于临时实例的创建，不登记到IOC容器中，依赖项注入失败时也不记录。
         /// </summary>
-        /// <param name="controllerType"></param>
-        /// <param name="parameters"></param>
+        /// <param name="type"></param>
         /// <returns></returns>
         public object Instantiate(Type type)
         {

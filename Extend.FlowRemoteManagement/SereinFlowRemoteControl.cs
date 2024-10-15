@@ -67,7 +67,7 @@ namespace SereinFlowRemoteManagement
                 await Console.Out.WriteLineAsync("启动远程管理模块");
                 await socketServer.StartAsync($"http://*:{ServerPort}/");
             });
-            SereinProjectData projectData = environment.SaveProject();
+            SereinProjectData projectData = environment.GetProjectInfo();
         }
         #endregion
 
@@ -83,32 +83,10 @@ namespace SereinFlowRemoteManagement
         {
             await Send("尝试获取");
 
-            Dictionary<NodeLibrary, List<MethodDetailsInfo>> LibraryMds = [];
-
-            foreach (var mdskv in environment.MethodDetailss)
-            {
-                var library = mdskv.Key;
-                var mds = mdskv.Value;
-                foreach (var md in mds)
-                {
-                    if (!LibraryMds.TryGetValue(library, out var t_mds))
-                    {
-                        t_mds = new List<MethodDetailsInfo>();
-                        LibraryMds[library] = t_mds;
-                    }
-                    var mdInfo = md.ToInfo();
-                    mdInfo.LibraryName = library.Assembly.GetName().FullName;
-                    t_mds.Add(mdInfo);
-                }
-            }
             try
             {
-                var project = await GetProjectInfo();
-                return new
-                {
-                    project = project,
-                    envNode = LibraryMds.Values,
-                };
+                var envInfo =  this.environment.GetEnvInfo();
+                return envInfo;
             }
             catch (Exception ex)
             {
@@ -128,9 +106,9 @@ namespace SereinFlowRemoteManagement
                 throw new InvalidOperationException("类型错误");
             }
 
-            if (this.environment.TryGetMethodDetails(methodName,out var md))
+            if (this.environment.TryGetMethodDetailsInfo(methodName,out var mdInfo))
             {
-                this.environment.CreateNode(connectionType, new Position(x, y), md); ;
+                this.environment.CreateNode(connectionType, new Position(x, y), mdInfo); ;
             }
 
 
@@ -191,7 +169,7 @@ namespace SereinFlowRemoteManagement
         public async Task<SereinProjectData> GetProjectInfo()
         {
             await Task.Delay(0);
-            return environment.SaveProject();
+            return environment.GetProjectInfo();
         }
 
 

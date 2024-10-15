@@ -8,30 +8,51 @@ using System.Threading.Tasks;
 
 namespace Serein.Library.Network.WebSocketCommunication.Handle
 {
+    /// <summary>
+    /// Json消息处理模块
+    /// </summary>
     public class WebSocketHandleModule
     {
+        /// <summary>
+        /// Json消息处理模块
+        /// </summary>
         public WebSocketHandleModule(string ThemeJsonKey, string DataJsonKey)
         {
             this.ThemeJsonKey = ThemeJsonKey;
             this.DataJsonKey = DataJsonKey;
         }
+
+        /// <summary>
+        /// 指示处理模块该使用json中的哪个key作为业务区别字段
+        /// </summary>
         public string ThemeJsonKey { get; }
+
+        /// <summary>
+        /// 指示处理模块该使用json中的哪个key作为业务数据字段
+        /// </summary>
         public string DataJsonKey { get; }
 
+        /// <summary>
+        /// 存储处理数据的配置
+        /// </summary>
+        public ConcurrentDictionary<string, JsonMsgHandleConfig> MyHandleConfigs = new ConcurrentDictionary<string, JsonMsgHandleConfig>();
 
-
-
-        public ConcurrentDictionary<string, WebSocketHandleConfig> MyHandleConfigs = new ConcurrentDictionary<string, WebSocketHandleConfig>();
         internal void AddHandleConfigs(SocketHandleModel model, ISocketHandleModule instance, MethodInfo methodInfo
             , Action<Exception, Action<object>> onExceptionTracking)
         {
             if (!MyHandleConfigs.ContainsKey(model.ThemeValue))
             {
-                var myHandleConfig = new WebSocketHandleConfig(model,instance, methodInfo, onExceptionTracking);
-                MyHandleConfigs[model.ThemeValue] = myHandleConfig;
+                var jsonMsgHandleConfig = new JsonMsgHandleConfig(model,instance, methodInfo, onExceptionTracking);
+                MyHandleConfigs[model.ThemeValue] = jsonMsgHandleConfig;
             }
         }
-        public bool ResetConfig(ISocketHandleModule socketControlBase)
+
+        /// <summary>
+        /// 移除某个处理模块
+        /// </summary>
+        /// <param name="socketControlBase"></param>
+        /// <returns></returns>
+        public bool RemoveConfig(ISocketHandleModule socketControlBase)
         {
             foreach (var kv in MyHandleConfigs.ToArray())
             {
@@ -44,7 +65,10 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
             return MyHandleConfigs.Count == 0;
         }
 
-        public void ResetConfig()
+        /// <summary>
+        /// 卸载当前模块的所有配置
+        /// </summary>
+        public void UnloadConfig()
         {
             var temp = MyHandleConfigs.Values;
             MyHandleConfigs.Clear();
@@ -54,7 +78,11 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
             }
         }
 
-
+        /// <summary>
+        /// 处理JSON数据
+        /// </summary>
+        /// <param name="RecoverAsync"></param>
+        /// <param name="jsonObject"></param>
         public void HandleSocketMsg(Func<string, Task> RecoverAsync, JObject jsonObject)
         {
             // 获取到消息

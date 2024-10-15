@@ -20,3 +20,5 @@ obj/
 # 排除发布文件夹
 .Output/
 /.git1
+WorkBench.ControlLibrary.Core
+WorkBench.Remote

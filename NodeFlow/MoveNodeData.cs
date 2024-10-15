@@ -11,6 +11,7 @@ namespace Serein.NodeFlow
     public class MoveNodeData
     {
         public NodeControlType NodeControlType { get; set; }
-        public MethodDetails MethodDetails { get; set; }
+        // public MethodDetails MethodDetails { get; set; }
+        public MethodDetailsInfo MethodDetailsInfo { get; set; }
     }
 }

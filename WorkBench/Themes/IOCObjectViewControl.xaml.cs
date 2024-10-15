@@ -91,7 +91,11 @@ namespace Serein.WorkBench.Themes
 
         public void ClearObjItem()
         {
-            DependenciesListBox.Items.Clear();
+            DependenciesListBox.Dispatcher.Invoke(() =>
+            {
+                DependenciesListBox.Items.Clear();
+            });
+
         }
 
         private static void SortLisbox(ListBox listBox)
