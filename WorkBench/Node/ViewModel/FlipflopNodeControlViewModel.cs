@@ -1,7 +1,7 @@
 ﻿using Serein.NodeFlow.Model;
-using Serein.WorkBench.Node.View;
+using Serein.Workbench.Node.View;
 
-namespace Serein.WorkBench.Node.ViewModel
+namespace Serein.Workbench.Node.ViewModel
 {
     public class FlipflopNodeControlViewModel : NodeControlViewModelBase
     {

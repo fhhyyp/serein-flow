@@ -8,7 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Serein.WorkBench.Node.ViewModel
+namespace Serein.Workbench.Node.ViewModel
 {
     public abstract class NodeControlViewModelBase : INotifyPropertyChanged
     {

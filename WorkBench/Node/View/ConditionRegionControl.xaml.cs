@@ -1,11 +1,11 @@
 ﻿using Serein.NodeFlow.Model;
-using Serein.WorkBench.Node.ViewModel;
+using Serein.Workbench.Node.ViewModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 
-namespace Serein.WorkBench.Node.View
+namespace Serein.Workbench.Node.View
 {
     /// <summary>
     /// ConditionRegion.xaml 的交互逻辑

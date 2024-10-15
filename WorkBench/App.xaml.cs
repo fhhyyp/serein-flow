@@ -5,7 +5,7 @@ using Serein.NodeFlow.Tool;
 using System.Diagnostics;
 using System.Windows;
 
-namespace Serein.WorkBench
+namespace Serein.Workbench
 {
     /// <summary>
     /// Interaction logic for App.xaml

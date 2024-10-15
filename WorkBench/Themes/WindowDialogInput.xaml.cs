@@ -13,7 +13,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 
-namespace Serein.WorkBench.Themes
+namespace Serein.Workbench.Themes
 {
     /// <summary>
     /// WindowDialogInput.xaml 的交互逻辑

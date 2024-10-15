@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Windows.Data;
 using System.Windows.Media;
 
-namespace Serein.WorkBench.Tool.Converters
+namespace Serein.Workbench.Tool.Converters
 {
     /// <summary>
     /// 根据控件类型切换颜色

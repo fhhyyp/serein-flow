@@ -1,9 +1,9 @@
-﻿<UserControl x:Class="Serein.WorkBench.Themes.NodeTreeItemViewControl"
+﻿<UserControl x:Class="Serein.Workbench.Themes.NodeTreeItemViewControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:local="clr-namespace:Serein.WorkBench.Themes"
+             xmlns:local="clr-namespace:Serein.Workbench.Themes"
             mc:Ignorable="d" 
              d:DesignHeight="400" d:DesignWidth="200">
     <UserControl.Resources>

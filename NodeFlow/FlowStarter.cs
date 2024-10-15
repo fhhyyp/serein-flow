@@ -72,7 +72,7 @@ namespace Serein.NodeFlow
 
 
         /// <summary>
-        /// 开始运行
+        /// 开始运行（需要准备好方法信息）
         /// </summary>
         /// <param name="env">运行环境</param>
         /// <param name="nodes">环境中已加载的所有节点</param>

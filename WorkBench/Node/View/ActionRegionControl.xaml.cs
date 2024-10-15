@@ -1,11 +1,12 @@
 ﻿using Serein.NodeFlow;
 using Serein.NodeFlow.Model;
+using Serein.Workbench.Node.View;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 
-namespace Serein.WorkBench.Node.View
+namespace Serein.Workbench.Node.View
 {
     /// <summary>
     /// ActionRegion.xaml 的交互逻辑

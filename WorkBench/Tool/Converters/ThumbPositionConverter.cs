@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Data;
 
-namespace Serein.WorkBench.Tool.Converters
+namespace Serein.Workbench.Tool.Converters
 {
     /// <summary>
     /// 画布拉动范围距离计算器

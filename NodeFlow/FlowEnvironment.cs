@@ -4,6 +4,7 @@ using Serein.Library.Api;
 using Serein.Library.Attributes;
 using Serein.Library.Entity;
 using Serein.Library.Enums;
+using Serein.Library.Network.WebSocketCommunication;
 using Serein.Library.Utils;
 using Serein.NodeFlow.Base;
 using Serein.NodeFlow.Model;
@@ -40,53 +41,144 @@ namespace Serein.NodeFlow
 
 
 
-   /*
-    
-    public List<library> get(){
-   }
+    /*
 
-    libray
-   {
-   string dllname,
-   MethodInfo[] nodeinfos
-   }
-
-    methodInfo{
-    
+     public List<library> get(){
     }
-    
-    
-    
-    */
+
+     libray
+    {
+    string dllname,
+    MethodInfo[] nodeinfos
+    }
+
+     methodInfo{
+
+     }
 
 
+
+     */
+
+    /*
+    void StopRemoteServer()//结束远程管理
+    async Task StartAsync()//异步运行
+    void ExitFlow()//退出
+    Task StartAsyncInSelectNode(string startNodeGuid)//从选定节点开始运行
+    void ActivateFlipflopNode(string nodeGuid)//激活全局触发器
+    void TerminateFlipflopNode(string nodeGuid)//关闭全局触发器
+    object GetEnvInfo() //  获取当前环境信息（远程连接）
+    void LoadProject(SereinProjectData project, string filePath) //加载项目文件
+    void LoadRemoteProject(string addres, int port, string token) //加载远程项目
+    SereinProjectData GetProjectInfo() // 序列化当前项目的依赖信息、节点信息
+    void LoadDll(string dllPath) //从文件路径中加载DLL
+    bool RemoteDll(string assemblyFullName) //移除DLL
+    NodeModelBase CreateNode(NodeControlType nodeControlType, Position position, MethodDetailsInfo? methodDetailsInfo = null) //流程正在运行时创建节点
+    void RemoveNode(string nodeGuid) //移除节点
+    void ConnectNode(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType) // 连接节点
+    void RemoveConnect(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType) //移除连接关系
+
+    void MoveNode(string nodeGuid,double x,double y) //移动了某个节点(远程插件使用）
+    void SetStartNode(string newNodeGuid) //设置起点控件
+    bool SetNodeInterrupt(string nodeGuid, InterruptClass interruptClass) //中断指定节点，并指定中断等级。
+    bool AddInterruptExpression(string key, string expression)//添加表达式中断
+    void SetMonitorObjState(string key,  bool isMonitor) // 设置对象的监视状态
+
+     */
 
     /// <summary>
     /// 运行环境
     /// </summary>
-    public class FlowEnvironment : IFlowEnvironment, ISereinIOC
+    [AutoSocketModule(ThemeKey = "theme", DataKey = "data")]
+    public class FlowEnvironment : IFlowEnvironment, ISereinIOC, ISocketHandleModule
     {
+        /// <summary>
+        /// 流程运行环境
+        /// </summary>
         public FlowEnvironment()
         {
             sereinIOC = new SereinIOC();
             ChannelFlowInterrupt = new ChannelFlowInterrupt();
-            //LoadedAssemblyPaths = new List<string>();
-            //LoadedAssemblies = new List<Assembly>();
-            //MethodDetailss = new List<MethodDetails>();
-            //Nodes = new Dictionary<string, NodeModelBase>();
-            //FlipflopNodes = new List<SingleFlipflopNode>();
             IsGlobalInterrupt = false;
             flowStarter = null;
-
             sereinIOC.OnIOCMembersChanged += e => this?.OnIOCMembersChanged?.Invoke(e) ; // 监听IOC容器的注册
         }
+
+        /// <summary>
+        /// WebSocket处理
+        /// </summary>
+        public Guid HandleGuid { get; } = new Guid();
+
+        /// <summary>
+        /// 流程环境远程管理服务
+        /// </summary>
+        private WebSocketServer FlowEnvRemoteWebSocket;
+
+
+        private async Task<bool> InspectionAuthorized(dynamic token)
+        {
+            await Task.Delay(0);
+            var tokenValue = token.ToString();
+            if ("123456".Equals(tokenValue))
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        /// <summary>
+        /// 打开远程管理
+        /// </summary>
+        /// <param name="port"></param>
+        public async Task StartRemoteServerAsync(int port = 7525)
+        {
+            FlowEnvRemoteWebSocket ??= new WebSocketServer("token", InspectionAuthorized);
+            FlowEnvRemoteWebSocket.MsgHandleHelper.AddModule(this,
+            (ex, send) =>
+            {
+                send(new
+                {
+                    code = 400,
+                    ex = ex.Message
+                });
+            });
+            var url = $"http://*:{port}/";
+            try
+            {
+                await FlowEnvRemoteWebSocket.StartAsync(url);
+            }
+            catch (Exception ex)
+            {
+                FlowEnvRemoteWebSocket.MsgHandleHelper.RemoveModule(this);
+                Console.WriteLine("打开远程管理异常：" + ex);
+            }
+        }
+
+        /// <summary>
+        /// 结束远程管理
+        /// </summary>
+        [AutoSocketHandle]
+        public void StopRemoteServer()
+        {
+            try
+            {
+                FlowEnvRemoteWebSocket.Stop();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("结束远程管理异常：" + ex);
+            }
+        }
+
 
         /// <summary>
         /// 节点的命名空间
         /// </summary>
         public const string SpaceName = $"{nameof(Serein)}.{nameof(Serein.NodeFlow)}.{nameof(Serein.NodeFlow.Model)}";
 
-        #region 环境接口事件
+        #region 环境运行事件
         /// <summary>
         /// 加载Dll
         /// </summary>
@@ -150,7 +242,13 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 节点需要定位
         /// </summary>
-        public event NodeLocatedHandler? OnNodeLocate;
+        public event NodeLocatedHandler? OnNodeLocated;
+
+        /// <summary>
+        /// 节点移动了（远程插件）
+        /// </summary>
+        public event NodeMovedHandler? OnNodeMoved;
+
         #endregion
 
         #region 属性
@@ -268,14 +366,13 @@ namespace Serein.NodeFlow
 
         #endregion
 
-        #region 基础接口
-
-
+        #region 环境对外接口
 
         /// <summary>
         /// 异步运行
         /// </summary>
         /// <returns></returns>
+        [AutoSocketHandle]
         public async Task StartAsync()
         {
             ChannelFlowInterrupt?.CancelAllTasks();
@@ -311,12 +408,18 @@ namespace Serein.NodeFlow
 
             if (this.FlipFlopState == RunState.Completion)
             {
-                this.Exit(); // 未运行触发器时，才会调用结束方法
+                this.ExitFlow(); // 未运行触发器时，才会调用结束方法
             }
             flowStarter = null;
         }
 
-        public async Task StartFlowInSelectNodeAsync(string startNodeGuid)
+        /// <summary>
+        /// 从选定节点开始运行
+        /// </summary>
+        /// <param name="startNodeGuid"></param>
+        /// <returns></returns>
+        [AutoSocketHandle]
+        public async Task StartAsyncInSelectNode(string startNodeGuid)
         {
             if (flowStarter is null)
             {
@@ -340,7 +443,8 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 退出
         /// </summary>
-        public void Exit()
+        [AutoSocketHandle]
+        public void ExitFlow()
         {
             ChannelFlowInterrupt?.CancelAllTasks();
             flowStarter?.Exit();
@@ -360,6 +464,74 @@ namespace Serein.NodeFlow
         }
 
         /// <summary>
+        /// 激活全局触发器
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        [AutoSocketHandle]
+        public void ActivateFlipflopNode(string nodeGuid)
+        {
+            var nodeModel = GuidToModel(nodeGuid);
+            if (nodeModel is null) return;
+            if (flowStarter is not null && nodeModel is SingleFlipflopNode flipflopNode) // 子节点为触发器
+            {
+                if (this.FlowState != RunState.Completion
+                    && flipflopNode.NotExitPreviousNode()) // 正在运行，且该触发器没有上游节点
+                {
+                    _ = flowStarter.RunGlobalFlipflopAsync(this, flipflopNode);// 被父节点移除连接关系的子节点若为触发器，且无上级节点，则当前流程正在运行，则加载到运行环境中
+
+                }
+            }
+        }
+        /// <summary>
+        /// 关闭全局触发器
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        [AutoSocketHandle]
+        public void TerminateFlipflopNode(string nodeGuid)
+        {
+            var nodeModel = GuidToModel(nodeGuid);
+            if (nodeModel is null) return;
+            if (flowStarter is not null && nodeModel is SingleFlipflopNode flipflopNode) // 子节点为触发器
+            {
+                flowStarter.TerminateGlobalFlipflopRuning(flipflopNode);
+            }
+        }
+
+        /// <summary>
+        /// 获取当前环境信息（远程连接）
+        /// </summary>
+        /// <returns></returns>
+        [AutoSocketHandle]
+        public object GetEnvInfo()
+        {
+            Dictionary<NodeLibrary, List<MethodDetailsInfo>> LibraryMds = [];
+
+            foreach (var mdskv in this.MethodDetailsOfLibrarys)
+            {
+                var library = mdskv.Key;
+                var mds = mdskv.Value;
+                foreach (var md in mds)
+                {
+                    if (!LibraryMds.TryGetValue(library, out var t_mds))
+                    {
+                        t_mds = new List<MethodDetailsInfo>();
+                        LibraryMds[library] = t_mds;
+                    }
+                    var mdInfo = md.ToInfo();
+                    mdInfo.LibraryName = library.Assembly.GetName().FullName;
+                    t_mds.Add(mdInfo);
+                }
+            }
+            var project = this.GetProjectInfo();
+            return new
+            {
+                project = project,
+                envNode = LibraryMds.Values,
+            };
+        }
+
+
+        /// <summary>
         /// 清除所有
         /// </summary>
         public void ClearAll()
@@ -376,6 +548,7 @@ namespace Serein.NodeFlow
         /// </summary>
         /// <param name="project"></param>
         /// <param name="filePath"></param>
+        [AutoSocketHandle]
         public void LoadProject(SereinProjectData project, string filePath)
         {
             // 加载项目配置文件
@@ -515,6 +688,7 @@ namespace Serein.NodeFlow
         /// <param name="addres">远程项目地址</param>
         /// <param name="port">远程项目端口</param>
         /// <param name="token">密码</param>
+        [AutoSocketHandle]
         public void LoadRemoteProject(string addres, int port, string token)
         {
             // -- 第1种，直接从远程环境复制所有dll信息，项目信息，在本地打开？（安全问题）
@@ -543,6 +717,7 @@ namespace Serein.NodeFlow
         /// 序列化当前项目的依赖信息、节点信息
         /// </summary>
         /// <returns></returns>
+        [AutoSocketHandle]
         public SereinProjectData GetProjectInfo()
         {
             var projectData = new SereinProjectData()
@@ -560,6 +735,7 @@ namespace Serein.NodeFlow
         /// </summary>
         /// <param name="dllPath"></param>
         /// <returns></returns> 
+        [AutoSocketHandle]
         public void LoadDll(string dllPath)
         {
             LoadDllNodeInfo(dllPath);
@@ -570,6 +746,7 @@ namespace Serein.NodeFlow
         /// </summary>
         /// <param name="assemblyFullName"></param>
         /// <returns></returns>
+        [AutoSocketHandle]
         public bool RemoteDll(string assemblyFullName)
         {
             var library  = Librarys.Values.FirstOrDefault(nl => assemblyFullName.Equals(nl.Assembly.FullName));
@@ -624,6 +801,7 @@ namespace Serein.NodeFlow
         /// <param name="nodeControlType"></param>
         /// <param name="position"></param>
         /// <param name="methodDetailsInfo">如果是表达式节点条件节点，该项为null</param>
+        [AutoSocketHandle]
         public void CreateNode(NodeControlType nodeControlType, Position position, MethodDetailsInfo? methodDetailsInfo = null)
         {
             MethodDetails? methodDetails = null;
@@ -656,6 +834,7 @@ namespace Serein.NodeFlow
         /// </summary>
         /// <param name="nodeGuid"></param>
         /// <exception cref="NotImplementedException"></exception>
+        [AutoSocketHandle]
         public void RemoveNode(string nodeGuid)
         {
             var remoteNode = GuidToModel(nodeGuid);
@@ -710,6 +889,7 @@ namespace Serein.NodeFlow
         /// <param name="fromNodeGuid">起始节点</param>
         /// <param name="toNodeGuid">目标节点</param>
         /// <param name="connectionType">连接关系</param>
+        [AutoSocketHandle]
         public void ConnectNode(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
         {
             // 获取起始节点与目标节点
@@ -729,6 +909,7 @@ namespace Serein.NodeFlow
         /// <param name="toNodeGuid">目标节点Guid</param>
         /// <param name="connectionType">连接关系</param>
         /// <exception cref="NotImplementedException"></exception>
+        [AutoSocketHandle]
         public void RemoveConnect(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
         {
             // 获取起始节点与目标节点
@@ -740,11 +921,12 @@ namespace Serein.NodeFlow
 
         }
 
-        
+
 
         /// <summary>
         /// 获取方法描述
         /// </summary>
+        
         public bool TryGetMethodDetailsInfo(string name, out MethodDetailsInfo? md)
         {
             if (!string.IsNullOrEmpty(name))
@@ -792,11 +974,23 @@ namespace Serein.NodeFlow
         }
 
 
+        /// <summary>
+        /// 移动了某个节点(远程插件使用）
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
+        [AutoSocketHandle]
+        public void MoveNode(string nodeGuid,double x,double y)
+        {
+            this.OnNodeMoved?.Invoke(new NodeMovedEventArgs(nodeGuid, x, y));
+        }
 
         /// <summary>
         /// 设置起点控件
         /// </summary>
         /// <param name="newNodeGuid"></param>
+        [AutoSocketHandle]
         public void SetStartNode(string newNodeGuid)
         {
             var newStartNodeModel = GuidToModel(newNodeGuid);
@@ -810,6 +1004,7 @@ namespace Serein.NodeFlow
         /// <param name="nodeGuid">被中断的目标节点Guid</param>
         /// <param name="interruptClass">中断级别</param>
         /// <returns>操作是否成功</returns>
+        [AutoSocketHandle]
         public bool SetNodeInterrupt(string nodeGuid, InterruptClass interruptClass)
         {
             var nodeModel = GuidToModel(nodeGuid);
@@ -845,9 +1040,10 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 添加表达式中断
         /// </summary>
-        /// <param name="nodeGuid"></param>
-        /// <param name="expression"></param>
+        /// <param name="key">如果是节点，传入Guid；如果是对象，传入类型FullName</param>
+        /// <param name="expression">合法的条件表达式</param>
         /// <returns></returns>
+        [AutoSocketHandle]
         public bool AddInterruptExpression(string key, string expression)
         {
             if(string.IsNullOrEmpty(expression)) return false;
@@ -874,9 +1070,10 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 设置对象的监视状态
         /// </summary>
-        /// <param name="obj"></param>
-        /// <param name="isMonitor"></param>
+        /// <param name="key">如果是节点，传入Guid；如果是对象，传入类型FullName</param>
+        /// <param name="isMonitor">ture监视对象；false取消对象监视</param>
         /// <returns></returns>
+        [AutoSocketHandle]
         public void SetMonitorObjState(string key,  bool isMonitor)
         {
             if (string.IsNullOrEmpty(key)) { return; }
@@ -900,8 +1097,8 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 检查一个对象是否处于监听状态，如果是，则传出与该对象相关的表达式（用于中断），如果不是，则返回false。
         /// </summary>
-        /// <param name="nodeGuid"></param>
-        /// <param name="obj"></param>
+        /// <param name="key"></param>
+        /// <param name="exps"></param>
         /// <returns></returns>
         public bool CheckObjMonitorState(string key, out List<string>? exps)
         {
@@ -910,9 +1107,11 @@ namespace Serein.NodeFlow
         }
 
         /// <summary>
-        /// 启动器调用，节点数据更新通知
+        /// 启动器调用，运行到某个节点时触发了监视对象的更新（对象预览视图将会自动更新）
         /// </summary>
         /// <param name="nodeGuid"></param>
+        /// <param name="monitorData"></param>
+        /// <param name="sourceType"></param>
         public void MonitorObjectNotification(string nodeGuid, object monitorData, MonitorObjectEventArgs.ObjSourceType sourceType)
         {
             OnMonitorObjectChange?.Invoke(new MonitorObjectEventArgs(nodeGuid, monitorData, sourceType));
@@ -929,38 +1128,7 @@ namespace Serein.NodeFlow
             OnInterruptTrigger?.Invoke(new InterruptTriggerEventArgs(nodeGuid, expression, type));
         }
 
-        /// <summary>
-        /// 激活全局触发器
-        /// </summary>
-        /// <param name="nodeGuid"></param>
-        public void ActivateFlipflopNode(string nodeGuid)
-        {
-            var nodeModel = GuidToModel(nodeGuid);
-            if (nodeModel is null) return;
-            if (flowStarter is not null && nodeModel is SingleFlipflopNode flipflopNode) // 子节点为触发器
-           {
-               if (this.FlowState != RunState.Completion 
-                   && flipflopNode.NotExitPreviousNode()) // 正在运行，且该触发器没有上游节点
-               {
-                    _ = flowStarter.RunGlobalFlipflopAsync(this, flipflopNode);// 被父节点移除连接关系的子节点若为触发器，且无上级节点，则当前流程正在运行，则加载到运行环境中
-                    
-                }
-           }
-        } 
-        /// <summary>
-           /// 关闭全局触发器
-           /// </summary>
-           /// <param name="nodeGuid"></param>
-        public void TerminateFlipflopNode(string nodeGuid)
-        {
-            var nodeModel = GuidToModel(nodeGuid);
-            if (nodeModel is null) return;
-            if (flowStarter is not null && nodeModel is SingleFlipflopNode flipflopNode) // 子节点为触发器
-            {
-                flowStarter.TerminateGlobalFlipflopRuning(flipflopNode);
-            }
-        }
-       
+
         /// <summary>
         /// 环境执行中断
         /// </summary>
@@ -971,37 +1139,6 @@ namespace Serein.NodeFlow
             return ChannelFlowInterrupt.GetOrCreateChannelAsync(this.EnvName);
         }
 
-        /// <summary>
-        /// 获取当前环境信息（远程连接）
-        /// </summary>
-        /// <returns></returns>
-        public object GetEnvInfo()
-        {
-            Dictionary<NodeLibrary, List<MethodDetailsInfo>> LibraryMds = [];
-
-            foreach (var mdskv in this.MethodDetailsOfLibrarys)
-            {
-                var library = mdskv.Key;
-                var mds = mdskv.Value;
-                foreach (var md in mds)
-                {
-                    if (!LibraryMds.TryGetValue(library, out var t_mds))
-                    {
-                        t_mds = new List<MethodDetailsInfo>();
-                        LibraryMds[library] = t_mds;
-                    }
-                    var mdInfo = md.ToInfo();
-                    mdInfo.LibraryName = library.Assembly.GetName().FullName;
-                    t_mds.Add(mdInfo);
-                }
-            }
-            var project = this.GetProjectInfo();
-            return new
-            {
-                project = project,
-                envNode = LibraryMds.Values,
-            };
-        }
 
         /// <summary>
         /// Guid 转 NodeModel
@@ -1345,7 +1482,7 @@ namespace Serein.NodeFlow
         /// <param name="nodeGuid"></param>
         public void NodeLocated(string nodeGuid)
         {
-            OnNodeLocate?.Invoke(new NodeLocatedEventArgs(nodeGuid));
+            OnNodeLocated?.Invoke(new NodeLocatedEventArgs(nodeGuid));
         }
 
         #endregion
@@ -1471,8 +1608,18 @@ namespace Serein.NodeFlow
 
 
     }
+
+
+    /// <summary>
+    /// 流程环境需要的扩展方法
+    /// </summary>
     public static class FlowFunc
     {
+        /// <summary>
+        /// 程序集封装依赖
+        /// </summary>
+        /// <param name="assembly"></param>
+        /// <returns></returns>
         public static Library.Entity.Library ToLibrary(this Assembly assembly)
         {
             var tmp = assembly.ManifestModule.Name;
@@ -1483,6 +1630,12 @@ namespace Serein.NodeFlow
             };
         }
 
+        /// <summary>
+        /// 触发器运行后状态转为对应的后继分支类别
+        /// </summary>
+        /// <param name="flowStateType"></param>
+        /// <returns></returns>
+        /// <exception cref="NotImplementedException"></exception>
         public static ConnectionType ToContentType(this FlipflopStateType flowStateType)
         {
             return flowStateType switch
@@ -1495,38 +1648,11 @@ namespace Serein.NodeFlow
             };
         }
 
-
-        public static Type? ControlTypeToModel(this NodeControlType nodeControlType)
-        {
-            // 确定创建的节点类型
-            Type? nodeType = nodeControlType switch
-            {
-                NodeControlType.Action => typeof(SingleActionNode),
-                NodeControlType.Flipflop => typeof(SingleFlipflopNode),
-
-                NodeControlType.ExpOp => typeof(SingleExpOpNode),
-                NodeControlType.ExpCondition => typeof(SingleConditionNode),
-                NodeControlType.ConditionRegion => typeof(CompositeConditionNode),
-                _ => null
-            };
-            return nodeType;
-        }
-        public static NodeControlType ModelToControlType(this NodeControlType nodeControlType)
-        {
-            var type = nodeControlType.GetType();
-            NodeControlType controlType = type switch
-            {
-                Type when type == typeof(SingleActionNode) => NodeControlType.Action,
-                Type when type == typeof(SingleFlipflopNode) => NodeControlType.Flipflop,
-
-                Type when type == typeof(SingleExpOpNode) => NodeControlType.ExpOp,
-                Type when type == typeof(SingleConditionNode) => NodeControlType.ExpCondition,
-                Type when type == typeof(CompositeConditionNode) => NodeControlType.ConditionRegion,
-                _ => NodeControlType.None,
-            };
-            return controlType;
-        }
-
+        /// <summary>
+        /// 判断 触发器节点 是否存在上游分支
+        /// </summary>
+        /// <param name="node"></param>
+        /// <returns></returns>
         public static bool NotExitPreviousNode(this SingleFlipflopNode node)
         {
             ConnectionType[] ct = [ConnectionType.IsSucceed,
@@ -1542,6 +1668,43 @@ namespace Serein.NodeFlow
             }
             return true;
         }
+
+
+        ///// <summary>
+        ///// 从节点类型枚举中转为对应的 Model 类型
+        ///// </summary>
+        ///// <param name="nodeControlType"></param>
+        ///// <returns></returns>
+        //public static Type? ControlTypeToModel(this NodeControlType nodeControlType)
+        //{
+        //    // 确定创建的节点类型
+        //    Type? nodeType = nodeControlType switch
+        //    {
+        //        NodeControlType.Action => typeof(SingleActionNode),
+        //        NodeControlType.Flipflop => typeof(SingleFlipflopNode),
+
+        //        NodeControlType.ExpOp => typeof(SingleExpOpNode),
+        //        NodeControlType.ExpCondition => typeof(SingleConditionNode),
+        //        NodeControlType.ConditionRegion => typeof(CompositeConditionNode),
+        //        _ => null
+        //    };
+        //    return nodeType;
+        //}
+        //public static NodeControlType ModelToControlType(this NodeControlType nodeControlType)
+        //{
+        //    var type = nodeControlType.GetType();
+        //    NodeControlType controlType = type switch
+        //    {
+        //        Type when type == typeof(SingleActionNode) => NodeControlType.Action,
+        //        Type when type == typeof(SingleFlipflopNode) => NodeControlType.Flipflop,
+
+        //        Type when type == typeof(SingleExpOpNode) => NodeControlType.ExpOp,
+        //        Type when type == typeof(SingleConditionNode) => NodeControlType.ExpCondition,
+        //        Type when type == typeof(CompositeConditionNode) => NodeControlType.ConditionRegion,
+        //        _ => NodeControlType.None,
+        //    };
+        //    return controlType;
+        //}
     }
 
 

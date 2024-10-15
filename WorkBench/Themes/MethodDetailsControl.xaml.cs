@@ -6,7 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 
-namespace Serein.WorkBench.Themes
+namespace Serein.Workbench.Themes
 {
     public class MultiConditionConverter : IMultiValueConverter
     {

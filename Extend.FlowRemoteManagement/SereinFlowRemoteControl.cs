@@ -34,14 +34,6 @@ namespace SereinFlowRemoteManagement
         public SereinFlowRemoteControl(IFlowEnvironment environment) 
         {
             this.environment = environment;
-            //if (environment is FlowEnvironment env)
-            //{
-            //    this.environment = env;
-            //}
-            //else
-            //{
-            //    throw new Exception();
-            //}
         }
 
         [NodeAction(NodeType.Init)]
@@ -153,7 +145,7 @@ namespace SereinFlowRemoteManagement
                 throw new InvalidOperationException("Guid错误");
             }
 
-            await environment.StartFlowInSelectNodeAsync(nodeGuid);
+            await environment.StartAsyncInSelectNode(nodeGuid);
 
             await Send(new
             {
@@ -172,7 +164,7 @@ namespace SereinFlowRemoteManagement
             return environment.GetProjectInfo();
         }
 
-
+        
         #endregion
     }
 }

@@ -15,6 +15,10 @@ namespace Serein.Library.Attributes
     {
     }
 
+
+    /// <summary>
+    /// 注册顺序
+    /// </summary>
     public enum RegisterSequence
     {    /// <summary>
          /// 不自动初始化

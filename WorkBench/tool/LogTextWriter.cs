@@ -3,7 +3,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Channels;
 
-namespace Serein.WorkBench.tool
+namespace Serein.Workbench.tool
 {
     /// <summary>
     /// 可以捕获类库输出的打印输出

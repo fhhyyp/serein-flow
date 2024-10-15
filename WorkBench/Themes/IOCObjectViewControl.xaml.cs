@@ -17,7 +17,7 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Xml.Linq;
 
-namespace Serein.WorkBench.Themes
+namespace Serein.Workbench.Themes
 {
     /// <summary>
     /// IOCObjectViewControl.xaml 的交互逻辑

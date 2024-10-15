@@ -1,7 +1,7 @@
 ﻿using Serein.Library.Api;
 using Serein.Library.Entity;
 using Serein.NodeFlow.Base;
-using Serein.WorkBench.Node.ViewModel;
+using Serein.Workbench.Node.ViewModel;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
@@ -9,7 +9,7 @@ using System.Runtime.CompilerServices;
 using System.Windows.Controls;
 using System.Windows.Media;
 
-namespace Serein.WorkBench.Node.View
+namespace Serein.Workbench.Node.View
 {
 
     /// <summary>
@@ -34,24 +34,19 @@ namespace Serein.WorkBench.Node.View
 
 
 
-  
+ 
+    //public class FLowNodeObObservableCollection<T> : ObservableCollection<T>
+    //{
 
-
-
-
-
-    public class FLowNodeObObservableCollection<T> : ObservableCollection<T>
-    {
-
-        public void AddRange(IEnumerable<T> items)
-        {
-            foreach (var item in items)
-            {
-                this.Items.Add(item);
-            }
-            OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add));
-        }
-    }
+    //    public void AddRange(IEnumerable<T> items)
+    //    {
+    //        foreach (var item in items)
+    //        {
+    //            this.Items.Add(item);
+    //        }
+    //        OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add));
+    //    }
+    //}
 }
 
 

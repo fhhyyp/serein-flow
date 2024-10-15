@@ -129,7 +129,15 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
             foreach ((var model, var method) in methods)
             {
                 Console.WriteLine($"theme value  : {model.ThemeValue}");
-                handlemodule.AddHandleConfigs(model, socketControlBase, method, onExceptionTracking);
+                try
+                {
+                    handlemodule.AddHandleConfigs(model, socketControlBase, method, onExceptionTracking);
+                }
+                catch (Exception ex)
+                {
+
+                    Console.WriteLine($"error in add method: {method.Name}{Environment.NewLine}{ex}");
+                }
             }
 
         }
@@ -147,7 +155,6 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
             {
                 foreach (var module in MyHandleModuleDict.Values)
                 {
-
                     module.HandleSocketMsg(RecoverAsync, json);
                     
                 }

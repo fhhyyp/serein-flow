@@ -8,7 +8,7 @@ using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
 
-namespace Serein.WorkBench.Node.View
+namespace Serein.Workbench.Node.View
 {
 
 

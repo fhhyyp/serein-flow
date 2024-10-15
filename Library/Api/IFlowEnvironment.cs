@@ -80,6 +80,12 @@ namespace Serein.Library.Api
     /// <param name="eventArgs"></param>
     public delegate void NodeLocatedHandler(NodeLocatedEventArgs eventArgs);
 
+    /// <summary>
+    /// 节点移动了（远程插件）
+    /// </summary>
+    /// <param name="eventArgs"></param>
+    public delegate void NodeMovedHandler(NodeMovedEventArgs eventArgs);
+
     #endregion
 
     #region 环境事件签名
@@ -381,7 +387,9 @@ namespace Serein.Library.Api
         public object Instance { get; private set; }
     }
 
-
+    /// <summary>
+    /// 节点需要定位
+    /// </summary>
     public class NodeLocatedEventArgs : FlowEventArgs
     {
         public NodeLocatedEventArgs(string nodeGuid)
@@ -389,6 +397,31 @@ namespace Serein.Library.Api
             NodeGuid = nodeGuid;
         }
         public string NodeGuid { get; private set; }
+    }
+
+    /// <summary>
+    /// 节点移动了
+    /// </summary>
+     public class NodeMovedEventArgs : FlowEventArgs
+    {
+        public NodeMovedEventArgs(string nodeGuid, double x, double y)
+        {
+            this.NodeGuid = nodeGuid;
+            this.X = x;
+            this.Y = y;
+        }
+        /// <summary>
+        /// 节点唯一标识
+        /// </summary>
+        public string NodeGuid { get; private set; }
+        /// <summary>
+        /// 画布上的x坐标
+        /// </summary>
+        public double X { get; private set; }
+        /// <summary>
+        /// 画布上的y坐标
+        /// </summary>
+        public double Y { get; private set; }
     }
 
     #endregion
@@ -492,11 +525,15 @@ namespace Serein.Library.Api
         /// </summary>
         event IOCMembersChangedHandler OnIOCMembersChanged;
 
-
         /// <summary>
         /// 节点需要定位
         /// </summary>
-        event NodeLocatedHandler OnNodeLocate;
+        event NodeLocatedHandler OnNodeLocated;
+
+        /// <summary>
+        /// 节点移动了（远程插件）
+        /// </summary>
+        event NodeMovedHandler OnNodeMoved;
 
         #endregion
 
@@ -520,6 +557,15 @@ namespace Serein.Library.Api
         //bool TryGetNodeData(string methodName, out NodeData node);
 
         #region 环境基础接口
+        /// <summary>
+        /// 启动远程服务
+        /// </summary>
+        Task StartRemoteServerAsync(int port = 7525);
+        /// <summary>
+        /// 停止远程服务
+        /// </summary>
+        void StopRemoteServer();
+
 
         /// <summary>
         /// 保存当前项目
@@ -532,7 +578,6 @@ namespace Serein.Library.Api
         /// <param name="projectFile"></param>
         /// <param name="filePath"></param>
         void LoadProject(SereinProjectData projectFile, string filePath);
-
         /// <summary>
         /// 加载远程项目
         /// </summary>
@@ -556,8 +601,7 @@ namespace Serein.Library.Api
         /// 清理加载的DLL（待更改）
         /// </summary>
         void ClearAll();
-
-
+        
         /// <summary>
         /// 开始运行
         /// </summary>
@@ -567,18 +611,27 @@ namespace Serein.Library.Api
         /// </summary>
         /// <param name="startNodeGuid"></param>
         /// <returns></returns>
-        Task StartFlowInSelectNodeAsync(string startNodeGuid);
+        Task StartAsyncInSelectNode(string startNodeGuid);
 
         /// <summary>
         /// 结束运行
         /// </summary>
-        void Exit();
+        void ExitFlow();
+
+        /// <summary>
+        /// 移动了某个节点(远程插件使用）
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
+        void MoveNode(string nodeGuid,double x, double y);
 
         /// <summary>
         /// 设置流程起点节点
         /// </summary>
         /// <param name="nodeGuid"></param>
         void SetStartNode(string nodeGuid);
+
         /// <summary>
         /// 在两个节点之间创建连接关系
         /// </summary>
@@ -586,6 +639,7 @@ namespace Serein.Library.Api
         /// <param name="toNodeGuid">目标节点Guid</param>
         /// <param name="connectionType">连接类型</param>
         void ConnectNode(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType);
+
         /// <summary>
         /// 创建节点/区域/基础控件
         /// </summary>
@@ -601,6 +655,7 @@ namespace Serein.Library.Api
         /// <param name="toNodeGuid">目标节点</param>
         /// <param name="connectionType">连接类型</param>
         void RemoveConnect(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType);
+
         /// <summary>
         /// 移除节点/区域/基础控件
         /// </summary>
@@ -612,6 +667,7 @@ namespace Serein.Library.Api
         /// </summary>
         /// <param name="nodeGuid"></param>
         void ActivateFlipflopNode(string nodeGuid);
+
         /// <summary>
         /// 终结一个全局触发器，在它触发后将不会再次监听消息（表现为已经启动的触发器至少会再次处理一次消息，后面版本再修正这个非预期行为）
         /// </summary>

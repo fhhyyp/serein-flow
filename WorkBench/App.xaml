@@ -1,7 +1,7 @@
-﻿<Application x:Class="Serein.WorkBench.App"
+﻿<Application x:Class="Serein.Workbench.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:Serein.WorkBench"
+             xmlns:local="clr-namespace:Serein.Workbench"
              StartupUri="MainWindow.xaml"
              Startup="Application_Startup">
     <Application.Resources>

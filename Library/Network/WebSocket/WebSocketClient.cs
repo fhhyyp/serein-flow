@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json.Linq;
 using Serein.Library.Attributes;
+using Serein.Library.Network.WebSocketCommunication.Handle;
 using Serein.Library.Web;
 using System;
 using System.Collections.Concurrent;
@@ -13,35 +14,58 @@ using System.Threading.Tasks;
 namespace Serein.Library.Network.WebSocketCommunication
 {
 
-
+    /// <summary>
+    /// WebSocket客户端
+    /// </summary>
     [AutoRegister]
     public class WebSocketClient
     {
+        /// <summary>
+        /// WebSocket客户端
+        /// </summary>
         public WebSocketClient()
         {
             
         }
-      
+
+        /// <summary>
+        /// 消息处理
+        /// </summary>
+        public WebSocketMsgHandleHelper MsgHandleHelper { get; } = new WebSocketMsgHandleHelper();
 
         private ClientWebSocket _client = new ClientWebSocket();
 
-
+        /// <summary>
+        /// 连接到指定WebSocket Server服务
+        /// </summary>
+        /// <param name="uri"></param>
+        /// <returns></returns>
         public async Task ConnectAsync(string uri)
         {
             await _client.ConnectAsync(new Uri(uri), CancellationToken.None);
             await ReceiveAsync();
         }
 
-
-        public async Task SendAsync(WebSocket webSocket,string message)
+        /// <summary>
+        /// 发送消息
+        /// </summary>
+        /// <param name="webSocket"></param>
+        /// <param name="message"></param>
+        /// <returns></returns>
+        public async Task SendAsync(string message)
         {
             var buffer = Encoding.UTF8.GetBytes(message);
-            await webSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
+            await _client.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
         }
 
+        /// <summary>
+        /// 开始处理消息
+        /// </summary>
+        /// <returns></returns>
         private async Task ReceiveAsync()
         {
             var buffer = new byte[1024];
+          
             while (_client.State == WebSocketState.Open)
             {
                 try
@@ -54,8 +78,7 @@ namespace Serein.Library.Network.WebSocketCommunication
                     else
                     {
                         var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-
-
+                        _ = MsgHandleHelper.HandleMsgAsync(SendAsync, message); // 处理消息
                         Debug.WriteLine($"Received: {message}");
                     }
                 }
@@ -66,9 +89,6 @@ namespace Serein.Library.Network.WebSocketCommunication
                 }
             }
         }
-
-
-
 
     }
 

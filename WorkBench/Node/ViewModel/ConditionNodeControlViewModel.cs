@@ -1,8 +1,11 @@
 ﻿using Serein.NodeFlow.Model;
-using Serein.WorkBench.Node.View;
+using Serein.Workbench.Node.View;
 
-namespace Serein.WorkBench.Node.ViewModel
+namespace Serein.Workbench.Node.ViewModel
 {
+    /// <summary>
+    /// 条件节点
+    /// </summary>
     public class ConditionNodeControlViewModel : NodeControlViewModelBase
     {
         private readonly SingleConditionNode singleConditionNode;
@@ -32,6 +35,10 @@ namespace Serein.WorkBench.Node.ViewModel
             set { singleConditionNode.Expression = value; OnPropertyChanged(); }
         }
 
+        /// <summary>
+        /// 条件节点
+        /// </summary>
+        /// <param name="node"></param>
         public ConditionNodeControlViewModel(SingleConditionNode node) : base(node)
         {
             this.singleConditionNode = node;

@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.9.34728.123
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.WorkBench", "WorkBench\Serein.WorkBench.csproj", "{EC933A9F-DAD3-4D26-BF27-DA9DE5263BCD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Workbench", "WorkBench\Serein.Workbench.csproj", "{EC933A9F-DAD3-4D26-BF27-DA9DE5263BCD}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Library.Core", "Library.Core\Serein.Library.Core.csproj", "{4A7D23E7-B05C-4B6D-A8B9-1A488DC356FD}"
 EndProject
@@ -21,10 +21,6 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Net462DllTest", "Net462DllTest\Net462DllTest.csproj", "{E40EE629-1A38-4011-88E3-9AD036869987}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Extend.RemoteControl", "Extend.FlowRemoteManagement\Serein.Extend.RemoteControl.csproj", "{3E568C47-74C6-4C28-9D43-C9BA29008DB7}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.WorkBench.Remote", "WorkBench.Remote\Serein.WorkBench.Remote.csproj", "{D550688A-4EAB-4872-8243-66D39FE3817D}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.WorkBench.ControlLibrary.Core", "WorkBench.ControlLibrary.Core\Serein.WorkBench.ControlLibrary.Core.csproj", "{789E3885-3D64-461B-BEF1-DC965E7CEF57}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.FlowStartTool", "FlowStartTool\Serein.FlowStartTool.csproj", "{38D0FA92-5139-4616-A41E-8186AA4C1532}"
 EndProject
@@ -62,14 +58,6 @@ Global
 		{3E568C47-74C6-4C28-9D43-C9BA29008DB7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3E568C47-74C6-4C28-9D43-C9BA29008DB7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3E568C47-74C6-4C28-9D43-C9BA29008DB7}.Release|Any CPU.Build.0 = Release|Any CPU
-		{D550688A-4EAB-4872-8243-66D39FE3817D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{D550688A-4EAB-4872-8243-66D39FE3817D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{D550688A-4EAB-4872-8243-66D39FE3817D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{D550688A-4EAB-4872-8243-66D39FE3817D}.Release|Any CPU.Build.0 = Release|Any CPU
-		{789E3885-3D64-461B-BEF1-DC965E7CEF57}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{789E3885-3D64-461B-BEF1-DC965E7CEF57}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{789E3885-3D64-461B-BEF1-DC965E7CEF57}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{789E3885-3D64-461B-BEF1-DC965E7CEF57}.Release|Any CPU.Build.0 = Release|Any CPU
 		{38D0FA92-5139-4616-A41E-8186AA4C1532}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{38D0FA92-5139-4616-A41E-8186AA4C1532}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{38D0FA92-5139-4616-A41E-8186AA4C1532}.Release|Any CPU.ActiveCfg = Release|Any CPU

@@ -1,6 +1,6 @@
 ﻿using System.Windows;
 
-namespace Serein.WorkBench
+namespace Serein.Workbench
 {
     /// <summary>
     /// DebugWindow.xaml 的交互逻辑
@@ -23,7 +23,7 @@ namespace Serein.WorkBench
         private const int MaxLines = 1000; // 最大显示的行数
         private bool autoScroll = true; // 自动滚动标识
         private int flushThreshold = 1000; // 设置日志刷新阈值
-        private const int maxFlushSize = 10000; // 每次最大刷新字符数
+        private const int maxFlushSize = 1000; // 每次最大刷新字符数
 
         public LogWindow()
         {

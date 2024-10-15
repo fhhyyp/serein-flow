@@ -1,12 +1,12 @@
 ﻿using Serein.NodeFlow.Model;
-using Serein.WorkBench.Node.View;
+using Serein.Workbench.Node.View;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Serein.WorkBench.Node.ViewModel
+namespace Serein.Workbench.Node.ViewModel
 {
     public class ConditionRegionNodeControlViewModel : NodeControlViewModelBase
     {

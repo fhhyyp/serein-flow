@@ -19,9 +19,9 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Xml.Linq;
-using static Serein.WorkBench.Themes.TypeViewerWindow;
+using static Serein.Workbench.Themes.TypeViewerWindow;
 
-namespace Serein.WorkBench.Themes
+namespace Serein.Workbench.Themes
 {
     /// <summary>
     /// NodeTreeVIewControl.xaml 的交互逻辑
@@ -156,7 +156,7 @@ namespace Serein.WorkBench.Themes
                         var contextMenu = new ContextMenu();
                         contextMenu.Items.Add(MainWindow.CreateMenuItem("从此节点执行", (s, e) => 
                         {
-                            flowEnvironment.StartFlowInSelectNodeAsync(tmpNodeTreeModel.RootNode.Guid);
+                            flowEnvironment.StartAsyncInSelectNode(tmpNodeTreeModel.RootNode.Guid);
                         }));
                         contextMenu.Items.Add(MainWindow.CreateMenuItem("定位", (s, e) => flowEnvironment.NodeLocated(tmpNodeTreeModel.RootNode.Guid)));
 

@@ -1,7 +1,7 @@
 ﻿using Serein.NodeFlow.Model;
-using Serein.WorkBench.Node.ViewModel;
+using Serein.Workbench.Node.ViewModel;
 
-namespace Serein.WorkBench.Node.View
+namespace Serein.Workbench.Node.View
 {
     /// <summary>
     /// ExprOpNodeControl.xaml 的交互逻辑

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using System.Windows.Data;
 using System.Windows;
 
-namespace Serein.WorkBench.Tool.Converters
+namespace Serein.Workbench.Tool.Converters
 {
     /// <summary>
     /// 根据bool类型控制可见性

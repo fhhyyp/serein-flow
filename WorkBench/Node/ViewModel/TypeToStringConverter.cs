@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Data;
 
-namespace Serein.WorkBench.Node.ViewModel
+namespace Serein.Workbench.Node.ViewModel
 {
     public class TypeToStringConverter : IValueConverter
     {

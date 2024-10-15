@@ -22,9 +22,9 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Xml.Linq;
-using static Serein.WorkBench.Themes.TypeViewerWindow;
+using static Serein.Workbench.Themes.TypeViewerWindow;
 
-namespace Serein.WorkBench.Themes
+namespace Serein.Workbench.Themes
 {
 
     public class FlowDataDetails

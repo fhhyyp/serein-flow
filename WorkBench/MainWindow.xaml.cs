@@ -9,11 +9,12 @@ using Serein.NodeFlow.Base;
 using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Tool;
 using Serein.NodeFlow.Tool.SereinExpression;
-using Serein.WorkBench.Node;
-using Serein.WorkBench.Node.View;
-using Serein.WorkBench.Node.ViewModel;
-using Serein.WorkBench.Themes;
-using Serein.WorkBench.tool;
+using Serein.Workbench.Node;
+using Serein.Workbench.Node.View;
+using Serein.Workbench.Node.ViewModel;
+using Serein.Workbench.Themes;
+using Serein.Workbench.tool;
+using System;
 using System.IO;
 using System.Reflection;
 using System.Text.Json;
@@ -31,18 +32,21 @@ using System.Windows.Threading;
 using System.Xml.Linq;
 using DataObject = System.Windows.DataObject;
 
-namespace Serein.WorkBench
+namespace Serein.Workbench
 {
     /// <summary>
     /// 拖拽创建节点类型
     /// </summary>
     public static class MouseNodeType
     {
+        /// <summary>
+        /// 创建来自DLL的节点
+        /// </summary>
         public static string CreateDllNodeInCanvas { get; } = nameof(CreateDllNodeInCanvas);
+        /// <summary>
+        /// 创建基础节点
+        /// </summary>
         public static string CreateBaseNodeInCanvas { get; } = nameof(CreateBaseNodeInCanvas);
-        //public static string RegionType { get; } = nameof(RegionType);
-        //public static string BaseNodeType { get; } = nameof(BaseNodeType);
-        //public static string DllNodeType { get; } = nameof(DllNodeType);
     }
 
 
@@ -153,6 +157,7 @@ namespace Serein.WorkBench
         public MainWindow()
         {
             InitializeComponent();
+            logWindow = InitConsoleOut(); // 重定向 Console 输出
 
             ViewModel = new MainWindowViewModel(this);
             FlowEnvironment = ViewModel.FlowEnvironment;
@@ -160,7 +165,6 @@ namespace Serein.WorkBench
             IOCObjectViewer.FlowEnvironment = FlowEnvironment;
 
             InitFlowEnvironmentEvent(); // 配置环境事件
-            logWindow =  InitConsoleOut(); // 重定向 Console 输出
 
             canvasTransformGroup = new TransformGroup();
             scaleTransform = new ScaleTransform();
@@ -199,10 +203,12 @@ namespace Serein.WorkBench
 
             FlowEnvironment.OnIOCMembersChanged += FlowEnvironment_OnIOCMembersChanged;
 
-            FlowEnvironment.OnNodeLocate += FlowEnvironment_OnNodeLocate;
+            FlowEnvironment.OnNodeLocated += FlowEnvironment_OnNodeLocate;
+            FlowEnvironment.OnNodeMoved += FlowEnvironment_OnNodeMoved;
 
         }
 
+        
 
         private LogWindow InitConsoleOut()
         {
@@ -710,6 +716,26 @@ namespace Serein.WorkBench
                 nodeControl.RenderTransform = null; // 或者重新设置为默认值
             };
         }
+        private void FlowEnvironment_OnNodeMoved(NodeMovedEventArgs eventArgs)
+        {
+            if (!TryGetControl(eventArgs.NodeGuid, out var nodeControl)) return;
+
+            var newLeft = eventArgs.X;
+            var newTop = eventArgs.Y;
+
+            // 限制控件不超出FlowChartCanvas的边界
+           if (newLeft >= 0 && newLeft + nodeControl.ActualWidth <= FlowChartCanvas.ActualWidth)
+           {
+               Canvas.SetLeft(nodeControl, newLeft);
+           }
+           if (newTop >= 0 && newTop + nodeControl.ActualHeight <= FlowChartCanvas.ActualHeight)
+           {
+               Canvas.SetTop(nodeControl, newTop);
+           }
+
+            //Canvas.SetLeft(nodeControl,);
+            //Canvas.SetTop(nodeControl, );
+        }
 
         /// <summary>
         /// Guid 转 NodeControl
@@ -819,7 +845,7 @@ namespace Serein.WorkBench
         }
 
         /// <summary>
-        /// 配置节点事件
+        /// 配置节点事件(移动，点击相关）
         /// </summary>
         /// <param name="nodeControl"></param>
         private void ConfigureNodeEvents(NodeControlBase nodeControl)
@@ -1295,87 +1321,65 @@ namespace Serein.WorkBench
             if (IsControlDragging) // 如果正在拖动控件
             {
                 Point currentPosition = e.GetPosition(FlowChartCanvas); // 获取当前鼠标位置 
-                // 批量移动 与 单个节点控件移动
-                if (selectNodeControls.Count > 0 && sender is NodeControlBase element && selectNodeControls.Contains(element))
+                
+                if (selectNodeControls.Count > 0 && sender is NodeControlBase nodeControlMain && selectNodeControls.Contains(nodeControlMain))
                 {
-                    // 获取element控件的旧位置
-                    double oldLeft = Canvas.GetLeft(element);
-                    double oldTop = Canvas.GetTop(element);
+                    // 进行批量移动
+                    // 获取旧位置
+                    var oldLeft = Canvas.GetLeft(nodeControlMain);
+                    var oldTop = Canvas.GetTop(nodeControlMain);
                     
                     // 计算被选择控件的偏移量
-                    double deltaX = (int)(currentPosition.X - startControlDragPoint.X);
-                    double deltaY = (int)(currentPosition.Y - startControlDragPoint.Y);
+                    var deltaX = /*(int)*/(currentPosition.X - startControlDragPoint.X);
+                    var deltaY = /*(int)*/(currentPosition.Y - startControlDragPoint.Y);
 
                     // 移动被选择的控件
-                    double newLeft = oldLeft + deltaX;
-                    double newTop = oldTop + deltaY;
+                    var newLeft = oldLeft + deltaX;
+                    var newTop = oldTop + deltaY;
 
-                    // 限制控件不超出FlowChartCanvas的边界
-                    if (newLeft >= 0 && newLeft + element.ActualWidth <= FlowChartCanvas.ActualWidth)
-                    {
-                        Canvas.SetLeft(element, newLeft);
-                    }
-                    if (newTop >= 0 && newTop + element.ActualHeight <= FlowChartCanvas.ActualHeight)
-                    {
-                        Canvas.SetTop(element, newTop);
-                    }
+                    this.FlowEnvironment.MoveNode(nodeControlMain.ViewModel.Node.Guid, newLeft, newTop); // 移动节点
 
-                    // 计算element实际移动的距离
-                    double actualDeltaX = newLeft - oldLeft;
-                    double actualDeltaY = newTop - oldTop;
+                    // 计算控件实际移动的距离
+                    var actualDeltaX = newLeft - oldLeft;
+                    var actualDeltaY = newTop - oldTop;
+
                     // 移动其它选中的控件
                     foreach (var nodeControl in selectNodeControls)
                     {
-                        if (nodeControl != element) // 跳过已经移动的控件
+                        if (nodeControl != nodeControlMain) // 跳过已经移动的控件
                         {
-                            double otherNewLeft = Canvas.GetLeft(nodeControl) + actualDeltaX;
-                            double otherNewTop = Canvas.GetTop(nodeControl) + actualDeltaY;
-
-                            // 限制控件不超出FlowChartCanvas的边界
-                            if (otherNewLeft >= 0 && otherNewLeft + nodeControl.ActualWidth <= FlowChartCanvas.ActualWidth)
-                            {
-                                Canvas.SetLeft(nodeControl, otherNewLeft);
-                            }
-                            if (otherNewTop >= 0 && otherNewTop + nodeControl.ActualHeight <= FlowChartCanvas.ActualHeight)
-                            {
-                                Canvas.SetTop(nodeControl, otherNewTop);
-                            }
+                            var otherNewLeft = Canvas.GetLeft(nodeControl) + actualDeltaX;
+                            var otherNewTop = Canvas.GetTop(nodeControl) + actualDeltaY;
+                            this.FlowEnvironment.MoveNode(nodeControl.ViewModel.Node.Guid, otherNewLeft, otherNewTop); // 移动节点
                         }
                     }
+
+                    // 更新节点之间线的连接位置
                     foreach (var nodeControl in selectNodeControls)
                     {
                         UpdateConnections(nodeControl);
                     }
-                    startControlDragPoint = currentPosition; // 更新起始点位置
                 }
                 else
-                {                                                     // 获取引发事件的控件
-                    if (sender is not UserControl block)
+                {   // 单个节点移动
+                    if (sender is not NodeControlBase nodeControl)
                     {
                         return;
                     }
                     double deltaX = currentPosition.X - startControlDragPoint.X; // 计算X轴方向的偏移量
                     double deltaY = currentPosition.Y - startControlDragPoint.Y; // 计算Y轴方向的偏移量
-
-                    double newLeft = Canvas.GetLeft(block) + deltaX; // 新的左边距
-                    double newTop = Canvas.GetTop(block) + deltaY; // 新的上边距
-                    //Console.WriteLine((Canvas.GetLeft(block), Canvas.GetTop(block)));
-
-                    // 限制控件不超出FlowChartCanvas的边界
-                    if (newLeft >= 0 && newLeft + block.ActualWidth <= FlowChartCanvas.ActualWidth)
-                    {
-                        Canvas.SetLeft(block, newLeft);
-                    }
-                    if (newTop >= 0 && newTop + block.ActualHeight <= FlowChartCanvas.ActualHeight)
-                    {
-                        Canvas.SetTop(block, newTop);
-                    }
-
-                    UpdateConnections(block);
+                    double newLeft = Canvas.GetLeft(nodeControl) + deltaX; // 新的左边距
+                    double newTop = Canvas.GetTop(nodeControl) + deltaY; // 新的上边距
+                    this.FlowEnvironment.MoveNode(nodeControl.ViewModel.Node.Guid, newLeft, newTop); // 移动节点
+                    UpdateConnections(nodeControl);
                 }
                 startControlDragPoint = currentPosition; // 更新起始点位置
             }
+
         }
+
+        
+
         private void ChangeViewerObjOfNode(NodeControlBase nodeControl)
         {
             var node = nodeControl.ViewModel.Node;
@@ -1755,7 +1759,6 @@ namespace Serein.WorkBench
         /// <param name="e"></param>
         private void FlowChartCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            Console.WriteLine(1);
             if (!IsSelectControl)
             {
                 // 进入选取状态
@@ -2352,7 +2355,7 @@ namespace Serein.WorkBench
         /// <param name="e"></param>
         private void ButtonDebugFlipflopNode_Click(object sender, RoutedEventArgs e)
         {
-            FlowEnvironment?.Exit(); // 在运行平台上点击了退出
+            FlowEnvironment?.ExitFlow(); // 在运行平台上点击了退出
         }
 
         /// <summary>
@@ -2372,7 +2375,7 @@ namespace Serein.WorkBench
             }
             else
             {
-                await this.FlowEnvironment.StartFlowInSelectNodeAsync(selectNodeControls[0].ViewModel.Node.Guid);
+                await this.FlowEnvironment.StartAsyncInSelectNode(selectNodeControls[0].ViewModel.Node.Guid);
             }
 
         }
@@ -2489,25 +2492,12 @@ namespace Serein.WorkBench
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void OpenLocalProject_Click(object sender, RoutedEventArgs e)
+        private void ButtonOpenLocalProject_Click(object sender, RoutedEventArgs e)
         {
 
         }
 
-        /// <summary>
-        /// 连接远程运行环境
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void OpenRemoteProject_Click(object sender, RoutedEventArgs e)
-        {
-            var windowEnvRemoteLoginView = new WindowEnvRemoteLoginView((addres,port,token) => 
-            {
-                this.FlowEnvironment.LoadRemoteProject(addres, port, token);
-            });
-            windowEnvRemoteLoginView.Show();
-            
-        }
+       
 
         #endregion
 
@@ -2531,6 +2521,26 @@ namespace Serein.WorkBench
 
         #endregion
 
+        #region 顶部菜单栏 - 远程管理
+        private async void ButtonStartRemoteServer_Click(object sender, RoutedEventArgs e)
+        {
+             await this.FlowEnvironment.StartRemoteServerAsync();
+        }
+        /// <summary>
+        /// 连接远程运行环境
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ButtonConnectionRemoteEnv_Click(object sender, RoutedEventArgs e)
+        {
+            var windowEnvRemoteLoginView = new WindowEnvRemoteLoginView((addres, port, token) =>
+            {
+                this.FlowEnvironment.LoadRemoteProject(addres, port, token);
+            });
+            windowEnvRemoteLoginView.Show();
+
+        }
+        #endregion
 
 
 
@@ -2636,6 +2646,7 @@ namespace Serein.WorkBench
             MessageBox.Show("所有DLL已卸载。", "信息", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
+        
     }
 
     #region 创建两个控件之间的连接关系，在UI层面上显示为 带箭头指向的贝塞尔曲线

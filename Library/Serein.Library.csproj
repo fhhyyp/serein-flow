@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <Version>1.0.13</Version>
     <TargetFrameworks>net8.0;net462</TargetFrameworks>
     <BaseOutputPath>D:\Project\C#\DynamicControl\SereinFlow\.Output</BaseOutputPath>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
