@@ -1,9 +1,6 @@
-﻿using Serein.NodeFlow;
-using Serein.NodeFlow.Model;
-using Serein.Workbench.Node.View;
+﻿using Serein.Library;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 
 namespace Serein.Workbench.Node.View
@@ -111,7 +108,7 @@ namespace Serein.Workbench.Node.View
                 {
                     MoveNodeData moveNodeData = new MoveNodeData
                     {
-                        NodeControlType = Library.Enums.NodeControlType.ConditionRegion
+                        NodeControlType = Library.NodeControlType.ConditionRegion
                     };
 
                     // 创建一个 DataObject 用于拖拽操作，并设置拖拽效果

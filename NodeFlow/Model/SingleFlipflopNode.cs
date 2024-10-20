@@ -1,27 +1,28 @@
 ﻿using Serein.Library.Api;
-using Serein.Library.Entity;
-using Serein.Library.Enums;
-using Serein.Library.Ex;
-using Serein.Library.NodeFlow.Tool;
+using Serein.Library;
 using Serein.Library.Utils;
-using Serein.NodeFlow.Base;
+using Serein.NodeFlow.Env;
 using static Serein.Library.Utils.ChannelFlowInterrupt;
 
 namespace Serein.NodeFlow.Model
 {
-
+    /// <summary>
+    /// 触发器节点
+    /// </summary>
     public class SingleFlipflopNode : NodeModelBase
     {
-        //public override async Task<object?> Executing(IDynamicContext context)
-        //public override Task<object?>  ExecutingAsync(IDynamicContext context)
-        //{
-        //    NextOrientation = Library.Enums.ConnectionType.IsError;
-        //    RuningException = new FlipflopException ("无法以非await/async的形式调用触发器");
-        //    return null;
-        //}
+        public SingleFlipflopNode(IFlowEnvironment environment) : base(environment)
+        {
+
+        }
 
 
-
+        /// <summary>
+        /// 执行触发器进行等待触发
+        /// </summary>
+        /// <param name="context"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public override async Task<object?> ExecutingAsync(IDynamicContext context)
         {
             #region 执行前中断
@@ -76,10 +77,11 @@ namespace Serein.NodeFlow.Model
                 // flipflopTask?.Dispose();
             }
         }
-        public static object GetContextValueDynamic(dynamic context)
-        {
-            return context.Value; // dynamic 会在运行时处理类型
-        }
+
+        /// <summary>
+        /// 获取触发器参数
+        /// </summary>
+        /// <returns></returns>
         public override Parameterdata[] GetParameterdatas()
         {
             if (base.MethodDetails.ParameterDetailss.Length > 0)

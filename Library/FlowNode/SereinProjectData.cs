@@ -7,8 +7,36 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Serein.Library.Entity
+namespace Serein.Library
 {
+
+    /// <summary>
+    /// 环境信息（远程控制用）
+    /// </summary>
+    public class FlowEnvInfo
+    {
+        /// <summary>
+        /// 环境方法信息
+        /// </summary>
+        public LibraryMds[] LibraryMds { get; set; }
+        /// <summary>
+        /// 项目信息
+        /// </summary>
+        public SereinProjectData Project { get; set; }
+
+        // IOC节点对象信息
+    }
+
+    public class LibraryMds
+    {
+        public string LibraryName { get; set; }
+
+        public MethodDetailsInfo[] Mds { get; set; }
+
+    }
+
+
+
 
     /// <summary>
     /// 项目保存文件
@@ -70,7 +98,7 @@ namespace Serein.Library.Entity
         /// <summary>
         /// 高度
         /// </summary>
-        public double Lenght { get; set; }
+        public double Height { get; set; }
 
         /// <summary>
         /// 预览位置X
@@ -99,19 +127,22 @@ namespace Serein.Library.Entity
     public class Library
     {
         /// <summary>
-        /// DLL名称
+        /// 文件名称
         /// </summary>
 
-        public string Name { get; set; }
+        public string FileName { get; set; }
 
         /// <summary>
-        /// 路径
+        /// 文件路径
         /// </summary>
+        public string FilePath { get; set; }
 
-        public string Path { get; set; }
-
-
+        /// <summary>
+        /// 程序集名称
+        /// </summary>
+        public string AssemblyName { get; set; }
     }
+
     /// <summary>
     /// 节点
     /// </summary>
@@ -175,7 +206,7 @@ namespace Serein.Library.Entity
         /// 于画布中的位置
         /// </summary>
 
-        public Position Position { get; set; }
+        public PositionOfUI Position { get; set; }
 
         /// <summary>
         /// 是否选中（暂时无效）
@@ -207,14 +238,20 @@ namespace Serein.Library.Entity
     /// <summary>
     /// 节点于画布中的位置
     /// </summary>
-    public class Position
-    {
+    public class PositionOfUI
+    { /// <summary>
+      /// 构造一个坐标
+      /// </summary>
+        public PositionOfUI()
+        {
+
+        }
         /// <summary>
         /// 构造一个坐标
         /// </summary>
-        public Position(double x, double y)
+        public PositionOfUI(double x, double y)
         {
-            this.X = x; this.Y = y;
+            X = x; Y = y;
         }
 
         public double X { get; set; } = 0;

@@ -1,41 +1,24 @@
-﻿using Serein.Library.Api;
-using Serein.Library.Attributes;
+﻿using Serein.Library;
+using Serein.Library.Api;
 using Serein.Library.Core.NodeFlow;
-using Serein.Library.Entity;
-using Serein.Library.Enums;
-using Serein.Library.Ex;
-using Serein.Library.Utils;
+using Serein.Library.Network.WebSocketCommunication;
 using Serein.Library.Web;
-using Serein.NodeFlow.Base;
+using Serein.Library;
+using Serein.NodeFlow.Env;
 using Serein.NodeFlow.Model;
 using System.Collections.Concurrent;
-using System.ComponentModel.Design;
-using System.Runtime.CompilerServices;
-using System.Xml.Linq;
-using static Serein.Library.Utils.ChannelFlowInterrupt;
 
 namespace Serein.NodeFlow
 {
-
-    
-
     /// <summary>
     /// 流程启动器
     /// </summary>
     public class FlowStarter
     {
-       
-        public FlowStarter()
-        {
-        }
-
-       
-        
-
         /// <summary>
-        /// 控制触发器
+        /// 控制全局触发器的结束
         /// </summary>
-        private CancellationTokenSource _flipFlopCts = null;
+        private CancellationTokenSource? _flipFlopCts;
         
         /// <summary>
         /// 是否停止启动
@@ -45,11 +28,8 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 结束运行时需要执行的方法
         /// </summary>
-        private Func<Task> ExitAction { get; set; }  = null; 
-        /// <summary>
-        /// 运行的上下文
-        /// </summary>
-        private IDynamicContext Context { get; set; }  = null; 
+        private  Func<Task>? ExitAction { get; set; }
+
         private void CheckStartState()
         {
             if (IsStopStart)
@@ -62,11 +42,17 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 从选定的节点开始运行
         /// </summary>
+        /// <param name="env"></param>
         /// <param name="startNode"></param>
         /// <returns></returns>
-        public async Task StartFlowInSelectNodeAsync(NodeModelBase startNode)
+        public async Task StartFlowInSelectNodeAsync(IFlowEnvironment env, NodeModelBase startNode)
         {
-            if (Context is null) return;
+            IDynamicContext Context;
+#if NET6_0_OR_GREATER
+            Context = new Serein.Library.Core.NodeFlow.DynamicContext(env); // 从起始节点启动流程时创建上下文
+#else
+            Context = new Serein.Library.Framework.NodeFlow.DynamicContext(env);
+#endif
             await startNode.StartFlowAsync(Context); // 开始运行时从选定节点开始运行
         }
 
@@ -111,7 +97,8 @@ namespace Serein.NodeFlow
             #region 选择运行环境的上下文
 
             // 判断使用哪一种流程上下文
-#if NET6_0_OR_GREATER 
+            IDynamicContext Context;
+#if NET6_0_OR_GREATER
             Context = new Serein.Library.Core.NodeFlow.DynamicContext(env); // 从起始节点启动流程时创建上下文
 #else
             Context = new Serein.Library.Framework.NodeFlow.DynamicContext(env);
@@ -235,6 +222,9 @@ namespace Serein.NodeFlow
                 env.IOC.Run<WebApiServer>(web => {
                     web?.Stop();
                 });
+                env.IOC.Run<WebSocketServer>(server => {
+                    server?.Stop();
+                });
 
                 foreach (MethodDetails? md in exitMethods)
                 {
@@ -243,7 +233,6 @@ namespace Serein.NodeFlow
                         throw new Exception("不存在对应委托");
                     }
                     await dd.InvokeAsync(md.ActingInstance, [Context]);
-                    //((Func<object, object[], object>)dd.EmitDelegate).Invoke(md.ActingInstance, [Context]);
                 }
 
                 TerminateAllGlobalFlipflop();

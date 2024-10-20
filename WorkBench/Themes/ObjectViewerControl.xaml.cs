@@ -1,7 +1,6 @@
 ﻿using Newtonsoft.Json.Linq;
 using Serein.Library.Api;
-using Serein.NodeFlow.Base;
-using Serein.NodeFlow.Tool.SereinExpression;
+using Serein.Library.Utils.SereinExpression;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -131,9 +130,9 @@ namespace Serein.Workbench.Themes
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void UpMonitorExpressionButton_Click(object sender, RoutedEventArgs e)
+        private async void UpMonitorExpressionButton_Click(object sender, RoutedEventArgs e)
         {
-            if (FlowEnvironment is not null && FlowEnvironment.AddInterruptExpression(monitorKey, MonitorExpression)) // 对象预览器尝试添加中断表达式
+            if (FlowEnvironment is not null && await FlowEnvironment.AddInterruptExpressionAsync(monitorKey, MonitorExpression)) // 对象预览器尝试添加中断表达式
             {
                 if (string.IsNullOrEmpty(MonitorExpression))
                 {

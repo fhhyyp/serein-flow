@@ -2,7 +2,8 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="clr-namespace:Serein.Workbench.Themes"
-    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+    xmlns:sys="clr-namespace:System;assembly=mscorlib"
+    >
 
 
     <ResourceDictionary.MergedDictionaries>
@@ -12,7 +13,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type local:MethodDetailsControl}">
-
+                    <!--根据方法入参数量生成相应的控件-->
                     <ItemsControl ItemsSource="{Binding MethodDetails.ParameterDetailss, RelativeSource={RelativeSource TemplatedParent}}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
@@ -21,6 +22,7 @@
                                         <Style TargetType="ContentControl">
                                             <Style.Triggers>
                                                 <MultiDataTrigger>
+                                                    <!--无须指定参数-->
                                                     <MultiDataTrigger.Conditions>
                                                         <Condition Binding="{Binding IsExplicitData}" Value="false" />
                                                     </MultiDataTrigger.Conditions>
@@ -43,7 +45,8 @@
                                                         </Setter.Value>
                                                     </Setter>
                                                 </MultiDataTrigger>
-
+                                                
+                                                <!--指定参数：选项类型-->
                                                 <MultiDataTrigger>
                                                     <MultiDataTrigger.Conditions>
                                                         <Condition Binding="{Binding IsExplicitData}" Value="true" />
@@ -71,13 +74,11 @@
                                                         </Setter.Value>
                                                     </Setter>
                                                 </MultiDataTrigger>
-                                                
+                                                <!--指定参数：文本类型（可输入）-->
                                                 <MultiDataTrigger>
                                                     <MultiDataTrigger.Conditions>
                                                         <Condition Binding="{Binding IsExplicitData}" Value="true" />
                                                         <Condition Binding="{Binding ExplicitTypeName}" Value="Value" />
-                                                        <!--<Condition Binding="{Binding ExplicitTypeName}" Value="{x:Type sys:String}" />
-                                                        <Condition Binding="{Binding ExplicitTypeName}" Value="{x:Type sys:Double}" />-->
                                                     </MultiDataTrigger.Conditions>
                                                     <Setter Property="ContentTemplate">
                                                         <Setter.Value>

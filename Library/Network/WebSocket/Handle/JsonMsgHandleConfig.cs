@@ -4,7 +4,9 @@ using Serein.Library.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -20,53 +22,164 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
     /// </summary>
     public class JsonMsgHandleConfig
     {
-        private readonly Delegate EmitDelegate;
-        private readonly EmitHelper.EmitMethodType EmitMethodType;
+        public Guid HandleGuid { get; }
 
-        private Action<Exception, Action<object>> OnExceptionTracking;
 
-        internal JsonMsgHandleConfig(SocketHandleModel model,ISocketHandleModule instance, MethodInfo methodInfo, Action<Exception, Action<object>> onExceptionTracking)
+        internal JsonMsgHandleConfig(SocketHandleModule model,
+                                     ISocketHandleModule instance,
+                                     MethodInfo methodInfo,
+                                     Action<Exception, Action<object>> onExceptionTracking,
+                                     bool ArgNotNull)
         {
             EmitMethodType = EmitHelper.CreateDynamicMethod(methodInfo,out EmitDelegate);
-            this.Model = model;
+            this.Module = model;
             Instance = instance;
             var parameterInfos = methodInfo.GetParameters();
-            ParameterType = parameterInfos.Select(t => t.ParameterType).ToArray();
-            ParameterName = parameterInfos.Select(t => t.Name).ToArray();
+            this.ParameterType = parameterInfos.Select(t => t.ParameterType).ToArray();
+            this.ParameterName = parameterInfos.Select(t => t.Name).ToArray();
             this.HandleGuid = instance.HandleGuid;
             this.OnExceptionTracking = onExceptionTracking;
+            this.ArgNotNull = ArgNotNull;
+
+            this.useMsgData = parameterInfos.Select(p => p.GetCustomAttribute<UseMsgDataAttribute>() != null).ToArray();
+#if NET5_0_OR_GREATER
+            this.IsCheckArgNotNull = parameterInfos.Select(p => p.GetCustomAttribute<NotNullAttribute>() != null).ToArray(); 
+#endif
+            
+
+            
+            if(IsCheckArgNotNull is null)
+            {
+                IsCheckArgNotNull = parameterInfos.Select(p => p.GetCustomAttribute<NeedfulAttribute>() != null).ToArray();
+            }
+            else
+            {
+                // 兼容两种非空特性的写法
+                var argNotNull = parameterInfos.Select(p => p.GetCustomAttribute<NeedfulAttribute>() != null).ToArray();
+                for (int i = 0; i < IsCheckArgNotNull.Length; i++)
+                {
+                    if (!IsCheckArgNotNull[i] && argNotNull[i])
+                    {
+                        IsCheckArgNotNull[i] = true;
+                    }
+                }
+            }
 
         }
 
-        private SocketHandleModel Model;
-        private ISocketHandleModule Instance;
-        public Guid HandleGuid { get;  }
-        private string[] ParameterName;
-        private Type[] ParameterType;
+        /// <summary>
+        /// 参数不能为空
+        /// </summary>
+        private bool ArgNotNull;
+
+        /// <summary>
+        /// Emit委托
+        /// </summary>
+        private readonly Delegate EmitDelegate;
+        /// <summary>
+        /// Emit委托类型
+        /// </summary>
+        private readonly EmitHelper.EmitMethodType EmitMethodType;
+        /// <summary>
+        /// 未捕获的异常跟踪
+        /// </summary>
+        private readonly Action<Exception, Action<object>> OnExceptionTracking;
+        /// <summary>
+        /// 所在的模块
+        /// </summary>
+        private readonly SocketHandleModule Module;
+        /// <summary>
+        /// 所使用的实例
+        /// </summary>
+        private readonly ISocketHandleModule Instance;
+        /// <summary>
+        /// 参数名称
+        /// </summary>
+        private readonly string[] ParameterName;
+        /// <summary>
+        /// 参数类型
+        /// </summary>
+        private readonly Type[] ParameterType;
+        /// <summary>
+        /// 是否使用整体data参数
+        /// </summary>
+        private readonly bool[] useMsgData;
+        /// <summary>
+        /// 是否检查变量为空
+        /// </summary>
+        private readonly bool[] IsCheckArgNotNull;
 
 
-        public async void Handle(Func<string, Task> RecoverAsync, JObject jsonObject)
+
+        public async void Handle(Func<object, Task> SendAsync, JObject jsonObject)
         {
             object[] args = new object[ParameterType.Length];
+            bool isCanInvoke = true;; // 表示是否可以调用方法
             for (int i = 0; i < ParameterType.Length; i++)
             {
                 var type = ParameterType[i];
                 var argName = ParameterName[i];
-                if (type.IsGenericType)
+                if (useMsgData[i])
                 {
-                   if (type.IsAssignableFrom(typeof(Func<object, Task>)))
+                    args[i] = jsonObject.ToObject(type);
+                }
+                else if (type.IsValueType)
+                {
+                    var jsonValue = jsonObject.GetValue(argName);
+                    if (!(jsonValue is null))
+                    {
+                        args[i] = jsonValue.ToObject(type);
+                    }
+                    else
+                    {
+                        if (ArgNotNull && !IsCheckArgNotNull[i]) // 检查不能为空
+                        {
+
+                            args[i] = Activator.CreateInstance(type); // 值类型返回默认值
+                        }
+                        else
+                        {
+                            isCanInvoke = false; // 参数不能为空，终止调用
+                            break;
+                        }
+                    }
+                } 
+                else if (type.IsClass)
+                {
+                    var jsonValue = jsonObject.GetValue(argName);
+                    if (!(jsonValue is null))
+                    {
+                        args[i] = jsonValue.ToObject(type);
+                    }
+                    else
+                    {
+                        if (ArgNotNull && !IsCheckArgNotNull[i])
+                        {
+
+                            args[i] = null; // 引用类型返回null
+                        }
+                        else
+                        {
+                            isCanInvoke = false; // 参数不能为空，终止调用
+                            break;
+                        }
+                    }
+                }
+                else if (type.IsGenericType) // 传递SendAsync委托
+                {
+                    if (type.IsAssignableFrom(typeof(Func<object, Task>)))
                     {
                         args[i] = new Func<object, Task>(async data =>
                         {
                             var jsonText = JsonConvert.SerializeObject(data);
-                            await RecoverAsync.Invoke(jsonText);
+                            await SendAsync.Invoke(jsonText);
                         });
                     }
                     else if (type.IsAssignableFrom(typeof(Func<string, Task>)))
                     {
                         args[i] = new Func<string, Task>(async data =>
                         {
-                            await RecoverAsync.Invoke(data);
+                            await SendAsync.Invoke(data);
                         });
                     }
                     else if (type.IsAssignableFrom(typeof(Action<object>)))
@@ -74,7 +187,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                         args[i] = new Action<object>(async data =>
                         {
                             var jsonText = JsonConvert.SerializeObject(data);
-                            await RecoverAsync.Invoke(jsonText);
+                            await SendAsync.Invoke(jsonText);
                         });
                     }
                     else if (type.IsAssignableFrom(typeof(Action<string>)))
@@ -82,28 +195,17 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                         args[i] = new Action<string>(async data =>
                         {
                             var jsonText = JsonConvert.SerializeObject(data);
-                            await RecoverAsync.Invoke(jsonText);
+                            await SendAsync.Invoke(jsonText);
                         });
                     }
-                }
-                else if (type.IsValueType || type.IsClass)
-                {
-                    var jsonValue = jsonObject.GetValue(argName);
-                    if (jsonValue is null)
-                    {
-                        // 值类型返回默认值，引用类型返回null
-                        args[i] = type.IsValueType ? Activator.CreateInstance(type) : null;
-                    }
-                    else
-                    {
-                        args[i] = jsonValue.ToObject(type);
-                    }
-                }
-
-
+                } 
             }
-            //Stopwatch sw = new Stopwatch();
-            //sw.Start();
+
+            if (!isCanInvoke)
+            {
+                return;
+            }
+
             object result;
             try
             {
@@ -133,26 +235,20 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                 {
 
                     var jsonText = JsonConvert.SerializeObject(data);
-                    await RecoverAsync.Invoke(jsonText);
+                    await SendAsync.Invoke(jsonText);
                 }));
             }
            //sw.Stop();
            //Console.WriteLine($"Emit Invoke：{sw.ElapsedTicks * 1000000F / Stopwatch.Frequency:n3}μs");
 
-            if(Model.IsReturnValue &&  result != null && result.GetType().IsClass)
+            if(Module.IsReturnValue &&  result != null && result.GetType().IsClass)
             {
-                var reusltJsonText = JsonConvert.SerializeObject(result);
-                _ = RecoverAsync.Invoke($"{reusltJsonText}");
+                //var reusltJsonText = JsonConvert.SerializeObject(result);
+                _ = SendAsync.Invoke(result);
+                //_ = SendAsync.Invoke($"{reusltJsonText}");
             }
             
 
-        }
-        public void Clear()
-        {
-            Instance = null;
-            ParameterName = null;
-            ParameterType = null;
-            //expressionDelegate = null;
         }
 
     }

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Serein.Library.Enums
+namespace Serein.Library
 {
     /// <summary>
     /// 流程运行状态

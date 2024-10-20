@@ -2,15 +2,7 @@
 using Net462DllTest.Signal;
 using Net462DllTest.ViewModel;
 using Serein.Library.Api;
-using Serein.Library.Attributes;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace Net462DllTest

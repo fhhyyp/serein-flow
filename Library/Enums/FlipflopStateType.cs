@@ -4,10 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Serein.Library.Enums
+namespace Serein.Library
 {
     /// <summary>
-    /// 触发器说明
+    /// 触发器状态
     /// </summary>
     public enum FlipflopStateType
     {

@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json.Linq;
 using Serein.Library.Utils;
-using Serein.NodeFlow.Tool.SereinExpression.Resolver;
+using Serein.Library.Utils.SereinExpression.Resolver;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
@@ -8,7 +8,7 @@ using System.Globalization;
 using System.Linq;
 using System.Reflection;
 
-namespace Serein.NodeFlow.Tool.SereinExpression
+namespace Serein.Library.Utils.SereinExpression
 {
     /// <summary>
     /// 字符串工具类

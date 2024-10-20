@@ -1,9 +1,6 @@
-﻿using Serein.Library.Api;
-using Serein.Library.Entity;
-using Serein.Library.Enums;
-using Serein.NodeFlow.Base;
-using Serein.NodeFlow.Tool.SereinExpression;
-using System.Text;
+﻿using Serein.Library;
+using Serein.Library.Api;
+using Serein.Library.Utils.SereinExpression;
 
 namespace Serein.NodeFlow.Model
 {
@@ -12,6 +9,10 @@ namespace Serein.NodeFlow.Model
     /// </summary>
     public class SingleExpOpNode : NodeModelBase
     {
+        public SingleExpOpNode(IFlowEnvironment environment) : base(environment)
+        {
+            
+        }
         /// <summary>
         /// 表达式
         /// </summary>

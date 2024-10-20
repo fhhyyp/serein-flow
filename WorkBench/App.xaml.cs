@@ -1,9 +1,7 @@
 ﻿using Newtonsoft.Json;
-using Serein.Library.Entity;
-using Serein.NodeFlow;
-using Serein.NodeFlow.Tool;
-using System.Diagnostics;
+using Serein.Library;
 using System.Windows;
+using System.Windows.Threading;
 
 namespace Serein.Workbench
 {
@@ -20,6 +18,9 @@ namespace Serein.Workbench
         public App()
         {
             // TestExp();
+
+            
+
         }
 
         protected override void OnExit(ExitEventArgs e)
@@ -32,9 +33,11 @@ namespace Serein.Workbench
                 window.Close();
             }
         }
-        
         private void Application_Startup(object sender, StartupEventArgs e)
         {
+            Application.Current.Dispatcher.Invoke(() => { });
+
+
             // 检查是否传入了参数
             if (e.Args.Length == 1)
             {
@@ -63,7 +66,7 @@ namespace Serein.Workbench
             }
 
 #if DEBUG
-            else if(1== 1)
+            else if(1 == 1)
             {
                 //string filePath = @"F:\临时\project\new project.dnf";
 

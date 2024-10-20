@@ -2,14 +2,9 @@
 using Net462DllTest.Enums;
 using Net462DllTest.Signal;
 using Net462DllTest.Trigger;
-using Serein.Library.Attributes;
 using Serein.Library.Utils;
 using Serein.Library.Web;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Net462DllTest.Web
 {

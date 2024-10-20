@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using static Serein.Library.Utils.EmitHelper;
 
-namespace Serein.Library.Entity
+namespace Serein.Library
 {
     /// <summary>
     /// Emit创建的委托描述，用于WebApi、WebSocket、NodeFlow动态调用方法的场景。
@@ -22,7 +22,7 @@ namespace Serein.Library.Entity
         public DelegateDetails(EmitMethodType EmitMethodType, Delegate EmitDelegate)
         {
             this._emitMethodType = EmitMethodType;
-            this._emitDelegate = EmitDelegate;
+            this._emitDelegate = EmitDelegate; 
         }
         /// <summary>
         /// 更新委托方法
@@ -37,42 +37,42 @@ namespace Serein.Library.Entity
         private Delegate _emitDelegate;
         private EmitMethodType _emitMethodType;
 
-        /// <summary>
-        /// <para>普通方法：Func&lt;object,object[],object&gt;</para>
-        /// <para>异步方法：Func&lt;object,object[],Task&gt;</para>
-        /// <para>异步有返回值方法：Func&lt;object,object[],Task&lt;object&gt;&gt;</para>
-        /// </summary>
-        public Delegate EmitDelegate { get => _emitDelegate; }
-        /// <summary>
-        /// 表示Emit构造的委托类型
-        /// </summary>
-        public EmitMethodType EmitMethodType { get => _emitMethodType; }
+        ///// <summary>
+        ///// <para>普通方法：Func&lt;object,object[],object&gt;</para>
+        ///// <para>异步方法：Func&lt;object,object[],Task&gt;</para>
+        ///// <para>异步有返回值方法：Func&lt;object,object[],Task&lt;object&gt;&gt;</para>
+        ///// </summary>
+        //public Delegate EmitDelegate { get => _emitDelegate; }
+        ///// <summary>
+        ///// 表示Emit构造的委托类型
+        ///// </summary>
+        //public EmitMethodType EmitMethodType { get => _emitMethodType; }
 
         /// <summary>
         /// <para>使用的实例必须能够正确调用该委托，传入的参数也必须符合方法入参信息。</para>
         ///  </summary>
-        /// <param name="instance">实例</param>
-        /// <param name="args">入参</param>
+        /// <param name="instance">拥有符合委托签名的方法信息的实例</param>
+        /// <param name="args">如果方法没有入参，也需要传入一个空数组</param>
         /// <returns>void方法自动返回null</returns>
         public async Task<object> InvokeAsync(object instance, object[] args)
         {
             if(args is null)
             {
-                args = new object[0];
+                args = Array.Empty<object>();
             }
             object result = null;
             try
             {
-                if (EmitMethodType == EmitMethodType.HasResultTask && EmitDelegate is Func<object, object[], Task<object>> hasResultTask)
+                if (_emitMethodType == EmitMethodType.HasResultTask && _emitDelegate is Func<object, object[], Task<object>> hasResultTask)
                 {
                     result = await hasResultTask(instance, args);
                 }
-                else if (EmitMethodType == EmitMethodType.Task && EmitDelegate is Func<object, object[], Task> task)
+                else if (_emitMethodType == EmitMethodType.Task && _emitDelegate is Func<object, object[], Task> task)
                 {
                     await task.Invoke(instance, args);
                     result = null;
                 }
-                else if (EmitMethodType == EmitMethodType.Func && EmitDelegate is Func<object, object[], object> func)
+                else if (_emitMethodType == EmitMethodType.Func && _emitDelegate is Func<object, object[], object> func)
                 {
                     result = func.Invoke(instance, args);
                 }

@@ -1,13 +1,8 @@
 ﻿using Serein.Library.Api;
-using Serein.Library.Attributes;
-using Serein.Library.Core.NodeFlow;
-using Serein.Library.Entity;
 using Serein.Library.Utils;
-using System;
+using Serein.Library;
 using System.Collections.Concurrent;
-using System.ComponentModel;
 using System.Reflection;
-using System.Text.RegularExpressions;
 
 namespace Serein.NodeFlow.Tool;
 
@@ -77,7 +72,7 @@ public static class NodeMethodDetailsHelper
         Type? returnType;
         bool isTask = IsGenericTask(method.ReturnType, out var taskResult);
 
-        if (attribute.MethodDynamicType == Library.Enums.NodeType.Flipflop)
+        if (attribute.MethodDynamicType == Library.NodeType.Flipflop)
         {
             if (method.ReturnType.IsGenericType && method.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
             {
@@ -126,7 +121,7 @@ public static class NodeMethodDetailsHelper
 
 
 
-        var md = new MethodDetails
+        var md = new MethodDetails() // 从DLL生成方法描述
         {
             ActingInstanceType = type,
             // ActingInstance = instance,
@@ -137,7 +132,7 @@ public static class NodeMethodDetailsHelper
             ParameterDetailss = explicitDataOfParameters,
             ReturnType = returnType,
         };
-        var dd = new DelegateDetails( emitMethodType, methodDelegate) ;
+        var dd = new DelegateDetails(emitMethodType, methodDelegate) ;
         return (md, dd);
 
     }
@@ -270,6 +265,7 @@ public static class NodeMethodDetailsHelper
     /// <returns></returns>
     private static string GetExplicitTypeName(Type type)
     {
+        
         return type switch
         {
             Type t when t.IsEnum => "Select",

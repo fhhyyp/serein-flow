@@ -1,19 +1,14 @@
-﻿using Newtonsoft.Json.Linq;
-using Serein.Library.Api;
-using Serein.Library.Attributes;
-using Serein.Library.Web;
+﻿using Serein.Library.Api;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
-using System.Xml;
-using System.Xml.Schema;
 
 namespace Serein.Library.Utils
 {
-    
+
     /// <summary>
     /// IOC管理容器
     /// </summary>
@@ -195,56 +190,60 @@ namespace Serein.Library.Utils
             public Type Type { get; set; }
         }
         private const string FlowBaseClassName = "<>$FlowBaseClass!@#";
+
+
         public Dictionary<string, List<string>> BuildDependencyTree()
         {
-            var dependencyMap = new Dictionary<string, List<string>>();
-            //var tmpTypeFullName = new HashSet<string>();
-            //var tmpTypeFullName2 = new HashSet<string>();
-            dependencyMap[FlowBaseClassName] = new List<string>();
+            var dependencyMap = new Dictionary<string, HashSet<string>>();
+            dependencyMap[FlowBaseClassName] = new HashSet<string>();
             foreach (var typeMapping in _typeMappings)
             {
-                var constructor = GetConstructorWithMostParameters(typeMapping.Value); // 获取参数最多的构造函数
-                if (constructor != null)
+                //var constructor = GetConstructorWithMostParameters(typeMapping.Value); // 获取参数最多的构造函数
+
+                var constructors = GetConstructor(typeMapping.Value); // 获取参数最多的构造函数
+
+                foreach (var constructor in constructors)
                 {
-                    var parameters = constructor.GetParameters()
-                        .Select(p => p.ParameterType)
-                        .ToList();
-                    //if(parameters.Count == 0)
-                    //{
-                    //    if (!dependencyMap.ContainsKey(typeMapping.Value.FullName))
-                    //    {
-                    //        dependencyMap[typeMapping.Value.FullName] = new List<string>();
-                    //    }
-                    //    dependencyMap[typeMapping.Value.FullName].Add(typeMapping.Key);
-                    //}
-
-
-                    if(parameters .Count > 0)
+                    if (constructor != null)
                     {
-                        // 从类型的构造函数中提取类型
-                        foreach (var param in parameters)
+                        var parameters = constructor.GetParameters()
+                            .Select(p => p.ParameterType)
+                            .ToList();
+                        if (parameters.Count == 0) // 无参的构造函数
                         {
-                            if (!dependencyMap.ContainsKey(param.FullName))
+                            var type = typeMapping.Value;
+                            if (!dependencyMap[FlowBaseClassName].Contains(type.FullName))
                             {
-                                dependencyMap[param.FullName] = new List<string>();
+                                dependencyMap[FlowBaseClassName].Add(type.FullName);
                             }
-                            dependencyMap[param.FullName].Add(typeMapping.Key);
-                            //tmpTypeFullName.Add(param.FullName);
-                            //if (tmpTypeFullName2.Contains(param.FullName))
-                            //{
-                            //    tmpTypeFullName2.Remove(param.FullName);
-                            //}
+                        }
+                        else
+                        {
+                            // 从类型的有参构造函数中提取类型
+                            foreach (var param in parameters)
+                            {
+                                if (!dependencyMap.TryGetValue(param.FullName, out var hashSet))
+                                {
+                                    hashSet = new HashSet<string>();
+                                    hashSet.Add(typeMapping.Key);
+                                    dependencyMap.Add(param.FullName, hashSet);
+                                }
+                                else
+                                {
+                                    if (!hashSet.Contains(typeMapping.Key))
+                                    {
+                                        hashSet.Add(typeMapping.Key);
+                                    }
+                                }
+
+                            }
                         }
                     }
-                    else
-                    {
-                        var type = typeMapping.Value;
-                        dependencyMap[FlowBaseClassName].Add(type.FullName);
-                    }
                 }
+
             }
-            
-            return dependencyMap;
+            var tmp = dependencyMap.ToDictionary(key => key.Key, value => value.Value.ToList());
+            return tmp;
         }
         // 获取参数最多的构造函数
         private ConstructorInfo GetConstructorWithMostParameters(Type type)
@@ -253,6 +252,14 @@ namespace Serein.Library.Utils
                        .OrderByDescending(c => c.GetParameters().Length)
                        .FirstOrDefault();
         }
+        // 获取所有构造函数
+        private ConstructorInfo[] GetConstructor(Type type)
+        {
+            return type.GetConstructors()
+                       .OrderByDescending(c => c.GetParameters().Length)
+                       .OrderBy(ctor => ctor.GetParameters().Length).ToArray();
+        }
+
         // 生成顺序
         public List<string> GetCreationOrder(Dictionary<string, List<string>> dependencyMap)
         {
@@ -334,27 +341,57 @@ namespace Serein.Library.Utils
             {
                 instance = Activator.CreateInstance(type, @params);
             }
+
+            // 字符串、值类型，抽象类型，暂时不支持自动创建
+            if (type == typeof(string) || type.IsValueType || type.IsAbstract)
+            {
+                return null;
+            }
+            
             else
             {
                 // 没有显示指定构造函数入参，选择参数最多的构造函数
-                var constructor = GetConstructorWithMostParameters(type);
-                var parameters = constructor.GetParameters();
-                var args = new object[parameters.Length];
-                for (int i = 0; i < parameters.Length; i++)
+                //var constructor = GetConstructorWithMostParameters(type);
+                var constructors = GetConstructor(type); // 获取参数最多的构造函数
+
+                foreach(var constructor in constructors)
                 {
-                    var argType = parameters[i].ParameterType;
-                    var fullName = parameters[i].ParameterType.FullName;
-                    if (!_dependencies.TryGetValue(fullName, out var argObj))
+                    var parameters = constructor.GetParameters();
+                    var args = new object[parameters.Length];
+                    for (int i = 0; i < parameters.Length; i++)
                     {
-                        if (!_typeMappings.ContainsKey(fullName))
+                        var argType = parameters[i].ParameterType;
+                        var fullName = parameters[i].ParameterType.FullName;
+                        if (!_dependencies.TryGetValue(fullName, out var argObj))
                         {
-                            _typeMappings.TryAdd(fullName, argType);
+                            if (!_typeMappings.ContainsKey(fullName))
+                            {
+                                _typeMappings.TryAdd(fullName, argType);
+                            }
+                            argObj = CreateInstance(fullName);
+                            if (argObj is null)
+                            {
+                                Console.WriteLine("构造参数创建失败"); // 
+                                continue;
+                            }
                         }
-                        argObj = CreateInstance(fullName);
+                        args[i] = argObj;
                     }
-                    args[i] = argObj;
+                    try
+                    {
+                        instance = Activator.CreateInstance(type, args);
+                        if(instance != null)
+                        {
+                            break;
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        continue;
+                    }
                 }
-                instance = Activator.CreateInstance(type, args);
+
+              
             }
 
             InjectDependencies(instance); // 完成创建后注入实例需要的特性依赖项

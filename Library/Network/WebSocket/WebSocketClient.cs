@@ -1,10 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
-using Serein.Library.Attributes;
-using Serein.Library.Network.WebSocketCommunication.Handle;
-using Serein.Library.Web;
+﻿using Serein.Library.Network.WebSocketCommunication.Handle;
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net.WebSockets;
 using System.Text;
@@ -17,7 +12,6 @@ namespace Serein.Library.Network.WebSocketCommunication
     /// <summary>
     /// WebSocket客户端
     /// </summary>
-    [AutoRegister]
     public class WebSocketClient
     {
         /// <summary>
@@ -25,7 +19,7 @@ namespace Serein.Library.Network.WebSocketCommunication
         /// </summary>
         public WebSocketClient()
         {
-            
+
         }
 
         /// <summary>
@@ -40,10 +34,20 @@ namespace Serein.Library.Network.WebSocketCommunication
         /// </summary>
         /// <param name="uri"></param>
         /// <returns></returns>
-        public async Task ConnectAsync(string uri)
+        public async Task<bool> ConnectAsync(string uri)
         {
-            await _client.ConnectAsync(new Uri(uri), CancellationToken.None);
-            await ReceiveAsync();
+            try
+            {
+
+                await _client.ConnectAsync(new Uri(uri), CancellationToken.None);
+                _ = ReceiveAsync();
+                return true;
+            }
+            catch (Exception)
+            {
+
+                return false;
+            }
         }
 
         /// <summary>
@@ -65,91 +69,106 @@ namespace Serein.Library.Network.WebSocketCommunication
         private async Task ReceiveAsync()
         {
             var buffer = new byte[1024];
-          
+            var receivedMessage = new StringBuilder(); // 用于拼接长消息
+
             while (_client.State == WebSocketState.Open)
             {
                 try
                 {
-                    var result = await _client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                    WebSocketReceiveResult result;
+
+                    do
+                    {
+                        result = await _client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+
+                        // 根据接收到的字节数解码为部分字符串，并添加到 StringBuilder 中
+                        var partialMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                        receivedMessage.Append(partialMessage);
+
+                    } while (!result.EndOfMessage); // 判断是否已经收到完整消息
+
+                    // 处理收到的完整消息
                     if (result.MessageType == WebSocketMessageType.Close)
                     {
                         await _client.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
                     }
                     else
                     {
-                        var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                        _ = MsgHandleHelper.HandleMsgAsync(SendAsync, message); // 处理消息
-                        Debug.WriteLine($"Received: {message}");
+                        var completeMessage = receivedMessage.ToString();
+                        _ = MsgHandleHelper.HandleMsgAsync(SendAsync, completeMessage); // 处理消息
+                        Debug.WriteLine($"Received: {completeMessage}");
                     }
+
+                    // 清空 StringBuilder 为下一条消息做准备
+                    receivedMessage.Clear();
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"Received: {EX.ToString()}");
+                    Debug.WriteLine($"Received: {ex.ToString()}");
                 }
             }
         }
 
-    }
 
+        /* #region 消息处理
+        private readonly string ThemeField;
+        private readonly ConcurrentDictionary<string, HandldConfig> ThemeConfigs = new ConcurrentDictionary<string, HandldConfig>();
 
-    /* #region 消息处理
-    private readonly string ThemeField;
-    private readonly ConcurrentDictionary<string, HandldConfig> ThemeConfigs = new ConcurrentDictionary<string, HandldConfig>();
-
-    public async Task HandleSocketMsg(string jsonStr)
-    {
-        JObject json;
-        try
+        public async Task HandleSocketMsg(string jsonStr)
         {
-            json = JObject.Parse(jsonStr);
-        }
-        catch (Exception ex)
-        {
-            await SendAsync(_client, ex.Message);
-            return;
-        }
-        // 获取到消息
-        string themeName = json[ThemeField]?.ToString();
-        if (!ThemeConfigs.TryGetValue(themeName, out var handldConfig))
-        {
-            return;
-        }
-
-        object dataValue;
-        if (string.IsNullOrEmpty(handldConfig.DataField))
-        {
-            dataValue = json.ToObject(handldConfig.DataType);
-        }
-        else
-        {
-            dataValue = json[handldConfig.DataField].ToObject(handldConfig.DataType);
-        }
-        await handldConfig.Invoke(dataValue, SendAsync);
-    }
-
-    public void AddConfig(string themeName, Type dataType, MsgHandler msgHandler)
-    {
-        if (!ThemeConfigs.TryGetValue(themeName, out var handldConfig))
-        {
-            handldConfig = new HandldConfig
+            JObject json;
+            try
             {
-                DataField = themeName,
-                DataType = dataType
-            };
-            ThemeConfigs.TryAdd(themeName, handldConfig);
-        }
-        handldConfig.HandldAsync += msgHandler;
-    }
-    public void RemoteConfig(string themeName, MsgHandler msgHandler)
-    {
-        if (ThemeConfigs.TryGetValue(themeName, out var handldConfig))
-        {
-            handldConfig.HandldAsync -= msgHandler;
-            if (!handldConfig.HasSubscribers)
+                json = JObject.Parse(jsonStr);
+            }
+            catch (Exception ex)
             {
-                ThemeConfigs.TryRemove(themeName, out _);
+                await SendAsync(_client, ex.Message);
+                return;
+            }
+            // 获取到消息
+            string themeName = json[ThemeField]?.ToString();
+            if (!ThemeConfigs.TryGetValue(themeName, out var handldConfig))
+            {
+                return;
+            }
+
+            object dataValue;
+            if (string.IsNullOrEmpty(handldConfig.DataField))
+            {
+                dataValue = json.ToObject(handldConfig.DataType);
+            }
+            else
+            {
+                dataValue = json[handldConfig.DataField].ToObject(handldConfig.DataType);
+            }
+            await handldConfig.Invoke(dataValue, SendAsync);
+        }
+
+        public void AddConfig(string themeName, Type dataType, MsgHandler msgHandler)
+        {
+            if (!ThemeConfigs.TryGetValue(themeName, out var handldConfig))
+            {
+                handldConfig = new HandldConfig
+                {
+                    DataField = themeName,
+                    DataType = dataType
+                };
+                ThemeConfigs.TryAdd(themeName, handldConfig);
+            }
+            handldConfig.HandldAsync += msgHandler;
+        }
+        public void RemoteConfig(string themeName, MsgHandler msgHandler)
+        {
+            if (ThemeConfigs.TryGetValue(themeName, out var handldConfig))
+            {
+                handldConfig.HandldAsync -= msgHandler;
+                if (!handldConfig.HasSubscribers)
+                {
+                    ThemeConfigs.TryRemove(themeName, out _);
+                }
             }
         }
+        #endregion*/
     }
-    #endregion*/
 }

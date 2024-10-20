@@ -1,8 +1,6 @@
 ﻿using IoTClient.Enums;
 using Net462DllTest.Enums;
-using Serein.Library.Attributes;
 using System;
-using static Net462DllTest.Signal.PlcVarInfoAttribute;
 using static Net462DllTest.Signal.PlcVarInfo;
 
 namespace Net462DllTest.Signal

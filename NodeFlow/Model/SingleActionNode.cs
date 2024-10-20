@@ -1,6 +1,5 @@
 ﻿using Serein.Library.Api;
-using Serein.Library.Entity;
-using Serein.NodeFlow.Base;
+using Serein.Library;
 
 namespace Serein.NodeFlow.Model
 {
@@ -9,7 +8,10 @@ namespace Serein.NodeFlow.Model
     /// </summary>
     public class SingleActionNode : NodeModelBase
     {
-
+        public SingleActionNode(IFlowEnvironment environment):base(environment)
+        {
+            
+        }
         public override Parameterdata[] GetParameterdatas()
         {
             if (base.MethodDetails.ParameterDetailss.Length > 0)

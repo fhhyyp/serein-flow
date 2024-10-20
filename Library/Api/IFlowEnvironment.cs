@@ -1,10 +1,7 @@
-﻿using Serein.Library.Entity;
-using Serein.Library.Enums;
-using Serein.Library.Utils;
+﻿using Serein.Library.Utils;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using static Serein.Library.Utils.ChannelFlowInterrupt;
 
@@ -85,6 +82,13 @@ namespace Serein.Library.Api
     /// </summary>
     /// <param name="eventArgs"></param>
     public delegate void NodeMovedHandler(NodeMovedEventArgs eventArgs);
+
+    /// <summary>
+    /// 远程环境内容输出
+    /// </summary>
+    /// <param name="value">输出的文本信息</param>
+    public delegate void EnvOutHandler(string value);
+
 
     #endregion
 
@@ -198,7 +202,7 @@ namespace Serein.Library.Api
 
     public class NodeCreateEventArgs : FlowEventArgs
     {
-        public NodeCreateEventArgs(object nodeModel, Position position)
+        public NodeCreateEventArgs(object nodeModel, PositionOfUI position)
         {
             this.NodeModel = nodeModel;
             this.Position = position;
@@ -214,7 +218,7 @@ namespace Serein.Library.Api
         /// 节点Model对象，目前需要手动转换对应的类型
         /// </summary>
         public object NodeModel { get; private set; }
-        public Position Position { get; private set; }
+        public PositionOfUI Position { get; private set; }
         public bool IsAddInRegion { get; private set; }
         public string RegeionGuid { get; private set; }
     }
@@ -452,19 +456,31 @@ namespace Serein.Library.Api
         bool IsGlobalInterrupt { get; }
 
         /// <summary>
-        /// DLL中NodeAction特性的方法描述的所有原始副本
+        /// <para>表示是否正在控制远程</para>
+        /// <para>Local control remote env</para>
         /// </summary>
-        // ConcurrentDictionary<string, MethodDetails> MethodDetailss { get; }
+        bool IsLcR { get; }
 
+        /// <summary>
+        /// <para>表示是否受到远程控制</para>
+        /// <para>Remote control local env</para>
+        /// </summary>
+        bool IsRcL { get; }
 
         /// <summary>
         /// 流程运行状态
         /// </summary>
         RunState FlowState { get;  set; }
+
         /// <summary>
         /// 全局触发器运行状态
         /// </summary>
         RunState FlipFlopState { get;  set; }
+
+        /// <summary>
+        /// 拓展功能时，如需订阅事件，则需要使用该属性
+        /// </summary>
+        IFlowEnvironment CurrentEnv { get; }
 
         #endregion
 
@@ -535,28 +551,27 @@ namespace Serein.Library.Api
         /// </summary>
         event NodeMovedHandler OnNodeMoved;
 
+        /// <summary>
+        /// 运行环境输出
+        /// </summary>
+        event EnvOutHandler OnEnvOut;
         #endregion
 
+        #region 接口
 
         /// <summary>
-        /// 获取方法描述信息
+        /// 设置输出
         /// </summary>
-        /// <param name="methodName">方法描述</param>
-        /// <param name="mdInfo">方法信息</param>
-        /// <returns></returns>
-        bool TryGetMethodDetailsInfo(string methodName, out MethodDetailsInfo mdInfo);
+        // <param name="output"></param>
+        // <param name="clearMsg"></param>
+        void SetConsoleOut(); // Action<string> output, Action clearMsg
 
         /// <summary>
-        /// 获取指定方法的Emit委托
+        /// 使用JSON处理库输出对象信息
         /// </summary>
-        /// <param name="methodName"></param>
-        /// <param name="del"></param>
-        /// <returns></returns>
-        bool TryGetDelegateDetails(string methodName, out DelegateDetails del);
+        /// <param name="obj"></param>
+        void WriteLineObjToJson(object obj);
 
-        //bool TryGetNodeData(string methodName, out NodeData node);
-
-        #region 环境基础接口
         /// <summary>
         /// 启动远程服务
         /// </summary>
@@ -571,20 +586,25 @@ namespace Serein.Library.Api
         /// 保存当前项目
         /// </summary>
         /// <returns></returns>
-        SereinProjectData GetProjectInfo();
+        Task<SereinProjectData> GetProjectInfoAsync();
         /// <summary>
         /// 加载项目文件
         /// </summary>
-        /// <param name="projectFile"></param>
+        /// <param name="flowEnvInfo">包含项目信息的远程环境</param>
         /// <param name="filePath"></param>
-        void LoadProject(SereinProjectData projectFile, string filePath);
+        void LoadProject(FlowEnvInfo flowEnvInfo, string filePath);
         /// <summary>
-        /// 加载远程项目
+        /// 加载远程环境
         /// </summary>
-        /// <param name="addres">远程项目地址</param>
-        /// <param name="port">远程项目端口</param>
+        /// <param name="addres">远程环境地址</param>
+        /// <param name="port">远程环境端口</param>
         /// <param name="token">密码</param>
-        void LoadRemoteProject(string addres,int port, string token);
+        Task<(bool, RemoteEnvControl)> ConnectRemoteEnv(string addres,int port, string token);
+
+        /// <summary>
+        /// 退出远程环境
+        /// </summary>
+        void ExitRemoteEnv();
 
         /// <summary>
         /// 从文件中加载Dll
@@ -638,15 +658,15 @@ namespace Serein.Library.Api
         /// <param name="fromNodeGuid">起始节点Guid</param>
         /// <param name="toNodeGuid">目标节点Guid</param>
         /// <param name="connectionType">连接类型</param>
-        void ConnectNode(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType);
+        Task<bool> ConnectNodeAsync(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType);
 
         /// <summary>
         /// 创建节点/区域/基础控件
         /// </summary>
-        /// <param name="nodeBase">节点/区域/基础控件</param>
+        /// <param name="nodeType">节点/区域/基础控件类型</param>
         /// <param name="position">节点在画布上的位置（</param>
         /// <param name="methodDetailsInfo">节点绑定的方法说明（</param>
-        void CreateNode(NodeControlType nodeBase, Position position, MethodDetailsInfo methodDetailsInfo = null);
+        Task<NodeInfo> CreateNodeAsync(NodeControlType nodeType, PositionOfUI position, MethodDetailsInfo methodDetailsInfo = null);
 
         /// <summary>
         /// 移除两个节点之间的连接关系
@@ -681,7 +701,7 @@ namespace Serein.Library.Api
         /// <param name="nodeGuid">被中断的节点Guid</param>
         /// <param name="interruptClass">新的中断级别</param>
         /// <returns></returns>
-        bool SetNodeInterrupt(string nodeGuid, InterruptClass interruptClass);
+        Task<bool> SetNodeInterruptAsync(string nodeGuid, InterruptClass interruptClass);
 
         /// <summary>
         /// 添加作用于某个对象的中断表达式
@@ -689,7 +709,7 @@ namespace Serein.Library.Api
         /// <param name="key"></param>
         /// <param name="expression"></param>
         /// <returns></returns>
-        bool AddInterruptExpression(string key, string expression);
+        Task<bool> AddInterruptExpressionAsync(string key, string expression);
 
         /// <summary>
         /// 监视指定对象
@@ -701,10 +721,9 @@ namespace Serein.Library.Api
         /// <summary>
         /// 检查一个对象是否处于监听状态，如果是，则传出与该对象相关的表达式（用于中断），如果不是，则返回false。
         /// </summary>
-        /// <param name="obj">判断的对象</param>
-        /// <param name="exps">表达式</param>
+        /// <param name="key">判断的对象</param>
         /// <returns></returns>
-        bool CheckObjMonitorState(string key, out List<string> exps);
+        Task<(bool, string[])> CheckObjMonitorStateAsync(string key);
 
 
         /// <summary>
@@ -715,13 +734,39 @@ namespace Serein.Library.Api
         /// <returns></returns>
         Task<CancelType> GetOrCreateGlobalInterruptAsync();
 
+        /// <summary>
+        /// （用于远程）通知节点属性变更
+        /// </summary>
+        /// <param name="nodeGuid">节点Guid</param>
+        /// <param name="path">属性路径</param>
+        /// <param name="value">属性值</param>
+        /// <returns></returns>
+        Task NotificationNodeValueChangeAsync(string nodeGuid, string path, object value);
+
+
+        /// <summary>
+        /// 获取方法描述信息
+        /// </summary>
+        /// <param name="methodName">方法描述</param>
+        /// <param name="mdInfo">方法信息</param>
+        /// <returns></returns>
+        bool TryGetMethodDetailsInfo(string methodName, out MethodDetailsInfo mdInfo);
+
+        /// <summary>
+        /// 获取指定方法的Emit委托
+        /// </summary>
+        /// <param name="methodName"></param>
+        /// <param name="del"></param>
+        /// <returns></returns>
+        bool TryGetDelegateDetails(string methodName, out DelegateDetails del);
+
 
         #region 远程相关
         /// <summary>
         /// (适用于远程连接后获取环境的运行状态)获取当前环境的信息
         /// </summary>
         /// <returns></returns>
-        object GetEnvInfo();
+        Task<FlowEnvInfo> GetEnvInfoAsync();
         #endregion
 
         #endregion

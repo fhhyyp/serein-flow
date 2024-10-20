@@ -6,6 +6,8 @@
              xmlns:local="clr-namespace:Serein.Workbench.Node.View"
              xmlns:vm="clr-namespace:Serein.Workbench.Node.ViewModel"
              xmlns:themes="clr-namespace:Serein.Workbench.Themes"
+             d:DataContext="{d:DesignInstance vm:ConditionNodeControlViewModel}"
+                       mc:Ignorable="d"
                        MaxWidth="300">
 
     <UserControl.Resources>

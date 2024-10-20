@@ -9,6 +9,7 @@
     <BaseOutputPath>D:\Project\C#\DynamicControl\SereinFlow\.Output</BaseOutputPath>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!--<IsRoslynComponent>true</IsRoslynComponent>-->
   </PropertyGroup>
 
   <ItemGroup>

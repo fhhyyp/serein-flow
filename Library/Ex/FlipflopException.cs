@@ -1,7 +1,7 @@
 ﻿using System;
 using System.CodeDom;
 
-namespace Serein.Library.Ex
+namespace Serein.Library
 {
     /// <summary>
     /// 触发器异常

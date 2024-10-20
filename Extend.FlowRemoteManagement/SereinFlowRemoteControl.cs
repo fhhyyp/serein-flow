@@ -1,6 +1,5 @@
 ﻿
 using Serein.Library;
-using Serein.Library.Entity;
 using Serein.Library.Api;
 using Serein.Library.Attributes;
 using Serein.Library.Enums;
@@ -12,6 +11,7 @@ using Serein.Library.NodeFlow.Tool;
 using Serein.Library.Utils;
 using Serein.FlowRemoteManagement.Model;
 using System.Reflection;
+using Serein.Library.FlowNode;
 
 namespace SereinFlowRemoteManagement
 {
@@ -43,7 +43,7 @@ namespace SereinFlowRemoteManagement
         }
 
         [NodeAction(NodeType.Loading)]
-        public void Loading(IDynamicContext context)
+        public async Task Loading(IDynamicContext context)
         {
             environment.IOC.Run<WebSocketServer>(async (socketServer) =>
             {
@@ -59,7 +59,7 @@ namespace SereinFlowRemoteManagement
                 await Console.Out.WriteLineAsync("启动远程管理模块");
                 await socketServer.StartAsync($"http://*:{ServerPort}/");
             });
-            SereinProjectData projectData = environment.GetProjectInfo();
+            SereinProjectData projectData = await environment.GetProjectInfoAsync();
         }
         #endregion
 
@@ -77,7 +77,7 @@ namespace SereinFlowRemoteManagement
 
             try
             {
-                var envInfo =  this.environment.GetEnvInfo();
+                var envInfo =  this.environment.GetEnvInfoAsync();
                 return envInfo;
             }
             catch (Exception ex)
@@ -100,7 +100,7 @@ namespace SereinFlowRemoteManagement
 
             if (this.environment.TryGetMethodDetailsInfo(methodName,out var mdInfo))
             {
-                this.environment.CreateNode(connectionType, new Position(x, y), mdInfo); ;
+                this.environment.CreateNode(connectionType, new PositionOfUI(x, y), mdInfo);  // 
             }
 
 
@@ -126,7 +126,7 @@ namespace SereinFlowRemoteManagement
 
             if (nodeInfo.Op)
             {
-                environment.ConnectNode(nodeInfo.FromNodeGuid, nodeInfo.ToNodeGuid, connectionType);
+                environment.ConnectNodeAsync(nodeInfo.FromNodeGuid, nodeInfo.ToNodeGuid, connectionType);
             }
             else
             {
@@ -161,7 +161,7 @@ namespace SereinFlowRemoteManagement
         public async Task<SereinProjectData> GetProjectInfo()
         {
             await Task.Delay(0);
-            return environment.GetProjectInfo();
+            return await environment.GetProjectInfoAsync();
         }
 
         

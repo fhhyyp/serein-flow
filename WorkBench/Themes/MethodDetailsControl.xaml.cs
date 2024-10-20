@@ -1,5 +1,4 @@
-﻿using Serein.Library.Entity;
-using Serein.NodeFlow;
+﻿using Serein.Library;
 using System.Collections;
 using System.Globalization;
 using System.Windows;
@@ -37,6 +36,9 @@ namespace Serein.Workbench.Themes
 
 
 
+    /// <summary>
+    /// 方法参数控件
+    /// </summary>
     public partial class MethodDetailsControl : UserControl//,ItemsControl
     {
         static MethodDetailsControl()

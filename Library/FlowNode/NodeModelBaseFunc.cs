@@ -1,12 +1,9 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Serein.Library;
 using Serein.Library.Api;
-using Serein.Library.Attributes;
-using Serein.Library.Entity;
-using Serein.Library.Enums;
-using Serein.Library.Ex;
 using Serein.Library.Utils;
-using Serein.NodeFlow.Tool.SereinExpression;
+using Serein.Library.Utils.SereinExpression;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -20,7 +17,7 @@ using System.Threading.Tasks;
 using System.Xml.Linq;
 using static Serein.Library.Utils.ChannelFlowInterrupt;
 
-namespace Serein.NodeFlow.Base
+namespace Serein.Library
 {
 
     /// <summary>
@@ -46,7 +43,16 @@ namespace Serein.NodeFlow.Base
 
         #region 导出/导入项目文件节点信息
 
+        /// <summary>
+        /// 获取节点参数
+        /// </summary>
+        /// <returns></returns>
         public abstract Parameterdata[] GetParameterdatas();
+
+        /// <summary>
+        /// 导出为节点信息
+        /// </summary>
+        /// <returns></returns>
         public virtual NodeInfo ToInfo()
         {
             // if (MethodDetails == null) return null;
@@ -70,10 +76,15 @@ namespace Serein.NodeFlow.Base
                 UpstreamNodes = upstreamNodes.ToArray(),
                 ParameterData = parameterData.ToArray(),
                 ErrorNodes = errorNodes.ToArray(),
-
+                Position = Position,
             };
         }
 
+        /// <summary>
+        /// 从节点信息加载节点
+        /// </summary>
+        /// <param name="nodeInfo"></param>
+        /// <returns></returns>
         public virtual NodeModelBase LoadInfo(NodeInfo nodeInfo)
         {
             this.Guid = nodeInfo.Guid;
@@ -86,7 +97,7 @@ namespace Serein.NodeFlow.Base
                     this.MethodDetails.ParameterDetailss[i].DataValue = pd.Value;
                 }
             }
-
+            this.Position = nodeInfo.Position;// 加载位置信息
             return this;
         }
 
@@ -103,7 +114,7 @@ namespace Serein.NodeFlow.Base
         public static bool IsBradk(IDynamicContext context, CancellationTokenSource flowCts)
         {
             // 上下文不再执行
-            if(context.RunState == RunState.Completion)
+            if (context.RunState == RunState.Completion)
             {
                 return true;
             }
@@ -117,7 +128,7 @@ namespace Serein.NodeFlow.Base
             if (flowCts != null)
             {
                 if (flowCts.IsCancellationRequested)
-                   return true;
+                    return true;
             }
             return false;
         }
@@ -132,16 +143,20 @@ namespace Serein.NodeFlow.Base
         public async Task StartFlowAsync(IDynamicContext context)
         {
             Stack<NodeModelBase> stack = new Stack<NodeModelBase>();
+            HashSet<NodeModelBase> processedNodes = new HashSet<NodeModelBase>(); // 用于记录已处理上游节点的节点
             stack.Push(this);
             var flowCts = context.Env.IOC.Get<CancellationTokenSource>(NodeStaticConfig.FlipFlopCtsName);
             bool hasFlipflow = flowCts != null;
             while (stack.Count > 0) // 循环中直到栈为空才会退出循环
             {
-                await Task.Delay(0);
-                // 从栈中弹出一个节点作为当前节点进行处理
-                var currentNode = stack.Pop();
+#if DEBUG
+                await Task.Delay(1);
+#endif
 
                 #region 执行相关
+
+                // 从栈中弹出一个节点作为当前节点进行处理
+                var currentNode = stack.Pop();
 
                 // 筛选出上游分支
                 var upstreamNodes = currentNode.SuccessorNodes[ConnectionType.Upstream].ToArray();
@@ -166,8 +181,8 @@ namespace Serein.NodeFlow.Base
                         }
                     }
                 }
-                if (IsBradk(context, flowCts)) break; // 退出执行
                 // 上游分支执行完成，才执行当前节点
+                if (IsBradk(context, flowCts)) break; // 退出执行
                 object newFlowData = await currentNode.ExecutingAsync(context);
                 if (IsBradk(context, flowCts)) break; // 退出执行
 
@@ -224,7 +239,7 @@ namespace Serein.NodeFlow.Base
             {
                 throw new Exception($"节点{this.Guid}不存在对应委托");
             }
-            if(md.ActingInstance is null)
+            if (md.ActingInstance is null)
             {
                 md.ActingInstance = context.Env.IOC.Get(md.ActingInstanceType);
             }
@@ -310,7 +325,7 @@ namespace Serein.NodeFlow.Base
                     }
                     //if (Enum.TryParse(ed.ExplicitType, ed.DataValue, out var resultEnum))
                     //{
-                      
+
                     //}
                 }
 
@@ -332,7 +347,7 @@ namespace Serein.NodeFlow.Base
                             parameters[i] = value;
                             continue;
                         }
-                    
+
                     }
                 }
 
@@ -346,19 +361,19 @@ namespace Serein.NodeFlow.Base
                 else
                 {
                     var valueStr = inputParameter?.ToString();
-                    if(ed.DataType == typeof(string))
+                    if (ed.DataType == typeof(string))
                     {
                         parameters[i] = valueStr;
                     }
-                    else if(ed.DataType == typeof(IDynamicContext))
+                    else if (ed.DataType == typeof(IDynamicContext))
                     {
                         parameters[i] = context;
                     }
-                    else if(ed.DataType == typeof(MethodDetails))
+                    else if (ed.DataType == typeof(MethodDetails))
                     {
                         parameters[i] = md;
                     }
-                    else if(ed.DataType == typeof(NodeModelBase))
+                    else if (ed.DataType == typeof(NodeModelBase))
                     {
                         parameters[i] = nodeModel;
                     }
@@ -402,7 +417,7 @@ namespace Serein.NodeFlow.Base
             {
             }
             else
-            { 
+            {
                 await MonitorObjExpInterrupt(context, nodeModel, newData, 0); // 首先监视对象
                 await MonitorObjExpInterrupt(context, nodeModel, newData, 1); // 然后监视节点
                 nodeModel.FlowData = newData; // 替换数据
@@ -428,17 +443,17 @@ namespace Serein.NodeFlow.Base
             {
                 return;
             }
-
-            if (context.Env.CheckObjMonitorState(key, out List<string> exps)) // 如果新的数据处于查看状态，通知UI进行更新？交给运行环境判断？
+            (var isMonitor, var exps) = await context.Env.CheckObjMonitorStateAsync(key);
+            if (isMonitor) // 如果新的数据处于查看状态，通知UI进行更新？交给运行环境判断？
             {
                 context.Env.MonitorObjectNotification(nodeModel.Guid, data, sourceType); // 对象处于监视状态，通知UI更新数据显示
-                if (exps.Count > 0)
+                if (exps.Length > 0)
                 {
                     // 表达式环境下判断是否需要执行中断
                     bool isExpInterrupt = false;
                     string exp = "";
                     // 判断执行监视表达式，直到为 true 时退出
-                    for (int i = 0; i < exps.Count && !isExpInterrupt; i++)
+                    for (int i = 0; i < exps.Length && !isExpInterrupt; i++)
                     {
                         exp = exps[i];
                         if (string.IsNullOrEmpty(exp)) continue;
@@ -448,7 +463,7 @@ namespace Serein.NodeFlow.Base
                     if (isExpInterrupt) // 触发中断
                     {
                         InterruptClass interruptClass = InterruptClass.Branch; // 分支中断
-                        if (context.Env.SetNodeInterrupt(nodeModel.Guid, interruptClass))
+                        if (await context.Env.SetNodeInterruptAsync(nodeModel.Guid, interruptClass))
                         {
                             context.Env.TriggerInterrupt(nodeModel.Guid, exp, InterruptTriggerEventArgs.InterruptTriggerType.Exp);
                             var cancelType = await nodeModel.DebugSetting.GetInterruptTask();

@@ -1,10 +1,6 @@
-﻿using Serein.Library.Api;
-using Serein.Library.Entity;
-using Serein.Library.Enums;
-using Serein.NodeFlow;
-using System.Reflection;
+﻿using Serein.Library;
+using Serein.Library.Utils;
 using System.Windows;
-using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
 
@@ -30,7 +26,7 @@ namespace Serein.Workbench.Node.View
         public DllControl(NodeLibrary nodeLibrary)
         {
             this.nodeLibrary = nodeLibrary;
-            Header = "DLL name :  " + nodeLibrary.Assembly.GetName().Name;
+            Header = "DLL name :  " + nodeLibrary.FullName;
             InitializeComponent();
         }
 
@@ -127,9 +123,15 @@ namespace Serein.Workbench.Node.View
 
                 if (sender is TextBlock typeText && typeText.Tag is MethodDetailsInfo mdInfo)
                 {
+                    if (!EnumHelper.TryConvertEnum<Library.NodeType>(mdInfo.NodeType, out var nodeType))
+                    {
+                        return;
+                    }
+
                     MoveNodeData moveNodeData = new MoveNodeData
                     {
-                        NodeControlType = mdInfo.NodeType switch
+
+                        NodeControlType = nodeType switch
                         {
                             NodeType.Action => NodeControlType.Action,
                             NodeType.Flipflop => NodeControlType.Flipflop,

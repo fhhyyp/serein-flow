@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json;
+using Serein.Library;
 using Serein.Library.Api;
-using Serein.Library.Entity;
-using Serein.NodeFlow;
+using Serein.NodeFlow.Env;
 using System.Diagnostics;
 using System.Reflection;
 
@@ -67,7 +67,8 @@ namespace Serein.FlowStartTool
         public static async Task StartFlow(SereinProjectData flowProjectData, string fileDataPath)
         {
             Env = new FlowEnvironment();
-            Env.LoadProject(flowProjectData, fileDataPath); // 加载项目
+            
+            Env.LoadProject(new FlowEnvInfo { Project = flowProjectData }, fileDataPath); // 加载项目
             await Env.StartAsync();
             IsRuning = false;
         }

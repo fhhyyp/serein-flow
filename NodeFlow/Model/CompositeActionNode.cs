@@ -1,7 +1,5 @@
-﻿using Serein.Library.Api;
-using Serein.Library.Entity;
-using Serein.Library.Enums;
-using Serein.NodeFlow.Base;
+﻿using Serein.Library;
+using Serein.Library.Api;
 
 namespace Serein.NodeFlow.Model
 {
@@ -12,10 +10,12 @@ namespace Serein.NodeFlow.Model
     public class CompositeActionNode : NodeModelBase
     {
         public List<SingleActionNode> ActionNodes;
+
+        
         /// <summary>
         /// 组合动作节点（用于动作区域）
         /// </summary>
-        public CompositeActionNode(List<SingleActionNode> actionNodes)
+        public CompositeActionNode(IFlowEnvironment environment, List<SingleActionNode> actionNodes):base(environment)
         {
             ActionNodes = actionNodes;
         }
@@ -30,6 +30,7 @@ namespace Serein.NodeFlow.Model
         {
             return [];
         }
+
         public override NodeInfo? ToInfo()
         {
             if (MethodDetails is null) return null;

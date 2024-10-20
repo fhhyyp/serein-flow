@@ -97,7 +97,7 @@ namespace Serein.Library.Utils
         /// </summary>
         /// <param name="signal">信号标识符</param>
         /// <param name="timeout">超时时间</param>
-        public CancelType CreateChannelWithTimeoutSync(string signal, TimeSpan timeout)
+        public async Task<CancelType> CreateChannelWithTimeoutSync(string signal, TimeSpan timeout)
         {
             var channel = GetOrCreateChannel(signal);
             var cts = new CancellationTokenSource();
@@ -119,7 +119,7 @@ namespace Serein.Library.Utils
             });
 
             // 同步阻塞直到信号触发或超时
-            var result = channel.Reader.ReadAsync().AsTask().GetAwaiter().GetResult();
+            var result = await channel.Reader.ReadAsync();
             return result;
 
         }

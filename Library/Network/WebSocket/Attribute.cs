@@ -31,9 +31,10 @@ namespace Serein.Library.Network.WebSocketCommunication
 
 
     /// <summary>
-    /// <para>作用：WebSocket中处理Json时，将通过Json中ThemeKey 对应的内容（ThemeValue）自动路由到相应方法进行处理。</para>
-    /// <para>如果没有显式设置ThemeValue，将默认使用方法名称作为ThemeValue。</para>
-    /// <para>如果没有显式设置IsReturnValue标记为false，当方法顺利完成（没有抛出异常，且返回对象非null），会自动转为json文本发送回去</para>
+    /// <para>作用：WebSocket中处理Json时，将通过Json中ThemeKey 对应的内容（ThemeValue）自动路由到相应方法进行处理，同时要求Data中必须存在对应入参。</para>
+    /// <para>如果没有显式设置 ThemeValue，将默认使用方法名称作为ThemeValue。</para>
+    /// <para>如果没有显式设置 IsReturnValue 标记为 false ，当方法顺利完成（没有抛出异常，且返回对象非null），会自动转为json文本发送回去</para>
+    /// <para>如果没有显式设置 ArgNotNull 标记为 false ，当外部尝试调用时，若 Json Data 不包含响应的数据，将会被忽略此次调用</para>
     /// <para>如果返回类型为Task或Task&lt;TResult&gt;，将会自动等待异步完成并获取结果（无法处理Task&lt;Task&lt;TResult&gt;&gt;的情况）。</para>
     /// <para>如果返回了值类型，会自动装箱为引用对象。</para>
     /// <para>如果有方法执行过程中发送消息的需求，请在入参中声明以下类型的成员，调用时将传入发送消息的委托。</para>
@@ -61,9 +62,24 @@ namespace Serein.Library.Network.WebSocketCommunication
         /// <para>会进行异步等待，当Task结束后，自动获取TResult进行发送（请避免Task&lt;Task&lt;TResult&gt;&gt;诸如此类的Task泛型嵌套）</para>
         /// </summary>
         public bool IsReturnValue = true;
+        /// <summary>
+        /// <para>表示该方法所有入参不能为空（所需的参数在请求Json的Data不存在）</para>
+        /// <para>若有一个参数无法从data获取，则不会进行调用该方法</para>
+        /// <para>如果设置该属性为 false ，但某些入参不能为空，而不希望在代码中进行检查，请为入参添加[NotNull]/[Needful]特性</para>
+        /// </summary>
+        public bool ArgNotNull = true;
     }
-   
-    internal class SocketHandleModel
+
+    /// <summary>
+    /// 使用消息DataKey整体数据
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Parameter)]
+    public sealed class UseMsgDataAttribute : Attribute
+    {
+    }
+
+
+    internal class SocketHandleModule
     {
         public string ThemeValue { get; set; } = string.Empty;
         public bool IsReturnValue { get; set; } = true;

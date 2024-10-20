@@ -1,4 +1,4 @@
-﻿using Serein.Library.Enums;
+﻿using Serein.Library;
 using System.Globalization;
 using System.Windows.Data;
 using System.Windows.Media;

@@ -1,21 +1,9 @@
-﻿using IoTClient;
-using Net462DllTest.Trigger;
+﻿using Net462DllTest.Model;
 using Net462DllTest.Signal;
+using Net462DllTest.Trigger;
 using Net462DllTest.Utils;
-using Serein.Library.Attributes;
-using Serein.Library.Utils;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Input;
-using Net462DllTest.LogicControl;
-using Net462DllTest.Model;
 using Serein.Library.Network.WebSocketCommunication;
-using Newtonsoft.Json.Linq;
-using System.Diagnostics;
+using System.ComponentModel;
 
 namespace Net462DllTest.ViewModel
 {

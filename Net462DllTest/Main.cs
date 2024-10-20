@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -33,4 +34,12 @@ namespace Net462DllTest.Properties
     动态的配置事件触发的原因、过程与结果。
     
      */
+
+    public class My
+    {
+        public void Run()
+        {
+            
+        }
+    }
 }

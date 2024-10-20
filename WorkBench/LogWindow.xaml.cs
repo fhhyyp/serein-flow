@@ -49,12 +49,12 @@ namespace Serein.Workbench
 
                 // 异步写入日志到文件
                 // Task.Run(() => File.AppendAllText("log.txt", text));
-
+                FlushLog();
                 // 如果日志达到阈值，立即刷新
-                if (logBuffer.Length > flushThreshold)
-                {
-                    FlushLog();
-                }
+                //if (logBuffer.Length > flushThreshold)
+                //{
+                //    FlushLog();
+                //}
             }
         }
 
@@ -75,7 +75,11 @@ namespace Serein.Workbench
                         : logBuffer.ToString();
                     logBuffer.Remove(0, logContent.Length); // 清空已更新的部分
 
-                    LogTextBox.AppendText(logContent);
+                    LogTextBox.Dispatcher.Invoke(() =>
+                    {
+                        LogTextBox.AppendText(logContent);
+                    });
+                    
                 }
 
                 // 不必每次都修剪日志，当行数超过限制20%时再修剪

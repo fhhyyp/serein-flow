@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 
-namespace Serein.NodeFlow.Tool.SereinExpression
+namespace Serein.Library.Utils.SereinExpression
 {
     /// <summary>
     /// 使用表达式操作/获取 对象的值

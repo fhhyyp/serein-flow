@@ -1,11 +1,5 @@
 ﻿using Net462DllTest.LogicControl;
-using Serein.Library.Attributes;
-using Serein.Library.NodeFlow.Tool;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Serein.Library;
 
 namespace Net462DllTest.Trigger
 {

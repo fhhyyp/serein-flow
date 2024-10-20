@@ -1,17 +1,5 @@
-﻿using IoTClient.Clients.PLC;
-using IoTClient.Enums;
-using Net462DllTest.Trigger;
+﻿using IoTClient.Enums;
 using Net462DllTest.Signal;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection.Emit;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
-using static Net462DllTest.Signal.PlcVarInfoAttribute;
-using Serein.Library.Attributes;
 using static Net462DllTest.Signal.PlcVarInfo;
 
 namespace Net462DllTest.Enums

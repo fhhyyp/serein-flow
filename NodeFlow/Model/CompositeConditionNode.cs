@@ -1,7 +1,6 @@
-﻿using Serein.Library.Api;
-using Serein.Library.Entity;
-using Serein.Library.Enums;
-using Serein.NodeFlow.Base;
+﻿using Serein.Library;
+using Serein.Library.Api;
+
 
 namespace Serein.NodeFlow.Model
 {
@@ -10,6 +9,10 @@ namespace Serein.NodeFlow.Model
     /// </summary>
     public class CompositeConditionNode : NodeModelBase
     {
+        public CompositeConditionNode(IFlowEnvironment environment):base(environment) 
+        {
+            
+        }
         public List<SingleConditionNode> ConditionNodes { get; } = [];
 
 

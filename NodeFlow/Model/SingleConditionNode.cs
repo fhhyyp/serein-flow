@@ -1,9 +1,6 @@
-﻿
+﻿using Serein.Library;
 using Serein.Library.Api;
-using Serein.Library.Entity;
-using Serein.Library.Enums;
-using Serein.NodeFlow.Base;
-using Serein.NodeFlow.Tool.SereinExpression;
+using Serein.Library.Utils.SereinExpression;
 
 namespace Serein.NodeFlow.Model
 {
@@ -12,6 +9,10 @@ namespace Serein.NodeFlow.Model
     /// </summary>
     public class SingleConditionNode : NodeModelBase
     {
+        public SingleConditionNode(IFlowEnvironment environment):base(environment)
+        {
+            
+        }
 
         /// <summary>
         /// 是否为自定义参数

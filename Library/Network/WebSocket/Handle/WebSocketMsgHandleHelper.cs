@@ -93,7 +93,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
 
             var themeKey = moduleAttribute.ThemeKey;
             var dataKey = moduleAttribute.DataKey;
-          
+            
             var handlemodule = AddMyHandleModule(themeKey, dataKey);
             var methods = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
                 .Select(method =>
@@ -101,7 +101,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                     var methodsAttribute = method.GetCustomAttribute<AutoSocketHandleAttribute>();
                     if (methodsAttribute is null)
                     {
-                        return (null, null);
+                        return (null, null,false);
                     }
                     else
                     {
@@ -109,13 +109,14 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                         {
                             methodsAttribute.ThemeValue = method.Name;
                         }
-                        var model = new SocketHandleModel
+                        var model = new SocketHandleModule
                         {
                             IsReturnValue = methodsAttribute.IsReturnValue,
                             ThemeValue = methodsAttribute.ThemeValue,
                         };
                         var value = methodsAttribute.ThemeValue;
-                        return (model, method);
+                        var argNotNull = methodsAttribute.ArgNotNull;
+                        return (model, method, argNotNull);
                     }
                 })
                 .Where(x => !(x.model is null)).ToList();
@@ -124,14 +125,21 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                 return;
             }
 
+            
+
             Console.WriteLine($"add websocket handle model :");
             Console.WriteLine($"theme key, data key : {themeKey}, {dataKey}");
-            foreach ((var model, var method) in methods)
+            foreach ((var module, var method,var argNotNull) in methods)
             {
-                Console.WriteLine($"theme value  : {model.ThemeValue}");
+                Console.WriteLine($"theme value  : {module.ThemeValue}");
                 try
                 {
-                    handlemodule.AddHandleConfigs(model, socketControlBase, method, onExceptionTracking);
+                    var jsonMsgHandleConfig = new JsonMsgHandleConfig(module, socketControlBase, method, onExceptionTracking, argNotNull);
+                    var result = handlemodule.AddHandleConfigs(module,jsonMsgHandleConfig);
+                    if (!result) 
+                    {
+                        throw new Exception("添加失败，已经添加过相同的配置");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -145,17 +153,17 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// <summary>
         /// 异步处理消息
         /// </summary>
-        /// <param name="RecoverAsync"></param>
+        /// <param name="SendAsync"></param>
         /// <param name="message"></param>
         /// <returns></returns>
-        public async Task HandleMsgAsync(Func<string, Task> RecoverAsync, string message)
+        public async Task HandleMsgAsync(Func<string, Task> SendAsync, string message)
         {
             JObject json = JObject.Parse(message);
             await Task.Run(() =>
             {
                 foreach (var module in MyHandleModuleDict.Values)
                 {
-                    module.HandleSocketMsg(RecoverAsync, json);
+                    module.HandleSocketMsg(SendAsync, json);
                     
                 }
             });

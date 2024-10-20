@@ -1,8 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>1.0.13</Version>
+    <Version>1.0.15</Version>
     <TargetFrameworks>net8.0;net462</TargetFrameworks>
+    <!--<TargetFrameworks>net8.0</TargetFrameworks>-->
     <BaseOutputPath>D:\Project\C#\DynamicControl\SereinFlow\.Output</BaseOutputPath>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Title>SereinFow</Title>
@@ -12,6 +13,9 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>.\obj\g</CompilerGeneratedFilesOutputPath>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,6 +31,9 @@
   </ItemGroup>
 
   <ItemGroup>
+
+    <ProjectReference Include="..\Serein.Library.MyGenerator\Serein.Library.MyGenerator.csproj" OutputItemType="Analyzer"/>
+    <!--ReferenceOutputAssembly="false"-->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="System.Reactive" Version="6.0.1" />
     <PackageReference Include="System.Threading.Channels" Version="8.0.0" />

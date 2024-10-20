@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Serein.Library.Enums
+namespace Serein.Library
 {
 
     /// <summary>

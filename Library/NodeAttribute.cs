@@ -1,7 +1,6 @@
-﻿using Serein.Library.Enums;
-using System;
+﻿using System;
 
-namespace Serein.Library.Attributes
+namespace Serein.Library
 {
     /// <summary>
     /// <para>表示该属性为自动注入依赖项。</para>

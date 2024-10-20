@@ -4,7 +4,7 @@ using System.Text;
 using System.Threading.Tasks;
 using static Serein.Library.Utils.ChannelFlowInterrupt;
 
-namespace Serein.Library.Entity
+namespace Serein.Library
 {
     /// <summary>
     /// 节点调试设置，用于中断节点的运行
@@ -12,7 +12,7 @@ namespace Serein.Library.Entity
     public class NodeDebugSetting
     {
         /// <summary>
-        /// 是否使能（调试中断功能）
+        /// 是否使能
         /// </summary>
         public bool IsEnable { get; set; } = true;
 
@@ -47,10 +47,6 @@ namespace Serein.Library.Entity
         /// 分支中断，中断进入当前节点的分支。
         /// </summary>
         Branch,
-        /// <summary>
-        /// 分组中断，中断进入指定节点分组的分支。（暂未实现相关）
-        /// </summary>
-        // Group,
         /// <summary>
         /// 全局中断，中断全局所有节点的运行。（暂未实现相关）
         /// </summary>

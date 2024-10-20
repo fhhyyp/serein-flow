@@ -1,11 +1,10 @@
 ﻿using Serein.Library.Api;
-using Serein.Library.Entity;
-using Serein.Library.Enums;
+using Serein.Library;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 
-namespace Serein.NodeFlow.Base
+namespace Serein.Library
 {
     /// <summary>
     /// 节点基类（数据）：条件控件，动作控件，条件区域，动作区域
@@ -13,7 +12,7 @@ namespace Serein.NodeFlow.Base
     public abstract partial class NodeModelBase : IDynamicFlowNode
     {
         
-        public NodeModelBase()
+        public NodeModelBase(IFlowEnvironment environment)
         {
             PreviousNodes = new Dictionary<ConnectionType, List<NodeModelBase>>();
             SuccessorNodes = new Dictionary<ConnectionType, List<NodeModelBase>>();
@@ -23,26 +22,36 @@ namespace Serein.NodeFlow.Base
                 SuccessorNodes[ctType] = new List<NodeModelBase>();
             }
             DebugSetting = new NodeDebugSetting();
+            this.Env = environment;
         }
 
+        /// <summary>
+        /// 节点保留对环境的引用，因为需要在属性更改时通知
+        /// </summary>
+        public IFlowEnvironment Env { get; }
 
         /// <summary>
-        /// 调试功能
+        /// 在画布中的位置
+        /// </summary>
+        public PositionOfUI Position { get; set; }
+
+        /// <summary>
+        /// 附加的调试功能
         /// </summary>
         public NodeDebugSetting DebugSetting { get; set; }
 
         /// <summary>
-        /// 节点对应的控件类型
+        /// 描述节点对应的控件类型
         /// </summary>
         public NodeControlType ControlType { get; set; }
 
         /// <summary>
-        /// 方法描述，对应DLL的方法
+        /// 方法描述但不包含Method与委托，需要通过MethodName从环境中获取委托进行调用。
         /// </summary>
         public MethodDetails MethodDetails { get; set; }
 
         /// <summary>
-        /// 节点guid
+        /// 标识节点对象全局唯一
         /// </summary>
         public string Guid { get; set; } 
 

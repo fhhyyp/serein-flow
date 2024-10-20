@@ -17,7 +17,7 @@
             <ColumnDefinition Width="auto"/>
         </Grid.ColumnDefinitions>
         <TextBlock Grid.Row="0" Grid.Column="0" Text="地址"  HorizontalAlignment="Center"></TextBlock>
-        <TextBox  x:Name="TextBlockAddres"  Grid.Row="0" Grid.Column="1" Text="192.168.1.100"></TextBox>
+        <TextBox  x:Name="TextBlockAddres"  Grid.Row="0" Grid.Column="1" Text="127.0.0.1"></TextBox>
         <TextBlock  Grid.Row="1" Grid.Column="0" Text="端口"  HorizontalAlignment="Center"></TextBlock>
         <TextBox  x:Name="TextBlockPort"  Grid.Row="1" Grid.Column="1" Text="7525"></TextBox>
         <TextBlock  Grid.Row="2" Grid.Column="0"  Text="密码" HorizontalAlignment="Center"></TextBlock>

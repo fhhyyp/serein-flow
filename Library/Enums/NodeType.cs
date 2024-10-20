@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Serein.Library.Enums
+namespace Serein.Library
 {
     /// <summary>
     /// 用来判断该方法属于什么节点，使运行环境决定方法的运行逻辑

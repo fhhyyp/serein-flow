@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Serein.NodeFlow.Tool.SereinExpression.Resolver
+namespace Serein.Library.Utils.SereinExpression.Resolver
 {
     public class ValueTypeConditionResolver<T> : SereinConditionResolver where T : struct, IComparable<T>
     {

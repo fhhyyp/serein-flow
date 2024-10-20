@@ -1,13 +1,14 @@
 ﻿using Net462DllTest.Signal;
+using Serein.Library;
 using Serein.Library.Api;
-using Serein.Library.Attributes;
-using Serein.Library.NodeFlow.Tool;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
+using System.Threading;
 using System.Windows.Forms;
+using System.Windows.Threading;
+using Serein.Library.Utils;
 
 namespace Net462DllTest.Trigger
 {
@@ -17,9 +18,10 @@ namespace Net462DllTest.Trigger
     [AutoRegister]
     public class ViewManagement : FlowTrigger<CommandSignal>
     {
-        public ViewManagement(IFlowEnvironment environment)
+        private readonly UIContextOperation uiContextOperation;
+        public ViewManagement(UIContextOperation uiContextOperation)
         {
-            
+            this.uiContextOperation = uiContextOperation;
         }
         public int Id = new Random().Next(1, 10000);
         private readonly List<Form> forms = new List<Form>();
@@ -30,20 +32,53 @@ namespace Net462DllTest.Trigger
         /// <param name="isTop">是否置顶</param>
         public void OpenView(Form form, bool isTop)
         {
-            form.TopMost = isTop;
-            form.Show();
+            //Application.Current.Dispatcher.
             forms.Add(form);
+
+            uiContextOperation.Invoke(() => {
+                form.TopMost = isTop;
+                form.Show();
+            });
+
+
+
+            //environment.IOC.Run<SynchronizationContext>(uiContext =>
+            //{
+            //    uiContext?.Post(state => {
+                    
+            //    },null);
+            //});
+
+            //var uiContext = SynchronizationContext.Current;
+            //Task.Run(() =>
+            //{
+            //    uiContext.Post(_ =>
+            //    {
+                  
+            //    }, null);
+            //});
+
         }
+
+
+
         public void CloseView(Type formType)
         {
             var remoteForms = forms.Where(f => f.GetType() == formType).ToArray();
-            foreach (Form f in remoteForms)
+
+            Dispatcher.CurrentDispatcher.Invoke(() =>
             {
-                f.Close();
-                f.Dispose();
-                this.forms.Remove(f);
-            }
+                foreach (Form f in remoteForms)
+                {
+                    f.Close();
+                    f.Dispose();
+                    this.forms.Remove(f);
+                }
+            });
+            
         }
+
+
     }
 
 }

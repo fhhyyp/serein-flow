@@ -7,7 +7,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
-namespace Serein.Library.NodeFlow.Tool
+namespace Serein.Library
 {
     /// <summary>
     /// 触发类型

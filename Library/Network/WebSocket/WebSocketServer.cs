@@ -1,14 +1,10 @@
 ﻿using Newtonsoft.Json.Linq;
-using Serein.Library.Attributes;
 using Serein.Library.Network.WebSocketCommunication.Handle;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
+using System.Diagnostics;
 using System.Net;
 using System.Net.WebSockets;
-using System.Reflection;
-using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -35,15 +31,6 @@ namespace Serein.Library.Network.WebSocketCommunication
         /// </summary>
         public string AddresPort { get; }
 
-        /// <summary>
-        /// 是否已经鉴权
-        /// </summary>
-        public bool IsAuthorized { get => isAuthorized; } //set => isAuthorized = value;
-
-        /// <summary>
-        /// 是否已经鉴权
-        /// </summary>
-        private bool isAuthorized;
 
         /// <summary>
         /// 授权字段
@@ -61,34 +48,21 @@ namespace Serein.Library.Network.WebSocketCommunication
         /// 处理消息授权
         /// </summary>
         /// <param name="message"></param>
-        public async Task HandleAuthorized(string message)
+        public async Task<bool> HandleAuthorized(string message)
         {
-            if(!isAuthorized && semaphoreSlim is null) // 需要重新授权
-            {
-                semaphoreSlim = new SemaphoreSlim(1);
-            }
             await semaphoreSlim.WaitAsync(1);
-            if(isAuthorized) // 授权通过，无须再次检查授权
-            {
-                return;
-            }
+            bool isAuthorized = false;
             JObject json = JObject.Parse(message);
             if(json.TryGetValue(TokenKey,out var token))
             {
                 // 交给之前定义的授权方法进行判断
                 isAuthorized = await InspectionAuthorizedFunc?.Invoke(token);
-                if (isAuthorized)
-                {
-                    // 授权通过，释放资源
-                    semaphoreSlim.Release();
-                    semaphoreSlim.Dispose();
-                    semaphoreSlim = null;
-                }
             }
             else
             {
                 isAuthorized = false;
             }
+            return isAuthorized;
         }
 
     }
@@ -114,7 +88,7 @@ namespace Serein.Library.Network.WebSocketCommunication
         {
             this.AuthorizedClients = new ConcurrentDictionary<string, WebSocketAuthorizedHelper>();
             this.InspectionAuthorizedFunc = (tokenObj) => Task.FromResult(true);
-            this.IsNeedInspectionAuthorized = false;
+            this.IsCheckToken = false;
         }
 
         /// <summary>
@@ -127,7 +101,7 @@ namespace Serein.Library.Network.WebSocketCommunication
             this.TokenKey = tokenKey;
             this.AuthorizedClients = new ConcurrentDictionary<string, WebSocketAuthorizedHelper>();
             this.InspectionAuthorizedFunc = inspectionAuthorizedFunc;
-            this.IsNeedInspectionAuthorized = true;
+            this.IsCheckToken = true;
         }
 
         /// <summary>
@@ -136,7 +110,7 @@ namespace Serein.Library.Network.WebSocketCommunication
         public ConcurrentDictionary<string, WebSocketAuthorizedHelper> AuthorizedClients;
         private readonly string TokenKey;
         private readonly Func<dynamic, Task<bool>> InspectionAuthorizedFunc;
-        private bool IsNeedInspectionAuthorized = false;
+        private bool IsCheckToken = false;
         /// <summary>
         /// 进行监听服务
         /// </summary>
@@ -169,7 +143,7 @@ namespace Serein.Library.Network.WebSocketCommunication
                     if (context.Request.IsWebSocketRequest)
                     {
                         WebSocketAuthorizedHelper authorizedHelper = null;
-                        if (IsNeedInspectionAuthorized)
+                        if (IsCheckToken)
                         {
                             if (AuthorizedClients.TryAdd(clientPoint, new WebSocketAuthorizedHelper(clientPoint, TokenKey, InspectionAuthorizedFunc)))
                             {
@@ -200,12 +174,11 @@ namespace Serein.Library.Network.WebSocketCommunication
         private async Task HandleWebSocketAsync(WebSocket webSocket, WebSocketAuthorizedHelper authorizedHelper)
         {
             // 需要授权，却没有成功创建授权类，关闭连接
-            if (IsNeedInspectionAuthorized && authorizedHelper is null)
+            if (IsCheckToken && authorizedHelper is null)
             {
                 await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
                 return;
             }
-
 
             Func<string, Task> SendAsync = async (text) =>
             {
@@ -213,56 +186,66 @@ namespace Serein.Library.Network.WebSocketCommunication
             };
 
             var buffer = new byte[1024];
+            var receivedMessage = new StringBuilder(); // 用于拼接长消息
+
             while (webSocket.State == WebSocketState.Open)
             {
-                var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                if (result.MessageType == WebSocketMessageType.Close)
+                WebSocketReceiveResult result;
+
+                try
                 {
-                    SendAsync = null;
-                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
-                    if (IsNeedInspectionAuthorized)
+                    do
                     {
-                        AuthorizedClients.TryRemove(authorizedHelper.AddresPort, out var _);
-                    }
-                }
-                else
-                {
-                    var message = Encoding.UTF8.GetString(buffer, 0, result.Count); // 序列为文本
-                    if(!IsNeedInspectionAuthorized)
+                        result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+
+                        // 将接收到的部分消息解码并拼接
+                        var partialMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                        receivedMessage.Append(partialMessage);
+
+                    } while (!result.EndOfMessage); // 循环直到接收到完整的消息
+
+                    // 完整消息已经接收到，准备处理
+                    var message = receivedMessage.ToString();
+
+                    if (result.MessageType == WebSocketMessageType.Close)
                     {
-                        // 无须授权
-                        _ = MsgHandleHelper.HandleMsgAsync(SendAsync, message); // 处理消息
-                        
+                        SendAsync = null;
+                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                        if (IsCheckToken)
+                        {
+                            AuthorizedClients.TryRemove(authorizedHelper.AddresPort, out var _);
+                        }
                     }
                     else
                     {
-                        // 需要授权
-                        if (!authorizedHelper.IsAuthorized)
+                        if (IsCheckToken)
                         {
-                            // 该连接尚未验证授权，尝试检测授权
-                            _ = SendAsync("正在授权");
-                            await authorizedHelper.HandleAuthorized(message);
-                        }
-
-
-                        if (authorizedHelper.IsAuthorized)
-                        {
-                            // 该连接通过了验证
-                            _ = SendAsync("授权成功");
-                            _ = MsgHandleHelper.HandleMsgAsync(SendAsync, message); // 处理消息
-                        }
-                        else
-                        {
-                            _ = SendAsync("授权失败");
+                            var authorizedResult = await authorizedHelper.HandleAuthorized(message); // 尝试检测授权
+                            if (!authorizedResult) // 授权失败
+                            {
+                                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                                if (IsCheckToken)
+                                {
+                                    AuthorizedClients.TryRemove(authorizedHelper.AddresPort, out var _);
+                                }
+                                continue;
+                            }
                         }
                         
+                        // 消息处理
+                        _ = MsgHandleHelper.HandleMsgAsync(SendAsync, message); // 处理消息
                     }
 
-                    
+                    // 清空 StringBuilder 为下一条消息做准备
+                    receivedMessage.Clear();
+                }
+                catch (Exception ex)
+                {
+                    // 处理异常
+                    Debug.WriteLine($"Error: {ex.ToString()}");
                 }
             }
         }
-
         /// <summary>
         /// 发送消息
         /// </summary>

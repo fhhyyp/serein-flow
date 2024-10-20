@@ -1,17 +1,6 @@
 ﻿using Serein.Library.Api;
-using Serein.Library.Attributes;
-using Serein.Library.Entity;
 using Serein.Library.Utils;
-using Serein.NodeFlow;
-using Serein.NodeFlow.Tool;
-using Serein.Workbench.Node.View;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
+using Serein.NodeFlow.Env;
 using System.Windows;
 
 namespace Serein.Workbench
@@ -34,8 +23,25 @@ namespace Serein.Workbench
         /// <param name="window"></param>
         public MainWindowViewModel(MainWindow window)
         {
-            FlowEnvironment = new FlowEnvironment();
-            this.window = window;
+            UIContextOperation? uIContextOperation = null;
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                SynchronizationContext? uiContext = SynchronizationContext.Current; // 在UI线程上获取UI线程上下文信息
+                if (uiContext != null)
+                {
+                    uIContextOperation = new UIContextOperation(uiContext); // 封装一个调用UI线程的工具类
+                }
+            });
+
+            if (uIContextOperation is null) 
+            {
+                throw new Exception("无法封装 UIContextOperation ");
+            }
+            else
+            {
+                FlowEnvironment = new FlowEnvironmentDecorator(uIContextOperation);
+                this.window = window;
+            }
         }
 
 

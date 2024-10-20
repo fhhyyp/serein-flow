@@ -312,9 +312,13 @@ namespace Serein.Library.Utils
             string cacheKey = $"{type.FullName}.{methodInfo.Name}.MethodCallerAsync";
             return Cache.GetOrAdd(cacheKey, _ => CreateMethodCallerDelegateAsync(type, methodInfo));
         }
+
         /// <summary>
         /// 表达式树构建无参数，有返回值(Task<object>)的方法（触发器）
         /// </summary>
+        /// <param name="type"></param>
+        /// <param name="methodInfo"></param>
+        /// <returns></returns>
         private static Delegate CreateMethodCallerDelegateAsync(Type type, MethodInfo methodInfo)
         {
             var parameter = Expression.Parameter(typeof(object), "instance");
@@ -336,6 +340,7 @@ namespace Serein.Library.Utils
             string cacheKey = $"{type.FullName}.{method.Name}.MethodCallerAsync";
             return Cache.GetOrAdd(cacheKey, _ => CreateMethodCallerDelegateAsync(type, method, parameterTypes));
         }
+
         /// <summary>
         /// 表达式树构建多个参数，有返回值(Task<object>)的方法（触发器）
         /// </summary>

@@ -1,35 +1,22 @@
 ﻿using Microsoft.Win32;
 using Newtonsoft.Json.Linq;
+using Serein.Library;
 using Serein.Library.Api;
-using Serein.Library.Entity;
-using Serein.Library.Enums;
 using Serein.Library.Utils;
-using Serein.NodeFlow;
-using Serein.NodeFlow.Base;
-using Serein.NodeFlow.Model;
+using Serein.Library.Utils.SereinExpression;
 using Serein.NodeFlow.Tool;
-using Serein.NodeFlow.Tool.SereinExpression;
-using Serein.Workbench.Node;
 using Serein.Workbench.Node.View;
 using Serein.Workbench.Node.ViewModel;
 using Serein.Workbench.Themes;
-using Serein.Workbench.tool;
-using System;
 using System.IO;
-using System.Reflection;
-using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
-using System.Windows.Documents;
 using System.Windows.Input;
-using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using System.Windows.Media.Media3D;
 using System.Windows.Shapes;
 using System.Windows.Threading;
-using System.Xml.Linq;
 using DataObject = System.Windows.DataObject;
 
 namespace Serein.Workbench
@@ -50,7 +37,6 @@ namespace Serein.Workbench
     }
 
 
-   
 
     /// <summary>
     /// Interaction logic for MainWindow.xaml，第一次用git，不太懂
@@ -60,12 +46,12 @@ namespace Serein.Workbench
         /// <summary>
         /// 全局捕获Console输出事件，打印在这个窗体里面
         /// </summary>
-        private readonly LogWindow logWindow;
+        private readonly LogWindow LogOutWindow = new LogWindow();
 
         /// <summary>
-        /// 流程运行环境
+        /// 流程接口
         /// </summary>
-        private IFlowEnvironment FlowEnvironment { get; }
+        private IFlowEnvironment EnvDecorator { get; }
         private MainWindowViewModel ViewModel { get; set; }
 
         /// <summary>
@@ -154,17 +140,19 @@ namespace Serein.Workbench
         private readonly TranslateTransform translateTransform;
         #endregion
 
+
         public MainWindow()
         {
             InitializeComponent();
-            logWindow = InitConsoleOut(); // 重定向 Console 输出
-
             ViewModel = new MainWindowViewModel(this);
-            FlowEnvironment = ViewModel.FlowEnvironment;
-            ViewObjectViewer.FlowEnvironment = FlowEnvironment;
-            IOCObjectViewer.FlowEnvironment = FlowEnvironment;
+            EnvDecorator = ViewModel.FlowEnvironment;
+            ViewObjectViewer.FlowEnvironment = EnvDecorator;
+            IOCObjectViewer.FlowEnvironment = EnvDecorator;
 
+            
+            //this.FlowEnvironment.SetConsoleOut((msg) => LogOutWindow.AppendText(msg), () => LogOutWindow.Clear()); // 设置输出
             InitFlowEnvironmentEvent(); // 配置环境事件
+
 
             canvasTransformGroup = new TransformGroup();
             scaleTransform = new ScaleTransform();
@@ -178,47 +166,72 @@ namespace Serein.Workbench
 
             if (App.FlowProjectData is not null)
             {
-                FlowEnvironment.LoadProject(App.FlowProjectData, App.FileDataPath); // 加载项目
+                EnvDecorator.LoadProject(new FlowEnvInfo { Project = App.FlowProjectData }, App.FileDataPath); // 加载项目
             }
 
 
             IOCObjectViewer.SelectObj += ViewObjectViewer.LoadObjectInformation;
         }
 
+        /// <summary>
+        /// 初始化环境事件
+        /// </summary>
         private void InitFlowEnvironmentEvent()
         {
-            FlowEnvironment.OnDllLoad += FlowEnvironment_DllLoadEvent;
-            // FlowEnvironment.OnLoadNode += FlowEnvironment_NodeLoadEvent;
-            FlowEnvironment.OnProjectLoaded += FlowEnvironment_OnProjectLoaded;
-            FlowEnvironment.OnStartNodeChange += FlowEnvironment_StartNodeChangeEvent;
-            FlowEnvironment.OnNodeConnectChange += FlowEnvironment_NodeConnectChangeEvemt;
-            FlowEnvironment.OnNodeCreate += FlowEnvironment_NodeCreateEvent;
-            FlowEnvironment.OnNodeRemote += FlowEnvironment_NodeRemoteEvent;
-            FlowEnvironment.OnFlowRunComplete += FlowEnvironment_OnFlowRunComplete;
+
+            // 获取实现类的类型
+            var implementationType = EnvDecorator.CurrentEnv.GetType().Name;
+            EnvDecorator.OnDllLoad += FlowEnvironment_DllLoadEvent;
+            EnvDecorator.OnProjectLoaded += FlowEnvironment_OnProjectLoaded;
+            EnvDecorator.OnStartNodeChange += FlowEnvironment_StartNodeChangeEvent;
+            EnvDecorator.OnNodeConnectChange += FlowEnvironment_NodeConnectChangeEvemt;
+            EnvDecorator.OnNodeCreate += FlowEnvironment_NodeCreateEvent;
+            EnvDecorator.OnNodeRemote += FlowEnvironment_NodeRemoteEvent;
+            EnvDecorator.OnFlowRunComplete += FlowEnvironment_OnFlowRunComplete;
 
 
-            FlowEnvironment.OnMonitorObjectChange += FlowEnvironment_OnMonitorObjectChange;
-            FlowEnvironment.OnNodeInterruptStateChange += FlowEnvironment_OnNodeInterruptStateChange;
-            FlowEnvironment.OnInterruptTrigger += FlowEnvironment_OnInterruptTrigger;
+            EnvDecorator.OnMonitorObjectChange += FlowEnvironment_OnMonitorObjectChange;
+            EnvDecorator.OnNodeInterruptStateChange += FlowEnvironment_OnNodeInterruptStateChange;
+            EnvDecorator.OnInterruptTrigger += FlowEnvironment_OnInterruptTrigger;
 
-            FlowEnvironment.OnIOCMembersChanged += FlowEnvironment_OnIOCMembersChanged;
-
-            FlowEnvironment.OnNodeLocated += FlowEnvironment_OnNodeLocate;
-            FlowEnvironment.OnNodeMoved += FlowEnvironment_OnNodeMoved;
-
+            EnvDecorator.OnIOCMembersChanged += FlowEnvironment_OnIOCMembersChanged;
+                   
+            EnvDecorator.OnNodeLocated += FlowEnvironment_OnNodeLocate;
+            EnvDecorator.OnNodeMoved += FlowEnvironment_OnNodeMoved;
+                   
+            EnvDecorator.OnEnvOut += FlowEnvironment_OnEnvOut;
+            this.EnvDecorator.SetConsoleOut(); // 设置输出
         }
 
-        
-
-        private LogWindow InitConsoleOut()
+        /// <summary>
+        /// 移除环境事件
+        /// </summary>
+        private void ResetFlowEnvironmentEvent()
         {
-            var logWindow = new LogWindow();
-            //logWindow.Show();
-            // 重定向 Console 输出
-            var logTextWriter = new LogTextWriter(msg => logWindow.AppendText(msg), () => logWindow.Clear()); ;
-            Console.SetOut(logTextWriter);
-            return logWindow;
+            EnvDecorator.OnDllLoad -= FlowEnvironment_DllLoadEvent;
+            EnvDecorator.OnProjectLoaded -= FlowEnvironment_OnProjectLoaded;
+            EnvDecorator.OnStartNodeChange -= FlowEnvironment_StartNodeChangeEvent;
+            EnvDecorator.OnNodeConnectChange -= FlowEnvironment_NodeConnectChangeEvemt;
+            EnvDecorator.OnNodeCreate -= FlowEnvironment_NodeCreateEvent;
+            EnvDecorator.OnNodeRemote -= FlowEnvironment_NodeRemoteEvent;
+            EnvDecorator.OnFlowRunComplete -= FlowEnvironment_OnFlowRunComplete;
+
+
+            EnvDecorator.OnMonitorObjectChange -= FlowEnvironment_OnMonitorObjectChange;
+            EnvDecorator.OnNodeInterruptStateChange -= FlowEnvironment_OnNodeInterruptStateChange;
+            EnvDecorator.OnInterruptTrigger -= FlowEnvironment_OnInterruptTrigger;
+
+            EnvDecorator.OnIOCMembersChanged -= FlowEnvironment_OnIOCMembersChanged;
+
+            EnvDecorator.OnNodeLocated -= FlowEnvironment_OnNodeLocate;
+            EnvDecorator.OnNodeMoved -= FlowEnvironment_OnNodeMoved;
+
+            EnvDecorator.OnEnvOut -= FlowEnvironment_OnEnvOut;
+
         }
+
+
+
 
         #region 窗体加载方法
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -226,17 +239,18 @@ namespace Serein.Workbench
         }
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            logWindow.Close();
+            LogOutWindow.Close();
             System.Windows.Application.Current.Shutdown();
         }
         private void Window_ContentRendered(object sender, EventArgs e)
         {
+            Console.WriteLine("load project...");
             var project = App.FlowProjectData;
             if (project is null)
             {
                 return;
             }
-            InitializeCanvas(project.Basic.Canvas.Width, project.Basic.Canvas.Lenght);// 设置画布大小
+            InitializeCanvas(project.Basic.Canvas.Width, project.Basic.Canvas.Height);// 设置画布大小
             foreach (var connection in Connections)
             {
                 connection.Refresh();
@@ -263,6 +277,15 @@ namespace Serein.Workbench
         #region 运行环境事件
 
         /// <summary>
+        /// 环境内容输出
+        /// </summary>
+        /// <param name="value"></param>
+        private void FlowEnvironment_OnEnvOut(string value)
+        {
+            LogOutWindow.AppendText(value);
+        }
+
+        /// <summary>
         /// 加载完成
         /// </summary>
         /// <param name="eventArgs"></param>
@@ -278,7 +301,10 @@ namespace Serein.Workbench
         private void FlowEnvironment_OnFlowRunComplete(FlowEventArgs eventArgs)
         {
             Console.WriteLine("-------运行完成---------\r\n");
-            IOCObjectViewer.ClearObjItem();
+            this.Dispatcher.Invoke(() =>
+            {
+                IOCObjectViewer.ClearObjItem();
+            });
         }
 
         /// <summary>
@@ -294,20 +320,25 @@ namespace Serein.Workbench
 
                 foreach (var methodDetailsInfo in methodDetailss)
                 {
-                    switch (methodDetailsInfo.NodeType)
+                    if(!EnumHelper.TryConvertEnum<Library.NodeType>(methodDetailsInfo.NodeType, out var nodeType))
                     {
-                        case Library.Enums.NodeType.Action:
+                        continue;
+                    }
+                    switch (nodeType)
+                    {
+                        case Library.NodeType.Action:
                             dllControl.AddAction(methodDetailsInfo);  // 添加动作类型到控件
                             break;
-                        case Library.Enums.NodeType.Flipflop:
+                        case Library.NodeType.Flipflop:
                             dllControl.AddFlipflop(methodDetailsInfo);  // 添加触发器方法到控件
                             break;
                     }
+
                 }
                 var menu = new ContextMenu();
                 menu.Items.Add(CreateMenuItem("卸载", (s,e) =>
                 {
-                    if (this.FlowEnvironment.RemoteDll(nodeLibrary.Assembly.FullName))
+                    if (this.EnvDecorator.RemoteDll(nodeLibrary.FullName))
                     {
                         DllStackPanel.Children.Remove(dllControl);
                     }
@@ -360,6 +391,10 @@ namespace Serein.Workbench
                     ConfigureLineContextMenu(connection); // 设置连接右键事件
                     Connections.Add(connection);
                     EndConnection();
+                    connection.Refresh();
+                    //UpdateConnections(fromNode);
+                    // connection.ArrowPath?.InvalidateVisual();
+                    // connection.BezierPath?.InvalidateVisual();
                 };
 
 
@@ -415,18 +450,20 @@ namespace Serein.Workbench
                 }
             }
             #region 节点树视图
-            if (nodeControl is FlipflopNodeControl flipflopControl) // 判断是否为触发器
-            {
-                var node = flipflopControl?.ViewModel?.Node;
-                if (node is not null)
-                {
-                    NodeTreeViewer.RemoteGlobalFlipFlop(node); // 从全局触发器树树视图中移除
-                }
-            }
+            
             #endregion
 
             this.Dispatcher.Invoke(() =>
             {
+                if (nodeControl is FlipflopNodeControl flipflopControl) // 判断是否为触发器
+                {
+                    var node = flipflopControl?.ViewModel?.Node;
+                    if (node is not null)
+                    {
+                        NodeTreeViewer.RemoteGlobalFlipFlop(node); // 从全局触发器树树视图中移除
+                    }
+                }
+
                 FlowChartCanvas.Children.Remove(nodeControl);
                 NodeControls.Remove(nodeControl.ViewModel.Node.Guid);
             });
@@ -447,7 +484,7 @@ namespace Serein.Workbench
                 }
 
                 // MethodDetails methodDetailss = eventArgs.MethodDetailss;
-                Position position = eventArgs.Position;
+                PositionOfUI position = eventArgs.Position;
 
                 // 创建对应控件
                 NodeControlBase? nodeControl = nodeModelBase.ControlType switch
@@ -487,7 +524,7 @@ namespace Serein.Workbench
                     var node = nodeControl?.ViewModel?.Node;
                     if(node is not null)
                     {
-                        NodeTreeViewer.AddGlobalFlipFlop(FlowEnvironment, node); // 新增的触发器节点添加到全局触发器
+                        NodeTreeViewer.AddGlobalFlipFlop(EnvDecorator, node); // 新增的触发器节点添加到全局触发器
                     }
                 } 
                 #endregion
@@ -520,7 +557,7 @@ namespace Serein.Workbench
                 var node = newStartNodeControl?.ViewModel?.Node;
                 if (node is not null)
                 {
-                    NodeTreeViewer.LoadNodeTreeOfStartNode(FlowEnvironment, node);
+                    NodeTreeViewer.LoadNodeTreeOfStartNode(EnvDecorator, node);
                 }
             });
 
@@ -541,7 +578,7 @@ namespace Serein.Workbench
             };
 
             //NodeControlBase nodeControl = GuidToControl(nodeGuid);
-            ViewObjectViewer.Dispatcher.BeginInvoke(() => {
+            ViewObjectViewer.Dispatcher.Invoke(() => {
                 if (ViewObjectViewer.MonitorObj is null) // 如果没有加载过对象
                 {
                     ViewObjectViewer.LoadObjectInformation(monitorKey, eventArgs.NewData); // 加载对象 ViewObjectViewerControl.MonitorType.Obj
@@ -566,36 +603,39 @@ namespace Serein.Workbench
         /// 节点中断状态改变。
         /// </summary>
         /// <param name="eventArgs"></param>
-        private void FlowEnvironment_OnNodeInterruptStateChange(NodeInterruptStateChangeEventArgs eventArgs)
+        private  void FlowEnvironment_OnNodeInterruptStateChange(NodeInterruptStateChangeEventArgs eventArgs)
         {
             string nodeGuid = eventArgs.NodeGuid;
             if (!TryGetControl(nodeGuid, out var nodeControl)) return;
 
-            if (eventArgs.Class == InterruptClass.None)
+             this.Dispatcher.Invoke(() =>
             {
-                nodeControl.ViewModel.IsInterrupt = false;
-               
-            }
-            else
-            {
-                nodeControl.ViewModel.IsInterrupt = true;
-            }
-
-            foreach (var menuItem in nodeControl.ContextMenu.Items)
-            {
-                if (menuItem is MenuItem menu)
+                if (eventArgs.Class == InterruptClass.None)
                 {
-                    if ("取消中断".Equals(menu.Header))
-                    {
-                        menu.Header = "在此中断";
-                    }
-                    else if ("在此中断".Equals(menu.Header))
-                    {
-                        menu.Header = "取消中断";
-                    }
+                    nodeControl.ViewModel.IsInterrupt = false;
 
                 }
-            }
+                else
+                {
+                    nodeControl.ViewModel.IsInterrupt = true;
+                }
+
+                foreach (var menuItem in nodeControl.ContextMenu.Items)
+                {
+                    if (menuItem is MenuItem menu)
+                    {
+                        if ("取消中断".Equals(menu.Header))
+                        {
+                            menu.Header = "在此中断";
+                        }
+                        else if ("在此中断".Equals(menu.Header))
+                        {
+                            menu.Header = "取消中断";
+                        }
+
+                    }
+                }
+            });
 
         }
 
@@ -625,7 +665,10 @@ namespace Serein.Workbench
         /// <exception cref="NotImplementedException"></exception>
         private void FlowEnvironment_OnIOCMembersChanged(IOCMembersChangedEventArgs eventArgs)
         {
-            IOCObjectViewer.AddDependenciesInstance(eventArgs.Key, eventArgs.Instance);
+            this.Dispatcher.Invoke(() =>
+            {
+                IOCObjectViewer.AddDependenciesInstance(eventArgs.Key, eventArgs.Instance);
+            });
         }
 
         /// <summary>
@@ -635,52 +678,56 @@ namespace Serein.Workbench
         /// <exception cref="NotImplementedException"></exception>
         private void FlowEnvironment_OnNodeLocate(NodeLocatedEventArgs eventArgs)
         {
-            if (!TryGetControl(eventArgs.NodeGuid, out var nodeControl)) return;
-            //scaleTransform.ScaleX = 1;
-            //scaleTransform.ScaleY = 1;
-            // 获取控件在 FlowChartCanvas 上的相对位置
-            Rect controlBounds = VisualTreeHelper.GetDescendantBounds(nodeControl);
-            Point controlPosition = nodeControl.TransformToAncestor(FlowChartCanvas).Transform(new Point(0, 0));
+            this.Dispatcher.Invoke(() => 
+            {
+                if (!TryGetControl(eventArgs.NodeGuid, out var nodeControl)) return;
+                //scaleTransform.ScaleX = 1;
+                //scaleTransform.ScaleY = 1;
+                // 获取控件在 FlowChartCanvas 上的相对位置
+                Rect controlBounds = VisualTreeHelper.GetDescendantBounds(nodeControl);
+                Point controlPosition = nodeControl.TransformToAncestor(FlowChartCanvas).Transform(new Point(0, 0));
 
-            // 获取控件在画布上的中心点
-            double controlCenterX = controlPosition.X + controlBounds.Width / 2;
-            double controlCenterY = controlPosition.Y + controlBounds.Height / 2;
+                // 获取控件在画布上的中心点
+                double controlCenterX = controlPosition.X + controlBounds.Width / 2;
+                double controlCenterY = controlPosition.Y + controlBounds.Height / 2;
+
+                // 考虑缩放因素计算目标位置的中心点
+                double scaledCenterX = controlCenterX * scaleTransform.ScaleX;
+                double scaledCenterY = controlCenterY * scaleTransform.ScaleY;
+
+
+                //// 计算画布的可视区域大小
+                //double visibleAreaLeft = scaledCenterX;
+                //double visibleAreaTop = scaledCenterY;
+                //double visibleAreaRight = scaledCenterX + FlowChartStackGrid.ActualWidth;
+                //double visibleAreaBottom = scaledCenterY + FlowChartStackGrid.ActualHeight;
+                //// 检查控件中心点是否在可视区域内
+                //bool isInView = scaledCenterX >= visibleAreaLeft && scaledCenterX <= visibleAreaRight &&
+                //                scaledCenterY >= visibleAreaTop && scaledCenterY <= visibleAreaBottom;
+
+                //Console.WriteLine($"isInView :{isInView}");
+
+                //if (!isInView)
+                //{
+                //} 
+                // 计算平移偏移量，使得控件在可视区域的中心
+                double translateX = scaledCenterX - FlowChartStackGrid.ActualWidth / 2;
+                double translateY = scaledCenterY - FlowChartStackGrid.ActualHeight / 2;
+
+                var translate = this.translateTransform;
+                // 应用平移变换
+                translate.X = 0;
+                translate.Y = 0;
+                translate.X -= translateX;
+                translate.Y -= translateY;
+
+                // 设置RenderTransform以实现移动效果
+                TranslateTransform translateTransform = new TranslateTransform();
+                nodeControl.RenderTransform = translateTransform;
+                ElasticAnimation(nodeControl, translateTransform, 4, 1, 0.5);
+
+            });
             
-            // 考虑缩放因素计算目标位置的中心点
-            double scaledCenterX = controlCenterX * scaleTransform.ScaleX;
-            double scaledCenterY = controlCenterY * scaleTransform.ScaleY;
-
-
-            //// 计算画布的可视区域大小
-            //double visibleAreaLeft = scaledCenterX;
-            //double visibleAreaTop = scaledCenterY;
-            //double visibleAreaRight = scaledCenterX + FlowChartStackGrid.ActualWidth;
-            //double visibleAreaBottom = scaledCenterY + FlowChartStackGrid.ActualHeight;
-            //// 检查控件中心点是否在可视区域内
-            //bool isInView = scaledCenterX >= visibleAreaLeft && scaledCenterX <= visibleAreaRight &&
-            //                scaledCenterY >= visibleAreaTop && scaledCenterY <= visibleAreaBottom;
-
-            //Console.WriteLine($"isInView :{isInView}");
-
-            //if (!isInView)
-            //{
-            //} 
-            // 计算平移偏移量，使得控件在可视区域的中心
-            double translateX = scaledCenterX - FlowChartStackGrid.ActualWidth / 2;
-            double translateY = scaledCenterY - FlowChartStackGrid.ActualHeight / 2;
-
-            var translate = this.translateTransform;
-            // 应用平移变换
-            translate.X = 0;
-            translate.Y = 0;
-            translate.X -= translateX;
-            translate.Y -= translateY;
-
-            // 设置RenderTransform以实现移动效果
-            TranslateTransform translateTransform = new TranslateTransform();
-            nodeControl.RenderTransform = translateTransform;
-            ElasticAnimation(nodeControl, translateTransform, 4,1,0.5);
-          
         }
 
         /// <summary>
@@ -716,6 +763,11 @@ namespace Serein.Workbench
                 nodeControl.RenderTransform = null; // 或者重新设置为默认值
             };
         }
+
+        /// <summary>
+        /// 节点移动
+        /// </summary>
+        /// <param name="eventArgs"></param>
         private void FlowEnvironment_OnNodeMoved(NodeMovedEventArgs eventArgs)
         {
             if (!TryGetControl(eventArgs.NodeGuid, out var nodeControl)) return;
@@ -723,16 +775,23 @@ namespace Serein.Workbench
             var newLeft = eventArgs.X;
             var newTop = eventArgs.Y;
 
-            // 限制控件不超出FlowChartCanvas的边界
-           if (newLeft >= 0 && newLeft + nodeControl.ActualWidth <= FlowChartCanvas.ActualWidth)
-           {
-               Canvas.SetLeft(nodeControl, newLeft);
-           }
-           if (newTop >= 0 && newTop + nodeControl.ActualHeight <= FlowChartCanvas.ActualHeight)
-           {
-               Canvas.SetTop(nodeControl, newTop);
-           }
+            this.Dispatcher.Invoke(() => {
+                // 限制控件不超出FlowChartCanvas的边界
+                if (newLeft >= 0 && newLeft + nodeControl.ActualWidth <= FlowChartCanvas.ActualWidth)
+                {
+                    Canvas.SetLeft(nodeControl, newLeft);
 
+                }
+                if (newTop >= 0 && newTop + nodeControl.ActualHeight <= FlowChartCanvas.ActualHeight)
+                {
+                    Canvas.SetTop(nodeControl, newTop);
+
+
+                }
+                UpdateConnections(nodeControl);
+            });
+
+           
             //Canvas.SetLeft(nodeControl,);
             //Canvas.SetTop(nodeControl, );
         }
@@ -773,27 +832,28 @@ namespace Serein.Workbench
         /// <param name="methodDetailss"></param>
         /// <returns></returns>
         /// <exception cref="NotImplementedException"></exception>
-        private NodeControlBase? CreateNodeControlOfNodeInfo(NodeInfo nodeInfo, MethodDetails methodDetailss)
-        {
-            // 创建控件实例
-            NodeControlBase nodeControl = nodeInfo.Type switch
-            {
-                $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleActionNode)}" =>
-                    CreateNodeControl<SingleActionNode, ActionNodeControl, ActionNodeControlViewModel>(methodDetailss),// 动作节点控件
-                $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleFlipflopNode)}" =>
-                    CreateNodeControl<SingleFlipflopNode, FlipflopNodeControl, FlipflopNodeControlViewModel>(methodDetailss), // 触发器节点控件
+        //private NodeControlBase? CreateNodeControlOfNodeInfo(NodeInfo nodeInfo, MethodDetails methodDetailss)
+        //{
+        //    // 创建控件实例
+        //    NodeControlBase nodeControl = nodeInfo.Type switch
+        //    {
+        //        $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleActionNode)}" =>
+        //            CreateNodeControl<SingleActionNode, ActionNodeControl, ActionNodeControlViewModel>(methodDetailss),// 动作节点控件
+        //        $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleFlipflopNode)}" =>
+        //            CreateNodeControl<SingleFlipflopNode, FlipflopNodeControl, FlipflopNodeControlViewModel>(methodDetailss), // 触发器节点控件
 
-                $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleConditionNode)}" =>
-                    CreateNodeControl<SingleConditionNode, ConditionNodeControl, ConditionNodeControlViewModel>(), // 条件表达式控件
-                $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleExpOpNode)}" =>
-                    CreateNodeControl<SingleExpOpNode, ExpOpNodeControl, ExpOpNodeViewModel>(), // 操作表达式控件
+        //        $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleConditionNode)}" =>
+        //            CreateNodeControl<SingleConditionNode, ConditionNodeControl, ConditionNodeControlViewModel>(), // 条件表达式控件
+        //        $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleExpOpNode)}" =>
+        //            CreateNodeControl<SingleExpOpNode, ExpOpNodeControl, ExpOpNodeViewModel>(), // 操作表达式控件
 
-                $"{NodeStaticConfig.NodeSpaceName}.{nameof(CompositeConditionNode)}" =>
-                    CreateNodeControl<CompositeConditionNode, ConditionRegionControl, ConditionRegionNodeControlViewModel>(), // 条件区域控件
-                _ => throw new NotImplementedException($"非预期的节点类型{nodeInfo.Type}"),
-            };
-            return nodeControl;
-        }
+        //        $"{NodeStaticConfig.NodeSpaceName}.{nameof(CompositeConditionNode)}" =>
+        //            CreateNodeControl<CompositeConditionNode, ConditionRegionControl, ConditionRegionNodeControlViewModel>(), // 条件区域控件
+        //        _ => throw new NotImplementedException($"非预期的节点类型{nodeInfo.Type}"),
+        //    };
+        //    return nodeControl;
+        //}
+
         /// <summary>
         /// 加载文件时，添加节点到区域中
         /// </summary>
@@ -908,13 +968,13 @@ namespace Serein.Workbench
                     {
                         if (menuItem.Header.ToString() == "启动触发器")
                         {
-                            FlowEnvironment.ActivateFlipflopNode(nodeGuid);
+                            EnvDecorator.ActivateFlipflopNode(nodeGuid);
 
                             menuItem.Header = "终结触发器";
                         }
                         else
                         {
-                            FlowEnvironment.TerminateFlipflopNode(nodeGuid);
+                            EnvDecorator.TerminateFlipflopNode(nodeGuid);
                             menuItem.Header = "启动触发器";
 
                         }
@@ -934,19 +994,19 @@ namespace Serein.Workbench
 
             #region 右键菜单功能 - 中断
 
-            contextMenu.Items.Add(CreateMenuItem("在此中断", (s, e) =>
+            contextMenu.Items.Add(CreateMenuItem("在此中断", async (s, e) =>
             {
                 if ((s is MenuItem menuItem) && menuItem is not null)
                 {
                     if (nodeControl?.ViewModel?.Node?.DebugSetting?.InterruptClass == InterruptClass.None)
                     {
-                        FlowEnvironment.SetNodeInterrupt(nodeGuid, InterruptClass.Branch);
+                        await EnvDecorator.SetNodeInterruptAsync(nodeGuid, InterruptClass.Branch);
 
                         menuItem.Header = "取消中断";
                     }
                     else
                     {
-                        FlowEnvironment.SetNodeInterrupt(nodeGuid, InterruptClass.None);
+                        await EnvDecorator.SetNodeInterruptAsync(nodeGuid, InterruptClass.None);
                         menuItem.Header = "在此中断";
 
                     }
@@ -956,8 +1016,8 @@ namespace Serein.Workbench
             #endregion
 
            
-            contextMenu.Items.Add(CreateMenuItem("设为起点", (s, e) => FlowEnvironment.SetStartNode(nodeGuid)));
-            contextMenu.Items.Add(CreateMenuItem("删除", (s, e) => FlowEnvironment.RemoveNode(nodeGuid)));
+            contextMenu.Items.Add(CreateMenuItem("设为起点", (s, e) => EnvDecorator.SetStartNode(nodeGuid)));
+            contextMenu.Items.Add(CreateMenuItem("删除", (s, e) => EnvDecorator.RemoveNode(nodeGuid)));
 
             contextMenu.Items.Add(CreateMenuItem("添加 真分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsSucceed)));
             contextMenu.Items.Add(CreateMenuItem("添加 假分支", (s, e) => StartConnection(nodeControl, ConnectionType.IsFail)));
@@ -1034,7 +1094,7 @@ namespace Serein.Workbench
             // 获取起始节点与终止节点，消除映射关系
             var fromNodeGuid = connectionToRemove.Start.ViewModel.Node.Guid;
             var toNodeGuid = connectionToRemove.End.ViewModel.Node.Guid;
-            FlowEnvironment.RemoveConnect(fromNodeGuid, toNodeGuid, connection.Type);
+            EnvDecorator.RemoveConnect(fromNodeGuid, toNodeGuid, connection.Type);
         }
 
         /// <summary>
@@ -1089,7 +1149,7 @@ namespace Serein.Workbench
                 {
                     if (file.EndsWith(".dll"))
                     {
-                        FlowEnvironment.LoadDll(file);
+                        EnvDecorator.LoadDll(file);
                     }
                 }
             }
@@ -1189,16 +1249,15 @@ namespace Serein.Workbench
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FlowChartCanvas_Drop(object sender, DragEventArgs e)
+        private async void FlowChartCanvas_Drop(object sender, DragEventArgs e)
         {
             var canvasDropPosition = e.GetPosition(FlowChartCanvas); // 更新画布落点
-            Position position = new Position(canvasDropPosition.X, canvasDropPosition.Y);
+            PositionOfUI position = new PositionOfUI(canvasDropPosition.X, canvasDropPosition.Y);
             if (e.Data.GetDataPresent(MouseNodeType.CreateDllNodeInCanvas))
             {
                 if (e.Data.GetData(MouseNodeType.CreateDllNodeInCanvas) is MoveNodeData nodeData)
                 {
-                    // 创建DLL文件的节点对象
-                    FlowEnvironment.CreateNode(nodeData.NodeControlType, position, nodeData.MethodDetailsInfo);
+                    await EnvDecorator.CreateNodeAsync(nodeData.NodeControlType, position, nodeData.MethodDetailsInfo); // 创建DLL文件的节点对象
                 }
             }
             else if (e.Data.GetDataPresent(MouseNodeType.CreateBaseNodeInCanvas))
@@ -1214,8 +1273,7 @@ namespace Serein.Workbench
                     };
                     if(nodeControlType != NodeControlType.None)
                     {
-                        // 创建基础节点对象
-                        FlowEnvironment.CreateNode(nodeControlType, position);
+                        await EnvDecorator.CreateNodeAsync(nodeControlType, position); // 创建基础节点对象
                     }
                 }
             }
@@ -1228,7 +1286,7 @@ namespace Serein.Workbench
         /// <param name="nodeControl"></param>
         /// <param name="position"></param>
         /// <returns></returns>
-        private bool TryPlaceNodeInRegion(NodeControlBase nodeControl, Position position)
+        private bool TryPlaceNodeInRegion(NodeControlBase nodeControl, PositionOfUI position)
         {
             var point = new Point(position.X, position.Y);
             HitTestResult hitTestResult = VisualTreeHelper.HitTest(FlowChartCanvas, point);
@@ -1337,7 +1395,7 @@ namespace Serein.Workbench
                     var newLeft = oldLeft + deltaX;
                     var newTop = oldTop + deltaY;
 
-                    this.FlowEnvironment.MoveNode(nodeControlMain.ViewModel.Node.Guid, newLeft, newTop); // 移动节点
+                    this.EnvDecorator.MoveNode(nodeControlMain.ViewModel.Node.Guid, newLeft, newTop); // 移动节点
 
                     // 计算控件实际移动的距离
                     var actualDeltaX = newLeft - oldLeft;
@@ -1350,7 +1408,7 @@ namespace Serein.Workbench
                         {
                             var otherNewLeft = Canvas.GetLeft(nodeControl) + actualDeltaX;
                             var otherNewTop = Canvas.GetTop(nodeControl) + actualDeltaY;
-                            this.FlowEnvironment.MoveNode(nodeControl.ViewModel.Node.Guid, otherNewLeft, otherNewTop); // 移动节点
+                            this.EnvDecorator.MoveNode(nodeControl.ViewModel.Node.Guid, otherNewLeft, otherNewTop); // 移动节点
                         }
                     }
 
@@ -1370,7 +1428,7 @@ namespace Serein.Workbench
                     double deltaY = currentPosition.Y - startControlDragPoint.Y; // 计算Y轴方向的偏移量
                     double newLeft = Canvas.GetLeft(nodeControl) + deltaX; // 新的左边距
                     double newTop = Canvas.GetTop(nodeControl) + deltaY; // 新的上边距
-                    this.FlowEnvironment.MoveNode(nodeControl.ViewModel.Node.Guid, newLeft, newTop); // 移动节点
+                    this.EnvDecorator.MoveNode(nodeControl.ViewModel.Node.Guid, newLeft, newTop); // 移动节点
                     UpdateConnections(nodeControl);
                 }
                 startControlDragPoint = currentPosition; // 更新起始点位置
@@ -1399,7 +1457,7 @@ namespace Serein.Workbench
         {
             if (ViewObjectViewer.MonitorObj is null)
             {
-                FlowEnvironment.SetMonitorObjState(key, true); // 通知环境，该节点的数据更新后需要传到UI
+                EnvDecorator.SetMonitorObjState(key, true); // 通知环境，该节点的数据更新后需要传到UI
                 return;
             }
             if (instance is null)
@@ -1413,8 +1471,8 @@ namespace Serein.Workbench
             }
             else
             {
-                FlowEnvironment.SetMonitorObjState(ViewObjectViewer.MonitorKey,false); // 取消对旧节点的监视
-                FlowEnvironment.SetMonitorObjState(key, true); // 通知环境，该节点的数据更新后需要传到UI
+                EnvDecorator.SetMonitorObjState(ViewObjectViewer.MonitorKey,false); // 取消对旧节点的监视
+                EnvDecorator.SetMonitorObjState(key, true); // 通知环境，该节点的数据更新后需要传到UI
             }
         }
 
@@ -1441,7 +1499,7 @@ namespace Serein.Workbench
                 {
                     return;
                 }
-                FlowEnvironment.ConnectNode(formNodeGuid, toNodeGuid, currentConnectionType);
+                EnvDecorator.ConnectNodeAsync(formNodeGuid, toNodeGuid, currentConnectionType);
                 
             }
             /*else if (IsConnecting)
@@ -1859,7 +1917,7 @@ namespace Serein.Workbench
                         var guid = node?.ViewModel?.Node?.Guid;
                         if (!string.IsNullOrEmpty(guid))
                         {
-                            FlowEnvironment.RemoveNode(guid);
+                            EnvDecorator.RemoveNode(guid);
                         }
                     }
                 }
@@ -2231,38 +2289,38 @@ namespace Serein.Workbench
             }
         }
 
-        private static TControl CreateNodeControl<TNode, TControl, TViewModel>(MethodDetails? methodDetails = null)
-            where TNode : NodeModelBase
-            where TControl : NodeControlBase
-            where TViewModel : NodeControlViewModelBase
-        {
+        //private static TControl CreateNodeControl<TNode, TControl, TViewModel>(MethodDetails? methodDetails = null)
+        //    where TNode : NodeModelBase
+        //    where TControl : NodeControlBase
+        //    where TViewModel : NodeControlViewModelBase
+        //{
 
-            var nodeObj = Activator.CreateInstance(typeof(TNode));
-            var nodeBase = nodeObj as NodeModelBase ?? throw new Exception("无法创建节点控件");
+        //    var nodeObj = Activator.CreateInstance(typeof(TNode));
+        //    var nodeBase = nodeObj as NodeModelBase ?? throw new Exception("无法创建节点控件");
             
 
-            if (string.IsNullOrEmpty(nodeBase.Guid))
-            {
-                nodeBase.Guid = Guid.NewGuid().ToString();
-            }
-            if (methodDetails != null)
-            {
-                var md = methodDetails.Clone();
-                nodeBase.DisplayName = md.MethodTips;
-                nodeBase.MethodDetails = md;
-            }
+        //    if (string.IsNullOrEmpty(nodeBase.Guid))
+        //    {
+        //        nodeBase.Guid = Guid.NewGuid().ToString();
+        //    }
+        //    if (methodDetails != null)
+        //    {
+        //        var md = methodDetails.Clone(nodeBase); // 首先创建属于节点的方法信息，然后创建属于节点的参数信息
+        //        nodeBase.DisplayName = md.MethodTips;
+        //        nodeBase.MethodDetails = md;
+        //    }
 
-            var viewModel = Activator.CreateInstance(typeof(TViewModel), [nodeObj]);
-            var controlObj = Activator.CreateInstance(typeof(TControl), [viewModel]);
-            if (controlObj is TControl control)
-            {
-                return control;
-            }
-            else
-            {
-                throw new Exception("无法创建节点控件");
-            }
-        }
+        //    var viewModel = Activator.CreateInstance(typeof(TViewModel), [nodeObj]);
+        //    var controlObj = Activator.CreateInstance(typeof(TControl), [viewModel]);
+        //    if (controlObj is TControl control)
+        //    {
+        //        return control;
+        //    }
+        //    else
+        //    {
+        //        throw new Exception("无法创建节点控件");
+        //    }
+        //}
 
 
         /// <summary>
@@ -2315,7 +2373,7 @@ namespace Serein.Workbench
                 }
                 if (count == 0)
                 {
-                    NodeTreeViewer.AddGlobalFlipFlop(FlowEnvironment, nodeModel); // 添加到全局触发器树树视图
+                    NodeTreeViewer.AddGlobalFlipFlop(EnvDecorator, nodeModel); // 添加到全局触发器树树视图
                 }
                 else
                 {
@@ -2338,14 +2396,30 @@ namespace Serein.Workbench
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void ButtonDebugRun_Click(object sender, RoutedEventArgs e)
+        private void ButtonDebugRun_Click(object sender, RoutedEventArgs e)
         {
-            logWindow?.Show();
+            LogOutWindow?.Show();
 
-            // await FlowEnvironment.StartAsync(); // 快
 
-            await Task.Run(FlowEnvironment.StartAsync); // 上下文多次切换的场景中慢了1/10,定时器精度丢失
-            //await Task.Factory.StartNew(FlowEnvironment.StartAsync); // 慢了1/5,定时器精度丢失
+
+#if WINDOWS
+            //Dispatcher uiDispatcher = Application.Current.MainWindow.Dispatcher;
+            //SynchronizationContext? uiContext = SynchronizationContext.Current;
+            //EnvDecorator.IOC.CustomRegisterInstance(typeof(SynchronizationContextk).FullName, uiContext,  false);
+#endif
+
+            // 获取主线程的 SynchronizationContext
+            Action<SynchronizationContext, Action> uiInvoke = (uiContext, action) => uiContext?.Post(state => action?.Invoke(), null);
+
+            
+            
+            Task.Run(async () =>
+            {
+                await EnvDecorator.StartAsync();
+            }); 
+
+            // await EnvDecorator.StartAsync(); 
+            //await Task.Factory.StartNew(FlowEnvironment.StartAsync); 
         }
 
         /// <summary>
@@ -2355,7 +2429,7 @@ namespace Serein.Workbench
         /// <param name="e"></param>
         private void ButtonDebugFlipflopNode_Click(object sender, RoutedEventArgs e)
         {
-            FlowEnvironment?.ExitFlow(); // 在运行平台上点击了退出
+            EnvDecorator?.ExitFlow(); // 在运行平台上点击了退出
         }
 
         /// <summary>
@@ -2375,7 +2449,7 @@ namespace Serein.Workbench
             }
             else
             {
-                await this.FlowEnvironment.StartAsyncInSelectNode(selectNodeControls[0].ViewModel.Node.Guid);
+                await this.EnvDecorator.StartAsyncInSelectNode(selectNodeControls[0].ViewModel.Node.Guid);
             }
 
         }
@@ -2393,16 +2467,16 @@ namespace Serein.Workbench
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void ButtonSaveFile_Click(object sender, RoutedEventArgs e)
+        private async void ButtonSaveFile_Click(object sender, RoutedEventArgs e)
         {
-            var projectData = FlowEnvironment.GetProjectInfo();
+            var projectData = await EnvDecorator.GetProjectInfoAsync();
 
             projectData.Basic = new Basic
             {
                 Canvas = new FlowCanvas
                 {
-                    Lenght = FlowChartCanvas.Width,
-                    Width = FlowChartCanvas.Height,
+                    Height = FlowChartCanvas.Height,
+                    Width = FlowChartCanvas.Width,
                     ViewX = translateTransform.X,
                     ViewY = translateTransform.Y,
                     ScaleX = scaleTransform.ScaleX,
@@ -2411,15 +2485,14 @@ namespace Serein.Workbench
                 Versions = "1",
             };
 
-            foreach (var node in projectData.Nodes)
-            {
-
-                if (NodeControls.TryGetValue(node.Guid, out var nodeControl))
-                {
-                    Point positionRelativeToParent = nodeControl.TranslatePoint(new Point(0, 0), FlowChartCanvas);
-                    node.Position = new Position(positionRelativeToParent.X, positionRelativeToParent.Y);
-                }
-            }
+            //foreach (var node in projectData.Nodes)
+            //{
+            //    if (NodeControls.TryGetValue(node.Guid, out var nodeControl))
+            //    {
+            //        Point positionRelativeToParent = nodeControl.TranslatePoint(new Point(0, 0), FlowChartCanvas);
+            //        node.Position = new PositionOfUI(positionRelativeToParent.X, positionRelativeToParent.Y);
+            //    }
+            //}
             if (!SaveContentToFile(out string savePath, out Action<string, string>? savaProjectFile))
             {
                 Console.WriteLine("保存项目DLL时返回了意外的文件保存路径");
@@ -2435,22 +2508,25 @@ namespace Serein.Workbench
             Console.WriteLine(savePath);
             for (int index = 0; index < projectData.Librarys.Length; index++)
             {
-                Library.Entity.Library? library = projectData.Librarys[index];
+                Library.Library? library = projectData.Librarys[index];
                 try
                 {
-                    string targetPath = System.IO.Path.Combine(librarySavePath, System.IO.Path.GetFileName(library.Path));
+                    string targetPath = System.IO.Path.Combine(librarySavePath, library.FileName); // 目标文件夹
                     //Console.WriteLine("targetPath:" + targetPath);
-
-                    string sourceFile = new Uri(library.Path).LocalPath;
+#if  WINDOWS
+                    //library.Path
+                    string sourceFile = library.FilePath; // 源文件夹
                     //Console.WriteLine("sourceFile:" + sourceFile);
-
+#else
+                    string sourceFile = new Uri(library.Path).LocalPath;
+#endif
                     // 复制文件到目标目录
                     File.Copy(sourceFile, targetPath, true);
 
                     // 获取相对路径
                     string relativePath = System.IO.Path.GetRelativePath(savePath, targetPath);
                     //Console.WriteLine("Relative Path: " + relativePath);
-                    projectData.Librarys[index].Path = relativePath;
+                    projectData.Librarys[index].FilePath = relativePath;
                 }
                 catch (Exception ex)
                 {
@@ -2499,7 +2575,7 @@ namespace Serein.Workbench
 
        
 
-        #endregion
+#endregion
 
         #region 顶部菜单栏 - 视图管理
         /// <summary>
@@ -2516,7 +2592,7 @@ namespace Serein.Workbench
         }
         private void ButtonOpenConsoleOutWindow_Click(object sender, RoutedEventArgs e)
         {
-            logWindow?.Show();
+            LogOutWindow?.Show();
         }
 
         #endregion
@@ -2524,8 +2600,9 @@ namespace Serein.Workbench
         #region 顶部菜单栏 - 远程管理
         private async void ButtonStartRemoteServer_Click(object sender, RoutedEventArgs e)
         {
-             await this.FlowEnvironment.StartRemoteServerAsync();
+             await this.EnvDecorator.StartRemoteServerAsync();
         }
+
         /// <summary>
         /// 连接远程运行环境
         /// </summary>
@@ -2533,9 +2610,17 @@ namespace Serein.Workbench
         /// <param name="e"></param>
         private void ButtonConnectionRemoteEnv_Click(object sender, RoutedEventArgs e)
         {
-            var windowEnvRemoteLoginView = new WindowEnvRemoteLoginView((addres, port, token) =>
+            var windowEnvRemoteLoginView = new WindowEnvRemoteLoginView(async (addres, port, token) =>
             {
-                this.FlowEnvironment.LoadRemoteProject(addres, port, token);
+                ResetFlowEnvironmentEvent();// 移除事件
+                (var isConnect, RemoteEnvControl remoteEnvControl) = await this.EnvDecorator.ConnectRemoteEnv(addres, port, token);
+                InitFlowEnvironmentEvent(); // 重新添加时间（如果没有连接成功，那么依然是原本的环境）
+                if (isConnect)
+                {
+                    // 连接成功，加载远程项目
+                    var flowEnvInfo = await EnvDecorator.GetEnvInfoAsync();
+                    EnvDecorator.LoadProject(flowEnvInfo, string.Empty);// 加载远程环境的项目
+                }
             });
             windowEnvRemoteLoginView.Show();
 
@@ -2628,7 +2713,7 @@ namespace Serein.Workbench
         /// <param name="e"></param>
         private void UnloadAllButton_Click(object sender, RoutedEventArgs e)
         {
-            FlowEnvironment.ClearAll();
+            EnvDecorator.ClearAll();
 
 
         }

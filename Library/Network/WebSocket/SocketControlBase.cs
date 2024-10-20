@@ -1,10 +1,4 @@
-﻿using Serein.Library.Attributes;
-using System;
-using System.Collections.Generic;
-using System.Net.WebSockets;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System;
 
 namespace Serein.Library.Network.WebSocketCommunication
 {

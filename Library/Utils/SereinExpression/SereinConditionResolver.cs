@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
 
-namespace Serein.NodeFlow.Tool.SereinExpression
+namespace Serein.Library.Utils.SereinExpression
 {
     /// <summary>
     /// 条件解析抽象类

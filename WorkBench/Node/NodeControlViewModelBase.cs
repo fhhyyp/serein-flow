@@ -1,12 +1,6 @@
-﻿using Serein.Library.Entity;
-using Serein.NodeFlow.Base;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
+﻿using System.ComponentModel;
+using Serein.Library;
 using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Serein.Workbench.Node.ViewModel
 {
@@ -38,7 +32,9 @@ namespace Serein.Workbench.Node.ViewModel
             }
         }
 
-
+        /// <summary>
+        /// 使节点获得中断能力（以及是否启用节点）
+        /// </summary>
         public NodeDebugSetting DebugSetting
         {
             get => Node.DebugSetting;
@@ -47,11 +43,14 @@ namespace Serein.Workbench.Node.ViewModel
                 if (value != null)
                 {
                     Node.DebugSetting = value;
-                    OnPropertyChanged(/*nameof(DebugSetting)*/);
+                    OnPropertyChanged();
                 }
             }
         }
 
+        /// <summary>
+        /// 使节点能够表达方法信息
+        /// </summary>
         public MethodDetails MethodDetails
         {
             get => Node.MethodDetails;
@@ -60,63 +59,49 @@ namespace Serein.Workbench.Node.ViewModel
                 if(value != null)
                 {
                     Node.MethodDetails = value;
-                    OnPropertyChanged(/*nameof(MethodDetails)*/);
+                    OnPropertyChanged();
                 }
             }
         }
 
         private bool isInterrupt;
+        /// <summary>
+        /// 控制中断状态的视觉效果
+        /// </summary>
         public bool IsInterrupt
         {
             get => isInterrupt;
             set
             {
                 isInterrupt = value;
-                OnPropertyChanged(/*nameof(IsInterrupt)*/);
+                OnPropertyChanged();
             }
         }
 
-
-        //public bool IsInterrupt
-        //{
-        //    get => Node.DebugSetting.IsInterrupt;
-        //    set
-        //    {
-        //        if (value)
-        //        {
-        //            Node.Interrupt();
-        //        }
-        //        else
-        //        {
-        //            Node.CancelInterrupt();
-        //        }
-        //        OnPropertyChanged(nameof(IsInterrupt));
-        //    }
-        //}
-
-        //public bool IsProtectionParameter
-        //{
-        //    get => MethodDetails.IsProtectionParameter;
-        //    set
-        //    {
-        //        MethodDetails.IsProtectionParameter = value;
-        //        OnPropertyChanged(nameof(IsInterrupt));
-        //    }
-        //}
-
+        /// <summary>
+        /// 
+        /// </summary>
         public event PropertyChangedEventHandler? PropertyChanged;
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="propertyName"></param>
         protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
         
-
+        /// <summary>
+        /// 
+        /// </summary>
         public void Selected()
         {
             IsSelect = true;
         }
-
+        /// <summary>
+        /// 
+        /// </summary>
         public void CancelSelect()
         {
             IsSelect = false;

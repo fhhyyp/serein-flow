@@ -1,9 +1,12 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Serein.Library.Network.WebSocketCommunication.Handle
@@ -37,13 +40,21 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// </summary>
         public ConcurrentDictionary<string, JsonMsgHandleConfig> MyHandleConfigs = new ConcurrentDictionary<string, JsonMsgHandleConfig>();
 
-        internal void AddHandleConfigs(SocketHandleModel model, ISocketHandleModule instance, MethodInfo methodInfo
-            , Action<Exception, Action<object>> onExceptionTracking)
+        /// <summary>
+        /// 添加处理配置
+        /// </summary>
+        /// <param name="module">处理模块</param>
+        /// <param name="jsonMsgHandleConfig">处理配置</param>
+        internal bool AddHandleConfigs(SocketHandleModule module,JsonMsgHandleConfig jsonMsgHandleConfig)
         {
-            if (!MyHandleConfigs.ContainsKey(model.ThemeValue))
+            if (!MyHandleConfigs.ContainsKey(module.ThemeValue))
             {
-                var jsonMsgHandleConfig = new JsonMsgHandleConfig(model,instance, methodInfo, onExceptionTracking);
-                MyHandleConfigs[model.ThemeValue] = jsonMsgHandleConfig;
+                MyHandleConfigs[module.ThemeValue] = jsonMsgHandleConfig;
+                return true;
+            }
+            else
+            {
+                return false;
             }
         }
 
@@ -72,18 +83,14 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         {
             var temp = MyHandleConfigs.Values;
             MyHandleConfigs.Clear();
-            foreach (var config in temp)
-            {
-                config.Clear();
-            }
         }
 
         /// <summary>
         /// 处理JSON数据
         /// </summary>
-        /// <param name="RecoverAsync"></param>
+        /// <param name="tSendAsync"></param>
         /// <param name="jsonObject"></param>
-        public void HandleSocketMsg(Func<string, Task> RecoverAsync, JObject jsonObject)
+        public void HandleSocketMsg(Func<string, Task> tSendAsync, JObject jsonObject)
         {
             // 获取到消息
             string themeKeyName = jsonObject.GetValue(ThemeJsonKey)?.ToString();
@@ -92,11 +99,36 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                 // 没有主题
                 return;
             }
-            if (jsonObject[DataJsonKey] is JObject dataJsonObject)
+
+            Func<object, Task> SendAsync = async (data) =>
             {
-                handldConfig.Handle(RecoverAsync, dataJsonObject);
+                var sendMsg = new
+                {
+                    theme = themeKeyName,
+                    token = "",
+                    data = data,
+                };
+                var msg = JsonConvert.SerializeObject(sendMsg);
+                await tSendAsync(msg);
+            };
+            try
+            {
+
+                JObject dataObj = jsonObject.GetValue(DataJsonKey).ToObject<JObject>();
+                handldConfig.Handle(SendAsync, dataObj);
+
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"error in ws : {ex.Message}{Environment.NewLine}json value:{jsonObject}");
+                return;
+            }
+
+   
+
+           
         }
+
     }
 
 }
