@@ -84,8 +84,7 @@ namespace Serein.Library.Network.WebSocketCommunication
                 }
                 catch (Exception ex)
                 {
-
-                    await Console.Out.WriteLineAsync(ex.ToString());
+                    Debug.WriteLine($"Received: {EX.ToString()}");
                 }
             }
         }
