@@ -48,8 +48,6 @@ namespace Serein.Library.Utils.SereinExpression
         /// <exception cref="NotSupportedException"></exception>
         public static object Evaluate(string expression, object targetObJ, out bool isChange)
         {
-            //var parts = expression.Split([' '], 2);
-
             var parts = expression.Split(new[] { ' ' }, 2, StringSplitOptions.None);
             if (parts.Length != 2)
             {

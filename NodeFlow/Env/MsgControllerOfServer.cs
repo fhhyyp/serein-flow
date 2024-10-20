@@ -184,13 +184,14 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// 从远程环境运行选定的节点
         /// </summary>
-        /// <param name="startNodeGuid"></param>
+        /// <param name="nodeGuid"></param>
         /// <returns></returns>
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.StartFlowInSelectNode)]
-        private async Task StartAsyncInSelectNode(string startNodeGuid)
+        private async Task StartAsyncInSelectNode(string nodeGuid)
         {
-            await environment.StartAsyncInSelectNode(startNodeGuid);
+            await environment.StartAsyncInSelectNode(nodeGuid);
         }
+
         /// <summary>
         /// 结束流程
         /// </summary>
@@ -321,9 +322,15 @@ namespace Serein.NodeFlow.Env
         /// <param name="nodeGuid"></param>
         /// <exception cref="NotImplementedException"></exception>
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.RemoveNode)]
-        public void RemoveNode(string nodeGuid)
+        public async Task<object> RemoveNode(string nodeGuid)
         {
-            environment.RemoveNode(nodeGuid);
+            //var result = environment.RemoveNodeAsync(nodeGuid).GetAwaiter().GetResult();
+            var result = await environment.RemoveNodeAsync(nodeGuid);
+            //return result;
+            return new
+            {
+                state = result
+            };
         }
 
 
@@ -334,9 +341,21 @@ namespace Serein.NodeFlow.Env
         /// <param name="toNodeGuid">目标节点</param>
         /// <param name="connectionType">连接关系</param>
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.ConnectNode)]
-        public void ConnectNode(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
+        public async Task<object> ConnectNode(string fromNodeGuid, string toNodeGuid, string connectionType)
         {
-            environment.ConnectNodeAsync(fromNodeGuid, toNodeGuid, connectionType);
+            if (!EnumHelper.TryConvertEnum<ConnectionType>(connectionType, out var tmpConnectionType))
+            {
+                return new
+                {
+                    state = false
+                };
+            }
+            //environment.ConnectNodeAsync(fromNodeGuid, toNodeGuid, tmpConnectionType);
+            var result = await environment.ConnectNodeAsync(fromNodeGuid, toNodeGuid, tmpConnectionType);
+            return new
+            {
+                state = result
+            };
         }
 
         /// <summary>
@@ -347,9 +366,21 @@ namespace Serein.NodeFlow.Env
         /// <param name="connectionType">连接关系</param>
         /// <exception cref="NotImplementedException"></exception>
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.RemoveConnect)]
-        public void RemoveConnect(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
+        public async Task<object> RemoveConnect(string fromNodeGuid, string toNodeGuid, string connectionType)
         {
-            environment.RemoveConnect(fromNodeGuid, toNodeGuid, connectionType);
+            if (!EnumHelper.TryConvertEnum<ConnectionType>(connectionType, out var tmpConnectionType))
+            {
+                return new
+                {
+                    state = false
+                };
+            }
+
+            var result = await environment.RemoveConnectAsync(fromNodeGuid, toNodeGuid, tmpConnectionType);
+            return new
+            {
+                state = result
+            };
         }
 
         /// <summary>

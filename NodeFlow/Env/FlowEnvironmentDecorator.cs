@@ -67,6 +67,7 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         public IFlowEnvironment CurrentEnv { get => currentFlowEnvironment; }
 
+        public UIContextOperation UIContextOperation => currentFlowEnvironment.UIContextOperation;
 
         public ISereinIOC IOC => (ISereinIOC)currentFlowEnvironment;
 
@@ -103,10 +104,10 @@ namespace Serein.NodeFlow.Env
             remove { currentFlowEnvironment.OnNodeCreate -= value; }
         }
 
-        public event NodeRemoteHandler OnNodeRemote
+        public event NodeRemoveHandler OnNodeRemove
         {
-            add { currentFlowEnvironment.OnNodeRemote += value; }
-            remove { currentFlowEnvironment.OnNodeRemote -= value; }
+            add { currentFlowEnvironment.OnNodeRemove += value; }
+            remove { currentFlowEnvironment.OnNodeRemove -= value; }
         }
 
         public event StartNodeChangeHandler OnStartNodeChange
@@ -198,7 +199,8 @@ namespace Serein.NodeFlow.Env
             (var isConnect, var remoteEnvControl) = await currentFlowEnvironment.ConnectRemoteEnv(addres, port, token);
             if (isConnect)
             {
-                remoteFlowEnvironment ??= new RemoteFlowEnvironment(remoteEnvControl);
+                
+                remoteFlowEnvironment ??= new RemoteFlowEnvironment(remoteEnvControl, this.UIContextOperation);
                 currentFlowEnvironment = remoteFlowEnvironment;
             }
             return (isConnect, remoteEnvControl);
@@ -277,14 +279,14 @@ namespace Serein.NodeFlow.Env
             return currentFlowEnvironment.RemoteDll(assemblyFullName);
         }
 
-        public void RemoveConnect(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
+        public async Task<bool> RemoveConnectAsync(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
         {
-            currentFlowEnvironment.RemoveConnect(fromNodeGuid, toNodeGuid, connectionType);
+            return await currentFlowEnvironment.RemoveConnectAsync(fromNodeGuid, toNodeGuid, connectionType);
         }
 
-        public void RemoveNode(string nodeGuid)
+        public async Task<bool> RemoveNodeAsync(string nodeGuid)
         {
-            currentFlowEnvironment.RemoveNode(nodeGuid);
+          return await  currentFlowEnvironment.RemoveNodeAsync(nodeGuid);
         }
 
 

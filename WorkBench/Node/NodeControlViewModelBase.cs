@@ -6,16 +6,18 @@ namespace Serein.Workbench.Node.ViewModel
 {
     public abstract class NodeControlViewModelBase : INotifyPropertyChanged
     {
-        public NodeControlViewModelBase(NodeModelBase node)
+        public NodeControlViewModelBase(NodeModelBase nodeModel)
         {
-            Node = node;
-            MethodDetails = Node.MethodDetails;
+            NodeModel = nodeModel;
+            MethodDetails = NodeModel.MethodDetails;
+
+            // 订阅来自 NodeModel 的通知事件
         }
 
         /// <summary>
         /// 对应的节点实体类
         /// </summary>
-        internal NodeModelBase Node { get; }
+        internal NodeModelBase NodeModel { get; }
 
 
         private bool isSelect;
@@ -37,12 +39,12 @@ namespace Serein.Workbench.Node.ViewModel
         /// </summary>
         public NodeDebugSetting DebugSetting
         {
-            get => Node.DebugSetting;
+            get => NodeModel.DebugSetting;
             set
             {
                 if (value != null)
                 {
-                    Node.DebugSetting = value;
+                    NodeModel.DebugSetting = value;
                     OnPropertyChanged();
                 }
             }
@@ -53,12 +55,12 @@ namespace Serein.Workbench.Node.ViewModel
         /// </summary>
         public MethodDetails MethodDetails
         {
-            get => Node.MethodDetails;
+            get => NodeModel.MethodDetails;
             set
             {
                 if(value != null)
                 {
-                    Node.MethodDetails = value;
+                    NodeModel.MethodDetails = value;
                     OnPropertyChanged();
                 }
             }
@@ -78,35 +80,12 @@ namespace Serein.Workbench.Node.ViewModel
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
         public event PropertyChangedEventHandler? PropertyChanged;
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="propertyName"></param>
         protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
         
-        /// <summary>
-        /// 
-        /// </summary>
-        public void Selected()
-        {
-            IsSelect = true;
-        }
-        /// <summary>
-        /// 
-        /// </summary>
-        public void CancelSelect()
-        {
-            IsSelect = false;
-        }
-
-
     }
 }

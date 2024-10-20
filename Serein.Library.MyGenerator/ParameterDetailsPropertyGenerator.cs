@@ -10,7 +10,7 @@ using System.Text;
 using System.Threading;
 
 
-namespace Serein.Library.MyGenerator
+namespace Serein.Library.NodeGenerator
 {
 
 
@@ -20,6 +20,7 @@ namespace Serein.Library.MyGenerator
     [Generator]
     public class MyPropertyGenerator : IIncrementalGenerator
     {
+
         /// <summary>
         /// 初始化生成器，定义需要执行的生成逻辑。
         /// </summary>
@@ -83,6 +84,17 @@ namespace Serein.Library.MyGenerator
                 }
             });
         }
+        private int myProperty;
+
+        public int MyProperty { get => myProperty; set 
+        {
+            if(myProperty == null)
+            {
+
+                myProperty = value;
+            }
+        } }
+
 
 
 
@@ -103,20 +115,28 @@ namespace Serein.Library.MyGenerator
 
             // 生成命名空间和类的开始部分
             sb.AppendLine($"using System;");
+            sb.AppendLine($"using System.Threading;");
+            sb.AppendLine($"using System.Threading.Tasks;");
+            sb.AppendLine($"using System.Collections.Concurrent;");
             sb.AppendLine($"using Serein.Library;");
             sb.AppendLine($"using Serein.Library.Api;");
+            sb.AppendLine($"using static Serein.Library.Utils.ChannelFlowInterrupt;");
             sb.AppendLine($"");
             sb.AppendLine($"namespace {namespaceName}");
             sb.AppendLine("{");
-            sb.AppendLine($"    public partial class {className}");
+            sb.AppendLine($"    public partial class {className} : System.ComponentModel.INotifyPropertyChanged");
             sb.AppendLine("    {");
 
             var path = classInfo["AutoPropertyAttribute"]["ValuePath"];
 
+            
+            //
+            //
+
             // "ParameterDetails";
             // "MethodDetails";
 
-            
+
 
 
             try
@@ -130,35 +150,36 @@ namespace Serein.Library.MyGenerator
                         continue;
                     }
 
-                    var leadingTrivia = field.GetLeadingTrivia().InsertSummaryComment("（此属性由源生成器生成）").ToString(); // 获取注释
+                    var leadingTrivia = field.GetLeadingTrivia().InsertSummaryComment("（此属性为自动生成）").ToString(); // 获取注释
                     var fieldName = field.Declaration.Variables.First().Identifier.Text; // 获取字段名称
                     var fieldType = field.Declaration.Type.ToString(); // 获取字段类型
                     var propertyName = field.ToPropertyName(); // 转为合适的属性名称
                     var attributeInfo = fieldKV.Value; // 缓存的特性信息
 
-                    //if (!attributeInfo.TryGetValue("PropertyInfo",out var tmp) || tmp.Count == 0)
-                    //{
-                    //    continue;
-                    //}
 
-                   
+                    var isProtection = attributeInfo.Search("PropertyInfo", "IsProtection", "true"); // 是否为保护字段
+           
 
                     // 生成 getter / setter
                     sb.AppendLine(leadingTrivia);
                     sb.AppendLine($"        public {fieldType} {propertyName}");
                     sb.AppendLine("        {");
-                    sb.AppendLine($"            get => {fieldName};"); 
+                    sb.AppendLine($"            get => {fieldName};"); // getter方法
                     sb.AppendLine("            set");
                     sb.AppendLine("            {");
-                    sb.AppendLine($"                if ({fieldName} != value)"); 
-                    sb.AppendLine("                {"); 
+                    sb.AppendLine($"                if ({fieldName} {(isProtection ? "== default" : "!= value")})"); // 非保护的Setter
+                    sb.AppendLine("                {");
                     if (attributeInfo.Search("PropertyInfo", "IsPrint", "true"))  // 是否打印
                     {
                         sb.AddCode(5, $"Console.WriteLine({fieldName});");
                     }
                     if (attributeInfo.Search("PropertyInfo", "IsNotification", "true")) // 是否通知
                     {
-                        if (classInfo.ExitsPath("MethodDetails"))
+                        if (classInfo.ExitsPath("NodeModelBase"))
+                        {
+                            sb.AddCode(5, $"this.env?.NotificationNodeValueChangeAsync(this.Guid, .nameof({propertyName}), value);");
+                        }
+                        else if (classInfo.ExitsPath("MethodDetails"))
                         {
                             sb.AddCode(5, $"nodeModel?.Env?.NotificationNodeValueChangeAsync(nodeModel.Guid, \"MethodDetails.\"+nameof({propertyName}), value);");
                         }
@@ -166,26 +187,53 @@ namespace Serein.Library.MyGenerator
                         {
                             sb.AddCode(5, "nodeModel?.Env?.NotificationNodeValueChangeAsync(nodeModel.Guid, \"MethodDetails.ParameterDetailss[\"+$\"{Index}\"+\"]." + $"\"+nameof({propertyName}),value);");
                         }
-                       
+                        else if (classInfo.ExitsPath("NodeDebugSetting"))
+                        {
+                            sb.AddCode(5, $"nodeModel?.Env?.NotificationNodeValueChangeAsync(nodeModel.Guid, \"DebugSetting.\"+nameof({propertyName}), value);");
+                        }
                     }
-                    sb.AppendLine($"                    {fieldName} = value;"); 
+                    sb.AppendLine($"                    {fieldName} = value;");
+                    sb.AppendLine($"                    OnPropertyChanged(); // 先更改属性，然后通知属性发生改变了");
                     sb.AppendLine("                }");
                     sb.AppendLine("            }");
-                    sb.AppendLine("        }");
+                    sb.AppendLine("        }"); // 属性的结尾大括号
                 }
+
+
+                sb.AppendLine("        /// <summary>"); 
+                sb.AppendLine("        /// 略"); 
+                sb.AppendLine("        /// <para>此事件为自动生成</para>"); 
+                sb.AppendLine("        /// </summary>"); 
+                sb.AppendLine("        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;");
+
+                sb.AppendLine("        /// <summary>");
+                sb.AppendLine("        /// 略");
+                sb.AppendLine("        /// <para>此方法为自动生成</para>"); 
+                sb.AppendLine("        /// </summary>");
+                sb.AppendLine("        /// <param name=\"propertyName\"></param>");
+                sb.AppendLine("        ");
+                sb.AppendLine("        protected void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)"); 
+                sb.AppendLine("        {"); 
+                //sb.AppendLine("            Console.WriteLine(\"测试:\"+ propertyName);"); 
+                sb.AppendLine("            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));"); 
+                sb.AppendLine("        }");
+
+                
             }
             finally
             {
                 // 生成类的结束部分
-                sb.AppendLine("    }");
-                sb.AppendLine("}");
+                sb.AppendLine("    }"); // 类的结尾大括号
+                sb.AppendLine("}"); // 命名空间的结尾大括号
             }
-
-
 
             return sb.ToString(); // 返回生成的代码
         }
-
+        
+        
+        
+        
+        
         /// <summary>
         /// 获取类所在的命名空间。
         /// </summary>
@@ -198,7 +246,19 @@ namespace Serein.Library.MyGenerator
             return namespaceDeclaration?.Name.ToString() ?? "GlobalNamespace";
         }
 
-       
+
+        
+        private void SetterIsProtection()
+        {
+
+        }
+         private void SetterNotIsProtection()
+        {
+
+        }
+
+
+
 
     }
 

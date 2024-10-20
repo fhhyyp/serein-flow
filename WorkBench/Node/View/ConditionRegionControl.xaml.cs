@@ -34,7 +34,7 @@ namespace Serein.Workbench.Node.View
         /// <param name="node"></param>
         public void AddCondition(NodeControlBase node)
         {
-            ((CompositeConditionNode)ViewModel.Node).AddNode((SingleConditionNode)node.ViewModel.Node);
+            ((CompositeConditionNode)ViewModel.NodeModel).AddNode((SingleConditionNode)node.ViewModel.NodeModel);
 
             this.Width += node.Width;
             this.Height += node.Height;

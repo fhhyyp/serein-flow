@@ -1,4 +1,5 @@
-﻿using Serein.Library.Utils;
+﻿
+using Serein.Library.Utils;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -228,10 +229,10 @@ namespace Serein.Library.Api
     /// </summary>
     /// <param name="eventArgs"></param>
 
-    public delegate void NodeRemoteHandler(NodeRemoteEventArgs eventArgs);
-    public class NodeRemoteEventArgs : FlowEventArgs
+    public delegate void NodeRemoveHandler(NodeRemoveEventArgs eventArgs);
+    public class NodeRemoveEventArgs : FlowEventArgs
     {
-        public NodeRemoteEventArgs(string nodeGuid)
+        public NodeRemoveEventArgs(string nodeGuid)
         {
             this.NodeGuid = nodeGuid;
         }
@@ -478,9 +479,14 @@ namespace Serein.Library.Api
         RunState FlipFlopState { get;  set; }
 
         /// <summary>
-        /// 拓展功能时，如需订阅事件，则需要使用该属性
+        /// 表示当前环境
         /// </summary>
         IFlowEnvironment CurrentEnv { get; }
+
+        /// <summary>
+        /// 由运行环境提供的UI线程上下文操作，用于类库中需要在UI线程中操作视觉元素的场景
+        /// </summary>
+        UIContextOperation UIContextOperation { get;  }
 
         #endregion
 
@@ -509,7 +515,7 @@ namespace Serein.Library.Api
         /// <summary>
         /// 移除节点事件
         /// </summary>
-        event NodeRemoteHandler OnNodeRemote;
+        event NodeRemoveHandler OnNodeRemove;
 
         /// <summary>
         /// 起始节点变化事件
@@ -674,13 +680,13 @@ namespace Serein.Library.Api
         /// <param name="fromNodeGuid">起始节点</param>
         /// <param name="toNodeGuid">目标节点</param>
         /// <param name="connectionType">连接类型</param>
-        void RemoveConnect(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType);
+        Task<bool> RemoveConnectAsync(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType);
 
         /// <summary>
         /// 移除节点/区域/基础控件
         /// </summary>
         /// <param name="nodeGuid">待移除的节点Guid</param>
-        void RemoveNode(string nodeGuid);
+        Task<bool> RemoveNodeAsync(string nodeGuid);
 
         /// <summary>
         /// 激活未启动的全局触发器

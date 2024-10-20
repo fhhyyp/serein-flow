@@ -212,6 +212,8 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                 if (EmitMethodType == EmitHelper.EmitMethodType.HasResultTask && EmitDelegate is Func<object, object[], Task<object>> hasResultTask)
                 {
                     result = await hasResultTask(Instance, args);
+                    //Console.WriteLine(result);
+                    // why not data?
                 }
                 else if (EmitMethodType == EmitHelper.EmitMethodType.Task && EmitDelegate is Func<object, object[], Task> task)
                 {
@@ -241,12 +243,23 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
            //sw.Stop();
            //Console.WriteLine($"Emit Invoke：{sw.ElapsedTicks * 1000000F / Stopwatch.Frequency:n3}μs");
 
-            if(Module.IsReturnValue &&  result != null && result.GetType().IsClass)
+            if(result is null)
             {
-                //var reusltJsonText = JsonConvert.SerializeObject(result);
-                _ = SendAsync.Invoke(result);
-                //_ = SendAsync.Invoke($"{reusltJsonText}");
+                return;
             }
+            else
+            {
+                if (Module.IsReturnValue)
+                {
+                    _ = SendAsync.Invoke(result);
+                }
+            }
+            //if( &&  result != null && result.GetType().IsClass)
+            //{
+            //    //var reusltJsonText = JsonConvert.SerializeObject(result);
+               
+            //    //_ = SendAsync.Invoke($"{reusltJsonText}");
+            //}
             
 
         }

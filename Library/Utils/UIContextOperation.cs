@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace Serein.Library.Utils
 {
     /// <summary>
-    /// 为类库提供了在UI线程上下文操作的方法
+    /// 为类库提供了在UI线程上下文操作的方法，如果你在Windows平台上运行，不必手动实例化该类
     /// </summary>
     public class UIContextOperation
     {

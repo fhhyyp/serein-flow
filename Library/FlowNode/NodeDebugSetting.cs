@@ -9,27 +9,41 @@ namespace Serein.Library
     /// <summary>
     /// 节点调试设置，用于中断节点的运行
     /// </summary>
-    public class NodeDebugSetting
+    [AutoProperty(ValuePath = nameof(NodeDebugSetting))]
+    public partial class NodeDebugSetting
     {
+        private readonly NodeModelBase nodeModel;
+        /// <summary>
+        /// 创建属于某个节点的调试设置
+        /// </summary>
+        /// <param name="nodeModel"></param>
+        public NodeDebugSetting(NodeModelBase nodeModel)
+        {
+            this.nodeModel = nodeModel;
+        }
         /// <summary>
         /// 是否使能
         /// </summary>
-        public bool IsEnable { get; set; } = true;
+        [PropertyInfo(IsNotification = true)]
+        private bool _isEnable = true;
 
         /// <summary>
         ///  中断级别，暂时停止继续执行后继分支。
         /// </summary>
-        public InterruptClass InterruptClass { get; set; } = InterruptClass.None;
+        [PropertyInfo]
+        private InterruptClass _interruptClass = InterruptClass.None;
 
         /// <summary>
         /// 取消中断的回调函数
         /// </summary>
-        public Action CancelInterruptCallback { get; set; }
+        [PropertyInfo]
+        private Action _cancelInterruptCallback;
 
         /// <summary>
-        /// 中断Task（用来取消中断）
+        /// 中断Task（用来中断）
         /// </summary>
-        public Func<Task<CancelType>> GetInterruptTask { get; set; }
+        [PropertyInfo]
+        private Func<Task<CancelType>> _getInterruptTask;
     }
 
 
@@ -53,3 +67,6 @@ namespace Serein.Library
         Global,
     }
 }
+
+
+

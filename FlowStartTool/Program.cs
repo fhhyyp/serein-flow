@@ -1,9 +1,11 @@
 ﻿using Newtonsoft.Json;
 using Serein.Library;
 using Serein.Library.Api;
+using Serein.Library.Utils;
 using Serein.NodeFlow.Env;
 using System.Diagnostics;
 using System.Reflection;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Serein.FlowStartTool
 {
@@ -18,7 +20,7 @@ namespace Serein.FlowStartTool
             SereinProjectData? flowProjectData;
 
             string exeAssemblyDictPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-
+           
             if (args.Length == 1) 
             {
                 filePath = args[0];
@@ -26,6 +28,7 @@ namespace Serein.FlowStartTool
             }
             else if (args.Length == 0)
             {
+                Console.WriteLine("loading project file data...");
                 filePath = Process.GetCurrentProcess().ProcessName + ".dnf";
                 fileDataPath = exeAssemblyDictPath;
 
@@ -66,10 +69,32 @@ namespace Serein.FlowStartTool
         public static bool IsRuning;
         public static async Task StartFlow(SereinProjectData flowProjectData, string fileDataPath)
         {
-            Env = new FlowEnvironment();
             
+            SynchronizationContext? uiContext = SynchronizationContext.Current; // 在UI线程上获取UI线程上下文信息
+            var uIContextOperation = new UIContextOperation(uiContext); // 封装一个调用UI线程的工具类
+
+            //if (OperatingSystem.IsLinux())
+            //{
+
+            //}
+
+            // if (uIContextOperation is null)
+            //{
+            //    throw new Exception("无法封装 UIContextOperation ");
+            //}
+            //else
+            //{
+            //    env = new FlowEnvironmentDecorator(uIContextOperation);
+            //    this.window = window;
+            //}
+
+            Env = new FlowEnvironmentDecorator(uIContextOperation); // Linux 环境下没有线程上下文（暂时没有写）
             Env.LoadProject(new FlowEnvInfo { Project = flowProjectData }, fileDataPath); // 加载项目
-            await Env.StartAsync();
+            await Env.StartRemoteServerAsync(7525); // 启动 web socket 监听远程请求
+
+            //await Env.StartAsync();
+
+
             IsRuning = false;
         }
 

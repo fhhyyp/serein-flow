@@ -20,6 +20,7 @@ namespace Serein.Library
     {
         public bool IsNotification = false;
         public bool IsPrint = false;
+        public bool IsProtection = false;
     }
 
 }

@@ -75,7 +75,6 @@ namespace Serein.Library.Utils
         /// 创建信号，直到手动触发（异步方法）
         /// </summary>
         /// <param name="signal">信号标识符</param>
-        /// <param name="outTime">超时时间</param>
         /// <returns>等待任务</returns>
         public async Task<CancelType> GetOrCreateChannelAsync(string signal)
         {

@@ -43,7 +43,7 @@
             </MenuItem>
             <MenuItem Header="调试">
                 <MenuItem Header="运行（从起始节点）" Click="ButtonDebugRun_Click"></MenuItem>
-                <MenuItem Header="运行（从选定节点）" Click="ButtonDebugFlipflopNode_Click"></MenuItem>
+                <MenuItem Header="运行（从选定节点）" Click="ButtonStartFlowInSelectNode_Click"></MenuItem>
                 <MenuItem Header="结束流程" Click="ButtonDebugFlipflopNode_Click"></MenuItem>
             </MenuItem>
             <MenuItem Header="视图">
