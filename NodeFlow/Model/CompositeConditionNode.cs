@@ -4,20 +4,38 @@ using Serein.Library.Api;
 
 namespace Serein.NodeFlow.Model
 {
+
     /// <summary>
     /// 组合条件节点（用于条件区域）
     /// </summary>
-    public class CompositeConditionNode : NodeModelBase
+    [NodeProperty(ValuePath = NodeValuePath.Node)]
+    public partial class CompositeConditionNode : NodeModelBase
+    {
+        /// <summary>
+        /// 条件节点集合
+        /// </summary>
+        [PropertyInfo]
+        private List<SingleConditionNode> _conditionNodes;
+    }
+
+
+    /// <summary>
+    /// 组合条件节点（用于条件区域）
+    /// </summary>
+    public partial class CompositeConditionNode : NodeModelBase
     {
         public CompositeConditionNode(IFlowEnvironment environment):base(environment) 
         {
             
         }
-        public List<SingleConditionNode> ConditionNodes { get; } = [];
 
 
         public void AddNode(SingleConditionNode node)
         {
+            if(ConditionNodes is null)
+            {
+                ConditionNodes = new List<SingleConditionNode>();
+            }
             ConditionNodes.Add(node);
             MethodDetails ??= node.MethodDetails;
         }
@@ -93,6 +111,7 @@ namespace Serein.NodeFlow.Model
                 ParameterData = parameterData.ToArray(),
                 ErrorNodes = errorNodes.ToArray(),
                 ChildNodeGuids = ConditionNodes.Select(node => node.Guid).ToArray(),
+                Position = Position,
             };
         }
 

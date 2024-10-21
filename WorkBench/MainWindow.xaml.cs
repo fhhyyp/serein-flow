@@ -461,6 +461,11 @@ namespace Serein.Workbench
                 return;
             }
 
+            if(nodeModelBase is null)
+            {
+                Console.WriteLine("OnNodeCreateEvent事件接收到意外的返回值");
+                return;
+            }
             // MethodDetails methodDetailss = eventArgs.MethodDetailss;
             PositionOfUI position = eventArgs.Position;
 
@@ -577,15 +582,15 @@ namespace Serein.Workbench
         {
             string nodeGuid = eventArgs.NodeGuid;
             if (!TryGetControl(nodeGuid, out var nodeControl)) return;
-            if (eventArgs.Class == InterruptClass.None)
-            {
-                nodeControl.ViewModel.IsInterrupt = false;
 
-            }
-            else
-            {
-                nodeControl.ViewModel.IsInterrupt = true;
-            }
+            //if (eventArgs.Class == InterruptClass.None)
+            //{
+            //    nodeControl.ViewModel.IsInterrupt = false;
+            //}
+            //else
+            //{
+            //    nodeControl.ViewModel.IsInterrupt = true;
+            //}
 
             foreach (var menuItem in nodeControl.ContextMenu.Items)
             {
@@ -1203,35 +1208,48 @@ namespace Serein.Workbench
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void FlowChartCanvas_Drop(object sender, DragEventArgs e)
+        private void FlowChartCanvas_Drop(object sender, DragEventArgs e)
         {
-            var canvasDropPosition = e.GetPosition(FlowChartCanvas); // 更新画布落点
-            PositionOfUI position = new PositionOfUI(canvasDropPosition.X, canvasDropPosition.Y);
-            if (e.Data.GetDataPresent(MouseNodeType.CreateDllNodeInCanvas))
+            try
             {
-                if (e.Data.GetData(MouseNodeType.CreateDllNodeInCanvas) is MoveNodeData nodeData)
+                var canvasDropPosition = e.GetPosition(FlowChartCanvas); // 更新画布落点
+                PositionOfUI position = new PositionOfUI(canvasDropPosition.X, canvasDropPosition.Y);
+                if (e.Data.GetDataPresent(MouseNodeType.CreateDllNodeInCanvas))
                 {
-                    await EnvDecorator.CreateNodeAsync(nodeData.NodeControlType, position, nodeData.MethodDetailsInfo); // 创建DLL文件的节点对象
-                }
-            }
-            else if (e.Data.GetDataPresent(MouseNodeType.CreateBaseNodeInCanvas))
-            {
-                if (e.Data.GetData(MouseNodeType.CreateBaseNodeInCanvas) is Type droppedType)
-                {
-                    NodeControlType nodeControlType = droppedType switch
+                    if (e.Data.GetData(MouseNodeType.CreateDllNodeInCanvas) is MoveNodeData nodeData) 
                     {
-                        Type when typeof(ConditionRegionControl).IsAssignableFrom(droppedType) => NodeControlType.ConditionRegion, // 条件区域
-                        Type when typeof(ConditionNodeControl).IsAssignableFrom(droppedType) => NodeControlType.ExpCondition,
-                        Type when typeof(ExpOpNodeControl).IsAssignableFrom(droppedType) => NodeControlType.ExpOp,
-                        _ => NodeControlType.None,
-                    };
-                    if(nodeControlType != NodeControlType.None)
-                    {
-                        await EnvDecorator.CreateNodeAsync(nodeControlType, position); // 创建基础节点对象
+                        Task.Run(async () =>
+                        {
+                            await EnvDecorator.CreateNodeAsync(nodeData.NodeControlType, position, nodeData.MethodDetailsInfo); // 创建DLL文件的节点对象
+                        });
                     }
                 }
+                else if (e.Data.GetDataPresent(MouseNodeType.CreateBaseNodeInCanvas))
+                {
+                    if (e.Data.GetData(MouseNodeType.CreateBaseNodeInCanvas) is Type droppedType)
+                    {
+                        NodeControlType nodeControlType = droppedType switch
+                        {
+                            Type when typeof(ConditionRegionControl).IsAssignableFrom(droppedType) => NodeControlType.ConditionRegion, // 条件区域
+                            Type when typeof(ConditionNodeControl).IsAssignableFrom(droppedType) => NodeControlType.ExpCondition,
+                            Type when typeof(ExpOpNodeControl).IsAssignableFrom(droppedType) => NodeControlType.ExpOp,
+                            _ => NodeControlType.None,
+                        };
+                        if (nodeControlType != NodeControlType.None)
+                        {
+                            Task.Run(async () =>
+                            {
+                                await EnvDecorator.CreateNodeAsync(nodeControlType, position); // 创建基础节点对象
+                            });
+                        }
+                    }
+                }
+                e.Handled = true;
             }
-            e.Handled = true;
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+            }
         }
 
         /// <summary>
@@ -1897,7 +1915,7 @@ namespace Serein.Workbench
             //Console.WriteLine($"一共选取了{selectNodeControls.Count}个控件");
             foreach (var node in selectNodeControls)
             {
-                node.ViewModel.IsSelect =true;
+                //node.ViewModel.IsSelect =true;
                 // node.ViewModel.CancelSelect();
                 node.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFC700"));
                 node.BorderThickness = new Thickness(4);
@@ -1908,7 +1926,7 @@ namespace Serein.Workbench
             IsSelectControl = false;
             foreach (var nodeControl in selectNodeControls)
             {
-                nodeControl.ViewModel.IsSelect = false;
+                //nodeControl.ViewModel.IsSelect = false;
                 nodeControl.BorderBrush = Brushes.Black;
                 nodeControl.BorderThickness = new Thickness(0);
                 if (nodeControl.ViewModel.NodeModel.IsStart)

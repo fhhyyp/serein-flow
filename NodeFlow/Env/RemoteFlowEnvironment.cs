@@ -3,8 +3,6 @@ using Serein.Library.Api;
 using Serein.Library.Utils;
 using Serein.NodeFlow.Tool;
 using System.Collections.Concurrent;
-using System.Threading;
-using System.Xml.Linq;
 
 namespace Serein.NodeFlow.Env
 {
@@ -104,9 +102,8 @@ namespace Serein.NodeFlow.Env
 
         public void LoadProject(FlowEnvInfo flowEnvInfo, string filePath)
         {
-            Console.WriteLine("远程环境尚未实现的接口：LoadProject");
+            //Console.WriteLine("远程环境尚未实现的接口：LoadProject");
 
-            
             // dll面板
             var libmds = flowEnvInfo.LibraryMds;
             foreach (var lib in libmds)
@@ -143,8 +140,11 @@ namespace Serein.NodeFlow.Env
                 else
                 {
                   
-                    MethodDetails? methodDetails;
-                    MethodDetailss.TryGetValue(nodeInfo.MethodName, out methodDetails);// 尝试获取方法信息
+                    MethodDetails? methodDetails = null;
+                    if (!string.IsNullOrEmpty(nodeInfo.MethodName))
+                    {
+                        MethodDetailss.TryGetValue(nodeInfo.MethodName, out methodDetails);// 加载远程环境时尝试获取方法信息
+                    }
 
                     var nodeModel = FlowFunc.CreateNode(this, controlType, methodDetails); // 加载远程项目时创建节点
                     nodeModel.LoadInfo(nodeInfo); // 创建节点model
@@ -160,7 +160,6 @@ namespace Serein.NodeFlow.Env
                     {
                         regionChildNodes.Add((nodeModel, nodeInfo.ChildNodeGuids));
                         UIContextOperation?.Invoke(() => OnNodeCreate?.Invoke(new NodeCreateEventArgs(nodeModel, nodeInfo.Position)));
-                        //OnNodeCreate?.Invoke(new NodeCreateEventArgs(nodeModel, nodeInfo.Position));
                     }
                     else
                     {
@@ -181,7 +180,6 @@ namespace Serein.NodeFlow.Env
                         continue;
                     }
                     // 存在节点
-                    //OnNodeCreate?.Invoke(new NodeCreateEventArgs(childNode, true, item.region.Guid));
                     UIContextOperation?.Invoke(() => OnNodeCreate?.Invoke(new NodeCreateEventArgs(childNode, true, item.region.Guid)));
                 }
             }
@@ -252,7 +250,10 @@ namespace Serein.NodeFlow.Env
             });
 
             SetStartNode(projectData.StartNode);
-            OnProjectLoaded?.Invoke(new ProjectLoadedEventArgs());
+            UIContextOperation?.Invoke(() =>
+            {
+                OnProjectLoaded?.Invoke(new ProjectLoadedEventArgs());
+            });
 
         }
         private bool TryAddNode(NodeModelBase nodeModel)
@@ -394,7 +395,10 @@ namespace Serein.NodeFlow.Env
 
         public void MoveNode(string nodeGuid, double x, double y)
         {
-            OnNodeMoved.Invoke(new NodeMovedEventArgs(nodeGuid, x, y));
+            UIContextOperation.Invoke(() =>
+            {
+                OnNodeMoved.Invoke(new NodeMovedEventArgs(nodeGuid, x, y));
+            });
             _ = msgClient.SendAsync(EnvMsgTheme.MoveNode,
                     new
                     {
@@ -404,13 +408,14 @@ namespace Serein.NodeFlow.Env
                     });
         }
 
+        
         public void SetStartNode(string nodeGuid)
         {
             _ = msgClient.SendAsync(EnvMsgTheme.SetStartNode, new
             {
                 nodeGuid
             });
-            // UIContextOperation?.Invoke(() => OnStartNodeChange?.Invoke(new StartNodeChangeEventArgs(oldNodeGuid, StartNode.Guid)));
+            //UIContextOperation?.Invoke(() => OnStartNodeChange?.Invoke(new StartNodeChangeEventArgs(nodeGuid,nodeGuid)));
         }
 
         public async Task<bool> ConnectNodeAsync(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
@@ -440,13 +445,22 @@ namespace Serein.NodeFlow.Env
                 mdInfo = methodDetailsInfo,
             });
 
-            MethodDetailss.TryGetValue(methodDetailsInfo.MethodName, out var methodDetails);// 加载项目时尝试获取方法信息
+            MethodDetails? methodDetails = null;
+            if (!string.IsNullOrEmpty(nodeInfo.MethodName))
+            {
+                MethodDetailss.TryGetValue(nodeInfo.MethodName, out methodDetails);// 加载远程环境时尝试获取方法信息
+            }
+
+            //MethodDetailss.TryGetValue(methodDetailsInfo.MethodName, out var methodDetails);// 加载项目时尝试获取方法信息
             var nodeModel = FlowFunc.CreateNode(this, nodeControlType, methodDetails); // 远程环境下加载节点
             nodeModel.LoadInfo(nodeInfo);
             TryAddNode(nodeModel);
 
             // 通知UI更改
-            OnNodeCreate?.Invoke(new NodeCreateEventArgs(nodeModel, position));
+            UIContextOperation.Invoke(() =>
+            {
+                OnNodeCreate?.Invoke(new NodeCreateEventArgs(nodeModel, position));
+            });
             return nodeInfo;
         }
 
@@ -460,10 +474,13 @@ namespace Serein.NodeFlow.Env
             });
             if (result)
             {
-                OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(fromNodeGuid,
+                UIContextOperation.Invoke(() =>
+                {
+                    OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(fromNodeGuid,
                                                                             toNodeGuid,
                                                                             connectionType,
                                                                             NodeConnectChangeEventArgs.ConnectChangeType.Remote));
+                });
             }
             return result;
         }
@@ -476,7 +493,10 @@ namespace Serein.NodeFlow.Env
             });
             if (result)
             {
-                OnNodeRemove?.Invoke(new NodeRemoveEventArgs(nodeGuid));
+                UIContextOperation.Invoke(() =>
+                {
+                    OnNodeRemove?.Invoke(new NodeRemoveEventArgs(nodeGuid));
+                });
             }
             else
             {

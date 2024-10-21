@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 
@@ -20,6 +21,8 @@ namespace Serein.Library.NodeGenerator
     [Generator]
     public class MyPropertyGenerator : IIncrementalGenerator
     {
+        internal static NodePropertyAttribute NodeProperty = new NodePropertyAttribute();
+        internal static PropertyInfoAttribute PropertyInfo = new PropertyInfoAttribute();
 
         /// <summary>
         /// 初始化生成器，定义需要执行的生成逻辑。
@@ -48,7 +51,7 @@ namespace Serein.Library.NodeGenerator
                         // 检查类的特性列表，看看是否存在 MyClassAttribute
                         if (classDeclaration.AttributeLists
                             .SelectMany(attrList => attrList.Attributes)
-                            .Any(attr => semanticModel.GetSymbolInfo(attr).Symbol?.ContainingType.Name == "AutoPropertyAttribute"))
+                            .Any(attr => semanticModel.GetSymbolInfo(attr).Symbol?.ContainingType.Name == nameof(NodePropertyAttribute)))
                         {
                             var classSymbol = semanticModel.GetDeclaredSymbol(classDeclaration); // 获取类的符号
                             var classInfo = classSymbol.BuildCacheOfClass();
@@ -127,7 +130,7 @@ namespace Serein.Library.NodeGenerator
             sb.AppendLine($"    public partial class {className} : System.ComponentModel.INotifyPropertyChanged");
             sb.AppendLine("    {");
 
-            var path = classInfo["AutoPropertyAttribute"]["ValuePath"];
+            var path = classInfo[nameof(NodePropertyAttribute)]["ValuePath"];
 
             
             //
@@ -156,10 +159,10 @@ namespace Serein.Library.NodeGenerator
                     var propertyName = field.ToPropertyName(); // 转为合适的属性名称
                     var attributeInfo = fieldKV.Value; // 缓存的特性信息
 
+                    var isProtection = attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsProtection), "true"); // 是否为保护字段
 
-                    var isProtection = attributeInfo.Search("PropertyInfo", "IsProtection", "true"); // 是否为保护字段
-           
-
+                   
+                   
                     // 生成 getter / setter
                     sb.AppendLine(leadingTrivia);
                     sb.AppendLine($"        public {fieldType} {propertyName}");
@@ -169,34 +172,40 @@ namespace Serein.Library.NodeGenerator
                     sb.AppendLine("            {");
                     sb.AppendLine($"                if ({fieldName} {(isProtection ? "== default" : "!= value")})"); // 非保护的Setter
                     sb.AppendLine("                {");
-                    if (attributeInfo.Search("PropertyInfo", "IsPrint", "true"))  // 是否打印
+                    if (attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsPrint), "true"))  // 是否打印
                     {
                         sb.AddCode(5, $"Console.WriteLine({fieldName});");
                     }
-                    if (attributeInfo.Search("PropertyInfo", "IsNotification", "true")) // 是否通知
+                    if (attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsNotification), "true")) // 是否通知
                     {
-                        if (classInfo.ExitsPath("NodeModelBase"))
+                        if (classInfo.ExitsPath(nameof(NodeValuePath.Node))) // 节点 or 自定义节点
                         {
-                            sb.AddCode(5, $"this.env?.NotificationNodeValueChangeAsync(this.Guid, .nameof({propertyName}), value);");
+                            sb.AddCode(5, $"((NodeModelBase)this).Env?.NotificationNodeValueChangeAsync(this.Guid, nameof({propertyName}), value); // 通知远程环境属性发生改变了");
                         }
-                        else if (classInfo.ExitsPath("MethodDetails"))
+                        else if (classInfo.ExitsPath(nameof(NodeValuePath.Method))) // 节点方法详情
                         {
-                            sb.AddCode(5, $"nodeModel?.Env?.NotificationNodeValueChangeAsync(nodeModel.Guid, \"MethodDetails.\"+nameof({propertyName}), value);");
+                            sb.AddCode(5, $"nodeModel?.Env?.NotificationNodeValueChangeAsync(nodeModel.Guid, \"MethodDetails.\"+nameof({propertyName}), value); // 通知远程环境属性发生改变了");
                         }
-                        else if (classInfo.ExitsPath("ParameterDetails"))
+                        else if (classInfo.ExitsPath(nameof(NodeValuePath.Parameter))) // 节点方法入参参数描述
                         {
-                            sb.AddCode(5, "nodeModel?.Env?.NotificationNodeValueChangeAsync(nodeModel.Guid, \"MethodDetails.ParameterDetailss[\"+$\"{Index}\"+\"]." + $"\"+nameof({propertyName}),value);");
+                            sb.AddCode(5, "nodeModel?.Env?.NotificationNodeValueChangeAsync(nodeModel.Guid, \"MethodDetails.ParameterDetailss[\"+$\"{Index}\"+\"]." + $"\"+nameof({propertyName}),value); // 通知远程环境属性发生改变了");
                         }
-                        else if (classInfo.ExitsPath("NodeDebugSetting"))
+                        else if (classInfo.ExitsPath(nameof(NodeValuePath.DebugSetting))) // 节点的调试信息
                         {
-                            sb.AddCode(5, $"nodeModel?.Env?.NotificationNodeValueChangeAsync(nodeModel.Guid, \"DebugSetting.\"+nameof({propertyName}), value);");
+                            sb.AddCode(5, $"nodeModel?.Env?.NotificationNodeValueChangeAsync(nodeModel.Guid, \"DebugSetting.\"+nameof({propertyName}), value); // 通知远程环境属性发生改变了"); 
                         }
                     }
-                    sb.AppendLine($"                    {fieldName} = value;");
-                    sb.AppendLine($"                    OnPropertyChanged(); // 先更改属性，然后通知属性发生改变了");
+                    sb.AppendLine($"                    SetProperty<{fieldType}>(ref {fieldName}, value); // 通知UI属性发生改变了");
+                    //sb.AppendLine($"                    {fieldName} = value;");
+                    //sb.AppendLine($"                    OnPropertyChanged(); // 通知UI属性发生改变了");
                     sb.AppendLine("                }");
                     sb.AppendLine("            }");
                     sb.AppendLine("        }"); // 属性的结尾大括号
+                    //if (!isProtection && field.TryGetDefaultValue(out var defaultValue))
+                    //{
+
+                    //    sb.AppendLine($"        }} = {defaultValue}"); 
+                    //}
                 }
 
 
@@ -206,19 +215,29 @@ namespace Serein.Library.NodeGenerator
                 sb.AppendLine("        /// </summary>"); 
                 sb.AppendLine("        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;");
 
-                sb.AppendLine("        /// <summary>");
-                sb.AppendLine("        /// 略");
-                sb.AppendLine("        /// <para>此方法为自动生成</para>"); 
+                sb.AppendLine("        protected void SetProperty<T>(ref T storage, T value, [System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)                 ");
+                sb.AppendLine("        {                                                                                                                    ");
+                sb.AppendLine("            if (Equals(storage, value))                                                                                      ");
+                sb.AppendLine("            {                                                                                                                ");
+                sb.AppendLine("                return;                                                                                                      ");
+                sb.AppendLine("            }                                                                                                                ");
+                sb.AppendLine("                                                                                                                             ");
+                sb.AppendLine("            storage = value;                                                                                                 ");
+                sb.AppendLine("            OnPropertyChanged(propertyName);                                                                                 ");
+                sb.AppendLine("        }                                                                                                                    ");
+
+                sb.AppendLine("        /// <summary>                                                                                                        ");
+                sb.AppendLine("        /// 略                                                                                                               ");
+                sb.AppendLine("        /// <para>此方法为自动生成</para>                                                                                    "); 
                 sb.AppendLine("        /// </summary>");
-                sb.AppendLine("        /// <param name=\"propertyName\"></param>");
-                sb.AppendLine("        ");
-                sb.AppendLine("        protected void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)"); 
+                sb.AppendLine("        /// <param name=\"propertyName\"></param>                                                                            ");
+                sb.AppendLine("                                                                                                                             ");
+                sb.AppendLine("        protected void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)      "); 
                 sb.AppendLine("        {"); 
                 //sb.AppendLine("            Console.WriteLine(\"测试:\"+ propertyName);"); 
-                sb.AppendLine("            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));"); 
+                sb.AppendLine("            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));                 "); 
                 sb.AppendLine("        }");
 
-                
             }
             finally
             {
@@ -347,7 +366,12 @@ namespace Serein.Library.NodeGenerator
                 {
                     var key = cata.Key;
                     var value = cata.Value.Value;
-                    if (!attributeInfo.ContainsKey(key))
+                    if (nameof(NodePropertyAttribute).Equals(attributeName))
+                    {
+                        string literal = Enum.GetName(typeof(NodeValuePath), cata.Value.Value);
+                        attributeInfo.Add(key, literal);
+                    }
+                    else
                     {
                         attributeInfo.Add(key, value);
                     }
@@ -374,6 +398,29 @@ namespace Serein.Library.NodeGenerator
             var propertyName = fieldName.StartsWith("_") ? char.ToUpper(fieldName[1]) + fieldName.Substring(2) : char.ToUpper(fieldName[0]) + fieldName.Substring(1); // 创建属性名称
             return propertyName;
         }
+
+        /// <summary>
+        /// 判断字段是否有默认值
+        /// </summary>
+        /// <param name="field"></param>
+        /// <param name="defaultValue"></param>
+        /// <returns></returns>
+        public static bool TryGetDefaultValue(this FieldDeclarationSyntax field ,out string defaultValue)
+        {
+            if (field.Declaration.Variables.First().Initializer != null)
+            {
+                defaultValue = field.Declaration.Variables.First().Initializer.Value.ToString();
+                return true;
+            }
+            else
+            {
+                defaultValue = null;
+                return false;
+            }
+        }
+
+
+
         /// <summary>
         /// 判断字段是否为只读
         /// </summary>
@@ -500,14 +547,13 @@ namespace Serein.Library.NodeGenerator
 
         public static bool ExitsPath(this Dictionary<string, Dictionary<string, object>> classInfo, string valuePath)
         {
-           // var path = classInfo["AutoPropertyAttribute"]["ValuePath"];
-
-           if (!classInfo.TryGetValue("AutoPropertyAttribute", out var keyValuePairs))
+           
+           if (!classInfo.TryGetValue(nameof(NodePropertyAttribute), out var keyValuePairs))
             {
                 return false;
             }
 
-            if (!keyValuePairs.TryGetValue("ValuePath", out var value))
+            if (!keyValuePairs.TryGetValue(nameof(MyPropertyGenerator.NodeProperty.ValuePath), out var value))
             {
                 return false;
             }

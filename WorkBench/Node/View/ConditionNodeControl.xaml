@@ -17,7 +17,7 @@
 
     <Grid>
         <Grid.ToolTip>
-            <ToolTip Background="LightYellow" Foreground="Black" Content="{Binding MethodDetails.MethodTips, UpdateSourceTrigger=PropertyChanged}" />
+            <ToolTip Background="LightYellow" Foreground="Black" Content="{Binding NodeModel.MethodDetails.MethodTips, UpdateSourceTrigger=PropertyChanged}" />
         </Grid.ToolTip>
         
         <Grid.RowDefinitions>
@@ -33,14 +33,14 @@
                 <ColumnDefinition Width="20"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-            <CheckBox  Grid.Column="0" IsChecked="{Binding IsCustomData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>  <!--Converter={StaticResource BoolToVis}-->
-            <TextBox Grid.Column="1" MinWidth="50" Text="{Binding CustomData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+            <CheckBox  Grid.Column="0" IsChecked="{Binding NodeModel.IsCustomData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>  <!--Converter={StaticResource BoolToVis}-->
+            <TextBox Grid.Column="1" MinWidth="50" Text="{Binding NodeModel.CustomData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
                      HorizontalAlignment="Stretch" VerticalAlignment="Center">
                 <TextBox.Style>
                     <Style TargetType="TextBox">
                         <Setter Property="Visibility" Value="Collapsed" />
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsCustomData}" Value="True">
+                            <DataTrigger Binding="{Binding NodeModel.IsCustomData}" Value="True">
                                 <Setter Property="Visibility" Value="Visible" />
                             </DataTrigger>
                         </Style.Triggers>
@@ -53,7 +53,7 @@
                     <Style TargetType="TextBlock">
                         <Setter Property="Visibility" Value="Collapsed" />
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsCustomData}" Value="False">
+                            <DataTrigger Binding="{Binding NodeModel.IsCustomData}" Value="False">
                                 <Setter Property="Visibility" Value="Visible" />
                             </DataTrigger>
                         </Style.Triggers>
@@ -61,7 +61,7 @@
                 </TextBlock.Style>
             </TextBlock>
         </Grid>
-        <TextBox Grid.Row="2"  Background="#f1F66F" MinWidth="100" Text="{Binding Expression, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  
+        <TextBox Grid.Row="2"  Background="#f1F66F" MinWidth="100" Text="{Binding NodeModel.Expression, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  
                   HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
 
         <!--<themes:MethodDetailsControl Grid.Row="1" MethodDetails="{Binding MethodDetails}" />

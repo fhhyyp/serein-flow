@@ -5,10 +5,10 @@ namespace Serein.Workbench.Node.ViewModel
 {
     public class FlipflopNodeControlViewModel : NodeControlViewModelBase
     {
-        private readonly SingleFlipflopNode node;
+        public new SingleFlipflopNode NodelModel { get;}
          public FlipflopNodeControlViewModel(SingleFlipflopNode node) : base(node)
         {
-            this.node = node;
+            this.NodelModel = node;
         }
     }
 }

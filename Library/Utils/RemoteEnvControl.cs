@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Serein.Library.Network.WebSocketCommunication;
 using System;
 using System.Collections.Generic;
@@ -15,29 +16,52 @@ namespace Serein.Library.Utils
     public class RemoteEnvControl
     {
         /// <summary>
-        /// 配置远程连接IP端口
+        /// 远程环境配置
         /// </summary>
-        public RemoteEnvControl(string addres, int port, object token)
+        public class ControlConfiguration
         {
-            this.Addres = addres;
-            this.Port = port;
-            this.Token = token;
+            /// <summary>
+            /// 远程环境的网络地址
+            /// </summary>
+            public string Addres { get; set; }
+
+            /// <summary>
+            /// 远程环境的对外端口
+            /// </summary>
+            public int Port { get; set; }
+
+            /// <summary>
+            /// 登录远程环境必须携带的token(可以为可序列化的JSON对象)
+            /// </summary>
+            public object Token { get; set; }
+
+            /// <summary>
+            /// 有关消息ID的 Json Key
+            /// </summary>
+            public string MsgIdJsonKey { get; set; }
+            /// <summary>
+            /// 有关消息主题的 Json Key
+            /// </summary>
+            public string ThemeJsonKey { get; set; }
+            /// <summary>
+            /// 有关数据的 Json Key
+            /// </summary>
+            public string DataJsonKey { get; set; }
         }
 
         /// <summary>
-        /// 远程环境的网络地址
+        /// 配置远程连接IP端口
         /// </summary>
-        public string Addres { get; }
+        public RemoteEnvControl(ControlConfiguration controlConfiguration)
+        {
+            Config = controlConfiguration;
+        }
 
         /// <summary>
-        /// 远程环境的对外端口
+        /// 配置信息
         /// </summary>
-        public int Port { get; }
+        public ControlConfiguration Config { get; }
 
-        /// <summary>
-        /// 登录远程环境必须携带的token(可以为可序列化的JSON对象)
-        /// </summary>
-        public object Token { get; }
 
 
 
@@ -49,8 +73,8 @@ namespace Serein.Library.Utils
         /// <summary>
         /// 是否连接到了远程环境
         /// </summary>
-        public bool IsConnectdRemoteEnv { get => isConnectdRemoteEnv; }
-        private bool isConnectdRemoteEnv = false;
+        //public bool IsConnectdRemoteEnv { get => isConnectdRemoteEnv; }
+        //private bool isConnectdRemoteEnv = false;
 
         /// <summary>
         /// 尝试连接到远程环境
@@ -59,12 +83,12 @@ namespace Serein.Library.Utils
         public async Task<bool> ConnectAsync()
         {
             // 第2种，WebSocket连接到远程环境，实时接收远程环境的响应？
-            Console.WriteLine($"准备连接：{Addres}:{Port},{Token}");
+            Console.WriteLine($"准备连接：{Config.Addres}:{Config.Port},{Config.Token}");
             bool success = false;
             try
             {
                 var tcpClient = new TcpClient();
-                var result = tcpClient.BeginConnect(Addres, Port, null, null);
+                var result = tcpClient.BeginConnect(Config.Addres, Config.Port, null, null);
                 success = result.AsyncWaitHandle.WaitOne(TimeSpan.FromSeconds(3));
             }
             finally
@@ -73,14 +97,14 @@ namespace Serein.Library.Utils
             }
             if (!success)
             {
-                Console.WriteLine($"无法连通远程端口 {Addres}:{Port}");
+                Console.WriteLine($"无法连通远程端口 {Config.Addres}:{Config.Port}");
                 return false;
             }
             else
             {
-                var url = $"ws://{Addres}:{Port}/";
+                var url = $"ws://{Config.Addres}:{Config.Port}/";
                 var result = await EnvClient.ConnectAsync(url); // 尝试连接远程环境
-                this.isConnectdRemoteEnv = result;
+                //this.isConnectdRemoteEnv = result;
                 return result;
             }
         }
@@ -90,22 +114,55 @@ namespace Serein.Library.Utils
         /// <summary>
         /// 发送消息
         /// </summary>
+        /// <param name="msgId"></param>
         /// <param name="theme"></param>
         /// <param name="data"></param>
         /// <returns></returns>
-        public async Task SendAsync(string theme, object data)
+        public async Task SendAsync(string msgId , string theme, object data)
         {
-            var sendMsg = new
+            //var sendMsg = new
+            //{
+            //    theme = theme,
+            //    token = this.Token,
+            //    data = data,
+            //};
+            //var msg = JsonConvert.SerializeObject(sendMsg);
+            JObject jsonData;
+
+            if (data is null)
             {
-                theme = theme,
-                token = this.Token,
-                data = data,
-            };
-            var msg = JsonConvert.SerializeObject(sendMsg);
+                jsonData = new JObject()
+                {
+                    [Config.MsgIdJsonKey] = msgId,
+                    [Config.ThemeJsonKey] = theme,
+                };
+            }
+            else
+            {
+                JToken dataToken;
+                if (data is System.Collections.IEnumerable || data is Array)
+                {
+                    dataToken = JArray.FromObject(data);
+                }
+                else
+                {
+                    dataToken = JObject.FromObject(data);
+                }
+
+                jsonData = new JObject()
+                {
+                    [Config.MsgIdJsonKey] = msgId,
+                    [Config.ThemeJsonKey] = theme,
+                    [Config.DataJsonKey] = dataToken
+                };
+            }
+           
+            var msg = jsonData.ToString();
+            //Console.WriteLine(msg);
+            //Console.WriteLine();
+
             await EnvClient.SendAsync(msg);
         }
-
-
 
 
 

@@ -12,8 +12,8 @@
     <RepositoryUrl>https://github.com/fhhyyp/serein-flow</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+    
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <CompilerGeneratedFilesOutputPath>.\obj\g</CompilerGeneratedFilesOutputPath>
   </PropertyGroup>
@@ -28,6 +28,10 @@
     <None Remove="Entity\Base\**" />
     <None Remove="Http\**" />
     <None Remove="Utils\SerinExpression\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="FlowNode\Attribute.cs" />
   </ItemGroup>
 
   <ItemGroup>

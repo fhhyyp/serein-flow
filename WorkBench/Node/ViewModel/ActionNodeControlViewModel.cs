@@ -5,11 +5,20 @@ namespace Serein.Workbench.Node.ViewModel
 {
     public class ActionNodeControlViewModel : NodeControlViewModelBase
     {
-        private readonly SingleActionNode node;
+        //public SingleActionNode NodelModel
+        //{
+        //    get => (SingleActionNode)base.NodeModel; set
+        //    {
+        //        if (base.NodeModel == null)
+        //        {
+        //            base.NodeModel = value;
+        //        }
+        //    }
+        //}
 
         public ActionNodeControlViewModel(SingleActionNode node):base(node) 
         {
-            this.node = node;
+            // this.NodelModel = node;
         }
     }
 }

@@ -21,17 +21,20 @@
 
         <Grid>
             <Grid.ToolTip>
-                <ToolTip Background="LightYellow" Foreground="#071042" Content="{Binding MethodDetails.MethodTips, UpdateSourceTrigger=PropertyChanged}" />
+                <ToolTip Background="LightYellow" Foreground="#071042" Content="{Binding NodeModel.MethodDetails.MethodTips}" />
             </Grid.ToolTip>
 
-            <Border>
+
+            <!--<TextBlock Text="{Binding NodelModel.DebugSetting.IsInterrupt}}"></TextBlock>-->
+            <Border x:Name="InterruptBorder">
+               
                 <Border.Style>
                     <Style TargetType="Border">
-                        <!-- 默认无边框 -->
+                         <!--默认无边框--> 
                         <Setter Property="BorderBrush" Value="Transparent" />
                         <Setter Property="BorderThickness" Value="0" />
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsInterrupt}" Value="True">
+                            <DataTrigger Binding="{Binding Path=NodeModel.DebugSetting.IsInterrupt}" Value="True">
                                 <Setter Property="BorderBrush" Value="Red" />
                                 <Setter Property="BorderThickness" Value="2" />
                                 <Setter Property="Background" Value="#80000000" />
@@ -48,15 +51,16 @@
                     </Grid.RowDefinitions>
 
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Background="#8DE9FD">
-                        <CheckBox  IsChecked="{Binding DebugSetting.IsEnable, Mode=TwoWay}" VerticalContentAlignment="Center"/>
-                        <CheckBox  IsChecked="{Binding MethodDetails.IsProtectionParameter, Mode=TwoWay}" VerticalContentAlignment="Center"/>
-                        <TextBlock Text="{Binding MethodDetails.MethodTips}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <CheckBox  IsChecked="{Binding NodeModel.DebugSetting.IsEnable, Mode=TwoWay}" VerticalContentAlignment="Center"/>
+                        <CheckBox  IsChecked="{Binding NodeModel.MethodDetails.IsProtectionParameter, Mode=TwoWay}" VerticalContentAlignment="Center"/>
+                        <TextBlock Text="{Binding NodeModel.MethodDetails.MethodTips, Mode=TwoWay}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <themes:MethodDetailsControl Grid.Row="1" MethodDetails="{Binding MethodDetails}"/>
+                    <themes:MethodDetailsControl Grid.Row="1" MethodDetails="{Binding NodeModel.MethodDetails}"/>
                     <!-- ParameterProtectionMask 参数保护 -->
                     <!--取反 Visibility="{Binding DebugSetting.IsEnable, Converter={StaticResource InvertedBoolConverter}, ConverterParameter=Inverted}"-->
                     <Border Grid.Row="1" x:Name="ParameterProtectionMask" Background="LightBlue" Opacity="0.5" BorderBrush="#0A4651" BorderThickness="0" 
-                        Visibility="{Binding MethodDetails.IsProtectionParameter, Converter={StaticResource InvertedBoolConverter},ConverterParameter=Normal}" />
+                        Visibility="{Binding NodeModel.MethodDetails.IsProtectionParameter, Mode=TwoWay, 
+                                            Converter={StaticResource InvertedBoolConverter},ConverterParameter=Normal}" />
                     <Grid Grid.Row="2"   Background="#D5F0FC" >
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="50"/>
@@ -66,7 +70,7 @@
                             <TextBlock Text="result"  HorizontalAlignment="Center"  VerticalAlignment="Center" />
                         </Border>
                         <Border Grid.Column="1"  BorderThickness="1">
-                            <TextBlock Text="{Binding MethodDetails.ReturnType}"  HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding NodeModel.MethodDetails.ReturnType, Mode=TwoWay}"  HorizontalAlignment="Left" VerticalAlignment="Center"/>
                         </Border>
                     </Grid>
 

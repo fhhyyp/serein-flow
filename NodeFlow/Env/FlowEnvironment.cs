@@ -1,28 +1,15 @@
 ﻿
 using Newtonsoft.Json;
-using Newtonsoft.Json.Bson;
-using Newtonsoft.Json.Linq;
 using Serein.Library;
 using Serein.Library.Api;
-using Serein.Library.Network.WebSocketCommunication;
 using Serein.Library.Utils;
 using Serein.Library.Utils.SereinExpression;
 using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Tool;
-using System;
-using System.Collections;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Net.Sockets;
-using System.Numerics;
 using System.Reflection;
-using System.Security.Cryptography;
-using System.Threading;
 using System.Xml.Linq;
 using static Serein.Library.Utils.ChannelFlowInterrupt;
-using static Serein.NodeFlow.FlowStarter;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Serein.NodeFlow.Env
 {
@@ -41,6 +28,7 @@ namespace Serein.NodeFlow.Env
         public const string SpaceName = $"{nameof(Serein)}.{nameof(NodeFlow)}.{nameof(Model)}";
         public const string ThemeKey = "theme";
         public const string DataKey = "data";
+        public const string MsgIdKey = "msgid";
 
         /// <summary>
         /// 流程运行环境
@@ -80,10 +68,6 @@ namespace Serein.NodeFlow.Env
 
 
 
-
-
-
-
         /// <summary>
         /// 打开远程管理
         /// </summary>
@@ -112,6 +96,7 @@ namespace Serein.NodeFlow.Env
                 Console.WriteLine("结束远程管理异常：" + ex);
             }
         }
+
         #endregion
 
         #region 环境运行事件
@@ -347,7 +332,6 @@ namespace Serein.NodeFlow.Env
 
         }
 
-
         /// <summary>
         /// 异步运行
         /// </summary>
@@ -566,8 +550,17 @@ namespace Serein.NodeFlow.Env
                 }
                 else
                 {
+                    MethodDetails? methodDetails = null;
+                    if (!string.IsNullOrEmpty(nodeInfo.MethodName))
+                    {
+                        MethodDetailss.TryGetValue(nodeInfo.MethodName, out methodDetails);// 加载项目时尝试获取方法信息
+                    }
+                    else
+                    {
 
-                    MethodDetailss.TryGetValue(nodeInfo.MethodName, out var methodDetails);// 加载项目时尝试获取方法信息
+                    }
+                    
+                   
                     var nodeModel = FlowFunc.CreateNode(this, controlType, methodDetails); // 加载项目时创建节点
                     nodeModel.LoadInfo(nodeInfo); // 创建节点model
                     if (nodeModel is null)
@@ -575,6 +568,8 @@ namespace Serein.NodeFlow.Env
                         nodeInfo.Guid = string.Empty;
                         continue;
                     }
+
+
                     TryAddNode(nodeModel); // 加载项目时将节点加载到环境中
                     if (nodeInfo.ChildNodeGuids?.Length > 0)
                     {
@@ -662,9 +657,6 @@ namespace Serein.NodeFlow.Env
 
         }
 
-
-
-
         /// <summary>
         /// 加载远程环境
         /// </summary>
@@ -679,7 +671,17 @@ namespace Serein.NodeFlow.Env
                 return (false, null);
             }
             // 没有连接远程环境，可以重新连接
-            var remoteEnvControl = new RemoteEnvControl(addres, port, token);
+
+            var controlConfiguration = new RemoteEnvControl.ControlConfiguration
+            {
+                Addres = addres,
+                Port = port,
+                Token = token,
+                ThemeJsonKey = FlowEnvironment.ThemeKey,
+                MsgIdJsonKey = FlowEnvironment.MsgIdKey,
+                DataJsonKey = FlowEnvironment.DataKey,
+            };
+            var remoteEnvControl = new RemoteEnvControl(controlConfiguration);
             var result = await remoteEnvControl.ConnectAsync();
             if (!result)
             {
@@ -805,7 +807,6 @@ namespace Serein.NodeFlow.Env
                 }
             }
            
-
             TryAddNode(nodeModel);
             nodeModel.Position = position;
 
@@ -1199,30 +1200,11 @@ namespace Serein.NodeFlow.Env
             }
             NodeValueChangeLogger.Add((nodeGuid, path, value));
             var setExp = $"@Set .{path} = {value}"; // 生成 set 表达式
-            SerinExpressionEvaluator.Evaluate(setExp, nodeModel, out _); // 更改对应的数据
-
-
-
-            //Console.WriteLine($"本地环境收到数据更改通知：{value}");
             //var getExp = $"@Get .{path}";
-            ////Console.WriteLine($"取值表达式：{getExp}");
+            SerinExpressionEvaluator.Evaluate(setExp, nodeModel, out _); // 更改对应的数据
             //var getResult = SerinExpressionEvaluator.Evaluate(getExp, nodeModel, out _);
-            ////Console.WriteLine($"原数据 :{getResult}");
-            //if (getResult.Equals(value))
-            //{
-            //    Console.WriteLine("无须修改");
-            //    return;
-            //}
-
-
-            //NodeValueChangeLogger.Add((nodeGuid, path, value));
-
-
-            //var setExp = $"@Set .{path} = {value}";
-            ////Console.WriteLine($"设值表达式：{setExp}");
-            //SerinExpressionEvaluator.Evaluate(setExp, nodeModel, out _);
-            //getResult = SerinExpressionEvaluator.Evaluate(getExp, nodeModel, out _);
-            //Console.WriteLine($"新数据 :{getResult}");
+            //Console.WriteLine($"Set表达式：{setExp},result : {getResult}");
+          
 
         }
         

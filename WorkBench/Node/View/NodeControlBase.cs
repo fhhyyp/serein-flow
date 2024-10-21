@@ -1,4 +1,5 @@
-﻿using Serein.Library.Api;
+﻿using Serein.Library;
+using Serein.Library.Api;
 using Serein.Workbench.Node.ViewModel;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -13,9 +14,8 @@ namespace Serein.Workbench.Node.View
     {
         public NodeControlViewModelBase ViewModel { get; set; }
 
-
+        
         protected NodeControlBase()
-
         {
             this.Background = Brushes.Transparent;
         }
@@ -23,6 +23,7 @@ namespace Serein.Workbench.Node.View
         {
             ViewModel = viewModelBase;
             this.Background = Brushes.Transparent;
+            this.DataContext = viewModelBase;
         }
     }
 

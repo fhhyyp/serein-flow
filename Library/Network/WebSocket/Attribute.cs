@@ -27,6 +27,7 @@ namespace Serein.Library.Network.WebSocketCommunication
     {
         public string ThemeKey;
         public string DataKey;
+        public string MsgIdKey;
     }
 
 
@@ -71,13 +72,19 @@ namespace Serein.Library.Network.WebSocketCommunication
     }
 
     /// <summary>
-    /// 使用消息DataKey整体数据
+    /// 使用 DataKey 整体数据
     /// </summary>
     [AttributeUsage(AttributeTargets.Parameter)]
-    public sealed class UseMsgDataAttribute : Attribute
+    public sealed class UseDataAttribute : Attribute
     {
     }
-
+    /// <summary>
+    /// 使用 MsgIdKey 整体数据
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Parameter)]
+    public sealed class UseMsgIdAttribute : Attribute
+    {
+    }
 
     internal class SocketHandleModule
     {

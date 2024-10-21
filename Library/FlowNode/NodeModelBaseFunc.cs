@@ -86,7 +86,13 @@ namespace Serein.Library
         /// <returns></returns>
         public virtual NodeModelBase LoadInfo(NodeInfo nodeInfo)
         {
-            this.Guid = nodeInfo.Guid;
+            this.Guid = nodeInfo.Guid; 
+
+            if (nodeInfo.Position is null)
+            {
+                nodeInfo.Position = new PositionOfUI(0, 0);
+            }
+            this.Position = nodeInfo.Position;// 加载位置信息
             if (this.MethodDetails != null)
             {
                 for (int i = 0; i < nodeInfo.ParameterData.Length; i++)
@@ -96,7 +102,6 @@ namespace Serein.Library
                     this.MethodDetails.ParameterDetailss[i].DataValue = pd.Value;
                 }
             }
-            this.Position = nodeInfo.Position;// 加载位置信息
             return this;
         }
 

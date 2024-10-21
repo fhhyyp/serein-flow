@@ -41,13 +41,14 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// </summary>
         /// <param name="themeKeyName"></param>
         /// <param name="dataKeyName"></param>
+        /// <param name="msgIdKeyName"></param>
         /// <returns></returns>
-        private WebSocketHandleModule AddMyHandleModule(string themeKeyName, string dataKeyName)
+        private WebSocketHandleModule AddMyHandleModule(string themeKeyName, string dataKeyName, string msgIdKeyName)
         {
             var key = (themeKeyName, dataKeyName);
             if (!MyHandleModuleDict.TryGetValue(key, out var myHandleModule))
             {
-                myHandleModule = new WebSocketHandleModule(themeKeyName, dataKeyName);
+                myHandleModule = new WebSocketHandleModule(themeKeyName, dataKeyName, msgIdKeyName);
                 MyHandleModuleDict[key] = myHandleModule;
             }
             return myHandleModule;
@@ -93,8 +94,9 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
 
             var themeKey = moduleAttribute.ThemeKey;
             var dataKey = moduleAttribute.DataKey;
+            var msgIdKey = moduleAttribute.MsgIdKey;
             
-            var handlemodule = AddMyHandleModule(themeKey, dataKey);
+            var handleModule = AddMyHandleModule(themeKey, dataKey, msgIdKey);
             var methods = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
                 .Select(method =>
                 {
@@ -135,7 +137,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                 try
                 {
                     var jsonMsgHandleConfig = new JsonMsgHandleConfig(module, socketControlBase, method, onExceptionTracking, argNotNull);
-                    var result = handlemodule.AddHandleConfigs(module,jsonMsgHandleConfig);
+                    var result = handleModule.AddHandleConfigs(module,jsonMsgHandleConfig);
                     if (!result) 
                     {
                         throw new Exception("添加失败，已经添加过相同的配置");
@@ -158,6 +160,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// <returns></returns>
         public async Task HandleMsgAsync(Func<string, Task> SendAsync, string message)
         {
+            //Console.WriteLine(message);
             JObject json = JObject.Parse(message);
             await Task.Run(() =>
             {

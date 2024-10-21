@@ -10,7 +10,9 @@ namespace Serein.Workbench
     /// </summary>
     public partial class App : Application
     {
+#if DEBUG
 
+#endif
 
         public static SereinProjectData? FlowProjectData { get; set; }
         public static string FileDataPath { get; set; } = "";
@@ -66,7 +68,7 @@ namespace Serein.Workbench
             }
 
 #if DEBUG
-            else if(1 == 1)
+            else if(1 == 11)
             {
                 //string filePath = @"F:\临时\project\new project.dnf";
 

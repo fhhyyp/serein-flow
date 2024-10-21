@@ -6,7 +6,8 @@ namespace Serein.NodeFlow.Tool
 {
 
     public class ObjDynamicCreateHelper
-    {// 类型缓存，键为类型的唯一名称（可以根据实际需求调整生成方式）
+    {
+        // 类型缓存，键为类型的唯一名称（可以根据实际需求调整生成方式）
         static Dictionary<string, Type> typeCache = new Dictionary<string, Type>();
 
         public static object Resolve(Dictionary<string, object> properties, string typeName)

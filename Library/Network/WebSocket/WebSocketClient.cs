@@ -96,7 +96,7 @@ namespace Serein.Library.Network.WebSocketCommunication
                     {
                         var completeMessage = receivedMessage.ToString();
                         _ = MsgHandleHelper.HandleMsgAsync(SendAsync, completeMessage); // 处理消息
-                        Debug.WriteLine($"Received: {completeMessage}");
+                        //Debug.WriteLine($"Received: {completeMessage}");
                     }
 
                     // 清空 StringBuilder 为下一条消息做准备

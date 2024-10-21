@@ -1,22 +1,18 @@
 ﻿using Newtonsoft.Json.Linq;
-using Serein.Library.Api;
 using Serein.Library;
+using Serein.Library.Api;
 using Serein.Library.Network.WebSocketCommunication;
 using Serein.Library.Network.WebSocketCommunication.Handle;
 using Serein.Library.Utils;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Serein.NodeFlow.Env
 {
     /// <summary>
     /// 服务端的消息管理（用于处理客户端的请求）
     /// </summary>
-    [AutoSocketModule(ThemeKey = FlowEnvironment.ThemeKey, DataKey = FlowEnvironment.DataKey)]
+    [AutoSocketModule(ThemeKey = FlowEnvironment.ThemeKey,
+                      DataKey = FlowEnvironment.DataKey,
+                      MsgIdKey = FlowEnvironment.MsgIdKey)]
     public class MsgControllerOfServer : ISocketHandleModule
     {
         /// <summary>
@@ -225,7 +221,7 @@ namespace Serein.NodeFlow.Env
 
 
         /// <summary>
-        /// 获取当前环境信息（远程连接）
+        /// 获取当前环境信息
         /// </summary>
         /// <returns></returns>
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.GetEnvInfo)]
@@ -316,6 +312,7 @@ namespace Serein.NodeFlow.Env
            var nodeInfo =  await environment.CreateNodeAsync(nodeControlType, position, mdInfo); // 监听到客户端创建节点的请求
             return nodeInfo;
         }
+
         /// <summary>
         /// 从远程环境移除节点
         /// </summary>
@@ -462,10 +459,6 @@ namespace Serein.NodeFlow.Env
         {
            await environment.NotificationNodeValueChangeAsync(nodeGuid, path, value);
         }
-
-
-
-
 
 
     }

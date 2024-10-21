@@ -1,23 +1,32 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.Utils.SereinExpression;
+using System.Reactive;
 
 namespace Serein.NodeFlow.Model
 {
     /// <summary>
     /// Expression Operation - 表达式操作
     /// </summary>
-    public class SingleExpOpNode : NodeModelBase
+    [NodeProperty(ValuePath = NodeValuePath.Node)]
+    public partial class SingleExpOpNode : NodeModelBase
     {
-        public SingleExpOpNode(IFlowEnvironment environment) : base(environment)
-        {
-            
-        }
         /// <summary>
         /// 表达式
         /// </summary>
-        public string Expression { get; set; }
+        [PropertyInfo(IsNotification = true)]
+        private string _expression;
 
+    }
+
+
+
+    public partial class SingleExpOpNode : NodeModelBase
+    {
+        public SingleExpOpNode(IFlowEnvironment environment) : base(environment)
+        {
+
+        }
 
         //public override async Task<object?> Executing(IDynamicContext context)
         public override Task<object?> ExecutingAsync(IDynamicContext context)
@@ -31,7 +40,7 @@ namespace Serein.NodeFlow.Model
                 object? result = null;
                 if (isChange)
                 {
-                    result =  newData;
+                    result = newData;
                 }
                 else
                 {
@@ -52,7 +61,7 @@ namespace Serein.NodeFlow.Model
 
         public override Parameterdata[] GetParameterdatas()
         {
-            return [new Parameterdata{ Expression = Expression}];
+            return [new Parameterdata { Expression = Expression }];
         }
 
 
@@ -60,13 +69,11 @@ namespace Serein.NodeFlow.Model
         public override NodeModelBase LoadInfo(NodeInfo nodeInfo)
         {
             var node = this;
-            if (node != null)
+            this.Position = nodeInfo.Position;// 加载位置信息
+            node.Guid = nodeInfo.Guid;
+            for (int i = 0; i < nodeInfo.ParameterData.Length; i++)
             {
-                node.Guid = nodeInfo.Guid;
-                for (int i = 0; i < nodeInfo.ParameterData.Length; i++)
-                {
-                    node.Expression = nodeInfo.ParameterData[i].Expression;
-                }
+                node.Expression = nodeInfo.ParameterData[i].Expression;
             }
             return this;
         }

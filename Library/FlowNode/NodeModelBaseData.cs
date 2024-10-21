@@ -1,4 +1,5 @@
 ﻿using Serein.Library.Api;
+using Serein.Library.NodeGenerator;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -10,7 +11,7 @@ namespace Serein.Library
     /// <summary>
     /// 节点基类（数据）：条件控件，动作控件，条件区域，动作区域
     /// </summary>
-    [AutoProperty(ValuePath = nameof(NodeModelBase))] // 是否更名为 NodeProperty?
+    [NodeProperty(ValuePath = NodeValuePath.None)]
     public abstract partial class NodeModelBase : IDynamicFlowNode
     {
         

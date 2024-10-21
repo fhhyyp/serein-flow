@@ -9,6 +9,9 @@
     <Nullable>enable</Nullable>
     <ErrorReport>prompt</ErrorReport>
     <AssemblyName>starter</AssemblyName>
+    <!--<IsRoslynComponent>true</IsRoslynComponent>-->
+    <!--<GenerateDocumentationFile>true</GenerateDocumentationFile>-->
+    
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net8.0|AnyCPU'">
@@ -23,8 +26,16 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
+  <ItemGroup><!--<ProjectReference Include="..\Library\Serein.Library.csproj" />
+    <ProjectReference Include="..\NodeFlow\Serein.NodeFlow.csproj" />-->
+  
+    <PackageReference Include="Serein.Library" Version="1.0.17" />
+    <PackageReference Include="Serein.Library.NodeGenerator" Version="1.0.0" />
+  </ItemGroup>
+
   <ItemGroup>
-    <ProjectReference Include="..\Library\Serein.Library.csproj" />
+    <!--<ProjectReference Include="..\Serein.Library.MyGenerator\Serein.Library.NodeGenerator.csproj" OutputItemType="Analyzer" />-->
+
     <ProjectReference Include="..\NodeFlow\Serein.NodeFlow.csproj" />
   </ItemGroup>
 

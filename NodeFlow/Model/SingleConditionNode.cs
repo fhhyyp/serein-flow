@@ -1,35 +1,51 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.Utils.SereinExpression;
+using System.ComponentModel;
 
 namespace Serein.NodeFlow.Model
 {
     /// <summary>
     /// 条件节点（用于条件控件）
     /// </summary>
-    public class SingleConditionNode : NodeModelBase
+    [NodeProperty(ValuePath = NodeValuePath.Node)]
+    public partial class SingleConditionNode : NodeModelBase
     {
-        public SingleConditionNode(IFlowEnvironment environment):base(environment)
-        {
-            
-        }
 
         /// <summary>
         /// 是否为自定义参数
         /// </summary>
-        public bool IsCustomData { get; set; }
+        [PropertyInfo(IsNotification = true)]
+        private bool _isCustomData;
+
         /// <summary>
         /// 自定义参数值
         /// </summary>
-        public object? CustomData { get; set; }
+        [PropertyInfo(IsNotification = true)]
+
+        private object? _customData;
         /// <summary>
         /// 条件表达式
         /// </summary>
+        [PropertyInfo(IsNotification = true)]
+        private string _expression;
 
-        public string Expression { get; set; }
+    }
 
+    public partial class SingleConditionNode : NodeModelBase
+    {
+        public SingleConditionNode(IFlowEnvironment environment):base(environment)
+        {
+            this.IsCustomData = false;
+            this.CustomData = null;
+            this.Expression = "PASS";
+        }
 
-        //public override object? Executing(IDynamicContext context)
+        /// <summary>
+        /// 重写节点的方法执行
+        /// </summary>
+        /// <param name="context"></param>
+        /// <returns></returns>
         public override Task<object?> ExecutingAsync(IDynamicContext context)
         {
             // 接收上一节点参数or自定义参数内容
@@ -94,46 +110,20 @@ namespace Serein.NodeFlow.Model
         public override NodeModelBase LoadInfo(NodeInfo nodeInfo)
         {
             var node = this;
-            if (node != null)
+            node.Guid = nodeInfo.Guid;
+            this.Position = nodeInfo.Position;// 加载位置信息
+            for (int i = 0; i < nodeInfo.ParameterData.Length; i++)
             {
-                node.Guid = nodeInfo.Guid;
-                for (int i = 0; i < nodeInfo.ParameterData.Length; i++)
-                {
-                    Parameterdata? pd = nodeInfo.ParameterData[i];
-                    node.IsCustomData = pd.State;
-                    node.CustomData = pd.Value;
-                    node.Expression = pd.Expression;
+                Parameterdata? pd = nodeInfo.ParameterData[i];
+                node.IsCustomData = pd.State;
+                node.CustomData = pd.Value;
+                node.Expression = pd.Expression;
 
-                }
             }
             return this;
         }
 
-        //public override void Execute(DynamicContext context)
-        //{
-        //    CurrentState = Judge(context, base.MethodDetails);
-        //}
-
-        //private bool Judge(DynamicContext context, MethodDetails md)
-        //{
-        //    try
-        //    {
-        //        if (DelegateCache.GlobalDicDelegates.TryGetValue(md.MethodName, out Delegate del))
-        //        {
-        //            object[] parameters = GetParameters(context, md);
-        //            var temp = del.DynamicInvoke(parameters);
-        //            //context.GetData(GetDyPreviousKey());
-        //            return (bool)temp;
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        Debug.Write(ex.Message);
-        //    }
-        //    return false;
-        //}
-
-
+       
     }
 
 

@@ -9,7 +9,7 @@ namespace Serein.Library
     /// <summary>
     /// 节点调试设置，用于中断节点的运行
     /// </summary>
-    [AutoProperty(ValuePath = nameof(NodeDebugSetting))]
+    [NodeProperty(ValuePath = NodeValuePath.DebugSetting)]
     public partial class NodeDebugSetting
     {
         private readonly NodeModelBase nodeModel;
@@ -32,6 +32,13 @@ namespace Serein.Library
         /// </summary>
         [PropertyInfo]
         private InterruptClass _interruptClass = InterruptClass.None;
+
+        /// <summary>
+        ///  中断级别，暂时停止继续执行后继分支。
+        /// </summary>
+        [PropertyInfo(IsNotification = true)]
+        private bool _isInterrupt = false;
+
 
         /// <summary>
         /// 取消中断的回调函数

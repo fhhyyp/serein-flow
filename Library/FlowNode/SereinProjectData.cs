@@ -11,7 +11,7 @@ namespace Serein.Library
 {
 
     /// <summary>
-    /// 环境信息（远程控制用）
+    /// 环境信息
     /// </summary>
     public class FlowEnvInfo
     {
@@ -27,10 +27,18 @@ namespace Serein.Library
         // IOC节点对象信息
     }
 
+    /// <summary>
+    /// 程序集相关的方法信息
+    /// </summary>
     public class LibraryMds
     {
+        /// <summary>
+        /// 程序集FullName
+        /// </summary>
         public string LibraryName { get; set; }
-
+        /// <summary>
+        /// 相关的方法详情
+        /// </summary>
         public MethodDetailsInfo[] Mds { get; set; }
 
     }
@@ -70,7 +78,7 @@ namespace Serein.Library
     }
 
     /// <summary>
-    /// 基础
+    /// 基础，项目文件相关
     /// </summary>
     public class Basic
     {
@@ -87,7 +95,7 @@ namespace Serein.Library
         public string Versions { get; set; }
     }
     /// <summary>
-    /// 画布
+    /// 画布信息，项目文件相关
     /// </summary>
     public class FlowCanvas
     {
@@ -122,7 +130,7 @@ namespace Serein.Library
     }
 
     /// <summary>
-    /// DLL
+    /// 项目依赖的程序集，项目文件相关
     /// </summary>
     public class Library
     {
@@ -144,7 +152,7 @@ namespace Serein.Library
     }
 
     /// <summary>
-    /// 节点
+    /// 节点信息，项目文件相关
     /// </summary>
     public class NodeInfo
     {
@@ -215,7 +223,7 @@ namespace Serein.Library
     }
 
     /// <summary>
-    /// 显示参数
+    /// 显示参数，项目文件相关
     /// </summary>
     public class Parameterdata
     {

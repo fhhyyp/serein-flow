@@ -22,7 +22,7 @@
 
         <Grid>
             <Grid.ToolTip>
-                <ToolTip Background="LightYellow" Foreground="#071042" Content="{Binding MethodDetails.MethodName, UpdateSourceTrigger=PropertyChanged}" />
+                <ToolTip Background="LightYellow" Foreground="#071042" Content="{Binding NodeModel.MethodDetails.MethodName, UpdateSourceTrigger=PropertyChanged}" />
             </Grid.ToolTip>
 
             <Grid.RowDefinitions>
@@ -32,15 +32,16 @@
             </Grid.RowDefinitions>
 
             <StackPanel Grid.Row="0" Orientation="Horizontal" Background="#FCB334">
-                <CheckBox  IsChecked="{Binding DebugSetting.IsEnable, Mode=TwoWay}" VerticalContentAlignment="Center"/>
-                <CheckBox  IsChecked="{Binding MethodDetails.IsProtectionParameter, Mode=TwoWay}" VerticalContentAlignment="Center"/>
+                <CheckBox  IsChecked="{Binding NodeModel.DebugSetting.IsEnable, Mode=TwoWay}" VerticalContentAlignment="Center"/>
+                <CheckBox  IsChecked="{Binding NodeModel.MethodDetails.IsProtectionParameter, Mode=TwoWay}" VerticalContentAlignment="Center"/>
 
-                <TextBlock  Text="{Binding MethodDetails.MethodTips, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock  Text="{Binding NodeModel.MethodDetails.MethodTips, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </StackPanel>
-            <themes:MethodDetailsControl Grid.Row="1" MethodDetails="{Binding MethodDetails}" />
+            
+            <themes:MethodDetailsControl Grid.Row="1" MethodDetails="{Binding NodeModel.MethodDetails}" />
 
             <Border Grid.Row="1" x:Name="ParameterProtectionMask" Background="LightBlue" Opacity="0.5" BorderBrush="#0A4651" BorderThickness="0" 
-                Visibility="{Binding MethodDetails.IsProtectionParameter, Converter={StaticResource InvertedBoolConverter},ConverterParameter=Normal}" />
+                Visibility="{Binding NodeModel.MethodDetails.IsProtectionParameter, Converter={StaticResource InvertedBoolConverter},ConverterParameter=Normal}" />
             <!--<Border  Grid.Row="0"  Background="#FCB334" >
                
             </Border>-->
@@ -54,7 +55,7 @@
                     <TextBlock Text="result"  HorizontalAlignment="Center"  VerticalAlignment="Center"/>
                 </Border>
                 <Border Grid.Column="1" BorderThickness="1">
-                    <TextBlock Text="{Binding MethodDetails.ReturnType}"  HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding NodeModel.MethodDetails.ReturnType}"  HorizontalAlignment="Left" VerticalAlignment="Center"/>
                 </Border>
             </Grid>
             <!--<themes:ConditionControl Grid.Row="2" ></themes:ConditionControl>-->

@@ -16,7 +16,7 @@
 
         <StackPanel Grid.Row="0" Orientation="Vertical" Background="LightSteelBlue">
             <TextBlock Grid.Row="2" Text="表达式"></TextBlock>
-            <TextBox Text="{Binding Expression, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Stretch"></TextBox>
+            <TextBox Text="{Binding NodeModel.Expression, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Stretch"></TextBox>
         </StackPanel>
     </Grid>
 </local:NodeControlBase>

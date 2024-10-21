@@ -11,7 +11,7 @@ namespace Serein.Library
     /// <summary>
     /// 节点入参参数详情
     /// </summary>
-    [AutoProperty(ValuePath = nameof(ParameterDetails))]
+    [NodeProperty(ValuePath = NodeValuePath.Parameter)]
     public partial class ParameterDetails
     {
         private readonly IFlowEnvironment env;

@@ -5,22 +5,22 @@ namespace Serein.Workbench.Node.ViewModel
 {
     public class ExpOpNodeViewModel: NodeControlViewModelBase
     {
-        public readonly SingleExpOpNode node;
+        public  new SingleExpOpNode NodeModel { get; }
 
-        public string Expression
-        {
-            get => node.Expression;
-            set
-            {
-                node.Expression = value;
-                OnPropertyChanged();
-            }
-        }
+        //public string Expression
+        //{
+        //    get => node.Expression;
+        //    set
+        //    {
+        //        node.Expression = value;
+        //        OnPropertyChanged();
+        //    }
+        //}
 
 
-        public ExpOpNodeViewModel(SingleExpOpNode node) : base(node)
+        public ExpOpNodeViewModel(SingleExpOpNode nodeModel) : base(nodeModel)
         { 
-            this.node = node;
+            this.NodeModel = nodeModel;
         }
     }
 }

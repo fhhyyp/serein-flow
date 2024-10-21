@@ -180,10 +180,10 @@ namespace Serein.Library.Network.WebSocketCommunication
                 return;
             }
 
-            Func<string, Task> SendAsync = async (text) =>
-            {
-                await WebSocketServer.SendAsync(webSocket, text);
-            };
+            //Func<string, Task> SendAsync = async (text) =>
+            //{
+            //    await WebSocketServer.SendAsync(webSocket, text);
+            //};
 
             var buffer = new byte[1024];
             var receivedMessage = new StringBuilder(); // 用于拼接长消息
@@ -209,7 +209,7 @@ namespace Serein.Library.Network.WebSocketCommunication
 
                     if (result.MessageType == WebSocketMessageType.Close)
                     {
-                        SendAsync = null;
+                        //SendAsync = null;
                         await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
                         if (IsCheckToken)
                         {
@@ -233,7 +233,10 @@ namespace Serein.Library.Network.WebSocketCommunication
                         }
                         
                         // 消息处理
-                        _ = MsgHandleHelper.HandleMsgAsync(SendAsync, message); // 处理消息
+                        _ = MsgHandleHelper.HandleMsgAsync(async (text) =>
+                        {
+                            await WebSocketServer.SendAsync(webSocket, text);
+                        }, message); // 处理消息
                     }
 
                     // 清空 StringBuilder 为下一条消息做准备

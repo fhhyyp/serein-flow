@@ -1,12 +1,7 @@
-﻿using Newtonsoft.Json;
-using Serein.Library;
+﻿using Serein.Library;
 using Serein.Library.Network.WebSocketCommunication;
+using Serein.Library.Network.WebSocketCommunication.Handle;
 using Serein.Library.Utils;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Serein.NodeFlow.Env
 {
@@ -17,33 +12,43 @@ namespace Serein.NodeFlow.Env
     /// 客户端的消息管理（用于处理服务端的响应）
     /// </summary>
 
-    [AutoSocketModule(ThemeKey = FlowEnvironment.ThemeKey, DataKey = FlowEnvironment.DataKey)]
+    [AutoSocketModule(ThemeKey = FlowEnvironment.ThemeKey, 
+                      DataKey = FlowEnvironment.DataKey,
+                      MsgIdKey = FlowEnvironment.MsgIdKey)]
     public class MsgControllerOfClient : ISocketHandleModule
     {
         public Guid HandleGuid => new Guid();
-        private readonly Func<string, object?, Task> SendCommandAsync;
+
+        // 消息主题，data - task等待
+        private readonly Func<string, string, object?, Task> SendCommandFunc;
         private readonly RemoteFlowEnvironment remoteFlowEnvironment;
 
-        public MsgControllerOfClient(RemoteFlowEnvironment remoteFlowEnvironment, Func<string, object?, Task> func)
+        public MsgControllerOfClient(RemoteFlowEnvironment remoteFlowEnvironment, Func<string, string, object?, Task> func)
         {
             this.remoteFlowEnvironment = remoteFlowEnvironment;
-            SendCommandAsync = func;
+            SendCommandFunc = func;
+        }
+        private async Task SendCommandAsync(string msgId, string theme, object? data)
+        {
+            await SendCommandFunc.Invoke(msgId, theme, data);
         }
 
 
+
         /// <summary>
-        /// 发送请求并等待远程环境响应
+        /// 发送请求
         /// </summary>
         /// <returns></returns>
         /// <exception cref="NotImplementedException">超时触发</exception>
-        public async Task SendAsync(string signal, object? sendData = null, int overtimeInMs = 100)
+        public async Task SendAsync(string signal, object? data = null, int overtimeInMs = 100)
         {
             //Console.WriteLine($"指令[{signal}]，value：{JsonConvert.SerializeObject(sendData)}");
             if (!DebounceHelper.CanExecute(signal, overtimeInMs))
             {
                 return;
             }
-            await SendCommandAsync.Invoke(signal, sendData);
+            var msgId = MsgIdHelper.GenerateId().ToString();
+            await SendCommandAsync(msgId, signal, data);
         }
 
         /// <summary>
@@ -51,11 +56,13 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         /// <returns></returns>
         /// <exception cref="NotImplementedException">超时触发</exception>
-        public async Task<TResult> SendAndWaitDataAsync<TResult>(string signal, object? sendData = null, int overtimeInMs = 50)
+        public async Task<TResult> SendAndWaitDataAsync<TResult>(string theme, object? data = null, int overtimeInMs = 50)
         {
             //Console.WriteLine($"指令[{signal}]，value：{JsonConvert.SerializeObject(sendData)}");
-            _ = SendCommandAsync.Invoke(signal, sendData);
-            return await remoteFlowEnvironment.WaitData<TResult>(signal);
+
+            var msgId = MsgIdHelper.GenerateId().ToString();
+            _ = SendCommandAsync(msgId, theme, data);
+            return await remoteFlowEnvironment.WaitData<TResult>(msgId);
 
             //if (DebounceHelper.CanExecute(signal, overtimeInMs))
             //{
@@ -86,63 +93,63 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// 远程环境发来项目信息
         /// </summary>
+        /// <param name="msgId"></param>
         /// <param name="flowEnvInfo"></param>
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.GetEnvInfo)]
-        public void GetEnvInfo([UseMsgData] FlowEnvInfo flowEnvInfo)
+        public void GetEnvInfo([UseMsgId] string msgId, [UseData] FlowEnvInfo flowEnvInfo)
         {
-            remoteFlowEnvironment.TriggerSignal(EnvMsgTheme.GetEnvInfo, flowEnvInfo);
+            remoteFlowEnvironment.TriggerSignal(msgId, flowEnvInfo);
         }
-
-
 
 
         /// <summary>
         /// 远程环境发来项目信息
         /// </summary>
+        /// <param name="msgId"></param>
         /// <param name="sereinProjectData"></param>
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.GetProjectInfo)]
-        public void GetProjectInfo([UseMsgData] SereinProjectData sereinProjectData)
+        public void GetProjectInfo([UseMsgId] string msgId, [UseData] SereinProjectData sereinProjectData)
         {
-            remoteFlowEnvironment.TriggerSignal(EnvMsgTheme.GetProjectInfo, sereinProjectData);
+            remoteFlowEnvironment.TriggerSignal(msgId, sereinProjectData);
         }
 
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.SetNodeInterrupt)]
-        public void SetNodeInterrupt()
+        public void SetNodeInterrupt([UseMsgId] string msgId)
         {
-            remoteFlowEnvironment.TriggerSignal(EnvMsgTheme.GetProjectInfo, null);
+            remoteFlowEnvironment.TriggerSignal(msgId, null);
         }
 
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.AddInterruptExpression)]
-        public void AddInterruptExpression()
+        public void AddInterruptExpression([UseMsgId] string msgId)
         {
-            remoteFlowEnvironment.TriggerSignal(EnvMsgTheme.AddInterruptExpression, null);
+            remoteFlowEnvironment.TriggerSignal(msgId, null);
         }
 
 
 
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.CreateNode)]
-        public void CreateNode([UseMsgData] NodeInfo nodeInfo)
+        public void CreateNode([UseMsgId] string msgId, [UseData] NodeInfo nodeInfo)
         {
-            remoteFlowEnvironment.TriggerSignal(EnvMsgTheme.CreateNode, nodeInfo);
+            remoteFlowEnvironment.TriggerSignal(msgId, nodeInfo);
         }
 
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.RemoveNode)]
-        public void RemoveNode(bool state)
+        public void RemoveNode([UseMsgId] string msgId, bool state)
         {
-            remoteFlowEnvironment.TriggerSignal(EnvMsgTheme.RemoveNode, state);
+            remoteFlowEnvironment.TriggerSignal(msgId, state);
         }
 
 
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.ConnectNode)]
-        public void ConnectNode(bool state)
+        public void ConnectNode([UseMsgId] string msgId, bool state)
         {
-            remoteFlowEnvironment.TriggerSignal(EnvMsgTheme.ConnectNode, state);
+            remoteFlowEnvironment.TriggerSignal(msgId, state);
         }
 
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.RemoveConnect)]
-        public void RemoveConnect(bool state)
+        public void RemoveConnect([UseMsgId] string msgId, bool state)
         {
-            remoteFlowEnvironment.TriggerSignal(EnvMsgTheme.RemoveConnect, state);
+            remoteFlowEnvironment.TriggerSignal(msgId, state);
         }
         
        

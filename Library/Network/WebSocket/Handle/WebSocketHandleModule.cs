@@ -19,21 +19,27 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// <summary>
         /// Json消息处理模块
         /// </summary>
-        public WebSocketHandleModule(string ThemeJsonKey, string DataJsonKey)
+        public WebSocketHandleModule(string themeJsonKey, string dataJsonKey, string msgIdJsonKey)
         {
-            this.ThemeJsonKey = ThemeJsonKey;
-            this.DataJsonKey = DataJsonKey;
+            this.ThemeJsonKey = themeJsonKey;
+            this.DataJsonKey = dataJsonKey;
+            this.MsgIdJsonKey = msgIdJsonKey;
         }
 
         /// <summary>
-        /// 指示处理模块该使用json中的哪个key作为业务区别字段
+        /// 指示处理模块该使用 Json 中的哪个 Key 作为业务区别字段
         /// </summary>
         public string ThemeJsonKey { get; }
 
         /// <summary>
-        /// 指示处理模块该使用json中的哪个key作为业务数据字段
+        /// 指示处理模块该使用 Json 中的哪个 Key 作为业务数据字段
         /// </summary>
         public string DataJsonKey { get; }
+        
+        /// <summary>
+        /// 指示处理模块该使用 Json 中的哪个 Key 作为业务消息ID字段
+        /// </summary>
+        public string MsgIdJsonKey { get; }
 
         /// <summary>
         /// 存储处理数据的配置
@@ -88,34 +94,28 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// <summary>
         /// 处理JSON数据
         /// </summary>
-        /// <param name="tSendAsync"></param>
+        /// <param name="sendAsync"></param>
         /// <param name="jsonObject"></param>
-        public void HandleSocketMsg(Func<string, Task> tSendAsync, JObject jsonObject)
+        public void HandleSocketMsg(Func<string, Task> sendAsync, JObject jsonObject)
         {
             // 获取到消息
-            string themeKeyName = jsonObject.GetValue(ThemeJsonKey)?.ToString();
-            if (!MyHandleConfigs.TryGetValue(themeKeyName, out var handldConfig))
+            string theme = jsonObject.GetValue(ThemeJsonKey)?.ToString();
+            if (!MyHandleConfigs.TryGetValue(theme, out var handldConfig))
             {
                 // 没有主题
                 return;
             }
+            string msgId = jsonObject.GetValue(MsgIdJsonKey)?.ToString();
 
-            Func<object, Task> SendAsync = async (data) =>
-            {
-                var sendMsg = new
-                {
-                    theme = themeKeyName,
-                    token = "",
-                    data = data,
-                };
-                var msg = JsonConvert.SerializeObject(sendMsg);
-                await tSendAsync(msg);
-            };
+
             try
             {
 
-                JObject dataObj = jsonObject.GetValue(DataJsonKey).ToObject<JObject>();
-                handldConfig.Handle(SendAsync, dataObj);
+                JObject dataObj = jsonObject.GetValue(DataJsonKey)?.ToObject<JObject>();
+                handldConfig.Handle(async (data) =>
+                {
+                    await this.SendAsync(sendAsync, msgId, theme, data);
+                }, msgId, dataObj);
 
             }
             catch (Exception ex)
@@ -123,12 +123,64 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                 Console.WriteLine($"error in ws : {ex.Message}{Environment.NewLine}json value:{jsonObject}");
                 return;
             }
-
-   
-
-           
         }
 
+
+        /// <summary>
+        /// 发送消息
+        /// </summary>
+        /// <param name="sendAsync"></param>
+        /// <param name="msgId"></param>
+        /// <param name="theme"></param>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        public async Task SendAsync(Func<string, Task> sendAsync,string msgId, string theme, object data)
+        {
+            JObject jsonData;
+
+            if (data is null)
+            {
+                jsonData = new JObject()
+                {
+                    [MsgIdJsonKey] = msgId,
+                    [ThemeJsonKey] = theme,
+                };
+            }
+            else
+            {
+                
+                    JToken dataToken;
+                    if ((data is System.Collections.IEnumerable || data is Array))
+                    {
+                        dataToken = JArray.FromObject(data);
+                    }
+                    else
+                    {
+                        dataToken = JObject.FromObject(data);
+                    }
+
+                    jsonData = new JObject()
+                    {
+                        [MsgIdJsonKey] = msgId,
+                        [ThemeJsonKey] = theme,
+                        [DataJsonKey] = dataToken
+                    };
+                
+               
+            }
+
+            var msg = jsonData.ToString();
+            //Console.WriteLine(msg);
+            //Console.WriteLine();
+
+            await sendAsync.Invoke(msg);
+        }
+
+
     }
+
+
+
+
 
 }

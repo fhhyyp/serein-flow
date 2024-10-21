@@ -9,7 +9,7 @@ namespace Serein.Library
     /// <summary>
     /// 每个节点有独自的MethodDetails实例
     /// </summary>
-    [AutoProperty(ValuePath = nameof(MethodDetails))]
+    [NodeProperty(ValuePath = NodeValuePath.Method)]
     public partial class MethodDetails
     {
         private readonly IFlowEnvironment env;
@@ -142,7 +142,7 @@ namespace Serein.Library
                 MethodLockName = this.MethodLockName,
                 IsProtectionParameter = this.IsProtectionParameter,
             };
-            md.ParameterDetailss = this.ParameterDetailss.Select(p => p.CloneOfClone(env, nodeModel)).ToArray(); // 拷贝属于节点方法的新入参描述
+            md.ParameterDetailss = this.ParameterDetailss?.Select(p => p?.CloneOfClone(env, nodeModel)).ToArray(); // 拷贝属于节点方法的新入参描述
             return md;
         }
 
