@@ -13,7 +13,13 @@ namespace Serein.Library
     public partial class MethodDetails
     {
         private readonly IFlowEnvironment env;
-        private readonly NodeModelBase nodeModel;
+
+        /// <summary>
+        /// 对应的节点
+        /// </summary>
+        [PropertyInfo(IsProtection = true)]
+        private NodeModelBase _nodeModel;
+
         /// <summary>
         /// 是否保护参数（目前仅视觉效果参数，不影响运行实现，后续将设置作用在运行逻辑中）
         /// </summary>
@@ -88,7 +94,7 @@ namespace Serein.Library
         /// <param name="nodeModel">标识属于哪个节点</param>
         public MethodDetails(IFlowEnvironment env, NodeModelBase nodeModel)
         {
-            this.nodeModel = nodeModel;
+            NodeModel = nodeModel;
         }
 
        

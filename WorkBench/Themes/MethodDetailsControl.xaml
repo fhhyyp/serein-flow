@@ -1,9 +1,8 @@
-﻿<ResourceDictionary
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="clr-namespace:Serein.Workbench.Themes"
-    xmlns:sys="clr-namespace:System;assembly=mscorlib"
-    >
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:local="clr-namespace:Serein.Workbench.Themes"
+                    xmlns:view="clr-namespace:Serein.Workbench.Node.View"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib" >
 
 
     <ResourceDictionary.MergedDictionaries>
@@ -31,15 +30,17 @@
                                                             <DataTemplate>
                                                                 <Grid Background="#E3FDFD">
                                                                     <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="auto"/>
                                                                         <ColumnDefinition Width="50"/>
                                                                         <ColumnDefinition Width="30"/>
                                                                         <ColumnDefinition Width="50"/>
                                                                         <ColumnDefinition Width="*"/>
                                                                     </Grid.ColumnDefinitions>
-                                                                    <TextBlock Grid.Column="0" Text="{Binding Index,StringFormat=agr{0}}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                                    <CheckBox  Grid.Column="1" IsChecked="{Binding IsExplicitData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  VerticalContentAlignment="Center"/>
-                                                                    <TextBlock Grid.Column="2" MinWidth="50" Text="{Binding Name}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                                                                    <TextBlock Grid.Column="3" MinWidth="50" Text="无须指定参数"/>
+                                                                    <view:ArgJunctionControl Grid.Column="0" ArgIndex="{Binding Index}" NodeGuid="{Binding NodeModel.Guid}" />
+                                                                    <TextBlock Grid.Column="1" Text="{Binding Index,StringFormat=agr{0}}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                    <CheckBox  Grid.Column="2" IsChecked="{Binding IsExplicitData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  VerticalContentAlignment="Center"/>
+                                                                    <TextBlock Grid.Column="3" MinWidth="50" Text="{Binding Name}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                                                    <TextBlock Grid.Column="4" MinWidth="50" Text="无须指定参数"/>
                                                                 </Grid>
                                                             </DataTemplate>
                                                         </Setter.Value>
@@ -57,15 +58,17 @@
                                                             <DataTemplate>
                                                                 <Grid  Background="#E3FDFD">
                                                                     <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="auto"/>
                                                                         <ColumnDefinition Width="50"/>
                                                                         <ColumnDefinition Width="30"/>
                                                                         <ColumnDefinition Width="50"/>
                                                                         <ColumnDefinition Width="*"/>
                                                                     </Grid.ColumnDefinitions>
-                                                                    <TextBlock Grid.Column="0" Text="{Binding Index,StringFormat=agr{0}}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                                    <CheckBox  Grid.Column="1" IsChecked="{Binding IsExplicitData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  VerticalContentAlignment="Center"/>
-                                                                    <TextBlock Grid.Column="2" MinWidth="50" Text="{Binding Name}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                                                                    <ComboBox Grid.Column="3"
+                                                                    <view:ArgJunctionControl Grid.Column="0" ArgIndex="{Binding Index}" NodeGuid="{Binding NodeModel.Guid}" />
+                                                                    <TextBlock Grid.Column="1" Text="{Binding Index,StringFormat=agr{0}}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                    <CheckBox  Grid.Column="2" IsChecked="{Binding IsExplicitData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  VerticalContentAlignment="Center"/>
+                                                                    <TextBlock Grid.Column="3" MinWidth="50" Text="{Binding Name}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                                                    <ComboBox Grid.Column="4"
                                                                               MinWidth="50"
                                                                               ItemsSource="{Binding Items}"
                                                                               SelectedItem="{Binding DataValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
@@ -85,15 +88,17 @@
                                                             <DataTemplate>
                                                                 <Grid  Background="#E3FDFD">
                                                                     <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="auto"/>
                                                                         <ColumnDefinition Width="50"/>
                                                                         <ColumnDefinition Width="30"/>
                                                                         <ColumnDefinition Width="50"/>
                                                                         <ColumnDefinition Width="*"/>
                                                                     </Grid.ColumnDefinitions>
-                                                                    <TextBlock Grid.Column="0" Text="{Binding Index,StringFormat=agr{0}}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                                    <CheckBox  Grid.Column="1" IsChecked="{Binding IsExplicitData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center"/>
-                                                                    <TextBlock Grid.Column="2" MinWidth="50" Text="{Binding Name}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                                                                    <TextBox Grid.Column="3" MinWidth="50" Text="{Binding DataValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                                                    <view:ArgJunctionControl Grid.Column="0" ArgIndex="{Binding Index}" NodeGuid="{Binding NodeModel.Guid}" />
+                                                                    <TextBlock Grid.Column="1" Text="{Binding Index,StringFormat=agr{0}}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                    <CheckBox  Grid.Column="2" IsChecked="{Binding IsExplicitData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center"/>
+                                                                    <TextBlock Grid.Column="3" MinWidth="50" Text="{Binding Name}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                                                    <TextBox Grid.Column="4" MinWidth="50" Text="{Binding DataValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                                                 </Grid>
                                                             </DataTemplate>
                                                         </Setter.Value>

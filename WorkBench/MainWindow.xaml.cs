@@ -16,7 +16,6 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Shapes;
-using System.Windows.Threading;
 using DataObject = System.Windows.DataObject;
 
 namespace Serein.Workbench
@@ -66,7 +65,7 @@ namespace Serein.Workbench
         /// <summary>
         /// 存储所有的连接。考虑集成在运行环境中。
         /// </summary>
-        private List<Connection> Connections { get; } = [];
+        private List<ConnectionControl> Connections { get; } = [];
 
         /// <summary>
         /// 起始节点
@@ -198,7 +197,6 @@ namespace Serein.Workbench
                    
             EnvDecorator.OnNodeLocated += FlowEnvironment_OnNodeLocate;
             EnvDecorator.OnNodeMoved += FlowEnvironment_OnNodeMoved;
-                   
             EnvDecorator.OnEnvOut += FlowEnvironment_OnEnvOut;
             this.EnvDecorator.SetConsoleOut(); // 设置输出
         }
@@ -222,7 +220,6 @@ namespace Serein.Workbench
             EnvDecorator.OnInterruptTrigger -= FlowEnvironment_OnInterruptTrigger;
 
             EnvDecorator.OnIOCMembersChanged -= FlowEnvironment_OnIOCMembersChanged;
-
             EnvDecorator.OnNodeLocated -= FlowEnvironment_OnNodeLocate;
             EnvDecorator.OnNodeMoved -= FlowEnvironment_OnNodeMoved;
 
@@ -253,7 +250,7 @@ namespace Serein.Workbench
             InitializeCanvas(project.Basic.Canvas.Width, project.Basic.Canvas.Height);// 设置画布大小
             foreach (var connection in Connections)
             {
-                connection.Refresh();
+                connection.AddOrRefreshLine(); // 窗体完成加载后试图刷新所有连接线
             }
 
             var canvasData = project.Basic.Canvas;
@@ -371,26 +368,17 @@ namespace Serein.Workbench
             if (eventArgs.ChangeType == NodeConnectChangeEventArgs.ConnectChangeType.Create) // 添加连接
             {
                 // 添加连接
-                var connection = new Connection
-                {
-                    Start = fromNode,
-                    End = toNode,
-                    Type = connectionType
-                };
+                var connection = new ConnectionControl(EnvDecorator, FlowChartCanvas, connectionType, fromNode, toNode);
+                
                 if (toNode is FlipflopNodeControl flipflopControl 
                     && flipflopControl?.ViewModel?.NodeModel is NodeModelBase nodeModel) // 某个节点连接到了触发器，尝试从全局触发器视图中移除该触发器
                 {
                     NodeTreeViewer.RemoteGlobalFlipFlop(nodeModel); // 从全局触发器树树视图中移除
                 }
-
-                BsControl.Draw(FlowChartCanvas, connection); // 添加贝塞尔曲线显示
-                ConfigureLineContextMenu(connection); // 设置连接右键事件
+                connection.InvalidateVisual();  // 添加贝塞尔曲线显示
+                
                 Connections.Add(connection);
                 EndConnection();
-                connection.Refresh();
-                //UpdateConnections(fromNode);
-                // connection.ArrowPath?.InvalidateVisual();
-                // connection.BezierPath?.InvalidateVisual();
 
 
             }
@@ -494,7 +482,7 @@ namespace Serein.Workbench
             }
             else
             {
-                if (!TryPlaceNodeInRegion(nodeControl, position)) // 将节点放置在区域中
+                if (!TryPlaceNodeInRegion(nodeControl, position)) // 判断是否为区域，如果是，将节点放置在区域中
                 {
                     PlaceNodeOnCanvas(nodeControl, position.X, position.Y); // 将节点放置在画布上
                 }
@@ -736,26 +724,22 @@ namespace Serein.Workbench
         private void FlowEnvironment_OnNodeMoved(NodeMovedEventArgs eventArgs)
         {
             if (!TryGetControl(eventArgs.NodeGuid, out var nodeControl)) return;
-
-            var newLeft = eventArgs.X;
-            var newTop = eventArgs.Y;
-
-            // 限制控件不超出FlowChartCanvas的边界
-            if (newLeft >= 0 && newLeft + nodeControl.ActualWidth <= FlowChartCanvas.ActualWidth)
-            {
-                Canvas.SetLeft(nodeControl, newLeft);
-
-            }
-            if (newTop >= 0 && newTop + nodeControl.ActualHeight <= FlowChartCanvas.ActualHeight)
-            {
-                Canvas.SetTop(nodeControl, newTop);
-
-
-            }
             UpdateConnections(nodeControl);
 
-            //Canvas.SetLeft(nodeControl,);
-            //Canvas.SetTop(nodeControl, );
+            //var newLeft = eventArgs.X;
+            //var newTop = eventArgs.Y;
+            //// 限制控件不超出FlowChartCanvas的边界
+            //if (newLeft >= 0 && newLeft + nodeControl.ActualWidth <= FlowChartCanvas.ActualWidth)
+            //{
+            //    Canvas.SetLeft(nodeControl, newLeft);
+
+            //}
+            //if (newTop >= 0 && newTop + nodeControl.ActualHeight <= FlowChartCanvas.ActualHeight)
+            //{
+            //    Canvas.SetTop(nodeControl, newTop);
+            //}
+
+
         }
 
         /// <summary>
@@ -874,6 +858,7 @@ namespace Serein.Workbench
             nodeControl.MouseLeftButtonUp += Block_MouseLeftButtonUp;
         }
 
+       
 
         /// <summary>
         /// 开始创建连接 True线 操作，设置起始块和绘制连接线。
@@ -1024,39 +1009,6 @@ namespace Serein.Workbench
         }
 
         /// <summary>
-        /// 配置连接曲线的右键菜单
-        /// </summary>
-        /// <param name="line"></param>
-        private void ConfigureLineContextMenu(Connection connection)
-        {
-            var contextMenu = new ContextMenu();
-            contextMenu.Items.Add(CreateMenuItem("删除连线", (s, e) => DeleteConnection(connection)));
-            if (connection.ArrowPath is null || connection.BezierPath is null)
-            {
-                return;
-            }
-            connection.ArrowPath.ContextMenu = contextMenu;
-            connection.BezierPath.ContextMenu = contextMenu;
-        }
-
-        /// <summary>
-        /// 删除该连线
-        /// </summary>
-        /// <param name="line"></param>
-        private void DeleteConnection(Connection connection)
-        {
-            var connectionToRemove = connection;
-            if (connectionToRemove is null)
-            {
-                return;
-            }
-            // 获取起始节点与终止节点，消除映射关系
-            var fromNodeGuid = connectionToRemove.Start.ViewModel.NodeModel.Guid;
-            var toNodeGuid = connectionToRemove.End.ViewModel.NodeModel.Guid;
-            EnvDecorator.RemoveConnectAsync(fromNodeGuid, toNodeGuid, connection.Type);
-        }
-
-        /// <summary>
         /// 查看返回类型（树形结构展开类型的成员）
         /// </summary>
         /// <param name="type"></param>
@@ -1137,7 +1089,19 @@ namespace Serein.Workbench
         /// </summary>
         private void FlowChartCanvas_MouseMove(object sender, MouseEventArgs e)
         {
-            
+
+            if (e.LeftButton == MouseButtonState.Pressed && GlobalJunctionData.MyGlobalData is not null)
+            { 
+                // 正在连接节点
+                var virtualLine = GlobalJunctionData.MyGlobalData.VirtualLine;
+                var controlPointPosition = GlobalJunctionData.MyGlobalData.StartPoint;
+                var currentPoint = e.GetPosition(FlowChartCanvas);
+                virtualLine.VirtualLine.X1 = controlPointPosition.X;
+                virtualLine.VirtualLine.Y1 = controlPointPosition.Y;
+                virtualLine.VirtualLine.X2 = currentPoint.X;
+                virtualLine.VirtualLine.Y2 = currentPoint.Y;
+                return;
+            }
             if (IsConnecting) // 正在连接节点
             {
                 Point position = e.GetPosition(FlowChartCanvas);
@@ -1151,7 +1115,7 @@ namespace Serein.Workbench
                 currentLine.Y2 = position.Y;
             }
 
-            if (IsCanvasDragging && e.MiddleButton == MouseButtonState.Pressed) // 按住中键的同时进行画布的移动 IsCanvasDragging && 
+            if (IsCanvasDragging && e.MiddleButton == MouseButtonState.Pressed) // 正在移动画布（按住中键） 
             {
                 Point currentMousePosition = e.GetPosition(this);
                 double deltaX = currentMousePosition.X - startCanvasDragPoint.X;
@@ -1164,7 +1128,7 @@ namespace Serein.Workbench
 
                 foreach (var line in Connections)
                 {
-                    line.Refresh();
+                    line.AddOrRefreshLine(); // 画布移动时刷新所有连接线
                 }
             }
 
@@ -1253,7 +1217,7 @@ namespace Serein.Workbench
         }
 
         /// <summary>
-        /// 尝试将节点放置在区域中
+        ///  判断是否为区域，如果是，将节点放置在区域中
         /// </summary>
         /// <param name="nodeControl"></param>
         /// <param name="position"></param>
@@ -1324,6 +1288,10 @@ namespace Serein.Workbench
         /// </summary>
         private void Block_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            if (GlobalJunctionData.IsCreatingConnection)
+            {
+                return;
+            }
             if(sender is NodeControlBase nodeControl)
             {
                 ChangeViewerObjOfNode(nodeControl);
@@ -1332,9 +1300,7 @@ namespace Serein.Workbench
                 startControlDragPoint = e.GetPosition(FlowChartCanvas); // 记录鼠标按下时的位置
                 ((UIElement)sender).CaptureMouse(); // 捕获鼠标
                 e.Handled = true; // 防止事件传播影响其他控件
-
             }
-            
         }
         /// <summary>
         /// 控件的鼠标移动事件，根据鼠标拖动更新控件的位置。批量移动计算移动逻辑。
@@ -1409,7 +1375,7 @@ namespace Serein.Workbench
         }
 
         
-
+        // 改变对象树？
         private void ChangeViewerObjOfNode(NodeControlBase nodeControl)
         {
             var node = nodeControl.ViewModel.NodeModel;
@@ -1472,79 +1438,9 @@ namespace Serein.Workbench
                     return;
                 }
                 EnvDecorator.ConnectNodeAsync(formNodeGuid, toNodeGuid, currentConnectionType);
-                
             }
-            /*else if (IsConnecting)
-            {
-                bool isRegion = false;
-                NodeControlBase? targetBlock;
 
-                if (sender is ActionNodeControl)
-                {
-                    targetBlock = sender as ActionNodeControl; // 动作
-                }
-                else if (sender is ActionRegionControl)
-                {
-                    targetBlock = sender as ActionRegionControl; // 组合动作 
-                    isRegion = true;
-                }
-                else if (sender is ConditionNodeControl)
-                {
-                    targetBlock = sender as ConditionNodeControl; // 条件
-                }
-                else if (sender is ConditionRegionControl)
-                {
-                    targetBlock = sender as ConditionRegionControl; // 组合条件
-                    isRegion = true;
-                }
-                else if (sender is FlipflopNodeControl)
-                {
-                    targetBlock = sender as FlipflopNodeControl; // 触发器
-                }
-                else if (sender is ExpOpNodeControl)
-                {
-                    targetBlock = sender as ExpOpNodeControl; // 触发器
-                }
-                else
-                {
-                    targetBlock = null;
-                }
-                if (targetBlock == null)
-                {
-                    return;
-                }
-
-                if (startConnectBlock != null && targetBlock != null && startConnectBlock != targetBlock)
-                {
-
-                    var connection = new Connection { Start = startConnectBlock, End = targetBlock, Type = currentConnectionType };
-
-                    if (currentConnectionType == ConnectionType.IsSucceed)
-                    {
-                        startConnectBlock.ViewModel.Node.SucceedBranch.Add(targetBlock.ViewModel.Node);
-                    }
-                    else if (currentConnectionType == ConnectionType.IsFail)
-                    {
-                        startConnectBlock.ViewModel.Node.FailBranch.Add(targetBlock.ViewModel.Node);
-                    }
-                    else if (currentConnectionType == ConnectionType.IsError)
-                    {
-                        startConnectBlock.ViewModel.Node.ErrorBranch.Add(targetBlock.ViewModel.Node);
-                    }
-                    else if (currentConnectionType == ConnectionType.Upstream)
-                    {
-                        startConnectBlock.ViewModel.Node.UpstreamBranch.Add(targetBlock.ViewModel.Node);
-                    }
-
-                    // 保存连接关系
-                    BsControl.Draw(FlowChartCanvas, connection);
-                    ConfigureLineContextMenu(connection);
-
-                    targetBlock.ViewModel.Node.PreviousNodes.Add(startConnectBlock.ViewModel.Node); // 将当前发起连接的节点，添加到被连接的节点的上一节点队列。（用于回溯）
-                    connections.Add(connection);
-                }
-                EndConnection();
-            }*/
+            GlobalJunctionData.OK();
         }
 
         /// <summary>
@@ -1577,13 +1473,13 @@ namespace Serein.Workbench
         /// <summary>
         /// 更新与指定控件相关的所有连接的位置。
         /// </summary>
-        private void UpdateConnections(UserControl block)
+        private void UpdateConnections(NodeControlBase nodeControl)
         {
             foreach (var connection in Connections)
             {
-                if (connection.Start == block || connection.End == block)
+                if (connection.Start == nodeControl || connection.End == nodeControl)
                 {
-                    connection.Refresh();
+                    connection.AddOrRefreshLine(); // 主动更新某个控件相关的所有连接线
                     //connection.RemoveFromCanvas();
                     //BezierLineDrawer.UpdateBezierLine(FlowChartCanvas, connection.Start, connection.End, connection.BezierPath, connection.ArrowPath);
                 }
@@ -1602,6 +1498,9 @@ namespace Serein.Workbench
 
         private void FlowChartCanvas_MouseUp(object sender, MouseButtonEventArgs e)
         {
+            
+            
+
             if (IsCanvasDragging)
             {
                 IsCanvasDragging = false;
@@ -1789,6 +1688,10 @@ namespace Serein.Workbench
         /// <param name="e"></param>
         private void FlowChartCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            if (GlobalJunctionData.IsCreatingConnection)
+            {
+                return;
+            }
             if (!IsSelectControl)
             {
                 // 进入选取状态
@@ -1840,7 +1743,30 @@ namespace Serein.Workbench
                 FlowChartCanvas.ReleaseMouseCapture();
             }
 
+            // 创建连线
+            if (GlobalJunctionData.MyGlobalData is not null)
+            {
+                var myData = GlobalJunctionData.MyGlobalData;
+                var canvas = this.FlowChartCanvas;
+                if (GlobalJunctionData.CanCreate)
+                {
+                    //var startPoint = myDataType.StartPoint;
+                    var currentendPoint = e.GetPosition(canvas); // 当前鼠标落点
+                    var changingJunctionPosition = myData.ChangingJunction.TranslatePoint(new Point(0, 0), canvas);
+                    var changingJunctionRect = new Rect(changingJunctionPosition, new Size(myData.ChangingJunction.Width, myData.ChangingJunction.Height));
+
+                    if (changingJunctionRect.Contains(currentendPoint))
+                    {
+                        this.EnvDecorator.ConnectNodeAsync(myData.StartJunction.NodeGuid, myData.ChangingJunction.NodeGuid, ConnectionType.IsSucceed);
+                    }
+
+                   
+                }
+
+                GlobalJunctionData.OK();
+            }
             e.Handled = true;
+
         }
 
         /// 完成选取操作
@@ -1941,21 +1867,21 @@ namespace Serein.Workbench
 
         #region 节点对齐 （有些小瑕疵）
 
-        public void UpdateConnectedLines()
-        {
-            //foreach (var nodeControl in selectNodeControls)
-            //{
-            //    UpdateConnections(nodeControl);
-            //}
-            this.Dispatcher.Invoke(() =>
-            {
-                foreach (var line in Connections)
-                {
-                    line.Refresh();
-                }
-            });
+        //public void UpdateConnectedLines()
+        //{
+        //    //foreach (var nodeControl in selectNodeControls)
+        //    //{
+        //    //    UpdateConnections(nodeControl);
+        //    //}
+        //    this.Dispatcher.Invoke(() =>
+        //    {
+        //        foreach (var line in Connections)
+        //        {
+        //            line.AddOrRefreshLine(); // 节点完成对齐
+        //        }
+        //    });
            
-        }
+        //}
 
 
         #region Plan A 群组对齐
@@ -2236,9 +2162,9 @@ namespace Serein.Workbench
         #region 静态方法：创建节点，创建菜单子项，获取区域
 
 
-        private static TControl CreateNodeControl<TControl, TViewModel>(NodeModelBase model)
-            where TControl : NodeControlBase
-            where TViewModel : NodeControlViewModelBase
+        private static TNodeControl CreateNodeControl<TNodeControl, TNodeViewModel>(NodeModelBase model)
+            where TNodeControl : NodeControlBase
+            where TNodeViewModel : NodeControlViewModelBase
         {
 
             if (model is null)
@@ -2249,11 +2175,15 @@ namespace Serein.Workbench
             {
                 model.Guid = Guid.NewGuid().ToString();
             }
-            var viewModel = Activator.CreateInstance(typeof(TViewModel), [model]);
-            var controlObj = Activator.CreateInstance(typeof(TControl), [viewModel]);
-            if (controlObj is TControl control)
+            var viewModel = Activator.CreateInstance(typeof(TNodeViewModel), [model]);
+            var controlObj = Activator.CreateInstance(typeof(TNodeControl), [viewModel]);
+            if (controlObj is TNodeControl nodeControl)
             {
-                return control;
+                
+                //nodeControl.ExecuteJunctionControl = new NodeExecuteJunctionControl(this);
+
+
+                return nodeControl;
             }
             else
             {
@@ -2316,7 +2246,7 @@ namespace Serein.Workbench
         /// <typeparam name="T"></typeparam>
         /// <param name="element"></param>
         /// <returns></returns>
-        private static T? GetParentOfType<T>(DependencyObject element) where T : DependencyObject
+        public static T? GetParentOfType<T>(DependencyObject element) where T : DependencyObject
         {
             while (element != null)
             {
@@ -2331,7 +2261,7 @@ namespace Serein.Workbench
 
         #endregion
 
-        #region 节点数、IOC视图管理
+        #region 节点树、IOC视图管理
 
         private void JudgmentFlipFlopNode(NodeControlBase nodeControl)
         {
@@ -2708,388 +2638,14 @@ namespace Serein.Workbench
 
     #region 创建两个控件之间的连接关系，在UI层面上显示为 带箭头指向的贝塞尔曲线
 
-
-    public static class BsControl
-    {
-        public static Connection Draw(Canvas canvas, Connection connection)
-        {
-            connection.Canvas = canvas;
-            UpdateBezierLineInDragging(canvas, connection);
-            //MakeDraggable(canvas, connection, connection.Start);
-            //MakeDraggable(canvas, connection, connection.End);
-
-            if (connection.BezierPath is null)
-            {
-                connection.BezierPath = new System.Windows.Shapes.Path { Stroke = BezierLineDrawer.GetLineColor(connection.Type), StrokeThickness = 1 };
-                Canvas.SetZIndex(connection.BezierPath, -1);
-                canvas.Children.Add(connection.BezierPath);
-            }
-            if (connection.ArrowPath is null)
-            {
-                connection.ArrowPath = new System.Windows.Shapes.Path { Stroke = BezierLineDrawer.GetLineColor(connection.Type), Fill = BezierLineDrawer.GetLineColor(connection.Type), StrokeThickness = 1 };
-                Canvas.SetZIndex(connection.ArrowPath, -1);
-                canvas.Children.Add(connection.ArrowPath);
-            }
-
-           
-            BezierLineDrawer.UpdateBezierLine(canvas, connection.Start, connection.End, connection.BezierPath, connection.ArrowPath);
-            
-            return connection;
-        }
-
-        private static bool isUpdating = false; // 是否正在更新线条显示
+    #region 拓展方法 Extension
 
 
-        // 拖动时重新绘制
-        public static void UpdateBezierLineInDragging(Canvas canvas, Connection connection)
-        {
-            if (isUpdating)
-                return;
-
-            isUpdating = true;
-
-            canvas.Dispatcher.InvokeAsync(() =>
-            {
-                if (connection is null)
-                {
-                    return;
-                }
-
-                if (connection.BezierPath is null)
-                {
-                    connection.BezierPath = new System.Windows.Shapes.Path { Stroke = BezierLineDrawer.GetLineColor(connection.Type), StrokeThickness = 1 };
-                    //Canvas.SetZIndex(connection.BezierPath, -1);
-                    canvas.Children.Add(connection.BezierPath);
-                }
-
-                if (connection.ArrowPath is null)
-                {
-                    connection.ArrowPath = new System.Windows.Shapes.Path { Stroke = BezierLineDrawer.GetLineColor(connection.Type), Fill = BezierLineDrawer.GetLineColor(connection.Type), StrokeThickness = 1 };
-                    //Canvas.SetZIndex(connection.ArrowPath, -1);
-                    canvas.Children.Add(connection.ArrowPath);
-                }
-
-                
-                BezierLineDrawer.UpdateBezierLine(canvas, connection.Start, connection.End, connection.BezierPath, connection.ArrowPath);
-                isUpdating = false;
-
-            });
-        }
-
-        // private static Point clickPosition; // 当前点击事件
-        // private static bool isDragging = false; // 是否正在移动控件
-        //private static void MakeDraggable(Canvas canvas, Connection connection, UIElement element)
-        //{
-        //    if (connection.IsSetEven)
-        //    {
-        //        return;
-        //    }
-
-        //    element.MouseLeftButtonDown += (sender, e) =>
-        //    {
-        //        isDragging = true;
-        //        //clickPosition = e.GetPosition(element);
-        //        //element.CaptureMouse();
-        //    };
-        //    element.MouseLeftButtonUp += (sender, e) =>
-        //    {
-        //        isDragging = false;
-        //        //element.ReleaseMouseCapture();
-        //    };
-
-        //    element.MouseMove += (sender, e) =>
-        //    {
-        //        if (isDragging)
-        //        {
-        //            if (VisualTreeHelper.GetParent(element) is Canvas canvas)
-        //            {
-        //                Point currentPosition = e.GetPosition(canvas);
-        //                double newLeft = currentPosition.X - clickPosition.X;
-        //                double newTop = currentPosition.Y - clickPosition.Y;
-
-        //                Canvas.SetLeft(element, newLeft);
-        //                Canvas.SetTop(element, newTop);
-        //                UpdateBezierLine(canvas, connection);
-        //            }
-        //        }
-        //    };
-
-
-        //}
-    }
-
-
-    public class Connection
-    {
-        public ConnectionType Type { get; set; }
-        public Canvas? Canvas { get; set; }// 贝塞尔曲线所在画布
-
-        public System.Windows.Shapes.Path? BezierPath { get; set; }// 贝塞尔曲线路径
-        public System.Windows.Shapes.Path? ArrowPath { get; set; } // 箭头路径
-
-        public required NodeControlBase Start { get; set; } // 起始
-        public required NodeControlBase End { get; set; }   // 结束
-
-
-        public void RemoveFromCanvas()
-        {
-            if(Canvas != null)
-            {
-                Canvas.Children.Remove(BezierPath); // 移除线
-                Canvas.Children.Remove(ArrowPath); // 移除线
-            }
-        }
-
-        /// <summary>
-        /// 重新绘制
-        /// </summary>
-        public void Refresh()
-        {
-            if(Canvas is null || BezierPath is null || ArrowPath is null)
-            {
-                return;
-            }
-            BezierLineDrawer.UpdateBezierLine(Canvas, Start, End, BezierPath, ArrowPath);
-        }
-    }
+    #endregion
 
 
 
-    public static class BezierLineDrawer
-    {
-        public enum Localhost
-        {
-            Left,
-            Right,
-            Top,
-            Bottom,
-        }
 
-        /// <summary>
-        /// 绘制曲线
-        /// </summary>
-        /// <param name="canvas">所在画布</param>
-        /// <param name="startElement">起始控件</param>
-        /// <param name="endElement">终点控件</param>
-        /// <param name="bezierPath">曲线</param>
-        /// <param name="arrowPath">箭头</param>
-        public static void UpdateBezierLine(Canvas canvas,
-                                            FrameworkElement startElement,
-                                            FrameworkElement endElement,
-                                            System.Windows.Shapes.Path bezierPath,
-                                            System.Windows.Shapes.Path arrowPath)
-        {
-            Point startPoint = startElement.TranslatePoint(new Point(startElement.ActualWidth / 2, startElement.ActualHeight / 2), canvas);
-            Point endPoint = CalculateEndpointOutsideElement(endElement, canvas, startPoint, out Localhost localhost);
-            // 根据终点位置决定起点位置 (位于控件的边缘)
-            startPoint = CalculateEdgePoint(startElement, localhost, canvas);
-
-            PathFigure pathFigure = new PathFigure { StartPoint = startPoint };
-            BezierSegment bezierSegment;
-
-            if (localhost == Localhost.Left || localhost == Localhost.Right)
-            {
-                bezierSegment = new BezierSegment
-                {
-                    Point1 = new Point((startPoint.X + endPoint.X) / 2, startPoint.Y),
-                    Point2 = new Point((startPoint.X + endPoint.X) / 2, endPoint.Y),
-                    Point3 = endPoint,
-                };
-            }
-            else // if (localhost == Localhost.Top || localhost == Localhost.Bottom)
-            {
-
-                bezierSegment = new BezierSegment
-                {
-                    Point1 = new Point(startPoint.X, (startPoint.Y + endPoint.Y) / 2),
-                    Point2 = new Point(endPoint.X, (startPoint.Y + endPoint.Y) / 2),
-                    Point3 = endPoint,
-                };
-            }
-            var minZ = canvas.Children.OfType<UIElement>()//linq语句，取Zindex的最大值
-              .Select(x => Grid.GetZIndex(x))
-              .Min();
-            Grid.SetZIndex(bezierPath, minZ - 1);
-           // Canvas.SetZIndex(bezierPath, 0);
-            pathFigure.Segments.Add(bezierSegment);
-
-            PathGeometry pathGeometry = new PathGeometry();
-            pathGeometry.Figures.Add(pathFigure);
-            bezierPath.Data = pathGeometry;
-
-            Point arrowStartPoint = CalculateBezierTangent(startPoint, bezierSegment.Point3, bezierSegment.Point2, endPoint);
-            UpdateArrowPath(endPoint, arrowStartPoint, arrowPath);
-        }
-
-        private static Point CalculateBezierTangent(Point startPoint, Point controlPoint1, Point controlPoint2, Point endPoint)
-        {
-            double t = 11; // 末端点
-
-            // 计算贝塞尔曲线在 t = 1 处的一阶导数
-            double dx = 3 * Math.Pow(1 - t, 2) * (controlPoint1.X - startPoint.X) +
-                        6 * (1 - t) * t * (controlPoint2.X - controlPoint1.X) +
-                        3 * Math.Pow(t, 2) * (endPoint.X - controlPoint2.X);
-
-            double dy = 3 * Math.Pow(1 - t, 2) * (controlPoint1.Y - startPoint.Y) +
-                        6 * (1 - t) * t * (controlPoint2.Y - controlPoint1.Y) +
-                        3 * Math.Pow(t, 2) * (endPoint.Y - controlPoint2.Y);
-
-            // 返回切线向量
-            return new Point(dx, dy);
-        }
-
-        // 绘制箭头
-        private static void UpdateArrowPath(Point endPoint,
-                                            Point controlPoint,
-                                            System.Windows.Shapes.Path arrowPath)
-        {
-
-            double arrowLength = 10;
-            double arrowWidth = 5;
-
-            Vector direction = endPoint - controlPoint;
-            direction.Normalize();
-
-            Point arrowPoint1 = endPoint + direction * arrowLength + new Vector(-direction.Y, direction.X) * arrowWidth;
-            Point arrowPoint2 = endPoint + direction * arrowLength + new Vector(direction.Y, -direction.X) * arrowWidth;
-
-            PathFigure arrowFigure = new PathFigure { StartPoint = endPoint };
-            arrowFigure.Segments.Add(new LineSegment(arrowPoint1, true));
-            arrowFigure.Segments.Add(new LineSegment(arrowPoint2, true));
-            arrowFigure.Segments.Add(new LineSegment(endPoint, true));
-
-            PathGeometry arrowGeometry = new PathGeometry();
-            arrowGeometry.Figures.Add(arrowFigure);
-
-            arrowPath.Data = arrowGeometry;
-
-        }
-        // 计算起点位于控件边缘的四个中心点之一
-        private static Point CalculateEdgePoint(FrameworkElement element, Localhost localhost, Canvas canvas)
-        {
-            Point point = new Point();
-
-            switch (localhost)
-            {
-                case Localhost.Right:
-                    point = new Point(0, element.ActualHeight / 2); // 左边中心
-                    break;
-                case Localhost.Left:
-                    point = new Point(element.ActualWidth, element.ActualHeight / 2); // 右边中心
-                    break;
-                case Localhost.Bottom:
-                    point = new Point(element.ActualWidth / 2, 0); // 上边中心
-                    break;
-                case Localhost.Top:
-                    point = new Point(element.ActualWidth / 2, element.ActualHeight); // 下边中心
-                    break;
-            }
-
-            // 计算角落
-            //switch (localhost)
-            //{
-            //    case Localhost.Right:
-            //        point = new Point(0, element.ActualHeight / 2); // 左边中心
-            //        break;
-            //    case Localhost.Left:
-            //        point = new Point(element.ActualWidth, element.ActualHeight / 2); // 右边中心
-            //        break;
-            //    case Localhost.Bottom:
-            //        point = new Point(element.ActualWidth / 2, 0); // 上边中心
-            //        break;
-            //    case Localhost.Top:
-            //        point = new Point(element.ActualWidth / 2, element.ActualHeight); // 下边中心
-            //        break;
-            //}
-
-            // 将相对控件的坐标转换到画布中的全局坐标
-            return element.TranslatePoint(point, canvas);
-        }
-
-        // 计算终点落点位置
-        private static Point CalculateEndpointOutsideElement(FrameworkElement element, Canvas canvas, Point startPoint, out Localhost localhost)
-        {
-            Point centerPoint = element.TranslatePoint(new Point(element.ActualWidth / 2, element.ActualHeight / 2), canvas);
-            Vector direction = centerPoint - startPoint;
-            direction.Normalize();
-
-
-
-            var tx = centerPoint.X - startPoint.X;
-            var ty = startPoint.Y - centerPoint.Y;
-
-
-            localhost = (tx < ty, Math.Abs(tx) > Math.Abs(ty)) switch
-            {
-                (true, true) => Localhost.Right,
-                (true, false) => Localhost.Bottom,
-                (false, true) => Localhost.Left,
-                (false, false) => Localhost.Top,
-            };
-
-            double halfWidth = element.ActualWidth / 2 + 10;
-            double halfHeight = element.ActualHeight / 2 + 10;
-
-
-            #region 固定中位
-
-            //if (localhost == Localhost.Left)
-            //{
-            //    centerPoint.X -= halfWidth;
-            //}
-            //else if (localhost == Localhost.Right)
-            //{
-            //    centerPoint.X -= -halfWidth;
-            //}
-            //else if (localhost == Localhost.Top)
-            //{
-            //    centerPoint.Y -= halfHeight;
-            //}
-            //else if (localhost == Localhost.Bottom)
-            //{
-            //    centerPoint.Y -= -halfHeight;
-            //}
-            #endregion
-
-            #region 落点自由移动
-            double margin = 0;
-            if (localhost == Localhost.Left)
-            {
-                centerPoint.X -= halfWidth;
-                centerPoint.Y -= direction.Y / (1 + Math.Abs(direction.X)) * halfHeight - margin;
-            }
-            else if (localhost == Localhost.Right)
-            {
-                centerPoint.X -= -halfWidth;
-                centerPoint.Y -= direction.Y / (1 + Math.Abs(direction.X)) * halfHeight - margin;
-            }
-            else if (localhost == Localhost.Top)
-            {
-                centerPoint.Y -= halfHeight;
-                centerPoint.X -= direction.X / (1 + Math.Abs(direction.Y)) * halfWidth - margin;
-            }
-            else if (localhost == Localhost.Bottom)
-            {
-                centerPoint.Y -= -halfHeight;
-                centerPoint.X -= direction.X / (1 + Math.Abs(direction.Y)) * halfWidth - margin;
-            }
-            #endregion
-            return centerPoint;
-        }
-
-        public static SolidColorBrush GetLineColor(ConnectionType currentConnectionType)
-        {
-            return currentConnectionType switch
-            {
-                ConnectionType.IsSucceed => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10")),
-                ConnectionType.IsFail => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F18905")),
-                ConnectionType.IsError => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FE1343")),
-                ConnectionType.Upstream => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4A82E4")),
-                _ => throw new Exception(),
-            };
-        }
-
-    }
     #endregion
 
 }

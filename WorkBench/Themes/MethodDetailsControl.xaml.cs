@@ -39,7 +39,7 @@ namespace Serein.Workbench.Themes
     /// <summary>
     /// 方法参数控件
     /// </summary>
-    public partial class MethodDetailsControl : UserControl//,ItemsControl
+    public partial class MethodDetailsControl : UserControl
     {
         static MethodDetailsControl()
         {

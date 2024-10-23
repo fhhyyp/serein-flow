@@ -249,7 +249,7 @@ namespace Serein.NodeFlow.Env
         /// 环境加载的节点集合
         /// Node Guid - Node Model
         /// </summary>
-        private Dictionary<string, NodeModelBase> Nodes { get; } = [];
+        private Dictionary<string, NodeModelBase> NodeModels { get; } = [];
 
         /// <summary>
         /// 存放触发器节点（运行时全部调用）
@@ -340,7 +340,7 @@ namespace Serein.NodeFlow.Env
         {
             ChannelFlowInterrupt?.CancelAllTasks();
             flowStarter = new FlowStarter();
-            var nodes = Nodes.Values.ToList();
+            var nodes = NodeModels.Values.ToList();
 
             List<MethodDetails> initMethods = [];
             List<MethodDetails> loadMethods = [];
@@ -417,7 +417,7 @@ namespace Serein.NodeFlow.Env
             ChannelFlowInterrupt?.CancelAllTasks();
             flowStarter?.Exit();
 
-            foreach (var node in Nodes.Values)
+            foreach (var node in NodeModels.Values)
             {
                 if (node is not null)
                 {
@@ -588,7 +588,7 @@ namespace Serein.NodeFlow.Env
             {
                 foreach (var childNodeGuid in item.childNodeGuids)
                 {
-                    Nodes.TryGetValue(childNodeGuid, out NodeModelBase? childNode);
+                    NodeModels.TryGetValue(childNodeGuid, out NodeModelBase? childNode);
                     if (childNode is null)
                     {
                         // 节点尚未加载
@@ -621,35 +621,39 @@ namespace Serein.NodeFlow.Env
 
 
             // 确定节点之间的连接关系
-            foreach (var nodeInfo in projectData.Nodes)
+            Task.Run(async () =>
             {
-                if (!Nodes.TryGetValue(nodeInfo.Guid, out NodeModelBase? fromNode))
+                await Task.Delay(777);
+                foreach (var nodeInfo in projectData.Nodes)
                 {
-                    // 不存在对应的起始节点
-                    continue;
-                }
+                    if (!NodeModels.TryGetValue(nodeInfo.Guid, out NodeModelBase? fromNode))
+                    {
+                        // 不存在对应的起始节点
+                        continue;
+                    }
 
 
-                List<(ConnectionType connectionType, string[] guids)> allToNodes = [(ConnectionType.IsSucceed,nodeInfo.TrueNodes),
+                    List<(ConnectionType connectionType, string[] guids)> allToNodes = [(ConnectionType.IsSucceed,nodeInfo.TrueNodes),
                                                                                     (ConnectionType.IsFail,   nodeInfo.FalseNodes),
                                                                                     (ConnectionType.IsError,  nodeInfo.ErrorNodes),
                                                                                     (ConnectionType.Upstream, nodeInfo.UpstreamNodes)];
 
-                List<(ConnectionType, NodeModelBase[])> fromNodes = allToNodes.Where(info => info.guids.Length > 0)
-                                                                     .Select(info => (info.connectionType,
-                                                                                      info.guids.Where(guid => Nodes.ContainsKey(guid)).Select(guid => Nodes[guid])
-                                                                                        .ToArray()))
-                                                                     .ToList();
-                // 遍历每种类型的节点分支（四种）
-                foreach ((ConnectionType connectionType, NodeModelBase[] toNodes) item in fromNodes)
-                {
-                    // 遍历当前类型分支的节点（确认连接关系）
-                    foreach (var toNode in item.toNodes)
+                    List<(ConnectionType, NodeModelBase[])> fromNodes = allToNodes.Where(info => info.guids.Length > 0)
+                                                                         .Select(info => (info.connectionType,
+                                                                                          info.guids.Where(guid => NodeModels.ContainsKey(guid)).Select(guid => NodeModels[guid])
+                                                                                            .ToArray()))
+                                                                         .ToList();
+                    // 遍历每种类型的节点分支（四种）
+                    foreach ((ConnectionType connectionType, NodeModelBase[] toNodes) item in fromNodes)
                     {
-                        ConnectNodeAsync(fromNode, toNode, item.connectionType); // 加载时确定节点间的连接关系
+                        // 遍历当前类型分支的节点（确认连接关系）
+                        foreach (var toNode in item.toNodes)
+                        {
+                            ConnectNodeAsync(fromNode, toNode, item.connectionType); // 加载时确定节点间的连接关系
+                        }
                     }
                 }
-            }
+            });
 
             SetStartNode(projectData.StartNode);
             UIContextOperation?.Invoke(() => OnProjectLoaded?.Invoke(new ProjectLoadedEventArgs()));
@@ -710,8 +714,8 @@ namespace Serein.NodeFlow.Env
             var projectData = new SereinProjectData()
             {
                 Librarys = Librarys.Values.Select(lib => lib.ToLibrary()).ToArray(),
-                Nodes = Nodes.Values.Select(node => node.ToInfo()).Where(info => info is not null).ToArray(),
-                StartNode = Nodes.Values.FirstOrDefault(it => it.IsStart)?.Guid,
+                Nodes = NodeModels.Values.Select(node => node.ToInfo()).Where(info => info is not null).ToArray(),
+                StartNode = NodeModels.Values.FirstOrDefault(it => it.IsStart)?.Guid,
             };
             return Task.FromResult(projectData);
         }
@@ -740,7 +744,7 @@ namespace Serein.NodeFlow.Env
             {
                 return false;
             }
-            var groupedNodes = Nodes.Values
+            var groupedNodes = NodeModels.Values
                 .Where(node => node.MethodDetails is not null)
                 .ToArray()
                 .GroupBy(node => node.MethodDetails!.MethodName)
@@ -749,7 +753,7 @@ namespace Serein.NodeFlow.Env
                 group => group.Count());
 
 
-            if (Nodes.Count == 0)
+            if (NodeModels.Count == 0)
             {
                 return true; // 当前无节点，可以直接删除
             }
@@ -877,7 +881,7 @@ namespace Serein.NodeFlow.Env
             }
 
             // 从集合中移除节点
-            Nodes.Remove(nodeGuid);
+            NodeModels.Remove(nodeGuid);
             UIContextOperation?.Invoke(() => OnNodeRemove?.Invoke(new NodeRemoveEventArgs(nodeGuid)));
             return true;
         }
@@ -887,8 +891,10 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         /// <param name="fromNodeGuid">起始节点</param>
         /// <param name="toNodeGuid">目标节点</param>
+        /// <param name="fromNodeJunctionType">起始节点控制点</param>
+        /// <param name="toNodeJunctionType">目标节点控制点</param>
         /// <param name="connectionType">连接关系</param>
-        public async Task<bool> ConnectNodeAsync(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
+        public async Task<bool> ConnectNodeAsync(string fromNodeGuid, string toNodeGuid, JunctionType fromNodeJunctionType, JunctionType toNodeJunctionType, ConnectionType connectionType)
         {
             // 获取起始节点与目标节点
             var fromNode = GuidToModel(fromNodeGuid);
@@ -978,9 +984,10 @@ namespace Serein.NodeFlow.Env
         /// <param name="y"></param>
         public void MoveNode(string nodeGuid, double x, double y)
         {
-            var nodeModel = GuidToModel(nodeGuid);
+            NodeModelBase? nodeModel = GuidToModel(nodeGuid);
             if (nodeModel is null) return;
             nodeModel.Position.X = x;
+
             nodeModel.Position.Y = y;
             UIContextOperation?.Invoke(() => OnNodeMoved?.Invoke(new NodeMovedEventArgs(nodeGuid, x, y)));
            
@@ -1225,7 +1232,7 @@ namespace Serein.NodeFlow.Env
                 //throw new ArgumentNullException("not contains - Guid没有对应节点:" + (nodeGuid));
                 return null;
             }
-            if (!Nodes.TryGetValue(nodeGuid, out NodeModelBase? nodeModel) || nodeModel is null)
+            if (!NodeModels.TryGetValue(nodeGuid, out NodeModelBase? nodeModel) || nodeModel is null)
             {
                 //throw new ArgumentNullException("null - Guid存在对应节点,但节点为null:" + (nodeGuid));
                 return null;
@@ -1410,7 +1417,7 @@ namespace Serein.NodeFlow.Env
         private bool TryAddNode(NodeModelBase nodeModel)
         {
             nodeModel.Guid ??= Guid.NewGuid().ToString();
-            Nodes[nodeModel.Guid] = nodeModel;
+            NodeModels[nodeModel.Guid] = nodeModel;
 
             // 如果是触发器，则需要添加到专属集合中
             if (nodeModel is SingleFlipflopNode flipflopNode)

@@ -12,14 +12,19 @@ namespace Serein.Library
     [NodeProperty(ValuePath = NodeValuePath.DebugSetting)]
     public partial class NodeDebugSetting
     {
-        private readonly NodeModelBase nodeModel;
+        /// <summary>
+        /// 对应的节点
+        /// </summary>
+        [PropertyInfo(IsProtection = true)]
+        private NodeModelBase _nodeModel;
+
         /// <summary>
         /// 创建属于某个节点的调试设置
         /// </summary>
         /// <param name="nodeModel"></param>
         public NodeDebugSetting(NodeModelBase nodeModel)
         {
-            this.nodeModel = nodeModel;
+            NodeModel = nodeModel;
         }
         /// <summary>
         /// 是否使能

@@ -335,6 +335,7 @@ namespace Serein.NodeFlow
             }
             dictGlobalFlipflop.Clear();
         }
+
         /// <summary>
         /// 启动全局触发器
         /// </summary>

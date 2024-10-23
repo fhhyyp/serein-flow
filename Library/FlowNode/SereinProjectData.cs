@@ -244,26 +244,30 @@ namespace Serein.Library
 
 
     /// <summary>
-    /// 节点于画布中的位置
+    /// 节点于画布中的位置（通用类）
     /// </summary>
-    public class PositionOfUI
-    { /// <summary>
-      /// 构造一个坐标
-      /// </summary>
-        public PositionOfUI()
-        {
-
-        }
+    [NodeProperty]
+    public partial class PositionOfUI
+    {
         /// <summary>
         /// 构造一个坐标
         /// </summary>
         public PositionOfUI(double x, double y)
         {
-            X = x; Y = y;
+            _x = x; _y = y;
         }
 
-        public double X { get; set; } = 0;
-        public double Y { get; set; } = 0;
+        /// <summary>
+        /// 指示控件在画布的横向向方向上的位置
+        /// </summary>
+        [PropertyInfo]
+        private double _x = 0;
+
+        /// <summary>
+        /// 指示控件在画布的纵向方向上的位置
+        /// </summary>
+        [PropertyInfo]
+        private double _y = 0;
     }
 
 

@@ -38,7 +38,7 @@ namespace Serein.NodeFlow.Env
         /// 环境加载的节点集合
         /// Node Guid - Node Model
         /// </summary>
-        private Dictionary<string, NodeModelBase> Nodes { get; } = [];
+        private Dictionary<string, NodeModelBase> NodeModels { get; } = [];
 
         public event LoadDllHandler OnDllLoad;
         public event ProjectLoadedHandler OnProjectLoaded;
@@ -173,7 +173,7 @@ namespace Serein.NodeFlow.Env
             {
                 foreach (var childNodeGuid in item.childNodeGuids)
                 {
-                    Nodes.TryGetValue(childNodeGuid, out NodeModelBase? childNode);
+                    NodeModels.TryGetValue(childNodeGuid, out NodeModelBase? childNode);
                     if (childNode is null)
                     {
                         // 节点尚未加载
@@ -211,7 +211,7 @@ namespace Serein.NodeFlow.Env
                 await Task.Delay(250);
                 foreach (var nodeInfo in projectData.Nodes)
                 {
-                    if (!Nodes.TryGetValue(nodeInfo.Guid, out NodeModelBase? fromNode))
+                    if (!NodeModels.TryGetValue(nodeInfo.Guid, out NodeModelBase? fromNode))
                     {
                         // 不存在对应的起始节点
                         continue;
@@ -225,7 +225,7 @@ namespace Serein.NodeFlow.Env
 
                     List<(ConnectionType, NodeModelBase[])> fromNodes = allToNodes.Where(info => info.guids.Length > 0)
                                                                          .Select(info => (info.connectionType,
-                                                                                          info.guids.Where(guid => Nodes.ContainsKey(guid)).Select(guid => Nodes[guid])
+                                                                                          info.guids.Where(guid => NodeModels.ContainsKey(guid)).Select(guid => NodeModels[guid])
                                                                                             .ToArray()))
                                                                          .ToList();
                     // 遍历每种类型的节点分支（四种）
@@ -259,7 +259,7 @@ namespace Serein.NodeFlow.Env
         private bool TryAddNode(NodeModelBase nodeModel)
         {
             //nodeModel.Guid ??= Guid.NewGuid().ToString();
-            Nodes[nodeModel.Guid] = nodeModel;
+            NodeModels[nodeModel.Guid] = nodeModel;
 
             // 如果是触发器，则需要添加到专属集合中
             //if (nodeModel is SingleFlipflopNode flipflopNode)
@@ -395,10 +395,10 @@ namespace Serein.NodeFlow.Env
 
         public void MoveNode(string nodeGuid, double x, double y)
         {
-            UIContextOperation.Invoke(() =>
-            {
-                OnNodeMoved.Invoke(new NodeMovedEventArgs(nodeGuid, x, y));
-            });
+            //UIContextOperation?.Invoke(() =>
+            //{
+            //    OnNodeMoved?.Invoke(new NodeMovedEventArgs(nodeGuid, x, y));
+            //});
             _ = msgClient.SendAsync(EnvMsgTheme.MoveNode,
                     new
                     {
@@ -406,6 +406,12 @@ namespace Serein.NodeFlow.Env
                         x,
                         y
                     });
+
+            if(NodeModels.TryGetValue(nodeGuid, out var nodeModel))
+            {
+                nodeModel.Position.X = x;
+                nodeModel.Position.Y = y;
+            }
         }
 
         
@@ -418,12 +424,14 @@ namespace Serein.NodeFlow.Env
             //UIContextOperation?.Invoke(() => OnStartNodeChange?.Invoke(new StartNodeChangeEventArgs(nodeGuid,nodeGuid)));
         }
 
-        public async Task<bool> ConnectNodeAsync(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
+        public async Task<bool> ConnectNodeAsync(string fromNodeGuid, string toNodeGuid, JunctionType fromNodeJunctionType, JunctionType toNodeJunctionType, ConnectionType connectionType)
         {
             var result = await msgClient.SendAndWaitDataAsync<bool>(EnvMsgTheme.ConnectNode, new
             {
                 fromNodeGuid,
                 toNodeGuid,
+                fromNodeJunctionType = fromNodeJunctionType.ToString(),
+                toNodeJunctionType = toNodeJunctionType.ToString(),
                 connectionType = connectionType.ToString(),
             });
             if (result)

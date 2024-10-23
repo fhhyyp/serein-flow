@@ -30,7 +30,10 @@ namespace Serein.Library
         /// 异常发生分支（当前节点对应的方法执行时出现非预期的异常）
         /// </summary>
         IsError,
-
+        /// <summary>
+        /// 无视
+        /// </summary>
+        // IsIgnore,
     }
 
     

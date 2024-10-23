@@ -1,34 +1,41 @@
 ﻿using System.ComponentModel;
 using Serein.Library;
 using System.Runtime.CompilerServices;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System;
 
 namespace Serein.Workbench.Node.ViewModel
 {
-    public abstract class NodeControlViewModelBase : INotifyPropertyChanged
+    public abstract class NodeControlViewModelBase
     {
+        ///// <summary>
+        ///// 对应的节点实体类
+        ///// </summary>
+        public NodeModelBase NodeModel { get; }
+
         public NodeControlViewModelBase(NodeModelBase nodeModel)
         {
             NodeModel = nodeModel;
 
-            // 订阅来自 NodeModel 的通知事件
         }
 
+        
 
-        private NodeModelBase _nodeModelBase;
-        /// <summary>
-        /// 对应的节点实体类
-        /// </summary>
-        public NodeModelBase NodeModel
-        {
-            get => _nodeModelBase; set
-            {
-                if (value != null)
-                {
-                    _nodeModelBase = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
+
+        //private NodeModelBase _nodeModelBase;
+       
+        //public NodeModelBase NodeModel
+        //{
+        //    get => _nodeModelBase; set
+        //    {
+        //        if (value != null)
+        //        {
+        //            _nodeModelBase = value;
+        //            OnPropertyChanged();
+        //        }
+        //    }
+        //}
 
 
         //private bool isSelect;
@@ -61,12 +68,12 @@ namespace Serein.Workbench.Node.ViewModel
         //    }
         //}
 
-        public event PropertyChangedEventHandler? PropertyChanged;
-         protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
-         {
-             //Console.WriteLine(propertyName);
-             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-         }
+        //public event PropertyChangedEventHandler? PropertyChanged;
+        //protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        //{
+        //    //Console.WriteLine(propertyName);
+        //    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        //}
 
 
         /// <summary>

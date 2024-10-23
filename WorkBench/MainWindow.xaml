@@ -101,13 +101,14 @@
         <Grid  Grid.Row="1"  Grid.Column="2" x:Name="FlowChartStackGrid">
 
             <StackPanel x:Name="FlowChartStackPanel"
+                      
                          ClipToBounds="True">
                 <Canvas 
                     x:Name="FlowChartCanvas" 
                     Background="#E1FBEA"
                     AllowDrop="True" 
-                    Width="700"
-                    Height="700"
+                    Width="2000"
+                    Height="2000"
                     MouseLeftButtonDown ="FlowChartCanvas_MouseLeftButtonDown"
                     MouseLeftButtonUp="FlowChartCanvas_MouseLeftButtonUp"
                     MouseDown="FlowChartCanvas_MouseDown"

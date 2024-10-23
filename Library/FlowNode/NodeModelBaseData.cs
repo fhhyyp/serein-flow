@@ -14,10 +14,23 @@ namespace Serein.Library
     [NodeProperty(ValuePath = NodeValuePath.None)]
     public abstract partial class NodeModelBase : IDynamicFlowNode
     {
-        
-
+        /// <summary>
+        /// 节点运行环境
+        /// </summary>
         [PropertyInfo(IsProtection = true)]
         private IFlowEnvironment _env;
+
+        /// <summary>
+        /// 标识节点对象全局唯一
+        /// </summary>
+        [PropertyInfo(IsProtection = true)]
+        private string _guid;
+
+        /// <summary>
+        /// 描述节点对应的控件类型
+        /// </summary>
+        [PropertyInfo(IsProtection = true)]
+        private NodeControlType _controlType;
 
         /// <summary>
         /// 在画布中的位置
@@ -26,16 +39,22 @@ namespace Serein.Library
         private PositionOfUI _position ;
 
         /// <summary>
+        /// 显示名称
+        /// </summary>
+        [PropertyInfo]
+        private string _displayName;
+
+        /// <summary>
+        /// 是否为起点控件
+        /// </summary>
+        [PropertyInfo]
+        private bool _isStart;
+
+        /// <summary>
         /// 附加的调试功能
         /// </summary>
         [PropertyInfo(IsProtection = true)] 
         private NodeDebugSetting _debugSetting ;
-
-        /// <summary>
-        /// 描述节点对应的控件类型
-        /// </summary>
-        [PropertyInfo(IsProtection = true)] 
-        private NodeControlType _controlType ;
 
         /// <summary>
         /// 方法描述。不包含Method与委托，需要通过MethodName从环境中获取委托进行调用。
@@ -44,30 +63,10 @@ namespace Serein.Library
         private MethodDetails _methodDetails ;
 
         /// <summary>
-        /// 标识节点对象全局唯一
-        /// </summary>
-        [PropertyInfo(IsProtection = true)] 
-        private string _guid ;
-
-        /// <summary>
-        /// 显示名称
-        /// </summary>
-        [PropertyInfo] 
-        private string _displayName ; 
-
-        /// <summary>
-        /// 是否为起点控件
-        /// </summary>
-        [PropertyInfo] 
-        private bool _isStart ;
-
-        /// <summary>
         /// 运行时的上一节点
         /// </summary>
         [PropertyInfo] 
         private NodeModelBase _previousNode ;
-
-       
 
         /// <summary>
         /// 当前节点执行完毕后需要执行的下一个分支的类别
@@ -81,10 +80,11 @@ namespace Serein.Library
         [PropertyInfo]
         private Exception _runingException ;
 
+
     }
 
 
-
+   
 
 
     public abstract partial class NodeModelBase : IDynamicFlowNode
@@ -111,6 +111,7 @@ namespace Serein.Library
         /// 不同分支的子节点
         /// </summary>
         public Dictionary<ConnectionType, List<NodeModelBase>> SuccessorNodes { get; }
+
 
         /// <summary>
         /// 控制FlowData在同一时间只会被同一个线程更改。

@@ -130,9 +130,12 @@ namespace Serein.Library.NodeGenerator
             sb.AppendLine($"    public partial class {className} : System.ComponentModel.INotifyPropertyChanged");
             sb.AppendLine("    {");
 
-            var path = classInfo[nameof(NodePropertyAttribute)]["ValuePath"];
+            //object path = null ;
+            //if(classInfo.TryGetValue(nameof(NodePropertyAttribute), out var values))
+            //{
+            //    values.TryGetValue(nameof(NodePropertyAttribute.ValuePath), out path); // 获取路径
+            //}
 
-            
             //
             //
 
@@ -161,8 +164,6 @@ namespace Serein.Library.NodeGenerator
 
                     var isProtection = attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsProtection), "true"); // 是否为保护字段
 
-                   
-                   
                     // 生成 getter / setter
                     sb.AppendLine(leadingTrivia);
                     sb.AppendLine($"        public {fieldType} {propertyName}");
@@ -184,15 +185,15 @@ namespace Serein.Library.NodeGenerator
                         }
                         else if (classInfo.ExitsPath(nameof(NodeValuePath.Method))) // 节点方法详情
                         {
-                            sb.AddCode(5, $"nodeModel?.Env?.NotificationNodeValueChangeAsync(nodeModel.Guid, \"MethodDetails.\"+nameof({propertyName}), value); // 通知远程环境属性发生改变了");
+                            sb.AddCode(5, $"NodeModel?.Env?.NotificationNodeValueChangeAsync(NodeModel.Guid, \"MethodDetails.\"+nameof({propertyName}), value); // 通知远程环境属性发生改变了");
                         }
                         else if (classInfo.ExitsPath(nameof(NodeValuePath.Parameter))) // 节点方法入参参数描述
                         {
-                            sb.AddCode(5, "nodeModel?.Env?.NotificationNodeValueChangeAsync(nodeModel.Guid, \"MethodDetails.ParameterDetailss[\"+$\"{Index}\"+\"]." + $"\"+nameof({propertyName}),value); // 通知远程环境属性发生改变了");
+                            sb.AddCode(5, "NodeModel?.Env?.NotificationNodeValueChangeAsync(NodeModel.Guid, \"MethodDetails.ParameterDetailss[\"+$\"{Index}\"+\"]." + $"\"+nameof({propertyName}),value); // 通知远程环境属性发生改变了");
                         }
                         else if (classInfo.ExitsPath(nameof(NodeValuePath.DebugSetting))) // 节点的调试信息
                         {
-                            sb.AddCode(5, $"nodeModel?.Env?.NotificationNodeValueChangeAsync(nodeModel.Guid, \"DebugSetting.\"+nameof({propertyName}), value); // 通知远程环境属性发生改变了"); 
+                            sb.AddCode(5, $"NodeModel?.Env?.NotificationNodeValueChangeAsync(NodeModel.Guid, \"DebugSetting.\"+nameof({propertyName}), value); // 通知远程环境属性发生改变了"); 
                         }
                     }
                     sb.AppendLine($"                    SetProperty<{fieldType}>(ref {fieldName}, value); // 通知UI属性发生改变了");
@@ -223,20 +224,21 @@ namespace Serein.Library.NodeGenerator
                 sb.AppendLine("            }                                                                                                                ");
                 sb.AppendLine("                                                                                                                             ");
                 sb.AppendLine("            storage = value;                                                                                                 ");
-                sb.AppendLine("            OnPropertyChanged(propertyName);                                                                                 ");
+                //sb.AppendLine("            OnPropertyChanged(propertyName);                                                                               ");
+                sb.AppendLine("            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));                 ");
                 sb.AppendLine("        }                                                                                                                    ");
 
-                sb.AppendLine("        /// <summary>                                                                                                        ");
-                sb.AppendLine("        /// 略                                                                                                               ");
-                sb.AppendLine("        /// <para>此方法为自动生成</para>                                                                                    "); 
-                sb.AppendLine("        /// </summary>");
-                sb.AppendLine("        /// <param name=\"propertyName\"></param>                                                                            ");
-                sb.AppendLine("                                                                                                                             ");
-                sb.AppendLine("        protected void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)      "); 
-                sb.AppendLine("        {"); 
+                //sb.AppendLine("        /// <summary>                                                                                                        ");
+                //sb.AppendLine("        /// 略                                                                                                               ");
+                //sb.AppendLine("        /// <para>此方法为自动生成</para>                                                                                    "); 
+                //sb.AppendLine("        /// </summary>");
+                //sb.AppendLine("        /// <param name=\"propertyName\"></param>                                                                            ");
+                //sb.AppendLine("                                                                                                                             ");
+                //sb.AppendLine("        protected void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)      "); 
+                //sb.AppendLine("        {"); 
                 //sb.AppendLine("            Console.WriteLine(\"测试:\"+ propertyName);"); 
-                sb.AppendLine("            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));                 "); 
-                sb.AppendLine("        }");
+                //sb.AppendLine("            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));                 "); 
+                //sb.AppendLine("        }");
 
             }
             finally

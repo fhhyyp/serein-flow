@@ -26,8 +26,21 @@ namespace Serein.Library.Utils
             result = default;
             return false;
         }
-        
-        
+
+        /// <summary>
+        /// 将字符串的字面量枚举值，转为对应的枚举值
+        /// </summary>
+        /// <typeparam name="TEnum">枚举</typeparam>
+        /// <param name="value">枚举字面量</param>
+        /// <returns>转换后的枚举值</returns>
+        public static TEnum ConvertEnum<TEnum>(this string value) where TEnum : struct, Enum
+        {
+            if (!string.IsNullOrEmpty(value) && Enum.TryParse(value, true, out TEnum tempResult) && Enum.IsDefined(typeof(TEnum), tempResult))
+            {
+                return tempResult;
+            }
+            throw new NotImplementedException($"枚举值转换失败：value（{value}）to enum （ {typeof(TEnum).FullName}）");
+        }
 
         /// <summary>
         /// 从枚举值的 BindValueAttribute 特性中 获取绑定的参数（用于绑定了某些内容的枚举值）

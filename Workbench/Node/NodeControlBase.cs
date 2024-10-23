@@ -1,7 +1,10 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
 using Serein.Workbench.Node.ViewModel;
+using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace Serein.Workbench.Node.View
@@ -14,7 +17,7 @@ namespace Serein.Workbench.Node.View
     {
         public NodeControlViewModelBase ViewModel { get; set; }
 
-        
+
         protected NodeControlBase()
         {
             this.Background = Brushes.Transparent;
@@ -24,7 +27,33 @@ namespace Serein.Workbench.Node.View
             ViewModel = viewModelBase;
             this.Background = Brushes.Transparent;
             this.DataContext = viewModelBase;
+            SetBinding();
         }
+
+
+        public void SetBinding()
+        {
+            // 绑定 Canvas.Left
+            Binding leftBinding = new Binding("X")
+            {
+                Source = ViewModel.NodeModel.Position, // 如果 X 属性在当前 DataContext 中
+                Mode = BindingMode.TwoWay
+            };
+            BindingOperations.SetBinding(this, Canvas.LeftProperty, leftBinding);
+
+            // 绑定 Canvas.Top
+            Binding topBinding = new Binding("Y")
+            {
+                Source = ViewModel.NodeModel.Position, // 如果 Y 属性在当前 DataContext 中
+                Mode = BindingMode.TwoWay
+            };
+            BindingOperations.SetBinding(this, Canvas.TopProperty, topBinding);
+        }
+
+        
+
+
+
     }
 
 

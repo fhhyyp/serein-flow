@@ -10,10 +10,12 @@ namespace Serein.Workbench.Node.View
     /// </summary>
     public partial class ActionNodeControl : NodeControlBase
     {
-        public ActionNodeControl(ActionNodeControlViewModel viewModel):base(viewModel) 
+        public ActionNodeControl(ActionNodeControlViewModel viewModel) : base(viewModel) 
         {
             DataContext = viewModel;
             InitializeComponent();
+            ExecuteJunctionControl.NodeGuid = viewModel.NodeModel.Guid;
         }
+
     }
 }

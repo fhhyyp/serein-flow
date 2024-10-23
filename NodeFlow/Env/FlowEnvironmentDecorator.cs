@@ -180,9 +180,9 @@ namespace Serein.NodeFlow.Env
             currentFlowEnvironment.ClearAll();
         }
 
-        public async Task<bool> ConnectNodeAsync(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
+        public async Task<bool> ConnectNodeAsync(string fromNodeGuid, string toNodeGuid, JunctionType fromNodeJunctionType, JunctionType toNodeJunctionType, ConnectionType connectionType)
         {
-            return await currentFlowEnvironment.ConnectNodeAsync(fromNodeGuid, toNodeGuid, connectionType);
+            return await currentFlowEnvironment.ConnectNodeAsync(fromNodeGuid, toNodeGuid, fromNodeJunctionType, toNodeJunctionType, connectionType);
         }
 
         public async Task<(bool, RemoteEnvControl)> ConnectRemoteEnv(string addres, int port, string token)

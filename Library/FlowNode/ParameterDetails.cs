@@ -15,7 +15,13 @@ namespace Serein.Library
     public partial class ParameterDetails
     {
         private readonly IFlowEnvironment env;
-        private readonly NodeModelBase nodeModel;
+
+        /// <summary>
+        /// 对应的节点
+        /// </summary>
+        [PropertyInfo(IsProtection = true)]
+        private NodeModelBase _nodeModel;
+
         /// <summary>
         /// 参数索引
         /// </summary>
@@ -83,7 +89,7 @@ namespace Serein.Library
         public ParameterDetails(IFlowEnvironment env, NodeModelBase nodeModel)
         {
             this.env = env;
-            this.nodeModel = nodeModel;
+            this.NodeModel = nodeModel;
         }
         /// <summary>
         /// 通过参数信息加载实体，用于加载项目文件、远程连接的场景

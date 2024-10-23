@@ -25,9 +25,11 @@
 
   <ItemGroup>
     <Compile Remove="Node\FlipflopRegionControl.xaml.cs" />
+    <Compile Remove="Node\Junction\NodeJunctionViewBase.cs" />
     <Compile Remove="Node\NodeBase.cs" />
     <Compile Remove="Themes\ConditionControl.xaml.cs" />
     <Compile Remove="Themes\ConditionControlModel.cs" />
+    <Compile Remove="Themes\ConnectionControl.xaml.cs" />
     <Compile Remove="Themes\ExplicitDataControl.xaml.cs" />
     <Compile Remove="Themes\ObjectViewerControl1.xaml.cs" />
   </ItemGroup>
@@ -35,6 +37,7 @@
   <ItemGroup>
     <Page Remove="Node\FlipflopRegionControl.xaml" />
     <Page Remove="Themes\ConditionControl.xaml" />
+    <Page Remove="Themes\ConnectionControl.xaml" />
     <Page Remove="Themes\ExplicitDataControl.xaml" />
     <Page Remove="Themes\MultiConditionConverter.xaml" />
     <Page Remove="Themes\ObjectViewerControl1.xaml" />
@@ -50,6 +53,8 @@
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <!--<PackageReference Include="LivetCask2" Version="4.0.2" />-->
+    <!--<PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.39" />-->
   </ItemGroup>
 
   <ItemGroup>

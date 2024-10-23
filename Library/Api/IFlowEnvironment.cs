@@ -664,7 +664,7 @@ namespace Serein.Library.Api
         /// <param name="fromNodeGuid">起始节点Guid</param>
         /// <param name="toNodeGuid">目标节点Guid</param>
         /// <param name="connectionType">连接类型</param>
-        Task<bool> ConnectNodeAsync(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType);
+        Task<bool> ConnectNodeAsync(string fromNodeGuid, string toNodeGuid, JunctionType fromNodeJunctionType, JunctionType toNodeJunctionType, ConnectionType connectionType);
 
         /// <summary>
         /// 创建节点/区域/基础控件
