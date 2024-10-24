@@ -10,14 +10,14 @@
                        d:DataContext="{d:DesignInstance vm:ActionNodeControlViewModel}"
                        mc:Ignorable="d"
                        MaxWidth="300">
-    
+
     <UserControl.Resources>
         <!--<BooleanToVisibilityConverter x:Key="BoolToVisConverter" />-->
         <Converters:InvertableBooleanToVisibilityConverter x:Key="InvertedBoolConverter"/>
         <!--<ResourceDictionary Source="/Serein.Workbench;Node/View/NodeExecuteJunctionControl.xaml" x:Key="NodeExecuteJunctionControl"/>-->
     </UserControl.Resources>
 
-    <Border BorderBrush="#8DE9FD" BorderThickness="1">
+    <Border BorderBrush="#8DE9FD" BorderThickness="4">
 
 
         <Grid>
@@ -28,10 +28,10 @@
 
             <!--<TextBlock Text="{Binding NodelModel.DebugSetting.IsInterrupt}}"></TextBlock>-->
             <Border x:Name="InterruptBorder">
-               
+
                 <Border.Style>
                     <Style TargetType="Border">
-                         <!--默认无边框--> 
+                        <!--默认无边框-->
                         <Setter Property="BorderBrush" Value="Transparent" />
                         <Setter Property="BorderThickness" Value="0" />
                         <Style.Triggers>
@@ -52,24 +52,32 @@
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <Grid Grid.Row="0" Background="#8DE9FD" >
+
+                    <!--<Grid Grid.Row="0" Background="#8DE9FD" >-->
+                    <Grid Grid.Row="0" >
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="3*"/>
+                            <RowDefinition/>
+                        </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="auto"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="auto"/>
                         </Grid.ColumnDefinitions>
-                        <local:ExecuteJunctionControl Grid.Column="0"  NodeGuid="{Binding NodeModel.Guid}" x:Name="ExecuteJunctionControl"/>
-                        <TextBlock Grid.Column="1" Text="{Binding NodeModel.MethodDetails.MethodTips, Mode=TwoWay}" HorizontalAlignment="Center"/>
-                        <local:ResultJunctionControl Grid.Column="2"  NodeGuid="{Binding NodeModel.Guid}"  x:Name="ResultJunctionControl"/>
-                       
+                        <local:ExecuteJunctionControl  Grid.Column="0"  MyNode="{Binding NodeModel}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
+                        <StackPanel Grid.Column="1" Grid.RowSpan="2" >
+                            <TextBlock   Text="{Binding NodeModel.MethodDetails.MethodTips, Mode=TwoWay}" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                        <local:NextStepJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}"  x:Name="NextStepJunctionControl" HorizontalAlignment="Right" Grid.RowSpan="2"/>
+
                     </Grid>
 
 
                     <!--<StackPanel   Background="#8DE9FD" >
                         
                     </StackPanel>-->
-                    
-                    <themes:MethodDetailsControl Grid.Row="2" MethodDetails="{Binding NodeModel.MethodDetails}"/>
+
+                    <themes:MethodDetailsControl x:Name="MethodDetailsControl" Grid.Row="2" MethodDetails="{Binding NodeModel.MethodDetails}"/>
                     <!-- ParameterProtectionMask 参数保护 -->
                     <!--取反 Visibility="{Binding DebugSetting.IsEnable, Converter={StaticResource InvertedBoolConverter}, ConverterParameter=Inverted}"-->
                     <Border Grid.Row="2" x:Name="ParameterProtectionMask" Background="LightBlue" Opacity="0.5" BorderBrush="#0A4651" BorderThickness="0" 
@@ -79,16 +87,21 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="50"/>
                             <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="auto"/>
                         </Grid.ColumnDefinitions>
                         <Border Grid.Column="0"  BorderThickness="1">
-                            <TextBlock Text="result"  HorizontalAlignment="Center"  VerticalAlignment="Center" />
+                            <TextBlock Text="result ->"  HorizontalAlignment="Center"  VerticalAlignment="Center" />
                         </Border>
                         <Border Grid.Column="1"  BorderThickness="1">
-                            <TextBlock Text="{Binding NodeModel.MethodDetails.ReturnType.FullName, Mode=OneTime}"  HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding NodeModel.MethodDetails.ReturnType.FullName, Mode=OneTime}"  TextTrimming="CharacterEllipsis" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        </Border>
+
+                        <Border Grid.Column="2"  BorderThickness="1">
+                            <local:ResultJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}" x:Name="ResultJunctionControl" HorizontalAlignment="Right"/>
                         </Border>
                     </Grid>
 
-                    <Grid Grid.Row="4" Background="#8DE9FD" >
+                    <Grid Grid.Row="4" Background="Azure" >
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="*"/>

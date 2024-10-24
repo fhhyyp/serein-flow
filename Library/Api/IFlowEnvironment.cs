@@ -1,4 +1,5 @@
 ﻿
+
 using Serein.Library.Utils;
 using System;
 using System.Collections.Generic;
@@ -175,12 +176,33 @@ namespace Serein.Library.Api
             /// </summary>
             Remote,
         }
-        public NodeConnectChangeEventArgs(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType, ConnectChangeType changeType)
+        public NodeConnectChangeEventArgs(string fromNodeGuid,
+                                          string toNodeGuid,
+                                          JunctionOfConnectionType junctionOfConnectionType, // 指示需要创建什么类型的连接线
+                                          ConnectionInvokeType connectionInvokeType, // 节点调用的方法类型（true/false/error/cancel )
+                                          ConnectChangeType changeType) // 需要创建连接线还是删除连接线
         {
             this.FromNodeGuid = fromNodeGuid;
             this.ToNodeGuid = toNodeGuid;
-            this.ConnectionType = connectionType;
+            this.ConnectionInvokeType = connectionInvokeType;
             this.ChangeType = changeType;
+            this.JunctionOfConnectionType = junctionOfConnectionType;
+        }
+
+        public NodeConnectChangeEventArgs(string fromNodeGuid,
+                                          string toNodeGuid,
+                                          JunctionOfConnectionType junctionOfConnectionType, // 指示需要创建什么类型的连接线
+                                          int argIndex,
+                                          ConnectionArgSourceType connectionArgSourceType, // 节点对应的方法入参所需参数来源
+                                          ConnectChangeType changeType) // 需要创建连接线还是删除连接线
+        {
+            this.FromNodeGuid = fromNodeGuid;
+            this.ToNodeGuid = toNodeGuid;
+            this.ChangeType = changeType;
+            this.ArgIndex = argIndex;
+            this.ConnectionArgSourceType = connectionArgSourceType;
+            this.JunctionOfConnectionType = junctionOfConnectionType;
+
         }
         /// <summary>
         /// 连接关系中始节点的Guid
@@ -193,11 +215,22 @@ namespace Serein.Library.Api
         /// <summary>
         /// 连接类型
         /// </summary>
-        public ConnectionType ConnectionType { get; protected set; }
+        public ConnectionInvokeType ConnectionInvokeType { get; protected set; }
         /// <summary>
         /// 表示此次需要在两个节点之间创建连接关系，或是移除连接关系
         /// </summary>
         public ConnectChangeType ChangeType { get; protected set; }
+        /// <summary>
+        /// 指示需要创建什么类型的连接线
+        /// </summary>
+        public JunctionOfConnectionType JunctionOfConnectionType { get; protected set; }
+        /// <summary>
+        /// 节点对应的方法入参所需参数来源
+        /// </summary>
+        public ConnectionArgSourceType ConnectionArgSourceType { get; protected set; }
+        public int ArgIndex { get; protected set; }
+
+        
     }
 
 
@@ -640,6 +673,13 @@ namespace Serein.Library.Api
         Task StartAsyncInSelectNode(string startNodeGuid);
 
         /// <summary>
+        /// 立刻调用某个节点，并获取其返回值
+        /// </summary>
+        /// <param name="nodeGuid">节点Guid</param>
+        /// <returns></returns>
+        Task<object> InvokeNodeAsync(string nodeGuid);
+
+        /// <summary>
         /// 结束运行
         /// </summary>
         void ExitFlow();
@@ -663,8 +703,16 @@ namespace Serein.Library.Api
         /// </summary>
         /// <param name="fromNodeGuid">起始节点Guid</param>
         /// <param name="toNodeGuid">目标节点Guid</param>
-        /// <param name="connectionType">连接类型</param>
-        Task<bool> ConnectNodeAsync(string fromNodeGuid, string toNodeGuid, JunctionType fromNodeJunctionType, JunctionType toNodeJunctionType, ConnectionType connectionType);
+        /// <param name="fromNodeJunctionType">起始节点控制点</param>
+        /// <param name="toNodeJunctionType">目标节点控制点</param>
+        /// <param name="connectionType">决定了方法执行后的后继行为</param>
+        /// <param name="argIndex">决定了方法入参来源</param>
+        Task<bool> ConnectNodeAsync(string fromNodeGuid,
+                                    string toNodeGuid,
+                                    JunctionType fromNodeJunctionType,
+                                    JunctionType toNodeJunctionType,
+                                    ConnectionInvokeType connectionType,
+                                    int argIndex);
 
         /// <summary>
         /// 创建节点/区域/基础控件
@@ -680,7 +728,7 @@ namespace Serein.Library.Api
         /// <param name="fromNodeGuid">起始节点</param>
         /// <param name="toNodeGuid">目标节点</param>
         /// <param name="connectionType">连接类型</param>
-        Task<bool> RemoveConnectAsync(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType);
+        Task<bool> RemoveConnectAsync(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType);
 
         /// <summary>
         /// 移除节点/区域/基础控件

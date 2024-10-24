@@ -76,15 +76,15 @@ namespace Serein.NodeFlow.Model
             {
                 
                 var isPass = SereinConditionParser.To(parameter, Expression);
-                NextOrientation = isPass ? ConnectionType.IsSucceed : ConnectionType.IsFail;
+                context.NextOrientation = isPass ? ConnectionInvokeType.IsSucceed : ConnectionInvokeType.IsFail;
             }
             catch (Exception ex)
             {
-                NextOrientation = ConnectionType.IsError;
+                context.NextOrientation = ConnectionInvokeType.IsError;
                 RuningException = ex;
             }
             
-            Console.WriteLine($"{result} {Expression}  -> " + NextOrientation);
+            Console.WriteLine($"{result} {Expression}  -> " + context.NextOrientation);
             return Task.FromResult(result);
         }
 

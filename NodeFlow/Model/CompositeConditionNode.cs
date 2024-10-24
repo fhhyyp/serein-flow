@@ -51,8 +51,8 @@ namespace Serein.NodeFlow.Model
             foreach (SingleConditionNode? node in ConditionNodes)
             {
                 var state = await JudgeAsync(context, node);
-                NextOrientation = state; // 每次判读完成后，设置区域后继方向为判断结果
-                if (state != ConnectionType.IsSucceed)
+                context.NextOrientation = state; // 每次判读完成后，设置区域后继方向为判断结果
+                if (state != ConnectionInvokeType.IsSucceed)
                 {
                     // 如果条件不通过，立刻推出循环
                     break;
@@ -62,19 +62,19 @@ namespace Serein.NodeFlow.Model
         }
 
         
-        private async Task<ConnectionType> JudgeAsync(IDynamicContext context, SingleConditionNode node)
+        private async Task<ConnectionInvokeType> JudgeAsync(IDynamicContext context, SingleConditionNode node)
         {
             try
             {
                 await node.ExecutingAsync(context);
-                return node.NextOrientation;
+                return context.NextOrientation;
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
-                NextOrientation = ConnectionType.IsError;
+                context.NextOrientation = ConnectionInvokeType.IsError;
                 RuningException = ex;
-                return ConnectionType.IsError;
+                return ConnectionInvokeType.IsError;
             }
         }
 
@@ -91,10 +91,10 @@ namespace Serein.NodeFlow.Model
             //var falseNodes = FailBranch.Select(item => item.Guid);// 假分支
             //var upstreamNodes = UpstreamBranch.Select(item => item.Guid);// 上游分支
             //var errorNodes = ErrorBranch.Select(item => item.Guid);// 异常分支
-            var trueNodes = SuccessorNodes[ConnectionType.IsSucceed].Select(item => item.Guid); // 真分支
-            var falseNodes = SuccessorNodes[ConnectionType.IsFail].Select(item => item.Guid);// 假分支
-            var errorNodes = SuccessorNodes[ConnectionType.IsError].Select(item => item.Guid);// 异常分支
-            var upstreamNodes = SuccessorNodes[ConnectionType.Upstream].Select(item => item.Guid);// 上游分支
+            var trueNodes = SuccessorNodes[ConnectionInvokeType.IsSucceed].Select(item => item.Guid); // 真分支
+            var falseNodes = SuccessorNodes[ConnectionInvokeType.IsFail].Select(item => item.Guid);// 假分支
+            var errorNodes = SuccessorNodes[ConnectionInvokeType.IsError].Select(item => item.Guid);// 异常分支
+            var upstreamNodes = SuccessorNodes[ConnectionInvokeType.Upstream].Select(item => item.Guid);// 上游分支
 
             // 生成参数列表
             Parameterdata[] parameterData = GetParameterdatas();

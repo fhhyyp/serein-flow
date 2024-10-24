@@ -42,11 +42,11 @@ namespace Serein.NodeFlow.Model
             object instance = md.ActingInstance;
             try
             {
-                var args = GetParameters(context, this, md);
+                var args = await GetParametersAsync(context, this, md);
                 var result = await dd.InvokeAsync(md.ActingInstance, args);
                 dynamic flipflopContext = result;
                 FlipflopStateType flipflopStateType = flipflopContext.State;
-                NextOrientation = flipflopStateType.ToContentType();
+                context.NextOrientation = flipflopStateType.ToContentType();
                 if (flipflopContext.Type == TriggerType.Overtime)
                 {
                     throw new FlipflopException(base.MethodDetails.MethodName + "触发器超时触发。Guid" + base.Guid);
@@ -61,14 +61,14 @@ namespace Serein.NodeFlow.Model
                     throw;
                 }
                 await Console.Out.WriteLineAsync($"触发器[{this.MethodDetails.MethodName}]异常：" + ex);
-                NextOrientation = ConnectionType.None;
+                context.NextOrientation = ConnectionInvokeType.None;
                 RuningException = ex;
                 return null;
             }
             catch (Exception ex)
             {
                 await Console.Out.WriteLineAsync($"触发器[{this.MethodDetails.MethodName}]异常：" + ex);
-                NextOrientation = ConnectionType.IsError;
+                context.NextOrientation = ConnectionInvokeType.IsError;
                 RuningException = ex;
                 return null;
             }

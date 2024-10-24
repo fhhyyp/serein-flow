@@ -7,6 +7,7 @@ using Serein.Library.Utils.SereinExpression;
 using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Tool;
 using System.Collections.Concurrent;
+using System.Numerics;
 using System.Reflection;
 using System.Xml.Linq;
 using static Serein.Library.Utils.ChannelFlowInterrupt;
@@ -410,6 +411,24 @@ namespace Serein.NodeFlow.Env
         }
 
         /// <summary>
+        /// 单独运行一个节点
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="nodeGuid"></param>
+        /// <returns></returns>
+        public async Task<object> InvokeNodeAsync(string nodeGuid)
+        {
+            if(this.NodeModels.TryGetValue(nodeGuid, out var model))
+            {
+                return await model.ExecutingAsync(null);
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
         /// 退出
         /// </summary>
         public void ExitFlow()
@@ -633,23 +652,23 @@ namespace Serein.NodeFlow.Env
                     }
 
 
-                    List<(ConnectionType connectionType, string[] guids)> allToNodes = [(ConnectionType.IsSucceed,nodeInfo.TrueNodes),
-                                                                                    (ConnectionType.IsFail,   nodeInfo.FalseNodes),
-                                                                                    (ConnectionType.IsError,  nodeInfo.ErrorNodes),
-                                                                                    (ConnectionType.Upstream, nodeInfo.UpstreamNodes)];
+                    List<(ConnectionInvokeType connectionType, string[] guids)> allToNodes = [(ConnectionInvokeType.IsSucceed,nodeInfo.TrueNodes),
+                                                                                    (ConnectionInvokeType.IsFail,   nodeInfo.FalseNodes),
+                                                                                    (ConnectionInvokeType.IsError,  nodeInfo.ErrorNodes),
+                                                                                    (ConnectionInvokeType.Upstream, nodeInfo.UpstreamNodes)];
 
-                    List<(ConnectionType, NodeModelBase[])> fromNodes = allToNodes.Where(info => info.guids.Length > 0)
+                    List<(ConnectionInvokeType, NodeModelBase[])> fromNodes = allToNodes.Where(info => info.guids.Length > 0)
                                                                          .Select(info => (info.connectionType,
                                                                                           info.guids.Where(guid => NodeModels.ContainsKey(guid)).Select(guid => NodeModels[guid])
                                                                                             .ToArray()))
                                                                          .ToList();
                     // 遍历每种类型的节点分支（四种）
-                    foreach ((ConnectionType connectionType, NodeModelBase[] toNodes) item in fromNodes)
+                    foreach ((ConnectionInvokeType connectionType, NodeModelBase[] toNodes) item in fromNodes)
                     {
                         // 遍历当前类型分支的节点（确认连接关系）
                         foreach (var toNode in item.toNodes)
                         {
-                            ConnectNodeAsync(fromNode, toNode, item.connectionType); // 加载时确定节点间的连接关系
+                            _ = ConnectInvokeOfNode(fromNode, toNode, item.connectionType); // 加载时确定节点间的连接关系
                         }
                     }
                 }
@@ -859,9 +878,11 @@ namespace Serein.NodeFlow.Env
                     NodeModelBase? pNode = pnc.Value[i];
                     pNode.SuccessorNodes[pCType].Remove(remoteNode);
 
-                    UIContextOperation?.Invoke(() => OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(pNode.Guid,
+                    UIContextOperation?.Invoke(() => OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(
+                                                                    pNode.Guid,
                                                                     remoteNode.Guid,
-                                                                    pCType,
+                                                                    JunctionOfConnectionType.Invoke,
+                                                                    pCType, // 对应的连接关系
                                                                     NodeConnectChangeEventArgs.ConnectChangeType.Remote))); // 通知UI
 
                 }
@@ -894,15 +915,63 @@ namespace Serein.NodeFlow.Env
         /// <param name="fromNodeJunctionType">起始节点控制点</param>
         /// <param name="toNodeJunctionType">目标节点控制点</param>
         /// <param name="connectionType">连接关系</param>
-        public async Task<bool> ConnectNodeAsync(string fromNodeGuid, string toNodeGuid, JunctionType fromNodeJunctionType, JunctionType toNodeJunctionType, ConnectionType connectionType)
+        public async Task<bool> ConnectNodeAsync(string fromNodeGuid,
+                                                 string toNodeGuid,
+                                                 JunctionType fromNodeJunctionType,
+                                                 JunctionType toNodeJunctionType,
+                                                 ConnectionInvokeType connectionType,
+                                                 int argIndex)
         {
+
             // 获取起始节点与目标节点
             var fromNode = GuidToModel(fromNodeGuid);
             var toNode = GuidToModel(toNodeGuid);
             if (fromNode is null || toNode is null) return false;
+            (var type,var state) = CheckConnect(fromNode, toNode, fromNodeJunctionType, toNodeJunctionType);
+            if (!state)
+            {
+                Console.WriteLine("出现非预期的连接行为");
+                return false; // 出现不符预期的连接行为，忽略此次连接行为
+            }
 
-            // 开始连接
-            return await ConnectNodeAsync(fromNode, toNode, connectionType); // 外部调用连接方法
+            
+            if(type == JunctionOfConnectionType.Invoke)
+            {
+                if (fromNodeJunctionType == JunctionType.Execute) 
+                {
+                    // 如果 起始控制点 是“方法调用”，需要反转 from to 节点
+                    (fromNode, toNode) = (toNode, fromNode);
+                }
+                // 从起始节点“下一个方法”控制点，连接到目标节点“方法调用”控制点
+                state = ConnectInvokeOfNode(fromNode, toNode, connectionType); // 本地环境进行连接
+            }
+            else if (type == JunctionOfConnectionType.Arg)
+            {
+                ConnectionArgSourceType connectionArgSourceType;
+
+                if (fromNode.Guid.Equals(toNode.Guid))
+                {
+                    connectionArgSourceType = ConnectionArgSourceType.GetPreviousNodeData;
+                }
+                else
+                {
+                    connectionArgSourceType = ConnectionArgSourceType.GetOtherNodeData;
+                }
+
+                // （连接自身的情况下）从上一个节点“返回值”控制点，连接到目标节点“方法入参”控制点
+                // 从起始节点“返回值”控制点，连接到目标节点“方法入参”控制点
+                if (fromNodeJunctionType == JunctionType.ArgData)
+                {
+                    // 如果 起始控制点 是“方法入参”，需要反转 from to 节点
+                    (fromNode, toNode) = (toNode, fromNode);
+                }
+
+
+                // 确定方法入参关系
+                state = ConnectGerResultOfNode(fromNode, toNode, connectionArgSourceType, argIndex);  // 本地环境进行连接
+            }
+
+            return state;
 
         }
 
@@ -913,7 +982,7 @@ namespace Serein.NodeFlow.Env
         /// <param name="toNodeGuid">目标节点Guid</param>
         /// <param name="connectionType">连接关系</param>
         /// <exception cref="NotImplementedException"></exception>
-        public async Task<bool> RemoveConnectAsync(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
+        public async Task<bool> RemoveConnectAsync(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
         {
             // 获取起始节点与目标节点
             var fromNode = GuidToModel(fromNodeGuid);
@@ -922,8 +991,6 @@ namespace Serein.NodeFlow.Env
             var result = await RemoteConnectAsync(fromNode, toNode, connectionType);
             return result;
         }
-
-
 
         /// <summary>
         /// 获取方法描述
@@ -1245,6 +1312,9 @@ namespace Serein.NodeFlow.Env
         #region 私有方法
 
 
+
+
+
         /// <summary>
         /// 加载指定路径的DLL文件
         /// </summary>
@@ -1290,7 +1360,7 @@ namespace Serein.NodeFlow.Env
         /// <param name="toNodeGuid">目标节点Model</param>
         /// <param name="connectionType">连接关系</param>
         /// <exception cref="NotImplementedException"></exception>
-        private async Task<bool> RemoteConnectAsync(NodeModelBase fromNode, NodeModelBase toNode, ConnectionType connectionType)
+        private async Task<bool> RemoteConnectAsync(NodeModelBase fromNode, NodeModelBase toNode, ConnectionInvokeType connectionType)
         {
             fromNode.SuccessorNodes[connectionType].Remove(toNode);
             toNode.PreviousNodes[connectionType].Remove(fromNode);
@@ -1298,8 +1368,10 @@ namespace Serein.NodeFlow.Env
 
             if (OperatingSystem.IsWindows())
             {
-                await UIContextOperation.InvokeAsync(() => OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(fromNode.Guid,
+                await UIContextOperation.InvokeAsync(() => OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(
+                                                                          fromNode.Guid,
                                                                           toNode.Guid,
+                                                                          JunctionOfConnectionType.Invoke,
                                                                           connectionType,
                                                                           NodeConnectChangeEventArgs.ConnectChangeType.Remote)));
             }
@@ -1431,13 +1503,85 @@ namespace Serein.NodeFlow.Env
             return true;
         }
 
+
+
+       
+
+        /// <summary>
+        /// 检查连接
+        /// </summary>
+        /// <param name="fromNode">发起连接的起始节点</param>
+        /// <param name="toNode">要连接的目标节点</param>
+        /// <param name="fromNodeJunctionType">发起连接节点的控制点类型</param>
+        /// <param name="toNodeJunctionType">被连接节点的控制点类型</param>
+        /// <returns></returns>
+        public static (JunctionOfConnectionType,bool) CheckConnect(NodeModelBase fromNode,
+                                                                    NodeModelBase toNode, 
+                                                                    JunctionType fromNodeJunctionType,
+                                                                    JunctionType toNodeJunctionType)
+        {
+            var type = JunctionOfConnectionType.None;
+            var state = false;
+            if (fromNodeJunctionType == JunctionType.Execute)
+            {
+                if (toNodeJunctionType == JunctionType.NextStep && !fromNode.Guid.Equals(toNode.Guid))
+                {
+                    // “方法执行”控制点拖拽到“下一节点”控制点，且不是同一个节点， 添加方法执行关系
+                    type = JunctionOfConnectionType.Invoke;
+                    state = true;
+                }
+                else if (toNodeJunctionType == JunctionType.ArgData && fromNode.Guid.Equals(toNode.Guid)) 
+                {
+                    // “方法执行”控制点拖拽到“方法入参”控制点，且是同一个节点，则添加获取参数关系，表示生成入参参数时自动从该节点的上一节点获取flowdata
+                    type = JunctionOfConnectionType.Arg;
+                    state = true;
+                }
+            }
+            else if (fromNodeJunctionType == JunctionType.NextStep && !fromNode.Guid.Equals(toNode.Guid))
+            {
+                // “下一节点”控制点只能拖拽到“方法执行”控制点，且不能是同一个节点
+                if (toNodeJunctionType == JunctionType.Execute && !fromNode.Guid.Equals(toNode.Guid))
+                {
+                    type = JunctionOfConnectionType.Invoke;
+                    state = true;
+                }
+            }
+            else if (fromNodeJunctionType == JunctionType.ArgData)
+            {
+                if (toNodeJunctionType == JunctionType.Execute && fromNode.Guid.Equals(toNode.Guid)) // 添加获取参数关系
+                {
+                    // “方法入参”控制点拖拽到“方法执行”控制点，且是同一个节点，则添加获取参数关系，生成入参参数时自动从该节点的上一节点获取flowdata
+                    type = JunctionOfConnectionType.Arg;
+                    state = true;
+                }
+                if(toNodeJunctionType == JunctionType.ReturnData && !fromNode.Guid.Equals(toNode.Guid))
+                {
+                    // “”控制点拖拽到“方法返回值”控制点，且不是同一个节点，添加获取参数关系，生成参数时从目标节点获取flowdata
+                    type = JunctionOfConnectionType.Arg;
+                    state = true;
+                }
+            }
+            else if (fromNodeJunctionType == JunctionType.ReturnData)
+            {
+                if (toNodeJunctionType == JunctionType.ArgData && !fromNode.Guid.Equals(toNode.Guid))
+                {
+                    // “方法返回值”控制点拖拽到“方法入参”控制点，且不是同一个节点，添加获取参数关系，生成参数时从目标节点获取flowdata
+                    type = JunctionOfConnectionType.Arg;
+                    state = true;
+                }
+            }
+            // 剩下的情况都是不符预期的连接行为，忽略。
+            return (type,state);
+        }
+
+
         /// <summary>
         /// 连接节点
         /// </summary>
         /// <param name="fromNode">起始节点</param>
         /// <param name="toNode">目标节点</param>
         /// <param name="connectionType">连接关系</param>
-        private async Task<bool> ConnectNodeAsync(NodeModelBase fromNode, NodeModelBase toNode, ConnectionType connectionType)
+        private bool ConnectInvokeOfNode(NodeModelBase fromNode, NodeModelBase toNode, ConnectionInvokeType connectionType)
         {
             if (fromNode is null || toNode is null || fromNode == toNode)
             {
@@ -1446,10 +1590,10 @@ namespace Serein.NodeFlow.Env
 
             var ToExistOnFrom = true;
             var FromExistInTo = true;
-            ConnectionType[] ct = [ConnectionType.IsSucceed,
-                                   ConnectionType.IsFail,
-                                   ConnectionType.IsError,
-                                   ConnectionType.Upstream];
+            ConnectionInvokeType[] ct = [ConnectionInvokeType.IsSucceed,
+                                   ConnectionInvokeType.IsFail,
+                                   ConnectionInvokeType.IsError,
+                                   ConnectionInvokeType.Upstream];
 
             if (toNode is SingleFlipflopNode flipflopNode)
             {
@@ -1457,7 +1601,7 @@ namespace Serein.NodeFlow.Env
             }
 
             var isPass = false;
-            foreach (ConnectionType ctType in ct)
+            foreach (ConnectionInvokeType ctType in ct)
             {
                 var FToTo = fromNode.SuccessorNodes[ctType].Where(it => it.Guid.Equals(toNode.Guid)).ToArray();
                 var ToOnF = toNode.PreviousNodes[ctType].Where(it => it.Guid.Equals(fromNode.Guid)).ToArray();
@@ -1494,12 +1638,18 @@ namespace Serein.NodeFlow.Env
                 toNode.PreviousNodes[connectionType].Add(fromNode); // 添加到目标节点的父分支
                 if (OperatingSystem.IsWindows())
                 {
-                    UIContextOperation?.Invoke(() => OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(fromNode.Guid,
-                                                                                   toNode.Guid,
-                                                                                   connectionType,
-                                                                                   NodeConnectChangeEventArgs.ConnectChangeType.Create))); // 通知UI 
+                    UIContextOperation?.Invoke(() => 
+                        OnNodeConnectChange?.Invoke(
+                                new NodeConnectChangeEventArgs(
+                                    fromNode.Guid, // 从哪个节点开始
+                                    toNode.Guid, // 连接到那个节点
+                                    JunctionOfConnectionType.Invoke, 
+                                    connectionType, // 连接线的样式类型
+                                    NodeConnectChangeEventArgs.ConnectChangeType.Create // 是创建连接还是删除连接
+                                ))); // 通知UI 
                 }
-
+                // Invoke
+                // GetResult
                 return true;
             }
             else
@@ -1509,6 +1659,30 @@ namespace Serein.NodeFlow.Env
 
 
         }
+
+        /// <summary>
+        /// 连接节点参数
+        /// </summary>
+        /// <param name="fromNode"></param>
+        /// <param name="toNode"></param>
+        /// <param name="connectionArgSourceType"></param>
+        /// <param name="argIndex"></param>
+        /// <returns></returns>
+        private bool ConnectGerResultOfNode(NodeModelBase fromNode, NodeModelBase toNode, ConnectionArgSourceType connectionArgSourceType,int argIndex)
+        {
+            UIContextOperation?.Invoke(() =>
+                        OnNodeConnectChange?.Invoke(
+                                new NodeConnectChangeEventArgs(
+                                    fromNode.Guid, // 从哪个节点开始
+                                    toNode.Guid, // 连接到那个节点
+                                    JunctionOfConnectionType.Arg,
+                                    (int)argIndex, // 连接线的样式类型
+                                    connectionArgSourceType,
+                                    NodeConnectChangeEventArgs.ConnectChangeType.Create // 是创建连接还是删除连接
+                                ))); // 通知UI 
+            return false;
+        }
+
 
         /// <summary>
         /// 更改起点节点

@@ -180,9 +180,14 @@ namespace Serein.NodeFlow.Env
             currentFlowEnvironment.ClearAll();
         }
 
-        public async Task<bool> ConnectNodeAsync(string fromNodeGuid, string toNodeGuid, JunctionType fromNodeJunctionType, JunctionType toNodeJunctionType, ConnectionType connectionType)
+        public async Task<bool> ConnectNodeAsync(string fromNodeGuid,
+                                                 string toNodeGuid,
+                                                 JunctionType fromNodeJunctionType,
+                                                 JunctionType toNodeJunctionType,
+                                                 ConnectionInvokeType connectionType,
+                                                 int argIndex)
         {
-            return await currentFlowEnvironment.ConnectNodeAsync(fromNodeGuid, toNodeGuid, fromNodeJunctionType, toNodeJunctionType, connectionType);
+            return await currentFlowEnvironment.ConnectNodeAsync(fromNodeGuid, toNodeGuid, fromNodeJunctionType, toNodeJunctionType, connectionType, argIndex);
         }
 
         public async Task<(bool, RemoteEnvControl)> ConnectRemoteEnv(string addres, int port, string token)
@@ -265,13 +270,12 @@ namespace Serein.NodeFlow.Env
         }
 
 
-
         public bool RemoteDll(string assemblyFullName)
         {
             return currentFlowEnvironment.RemoteDll(assemblyFullName);
         }
 
-        public async Task<bool> RemoveConnectAsync(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
+        public async Task<bool> RemoveConnectAsync(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
         {
             return await currentFlowEnvironment.RemoveConnectAsync(fromNodeGuid, toNodeGuid, connectionType);
         }
@@ -280,7 +284,6 @@ namespace Serein.NodeFlow.Env
         {
           return await  currentFlowEnvironment.RemoveNodeAsync(nodeGuid);
         }
-
 
 
         public void SetConsoleOut()
@@ -311,6 +314,11 @@ namespace Serein.NodeFlow.Env
         public async Task StartAsyncInSelectNode(string startNodeGuid)
         {
             await currentFlowEnvironment.StartAsyncInSelectNode(startNodeGuid);
+        }
+
+        public async Task<object> InvokeNodeAsync(string nodeGuid)
+        {
+            return await currentFlowEnvironment.InvokeNodeAsync(nodeGuid);
         }
 
         public async Task StartRemoteServerAsync(int port = 7525)

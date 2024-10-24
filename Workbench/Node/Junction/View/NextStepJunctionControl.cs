@@ -1,4 +1,5 @@
-﻿using System.Windows.Media;
+﻿using System.Windows;
+using System.Windows.Media;
 using System.Windows.Shapes;
 using Serein.Library;
 
@@ -11,28 +12,50 @@ namespace Serein.Workbench.Node.View
         public NextStepJunctionControl()
         {
             base.JunctionType = JunctionType.NextStep;
-            Render();
+            this.InvalidateVisual();
         }
-
-        public override void Render()
+        private Point _myCenterPoint;
+        public override Point MyCenterPoint { get => _myCenterPoint; }
+        public override void Render(DrawingContext drawingContext)
         {
-            if (double.IsNaN(base.Width))
-            {
-                base.Width = base._MyWidth;
-            }
-            if (double.IsNaN(base.Height))
-            {
-                base.Height = base._MyHeight;
-            }
+            double width = ActualWidth;
+            double height = ActualHeight;
 
-            var rect = new Rectangle
+            // 输入连接器的背景
+            var connectorBackground = IsMouseOver ? Brushes.DarkCyan : Brushes.Transparent;
+            var connectorRect = new Rect(4, 4, width - 8, height - 8);
+            drawingContext.DrawRectangle(connectorBackground, null, connectorRect);
+
+            // 定义圆形的大小和位置
+            double connectorSize = 10; // 连接器的大小
+            double circleCenterX = 8; // 圆心 X 坐标
+            double circleCenterY = height / 2; // 圆心 Y 坐标
+
+            var circlePoint = new Point(circleCenterX, circleCenterY);
+            // 绘制连接器的圆形部分
+            var ellipse = new EllipseGeometry(circlePoint, connectorSize / 2, connectorSize / 2);
+            drawingContext.DrawGeometry(IsMouseOver ? Brushes.DarkCyan : Brushes.Transparent, new Pen(Brushes.Black, 1), ellipse);
+            _myCenterPoint = new Point(circleCenterX + connectorSize / 2, circleCenterY);
+
+            // 绘制连接器的圆形部分
+            //var ellipse = new EllipseGeometry(circlePoint, connectorSize / 2, connectorSize / 2);
+           
+
+            // 定义三角形的间距
+            double triangleOffsetX = 4; // 三角形与圆形的间距
+            double triangleCenterX = circleCenterX + connectorSize / 2 + triangleOffsetX; // 三角形中心 X 坐标
+            double triangleCenterY = circleCenterY; // 三角形中心 Y 坐标
+
+            // 绘制三角形
+            var pathGeometry = new StreamGeometry();
+            using (var context = pathGeometry.Open())
             {
-                Width = base.Width,
-                Height = base.Height,
-                Fill = Brushes.Blue,
-                ToolTip = "下一个方法值"
-            };
-            Content = rect;
+                context.BeginFigure(new Point(triangleCenterX, triangleCenterY - 4.5), true, true);
+                context.LineTo(new Point(triangleCenterX + 5, triangleCenterY), true, false);
+                context.LineTo(new Point(triangleCenterX, triangleCenterY + 4.5), true, false);
+                context.LineTo(new Point(triangleCenterX, triangleCenterY - 4.5), true, false);
+            }
+            drawingContext.DrawGeometry(IsMouseOver ? Brushes.DarkCyan : Brushes.Transparent, new Pen(Brushes.Black, 1), pathGeometry);
         }
     }
 }

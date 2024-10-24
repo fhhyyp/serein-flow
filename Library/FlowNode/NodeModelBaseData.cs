@@ -3,6 +3,7 @@ using Serein.Library.NodeGenerator;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Net.Mime;
 using System.Threading;
 
 namespace Serein.Library
@@ -71,8 +72,8 @@ namespace Serein.Library
         /// <summary>
         /// 当前节点执行完毕后需要执行的下一个分支的类别
         /// </summary>
-        [PropertyInfo]
-        private ConnectionType _nextOrientation  = ConnectionType.None;
+        //[PropertyInfo]
+        //private ConnectionInvokeType _nextOrientation  = ConnectionInvokeType.None;
 
         /// <summary>
         /// 运行时的异常信息（仅在 FlowState 为 Error 时存在对应值）
@@ -91,9 +92,9 @@ namespace Serein.Library
     {
         public NodeModelBase(IFlowEnvironment environment)
         {
-            PreviousNodes = new Dictionary<ConnectionType, List<NodeModelBase>>();
-            SuccessorNodes = new Dictionary<ConnectionType, List<NodeModelBase>>();
-            foreach (ConnectionType ctType in NodeStaticConfig.ConnectionTypes)
+            PreviousNodes = new Dictionary<ConnectionInvokeType, List<NodeModelBase>>();
+            SuccessorNodes = new Dictionary<ConnectionInvokeType, List<NodeModelBase>>();
+            foreach (ConnectionInvokeType ctType in NodeStaticConfig.ConnectionTypes)
             {
                 PreviousNodes[ctType] = new List<NodeModelBase>();
                 SuccessorNodes[ctType] = new List<NodeModelBase>();
@@ -102,15 +103,17 @@ namespace Serein.Library
             this.Env = environment;
         }
 
+
+
         /// <summary>
         /// 不同分支的父节点
         /// </summary>
-        public Dictionary<ConnectionType, List<NodeModelBase>> PreviousNodes { get; }
+        public Dictionary<ConnectionInvokeType, List<NodeModelBase>> PreviousNodes { get; }
 
         /// <summary>
         /// 不同分支的子节点
         /// </summary>
-        public Dictionary<ConnectionType, List<NodeModelBase>> SuccessorNodes { get; }
+        public Dictionary<ConnectionInvokeType, List<NodeModelBase>> SuccessorNodes { get; }
 
 
         /// <summary>

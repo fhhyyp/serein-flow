@@ -6,30 +6,23 @@ using System.Threading.Tasks;
 
 namespace Serein.Library
 {
+
     /// <summary>
-    /// 控制点类型
+    /// 节点对应方法的入参来源
     /// </summary>
-    public enum JunctionType
+    public enum ConnectionArgSourceType
     {
         /// <summary>
-        /// 当前执行
+        /// （连接自身）从上一节点获取数据
         /// </summary>
-        Execute,
+        GetPreviousNodeData,
         /// <summary>
-        /// 入参
+        /// 从指定节点获取数据
         /// </summary>
-        ArgData,
+        GetOtherNodeData,
         /// <summary>
-        /// 返回值
+        /// 立刻执行某个节点获取其数据
         /// </summary>
-        ReturnData,
-        /// <summary>
-        /// 下一步要执行的节点
-        /// </summary>
-        NextStep,
+        GetOtherNodeDataOfInvoke,
     }
-
-
-
-
 }

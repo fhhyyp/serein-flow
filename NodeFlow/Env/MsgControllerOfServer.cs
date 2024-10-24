@@ -340,7 +340,7 @@ namespace Serein.NodeFlow.Env
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.ConnectNode)]
         public async Task<object> ConnectNode(string fromNodeGuid, string toNodeGuid, string connectionType)
         {
-            if (!EnumHelper.TryConvertEnum<ConnectionType>(connectionType, out var tmpConnectionType))
+            if (!EnumHelper.TryConvertEnum<ConnectionInvokeType>(connectionType, out var tmpConnectionType))
             {
                 return new
                 {
@@ -348,7 +348,7 @@ namespace Serein.NodeFlow.Env
                 };
             }
             //environment.ConnectNodeAsync(fromNodeGuid, toNodeGuid, tmpConnectionType);
-            var result = await environment.ConnectNodeAsync(fromNodeGuid, toNodeGuid, tmpConnectionType);
+            var result = await environment.ConnectNodeAsync(fromNodeGuid, toNodeGuid,0,0, tmpConnectionType,0);
             return new
             {
                 state = result
@@ -365,7 +365,7 @@ namespace Serein.NodeFlow.Env
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.RemoveConnect)]
         public async Task<object> RemoveConnect(string fromNodeGuid, string toNodeGuid, string connectionType)
         {
-            if (!EnumHelper.TryConvertEnum<ConnectionType>(connectionType, out var tmpConnectionType))
+            if (!EnumHelper.TryConvertEnum<ConnectionInvokeType>(connectionType, out var tmpConnectionType))
             {
                 return new
                 {

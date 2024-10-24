@@ -15,7 +15,15 @@ namespace Serein.Library.Api
         /// </summary>
         IFlowEnvironment Env { get; }
 
+        /// <summary>
+        /// 是否正在运行
+        /// </summary>
         RunState RunState { get; }
+
+        /// <summary>
+        /// 下一个要执行的节点
+        /// </summary>
+        ConnectionInvokeType NextOrientation { get; set; }
 
         /// <summary>
         /// 获取节点的数据（当前节点需要获取上一节点数据时，需要从 运行时上一节点 的Guid 通过这个方法进行获取

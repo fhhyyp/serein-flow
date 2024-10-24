@@ -47,12 +47,12 @@ namespace Serein.NodeFlow.Model
                     result = data;
                 }
 
-                NextOrientation = ConnectionType.IsSucceed;
+                context.NextOrientation = ConnectionInvokeType.IsSucceed;
                 return Task.FromResult(result);
             }
             catch (Exception ex)
             {
-                NextOrientation = ConnectionType.IsError;
+                context.NextOrientation = ConnectionInvokeType.IsError;
                 RuningException = ex;
                 return Task.FromResult(data);
             }

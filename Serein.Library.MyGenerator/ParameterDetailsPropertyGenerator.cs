@@ -118,6 +118,7 @@ namespace Serein.Library.NodeGenerator
 
             // 生成命名空间和类的开始部分
             sb.AppendLine($"using System;");
+            sb.AppendLine($"using System.Linq;");
             sb.AppendLine($"using System.Threading;");
             sb.AppendLine($"using System.Threading.Tasks;");
             sb.AppendLine($"using System.Collections.Concurrent;");

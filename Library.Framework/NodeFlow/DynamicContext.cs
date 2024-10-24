@@ -28,6 +28,12 @@ namespace Serein.Library.Framework.NodeFlow
         /// 运行状态
         /// </summary>
         public RunState RunState { get; set; } = RunState.NoStart;
+
+        /// <summary>
+        /// 当前节点执行完成后，设置该属性，让运行环境判断接下来要执行哪个分支的节点。
+        /// </summary>
+        public ConnectionInvokeType NextOrientation { get; set; }
+
         /// <summary>
         /// 每个上下文分别存放节点的当前数据
         /// </summary>

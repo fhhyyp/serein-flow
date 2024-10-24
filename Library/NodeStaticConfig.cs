@@ -29,12 +29,12 @@ namespace Serein.Library
         /// <summary>
         /// 节点连接关系种类
         /// </summary>
-        public static readonly ConnectionType[] ConnectionTypes = new ConnectionType[]
+        public static readonly ConnectionInvokeType[] ConnectionTypes = new ConnectionInvokeType[]
         {
-             ConnectionType.Upstream,
-              ConnectionType.IsSucceed,
-              ConnectionType.IsFail,
-              ConnectionType.IsError,
+             ConnectionInvokeType.Upstream,
+              ConnectionInvokeType.IsSucceed,
+              ConnectionInvokeType.IsFail,
+              ConnectionInvokeType.IsError,
         };
     }
 }

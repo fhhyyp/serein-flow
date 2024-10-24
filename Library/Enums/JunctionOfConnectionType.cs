@@ -7,29 +7,21 @@ using System.Threading.Tasks;
 namespace Serein.Library
 {
     /// <summary>
-    /// 控制点类型
+    /// 连接的控制点类型枚举
     /// </summary>
-    public enum JunctionType
+    public enum JunctionOfConnectionType
     {
         /// <summary>
-        /// 当前执行
+        /// 没有关系，用于处理非预期连接的情况需要的返回值
         /// </summary>
-        Execute,
+        None,
         /// <summary>
-        /// 入参
+        /// 表示方法执行顺序关系
         /// </summary>
-        ArgData,
+        Invoke,
         /// <summary>
-        /// 返回值
+        /// 表示参数获取来源关系
         /// </summary>
-        ReturnData,
-        /// <summary>
-        /// 下一步要执行的节点
-        /// </summary>
-        NextStep,
+        Arg
     }
-
-
-
-
 }

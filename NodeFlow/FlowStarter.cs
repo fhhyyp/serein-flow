@@ -351,9 +351,9 @@ namespace Serein.NodeFlow
                 {
                     var newFlowData = await singleFlipFlopNode.ExecutingAsync(context); // 获取触发器等待Task
                     await NodeModelBase.RefreshFlowDataAndExpInterrupt(context, singleFlipFlopNode, newFlowData); // 全局触发器触发后刷新该触发器的节点数据
-                    if (singleFlipFlopNode.NextOrientation != ConnectionType.None)
+                    if (context.NextOrientation != ConnectionInvokeType.None)
                     {
-                        var nextNodes = singleFlipFlopNode.SuccessorNodes[singleFlipFlopNode.NextOrientation];
+                        var nextNodes = singleFlipFlopNode.SuccessorNodes[context.NextOrientation];
                         for (int i = nextNodes.Count - 1; i >= 0 && !_flipFlopCts.IsCancellationRequested; i--)
                         {
                             // 筛选出启用的节点

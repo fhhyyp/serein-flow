@@ -218,18 +218,18 @@ namespace Serein.NodeFlow.Env
                     }
 
 
-                    List<(ConnectionType connectionType, string[] guids)> allToNodes = [(ConnectionType.IsSucceed,nodeInfo.TrueNodes),
-                                                                                    (ConnectionType.IsFail,   nodeInfo.FalseNodes),
-                                                                                    (ConnectionType.IsError,  nodeInfo.ErrorNodes),
-                                                                                    (ConnectionType.Upstream, nodeInfo.UpstreamNodes)];
+                    List<(ConnectionInvokeType connectionType, string[] guids)> allToNodes = [(ConnectionInvokeType.IsSucceed,nodeInfo.TrueNodes),
+                                                                                    (ConnectionInvokeType.IsFail,   nodeInfo.FalseNodes),
+                                                                                    (ConnectionInvokeType.IsError,  nodeInfo.ErrorNodes),
+                                                                                    (ConnectionInvokeType.Upstream, nodeInfo.UpstreamNodes)];
 
-                    List<(ConnectionType, NodeModelBase[])> fromNodes = allToNodes.Where(info => info.guids.Length > 0)
+                    List<(ConnectionInvokeType, NodeModelBase[])> fromNodes = allToNodes.Where(info => info.guids.Length > 0)
                                                                          .Select(info => (info.connectionType,
                                                                                           info.guids.Where(guid => NodeModels.ContainsKey(guid)).Select(guid => NodeModels[guid])
                                                                                             .ToArray()))
                                                                          .ToList();
                     // 遍历每种类型的节点分支（四种）
-                    foreach ((ConnectionType connectionType, NodeModelBase[] toNodes) item in fromNodes)
+                    foreach ((ConnectionInvokeType connectionType, NodeModelBase[] toNodes) item in fromNodes)
                     {
                         // 遍历当前类型分支的节点（确认连接关系）
                         foreach (var toNode in item.toNodes)
@@ -237,6 +237,7 @@ namespace Serein.NodeFlow.Env
 
                             UIContextOperation?.Invoke(() => OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(fromNode.Guid,
                                                                        toNode.Guid,
+                                                                       JunctionOfConnectionType.Invoke,
                                                                        item.connectionType,
                                                                        NodeConnectChangeEventArgs.ConnectChangeType.Create))); // 通知UI连接节点
                             //OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(fromNode.Guid,
@@ -273,7 +274,7 @@ namespace Serein.NodeFlow.Env
             return true;
         }
 
-        private void ConnectNode(NodeModelBase fromNode, NodeModelBase toNode, ConnectionType connectionType)
+        private void ConnectNode(NodeModelBase fromNode, NodeModelBase toNode, ConnectionInvokeType connectionType)
         {
             if (fromNode is null || toNode is null || fromNode == toNode)
             {
@@ -282,13 +283,13 @@ namespace Serein.NodeFlow.Env
 
             var ToExistOnFrom = true;
             var FromExistInTo = true;
-            ConnectionType[] ct = [ConnectionType.IsSucceed,
-                                   ConnectionType.IsFail,
-                                   ConnectionType.IsError,
-                                   ConnectionType.Upstream];
+            ConnectionInvokeType[] ct = [ConnectionInvokeType.IsSucceed,
+                                   ConnectionInvokeType.IsFail,
+                                   ConnectionInvokeType.IsError,
+                                   ConnectionInvokeType.Upstream];
 
 
-            foreach (ConnectionType ctType in ct)
+            foreach (ConnectionInvokeType ctType in ct)
             {
                 var FToTo = fromNode.SuccessorNodes[ctType].Where(it => it.Guid.Equals(toNode.Guid)).ToArray();
                 var ToOnF = toNode.PreviousNodes[ctType].Where(it => it.Guid.Equals(fromNode.Guid)).ToArray();
@@ -325,6 +326,7 @@ namespace Serein.NodeFlow.Env
                 toNode.PreviousNodes[connectionType].Add(fromNode); // 添加到目标节点的父分支
                 OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(fromNode.Guid,
                                                                         toNode.Guid,
+                                                                        JunctionOfConnectionType.Invoke,
                                                                         connectionType,
                                                                         NodeConnectChangeEventArgs.ConnectChangeType.Create)); // 通知UI
             }
@@ -424,7 +426,22 @@ namespace Serein.NodeFlow.Env
             //UIContextOperation?.Invoke(() => OnStartNodeChange?.Invoke(new StartNodeChangeEventArgs(nodeGuid,nodeGuid)));
         }
 
-        public async Task<bool> ConnectNodeAsync(string fromNodeGuid, string toNodeGuid, JunctionType fromNodeJunctionType, JunctionType toNodeJunctionType, ConnectionType connectionType)
+        public async Task<object> InvokeNodeAsync(string nodeGuid)
+        {
+            Console.WriteLine("远程环境尚未实现接口 InvokeNodeAsync");
+            _ = msgClient.SendAsync(EnvMsgTheme.SetStartNode, new
+            {
+                nodeGuid
+            });
+            return null;
+        }
+
+        public async Task<bool> ConnectNodeAsync(string fromNodeGuid,
+                                                 string toNodeGuid,
+                                                 JunctionType fromNodeJunctionType,
+                                                 JunctionType toNodeJunctionType,
+                                                 ConnectionInvokeType connectionType,
+                                                 int argIndex = 0)
         {
             var result = await msgClient.SendAndWaitDataAsync<bool>(EnvMsgTheme.ConnectNode, new
             {
@@ -438,6 +455,7 @@ namespace Serein.NodeFlow.Env
             {
                 OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(fromNodeGuid,
                                                                             toNodeGuid,
+                                                                            JunctionOfConnectionType.Invoke,
                                                                             connectionType,
                                                                             NodeConnectChangeEventArgs.ConnectChangeType.Create)); // 通知UI
             }
@@ -472,7 +490,7 @@ namespace Serein.NodeFlow.Env
             return nodeInfo;
         }
 
-        public async Task<bool> RemoveConnectAsync(string fromNodeGuid, string toNodeGuid, ConnectionType connectionType)
+        public async Task<bool> RemoveConnectAsync(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
         {
             var result = await msgClient.SendAndWaitDataAsync<bool>(EnvMsgTheme.RemoveConnect, new
             {
@@ -486,6 +504,7 @@ namespace Serein.NodeFlow.Env
                 {
                     OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(fromNodeGuid,
                                                                             toNodeGuid,
+                                                                            JunctionOfConnectionType.Invoke,
                                                                             connectionType,
                                                                             NodeConnectChangeEventArgs.ConnectChangeType.Remote));
                 });

@@ -107,14 +107,14 @@ namespace Serein.NodeFlow.Env
         /// <param name="flowStateType"></param>
         /// <returns></returns>
         /// <exception cref="NotImplementedException"></exception>
-        public static ConnectionType ToContentType(this FlipflopStateType flowStateType)
+        public static ConnectionInvokeType ToContentType(this FlipflopStateType flowStateType)
         {
             return flowStateType switch
             {
-                FlipflopStateType.Succeed => ConnectionType.IsSucceed,
-                FlipflopStateType.Fail => ConnectionType.IsFail,
-                FlipflopStateType.Error => ConnectionType.IsError,
-                FlipflopStateType.Cancel => ConnectionType.None,
+                FlipflopStateType.Succeed => ConnectionInvokeType.IsSucceed,
+                FlipflopStateType.Fail => ConnectionInvokeType.IsFail,
+                FlipflopStateType.Error => ConnectionInvokeType.IsError,
+                FlipflopStateType.Cancel => ConnectionInvokeType.None,
                 _ => throw new NotImplementedException("未定义的流程状态")
             };
         }
@@ -126,11 +126,11 @@ namespace Serein.NodeFlow.Env
         /// <returns></returns>
         public static bool NotExitPreviousNode(this SingleFlipflopNode node)
         {
-            ConnectionType[] ct = [ConnectionType.IsSucceed,
-                                   ConnectionType.IsFail,
-                                   ConnectionType.IsError,
-                                   ConnectionType.Upstream];
-            foreach (ConnectionType ctType in ct)
+            ConnectionInvokeType[] ct = [ConnectionInvokeType.IsSucceed,
+                                   ConnectionInvokeType.IsFail,
+                                   ConnectionInvokeType.IsError,
+                                   ConnectionInvokeType.Upstream];
+            foreach (ConnectionInvokeType ctType in ct)
             {
                 if (node.PreviousNodes[ctType].Count > 0)
                 {

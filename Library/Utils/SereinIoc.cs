@@ -88,10 +88,8 @@ namespace Serein.Library.Utils
         {
             var constructor = type.GetConstructors().First(); // 获取第一个构造函数
             var parameters = constructor.GetParameters(); // 获取参数列表
-            var parameterValues = parameters.Select(param => ResolveDependency(param.ParameterType)).ToArray();
-            var instance = Activator.CreateInstance(type, parameterValues);
-
-            //var instance =CreateInstance(controllerType, parameters); //  CreateInstance(controllerType, parameters); // 创建目标类型的实例
+            var parameterValues = parameters.Select(param => ResolveDependency(param.ParameterType)).ToArray(); // 生成创建类型的入参参数
+            var instance = Activator.CreateInstance(type, parameterValues); // 创建实例
             if (instance != null)
             {
                 InjectDependencies(instance, false); // 完成创建后注入实例需要的特性依赖项

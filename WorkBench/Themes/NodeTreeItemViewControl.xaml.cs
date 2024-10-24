@@ -31,7 +31,7 @@ namespace Serein.Workbench.Themes
         private class NodeTreeModel
         {
             public NodeModelBase RootNode { get; set; }
-            public Dictionary<ConnectionType, List<NodeModelBase>> ChildNodes { get; set; }
+            public Dictionary<ConnectionInvokeType, List<NodeModelBase>> ChildNodes { get; set; }
         }
 
 
@@ -48,12 +48,12 @@ namespace Serein.Workbench.Themes
             NodeTreeModel nodeTreeModel = new NodeTreeModel
             {
                 RootNode = rootNodeModel,
-                ChildNodes = new Dictionary<ConnectionType, List<NodeModelBase>>()
+                ChildNodes = new Dictionary<ConnectionInvokeType, List<NodeModelBase>>()
                 {
-                    {ConnectionType.Upstream, []},
-                    {ConnectionType.IsSucceed, [rootNodeModel]},
-                    {ConnectionType.IsFail, []},
-                    {ConnectionType.IsError, []},
+                    {ConnectionInvokeType.Upstream, []},
+                    {ConnectionInvokeType.IsSucceed, [rootNodeModel]},
+                    {ConnectionInvokeType.IsFail, []},
+                    {ConnectionInvokeType.IsError, []},
                 }
             };
             string? itemName = rootNodeModel.MethodDetails?.MethodTips;
@@ -231,25 +231,25 @@ namespace Serein.Workbench.Themes
                 item.Items.Clear();
             }
         }
-        public static TreeView ToTreeView(NodeTreeItemViewControl item, ConnectionType connectionType)
+        public static TreeView ToTreeView(NodeTreeItemViewControl item, ConnectionInvokeType connectionType)
         {
             return connectionType switch
             {
-                ConnectionType.Upstream => item.UpstreamTreeNodes,
-                ConnectionType.IsError => item.IsErrorTreeNodes,
-                ConnectionType.IsFail => item.IsFailTreeNodes,
-                ConnectionType.IsSucceed => item.IsSucceedTreeNodes,
+                ConnectionInvokeType.Upstream => item.UpstreamTreeNodes,
+                ConnectionInvokeType.IsError => item.IsErrorTreeNodes,
+                ConnectionInvokeType.IsFail => item.IsFailTreeNodes,
+                ConnectionInvokeType.IsSucceed => item.IsSucceedTreeNodes,
                 _ => throw new Exception("LoadNodeItem Error ：ConnectionType is " + connectionType)
             };
         }
-        public static Grid ToGridView(NodeTreeItemViewControl item, ConnectionType connectionType)
+        public static Grid ToGridView(NodeTreeItemViewControl item, ConnectionInvokeType connectionType)
         {
             return connectionType switch
             {
-                ConnectionType.Upstream => item.UpstreamTreeGuid,
-                ConnectionType.IsError => item.IsErrorTreeGuid,
-                ConnectionType.IsFail => item.IsFailTreeGuid,
-                ConnectionType.IsSucceed => item.IsSucceedTreeGuid,
+                ConnectionInvokeType.Upstream => item.UpstreamTreeGuid,
+                ConnectionInvokeType.IsError => item.IsErrorTreeGuid,
+                ConnectionInvokeType.IsFail => item.IsFailTreeGuid,
+                ConnectionInvokeType.IsSucceed => item.IsSucceedTreeGuid,
                 _ => throw new Exception("LoadNodeItem Error ：ConnectionType is " + connectionType)
             };
         }

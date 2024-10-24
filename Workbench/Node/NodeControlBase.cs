@@ -15,6 +15,11 @@ namespace Serein.Workbench.Node.View
     /// </summary>
     public abstract class NodeControlBase : UserControl, IDynamicFlowNode
     {
+        /// <summary>
+        /// 记录与该节点控件有关的所有连接
+        /// </summary>
+        private readonly List<ConnectionControl> connectionControls = new List<ConnectionControl>();
+
         public NodeControlViewModelBase ViewModel { get; set; }
 
 
@@ -30,7 +35,51 @@ namespace Serein.Workbench.Node.View
             SetBinding();
         }
 
+        /// <summary>
+        /// 添加与该节点有关的连接后，记录下来
+        /// </summary>
+        /// <param name="connection"></param>
+        public void AddCnnection(ConnectionControl connection)
+        {
+            connectionControls.Add(connection);
+        }
 
+        /// <summary>
+        /// 删除了连接之后，还需要从节点中的记录移除
+        /// </summary>
+        /// <param name="connection"></param>
+        public void RemoveCnnection(ConnectionControl connection)
+        {
+            connectionControls.Remove(connection);
+            connection.Remote();
+        }
+
+        /// <summary>
+        /// 删除了连接之后，还需要从节点中的记录移除
+        /// </summary>
+        public void RemoveAllConection()
+        {
+            foreach (var connection in this.connectionControls)
+            {
+                connection.Remote(); // 主动更新连线位置
+            }
+        }
+        /// <summary>
+        /// 更新与该节点有关的数据
+        /// </summary>
+        public void UpdateLocationConnections()
+        {
+            foreach (var connection in this.connectionControls)
+            {
+                connection.RefreshLine(); // 主动更新连线位置
+            }
+        }
+
+
+        /// <summary>
+        /// 设置绑定：
+        /// Canvas.X and Y ： 画布位置
+        /// </summary>
         public void SetBinding()
         {
             // 绑定 Canvas.Left
