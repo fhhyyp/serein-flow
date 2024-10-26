@@ -13,7 +13,7 @@ namespace Serein.Library.Utils
     /// <summary>
     /// 管理远程环境，具备连接、发送消息、停止的功能
     /// </summary>
-    public class RemoteEnvControl
+    public class RemoteMsgUtil
     {
         /// <summary>
         /// 远程环境配置
@@ -52,7 +52,7 @@ namespace Serein.Library.Utils
         /// <summary>
         /// 配置远程连接IP端口
         /// </summary>
-        public RemoteEnvControl(ControlConfiguration controlConfiguration)
+        public RemoteMsgUtil(ControlConfiguration controlConfiguration)
         {
             Config = controlConfiguration;
         }
@@ -120,13 +120,6 @@ namespace Serein.Library.Utils
         /// <returns></returns>
         public async Task SendAsync(string msgId , string theme, object data)
         {
-            //var sendMsg = new
-            //{
-            //    theme = theme,
-            //    token = this.Token,
-            //    data = data,
-            //};
-            //var msg = JsonConvert.SerializeObject(sendMsg);
             JObject jsonData;
 
             if (data is null)
@@ -156,11 +149,8 @@ namespace Serein.Library.Utils
                     [Config.DataJsonKey] = dataToken
                 };
             }
-           
             var msg = jsonData.ToString();
-            //Console.WriteLine(msg);
-            //Console.WriteLine();
-
+            Console.WriteLine($"[{msgId}] => {theme}");
             await EnvClient.SendAsync(msg);
         }
 

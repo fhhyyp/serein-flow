@@ -33,7 +33,6 @@ namespace Serein.Library
         /// 节点的调试设置
         /// </summary>
         DebugSetting,
-
     }
 
 
@@ -68,6 +67,12 @@ namespace Serein.Library
         /// 是否禁止参数进行修改（初始化后不能再通过 Setter 修改）
         /// </summary>
         public bool IsProtection = false;
+
+        /// <summary>
+        /// 自定义代码
+        /// </summary>
+        public string CustomCode = null;
+
     }
 
 }

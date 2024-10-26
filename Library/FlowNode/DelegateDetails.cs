@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using static Serein.Library.Utils.EmitHelper;
@@ -15,14 +16,25 @@ namespace Serein.Library
     public class DelegateDetails
     {
         /// <summary>
+        /// 根据方法信息构建Emit委托
+        /// </summary>
+        /// <param name="methodInfo"></param>
+        public DelegateDetails(MethodInfo methodInfo) 
+        {
+            var emitMethodType = EmitHelper.CreateDynamicMethod(methodInfo, out var emitDelegate);
+            _emitMethodType = emitMethodType;
+            _emitDelegate = emitDelegate;
+        }
+
+        /// <summary>
         /// 记录Emit委托
         /// </summary>
         /// <param name="EmitMethodType"></param>
         /// <param name="EmitDelegate"></param>
         public DelegateDetails(EmitMethodType EmitMethodType, Delegate EmitDelegate)
         {
-            this._emitMethodType = EmitMethodType;
-            this._emitDelegate = EmitDelegate; 
+            _emitMethodType = EmitMethodType;
+            _emitDelegate = EmitDelegate;
         }
         /// <summary>
         /// 更新委托方法
@@ -56,7 +68,7 @@ namespace Serein.Library
         /// <returns>void方法自动返回null</returns>
         public async Task<object> InvokeAsync(object instance, object[] args)
         {
-            if(args is null)
+            if (args is null)
             {
                 args = Array.Empty<object>();
             }

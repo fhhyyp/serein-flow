@@ -9,34 +9,34 @@
     <Nullable>enable</Nullable>
     <ErrorReport>prompt</ErrorReport>
     <AssemblyName>starter</AssemblyName>
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <!--<IsRoslynComponent>true</IsRoslynComponent>-->
     <!--<GenerateDocumentationFile>true</GenerateDocumentationFile>-->
     
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net8.0|AnyCPU'">
+    <Optimize>False</Optimize>
+    <GenerateAssemblyInfo>True</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net8.0|AnyCPU'">
+    <Optimize>False</Optimize>
+    <GenerateAssemblyInfo>True</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Library.Core\Serein.Library.Core.csproj" />
+    <ProjectReference Include="..\Library\Serein.Library.csproj" />
+    <ProjectReference Include="..\NodeFlow\Serein.NodeFlow.csproj" />
+  </ItemGroup>
+
+  <!--<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net8.0|AnyCPU'">
     <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net8.0|AnyCPU'">
     <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
-  </PropertyGroup>
- 
-  <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-  </ItemGroup>
-
-  <ItemGroup><!--<ProjectReference Include="..\Library\Serein.Library.csproj" />
-    <ProjectReference Include="..\NodeFlow\Serein.NodeFlow.csproj" />-->
-  
-    <PackageReference Include="Serein.Library" Version="1.0.17" />
-    <PackageReference Include="Serein.Library.NodeGenerator" Version="1.0.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <!--<ProjectReference Include="..\Serein.Library.MyGenerator\Serein.Library.NodeGenerator.csproj" OutputItemType="Analyzer" />-->
-
-    <ProjectReference Include="..\NodeFlow\Serein.NodeFlow.csproj" />
-  </ItemGroup>
+  </PropertyGroup>-->
 
 </Project>

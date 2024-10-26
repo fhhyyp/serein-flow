@@ -202,13 +202,12 @@ namespace Serein.Library
         /// <summary>
         /// 参数
         /// </summary>
-        public Parameterdata[] ParameterData { get; set; }
+        public ParameterData[] ParameterData { get; set; }
 
         /// <summary>
         /// 如果是区域控件，则会存在子项。
         /// </summary>
         public string[] ChildNodeGuids { get; set; }
-
 
         /// <summary>
         /// 于画布中的位置
@@ -223,14 +222,26 @@ namespace Serein.Library
     }
 
     /// <summary>
-    /// 显示参数，项目文件相关
+    /// 参数信息，项目文件相关
     /// </summary>
-    public class Parameterdata
+    public class ParameterData
     {
         /// <summary>
         /// 参数类型，true时使用自定义的入参，false时由运行环境自动传参
         /// </summary>
         public bool State { get; set; }
+
+        /// <summary>
+        /// 参数来源节点
+        /// </summary>
+        public string SourceNodeGuid { get; set; }
+
+        /// <summary>
+        /// 来源类型
+        /// </summary>
+        public string SourceType { get; set; }
+
+
         /// <summary>
         /// 自定义入参
         /// </summary>

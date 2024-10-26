@@ -1,7 +1,10 @@
-﻿using System;
+﻿using Serein.Library;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -13,28 +16,60 @@ namespace Serein.Workbench.Node.View
     #region Model，不科学的全局变量
     public class MyLine
     {
-        public MyLine(Canvas canvas, BezierLine line)
+        public MyLine(Canvas canvas, ConnectionLineShape line)
         {
             Canvas = canvas;
-            VirtualLine = line;
+            Line = line;
             canvas?.Children.Add(line);
         }
 
         public Canvas Canvas { get; set; }
-        public BezierLine VirtualLine { get; set; }
+        public ConnectionLineShape Line { get; set; }
 
         public void Remove()
         {
-            Canvas?.Children.Remove(VirtualLine);
+            Canvas?.Children.Remove(Line);
         }
     }
 
     public class ConnectingData
     {
+
+        /// <summary>
+        /// 是否正在创建连线
+        /// </summary>
+        public bool IsCreateing { get; set; }
+        /// <summary>
+        /// 起始控制点
+        /// </summary>
         public JunctionControlBase StartJunction { get; set; }
+        /// <summary>
+        /// 当前的控制点
+        /// </summary>
         public JunctionControlBase CurrentJunction { get; set; }
+        /// <summary>
+        /// 开始坐标
+        /// </summary>
         public Point StartPoint { get; set; }
-        public MyLine VirtualLine { get; set; }
+        /// <summary>
+        /// 线条样式
+        /// </summary>
+        public MyLine MyLine { get; set; }
+
+        /// <summary>
+        /// 线条类别（方法调用）
+        /// </summary>
+        public ConnectionInvokeType ConnectionInvokeType { get; set; } = ConnectionInvokeType.IsSucceed;
+        /// <summary>
+        /// 线条类别（参数传递）
+        /// </summary>
+        public ConnectionArgSourceType ConnectionArgSourceType { get; set; } = ConnectionArgSourceType.GetOtherNodeData;
+
+        /// <summary>
+        /// 判断当前连接类型
+        /// </summary>
+        public JunctionOfConnectionType Type => StartJunction.JunctionType.ToConnectyionType();
+
 
         /// <summary>
         /// 是否允许连接
@@ -42,32 +77,22 @@ namespace Serein.Workbench.Node.View
 
         public bool IsCanConnected { get
             {
+                
                 if(StartJunction is null
                     || CurrentJunction is null
                     )
                 {
                     return false;
                 }
-                if (!StartPoint.Equals(CurrentJunction))
+
+
+                if (!StartJunction.MyNode.Equals(CurrentJunction.MyNode)
+                    && StartJunction.JunctionType.IsCanConnection(CurrentJunction.JunctionType))
                 {
                     return true;
                 }
                 else
                 {
-                    // 自己连接自己的情况下，只能是从arg控制点连接到execute控制点。
-                    if (CurrentJunction.JunctionType == Library.JunctionType.Execute
-                        && StartJunction.JunctionType == Library.JunctionType.ArgData)
-                    {
-
-                        return true;
-                    }
-
-                    if (CurrentJunction.JunctionType == Library.JunctionType.ArgData
-                        && StartJunction.JunctionType == Library.JunctionType.Execute)
-                    {
-                        // 需要是自己连接自己，且只能是从arg控制点连接到execute控制点。
-                        return true;
-                    }
                     return false;
                 }
             } 
@@ -88,13 +113,26 @@ namespace Serein.Workbench.Node.View
             if (StartJunction.JunctionType == Library.JunctionType.Execute 
                 || StartJunction.JunctionType == Library.JunctionType.ArgData)
             {
-                VirtualLine.VirtualLine.UpdateStartPoints(point);
+                MyLine.Line.UpdateStartPoints(point);
             }
             else
             {
-                VirtualLine.VirtualLine.UpdateEndPoints(point);
+                MyLine.Line.UpdateEndPoints(point);
 
             }
+        }
+
+        /// <summary>
+        /// 重置
+        /// </summary>
+        public void Reset()
+        {
+            IsCreateing = false;
+            StartJunction = null;
+            CurrentJunction = null;
+            MyLine?.Remove();
+            ConnectionInvokeType = ConnectionInvokeType.IsSucceed;
+            ConnectionArgSourceType = ConnectionArgSourceType.GetOtherNodeData;
         }
 
 
@@ -103,31 +141,20 @@ namespace Serein.Workbench.Node.View
 
     public static class GlobalJunctionData
     {
-        private static ConnectingData? myGlobalData;
-        private static object _lockObj = new object();
+        //private static ConnectingData? myGlobalData;
+        //private static object _lockObj = new object();
 
         /// <summary>
         /// 创建节点之间控制点的连接行为
         /// </summary>
-        public static ConnectingData? MyGlobalConnectingData
-        {
-            get => myGlobalData;
-            set
-            {
-                lock (_lockObj)
-                {
-                    myGlobalData ??= value;
-                }
-            }
-        }
+        public static ConnectingData MyGlobalConnectingData { get; } = new ConnectingData();
 
         /// <summary>
         /// 删除连接视觉效果
         /// </summary>
         public static void OK()
         {
-            myGlobalData?.VirtualLine.Remove();
-            myGlobalData = null;
+            MyGlobalConnectingData.Reset();
         }
     }
     #endregion

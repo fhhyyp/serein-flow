@@ -13,7 +13,7 @@ namespace Serein.Workbench
         void LoadLocalProject()
         {
  #if DEBUG
-            if (1 == 1)
+            if (1 == 11)
             {
                 string filePath;
                 filePath = @"F:\临时\project\linux\project.dnf";

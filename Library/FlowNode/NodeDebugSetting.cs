@@ -35,15 +35,16 @@ namespace Serein.Library
         /// <summary>
         ///  中断级别，暂时停止继续执行后继分支。
         /// </summary>
-        [PropertyInfo]
-        private InterruptClass _interruptClass = InterruptClass.None;
+        //[PropertyInfo]
+        //private InterruptClass _interruptClass = InterruptClass.None;
 
         /// <summary>
         ///  中断级别，暂时停止继续执行后继分支。
         /// </summary>
-        [PropertyInfo(IsNotification = true)]
+        [PropertyInfo(IsNotification = true, CustomCode = "NodeModel?.Env?.SetNodeInterruptAsync(NodeModel?.Guid, value);")]
         private bool _isInterrupt = false;
 
+        //private const string MyInteruptCode = "NodeModel?.Env?.SetNodeInterruptAsync(NodeModel?.Guid, value);"; // 添加到中断的自定义代码
 
         /// <summary>
         /// 取消中断的回调函数
@@ -56,29 +57,30 @@ namespace Serein.Library
         /// </summary>
         [PropertyInfo]
         private Func<Task<CancelType>> _getInterruptTask;
+
     }
 
+   
 
-
-    /// <summary>
-    /// 中断级别，暂时停止继续执行后继分支。
-    /// </summary>
-    public enum InterruptClass
-    {
         /// <summary>
-        /// 不中断
+        /// 中断级别，暂时停止继续执行后继分支。
         /// </summary>
-        None,
-        /// <summary>
-        /// 分支中断，中断进入当前节点的分支。
-        /// </summary>
-        Branch,
-        /// <summary>
-        /// 全局中断，中断全局所有节点的运行。（暂未实现相关）
-        /// </summary>
-        Global,
+        //public enum InterruptClass
+        //{
+        //    /// <summary>
+        //    /// 不中断
+        //    /// </summary>
+        //    None,
+        //    /// <summary>
+        //    /// 分支中断，中断进入当前节点的分支。
+        //    /// </summary>
+        //    Branch,
+        //    /// <summary>
+        //    /// 全局中断，中断全局所有节点的运行。（暂未实现相关）
+        //    /// </summary>
+        //    Global,
+        //}
     }
-}
 
 
 

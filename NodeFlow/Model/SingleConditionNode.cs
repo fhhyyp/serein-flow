@@ -50,7 +50,7 @@ namespace Serein.NodeFlow.Model
         {
             // 接收上一节点参数or自定义参数内容
             object? parameter;
-            object? result = PreviousNode?.GetFlowData();   // 条件节点透传上一节点的数据
+            object? result = context.GetFlowData(PreviousNode.Guid);   // 条件节点透传上一节点的数据
             if (IsCustomData) // 是否使用自定义参数
             {
                 // 表达式获取上一节点数据
@@ -88,7 +88,7 @@ namespace Serein.NodeFlow.Model
             return Task.FromResult(result);
         }
 
-        public override Parameterdata[] GetParameterdatas()
+        public override ParameterData[] GetParameterdatas()
         {
             var value = CustomData switch
             {
@@ -99,7 +99,7 @@ namespace Serein.NodeFlow.Model
                 Type when CustomData.GetType() == typeof(bool) => ((bool)CustomData).ToString(),
                 _ => CustomData?.ToString()!,
             };
-            return [new Parameterdata
+            return [new ParameterData
             {
                 State = IsCustomData,
                 Expression = Expression,
@@ -114,11 +114,10 @@ namespace Serein.NodeFlow.Model
             this.Position = nodeInfo.Position;// 加载位置信息
             for (int i = 0; i < nodeInfo.ParameterData.Length; i++)
             {
-                Parameterdata? pd = nodeInfo.ParameterData[i];
+                ParameterData? pd = nodeInfo.ParameterData[i];
                 node.IsCustomData = pd.State;
                 node.CustomData = pd.Value;
                 node.Expression = pd.Expression;
-
             }
             return this;
         }

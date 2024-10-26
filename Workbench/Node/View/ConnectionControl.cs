@@ -112,52 +112,6 @@ namespace Serein.Workbench.Node.View
 
         private readonly Action RemoteCallback;
 
-        /// <summary>
-        /// 关于调用
-        /// </summary>
-        /// <param name="Canvas"></param>
-        /// <param name="Type"></param>
-        public ConnectionControl(Canvas Canvas,
-                                ConnectionInvokeType Type,
-                                JunctionControlBase Start,
-                                JunctionControlBase End,
-                                Action remoteCallback)
-        {
-            this.LineType = LineType.Bezier;
-            this.RemoteCallback = remoteCallback;
-            this.Canvas = Canvas;
-            this.Type = Type;
-            this.Start = Start;
-            this.End = End;
-            //this.Start.Background = GetLineColor(Type);  // 线条颜色
-            //this.End.Background = GetLineColor(Type);  // 线条颜色
-            InitElementPoint();
-        }
-
-        /// <summary>
-        /// 关于入参
-        /// </summary>
-        /// <param name="Canvas"></param>
-        /// <param name="Type"></param>
-        public ConnectionControl(LineType LineType,
-                                Canvas Canvas,
-                                int argIndex,
-                                ConnectionArgSourceType connectionArgSourceType,
-                                JunctionControlBase Start,
-                                JunctionControlBase End,
-                                Action remoteCallback)
-        {
-            this.LineType = LineType;
-            this.RemoteCallback = remoteCallback;
-            this.Canvas = Canvas;
-            this.ArgIndex = ArgIndex;
-            this.ConnectionArgSourceType = connectionArgSourceType;
-            this.Start = Start;
-            this.End = End;
-            //this.Start.Background = GetLineColor(Type);  // 线条颜色
-            //this.End.Background = GetLineColor(Type);  // 线条颜色
-            InitElementPoint();
-        }
 
         /// <summary>
         /// 所在的画布
@@ -167,7 +121,7 @@ namespace Serein.Workbench.Node.View
         /// <summary>
         /// 调用方法类型，连接类型
         /// </summary>
-        public ConnectionInvokeType Type { get; }
+        public ConnectionInvokeType InvokeType { get; }
 
         /// <summary>
         /// 获取参数类型，第几个参数
@@ -177,7 +131,7 @@ namespace Serein.Workbench.Node.View
         /// <summary>
         /// 参数来源（决定了连接线的样式）
         /// </summary>
-        public ConnectionArgSourceType ConnectionArgSourceType { get; set; }
+        public ConnectionArgSourceType ArgSourceType { get; set; }
 
         /// <summary>
         /// 起始控制点
@@ -192,14 +146,86 @@ namespace Serein.Workbench.Node.View
         /// <summary>
         /// 连接线
         /// </summary>
-        private BezierLine BezierLine;
+        private ConnectionLineShape BezierLine;
 
         private LineType LineType;
 
         /// <summary>
+        /// 关于调用
+        /// </summary>
+        /// <param name="Canvas"></param>
+        /// <param name="invokeType"></param>
+        public ConnectionControl(Canvas Canvas,
+                                ConnectionInvokeType invokeType,
+                                JunctionControlBase Start,
+                                JunctionControlBase End,
+                                Action remoteCallback)
+        {
+            this.LineType = LineType.Bezier;
+            this.RemoteCallback = remoteCallback;
+            this.Canvas = Canvas;
+            this.InvokeType = invokeType;
+            this.Start = Start;
+            this.End = End;
+            InitElementPoint();
+        }
+
+        /// <summary>
+        /// 关于入参
+        /// </summary>
+        /// <param name="Canvas"></param>
+        /// <param name="Type"></param>
+        public ConnectionControl(LineType LineType,
+                                Canvas Canvas,
+                                int argIndex,
+                                ConnectionArgSourceType argSourceType,
+                                JunctionControlBase Start,
+                                JunctionControlBase End,
+                                Action remoteCallback)
+        {
+            this.LineType = LineType;
+            this.RemoteCallback = remoteCallback;
+            this.Canvas = Canvas;
+            this.ArgIndex = ArgIndex;
+            this.ArgSourceType = argSourceType;
+            this.Start = Start;
+            this.End = End;
+            InitElementPoint();
+        }
+
+        /// <summary>
+        /// 绘制
+        /// </summary>
+        public void InitElementPoint()
+        {
+            leftCenterOfEndLocation = Start.MyCenterPoint;
+            rightCenterOfStartLocation = End.MyCenterPoint;
+
+            (Point startPoint, Point endPoint) = RefreshPoint(Canvas, Start, End);
+            var connectionType = Start.JunctionType.ToConnectyionType();
+            bool isDotted;
+            Brush brush;
+            if(connectionType == JunctionOfConnectionType.Invoke)
+            {
+                brush = InvokeType.ToLineColor();
+                isDotted = false;
+            }
+            else
+            {
+                brush = ArgSourceType.ToLineColor();
+                isDotted = true; // 如果为参数，则绘制虚线
+            }
+            BezierLine = new ConnectionLineShape(LineType, startPoint, endPoint, brush, isDotted); 
+            Grid.SetZIndex(BezierLine, -9999999); // 置底
+            Canvas.Children.Add(BezierLine);
+
+            ConfigureLineContextMenu(); //配置右键菜单
+        }
+
+
+        /// <summary>
         /// 配置连接曲线的右键菜单
         /// </summary>
-        /// <param name="line"></param>
         private void ConfigureLineContextMenu()
         {
             var contextMenu = new ContextMenu();
@@ -213,16 +239,14 @@ namespace Serein.Workbench.Node.View
         /// <param name="line"></param>
         public void DeleteConnection()
         {
-            if(this.Start is JunctionControlBase startJunctionControlBase)
-            {
-                //startJunctionControlBase.Background = Brushes.Transparent;
-            }
-            if (this.End is JunctionControlBase endJunctionControlBase)
-            {
-                //endJunctionControlBase.Background = Brushes.Transparent;
-            }
-            Canvas.Children.Remove(BezierLine); // 移除线
             RemoteCallback?.Invoke();
+        }
+        /// <summary>
+        /// 删除该连线
+        /// </summary>
+        public void Remote()
+        {
+            Canvas.Children.Remove(BezierLine);
         }
 
         /// <summary>
@@ -232,38 +256,8 @@ namespace Serein.Workbench.Node.View
         {
             (Point startPoint, Point endPoint) = RefreshPoint(Canvas, Start, End);
             BezierLine.UpdatePoints(startPoint, endPoint);
-            //BezierLine.UpdatePoints(startPoint, endPoint);
-        }
-        /// <summary>
-        /// 删除该连线
-        /// </summary>
-        public void Remote()
-        {
-            Canvas.Children.Remove(BezierLine);
-        }
-        /// <summary>
-        /// 绘制
-        /// </summary>
-        public void InitElementPoint()
-        {
-            leftCenterOfEndLocation = Start.MyCenterPoint;
-            rightCenterOfStartLocation = End.MyCenterPoint;
-            //leftCenterOfEndLocation = new Point(0, End.ActualHeight / 2); // 目标节点选择左侧边缘中心
-            //rightCenterOfStartLocation = new Point(Start.ActualWidth, Start.ActualHeight / 2);  // 起始节点选择右侧边缘中心 
-
-
-            linkSize = 4;  // 整线条粗细
-            (Point startPoint, Point endPoint) = RefreshPoint(Canvas, Start, End);
-            BezierLine = new BezierLine(LineType, startPoint, endPoint, GetLineColor(Type), linkSize);
-            Grid.SetZIndex(BezierLine, -9999999); // 置底
-            Canvas.Children.Add(BezierLine);
-
-
-            ConfigureLineContextMenu(); //配置右键菜单
         }
 
-
-        double linkSize;  // 根据缩放比例调整线条粗细
         private Point rightCenterOfStartLocation;  // 目标节点选择左侧边缘中心
         private Point leftCenterOfEndLocation;  // 起始节点选择右侧边缘中心 
 
@@ -275,24 +269,8 @@ namespace Serein.Workbench.Node.View
             return (startPoint, endPoint);
         }
 
-        /// <summary>
-        /// 根据连接类型指定颜色
-        /// </summary>
-        /// <param name="currentConnectionType"></param>
-        /// <returns></returns>
-        /// <exception cref="Exception"></exception>
-        public static SolidColorBrush GetLineColor(ConnectionInvokeType currentConnectionType)
-        {
-            return currentConnectionType switch
-            {
-                ConnectionInvokeType.IsSucceed => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10")),
-                ConnectionInvokeType.IsFail => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F18905")),
-                ConnectionInvokeType.IsError => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FE1343")),
-                ConnectionInvokeType.Upstream => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4A82E4")),
-                _ => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#56CEF6")),
-                //_ => throw new Exception(),
-            };
-        }
+       
+
 
         #endregion
     }

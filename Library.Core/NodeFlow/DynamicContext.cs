@@ -47,6 +47,10 @@ namespace Serein.Library.Core.NodeFlow
         /// <returns></returns>
         public object? GetFlowData(string nodeGuid)
         {
+            if (string.IsNullOrEmpty(nodeGuid))
+            {
+                return null;
+            }
             if(dictNodeFlowData.TryGetValue(nodeGuid,out var data))
             {
                 return data;
@@ -70,8 +74,18 @@ namespace Serein.Library.Core.NodeFlow
         /// <summary>
         /// 结束流程
         /// </summary>
-        public void EndCurrentBranch()
+        public void Exit()
         {
+            foreach (var nodeObj in dictNodeFlowData.Values)
+            {
+                if (nodeObj is not null)
+                {
+                    if (typeof(IDisposable).IsAssignableFrom(nodeObj?.GetType()) && nodeObj is IDisposable disposable)
+                    {
+                        disposable?.Dispose();
+                    }
+                }
+            }
             this.dictNodeFlowData?.Clear();
             RunState = RunState.Completion;
         }

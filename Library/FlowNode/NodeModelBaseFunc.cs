@@ -31,7 +31,7 @@ namespace Serein.Library
         /// 获取节点参数
         /// </summary>
         /// <returns></returns>
-        public abstract Parameterdata[] GetParameterdatas();
+        public abstract ParameterData[] GetParameterdatas();
 
         /// <summary>
         /// 导出为节点信息
@@ -47,7 +47,7 @@ namespace Serein.Library
             var upstreamNodes = SuccessorNodes[ConnectionInvokeType.Upstream].Select(item => item.Guid);// 上游分支
 
             // 生成参数列表
-            Parameterdata[] parameterData = GetParameterdatas();
+            ParameterData[] parameterData = GetParameterdatas();
 
             return new NodeInfo
             {
@@ -82,9 +82,13 @@ namespace Serein.Library
             {
                 for (int i = 0; i < nodeInfo.ParameterData.Length; i++)
                 {
-                    Parameterdata pd = nodeInfo.ParameterData[i];
-                    this.MethodDetails.ParameterDetailss[i].IsExplicitData = pd.State;
-                    this.MethodDetails.ParameterDetailss[i].DataValue = pd.Value;
+                    var mdPd = this.MethodDetails.ParameterDetailss[i];
+                    ParameterData pd = nodeInfo.ParameterData[i];
+                    mdPd.IsExplicitData = pd.State;
+                    mdPd.DataValue = pd.Value;
+                    mdPd.ArgDataSourceType  = EnumHelper.ConvertEnum<ConnectionArgSourceType>(pd.SourceType);
+                    mdPd.ArgDataSourceNodeGuid = pd.SourceNodeGuid;
+
                 }
             }
             return this;
@@ -93,13 +97,12 @@ namespace Serein.Library
 
         #region 调试中断
 
-
         /// <summary>
         /// 不再中断
         /// </summary>
         public void CancelInterrupt()
         {
-            this.DebugSetting.InterruptClass = InterruptClass.None;
+            this.DebugSetting.IsInterrupt = false;
             DebugSetting.CancelInterruptCallback?.Invoke();
         }
 
@@ -165,7 +168,7 @@ namespace Serein.Library
                     NodeModelBase upstreamNode = upstreamNodes[index];
                     if (!(upstreamNode is null) && upstreamNode.DebugSetting.IsEnable)
                     {
-                        if (upstreamNode.DebugSetting.InterruptClass != InterruptClass.None) // 执行触发前
+                        if (upstreamNode.DebugSetting.IsInterrupt) // 执行触发前
                         {
                             var cancelType = await upstreamNode.DebugSetting.GetInterruptTask();
                             await Console.Out.WriteLineAsync($"[{upstreamNode.MethodDetails?.MethodName}]中断已{cancelType}，开始执行后继分支");
@@ -220,7 +223,7 @@ namespace Serein.Library
         {
             #region 调试中断
 
-            if (DebugSetting.InterruptClass != InterruptClass.None) // 执行触发检查是否需要中断
+            if (DebugSetting.IsInterrupt) // 执行触发检查是否需要中断
             {
                 var cancelType = await this.DebugSetting.GetInterruptTask(); // 等待中断结束
                 await Console.Out.WriteLineAsync($"[{this.MethodDetails?.MethodName}]中断已{cancelType}，开始执行后继分支");
@@ -312,8 +315,9 @@ namespace Serein.Library
             }
 
             object[] parameters = new object[md.ParameterDetailss.Length];
-            var previousFlowData = nodeModel.PreviousNode?.FlowData; // 当前传递的数据
-            var previousDataType = previousFlowData?.GetType(); // 当前传递数据的类型
+            
+            //var previousFlowData = nodeModel.PreviousNode?.FlowData; // 当前传递的数据
+
 
             for (int i = 0; i < parameters.Length; i++)
             {
@@ -336,41 +340,48 @@ namespace Serein.Library
                 object inputParameter; // 存放解析的临时参数
                 if (ed.IsExplicitData) // 判断是否使用显示的输入参数
                 {
-                    if (ed.DataValue.StartsWith("@get", StringComparison.OrdinalIgnoreCase) && !(previousFlowData is null))
+                    if (ed.DataValue.StartsWith("@get", StringComparison.OrdinalIgnoreCase))
                     {
+                        var previousFlowData = context.GetFlowData(nodeModel?.PreviousNode?.Guid); // 当前传递的数据
                         // 执行表达式从上一节点获取对象
                         inputParameter = SerinExpressionEvaluator.Evaluate(ed.DataValue, previousFlowData, out _);
                     }
                     else
                     {
                         // 使用输入的固定值
-                        inputParameter = ed.DataValue;
+                            inputParameter = ed.DataValue;
                     }
                 }
                 else
                 {
                     if (ed.ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData)
                     {
-                        inputParameter = previousFlowData;   // 使用运行时上一节点的返回值
+                        inputParameter = context.GetFlowData(nodeModel?.PreviousNode?.Guid); // 当前传递的数据
                     }
-                    else if (ed.ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData)
+                    else if (ed.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
                     {
                         // 获取指定节点的数据
                         // 如果指定节点没有被执行，会返回null
                         // 如果执行过，会获取上一次执行结果作为预入参数据
-                        inputParameter = ed.ArgDataSourceNodeMoels[i].FlowData;
+                        inputParameter = context.GetFlowData(ed.ArgDataSourceNodeGuid);
                     }
                     else if (ed.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke)
                     {
                         // 立刻调用对应节点获取数据。
-                        var result = await ed.ArgDataSourceNodeMoels[i].InvokeAsync(nodeModel.Env);
+                      
+                        var result = await context.Env.InvokeNodeAsync(ed.ArgDataSourceNodeGuid);
                         inputParameter = result;
                     }
                     else
                     {
                         throw new Exception("节点执行方法获取入参参数时，ConnectionArgSourceType枚举是意外的枚举值");
                     }
-                } 
+                }
+                if (inputParameter is null)
+                {
+                    throw new Exception($"[arg{ed.Index}][{ed.Name}][{ed.DataType}]参数不能为null");
+                }
+
                 #endregion
 
                 #region 入参存在取值转换器，调用对应的转换器获取入参数据
@@ -418,7 +429,7 @@ namespace Serein.Library
                 #endregion
 
                 #region 对入参数据尝试进行转换
-
+                
                 if (inputParameter.GetType() == ed.DataType)
                 {
                     parameters[i] = inputParameter; // 类型一致无需转换，直接装入入参数组
@@ -506,8 +517,8 @@ namespace Serein.Library
             {
                 await MonitorObjExpInterrupt(context, nodeModel, newData, 0); // 首先监视对象
                 await MonitorObjExpInterrupt(context, nodeModel, newData, 1); // 然后监视节点
-                nodeModel.FlowData = newData; // 替换数据
-                context.AddOrUpdate(guid, nodeModel); // 上下文中更新数据
+                //nodeModel.FlowData = newData; // 替换数据
+                context.AddOrUpdate(guid, newData); // 上下文中更新数据
             }
         }
 
@@ -548,12 +559,13 @@ namespace Serein.Library
 
                     if (isExpInterrupt) // 触发中断
                     {
-                        InterruptClass interruptClass = InterruptClass.Branch; // 分支中断
-                        if (await context.Env.SetNodeInterruptAsync(nodeModel.Guid, interruptClass))
+                        nodeModel.DebugSetting.IsInterrupt = true;
+                        if (await context.Env.SetNodeInterruptAsync(nodeModel.Guid,true))
                         {
                             context.Env.TriggerInterrupt(nodeModel.Guid, exp, InterruptTriggerEventArgs.InterruptTriggerType.Exp);
                             var cancelType = await nodeModel.DebugSetting.GetInterruptTask();
                             await Console.Out.WriteLineAsync($"[{data}]中断已{cancelType}，开始执行后继分支");
+                            nodeModel.DebugSetting.IsInterrupt = false;
                         }
                     }
                 }
@@ -561,26 +573,26 @@ namespace Serein.Library
             }
         }
 
-        /// <summary>
-        /// 释放对象
-        /// </summary>
-        public void ReleaseFlowData()
-        {
-            if (typeof(IDisposable).IsAssignableFrom(FlowData?.GetType()) && FlowData is IDisposable disposable)
-            {
-                disposable?.Dispose();
-            }
-            this.FlowData = null;
-        }
+        ///// <summary>
+        ///// 释放对象
+        ///// </summary>
+        //public void ReleaseFlowData()
+        //{
+        //    if (typeof(IDisposable).IsAssignableFrom(FlowData?.GetType()) && FlowData is IDisposable disposable)
+        //    {
+        //        disposable?.Dispose();
+        //    }
+        //    this.FlowData = null;
+        //}
 
-        /// <summary>
-        /// 获取节点数据
-        /// </summary>
-        /// <returns></returns>
-        public object GetFlowData()
-        {
-            return this.FlowData;
-        }
+        ///// <summary>
+        ///// 获取节点数据
+        ///// </summary>
+        ///// <returns></returns>
+        //public object GetFlowData()
+        //{
+        //    return this.FlowData;
+        //}
         #endregion
 
     }

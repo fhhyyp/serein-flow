@@ -1,5 +1,6 @@
 ﻿using Serein.Library.Api;
 using Serein.Library;
+using System.Security.AccessControl;
 
 namespace Serein.NodeFlow.Model
 {
@@ -12,13 +13,15 @@ namespace Serein.NodeFlow.Model
         {
             
         }
-        public override Parameterdata[] GetParameterdatas()
+        public override ParameterData[] GetParameterdatas()
         {
             if (base.MethodDetails.ParameterDetailss.Length > 0)
             {
                 return MethodDetails.ParameterDetailss
-                                    .Select(it => new Parameterdata
+                                    .Select(it => new ParameterData
                                     {
+                                        SourceNodeGuid = it.ArgDataSourceNodeGuid,
+                                        SourceType = it.ArgDataSourceType.ToString(),
                                         State = it.IsExplicitData,
                                         Value = it.DataValue,
                                     })

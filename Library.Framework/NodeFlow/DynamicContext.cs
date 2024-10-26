@@ -1,4 +1,5 @@
 ﻿using Serein.Library.Api;
+using System;
 using System.Collections.Concurrent;
 
 namespace Serein.Library.Framework.NodeFlow
@@ -46,8 +47,6 @@ namespace Serein.Library.Framework.NodeFlow
         /// <returns></returns>
         public object GetFlowData(string nodeGuid)
         {
-           
-
             if (dictNodeFlowData.TryGetValue(nodeGuid, out var data))
             {
                 return data;
@@ -71,8 +70,18 @@ namespace Serein.Library.Framework.NodeFlow
         /// <summary>
         /// 结束流程
         /// </summary>
-        public void EndCurrentBranch()
+        public void Exit()
         {
+            foreach (var nodeObj in dictNodeFlowData.Values)
+            {
+                if (nodeObj != null)
+                {
+                    if (typeof(IDisposable).IsAssignableFrom(nodeObj?.GetType()) && nodeObj is IDisposable disposable)
+                    {
+                        disposable?.Dispose();
+                    }
+                }
+            }
             this.dictNodeFlowData?.Clear();
             RunState = RunState.Completion;
         }

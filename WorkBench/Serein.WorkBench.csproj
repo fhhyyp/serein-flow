@@ -27,6 +27,7 @@
     <Compile Remove="Node\FlipflopRegionControl.xaml.cs" />
     <Compile Remove="Node\Junction\NodeJunctionViewBase.cs" />
     <Compile Remove="Node\NodeBase.cs" />
+    <Compile Remove="Node\View\ActionRegionControl.xaml.cs" />
     <Compile Remove="Themes\ConditionControl.xaml.cs" />
     <Compile Remove="Themes\ConditionControlModel.cs" />
     <Compile Remove="Themes\ConnectionControl.xaml.cs" />
@@ -36,6 +37,7 @@
 
   <ItemGroup>
     <Page Remove="Node\FlipflopRegionControl.xaml" />
+    <Page Remove="Node\View\ActionRegionControl.xaml" />
     <Page Remove="Themes\ConditionControl.xaml" />
     <Page Remove="Themes\ConnectionControl.xaml" />
     <Page Remove="Themes\ExplicitDataControl.xaml" />

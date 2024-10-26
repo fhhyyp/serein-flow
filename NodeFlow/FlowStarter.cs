@@ -46,13 +46,27 @@ namespace Serein.NodeFlow
         /// <returns></returns>
         public async Task StartFlowInSelectNodeAsync(IFlowEnvironment env, NodeModelBase startNode)
         {
-            IDynamicContext Context;
+            IDynamicContext context;
 #if NET6_0_OR_GREATER
-            Context = new Serein.Library.Core.NodeFlow.DynamicContext(env); // 从起始节点启动流程时创建上下文
+            context = new Serein.Library.Core.NodeFlow.DynamicContext(env); // 从起始节点启动流程时创建上下文
 #else
             Context = new Serein.Library.Framework.NodeFlow.DynamicContext(env);
 #endif
-            await startNode.StartFlowAsync(Context); // 开始运行时从选定节点开始运行
+            await startNode.StartFlowAsync(context); // 开始运行时从选定节点开始运行
+            context.Exit();
+
+/*
+ 
+ foreach (var node in NodeModels.Values)
+ {
+     if (node is not null)
+     {
+         node.ReleaseFlowData(); // 退出时释放对象
+     }
+ }
+ 
+ 
+ */
         }
 
 
@@ -360,7 +374,7 @@ namespace Serein.NodeFlow
                             if (nextNodes[i].DebugSetting.IsEnable)
                             {
                                 nextNodes[i].PreviousNode = singleFlipFlopNode;
-                                if (nextNodes[i].DebugSetting.InterruptClass != InterruptClass.None) // 执行触发前
+                                if (nextNodes[i].DebugSetting.IsInterrupt) // 执行触发前
                                 {
                                     var cancelType = await nextNodes[i].DebugSetting.GetInterruptTask();
                                     await Console.Out.WriteLineAsync($"[{nextNodes[i].MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");

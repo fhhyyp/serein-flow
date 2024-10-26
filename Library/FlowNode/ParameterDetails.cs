@@ -1,4 +1,5 @@
 ﻿using Serein.Library.Api;
+using Serein.Library.Utils;
 using System;
 using System.Linq;
 
@@ -62,11 +63,10 @@ namespace Serein.Library
 
         /// <summary>
         /// 当 ArgDataSourceType 不为 GetPreviousNodeData 时（从运行时上一节点获取数据）。
-        /// 则通过该集合对应的节点，获取其 FlowData 作为预处理的入参参数。
+        /// 则通过当前上下文，获取该Guid对应的数据作为预处理的入参参数。
         /// </summary>
-        [PropertyInfo(IsProtection = true)]
-        public NodeModelBase[] _argDataSourceNodeMoels;
-
+        [PropertyInfo]
+        private string _argDataSourceNodeGuid;
 
 
         /// <summary>
@@ -97,6 +97,16 @@ namespace Serein.Library
 
     public partial class ParameterDetails
     {
+
+        /// <summary>
+        /// 用于创建元数据
+        /// </summary>
+        public ParameterDetails()
+        {
+
+        }
+
+
         /// <summary>
         /// 为节点实例化新的入参描述
         /// </summary>
@@ -112,26 +122,14 @@ namespace Serein.Library
         /// <param name="info">参数信息</param>
         public ParameterDetails(ParameterDetailsInfo info)
         {
-            //this.env = env;
             Index = info.Index;
             Name = info.Name;
             DataType = Type.GetType(info.DataTypeFullName);
             ExplicitType = Type.GetType(info.ExplicitTypeFullName);
             ExplicitTypeName = info.ExplicitTypeName;
             Items = info.Items;
-        }
-
-        /// <summary>
-        /// 用于创建元数据
-        /// </summary>
-        public ParameterDetails()
-        {
             
         }
-
-
-
-
 
         /// <summary>
         /// 转为描述
@@ -141,12 +139,12 @@ namespace Serein.Library
         {
             return new ParameterDetailsInfo
             {
-                Index = Index,
-                DataTypeFullName = DataType.FullName,
-                Name = Name,
-                ExplicitTypeFullName = ExplicitType.FullName,
-                ExplicitTypeName = ExplicitTypeName,
-                Items = Items,
+                Index = this.Index,
+                DataTypeFullName = this.DataType.FullName,
+                Name = this.Name,
+                ExplicitTypeFullName = this.ExplicitType.FullName,
+                ExplicitTypeName = this.ExplicitTypeName,
+                Items = this.Items.Select(it => it).ToArray(),
             };
         }
 
@@ -154,7 +152,7 @@ namespace Serein.Library
         /// 为某个节点拷贝方法描述的入参描述
         /// </summary>
         /// <param name="env">运行环境</param>
-        /// <param name="nodeGuid">运行环境</param>
+        /// <param name="nodeModel">对应的节点</param>
         /// <returns></returns>
         public ParameterDetails CloneOfClone(IFlowEnvironment env, NodeModelBase nodeModel)
         {

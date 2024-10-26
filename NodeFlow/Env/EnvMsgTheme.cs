@@ -30,21 +30,31 @@
         /// </summary>
         public const string SetStartNode = nameof(SetStartNode);
         /// <summary>
-        /// 尝试连接两个节点
-        /// </summary>
-        public const string ConnectNode = nameof(ConnectNode);
-        /// <summary>
         /// 尝试创建节点
         /// </summary>
         public const string CreateNode = nameof(CreateNode);
         /// <summary>
-        /// 尝试移除节点之间的连接关系
-        /// </summary>
-        public const string RemoveConnect = nameof(RemoveConnect);
-        /// <summary>
         /// 尝试移除节点
         /// </summary>
         public const string RemoveNode = nameof(RemoveNode);
+        /// <summary>
+        /// 尝试连接两个节点的方法调用关系
+        /// </summary>
+        public const string ConnectInvokeNode = nameof(ConnectInvokeNode);
+        /// <summary>
+        /// 尝试移除节点之间的方法调用关系
+        /// </summary>
+        public const string RemoveInvokeConnect = nameof(RemoveInvokeConnect);
+
+         /// <summary>
+        /// 尝试连接两个节点的参数传递关系
+        /// </summary>
+        public const string ConnectArgSourceNode = nameof(ConnectArgSourceNode);
+        /// <summary>
+        /// 尝试移除节点之间的参数传递关系
+        /// </summary>
+        public const string RemoveArgSourceConnect = nameof(RemoveArgSourceConnect);
+ 
         /// <summary>
         /// 激活一个触发器
         /// </summary>

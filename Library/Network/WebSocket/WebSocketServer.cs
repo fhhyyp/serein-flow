@@ -180,67 +180,46 @@ namespace Serein.Library.Network.WebSocketCommunication
                 return;
             }
 
+            var msgQueueUtil = new MsgQueueUtil();
+            _ = Task.Run(async () =>
+            {
+                await HandleMsgAsync(webSocket,msgQueueUtil, authorizedHelper);
+            });
+
             //Func<string, Task> SendAsync = async (text) =>
             //{
             //    await WebSocketServer.SendAsync(webSocket, text);
             //};
 
-            var buffer = new byte[1024];
             var receivedMessage = new StringBuilder(); // 用于拼接长消息
 
-            while (webSocket.State == WebSocketState.Open)
+            while ( webSocket.State == WebSocketState.Open)
             {
-                WebSocketReceiveResult result;
-
+               
                 try
                 {
+                    WebSocketReceiveResult result;
+                    var buffer = new byte[1024];
                     do
                     {
                         result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-
+                        if (result.MessageType == WebSocketMessageType.Close)
+                        {
+                            await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                            if (IsCheckToken)
+                            {
+                                AuthorizedClients.TryRemove(authorizedHelper.AddresPort, out var _);
+                            }
+                        }
                         // 将接收到的部分消息解码并拼接
                         var partialMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
                         receivedMessage.Append(partialMessage);
 
                     } while (!result.EndOfMessage); // 循环直到接收到完整的消息
-
                     // 完整消息已经接收到，准备处理
-                    var message = receivedMessage.ToString();
-
-                    if (result.MessageType == WebSocketMessageType.Close)
-                    {
-                        //SendAsync = null;
-                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
-                        if (IsCheckToken)
-                        {
-                            AuthorizedClients.TryRemove(authorizedHelper.AddresPort, out var _);
-                        }
-                    }
-                    else
-                    {
-                        if (IsCheckToken)
-                        {
-                            var authorizedResult = await authorizedHelper.HandleAuthorized(message); // 尝试检测授权
-                            if (!authorizedResult) // 授权失败
-                            {
-                                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
-                                if (IsCheckToken)
-                                {
-                                    AuthorizedClients.TryRemove(authorizedHelper.AddresPort, out var _);
-                                }
-                                continue;
-                            }
-                        }
-                        
-                        // 消息处理
-                        _ = MsgHandleHelper.HandleMsgAsync(async (text) =>
-                        {
-                            await WebSocketServer.SendAsync(webSocket, text);
-                        }, message); // 处理消息
-                    }
-
-                    // 清空 StringBuilder 为下一条消息做准备
-                    receivedMessage.Clear();
+                    var message = receivedMessage.ToString(); // 获取消息文本
+                    receivedMessage.Clear();  // 清空 StringBuilder 为下一条消息做准备
+                    msgQueueUtil.WriteMsg(message);  // 处理消息
                 }
                 catch (Exception ex)
                 {
@@ -249,17 +228,45 @@ namespace Serein.Library.Network.WebSocketCommunication
                 }
             }
         }
-        /// <summary>
-        /// 发送消息
-        /// </summary>
-        /// <param name="webSocket"></param>
-        /// <param name="message"></param>
-        /// <returns></returns>
-        public static async Task SendAsync(WebSocket webSocket, string message)
+
+
+        public async Task HandleMsgAsync(WebSocket webSocket,
+                                    MsgQueueUtil msgQueueUtil, 
+                                    WebSocketAuthorizedHelper authorizedHelper)
         {
-            var buffer = Encoding.UTF8.GetBytes(message);
-            await webSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
+
+            while (true)
+            {
+                var message = await msgQueueUtil.WaitMsgAsync();  // 有消息时通知
+                //if (!msgQueueUtil.TryGetMsg(out var message)) // 获取消息
+                //{
+                //    return;
+                //}
+                if (IsCheckToken)
+                {
+                    var authorizedResult = await authorizedHelper.HandleAuthorized(message); // 尝试检测授权
+                    if (!authorizedResult) // 授权失败
+                    {
+                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                        if (IsCheckToken)
+                        {
+                            AuthorizedClients.TryRemove(authorizedHelper.AddresPort, out var _);
+                        }
+                        return;
+                    }
+                }
+                // 消息处理
+                MsgHandleHelper.HandleMsg(async (text) =>
+                {
+                    await SocketExtension.SendAsync(webSocket, text); // 回复客户端，处理方法中入参如果需要发送消息委托，则将该回调方法作为委托参数传入
+                }, message); // 处理消息
+
+            }
+            
         }
 
     }
+
+
+
 }

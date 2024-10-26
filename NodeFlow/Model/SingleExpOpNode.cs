@@ -31,7 +31,7 @@ namespace Serein.NodeFlow.Model
         //public override async Task<object?> Executing(IDynamicContext context)
         public override Task<object?> ExecutingAsync(IDynamicContext context)
         {
-            var data = PreviousNode?.GetFlowData(); // 表达式节点使用上一节点数据
+            var data = context.GetFlowData(PreviousNode.Guid); // 表达式节点使用上一节点数据
 
             try
             {
@@ -59,9 +59,9 @@ namespace Serein.NodeFlow.Model
 
         }
 
-        public override Parameterdata[] GetParameterdatas()
+        public override ParameterData[] GetParameterdatas()
         {
-            return [new Parameterdata { Expression = Expression }];
+            return [new ParameterData { Expression = Expression }];
         }
 
 

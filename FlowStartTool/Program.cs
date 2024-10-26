@@ -13,6 +13,11 @@ namespace Serein.FlowStartTool
     {
         public static void Main(string[] args)
         {
+#if true
+            args = [@"F:\临时\project\linux\project.dnf"];
+#endif
+
+
             Console.WriteLine("Hello :) ");
             Console.WriteLine($"args : {string.Join(" , ", args)}");
             string filePath;
@@ -57,10 +62,10 @@ namespace Serein.FlowStartTool
             }
 
             IsRuning = true;
-            StartFlow(flowProjectData, fileDataPath).GetAwaiter().GetResult();
+            _ = StartFlow(flowProjectData, fileDataPath);
             while (IsRuning)
             {
-
+                Console.ReadKey();
             }
         }
 
@@ -88,12 +93,11 @@ namespace Serein.FlowStartTool
             //    this.window = window;
             //}
 
-            Env = new FlowEnvironmentDecorator(uIContextOperation); // Linux 环境下没有线程上下文（暂时没有写）
+            Env = new FlowEnvironmentDecorator(uIContextOperation); 
             Env.LoadProject(new FlowEnvInfo { Project = flowProjectData }, fileDataPath); // 加载项目
             await Env.StartRemoteServerAsync(7525); // 启动 web socket 监听远程请求
 
             //await Env.StartAsync();
-
 
             IsRuning = false;
         }

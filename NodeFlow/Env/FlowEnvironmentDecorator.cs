@@ -1,5 +1,6 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
+using Serein.Library.FlowNode;
 using Serein.Library.Utils;
 
 namespace Serein.NodeFlow.Env
@@ -33,22 +34,22 @@ namespace Serein.NodeFlow.Env
         private IFlowEnvironment currentFlowEnvironment;
 
 
-        private int _flag = 0; // 使用原子自增代替锁
+        private int _loadingProjectFlag = 0; // 使用原子自增代替锁
         /// <summary>
         /// 传入false时，将停止数据通知。传入true时，
         /// </summary>
         /// <param name="value"></param>
-        public void SetFlag(bool value)
+        public void SetProjectLoadingFlag(bool value)
         {
-            Interlocked.Exchange(ref _flag, value ? 1 : 0);
+            Interlocked.Exchange(ref _loadingProjectFlag, value ? 1 : 0);
         }
         /// <summary>
-        /// 
+        /// 判断是否正在加载项目
         /// </summary>
         /// <returns></returns>
-        public bool IsFlagSet()
+        public bool IsLoadingProject()
         {
-            return Interlocked.CompareExchange(ref _flag, 1, 1) == 1;
+            return Interlocked.CompareExchange(ref _loadingProjectFlag, 1, 1) == 1;
         }
 
 
@@ -180,34 +181,69 @@ namespace Serein.NodeFlow.Env
             currentFlowEnvironment.ClearAll();
         }
 
-        public async Task<bool> ConnectNodeAsync(string fromNodeGuid,
+        /// <summary>
+        /// 在两个节点之间创建连接关系
+        /// </summary>
+        /// <param name="fromNodeGuid">起始节点Guid</param>
+        /// <param name="toNodeGuid">目标节点Guid</param>
+        /// <param name="fromNodeJunctionType">起始节点控制点</param>
+        /// <param name="toNodeJunctionType">目标节点控制点</param>
+        /// <param name="invokeType">决定了方法执行后的后继行为</param>
+        public async Task<bool> ConnectInvokeNodeAsync(string fromNodeGuid,
                                                  string toNodeGuid,
                                                  JunctionType fromNodeJunctionType,
                                                  JunctionType toNodeJunctionType,
-                                                 ConnectionInvokeType connectionType,
-                                                 int argIndex)
+                                                 ConnectionInvokeType invokeType)
         {
-            return await currentFlowEnvironment.ConnectNodeAsync(fromNodeGuid, toNodeGuid, fromNodeJunctionType, toNodeJunctionType, connectionType, argIndex);
+            return await currentFlowEnvironment.ConnectInvokeNodeAsync(fromNodeGuid, toNodeGuid, fromNodeJunctionType, toNodeJunctionType, invokeType);
         }
 
-        public async Task<(bool, RemoteEnvControl)> ConnectRemoteEnv(string addres, int port, string token)
+
+        /// <summary>
+        /// 在两个节点之间创建连接关系
+        /// </summary>
+        /// <param name="fromNodeGuid">起始节点Guid</param>
+        /// <param name="toNodeGuid">目标节点Guid</param>
+        /// <param name="fromNodeJunctionType">起始节点控制点</param>
+        /// <param name="toNodeJunctionType">目标节点控制点</param>
+        /// <param name="argSourceType">决定了方法参数来源</param>
+        /// <param name="argIndex">设置第几个参数</param>
+        public async Task<bool> ConnectArgSourceNodeAsync(string fromNodeGuid,
+                                                 string toNodeGuid,
+                                                 JunctionType fromNodeJunctionType,
+                                                 JunctionType toNodeJunctionType,
+                                                 ConnectionArgSourceType argSourceType,
+                                                 int argIndex)
+        {
+            return await currentFlowEnvironment.ConnectArgSourceNodeAsync(fromNodeGuid, toNodeGuid, fromNodeJunctionType, toNodeJunctionType, argSourceType, argIndex);
+        }
+
+
+        /// <summary>
+        /// 连接远程环境并自动切换环境
+        /// </summary>
+        /// <param name="addres"></param>
+        /// <param name="port"></param>
+        /// <param name="token"></param>
+        /// <returns></returns>
+        public async Task<(bool, RemoteMsgUtil)> ConnectRemoteEnv(string addres, int port, string token)
         {
             // 连接成功，切换远程环境
-            (var isConnect, var remoteEnvControl) = await currentFlowEnvironment.ConnectRemoteEnv(addres, port, token);
+            (var isConnect, var remoteMsgUtil) = await currentFlowEnvironment.ConnectRemoteEnv(addres, port, token);
             if (isConnect)
             {
                 
-                remoteFlowEnvironment ??= new RemoteFlowEnvironment(remoteEnvControl, this.UIContextOperation);
+                remoteFlowEnvironment ??= new RemoteFlowEnvironment(remoteMsgUtil, this.UIContextOperation);
                 currentFlowEnvironment = remoteFlowEnvironment;
             }
-            return (isConnect, remoteEnvControl);
+            return (isConnect, remoteMsgUtil);
         }
 
         public async Task<NodeInfo> CreateNodeAsync(NodeControlType nodeBase, PositionOfUI position, MethodDetailsInfo methodDetailsInfo = null)
         {
-            SetFlag(false);
+            SetProjectLoadingFlag(false);
             var result = await currentFlowEnvironment.CreateNodeAsync(nodeBase, position, methodDetailsInfo); // 装饰器调用
-            SetFlag(true);
+            SetProjectLoadingFlag(true);
             return result;
         }
 
@@ -249,9 +285,9 @@ namespace Serein.NodeFlow.Env
         public void LoadProject(FlowEnvInfo flowEnvInfo, string filePath)
         {
             if (flowEnvInfo is null) return;
-            SetFlag(false);
+            SetProjectLoadingFlag(false);
             currentFlowEnvironment.LoadProject(flowEnvInfo, filePath);
-            SetFlag(true);
+            SetProjectLoadingFlag(true);
         }
 
         public void MonitorObjectNotification(string nodeGuid, object monitorData, MonitorObjectEventArgs.ObjSourceType sourceType)
@@ -275,9 +311,21 @@ namespace Serein.NodeFlow.Env
             return currentFlowEnvironment.RemoteDll(assemblyFullName);
         }
 
-        public async Task<bool> RemoveConnectAsync(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
+        public async Task<bool> RemoveConnectInvokeAsync(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
         {
-            return await currentFlowEnvironment.RemoveConnectAsync(fromNodeGuid, toNodeGuid, connectionType);
+            return await currentFlowEnvironment.RemoveConnectInvokeAsync(fromNodeGuid, toNodeGuid, connectionType);
+        }
+
+        /// <summary>
+        /// 移除连接节点之间参数传递的关系
+        /// </summary>
+        /// <param name="fromNodeGuid">起始节点Guid</param>
+        /// <param name="toNodeGuid">目标节点Guid</param>
+        /// <param name="argIndex">连接到第几个参数</param>
+        /// <param name="connectionArgSourceType">参数来源类型</param>
+        public async Task<bool> RemoveConnectArgSourceAsync(string fromNodeGuid, string toNodeGuid, int argIndex)
+        {
+            return await currentFlowEnvironment.RemoveConnectArgSourceAsync(fromNodeGuid, toNodeGuid, argIndex);
         }
 
         public async Task<bool> RemoveNodeAsync(string nodeGuid)
@@ -296,9 +344,9 @@ namespace Serein.NodeFlow.Env
             currentFlowEnvironment.SetMonitorObjState(key, isMonitor);
         }
 
-        public async Task<bool> SetNodeInterruptAsync(string nodeGuid, InterruptClass interruptClass)
+        public async Task<bool> SetNodeInterruptAsync(string nodeGuid, bool isInterrupt)
         {
-            return await currentFlowEnvironment.SetNodeInterruptAsync(nodeGuid, interruptClass);
+            return await currentFlowEnvironment.SetNodeInterruptAsync(nodeGuid, isInterrupt);
         }
 
         public void SetStartNode(string nodeGuid)
@@ -359,11 +407,11 @@ namespace Serein.NodeFlow.Env
 
         public async Task NotificationNodeValueChangeAsync(string nodeGuid, string path, object value)
         {
-            if (!IsFlagSet())
+            if (!IsLoadingProject())
             {
                 return;
             }
-           await currentFlowEnvironment.NotificationNodeValueChangeAsync(nodeGuid, path, value);
+            await currentFlowEnvironment.NotificationNodeValueChangeAsync(nodeGuid, path, value);
         }
 
 

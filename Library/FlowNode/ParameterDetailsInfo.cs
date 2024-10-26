@@ -8,7 +8,7 @@ namespace Serein.Library
 {
 
     /// <summary>
-    /// 方法入参描述
+    /// 方法入参描述（远程用）
     /// </summary>
     public class ParameterDetailsInfo
     {
@@ -26,6 +26,7 @@ namespace Serein.Library
         /// 方法入参参数名称
         /// </summary>
         public string Name { get; set; }
+
         /// <summary>
         /// 显式类型
         /// </summary>

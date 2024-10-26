@@ -227,7 +227,8 @@ namespace Serein.NodeFlow.Env
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.GetEnvInfo)]
         private async Task<FlowEnvInfo> GetEnvInfoAsync()
         {
-            return await environment.GetEnvInfoAsync();
+            var envInfo = await environment.GetEnvInfoAsync(); 
+            return envInfo;
         }
 
         /// <summary>
@@ -248,7 +249,7 @@ namespace Serein.NodeFlow.Env
         /// <param name="port">远程环境端口</param>
         /// <param name="token">密码</param>
         // [AutoSocketHandle]
-        public async Task<(bool, RemoteEnvControl)> ConnectRemoteEnv(string addres, int port, string token)
+        public async Task<(bool, RemoteMsgUtil)> ConnectRemoteEnv(string addres, int port, string token)
         {
             return await environment.ConnectRemoteEnv(addres, port, token);
         }
@@ -314,7 +315,7 @@ namespace Serein.NodeFlow.Env
         }
 
         /// <summary>
-        /// 从远程环境移除节点
+        /// 远程从远程环境移除节点
         /// </summary>
         /// <param name="nodeGuid"></param>
         /// <exception cref="NotImplementedException"></exception>
@@ -324,56 +325,178 @@ namespace Serein.NodeFlow.Env
             //var result = environment.RemoveNodeAsync(nodeGuid).GetAwaiter().GetResult();
             var result = await environment.RemoveNodeAsync(nodeGuid);
             //return result;
-            return new
-            {
-                state = result
-            };
+            return new { state = result };
         }
 
 
         /// <summary>
-        /// 连接节点
+        /// 远程连接节点的方法调用关系
         /// </summary>
         /// <param name="fromNodeGuid">起始节点</param>
         /// <param name="toNodeGuid">目标节点</param>
-        /// <param name="connectionType">连接关系</param>
-        [AutoSocketHandle(ThemeValue = EnvMsgTheme.ConnectNode)]
-        public async Task<object> ConnectNode(string fromNodeGuid, string toNodeGuid, string connectionType)
+        /// <param name="fromJunctionType">起始节点控制点</param>
+        /// <param name="toJunctionType">目标节点控制点</param>
+        /// <param name="invokeType">连接关系</param>
+        [AutoSocketHandle(ThemeValue = EnvMsgTheme.ConnectInvokeNode)]
+        public async Task<object> ConnectInvokeNode(string fromNodeGuid, 
+                                                    string toNodeGuid, 
+                                                    string fromJunctionType,
+                                                    string toJunctionType,
+                                                    string invokeType)
         {
-            if (!EnumHelper.TryConvertEnum<ConnectionInvokeType>(connectionType, out var tmpConnectionType))
+            if (!EnumHelper.TryConvertEnum<ConnectionInvokeType>(invokeType, out var tmpConnectionType))
             {
-                return new
-                {
-                    state = false
-                };
+                return new{ state = false};
             }
-            //environment.ConnectNodeAsync(fromNodeGuid, toNodeGuid, tmpConnectionType);
-            var result = await environment.ConnectNodeAsync(fromNodeGuid, toNodeGuid,0,0, tmpConnectionType,0);
-            return new
+            if (!EnumHelper.TryConvertEnum<JunctionType>(fromJunctionType, out var tmpFromJunctionType))
             {
-                state = result
-            };
+                return new{ state = false};
+            }
+            if (!EnumHelper.TryConvertEnum<JunctionType>(toJunctionType, out var tmpToJunctionType))
+            {
+                return new{ state = false};
+            }
+
+            // 检查控制点类别，判断此次连接请求是否符合预期
+            if (tmpFromJunctionType == JunctionType.Execute)
+            {
+                if (tmpToJunctionType == JunctionType.NextStep)
+                {
+                    (fromNodeGuid, toNodeGuid) = (toNodeGuid, fromNodeGuid); // 需要反转
+                }
+                else
+                {
+                    return new { state = false };  // 非预期的控制点连接
+                }
+            }
+            else if (tmpFromJunctionType == JunctionType.NextStep)
+            {
+                if (tmpToJunctionType == JunctionType.Execute)
+                {
+                    // 顺序正确无须反转
+                }
+                else
+                {
+                    return new { state = false };  // 非预期的控制点连接
+                }
+            }
+            else // 其它类型的控制点，排除
+            {
+                return new { state = false };  // 非预期的控制点连接
+            }
+            Console.WriteLine();
+            Console.WriteLine($"起始节点：{fromNodeGuid}");
+            Console.WriteLine($"目标节点：{toNodeGuid}");
+            Console.WriteLine($"链接请求：{(tmpFromJunctionType, tmpToJunctionType)}");
+
+            var result = await environment.ConnectInvokeNodeAsync(fromNodeGuid, toNodeGuid, tmpFromJunctionType, tmpToJunctionType, tmpConnectionType);
+            return new { state = result };
         }
 
         /// <summary>
-        /// 移除连接关系
+        /// 远程移除节点的方法调用关系
         /// </summary>
         /// <param name="fromNodeGuid">起始节点Guid</param>
         /// <param name="toNodeGuid">目标节点Guid</param>
-        /// <param name="connectionType">连接关系</param>
-        /// <exception cref="NotImplementedException"></exception>
-        [AutoSocketHandle(ThemeValue = EnvMsgTheme.RemoveConnect)]
-        public async Task<object> RemoveConnect(string fromNodeGuid, string toNodeGuid, string connectionType)
+        /// <param name="invokeType">连接关系</param>
+        [AutoSocketHandle(ThemeValue = EnvMsgTheme.RemoveInvokeConnect)]
+        public async Task<object> RemoveInvokeConnect(string fromNodeGuid, string toNodeGuid, string invokeType)
         {
-            if (!EnumHelper.TryConvertEnum<ConnectionInvokeType>(connectionType, out var tmpConnectionType))
+            if (!EnumHelper.TryConvertEnum<ConnectionInvokeType>(invokeType, out var tmpConnectionType))
             {
                 return new
                 {
                     state = false
                 };
             }
+            var result = await environment.RemoveConnectInvokeAsync(fromNodeGuid, toNodeGuid, tmpConnectionType);
+            return new { state = result };
+        }
 
-            var result = await environment.RemoveConnectAsync(fromNodeGuid, toNodeGuid, tmpConnectionType);
+
+        /// <summary>
+        /// 远程连接节点的参数传递关系
+        /// </summary>
+        /// <param name="fromNodeGuid">起始节点</param>
+        /// <param name="toNodeGuid">目标节点</param>
+        /// <param name="fromJunctionType">起始节点控制点</param>
+        /// <param name="toJunctionType">目标节点控制点</param>
+        /// <param name="argSourceType">入参参数来源类型</param>
+        /// <param name="argIndex">第几个参数</param>
+        [AutoSocketHandle(ThemeValue = EnvMsgTheme.ConnectArgSourceNode)]
+        public async Task<object> ConnectArgSourceNode(string fromNodeGuid,
+                                                       string toNodeGuid,
+                                                       string fromJunctionType,
+                                                       string toJunctionType,
+                                                       string argSourceType,
+                                                       int    argIndex)
+        {
+            if (argIndex < 0 || argIndex > 65535) // 下标不合法
+            {
+                return new { state = false };
+            }
+            // 检查字面量是否可转换枚举类型
+            if (!EnumHelper.TryConvertEnum<ConnectionArgSourceType>(argSourceType, out var tmpArgSourceType))
+            {
+                return new { state = false };
+            }
+            if (!EnumHelper.TryConvertEnum<JunctionType>(fromJunctionType, out var tmpFromJunctionType))
+            {
+                return new { state = false };
+            }
+            if (!EnumHelper.TryConvertEnum<JunctionType>(toJunctionType, out var tmpToJunctionType))
+            {
+                return new { state = false };
+            }
+           
+            // 检查控制点类别，判断此次连接请求是否符合预期
+            if (tmpFromJunctionType == JunctionType.ArgData)
+            {
+                if (tmpToJunctionType == JunctionType.ReturnData)
+                {
+                    (fromNodeGuid, toNodeGuid) = (toNodeGuid, fromNodeGuid);// 需要反转
+                }
+                else
+                {
+                    return new { state = false };  // 非预期的控制点连接
+                }
+            }
+            else if (tmpFromJunctionType == JunctionType.ReturnData)
+            {
+                if (tmpToJunctionType == JunctionType.ArgData)
+                {
+                    // 顺序正确无须反转
+                }
+                else
+                {
+                    return new { state = false };  // 非预期的控制点连接
+                }
+            }
+            else // 其它类型的控制点，排除
+            {
+                return new { state = false };  // 非预期的控制点连接
+            }
+            //Console.WriteLine();
+            //Console.WriteLine($"起始节点：{fromNodeGuid}");
+            //Console.WriteLine($"目标节点：{toNodeGuid}");
+            //Console.WriteLine($"链接请求：{(tmpFromJunctionType, tmpToJunctionType)}");
+            // 调用环境接口进行连接
+            var result = await environment.ConnectArgSourceNodeAsync(fromNodeGuid, toNodeGuid, tmpFromJunctionType, tmpToJunctionType, tmpArgSourceType, argIndex);
+            return new { state = result };
+        }
+
+        /// <summary>
+        /// 远程移除节点的参数传递关系
+        /// </summary>
+        /// <param name="fromNodeGuid">起始节点Guid</param>
+        /// <param name="toNodeGuid">目标节点Guid</param>
+        /// <param name="argIndex">目标节点的第几个参数</param>
+        [AutoSocketHandle(ThemeValue = EnvMsgTheme.RemoveArgSourceConnect)]
+        public async Task<object> RemoveArgSourceConnect(string fromNodeGuid, string toNodeGuid, int argIndex)
+        {
+
+
+            var result = await environment.RemoveConnectArgSourceAsync(fromNodeGuid, toNodeGuid, argIndex);
             return new
             {
                 state = result
@@ -408,18 +531,14 @@ namespace Serein.NodeFlow.Env
         /// 中断指定节点，并指定中断等级。
         /// </summary>
         /// <param name="nodeGuid">被中断的目标节点Guid</param>
-        /// <param name="interruptClass">中断级别</param>
+        /// <param name="isInterrupt">是否中断</param>
         /// <returns>操作是否成功</returns>
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.SetNodeInterrupt)]
-        public async Task<bool> SetNodeInterruptAsync(string nodeGuid, string interruptClass)
+        public async Task<bool> SetNodeInterruptAsync(string nodeGuid, bool isInterrupt)
         {
             
-            if (!EnumHelper.TryConvertEnum<InterruptClass>(interruptClass, out var @class))
-            {
-                return false;
-            }
-            
-            return await this.environment.SetNodeInterruptAsync(nodeGuid, @class);
+           
+            return await this.environment.SetNodeInterruptAsync(nodeGuid, isInterrupt);
             
         }
 

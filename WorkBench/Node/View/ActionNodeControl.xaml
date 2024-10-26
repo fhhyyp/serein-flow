@@ -5,7 +5,7 @@
                        xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
                        xmlns:local="clr-namespace:Serein.Workbench.Node.View"
                        xmlns:vm="clr-namespace:Serein.Workbench.Node.ViewModel"
-                       xmlns:Converters="clr-namespace:Serein.Workbench.Tool.Converters"
+                       xmlns:converters="clr-namespace:Serein.Workbench.Tool.Converters"
                        xmlns:themes="clr-namespace:Serein.Workbench.Themes"
                        d:DataContext="{d:DesignInstance vm:ActionNodeControlViewModel}"
                        mc:Ignorable="d"
@@ -13,7 +13,7 @@
 
     <UserControl.Resources>
         <!--<BooleanToVisibilityConverter x:Key="BoolToVisConverter" />-->
-        <Converters:InvertableBooleanToVisibilityConverter x:Key="InvertedBoolConverter"/>
+        <converters:InvertableBooleanToVisibilityConverter x:Key="InvertedBoolConverter"/>
         <!--<ResourceDictionary Source="/Serein.Workbench;Node/View/NodeExecuteJunctionControl.xaml" x:Key="NodeExecuteJunctionControl"/>-->
     </UserControl.Resources>
 
@@ -27,15 +27,17 @@
 
 
             <!--<TextBlock Text="{Binding NodelModel.DebugSetting.IsInterrupt}}"></TextBlock>-->
-            <Border x:Name="InterruptBorder">
-
+            <Border x:Name="InterruptBorder" DataContext="{Binding}">
                 <Border.Style>
                     <Style TargetType="Border">
                         <!--默认无边框-->
                         <Setter Property="BorderBrush" Value="Transparent" />
                         <Setter Property="BorderThickness" Value="0" />
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding Path=NodeModel.DebugSetting.IsInterrupt}" Value="True">
+                            <!--NodeModel.DebugSetting.IsInterrupt-->
+                            <!--<DataTrigger Binding="{Binding DataContext.NodeModel.DebugSetting.IsInterrup, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True">-->
+                            <DataTrigger Binding="{Binding IsInterrupt,Mode=OneTime}" Value="True">
+                                <!--<DataTrigger Binding="{Binding NodeModel.DebugSetting.IsInterrup}" Value="True">-->
                                 <Setter Property="BorderBrush" Value="Red" />
                                 <Setter Property="BorderThickness" Value="2" />
                                 <Setter Property="Background" Value="#80000000" />
@@ -53,8 +55,8 @@
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <!--<Grid Grid.Row="0" Background="#8DE9FD" >-->
-                    <Grid Grid.Row="0" >
+                    <Grid Grid.Row="0" Background="#8DE9FD" >
+                        <!--<Grid Grid.Row="0" >-->
                         <Grid.RowDefinitions>
                             <RowDefinition Height="3*"/>
                             <RowDefinition/>
@@ -64,6 +66,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="auto"/>
                         </Grid.ColumnDefinitions>
+
                         <local:ExecuteJunctionControl  Grid.Column="0"  MyNode="{Binding NodeModel}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
                         <StackPanel Grid.Column="1" Grid.RowSpan="2" >
                             <TextBlock   Text="{Binding NodeModel.MethodDetails.MethodTips, Mode=TwoWay}" HorizontalAlignment="Center"/>
@@ -105,6 +108,7 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="auto"/>
@@ -114,6 +118,8 @@
                         <TextBlock Grid.Row="0" Grid.Column="1" Text="是否使能" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                         <CheckBox  Grid.Row="1" Grid.Column="0" IsChecked="{Binding NodeModel.MethodDetails.IsProtectionParameter, Mode=TwoWay}"/>
                         <TextBlock Grid.Row="1" Grid.Column="1" Text="参数保护" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        <CheckBox  Grid.Row="2" Grid.Column="0" IsChecked="{Binding NodeModel.DebugSetting.IsInterrupt, Mode=TwoWay}"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="中断节点" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                     </Grid>
 
                 </Grid>

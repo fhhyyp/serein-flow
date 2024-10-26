@@ -91,6 +91,8 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
             MyHandleConfigs.Clear();
         }
 
+        private HashSet<string> _myMsgIdHash = new HashSet<string>();
+
         /// <summary>
         /// 处理JSON数据
         /// </summary>
@@ -106,11 +108,15 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                 return;
             }
             string msgId = jsonObject.GetValue(MsgIdJsonKey)?.ToString();
-
+            if (_myMsgIdHash.Contains(msgId))
+            {
+                Console.WriteLine($"[{msgId}]{theme} 消息重复");
+                return;
+            }
+            _myMsgIdHash.Add(msgId);
 
             try
             {
-
                 JObject dataObj = jsonObject.GetValue(DataJsonKey)?.ToObject<JObject>();
                 handldConfig.Handle(async (data) =>
                 {
@@ -170,9 +176,8 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
             }
 
             var msg = jsonData.ToString();
-            //Console.WriteLine(msg);
-            //Console.WriteLine();
-
+            
+            
             await sendAsync.Invoke(msg);
         }
 

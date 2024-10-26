@@ -42,7 +42,8 @@ namespace Serein.Library.Api
         /// <summary>
         /// 用以提前结束分支运行
         /// </summary>
-        void EndCurrentBranch();
+        void Exit();
+
 
         /*/// <summary>
         /// 定时循环触发

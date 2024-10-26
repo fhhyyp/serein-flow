@@ -58,7 +58,8 @@ namespace Serein.NodeFlow.Model
                     break;
                 }
             }
-            return Task.FromResult( PreviousNode?.GetFlowData()); // 条件区域透传上一节点的数据
+            
+            return Task.FromResult(context.GetFlowData(PreviousNode.Guid)); // 条件区域透传上一节点的数据
         }
 
         
@@ -78,7 +79,7 @@ namespace Serein.NodeFlow.Model
             }
         }
 
-        public override Parameterdata[] GetParameterdatas()
+        public override ParameterData[] GetParameterdatas()
         {
             return [];
         }
@@ -97,7 +98,7 @@ namespace Serein.NodeFlow.Model
             var upstreamNodes = SuccessorNodes[ConnectionInvokeType.Upstream].Select(item => item.Guid);// 上游分支
 
             // 生成参数列表
-            Parameterdata[] parameterData = GetParameterdatas();
+            ParameterData[] parameterData = GetParameterdatas();
 
             return new NodeInfo
             {

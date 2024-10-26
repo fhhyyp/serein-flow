@@ -5,6 +5,7 @@ using Serein.Library.Api;
 using Serein.Library.Utils;
 using Serein.Library.Utils.SereinExpression;
 using Serein.NodeFlow.Tool;
+using Serein.Workbench.Extension;
 using Serein.Workbench.Node;
 using Serein.Workbench.Node.View;
 using Serein.Workbench.Node.ViewModel;
@@ -83,7 +84,7 @@ namespace Serein.Workbench
         /// <summary>
         /// 标记是否正在进行连接操作
         /// </summary>
-        private bool IsConnecting;
+        //private bool IsConnecting;
         /// <summary>
         /// 标记是否正在拖动控件
         /// </summary>
@@ -116,7 +117,7 @@ namespace Serein.Workbench
         /// <summary>
         /// 记录开始连接的文本块
         /// </summary>
-        private NodeControlBase? startConnectNodeControl;
+        //private NodeControlBase? startConnectNodeControl;
         /// <summary>
         /// 当前正在绘制的连接线
         /// </summary>
@@ -124,7 +125,7 @@ namespace Serein.Workbench
         /// <summary>
         /// 当前正在绘制的真假分支属性
         /// </summary>
-        private ConnectionInvokeType currentConnectionType;
+        //private ConnectionInvokeType currentConnectionType;
 
 
         /// <summary>
@@ -144,35 +145,37 @@ namespace Serein.Workbench
 
         public MainWindow()
         {
-            InitializeComponent();
             ViewModel = new MainWindowViewModel(this);
+            this.DataContext = ViewModel;
+            InitializeComponent();
             EnvDecorator = ViewModel.FlowEnvironment;
+
             ViewObjectViewer.FlowEnvironment = EnvDecorator;
             IOCObjectViewer.FlowEnvironment = EnvDecorator;
+            IOCObjectViewer.SelectObj += ViewObjectViewer.LoadObjectInformation;
 
-            
-            //this.FlowEnvironment.SetConsoleOut((msg) => LogOutWindow.AppendText(msg), () => LogOutWindow.Clear()); // 设置输出
-            InitFlowEnvironmentEvent(); // 配置环境事件
+           
 
-
+            #region 缩放平移容器
             canvasTransformGroup = new TransformGroup();
             scaleTransform = new ScaleTransform();
             translateTransform = new TranslateTransform();
-
             canvasTransformGroup.Children.Add(scaleTransform);
             canvasTransformGroup.Children.Add(translateTransform);
-
             FlowChartCanvas.RenderTransform = canvasTransformGroup;
+            #endregion
 
+            InitFlowEnvironmentEvent(); // 配置环境事件
 
             if (App.FlowProjectData is not null)
             {
                 EnvDecorator.LoadProject(new FlowEnvInfo { Project = App.FlowProjectData }, App.FileDataPath); // 加载项目
             }
 
-
-            IOCObjectViewer.SelectObj += ViewObjectViewer.LoadObjectInformation;
+            
         }
+
+
 
         /// <summary>
         /// 初始化环境事件
@@ -228,8 +231,6 @@ namespace Serein.Workbench
             EnvDecorator.OnEnvOut -= FlowEnvironment_OnEnvOut;
 
         }
-
-
 
         #region 窗体加载方法
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -382,13 +383,14 @@ namespace Serein.Workbench
                     JunctionControlBase startJunction = IFormJunction.NextStepJunction;
                     JunctionControlBase endJunction = IToJunction.ExecuteJunction;
 
+
                     // 添加连接
                     var connection = new ConnectionControl(
                         FlowChartCanvas, 
                         connectionType,
                         startJunction,
                         endJunction, 
-                        () => EnvDecorator.RemoveConnectAsync(fromNodeGuid, toNodeGuid, connectionType)
+                        () => EnvDecorator.RemoveConnectInvokeAsync(fromNodeGuid, toNodeGuid, connectionType)
                     );
 
                     if (toNodeControl is FlipflopNodeControl flipflopControl
@@ -400,7 +402,7 @@ namespace Serein.Workbench
                     Connections.Add(connection);
                     fromNodeControl.AddCnnection(connection);
                     toNodeControl.AddCnnection(connection);
-                    EndConnection();
+                    EndConnection(); // 环境触发了创建节点连接事件
 
 
                 }
@@ -440,7 +442,7 @@ namespace Serein.Workbench
 
                     JunctionControlBase startJunction = eventArgs.ConnectionArgSourceType switch
                     {
-                        ConnectionArgSourceType.GetPreviousNodeData => IFormJunction.ExecuteJunction, // 自身节点
+                        ConnectionArgSourceType.GetPreviousNodeData => IFormJunction.ReturnDataJunction, // 自身节点
                         ConnectionArgSourceType.GetOtherNodeData => IFormJunction.ReturnDataJunction, // 其它节点的返回值控制点
                         ConnectionArgSourceType.GetOtherNodeDataOfInvoke => IFormJunction.ReturnDataJunction, // 其它节点的返回值控制点
                         _ => throw new Exception("窗体事件 FlowEnvironment_NodeConnectChangeEvemt 创建/删除节点之间的参数传递关系 JunctionControlBase 枚举值错误 。非预期的枚举值。") // 应该不会触发
@@ -448,11 +450,6 @@ namespace Serein.Workbench
 
                     JunctionControlBase endJunction = IToJunction.ArgDataJunction[eventArgs.ArgIndex];
                     LineType lineType = LineType.Bezier;
-                    if(eventArgs.ConnectionArgSourceType == ConnectionArgSourceType.GetPreviousNodeData)
-                    {
-                        lineType = LineType.Semicircle;
-                    }
-
                     // 添加连接
                     var connection = new ConnectionControl(
                         lineType,
@@ -461,19 +458,19 @@ namespace Serein.Workbench
                         eventArgs.ConnectionArgSourceType,
                         startJunction,
                         endJunction,
-                        () => EnvDecorator.RemoveConnectAsync(fromNodeGuid, toNodeGuid, 0)
+                        () => EnvDecorator.RemoveConnectArgSourceAsync(fromNodeGuid, toNodeGuid, eventArgs.ArgIndex)
                     );
 
-                    if (toNodeControl is FlipflopNodeControl flipflopControl
-                        && flipflopControl?.ViewModel?.NodeModel is NodeModelBase nodeModel) // 某个节点连接到了触发器，尝试从全局触发器视图中移除该触发器
-                    {
-                        NodeTreeViewer.RemoteGlobalFlipFlop(nodeModel); // 从全局触发器树树视图中移除
-                    }
+                    //if (toNodeControl is FlipflopNodeControl flipflopControl
+                    //    && flipflopControl?.ViewModel?.NodeModel is NodeModelBase nodeModel) // 某个节点连接到了触发器，尝试从全局触发器视图中移除该触发器
+                    //{
+                    //    NodeTreeViewer.RemoteGlobalFlipFlop(nodeModel); // 从全局触发器树树视图中移除
+                    //}
                     connection.RefreshLine();  // 添加贝塞尔曲线显示
                     Connections.Add(connection);
                     fromNodeControl.AddCnnection(connection);
                     toNodeControl.AddCnnection(connection);
-                    EndConnection();
+                    EndConnection(); // 环境触发了创建节点连接事件
 
 
                 }
@@ -481,20 +478,27 @@ namespace Serein.Workbench
                 {
                     // 需要移除连接
                     var removeConnections = Connections.Where(c => c.Start.MyNode.Guid.Equals(fromNodeGuid)
-                                           && c.End.MyNode.Guid.Equals(toNodeGuid))
-                                            .ToList();
+                                                                    && c.End.MyNode.Guid.Equals(toNodeGuid))
+                                                                .ToList(); // 获取这两个节点之间的所有连接关系
 
+                    
 
                     foreach (var connection in removeConnections)
                     {
-                        connection.DeleteConnection();
-                        Connections.Remove(connection);
-                        fromNodeControl.RemoveCnnection(connection);
-                        toNodeControl.RemoveCnnection(connection);
-                        if (NodeControls.TryGetValue(connection.End.MyNode.Guid, out var control))
+                        if(connection.End is ArgJunctionControl junctionControl && junctionControl.ArgIndex == eventArgs.ArgIndex)
                         {
-                            JudgmentFlipFlopNode(control); // 连接关系变更时判断
+                            // 找到符合删除条件的连接线
+                            connection.DeleteConnection(); // 从UI层面上移除
+                            Connections.Remove(connection); // 从本地记录中移除
+                            fromNodeControl.RemoveCnnection(connection); // 从节点持有的记录移除
+                            toNodeControl.RemoveCnnection(connection); // 从节点持有的记录移除
                         }
+
+                       
+                        //if (NodeControls.TryGetValue(connection.End.MyNode.Guid, out var control))
+                        //{
+                        //    JudgmentFlipFlopNode(control); // 连接关系变更时判断
+                        //}
                     }
                 }
                 #endregion
@@ -1044,15 +1048,17 @@ namespace Serein.Workbench
             {
                 if ((s is MenuItem menuItem) && menuItem is not null)
                 {
-                    if (nodeControl?.ViewModel?.NodeModel?.DebugSetting?.InterruptClass == InterruptClass.None)
+                    if (nodeControl?.ViewModel?.NodeModel?.DebugSetting?.IsInterrupt == true)
                     {
-                        await EnvDecorator.SetNodeInterruptAsync(nodeGuid, InterruptClass.Branch);
+                        await EnvDecorator.SetNodeInterruptAsync(nodeGuid,false);
+                        nodeControl.ViewModel.IsInterrupt = false;
 
                         menuItem.Header = "取消中断";
                     }
                     else
                     {
-                        await EnvDecorator.SetNodeInterruptAsync(nodeGuid, InterruptClass.None);
+                        nodeControl!.ViewModel!.IsInterrupt = true;
+                        await EnvDecorator.SetNodeInterruptAsync(nodeGuid, true);
                         menuItem.Header = "在此中断";
 
                     }
@@ -1166,7 +1172,7 @@ namespace Serein.Workbench
 
         #endregion
 
-        #region 与流程图与节点相关
+        #region 与流程图/节点相关
 
         /// <summary>
         /// 鼠标在画布移动。
@@ -1176,36 +1182,28 @@ namespace Serein.Workbench
         /// </summary>
         private void FlowChartCanvas_MouseMove(object sender, MouseEventArgs e)
         {
+            var myData = GlobalJunctionData.MyGlobalConnectingData;
+            if (myData.IsCreateing && e.LeftButton == MouseButtonState.Pressed)
+            {
+                
+                if (myData.Type == JunctionOfConnectionType.Invoke)
+                {
+                    ViewModel.IsConnectionInvokeNode = true; // 正在连接节点的调用关系
 
-            if (e.LeftButton == MouseButtonState.Pressed && GlobalJunctionData.MyGlobalConnectingData is not null)
-            { 
-                // 正在连接节点
-                //var controlPointPosition = GlobalJunctionData.MyGlobalConnectingData.StartPoint;
+                }
+                else
+                {
+                    ViewModel.IsConnectionArgSourceNode = true; // 正在连接节点的调用关系
+                }
                 var currentPoint = e.GetPosition(FlowChartCanvas);
-                GlobalJunctionData.MyGlobalConnectingData.UpdatePoint(currentPoint);
-
-
-                //virtualLine.VirtualLine.UpdatePoints(currentPoint);
-
-                //virtualLine.VirtualLine.X1 = controlPointPosition.X;
-                //virtualLine.VirtualLine.Y1 = controlPointPosition.Y;
-                //virtualLine.VirtualLine.X2 = currentPoint.X;
-                //virtualLine.VirtualLine.Y2 = currentPoint.Y;
+                currentPoint.X -= 2;
+                currentPoint.Y -= 2;
+                myData.UpdatePoint(currentPoint);
                 return;
             }
-            //if (IsConnecting) // 正在连接节点
-            //{
-            //    Point position = e.GetPosition(FlowChartCanvas);
-            //    if (currentLine is null || startConnectNodeControl is null)
-            //    {
-            //        return;
-            //    }
-            //    currentLine.X1 = Canvas.GetLeft(startConnectNodeControl) + startConnectNodeControl.ActualWidth / 2;
-            //    currentLine.Y1 = Canvas.GetTop(startConnectNodeControl) + startConnectNodeControl.ActualHeight / 2;
-            //    currentLine.X2 = position.X;
-            //    currentLine.Y2 = position.Y;
-            //}
-
+               
+            
+            
             if (IsCanvasDragging && e.MiddleButton == MouseButtonState.Pressed) // 正在移动画布（按住中键） 
             {
                 Point currentMousePosition = e.GetPosition(this);
@@ -1399,8 +1397,6 @@ namespace Serein.Workbench
         /// </summary>
         private void Block_MouseMove(object sender, MouseEventArgs e)
         {
-            if (IsConnecting)
-                return;
             if (IsCanvasDragging)
                 return;
             if (IsSelectControl)
@@ -1465,8 +1461,8 @@ namespace Serein.Workbench
             }
 
         }
-
         
+
         // 改变对象树？
         private void ChangeViewerObjOfNode(NodeControlBase nodeControl)
         {
@@ -1475,7 +1471,9 @@ namespace Serein.Workbench
             if (node is not null && node.MethodDetails?.ReturnType != typeof(void))
             {
                 var key = node.Guid;
-                var instance = node.GetFlowData(); // 对象预览树视图获取（后期更改）
+                object instance = null;
+                //Console.WriteLine("WindowXaml 后台代码中 ChangeViewerObjOfNode 需要重新设计");
+                //var instance = node.GetFlowData(); // 对象预览树视图获取（后期更改）
                 if(instance is not null)
                 {
                     ViewObjectViewer.LoadObjectInformation(key, instance);
@@ -1505,12 +1503,12 @@ namespace Serein.Workbench
                 EnvDecorator.SetMonitorObjState(key, true); // 通知环境，该节点的数据更新后需要传到UI
             }
         }
-
+        #endregion
 
         #region UI连接控件操作
 
         /// <summary>
-        /// 控件的鼠标左键松开事件，结束拖动操作，创建连线
+        /// 控件的鼠标左键松开事件，结束拖动操作
         /// </summary>
         private void Block_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
@@ -1534,51 +1532,17 @@ namespace Serein.Workbench
             //GlobalJunctionData.OK();
         }
 
-        /// <summary>
-        /// 主窗口的KeyDown事件处理，用于在连接操作中按下Esc键取消连接。
-        /// </summary>
-        private void MainWindow_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Escape && IsConnecting)
-            {
-                this.KeyDown -= MainWindow_KeyDown;
-                EndConnection();
-            }
-        }
 
         /// <summary>
         /// 结束连接操作，清理状态并移除虚线。
         /// </summary>
         private void EndConnection()
         {
-            IsConnecting = false;
-            startConnectNodeControl = null;
-            // 移除虚线
-            //if (currentLine != null)
-            //{
-            //    FlowChartCanvas.Children.Remove(currentLine);
-            //    currentLine = null;
-            //}
+            Mouse.OverrideCursor = null; // 恢复视觉效果
+            ViewModel.IsConnectionArgSourceNode = false;
+            ViewModel.IsConnectionInvokeNode = false;
+            GlobalJunctionData.OK();
         }
-
-        /// <summary>
-        /// 更新与指定控件相关的所有连接的位置。
-        /// </summary>
-        //private void UpdateConnections(NodeControlBase nodeControl)
-        //{
-        //    nodeControl.UpdateLocationConnections();
-        //    //foreach (var connection in Connections)
-        //    //{
-        //    //    if (connection.Start.MyNode.Guid == nodeControl.ViewModel.NodeModel.Guid 
-        //    //        || connection.End.MyNode.Guid == nodeControl.ViewModel.NodeModel.Guid)
-        //    //    {
-        //    //        connection.RefreshLine(); // 主动更新某个控件相关的所有连接线
-        //    //        //connection.RemoveFromCanvas();
-        //    //        //BezierLineDrawer.UpdateBezierLine(FlowChartCanvas, connection.Start, connection.End, connection.BezierPath, connection.ArrowPath);
-        //    //    }
-        //    //}
-        //}
-        #endregion
 
         #region 拖动画布实现缩放平移效果
         private void FlowChartCanvas_MouseDown(object sender, MouseButtonEventArgs e)
@@ -1607,7 +1571,7 @@ namespace Serein.Workbench
             // if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
             {
                 if (e.Delta  < 0 && scaleTransform.ScaleX < 0.05) return;
-                if (e.Delta  > 0 && scaleTransform.ScaleY > 1.5) return;
+                if (e.Delta  > 0 && scaleTransform.ScaleY > 2.0) return;
                 // 获取鼠标在 Canvas 内的相对位置
                 var mousePosition = e.GetPosition(FlowChartCanvas);
 
@@ -1781,7 +1745,7 @@ namespace Serein.Workbench
         /// <param name="e"></param>
         private void FlowChartCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (GlobalJunctionData.MyGlobalConnectingData is not null)
+            if (GlobalJunctionData.MyGlobalConnectingData.IsCreateing)
             {
                 return;
             }
@@ -1835,36 +1799,52 @@ namespace Serein.Workbench
                 // 释放鼠标捕获
                 FlowChartCanvas.ReleaseMouseCapture();
             }
-
+           
             // 创建连线
-            if (GlobalJunctionData.MyGlobalConnectingData is not null)
+            if (GlobalJunctionData.MyGlobalConnectingData is ConnectingData myData && myData.IsCreateing)
             {
-                var myData = GlobalJunctionData.MyGlobalConnectingData;
-                GlobalJunctionData.OK();
-                var canvas = this.FlowChartCanvas;
+                
                 if (myData.IsCanConnected)
                 {
+                    var canvas = this.FlowChartCanvas;
                     var currentendPoint = e.GetPosition(canvas); // 当前鼠标落点
                     var changingJunctionPosition = myData.CurrentJunction.TranslatePoint(new Point(0, 0), canvas);
                     var changingJunctionRect = new Rect(changingJunctionPosition, new Size(myData.CurrentJunction.Width, myData.CurrentJunction.Height));
-
+                    
                     if (changingJunctionRect.Contains(currentendPoint)) // 可以创建连接
                     {
-                        var argIndex = 0;
-                        if(myData.StartJunction is ArgJunctionControl argJunction1)
+                        #region 方法调用关系创建
+                        if (myData.Type == JunctionOfConnectionType.Invoke)
                         {
-                            argIndex = argJunction1.ArgIndex;
+                            this.EnvDecorator.ConnectInvokeNodeAsync(myData.StartJunction.MyNode.Guid, myData.CurrentJunction.MyNode.Guid,
+                                        myData.StartJunction.JunctionType,
+                                        myData.CurrentJunction.JunctionType,
+                                        myData.ConnectionInvokeType);
+                        } 
+                        #endregion
+                        #region 参数来源关系创建
+                        else if (myData.Type == JunctionOfConnectionType.Arg)
+                        {
+                            var argIndex = 0;
+                            if (myData.StartJunction is ArgJunctionControl argJunction1)
+                            {
+                                argIndex = argJunction1.ArgIndex;
+                            }
+                            else if (myData.CurrentJunction is ArgJunctionControl argJunction2)
+                            {
+                                argIndex = argJunction2.ArgIndex;
+                            }
 
-                        }
-                        else if (myData.CurrentJunction is ArgJunctionControl argJunction2)
-                        {
-                            argIndex = argJunction2.ArgIndex;
-                        }
-                        this.EnvDecorator.ConnectNodeAsync(myData.StartJunction.MyNode.Guid, myData.CurrentJunction.MyNode.Guid, 
-                            myData.StartJunction.JunctionType,
-                            myData.CurrentJunction.JunctionType,
-                            ConnectionInvokeType.IsSucceed,argIndex);
+                            this.EnvDecorator.ConnectArgSourceNodeAsync(myData.StartJunction.MyNode.Guid, myData.CurrentJunction.MyNode.Guid,
+                                    myData.StartJunction.JunctionType,
+                                    myData.CurrentJunction.JunctionType,
+                                    myData.ConnectionArgSourceType,
+                                    argIndex);
+                        } 
+                        #endregion
+
                     }
+                    EndConnection();
                 }
 
             }
@@ -2605,6 +2585,7 @@ namespace Serein.Workbench
         #region 顶部菜单栏 - 远程管理
         private async void ButtonStartRemoteServer_Click(object sender, RoutedEventArgs e)
         {
+
              await this.EnvDecorator.StartRemoteServerAsync();
         }
 
@@ -2618,12 +2599,13 @@ namespace Serein.Workbench
             var windowEnvRemoteLoginView = new WindowEnvRemoteLoginView(async (addres, port, token) =>
             {
                 ResetFlowEnvironmentEvent();// 移除事件
-                (var isConnect, RemoteEnvControl remoteEnvControl) = await this.EnvDecorator.ConnectRemoteEnv(addres, port, token);
-                InitFlowEnvironmentEvent(); // 重新添加时间（如果没有连接成功，那么依然是原本的环境）
+                (var isConnect, var _) = await this.EnvDecorator.ConnectRemoteEnv(addres, port, token);
+                InitFlowEnvironmentEvent(); // 重新添加事件（如果没有连接成功，那么依然是原本的环境）
                 if (isConnect)
                 {
                     // 连接成功，加载远程项目
                     var flowEnvInfo = await EnvDecorator.GetEnvInfoAsync();
+                    await Task.Delay(1000);
                     EnvDecorator.LoadProject(flowEnvInfo, string.Empty);// 加载远程环境的项目
                 }
             });
@@ -2635,7 +2617,7 @@ namespace Serein.Workbench
 
 
         /// <summary>
-        /// 按键监听。esc取消操作
+        /// 窗体按键监听。
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -2647,16 +2629,53 @@ namespace Serein.Workbench
             }
 
             if (e.KeyStates == Keyboard.GetKeyStates(Key.Escape))
-            //if (Keyboard.Modifiers == ModifierKeys.Shift)
             {
-                IsConnecting = false;
                 IsControlDragging = false;
                 IsCanvasDragging = false;
-                EndConnection();
                 SelectionRectangle.Visibility = Visibility.Collapsed;
                 CancelSelectNode();
-                
+                EndConnection();
             }
+
+            if(GlobalJunctionData.MyGlobalConnectingData is ConnectingData myData && myData.IsCreateing)
+            {
+                if(myData.Type == JunctionOfConnectionType.Invoke)
+                {
+                    ConnectionInvokeType connectionInvokeType = e.KeyStates switch
+                    {
+                        KeyStates k when k == Keyboard.GetKeyStates(Key.D1) => ConnectionInvokeType.Upstream,
+                        KeyStates k when k == Keyboard.GetKeyStates(Key.D2) => ConnectionInvokeType.IsSucceed,
+                        KeyStates k when k == Keyboard.GetKeyStates(Key.D3) => ConnectionInvokeType.IsFail,
+                        KeyStates k when k == Keyboard.GetKeyStates(Key.D4) => ConnectionInvokeType.IsError,
+                        _ => ConnectionInvokeType.None,
+                    };
+                    
+                    if (connectionInvokeType != ConnectionInvokeType.None)
+                    {
+                        myData.ConnectionInvokeType = connectionInvokeType;
+                        myData.MyLine.Line.UpdateLineColor(connectionInvokeType.ToLineColor());
+                    }
+                }
+                else if (myData.Type == JunctionOfConnectionType.Arg)
+                {
+                    ConnectionArgSourceType connectionArgSourceType = e.KeyStates switch
+                    {
+                        KeyStates k when k == Keyboard.GetKeyStates(Key.D1) => ConnectionArgSourceType.GetOtherNodeData,
+                        KeyStates k when k == Keyboard.GetKeyStates(Key.D2) => ConnectionArgSourceType.GetOtherNodeDataOfInvoke,
+                        _ => ConnectionArgSourceType.GetPreviousNodeData,
+                    };
+                    
+                    if (connectionArgSourceType != ConnectionArgSourceType.GetPreviousNodeData)
+                    {
+                        myData.ConnectionArgSourceType = connectionArgSourceType;
+                        myData.MyLine.Line.UpdateLineColor(connectionArgSourceType.ToLineColor());
+                    }
+                }
+                myData.CurrentJunction.InvalidateVisual(); // 刷新目标节点控制点样式
+
+            }
+            
+
         }
 
         /// <summary>
@@ -2705,12 +2724,13 @@ namespace Serein.Workbench
             }
             ObjDynamicCreateHelper.PrintObjectProperties(result!);
             Console.WriteLine(  );
-            var exp = "@set .Addresses[1].Street = qwq";
+            var exp = "@set .Addresses[1].Street = 233";
             var data = SerinExpressionEvaluator.Evaluate(exp, result!, out bool isChange);
             exp = "@get .Addresses[1].Street";
             data = SerinExpressionEvaluator.Evaluate(exp,result!, out isChange);
             Console.WriteLine($"{exp} => {data}");
         }
+
         /// <summary>
         /// 卸载DLL文件，清空当前项目
         /// </summary>
@@ -2719,9 +2739,8 @@ namespace Serein.Workbench
         private void UnloadAllButton_Click(object sender, RoutedEventArgs e)
         {
             EnvDecorator.ClearAll();
-
-
         }
+
         /// <summary>
         /// 卸载DLL文件，清空当前项目
         /// </summary>
@@ -2732,23 +2751,10 @@ namespace Serein.Workbench
             Connections.Clear();
             NodeControls.Clear();
             //currentLine = null;
-            startConnectNodeControl = null;
+            //startConnectNodeControl = null;
             MessageBox.Show("所有DLL已卸载。", "信息", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         
     }
-
-    #region 创建两个控件之间的连接关系，在UI层面上显示为 带箭头指向的贝塞尔曲线
-
-    #region 拓展方法 Extension
-
-
-    #endregion
-
-
-
-
-    #endregion
-
 }

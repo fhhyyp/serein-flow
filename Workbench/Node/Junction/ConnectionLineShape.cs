@@ -28,10 +28,12 @@ namespace Serein.Workbench.Node.View
         Semicircle,
     }
 
+    
+
     /// <summary>
     /// 贝塞尔曲线
     /// </summary>
-    public class BezierLine : Shape
+    public class ConnectionLineShape : Shape
     {
         private readonly double strokeThickness;
 
@@ -40,28 +42,44 @@ namespace Serein.Workbench.Node.View
         /// <summary>
         /// 确定起始坐标和目标坐标、外光样式的曲线
         /// </summary>
-        /// <param name="start"></param>
-        /// <param name="end"></param>
-        /// <param name="brush"></param>
-        /// <param name="strokeThickness"></param>
-        public BezierLine(LineType lineType,  Point start, Point end, Brush brush, double strokeThickness = 4)
+        /// <param name="lineType">线条类型</param>
+        /// <param name="start">起始坐标</param>
+        /// <param name="end">结束坐标</param>
+        /// <param name="brush">颜色</param>
+        /// <param name="isDotted">是否为虚线</param>
+        public ConnectionLineShape(LineType lineType,
+                                   Point start,
+                                   Point end,
+                                   Brush brush,
+                                   bool isDotted = false,
+                                   bool isTop = false)
         {
             this.lineType = lineType;
             this.brush = brush;
             startPoint = start;
             endPoint = end;
-            this.strokeThickness = strokeThickness;
-            InitElementPoint();
+            this.strokeThickness = 4;
+            InitElementPoint(isDotted, isTop);
             InvalidateVisual(); // 触发重绘
         }
-        public void InitElementPoint()
+        public void InitElementPoint(bool isDotted , bool isTop = false)
         {
             hitVisiblePen = new Pen(Brushes.Transparent, 1.0); // 初始化碰撞检测线
             hitVisiblePen.Freeze(); // Freeze以提高性能
             visualPen = new Pen(brush, 3.0); // 默认可视化Pen
+            if (isDotted)
+            {
+                visualPen.DashStyle = DashStyles.Dash; // 选择虚线样式
+            }
             visualPen.Freeze(); // Freeze以提高性能
+
             linkSize = 4;  // 整线条粗细
-            Panel.SetZIndex(this, -9999999); // 置底
+            int zIndex = -999999;
+            if (isTop)
+            {
+                zIndex *= -1;
+            }
+            Panel.SetZIndex(this, zIndex); // 置底
         }
 
         /// <summary>
@@ -104,16 +122,17 @@ namespace Serein.Workbench.Node.View
             switch (this.lineType)
             {
                 case LineType.Bezier:
-                    DrawBezierCurve(drawingContext, startPoint, endPoint, linkSize); 
+                    DrawBezierCurve(drawingContext, startPoint, endPoint); 
                     break;
                 case LineType.Semicircle:
-                    DrawBezierCurve(drawingContext, startPoint, endPoint);
+                    DrawSemicircleCurve(drawingContext, startPoint, endPoint);
                     break;
                 default:
                     break;
             }
 
         }
+        #region 重绘
 
         private readonly StreamGeometry streamGeometry = new StreamGeometry();
         private Point rightCenterOfStartLocation;  // 目标节点选择左侧边缘中心
@@ -125,8 +144,12 @@ namespace Serein.Workbench.Node.View
         private Brush brush; // 线条颜色
         double linkSize;  // 根据缩放比例调整线条粗细
         protected override Geometry DefiningGeometry => streamGeometry;
-
-        #region 工具方法
+        
+        public void UpdateLineColor(Brush brush)
+        {
+            visualPen = new Pen(brush, 3.0); // 默认可视化Pen
+            InvalidateVisual(); // 触发重绘
+        }
 
 
         private Point c0, c1; // 用于计算贝塞尔曲线控制点逻辑
@@ -134,15 +157,10 @@ namespace Serein.Workbench.Node.View
         private Vector startToEnd;
         private void DrawBezierCurve(DrawingContext drawingContext,
                                    Point start,
-                                   Point end,
-                                   double linkSize,
-                                   bool isHitTestVisible = false,
-                                   double strokeThickness = 1.0,
-                                   bool isMouseOver = false,
-                                   double dashOffset = 0.0)
+                                   Point end)
         {
             // 控制点的计算逻辑
-            double power = 100;  // 控制贝塞尔曲线的“拉伸”强度
+            double power = 140;  // 控制贝塞尔曲线的“拉伸”强度
 
             // 计算轴向向量与起点到终点的向量
             //var axis = new Vector(1, 0);
@@ -165,31 +183,16 @@ namespace Serein.Workbench.Node.View
                 context.BeginFigure(start, true, false);   // 曲线起点
                 context.BezierTo(c0, c1, end, true, false); // 画贝塞尔曲线
             }
-
             drawingContext.DrawGeometry(null, visualPen, streamGeometry);
-
-            // 绘制碰撞检测线
-            //if (true)
-            //{
-            //    //hitVisiblePen = new Pen(Brushes.Transparent, linkSize + strokeThickness);
-            //    //hitVisiblePen.Freeze();
-            //    drawingContext.DrawGeometry(null, hitVisiblePen, streamGeometry);
-            //}
-            //else
-            //{
-
-
-            //}
-
         }
-        #endregion
+        
 
 
-        private void DrawBezierCurve(DrawingContext drawingContext, Point start, Point end)
+        private void DrawSemicircleCurve(DrawingContext drawingContext, Point start, Point end)
         {
             // 计算中心点和半径
             // 计算圆心和半径
-            double x = 35 ;
+            double x = 35;
             // 创建一个弧线路径
             streamGeometry.Clear();
             using (var context = streamGeometry.Open())
@@ -216,6 +219,7 @@ namespace Serein.Workbench.Node.View
             drawingContext.DrawGeometry(null, visualPen, streamGeometry);
 
         }
+        #endregion
     }
 
 

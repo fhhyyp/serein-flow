@@ -16,7 +16,13 @@
                     <ItemsControl ItemsSource="{Binding MethodDetails.ParameterDetailss, RelativeSource={RelativeSource TemplatedParent}}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <ContentControl Content="{Binding}">
+                                <Grid Background="#E3FDFD" >
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <view:ArgJunctionControl x:Name="ArgJunctionControl" Grid.Column="0" ArgIndex="{Binding Index}" MyNode="{Binding NodeModel}" />
+                                    <ContentControl Content="{Binding}"  Grid.Column="1">
                                     <ContentControl.Style>
                                         <Style TargetType="ContentControl">
                                             <Style.Triggers>
@@ -27,10 +33,8 @@
                                                     </MultiDataTrigger.Conditions>
                                                     <Setter Property="ContentTemplate">
                                                         <Setter.Value>
-                                                            <DataTemplate>
-                                                                <StackPanel Orientation="Horizontal">
-                                                                    <view:ArgJunctionControl x:Name="ArgJunctionControl" Grid.Column="0" ArgIndex="{Binding Index}" MyNode="{Binding NodeModel}" />
-                                                                    <Grid Background="#E3FDFD">
+                                                                <DataTemplate>
+                                                                    <Grid>
                                                                         <Grid.ColumnDefinitions>
                                                                             <ColumnDefinition Width="50"/>
                                                                             <ColumnDefinition Width="30"/>
@@ -42,7 +46,7 @@
                                                                         <TextBlock Grid.Column="2" MinWidth="50" Text="{Binding Name}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                                                                         <TextBlock Grid.Column="3" MinWidth="50" Text="无须指定参数"/>
                                                                     </Grid>
-                                                                </StackPanel>
+                                                                
 
                                                             </DataTemplate>
                                                         </Setter.Value>
@@ -59,8 +63,8 @@
                                                         <Setter.Value>
                                                             <DataTemplate>
                                                                 <StackPanel Orientation="Horizontal">
-                                                                    <view:ArgJunctionControl x:Name="ArgJunctionControl" Grid.Column="0" ArgIndex="{Binding Index}" MyNode="{Binding NodeModel}" />
-                                                                    <Grid  Background="#E3FDFD">
+                                                                    <!--<view:ArgJunctionControl x:Name="ArgJunctionControl" Grid.Column="0" ArgIndex="{Binding Index}" MyNode="{Binding NodeModel}" />-->
+                                                                    <Grid>
                                                                         <Grid.ColumnDefinitions>
                                                                             <ColumnDefinition Width="50"/>
                                                                             <ColumnDefinition Width="30"/>
@@ -90,8 +94,8 @@
                                                         <Setter.Value>
                                                             <DataTemplate>
                                                                 <StackPanel Orientation="Horizontal">
-                                                                    <view:ArgJunctionControl x:Name="ArgJunctionControl" Grid.Column="0" ArgIndex="{Binding Index}" MyNode="{Binding NodeModel}" />
-                                                                    <Grid Background="#E3FDFD">
+                                                                    <!--<view:ArgJunctionControl x:Name="ArgJunctionControl" Grid.Column="0" ArgIndex="{Binding Index}" MyNode="{Binding NodeModel}" />-->
+                                                                    <Grid>
                                                                         <Grid.ColumnDefinitions>
                                                                             <ColumnDefinition Width="50"/>
                                                                             <ColumnDefinition Width="30"/>
@@ -114,6 +118,7 @@
                                         </Style>
                                     </ContentControl.Style>
                                 </ContentControl>
+                                </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

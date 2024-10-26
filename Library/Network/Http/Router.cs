@@ -17,28 +17,58 @@ using Type = System.Type;
 
 namespace Serein.Library.Web
 {
+    /// <summary>
+    /// 路由接口
+    /// </summary>
     public interface IRouter
     {
+        /// <summary>
+        /// 添加处理模块
+        /// </summary>
+        /// <param name="controllerType"></param>
         void AddHandle(Type controllerType);
+        /// <summary>
+        /// 路由解析开始处理
+        /// </summary>
+        /// <param name="context"></param>
+        /// <returns></returns>
         Task<bool> ProcessingAsync(HttpListenerContext context);
     }
 
 
-
+    /// <summary>
+    /// api请求处理模块
+    /// </summary>
     public class ApiHandleConfig
     {
-        private readonly Delegate EmitDelegate;
-        private readonly EmitHelper.EmitMethodType EmitMethodType;
+        private readonly DelegateDetails delegateDetails;
 
+        /// <summary>
+        /// Post请求处理方法中，入参参数类型
+        /// </summary>
         public enum PostArgType
         {
+            /// <summary>
+            /// 不做处理
+            /// </summary>
             None,   
+            /// <summary>
+            /// 使用Url参数
+            /// </summary>
             IsUrlData,
+            /// <summary>
+            /// 使用整体的Boby参数
+            /// </summary>
             IsBobyData,
         }
+
+        /// <summary>
+        /// 添加处理配置
+        /// </summary>
+        /// <param name="methodInfo"></param>
         public ApiHandleConfig(MethodInfo methodInfo)
         {
-            EmitMethodType = EmitHelper.CreateDynamicMethod(methodInfo, out EmitDelegate);
+            delegateDetails = new DelegateDetails(methodInfo);
             var parameterInfos = methodInfo.GetParameters();
             ParameterType = parameterInfos.Select(t => t.ParameterType).ToArray();
             ParameterName = parameterInfos.Select(t => t.Name.ToLower()).ToArray();
@@ -68,7 +98,12 @@ namespace Serein.Library.Web
         private readonly string[] ParameterName;
         private readonly Type[] ParameterType;
 
-
+        /// <summary>
+        /// 处理Get请求
+        /// </summary>
+        /// <param name="instance"></param>
+        /// <param name="routeData"></param>
+        /// <returns></returns>
         public async Task<object> HandleGet(object instance, Dictionary<string, string> routeData)
         {
             object[] args = new object[ParameterType.Length];
@@ -93,40 +128,20 @@ namespace Serein.Library.Web
                 }
                 
             }
-
-            object result;
+            object result = null;
             try
             {
-                if (EmitMethodType == EmitHelper.EmitMethodType.HasResultTask && EmitDelegate is Func<object, object[], Task<object>> hasResultTask)
-                {
-                    result = await hasResultTask(instance, args);
-                }
-                else if (EmitMethodType == EmitHelper.EmitMethodType.Task && EmitDelegate is Func<object, object[], Task> task)
-                {
-                    await task.Invoke(instance, args);
-                    result = null;
-                }
-                else if (EmitMethodType == EmitHelper.EmitMethodType.Func && EmitDelegate is Func<object, object[], object> func)
-                {
-                    result = func.Invoke(instance, args);
-                }
-                else
-                {
-                    result = null;
-                }
+                result = await delegateDetails.InvokeAsync(instance, args);
             }
             catch (Exception ex)
             {
                 result = null;
                 await Console.Out.WriteLineAsync(ex.Message);
-                
             }
             return result;
-           
         }
 
-
-
+        /// <returns></returns>
         public async Task<object> HandlePost(object instance, JObject jsonObject, Dictionary<string, string> routeData)
         {
             object[] args = new object[ParameterType.Length];
@@ -173,26 +188,10 @@ namespace Serein.Library.Web
                
             }
 
-            object result;
+            object result = null;
             try
             {
-                if (EmitMethodType == EmitHelper.EmitMethodType.HasResultTask && EmitDelegate is Func<object, object[], Task<object>> hasResultTask)
-                {
-                    result = await hasResultTask(instance, args);
-                }
-                else if (EmitMethodType == EmitHelper.EmitMethodType.Task && EmitDelegate is Func<object, object[], Task> task)
-                {
-                    await task.Invoke(instance, args);
-                    result = null;
-                }
-                else if (EmitMethodType == EmitHelper.EmitMethodType.Func && EmitDelegate is Func<object, object[], object> func)
-                {
-                    result = func.Invoke(instance, args);
-                }
-                else
-                {
-                    result = null;
-                }
+                result = await delegateDetails.InvokeAsync(instance, args);
             }
             catch (Exception ex)
             {
@@ -567,107 +566,6 @@ namespace Serein.Library.Web
     }
 
 
-
-    internal static class WebFunc
-    {
-        public static bool ToBool(this JToken token, bool defult = false)
-        {
-            var value = token?.ToString();
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                return defult;
-            }
-            if (!bool.TryParse(value, out bool result))
-            {
-                return defult;
-            }
-            else
-            {
-                return result;
-            }
-        }
-        public static int ToInt(this JToken token, int defult = 0)
-        {
-            var value = token?.ToString();
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                return defult;
-            }
-            if (!int.TryParse(value, out int result))
-            {
-                return defult;
-            }
-            else
-            {
-                return result;
-            }
-        }
-        public static double ToDouble(this JToken token, double defult = 0)
-        {
-            var value = token?.ToString();
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                return defult;
-            }
-            if (!int.TryParse(value, out int result))
-            {
-                return defult;
-            }
-            else
-            {
-                return result;
-            }
-        }
-    }
-
-    #region 已经注释
-
-    // private readonly ConcurrentDictionary<string, bool> _controllerAutoHosting; // 存储是否实例化
-    // private readonly ConcurrentDictionary<string, object> _controllerInstances;
-
-    //public void CollectRoutes(Type controllerType)
-    //{
-    //    string controllerName = controllerType.Name.Replace("Controller", "").ToLower(); // 获取控制器名称并转换为小写
-    //    foreach (var method in controllerType.GetMethods()) // 遍历控制器类型的所有方法
-    //    {
-    //        var routeAttribute = method.GetCustomAttribute<WebApiAttribute>(); // 获取方法上的 WebAPIAttribute 自定义属性
-    //        if (routeAttribute != null) // 如果存在 WebAPIAttribute 属性
-    //        {
-    //            var customUrl = routeAttribute.Url; // 获取自定义 URL
-    //            string url;
-    //            if (string.IsNullOrEmpty(customUrl)) // 如果自定义 URL 为空
-    //            {
-    //                url = $"/api/{controllerName}/{method.Name}".ToLower(); // 构建默认 URL
-    //            }
-    //            else
-    //            {
-    //                customUrl = CleanUrl(customUrl);
-    //                url = $"/api/{controllerName}/{method.Name}/{customUrl}".ToLower();// 清理自定义 URL，并构建新的 URL
-    //            }
-    //            var httpMethod = routeAttribute.Http; // 获取 HTTP 方法
-    //            _routes[httpMethod.ToString()].TryAdd(url, method); // 将 URL 和方法添加到对应的路由字典中
-    //        }
-    //    }
-    //}
-
-    //public void RegisterRoute<T>(T controllerInstance) // 方法声明，用于动态注册路由
-    //{
-    //    Type controllerType = controllerInstance.GetType(); // 获取控制器实例的类型
-    //    var autoHostingAttribute = controllerType.GetCustomAttribute<AutoHostingAttribute>();
-    //    foreach (var method in controllerType.GetMethods()) // 遍历控制器类型的所有方法
-    //    {
-    //        var webAttribute = method.GetCustomAttribute<WebApiAttribute>(); // 获取方法上的 WebAPIAttribute 自定义属性
-    //        if (webAttribute != null) // 如果存在 WebAPIAttribute 属性
-    //        {
-    //            var url = AddRoutesUrl(autoHostingAttribute, webAttribute, controllerType, method);
-    //            if (url == null) continue;
-    //            _controllerInstances[url] = controllerInstance;
-    //            _controllerAutoHosting[url] = false;
-    //        }
-
-    //    }
-    //}
-
-    #endregion
+    
 }
 

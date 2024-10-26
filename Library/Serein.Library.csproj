@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>1.0.17</Version>
+    <Version>1.0.18</Version>
     <TargetFrameworks>net8.0;net462</TargetFrameworks>
     <!--<TargetFrameworks>net8.0</TargetFrameworks>-->
     <BaseOutputPath>D:\Project\C#\DynamicControl\SereinFlow\.Output</BaseOutputPath>
@@ -37,7 +37,6 @@
   <ItemGroup>
 
     <ProjectReference Include="..\Serein.Library.MyGenerator\Serein.Library.NodeGenerator.csproj" OutputItemType="Analyzer" />
-    <!--ReferenceOutputAssembly="false"-->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="System.Reactive" Version="6.0.1" />
     <PackageReference Include="System.Threading.Channels" Version="8.0.0" />

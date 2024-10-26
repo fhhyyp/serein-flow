@@ -1,5 +1,6 @@
 ﻿
 
+using Serein.Library.FlowNode;
 using Serein.Library.Utils;
 using System;
 using System.Collections.Generic;
@@ -176,6 +177,15 @@ namespace Serein.Library.Api
             /// </summary>
             Remote,
         }
+
+        /// <summary>
+        /// 更改方法调用关系
+        /// </summary>
+        /// <param name="fromNodeGuid"></param>
+        /// <param name="toNodeGuid"></param>
+        /// <param name="junctionOfConnectionType"></param>
+        /// <param name="connectionInvokeType"></param>
+        /// <param name="changeType"></param>
         public NodeConnectChangeEventArgs(string fromNodeGuid,
                                           string toNodeGuid,
                                           JunctionOfConnectionType junctionOfConnectionType, // 指示需要创建什么类型的连接线
@@ -189,6 +199,15 @@ namespace Serein.Library.Api
             this.JunctionOfConnectionType = junctionOfConnectionType;
         }
 
+        /// <summary>
+        /// 更改参数传递关系
+        /// </summary>
+        /// <param name="fromNodeGuid"></param>
+        /// <param name="toNodeGuid"></param>
+        /// <param name="junctionOfConnectionType"></param>
+        /// <param name="argIndex"></param>
+        /// <param name="connectionArgSourceType"></param>
+        /// <param name="changeType"></param>
         public NodeConnectChangeEventArgs(string fromNodeGuid,
                                           string toNodeGuid,
                                           JunctionOfConnectionType junctionOfConnectionType, // 指示需要创建什么类型的连接线
@@ -228,6 +247,9 @@ namespace Serein.Library.Api
         /// 节点对应的方法入参所需参数来源
         /// </summary>
         public ConnectionArgSourceType ConnectionArgSourceType { get; protected set; }
+        /// <summary>
+        /// 第几个参数
+        /// </summary>
         public int ArgIndex { get; protected set; }
 
         
@@ -350,17 +372,19 @@ namespace Serein.Library.Api
     /// </summary>
     public class NodeInterruptStateChangeEventArgs : FlowEventArgs
     {
-        public NodeInterruptStateChangeEventArgs(string nodeGuid, InterruptClass @class)
+        public NodeInterruptStateChangeEventArgs(string nodeGuid,bool isInterrupt)
         {
             NodeGuid = nodeGuid;
-            Class = @class;
+            // Class = @class;
+            IsInterrupt = isInterrupt;
         }
 
         /// <summary>
         /// 中断的节点Guid
         /// </summary>
         public string NodeGuid { get; protected set; }
-        public InterruptClass Class { get; protected set; }
+        public bool IsInterrupt { get; protected set; }
+        // public InterruptClass Class { get; protected set; }
     }
     /// <summary>
     /// 节点触发了中断事件参数
@@ -638,7 +662,7 @@ namespace Serein.Library.Api
         /// <param name="addres">远程环境地址</param>
         /// <param name="port">远程环境端口</param>
         /// <param name="token">密码</param>
-        Task<(bool, RemoteEnvControl)> ConnectRemoteEnv(string addres,int port, string token);
+        Task<(bool, RemoteMsgUtil)> ConnectRemoteEnv(string addres,int port, string token);
 
         /// <summary>
         /// 退出远程环境
@@ -705,30 +729,53 @@ namespace Serein.Library.Api
         /// <param name="toNodeGuid">目标节点Guid</param>
         /// <param name="fromNodeJunctionType">起始节点控制点</param>
         /// <param name="toNodeJunctionType">目标节点控制点</param>
-        /// <param name="connectionType">决定了方法执行后的后继行为</param>
-        /// <param name="argIndex">决定了方法入参来源</param>
-        Task<bool> ConnectNodeAsync(string fromNodeGuid,
+        /// <param name="invokeType">决定了方法执行后的后继行为</param>
+        Task<bool> ConnectInvokeNodeAsync(string fromNodeGuid,
                                     string toNodeGuid,
                                     JunctionType fromNodeJunctionType,
                                     JunctionType toNodeJunctionType,
-                                    ConnectionInvokeType connectionType,
-                                    int argIndex);
+                                    ConnectionInvokeType invokeType);
 
+        /// <summary>
+        /// 在两个节点之间创建连接关系
+        /// </summary>
+        /// <param name="fromNodeGuid">起始节点Guid</param>
+        /// <param name="toNodeGuid">目标节点Guid</param>
+        /// <param name="fromNodeJunctionType">起始节点控制点</param>
+        /// <param name="toNodeJunctionType">目标节点控制点</param>
+        /// <param name="argSourceType">决定了方法参数来源</param>
+        /// <param name="argIndex">设置第几个参数</param>
+        Task<bool> ConnectArgSourceNodeAsync(string fromNodeGuid,
+                                                 string toNodeGuid,
+                                                 JunctionType fromNodeJunctionType,
+                                                 JunctionType toNodeJunctionType,
+                                                 ConnectionArgSourceType argSourceType,
+                                                 int argIndex);
         /// <summary>
         /// 创建节点/区域/基础控件
         /// </summary>
         /// <param name="nodeType">节点/区域/基础控件类型</param>
         /// <param name="position">节点在画布上的位置（</param>
-        /// <param name="methodDetailsInfo">节点绑定的方法说明（</param>
+        /// <param name="methodDetailsInfo">节点绑定的方法说明</param>
         Task<NodeInfo> CreateNodeAsync(NodeControlType nodeType, PositionOfUI position, MethodDetailsInfo methodDetailsInfo = null);
 
         /// <summary>
-        /// 移除两个节点之间的连接关系
+        /// 移除两个节点之间的方法调用关系
         /// </summary>
         /// <param name="fromNodeGuid">起始节点</param>
         /// <param name="toNodeGuid">目标节点</param>
         /// <param name="connectionType">连接类型</param>
-        Task<bool> RemoveConnectAsync(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType);
+        Task<bool> RemoveConnectInvokeAsync(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType);
+
+        /// <summary>
+        /// 移除连接节点之间参数传递的关系
+        /// </summary>
+        /// <param name="fromNodeGuid">起始节点Guid</param>
+        /// <param name="toNodeGuid">目标节点Guid</param>
+        /// <param name="argIndex">连接到第几个参数</param>
+        /// <param name="connectionArgSourceType">参数来源类型</param>
+        Task<bool> RemoveConnectArgSourceAsync(string fromNodeGuid, string toNodeGuid, int argIndex);
+
 
         /// <summary>
         /// 移除节点/区域/基础控件
@@ -750,12 +797,12 @@ namespace Serein.Library.Api
 
 
         /// <summary>
-        /// 设置节点中断级别
+        /// 设置节点中断
         /// </summary>
-        /// <param name="nodeGuid">被中断的节点Guid</param>
-        /// <param name="interruptClass">新的中断级别</param>
+        /// <param name="nodeGuid">更改中断状态的节点Guid</param>
+        /// <param name="isInterrup">是否中断</param>
         /// <returns></returns>
-        Task<bool> SetNodeInterruptAsync(string nodeGuid, InterruptClass interruptClass);
+        Task<bool> SetNodeInterruptAsync(string nodeGuid,bool isInterrup);
 
         /// <summary>
         /// 添加作用于某个对象的中断表达式

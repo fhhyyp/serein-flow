@@ -23,7 +23,7 @@ namespace Serein.Workbench.Node.View
         {
             double width = ActualWidth;
             double height = ActualHeight;
-
+            var background = GetBackgrounp();
             // 绘制边框
             //var borderBrush = new SolidColorBrush(Colors.Black);
             //var borderThickness = 1.0;
@@ -31,22 +31,22 @@ namespace Serein.Workbench.Node.View
             //drawingContext.DrawRectangle(null, new Pen(borderBrush, borderThickness), borderRect);
 
             // 输入连接器的背景
-            var connectorBackground = IsMouseOver ? Brushes.DarkCyan : Brushes.Transparent;
-            var connectorRect = new Rect(4, 4, width - 8, height - 8);
-            drawingContext.DrawRectangle(connectorBackground, null, connectorRect);
+            var connectorRect = new Rect(0, 0, width, height);
+            drawingContext.DrawRectangle(Brushes.Transparent,null, connectorRect);
+            //drawingContext.DrawRectangle(Brushes.Transparent, new Pen(background,2), connectorRect);
 
             // 定义圆形的大小和位置
             double connectorSize = 10; // 连接器的大小
             double circleCenterX = 8; // 圆心 X 坐标
             double circleCenterY = height / 2; // 圆心 Y 坐标
+            _myCenterPoint = new Point(circleCenterX - connectorSize / 2, circleCenterY); // 中心坐标
 
             var circlePoint = new Point(circleCenterX, circleCenterY);
             // 绘制连接器的圆形部分
              var ellipse = new EllipseGeometry(circlePoint, connectorSize / 2, connectorSize / 2);
-            _myCenterPoint = new Point(circleCenterX - connectorSize / 2, circleCenterY);
 
 
-             drawingContext.DrawGeometry(IsMouseOver ? Brushes.DarkCyan : Brushes.Transparent, new Pen(Brushes.Black, 1), ellipse);
+             drawingContext.DrawGeometry(background, new Pen(Brushes.Black, 1), ellipse);
 
 
 
@@ -65,7 +65,7 @@ namespace Serein.Workbench.Node.View
                 context.LineTo(new Point(triangleCenterX, triangleCenterY + 4.5), true, false);
                 context.LineTo(new Point(triangleCenterX, triangleCenterY - 4.5), true, false);
             }
-            drawingContext.DrawGeometry(IsMouseOver ? Brushes.DarkCyan : Brushes.Transparent, new Pen(Brushes.Black, 1), pathGeometry);
+            drawingContext.DrawGeometry(background, new Pen(Brushes.Black, 1), pathGeometry);
 
             // 绘制标签
             //var formattedText = new FormattedText(

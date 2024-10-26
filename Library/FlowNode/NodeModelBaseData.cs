@@ -85,9 +85,6 @@ namespace Serein.Library
     }
 
 
-   
-
-
     public abstract partial class NodeModelBase : IDynamicFlowNode
     {
         public NodeModelBase(IFlowEnvironment environment)
@@ -119,39 +116,40 @@ namespace Serein.Library
         /// <summary>
         /// 控制FlowData在同一时间只会被同一个线程更改。
         /// </summary>
-        private readonly ReaderWriterLockSlim _flowDataLock = new ReaderWriterLockSlim();
-        private object _flowData;
-        /// <summary>
-        /// 当前传递数据（执行了节点对应的方法，才会存在值）。
-        /// </summary>
-        protected object FlowData
-        {
-            get
-            {
-                _flowDataLock.EnterReadLock();
-                try
-                {
-                    return _flowData;
-                }
-                finally
-                {
-                    _flowDataLock.ExitReadLock();
-                }
-            }
-            set
-            {
-                _flowDataLock.EnterWriteLock();
-                try
-                {
-                    _flowData = value;
-                }
-                finally
-                {
-                    _flowDataLock.ExitWriteLock();
-                }
-            }
-        }
+        //private readonly ReaderWriterLockSlim _flowDataLock = new ReaderWriterLockSlim();
+        //private object _flowData;
+        ///// <summary>
+        ///// 当前传递数据（执行了节点对应的方法，才会存在值）。
+        ///// </summary>
+        //protected object FlowData
+        //{
+        //    get
+        //    {
+        //        _flowDataLock.EnterReadLock();
+        //        try
+        //        {
+        //            return _flowData;
+        //        }
+        //        finally
+        //        {
+        //            _flowDataLock.ExitReadLock();
+        //        }
+        //    }
+        //    set
+        //    {
+        //        _flowDataLock.EnterWriteLock();
+        //        try
+        //        {
+        //            _flowData = value;
+        //        }
+        //        finally
+        //        {
+        //            _flowDataLock.ExitWriteLock();
+        //        }
+        //    }
+        //}
     }
+ }
 
 
 
@@ -319,5 +317,5 @@ namespace Serein.Library
     //}
 
 
-}
+
 

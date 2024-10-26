@@ -163,7 +163,7 @@ namespace Serein.Library.NodeGenerator
                     var propertyName = field.ToPropertyName(); // 转为合适的属性名称
                     var attributeInfo = fieldKV.Value; // 缓存的特性信息
 
-                    var isProtection = attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsProtection), "true"); // 是否为保护字段
+                    var isProtection = attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsProtection), value => bool.Parse(value)); // 是否为保护字段
 
                     // 生成 getter / setter
                     sb.AppendLine(leadingTrivia);
@@ -174,11 +174,12 @@ namespace Serein.Library.NodeGenerator
                     sb.AppendLine("            {");
                     sb.AppendLine($"                if ({fieldName} {(isProtection ? "== default" : "!= value")})"); // 非保护的Setter
                     sb.AppendLine("                {");
-                    if (attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsPrint), "true"))  // 是否打印
+                    sb.AppendLine($"                    SetProperty<{fieldType}>(ref {fieldName}, value); // 通知UI属性发生改变了");
+                    if (attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsPrint), value => bool.Parse(value)))  // 是否打印
                     {
                         sb.AddCode(5, $"Console.WriteLine({fieldName});");
                     }
-                    if (attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsNotification), "true")) // 是否通知
+                    if (attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsNotification), value => bool.Parse(value))) // 是否通知
                     {
                         if (classInfo.ExitsPath(nameof(NodeValuePath.Node))) // 节点 or 自定义节点
                         {
@@ -197,7 +198,12 @@ namespace Serein.Library.NodeGenerator
                             sb.AddCode(5, $"NodeModel?.Env?.NotificationNodeValueChangeAsync(NodeModel.Guid, \"DebugSetting.\"+nameof({propertyName}), value); // 通知远程环境属性发生改变了"); 
                         }
                     }
-                    sb.AppendLine($"                    SetProperty<{fieldType}>(ref {fieldName}, value); // 通知UI属性发生改变了");
+                    if (attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.CustomCode), value => !string.IsNullOrEmpty(value)))  // 是否打印
+                    {
+                        var customCode = attributeInfo[nameof(PropertyInfo)][nameof(PropertyInfo.CustomCode)] as string;
+                        customCode = customCode.Trim().Substring(1, customCode.Length - 2);
+                        sb.AddCode(5, $"{customCode} // 添加的自定义代码");
+                    }
                     //sb.AppendLine($"                    {fieldName} = value;");
                     //sb.AppendLine($"                    OnPropertyChanged(); // 通知UI属性发生改变了");
                     sb.AppendLine("                }");
@@ -510,7 +516,7 @@ namespace Serein.Library.NodeGenerator
         public static bool Search(this Dictionary<string, Dictionary<string, string>> dict,
             string attributeName = null,
             string attributePropertyName = null,
-            string comparisonValue = null)
+            Func<string, bool> judgeFunc = null)
         {
             if (string.IsNullOrWhiteSpace(attributeName))
                 return false;
@@ -521,9 +527,11 @@ namespace Serein.Library.NodeGenerator
                 return true;
             if (!abs.TryGetValue(attributePropertyName, out var absValue))
                 return false;
-            if (string.IsNullOrWhiteSpace(comparisonValue))
+            if (judgeFunc == null)
                 return true;
-            return absValue.Equals(comparisonValue);
+            
+            return judgeFunc.Invoke(absValue); ;
+            //return absValue.Equals(comparisonValue);
 
         }
 

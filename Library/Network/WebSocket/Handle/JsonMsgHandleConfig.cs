@@ -31,7 +31,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                                      Action<Exception, Action<object>> onExceptionTracking,
                                      bool ArgNotNull)
         {
-            EmitMethodType = EmitHelper.CreateDynamicMethod(methodInfo,out EmitDelegate);
+            DelegateDetails = new DelegateDetails(methodInfo);
             this.Module = model;
             Instance = instance;
             var parameterInfos = methodInfo.GetParameters();
@@ -72,15 +72,10 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// 参数不能为空
         /// </summary>
         private bool ArgNotNull;
-
         /// <summary>
         /// Emit委托
         /// </summary>
-        private readonly Delegate EmitDelegate;
-        /// <summary>
-        /// Emit委托类型
-        /// </summary>
-        private readonly EmitHelper.EmitMethodType EmitMethodType;
+        private readonly DelegateDetails DelegateDetails;
         /// <summary>
         /// 未捕获的异常跟踪
         /// </summary>
@@ -114,29 +109,26 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// </summary>
         private readonly bool[] IsCheckArgNotNull;
 
-        //private object ConvertArg(Type type, string argName )
-        //{
-
-        //}
-
         public async void Handle(Func<object, Task> SendAsync,string msgId, JObject jsonObject)
         {
             object[] args = new object[ParameterType.Length];
             bool isCanInvoke = true;; // 表示是否可以调用方法
             for (int i = 0; i < ParameterType.Length; i++)
             {
-                var type = ParameterType[i];
-                var argName = ParameterName[i];
-                #region DATA JSON数据
-                if (useData[i])
-                {
-                    args[i] = jsonObject.ToObject(type);
-                } 
-                #endregion
-                else if (useMsgId[i])
+                var type = ParameterType[i]; // 入参变量类型
+                var argName = ParameterName[i]; // 入参参数名称
+                #region 传递消息ID
+                if (useMsgId[i])
                 {
                     args[i] = msgId;
                 }
+                #endregion
+                #region DATA JSON数据
+                else if (useData[i])
+                {
+                    args[i] = jsonObject.ToObject(type);
+                }
+                #endregion
                 #region 值类型参数
                 else if (type.IsValueType)
                 {
@@ -229,23 +221,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
             object result;
             try
             {
-                if (EmitMethodType == EmitHelper.EmitMethodType.HasResultTask && EmitDelegate is Func<object, object[], Task<object>> hasResultTask)
-                {
-                    result = await hasResultTask(Instance, args);
-                }
-                else if (EmitMethodType == EmitHelper.EmitMethodType.Task && EmitDelegate is Func<object, object[], Task> task)
-                {
-                    await task.Invoke(Instance, args);
-                    result = null;
-                }
-                else if (EmitMethodType == EmitHelper.EmitMethodType.Func && EmitDelegate is Func<object, object[], object> func)
-                {
-                    result = func.Invoke(Instance, args);
-                }
-                else
-                {
-                    result = null;
-                }
+                result = await DelegateDetails.InvokeAsync(Instance, args);
             }
             catch (Exception ex)
             {
@@ -256,25 +232,11 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                     await SendAsync.Invoke(exData);
                 }));
             }
-           //sw.Stop();
-           //Console.WriteLine($"Emit Invoke：{sw.ElapsedTicks * 1000000F / Stopwatch.Frequency:n3}μs");
-
-           
+            
             if (Module.IsReturnValue)
             {
-                if (result is null)
-                {
-                    result = "null";
-                }
                 _ = SendAsync.Invoke(result);
             }
-            //if( &&  result != null && result.GetType().IsClass)
-            //{
-            //    //var reusltJsonText = JsonConvert.SerializeObject(result);
-
-            //    //_ = SendAsync.Invoke($"{reusltJsonText}");
-            //}
-
 
         }
 

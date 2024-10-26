@@ -26,7 +26,7 @@ namespace Serein.NodeFlow.Model
         public override async Task<object?> ExecutingAsync(IDynamicContext context)
         {
             #region 执行前中断
-            if (DebugSetting.InterruptClass != InterruptClass.None) // 执行触发前
+            if (DebugSetting.IsInterrupt) // 执行触发前
             {
                 string guid = this.Guid.ToString();
                 var cancelType = await this.DebugSetting.GetInterruptTask();
@@ -82,13 +82,15 @@ namespace Serein.NodeFlow.Model
         /// 获取触发器参数
         /// </summary>
         /// <returns></returns>
-        public override Parameterdata[] GetParameterdatas()
+        public override ParameterData[] GetParameterdatas()
         {
             if (base.MethodDetails.ParameterDetailss.Length > 0)
             {
                 return MethodDetails.ParameterDetailss
-                                     .Select(it => new Parameterdata
+                                     .Select(it => new ParameterData
                                      {
+                                         SourceNodeGuid = it.ArgDataSourceNodeGuid,
+                                         SourceType = it.ArgDataSourceType.ToString(),
                                          State = it.IsExplicitData,
                                          Value = it.DataValue
                                      })

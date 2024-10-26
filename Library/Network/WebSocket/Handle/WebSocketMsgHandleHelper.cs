@@ -155,21 +155,16 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// <summary>
         /// 异步处理消息
         /// </summary>
-        /// <param name="SendAsync"></param>
+        /// <param name="sendAsync"></param>
         /// <param name="message"></param>
         /// <returns></returns>
-        public async Task HandleMsgAsync(Func<string, Task> SendAsync, string message)
+        public void HandleMsg(Func<string, Task> sendAsync, string message)
         {
-            //Console.WriteLine(message);
             JObject json = JObject.Parse(message);
-            await Task.Run(() =>
+            foreach (var module in MyHandleModuleDict.Values)
             {
-                foreach (var module in MyHandleModuleDict.Values)
-                {
-                    module.HandleSocketMsg(SendAsync, json);
-                    
-                }
-            });
+                module.HandleSocketMsg(sendAsync, json);
+            }
 
         }
 

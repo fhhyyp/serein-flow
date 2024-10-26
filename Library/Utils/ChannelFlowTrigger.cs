@@ -100,4 +100,14 @@ namespace Serein.Library.Utils
             return _channels.GetOrAdd(signal, _ => Channel.CreateUnbounded<(TriggerType, object)>());
         }
     }
+
+
+
+
+
+
+
+
+
+
 }
