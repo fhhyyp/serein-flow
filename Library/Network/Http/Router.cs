@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Serein.Library.Api;
+using Serein.Library.Network;
 using Serein.Library.Utils;
 using System;
 using System.Collections;
@@ -36,177 +37,6 @@ namespace Serein.Library.Web
     }
 
 
-    /// <summary>
-    /// api请求处理模块
-    /// </summary>
-    public class ApiHandleConfig
-    {
-        private readonly DelegateDetails delegateDetails;
-
-        /// <summary>
-        /// Post请求处理方法中，入参参数类型
-        /// </summary>
-        public enum PostArgType
-        {
-            /// <summary>
-            /// 不做处理
-            /// </summary>
-            None,   
-            /// <summary>
-            /// 使用Url参数
-            /// </summary>
-            IsUrlData,
-            /// <summary>
-            /// 使用整体的Boby参数
-            /// </summary>
-            IsBobyData,
-        }
-
-        /// <summary>
-        /// 添加处理配置
-        /// </summary>
-        /// <param name="methodInfo"></param>
-        public ApiHandleConfig(MethodInfo methodInfo)
-        {
-            delegateDetails = new DelegateDetails(methodInfo);
-            var parameterInfos = methodInfo.GetParameters();
-            ParameterType = parameterInfos.Select(t => t.ParameterType).ToArray();
-            ParameterName = parameterInfos.Select(t => t.Name.ToLower()).ToArray();
-
-            PostArgTypes = parameterInfos.Select(p =>
-            {
-                bool isUrlData = p.GetCustomAttribute(typeof(UrlAttribute)) != null;
-                bool isBobyData = p.GetCustomAttribute(typeof(BobyAttribute)) != null;
-                if (isBobyData)
-                {
-                    return PostArgType.IsBobyData;
-                }
-                else if (isUrlData)
-                {
-                    return PostArgType.IsUrlData;
-                }
-                else
-                {
-                    return PostArgType.None;
-                }
-            }).ToArray();
-
-
-         
-        }
-        private readonly PostArgType[] PostArgTypes; 
-        private readonly string[] ParameterName;
-        private readonly Type[] ParameterType;
-
-        /// <summary>
-        /// 处理Get请求
-        /// </summary>
-        /// <param name="instance"></param>
-        /// <param name="routeData"></param>
-        /// <returns></returns>
-        public async Task<object> HandleGet(object instance, Dictionary<string, string> routeData)
-        {
-            object[] args = new object[ParameterType.Length];
-            for (int i = 0; i < ParameterType.Length; i++)
-            {
-                var type = ParameterType[i];
-                var argName = ParameterName[i];
-                if (routeData.TryGetValue(argName, out var argValue))
-                {
-                    if (type == typeof(string))
-                    {
-                        args[i] = argValue;
-                    }
-                    else // if (type.IsValueType)
-                    {
-                        args[i] = JsonConvert.DeserializeObject(argValue, type);
-                    }
-                }
-                else
-                {
-                    args[i] = type.IsValueType ? Activator.CreateInstance(type) : null;
-                }
-                
-            }
-            object result = null;
-            try
-            {
-                result = await delegateDetails.InvokeAsync(instance, args);
-            }
-            catch (Exception ex)
-            {
-                result = null;
-                await Console.Out.WriteLineAsync(ex.Message);
-            }
-            return result;
-        }
-
-        /// <returns></returns>
-        public async Task<object> HandlePost(object instance, JObject jsonObject, Dictionary<string, string> routeData)
-        {
-            object[] args = new object[ParameterType.Length];
-            for (int i = 0; i < ParameterType.Length; i++)
-            {
-                var type = ParameterType[i];
-                var argName = ParameterName[i];
-                if (PostArgTypes[i] == PostArgType.IsUrlData)
-                {
-                    if (routeData.TryGetValue(argName, out var argValue))
-                    {
-                        if (type == typeof(string))
-                        {
-                            args[i] = argValue;
-                        }
-                        else // if (type.IsValueType)
-                        {
-                            args[i] = JsonConvert.DeserializeObject(argValue, type);
-                        }
-                    }
-                    else
-                    {
-                        args[i] = type.IsValueType ? Activator.CreateInstance(type) : null;
-                    }
-                }
-                else if (PostArgTypes[i] == PostArgType.IsBobyData)
-                {
-                    args[i] = jsonObject;
-                }
-                else
-                {
-                    var jsonValue = jsonObject.GetValue(argName);
-                    if (jsonValue is null)
-                    {
-                        // 值类型返回默认值，引用类型返回null
-                        args[i] = type.IsValueType ? Activator.CreateInstance(type) : null;
-                    }
-                    else
-                    {
-                        args[i] = jsonValue.ToObject(type);
-                    }
-                }
-                
-               
-            }
-
-            object result = null;
-            try
-            {
-                result = await delegateDetails.InvokeAsync(instance, args);
-            }
-            catch (Exception ex)
-            {
-                result = null;
-                await Console.Out.WriteLineAsync(ex.Message);
-
-            }
-            return result;
-
-        }
-
-        
-    }
-
-
 
 
 
@@ -231,8 +61,6 @@ namespace Serein.Library.Web
 
 
         private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ApiHandleConfig>> HandleModels = new ConcurrentDictionary<string, ConcurrentDictionary<string, ApiHandleConfig>>();
-
-
 
         public Router(ISereinIOC SereinIOC)
         {
@@ -302,21 +130,19 @@ namespace Serein.Library.Web
         public async Task<bool> ProcessingAsync(HttpListenerContext context)
         {
             var request = context.Request; // 获取请求对象
-            var response = context.Response; // 获取响应对象
-            var url = request.Url; // 获取请求的 URL
-            var httpMethod = request.HttpMethod; // 获取请求的 HTTP 方法
-            var template = request.Url.AbsolutePath.ToLower();
+            var template = request.Url.AbsolutePath.ToLower(); 
             if (!_controllerTypes.TryGetValue(template, out Type controllerType))
             {
-                return false;
+                return false; // 没有对应的方法
             }
+            var httpMethod = request.HttpMethod; // 获取请求的 HTTP 方法
             if (!HandleModels.TryGetValue(httpMethod, out var modules))
             {
-                return false;
+                return false; // 没有对应的处理模块
             }
             if (!modules.TryGetValue(template, out var config))
             {
-                return false;
+                return false; // 没有对应的处理配置
             }
 
             ControllerBase controllerInstance = (ControllerBase)SereinIOC.Instantiate(controllerType);
@@ -326,25 +152,30 @@ namespace Serein.Library.Web
                 return false; // 未找到控制器实例
             }
 
-            object invokeResult;
+
+            var url = request.Url; // 获取请求的完整URL
             var routeValues = GetUrlData(url); // 解析 URL 获取路由参数
             controllerInstance.Url = url.AbsolutePath;
+
+            object[] args;
             switch (httpMethod) 
             {
                 case "GET":
-                     invokeResult = await config.HandleGet(controllerInstance, routeValues);
+                    args = config.GetArgsOfGet(routeValues); // Get请求
                     break;
                 case "POST":
                     var requestBody = await ReadRequestBodyAsync(request); // 读取请求体内容
                     controllerInstance.BobyData = requestBody;
                     var requestJObject = JObject.Parse(requestBody);
-                    invokeResult = await config.HandlePost(controllerInstance,  requestJObject,  routeValues);
+                    args = config.GetArgsOfPost(routeValues, requestJObject); // Post请求
                     break;
                 default:
-                    invokeResult = null;
-                    break;
+                    return false;
             }
-            Return(response, invokeResult); // 返回结果
+            var invokeResult = await config.HandleAsync(controllerInstance, args);
+
+            var response = context.Response; // 获取响应对象
+            ResponseApiMsg(response, invokeResult); // 返回结果
             return true;
 
         }
@@ -371,7 +202,7 @@ namespace Serein.Library.Web
         /// </summary>
         /// <param name="response"></param>
         /// <param name="msg"></param>
-        private static void Return(HttpListenerResponse response, object msg)
+        private static void ResponseApiMsg(HttpListenerResponse response, object msg)
         {
             string resultData;
             if (response != null)

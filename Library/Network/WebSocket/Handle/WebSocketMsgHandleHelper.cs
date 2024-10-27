@@ -16,6 +16,7 @@ using System.Linq.Expressions;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Serein.Library.Network.WebSocketCommunication.Handle
 {
@@ -39,16 +40,14 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// <summary>
         /// 添加消息处理与异常处理
         /// </summary>
-        /// <param name="themeKeyName"></param>
-        /// <param name="dataKeyName"></param>
-        /// <param name="msgIdKeyName"></param>
+        /// <param name="moduleConfig">模块配置</param>
         /// <returns></returns>
-        private WebSocketHandleModule AddMyHandleModule(string themeKeyName, string dataKeyName, string msgIdKeyName)
+        private WebSocketHandleModule AddMyHandleModule(WebSocketHandleModuleConfig moduleConfig)
         {
-            var key = (themeKeyName, dataKeyName);
+            var key = (moduleConfig.ThemeJsonKey, moduleConfig.DataJsonKey);
             if (!MyHandleModuleDict.TryGetValue(key, out var myHandleModule))
             {
-                myHandleModule = new WebSocketHandleModule(themeKeyName, dataKeyName, msgIdKeyName);
+                myHandleModule = new WebSocketHandleModule(moduleConfig);
                 MyHandleModuleDict[key] = myHandleModule;
             }
             return myHandleModule;
@@ -95,34 +94,75 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
             var themeKey = moduleAttribute.ThemeKey;
             var dataKey = moduleAttribute.DataKey;
             var msgIdKey = moduleAttribute.MsgIdKey;
-            
-            var handleModule = AddMyHandleModule(themeKey, dataKey, msgIdKey);
-            var methods = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-                .Select(method =>
+            var moduleConfig = new WebSocketHandleModuleConfig()
+            {
+                ThemeJsonKey = themeKey,
+                DataJsonKey = dataKey,
+                MsgIdJsonKey = msgIdKey,
+            };
+
+            var handleModule = AddMyHandleModule(moduleConfig);
+            var configs = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                .Select<MethodInfo, WebSocketHandleConfiguration>(methodInfo =>
                 {
-                    var methodsAttribute = method.GetCustomAttribute<AutoSocketHandleAttribute>();
+                    var methodsAttribute = methodInfo.GetCustomAttribute<AutoSocketHandleAttribute>();
                     if (methodsAttribute is null)
                     {
-                        return (null, null,false);
+                        return null;
                     }
                     else
                     {
                         if (string.IsNullOrEmpty(methodsAttribute.ThemeValue))
                         {
-                            methodsAttribute.ThemeValue = method.Name;
+                            methodsAttribute.ThemeValue = methodInfo.Name;
                         }
-                        var model = new SocketHandleModule
+
+                        #region 生成处理配置
+                        var config = new WebSocketHandleConfiguration
                         {
                             IsReturnValue = methodsAttribute.IsReturnValue,
                             ThemeValue = methodsAttribute.ThemeValue,
+                            ArgNotNull = methodsAttribute.ArgNotNull,
                         };
+                        var parameterInfos = methodInfo.GetParameters();
+
+                        config.DelegateDetails = new DelegateDetails(methodInfo); // 对应theme的emit构造委托调用工具类
+                        config.Instance = socketControlBase; // 调用emit委托时的实例
+                        config.OnExceptionTracking = onExceptionTracking; // 异常追踪
+                        config.ParameterType = parameterInfos.Select(t => t.ParameterType).ToArray(); // 入参参数类型
+                        config.ParameterName = parameterInfos.Select(t => t.Name).ToArray(); // 入参参数名称
+                        config.UseData = parameterInfos.Select(p => p.GetCustomAttribute<UseDataAttribute>() != null).ToArray(); // 是否使用整体data数据
+                        config.UseMsgId = parameterInfos.Select(p => p.GetCustomAttribute<UseMsgIdAttribute>() != null).ToArray(); // 是否使用消息ID
+#if NET5_0_OR_GREATER
+                        config.IsCheckArgNotNull = parameterInfos.Select(p => p.GetCustomAttribute<NotNullAttribute>() != null).ToArray(); // 是否检查null
+#endif
+
+                        if (config.IsCheckArgNotNull is null)
+                        {
+                            config.IsCheckArgNotNull = parameterInfos.Select(p => p.GetCustomAttribute<NeedfulAttribute>() != null).ToArray(); // 是否检查null
+                        }
+                        else
+                        {
+                            // 兼容两种非空特性的写法
+                            var argNotNull = parameterInfos.Select(p => p.GetCustomAttribute<NeedfulAttribute>() != null).ToArray(); // 是否检查null
+                            for (int i = 0; i < config.IsCheckArgNotNull.Length; i++)
+                            {
+                                if (!config.IsCheckArgNotNull[i] && argNotNull[i])
+                                {
+                                    config.IsCheckArgNotNull[i] = true;
+                                }
+                            }
+                        } 
+                        #endregion
+
+
                         var value = methodsAttribute.ThemeValue;
-                        var argNotNull = methodsAttribute.ArgNotNull;
-                        return (model, method, argNotNull);
+
+                        return config;
                     }
                 })
-                .Where(x => !(x.model is null)).ToList();
-            if (methods.Count == 0)
+                .Where(config => config != null).ToList();
+            if (configs.Count == 0)
             {
                 return;
             }
@@ -131,23 +171,10 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
 
             Console.WriteLine($"add websocket handle model :");
             Console.WriteLine($"theme key, data key : {themeKey}, {dataKey}");
-            foreach ((var module, var method,var argNotNull) in methods)
+            foreach (var config in configs)
             {
-                Console.WriteLine($"theme value  : {module.ThemeValue}");
-                try
-                {
-                    var jsonMsgHandleConfig = new JsonMsgHandleConfig(module, socketControlBase, method, onExceptionTracking, argNotNull);
-                    var result = handleModule.AddHandleConfigs(module,jsonMsgHandleConfig);
-                    if (!result) 
-                    {
-                        throw new Exception("添加失败，已经添加过相同的配置");
-                    }
-                }
-                catch (Exception ex)
-                {
-
-                    Console.WriteLine($"error in add method: {method.Name}{Environment.NewLine}{ex}");
-                }
+                Console.WriteLine($"theme value  : {config.ThemeValue} ");
+                var result = handleModule.AddHandleConfigs(config);
             }
 
         }
@@ -155,18 +182,19 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// <summary>
         /// 异步处理消息
         /// </summary>
-        /// <param name="sendAsync"></param>
-        /// <param name="message"></param>
+        /// <param name="context">此次请求的上下文</param>
         /// <returns></returns>
-        public void HandleMsg(Func<string, Task> sendAsync, string message)
+        public void HandleMsg(WebSocketMsgContext context)
         {
-            JObject json = JObject.Parse(message);
+            // OnExceptionTracking
             foreach (var module in MyHandleModuleDict.Values)
             {
-                module.HandleSocketMsg(sendAsync, json);
+                module.HandleSocketMsg(context);
             }
 
         }
+
+
 
 
 

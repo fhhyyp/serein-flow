@@ -182,9 +182,6 @@ namespace Serein.Workbench
         /// </summary>
         private void InitFlowEnvironmentEvent()
         {
-
-            // 获取实现类的类型
-            var implementationType = EnvDecorator.CurrentEnv.GetType().Name;
             EnvDecorator.OnDllLoad += FlowEnvironment_DllLoadEvent;
             EnvDecorator.OnProjectLoaded += FlowEnvironment_OnProjectLoaded;
             EnvDecorator.OnStartNodeChange += FlowEnvironment_StartNodeChangeEvent;
@@ -2604,9 +2601,13 @@ namespace Serein.Workbench
                 if (isConnect)
                 {
                     // 连接成功，加载远程项目
-                    var flowEnvInfo = await EnvDecorator.GetEnvInfoAsync();
-                    await Task.Delay(1000);
-                    EnvDecorator.LoadProject(flowEnvInfo, string.Empty);// 加载远程环境的项目
+                    _ = Task.Run(async () =>
+                    {
+                        var flowEnvInfo = await EnvDecorator.GetEnvInfoAsync();
+                        EnvDecorator.LoadProject(flowEnvInfo, string.Empty);// 加载远程环境的项目
+
+                    });
+                   
                 }
             });
             windowEnvRemoteLoginView.Show();

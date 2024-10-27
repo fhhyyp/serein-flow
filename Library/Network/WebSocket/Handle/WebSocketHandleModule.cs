@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 
 namespace Serein.Library.Network.WebSocketCommunication.Handle
 {
+
     /// <summary>
     /// Json消息处理模块
     /// </summary>
@@ -19,43 +20,35 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// <summary>
         /// Json消息处理模块
         /// </summary>
-        public WebSocketHandleModule(string themeJsonKey, string dataJsonKey, string msgIdJsonKey)
+        public WebSocketHandleModule(WebSocketHandleModuleConfig config)
         {
-            this.ThemeJsonKey = themeJsonKey;
-            this.DataJsonKey = dataJsonKey;
-            this.MsgIdJsonKey = msgIdJsonKey;
+           this.moduleConfig = config;
         }
 
         /// <summary>
-        /// 指示处理模块该使用 Json 中的哪个 Key 作为业务区别字段
+        /// 模块的处理配置
         /// </summary>
-        public string ThemeJsonKey { get; }
+        private readonly WebSocketHandleModuleConfig moduleConfig;
 
         /// <summary>
-        /// 指示处理模块该使用 Json 中的哪个 Key 作为业务数据字段
+        /// 用来判断消息是否重复
         /// </summary>
-        public string DataJsonKey { get; }
-        
-        /// <summary>
-        /// 指示处理模块该使用 Json 中的哪个 Key 作为业务消息ID字段
-        /// </summary>
-        public string MsgIdJsonKey { get; }
-
+        private HashSet<string> _myMsgIdHash = new HashSet<string>();
         /// <summary>
         /// 存储处理数据的配置
         /// </summary>
-        public ConcurrentDictionary<string, JsonMsgHandleConfig> MyHandleConfigs = new ConcurrentDictionary<string, JsonMsgHandleConfig>();
+        public ConcurrentDictionary<string, HandleConfiguration> MyHandleConfigs = new ConcurrentDictionary<string, HandleConfiguration>();
+
 
         /// <summary>
         /// 添加处理配置
         /// </summary>
-        /// <param name="module">处理模块</param>
-        /// <param name="jsonMsgHandleConfig">处理配置</param>
-        internal bool AddHandleConfigs(SocketHandleModule module,JsonMsgHandleConfig jsonMsgHandleConfig)
+        /// <param name="config">处理模块</param>
+        internal bool AddHandleConfigs(WebSocketHandleConfiguration config)
         {
-            if (!MyHandleConfigs.ContainsKey(module.ThemeValue))
+            if (!MyHandleConfigs.ContainsKey(config.ThemeValue))
             {
-                MyHandleConfigs[module.ThemeValue] = jsonMsgHandleConfig;
+                MyHandleConfigs[config.ThemeValue] = config;
                 return true;
             }
             else
@@ -74,7 +67,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
             foreach (var kv in MyHandleConfigs.ToArray())
             {
                 var config = kv.Value;
-                if (config.HandleGuid.Equals(socketControlBase.HandleGuid))
+                if (config.Instance.HandleGuid.Equals(socketControlBase.HandleGuid))
                 {
                     MyHandleConfigs.TryRemove(kv.Key, out _);
                 }
@@ -91,38 +84,42 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
             MyHandleConfigs.Clear();
         }
 
-        private HashSet<string> _myMsgIdHash = new HashSet<string>();
+       
 
         /// <summary>
         /// 处理JSON数据
         /// </summary>
-        /// <param name="sendAsync"></param>
-        /// <param name="jsonObject"></param>
-        public void HandleSocketMsg(Func<string, Task> sendAsync, JObject jsonObject)
+        public async void HandleSocketMsg(WebSocketMsgContext context) // Func<string, Task> sendAsync, JObject jsonObject
         {
-            // 获取到消息
-            string theme = jsonObject.GetValue(ThemeJsonKey)?.ToString();
+            
+            var jsonObject = context.JsonObject; // 获取到消息
+            string theme = jsonObject.GetValue(moduleConfig.ThemeJsonKey)?.ToString();
             if (!MyHandleConfigs.TryGetValue(theme, out var handldConfig))
             {
-                // 没有主题
-                return;
+                return; // 没有主题
             }
-            string msgId = jsonObject.GetValue(MsgIdJsonKey)?.ToString();
+            context.MsgTheme = theme; // 添加主题
+            string msgId = jsonObject.GetValue(moduleConfig.MsgIdJsonKey)?.ToString();
             if (_myMsgIdHash.Contains(msgId))
             {
                 Console.WriteLine($"[{msgId}]{theme} 消息重复");
                 return;
             }
+            context.MsgId = msgId; // 添加 ID
             _myMsgIdHash.Add(msgId);
 
             try
             {
-                JObject dataObj = jsonObject.GetValue(DataJsonKey)?.ToObject<JObject>();
-                handldConfig.Handle(async (data) =>
+                var dataObj = jsonObject.GetValue(moduleConfig.DataJsonKey)?.ToObject<JObject>();
+                context.MsgData = dataObj; // 添加消息
+                if (TryGetParameters(handldConfig, context, out var args))
                 {
-                    await this.SendAsync(sendAsync, msgId, theme, data);
-                }, msgId, dataObj);
-
+                    var result =  await WebSocketHandleModule.HandleAsync(handldConfig, args);
+                    if (handldConfig.IsReturnValue)
+                    {
+                        await context.RepliedAsync(moduleConfig, context, result);
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -133,52 +130,130 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
 
 
         /// <summary>
-        /// 发送消息
+        /// 调用
         /// </summary>
-        /// <param name="sendAsync"></param>
-        /// <param name="msgId"></param>
-        /// <param name="theme"></param>
-        /// <param name="data"></param>
+        /// <param name="config"></param>
+        /// <param name="args"></param>
         /// <returns></returns>
-        public async Task SendAsync(Func<string, Task> sendAsync,string msgId, string theme, object data)
+        public static async Task<object> HandleAsync(HandleConfiguration config, object[] args)
         {
-            JObject jsonData;
+            var result = await config.DelegateDetails.InvokeAsync(config.Instance, args);
+            return result;
+        }
 
-            if (data is null)
+
+        /// <summary>
+        /// 获取入参参数
+        /// </summary>
+        /// <param name="config">处理配置</param>
+        /// <param name="context">处理上下文</param>
+        /// <param name="args">返回的入参参数</param>
+        /// <returns></returns>
+        internal static bool TryGetParameters(HandleConfiguration config,WebSocketMsgContext context, out object[] args)
+        {
+            args = new object[config.ParameterType.Length];
+            bool isCanInvoke = true; ; // 表示是否可以调用方法
+
+            for (int i = 0; i < config.ParameterType.Length; i++)
             {
-                jsonData = new JObject()
+                var type = config.ParameterType[i]; // 入参变量类型
+                var argName = config.ParameterName[i]; // 入参参数名称
+                #region 传递消息ID
+                if (config.UseMsgId[i])
                 {
-                    [MsgIdJsonKey] = msgId,
-                    [ThemeJsonKey] = theme,
-                };
-            }
-            else
-            {
-                
-                    JToken dataToken;
-                    if ((data is System.Collections.IEnumerable || data is Array))
+                    args[i] = context.MsgId;
+                }
+                #endregion
+                #region DATA JSON数据
+                else if (config.UseData[i])
+                {
+                    args[i] = context.MsgData.ToObject(type);
+                }
+                #endregion
+                #region 值类型参数
+                else if (type.IsValueType)
+                {
+                    var jsonValue = context.MsgData.GetValue(argName);
+                    if (!(jsonValue is null))
                     {
-                        dataToken = JArray.FromObject(data);
+                        args[i] = jsonValue.ToObject(type);
                     }
                     else
                     {
-                        dataToken = JObject.FromObject(data);
+                        if (config.ArgNotNull && !config.IsCheckArgNotNull[i]) // 检查不能为空
+                        {
+
+                            args[i] = Activator.CreateInstance(type); // 值类型返回默认值
+                        }
+                        else
+                        {
+                            isCanInvoke = false; // 参数不能为空，终止调用
+                            break;
+                        }
                     }
-
-                    jsonData = new JObject()
+                }
+                #endregion
+                #region 引用类型参数
+                else if (type.IsClass)
+                {
+                    var jsonValue = context.MsgData.GetValue(argName);
+                    if (!(jsonValue is null))
                     {
-                        [MsgIdJsonKey] = msgId,
-                        [ThemeJsonKey] = theme,
-                        [DataJsonKey] = dataToken
-                    };
-                
-               
-            }
+                        args[i] = jsonValue.ToObject(type);
+                    }
+                    else
+                    {
+                        if (config.ArgNotNull && !config.IsCheckArgNotNull[i])
+                        {
 
-            var msg = jsonData.ToString();
-            
-            
-            await sendAsync.Invoke(msg);
+                            args[i] = null; // 引用类型返回null
+                        }
+                        else
+                        {
+                            isCanInvoke = false; // 参数不能为空，终止调用
+                            break;
+                        }
+                    }
+                }
+                #endregion
+                #region 传递消息委托
+                else if (type.IsGenericType) // 传递SendAsync委托
+                {
+                    if (type.IsAssignableFrom(typeof(Func<object, Task>)))
+                    {
+                        args[i] = new Func<object, Task>(async data =>
+                        {
+                            var jsonText = JsonConvert.SerializeObject(data);
+                            await context.SendAsync(jsonText);
+                        });
+                    }
+                    else if (type.IsAssignableFrom(typeof(Func<string, Task>)))
+                    {
+                        args[i] = new Func<string, Task>(async data =>
+                        {
+                            await context.SendAsync(data);
+                        });
+                    }
+                    else if (type.IsAssignableFrom(typeof(Action<object>)))
+                    {
+                        args[i] = new Action<object>(async data =>
+                        {
+                            var jsonText = JsonConvert.SerializeObject(data);
+                            await context.SendAsync(jsonText);
+                        });
+                    }
+                    else if (type.IsAssignableFrom(typeof(Action<string>)))
+                    {
+                        args[i] = new Action<string>(async data =>
+                        {
+                            var jsonText = JsonConvert.SerializeObject(data);
+                            await context.SendAsync(jsonText);
+                        });
+                    }
+                }
+                #endregion
+            }
+            return isCanInvoke;
         }
 
 

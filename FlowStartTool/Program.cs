@@ -62,7 +62,7 @@ namespace Serein.FlowStartTool
             }
 
             IsRuning = true;
-            _ = StartFlow(flowProjectData, fileDataPath);
+            _ = Task.Run(async () => await StartFlow(flowProjectData, fileDataPath));
             while (IsRuning)
             {
                 Console.ReadKey();

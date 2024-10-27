@@ -152,7 +152,7 @@ namespace Serein.Library.Network.WebSocketCommunication
                         }
 
                         var webSocketContext = await context.AcceptWebSocketAsync(null); //新连接
-                        _ = HandleWebSocketAsync(webSocketContext.WebSocket, authorizedHelper); // 处理消息
+                         _ = HandleWebSocketAsync(webSocketContext.WebSocket, authorizedHelper); // 处理消息
                     }
                 }
                 catch (Exception ex)
@@ -231,17 +231,13 @@ namespace Serein.Library.Network.WebSocketCommunication
 
 
         public async Task HandleMsgAsync(WebSocket webSocket,
-                                    MsgQueueUtil msgQueueUtil, 
-                                    WebSocketAuthorizedHelper authorizedHelper)
+                                         MsgQueueUtil msgQueueUtil, 
+                                         WebSocketAuthorizedHelper authorizedHelper)
         {
 
             while (true)
             {
                 var message = await msgQueueUtil.WaitMsgAsync();  // 有消息时通知
-                //if (!msgQueueUtil.TryGetMsg(out var message)) // 获取消息
-                //{
-                //    return;
-                //}
                 if (IsCheckToken)
                 {
                     var authorizedResult = await authorizedHelper.HandleAuthorized(message); // 尝试检测授权
@@ -255,11 +251,17 @@ namespace Serein.Library.Network.WebSocketCommunication
                         return;
                     }
                 }
-                // 消息处理
-                MsgHandleHelper.HandleMsg(async (text) =>
-                {
-                    await SocketExtension.SendAsync(webSocket, text); // 回复客户端，处理方法中入参如果需要发送消息委托，则将该回调方法作为委托参数传入
-                }, message); // 处理消息
+               
+                _ = Task.Run(() => {
+                    JObject json = JObject.Parse(message);
+                    WebSocketMsgContext context = new WebSocketMsgContext(async (text) =>
+                    {
+                        await SocketExtension.SendAsync(webSocket, text); // 回复客户端，处理方法中入参如果需要发送消息委托，则将该回调方法作为委托参数传入
+                    });
+                    context.JsonObject = json;
+                    MsgHandleHelper.HandleMsg(context); // 处理消息
+                });
+                
 
             }
             

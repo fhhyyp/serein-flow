@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using static System.Net.Mime.MediaTypeNames;
+using Newtonsoft.Json.Linq;
 
 namespace Serein.Library.Network.WebSocketCommunication
 {
@@ -60,10 +61,10 @@ namespace Serein.Library.Network.WebSocketCommunication
         /// <returns></returns>
         public async Task SendAsync(string message)
         {
-            Console.WriteLine("发送消息");
-            await Task.Delay(2000);
+            //Console.WriteLine("发送消息");
+            //await Task.Delay(2000);
             await SocketExtension.SendAsync(this._client, message); // 回复客户端
-            Console.WriteLine();
+            //Console.WriteLine();
             //var buffer = Encoding.UTF8.GetBytes(message);
             //await _client.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
         }
@@ -132,15 +133,17 @@ namespace Serein.Library.Network.WebSocketCommunication
             while (true)
             {
                 var message = await msgQueueUtil.WaitMsgAsync();  // 有消息时通知
-                                                                  //if (!msgQueueUtil.TryGetMsg(out var message)) // 获取消息
-                                                                  //{
-                                                                  //    return;
-                                                                  //}
-                                                                  // 消息处理
-                MsgHandleHelper.HandleMsg(async (text) =>
-                {
-                    await SocketExtension.SendAsync(webSocket, text); // 回复客户端，处理方法中入参如果需要发送消息委托，则将该回调方法作为委托参数传入
-                }, message); // 处理消息
+
+
+                _ = Task.Run(() => {
+                    JObject json = JObject.Parse(message);
+                    WebSocketMsgContext context = new WebSocketMsgContext(async (text) =>
+                    {
+                        await SocketExtension.SendAsync(webSocket, text); // 回复客户端，处理方法中入参如果需要发送消息委托，则将该回调方法作为委托参数传入
+                    });
+                    context.JsonObject = json;
+                    MsgHandleHelper.HandleMsg(context); // 处理消息
+                });
 
             }
 

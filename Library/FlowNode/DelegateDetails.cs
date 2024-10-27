@@ -82,7 +82,6 @@ namespace Serein.Library
                 else if (_emitMethodType == EmitMethodType.Task && _emitDelegate is Func<object, object[], Task> task)
                 {
                     await task.Invoke(instance, args);
-                    result = null;
                 }
                 else if (_emitMethodType == EmitMethodType.Func && _emitDelegate is Func<object, object[], object> func)
                 {

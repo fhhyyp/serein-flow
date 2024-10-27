@@ -150,7 +150,7 @@ namespace Serein.Library.Utils
                 };
             }
             var msg = jsonData.ToString();
-            Console.WriteLine($"[{msgId}] => {theme}");
+            //Console.WriteLine($"[{msgId}] => {theme}");
             await EnvClient.SendAsync(msg);
         }
 
