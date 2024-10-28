@@ -67,8 +67,10 @@ namespace Serein.Workbench.Node.View
             hitVisiblePen = new Pen(Brushes.Transparent, 1.0); // 初始化碰撞检测线
             hitVisiblePen.Freeze(); // Freeze以提高性能
             visualPen = new Pen(brush, 3.0); // 默认可视化Pen
+            opacity = 1.0d;
             if (isDotted)
             {
+                opacity = 0.42d;
                 visualPen.DashStyle = DashStyles.Dash; // 选择虚线样式
             }
             visualPen.Freeze(); // Freeze以提高性能
@@ -112,6 +114,7 @@ namespace Serein.Workbench.Node.View
             startPoint = point;
             InvalidateVisual(); // 触发重绘
         }
+
         /// <summary>
         /// 控件重绘事件
         /// </summary>
@@ -142,6 +145,8 @@ namespace Serein.Workbench.Node.View
         private Point startPoint; // 连接线的起始节点
         private Point endPoint; // 连接线的终点
         private Brush brush; // 线条颜色
+        private double opacity; // 透明度
+
         double linkSize;  // 根据缩放比例调整线条粗细
         protected override Geometry DefiningGeometry => streamGeometry;
         
@@ -161,7 +166,7 @@ namespace Serein.Workbench.Node.View
         {
             // 控制点的计算逻辑
             double power = 140;  // 控制贝塞尔曲线的“拉伸”强度
-
+            drawingContext.PushOpacity(opacity);
             // 计算轴向向量与起点到终点的向量
             //var axis = new Vector(1, 0);
             startToEnd = (end.ToVector() - start.ToVector()).NormalizeTo();
@@ -184,6 +189,7 @@ namespace Serein.Workbench.Node.View
                 context.BezierTo(c0, c1, end, true, false); // 画贝塞尔曲线
             }
             drawingContext.DrawGeometry(null, visualPen, streamGeometry);
+            
         }
         
 
