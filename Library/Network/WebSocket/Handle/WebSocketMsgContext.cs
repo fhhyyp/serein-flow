@@ -11,22 +11,27 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
     /// <summary>
     /// 消息处理上下文
     /// </summary>
-    public class WebSocketMsgContext
+    public class WebSocketMsgContext : IDisposable
     {
         public WebSocketMsgContext(Func<string, Task> sendAsync)
         {
             this._sendAsync = sendAsync;
         }
 
+
+        public void Dispose()
+        {
+            JsonObject = null;
+            MsgTheme = null;
+            MsgId = null;
+            MsgData = null;
+            MsgData = null;
+            _sendAsync = null;
+        }
         /// <summary>
         /// 标记是否已经处理，如果是，则提前退出
         /// </summary>
         public bool Handle { get; set; }
-
-        /// <summary>
-        /// 消息本体（文本）
-        /// </summary>
-        public string Msg { get; set; }
 
         /// <summary>
         /// 消息本体（JObject）
@@ -107,6 +112,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
             await SendAsync(msg);
         }
 
+        
     }
 
 }

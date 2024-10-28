@@ -2,6 +2,7 @@
 using Newtonsoft.Json;
 using Serein.Library;
 using Serein.Library.Api;
+using Serein.Library.Core.NodeFlow;
 using Serein.Library.FlowNode;
 using Serein.Library.Utils;
 using Serein.Library.Utils.SereinExpression;
@@ -407,21 +408,18 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// 单独运行一个节点
         /// </summary>
-        /// <param name="context"></param>
         /// <param name="nodeGuid"></param>
         /// <returns></returns>
         public async Task<object> InvokeNodeAsync(string nodeGuid)
         {
-
-
-            if(this.NodeModels.TryGetValue(nodeGuid, out var model))
+            IDynamicContext context = new DynamicContext(this);
+            object result = true;
+            if (this.NodeModels.TryGetValue(nodeGuid, out var model))
             {
-                return await model.InvokeAsync(this);
+                result =  await model.InvokeAsync(context);
             }
-            else
-            {
-                return null;
-            }
+            context.Exit();
+            return result;
         }
 
         /// <summary>

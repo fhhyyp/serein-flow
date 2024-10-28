@@ -13,7 +13,7 @@ namespace Serein.FlowStartTool
     {
         public static void Main(string[] args)
         {
-#if true
+#if debug
             args = [@"F:\临时\project\linux\project.dnf"];
 #endif
 

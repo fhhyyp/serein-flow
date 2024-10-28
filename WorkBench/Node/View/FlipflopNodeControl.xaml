@@ -29,34 +29,79 @@
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <StackPanel Grid.Row="0" Orientation="Horizontal" Background="#FCB334">
+            <Grid Grid.Row="0" Background="#FCB334" >
+                <!--<Grid Grid.Row="0" >-->
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="3*"/>
+                    <RowDefinition/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="auto"/>
+                </Grid.ColumnDefinitions>
+
+                <local:ExecuteJunctionControl  Grid.Column="0"  MyNode="{Binding NodeModel}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
+                <StackPanel Grid.Column="1" Grid.RowSpan="2" >
+                    <TextBlock   Text="{Binding NodeModel.MethodDetails.MethodTips, Mode=TwoWay}" HorizontalAlignment="Center"/>
+                </StackPanel>
+                <local:NextStepJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}"  x:Name="NextStepJunctionControl" HorizontalAlignment="Right" Grid.RowSpan="2"/>
+
+            </Grid>
+            
+            <!--<StackPanel Grid.Row="0" Orientation="Horizontal" Background="#FCB334">
                 <CheckBox  IsChecked="{Binding NodeModel.DebugSetting.IsEnable, Mode=TwoWay}" VerticalContentAlignment="Center"/>
                 <CheckBox  IsChecked="{Binding NodeModel.MethodDetails.IsProtectionParameter, Mode=TwoWay}" VerticalContentAlignment="Center"/>
 
                 <TextBlock  Text="{Binding NodeModel.MethodDetails.MethodTips, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </StackPanel>
-            
-            <themes:MethodDetailsControl Grid.Row="1" MethodDetails="{Binding NodeModel.MethodDetails}" />
+            </StackPanel>-->
 
-            <Border Grid.Row="1" x:Name="ParameterProtectionMask" Background="LightBlue" Opacity="0.5" BorderBrush="#0A4651" BorderThickness="0" 
+            <themes:MethodDetailsControl x:Name="MethodDetailsControl" Grid.Row="1" MethodDetails="{Binding NodeModel.MethodDetails}" />
+
+            <Border Grid.Row="2" x:Name="ParameterProtectionMask" Background="LightBlue" Opacity="0.5" BorderBrush="#0A4651" BorderThickness="0" 
                 Visibility="{Binding NodeModel.MethodDetails.IsProtectionParameter, Converter={StaticResource InvertedBoolConverter},ConverterParameter=Normal}" />
             <!--<Border  Grid.Row="0"  Background="#FCB334" >
                
             </Border>-->
             <!--<themes:ExplicitDataControl Grid.Row="1" ExplicitDatas="{Binding ExplicitDatas}" />-->
-            <Grid Grid.Row="2"  Background="#D5F0FC" >
+            <Grid Grid.Row="3"  Background="#D5F0FC" >
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="50"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="auto"/>
                 </Grid.ColumnDefinitions>
-                <Border Grid.Column="0" BorderThickness="1">
-                    <TextBlock Text="result"  HorizontalAlignment="Center"  VerticalAlignment="Center"/>
+                <Border Grid.Column="0"  BorderThickness="1">
+                    <TextBlock Text="result ->"  HorizontalAlignment="Center"  VerticalAlignment="Center" />
                 </Border>
-                <Border Grid.Column="1" BorderThickness="1">
-                    <TextBlock Text="{Binding NodeModel.MethodDetails.ReturnType}"  HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                <Border Grid.Column="1"  BorderThickness="1">
+                    <TextBlock Text="{Binding NodeModel.MethodDetails.ReturnType.FullName, Mode=OneTime}"  TextTrimming="CharacterEllipsis" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                 </Border>
+
+                <Border Grid.Column="2"  BorderThickness="1">
+                    <local:ResultJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}" x:Name="ResultJunctionControl" HorizontalAlignment="Right"/>
+                </Border>
+            </Grid>
+
+            <Grid Grid.Row="4" Background="Azure" >
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <CheckBox  Grid.Row="0" Grid.Column="0" IsChecked="{Binding NodeModel.DebugSetting.IsEnable, Mode=TwoWay}"/>
+                <TextBlock Grid.Row="0" Grid.Column="1" Text="是否使能" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                <CheckBox  Grid.Row="1" Grid.Column="0" IsChecked="{Binding NodeModel.MethodDetails.IsProtectionParameter, Mode=TwoWay}"/>
+                <TextBlock Grid.Row="1" Grid.Column="1" Text="参数保护" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                <CheckBox  Grid.Row="2" Grid.Column="0" IsChecked="{Binding NodeModel.DebugSetting.IsInterrupt, Mode=TwoWay}"/>
+                <TextBlock Grid.Row="2" Grid.Column="1" Text="中断节点" HorizontalAlignment="Left" VerticalAlignment="Center"/>
             </Grid>
             <!--<themes:ConditionControl Grid.Row="2" ></themes:ConditionControl>-->
         </Grid>

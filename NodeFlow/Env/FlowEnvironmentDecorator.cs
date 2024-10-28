@@ -364,9 +364,9 @@ namespace Serein.NodeFlow.Env
             await currentFlowEnvironment.StartAsyncInSelectNode(startNodeGuid);
         }
 
-        public async Task<object> InvokeNodeAsync(string nodeGuid)
+        public async Task<object> InvokeNodeAsync( string nodeGuid)
         {
-            return await currentFlowEnvironment.InvokeNodeAsync(nodeGuid);
+            return await currentFlowEnvironment.InvokeNodeAsync( nodeGuid);
         }
 
         public async Task StartRemoteServerAsync(int port = 7525)

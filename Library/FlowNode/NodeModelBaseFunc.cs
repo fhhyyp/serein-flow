@@ -263,9 +263,9 @@ namespace Serein.Library
         /// <summary>
         /// 执行单个节点对应的方法，并不做状态检查
         /// </summary>
-        /// <param name="env"></param>
+        /// <param name="context">运行时上下文</param>
         /// <returns></returns>
-        public virtual async Task<object> InvokeAsync(IFlowEnvironment env)
+        public virtual async Task<object> InvokeAsync(IDynamicContext context)
         {
             try
             {
@@ -274,16 +274,16 @@ namespace Serein.Library
                 {
                     throw new Exception($"不存在方法信息{md.MethodName}");
                 }
-                if (!env.TryGetDelegateDetails(md.MethodName, out var dd))
+                if (!Env.TryGetDelegateDetails(md.MethodName, out var dd))
                 {
                     throw new Exception($"不存在对应委托{md.MethodName}");
                 }
                 if (md.ActingInstance is null)
                 {
-                    md.ActingInstance = env.IOC.Get(md.ActingInstanceType);
+                    md.ActingInstance = Env.IOC.Get(md.ActingInstanceType);
                     if (md.ActingInstance is null)
                     {
-                        md.ActingInstance = env.IOC.Instantiate(md.ActingInstanceType);
+                        md.ActingInstance = Env.IOC.Instantiate(md.ActingInstanceType);
                         if (md.ActingInstance is null)
                         {
                             throw new Exception($"无法创建相应的实例{md.ActingInstanceType.FullName}");
@@ -291,7 +291,7 @@ namespace Serein.Library
                     }
                 }
 
-                object[] args = await GetParametersAsync(null, this, md);
+                object[] args = await GetParametersAsync(context, this, md);
                 var result = await dd.InvokeAsync(md.ActingInstance, args);
                 return result;
             }
@@ -368,7 +368,6 @@ namespace Serein.Library
                     else if (ed.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke)
                     {
                         // 立刻调用对应节点获取数据。
-                      
                         var result = await context.Env.InvokeNodeAsync(ed.ArgDataSourceNodeGuid);
                         inputParameter = result;
                     }

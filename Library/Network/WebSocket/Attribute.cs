@@ -25,8 +25,17 @@ namespace Serein.Library.Network.WebSocketCommunication
     [AttributeUsage(AttributeTargets.Class)]
     public sealed class AutoSocketModuleAttribute : Attribute
     {
+        /// <summary>
+        /// 业务标识
+        /// </summary>
         public string ThemeKey;
+        /// <summary>
+        /// 数据标识
+        /// </summary>
         public string DataKey;
+        /// <summary>
+        /// ID标识
+        /// </summary>
         public string MsgIdKey;
     }
 
@@ -55,10 +64,10 @@ namespace Serein.Library.Network.WebSocketCommunication
         public string ThemeValue = string.Empty;
         /// <summary>
         /// <para>标记方法执行完成后是否需要将结果发送。</para>
-        /// <para>但以下情况将不会发送：</para>
-        /// <para>1.返回类型为void</para>
-        /// <para>2.返回类型为Task</para>
-        /// <para>3.返回了null</para>
+        /// <para>注意以下返回值，返回的 json 中将不会新建 DataKey 字段：</para>
+        /// <para>1.返回类型为 void </para>
+        /// <para>2.返回类型为 Task </para>
+        /// <para>2.返回类型为 Unit </para>
         /// <para>补充：如果返回类型是Task&lt;TResult&gt;</para>
         /// <para>会进行异步等待，当Task结束后，自动获取TResult进行发送（请避免Task&lt;Task&lt;TResult&gt;&gt;诸如此类的Task泛型嵌套）</para>
         /// </summary>

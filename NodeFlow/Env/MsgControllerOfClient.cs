@@ -78,7 +78,7 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         /// <param name="msgId"></param>
         /// <param name="flowEnvInfo"></param>
-        [AutoSocketHandle(ThemeValue = EnvMsgTheme.GetEnvInfo)]
+        [AutoSocketHandle(ThemeValue = EnvMsgTheme.GetEnvInfo, IsReturnValue = false)]
         public void GetEnvInfo([UseMsgId] string msgId, [UseData] FlowEnvInfo flowEnvInfo)
         {
             remoteFlowEnvironment.TriggerSignal(msgId, flowEnvInfo);
@@ -90,19 +90,19 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         /// <param name="msgId"></param>
         /// <param name="sereinProjectData"></param>
-        [AutoSocketHandle(ThemeValue = EnvMsgTheme.GetProjectInfo)]
+        [AutoSocketHandle(ThemeValue = EnvMsgTheme.GetProjectInfo, IsReturnValue = false)]
         public void GetProjectInfo([UseMsgId] string msgId, [UseData] SereinProjectData sereinProjectData)
         {
             remoteFlowEnvironment.TriggerSignal(msgId, sereinProjectData);
         }
 
-        [AutoSocketHandle(ThemeValue = EnvMsgTheme.SetNodeInterrupt)]
+        [AutoSocketHandle(ThemeValue = EnvMsgTheme.SetNodeInterrupt, IsReturnValue = false)]
         public void SetNodeInterrupt([UseMsgId] string msgId)
         {
             remoteFlowEnvironment.TriggerSignal(msgId, null);
         }
 
-        [AutoSocketHandle(ThemeValue = EnvMsgTheme.AddInterruptExpression)]
+        [AutoSocketHandle(ThemeValue = EnvMsgTheme.AddInterruptExpression, IsReturnValue = false)]
         public void AddInterruptExpression([UseMsgId] string msgId)
         {
             remoteFlowEnvironment.TriggerSignal(msgId, null);
@@ -110,37 +110,37 @@ namespace Serein.NodeFlow.Env
 
 
 
-        [AutoSocketHandle(ThemeValue = EnvMsgTheme.CreateNode)]
+        [AutoSocketHandle(ThemeValue = EnvMsgTheme.CreateNode, IsReturnValue = false)]
         public void CreateNode([UseMsgId] string msgId, [UseData] NodeInfo nodeInfo)
         {
             remoteFlowEnvironment.TriggerSignal(msgId, nodeInfo);
         }
 
-        [AutoSocketHandle(ThemeValue = EnvMsgTheme.RemoveNode)]
+        [AutoSocketHandle(ThemeValue = EnvMsgTheme.RemoveNode, IsReturnValue = false)]
         public void RemoveNode([UseMsgId] string msgId, bool state)
         {
             remoteFlowEnvironment.TriggerSignal(msgId, state);
         }
 
-        [AutoSocketHandle(ThemeValue = EnvMsgTheme.ConnectInvokeNode)]
+        [AutoSocketHandle(ThemeValue = EnvMsgTheme.ConnectInvokeNode, IsReturnValue = false)]
         public void ConnectInvokeNode([UseMsgId] string msgId, bool state)
         {
             remoteFlowEnvironment.TriggerSignal(msgId, state);
         }
 
-        [AutoSocketHandle(ThemeValue = EnvMsgTheme.RemoveInvokeConnect)]
+        [AutoSocketHandle(ThemeValue = EnvMsgTheme.RemoveInvokeConnect, IsReturnValue = false)]
         public void RemoveInvokeConnect([UseMsgId] string msgId, bool state)
         {
             remoteFlowEnvironment.TriggerSignal(msgId, state);
         }
         
-        [AutoSocketHandle(ThemeValue = EnvMsgTheme.ConnectArgSourceNode)]
+        [AutoSocketHandle(ThemeValue = EnvMsgTheme.ConnectArgSourceNode, IsReturnValue = false)]
         public void ConnectArgSourceNode([UseMsgId] string msgId, bool state)
         {
             remoteFlowEnvironment.TriggerSignal(msgId, state);
         }
 
-        [AutoSocketHandle(ThemeValue = EnvMsgTheme.RemoveArgSourceConnect)]
+        [AutoSocketHandle(ThemeValue = EnvMsgTheme.RemoveArgSourceConnect, IsReturnValue = false)]
         public void RemoveArgSourceConnect([UseMsgId] string msgId, bool state)
         {
             remoteFlowEnvironment.TriggerSignal(msgId, state);

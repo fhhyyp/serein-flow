@@ -17,6 +17,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Diagnostics.CodeAnalysis;
+using System.Reactive;
 
 namespace Serein.Library.Network.WebSocketCommunication.Handle
 {
@@ -118,14 +119,30 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                         }
 
                         #region 生成处理配置
-                        var config = new WebSocketHandleConfiguration
-                        {
-                            IsReturnValue = methodsAttribute.IsReturnValue,
-                            ThemeValue = methodsAttribute.ThemeValue,
-                            ArgNotNull = methodsAttribute.ArgNotNull,
-                        };
-                        var parameterInfos = methodInfo.GetParameters();
+                        var config = new WebSocketHandleConfiguration();
 
+                        config.ThemeValue = methodsAttribute.ThemeValue;
+                        config.ArgNotNull = methodsAttribute.ArgNotNull;
+                        config.IsReturnValue = methodsAttribute.IsReturnValue;
+                        //if (config.IsReturnValue)
+                        //{
+                        //    // 重新检查是否能够返回
+                        //    if (methodInfo.ReturnType == typeof(void))
+                        //    {
+                        //        config.IsReturnValue = false;  // void 不返回
+                        //    }
+                        //    else if (methodInfo.ReturnType == typeof(Unit))
+                        //    {
+                        //        config.IsReturnValue = false; // Unit 不返回
+                        //    }
+                        //    else if (methodInfo.ReturnType == typeof(Task))
+                        //    {
+                        //        config.IsReturnValue = false; // void 不返回
+                        //    }
+                           
+                        //}
+                        var parameterInfos = methodInfo.GetParameters();
+                        
                         config.DelegateDetails = new DelegateDetails(methodInfo); // 对应theme的emit构造委托调用工具类
                         config.Instance = socketControlBase; // 调用emit委托时的实例
                         config.OnExceptionTracking = onExceptionTracking; // 异常追踪
@@ -184,12 +201,11 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// </summary>
         /// <param name="context">此次请求的上下文</param>
         /// <returns></returns>
-        public void HandleMsg(WebSocketMsgContext context)
+        public async Task HandleAsync(WebSocketMsgContext context)
         {
-            // OnExceptionTracking
             foreach (var module in MyHandleModuleDict.Values)
             {
-                module.HandleSocketMsg(context);
+               await module.HandleAsync(context);
             }
 
         }

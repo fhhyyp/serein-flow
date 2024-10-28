@@ -99,7 +99,30 @@ namespace Serein.Workbench.Node.View
             BindingOperations.SetBinding(this, Canvas.TopProperty, topBinding);
         }
 
-        
+        /// <summary>
+        /// 穿透视觉树获取指定类型的第一个元素
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="parent"></param>
+        /// <returns></returns>
+        protected T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T typedChild)
+                {
+                    return typedChild;
+                }
+
+                var childOfChild = FindVisualChild<T>(child);
+                if (childOfChild != null)
+                {
+                    return childOfChild;
+                }
+            }
+            return null;
+        }
 
 
 

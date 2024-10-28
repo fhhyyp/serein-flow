@@ -129,21 +129,28 @@ namespace Serein.Library.Network.WebSocketCommunication
         public async Task HandleMsgAsync(WebSocket webSocket,
                                    MsgQueueUtil msgQueueUtil)
         {
-
+            async Task sendasync(string text)
+            {
+                await SocketExtension.SendAsync(webSocket, text); // 回复客户端，处理方法中入参如果需要发送消息委托，则将该回调方法作为委托参数传入
+            }
             while (true)
             {
                 var message = await msgQueueUtil.WaitMsgAsync();  // 有消息时通知
+                using (var context = new WebSocketMsgContext(sendasync))
+                {
+                    context.JsonObject = JObject.Parse(message);
+                    await MsgHandleHelper.HandleAsync(context); // 处理消息
+                }
 
-
-                _ = Task.Run(() => {
-                    JObject json = JObject.Parse(message);
-                    WebSocketMsgContext context = new WebSocketMsgContext(async (text) =>
-                    {
-                        await SocketExtension.SendAsync(webSocket, text); // 回复客户端，处理方法中入参如果需要发送消息委托，则将该回调方法作为委托参数传入
-                    });
-                    context.JsonObject = json;
-                    MsgHandleHelper.HandleMsg(context); // 处理消息
-                });
+                //_ = Task.Run(() => {
+                //    JObject json = JObject.Parse(message);
+                //    WebSocketMsgContext context = new WebSocketMsgContext(async (text) =>
+                //    {
+                //        await SocketExtension.SendAsync(webSocket, text); // 回复客户端，处理方法中入参如果需要发送消息委托，则将该回调方法作为委托参数传入
+                //    });
+                //    context.JsonObject = json;
+                //    await MsgHandleHelper.HandleAsync(context); // 处理消息
+                //});
 
             }
 

@@ -89,9 +89,8 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// <summary>
         /// 处理JSON数据
         /// </summary>
-        public async void HandleSocketMsg(WebSocketMsgContext context) // Func<string, Task> sendAsync, JObject jsonObject
+        public async Task HandleAsync(WebSocketMsgContext context)
         {
-            
             var jsonObject = context.JsonObject; // 获取到消息
             string theme = jsonObject.GetValue(moduleConfig.ThemeJsonKey)?.ToString();
             if (!MyHandleConfigs.TryGetValue(theme, out var handldConfig))
@@ -112,7 +111,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
             {
                 var dataObj = jsonObject.GetValue(moduleConfig.DataJsonKey)?.ToObject<JObject>();
                 context.MsgData = dataObj; // 添加消息
-                if (TryGetParameters(handldConfig, context, out var args))
+                if (WebSocketHandleModule.TryGetParameters(handldConfig, context, out var args))
                 {
                     var result =  await WebSocketHandleModule.HandleAsync(handldConfig, args);
                     if (handldConfig.IsReturnValue)
@@ -149,7 +148,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// <param name="context">处理上下文</param>
         /// <param name="args">返回的入参参数</param>
         /// <returns></returns>
-        internal static bool TryGetParameters(HandleConfiguration config,WebSocketMsgContext context, out object[] args)
+        internal static bool TryGetParameters(HandleConfiguration config, WebSocketMsgContext context, out object[] args)
         {
             args = new object[config.ParameterType.Length];
             bool isCanInvoke = true; ; // 表示是否可以调用方法

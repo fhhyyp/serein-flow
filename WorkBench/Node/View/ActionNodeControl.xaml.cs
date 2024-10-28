@@ -23,10 +23,10 @@ namespace Serein.Workbench.Node.View
         /// 入参控制点（可能有，可能没）
         /// </summary>
         JunctionControlBase INodeJunction.ExecuteJunction => this.ExecuteJunctionControl;
+
         /// <summary>
         /// 下一个调用方法控制点（可能有，可能没）
         /// </summary>
-
         JunctionControlBase INodeJunction.NextStepJunction => this.NextStepJunctionControl;
 
         /// <summary>
@@ -34,6 +34,10 @@ namespace Serein.Workbench.Node.View
         /// </summary>
         JunctionControlBase INodeJunction.ReturnDataJunction => this.ResultJunctionControl;
 
+        /// <summary>
+        /// 方法入参控制点（可能有，可能没）
+        /// </summary>
+        private JunctionControlBase[] argDataJunction;
         /// <summary>
         /// 方法入参控制点（可能有，可能没）
         /// </summary>
@@ -67,28 +71,8 @@ namespace Serein.Workbench.Node.View
                 return argDataJunction;
             } }
 
-        /// <summary>
-        /// 方法入参控制点（可能有，可能没）
-        /// </summary>
-        private JunctionControlBase[] argDataJunction;
+        
 
-        private T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
-        {
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
-            {
-                var child = VisualTreeHelper.GetChild(parent, i);
-                if (child is T typedChild)
-                {
-                    return typedChild;
-                }
-
-                var childOfChild = FindVisualChild<T>(child);
-                if (childOfChild != null)
-                {
-                    return childOfChild;
-                }
-            }
-            return null;
-        }
+        
     }
 }

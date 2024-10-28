@@ -9,35 +9,7 @@ namespace Serein.NodeFlow.Tool;
 
 public static class NodeMethodDetailsHelper
 {
-    
-    /// <summary>
-    /// 生成方法信息
-    /// </summary>
-    /// <param name="serviceContainer"></param>
-    /// <param name="type"></param>
-    /// <returns></returns>
-    //public static List<MethodDetails> GetList(Type type)
-    //{
-    //    var methodDetailsDictionary = new List<MethodDetails>();
-    //    var delegateDictionary = new List<Delegate>();
-    //    var assemblyName = type.Assembly.GetName().Name;
-    //    var methods = GetMethodsToProcess(type);
 
-    //    foreach (var method in methods)
-    //    {
-
-    //        (var methodDetails,var methodDelegate) = CreateMethodDetails(type, method, assemblyName);
- 
-    //        methodDetailsDictionary.Add(methodDetails);
-    //        delegateDictionary.Add(methodDelegate);
-    //    }
-
-    //    var mds = methodDetailsDictionary.OrderBy(it => it.MethodName).ToList();
-    //    var dels = delegateDictionary;
-
-    //    return mds;
-    //}
-   
     /// <summary>
     /// 获取处理方法
     /// </summary>

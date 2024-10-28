@@ -358,33 +358,42 @@ namespace Serein.NodeFlow
         /// <returns></returns>
         private async Task FlipflopExecuteAsync(IFlowEnvironment env, SingleFlipflopNode singleFlipFlopNode, CancellationTokenSource cts)
         {
-            var context = new DynamicContext(env); // 启动全局触发器时新建上下文
+            if(_flipFlopCts is null)
+            {
+                Console.WriteLine("flowStarter -> FlipflopExecuteAsync -> _flipFlopCts is null");
+                return;
+            }
             while (!_flipFlopCts.IsCancellationRequested && !cts.IsCancellationRequested)
             {
+                var context = new DynamicContext(env); // 启动全局触发器时新建上下文
                 try
                 {
                     var newFlowData = await singleFlipFlopNode.ExecutingAsync(context); // 获取触发器等待Task
                     await NodeModelBase.RefreshFlowDataAndExpInterrupt(context, singleFlipFlopNode, newFlowData); // 全局触发器触发后刷新该触发器的节点数据
-                    if (context.NextOrientation != ConnectionInvokeType.None)
+                    if (context.NextOrientation == ConnectionInvokeType.None)
                     {
-                        var nextNodes = singleFlipFlopNode.SuccessorNodes[context.NextOrientation];
-                        for (int i = nextNodes.Count - 1; i >= 0 && !_flipFlopCts.IsCancellationRequested; i--)
-                        {
-                            // 筛选出启用的节点
-                            if (nextNodes[i].DebugSetting.IsEnable)
-                            {
-                                nextNodes[i].PreviousNode = singleFlipFlopNode;
-                                if (nextNodes[i].DebugSetting.IsInterrupt) // 执行触发前
-                                {
-                                    var cancelType = await nextNodes[i].DebugSetting.GetInterruptTask();
-                                    await Console.Out.WriteLineAsync($"[{nextNodes[i].MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");
-                                }
-                                await nextNodes[i].StartFlowAsync(context); // 启动执行触发器后继分支的节点
-                            }
-                        }
+                        continue;
                     }
+                    var nextNodes = singleFlipFlopNode.SuccessorNodes[context.NextOrientation];
+                    for (int i = nextNodes.Count - 1; i >= 0 && !_flipFlopCts.IsCancellationRequested; i--)
+                    {
+                        // 筛选出启用的节点
+                        if (!nextNodes[i].DebugSetting.IsEnable)
+                        {
+                            continue;
+                        }
+
+                        nextNodes[i].PreviousNode = singleFlipFlopNode;
+                        if (nextNodes[i].DebugSetting.IsInterrupt) // 执行触发前
+                        {
+                            var cancelType = await nextNodes[i].DebugSetting.GetInterruptTask();
+                            await Console.Out.WriteLineAsync($"[{nextNodes[i].MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");
+                        }
+                        await nextNodes[i].StartFlowAsync(context); // 启动执行触发器后继分支的节点
+                    }
+
                 }
-                catch(FlipflopException ex) 
+                catch (FlipflopException ex) 
                 {
                     await Console.Out.WriteLineAsync($"触发器[{singleFlipFlopNode.MethodDetails.MethodName}]因非预期异常终止。"+ex.Message);
                     if (ex.Type == FlipflopException.CancelClass.Flow)
@@ -395,6 +404,10 @@ namespace Serein.NodeFlow
                 catch (Exception ex)
                 {
                     await Console.Out.WriteLineAsync(ex.Message);
+                }
+                finally
+                {
+                    context.Exit();
                 }
             }
 

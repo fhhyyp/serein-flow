@@ -18,14 +18,11 @@
     </UserControl.Resources>
 
     <Border BorderBrush="#8DE9FD" BorderThickness="4">
-
-
         <Grid>
             <Grid.ToolTip>
                 <ToolTip Background="LightYellow" Foreground="#071042" Content="{Binding NodeModel.MethodDetails.MethodTips}" />
             </Grid.ToolTip>
-
-
+            
             <!--<TextBlock Text="{Binding NodelModel.DebugSetting.IsInterrupt}}"></TextBlock>-->
             <Border x:Name="InterruptBorder" DataContext="{Binding}">
                 <Border.Style>
