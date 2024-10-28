@@ -18,7 +18,6 @@ namespace Serein.Library.Framework.NodeFlow
             RunState = RunState.Running;
         }
 
-  
 
         /// <summary>
         /// 运行环境
@@ -40,10 +39,38 @@ namespace Serein.Library.Framework.NodeFlow
         /// </summary>
         private readonly ConcurrentDictionary<string, object> dictNodeFlowData = new ConcurrentDictionary<string, object>();
 
+        private readonly ConcurrentDictionary<NodeModelBase, NodeModelBase> dictPreviousNodes = new ConcurrentDictionary<NodeModelBase, NodeModelBase>();
+
+        /// <summary>
+        /// 设置运行时上一节点
+        /// </summary>
+        /// <param name="currentNodeModel">当前节点</param>
+        /// <param name="PreviousNode">上一节点</param>
+        public void SetPreviousNode(NodeModelBase currentNodeModel, NodeModelBase PreviousNode)
+        {
+            dictPreviousNodes.AddOrUpdate(currentNodeModel, (n1) => PreviousNode, (n1, n2) => PreviousNode);
+        }
+
+        /// <summary>
+        /// 获取当前节点的运行时上一节点
+        /// </summary>
+        /// <param name="currentNodeModel"></param>
+        /// <returns></returns>
+        public NodeModelBase GetPreviousNode(NodeModelBase currentNodeModel)
+        {
+            if (dictPreviousNodes.TryGetValue(currentNodeModel, out var node))
+            {
+                return node;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
         /// <summary>
         /// 获取节点当前数据
         /// </summary>
-        /// <param name="nodeGuid"></param>
         /// <returns></returns>
         public object GetFlowData(string nodeGuid)
         {
@@ -51,6 +78,7 @@ namespace Serein.Library.Framework.NodeFlow
             {
                 return data;
             }
+            else
             {
                 return null;
             }
@@ -59,13 +87,31 @@ namespace Serein.Library.Framework.NodeFlow
         /// <summary>
         /// 添加或更新当前节点数据
         /// </summary>
-        /// <param name="nodeGuid">节点Guid</param>
+        /// <param name="nodeGuid">节点</param>
         /// <param name="flowData">新的数据</param>
         public void AddOrUpdate(string nodeGuid, object flowData)
         {
             // this.dictNodeFlowData.TryGetValue(nodeGuid, out var oldFlowData);
-            this.dictNodeFlowData[nodeGuid] = flowData;
+            this.dictNodeFlowData.AddOrUpdate(nodeGuid, n1 => flowData, (n1, n2)=> flowData);
         }
+
+        /// <summary>
+        /// 上一节点数据透传到下一节点
+        /// </summary>
+        /// <param name="nodeModel"></param>
+        public object TransmissionData(NodeModelBase nodeModel)
+        {
+            if (dictPreviousNodes.TryGetValue(nodeModel, out var previousNode)) // 首先获取当前节点的上一节点
+            {
+                if (dictNodeFlowData.TryGetValue(previousNode.Guid, out var data)) // 其次获取上一节点的数据
+                {
+                    return data;
+                    //AddOrUpdate(nodeModel.Guid, data); // 然后作为当前节点的数据记录在上下文中
+                }
+            }
+            return null;
+        }
+
 
         /// <summary>
         /// 结束流程
@@ -74,7 +120,11 @@ namespace Serein.Library.Framework.NodeFlow
         {
             foreach (var nodeObj in dictNodeFlowData.Values)
             {
-                if (nodeObj != null)
+                if (nodeObj is null)
+                {
+                    continue;
+                }
+                else 
                 {
                     if (typeof(IDisposable).IsAssignableFrom(nodeObj?.GetType()) && nodeObj is IDisposable disposable)
                     {
@@ -85,7 +135,6 @@ namespace Serein.Library.Framework.NodeFlow
             this.dictNodeFlowData?.Clear();
             RunState = RunState.Completion;
         }
-
         // public NodeRunCts NodeRunCts { get; set; }
         // public ISereinIOC SereinIoc { get; }
         //public Task CreateTimingTask(Action action, int time = 100, int count = -1)

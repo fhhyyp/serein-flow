@@ -28,10 +28,18 @@ namespace Serein.NodeFlow.Model
 
         }
 
-        //public override async Task<object?> Executing(IDynamicContext context)
+        /// <summary>
+        /// 加载完成后调用的方法
+        /// </summary>
+        public override void OnLoading()
+        {
+            Console.WriteLine("SingleExpOpNode 暂未实现 OnLoading");
+        }
+
+
         public override Task<object?> ExecutingAsync(IDynamicContext context)
         {
-            var data = context.GetFlowData(PreviousNode.Guid); // 表达式节点使用上一节点数据
+            var data = context.TransmissionData(this); // 表达式节点使用上一节点数据
 
             try
             {

@@ -16,6 +16,14 @@ namespace Serein.NodeFlow.Model
 
         }
 
+        /// <summary>
+        /// 加载完成后调用的方法
+        /// </summary>
+        public override void OnLoading()
+        {
+            Console.WriteLine("SingleFlipflopNode 暂未实现 OnLoading");
+        }
+
 
         /// <summary>
         /// 执行触发器进行等待触发
@@ -56,7 +64,7 @@ namespace Serein.NodeFlow.Model
             }
             catch (FlipflopException ex)
             {
-                if(ex.Type == FlipflopException.CancelClass.Flow)
+                if(ex.Type == FlipflopException.CancelClass.CancelFlow)
                 {
                     throw;
                 }

@@ -1438,8 +1438,7 @@ namespace Serein.NodeFlow.Env
             try
             {
                 Assembly assembly = Assembly.LoadFrom(dllPath); // 加载DLL文件
-                Type[] types = assembly.GetTypes(); // 获取程序集中的所有类型
-
+                List<Type> types = assembly.GetTypes().ToList(); // 获取程序集中的所有类型
                 Dictionary<RegisterSequence, List<Type>> autoRegisterTypes = new Dictionary<RegisterSequence, List<Type>>();
                 foreach (Type type in types)
                 {
@@ -1720,10 +1719,6 @@ namespace Serein.NodeFlow.Env
 
             if (!string.IsNullOrEmpty(toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceNodeGuid))
             {
-                //if(toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceType == connectionArgSourceType)
-                //{
-                //    return ;
-                //}
                 await RemoteConnectAsync(fromNode,toNode,argIndex); // 已经存在连接,将其移除
             }
             toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceNodeGuid = fromNode.Guid;

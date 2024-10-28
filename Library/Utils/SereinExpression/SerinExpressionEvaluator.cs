@@ -2,7 +2,10 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Serein.Library.Utils.SereinExpression
 {
@@ -152,53 +155,88 @@ namespace Serein.Library.Utils.SereinExpression
                         throw new ArgumentException($"Invalid array syntax for member {member}");
                     }
 
-                    // 提取数组索引
-                    var indexStr = member.Substring(arrayIndexStart + 1, arrayIndexEnd - arrayIndexStart - 1);
-                    if (!int.TryParse(indexStr, out int index))
+                    var targetType = target?.GetType(); // 目标对象的类型
+                    if(targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
                     {
-                        throw new ArgumentException($"Invalid array index '{indexStr}' for member {member}");
-                    }
 
-                    // 获取数组或集合对象
-                    var arrayProperty = target?.GetType().GetProperty(arrayName);
-                    if (arrayProperty is null)
-                    {
-                        var arrayField = target?.GetType().GetField(arrayName);
-                        if (arrayField is null)
+                        var typetmp = target.GetType().FullName;
+                        // 目标是键值对
+                        var indexStr = member.Substring(arrayIndexStart + 1, arrayIndexEnd - arrayIndexStart - 1);
+                        var method = targetType.GetMethod("get_Item", BindingFlags.Public | BindingFlags.Instance);
+                        if(method != null)
                         {
-                            throw new ArgumentException($"Member {arrayName} not found on target.");
+                          var result =  method.Invoke(target, new object[] { indexStr });
+                            if(result != null)
+                            {
+                                return result;
+                            }
+                        }
+
+                        //var dict = target as Dictionary<string, string>;
+                        ////var dict = (Dictionary<dynamic, dynamic>)target;
+                        //var temp = dict[indexStr];
+                        ////if (target is Dictionary<object, object> dict)
+                        ////{
+                        ////    var temp = dict[indexStr];
+                        ////}
+                        //var TMP2= target.GetType().GetEnumValues();
+
+                    }
+                    else
+                    {
+
+                        #region 表达式处理集合对象
+                        // 获取数组或集合对象
+                        var arrayProperty = target?.GetType().GetProperty(arrayName);
+                        if (arrayProperty is null)
+                        {
+                            var arrayField = target?.GetType().GetField(arrayName);
+                            if (arrayField is null)
+                            {
+                                throw new ArgumentException($"Member {arrayName} not found on target.");
+                            }
+                            else
+                            {
+                                target = arrayField.GetValue(target);
+                            }
                         }
                         else
                         {
-                            target = arrayField.GetValue(target);
+                            target = arrayProperty.GetValue(target);
                         }
-                    }
-                    else
-                    {
-                        target = arrayProperty.GetValue(target);
+
+
+                        // 提取数组索引
+                        var indexStr = member.Substring(arrayIndexStart + 1, arrayIndexEnd - arrayIndexStart - 1);
+                        if (!int.TryParse(indexStr, out int index))
+                        {
+                            throw new ArgumentException($"Invalid array index '{indexStr}' for member {member}");
+                        }
+                        // 访问数组或集合中的指定索引
+                        if (target is Array array)
+                        {
+                            if (index < 0 || index >= array.Length)
+                            {
+                                throw new ArgumentException($"Index {index} out of bounds for array {arrayName}");
+                            }
+                            target = array.GetValue(index);
+                        }
+                        else if (target is IList<object> list)
+                        {
+                            if (index < 0 || index >= list.Count)
+                            {
+                                throw new ArgumentException($"Index {index} out of bounds for list {arrayName}");
+                            }
+                            target = list[index];
+                        }
+                        else
+                        {
+                            throw new ArgumentException($"Member {arrayName} is not an array or list.");
+                        }
+                        #endregion
                     }
 
-                    // 访问数组或集合中的指定索引
-                    if (target is Array array)
-                    {
-                        if (index < 0 || index >= array.Length)
-                        {
-                            throw new ArgumentException($"Index {index} out of bounds for array {arrayName}");
-                        }
-                        target = array.GetValue(index);
-                    }
-                    else if (target is IList<object> list)
-                    {
-                        if (index < 0 || index >= list.Count)
-                        {
-                            throw new ArgumentException($"Index {index} out of bounds for list {arrayName}");
-                        }
-                        target = list[index];
-                    }
-                    else
-                    {
-                        throw new ArgumentException($"Member {arrayName} is not an array or list.");
-                    }
+
                 }
                 else
                 {

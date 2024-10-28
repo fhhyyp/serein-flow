@@ -174,7 +174,7 @@ namespace Serein.Library
         {
             if(_convertor is null)
             {
-                return $"[{this.Index}] {this.Name} : {this.DataType.FullName}";
+                return $"[{this.Index}] {this.Name} : {this.DataType?.FullName}";
             }
             else
             {

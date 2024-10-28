@@ -17,7 +17,7 @@
 
     <Grid>
         <Grid.ToolTip>
-            <ToolTip Background="LightYellow" Foreground="Black" Content="{Binding NodeModel.MethodDetails.MethodTips, UpdateSourceTrigger=PropertyChanged}" />
+            <ToolTip Background="LightYellow" Foreground="Black" Content="{Binding NodeModel.MethodDetails.MethodAnotherName, UpdateSourceTrigger=PropertyChanged}" />
         </Grid.ToolTip>
         
         <Grid.RowDefinitions>
@@ -25,16 +25,39 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <Border Grid.Row="0" Background="#A8D8EA" BorderBrush="#A8D8EA" BorderThickness="1" HorizontalAlignment="Stretch">
-            <TextBlock Text="条件节点" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-        </Border>
-        <Grid Grid.Row="1" Background="#F1FFDF"  HorizontalAlignment="Stretch">
+
+        <Grid Grid.Row="0" Background="#A8D8EA" >
+            <!--<Grid Grid.Row="0" >-->
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="auto"/>
+            </Grid.ColumnDefinitions>
+
+            <local:ExecuteJunctionControl  Grid.Column="0"  MyNode="{Binding NodeModel}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
+            <Border Grid.Column="1" BorderThickness="1" HorizontalAlignment="Stretch">
+                <TextBlock Text="条件节点" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <local:NextStepJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}"  x:Name="NextStepJunctionControl" HorizontalAlignment="Right" Grid.RowSpan="2"/>
+
+        </Grid>
+       
+        <Grid Grid.Row="1" Background="#F1FFDF"  HorizontalAlignment="Stretch">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="auto"/>
                 <ColumnDefinition Width="20"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-            <CheckBox  Grid.Column="0" IsChecked="{Binding NodeModel.IsCustomData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>  <!--Converter={StaticResource BoolToVis}-->
-            <TextBox Grid.Column="1" MinWidth="50" Text="{Binding NodeModel.CustomData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+            <local:ArgJunctionControl  Grid.Column="0" x:Name="ArgJunctionControl" ArgIndex="0" MyNode="{Binding NodeModel}" />
+            <CheckBox  Grid.Column="1" IsChecked="{Binding NodeModel.IsCustomData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"/>  <!--Converter={StaticResource BoolToVis}-->
+            <TextBox Grid.Column="2" MinWidth="50" Text="{Binding NodeModel.CustomData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
                      HorizontalAlignment="Stretch" VerticalAlignment="Center">
                 <TextBox.Style>
                     <Style TargetType="TextBox">
@@ -48,7 +71,7 @@
                 </TextBox.Style>
             </TextBox>
 
-            <TextBlock Grid.Column="1" MinWidth="50" Text="上一节点数据"  HorizontalAlignment="Stretch" VerticalAlignment="Center">
+            <TextBlock Grid.Column="2" MinWidth="50" Text="上一节点数据"  HorizontalAlignment="Stretch" VerticalAlignment="Center">
                 <TextBlock.Style>
                     <Style TargetType="TextBlock">
                         <Setter Property="Visibility" Value="Collapsed" />
@@ -60,9 +83,12 @@
                     </Style>
                 </TextBlock.Style>
             </TextBlock>
+            <TextBox Grid.Row="1" Grid.ColumnSpan="3"  Background="#F1FFDF" MinWidth="100" Text="{Binding NodeModel.Expression, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  
+                HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
         </Grid>
-        <TextBox Grid.Row="2"  Background="#f1F66F" MinWidth="100" Text="{Binding NodeModel.Expression, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  
-                  HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+        <StackPanel Grid.Row="2" Background="#A8D8EA">
+            <local:ResultJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}" x:Name="ResultJunctionControl" HorizontalAlignment="Right"/>
+        </StackPanel>
 
         <!--<themes:MethodDetailsControl Grid.Row="1" MethodDetails="{Binding MethodDetails}" />
         <Border Grid.Row="2" Background="#EAFFD0" BorderBrush="#EAFFD0" BorderThickness="1">

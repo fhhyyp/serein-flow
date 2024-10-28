@@ -29,6 +29,13 @@ namespace Serein.NodeFlow.Model
             
         }
 
+        /// <summary>
+        /// 加载完成后调用的方法
+        /// </summary>
+        public override void OnLoading()
+        {
+            Console.WriteLine("CompositeConditionNode 暂未实现 OnLoading");
+        }
 
         public void AddNode(SingleConditionNode node)
         {
@@ -59,7 +66,8 @@ namespace Serein.NodeFlow.Model
                 }
             }
             
-            return Task.FromResult(context.GetFlowData(PreviousNode.Guid)); // 条件区域透传上一节点的数据
+            //var previousNode = context.GetPreviousNode()
+            return Task.FromResult(context.TransmissionData(this)); // 条件区域透传上一节点的数据
         }
 
         

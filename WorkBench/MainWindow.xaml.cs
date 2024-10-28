@@ -511,10 +511,6 @@ namespace Serein.Workbench
                 #endregion
                 #endregion
             }
-
-
-
-
         }
 
         /// <summary>

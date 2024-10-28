@@ -89,15 +89,16 @@
                     <!--<Button  Grid.Row="0"  Content="卸载清空" Click="UnloadAllButton_Click"  HorizontalAlignment="Right"  Margin="5,5,5,5"/>--><!--
                 </Grid>-->
 
-                <!--暂时隐藏基础面板-->
-                <ScrollViewer  Grid.Row="0" Visibility="Collapsed" HorizontalScrollBarVisibility="Auto">
+                <!--暂时隐藏基础面板  Visibility="Collapsed"  -->
+                <ScrollViewer Grid.Row="0" HorizontalScrollBarVisibility="Auto">
                     <StackPanel  Orientation="Horizontal">
                         <nodeView:ExpOpNodeControl x:Name="ExpOpNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                         <nodeView:ConditionNodeControl x:Name="ConditionNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                         <nodeView:ConditionRegionControl  x:Name="ConditionRegionControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                     </StackPanel>
                 </ScrollViewer>
-                <ScrollViewer VerticalAlignment="Top" Grid.Row="1"  VerticalScrollBarVisibility="Auto" MaxHeight="400" Grid.RowSpan="2">
+                
+                <ScrollViewer VerticalAlignment="Top" Grid.Row="1"  VerticalScrollBarVisibility="Auto" Grid.RowSpan="2">
                     <StackPanel x:Name="DllStackPanel" Margin="5"/>
                 </ScrollViewer>
                 <!--<GridSplitter Grid.Row="3" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Center" ResizeBehavior="PreviousAndNext" Background="Gray"/>-->

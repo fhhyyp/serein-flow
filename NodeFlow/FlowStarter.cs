@@ -169,21 +169,6 @@ namespace Serein.NodeFlow
 
             #endregion
 
-            #region 检查并修正初始化、加载时、退出时方法作用的对象，保证后续不会报错（已注释）
-            //foreach (var md in initMethods) // 初始化
-            //{
-            //    md.ActingInstance ??= Context.SereinIoc.GetOrRegisterInstantiate(md.ActingInstanceType);
-            //}
-            //foreach (var md in loadingMethods) // 加载
-            //{
-            //    md.ActingInstance ??= Context.SereinIoc.GetOrRegisterInstantiate(md.ActingInstanceType);
-            //}
-            //foreach (var md in exitMethods) // 初始化
-            //{
-            //    md.ActingInstance ??= Context.SereinIoc.GetOrRegisterInstantiate(md.ActingInstanceType);
-            //}
-            #endregion
-
             #region 执行初始化，绑定IOC容器，再执行加载时
 
             if (autoRegisterTypes.TryGetValue(RegisterSequence.FlowInit, out var flowInitTypes))
@@ -356,7 +341,9 @@ namespace Serein.NodeFlow
         /// <param name="env">流程运行全局环境</param>
         /// <param name="singleFlipFlopNode">需要全局监听信号的触发器</param>
         /// <returns></returns>
-        private async Task FlipflopExecuteAsync(IFlowEnvironment env, SingleFlipflopNode singleFlipFlopNode, CancellationTokenSource cts)
+        private async Task FlipflopExecuteAsync(IFlowEnvironment env,
+                                                SingleFlipflopNode singleFlipFlopNode,
+                                                CancellationTokenSource cts)
         {
             if(_flipFlopCts is null)
             {
@@ -369,34 +356,38 @@ namespace Serein.NodeFlow
                 try
                 {
                     var newFlowData = await singleFlipFlopNode.ExecutingAsync(context); // 获取触发器等待Task
+                    context.AddOrUpdate(singleFlipFlopNode.Guid, newFlowData);
                     await NodeModelBase.RefreshFlowDataAndExpInterrupt(context, singleFlipFlopNode, newFlowData); // 全局触发器触发后刷新该触发器的节点数据
                     if (context.NextOrientation == ConnectionInvokeType.None)
                     {
                         continue;
                     }
-                    var nextNodes = singleFlipFlopNode.SuccessorNodes[context.NextOrientation];
-                    for (int i = nextNodes.Count - 1; i >= 0 && !_flipFlopCts.IsCancellationRequested; i--)
-                    {
-                        // 筛选出启用的节点
-                        if (!nextNodes[i].DebugSetting.IsEnable)
+                    _ = Task.Run(async () => {
+                        var nextNodes = singleFlipFlopNode.SuccessorNodes[context.NextOrientation];
+                        for (int i = nextNodes.Count - 1; i >= 0 && !_flipFlopCts.IsCancellationRequested; i--)
                         {
-                            continue;
-                        }
+                            // 筛选出启用的节点
+                            if (!nextNodes[i].DebugSetting.IsEnable)
+                            {
+                                continue ;
+                            }
 
-                        nextNodes[i].PreviousNode = singleFlipFlopNode;
-                        if (nextNodes[i].DebugSetting.IsInterrupt) // 执行触发前
-                        {
-                            var cancelType = await nextNodes[i].DebugSetting.GetInterruptTask();
-                            await Console.Out.WriteLineAsync($"[{nextNodes[i].MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");
+                            context.SetPreviousNode(nextNodes[i], singleFlipFlopNode);
+                            if (nextNodes[i].DebugSetting.IsInterrupt) // 执行触发前
+                            {
+                                var cancelType = await nextNodes[i].DebugSetting.GetInterruptTask();
+                                await Console.Out.WriteLineAsync($"[{nextNodes[i].MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");
+                            }
+                            await nextNodes[i].StartFlowAsync(context); // 启动执行触发器后继分支的节点
+                            context.Exit();
                         }
-                        await nextNodes[i].StartFlowAsync(context); // 启动执行触发器后继分支的节点
-                    }
-
+                    });
+                   
                 }
                 catch (FlipflopException ex) 
                 {
                     await Console.Out.WriteLineAsync($"触发器[{singleFlipFlopNode.MethodDetails.MethodName}]因非预期异常终止。"+ex.Message);
-                    if (ex.Type == FlipflopException.CancelClass.Flow)
+                    if (ex.Type == FlipflopException.CancelClass.CancelFlow)
                     {
                         break;
                     }
@@ -407,7 +398,7 @@ namespace Serein.NodeFlow
                 }
                 finally
                 {
-                    context.Exit();
+                    
                 }
             }
 

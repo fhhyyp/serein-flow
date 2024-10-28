@@ -173,7 +173,7 @@ namespace Serein.Library
                             var cancelType = await upstreamNode.DebugSetting.GetInterruptTask();
                             await Console.Out.WriteLineAsync($"[{upstreamNode.MethodDetails?.MethodName}]中断已{cancelType}，开始执行后继分支");
                         }
-                        upstreamNode.PreviousNode = currentNode;
+                        context.SetPreviousNode(upstreamNode, currentNode);
                         await upstreamNode.StartFlowAsync(context); // 执行流程节点的上游分支
                         if (context.NextOrientation == ConnectionInvokeType.IsError)
                         {
@@ -186,6 +186,7 @@ namespace Serein.Library
                 }
                 // 上游分支执行完成，才执行当前节点
                 if (IsBradk(context, flowCts)) break; // 退出执行
+                context.NextOrientation = ConnectionInvokeType.None; // 重置上下文状态
                 object newFlowData = await currentNode.ExecutingAsync(context);
                 if (IsBradk(context, flowCts)) break; // 退出执行
 
@@ -204,7 +205,7 @@ namespace Serein.Library
                     // 筛选出启用的节点的节点
                     if (nextNodes[i].DebugSetting.IsEnable)
                     {
-                        nextNodes[i].PreviousNode = currentNode;
+                        context.SetPreviousNode(nextNodes[i], currentNode);
                         stack.Push(nextNodes[i]);
                     }
                 }
@@ -248,7 +249,10 @@ namespace Serein.Library
             {
                 object[] args = await GetParametersAsync(context, this, md);
                 var result = await dd.InvokeAsync(md.ActingInstance, args);
-                context.NextOrientation = ConnectionInvokeType.IsSucceed;
+                if(context.NextOrientation == ConnectionInvokeType.None) // 没有手动设置时，进行自动设置
+                {
+                    context.NextOrientation = ConnectionInvokeType.IsSucceed;
+                }
                 return result;
             }
             catch (Exception ex)
@@ -342,7 +346,10 @@ namespace Serein.Library
                 {
                     if (ed.DataValue.StartsWith("@get", StringComparison.OrdinalIgnoreCase))
                     {
-                        var previousFlowData = context.GetFlowData(nodeModel?.PreviousNode?.Guid); // 当前传递的数据
+                        var previousNode = context.GetPreviousNode(nodeModel);
+                        var previousFlowData = context.GetFlowData(previousNode.Guid); // 当前传递的数据
+
+
                         // 执行表达式从上一节点获取对象
                         inputParameter = SerinExpressionEvaluator.Evaluate(ed.DataValue, previousFlowData, out _);
                     }
@@ -356,7 +363,8 @@ namespace Serein.Library
                 {
                     if (ed.ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData)
                     {
-                        inputParameter = context.GetFlowData(nodeModel?.PreviousNode?.Guid); // 当前传递的数据
+                        var previousNode = context.GetPreviousNode(nodeModel);
+                        inputParameter = context.GetFlowData(previousNode.Guid); // 当前传递的数据
                     }
                     else if (ed.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
                     {
@@ -509,6 +517,7 @@ namespace Serein.Library
         public static async Task RefreshFlowDataAndExpInterrupt(IDynamicContext context, NodeModelBase nodeModel, object newData = null)
         {
             string guid = nodeModel.Guid;
+            context.AddOrUpdate(guid, newData); // 上下文中更新数据
             if (newData is null)
             {
             }
@@ -517,7 +526,6 @@ namespace Serein.Library
                 await MonitorObjExpInterrupt(context, nodeModel, newData, 0); // 首先监视对象
                 await MonitorObjExpInterrupt(context, nodeModel, newData, 1); // 然后监视节点
                 //nodeModel.FlowData = newData; // 替换数据
-                context.AddOrUpdate(guid, newData); // 上下文中更新数据
             }
         }
 

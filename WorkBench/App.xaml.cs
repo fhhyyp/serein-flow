@@ -13,10 +13,10 @@ namespace Serein.Workbench
         void LoadLocalProject()
         {
  #if DEBUG
-            if (1 == 1)
+            if (1 == 11)
             {
                 string filePath;
-                filePath = @"F:\临时\project\linux\project.dnf";
+                filePath = @"F:\临时\project\linux\http\project.dnf";
                 string content = System.IO.File.ReadAllText(filePath); // 读取整个文件内容
                 App.FlowProjectData = JsonConvert.DeserializeObject<SereinProjectData>(content);
                 App.FileDataPath = System.IO.Path.GetDirectoryName(filePath)!;   //  filePath;//

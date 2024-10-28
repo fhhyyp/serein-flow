@@ -160,7 +160,7 @@ namespace Serein.Library
              StringBuilder sb = new StringBuilder();
             sb.AppendLine($"方法别名：{this.MethodAnotherName}");
             sb.AppendLine($"方法名称：{this.MethodName}");
-            sb.AppendLine($"需要实例：{this.ActingInstanceType.FullName}");
+            sb.AppendLine($"需要实例：{this.ActingInstanceType?.FullName}");
             sb.AppendLine($"");
             sb.AppendLine($"入参参数信息：");
             foreach (var arg in this.ParameterDetailss)

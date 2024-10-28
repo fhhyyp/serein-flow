@@ -39,7 +39,33 @@ namespace Serein.NodeFlow.Model
             this.IsCustomData = false;
             this.CustomData = null;
             this.Expression = "PASS";
+            
         }
+
+        /// <summary>
+        /// 加载完成后调用的方法
+        /// </summary>
+        public override void OnLoading()
+        {
+            var pd = new ParameterDetails
+            {
+                Index = 0,
+                Name = "Exp",
+                DataType = typeof(object),
+                ExplicitType = typeof(object),
+                IsExplicitData = false,
+                DataValue = string.Empty,
+                ArgDataSourceNodeGuid = string.Empty,
+                ArgDataSourceType = ConnectionArgSourceType.GetPreviousNodeData,
+                NodeModel = this,
+                Convertor = null,
+                ExplicitTypeName = "Value",
+                Items = Array.Empty<string>(),
+            };
+
+            this.MethodDetails.ParameterDetailss = new ParameterDetails[] { pd };
+        }
+
 
         /// <summary>
         /// 重写节点的方法执行
@@ -50,7 +76,7 @@ namespace Serein.NodeFlow.Model
         {
             // 接收上一节点参数or自定义参数内容
             object? parameter;
-            object? result = context.GetFlowData(PreviousNode.Guid);   // 条件节点透传上一节点的数据
+            object? result = context.TransmissionData(this);   // 条件节点透传上一节点的数据
             if (IsCustomData) // 是否使用自定义参数
             {
                 // 表达式获取上一节点数据
