@@ -459,7 +459,7 @@ namespace Serein.NodeFlow.Env
             //UIContextOperation?.Invoke(() => OnStartNodeChange?.Invoke(new StartNodeChangeEventArgs(nodeGuid,nodeGuid)));
         }
 
-        public async Task<object> InvokeNodeAsync(string nodeGuid)
+        public async Task<object> InvokeNodeAsync(IDynamicContext context, string nodeGuid)
         {
             Console.WriteLine("远程环境尚未实现接口 InvokeNodeAsync");
             _ = msgClient.SendAsync(EnvMsgTheme.SetStartNode, new

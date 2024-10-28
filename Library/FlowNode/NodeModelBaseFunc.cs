@@ -325,15 +325,15 @@ namespace Serein.Library
 
             for (int i = 0; i < parameters.Length; i++)
             {
-                var ed = md.ParameterDetailss[i]; // 方法入参描述
+                var pd = md.ParameterDetailss[i]; // 方法入参描述
 
                 #region 获取基础的上下文数据
-                if (ed.DataType == typeof(IFlowEnvironment)) // 获取流程上下文
+                if (pd.DataType == typeof(IFlowEnvironment)) // 获取流程上下文
                 {
                     parameters[i] = nodeModel.Env;
                     continue;
                 }
-                if (ed.DataType == typeof(IDynamicContext)) // 获取流程上下文
+                if (pd.DataType == typeof(IDynamicContext)) // 获取流程上下文
                 {
                     parameters[i] = context;
                     continue;
@@ -342,41 +342,41 @@ namespace Serein.Library
 
                 #region 确定[预入参]数据
                 object inputParameter; // 存放解析的临时参数
-                if (ed.IsExplicitData) // 判断是否使用显示的输入参数
+                if (pd.IsExplicitData) // 判断是否使用显示的输入参数
                 {
-                    if (ed.DataValue.StartsWith("@get", StringComparison.OrdinalIgnoreCase))
+                    if (pd.DataValue.StartsWith("@get", StringComparison.OrdinalIgnoreCase))
                     {
                         var previousNode = context.GetPreviousNode(nodeModel);
                         var previousFlowData = context.GetFlowData(previousNode.Guid); // 当前传递的数据
 
 
                         // 执行表达式从上一节点获取对象
-                        inputParameter = SerinExpressionEvaluator.Evaluate(ed.DataValue, previousFlowData, out _);
+                        inputParameter = SerinExpressionEvaluator.Evaluate(pd.DataValue, previousFlowData, out _);
                     }
                     else
                     {
                         // 使用输入的固定值
-                            inputParameter = ed.DataValue;
+                            inputParameter = pd.DataValue;
                     }
                 }
                 else
                 {
-                    if (ed.ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData)
+                    if (pd.ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData)
                     {
                         var previousNode = context.GetPreviousNode(nodeModel);
                         inputParameter = context.GetFlowData(previousNode.Guid); // 当前传递的数据
                     }
-                    else if (ed.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
+                    else if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
                     {
                         // 获取指定节点的数据
                         // 如果指定节点没有被执行，会返回null
                         // 如果执行过，会获取上一次执行结果作为预入参数据
-                        inputParameter = context.GetFlowData(ed.ArgDataSourceNodeGuid);
+                        inputParameter = context.GetFlowData(pd.ArgDataSourceNodeGuid);
                     }
-                    else if (ed.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke)
+                    else if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke)
                     {
                         // 立刻调用对应节点获取数据。
-                        var result = await context.Env.InvokeNodeAsync(ed.ArgDataSourceNodeGuid);
+                        var result = await context.Env.InvokeNodeAsync(context, pd.ArgDataSourceNodeGuid);
                         inputParameter = result;
                     }
                     else
@@ -386,18 +386,18 @@ namespace Serein.Library
                 }
                 if (inputParameter is null)
                 {
-                    throw new Exception($"[arg{ed.Index}][{ed.Name}][{ed.DataType}]参数不能为null");
+                    throw new Exception($"[arg{pd.Index}][{pd.Name}][{pd.DataType}]参数不能为null");
                 }
 
                 #endregion
 
                 #region 入参存在取值转换器，调用对应的转换器获取入参数据
                 // 入参存在取值转换器
-                if (ed.ExplicitType.IsEnum && !(ed.Convertor is null))
+                if (pd.ExplicitType.IsEnum && !(pd.Convertor is null))
                 {
                     //var resultEnum = Enum.ToObject(ed.ExplicitType, ed.DataValue);
-                    var resultEnum = Enum.Parse(ed.ExplicitType, ed.DataValue);
-                    var value = ed.Convertor(resultEnum);
+                    var resultEnum = Enum.Parse(pd.ExplicitType, pd.DataValue);
+                    var value = pd.Convertor(resultEnum);
                     if (value is null)
                     {
                         throw new InvalidOperationException("转换器调用失败");
@@ -413,11 +413,11 @@ namespace Serein.Library
 
                 #region  入参存在基于BinValue的类型转换器，获取枚举转换器中记录的类型
                 // 入参存在基于BinValue的类型转换器，获取枚举转换器中记录的类型
-                if (ed.ExplicitType.IsEnum && ed.DataType != ed.ExplicitType)
+                if (pd.ExplicitType.IsEnum && pd.DataType != pd.ExplicitType)
                 {
-                    var resultEnum = Enum.Parse(ed.ExplicitType, ed.DataValue);
+                    var resultEnum = Enum.Parse(pd.ExplicitType, pd.DataValue);
                     // 获取绑定的类型
-                    var type = EnumHelper.GetBoundValue(ed.ExplicitType, resultEnum, attr => attr.Value);
+                    var type = EnumHelper.GetBoundValue(pd.ExplicitType, resultEnum, attr => attr.Value);
                     if (type is Type enumBindType && !(enumBindType is null))
                     {
                         var value = nodeModel.Env.IOC.Instantiate(enumBindType);
@@ -437,30 +437,30 @@ namespace Serein.Library
 
                 #region 对入参数据尝试进行转换
                 
-                if (inputParameter.GetType() == ed.DataType)
+                if (inputParameter.GetType() == pd.DataType)
                 {
                     parameters[i] = inputParameter; // 类型一致无需转换，直接装入入参数组
                 }
-                else if (ed.DataType.IsValueType) 
+                else if (pd.DataType.IsValueType) 
                 {
                     // 值类型
                     var valueStr = inputParameter?.ToString();
-                    parameters[i] = valueStr.ToValueData(ed.DataType); // 类型不一致，尝试进行转换，如果转换失败返回类型对应的默认值
+                    parameters[i] = valueStr.ToValueData(pd.DataType); // 类型不一致，尝试进行转换，如果转换失败返回类型对应的默认值
                 }
                 else 
                 {
                     // 引用类型
-                    if (ed.DataType == typeof(string)) // 转为字符串
+                    if (pd.DataType == typeof(string)) // 转为字符串
                     {
                         var valueStr = inputParameter?.ToString();
                         parameters[i] = valueStr;
                     }
-                    else if(ed.DataType.IsSubclassOf(inputParameter.GetType())) // 入参类型 是 预入参数据类型 的 子类/实现类 
+                    else if(pd.DataType.IsSubclassOf(inputParameter.GetType())) // 入参类型 是 预入参数据类型 的 子类/实现类 
                     {
                         // 方法入参中，父类不能隐式转为子类，这里需要进行强制转换
-                        parameters[i] =  ObjectConvertHelper.ConvertParentToChild(inputParameter, ed.DataType);
+                        parameters[i] =  ObjectConvertHelper.ConvertParentToChild(inputParameter, pd.DataType);
                     }
-                    else if(ed.DataType.IsAssignableFrom(inputParameter.GetType()))  // 入参类型 是 预入参数据类型 的 父类/接口
+                    else if(pd.DataType.IsAssignableFrom(inputParameter.GetType()))  // 入参类型 是 预入参数据类型 的 父类/接口
                     {
                         parameters[i] = inputParameter;
                     }
@@ -469,12 +469,12 @@ namespace Serein.Library
                     {
                         var enumerableMethods = typeof(Enumerable).GetMethods();   // 获取所有的 Enumerable 扩展方法
                         MethodInfo conversionMethod;
-                        if (ed.DataType.IsArray) // 转为数组
+                        if (pd.DataType.IsArray) // 转为数组
                         {
                             parameters[i] = inputParameter;
                             conversionMethod = enumerableMethods.FirstOrDefault(m => m.Name == "ToArray" && m.IsGenericMethodDefinition);
                         }
-                        else if (ed.DataType.GetGenericTypeDefinition() == typeof(List<>)) // 转为集合
+                        else if (pd.DataType.GetGenericTypeDefinition() == typeof(List<>)) // 转为集合
                         {
                              conversionMethod = enumerableMethods.FirstOrDefault(m => m.Name == "ToList" && m.IsGenericMethodDefinition);
                         }
@@ -482,7 +482,7 @@ namespace Serein.Library
                         {
                             throw new InvalidOperationException("输入对象不是集合或目标类型不支持（目前仅支持Array、List的自动转换）");
                         }
-                        var genericMethod = conversionMethod.MakeGenericMethod(ed.DataType);
+                        var genericMethod = conversionMethod.MakeGenericMethod(pd.DataType);
                         var result = genericMethod.Invoke(null, new object[] { collection });
                         parameters[i] = result;
                     }

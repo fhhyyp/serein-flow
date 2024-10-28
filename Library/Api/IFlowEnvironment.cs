@@ -698,9 +698,10 @@ namespace Serein.Library.Api
         /// <summary>
         /// 立刻调用某个节点，并获取其返回值
         /// </summary>
+        /// <param name="context">调用时的上下文</param>
         /// <param name="nodeGuid">节点Guid</param>
         /// <returns></returns>
-        Task<object> InvokeNodeAsync(string nodeGuid);
+        Task<object> InvokeNodeAsync(IDynamicContext context, string nodeGuid);
 
         /// <summary>
         /// 结束运行

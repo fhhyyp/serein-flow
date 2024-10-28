@@ -22,8 +22,8 @@ namespace Serein.NodeFlow.Model
         /// 自定义参数值
         /// </summary>
         [PropertyInfo(IsNotification = true)]
-
         private object? _customData;
+
         /// <summary>
         /// 条件表达式
         /// </summary>
@@ -72,32 +72,56 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        public override Task<object?> ExecutingAsync(IDynamicContext context)
+        public override async Task<object?> ExecutingAsync(IDynamicContext context)
         {
             // 接收上一节点参数or自定义参数内容
             object? parameter;
-            object? result = context.TransmissionData(this);   // 条件节点透传上一节点的数据
-            if (IsCustomData) // 是否使用自定义参数
+            object? result = null;
+            if (!IsCustomData) // 是否使用自定义参数
             {
-                // 表达式获取上一节点数据
-                var getObjExp = CustomData?.ToString();
-                if (!string.IsNullOrEmpty(getObjExp) && getObjExp.Length >= 4 && getObjExp[..4].Equals("@get", StringComparison.CurrentCultureIgnoreCase))
+
+                var pd = MethodDetails.ParameterDetailss[0];
+
+                if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData) 
                 {
+                    // 使用自定义节点的参数
+                    result = context.GetFlowData(pd.ArgDataSourceNodeGuid);
+                }
+                else if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke)
+                {
+                    // 立刻调用目标节点，然后使用其返回值
+                    result = await Env.InvokeNodeAsync(context, pd.ArgDataSourceNodeGuid);
+                }
+                else
+                {
+                    // 条件节点透传上一节点的数据
+                    result = context.TransmissionData(this);   
+                }
+                
+                // 使用上一节点的参数
+                parameter = result;
+
+            }
+            else
+            {
+                
+                var getObjExp = CustomData?.ToString();
+                if (string.IsNullOrEmpty(getObjExp) || getObjExp.Length < 4 || !getObjExp[..4].Equals("@get", StringComparison.CurrentCultureIgnoreCase))
+                {
+                    // 使用自定义的参数
+                    parameter = CustomData;
+                }
+                else
+                {
+                    // 表达式获取上一节点数据
                     parameter = result;
                     if (parameter is not null)
                     {
                         parameter = SerinExpressionEvaluator.Evaluate(getObjExp, parameter, out _);
                     }
                 }
-                else
-                {
-                    parameter = CustomData;
-                }
             }
-            else
-            {
-                parameter = result;
-            }
+
             try
             {
                 
@@ -111,7 +135,7 @@ namespace Serein.NodeFlow.Model
             }
             
             Console.WriteLine($"{result} {Expression}  -> " + context.NextOrientation);
-            return Task.FromResult(result);
+            return result;
         }
 
         public override ParameterData[] GetParameterdatas()

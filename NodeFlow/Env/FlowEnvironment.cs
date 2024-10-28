@@ -405,15 +405,13 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         /// <param name="nodeGuid"></param>
         /// <returns></returns>
-        public async Task<object> InvokeNodeAsync(string nodeGuid)
+        public async Task<object> InvokeNodeAsync(IDynamicContext context, string nodeGuid)
         {
-            IDynamicContext context = new DynamicContext(this);
             object result = true;
             if (this.NodeModels.TryGetValue(nodeGuid, out var model))
             {
                 result =  await model.InvokeAsync(context);
             }
-            context.Exit();
             return result;
         }
 
