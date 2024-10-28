@@ -55,6 +55,7 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// 启动带token验证的远程服务
         /// </summary>
+        /// <param name="environment"></param>
         /// <param name="token"></param>
         public MsgControllerOfServer(IFlowEnvironment environment, string token)
         {
@@ -567,6 +568,7 @@ namespace Serein.NodeFlow.Env
             environment.SetMonitorObjState(key, isMonitor);
         }
 
+
         /// <summary>
         /// 节点数据更改
         /// </summary>
@@ -576,6 +578,7 @@ namespace Serein.NodeFlow.Env
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.ValueNotification)]
         public async Task ValueNotification(string nodeGuid, string path, string value)
         {
+            
            await environment.NotificationNodeValueChangeAsync(nodeGuid, path, value);
         }
 

@@ -63,13 +63,7 @@ namespace Serein.NodeFlow.Env
         /// <para>表示是否正在控制远程</para>
         /// <para>Local control remote env</para>
         /// </summary>
-        public bool IsLcR { get; set; }
-        /// <summary>
-        /// <para>表示是否受到远程控制</para>
-        /// <para>Remote control local env</para>
-        /// </summary>
-        public bool IsRcL { get; set; }
-
+        public bool IsControlRemoteEnv { get; set; }
 
 
         /// <summary>
@@ -81,6 +75,7 @@ namespace Serein.NodeFlow.Env
             if (clientMsgManage is null)
             {
                 clientMsgManage = new MsgControllerOfServer(this);
+                //clientMsgManage = new MsgControllerOfServer(this,"123456");
             }
             _ = clientMsgManage.StartRemoteServerAsync(port);
         }
@@ -657,7 +652,7 @@ namespace Serein.NodeFlow.Env
                             && NodeModels.TryGetValue(pd.ArgDataSourceNodeGuid, out var fromNode))
                         {
 
-                            ConnectGerResultOfNode(fromNode, toNode, pd.ArgDataSourceType, pd.Index);
+                            await ConnectArgSourceOfNodeAsync(fromNode, toNode, pd.ArgDataSourceType, pd.Index);
                         }
                     }
                 }
@@ -678,7 +673,7 @@ namespace Serein.NodeFlow.Env
         /// <param name="token">密码</param>
         public async Task<(bool, RemoteMsgUtil)> ConnectRemoteEnv(string addres, int port, string token)
         {
-            if (IsLcR)
+            if (IsControlRemoteEnv)
             {
                 await Console.Out.WriteLineAsync($"当前已经连接远程环境");
                 return (false, null);
@@ -702,7 +697,7 @@ namespace Serein.NodeFlow.Env
                 return (false, null);
             }
             await Console.Out.WriteLineAsync("连接成功，开始验证Token");
-            IsLcR = true;
+            IsControlRemoteEnv = true;
             return (true, remoteMsgUtil);
         }
 
@@ -711,7 +706,7 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         public void ExitRemoteEnv()
         {
-            IsLcR = false;
+            IsControlRemoteEnv = false;
         }
 
         /// <summary>
@@ -916,7 +911,7 @@ namespace Serein.NodeFlow.Env
             var fromNode = GuidToModel(fromNodeGuid);
             var toNode = GuidToModel(toNodeGuid);
             if (fromNode is null || toNode is null) return false;
-            (var type,var state) = CheckConnect(fromNode, toNode, fromNodeJunctionType, toNodeJunctionType);
+            (var type, var state) = CheckConnect(fromNode, toNode, fromNodeJunctionType, toNodeJunctionType);
             if (!state)
             {
                 Console.WriteLine("出现非预期的连接行为");
@@ -977,7 +972,7 @@ namespace Serein.NodeFlow.Env
                 }
 
                 // 确定方法入参关系
-                state = ConnectGerResultOfNode(fromNode, toNode, connectionArgSourceType, argIndex);  // 本地环境进行连接
+                state = await ConnectArgSourceOfNodeAsync(fromNode, toNode, connectionArgSourceType, argIndex);  // 本地环境进行连接
             }
             return state;
 
@@ -1291,21 +1286,36 @@ namespace Serein.NodeFlow.Env
         {
             var nodeModel = GuidToModel(nodeGuid);
             if (nodeModel is null) return;
-            if (NodeValueChangeLogger.Remove((nodeGuid, path, value)))
-            {
-                // 说明存在过重复的修改
-                return;
-            }
-            NodeValueChangeLogger.Add((nodeGuid, path, value));
-            var setExp = $"@Set .{path} = {value}"; // 生成 set 表达式
-            //var getExp = $"@Get .{path}";
-            SerinExpressionEvaluator.Evaluate(setExp, nodeModel, out _); // 更改对应的数据
-            //var getResult = SerinExpressionEvaluator.Evaluate(getExp, nodeModel, out _);
-            //Console.WriteLine($"Set表达式：{setExp},result : {getResult}");
-          
+            SerinExpressionEvaluator.Evaluate($"@Set .{path} = {value}", nodeModel, out _); // 更改对应的数据
+
+            //if (NodeValueChangeLogger.Remove((nodeGuid, path, value)))
+            //{
+            //    // 说明存在过重复的修改
+            //    return;
+            //}
+            //NodeValueChangeLogger.Add((nodeGuid, path, value));
+
+            //lock (NodeValueChangeLogger)
+            //{
+
+            //    Interlocked.Add(ref i, 1);
+            //    Console.WriteLine(i);
+            //    var getExp = $"@Get .{path}";
+            //    var setExp = $"@Set .{path} = {value}"; // 生成 set 表达式
+            //    var oldValue = SerinExpressionEvaluator.Evaluate(getExp, nodeModel, out _);
+            //    if(oldValue != value)
+            //    {
+            //        Console.WriteLine($"旧值：{getExp},result : {oldValue}");
+            //        SerinExpressionEvaluator.Evaluate(setExp, nodeModel, out _); // 更改对应的数据
+            //        Console.WriteLine($"新值：{getExp},result : {SerinExpressionEvaluator.Evaluate(getExp, nodeModel, out _)}");
+            //    }
+
+            //}
+
+
 
         }
-        
+
 
 
 
@@ -1487,7 +1497,7 @@ namespace Serein.NodeFlow.Env
                             Console.WriteLine($"无法加载方法信息：{assemblyName}-{type}-{method}");
                             continue;
                         }
-                        md.MethodTips = flowName + md.MethodTips;
+                        md.MethodAnotherName = flowName + md.MethodAnotherName;
                         if (MethodDelegates.TryAdd(md.MethodName, del))
                         {
                             methodDetails.Add(md);
@@ -1702,14 +1712,23 @@ namespace Serein.NodeFlow.Env
         /// <param name="connectionArgSourceType"></param>
         /// <param name="argIndex"></param>
         /// <returns></returns>
-        private bool ConnectGerResultOfNode(NodeModelBase fromNode,
+        private async Task<bool> ConnectArgSourceOfNodeAsync(NodeModelBase fromNode,
                                             NodeModelBase toNode,
                                             ConnectionArgSourceType connectionArgSourceType,
                                             int argIndex)
         {
+
+            if (!string.IsNullOrEmpty(toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceNodeGuid))
+            {
+                //if(toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceType == connectionArgSourceType)
+                //{
+                //    return ;
+                //}
+                await RemoteConnectAsync(fromNode,toNode,argIndex); // 已经存在连接,将其移除
+            }
             toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceNodeGuid = fromNode.Guid;
             toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceType = connectionArgSourceType;
-            UIContextOperation?.Invoke(() =>
+            await UIContextOperation.InvokeAsync(() =>
                         OnNodeConnectChange?.Invoke(
                                 new NodeConnectChangeEventArgs(
                                     fromNode.Guid, // 从哪个节点开始

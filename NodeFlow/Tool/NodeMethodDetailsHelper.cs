@@ -83,14 +83,14 @@ public static class NodeMethodDetailsHelper
             returnType = method.ReturnType;
         }
 
-        if (string.IsNullOrEmpty(attribute.MethodTips)){
-            attribute.MethodTips = method.Name;
+        if (string.IsNullOrEmpty(attribute.AnotherName)){
+            attribute.AnotherName = method.Name;
         }
 
 
        
         var asyncPrefix = "[异步]"; // IsGenericTask(returnType) ? "[async]" : ;
-        var methodTips = isTask ? asyncPrefix + attribute.MethodTips : attribute.MethodTips;
+        var methodMethodAnotherName = isTask ? asyncPrefix + attribute.AnotherName : attribute.AnotherName;
 
 
 
@@ -101,7 +101,7 @@ public static class NodeMethodDetailsHelper
             MethodName = dllTypeMethodName,
             MethodDynamicType = attribute.MethodDynamicType,
             MethodLockName = attribute.LockName,
-            MethodTips = methodTips,
+            MethodAnotherName = methodMethodAnotherName,
             ParameterDetailss = explicitDataOfParameters,
             ReturnType = returnType,
         };

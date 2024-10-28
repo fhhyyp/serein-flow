@@ -123,7 +123,10 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
             catch (Exception ex)
             {
                 Console.WriteLine($"error in ws : {ex.Message}{Environment.NewLine}json value:{jsonObject}");
-                return;
+            }
+            finally
+            {
+                context.Handle = true;
             }
         }
 

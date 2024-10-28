@@ -76,7 +76,7 @@ namespace Serein.Library.Network.WebSocketCommunication
         private async Task ReceiveAsync()
         {
 
-            var msgQueueUtil = new MsgQueueUtil();
+            var msgQueueUtil = new MsgHandleUtil();
             _ = Task.Run(async () =>
             {
                 await HandleMsgAsync(_client, msgQueueUtil);
@@ -102,7 +102,7 @@ namespace Serein.Library.Network.WebSocketCommunication
 
                     } while (!result.EndOfMessage); // 判断是否已经收到完整消息
                     var message = receivedMessage.ToString();
-                    msgQueueUtil.WriteMsg(message);
+                    await msgQueueUtil.WriteMsgAsync(message);
                     receivedMessage.Clear();  // 清空 StringBuilder 为下一条消息做准备
                     // 处理收到的完整消息
                     if (result.MessageType == WebSocketMessageType.Close)
@@ -126,8 +126,7 @@ namespace Serein.Library.Network.WebSocketCommunication
         }
 
 
-        public async Task HandleMsgAsync(WebSocket webSocket,
-                                   MsgQueueUtil msgQueueUtil)
+        public async Task HandleMsgAsync(WebSocket webSocket, MsgHandleUtil msgQueueUtil)
         {
             async Task sendasync(string text)
             {
@@ -136,11 +135,15 @@ namespace Serein.Library.Network.WebSocketCommunication
             while (true)
             {
                 var message = await msgQueueUtil.WaitMsgAsync();  // 有消息时通知
-                using (var context = new WebSocketMsgContext(sendasync))
-                {
-                    context.JsonObject = JObject.Parse(message);
-                    await MsgHandleHelper.HandleAsync(context); // 处理消息
-                }
+                var context = new WebSocketMsgContext(sendasync);
+                context.JsonObject = JObject.Parse(message);
+                MsgHandleHelper.Handle(context); // 处理消息
+
+                //using (var context = new WebSocketMsgContext(sendasync))
+                //{
+                //    context.JsonObject = JObject.Parse(message);
+                //    await MsgHandleHelper.HandleAsync(context); // 处理消息
+                //}
 
                 //_ = Task.Run(() => {
                 //    JObject json = JObject.Parse(message);

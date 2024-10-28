@@ -29,7 +29,7 @@ namespace Serein.Library
         /// <summary>
         /// 方法说明
         /// </summary>
-        public string MethodTips { get; set; }
+        public string MethodAnotherName { get; set; }
 
         /// <summary>
         /// 参数内容

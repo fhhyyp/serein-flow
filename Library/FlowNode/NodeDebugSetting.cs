@@ -13,12 +13,6 @@ namespace Serein.Library
     public partial class NodeDebugSetting
     {
         /// <summary>
-        /// 对应的节点
-        /// </summary>
-        [PropertyInfo(IsProtection = true)]
-        private NodeModelBase _nodeModel;
-
-        /// <summary>
         /// 创建属于某个节点的调试设置
         /// </summary>
         /// <param name="nodeModel"></param>
@@ -26,6 +20,13 @@ namespace Serein.Library
         {
             NodeModel = nodeModel;
         }
+
+        /// <summary>
+        /// 对应的节点
+        /// </summary>
+        [PropertyInfo(IsProtection = true)]
+        private NodeModelBase _nodeModel;
+
         /// <summary>
         /// 是否使能
         /// </summary>
@@ -41,10 +42,8 @@ namespace Serein.Library
         /// <summary>
         ///  中断级别，暂时停止继续执行后继分支。
         /// </summary>
-        [PropertyInfo(IsNotification = true, CustomCode = "NodeModel?.Env?.SetNodeInterruptAsync(NodeModel?.Guid, value);")]
+        [PropertyInfo(IsNotification = true)] // CustomCode = "NodeModel?.Env?.SetNodeInterruptAsync(NodeModel?.Guid, value);"
         private bool _isInterrupt = false;
-
-        //private const string MyInteruptCode = "NodeModel?.Env?.SetNodeInterruptAsync(NodeModel?.Guid, value);"; // 添加到中断的自定义代码
 
         /// <summary>
         /// 取消中断的回调函数

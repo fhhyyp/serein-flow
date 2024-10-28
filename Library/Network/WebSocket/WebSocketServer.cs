@@ -180,7 +180,7 @@ namespace Serein.Library.Network.WebSocketCommunication
                 return;
             }
 
-            var msgQueueUtil = new MsgQueueUtil();
+            var msgQueueUtil = new MsgHandleUtil();
             _ = Task.Run(async () =>
             {
                 await HandleMsgAsync(webSocket,msgQueueUtil, authorizedHelper);
@@ -219,7 +219,7 @@ namespace Serein.Library.Network.WebSocketCommunication
                     // 完整消息已经接收到，准备处理
                     var message = receivedMessage.ToString(); // 获取消息文本
                     receivedMessage.Clear();  // 清空 StringBuilder 为下一条消息做准备
-                    msgQueueUtil.WriteMsg(message);  // 处理消息
+                    await msgQueueUtil.WriteMsgAsync(message);  // 处理消息
                 }
                 catch (Exception ex)
                 {
@@ -231,7 +231,7 @@ namespace Serein.Library.Network.WebSocketCommunication
 
 
         public async Task HandleMsgAsync(WebSocket webSocket,
-                                         MsgQueueUtil msgQueueUtil, 
+                                         MsgHandleUtil msgQueueUtil, 
                                          WebSocketAuthorizedHelper authorizedHelper)
         {
             async Task sendasync(string text)
@@ -254,17 +254,20 @@ namespace Serein.Library.Network.WebSocketCommunication
                         return;
                     }
                 }
+                var context = new WebSocketMsgContext(sendasync);
+                context.JsonObject = JObject.Parse(message);
+                MsgHandleHelper.Handle(context); // 处理消息
 
-                using (var context = new WebSocketMsgContext(sendasync))
-                {
-                    context.JsonObject = JObject.Parse(message);
-                    await MsgHandleHelper.HandleAsync(context); // 处理消息
-                }
+                //using (var context = new WebSocketMsgContext(sendasync))
+                //{
+                //    context.JsonObject = JObject.Parse(message);
+                //    await MsgHandleHelper.Handle(context); // 处理消息
+                //}
                 //_ = Task.Run(() => {
-
-                   
-                //});
                 
+
+                //});
+
 
             }
             

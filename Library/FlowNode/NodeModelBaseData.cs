@@ -81,7 +81,6 @@ namespace Serein.Library
         [PropertyInfo]
         private Exception _runingException ;
 
-
     }
 
 

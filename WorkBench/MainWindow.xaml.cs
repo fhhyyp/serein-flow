@@ -368,8 +368,9 @@ namespace Serein.Workbench
 
             if (eventArgs.JunctionOfConnectionType == JunctionOfConnectionType.Invoke)
             {
-                #region 创建/删除节点之间的调用关系
                 ConnectionInvokeType connectionType = eventArgs.ConnectionInvokeType;
+                #region 创建/删除节点之间的调用关系
+                #region 创建连接
                 if (eventArgs.ChangeType == NodeConnectChangeEventArgs.ConnectChangeType.Create) // 添加连接
                 {
                     if (fromNodeControl is not INodeJunction IFormJunction || toNodeControl is not INodeJunction IToJunction)
@@ -383,10 +384,10 @@ namespace Serein.Workbench
 
                     // 添加连接
                     var connection = new ConnectionControl(
-                        FlowChartCanvas, 
+                        FlowChartCanvas,
                         connectionType,
                         startJunction,
-                        endJunction, 
+                        endJunction,
                         () => EnvDecorator.RemoveConnectInvokeAsync(fromNodeGuid, toNodeGuid, connectionType)
                     );
 
@@ -403,11 +404,16 @@ namespace Serein.Workbench
 
 
                 }
+                #endregion
+                #region 移除连接
                 else if (eventArgs.ChangeType == NodeConnectChangeEventArgs.ConnectChangeType.Remote) // 移除连接
                 {
                     // 需要移除连接
-                    var removeConnections = Connections.Where(c => c.Start.MyNode.Guid.Equals(fromNodeGuid)
-                                           && c.End.MyNode.Guid.Equals(toNodeGuid))
+                    var removeConnections = Connections.Where(c => 
+                                               c.Start.MyNode.Guid.Equals(fromNodeGuid)
+                                            && c.End.MyNode.Guid.Equals(toNodeGuid)
+                                            && (c.Start.JunctionType.ToConnectyionType() == JunctionOfConnectionType.Invoke
+                                            || c.End.JunctionType.ToConnectyionType() == JunctionOfConnectionType.Invoke))
                                             .ToList();
 
 
@@ -417,18 +423,20 @@ namespace Serein.Workbench
                         Connections.Remove(connection);
                         fromNodeControl.RemoveCnnection(connection);
                         toNodeControl.RemoveCnnection(connection);
-                        if(NodeControls.TryGetValue(connection.End.MyNode.Guid, out var control))
+                        if (NodeControls.TryGetValue(connection.End.MyNode.Guid, out var control))
                         {
                             JudgmentFlipFlopNode(control); // 连接关系变更时判断
                         }
                     }
-                }
+                } 
+                #endregion
                 #endregion
             }
             else
             {
-                #region 创建/删除节点之间的参数传递关系
                 ConnectionArgSourceType connectionArgSourceType = eventArgs.ConnectionArgSourceType;
+                #region 创建/删除节点之间的参数传递关系
+                #region 创建连接
                 if (eventArgs.ChangeType == NodeConnectChangeEventArgs.ConnectChangeType.Create) // 添加连接
                 {
                     if (fromNodeControl is not INodeJunction IFormJunction || toNodeControl is not INodeJunction IToJunction)
@@ -471,6 +479,8 @@ namespace Serein.Workbench
 
 
                 }
+                #endregion
+                #region 移除连接
                 else if (eventArgs.ChangeType == NodeConnectChangeEventArgs.ConnectChangeType.Remote) // 移除连接
                 {
                     // 需要移除连接
@@ -478,11 +488,11 @@ namespace Serein.Workbench
                                                                     && c.End.MyNode.Guid.Equals(toNodeGuid))
                                                                 .ToList(); // 获取这两个节点之间的所有连接关系
 
-                    
+
 
                     foreach (var connection in removeConnections)
                     {
-                        if(connection.End is ArgJunctionControl junctionControl && junctionControl.ArgIndex == eventArgs.ArgIndex)
+                        if (connection.End is ArgJunctionControl junctionControl && junctionControl.ArgIndex == eventArgs.ArgIndex)
                         {
                             // 找到符合删除条件的连接线
                             connection.DeleteConnection(); // 从UI层面上移除
@@ -491,13 +501,14 @@ namespace Serein.Workbench
                             toNodeControl.RemoveCnnection(connection); // 从节点持有的记录移除
                         }
 
-                       
+
                         //if (NodeControls.TryGetValue(connection.End.MyNode.Guid, out var control))
                         //{
                         //    JudgmentFlipFlopNode(control); // 连接关系变更时判断
                         //}
                     }
-                }
+                } 
+                #endregion
                 #endregion
             }
 

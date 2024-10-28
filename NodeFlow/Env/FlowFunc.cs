@@ -53,7 +53,7 @@ namespace Serein.NodeFlow.Env
                 methodDetails = new MethodDetails();
             }
             var md = methodDetails.CloneOfNode(nodeModel.Env, nodeModel);
-            nodeModel.DisplayName = md.MethodTips;
+            nodeModel.DisplayName = md.MethodAnotherName;
             nodeModel.MethodDetails = md;
 
 

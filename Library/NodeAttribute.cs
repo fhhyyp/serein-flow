@@ -91,7 +91,7 @@ namespace Serein.Library
         {
             Scan = scan;
             MethodDynamicType = methodDynamicType;
-            MethodTips = methodTips;
+            AnotherName = methodTips;
             LockName = lockName;
         }
         /// <summary>
@@ -101,7 +101,7 @@ namespace Serein.Library
         /// <summary>
         /// 类似于注释的效果
         /// </summary>
-        public string MethodTips;
+        public string AnotherName;
         /// <summary>
         /// 标记节点行为
         /// </summary>

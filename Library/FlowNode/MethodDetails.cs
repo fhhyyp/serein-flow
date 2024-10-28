@@ -2,6 +2,7 @@
 using Serein.Library.Utils;
 using System;
 using System.Linq;
+using System.Text;
 
 namespace Serein.Library
 {
@@ -12,7 +13,7 @@ namespace Serein.Library
     [NodeProperty(ValuePath = NodeValuePath.Method)]
     public partial class MethodDetails
     {
-        private readonly IFlowEnvironment env;
+        // private readonly IFlowEnvironment env;
 
         /// <summary>
         /// 对应的节点
@@ -58,10 +59,10 @@ namespace Serein.Library
 
 
         /// <summary>
-        /// 方法说明
+        /// 方法别名
         /// </summary>
         [PropertyInfo]
-        private string _methodTips;
+        private string _methodAnotherName;
 
 
         /// <summary>
@@ -109,7 +110,7 @@ namespace Serein.Library
                 throw new ArgumentException("无效的节点类型");
             }
             MethodName = Info.MethodName;
-            MethodTips = Info.MethodTips;
+            MethodAnotherName = Info.MethodAnotherName;
             MethodDynamicType = nodeType;
             ReturnType = Type.GetType(Info.ReturnTypeFullName);
             ParameterDetailss = Info.ParameterDetailsInfos.Select(pinfo => new ParameterDetails(pinfo)).ToArray();
@@ -121,10 +122,12 @@ namespace Serein.Library
         /// <returns></returns>
         public MethodDetailsInfo ToInfo()
         {
+            
+
             return new MethodDetailsInfo
             {
                 MethodName = MethodName,
-                MethodTips = MethodTips,
+                MethodAnotherName = MethodAnotherName,
                 NodeType = MethodDynamicType.ToString(),
                 ParameterDetailsInfos = ParameterDetailss.Select(p => p.ToInfo()).ToArray(),
                 ReturnTypeFullName = ReturnType.FullName,
@@ -142,7 +145,7 @@ namespace Serein.Library
                 ActingInstance = this.ActingInstance,
                 ActingInstanceType = this.ActingInstanceType,
                 MethodDynamicType = this.MethodDynamicType,
-                MethodTips = this.MethodTips,
+                MethodAnotherName = this.MethodAnotherName,
                 ReturnType = this.ReturnType,
                 MethodName = this.MethodName,
                 MethodLockName = this.MethodLockName,
@@ -152,9 +155,23 @@ namespace Serein.Library
             return md;
         }
 
-
-
-
+        public override string ToString()
+        {
+             StringBuilder sb = new StringBuilder();
+            sb.AppendLine($"方法别名：{this.MethodAnotherName}");
+            sb.AppendLine($"方法名称：{this.MethodName}");
+            sb.AppendLine($"需要实例：{this.ActingInstanceType.FullName}");
+            sb.AppendLine($"");
+            sb.AppendLine($"入参参数信息：");
+            foreach (var arg in this.ParameterDetailss)
+            {
+                sb.AppendLine($"    {arg.ToString()}");
+            }
+            sb.AppendLine($"");
+            sb.AppendLine($"返回值信息：");
+            sb.AppendLine($"    {this.ReturnType.FullName}");
+            return sb.ToString();
+        }
 
         ///// <summary>
         ///// 每个节点有独自的MethodDetails实例

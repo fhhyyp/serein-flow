@@ -22,7 +22,7 @@
 
         <Grid>
             <Grid.ToolTip>
-                <ToolTip Background="LightYellow" Foreground="#071042" Content="{Binding NodeModel.MethodDetails.MethodName, UpdateSourceTrigger=PropertyChanged}" />
+                <ToolTip Background="LightYellow" Foreground="#071042" Content="{Binding NodeModel.MethodDetails, UpdateSourceTrigger=PropertyChanged}" />
             </Grid.ToolTip>
 
             <Grid.RowDefinitions>
@@ -47,7 +47,7 @@
 
                 <local:ExecuteJunctionControl  Grid.Column="0"  MyNode="{Binding NodeModel}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
                 <StackPanel Grid.Column="1" Grid.RowSpan="2" >
-                    <TextBlock   Text="{Binding NodeModel.MethodDetails.MethodTips, Mode=TwoWay}" HorizontalAlignment="Center"/>
+                    <TextBlock   Text="{Binding NodeModel.DisplayName, Mode=TwoWay}" HorizontalAlignment="Center"/>
                 </StackPanel>
                 <local:NextStepJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}"  x:Name="NextStepJunctionControl" HorizontalAlignment="Right" Grid.RowSpan="2"/>
 

@@ -68,7 +68,6 @@ namespace Serein.Library
         [PropertyInfo]
         private string _argDataSourceNodeGuid;
 
-
         /// <summary>
         /// 方法入参需要的类型。
         /// </summary>
@@ -128,7 +127,6 @@ namespace Serein.Library
             ExplicitType = Type.GetType(info.ExplicitTypeFullName);
             ExplicitTypeName = info.ExplicitTypeName;
             Items = info.Items;
-            
         }
 
         /// <summary>
@@ -170,6 +168,19 @@ namespace Serein.Library
 
             };
             return pd;
+        }
+
+        public override string ToString()
+        {
+            if(_convertor is null)
+            {
+                return $"[{this.Index}] {this.Name} : {this.DataType.FullName}";
+            }
+            else
+            {
+
+            }
+            return $"[{this.Index}] {this.Name} : {this.ExplicitType.FullName} -> {this.DataType.FullName}";
         }
     }
 

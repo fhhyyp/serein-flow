@@ -201,12 +201,17 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// </summary>
         /// <param name="context">此次请求的上下文</param>
         /// <returns></returns>
-        public async Task HandleAsync(WebSocketMsgContext context)
+        public void Handle(WebSocketMsgContext context)
         {
             foreach (var module in MyHandleModuleDict.Values)
             {
-               await module.HandleAsync(context);
+                if (context.Handle)
+                {
+                    return;
+                }
+               _ = module.HandleAsync(context);
             }
+
 
         }
 

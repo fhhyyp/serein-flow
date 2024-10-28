@@ -89,14 +89,15 @@
                     <!--<Button  Grid.Row="0"  Content="卸载清空" Click="UnloadAllButton_Click"  HorizontalAlignment="Right"  Margin="5,5,5,5"/>--><!--
                 </Grid>-->
 
-                <ScrollViewer  Grid.Row="0"  HorizontalScrollBarVisibility="Auto">
+                <!--暂时隐藏基础面板-->
+                <ScrollViewer  Grid.Row="0" Visibility="Collapsed" HorizontalScrollBarVisibility="Auto">
                     <StackPanel  Orientation="Horizontal">
                         <nodeView:ExpOpNodeControl x:Name="ExpOpNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                         <nodeView:ConditionNodeControl x:Name="ConditionNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                         <nodeView:ConditionRegionControl  x:Name="ConditionRegionControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                     </StackPanel>
                 </ScrollViewer>
-                <ScrollViewer  Grid.Row="1"  VerticalScrollBarVisibility="Auto" MaxHeight="400" Grid.RowSpan="2">
+                <ScrollViewer VerticalAlignment="Top" Grid.Row="1"  VerticalScrollBarVisibility="Auto" MaxHeight="400" Grid.RowSpan="2">
                     <StackPanel x:Name="DllStackPanel" Margin="5"/>
                 </ScrollViewer>
                 <!--<GridSplitter Grid.Row="3" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Center" ResizeBehavior="PreviousAndNext" Background="Gray"/>-->
@@ -209,21 +210,21 @@ Canvas.Top="{Binding ActualHeight, ElementName=FlowChartCanvas, Mode=OneWay, Con
             </StackPanel>
             <StackPanel>
                 <StackPanel x:Name="CreateNodeInvoke"
-                            Margin="14" Width="auto" HorizontalAlignment="Left" Background="White" Opacity="0.7"
+                            Margin="14" Width="auto" HorizontalAlignment="Left" Background="White" Opacity="0.8"
                             Visibility="{Binding IsConnectionInvokeNode, 
                                 Converter={StaticResource InvertedBoolConverter},ConverterParameter=Normal}" >
-                    <TextBlock Margin="8,2,8,0" Foreground="#FF2727" FontSize="14" Text="正在设置调用关系"/>
+                    <TextBlock Margin="8,2,8,0" Foreground="#FF2727" FontSize="14" Text="正在设置方法调用关系 （ 按 Ecs 退出连线状态 )"/>
                     <TextBlock Margin="8,0,8,0" Foreground="#4A82E4" FontSize="14" Text="  按 1 切换：上游分支（运行本节点前，优先执行目标节点）"/>
                     <TextBlock Margin="8,0,8,0" Foreground="#04FC10" FontSize="14" Text="  按 2 切换：Succeed 分支（本节点运行完成，将会运行目标节点）"/>
                     <TextBlock Margin="8,0,8,0" Foreground="#F18905" FontSize="14" Text="  按 3 切换：Fail 分支（条件节点的false分支）"/>
                     <TextBlock Margin="8,0,8,2" Foreground="#FE1343" FontSize="14" Text="  按 4 切换：异常分支（本节点运行发生异常时执行目标节点）"/>
                 </StackPanel>
-                <StackPanel Margin="14" Width="auto" HorizontalAlignment="Left" Background="White" Opacity="0.9"
+                <StackPanel Margin="14" Width="auto" HorizontalAlignment="Left" Background="White" Opacity="0.8"
                             Visibility="{Binding IsConnectionArgSourceNode, 
                             Converter={StaticResource InvertedBoolConverter},ConverterParameter=Normal}" >
-                    <TextBlock Margin="8,2,8,0" Foreground="#FF2727" FontSize="14" Text="正在设置参数传递关系"/>
-                    <TextBlock Margin="8,0,8,0" Foreground="#56CEF6" FontSize="14" Text="  按 1 切换：入参使用目标节点返回值"/>
-                    <TextBlock Margin="8,0,8,2" Foreground="#B06BBB" FontSize="14" Text="  按 2 切换：立刻调用目标节点，其返回值将作为入参参数"/>
+                    <TextBlock Margin="8,2,8,0" Foreground="#FF2727" FontSize="14" Text="正在设置参数传递关系 （ 按 Ecs 退出连线状态 )"/>
+                    <TextBlock Margin="8,0,8,0" Foreground="#56CEF6" FontSize="14" Text="  按 1 切换：使用返回值作为当前上下文的入参参数（当前上下文下如果未曾运行过该节点，将会返回null）"/>
+                    <TextBlock Margin="8,0,8,2" Foreground="#B06BBB" FontSize="14" Text="  按 2 切换：立刻调用节点，取其返回值作为当前上下文的入参参数"/>
                 </StackPanel>
             </StackPanel>
         </Grid>

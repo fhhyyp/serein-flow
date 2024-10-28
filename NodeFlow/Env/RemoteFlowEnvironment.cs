@@ -64,9 +64,8 @@ namespace Serein.NodeFlow.Env
 
         public bool IsGlobalInterrupt => false;
 
-        public bool IsLcR => true;
+        public bool IsControlRemoteEnv => true;
 
-        public bool IsRcL => false;
 
         public RunState FlowState { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public RunState FlipFlopState { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
@@ -78,6 +77,10 @@ namespace Serein.NodeFlow.Env
         /// 标示是否正在加载项目
         /// </summary>
         private bool IsLoadingProject = false;
+        /// <summary>
+        /// 表示是否正在加载节点
+        /// </summary>
+        private bool IsLoadingNode = false;
 
         public void SetConsoleOut()
         {
@@ -666,13 +669,14 @@ namespace Serein.NodeFlow.Env
         /// <param name="methodDetailsInfo">节点绑定的方法说明</param>
         public async Task<NodeInfo> CreateNodeAsync(NodeControlType nodeControlType, PositionOfUI position, MethodDetailsInfo methodDetailsInfo = null)
         {
+            IsLoadingNode = true;
             var nodeInfo = await msgClient.SendAndWaitDataAsync<NodeInfo>(EnvMsgTheme.CreateNode, new
             {
                 nodeType = nodeControlType.ToString(),
                 position = position,
                 mdInfo = methodDetailsInfo,
             });
-
+            
             MethodDetails? methodDetails = null;
             if (!string.IsNullOrEmpty(nodeInfo.MethodName))
             {
@@ -683,6 +687,7 @@ namespace Serein.NodeFlow.Env
             var nodeModel = FlowFunc.CreateNode(this, nodeControlType, methodDetails); // 远程环境下加载节点
             nodeModel.LoadInfo(nodeInfo);
             TryAddNode(nodeModel);
+            IsLoadingNode = false;
 
             // 通知UI更改
             UIContextOperation.Invoke(() =>
@@ -816,14 +821,18 @@ namespace Serein.NodeFlow.Env
 
         public async Task NotificationNodeValueChangeAsync(string nodeGuid, string path, object value)
         {
-            //Console.WriteLine($"通知远程环境修改节点数据：{nodeGuid},name:{path},value:{value}");
+            if(IsLoadingProject || IsLoadingNode)
+            {
+                return;
+            }
+            Console.WriteLine($"通知远程环境修改节点数据：{nodeGuid},name:{path},value:{value}");
             
-            //_  = msgClient.SendAsync(EnvMsgTheme.ValueNotification, new
-            //{
-            //    nodeGuid = nodeGuid,
-            //    path = path,
-            //    value = value.ToString(),
-            //});
+            _  = msgClient.SendAsync(EnvMsgTheme.ValueNotification, new
+            {
+                nodeGuid = nodeGuid,
+                path = path,
+                value = value.ToString(),
+            });
 
         }
     }

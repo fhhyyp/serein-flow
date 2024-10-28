@@ -517,13 +517,12 @@ namespace Serein.Library.Api
         /// <para>表示是否正在控制远程</para>
         /// <para>Local control remote env</para>
         /// </summary>
-        bool IsLcR { get; }
+        bool IsControlRemoteEnv { get; }
 
         /// <summary>
-        /// <para>表示是否受到远程控制</para>
-        /// <para>Remote control local env</para>
+        /// 是否运行在控制台上
         /// </summary>
-        bool IsRcL { get; }
+        // bool IsRuningOnConsole { get; }
 
         /// <summary>
         /// 流程运行状态

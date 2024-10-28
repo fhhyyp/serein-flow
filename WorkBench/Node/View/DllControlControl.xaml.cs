@@ -66,14 +66,14 @@ namespace Serein.Workbench.Node.View
         /// <summary>
         /// 向指定面板添加类型的文本块
         /// </summary>
-        /// <param name="type">要添加的类型</param>
-        /// <param name="panel">要添加到的面板</param>
+        /// <param name="mdInfo">要添加的方法信息</param>
+        /// <param name="listBox">要添加到的面板</param>
         private void AddTypeToListBox(MethodDetailsInfo mdInfo, ListBox listBox)
         {
             // 创建一个新的 TextBlock 并设置其属性
             TextBlock typeText = new TextBlock
             {
-                Text = $"{mdInfo.MethodTips}",
+                Text = $"{mdInfo.MethodAnotherName}  -  {mdInfo.MethodName}",
                 Margin = new Thickness(10, 2, 0, 0),
                 Tag = mdInfo
             };

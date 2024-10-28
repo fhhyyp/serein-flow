@@ -34,6 +34,7 @@ namespace Serein.NodeFlow.Env
         private IFlowEnvironment currentFlowEnvironment;
 
 
+
         private int _loadingProjectFlag = 0; // 使用原子自增代替锁
         /// <summary>
         /// 传入false时，将停止数据通知。传入true时，
@@ -68,9 +69,8 @@ namespace Serein.NodeFlow.Env
 
         public bool IsGlobalInterrupt => currentFlowEnvironment.IsGlobalInterrupt;
 
-        public bool IsLcR => currentFlowEnvironment.IsLcR;
+        public bool IsControlRemoteEnv => currentFlowEnvironment.IsControlRemoteEnv;
 
-        public bool IsRcL => currentFlowEnvironment.IsRcL;
 
         public RunState FlowState { get => currentFlowEnvironment.FlowState; set => currentFlowEnvironment.FlowState = value; }
         public RunState FlipFlopState { get => currentFlowEnvironment.FlipFlopState; set => currentFlowEnvironment.FlipFlopState = value; }
@@ -404,14 +404,23 @@ namespace Serein.NodeFlow.Env
             currentFlowEnvironment.WriteLineObjToJson(obj);
         }
 
-
+        /// <summary>
+        /// （用于远程）通知节点属性变更
+        /// </summary>
+        /// <param name="nodeGuid">节点Guid</param>
+        /// <param name="path">属性路径</param>
+        /// <param name="value">属性值</param>
+        /// <returns></returns>
         public async Task NotificationNodeValueChangeAsync(string nodeGuid, string path, object value)
         {
             if (!IsLoadingProject())
             {
                 return;
             }
-            await currentFlowEnvironment.NotificationNodeValueChangeAsync(nodeGuid, path, value);
+            if (currentFlowEnvironment.IsControlRemoteEnv)
+            {
+                await currentFlowEnvironment.NotificationNodeValueChangeAsync(nodeGuid, path, value);
+            }
         }
 
 

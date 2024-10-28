@@ -53,7 +53,7 @@ namespace Serein.Library
             {
                 Guid = Guid,
                 MethodName = MethodDetails?.MethodName,
-                Label = DisplayName ?? "",
+                Label = MethodDetails?.MethodAnotherName,
                 Type = this.GetType().ToString(),
                 TrueNodes = trueNodes.ToArray(),
                 FalseNodes = falseNodes.ToArray(),

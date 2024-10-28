@@ -11,23 +11,25 @@ using System.Threading.Tasks;
 
 namespace Serein.Library.Network.WebSocketCommunication
 {
-    public class MsgQueueUtil 
+    /// <summary>
+    /// 消息处理工具
+    /// </summary>
+    public class MsgHandleUtil
     {
-        public ConcurrentQueue<string> Msgs = new ConcurrentQueue<string>();
-
         private readonly Channel<string> _msgChannel;
-        public MsgQueueUtil()
-        {
-            _msgChannel = CreateChannel();
-        }
 
-        private Channel<string> CreateChannel()
+        /// <summary>
+        /// 初始化优先容器
+        /// </summary>
+        /// <param name="capacity"></param>
+        public MsgHandleUtil(int capacity = 100)
         {
-            return Channel.CreateBounded<string>(new BoundedChannelOptions(100)
+            _msgChannel = Channel.CreateBounded<string>(new BoundedChannelOptions(capacity)
             {
                 FullMode = BoundedChannelFullMode.Wait
             });
         }
+    
 
         /// <summary>
         /// 等待消息
@@ -35,24 +37,42 @@ namespace Serein.Library.Network.WebSocketCommunication
         /// <returns></returns>
         public async Task<string> WaitMsgAsync()
         {
-           var state = await _msgChannel.Reader.ReadAsync();
-           return state;
-        }
-       
-        public void WriteMsg(string msg)
-        {
-            //Msgs.Enqueue(msg);
-            Console.WriteLine($"{DateTime.Now}{msg}{Environment.NewLine}");
-            _ = _msgChannel.Writer.WriteAsync(msg);
+            // 检查是否可以读取消息
+            if (await _msgChannel.Reader.WaitToReadAsync())
+            {
+                return await _msgChannel.Reader.ReadAsync();
+            }
+            return null; // 若通道关闭，则返回null
         }
 
-        public bool TryGetMsg(out string msg)
+        /// <summary>
+        /// 写入消息
+        /// </summary>
+        /// <param name="msg">消息内容</param>
+        /// <returns>是否写入成功</returns>
+        public async Task<bool> WriteMsgAsync(string msg)
         {
-            return Msgs.TryDequeue(out msg);
+            try
+            {
+                await _msgChannel.Writer.WriteAsync(msg);
+                return true;
+            }
+            catch (ChannelClosedException)
+            {
+                // Channel 已关闭
+                return false;
+            }
         }
 
-        
+        /// <summary>
+        /// 尝试关闭通道，停止写入消息
+        /// </summary>
+        public void CloseChannel()
+        {
+            _msgChannel.Writer.Complete();
+        }
     }
+
 
 
 

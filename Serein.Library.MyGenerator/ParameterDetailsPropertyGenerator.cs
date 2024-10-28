@@ -183,20 +183,32 @@ namespace Serein.Library.NodeGenerator
                     {
                         if (classInfo.ExitsPath(nameof(NodeValuePath.Node))) // 节点 or 自定义节点
                         {
-                            sb.AddCode(5, $"((NodeModelBase)this).Env?.NotificationNodeValueChangeAsync(this.Guid, nameof({propertyName}), value); // 通知远程环境属性发生改变了");
+                            sb.AddCode(5, $"if (this?.Env?.IsControlRemoteEnv == true) // 正在控制远程环境时才触发");
+                            sb.AddCode(5, $"{{");
+                            sb.AddCode(6, $"this.Env?.NotificationNodeValueChangeAsync(this.Guid, nameof({propertyName}), value); // 通知远程环境属性发生改变了");
+                            sb.AddCode(5, $"}}");
                         }
-                        else if (classInfo.ExitsPath(nameof(NodeValuePath.Method))) // 节点方法详情
+                        else
                         {
-                            sb.AddCode(5, $"NodeModel?.Env?.NotificationNodeValueChangeAsync(NodeModel.Guid, \"MethodDetails.\"+nameof({propertyName}), value); // 通知远程环境属性发生改变了");
+                            sb.AddCode(5, $"if (NodeModel?.Env?.IsControlRemoteEnv == true) // 正在控制远程环境时才触发");
+                            sb.AddCode(5, $"{{");
+                            if (classInfo.ExitsPath(nameof(NodeValuePath.Method))) // 节点方法详情
+                            {
+                                sb.AddCode(6, $"NodeModel?.Env?.NotificationNodeValueChangeAsync(NodeModel.Guid, \"MethodDetails.\"+nameof({propertyName}), value); // 通知远程环境属性发生改变了");
+                            }
+                            else if (classInfo.ExitsPath(nameof(NodeValuePath.Parameter))) // 节点方法入参参数描述
+                            {
+                                sb.AddCode(6, "NodeModel?.Env?.NotificationNodeValueChangeAsync(NodeModel.Guid, \"MethodDetails.ParameterDetailss[\"+$\"{Index}\"+\"]." + $"\"+nameof({propertyName}),value); // 通知远程环境属性发生改变了");
+                            }
+                            else if (classInfo.ExitsPath(nameof(NodeValuePath.DebugSetting))) // 节点的调试信息
+                            {
+                                
+                                sb.AddCode(6, $"NodeModel?.Env?.NotificationNodeValueChangeAsync(NodeModel.Guid, \"DebugSetting.\"+nameof({propertyName}), value); // 通知远程环境属性发生改变了");
+                               
+                            }
+                            sb.AddCode(5, $"}}");
                         }
-                        else if (classInfo.ExitsPath(nameof(NodeValuePath.Parameter))) // 节点方法入参参数描述
-                        {
-                            sb.AddCode(5, "NodeModel?.Env?.NotificationNodeValueChangeAsync(NodeModel.Guid, \"MethodDetails.ParameterDetailss[\"+$\"{Index}\"+\"]." + $"\"+nameof({propertyName}),value); // 通知远程环境属性发生改变了");
-                        }
-                        else if (classInfo.ExitsPath(nameof(NodeValuePath.DebugSetting))) // 节点的调试信息
-                        {
-                            sb.AddCode(5, $"NodeModel?.Env?.NotificationNodeValueChangeAsync(NodeModel.Guid, \"DebugSetting.\"+nameof({propertyName}), value); // 通知远程环境属性发生改变了"); 
-                        }
+                      
                     }
                     if (attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.CustomCode), value => !string.IsNullOrEmpty(value)))  // 是否打印
                     {

@@ -11,7 +11,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
     /// <summary>
     /// 消息处理上下文
     /// </summary>
-    public class WebSocketMsgContext : IDisposable
+    public class WebSocketMsgContext /*: IDisposable*/
     {
         public WebSocketMsgContext(Func<string, Task> sendAsync)
         {
@@ -31,7 +31,14 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// <summary>
         /// 标记是否已经处理，如果是，则提前退出
         /// </summary>
-        public bool Handle { get; set; }
+        public bool Handle { get => _handle; set{
+                if(value)
+                {
+                    Dispose();
+                    _handle = value;
+                }
+            } }
+        public bool _handle = false;
 
         /// <summary>
         /// 消息本体（JObject）

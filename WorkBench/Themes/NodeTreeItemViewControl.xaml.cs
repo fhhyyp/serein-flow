@@ -56,7 +56,7 @@ namespace Serein.Workbench.Themes
                     {ConnectionInvokeType.IsError, []},
                 }
             };
-            string? itemName = rootNodeModel.MethodDetails?.MethodTips;
+            string? itemName = rootNodeModel.MethodDetails?.MethodAnotherName;
             if (string.IsNullOrEmpty(itemName))
             {
                 itemName = rootNodeModel.ControlType.ToString();
@@ -123,7 +123,7 @@ namespace Serein.Workbench.Themes
                             RootNode = child,
                             ChildNodes = child.SuccessorNodes,
                         };
-                        string? itemName = child?.MethodDetails?.MethodTips;
+                        string? itemName = child?.MethodDetails?.MethodAnotherName;
                         if (string.IsNullOrEmpty(itemName))
                         {
                             itemName = child?.ControlType.ToString();
@@ -186,7 +186,7 @@ namespace Serein.Workbench.Themes
                         ChildNodes = childNodeModel.SuccessorNodes,
                     };
 
-                    string? itemName = childNodeModel?.MethodDetails?.MethodTips;
+                    string? itemName = childNodeModel?.MethodDetails?.MethodAnotherName;
                     if (string.IsNullOrEmpty(itemName))
                     {
                         itemName = childNodeModel?.ControlType.ToString();
