@@ -94,7 +94,7 @@
                     <StackPanel  Orientation="Horizontal">
                         <nodeView:ExpOpNodeControl x:Name="ExpOpNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                         <nodeView:ConditionNodeControl x:Name="ConditionNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
-                        <nodeView:ConditionRegionControl  x:Name="ConditionRegionControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
+                        <!--<nodeView:ConditionRegionControl  x:Name="ConditionRegionControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>-->
                     </StackPanel>
                 </ScrollViewer>
                 

@@ -26,7 +26,7 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0" Background="#A8D8EA" >
+        <Grid Grid.Row="0" Background="#E7EFF5" >
             <!--<Grid Grid.Row="0" >-->
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
@@ -44,8 +44,8 @@
             <local:NextStepJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}"  x:Name="NextStepJunctionControl" HorizontalAlignment="Right" Grid.RowSpan="2"/>
 
         </Grid>
-       
-        <Grid Grid.Row="1" Background="#F1FFDF"  HorizontalAlignment="Stretch">
+
+        <Grid Grid.Row="1" Background="#FEFAF4"  HorizontalAlignment="Stretch">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="*"/>
@@ -83,12 +83,21 @@
                     </Style>
                 </TextBlock.Style>
             </TextBlock>
-            <TextBox Grid.Row="1" Grid.ColumnSpan="3"  Background="#F1FFDF" MinWidth="100" Text="{Binding NodeModel.Expression, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  
-                HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+
+
+            <Grid Grid.Row="1"  Grid.ColumnSpan="3"  Background="#FEFAF4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox Grid.Column="0" Background="#FEFAF4" MinWidth="100" Text="{Binding NodeModel.Expression, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  
+    HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+
+                <local:ResultJunctionControl Grid.Column="1"  MyNode="{Binding NodeModel}" x:Name="ResultJunctionControl" HorizontalAlignment="Right"/>
+            </Grid>
+            
         </Grid>
-        <StackPanel Grid.Row="2" Background="#A8D8EA">
-            <local:ResultJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}" x:Name="ResultJunctionControl" HorizontalAlignment="Right"/>
-        </StackPanel>
+        
 
         <!--<themes:MethodDetailsControl Grid.Row="1" MethodDetails="{Binding MethodDetails}" />
         <Border Grid.Row="2" Background="#EAFFD0" BorderBrush="#EAFFD0" BorderThickness="1">
