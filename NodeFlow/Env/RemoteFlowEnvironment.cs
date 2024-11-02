@@ -819,6 +819,7 @@ namespace Serein.NodeFlow.Env
             UIContextOperation?.Invoke(() => OnNodeLocated?.Invoke(new NodeLocatedEventArgs(nodeGuid)));
         }
 
+
         public async Task NotificationNodeValueChangeAsync(string nodeGuid, string path, object value)
         {
             if(IsLoadingProject || IsLoadingNode)
@@ -836,6 +837,18 @@ namespace Serein.NodeFlow.Env
 
         }
 
+        /// <summary>
+        /// 改变可选参数的数目
+        /// </summary>
+        /// <param name="nodeGuid">对应的节点Guid</param>
+        /// <param name="isAdd">true，增加参数；false，减少参数</param>
+        /// <param name="paramIndex">以哪个参数为模板进行拷贝，或删去某个参数（该参数必须为可选参数）</param>
+        /// <returns></returns>
+        public async Task<bool> ChangeParameter(string nodeGuid, bool isAdd, int paramIndex)
+        {
+            Console.WriteLine("远程环境尚未实现的接口：ChangeParameter");
+            return false;
+        }
 
         #region 流程依赖类库的接口
 

@@ -76,7 +76,7 @@ namespace Serein.Library
         /// <para>0表示第一个参数是可选参数</para>
         /// </summary>
         [PropertyInfo] 
-        private int _isParamsArgIndex = -1;
+        private int _paramsArgIndex = -1;
 
         /// <summary>
         /// 出参类型
@@ -89,41 +89,71 @@ namespace Serein.Library
     public partial class MethodDetails
     {
 
-        #region 新增可选参数
+        #region 更改可变参数
         /// <summary>
-        /// 新增可选参数
+        /// 是否存在可变参数（-1表示不存在）
+        /// </summary>
+        public bool HasParamsArg => _paramsArgIndex >= 0;
+
+        /// <summary>
+        /// 新增可变参数
         /// </summary>
         /// <param name="index"></param>
-        public void AddParamsArg(int index = 0)
+        public bool AddParamsArg(int index = 0)
         {
-            if (IsParamsArgIndex >= 0  // 方法是否包含可选参数
+            if (ParamsArgIndex >= 0  // 方法是否包含可变参数
                 && index >= 0  // 如果包含，则判断从哪个参数赋值
-                && index >= IsParamsArgIndex // 需要判断是否为可选参数的部分
+                && index >= ParamsArgIndex // 需要判断是否为可选参数的部分
                 && index < ParameterDetailss.Length) // 防止下标越界
             {
                 var newPd = ParameterDetailss[index].CloneOfModel(this.NodeModel); // 复制出属于本身节点的参数描述
                 newPd.Index = ParameterDetailss.Length; // 更新索引
                 newPd.IsParams = true;
                 ParameterDetailss = AddToArray(ParameterDetailss, newPd); // 新增
+                return true;
+            }
+            else
+            {
+                return false;
             }
         }
         /// <summary>
-        /// 移除可选参数
+        /// 移除可变参数
         /// </summary>
         /// <param name="index"></param>
-        public void RemoveParamsArg(int index = 0)
+        public bool RemoveParamsArg(int index = 0)
         {
-            if (IsParamsArgIndex >= 0  // 方法是否包含可选参数
+            if (ParamsArgIndex >= 0  // 方法是否包含可变参数
                 && index >= 0  // 如果包含，则判断从哪个参数赋值
-                && index >= IsParamsArgIndex // 需要判断是否为可选参数的部分
+                && index > ParamsArgIndex // 需要判断是否为可选参数的部分，并且不能删除原始的可变参数描述
                 && index < ParameterDetailss.Length) // 防止下标越界
             {
-                //var newPd = ParameterDetailss[index].CloneOfModel(this.NodeModel); // 复制出属于本身节点的参数描述
-                //newPd.Index = ParameterDetailss.Length; // 更新索引
                 ParameterDetailss[index] = null; // 释放对象引用
-                ParameterDetailss = RemoteToArray(ParameterDetailss, index); // 新增
+                var tmp = RemoteToArray(ParameterDetailss, index); // 新增;
+                UpdateParamIndex(ref tmp);
+                ParameterDetailss = tmp; // 新增
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+            
+        }
+
+        /// <summary>
+        /// 更新参数的索引
+        /// </summary>
+        /// <param name="parameterDetails"></param>
+        private void UpdateParamIndex(ref ParameterDetails[] parameterDetails)
+        {
+            for (int i = 0; i < parameterDetails.Length; i++)
+            {
+                var pd = parameterDetails[i];
+                pd.Index = i;
             }
         }
+
 
         public static T[] AddToArray<T>(T[] original, T newObject)
         {
@@ -197,7 +227,7 @@ namespace Serein.Library
             MethodDynamicType = nodeType;
             ReturnType = Type.GetType(Info.ReturnTypeFullName);
             ParameterDetailss = Info.ParameterDetailsInfos.Select(pinfo => new ParameterDetails(pinfo)).ToArray();
-            IsParamsArgIndex = Info.IsParamsArgIndex;
+            ParamsArgIndex = Info.IsParamsArgIndex;
         }
 
         /// <summary>
@@ -213,7 +243,7 @@ namespace Serein.Library
                 NodeType = this.MethodDynamicType.ToString(),
                 ParameterDetailsInfos = this.ParameterDetailss.Select(p => p.ToInfo()).ToArray(),
                 ReturnTypeFullName = this.ReturnType.FullName,
-                IsParamsArgIndex = this.IsParamsArgIndex,
+                IsParamsArgIndex = this.ParamsArgIndex,
             };
         }
 
@@ -234,7 +264,7 @@ namespace Serein.Library
                 MethodName = this.MethodName,
                 MethodLockName = this.MethodLockName,
                 IsProtectionParameter = this.IsProtectionParameter,
-                IsParamsArgIndex= this.IsParamsArgIndex,
+                ParamsArgIndex = this.ParamsArgIndex,
             };
             md.ParameterDetailss = this.ParameterDetailss?.Select(p => p?.CloneOfModel(nodeModel)).ToArray(); // 拷贝属于节点方法的新入参描述
             return md;
@@ -251,6 +281,7 @@ namespace Serein.Library
             for (int i = 0; i < ParameterDetailss.Length; i++)
             {
                 ParameterDetails arg = this.ParameterDetailss[i];
+                sb.AppendLine(arg.ToString());
             }
             sb.AppendLine($"");
             sb.AppendLine($"返回值信息：");

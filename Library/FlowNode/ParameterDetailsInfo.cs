@@ -18,6 +18,11 @@ namespace Serein.Library
         public int Index { get; set; }
 
         /// <summary>
+        /// 是否为可变参数
+        /// </summary>
+        public bool IsParams { get; set; }
+
+        /// <summary>
         /// 方法需要的类型
         /// </summary>
         public string DataTypeFullName { get; set; }

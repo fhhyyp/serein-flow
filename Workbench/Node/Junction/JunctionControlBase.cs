@@ -9,11 +9,141 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using System.Windows.Media.Media3D;
+using System.Windows.Documents;
+using System.Threading;
 
 namespace Serein.Workbench.Node.View
 {
 
     
+    public class ParamsArgControl: Shape
+    {
+
+
+        public ParamsArgControl()
+        {
+            this.MouseDown += ParamsArg_OnMouseDown; // 增加或删除
+            this.MouseMove += ParamsArgControl_MouseMove;
+            this.MouseLeave += ParamsArgControl_MouseLeave;
+            AddOrRemoveParamsAction = Add;
+
+
+        }
+
+        
+
+        protected readonly StreamGeometry StreamGeometry = new StreamGeometry();
+        protected override Geometry DefiningGeometry => StreamGeometry;
+
+
+        #region 控件属性，所在的节点
+        public static readonly DependencyProperty NodeProperty =
+            DependencyProperty.Register(nameof(MyNode), typeof(NodeModelBase), typeof(ParamsArgControl), new PropertyMetadata(default(NodeModelBase)));
+        //public NodeModelBase NodeModel;
+
+        /// <summary>
+        /// 所在的节点
+        /// </summary>
+        public NodeModelBase MyNode
+        {
+            get { return (NodeModelBase)GetValue(NodeProperty); }
+            set { SetValue(NodeProperty, value); }
+        }
+        #endregion
+
+        #region 控件属性，连接器类型
+        public static readonly DependencyProperty ArgIndexProperty =
+            DependencyProperty.Register(nameof(ArgIndex), typeof(int), typeof(ParamsArgControl), new PropertyMetadata(default(int)));
+
+        /// <summary>
+        /// 参数的索引
+        /// </summary>
+        public int ArgIndex
+        {
+            get { return (int)GetValue(ArgIndexProperty); }
+            set { SetValue(ArgIndexProperty, value.ToString()); }
+        }
+        #endregion
+
+
+        /// <summary>
+        /// 控件重绘事件
+        /// </summary>
+        /// <param name="drawingContext"></param>
+        protected override void OnRender(DrawingContext drawingContext)
+        {
+            Brush brush = isMouseOver ? Brushes.Red : Brushes.Green;
+            double height = ActualHeight;
+            // 定义圆形的大小和位置
+            double connectorSize = 10; // 连接器的大小
+            double circleCenterX = 8; // 圆心 X 坐标
+            double circleCenterY = height / 2; // 圆心 Y 坐标
+            var circlePoint = new Point(circleCenterX, circleCenterY);
+
+            // 圆形部分
+            var ellipse = new EllipseGeometry(circlePoint, connectorSize / 2, connectorSize / 2);
+
+            drawingContext.DrawGeometry(brush, new Pen(Brushes.Black, 1), ellipse);
+        }
+
+
+        private bool isMouseOver; // 鼠标悬停状态
+
+        private Action AddOrRemoveParamsAction; // 增加或删除参数
+
+        public void ParamsArg_OnMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            AddOrRemoveParamsAction?.Invoke();
+        }
+
+        private void ParamsArgControl_MouseMove(object sender, MouseEventArgs e)
+        {
+            isMouseOver = true;
+            if (cancellationTokenSource.IsCancellationRequested) {
+                cancellationTokenSource = new CancellationTokenSource();
+                Task.Run(async () =>
+                {
+                    await Task.Delay(500);
+
+                }, cancellationTokenSource.Token).ContinueWith((t) =>
+                {
+                    // 如果焦点仍在控件上时，则改变点击事件
+                    if (isMouseOver)
+                    {
+                        AddOrRemoveParamsAction = Remove;
+                        this.Dispatcher.Invoke(InvalidateVisual);// 触发一次重绘
+                       
+                    }
+                });
+            }
+            
+        }
+        private CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+
+
+        private void ParamsArgControl_MouseLeave(object sender, MouseEventArgs e)
+        {
+            isMouseOver = false;
+            AddOrRemoveParamsAction = Add; // 鼠标焦点离开时恢复点击事件
+            cancellationTokenSource?.Cancel();
+            this.Dispatcher.Invoke(InvalidateVisual);// 触发一次重绘
+
+        }
+
+
+        private void Add()
+        {
+            this.MyNode.Env.ChangeParameter(MyNode.Guid, true, ArgIndex);
+        }
+        private void Remove()
+        {
+            this.MyNode.Env.ChangeParameter(MyNode.Guid, false, ArgIndex);
+        }
+
+    }
+
+
 
     public abstract class JunctionControlBase : Shape 
     {
@@ -141,7 +271,11 @@ namespace Serein.Workbench.Node.View
 
         private object lockObj = new object();
 
-        // 控件获得鼠标焦点事件
+        /// <summary>
+        ///  控件获得鼠标焦点事件
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void JunctionControlBase_MouseMove(object sender, MouseEventArgs e)
         {
             //if (!GlobalJunctionData.MyGlobalConnectingData.IsCreateing) return;
@@ -150,10 +284,13 @@ namespace Serein.Workbench.Node.View
             IsMouseOver = true;
             
             //this.InvalidateVisual();
-            
-            
         }
-        // 控件失去鼠标焦点事件
+
+        /// <summary>
+        /// 控件失去鼠标焦点事件
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void JunctionControlBase_MouseLeave(object sender, MouseEventArgs e)
         {
             IsMouseOver = false;

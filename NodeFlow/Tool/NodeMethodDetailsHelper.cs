@@ -4,6 +4,7 @@ using Serein.Library;
 using System.Collections.Concurrent;
 using System.Reflection;
 using Serein.Library.FlowNode;
+using System.Diagnostics;
 
 namespace Serein.NodeFlow.Tool;
 
@@ -31,8 +32,12 @@ public static class NodeMethodDetailsHelper
         }
         //var dllTypeName = $"{assemblyName}.{type.Name}";
         var dllTypeMethodName = $"{assemblyName}.{type.Name}.{method.Name}";
-
+        Console.WriteLine("loading method : " +dllTypeMethodName);
+        Debug.WriteLine("loading method : " +dllTypeMethodName);
         var explicitDataOfParameters = GetExplicitDataOfParameters(method.GetParameters());
+
+        
+
         //// 通过表达式树生成委托
         //var methodDelegate = GenerateMethodDelegate(type,   // 方法所在的对象类型
         //                                            method, // 方法信息
@@ -92,9 +97,13 @@ public static class NodeMethodDetailsHelper
         var asyncPrefix = "[异步]"; // IsGenericTask(returnType) ? "[async]" : ;
         var methodMethodAnotherName = isTask ? asyncPrefix + attribute.AnotherName : attribute.AnotherName;
 
+        bool hasParamsArg = false;
+        if (explicitDataOfParameters.Length > 0)
+        {
+            hasParamsArg = explicitDataOfParameters[^1].IsParams; // 取最后一个参数描述，判断是否为params 入参
+        }
 
-
-        var md = new MethodDetails() // 从DLL生成方法描述
+        var md = new MethodDetails() // 从DLL生成方法描述（元数据）
         {
             ActingInstanceType = type,
             // ActingInstance = instance,
@@ -104,6 +113,8 @@ public static class NodeMethodDetailsHelper
             MethodAnotherName = methodMethodAnotherName,
             ParameterDetailss = explicitDataOfParameters,
             ReturnType = returnType,
+            // 如果存在可变参数，取最后一个元素的下标，否则为-1；
+            ParamsArgIndex = hasParamsArg ? explicitDataOfParameters.Length-1 : -1,
         };
         var dd = new DelegateDetails(emitMethodType, methodDelegate) ;
         return (md, dd);
@@ -144,16 +155,19 @@ public static class NodeMethodDetailsHelper
     private static ParameterDetails[] GetExplicitDataOfParameters(ParameterInfo[] parameters)
     {
 
-        return parameters.Select((it, index) =>
+        var tempParams =  parameters.Select((it, index) =>
         {
             Type paremType;
-            
-            if (it.GetCustomAttribute<EnumTypeConvertorAttribute>() is EnumTypeConvertorAttribute attribute1  && attribute1 is not null)
+
+            #region 存在“枚举=>类型”转换器
+            if (it.GetCustomAttribute<EnumTypeConvertorAttribute>() is EnumTypeConvertorAttribute attribute1 && attribute1 is not null)
             {
                 // 存在类型选择器
                 paremType = attribute1.EnumType;
-                return GetExplicitDataOfParameter(it, index, paremType, true);
+                return GetExplicitDataOfParameter(it, index, paremType, true); // “枚举=>类型”转换器 获取参数
             }
+            #endregion
+            #region 存在自定义的转换器
             else if (it.GetCustomAttribute<BindConvertorAttribute>() is BindConvertorAttribute attribute2 && attribute2 is not null)
             {
                 paremType = attribute2.EnumType;
@@ -180,29 +194,22 @@ public static class NodeMethodDetailsHelper
                     return methodInfo?.Invoke(obj, [enumValue]);
                 }
                 // 确保实例实现了所需接口
-                ParameterDetails ed = GetExplicitDataOfParameter(it, index, paremType, true, func);
+                ParameterDetails ed = GetExplicitDataOfParameter(it, index, paremType, true, func);  // 自定义的转换器 获取参数
 
                 return ed;
             }
+            #endregion
+            #region 常规方法的获取参数
             else
             {
-                return GetExplicitDataOfParameter(it, index, it.ParameterType, it.HasDefaultValue);
-            }
-            //string explicitTypeName = GetExplicitTypeName(paremType);
-            //var items = GetExplicitItems(paremType, explicitTypeName);
-            //if ("Bool".Equals(explicitTypeName)) explicitTypeName = "Select"; // 布尔值 转为 可选类型
-            //return new ExplicitData
-            //{
-            //    IsExplicitData = attribute is null ? it.HasDefaultValue: true,
-            //    Index = index,
-            //    ExplicitTypeName = explicitTypeName,
-            //    ExplicitType = paremType,
-            //    DataType = it.ParameterType,
-            //    ParameterName = it.Name,
-            //    DataValue = it.HasDefaultValue ? it?.DefaultValue?.ToString() : "",
-            //    Items = items.ToArray(),
-            //};
+                var tmp = GetExplicitDataOfParameter(it, index, it.ParameterType, it.HasDefaultValue); // 常规方法的获取参数
+                return tmp;
+            } 
+            #endregion
         }).ToArray();
+
+       
+        return tempParams;
     }
 
     private static ParameterDetails GetExplicitDataOfParameter(ParameterInfo parameterInfo,
@@ -213,7 +220,6 @@ public static class NodeMethodDetailsHelper
     {
 
         bool hasParams = parameterInfo.IsDefined(typeof(ParamArrayAttribute)); // 判断是否为可变参数
-
         string explicitTypeName = GetExplicitTypeName(paremType);
         var items = GetExplicitItems(paremType, explicitTypeName);
         if ("Bool".Equals(explicitTypeName)) explicitTypeName = "Select"; // 布尔值 转为 可选类型

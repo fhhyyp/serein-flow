@@ -29,6 +29,7 @@ namespace Serein.Library.Utils
             /// </summary>
             HasResultTask,
         }
+
         public static bool IsGenericTask(Type returnType, out Type taskResult)
         {
             // 判断是否为 Task 类型或泛型 Task<T>
@@ -51,6 +52,8 @@ namespace Serein.Library.Utils
 
             }
         }
+
+
         /// <summary>
         /// 根据方法信息创建动态调用的委托，返回方法类型，以及传出一个委托
         /// </summary>
@@ -82,14 +85,14 @@ namespace Serein.Library.Utils
                 }
             }
 
+
+
             dynamicMethod = new DynamicMethod(
                        name: methodInfo.Name + "_DynamicEmitMethod",
                        returnType: returnType,
                        parameterTypes: new[] { typeof(object), typeof(object[]) }, // 方法实例、方法入参
                        restrictedSkipVisibility: true // 跳过私有方法访问限制
             );
-
-
 
             var il = dynamicMethod.GetILGenerator();
 
@@ -110,10 +113,16 @@ namespace Serein.Library.Utils
                 {
                     il.Emit(OpCodes.Unbox_Any, paramType);
                 }
+                //else if (paramType.IsGenericParameter) // 如果是泛型参数，直接转换
+                //{
+                //    il.Emit(OpCodes.Castclass, paramType);
+                //}
                 else // 如果是引用类型，直接转换
                 {
                     il.Emit(OpCodes.Castclass, paramType);
                 }
+
+                
             }
 
             // 调用方法

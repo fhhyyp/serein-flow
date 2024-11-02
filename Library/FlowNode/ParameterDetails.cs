@@ -133,6 +133,7 @@ namespace Serein.Library
             ExplicitType = Type.GetType(info.ExplicitTypeFullName);
             ExplicitTypeName = info.ExplicitTypeName;
             Items = info.Items;
+            IsParams = info.IsParams;
         }
 
         /// <summary>
@@ -144,6 +145,7 @@ namespace Serein.Library
             return new ParameterDetailsInfo
             {
                 Index = this.Index,
+                IsParams = this.IsParams,
                 DataTypeFullName = this.DataType.FullName,
                 Name = this.Name,
                 ExplicitTypeFullName = this.ExplicitType.FullName,
@@ -170,6 +172,7 @@ namespace Serein.Library
                 Name = this.Name,
                 DataValue = string.IsNullOrEmpty(DataValue) ? string.Empty : DataValue,
                 Items = this.Items?.Select(it => it).ToArray(),
+                IsParams = this.IsParams,
 
             };
             return pd;

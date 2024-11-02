@@ -323,28 +323,35 @@ namespace Serein.Library
                 return null;// md.ActingInstance
             }
 
-            object[] parameters = new object[md.ParameterDetailss.Length];
+            object[] parameters;
 
-            //var previousFlowData = nodeModel.PreviousNode?.FlowData; // 当前传递的数据
-
-            
-            object[] paramsArgs = null; // 初始化可选参数
-            int paramsArgIndex = 0; // 可选参数下标
-            if (md.IsParamsArgIndex >= 0) // 是否存在入参参数
+            Array paramsArgs = null; // 初始化可选参数
+            int paramsArgIndex = 0; // 可选参数下标，与 object[] paramsArgs 一起使用
+            Type paramsArgType = null; // 可变参数的参数类型
+            if (md.ParamsArgIndex >= 0) 
             {
-                // 可选参数数组长度 = 方法参数个数 - （ 可选入参下标 + 1 ）
-                int paramsLength = md.ParameterDetailss.Length - md.IsParamsArgIndex;
-                paramsArgs = new object[paramsLength]; // 重新实例化可选参数
-                parameters[md.ParameterDetailss.Length-1] = paramsArgs; // 如果存在可选参数，入参参数最后一项则为可选参数
+                // 存在可变入参参数
+                paramsArgType = md.ParameterDetailss[md.ParamsArgIndex].DataType.GetElementType(); // 获取可变参数的参数类型
+                // 可变参数数组长度 = 方法参数个数 - （ 可选入参下标 + 1 ）
+                int paramsLength = md.ParameterDetailss.Length - md.ParamsArgIndex;
+                //paramsArgs = paramsArgType.MakeArrayType(paramsLength);
+                paramsArgs = Array.CreateInstance(paramsArgType, paramsLength);// 可变参数
+                parameters = new object[md.ParamsArgIndex+1]; // 调用方法的入参数组
+                parameters[md.ParamsArgIndex] = paramsArgs; // 如果存在可选参数，入参参数最后一项则为可变参数
+            }
+            else
+            {
+                // 不存在可选参数
+                parameters = new object[md.ParameterDetailss.Length]; // 调用方法的入参数组
             }
 
             bool hasParams = false;
-            for (int i = 0; i < parameters.Length; i++)
+            for (int i = 0; i < md.ParameterDetailss.Length; i++)
             {
                 var pd = md.ParameterDetailss[i]; // 方法入参描述
 
                 // 入参参数下标循环到可选参数时，开始写入到可选参数数组
-                if(i >= md.IsParamsArgIndex)
+                if(paramsArgs != null && i >= md.ParamsArgIndex)
                 {
                     // 控制参数赋值方向：
                     // true  => paramsArgs
@@ -352,13 +359,17 @@ namespace Serein.Library
                     hasParams = true;
                 }
 
+                // 可选参数为 Array 类型，所以需要获取子项类型
+                // 如果 hasParams 为 true ，说明一定存在可选参数，所以 paramsArgType 一定不为 null
+                Type argDataType = hasParams ? paramsArgType : pd.DataType;
+
                 #region 获取基础的上下文数据
-                if (pd.DataType == typeof(IFlowEnvironment)) // 获取流程上下文
+                if (argDataType == typeof(IFlowEnvironment)) // 获取流程上下文
                 {
                     parameters[i] = nodeModel.Env;
                     continue;
                 }
-                if (pd.DataType == typeof(IDynamicContext)) // 获取流程上下文
+                if (argDataType == typeof(IDynamicContext)) // 获取流程上下文
                 {
                     parameters[i] = context;
                     continue;
@@ -367,7 +378,7 @@ namespace Serein.Library
 
                 #region 确定[预入参]数据
                 object inputParameter; // 存放解析的临时参数
-                if (pd.IsExplicitData) // 判断是否使用显示的输入参数
+                if (pd.IsExplicitData && !pd.DataValue.StartsWith("@get", StringComparison.OrdinalIgnoreCase)) // 判断是否使用显示的输入参数
                 {
                     // 使用输入的固定值
                     inputParameter = pd.DataValue;
@@ -415,10 +426,10 @@ namespace Serein.Library
                 }
 
                 #region 对于非值类型的null检查
-                if (!pd.DataType.IsValueType &&  inputParameter is null)
+                if (!argDataType.IsValueType &&  inputParameter is null)
                 {
                     parameters[i] = null;
-                    throw new Exception($"[arg{pd.Index}][{pd.Name}][{pd.DataType}]参数不能为null");
+                    throw new Exception($"[arg{pd.Index}][{pd.Name}][{argDataType}]参数不能为null");
                     // continue;
                 }
                 #endregion
@@ -452,8 +463,9 @@ namespace Serein.Library
                     {
                         if (hasParams)
                         {
+                            paramsArgs.SetValue(value, paramsArgIndex++);
                             // 处理可选参数
-                            paramsArgs[paramsArgIndex++] = value;
+                            //paramsArgs[paramsArgIndex++] = value;
                         }
                         else
                         {
@@ -466,7 +478,7 @@ namespace Serein.Library
 
                 #region  入参存在基于BinValue的类型转换器，获取枚举转换器中记录的类型，如果获取成功（不为null）会跳过循环
                 // 入参存在基于BinValue的类型转换器，获取枚举转换器中记录的类型
-                if (pd.ExplicitType.IsEnum && pd.DataType != pd.ExplicitType)
+                if (pd.ExplicitType.IsEnum && argDataType != pd.ExplicitType)
                 {
                     var resultEnum = Enum.Parse(pd.ExplicitType, pd.DataValue);
                     // 获取绑定的类型
@@ -483,7 +495,8 @@ namespace Serein.Library
                             if (hasParams)
                             {
                                 // 处理可选参数
-                                paramsArgs[paramsArgIndex++] = value;
+                                paramsArgs.SetValue(value, paramsArgIndex++);
+                                //paramsArgs[paramsArgIndex++] = value;
                             }
                             else
                             {
@@ -498,30 +511,30 @@ namespace Serein.Library
 
                 #region 对入参数据尝试进行转换
                 object tmpVaue = null; // 临时存放数据，最后才判断是否放置可选参数数组
-                if (inputParameter.GetType() == pd.DataType)
+                if (inputParameter.GetType() == argDataType)
                 {
                     tmpVaue = inputParameter; // 类型一致无需转换，直接装入入参数组
                 }
-                else if (pd.DataType.IsValueType) 
+                else if (argDataType.IsValueType) 
                 {
                     // 值类型
                     var valueStr = inputParameter?.ToString();
-                    tmpVaue = valueStr.ToValueData(pd.DataType); // 类型不一致，尝试进行转换，如果转换失败返回类型对应的默认值
+                    tmpVaue = valueStr.ToValueData(argDataType); // 类型不一致，尝试进行转换，如果转换失败返回类型对应的默认值
                 }
                 else 
                 {
                     // 引用类型
-                    if (pd.DataType == typeof(string)) // 转为字符串
+                    if (argDataType == typeof(string)) // 转为字符串
                     {
                         var valueStr = inputParameter?.ToString();
                         tmpVaue = valueStr;
                     }
-                    else if(pd.DataType.IsSubclassOf(inputParameter.GetType())) // 入参类型 是 预入参数据类型 的 子类/实现类 
+                    else if(argDataType.IsSubclassOf(inputParameter.GetType())) // 入参类型 是 预入参数据类型 的 子类/实现类 
                     {
                         // 方法入参中，父类不能隐式转为子类，这里需要进行强制转换
-                        tmpVaue =  ObjectConvertHelper.ConvertParentToChild(inputParameter, pd.DataType);
+                        tmpVaue =  ObjectConvertHelper.ConvertParentToChild(inputParameter, argDataType);
                     }
-                    else if(pd.DataType.IsAssignableFrom(inputParameter.GetType()))  // 入参类型 是 预入参数据类型 的 父类/接口
+                    else if(argDataType.IsAssignableFrom(inputParameter.GetType()))  // 入参类型 是 预入参数据类型 的 父类/接口
                     {
                         tmpVaue = inputParameter;
                     }
@@ -530,12 +543,12 @@ namespace Serein.Library
                     //{
                     //    var enumerableMethods = typeof(Enumerable).GetMethods();   // 获取所有的 Enumerable 扩展方法
                     //    MethodInfo conversionMethod;
-                    //    if (pd.DataType.IsArray) // 转为数组
+                    //    if (argDataType.IsArray) // 转为数组
                     //    {
                     //        parameters[i] = inputParameter;
                     //        conversionMethod = enumerableMethods.FirstOrDefault(m => m.Name == "ToArray" && m.IsGenericMethodDefinition);
                     //    }
-                    //    else if (pd.DataType.GetGenericTypeDefinition() == typeof(List<>)) // 转为集合
+                    //    else if (argDataType.GetGenericTypeDefinition() == typeof(List<>)) // 转为集合
                     //    {
                     //         conversionMethod = enumerableMethods.FirstOrDefault(m => m.Name == "ToList" && m.IsGenericMethodDefinition);
                     //    }
@@ -543,7 +556,7 @@ namespace Serein.Library
                     //    {
                     //        throw new InvalidOperationException("输入对象不是集合或目标类型不支持（目前仅支持Array、List的自动转换）");
                     //    }
-                    //    var genericMethod = conversionMethod.MakeGenericMethod(pd.DataType);
+                    //    var genericMethod = conversionMethod.MakeGenericMethod(argDataType);
                     //    var result = genericMethod.Invoke(null, new object[] { collection });
                     //    parameters[i] = result;
                     //}
@@ -556,7 +569,8 @@ namespace Serein.Library
                 if (hasParams)
                 {
                     // 处理可选参数
-                    paramsArgs[paramsArgIndex++] = tmpVaue;
+                    paramsArgs.SetValue(tmpVaue, paramsArgIndex++);
+                    //paramsArgs[paramsArgIndex++] = tmpVaue;
                 }
                 else
                 {
