@@ -2,13 +2,13 @@
 using Serein.Library.Utils;
 using System.Collections.Concurrent;
 
-namespace Serein.Library.Core.NodeFlow
+namespace Serein.Library.Core
 {
 
     /// <summary>
     /// 动态流程上下文
     /// </summary>
-    public class DynamicContext: IDynamicContext
+    public class DynamicContext : IDynamicContext
     {
         /// <summary>
         /// 动态流程上下文
@@ -29,6 +29,11 @@ namespace Serein.Library.Core.NodeFlow
         /// 运行状态
         /// </summary>
         public RunState RunState { get; set; } = RunState.NoStart;
+
+        /// <summary>
+        /// 用来在当前流程上下文间传递数据
+        /// </summary>
+        public Dictionary<string, object> ContextShareData { get; } = new Dictionary<string, object>();
 
         /// <summary>
         /// 当前节点执行完成后，设置该属性，让运行环境判断接下来要执行哪个分支的节点。
@@ -52,7 +57,7 @@ namespace Serein.Library.Core.NodeFlow
         /// <param name="PreviousNode">上一节点</param>
         public void SetPreviousNode(NodeModelBase currentNodeModel, NodeModelBase PreviousNode)
         {
-            dictPreviousNodes.AddOrUpdate(currentNodeModel, (_)=> PreviousNode, (_,_) => PreviousNode);
+            dictPreviousNodes.AddOrUpdate(currentNodeModel, (_) => PreviousNode, (_, _) => PreviousNode);
         }
 
         /// <summary>
@@ -80,7 +85,7 @@ namespace Serein.Library.Core.NodeFlow
         /// <returns></returns>
         public object? GetFlowData(string nodeGuid)
         {
-            if(dictNodeFlowData.TryGetValue(nodeGuid, out var data))
+            if (dictNodeFlowData.TryGetValue(nodeGuid, out var data))
             {
                 return data;
             }
@@ -98,7 +103,7 @@ namespace Serein.Library.Core.NodeFlow
         public void AddOrUpdate(string nodeGuid, object? flowData)
         {
             // this.dictNodeFlowData.TryGetValue(nodeGuid, out var oldFlowData);
-            this.dictNodeFlowData.AddOrUpdate(nodeGuid, _ => flowData, (_, _) => flowData);
+            dictNodeFlowData.AddOrUpdate(nodeGuid, _ => flowData, (_, _) => flowData);
         }
 
         /// <summary>
@@ -108,12 +113,12 @@ namespace Serein.Library.Core.NodeFlow
         public object? TransmissionData(NodeModelBase nodeModel)
         {
             if (dictPreviousNodes.TryGetValue(nodeModel, out var previousNode)) // 首先获取当前节点的上一节点
-            { 
-               if (dictNodeFlowData.TryGetValue(previousNode.Guid, out var data)) // 其次获取上一节点的数据
-               {
+            {
+                if (dictNodeFlowData.TryGetValue(previousNode.Guid, out var data)) // 其次获取上一节点的数据
+                {
                     return data;
                     //AddOrUpdate(nodeModel.Guid, data); // 然后作为当前节点的数据记录在上下文中
-               }
+                }
             }
             return null;
         }
@@ -134,7 +139,22 @@ namespace Serein.Library.Core.NodeFlow
                     }
                 }
             }
+            foreach (var nodeObj in ContextShareData.Values)
+            {
+                if (nodeObj is null)
+                {
+                    continue;
+                }
+                else
+                {
+                    if (typeof(IDisposable).IsAssignableFrom(nodeObj?.GetType()) && nodeObj is IDisposable disposable)
+                    {
+                        disposable?.Dispose();
+                    }
+                }
+            }
             this.dictNodeFlowData?.Clear();
+            this.ContextShareData?.Clear();
             RunState = RunState.Completion;
         }
 

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reactive;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Text;
@@ -56,43 +57,37 @@ namespace Serein.Library.Utils
         /// <param name="methodInfo"></param>
         /// <param name="delegate"></param>
         /// <returns></returns>
-        public static EmitMethodType CreateDynamicMethod( MethodInfo methodInfo,out Delegate @delegate)
+        public static EmitMethodType CreateDynamicMethod(MethodInfo methodInfo,out Delegate @delegate)
         {
             bool IsTask = IsGenericTask(methodInfo.ReturnType, out var taskGenericsType);
             bool IsTaskGenerics = taskGenericsType != null;
             DynamicMethod dynamicMethod;
-            if (IsTask)
-            {
-                if (IsTaskGenerics)
-                {
 
-                    dynamicMethod = new DynamicMethod(
-                           name: methodInfo.Name + "_DynamicMethod",
-                           returnType: typeof(Task<object>),
-                           parameterTypes: new[] { typeof(object), typeof(object[]) },
-                           restrictedSkipVisibility: true // 跳过私有方法访问限制
-                     );
-                }
-                else
-                {
-                    dynamicMethod = new DynamicMethod(
-                       name: methodInfo.Name + "_DynamicMethod",
-                       returnType: typeof(Task),
-                       parameterTypes: new[] { typeof(object), typeof(object[]) },
-                       restrictedSkipVisibility: true // 跳过私有方法访问限制
-                    );
-                }
+            Type returnType;
+            if (!IsTask)
+            {
+                // 普通方法
+                returnType = typeof(object);
             }
             else
             {
-                dynamicMethod = new DynamicMethod(
-                       name: methodInfo.Name + "_DynamicMethod",
-                       returnType: typeof(object),
-                       parameterTypes: new[] { typeof(object), typeof(object[]) },
-                       restrictedSkipVisibility: true // 跳过私有方法访问限制
-                 );
+                // 异步方法
+                if (IsTaskGenerics)
+                {
+                    returnType = typeof(Task<object>);
+                }
+                else
+                {
+                    returnType = typeof(Task);
+                }
             }
 
+            dynamicMethod = new DynamicMethod(
+                       name: methodInfo.Name + "_DynamicEmitMethod",
+                       returnType: returnType,
+                       parameterTypes: new[] { typeof(object), typeof(object[]) }, // 方法实例、方法入参
+                       restrictedSkipVisibility: true // 跳过私有方法访问限制
+            );
 
 
 

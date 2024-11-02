@@ -1,5 +1,6 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
+using Serein.Library.Utils;
 using Serein.Library.Utils.SereinExpression;
 using System.ComponentModel;
 
@@ -22,14 +23,13 @@ namespace Serein.NodeFlow.Model
         /// 自定义参数值
         /// </summary>
         [PropertyInfo(IsNotification = true)]
-        private object? _customData;
+        private string? _customData;
 
         /// <summary>
         /// 条件表达式
         /// </summary>
         [PropertyInfo(IsNotification = true)]
         private string _expression;
-
     }
 
     public partial class SingleConditionNode : NodeModelBase
@@ -39,32 +39,9 @@ namespace Serein.NodeFlow.Model
             this.IsCustomData = false;
             this.CustomData = null;
             this.Expression = "PASS";
-            
         }
 
-        /// <summary>
-        /// 加载完成后调用的方法
-        /// </summary>
-        public override void OnLoading()
-        {
-            var pd = new ParameterDetails
-            {
-                Index = 0,
-                Name = "Exp",
-                DataType = typeof(object),
-                ExplicitType = typeof(object),
-                IsExplicitData = false,
-                DataValue = string.Empty,
-                ArgDataSourceNodeGuid = string.Empty,
-                ArgDataSourceType = ConnectionArgSourceType.GetPreviousNodeData,
-                NodeModel = this,
-                Convertor = null,
-                ExplicitTypeName = "Value",
-                Items = Array.Empty<string>(),
-            };
-
-            this.MethodDetails.ParameterDetailss = new ParameterDetails[] { pd };
-        }
+       
 
 
         /// <summary>
@@ -138,36 +115,102 @@ namespace Serein.NodeFlow.Model
             return result;
         }
 
+
+
         public override ParameterData[] GetParameterdatas()
         {
-            var value = CustomData switch
-            {
-                Type when CustomData.GetType() == typeof(int)
-                           && CustomData.GetType() == typeof(double)
-                           && CustomData.GetType() == typeof(float)
-                                => ((double)CustomData).ToString(),
-                Type when CustomData.GetType() == typeof(bool) => ((bool)CustomData).ToString(),
-                _ => CustomData?.ToString()!,
-            };
-            return [new ParameterData
-            {
-                State = IsCustomData,
-                Expression = Expression,
-                Value = value,
-            }];
+            var pd1 = MethodDetails.ParameterDetailss[0];
+            var pd2 = MethodDetails.ParameterDetailss[1];
+            var pd3 = MethodDetails.ParameterDetailss[2];
+            return [
+                new ParameterData // 保存表达式
+                {
+                    Value =  Expression ,
+                    SourceNodeGuid = pd1.ArgDataSourceNodeGuid,
+                    SourceType = pd1.ArgDataSourceType.ToString(),
+                }, 
+                new ParameterData // 保存自定义参数
+                {
+                    Value =  CustomData?.ToString() ,
+                    SourceNodeGuid = pd2.ArgDataSourceNodeGuid,
+                    SourceType = pd2.ArgDataSourceType.ToString(),
+                },
+                new ParameterData // 参数来源状态
+                {
+                    Value =  IsCustomData.ToString() ,
+                    SourceNodeGuid = pd3.ArgDataSourceNodeGuid,
+                    SourceType = pd3.ArgDataSourceType.ToString(),
+                }];
         }
+
+        public override void OnCreating()
+        {
+            // 自定义节点初始化默认的参数实体
+            var tmpParameterDetails = new ParameterDetails[3];
+            for (int index = 0; index <= 2; index++)
+            {
+                tmpParameterDetails[index] = new ParameterDetails
+                {
+                    Index = index,
+                    IsExplicitData = false,
+                    DataValue = string.Empty,
+                    ArgDataSourceNodeGuid = string.Empty,
+                    ArgDataSourceType = ConnectionArgSourceType.GetPreviousNodeData,
+                    NodeModel = this,
+                    Convertor = null,
+                    ExplicitTypeName = "Value",
+                    Items = Array.Empty<string>(),
+                };
+            }
+
+            var pd1 = tmpParameterDetails[0]; // 表达式
+            var pd2 = tmpParameterDetails[1]; // 自定义参数
+            var pd3 = tmpParameterDetails[2]; // 参数来源
+
+            // 表达式
+            pd1.Name = nameof(Expression);
+            pd1.DataType = typeof(string);
+            pd1.ExplicitType = typeof(string);
+
+            // 自定义参数
+            pd2.Name = nameof(CustomData);
+            pd2.DataType = typeof(string);
+            pd2.ExplicitType = typeof(string);
+
+            // 参数来源
+            pd3.Name = nameof(IsCustomData);
+            pd3.DataType = typeof(bool);
+            pd3.ExplicitType = typeof(bool);
+
+            //this.MethodDetails.ParameterDetailss = new ParameterDetails[2] { pd1, pd2 };
+            this.MethodDetails.ParameterDetailss = [..tmpParameterDetails];
+        }
+
+  
+
 
         public override NodeModelBase LoadInfo(NodeInfo nodeInfo)
         {
-            var node = this;
-            node.Guid = nodeInfo.Guid;
+            this.Guid = nodeInfo.Guid;
             this.Position = nodeInfo.Position;// 加载位置信息
+
+            var pdInfo1 = nodeInfo.ParameterData[0];
+            this.Expression = pdInfo1.Value; // 加载表达式
+            
+            var pdInfo2 = nodeInfo.ParameterData[1];
+            this.CustomData = pdInfo2.Value; // 加载自定义参数信息
+
+            var pdInfo3 = nodeInfo.ParameterData[2];
+            bool.TryParse(pdInfo3.Value,out var @bool); // 参数来源状态
+            this.IsCustomData = @bool;
+
             for (int i = 0; i < nodeInfo.ParameterData.Length; i++)
             {
-                ParameterData? pd = nodeInfo.ParameterData[i];
-                node.IsCustomData = pd.State;
-                node.CustomData = pd.Value;
-                node.Expression = pd.Expression;
+                var pd = this.MethodDetails.ParameterDetailss[i]; // 本节点的参数信息
+                ParameterData? pdInfo = nodeInfo.ParameterData[i]; // 项目文件的保存信息
+                
+                pd.ArgDataSourceNodeGuid = pdInfo.SourceNodeGuid;
+                pd.ArgDataSourceType = EnumHelper.ConvertEnum<ConnectionArgSourceType>(pdInfo.SourceType);
             }
             return this;
         }

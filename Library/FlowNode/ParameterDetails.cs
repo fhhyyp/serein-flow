@@ -1,6 +1,7 @@
 ﻿using Serein.Library.Api;
 using Serein.Library.Utils;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Serein.Library
@@ -12,7 +13,7 @@ namespace Serein.Library
     [NodeProperty(ValuePath = NodeValuePath.Parameter)]
     public partial class ParameterDetails
     {
-        private readonly IFlowEnvironment env;
+        // private readonly IFlowEnvironment env;
 
         /// <summary>
         /// 所在的节点
@@ -48,9 +49,9 @@ namespace Serein.Library
 
         /// <summary>
         /// 目前存在三种状态：Select/Bool/Value
-        /// <para>Select : 枚举值</para>
+        /// <para>Select : 枚举值/可选值</para>
         /// <para>Bool   : 布尔类型</para>
-        /// <para>Value  ： 除以上类型之外的任意参数</para>
+        /// <para>Value  ：除以上类型之外的任意参数</para>
         /// </summary>
         [PropertyInfo] 
         private string _explicitTypeName ;
@@ -91,6 +92,12 @@ namespace Serein.Library
         /// </summary>
         [PropertyInfo(IsNotification = true)] 
         private string[] _items ;
+
+        /// <summary>
+        /// 指示该属性是可变参数的其中一员（可变参数为数组类型）
+        /// </summary>
+        [PropertyInfo]
+        private bool _isParams;
     }
 
 
@@ -104,14 +111,13 @@ namespace Serein.Library
         {
 
         }
-
+ 
 
         /// <summary>
         /// 为节点实例化新的入参描述
         /// </summary>
-        public ParameterDetails(IFlowEnvironment env, NodeModelBase nodeModel)
+        public ParameterDetails(NodeModelBase nodeModel)
         {
-            this.env = env;
             this.NodeModel = nodeModel;
         }
 
@@ -147,14 +153,13 @@ namespace Serein.Library
         }
 
         /// <summary>
-        /// 为某个节点拷贝方法描述的入参描述
+        /// 为某个节点从元数据中拷贝方法描述的入参描述
         /// </summary>
-        /// <param name="env">运行环境</param>
         /// <param name="nodeModel">对应的节点</param>
         /// <returns></returns>
-        public ParameterDetails CloneOfClone(IFlowEnvironment env, NodeModelBase nodeModel)
+        public ParameterDetails CloneOfModel(NodeModelBase nodeModel)
         {
-            var pd = new ParameterDetails(env, nodeModel)
+            var pd = new ParameterDetails(nodeModel)
             {
                 Index = this.Index,
                 IsExplicitData = this.IsExplicitData,

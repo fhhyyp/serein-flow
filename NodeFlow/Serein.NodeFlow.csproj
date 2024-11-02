@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>1.0.18</Version>
+    <Version>1.0.19</Version>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -59,6 +59,7 @@
       <PackagePath>\</PackagePath>
     </None>
   </ItemGroup>
+
 
   <ItemGroup>
     <ProjectReference Include="..\Serein.Library.MyGenerator\Serein.Library.NodeGenerator.csproj" OutputItemType="Analyzer" />

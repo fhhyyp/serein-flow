@@ -1,10 +1,12 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
-using Serein.Library.Core.NodeFlow;
+using Serein.Library.Core;
 using Serein.Library.Network.WebSocketCommunication;
+using Serein.Library.Utils;
 using Serein.Library.Web;
 using Serein.NodeFlow.Env;
 using Serein.NodeFlow.Model;
+using Serein.NodeFlow.Tool;
 using System.Collections.Concurrent;
 
 namespace Serein.NodeFlow
@@ -48,9 +50,9 @@ namespace Serein.NodeFlow
         {
             IDynamicContext context;
 #if NET6_0_OR_GREATER
-            context = new Serein.Library.Core.NodeFlow.DynamicContext(env); // 从起始节点启动流程时创建上下文
+            context = new Serein.Library.Core.DynamicContext(env); // 从起始节点启动流程时创建上下文
 #else
-            Context = new Serein.Library.Framework.NodeFlow.DynamicContext(env);
+            Context = new Serein.Library.Framework.DynamicContext(env);
 #endif
             await startNode.StartFlowAsync(context); // 开始运行时从选定节点开始运行
             context.Exit();
@@ -112,9 +114,9 @@ namespace Serein.NodeFlow
             // 判断使用哪一种流程上下文
             IDynamicContext Context;
 #if NET6_0_OR_GREATER
-            Context = new Serein.Library.Core.NodeFlow.DynamicContext(env); // 从起始节点启动流程时创建上下文
+            Context = new Serein.Library.Core.DynamicContext(env); // 从起始节点启动流程时创建上下文
 #else
-            Context = new Serein.Library.Framework.NodeFlow.DynamicContext(env);
+            Context = new Serein.Library.Framework.DynamicContext(env);
 #endif
             #endregion
 
@@ -233,13 +235,19 @@ namespace Serein.NodeFlow
                     await dd.InvokeAsync(md.ActingInstance, [Context]);
                 }
 
-                TerminateAllGlobalFlipflop();
-
                 if (_flipFlopCts != null && !_flipFlopCts.IsCancellationRequested)
                 {
                     _flipFlopCts?.Cancel();
                     _flipFlopCts?.Dispose();
-                }
+                } // 通知所有流程上下文停止运行
+                TerminateAllGlobalFlipflop(); // 确保所有触发器不再运行
+
+
+                NativeDllHelper.FreeLibrarys(); // 卸载所有已加载的 Native Dll
+
+                //NativeDllHelper.FreeLibrarys(); // 卸载所有已加载的 Native Dll
+
+
                 env.FlowState = RunState.Completion;
                 env.FlipFlopState = RunState.Completion;
 
@@ -379,8 +387,8 @@ namespace Serein.NodeFlow
                                 await Console.Out.WriteLineAsync($"[{nextNodes[i].MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");
                             }
                             await nextNodes[i].StartFlowAsync(context); // 启动执行触发器后继分支的节点
-                            context.Exit();
                         }
+                        context.Exit();
                     });
                    
                 }

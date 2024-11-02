@@ -38,6 +38,11 @@ namespace Serein.Library
         public ParameterDetailsInfo[] ParameterDetailsInfos { get; set; }
 
         /// <summary>
+        /// 可选参数信息
+        /// </summary>
+        public int IsParamsArgIndex { get; set; }
+
+        /// <summary>
         /// 出参类型
         /// </summary>
         public string ReturnTypeFullName { get; set; }

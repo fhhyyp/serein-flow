@@ -1,6 +1,6 @@
 ﻿using Serein.Library.Api;
 
-namespace Serein.Library.Core.NodeFlow
+namespace Serein.Library.Core
 {
     public static class FlipflopFunc
     {
@@ -56,7 +56,7 @@ namespace Serein.Library.Core.NodeFlow
                 //if (innerType == typeof(IFlipflopContext))
                 //if (innerType.IsGenericType && innerType.GetGenericTypeDefinition() == typeof(FlipflopContext<>))
                 //{
-                    //return true;
+                //return true;
                 //}
             }
 

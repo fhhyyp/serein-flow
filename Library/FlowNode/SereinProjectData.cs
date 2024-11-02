@@ -241,15 +241,15 @@ namespace Serein.Library
         /// </summary>
         public string SourceType { get; set; }
 
-
         /// <summary>
         /// 自定义入参
         /// </summary>
         public string Value { get; set; }
+
         /// <summary>
         /// 表达式相关节点的表达式内容
         /// </summary>
-        public string Expression { get; set; }
+        // public string Expression { get; set; }
 
     }
 

@@ -174,11 +174,11 @@ public static class NodeMethodDetailsHelper
                     ConvertorInstance[key] = (instance, convertMethod);
                 }
 
-                Func<object, object> func = (enumValue) =>
+                object func(object enumValue)
                 {
-                    (var obj,var methodInfo) = ConvertorInstance[key];
+                    (var obj, var methodInfo) = ConvertorInstance[key];
                     return methodInfo?.Invoke(obj, [enumValue]);
-                };
+                }
                 // 确保实例实现了所需接口
                 ParameterDetails ed = GetExplicitDataOfParameter(it, index, paremType, true, func);
 
@@ -206,11 +206,13 @@ public static class NodeMethodDetailsHelper
     }
 
     private static ParameterDetails GetExplicitDataOfParameter(ParameterInfo parameterInfo,
-                                                           int index,
-                                                           Type paremType,
-                                                           bool isExplicitData,
-                                                           Func<object, object> func = null)
+                                                               int index,
+                                                               Type paremType,
+                                                               bool isExplicitData,
+                                                               Func<object, object> func = null)
     {
+
+        bool hasParams = parameterInfo.IsDefined(typeof(ParamArrayAttribute)); // 判断是否为可变参数
 
         string explicitTypeName = GetExplicitTypeName(paremType);
         var items = GetExplicitItems(paremType, explicitTypeName);
@@ -218,14 +220,15 @@ public static class NodeMethodDetailsHelper
         return new ParameterDetails
         {
             IsExplicitData = isExplicitData, //attribute is null ? parameterInfo.HasDefaultValue : true,
-            Index = index,
-            ExplicitTypeName = explicitTypeName,
-            ExplicitType = paremType,
-            Convertor = func,
-            DataType = parameterInfo.ParameterType,
+            Index = index, // 索引
+            ExplicitTypeName = explicitTypeName, // Select/Bool/Value
+            ExplicitType = paremType,// 显示的入参类型
+            Convertor = func, // 转换器
+            DataType = parameterInfo.ParameterType, // 实际的入参类型
             Name = parameterInfo.Name,
             DataValue = parameterInfo.HasDefaultValue ? parameterInfo?.DefaultValue?.ToString() : "", // 如果存在默认值，则使用默认值
             Items = items.ToArray(), // 如果是枚举值入参，则获取枚举类型的字面量
+            IsParams = hasParams,  // 判断是否为可变参数
         };
     }
 

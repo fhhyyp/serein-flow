@@ -51,6 +51,10 @@ namespace Serein.Library.Utils.SereinExpression
         /// <exception cref="NotSupportedException"></exception>
         public static object Evaluate(string expression, object targetObJ, out bool isChange)
         {
+            if(expression is null || targetObJ is null)
+            {
+                throw new Exception("表达式条件expression is null、 targetObJ is null");
+            }
             var parts = expression.Split(new[] { ' ' }, 2, StringSplitOptions.None);
             if (parts.Length != 2)
             {
@@ -60,6 +64,7 @@ namespace Serein.Library.Utils.SereinExpression
             var operation = parts[0].ToLower();
             var operand = parts[1][0] == '.' ? parts[1].Substring(1) : parts[1];
             object result;
+            isChange = false;
             if (operation == "@num")
             {
                 result = ComputedNumber(targetObJ, operand);
@@ -70,10 +75,12 @@ namespace Serein.Library.Utils.SereinExpression
             }
             else if (operation == "@get")
             {
+                isChange = true;
                 result = GetMember(targetObJ, operand);
             }
             else if (operation == "@set")
             {
+                isChange = true;
                 result = SetMember(targetObJ, operand);
             }
             else
@@ -81,14 +88,7 @@ namespace Serein.Library.Utils.SereinExpression
                 throw new NotSupportedException($"Operation {operation} is not supported.");
             }
 
-            if(operation == "@set")
-            {
-                isChange = true;
-            }
-            else
-            {
-                isChange = false;
-            }
+          
 
             return result;
         }

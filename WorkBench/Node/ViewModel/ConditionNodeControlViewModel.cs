@@ -21,7 +21,7 @@ namespace Serein.Workbench.Node.ViewModel
         /// <summary>
          /// 自定义参数值
          /// </summary>
-        public object? CustomData
+        public string? CustomData
         {
             get => NodeModel.CustomData;
             set { NodeModel.CustomData = value ; OnPropertyChanged(); }
@@ -42,9 +42,12 @@ namespace Serein.Workbench.Node.ViewModel
         public ConditionNodeControlViewModel(SingleConditionNode node) : base(node)
         {
             this.NodeModel = node;
-            IsCustomData = false;
-            CustomData = "";
-            Expression = "PASS";
+            if(node is null)
+            {
+                IsCustomData = false;
+                CustomData = "";
+                Expression = "PASS";
+            }
         }
 
     }

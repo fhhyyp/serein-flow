@@ -19,9 +19,9 @@ namespace Serein.NodeFlow.Model
         /// <summary>
         /// 加载完成后调用的方法
         /// </summary>
-        public override void OnLoading()
+        public override void OnCreating()
         {
-            Console.WriteLine("SingleFlipflopNode 暂未实现 OnLoading");
+            // Console.WriteLine("SingleFlipflopNode 暂未实现 OnLoading");
         }
 
 
@@ -50,16 +50,18 @@ namespace Serein.NodeFlow.Model
             object instance = md.ActingInstance;
             try
             {
+                
                 var args = await GetParametersAsync(context, this, md);
-                var result = await dd.InvokeAsync(md.ActingInstance, args);
-                dynamic flipflopContext = result;
-                FlipflopStateType flipflopStateType = flipflopContext.State;
+                // 因为这里会返回不确定的泛型 IFlipflopContext<TRsult>
+                // 而我们只需要获取到 State 和 Value（返回的数据）
+                dynamic dynamicFlipflopContext = await dd.InvokeAsync(md.ActingInstance, args);
+                FlipflopStateType flipflopStateType = dynamicFlipflopContext.State;
                 context.NextOrientation = flipflopStateType.ToContentType();
-                if (flipflopContext.Type == TriggerType.Overtime)
+                if (dynamicFlipflopContext.Type == TriggerType.Overtime)
                 {
                     throw new FlipflopException(base.MethodDetails.MethodName + "触发器超时触发。Guid" + base.Guid);
                 }
-                return flipflopContext.Value;
+                return dynamicFlipflopContext.Value;
             
             }
             catch (FlipflopException ex)

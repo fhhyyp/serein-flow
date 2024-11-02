@@ -17,9 +17,9 @@ namespace Serein.NodeFlow.Model
         /// <summary>
         /// 加载完成后调用的方法
         /// </summary>
-        public override void OnLoading()
+        public override void OnCreating()
         {
-            Console.WriteLine("SingleActionNode 暂未实现 OnLoading");
+            // Console.WriteLine("SingleActionNode 暂未实现 OnLoading");
         }
 
         public override ParameterData[] GetParameterdatas()

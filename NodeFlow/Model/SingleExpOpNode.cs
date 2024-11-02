@@ -1,5 +1,6 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
+using Serein.Library.Utils;
 using Serein.Library.Utils.SereinExpression;
 using System.Reactive;
 using System.Reflection.Metadata;
@@ -32,14 +33,14 @@ namespace Serein.NodeFlow.Model
         /// <summary>
         /// 加载完成后调用的方法
         /// </summary>
-        public override void OnLoading()
+        public override void OnCreating()
         {
             var pd = new ParameterDetails
             {
                 Index = 0,
-                Name = "Exp",
-                DataType = typeof(object),
-                ExplicitType = typeof(object),
+                Name = nameof(Expression),
+                DataType = typeof(string),
+                ExplicitType = typeof(string),
                 IsExplicitData = false,
                 DataValue = string.Empty,
                 ArgDataSourceNodeGuid = string.Empty,
@@ -92,7 +93,7 @@ namespace Serein.NodeFlow.Model
                 }
 
                 context.NextOrientation = ConnectionInvokeType.IsSucceed;
-                return Task.FromResult(result);
+                return result;
             }
             catch (Exception ex)
             {
@@ -105,7 +106,11 @@ namespace Serein.NodeFlow.Model
 
         public override ParameterData[] GetParameterdatas()
         {
-            return [new ParameterData { Expression = Expression }];
+            return [new ParameterData { 
+                Value = Expression,
+                SourceNodeGuid = this.MethodDetails.ParameterDetailss[0].ArgDataSourceNodeGuid,
+                SourceType = this.MethodDetails.ParameterDetailss[0].ArgDataSourceType.ToString(),
+            }];
         }
 
 
@@ -113,11 +118,17 @@ namespace Serein.NodeFlow.Model
         public override NodeModelBase LoadInfo(NodeInfo nodeInfo)
         {
             var node = this;
-            this.Position = nodeInfo.Position;// 加载位置信息
             node.Guid = nodeInfo.Guid;
+            this.Position = nodeInfo.Position;// 加载位置信息
+
+            var pdInfo1 = nodeInfo.ParameterData[0];
+            node.Expression = pdInfo1.Value; // 加载表达式
+            
             for (int i = 0; i < nodeInfo.ParameterData.Length; i++)
             {
-                node.Expression = nodeInfo.ParameterData[i].Expression;
+                ParameterData? pd = nodeInfo.ParameterData[i];
+                node.MethodDetails.ParameterDetailss[i].ArgDataSourceNodeGuid = pd.SourceNodeGuid;
+                node.MethodDetails.ParameterDetailss[i].ArgDataSourceType = EnumHelper.ConvertEnum<ConnectionArgSourceType>(pd.SourceType);
             }
             return this;
         }

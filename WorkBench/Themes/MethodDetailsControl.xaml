@@ -21,13 +21,15 @@
                                         <ColumnDefinition Width="auto"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
+                                    <!--连接控制器-->
                                     <view:ArgJunctionControl x:Name="ArgJunctionControl" Grid.Column="0" ArgIndex="{Binding Index}" MyNode="{Binding NodeModel}" />
                                     <ContentControl Content="{Binding}"  Grid.Column="1">
                                     <ContentControl.Style>
                                         <Style TargetType="ContentControl">
                                             <Style.Triggers>
+                                                
+                                                 <!--无须指定参数-->
                                                 <MultiDataTrigger>
-                                                    <!--无须指定参数-->
                                                     <MultiDataTrigger.Conditions>
                                                         <Condition Binding="{Binding IsExplicitData}" Value="false" />
                                                     </MultiDataTrigger.Conditions>
@@ -84,6 +86,7 @@
                                                         </Setter.Value>
                                                     </Setter>
                                                 </MultiDataTrigger>
+                                                
                                                 <!--指定参数：文本类型（可输入）-->
                                                 <MultiDataTrigger>
                                                     <MultiDataTrigger.Conditions>

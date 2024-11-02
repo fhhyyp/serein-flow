@@ -2,7 +2,7 @@
 using Newtonsoft.Json;
 using Serein.Library;
 using Serein.Library.Api;
-using Serein.Library.Core.NodeFlow;
+using Serein.Library.Core;
 using Serein.Library.FlowNode;
 using Serein.Library.Utils;
 using Serein.Library.Utils.SereinExpression;
@@ -12,6 +12,7 @@ using System.Collections.Concurrent;
 using System.Numerics;
 using System.Reflection;
 using System.Reflection.Metadata.Ecma335;
+using System.Runtime.Loader;
 using System.Xml.Linq;
 using static Serein.Library.Utils.ChannelFlowInterrupt;
 
@@ -364,7 +365,7 @@ namespace Serein.NodeFlow.Env
             {
                 ExitFlow(); // 未运行触发器时，才会调用结束方法
             }
-            flowStarter = null;
+            
         }
 
         /// <summary>
@@ -379,7 +380,7 @@ namespace Serein.NodeFlow.Env
             {
                 return;
             }
-            if (FlowState == RunState.Running || FlipFlopState == RunState.Running)
+            if (true || FlowState == RunState.Running || FlipFlopState == RunState.Running)
             {
                 NodeModelBase? nodeModel = GuidToModel(startNodeGuid);
                 if (nodeModel is null || nodeModel is SingleFlipflopNode)
@@ -410,20 +411,22 @@ namespace Serein.NodeFlow.Env
             object result = true;
             if (this.NodeModels.TryGetValue(nodeGuid, out var model))
             {
-                result =  await model.InvokeAsync(context);
+                result =  await model.ExecutingAsync(context);
             }
             return result;
         }
 
         /// <summary>
-        /// 退出
+        /// 结束流程
         /// </summary>
         public void ExitFlow()
         {
             ChannelFlowInterrupt?.CancelAllTasks();
             flowStarter?.Exit();
             UIContextOperation?.Invoke(() => OnFlowRunComplete?.Invoke(new FlowEventArgs()));
+            flowStarter = null;
             GC.Collect();
+
         }
 
         /// <summary>
@@ -500,7 +503,6 @@ namespace Serein.NodeFlow.Env
             };
         }
 
-
         /// <summary>
         /// 清除所有
         /// </summary>
@@ -511,7 +513,6 @@ namespace Serein.NodeFlow.Env
             //MethodDetailss.Clear();
 
         }
-
 
         /// <summary>
         /// 加载项目文件
@@ -749,7 +750,7 @@ namespace Serein.NodeFlow.Env
             var groupedNodes = NodeModels.Values
                 .Where(node => node.MethodDetails is not null)
                 .ToArray()
-                .GroupBy(node => node.MethodDetails!.MethodName)
+                .GroupBy(node => node.MethodDetails?.MethodName)
                 .ToDictionary(
                 key => key.Key,
                 group => group.Count());
@@ -1341,13 +1342,36 @@ namespace Serein.NodeFlow.Env
 
         #endregion
 
+        #region 流程依赖类库的接口
+
+        /// <summary>
+        /// 运行时加载
+        /// </summary>
+        /// <param name="file">文件名</param>
+        /// <returns></returns>
+        public bool LoadNativeLibraryOfRuning(string file)
+        {
+            return NativeDllHelper.LoadDll(file);
+        }
+
+        /// <summary>
+        /// 运行时加载指定目录下的类库
+        /// </summary>
+        /// <param name="path">目录</param>
+        /// <param name="isRecurrence">是否递归加载</param>
+        public void LoadAllNativeLibraryOfRuning(string path, bool isRecurrence = true)
+        {
+            NativeDllHelper.LoadAllDll(path, isRecurrence);
+        }
+
+        #endregion
+
         #region 私有方法
 
         /// <summary>
         /// 加载指定路径的DLL文件
         /// </summary>
         /// <param name="dllPath"></param>
-
         private void LoadDllNodeInfo(string dllPath)
         {
             (var nodeLibrary, var registerTypes, var mdlist) = LoadAssembly(dllPath);
@@ -1431,10 +1455,17 @@ namespace Serein.NodeFlow.Env
             return true;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="dllPath"></param>
+        /// <returns></returns>
         private (NodeLibrary?, Dictionary<RegisterSequence, List<Type>>, List<MethodDetails>) LoadAssembly(string dllPath)
         {
             try
             {
+                //FlowLibraryLoader flowLibraryLoader = new FlowLibraryLoader(dllPath);
+                //Assembly assembly = flowLibraryLoader.LoadFromAssemblyPath(dllPath);
                 Assembly assembly = Assembly.LoadFrom(dllPath); // 加载DLL文件
                 List<Type> types = assembly.GetTypes().ToList(); // 获取程序集中的所有类型
                 Dictionary<RegisterSequence, List<Type>> autoRegisterTypes = new Dictionary<RegisterSequence, List<Type>>();
@@ -1452,10 +1483,6 @@ namespace Serein.NodeFlow.Env
                     }
 
                 }
-
-
-                //Dictionary<Sequence, Type> autoRegisterTypes = assembly.GetTypes().Where(t => t.GetCustomAttribute<AutoRegisterAttribute>() is not null).ToList();
-
 
 
                 List<(Type, string)> scanTypes = types.Select(t =>
@@ -1504,8 +1531,6 @@ namespace Serein.NodeFlow.Env
                             Console.WriteLine($"节点委托创建失败：{md.MethodName}");
                         }
                     }
-
-                    //methodDetails.AddRange(itemMethodDetails);
                 }
 
                 var nodeLibrary = new NodeLibrary
@@ -1714,10 +1739,24 @@ namespace Serein.NodeFlow.Env
                                             ConnectionArgSourceType connectionArgSourceType,
                                             int argIndex)
         {
-
-            if (!string.IsNullOrEmpty(toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceNodeGuid))
+            var oldNodeGuid = toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceNodeGuid;
+            
+            if (!string.IsNullOrEmpty(oldNodeGuid))
             {
-                await RemoteConnectAsync(fromNode,toNode,argIndex); // 已经存在连接,将其移除
+                //if(NodeModels.TryGetValue(oldNodeGuid, out var oldNodeModel))
+                //{
+                //    // 已经存在连接
+                //    await RemoteConnectAsync(oldNodeModel, toNode, argIndex); // 已经存在连接,将其移除
+                //}
+                if (oldNodeGuid.Equals(fromNode.Guid))
+                {
+                    await RemoteConnectAsync(fromNode, toNode, argIndex); // 相同起始节点不同控制点已经连接,将其移除
+                }
+                else
+                {
+                    Console.WriteLine("目标入参已确定参数来源，不可连接                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                ");
+                    return false;
+                }
             }
             toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceNodeGuid = fromNode.Guid;
             toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceType = connectionArgSourceType;
@@ -1906,11 +1945,7 @@ namespace Serein.NodeFlow.Env
     }
 
 
-
-
-
-
-
+   
 
 
 

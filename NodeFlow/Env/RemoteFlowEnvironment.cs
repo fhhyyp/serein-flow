@@ -835,5 +835,31 @@ namespace Serein.NodeFlow.Env
             });
 
         }
+
+
+        #region 流程依赖类库的接口
+
+        /// <summary>
+        /// 运行时加载
+        /// </summary>
+        /// <param name="file">文件名</param>
+        /// <returns></returns>
+        public bool LoadNativeLibraryOfRuning(string file)
+        {
+            Console.WriteLine("远程环境尚未实现的接口：LoadNativeLibraryOfRuning");
+            return false;
+        }
+
+        /// <summary>
+        /// 运行时加载指定目录下的类库
+        /// </summary>
+        /// <param name="path">目录</param>
+        /// <param name="isRecurrence">是否递归加载</param>
+        public void LoadAllNativeLibraryOfRuning(string path, bool isRecurrence = true)
+        {
+            Console.WriteLine("远程环境尚未实现的接口：LoadAllNativeLibraryOfRuning");
+        }
+
+        #endregion
     }
 }

@@ -12,6 +12,8 @@ using Serein.Workbench.Node.ViewModel;
 using Serein.Workbench.Themes;
 using System;
 using System.IO;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -247,11 +249,12 @@ namespace Serein.Workbench
                 return;
             }
             InitializeCanvas(project.Basic.Canvas.Width, project.Basic.Canvas.Height);// 设置画布大小
-            foreach (var connection in Connections)
-            {
-                connection.RefreshLine(); // 窗体完成加载后试图刷新所有连接线
-            }
-
+            //foreach (var connection in Connections)
+            //{
+            //    connection.RefreshLine(); // 窗体完成加载后试图刷新所有连接线
+            //}
+            Console.WriteLine($"运行环境当前工作目录：{System.IO.Directory.GetCurrentDirectory()}");
+            
             var canvasData = project.Basic.Canvas;
             if (canvasData is not null)
             {
@@ -267,7 +270,12 @@ namespace Serein.Workbench
                 FlowChartCanvas.RenderTransform = canvasTransformGroup;
             }
 
+
         }
+
+      
+
+
         #endregion
 
         #region 运行环境事件

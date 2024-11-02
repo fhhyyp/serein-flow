@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>1.0.15</Version>
+    <Version>1.0.16</Version>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -23,7 +23,6 @@
     <Compile Remove="Flow\**" />
     <Compile Remove="Http\**" />
     <Compile Remove="IOC\**" />
-    <Compile Remove="NodeFlow\Tool\**" />
     <Compile Remove="obj\**" />
     <Compile Remove="SerinExpression\**" />
     <Compile Remove="Tool\**" />
@@ -31,7 +30,6 @@
     <EmbeddedResource Remove="Flow\**" />
     <EmbeddedResource Remove="Http\**" />
     <EmbeddedResource Remove="IOC\**" />
-    <EmbeddedResource Remove="NodeFlow\Tool\**" />
     <EmbeddedResource Remove="obj\**" />
     <EmbeddedResource Remove="SerinExpression\**" />
     <EmbeddedResource Remove="Tool\**" />
@@ -39,15 +37,12 @@
     <None Remove="Flow\**" />
     <None Remove="Http\**" />
     <None Remove="IOC\**" />
-    <None Remove="NodeFlow\Tool\**" />
     <None Remove="obj\**" />
     <None Remove="SerinExpression\**" />
     <None Remove="Tool\**" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="NodeFlow\DynamicNodeCoreType.cs" />
-    <Compile Remove="NodeFlow\FlowStateType.cs" />
     <Compile Remove="ServiceContainer.cs" />
   </ItemGroup>
 

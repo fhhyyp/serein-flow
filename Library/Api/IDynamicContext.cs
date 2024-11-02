@@ -1,6 +1,7 @@
 ﻿using Serein.Library;
 using Serein.Library.Utils;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Serein.Library.Api
@@ -19,6 +20,11 @@ namespace Serein.Library.Api
         /// 是否正在运行
         /// </summary>
         RunState RunState { get; }
+
+        /// <summary>
+        /// 用来在当前流程上下文间传递数据
+        /// </summary>
+        Dictionary<string, object> ContextShareData { get; }
 
         /// <summary>
         /// 下一个要执行的节点类别
@@ -52,7 +58,6 @@ namespace Serein.Library.Api
         /// <param name="nodeModel"></param>
         object TransmissionData(NodeModelBase nodeModel);
 
-
         /// <summary>
         /// 添加或更新当前节点的数据
         /// </summary>
@@ -61,9 +66,11 @@ namespace Serein.Library.Api
         void AddOrUpdate(string nodeGuid, object flowData);
 
         /// <summary>
-        /// 用以提前结束分支运行
+        /// 用以提前结束当前上下文流程的运行
         /// </summary>
         void Exit();
+
+        
 
 
         /*/// <summary>

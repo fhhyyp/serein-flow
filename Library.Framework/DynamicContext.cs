@@ -1,6 +1,7 @@
 ﻿using Serein.Library.Api;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 
 namespace Serein.Library.Framework.NodeFlow
 {
@@ -28,6 +29,11 @@ namespace Serein.Library.Framework.NodeFlow
         /// 运行状态
         /// </summary>
         public RunState RunState { get; set; } = RunState.NoStart;
+
+        /// <summary>
+        /// 用来在当前流程上下文间传递数据
+        /// </summary>
+        public Dictionary<string, object> ContextShareData { get; } = new Dictionary<string, object>();
 
         /// <summary>
         /// 当前节点执行完成后，设置该属性，让运行环境判断接下来要执行哪个分支的节点。
@@ -132,7 +138,22 @@ namespace Serein.Library.Framework.NodeFlow
                     }
                 }
             }
+            foreach (var nodeObj in ContextShareData.Values)
+            {
+                if (nodeObj is null)
+                {
+                    continue;
+                }
+                else 
+                {
+                    if (typeof(IDisposable).IsAssignableFrom(nodeObj?.GetType()) && nodeObj is IDisposable disposable)
+                    {
+                        disposable?.Dispose();
+                    }
+                }
+            }
             this.dictNodeFlowData?.Clear();
+            this.ContextShareData?.Clear();
             RunState = RunState.Completion;
         }
         // public NodeRunCts NodeRunCts { get; set; }

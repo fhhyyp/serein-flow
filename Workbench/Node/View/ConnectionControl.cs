@@ -98,12 +98,6 @@ namespace Serein.Workbench.Node.View
 
     #endregion
 
-
-
-
-    
-
-
     /// <summary>
     /// 连接控件，表示控件的连接关系
     /// </summary>

@@ -619,7 +619,7 @@ namespace Serein.Library.Api
         event EnvOutHandler OnEnvOut;
         #endregion
 
-        #region 接口
+        #region 流程接口
 
         /// <summary>
         /// 设置输出
@@ -890,6 +890,24 @@ namespace Serein.Library.Api
         /// <param name="type">中断类型。0主动监视，1表达式</param>
         void TriggerInterrupt(string nodeGuid, string expression, InterruptTriggerEventArgs.InterruptTriggerType type);
 
+
+        #endregion
+
+        #region 流程依赖类库的接口
+
+        /// <summary>
+        /// 运行时加载
+        /// </summary>
+        /// <param name="file">文件名</param>
+        /// <returns></returns>
+        bool LoadNativeLibraryOfRuning(string file);
+
+        /// <summary>
+        /// 运行时加载指定目录下的类库
+        /// </summary>
+        /// <param name="path">目录</param>
+        /// <param name="isRecurrence">是否递归加载</param>
+        void LoadAllNativeLibraryOfRuning(string path, bool isRecurrence = true);
 
         #endregion
 

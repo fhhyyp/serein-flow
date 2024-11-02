@@ -50,8 +50,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="NodeFlow\FlipflopContext.cs" />
-    <Compile Include="NodeFlow\DynamicContext.cs" />
+    <Compile Include="FlipflopContext.cs" />
+    <Compile Include="DynamicContext.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
