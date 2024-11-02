@@ -102,15 +102,36 @@ namespace Serein.Library
                 }
                 else
                 {
+                    var md = this.MethodDetails; // 当前节点的方法说明
+                    var pds = md.ParameterDetailss; // 当前节点的入参描述数组
+                    if (nodeInfo.ParameterData.Length > pds.Length && md.HasParamsArg)
+                    {
+                        // 保存的参数信息项数量大于方法本身的方法入参数量（可能存在可变入参）
+                        var length = nodeInfo.ParameterData.Length - pds.Length; // 需要扩容的长度
+                        this.MethodDetails.ParameterDetailss = ArrayHelper.ArrayExpansion(pds, length); // 扩容入参描述数组
+                        pds = this.MethodDetails.ParameterDetailss;
+                        var startParmsPd = pds[md.ParamsArgIndex]; // 获取可变入参参数描述
+                        for(int i = md.ParamsArgIndex + 1; i <= md.ParamsArgIndex + length; i++)
+                        {
+                            pds[i] = startParmsPd.CloneOfModel(this);
+                            pds[i].Index = pds[i-1].Index + 1;
+                            pds[i].IsParams = true;
+                        }
+                    }
                     for (int i = 0; i < nodeInfo.ParameterData.Length; i++)
                     {
-                        var mdPd = this.MethodDetails.ParameterDetailss[i];
-                        ParameterData pd = nodeInfo.ParameterData[i];
-                        mdPd.IsExplicitData = pd.State;
-                        mdPd.DataValue = pd.Value;
-                        mdPd.ArgDataSourceType = EnumHelper.ConvertEnum<ConnectionArgSourceType>(pd.SourceType);
-                        mdPd.ArgDataSourceNodeGuid = pd.SourceNodeGuid;
-
+                        if(i >= pds.Length)
+                        {
+                            Console.WriteLine($"保存的参数数量大于方法此时的入参参数数量：[{nodeInfo.Guid}][{nodeInfo.MethodName}]");
+                            break;
+                        }
+                        var pd = pds[i];
+                        ParameterData pdInfo = nodeInfo.ParameterData[i];
+                        pd.IsExplicitData = pdInfo.State;
+                        pd.DataValue = pdInfo.Value;
+                        pd.ArgDataSourceType = EnumHelper.ConvertEnum<ConnectionArgSourceType>(pdInfo.SourceType);
+                        pd.ArgDataSourceNodeGuid = pdInfo.SourceNodeGuid;
+                        
                     }
                 }
 
@@ -327,14 +348,13 @@ namespace Serein.Library
 
             Array paramsArgs = null; // 初始化可选参数
             int paramsArgIndex = 0; // 可选参数下标，与 object[] paramsArgs 一起使用
-            Type paramsArgType = null; // 可变参数的参数类型
+            
             if (md.ParamsArgIndex >= 0) 
             {
                 // 存在可变入参参数
-                paramsArgType = md.ParameterDetailss[md.ParamsArgIndex].DataType.GetElementType(); // 获取可变参数的参数类型
+                var paramsArgType = md.ParameterDetailss[md.ParamsArgIndex].DataType; // 获取可变参数的参数类型
                 // 可变参数数组长度 = 方法参数个数 - （ 可选入参下标 + 1 ）
                 int paramsLength = md.ParameterDetailss.Length - md.ParamsArgIndex;
-                //paramsArgs = paramsArgType.MakeArrayType(paramsLength);
                 paramsArgs = Array.CreateInstance(paramsArgType, paramsLength);// 可变参数
                 parameters = new object[md.ParamsArgIndex+1]; // 调用方法的入参数组
                 parameters[md.ParamsArgIndex] = paramsArgs; // 如果存在可选参数，入参参数最后一项则为可变参数
@@ -349,19 +369,16 @@ namespace Serein.Library
             for (int i = 0; i < md.ParameterDetailss.Length; i++)
             {
                 var pd = md.ParameterDetailss[i]; // 方法入参描述
+                var argDataType = pd.DataType;
 
                 // 入参参数下标循环到可选参数时，开始写入到可选参数数组
-                if(paramsArgs != null && i >= md.ParamsArgIndex)
+                if (paramsArgs != null && i >= md.ParamsArgIndex)
                 {
                     // 控制参数赋值方向：
                     // true  => paramsArgs
                     // false => parameters
                     hasParams = true;
                 }
-
-                // 可选参数为 Array 类型，所以需要获取子项类型
-                // 如果 hasParams 为 true ，说明一定存在可选参数，所以 paramsArgType 一定不为 null
-                Type argDataType = hasParams ? paramsArgType : pd.DataType;
 
                 #region 获取基础的上下文数据
                 if (argDataType == typeof(IFlowEnvironment)) // 获取流程上下文

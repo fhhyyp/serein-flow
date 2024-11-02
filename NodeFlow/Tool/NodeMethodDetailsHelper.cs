@@ -214,28 +214,58 @@ public static class NodeMethodDetailsHelper
 
     private static ParameterDetails GetExplicitDataOfParameter(ParameterInfo parameterInfo,
                                                                int index,
-                                                               Type paremType,
+                                                               Type explicitParemType,
                                                                bool isExplicitData,
                                                                Func<object, object> func = null)
     {
 
         bool hasParams = parameterInfo.IsDefined(typeof(ParamArrayAttribute)); // 判断是否为可变参数
-        string explicitTypeName = GetExplicitTypeName(paremType);
-        var items = GetExplicitItems(paremType, explicitTypeName);
+        Type dataType;
+        if (hasParams && parameterInfo.ParameterType.GetElementType() is Type paramsArgType) // 获取可变参数的子项类型
+        {
+            // 可选参数为 Array 类型，所以需要获取子项类型
+            // 如果 hasParams 为 true ，说明一定存在可选参数，所以 paramsArgType 一定不为 null
+            dataType = paramsArgType;
+            explicitParemType = paramsArgType;
+        }
+        else
+        {
+            dataType = parameterInfo.ParameterType;
+        }
+
+        string explicitTypeName = GetExplicitTypeName(explicitParemType);
+        var items = GetExplicitItems(explicitParemType, explicitTypeName);
         if ("Bool".Equals(explicitTypeName)) explicitTypeName = "Select"; // 布尔值 转为 可选类型
         return new ParameterDetails
         {
             IsExplicitData = isExplicitData, //attribute is null ? parameterInfo.HasDefaultValue : true,
             Index = index, // 索引
             ExplicitTypeName = explicitTypeName, // Select/Bool/Value
-            ExplicitType = paremType,// 显示的入参类型
+            ExplicitType = explicitParemType,// 显示的入参类型
             Convertor = func, // 转换器
-            DataType = parameterInfo.ParameterType, // 实际的入参类型
+            DataType = dataType, // 实际的入参类型
             Name = parameterInfo.Name,
             DataValue = parameterInfo.HasDefaultValue ? parameterInfo?.DefaultValue?.ToString() : "", // 如果存在默认值，则使用默认值
             Items = items.ToArray(), // 如果是枚举值入参，则获取枚举类型的字面量
             IsParams = hasParams,  // 判断是否为可变参数
         };
+
+        //string explicitTypeName = GetExplicitTypeName(explicitParemType);
+        //var items = GetExplicitItems(explicitParemType, explicitTypeName);
+        //if ("Bool".Equals(explicitTypeName)) explicitTypeName = "Select"; // 布尔值 转为 可选类型
+        //return new ParameterDetails
+        //{
+        //    IsExplicitData = isExplicitData, //attribute is null ? parameterInfo.HasDefaultValue : true,
+        //    Index = index, // 索引
+        //    ExplicitTypeName = explicitTypeName, // Select/Bool/Value
+        //    ExplicitType = explicitParemType,// 显示的入参类型
+        //    Convertor = func, // 转换器
+        //    DataType = dataType, // 实际的入参类型
+        //    Name = parameterInfo.Name,
+        //    DataValue = parameterInfo.HasDefaultValue ? parameterInfo?.DefaultValue?.ToString() : "", // 如果存在默认值，则使用默认值
+        //    Items = items.ToArray(), // 如果是枚举值入参，则获取枚举类型的字面量
+        //    IsParams = hasParams,  // 判断是否为可变参数
+        //};
     }
 
 

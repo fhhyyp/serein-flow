@@ -109,7 +109,7 @@ namespace Serein.Library
                 var newPd = ParameterDetailss[index].CloneOfModel(this.NodeModel); // 复制出属于本身节点的参数描述
                 newPd.Index = ParameterDetailss.Length; // 更新索引
                 newPd.IsParams = true;
-                ParameterDetailss = AddToArray(ParameterDetailss, newPd); // 新增
+                ParameterDetailss = ArrayHelper.AddToArray(ParameterDetailss, newPd); // 新增
                 return true;
             }
             else
@@ -129,7 +129,7 @@ namespace Serein.Library
                 && index < ParameterDetailss.Length) // 防止下标越界
             {
                 ParameterDetailss[index] = null; // 释放对象引用
-                var tmp = RemoteToArray(ParameterDetailss, index); // 新增;
+                var tmp = ArrayHelper.RemoteToArray(ParameterDetailss, index); // 新增;
                 UpdateParamIndex(ref tmp);
                 ParameterDetailss = tmp; // 新增
                 return true;
@@ -155,41 +155,7 @@ namespace Serein.Library
         }
 
 
-        public static T[] AddToArray<T>(T[] original, T newObject)
-        {
-            // 创建一个新数组，比原数组大1
-            T[] newArray = new T[original.Length + 1];
-
-            // 复制原数组的元素
-            for (int i = 0; i < original.Length; i++)
-            {
-                newArray[i] = original[i];
-            }
-
-            // 将新对象放在最后一位
-            newArray[newArray.Length - 1] = newObject;
-
-            return newArray;
-        }
-        public static T[] RemoteToArray<T>(T[] original, int index)
-        {
-            if(index == 0)
-            {
-                return new T[0];
-            }
-            // 创建一个新数组，比原数组小1
-            T[] newArray = new T[original.Length - 1];
-
-            for (int i = 0; i < index; i++)
-            {
-                newArray[i] = original[i];
-            }
-            for (int i = index; i < newArray.Length; i++)
-            {
-                newArray[i] = original[i+1];
-            }
-            return newArray;
-        }
+      
 
 
         #endregion

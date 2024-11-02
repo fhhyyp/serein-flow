@@ -15,7 +15,7 @@ namespace Serein.Workbench
         {
         
  #if DEBUG
-            if (1 == 11)
+            if (1 == 1)
             {
                 string filePath;
                 filePath = @"F:\临时\project\linux\project.dnf";
