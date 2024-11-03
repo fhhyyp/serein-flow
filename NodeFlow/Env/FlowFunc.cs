@@ -87,16 +87,17 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// 程序集封装依赖
         /// </summary>
-        /// <param name="library"></param>
+        /// <param name="libraryInfo"></param>
         /// <returns></returns>
-        public static Library.Library ToLibrary(this Library.NodeLibrary library)
+        public static Library.Library ToLibrary(this Library.NodeLibraryInfo libraryInfo)
         {
-            var tmp = library.Assembly.ManifestModule.Name;
+            //var tmp = library.Assembly.ManifestModule.Name;
             return new Library.Library
             {
-                AssemblyName = library.Assembly.GetName().Name,
-                FileName = library.FileName,
-                FilePath = library.FilePath,
+                AssemblyName = libraryInfo.AssemblyName,
+                //AssemblyName = library.Assembly.GetName().Name,
+                FileName = libraryInfo.FileName,
+                FilePath = libraryInfo.FilePath,
             };
         }
 

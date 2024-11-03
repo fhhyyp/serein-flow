@@ -316,10 +316,10 @@ namespace Serein.Workbench
         /// </summary>
         private void FlowEnvironment_DllLoadEvent(LoadDllEventArgs eventArgs)
         {
-            NodeLibrary nodeLibrary = eventArgs.NodeLibrary;
+            NodeLibraryInfo nodeLibraryInfo = eventArgs.NodeLibraryInfo;
             List<MethodDetailsInfo> methodDetailss = eventArgs.MethodDetailss;
 
-            var dllControl = new DllControl(nodeLibrary);
+            var dllControl = new DllControl(nodeLibraryInfo);
 
             foreach (var methodDetailsInfo in methodDetailss)
             {
@@ -341,7 +341,7 @@ namespace Serein.Workbench
             var menu = new ContextMenu();
             menu.Items.Add(CreateMenuItem("卸载", (s, e) =>
             {
-                if (this.EnvDecorator.RemoteDll(nodeLibrary.FullName))
+                if (this.EnvDecorator.RemoteDll(nodeLibraryInfo.AssemblyName))
                 {
                     DllStackPanel.Children.Remove(dllControl);
                 }

@@ -15,6 +15,8 @@ namespace Serein.NodeFlow.Tool
     {
         private Assembly _pluginAssembly;
 
+        public string FullName => _pluginAssembly.FullName;
+
         /// <summary>
         /// 加载程序集
         /// </summary>
@@ -33,6 +35,12 @@ namespace Serein.NodeFlow.Tool
         protected override Assembly Load(AssemblyName assemblyName)
         {
             return null; // 保持默认加载行为
+        }
+
+
+        public List<Type> LoadFlowTypes()
+        {
+            return _pluginAssembly.GetTypes().ToList();
         }
 
         /// <summary>

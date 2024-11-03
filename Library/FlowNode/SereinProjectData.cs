@@ -33,9 +33,9 @@ namespace Serein.Library
     public class LibraryMds
     {
         /// <summary>
-        /// 程序集FullName
+        /// 程序集名称
         /// </summary>
-        public string LibraryName { get; set; }
+        public string AssemblyName { get; set; }
         /// <summary>
         /// 相关的方法详情
         /// </summary>

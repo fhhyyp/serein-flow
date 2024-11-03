@@ -2,8 +2,8 @@
 
   <PropertyGroup>
     <Version>1.0.19</Version>
-    <TargetFrameworks>net8.0;net462</TargetFrameworks>
     <!--<TargetFrameworks>net8.0</TargetFrameworks>-->
+    <TargetFrameworks>net8.0;net462</TargetFrameworks>
     <BaseOutputPath>D:\Project\C#\DynamicControl\SereinFlow\.Output</BaseOutputPath>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Title>SereinFow</Title>
@@ -37,8 +37,6 @@
 
   <ItemGroup>
 
-    <ProjectReference Include="..\Serein.Library.MyGenerator\Serein.Library.NodeGenerator.csproj" OutputItemType="Analyzer" />
-
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="System.Reactive" Version="6.0.1" />
     <PackageReference Include="System.Threading.Channels" Version="8.0.0" />
@@ -58,6 +56,10 @@
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Serein.Library.MyGenerator\Serein.Library.NodeGenerator.csproj " OutputItemType="Analyzer" />
   </ItemGroup>
 
 </Project>

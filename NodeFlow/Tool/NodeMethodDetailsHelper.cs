@@ -19,6 +19,7 @@ public static class NodeMethodDetailsHelper
         return type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
                        .Where(m => m.GetCustomAttribute<NodeActionAttribute>()?.Scan == true);
     }
+
     /// <summary>
     /// 创建方法信息
     /// </summary>
@@ -250,22 +251,6 @@ public static class NodeMethodDetailsHelper
             IsParams = hasParams,  // 判断是否为可变参数
         };
 
-        //string explicitTypeName = GetExplicitTypeName(explicitParemType);
-        //var items = GetExplicitItems(explicitParemType, explicitTypeName);
-        //if ("Bool".Equals(explicitTypeName)) explicitTypeName = "Select"; // 布尔值 转为 可选类型
-        //return new ParameterDetails
-        //{
-        //    IsExplicitData = isExplicitData, //attribute is null ? parameterInfo.HasDefaultValue : true,
-        //    Index = index, // 索引
-        //    ExplicitTypeName = explicitTypeName, // Select/Bool/Value
-        //    ExplicitType = explicitParemType,// 显示的入参类型
-        //    Convertor = func, // 转换器
-        //    DataType = dataType, // 实际的入参类型
-        //    Name = parameterInfo.Name,
-        //    DataValue = parameterInfo.HasDefaultValue ? parameterInfo?.DefaultValue?.ToString() : "", // 如果存在默认值，则使用默认值
-        //    Items = items.ToArray(), // 如果是枚举值入参，则获取枚举类型的字面量
-        //    IsParams = hasParams,  // 判断是否为可变参数
-        //};
     }
 
 

@@ -129,7 +129,7 @@ namespace Serein.Library
                 && index < ParameterDetailss.Length) // 防止下标越界
             {
                 ParameterDetailss[index] = null; // 释放对象引用
-                var tmp = ArrayHelper.RemoteToArray(ParameterDetailss, index); // 新增;
+                var tmp = ArrayHelper.RemoteToArray<ParameterDetails>(ParameterDetailss, index); // 新增;
                 UpdateParamIndex(ref tmp);
                 ParameterDetailss = tmp; // 新增
                 return true;

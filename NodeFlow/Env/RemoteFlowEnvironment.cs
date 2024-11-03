@@ -112,6 +112,11 @@ namespace Serein.NodeFlow.Env
             return prjectInfo;
         }
 
+        /// <summary>
+        /// 远程环境下加载项目
+        /// </summary>
+        /// <param name="flowEnvInfo"></param>
+        /// <param name="filePath"></param>
         public void LoadProject(FlowEnvInfo flowEnvInfo, string filePath)
         {
             Console.WriteLine("加载远程环境");
@@ -120,13 +125,13 @@ namespace Serein.NodeFlow.Env
             var libmds = flowEnvInfo.LibraryMds;
             foreach (var lib in libmds)
             {
-                NodeLibrary nodeLibrary = new NodeLibrary
+                NodeLibraryInfo nodeLibraryInfo = new NodeLibraryInfo
                 {
-                    FullName = lib.LibraryName,
+                    AssemblyName = lib.AssemblyName,
                     FilePath = "Remote",
                 };
                 var mdInfos = lib.Mds.ToList();
-                UIContextOperation?.Invoke(() => OnDllLoad?.Invoke(new LoadDllEventArgs(nodeLibrary, mdInfos))); // 通知UI创建dll面板显示
+                UIContextOperation?.Invoke(() => OnDllLoad?.Invoke(new LoadDllEventArgs(nodeLibraryInfo, mdInfos))); // 通知UI创建dll面板显示
                 foreach (var mdInfo in mdInfos)
                 {
                     MethodDetailss.TryAdd(mdInfo.MethodName, new MethodDetails(mdInfo)); // 从DLL读取时生成元数据
@@ -397,7 +402,7 @@ namespace Serein.NodeFlow.Env
             Console.WriteLine("远程环境尚未实现的接口：LoadDll");
         }
 
-        public bool RemoteDll(string assemblyFullName)
+        public bool RemoteDll(string assemblyName)
         {
             // 尝试移除远程环境中的加载了的依赖
             Console.WriteLine("远程环境尚未实现的接口：RemoteDll");

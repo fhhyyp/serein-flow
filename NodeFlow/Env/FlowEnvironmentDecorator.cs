@@ -307,9 +307,9 @@ namespace Serein.NodeFlow.Env
         }
 
 
-        public bool RemoteDll(string assemblyFullName)
+        public bool RemoteDll(string assemblyName)
         {
-            return currentFlowEnvironment.RemoteDll(assemblyFullName);
+            return currentFlowEnvironment.RemoteDll(assemblyName);
         }
 
         public async Task<bool> RemoveConnectInvokeAsync(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)

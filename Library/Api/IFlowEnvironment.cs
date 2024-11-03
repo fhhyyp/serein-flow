@@ -138,15 +138,15 @@ namespace Serein.Library.Api
 
     public class LoadDllEventArgs : FlowEventArgs
     {
-        public LoadDllEventArgs(NodeLibrary nodeLibrary, List<MethodDetailsInfo> MethodDetailss)
+        public LoadDllEventArgs(NodeLibraryInfo nodeLibraryInfo, List<MethodDetailsInfo> MethodDetailss)
         {
-            this.NodeLibrary = nodeLibrary;
+            this.NodeLibraryInfo = nodeLibraryInfo;
             this.MethodDetailss = MethodDetailss;
         }
         /// <summary>
         /// 已加载了的程序集
         /// </summary>
-        public NodeLibrary NodeLibrary { get; protected set; }
+        public NodeLibraryInfo NodeLibraryInfo { get; protected set; }
         /// <summary>
         /// dll文件中有效的流程方法描述
         /// </summary>
@@ -676,8 +676,8 @@ namespace Serein.Library.Api
         /// <summary>
         /// 移除DLL
         /// </summary>
-        /// <param name="assemblyFullName">程序集的名称</param>
-        bool RemoteDll(string assemblyFullName);
+        /// <param name="assemblyName">程序集的名称</param>
+        bool RemoteDll(string assemblyName);
 
         /// <summary>
         /// 清理加载的DLL（待更改）

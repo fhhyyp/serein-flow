@@ -223,24 +223,45 @@ namespace Serein.NodeFlow.Env
         #endregion
 
         #region 私有变量
+
+        /// <summary>
+        /// 通过程序集名称管理动态加载的程序集，用于节点创建提供方法描述，流程运行时提供Emit委托
+        /// </summary>
+        public ConcurrentDictionary<string, FlowLibrary> FlowLibrarys { get; } = [];
+
+
         /// <summary>
         /// Library 与 MethodDetailss的依赖关系
         /// </summary>
-        public ConcurrentDictionary<NodeLibrary, List<MethodDetails>> MethodDetailsOfLibrarys { get; } = [];
+        public ConcurrentDictionary<NodeLibraryInfo, List<MethodDetails>> MethodDetailsOfLibraryInfos { get; } = [];
 
         /// <summary>
-        /// 存储已加载的程序集
+        /// <para>存储已加载的程序集</para>
+        /// <para>Key：程序集的FullName </para>
+        /// <para>Value：构造的方法信息</para>
         /// </summary>
-        public ConcurrentDictionary<string, NodeLibrary> Librarys { get; } = [];
+        public ConcurrentDictionary<string, NodeLibraryInfo> LibraryInfos { get; } = [];
 
         /// <summary>
-        /// 存储已加载的方法信息。描述所有DLL中NodeAction特性的方法的原始副本
+        /// <para>存储已加载的方法信息。描述所有DLL中NodeAction特性的方法的原始副本</para>
+        /// <para>Key：反射时获取的MethodInfo.MehtodName</para>
+        /// <para>Value：构造的方法信息</para>
         /// </summary>
         public ConcurrentDictionary<string, MethodDetails> MethodDetailss { get; } = [];
 
-        
         /// <summary>
-        /// 容器管理
+        /// 从dll中加载的类的注册类型
+        /// </summary>
+        private Dictionary<RegisterSequence, List<Type>> AutoRegisterTypes { get; } = [];
+
+        /// <summary>
+        /// 存放所有通过Emit加载的委托
+        /// md.Methodname - delegate
+        /// </summary>
+        private ConcurrentDictionary<string, DelegateDetails> MethodDelegates { get; } = [];
+
+        /// <summary>
+        /// IOC对象容器管理
         /// </summary>
         private readonly SereinIOC sereinIOC;
 
@@ -255,18 +276,7 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         private List<SingleFlipflopNode> FlipflopNodes { get; } = [];
 
-        /// <summary>
-        /// 从dll中加载的类的注册类型
-        /// </summary>
-        private Dictionary<RegisterSequence, List<Type>> AutoRegisterTypes { get; } = [];
 
-        /// <summary>
-        /// 存放委托
-        /// 
-        /// md.Methodname - delegate
-        /// </summary>
-
-        private ConcurrentDictionary<string, DelegateDetails> MethodDelegates { get; } = [];
 
         /// <summary>
         /// 起始节点私有属性
@@ -470,28 +480,28 @@ namespace Serein.NodeFlow.Env
         /// <returns></returns>
         public async Task<FlowEnvInfo> GetEnvInfoAsync()
         {
-            Dictionary<NodeLibrary, List<MethodDetailsInfo>> LibraryMds = [];
+            Dictionary<NodeLibraryInfo, List<MethodDetailsInfo>> MdsOfLibraryInfos = [];
 
-            foreach (var mdskv in MethodDetailsOfLibrarys)
+            foreach (var mdskv in MethodDetailsOfLibraryInfos)
             {
                 var library = mdskv.Key;
                 var mds = mdskv.Value;
                 foreach (var md in mds)
                 {
-                    if (!LibraryMds.TryGetValue(library, out var t_mds))
+                    if (!MdsOfLibraryInfos.TryGetValue(library, out var t_mds))
                     {
                         t_mds = new List<MethodDetailsInfo>();
-                        LibraryMds[library] = t_mds;
+                        MdsOfLibraryInfos[library] = t_mds;
                     }
                     var mdInfo = md.ToInfo();
-                    mdInfo.LibraryName = library.FullName;
+                    mdInfo.AssemblyName = library.AssemblyName;
                     t_mds.Add(mdInfo);
                 }
             }
 
-            LibraryMds[] libraryMdss = LibraryMds.Select(kv => new LibraryMds
+            LibraryMds[] libraryMdss = MdsOfLibraryInfos.Select(kv => new LibraryMds
             {
-                LibraryName = kv.Key.FullName,
+                AssemblyName = kv.Key.AssemblyName,
                 Mds = kv.Value.ToArray()
             }).ToArray();
             var project = await GetProjectInfoAsync();
@@ -716,7 +726,7 @@ namespace Serein.NodeFlow.Env
         {
             var projectData = new SereinProjectData()
             {
-                Librarys = Librarys.Values.Select(lib => lib.ToLibrary()).ToArray(),
+                Librarys = LibraryInfos.Values.Select(lib => lib.ToLibrary()).ToArray(),
                 Nodes = NodeModels.Values.Select(node => node.ToInfo()).Where(info => info is not null).ToArray(),
                 StartNode = NodeModels.Values.FirstOrDefault(it => it.IsStart)?.Guid,
             };
@@ -738,11 +748,11 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// 移除DLL
         /// </summary>
-        /// <param name="assemblyFullName"></param>
+        /// <param name="assemblyName"></param>
         /// <returns></returns>
-        public bool RemoteDll(string assemblyFullName)
+        public bool RemoteDll(string assemblyName)
         {
-            var library = Librarys.Values.FirstOrDefault(nl => assemblyFullName.Equals(nl.FullName));
+            var library = LibraryInfos.Values.FirstOrDefault(nl => assemblyName.Equals(nl.AssemblyName));
             if (library is null)
             {
                 return false;
@@ -761,7 +771,7 @@ namespace Serein.NodeFlow.Env
                 return true; // 当前无节点，可以直接删除
             }
 
-            if (MethodDetailsOfLibrarys.TryGetValue(library, out var mds)) // 存在方法
+            if (MethodDetailsOfLibraryInfos.TryGetValue(library, out var mds)) // 存在方法
             {
                 foreach (var md in mds)
                 {
@@ -778,7 +788,7 @@ namespace Serein.NodeFlow.Env
                 {
                     MethodDetailss.TryRemove(md.MethodName, out _);
                 }
-                MethodDetailsOfLibrarys.TryRemove(library, out _);
+                MethodDetailsOfLibraryInfos.TryRemove(library, out _);
                 return true;
             }
             else
@@ -1395,34 +1405,55 @@ namespace Serein.NodeFlow.Env
         /// <param name="dllPath"></param>
         private void LoadDllNodeInfo(string dllPath)
         {
-            (var nodeLibrary, var registerTypes, var mdlist) = LoadAssembly(dllPath);
-            if (nodeLibrary is not null && mdlist.Count > 0)
+
+            var fileName = Path.GetFileName(dllPath);
+            AssemblyLoadContext flowAlc = new AssemblyLoadContext(fileName, true);
+            flowAlc.LoadFromAssemblyPath(dllPath); // 加载指定路径的程序集
+
+            foreach(var assemblt in flowAlc.Assemblies)
             {
-                Librarys.TryAdd(nodeLibrary.FullName, nodeLibrary);
-                MethodDetailsOfLibrarys.TryAdd(nodeLibrary, mdlist);
-
-                foreach (var md in mdlist)
+                (var registerTypes, var mdlist) = LoadAssembly(assemblt);
+                if (mdlist.Count > 0)
                 {
-                    MethodDetailss.TryAdd(md.MethodName, md);
-                }
-
-                foreach (var kv in registerTypes)
-                {
-                    if (!AutoRegisterTypes.TryGetValue(kv.Key, out var types))
+                    var nodeLibraryInfo = new NodeLibraryInfo
                     {
-                        types = new List<Type>();
-                        AutoRegisterTypes.Add(kv.Key, types);
+                        //Assembly = assembly,
+                        AssemblyName = assemblt.FullName,
+                        FileName = Path.GetFileName(dllPath),
+                        FilePath = dllPath,
+                    };
+
+                    LibraryInfos.TryAdd(nodeLibraryInfo.AssemblyName, nodeLibraryInfo);
+                    MethodDetailsOfLibraryInfos.TryAdd(nodeLibraryInfo, mdlist);
+
+                    foreach (var md in mdlist)
+                    {
+                        MethodDetailss.TryAdd(md.MethodName, md);
                     }
-                    types.AddRange(kv.Value);
-                }
-                var mdInfos = mdlist.Select(md => md.ToInfo()).ToList(); // 转换成方法信息
 
-                if (OperatingSystem.IsWindows())
-                {
-                    UIContextOperation?.Invoke(() => OnDllLoad?.Invoke(new LoadDllEventArgs(nodeLibrary, mdInfos))); // 通知UI创建dll面板显示
+                    foreach (var kv in registerTypes)
+                    {
+                        if (!AutoRegisterTypes.TryGetValue(kv.Key, out var types))
+                        {
+                            types = new List<Type>();
+                            AutoRegisterTypes.Add(kv.Key, types);
+                        }
+                        types.AddRange(kv.Value);
+                    }
+                    var mdInfos = mdlist.Select(md => md.ToInfo()).ToList(); // 转换成方法信息
 
+                    if (OperatingSystem.IsWindows())
+                    {
+                        UIContextOperation?.Invoke(() => OnDllLoad?.Invoke(new LoadDllEventArgs(nodeLibraryInfo, mdInfos))); // 通知UI创建dll面板显示
+
+                    }
                 }
+
+
             }
+
+
+           
 
         }
 
@@ -1477,18 +1508,17 @@ namespace Serein.NodeFlow.Env
         }
 
         /// <summary>
-        /// 
+        /// 动态加载程序集
         /// </summary>
-        /// <param name="dllPath"></param>
+        /// <param name="assembly">程序集本身</param>
         /// <returns></returns>
-        private (NodeLibrary?, Dictionary<RegisterSequence, List<Type>>, List<MethodDetails>) LoadAssembly(string dllPath)
+        private (Dictionary<RegisterSequence, List<Type>>, List<MethodDetails>) LoadAssembly(Assembly assembly)
         {
             try
             {
-                //FlowLibraryLoader flowLibraryLoader = new FlowLibraryLoader(dllPath);
-                //Assembly assembly = flowLibraryLoader.LoadFromAssemblyPath(dllPath);
-                Assembly assembly = Assembly.LoadFrom(dllPath); // 加载DLL文件
                 List<Type> types = assembly.GetTypes().ToList(); // 获取程序集中的所有类型
+
+                #region 获取所有需要注册的类型
                 Dictionary<RegisterSequence, List<Type>> autoRegisterTypes = new Dictionary<RegisterSequence, List<Type>>();
                 foreach (Type type in types)
                 {
@@ -1504,25 +1534,29 @@ namespace Serein.NodeFlow.Env
                     }
 
                 }
+                #endregion
 
 
+                #region 获取 DynamicFlow 特性的流程控制器，如果没有返回空
                 List<(Type, string)> scanTypes = types.Select(t =>
-                {
-                    if (t.GetCustomAttribute<DynamicFlowAttribute>() is DynamicFlowAttribute dynamicFlowAttribute
-                       && dynamicFlowAttribute.Scan == true)
-                    {
-                        return (t, dynamicFlowAttribute.Name);
-                    }
-                    else
-                    {
-                        return (null, null);
-                    }
-                }).Where(it => it.t is not null).ToList();
+                        {
+                            if (t.GetCustomAttribute<DynamicFlowAttribute>() is DynamicFlowAttribute dynamicFlowAttribute
+                               && dynamicFlowAttribute.Scan == true)
+                            {
+                                return (t, dynamicFlowAttribute.Name);
+                            }
+                            else
+                            {
+                                return (null, null);
+                            }
+                        }).Where(it => it.t is not null).ToList();
                 if (scanTypes.Count == 0)
                 {
-                    return (null, [], []);
+                    return ([], []);
                 }
+                #endregion
 
+                #region 创建对应的方法元数据
                 List<MethodDetails> methodDetails = new List<MethodDetails>();
                 // 遍历扫描的类型
                 foreach ((var type, var flowName) in scanTypes)
@@ -1552,23 +1586,16 @@ namespace Serein.NodeFlow.Env
                             Console.WriteLine($"节点委托创建失败：{md.MethodName}");
                         }
                     }
-                }
+                } 
+                #endregion
 
-                var nodeLibrary = new NodeLibrary
-                {
-                    FullName = assembly.GetName().FullName,
-                    Assembly = assembly,
-                    FileName = Path.GetFileName(dllPath),
-                    FilePath = dllPath,
-                };
-                //LoadedAssemblies.Add(assembly); // 将加载的程序集添加到列表中
-                //LoadedAssemblyPaths.Add(dllPath); // 记录加载的DLL路径
-                return (nodeLibrary, autoRegisterTypes, methodDetails);
+                
+                return (autoRegisterTypes, methodDetails);
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.ToString());
-                return (null, [], []);
+                return ([], []);
             }
         }
 

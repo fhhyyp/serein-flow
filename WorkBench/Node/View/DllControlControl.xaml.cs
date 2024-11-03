@@ -16,17 +16,17 @@ namespace Serein.Workbench.Node.View
     /// </summary>
     public partial class DllControl : UserControl
     {
-        private readonly NodeLibrary nodeLibrary;
+        private readonly NodeLibraryInfo nodeLibraryInfo;
 
         public DllControl()
         {
             Header = "DLL文件"; // 设置初始值
             InitializeComponent();
         }
-        public DllControl(NodeLibrary nodeLibrary)
+        public DllControl(NodeLibraryInfo nodeLibraryInfo)
         {
-            this.nodeLibrary = nodeLibrary;
-            Header = "DLL name :  " + nodeLibrary.FullName;
+            this.nodeLibraryInfo = nodeLibraryInfo;
+            Header = "DLL name :  " + nodeLibraryInfo.AssemblyName;
             InitializeComponent();
         }
 

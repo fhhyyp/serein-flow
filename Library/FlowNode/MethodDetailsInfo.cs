@@ -12,9 +12,9 @@ namespace Serein.Library
     public class MethodDetailsInfo
     {
         /// <summary>
-        /// 属于哪个DLL文件
+        /// 属于哪个程序集
         /// </summary>
-        public string LibraryName { get; set; }
+        public string AssemblyName { get; set; }
 
         /// <summary>
         /// 方法名称
