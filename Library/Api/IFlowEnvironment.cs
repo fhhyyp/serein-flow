@@ -672,12 +672,12 @@ namespace Serein.Library.Api
         /// 从文件中加载Dll
         /// </summary>
         /// <param name="dllPath"></param>
-        void LoadDll(string dllPath);
+        void LoadLibrary(string dllPath);
         /// <summary>
         /// 移除DLL
         /// </summary>
         /// <param name="assemblyFullName">程序集的名称</param>
-        bool RemoteDll(string assemblyFullName);
+        bool UnloadLibrary(string assemblyFullName);
 
         /// <summary>
         /// 清理加载的DLL（待更改）

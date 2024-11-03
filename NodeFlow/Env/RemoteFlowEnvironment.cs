@@ -397,13 +397,13 @@ namespace Serein.NodeFlow.Env
             Console.WriteLine("远程环境尚未实现的接口：ExitRemoteEnv");
         }
 
-        public void LoadDll(string dllPath)
+        public void LoadLibrary(string dllPath)
         {
             // 将dll文件发送到远程环境，由远程环境进行加载
             Console.WriteLine("远程环境尚未实现的接口：LoadDll");
         }
 
-        public bool RemoteDll(string assemblyName)
+        public bool UnloadLibrary(string assemblyName)
         {
             // 尝试移除远程环境中的加载了的依赖
             Console.WriteLine("远程环境尚未实现的接口：RemoteDll");

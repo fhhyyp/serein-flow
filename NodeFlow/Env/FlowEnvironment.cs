@@ -520,7 +520,7 @@ namespace Serein.NodeFlow.Env
             foreach (var dllPath in dllPaths)
             {
                 var dllFilePath = Path.GetFullPath(Path.Combine(filePath, dllPath));
-                LoadDll(dllFilePath);  // 加载项目文件时加载对应的程序集
+                LoadLibrary(dllFilePath);  // 加载项目文件时加载对应的程序集
             }
 
             List<(NodeModelBase, string[])> regionChildNodes = new List<(NodeModelBase, string[])>();
@@ -722,10 +722,20 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         /// <param name="dllPath"></param>
         /// <returns></returns> 
-        public void LoadDll(string dllPath)
+        public void LoadLibrary(string dllPath)
         {
-            (var libraryInfo, var mdInfos) = FlowLibraryManagement.LoadLibrary(dllPath);
-            UIContextOperation?.Invoke(() => OnDllLoad?.Invoke(new LoadDllEventArgs(libraryInfo, mdInfos))); // 通知UI创建dll面板显示
+            try
+            {
+                (var libraryInfo, var mdInfos) = FlowLibraryManagement.LoadLibrary(dllPath);
+                if (mdInfos.Count > 0)
+                {
+                    UIContextOperation?.Invoke(() => OnDllLoad?.Invoke(new LoadDllEventArgs(libraryInfo, mdInfos))); // 通知UI创建dll面板显示
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"{ex}");
+            }
 
         }
 
@@ -734,7 +744,7 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         /// <param name="assemblyName"></param>
         /// <returns></returns>
-        public bool RemoteDll(string assemblyName)
+        public bool UnloadLibrary(string assemblyName)
         {
             return FlowLibraryManagement.UnloadLibrary(assemblyName);
 

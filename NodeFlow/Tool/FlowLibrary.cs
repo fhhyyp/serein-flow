@@ -28,7 +28,7 @@ namespace Serein.NodeFlow
             this._assemblyFilePath = assemblyFilePath;
             this.assembly = assembly;
             this.actionOfUnloadAssmbly = actionOfUnloadAssmbly;
-            LoadAssembly(assembly);
+            
         }
 
 
@@ -112,7 +112,7 @@ namespace Serein.NodeFlow
         /// </summary>
         /// <param name="assembly">程序集本身</param>
         /// <returns></returns>
-        private bool LoadAssembly(Assembly assembly)
+        public bool LoadAssembly(Assembly assembly)
         {
             #region 检查入参
 
@@ -122,12 +122,26 @@ namespace Serein.NodeFlow
             {
                 return false;
             }
-
-            List<Type> types = assembly.GetTypes().ToList(); // 获取程序集中的所有类型
-            if (types.Count < 0) // 防止动态程序集中没有类型信息？
+            List<Type> types;
+            try
             {
+                types = assembly.GetTypes().ToList(); // 获取程序集中的所有类型
+                if (types.Count < 0) // 防止动态程序集中没有类型信息？
+                {
+                    return false;
+                }
+            }
+            catch (ReflectionTypeLoadException ex)
+            {
+                // 获取加载失败的类型
+                var loaderExceptions = ex.LoaderExceptions;
+                foreach (var loaderException in loaderExceptions)
+                {
+                    Console.WriteLine(loaderException.Message);
+                }
                 return false;
             }
+            
 
             #endregion
 
@@ -146,6 +160,15 @@ namespace Serein.NodeFlow
                 // string ： 类型元数据 DynamicFlowAttribute 特性中的 Name 属性
                 foreach (var  type in types)
                 {
+                    if (type.Name.Equals("YoloFlowControl"))
+                    {
+                        //var ab = type.GetCustomAttribute<DynamicFlowAttribute>();
+                        //var attributes = assembly.GetCustomAttributes();
+                        //foreach (var attribute in attributes)
+                        //{
+                        //    Console.WriteLine(attribute.GetType().Name);
+                        //}
+                    }
                     if (type.GetCustomAttribute<DynamicFlowAttribute>() is DynamicFlowAttribute dynamicFlowAttribute && dynamicFlowAttribute.Scan == true)
                     {
                         scanTypes.Add((type, dynamicFlowAttribute.Name));

@@ -278,9 +278,9 @@ namespace Serein.NodeFlow.Env
         }
 
 
-        public void LoadDll(string dllPath)
+        public void LoadLibrary(string dllPath)
         {
-            currentFlowEnvironment.LoadDll(dllPath);
+            currentFlowEnvironment.LoadLibrary(dllPath);
         }
 
         public void LoadProject(FlowEnvInfo flowEnvInfo, string filePath)
@@ -307,9 +307,9 @@ namespace Serein.NodeFlow.Env
         }
 
 
-        public bool RemoteDll(string assemblyName)
+        public bool UnloadLibrary(string assemblyName)
         {
-            return currentFlowEnvironment.RemoteDll(assemblyName);
+            return currentFlowEnvironment.UnloadLibrary(assemblyName);
         }
 
         public async Task<bool> RemoveConnectInvokeAsync(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)

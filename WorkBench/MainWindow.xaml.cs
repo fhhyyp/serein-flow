@@ -341,7 +341,7 @@ namespace Serein.Workbench
             var menu = new ContextMenu();
             menu.Items.Add(CreateMenuItem("卸载", (s, e) =>
             {
-                if (this.EnvDecorator.RemoteDll(nodeLibraryInfo.AssemblyName))
+                if (this.EnvDecorator.UnloadLibrary(nodeLibraryInfo.AssemblyName))
                 {
                     DllStackPanel.Children.Remove(dllControl);
                 }
@@ -1165,7 +1165,7 @@ namespace Serein.Workbench
                 {
                     if (file.EndsWith(".dll"))
                     {
-                        EnvDecorator.LoadDll(file);
+                        EnvDecorator.LoadLibrary(file);
                     }
                 }
             }
