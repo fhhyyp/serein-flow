@@ -111,7 +111,8 @@ namespace Serein.NodeFlow.Model
             return new NodeInfo
             {
                 Guid = Guid,
-                MethodName = MethodDetails?.MethodName,
+                AssemblyName = MethodDetails.AssemblyName,
+                MethodName = MethodDetails.MethodName,
                 Label = MethodDetails?.MethodAnotherName,
                 Type = this.GetType().ToString(),
                 TrueNodes = trueNodes.ToArray(),

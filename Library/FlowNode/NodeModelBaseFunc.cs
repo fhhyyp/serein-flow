@@ -52,6 +52,7 @@ namespace Serein.Library
             return new NodeInfo
             {
                 Guid = Guid,
+                AssemblyName = MethodDetails.AssemblyName,
                 MethodName = MethodDetails?.MethodName,
                 Label = MethodDetails?.MethodAnotherName,
                 Type = this.GetType().ToString(),
@@ -316,7 +317,7 @@ namespace Serein.Library
             {
                 throw new Exception($"节点{this.Guid}不存在方法信息，请检查是否需要重写节点的ExecutingAsync");
             }
-            if (!context.Env.TryGetDelegateDetails(md.MethodName, out var dd))
+            if (!context.Env.TryGetDelegateDetails(md.AssemblyName, md.MethodName, out var dd))
             {
                 throw new Exception($"节点{this.Guid}不存在对应委托");
             }

@@ -390,14 +390,14 @@ namespace Serein.NodeFlow.Env
             currentFlowEnvironment.TriggerInterrupt(nodeGuid, expression, type);
         }
 
-        public bool TryGetDelegateDetails(string methodName, out DelegateDetails del)
+        public bool TryGetDelegateDetails(string libraryName, string methodName, out DelegateDetails del)
         {
-            return currentFlowEnvironment.TryGetDelegateDetails(methodName, out del);
+            return currentFlowEnvironment.TryGetDelegateDetails(libraryName, methodName, out del);
         }
 
-        public bool TryGetMethodDetailsInfo(string methodName, out MethodDetailsInfo mdInfo)
+        public bool TryGetMethodDetailsInfo(string libraryName, string methodName, out MethodDetailsInfo mdInfo)
         {
-            return currentFlowEnvironment.TryGetMethodDetailsInfo(methodName, out mdInfo);
+            return currentFlowEnvironment.TryGetMethodDetailsInfo(libraryName, methodName, out mdInfo);
         }
 
         public void WriteLineObjToJson(object obj)

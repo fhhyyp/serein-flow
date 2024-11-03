@@ -184,7 +184,7 @@ namespace Serein.NodeFlow
             //object?[]? args = [Context];
             foreach (var md in initMethods) // 初始化
             {
-                if (!env.TryGetDelegateDetails(md.MethodName, out var dd))
+                if (!env.TryGetDelegateDetails(md.AssemblyName, md.MethodName, out var dd))
                 {
                     throw new Exception("不存在对应委托");
                 }
@@ -205,7 +205,7 @@ namespace Serein.NodeFlow
             {
                 //object?[]? data = [md.ActingInstance, args];
                 //md.MethodDelegate.DynamicInvoke(data);
-                if (!env.TryGetDelegateDetails(md.MethodName, out var dd))
+                if (!env.TryGetDelegateDetails(md.AssemblyName, md.MethodName, out var dd))
                 {
                     throw new Exception("不存在对应委托");
                 }
@@ -228,7 +228,7 @@ namespace Serein.NodeFlow
 
                 foreach (MethodDetails? md in exitMethods)
                 {
-                    if (!env.TryGetDelegateDetails(md.MethodName, out var dd))
+                    if (!env.TryGetDelegateDetails(md.AssemblyName, md.MethodName, out var dd))
                     {
                         throw new Exception("不存在对应委托");
                     }

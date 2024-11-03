@@ -43,7 +43,7 @@ namespace Serein.NodeFlow.Model
             #endregion
 
             MethodDetails md = MethodDetails;
-            if (!context.Env.TryGetDelegateDetails(md.MethodName, out var dd))
+            if (!context.Env.TryGetDelegateDetails(md.AssemblyName, md.MethodName, out var dd))
             {
                 throw new Exception("不存在对应委托");
             }

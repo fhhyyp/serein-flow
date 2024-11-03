@@ -676,8 +676,8 @@ namespace Serein.Library.Api
         /// <summary>
         /// 移除DLL
         /// </summary>
-        /// <param name="assemblyName">程序集的名称</param>
-        bool RemoteDll(string assemblyName);
+        /// <param name="assemblyFullName">程序集的名称</param>
+        bool RemoteDll(string assemblyFullName);
 
         /// <summary>
         /// 清理加载的DLL（待更改）
@@ -860,7 +860,7 @@ namespace Serein.Library.Api
         /// <param name="methodName">方法描述</param>
         /// <param name="mdInfo">方法信息</param>
         /// <returns></returns>
-        bool TryGetMethodDetailsInfo(string methodName, out MethodDetailsInfo mdInfo);
+        bool TryGetMethodDetailsInfo(string libraryName, string methodName, out MethodDetailsInfo mdInfo);
 
         /// <summary>
         /// 获取指定方法的Emit委托
@@ -868,7 +868,7 @@ namespace Serein.Library.Api
         /// <param name="methodName"></param>
         /// <param name="del"></param>
         /// <returns></returns>
-        bool TryGetDelegateDetails(string methodName, out DelegateDetails del);
+        bool TryGetDelegateDetails(string libraryName, string methodName, out DelegateDetails del);
 
 
         #region 远程相关

@@ -61,7 +61,7 @@ namespace Serein.Library
         /// 依赖的DLL
         /// </summary>
 
-        public Library[] Librarys { get; set; }
+        public NodeLibraryInfo[] Librarys { get; set; }
 
         /// <summary>
         /// 起始节点GUID
@@ -132,24 +132,45 @@ namespace Serein.Library
     /// <summary>
     /// 项目依赖的程序集，项目文件相关
     /// </summary>
-    public class Library
+    /// <summary>
+    public class NodeLibraryInfo
     {
         /// <summary>
-        /// 文件名称
+        /// 文件名
         /// </summary>
-
         public string FileName { get; set; }
 
         /// <summary>
-        /// 文件路径
+        /// 路径
         /// </summary>
         public string FilePath { get; set; }
 
         /// <summary>
-        /// 程序集名称
+        /// 所属的程序集名称
         /// </summary>
         public string AssemblyName { get; set; }
     }
+
+    #region 暂时注释
+    /*public class LibraryInfo
+{
+    /// <summary>
+    /// 文件名称
+    /// </summary>
+
+    public string FileName { get; set; }
+
+    /// <summary>
+    /// 文件路径
+    /// </summary>
+    public string FilePath { get; set; }
+
+    /// <summary>
+    /// 程序集名称
+    /// </summary>
+    public string AssemblyName { get; set; }
+}*/
+    #endregion
 
     /// <summary>
     /// 节点信息，项目文件相关
@@ -157,13 +178,17 @@ namespace Serein.Library
     public class NodeInfo
     {
         /// <summary>
-        /// GUID
+        /// 节点的GUID
         /// </summary>
-
         public string Guid { get; set; }
 
         /// <summary>
-        /// 名称
+        /// 节点方法所属的程序集名称
+        /// </summary>
+        public string AssemblyName { get;set; }
+
+        /// <summary>
+        /// 节点对应的名称
         /// </summary>
 
         public string MethodName { get; set; }

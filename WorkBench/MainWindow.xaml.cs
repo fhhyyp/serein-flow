@@ -2505,7 +2505,7 @@ namespace Serein.Workbench
             Console.WriteLine(savePath);
             for (int index = 0; index < projectData.Librarys.Length; index++)
             {
-                Library.Library? library = projectData.Librarys[index];
+                NodeLibraryInfo? library = projectData.Librarys[index];
                 try
                 {
                     string targetPath = System.IO.Path.Combine(librarySavePath, library.FileName); // 目标文件夹

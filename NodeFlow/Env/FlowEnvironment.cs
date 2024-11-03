@@ -9,6 +9,7 @@ using Serein.Library.Utils.SereinExpression;
 using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Tool;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Numerics;
 using System.Reflection;
 using System.Reflection.Metadata.Ecma335;
@@ -52,7 +53,8 @@ namespace Serein.NodeFlow.Env
                 }
                 
             };
-            this.UIContextOperation = uiContextOperation; // 本地环境需要存放视图管理
+            this.UIContextOperation = uiContextOperation; // 为加载的类库提供在UI线程上执行某些操作的封装工具类
+            this.FlowLibraryManagement = new FlowLibraryManagement(this); // 实例化类库管理
         }
 
         #region 远程管理
@@ -227,13 +229,15 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// 通过程序集名称管理动态加载的程序集，用于节点创建提供方法描述，流程运行时提供Emit委托
         /// </summary>
-        public ConcurrentDictionary<string, FlowLibrary> FlowLibrarys { get; } = [];
+        private readonly FlowLibraryManagement FlowLibraryManagement;
 
+#if false
 
         /// <summary>
         /// Library 与 MethodDetailss的依赖关系
         /// </summary>
         public ConcurrentDictionary<NodeLibraryInfo, List<MethodDetails>> MethodDetailsOfLibraryInfos { get; } = [];
+
 
         /// <summary>
         /// <para>存储已加载的程序集</para>
@@ -258,7 +262,8 @@ namespace Serein.NodeFlow.Env
         /// 存放所有通过Emit加载的委托
         /// md.Methodname - delegate
         /// </summary>
-        private ConcurrentDictionary<string, DelegateDetails> MethodDelegates { get; } = [];
+        private ConcurrentDictionary<string, DelegateDetails> MethodDelegates { get; } = []; 
+#endif
 
         /// <summary>
         /// IOC对象容器管理
@@ -351,17 +356,13 @@ namespace Serein.NodeFlow.Env
             flowStarter = new FlowStarter();
             var nodes = NodeModels.Values.ToList();
 
-            List<MethodDetails> initMethods = [];
-            List<MethodDetails> loadMethods = [];
-            List<MethodDetails> exitMethods = [];
+           
 
-            var initMds = MethodDetailss.Values.Where(it => it.MethodDynamicType == NodeType.Init);
-            var loadMds = MethodDetailss.Values.Where(it => it.MethodDynamicType == NodeType.Loading);
-            var exitMds = MethodDetailss.Values.Where(it => it.MethodDynamicType == NodeType.Exit);
+            List<MethodDetails> initMethods = this.FlowLibraryManagement.GetMdsOnFlowStart(NodeType.Init);
+            List<MethodDetails> loadMethods = this.FlowLibraryManagement.GetMdsOnFlowStart(NodeType.Loading);
+            List<MethodDetails> exitMethods = this.FlowLibraryManagement.GetMdsOnFlowStart(NodeType.Exit);
+            Dictionary<RegisterSequence, List<Type>> autoRegisterTypes = this.FlowLibraryManagement.GetaAutoRegisterType();
 
-            initMethods.AddRange(initMds);
-            loadMethods.AddRange(loadMds);
-            exitMethods.AddRange(exitMds);
 
             IOC.Reset(); // 开始运行时清空ioc中注册的实例
 
@@ -369,7 +370,7 @@ namespace Serein.NodeFlow.Env
             if (this.UIContextOperation is not null)
                 IOC.CustomRegisterInstance(typeof(UIContextOperation).FullName, this.UIContextOperation, false);
 
-            await flowStarter.RunAsync(this, nodes, AutoRegisterTypes, initMethods, loadMethods, exitMethods);
+            await flowStarter.RunAsync(this, nodes, autoRegisterTypes, initMethods, loadMethods, exitMethods);
 
             if (FlipFlopState == RunState.Completion)
             {
@@ -480,30 +481,9 @@ namespace Serein.NodeFlow.Env
         /// <returns></returns>
         public async Task<FlowEnvInfo> GetEnvInfoAsync()
         {
-            Dictionary<NodeLibraryInfo, List<MethodDetailsInfo>> MdsOfLibraryInfos = [];
-
-            foreach (var mdskv in MethodDetailsOfLibraryInfos)
-            {
-                var library = mdskv.Key;
-                var mds = mdskv.Value;
-                foreach (var md in mds)
-                {
-                    if (!MdsOfLibraryInfos.TryGetValue(library, out var t_mds))
-                    {
-                        t_mds = new List<MethodDetailsInfo>();
-                        MdsOfLibraryInfos[library] = t_mds;
-                    }
-                    var mdInfo = md.ToInfo();
-                    mdInfo.AssemblyName = library.AssemblyName;
-                    t_mds.Add(mdInfo);
-                }
-            }
-
-            LibraryMds[] libraryMdss = MdsOfLibraryInfos.Select(kv => new LibraryMds
-            {
-                AssemblyName = kv.Key.AssemblyName,
-                Mds = kv.Value.ToArray()
-            }).ToArray();
+            // 获取所有的程序集对应的方法信息（程序集相关的数据）
+            var libraryMdss = this.FlowLibraryManagement.GetAllLibraryMds().ToArray();
+            // 获取当前项目的信息（节点相关的数据）
             var project = await GetProjectInfoAsync();
             Console.WriteLine("已将当前环境信息发送到远程客户端");
             return new FlowEnvInfo
@@ -540,13 +520,13 @@ namespace Serein.NodeFlow.Env
             foreach (var dllPath in dllPaths)
             {
                 var dllFilePath = Path.GetFullPath(Path.Combine(filePath, dllPath));
-                LoadDllNodeInfo(dllFilePath);
+                LoadDll(dllFilePath);  // 加载项目文件时加载对应的程序集
             }
 
             List<(NodeModelBase, string[])> regionChildNodes = new List<(NodeModelBase, string[])>();
             List<(NodeModelBase, PositionOfUI)> ordinaryNodes = new List<(NodeModelBase, PositionOfUI)>();
             // 加载节点
-            foreach (var nodeInfo in projectData.Nodes)
+            foreach (NodeInfo? nodeInfo in projectData.Nodes)
             {
                 var controlType = FlowFunc.GetNodeControlType(nodeInfo);
                 if (controlType == NodeControlType.None)
@@ -555,11 +535,14 @@ namespace Serein.NodeFlow.Env
                 }
                 else
                 {
-                    MethodDetails? methodDetails = null;
-                    if (!string.IsNullOrEmpty(nodeInfo.MethodName))
+                    if (string.IsNullOrEmpty(nodeInfo.AssemblyName) && string.IsNullOrEmpty(nodeInfo.MethodName))
                     {
-                        MethodDetailss.TryGetValue(nodeInfo.MethodName, out methodDetails);// 加载项目时尝试获取方法信息
+                        continue;
                     }
+                    MethodDetails? methodDetails = null;
+                    FlowLibraryManagement.TryGetMethodDetails(nodeInfo.AssemblyName,
+                                                                  nodeInfo.MethodName,
+                                                                  out methodDetails); // 加载项目时尝试获取方法信息
                     var nodeModel = FlowFunc.CreateNode(this, controlType, methodDetails); // 加载项目时创建节点
                     nodeModel.LoadInfo(nodeInfo); // 创建节点model
                     if (nodeModel is null)
@@ -726,7 +709,7 @@ namespace Serein.NodeFlow.Env
         {
             var projectData = new SereinProjectData()
             {
-                Librarys = LibraryInfos.Values.Select(lib => lib.ToLibrary()).ToArray(),
+                Librarys = this.FlowLibraryManagement.GetAllLibraryInfo().ToArray(),
                 Nodes = NodeModels.Values.Select(node => node.ToInfo()).Where(info => info is not null).ToArray(),
                 StartNode = NodeModels.Values.FirstOrDefault(it => it.IsStart)?.Guid,
             };
@@ -739,10 +722,11 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         /// <param name="dllPath"></param>
         /// <returns></returns> 
-        // [AutoSocketHandle]
         public void LoadDll(string dllPath)
         {
-            LoadDllNodeInfo(dllPath);
+            (var libraryInfo, var mdInfos) = FlowLibraryManagement.LoadLibrary(dllPath);
+            UIContextOperation?.Invoke(() => OnDllLoad?.Invoke(new LoadDllEventArgs(libraryInfo, mdInfos))); // 通知UI创建dll面板显示
+
         }
 
         /// <summary>
@@ -752,49 +736,51 @@ namespace Serein.NodeFlow.Env
         /// <returns></returns>
         public bool RemoteDll(string assemblyName)
         {
-            var library = LibraryInfos.Values.FirstOrDefault(nl => assemblyName.Equals(nl.AssemblyName));
-            if (library is null)
-            {
-                return false;
-            }
-            var groupedNodes = NodeModels.Values
-                .Where(node => node.MethodDetails is not null)
-                .ToArray()
-                .GroupBy(node => node.MethodDetails?.MethodName)
-                .ToDictionary(
-                key => key.Key,
-                group => group.Count());
+            return FlowLibraryManagement.UnloadLibrary(assemblyName);
+
+            //var library = LibraryInfos.Values.FirstOrDefault(nl => assemblyName.Equals(nl.AssemblyName));
+            //if (library is null)
+            //{
+            //    return false;
+            //}
+            //var groupedNodes = NodeModels.Values
+            //    .Where(node => node.MethodDetails is not null)
+            //    .ToArray()
+            //    .GroupBy(node => node.MethodDetails?.MethodName)
+            //    .ToDictionary(
+            //    key => key.Key,
+            //    group => group.Count());
 
 
-            if (NodeModels.Count == 0)
-            {
-                return true; // 当前无节点，可以直接删除
-            }
+            //if (NodeModels.Count == 0)
+            //{
+            //    return true; // 当前无节点，可以直接删除
+            //}
 
-            if (MethodDetailsOfLibraryInfos.TryGetValue(library, out var mds)) // 存在方法
-            {
-                foreach (var md in mds)
-                {
-                    if (groupedNodes.TryGetValue(md.MethodName, out int count))
-                    {
-                        if (count > 0)
-                        {
-                            return false; // 创建过相关的节点，无法移除
-                        }
-                    }
-                }
-                // 开始移除相关信息
-                foreach (var md in mds)
-                {
-                    MethodDetailss.TryRemove(md.MethodName, out _);
-                }
-                MethodDetailsOfLibraryInfos.TryRemove(library, out _);
-                return true;
-            }
-            else
-            {
-                return true;
-            }
+            //if (MethodDetailsOfLibraryInfos.TryGetValue(library, out var mds)) // 存在方法
+            //{
+            //    foreach (var md in mds)
+            //    {
+            //        if (groupedNodes.TryGetValue(md.MethodName, out int count))
+            //        {
+            //            if (count > 0)
+            //            {
+            //                return false; // 创建过相关的节点，无法移除
+            //            }
+            //        }
+            //    }
+            //    // 开始移除相关信息
+            //    foreach (var md in mds)
+            //    {
+            //        MethodDetailss.TryRemove(md.MethodName, out _);
+            //    }
+            //    MethodDetailsOfLibraryInfos.TryRemove(library, out _);
+            //    return true;
+            //}
+            //else
+            //{
+            //    return true;
+            //}
         }
 
 
@@ -814,7 +800,9 @@ namespace Serein.NodeFlow.Env
             }
             else
             {
-                if (MethodDetailss.TryGetValue(methodDetailsInfo.MethodName, out var methodDetails))
+                if (FlowLibraryManagement.TryGetMethodDetails(methodDetailsInfo.AssemblyName, 
+                                                              methodDetailsInfo.MethodName, 
+                                                              out var methodDetails))
                 {
                     nodeModel = FlowFunc.CreateNode(this, nodeControlType, methodDetails); // 一般的加载节点方法
                 }
@@ -1026,25 +1014,18 @@ namespace Serein.NodeFlow.Env
         /// 获取方法描述
         /// </summary>
 
-        public bool TryGetMethodDetailsInfo(string name, out MethodDetailsInfo? md)
+        public bool TryGetMethodDetailsInfo(string assemblyName, string methodName, out MethodDetailsInfo? mdInfo)
         {
-            if (!string.IsNullOrEmpty(name))
+            var isPass = FlowLibraryManagement.TryGetMethodDetails(assemblyName, methodName, out var md);
+            if (!isPass || md is null)
             {
-                foreach (var t_md in MethodDetailss.Values)
-                {
-                    md = t_md.ToInfo();
-                    if (md != null)
-                    {
-                        return true;
-                    }
-                }
-                md = null;
+                mdInfo = null;
                 return false;
             }
             else
             {
-                md = null;
-                return false;
+                mdInfo = md?.ToInfo();
+                return true;
             }
         }
 
@@ -1058,18 +1039,9 @@ namespace Serein.NodeFlow.Env
         /// <param name="methodName"></param>
         /// <param name="delegateDetails"></param>
         /// <returns></returns>
-        public bool TryGetDelegateDetails(string methodName, out DelegateDetails? delegateDetails)
+        public bool TryGetDelegateDetails(string assemblyName, string methodName, out DelegateDetails? delegateDetails)
         {
-
-            if (!string.IsNullOrEmpty(methodName) && MethodDelegates.TryGetValue(methodName, out delegateDetails))
-            {
-                return delegateDetails != null;
-            }
-            else
-            {
-                delegateDetails = null;
-                return false;
-            }
+            return FlowLibraryManagement.TryGetDelegateDetails(assemblyName, methodName, out delegateDetails);
         }
 
 
@@ -1399,6 +1371,8 @@ namespace Serein.NodeFlow.Env
 
         #region 私有方法
 
+        #region 暂时注释
+        /*
         /// <summary>
         /// 加载指定路径的DLL文件
         /// </summary>
@@ -1455,7 +1429,8 @@ namespace Serein.NodeFlow.Env
 
            
 
-        }
+        }*/ 
+        #endregion
 
         /// <summary>
         /// 移除连接关系
@@ -1507,7 +1482,8 @@ namespace Serein.NodeFlow.Env
             return true;
         }
 
-        /// <summary>
+        #region 暂时注释
+        /*/// <summary>
         /// 动态加载程序集
         /// </summary>
         /// <param name="assembly">程序集本身</param>
@@ -1597,7 +1573,8 @@ namespace Serein.NodeFlow.Env
                 Console.WriteLine(ex.ToString());
                 return ([], []);
             }
-        }
+        }*/ 
+        #endregion
 
         /// <summary>
         /// 创建节点

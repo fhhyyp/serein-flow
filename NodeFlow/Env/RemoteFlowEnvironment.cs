@@ -129,6 +129,7 @@ namespace Serein.NodeFlow.Env
                 {
                     AssemblyName = lib.AssemblyName,
                     FilePath = "Remote",
+                    FileName = "Remote",
                 };
                 var mdInfos = lib.Mds.ToList();
                 UIContextOperation?.Invoke(() => OnDllLoad?.Invoke(new LoadDllEventArgs(nodeLibraryInfo, mdInfos))); // 通知UI创建dll面板显示
@@ -791,14 +792,14 @@ namespace Serein.NodeFlow.Env
             return ChannelFlowInterrupt.CancelType.Error;
         }
 
-        public bool TryGetMethodDetailsInfo(string methodName, out MethodDetailsInfo mdInfo)
+        public bool TryGetMethodDetailsInfo(string libraryName, string methodName, out MethodDetailsInfo mdInfo)
         {
             Console.WriteLine("远程环境尚未实现的接口：TryGetMethodDetailsInfo");
             mdInfo = null;
             return false;
         }
 
-        public bool TryGetDelegateDetails(string methodName, out DelegateDetails del)
+        public bool TryGetDelegateDetails(string libraryName, string methodName, out DelegateDetails del)
         {
             Console.WriteLine("远程环境尚未实现的接口：TryGetDelegateDetails");
             del = null;

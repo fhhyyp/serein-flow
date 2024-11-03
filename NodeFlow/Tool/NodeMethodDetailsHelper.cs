@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Reflection;
 using Serein.Library.FlowNode;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Serein.NodeFlow.Tool;
 
@@ -21,21 +22,35 @@ public static class NodeMethodDetailsHelper
     }
 
     /// <summary>
-    /// 创建方法信息
+    /// 创建方法信息/委托信息
     /// </summary>
-    /// <returns></returns>
-    public static (MethodDetails?, DelegateDetails?) CreateMethodDetails(Type type, MethodInfo method, string assemblyName)
+    /// <param name="type">方法所属的类型</param>
+    /// <param name="methodInfo">方法信息</param>
+    /// <param name="assemblyName">方法所属的程序集名称</param>
+    /// <param name="methodDetails">创建的方法描述，用来生成节点信息</param>
+    /// <param name="delegateDetails">方法对应的Emit动态委托</param>
+    /// <returns>指示是否创建成功</returns>
+    public static bool TryCreateDetails(Type type, 
+                                        MethodInfo methodInfo,  
+                                        string assemblyName,
+                                        [MaybeNullWhen(false)]  out MethodDetails methodDetails,
+                                        [MaybeNullWhen(false)]  out DelegateDetails delegateDetails)
     {
-        var attribute = method.GetCustomAttribute<NodeActionAttribute>();
+        
+
+        var attribute = methodInfo.GetCustomAttribute<NodeActionAttribute>();
         if(attribute is null || attribute.Scan == false)
         {
-            return (null, null);
+            methodDetails = null;
+            delegateDetails = null;
+            return false;
         }
-        //var dllTypeName = $"{assemblyName}.{type.Name}";
-        var dllTypeMethodName = $"{assemblyName}.{type.Name}.{method.Name}";
-        Console.WriteLine("loading method : " +dllTypeMethodName);
-        Debug.WriteLine("loading method : " +dllTypeMethodName);
-        var explicitDataOfParameters = GetExplicitDataOfParameters(method.GetParameters());
+        
+        var methodName = $"{assemblyName}.{type.Name}.{methodInfo.Name}"; 
+        Console.WriteLine("loading method : " + methodName);
+
+        // 创建参数信息
+        var explicitDataOfParameters = GetExplicitDataOfParameters(methodInfo.GetParameters());
 
         
 
@@ -46,17 +61,17 @@ public static class NodeMethodDetailsHelper
         //                                            method.ReturnType);// 返回值
 
         //// 通过表达式树生成委托
-        var emitMethodType = EmitHelper.CreateDynamicMethod(method, out var methodDelegate);// 返回值
+        var emitMethodType = EmitHelper.CreateDynamicMethod(methodInfo, out var methodDelegate);// 返回值
 
         Type? returnType;
-        bool isTask = IsGenericTask(method.ReturnType, out var taskResult);
+        bool isTask = IsGenericTask(methodInfo.ReturnType, out var taskResult);
 
         if (attribute.MethodDynamicType == Library.NodeType.Flipflop)
         {
-            if (method.ReturnType.IsGenericType && method.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
+            if (methodInfo.ReturnType.IsGenericType && methodInfo.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
             {
                 // 获取 Task<> 的泛型参数类型
-                var innerType = method.ReturnType.GetGenericArguments()[0];
+                var innerType = methodInfo.ReturnType.GetGenericArguments()[0];
                 if (innerType.IsGenericType && innerType.GetGenericTypeDefinition() == typeof(IFlipflopContext<>))
                 {
                     var flipflopType = innerType.GetGenericArguments()[0];
@@ -64,14 +79,18 @@ public static class NodeMethodDetailsHelper
                 }
                 else
                 {
-                    Console.WriteLine($"[{dllTypeMethodName}]跳过创建，返回类型非预期的Task<IFlipflopContext<TResult>>。");
-                    return (null, null);
+                    Console.WriteLine($"[{methodName}]跳过创建，返回类型非预期的Task<IFlipflopContext<TResult>>。");
+                    methodDetails = null;
+                    delegateDetails = null;
+                    return false;
                 }
             }
             else
             {
-                Console.WriteLine($"[{dllTypeMethodName}]跳过创建，因为触发器方法的返回值并非Task<>，将无法等待。");
-                return (null, null);
+                Console.WriteLine($"[{methodName}]跳过创建，因为触发器方法的返回值并非Task<>，将无法等待。");
+                methodDetails = null;
+                delegateDetails = null;
+                return false;
             }
               
             //if (!isTask || taskResult != typeof(IFlipflopContext<object>))
@@ -86,11 +105,11 @@ public static class NodeMethodDetailsHelper
         }
         else
         {
-            returnType = method.ReturnType;
+            returnType = methodInfo.ReturnType;
         }
 
         if (string.IsNullOrEmpty(attribute.AnotherName)){
-            attribute.AnotherName = method.Name;
+            attribute.AnotherName = methodInfo.Name;
         }
 
 
@@ -107,18 +126,22 @@ public static class NodeMethodDetailsHelper
         var md = new MethodDetails() // 从DLL生成方法描述（元数据）
         {
             ActingInstanceType = type,
-            // ActingInstance = instance,
-            MethodName = dllTypeMethodName,
+            // ActingInstance = instance, 
+            MethodName = methodName,
+            AssemblyName = assemblyName,
             MethodDynamicType = attribute.MethodDynamicType,
             MethodLockName = attribute.LockName,
             MethodAnotherName = methodMethodAnotherName,
             ParameterDetailss = explicitDataOfParameters,
             ReturnType = returnType,
             // 如果存在可变参数，取最后一个元素的下标，否则为-1；
-            ParamsArgIndex = hasParamsArg ? explicitDataOfParameters.Length-1 : -1,
+            ParamsArgIndex = hasParamsArg ? explicitDataOfParameters.Length - 1 : -1,
         };
         var dd = new DelegateDetails(emitMethodType, methodDelegate) ;
-        return (md, dd);
+
+        methodDetails = md;
+        delegateDetails = dd;
+        return true;
 
     }
 

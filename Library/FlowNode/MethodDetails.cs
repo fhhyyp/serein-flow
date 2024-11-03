@@ -2,6 +2,7 @@
 using Serein.Library.Utils;
 using System;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 
 namespace Serein.Library
@@ -20,6 +21,13 @@ namespace Serein.Library
         /// </summary>
         [PropertyInfo(IsProtection = true)]
         private NodeModelBase _nodeModel;
+
+        /// <summary>
+        /// 对应的程序集
+        /// </summary>
+        [PropertyInfo]
+        private string _assemblyName;
+
 
         /// <summary>
         /// 是否保护参数（目前仅视觉效果参数，不影响运行实现，后续将设置作用在运行逻辑中）
@@ -188,6 +196,7 @@ namespace Serein.Library
             {
                 throw new ArgumentException("无效的节点类型");
             }
+            AssemblyName = Info.AssemblyName;
             MethodName = Info.MethodName;
             MethodAnotherName = Info.MethodAnotherName;
             MethodDynamicType = nodeType;
@@ -204,6 +213,7 @@ namespace Serein.Library
         {
             return new MethodDetailsInfo
             {
+                AssemblyName = this.AssemblyName,
                 MethodName = this.MethodName,
                 MethodAnotherName = this.MethodAnotherName,
                 NodeType = this.MethodDynamicType.ToString(),
@@ -222,6 +232,7 @@ namespace Serein.Library
             // this => 是元数据
             var md = new MethodDetails( nodeModel) // 创建新节点时拷贝实例
             {
+                AssemblyName = this.AssemblyName,
                 ActingInstance = this.ActingInstance,
                 ActingInstanceType = this.ActingInstanceType,
                 MethodDynamicType = this.MethodDynamicType,
@@ -231,8 +242,9 @@ namespace Serein.Library
                 MethodLockName = this.MethodLockName,
                 IsProtectionParameter = this.IsProtectionParameter,
                 ParamsArgIndex = this.ParamsArgIndex,
+                ParameterDetailss = this.ParameterDetailss?.Select(p => p?.CloneOfModel(nodeModel)).ToArray(), // 拷贝属于节点方法的新入参描述
             };
-            md.ParameterDetailss = this.ParameterDetailss?.Select(p => p?.CloneOfModel(nodeModel)).ToArray(); // 拷贝属于节点方法的新入参描述
+
             return md;
         }
 

@@ -89,13 +89,11 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         /// <param name="libraryInfo"></param>
         /// <returns></returns>
-        public static Library.Library ToLibrary(this Library.NodeLibraryInfo libraryInfo)
+        public static NodeLibraryInfo ToLibrary(this Library.NodeLibraryInfo libraryInfo)
         {
-            //var tmp = library.Assembly.ManifestModule.Name;
-            return new Library.Library
+            return new NodeLibraryInfo
             {
                 AssemblyName = libraryInfo.AssemblyName,
-                //AssemblyName = library.Assembly.GetName().Name,
                 FileName = libraryInfo.FileName,
                 FilePath = libraryInfo.FilePath,
             };
