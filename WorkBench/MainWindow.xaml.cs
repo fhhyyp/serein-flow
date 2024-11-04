@@ -361,7 +361,7 @@ namespace Serein.Workbench
         /// 节点连接关系变更
         /// </summary>
         /// <param name="eventArgs"></param>
-        private void FlowEnvironment_NodeConnectChangeEvemt(NodeConnectChangeEventArgs eventArgs)
+        private  void FlowEnvironment_NodeConnectChangeEvemt(NodeConnectChangeEventArgs eventArgs)
         {
             string fromNodeGuid = eventArgs.FromNodeGuid;
             string toNodeGuid = eventArgs.ToNodeGuid;
@@ -395,16 +395,17 @@ namespace Serein.Workbench
                         FlowChartCanvas,
                         connectionType,
                         startJunction,
-                        endJunction,
-                        () => EnvDecorator.RemoveConnectInvokeAsync(fromNodeGuid, toNodeGuid, connectionType)
+                        endJunction
                     );
+
+                    //() => EnvDecorator.RemoveConnectInvokeAsync(fromNodeGuid, toNodeGuid, connectionType)
 
                     if (toNodeControl is FlipflopNodeControl flipflopControl
                         && flipflopControl?.ViewModel?.NodeModel is NodeModelBase nodeModel) // 某个节点连接到了触发器，尝试从全局触发器视图中移除该触发器
                     {
                         NodeTreeViewer.RemoteGlobalFlipFlop(nodeModel); // 从全局触发器树树视图中移除
                     }
-                    connection.RefreshLine();  // 添加贝塞尔曲线显示
+                    //connection.RefreshLine();  // 添加贝塞尔曲线显示
                     Connections.Add(connection);
                     fromNodeControl.AddCnnection(connection);
                     toNodeControl.AddCnnection(connection);
@@ -427,10 +428,9 @@ namespace Serein.Workbench
 
                     foreach (var connection in removeConnections)
                     {
-                        connection.DeleteConnection();
                         Connections.Remove(connection);
-                        fromNodeControl.RemoveCnnection(connection);
-                        toNodeControl.RemoveCnnection(connection);
+                        fromNodeControl.RemoveConnection(connection); // 移除连接
+                        toNodeControl.RemoveConnection(connection); // 移除连接
                         if (NodeControls.TryGetValue(connection.End.MyNode.Guid, out var control))
                         {
                             JudgmentFlipFlopNode(control); // 连接关系变更时判断
@@ -461,6 +461,10 @@ namespace Serein.Workbench
                         _ => throw new Exception("窗体事件 FlowEnvironment_NodeConnectChangeEvemt 创建/删除节点之间的参数传递关系 JunctionControlBase 枚举值错误 。非预期的枚举值。") // 应该不会触发
                     };
 
+                    if(IToJunction.ArgDataJunction.Length == 0)
+                    {
+
+                    }
                     JunctionControlBase endJunction = IToJunction.ArgDataJunction[eventArgs.ArgIndex];
                     LineType lineType = LineType.Bezier;
                     // 添加连接
@@ -470,16 +474,8 @@ namespace Serein.Workbench
                         eventArgs.ArgIndex,
                         eventArgs.ConnectionArgSourceType,
                         startJunction,
-                        endJunction,
-                        () => EnvDecorator.RemoveConnectArgSourceAsync(fromNodeGuid, toNodeGuid, eventArgs.ArgIndex)
+                        endJunction
                     );
-
-                    //if (toNodeControl is FlipflopNodeControl flipflopControl
-                    //    && flipflopControl?.ViewModel?.NodeModel is NodeModelBase nodeModel) // 某个节点连接到了触发器，尝试从全局触发器视图中移除该触发器
-                    //{
-                    //    NodeTreeViewer.RemoteGlobalFlipFlop(nodeModel); // 从全局触发器树树视图中移除
-                    //}
-                    connection.RefreshLine();  // 添加贝塞尔曲线显示
                     Connections.Add(connection);
                     fromNodeControl.AddCnnection(connection);
                     toNodeControl.AddCnnection(connection);
@@ -503,10 +499,9 @@ namespace Serein.Workbench
                         if (connection.End is ArgJunctionControl junctionControl && junctionControl.ArgIndex == eventArgs.ArgIndex)
                         {
                             // 找到符合删除条件的连接线
-                            connection.DeleteConnection(); // 从UI层面上移除
                             Connections.Remove(connection); // 从本地记录中移除
-                            fromNodeControl.RemoveCnnection(connection); // 从节点持有的记录移除
-                            toNodeControl.RemoveCnnection(connection); // 从节点持有的记录移除
+                            fromNodeControl.RemoveConnection(connection); // 从节点持有的记录移除
+                            toNodeControl.RemoveConnection(connection); // 从节点持有的记录移除
                         }
 
 

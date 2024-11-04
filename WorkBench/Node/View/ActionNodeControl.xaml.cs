@@ -37,42 +37,41 @@ namespace Serein.Workbench.Node.View
         /// <summary>
         /// 方法入参控制点（可能有，可能没）
         /// </summary>
-        private JunctionControlBase[] argDataJunction;
-        /// <summary>
-        /// 方法入参控制点（可能有，可能没）
-        /// </summary>
-        JunctionControlBase[] INodeJunction.ArgDataJunction { get  {
-                if(argDataJunction == null)
+        JunctionControlBase[] INodeJunction.ArgDataJunction
+        {
+            get
+            {
+                // 获取 MethodDetailsControl 实例
+                var methodDetailsControl = this.MethodDetailsControl;
+                var itemsControl = FindVisualChild<ItemsControl>(methodDetailsControl); // 查找 ItemsControl
+                if (itemsControl != null)
                 {
-                    // 获取 MethodDetailsControl 实例
-                    var methodDetailsControl = this.MethodDetailsControl;
-                    argDataJunction = new JunctionControlBase[base.ViewModel.NodeModel.MethodDetails.ParameterDetailss.Length];
+                    var argDataJunction = new JunctionControlBase[base.ViewModel.NodeModel.MethodDetails.ParameterDetailss.Length];
+                    var controls = new List<JunctionControlBase>();
 
-                    var itemsControl = FindVisualChild<ItemsControl>(methodDetailsControl); // 查找 ItemsControl
-                    if (itemsControl != null)
+                    for (int i = 0; i < itemsControl.Items.Count; i++)
                     {
-                        var controls = new List<JunctionControlBase>();
-
-                        for (int i = 0; i < itemsControl.Items.Count; i++)
+                        var container = itemsControl.ItemContainerGenerator.ContainerFromIndex(i) as FrameworkElement;
+                        if (container != null)
                         {
-                            var container = itemsControl.ItemContainerGenerator.ContainerFromIndex(i) as FrameworkElement;
-                            if (container != null)
+                            var argControl = FindVisualChild<ArgJunctionControl>(container);
+                            if (argControl != null)
                             {
-                                var argControl = FindVisualChild<ArgJunctionControl>(container);
-                                if (argControl != null)
-                                {
-                                    controls.Add(argControl); // 收集 ArgJunctionControl 实例
-                                }
+                                controls.Add(argControl); // 收集 ArgJunctionControl 实例
                             }
                         }
-                        argDataJunction = controls.ToArray();
                     }
+                    return argDataJunction = controls.ToArray();
                 }
-                return argDataJunction;
-            } }
+                else
+                {
+                    return [];
+                }
+            }
+        }
 
-        
 
-        
+
+
     }
 }

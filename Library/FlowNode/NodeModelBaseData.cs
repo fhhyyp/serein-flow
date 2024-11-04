@@ -62,25 +62,6 @@ namespace Serein.Library
         /// </summary>
         [PropertyInfo(IsProtection = true)] 
         private MethodDetails _methodDetails ;
-
-        /// <summary>
-        /// 运行时的上一节点
-        /// </summary>
-        //[PropertyInfo] 
-        //private NodeModelBase _previousNode ;
-
-        /// <summary>
-        /// 当前节点执行完毕后需要执行的下一个分支的类别
-        /// </summary>
-        //[PropertyInfo]
-        //private ConnectionInvokeType _nextOrientation  = ConnectionInvokeType.None;
-
-        /// <summary>
-        /// 运行时的异常信息（仅在 FlowState 为 Error 时存在对应值）
-        /// </summary>
-        [PropertyInfo]
-        private Exception _runingException ;
-
     }
 
 

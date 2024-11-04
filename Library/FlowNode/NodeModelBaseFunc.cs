@@ -11,6 +11,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Net.Http.Headers;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -109,7 +110,7 @@ namespace Serein.Library
                     {
                         // 保存的参数信息项数量大于方法本身的方法入参数量（可能存在可变入参）
                         var length = nodeInfo.ParameterData.Length - pds.Length; // 需要扩容的长度
-                        this.MethodDetails.ParameterDetailss = ArrayHelper.ArrayExpansion(pds, length); // 扩容入参描述数组
+                        this.MethodDetails.ParameterDetailss = ArrayHelper.Expansion(pds, length); // 扩容入参描述数组
                         pds = this.MethodDetails.ParameterDetailss;
                         var startParmsPd = pds[md.ParamsArgIndex]; // 获取可变入参参数描述
                         for(int i = md.ParamsArgIndex + 1; i <= md.ParamsArgIndex + length; i++)
@@ -142,6 +143,10 @@ namespace Serein.Library
             }
             return this;
         }
+        #endregion
+
+        #region 程序集更新，更新节点方法描述、以及所有入参描述的类型
+
         #endregion
 
         #region 调试中断
@@ -256,7 +261,6 @@ namespace Serein.Library
                     newFlowData = null;
                     await Console.Out.WriteLineAsync($"节点[{this.MethodDetails?.MethodName}]异常：" + ex);
                     context.NextOrientation = ConnectionInvokeType.IsError;
-                    currentNode.RuningException = ex;
                 }
 
 
@@ -317,7 +321,7 @@ namespace Serein.Library
             {
                 throw new Exception($"节点{this.Guid}不存在方法信息，请检查是否需要重写节点的ExecutingAsync");
             }
-            if (!context.Env.TryGetDelegateDetails(md.AssemblyName, md.MethodName, out var dd))
+            if (!context.Env.TryGetDelegateDetails(md.AssemblyName, md.MethodName, out var dd))  // 流程运行到某个节点
             {
                 throw new Exception($"节点{this.Guid}不存在对应委托");
             }
@@ -700,4 +704,68 @@ namespace Serein.Library
         #endregion
 
     }
+
+
+#if false
+    public static class NodeModelExtension
+    {
+        /// <summary>
+        /// 程序集更新，更新节点方法描述、以及所有入参描述的类型
+        /// </summary>
+        /// <param name="nodeModel">节点Model</param>
+        /// <param name="newMd">新的方法描述</param>
+        public static void UploadMethod(this NodeModelBase nodeModel, MethodDetails newMd)
+        {
+            var thisMd = nodeModel.MethodDetails;
+
+            thisMd.ActingInstanceType = newMd.ActingInstanceType; // 更新方法需要的类型
+
+            var thisPds = thisMd.ParameterDetailss;
+            var newPds = newMd.ParameterDetailss;
+            // 当前存在可变参数，且新的方法也存在可变参数，需要把可变参数的数目与值传递过去
+            if (thisMd.HasParamsArg && newMd.HasParamsArg)
+            {
+                int paramsLength = thisPds.Length - thisMd.ParamsArgIndex - 1; // 确定扩容长度
+                newMd.ParameterDetailss = ArrayHelper.Expansion(newPds, paramsLength);// 为新方法的入参参数描述进行扩容
+                newPds = newMd.ParameterDetailss;
+                int index = newMd.ParamsArgIndex; // 记录
+                var templatePd = newPds[newMd.ParamsArgIndex]; // 新的入参模板
+                for (int i = thisMd.ParamsArgIndex; i < thisPds.Length; i++)
+                {
+                    ParameterDetails thisPd = thisPds[i];
+                    var newPd = templatePd.CloneOfModel(nodeModel); // 复制参数描述
+                    newPd.Index = i + 1; // 更新索引
+                    newPd.IsParams = true;
+                    newPd.DataValue = thisPd.DataValue; // 保留参数值
+                    newPd.ArgDataSourceNodeGuid = thisPd.ArgDataSourceNodeGuid; // 保留参数来源信息
+                    newPd.ArgDataSourceType = thisPd.ArgDataSourceType;  // 保留参数来源信息
+                    newPd.IsParams = thisPd.IsParams; // 保留显式参数设置
+                    newPds[index++] = newPd;
+                }
+            }
+
+
+            var thidPdLength = thisMd.HasParamsArg ? thisMd.ParamsArgIndex : thisPds.Length;
+            // 遍历当前的参数描述（不包含可变参数），找到匹配项，复制必要的数据进行保留
+            for (int i = 0; i < thisPds.Length; i++)
+            {
+                ParameterDetails thisPd = thisPds[i];
+                var newPd = newPds.FirstOrDefault(t_newPd => !t_newPd.IsParams // 不为可变参数
+                                                         && t_newPd.Name.Equals(thisPd.Name, StringComparison.OrdinalIgnoreCase) // 存在相同名称
+                                                         && t_newPd.DataType.Name.Equals(thisPd.DataType.Name) // 存在相同入参类型名称（以类型作为区分）
+                                                         );
+                if (newPd != null) // 如果匹配上了
+                {
+                    newPd.DataValue = thisPd.DataValue; // 保留参数值
+                    newPd.ArgDataSourceNodeGuid = thisPd.ArgDataSourceNodeGuid; // 保留参数来源信息
+                    newPd.ArgDataSourceType = thisPd.ArgDataSourceType;  // 保留参数来源信息
+                    newPd.IsParams = thisPd.IsParams; // 保留显式参数设置
+                }
+            }
+            thisMd.ReturnType = newMd.ReturnType;
+            nodeModel.MethodDetails = newMd;
+
+        }
+    } 
+#endif
 }

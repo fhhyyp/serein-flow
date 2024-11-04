@@ -857,18 +857,20 @@ namespace Serein.Library.Api
         /// <summary>
         /// 获取方法描述信息
         /// </summary>
+        /// <param name="assemblyName">程序集名称</param>
         /// <param name="methodName">方法描述</param>
         /// <param name="mdInfo">方法信息</param>
         /// <returns></returns>
-        bool TryGetMethodDetailsInfo(string libraryName, string methodName, out MethodDetailsInfo mdInfo);
+        bool TryGetMethodDetailsInfo(string assemblyName, string methodName, out MethodDetailsInfo mdInfo);
 
         /// <summary>
         /// 获取指定方法的Emit委托
         /// </summary>
+        /// <param name="assemblyName">程序集名称</param>
         /// <param name="methodName"></param>
         /// <param name="del"></param>
         /// <returns></returns>
-        bool TryGetDelegateDetails(string libraryName, string methodName, out DelegateDetails del);
+        bool TryGetDelegateDetails(string assemblyName, string methodName, out DelegateDetails del);
 
 
         #region 远程相关

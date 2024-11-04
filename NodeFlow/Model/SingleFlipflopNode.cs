@@ -43,7 +43,7 @@ namespace Serein.NodeFlow.Model
             #endregion
 
             MethodDetails md = MethodDetails;
-            if (!context.Env.TryGetDelegateDetails(md.AssemblyName, md.MethodName, out var dd))
+            if (!context.Env.TryGetDelegateDetails(md.AssemblyName, md.MethodName, out var dd)) // 流程运行到某个节点
             {
                 throw new Exception("不存在对应委托");
             }
@@ -72,14 +72,14 @@ namespace Serein.NodeFlow.Model
                 }
                 await Console.Out.WriteLineAsync($"触发器[{this.MethodDetails.MethodName}]异常：" + ex);
                 context.NextOrientation = ConnectionInvokeType.None;
-                RuningException = ex;
+                context.ExceptionOfRuning = ex;
                 return null;
             }
             catch (Exception ex)
             {
                 await Console.Out.WriteLineAsync($"触发器[{this.MethodDetails.MethodName}]异常：" + ex);
                 context.NextOrientation = ConnectionInvokeType.IsError;
-                RuningException = ex;
+                context.ExceptionOfRuning = ex;
                 return null;
             }
             finally

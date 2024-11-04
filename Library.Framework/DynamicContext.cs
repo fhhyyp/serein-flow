@@ -41,6 +41,11 @@ namespace Serein.Library.Framework.NodeFlow
         public ConnectionInvokeType NextOrientation { get; set; }
 
         /// <summary>
+        /// 运行时异常信息
+        /// </summary>
+        public Exception ExceptionOfRuning { get; set; }
+
+        /// <summary>
         /// 每个上下文分别存放节点的当前数据
         /// </summary>
         private readonly ConcurrentDictionary<string, object> dictNodeFlowData = new ConcurrentDictionary<string, object>();

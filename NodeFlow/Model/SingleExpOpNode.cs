@@ -98,7 +98,7 @@ namespace Serein.NodeFlow.Model
             catch (Exception ex)
             {
                 context.NextOrientation = ConnectionInvokeType.IsError;
-                RuningException = ex;
+                context.ExceptionOfRuning = ex;
                 return parameter;
             }
 

@@ -26,6 +26,7 @@ namespace Serein.Library
             _emitDelegate = emitDelegate;
         }
 
+
         /// <summary>
         /// 记录Emit委托
         /// </summary>
@@ -36,7 +37,9 @@ namespace Serein.Library
             _emitMethodType = EmitMethodType;
             _emitDelegate = EmitDelegate;
         }
-        /// <summary>
+
+
+        /*/// <summary>
         /// 更新委托方法
         /// </summary>
         /// <param name="EmitMethodType"></param>
@@ -45,7 +48,9 @@ namespace Serein.Library
         {
             _emitMethodType = EmitMethodType;
             _emitDelegate = EmitDelegate;
-        }
+        }*/
+
+
         private Delegate _emitDelegate;
         private EmitMethodType _emitMethodType;
 

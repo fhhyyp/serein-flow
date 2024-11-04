@@ -22,7 +22,7 @@ namespace Serein.Library.Utils.SereinExpression
 
         public static T Evaluate(string expression, T inputValue)
         {
-            
+
             // 替换占位符@为输入值
             expression = expression.Replace("@", inputValue.ToString());
             try
@@ -51,7 +51,7 @@ namespace Serein.Library.Utils.SereinExpression
         /// <exception cref="NotSupportedException"></exception>
         public static object Evaluate(string expression, object targetObJ, out bool isChange)
         {
-            if(expression is null || targetObJ is null)
+            if (expression is null || targetObJ is null)
             {
                 throw new Exception("表达式条件expression is null、 targetObJ is null");
             }
@@ -88,13 +88,13 @@ namespace Serein.Library.Utils.SereinExpression
                 throw new NotSupportedException($"Operation {operation} is not supported.");
             }
 
-          
+
 
             return result;
         }
 
 
-        private static readonly char[] separator =  new char[] { '(', ')' };
+        private static readonly char[] separator = new char[] { '(', ')' };
         private static readonly char[] separatorArray = new char[] { ',' };
 
         /// <summary>
@@ -128,6 +128,7 @@ namespace Serein.Library.Utils.SereinExpression
             return method.Invoke(target, parameterValues);
 
         }
+
         /// <summary>
         /// 获取值
         /// </summary>
@@ -156,56 +157,53 @@ namespace Serein.Library.Utils.SereinExpression
                     }
 
                     var targetType = target?.GetType(); // 目标对象的类型
-                    if(targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
+                    #region 处理键值对
+                    if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
                     {
 
                         var typetmp = target.GetType().FullName;
                         // 目标是键值对
                         var indexStr = member.Substring(arrayIndexStart + 1, arrayIndexEnd - arrayIndexStart - 1);
                         var method = targetType.GetMethod("get_Item", BindingFlags.Public | BindingFlags.Instance);
-                        if(method != null)
+                        if (method != null)
                         {
-                          var result =  method.Invoke(target, new object[] { indexStr });
-                            if(result != null)
+                            var result = method.Invoke(target, new object[] { indexStr });
+                            if (result != null)
                             {
-                                return result;
+                                target = result;
                             }
                         }
 
-                        //var dict = target as Dictionary<string, string>;
-                        ////var dict = (Dictionary<dynamic, dynamic>)target;
-                        //var temp = dict[indexStr];
-                        ////if (target is Dictionary<object, object> dict)
-                        ////{
-                        ////    var temp = dict[indexStr];
-                        ////}
-                        //var TMP2= target.GetType().GetEnumValues();
-
-                    }
+                    } 
+                    #endregion
                     else
                     {
 
                         #region 表达式处理集合对象
                         // 获取数组或集合对象
-                        var arrayProperty = target?.GetType().GetProperty(arrayName);
-                        if (arrayProperty is null)
+
+                        // 如果arrayName为空，说明target可能是数组，而不需要再获取属性了
+                        if (!string.IsNullOrEmpty(arrayName))
                         {
-                            var arrayField = target?.GetType().GetField(arrayName);
-                            if (arrayField is null)
+                            var arrayProperty = target?.GetType().GetProperty(arrayName);
+                            if (arrayProperty is null)
                             {
-                                throw new ArgumentException($"Member {arrayName} not found on target.");
+                                var arrayField = target?.GetType().GetField(arrayName);
+                                if (arrayField is null)
+                                {
+                                    throw new ArgumentException($"Member {arrayName} not found on target.");
+                                }
+                                else
+                                {
+                                    target = arrayField.GetValue(target);
+                                }
                             }
                             else
                             {
-                                target = arrayField.GetValue(target);
+                                target = arrayProperty.GetValue(target);
                             }
                         }
-                        else
-                        {
-                            target = arrayProperty.GetValue(target);
-                        }
-
-
+                       
                         // 提取数组索引
                         var indexStr = member.Substring(arrayIndexStart + 1, arrayIndexEnd - arrayIndexStart - 1);
                         if (!int.TryParse(indexStr, out int index))
@@ -235,7 +233,6 @@ namespace Serein.Library.Utils.SereinExpression
                         }
                         #endregion
                     }
-
 
                 }
                 else
@@ -288,7 +285,7 @@ namespace Serein.Library.Utils.SereinExpression
 
                 // 检查是否包含数组索引
                 var arrayIndexStart = member.IndexOf('[');
-                if (arrayIndexStart != -1) 
+                if (arrayIndexStart != -1)
                 {
                     // 解析数组名和索引
                     var arrayName = member.Substring(0, arrayIndexStart);
@@ -394,6 +391,7 @@ namespace Serein.Library.Utils.SereinExpression
 
             return target;
         }
+
         /// <summary>
         /// 计算数学简单表达式
         /// </summary>
@@ -408,7 +406,7 @@ namespace Serein.Library.Utils.SereinExpression
         private static T ComputedNumber<T>(object value, string expression) where T : struct, IComparable<T>
         {
             T result = value.ToConvert<T>();
-            return SerinArithmeticExpressionEvaluator<T>.Evaluate(expression, result); 
+            return SerinArithmeticExpressionEvaluator<T>.Evaluate(expression, result);
         }
     }
 }

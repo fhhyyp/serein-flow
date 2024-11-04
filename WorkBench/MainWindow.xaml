@@ -78,17 +78,6 @@
                     <!--<RowDefinition Height="3*"></RowDefinition>-->
                 </Grid.RowDefinitions>
 
-                <!--<Grid Margin="2,2,1,5"  Grid.Row="0" >
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="auto"/>
-                        <ColumnDefinition Width="auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Button  Grid.Column="0"  Content="保存项目" Click="ButtonSaveFile_Click"  HorizontalAlignment="Left"  Margin="5,5,5,5"/>
-                    --><!--<Button  Grid.Column="1"  Content="加载项目" Click="ButtonLoadProjectFile_Click"  HorizontalAlignment="Left"  Margin="5,5,5,5"/>-->
-                    <!--<Button  Grid.Row="0"  Content="卸载清空" Click="UnloadAllButton_Click"  HorizontalAlignment="Right"  Margin="5,5,5,5"/>--><!--
-                </Grid>-->
-
                 <!--暂时隐藏基础面板  Visibility="Collapsed"  -->
                 <ScrollViewer Grid.Row="0" HorizontalScrollBarVisibility="Auto">
                     <StackPanel  Orientation="Horizontal">

@@ -32,6 +32,11 @@ namespace Serein.Library.Api
         ConnectionInvokeType NextOrientation { get; set; }
 
         /// <summary>
+        /// 运行时异常信息
+        /// </summary>
+        Exception ExceptionOfRuning { get; set; }
+
+        /// <summary>
         /// 设置节点的运行时上一节点，用以多线程中隔开不同流程的数据
         /// </summary>
         /// <param name="currentNodeModel">当前节点</param>

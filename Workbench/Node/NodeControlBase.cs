@@ -48,22 +48,23 @@ namespace Serein.Workbench.Node.View
         /// 删除了连接之后，还需要从节点中的记录移除
         /// </summary>
         /// <param name="connection"></param>
-        public void RemoveCnnection(ConnectionControl connection)
+        public void RemoveConnection(ConnectionControl connection)
         {
             connectionControls.Remove(connection);
             connection.Remote();
         }
 
         /// <summary>
-        /// 删除了连接之后，还需要从节点中的记录移除
+        /// 删除所有连接
         /// </summary>
         public void RemoveAllConection()
         {
             foreach (var connection in this.connectionControls)
             {
-                connection.Remote(); // 主动更新连线位置
+                connection.Remote(); 
             }
         }
+
         /// <summary>
         /// 更新与该节点有关的数据
         /// </summary>

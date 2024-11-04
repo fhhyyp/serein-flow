@@ -19,7 +19,7 @@ namespace Serein.Library.Utils
         /// <param name="length">扩容长度</param>
         /// <returns>新的数组</returns>
         /// <exception cref="Exception"> length 传入负值</exception>
-        public static T[] ArrayExpansion<T>(T[] original, int length)
+        public static T[] Expansion<T>(T[] original, int length)
         {
             if(length == 0)
             {
@@ -58,7 +58,10 @@ namespace Serein.Library.Utils
         public static T[] AddToArray<T>(T[] original, T newObject)
         {
             // 创建一个新数组，比原数组大1
-            T[] newArray = ArrayHelper.ArrayExpansion(original, 1);
+            T[] newArray = ArrayHelper.Expansion(original, 1);
+
+            original.CopyTo(newArray, 0);
+
             // 将新对象放在最后一位
             newArray[newArray.Length - 1] = newObject;
             return newArray;

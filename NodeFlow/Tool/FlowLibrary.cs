@@ -13,24 +13,19 @@ namespace Serein.NodeFlow
 {
 
     /// <summary>
-    /// 
+    /// 加载在流程中的程序集依赖
     /// </summary>
     public class FlowLibrary
     {
         private readonly Assembly assembly;
         private readonly Action actionOfUnloadAssmbly;
-        private string _assemblyFilePath;
 
-        public FlowLibrary(string assemblyFilePath,
-                           Assembly assembly,
+        public FlowLibrary(Assembly assembly,
                            Action actionOfUnloadAssmbly)
         {
-            this._assemblyFilePath = assemblyFilePath;
             this.assembly = assembly;
             this.actionOfUnloadAssmbly = actionOfUnloadAssmbly;
-            
         }
-
 
         public string FullName => assembly.GetName().FullName;
 
@@ -38,11 +33,15 @@ namespace Serein.NodeFlow
 
         /// <summary>
         /// 加载程序集时创建的方法描述
+        /// Key   ： 方法名称
+        /// Value ：方法详情
         /// </summary>
         public ConcurrentDictionary<string, MethodDetails> MethodDetailss { get; } = new ConcurrentDictionary<string, MethodDetails>();
 
         /// <summary>
         /// 管理通过Emit动态构建的委托
+        /// Key   ：方法名称
+        /// Value ：方法详情
         /// </summary>
         public ConcurrentDictionary<string, DelegateDetails> DelegateDetailss { get; } = new ConcurrentDictionary<string, DelegateDetails>();
 
@@ -57,54 +56,22 @@ namespace Serein.NodeFlow
         /// </summary>
         public void Upload()
         {
+            DelegateDetailss.Clear();
+            RegisterTypes.Clear();
+            MethodDetailss.Clear();
             actionOfUnloadAssmbly?.Invoke();
+            
         }
 
         public NodeLibraryInfo ToInfo()
         {
             return new NodeLibraryInfo
             {
-                AssemblyName = FullName,
-                FileName = Path.GetFileName(_assemblyFilePath),
-                FilePath = _assemblyFilePath,
+                AssemblyName = assembly.GetName().Name,
+                FileName = Path.GetFileName(assembly.Location),
+                FilePath = assembly.Location,
             };
         }
-
-
-        //public void LoadAssmely(Assembly assembly)
-        //{
-        //    (var registerTypes, var mdlist) = LoadAssembly2(assembly);
-        //    if (mdlist.Count > 0)
-        //    {
-        //        var nodeLibraryInfo = new NodeLibraryInfo
-        //        {
-        //            //Assembly = assembly,
-        //            AssemblyName = assembly.FullName,
-        //            FileName = Path.GetFileName(_assemblyFilePath),
-        //            FilePath = _assemblyFilePath,
-        //        };
-
-        //        //LibraryInfos.TryAdd(nodeLibraryInfo.AssemblyName, nodeLibraryInfo);
-
-        //        MethodDetailss.TryAdd(nodeLibraryInfo.AssemblyName, mdlist);
-
-        //        foreach (var md in mdlist)
-        //        {
-        //            MethodDetailss.TryAdd(md.MethodName, md);
-        //        }
-
-        //        foreach (var kv in registerTypes)
-        //        {
-        //            if (!RegisterTypes.TryGetValue(kv.Key, out var types))
-        //            {
-        //                types = new List<Type>();
-        //                RegisterTypes.TryAdd(kv.Key, types);
-        //            }
-        //            types.AddRange(kv.Value);
-        //        }
-        //        var mdInfos = mdlist.Select(md => md.ToInfo()).ToList(); // 转换成方法信息
-        //    }
-        //}
 
 
         /// <summary>
@@ -158,18 +125,13 @@ namespace Serein.NodeFlow
                 // (Type, string)
                 // Type   ： 具有 DynamicFlowAttribute 标记的类型
                 // string ： 类型元数据 DynamicFlowAttribute 特性中的 Name 属性
+
+                types = types.Where(type => type.GetCustomAttribute<DynamicFlowAttribute>() is DynamicFlowAttribute dynamicFlowAttribute 
+                && dynamicFlowAttribute.Scan).ToList();
+
                 foreach (var  type in types)
                 {
-                    if (type.Name.Equals("YoloFlowControl"))
-                    {
-                        //var ab = type.GetCustomAttribute<DynamicFlowAttribute>();
-                        //var attributes = assembly.GetCustomAttributes();
-                        //foreach (var attribute in attributes)
-                        //{
-                        //    Console.WriteLine(attribute.GetType().Name);
-                        //}
-                    }
-                    if (type.GetCustomAttribute<DynamicFlowAttribute>() is DynamicFlowAttribute dynamicFlowAttribute && dynamicFlowAttribute.Scan == true)
+                    if (type.GetCustomAttribute<DynamicFlowAttribute>() is DynamicFlowAttribute dynamicFlowAttribute)
                     {
                         scanTypes.Add((type, dynamicFlowAttribute.Name));
                     }

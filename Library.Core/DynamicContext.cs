@@ -41,6 +41,11 @@ namespace Serein.Library.Core
         public ConnectionInvokeType NextOrientation { get; set; }
 
         /// <summary>
+        /// 运行时异常信息
+        /// </summary>
+        public Exception ExceptionOfRuning { get; set; }
+
+        /// <summary>
         /// 每个流程上下文分别存放节点的当前数据
         /// </summary>
         private readonly ConcurrentDictionary<string, object?> dictNodeFlowData = new ConcurrentDictionary<string, object?>();
@@ -138,6 +143,10 @@ namespace Serein.Library.Core
                         disposable?.Dispose();
                     }
                 }
+                else 
+                {
+
+                }
             }
             foreach (var nodeObj in ContextShareData.Values)
             {
@@ -158,5 +167,92 @@ namespace Serein.Library.Core
             RunState = RunState.Completion;
         }
 
+
+        private void Dispose(ref IDictionary<string, object>  keyValuePairs)
+        {
+            foreach (var nodeObj in keyValuePairs.Values)
+            {
+                if (nodeObj is null)
+                {
+                    continue;
+                }
+
+                if (nodeObj is IDisposable disposable) /* typeof(IDisposable).IsAssignableFrom(nodeObj?.GetType()) &&*/
+                {
+                    disposable?.Dispose();
+                }
+                else if (nodeObj is IDictionary<string, object> tmpDict)
+                {
+                    Dispose(ref tmpDict);
+                }
+                else if (nodeObj is ICollection<object> tmpList)
+                {
+                    Dispose(ref tmpList);
+                }
+                else if (nodeObj is IList<object> tmpList2)
+                {
+                    Dispose(ref tmpList2);
+                }
+            }
+            keyValuePairs.Clear();
+        }
+        private void Dispose(ref ICollection<object> list)
+        {
+            foreach (var nodeObj in list)
+            {
+                if (nodeObj is null)
+                {
+                    continue;
+                }
+
+                if (nodeObj is IDisposable disposable) /* typeof(IDisposable).IsAssignableFrom(nodeObj?.GetType()) &&*/
+                {
+                    disposable?.Dispose();
+                }
+                else if (nodeObj is IDictionary<string, object> tmpDict)
+                {
+                    Dispose(ref tmpDict);
+                }
+                else if (nodeObj is ICollection<object> tmpList)
+                {
+                    Dispose(ref tmpList);
+                }
+                else if (nodeObj is IList<object> tmpList2)
+                {
+                    Dispose(ref tmpList2);
+                }
+            }
+
+            list.Clear();
+        }
+        private void Dispose(ref IList<object> list)
+        {
+            foreach (var nodeObj in list)
+            {
+                if (nodeObj is null)
+                {
+                    continue;
+                }
+
+                if (nodeObj is IDisposable disposable) /* typeof(IDisposable).IsAssignableFrom(nodeObj?.GetType()) &&*/
+                {
+                    disposable?.Dispose();
+                }
+                else if (nodeObj is IDictionary<string, object> tmpDict)
+                {
+                    Dispose(ref tmpDict);
+                }
+                else if (nodeObj is ICollection<object> tmpList)
+                {
+                    Dispose(ref tmpList);
+                }
+                else if (nodeObj is IList<object> tmpList2)
+                {
+                    Dispose(ref tmpList2);
+                }
+            }
+
+            list.Clear();
+        }
     }
 }

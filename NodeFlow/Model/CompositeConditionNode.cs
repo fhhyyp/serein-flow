@@ -54,38 +54,34 @@ namespace Serein.NodeFlow.Model
         /// <returns></returns>
         public override async Task<object?> ExecutingAsync(IDynamicContext context)
         {
-            // 条件区域中遍历每个条件节点
-            foreach (SingleConditionNode? node in ConditionNodes)
-            {
-                var state = await JudgeAsync(context, node);
-                context.NextOrientation = state; // 每次判读完成后，设置区域后继方向为判断结果
-                if (state != ConnectionInvokeType.IsSucceed)
-                {
-                    // 如果条件不通过，立刻推出循环
-                    break;
-                }
-            }
-            
-            //var previousNode = context.GetPreviousNode()
-            return Task.FromResult(context.TransmissionData(this)); // 条件区域透传上一节点的数据
-        }
-
-        
-        private async Task<ConnectionInvokeType> JudgeAsync(IDynamicContext context, SingleConditionNode node)
-        {
             try
             {
-                await node.ExecutingAsync(context);
-                return context.NextOrientation;
+                // 条件区域中遍历每个条件节点
+                foreach (SingleConditionNode? node in ConditionNodes)
+                {
+                    var state = await node.ExecutingAsync(context);
+                    if (context.NextOrientation != ConnectionInvokeType.IsSucceed)
+                    {
+                        // 如果条件不通过，立刻推出循环
+                        break;
+                    }
+                }
+
+                //var previousNode = context.GetPreviousNode()
+                return context.TransmissionData(this); // 条件区域透传上一节点的数据
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
                 context.NextOrientation = ConnectionInvokeType.IsError;
-                RuningException = ex;
-                return ConnectionInvokeType.IsError;
+                context.ExceptionOfRuning = ex;
+                return context.TransmissionData(this); // 条件区域透传上一节点的数据
             }
+
+           
         }
+
+        
 
         public override ParameterData[] GetParameterdatas()
         {

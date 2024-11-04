@@ -1,6 +1,7 @@
 ﻿using Serein.Library.Api;
 using Serein.Library.Utils;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -36,7 +37,7 @@ namespace Serein.Library
         private bool _isProtectionParameter;
 
         /// <summary>
-        /// 作用实例的类型（多个相同的节点将拥有相同的类型）
+        /// 调用节点方法时需要的实例（多个相同的节点将拥有相同的类型）
         /// </summary>
         [PropertyInfo]
         private Type _actingInstanceType;
@@ -77,6 +78,7 @@ namespace Serein.Library
         /// </summary>
         [PropertyInfo]
         private ParameterDetails[] _parameterDetailss;
+        //private List<ParameterDetails> _parameterDetailss;
 
         /// <summary>
         /// <para>描述该方法是否存在可选参数</para>
@@ -137,6 +139,9 @@ namespace Serein.Library
                 && index < ParameterDetailss.Length) // 防止下标越界
             {
                 ParameterDetailss[index] = null; // 释放对象引用
+
+                
+
                 var tmp = ArrayHelper.RemoteToArray<ParameterDetails>(ParameterDetailss, index); // 新增;
                 UpdateParamIndex(ref tmp);
                 ParameterDetailss = tmp; // 新增

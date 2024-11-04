@@ -26,7 +26,7 @@ namespace Serein.Workbench.Node.View
             this.MouseDown += ParamsArg_OnMouseDown; // 增加或删除
             this.MouseMove += ParamsArgControl_MouseMove;
             this.MouseLeave += ParamsArgControl_MouseLeave;
-            AddOrRemoveParamsAction = Add;
+            AddOrRemoveParamsTask = AddAsync;
 
 
         }
@@ -90,11 +90,11 @@ namespace Serein.Workbench.Node.View
 
         private bool isMouseOver; // 鼠标悬停状态
 
-        private Action AddOrRemoveParamsAction; // 增加或删除参数
+        private Func<Task> AddOrRemoveParamsTask; // 增加或删除参数
 
-        public void ParamsArg_OnMouseDown(object sender, MouseButtonEventArgs e)
+        public async void ParamsArg_OnMouseDown(object sender, MouseButtonEventArgs e)
         {
-            AddOrRemoveParamsAction?.Invoke();
+           await AddOrRemoveParamsTask.Invoke();
         }
 
         private void ParamsArgControl_MouseMove(object sender, MouseEventArgs e)
@@ -111,7 +111,7 @@ namespace Serein.Workbench.Node.View
                     // 如果焦点仍在控件上时，则改变点击事件
                     if (isMouseOver)
                     {
-                        AddOrRemoveParamsAction = Remove;
+                        AddOrRemoveParamsTask = RemoveAsync;
                         this.Dispatcher.Invoke(InvalidateVisual);// 触发一次重绘
                        
                     }
@@ -125,20 +125,20 @@ namespace Serein.Workbench.Node.View
         private void ParamsArgControl_MouseLeave(object sender, MouseEventArgs e)
         {
             isMouseOver = false;
-            AddOrRemoveParamsAction = Add; // 鼠标焦点离开时恢复点击事件
+            AddOrRemoveParamsTask = AddAsync; // 鼠标焦点离开时恢复点击事件
             cancellationTokenSource?.Cancel();
             this.Dispatcher.Invoke(InvalidateVisual);// 触发一次重绘
 
         }
 
 
-        private void Add()
+        private async Task AddAsync()
         {
-            this.MyNode.Env.ChangeParameter(MyNode.Guid, true, ArgIndex);
+           await this.MyNode.Env.ChangeParameter(MyNode.Guid, true, ArgIndex);
         }
-        private void Remove()
+        private async Task RemoveAsync()
         {
-            this.MyNode.Env.ChangeParameter(MyNode.Guid, false, ArgIndex);
+           await this.MyNode.Env.ChangeParameter(MyNode.Guid, false, ArgIndex);
         }
 
     }

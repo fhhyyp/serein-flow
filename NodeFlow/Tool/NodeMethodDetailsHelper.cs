@@ -60,8 +60,7 @@ public static class NodeMethodDetailsHelper
         //                                            method.GetParameters(),// 方法参数
         //                                            method.ReturnType);// 返回值
 
-        //// 通过表达式树生成委托
-        var emitMethodType = EmitHelper.CreateDynamicMethod(methodInfo, out var methodDelegate);// 返回值
+        
 
         Type? returnType;
         bool isTask = IsGenericTask(methodInfo.ReturnType, out var taskResult);
@@ -137,7 +136,11 @@ public static class NodeMethodDetailsHelper
             // 如果存在可变参数，取最后一个元素的下标，否则为-1；
             ParamsArgIndex = hasParamsArg ? explicitDataOfParameters.Length - 1 : -1,
         };
-        var dd = new DelegateDetails(emitMethodType, methodDelegate) ;
+
+        //var emitMethodType = EmitHelper.CreateDynamicMethod(methodInfo, out var methodDelegate);// 返回值
+
+
+        var dd = new DelegateDetails(methodInfo) ; // 构造委托
 
         methodDetails = md;
         delegateDetails = dd;

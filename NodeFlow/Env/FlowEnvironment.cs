@@ -14,6 +14,8 @@ using System.Numerics;
 using System.Reflection;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.Loader;
+using System.Security.AccessControl;
+using System.Text;
 using System.Xml.Linq;
 using static Serein.Library.Utils.ChannelFlowInterrupt;
 
@@ -389,6 +391,7 @@ namespace Serein.NodeFlow.Env
 
             if (flowStarter is null)
             {
+                Console.WriteLine("没有启动流程，无法运行单个节点");
                 return;
             }
             if (true || FlowState == RunState.Running || FlipFlopState == RunState.Running)
@@ -540,9 +543,7 @@ namespace Serein.NodeFlow.Env
                         continue;
                     }
                     MethodDetails? methodDetails = null;
-                    FlowLibraryManagement.TryGetMethodDetails(nodeInfo.AssemblyName,
-                                                                  nodeInfo.MethodName,
-                                                                  out methodDetails); // 加载项目时尝试获取方法信息
+                    FlowLibraryManagement.TryGetMethodDetails(nodeInfo.AssemblyName, nodeInfo.MethodName,out methodDetails); // 加载项目时尝试获取方法信息
                     var nodeModel = FlowFunc.CreateNode(this, controlType, methodDetails); // 加载项目时创建节点
                     nodeModel.LoadInfo(nodeInfo); // 创建节点model
                     if (nodeModel is null)
@@ -724,9 +725,21 @@ namespace Serein.NodeFlow.Env
         /// <returns></returns> 
         public void LoadLibrary(string dllPath)
         {
+            
             try
             {
-                (var libraryInfo, var mdInfos) = FlowLibraryManagement.LoadLibrary(dllPath);
+                #region 检查是否已经加载本地依赖
+                var thisAssembly = typeof(IFlowEnvironment).Assembly;
+                var thisAssemblyName = thisAssembly.GetName().Name;
+                if (!string.IsNullOrEmpty(thisAssemblyName) && FlowLibraryManagement.GetLibraryMdsOfAssmbly(thisAssemblyName).Count == 0)
+                {
+                   var tmp = FlowLibraryManagement.LoadLibraryOfPath(thisAssembly.Location);
+                    UIContextOperation?.Invoke(() => OnDllLoad?.Invoke(new LoadDllEventArgs(tmp.Item1, tmp.Item2))); // 通知UI创建dll面板显示
+                }
+                
+                #endregion
+
+                (var libraryInfo, var mdInfos) = FlowLibraryManagement.LoadLibraryOfPath(dllPath);
                 if (mdInfos.Count > 0)
                 {
                     UIContextOperation?.Invoke(() => OnDllLoad?.Invoke(new LoadDllEventArgs(libraryInfo, mdInfos))); // 通知UI创建dll面板显示
@@ -746,8 +759,38 @@ namespace Serein.NodeFlow.Env
         /// <returns></returns>
         public bool UnloadLibrary(string assemblyName)
         {
-            return FlowLibraryManagement.UnloadLibrary(assemblyName);
+            // 获取与此程序集相关的节点
+            var groupedNodes = NodeModels.Values.Where(node => node.MethodDetails.AssemblyName.Equals(assemblyName)).ToArray();
+            if (groupedNodes.Length == 0)
+            {
+                var isPass = FlowLibraryManagement.UnloadLibrary(assemblyName);
+                return isPass;
+            }
+            else
+            {
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine();
+                for (int i = 0; i < groupedNodes.Length; i++)
+                {
+                    NodeModelBase? node = groupedNodes[i];
+                    sb.AppendLine($"{i} => {node.Guid}");
+                }
+                Console.WriteLine($"无法卸载[{assemblyName}]程序集，因为这些节点依赖于此程序集：{sb.ToString()}");
 
+                return false;
+            }
+
+            //var mds = FlowLibraryManagement.GetLibraryMdsOfAssmbly(assemblyName);
+            //if(mds.Count > 0)
+            //{
+                
+                
+            //}
+            //else
+            //{
+            //    return true;
+            //}
+           
             //var library = LibraryInfos.Values.FirstOrDefault(nl => assemblyName.Equals(nl.AssemblyName));
             //if (library is null)
             //{
@@ -810,7 +853,7 @@ namespace Serein.NodeFlow.Env
             }
             else
             {
-                if (FlowLibraryManagement.TryGetMethodDetails(methodDetailsInfo.AssemblyName, 
+                if (FlowLibraryManagement.TryGetMethodDetails(methodDetailsInfo.AssemblyName,  // 创建节点
                                                               methodDetailsInfo.MethodName, 
                                                               out var methodDetails))
                 {
@@ -941,6 +984,24 @@ namespace Serein.NodeFlow.Env
         }
 
         /// <summary>
+        /// 移除连接节点之间方法调用的关系
+        /// </summary>
+        /// <param name="fromNodeGuid">起始节点Guid</param>
+        /// <param name="toNodeGuid">目标节点Guid</param>
+        /// <param name="connectionType">连接关系</param>
+        /// <exception cref="NotImplementedException"></exception>
+        public async Task<bool> RemoveConnectInvokeAsync(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
+        {
+            // 获取起始节点与目标节点
+            var fromNode = GuidToModel(fromNodeGuid);
+            var toNode = GuidToModel(toNodeGuid);
+            if (fromNode is null || toNode is null) return false;
+
+            var result = await RemoteConnectAsync(fromNode, toNode, connectionType);
+            return result;
+        }
+
+        /// <summary>
         /// 创建节点之间的参数来源关系
         /// </summary>
         /// <param name="fromNodeGuid">起始节点</param>
@@ -985,23 +1046,6 @@ namespace Serein.NodeFlow.Env
 
         }
 
-        /// <summary>
-        /// 移除连接节点之间方法调用的关系
-        /// </summary>
-        /// <param name="fromNodeGuid">起始节点Guid</param>
-        /// <param name="toNodeGuid">目标节点Guid</param>
-        /// <param name="connectionType">连接关系</param>
-        /// <exception cref="NotImplementedException"></exception>
-        public async Task<bool> RemoveConnectInvokeAsync(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
-        {
-            // 获取起始节点与目标节点
-            var fromNode = GuidToModel(fromNodeGuid);
-            var toNode = GuidToModel(toNodeGuid);
-            if (fromNode is null || toNode is null) return false;
-
-            var result = await RemoteConnectAsync(fromNode, toNode, connectionType);
-            return result;
-        }
 
         /// <summary>
         /// 移除连接节点之间参数传递的关系
@@ -1319,6 +1363,36 @@ namespace Serein.NodeFlow.Env
         {
             var nodeModel = GuidToModel(nodeGuid);
             if (nodeModel is null) return false;
+
+            var argInfo = nodeModel.MethodDetails.ParameterDetailss
+                                .Where(pd => !string.IsNullOrEmpty(pd.ArgDataSourceNodeGuid))
+                                .Select(pd => (pd.ArgDataSourceNodeGuid, pd.ArgDataSourceType, pd.Index))
+                                .ToArray();
+
+            #region 暂时移除连接关系
+            foreach((var fromGuid, var type, var index) in argInfo)
+            {
+                await UIContextOperation.InvokeAsync(() =>
+                    OnNodeConnectChange?.Invoke(
+                            new NodeConnectChangeEventArgs(
+                                fromGuid, // 从哪个节点开始
+                                nodeModel.Guid, // 连接到那个节点
+                                JunctionOfConnectionType.Arg,
+                                index, // 参数
+                                type, // 连接线的样式类型
+                                NodeConnectChangeEventArgs.ConnectChangeType.Remote // 是创建连接还是删除连接
+                            ))); // 通知UI 
+            }
+            for (int i = 0; i < argInfo.Length; i++)
+            {
+                ParameterDetails? pd = nodeModel.MethodDetails.ParameterDetailss[i];
+                var fromNode = GuidToModel(pd.ArgDataSourceNodeGuid);
+                if (fromNode is null) continue;
+                var argSourceGuid = pd.ArgDataSourceNodeGuid;
+                var argSourceType = pd.ArgDataSourceType;
+            }
+            #endregion
+
             bool isPass;
             if (isAdd)
             {
@@ -1327,6 +1401,22 @@ namespace Serein.NodeFlow.Env
             else
             {
                 isPass = nodeModel.MethodDetails.RemoveParamsArg(paramIndex);
+            }
+
+            await Task.Delay(50);
+            foreach ((var fromGuid, var type, var index) in argInfo)
+            {
+                await UIContextOperation.InvokeAsync(() =>
+                    OnNodeConnectChange?.Invoke(
+                            new NodeConnectChangeEventArgs(
+                                fromGuid, // 从哪个节点开始
+                                nodeModel.Guid, // 连接到那个节点
+                                JunctionOfConnectionType.Arg,
+                                index, // 参数
+                                type, // 连接线的样式类型
+                                NodeConnectChangeEventArgs.ConnectChangeType.Create // 是创建连接还是删除连接
+                            ))); // 通知UI 
+
             }
             return isPass;
         }
@@ -1475,7 +1565,10 @@ namespace Serein.NodeFlow.Env
         /// <exception cref="NotImplementedException"></exception>
         private async Task<bool> RemoteConnectAsync(NodeModelBase fromNode, NodeModelBase toNode, int argIndex)
         {
-            
+            if (string.IsNullOrEmpty(toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceNodeGuid))
+            {
+                return false;
+            }
             toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceNodeGuid = null;
             toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceType = ConnectionArgSourceType.GetPreviousNodeData; // 恢复默认值
 
@@ -1770,28 +1863,24 @@ namespace Serein.NodeFlow.Env
         /// <param name="argIndex"></param>
         /// <returns></returns>
         private async Task<bool> ConnectArgSourceOfNodeAsync(NodeModelBase fromNode,
-                                            NodeModelBase toNode,
-                                            ConnectionArgSourceType connectionArgSourceType,
-                                            int argIndex)
+                                                             NodeModelBase toNode,
+                                                             ConnectionArgSourceType connectionArgSourceType,
+                                                             int argIndex)
         {
-            var oldNodeGuid = toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceNodeGuid;
-            
-            if (!string.IsNullOrEmpty(oldNodeGuid))
+            var toNodeArgSourceGuid = toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceNodeGuid;
+            if (!string.IsNullOrEmpty(toNodeArgSourceGuid))
             {
-                //if(NodeModels.TryGetValue(oldNodeGuid, out var oldNodeModel))
+                await RemoteConnectAsync(fromNode, toNode, argIndex);
+                //Console.WriteLine("目标入参已确定参数来源，不可连接");
+                //return false;
+                //if (toNodeArgSourceGuid.Equals(fromNode.Guid))
                 //{
-                //    // 已经存在连接
-                //    await RemoteConnectAsync(oldNodeModel, toNode, argIndex); // 已经存在连接,将其移除
+                //    //await RemoteConnectAsync(fromNode, toNode, argIndex); // 相同起始节点不同控制点已经连接,将其移除
                 //}
-                if (oldNodeGuid.Equals(fromNode.Guid))
-                {
-                    await RemoteConnectAsync(fromNode, toNode, argIndex); // 相同起始节点不同控制点已经连接,将其移除
-                }
-                else
-                {
-                    Console.WriteLine("目标入参已确定参数来源，不可连接                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                ");
-                    return false;
-                }
+                //else
+                //{
+
+                //}
             }
             toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceNodeGuid = fromNode.Guid;
             toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceType = connectionArgSourceType;
@@ -1801,7 +1890,7 @@ namespace Serein.NodeFlow.Env
                                     fromNode.Guid, // 从哪个节点开始
                                     toNode.Guid, // 连接到那个节点
                                     JunctionOfConnectionType.Arg,
-                                    (int)argIndex, // 连接线的样式类型
+                                    argIndex, // 连接线的样式类型
                                     connectionArgSourceType,
                                     NodeConnectChangeEventArgs.ConnectChangeType.Create // 是创建连接还是删除连接
                                 ))); // 通知UI 
