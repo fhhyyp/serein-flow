@@ -66,6 +66,10 @@ namespace Serein.NodeFlow.Env
 
         public bool IsControlRemoteEnv => true;
 
+        /// <summary>
+        /// 信息输出等级
+        /// </summary>
+        public InfoClass InfoClass { get; set; }
 
         public RunState FlowState { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public RunState FlipFlopState { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
@@ -82,28 +86,40 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         private bool IsLoadingNode = false;
 
-        public void SetConsoleOut()
+        //public void SetConsoleOut()
+        //{
+        //    var logTextWriter = new LogTextWriter(msg =>
+        //    {
+        //        OnEnvOut?.Invoke(msg);
+        //    });
+        //    Console.SetOut(logTextWriter);
+        //}
+
+        /// <summary>
+        /// 输出信息
+        /// </summary>
+        /// <param name="message">日志内容</param>
+        /// <param name="type">日志类别</param>
+        /// <param name="class">日志级别</param>
+        public void WriteLine(InfoType type,  string message, InfoClass @class = InfoClass.Trivial)
         {
-            var logTextWriter = new LogTextWriter(msg =>
-            {
-                OnEnvOut?.Invoke(msg);
-            });
-            Console.SetOut(logTextWriter);
+            OnEnvOut?.Invoke(type, message);
         }
 
         public void WriteLineObjToJson(object obj)
         {
-            Console.WriteLine("远程环境尚未实现的接口：WriteLineObjToJson");
+            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：WriteLineObjToJson");
         }
 
         public async Task StartRemoteServerAsync(int port = 7525)
         {
-            await Console.Out.WriteLineAsync("远程环境尚未实现的接口：StartRemoteServerAsync");
+            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：StartRemoteServerAsync");
+            await Task.CompletedTask;
         }
 
         public void StopRemoteServer()
         {
-            Console.WriteLine("远程环境尚未实现的接口：StopRemoteServer");
+            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：StopRemoteServer");
         }
 
         public async Task<SereinProjectData> GetProjectInfoAsync()
@@ -119,7 +135,7 @@ namespace Serein.NodeFlow.Env
         /// <param name="filePath"></param>
         public void LoadProject(FlowEnvInfo flowEnvInfo, string filePath)
         {
-            Console.WriteLine("加载远程环境");
+            this.WriteLine(InfoType.INFO, "加载远程环境");
             IsLoadingProject = true;
             #region DLL功能区创建
             var libmds = flowEnvInfo.LibraryMds;
@@ -339,7 +355,7 @@ namespace Serein.NodeFlow.Env
                 FromExistInTo = ToOnF.Length > 0;
                 if (ToExistOnFrom && FromExistInTo)
                 {
-                    Console.WriteLine("起始节点已与目标节点存在连接");
+                    this.WriteLine(InfoType.ERROR, "起始节点已与目标节点存在连接");
                     
                     //return;
                 }
@@ -348,13 +364,13 @@ namespace Serein.NodeFlow.Env
                     // 检查是否可能存在异常
                     if (!ToExistOnFrom && FromExistInTo)
                     {
-                        Console.WriteLine("目标节点不是起始节点的子节点，起始节点却是目标节点的父节点");
+                        this.WriteLine(InfoType.ERROR, "目标节点不是起始节点的子节点，起始节点却是目标节点的父节点");
                         return;
                     }
                     else if (ToExistOnFrom && !FromExistInTo)
                     {
                         //
-                        Console.WriteLine(" 起始节点不是目标节点的父节点，目标节点却是起始节点的子节点");
+                        this.WriteLine(InfoType.ERROR, " 起始节点不是目标节点的父节点，目标节点却是起始节点的子节点");
                         return;
                     }
                     else // if (!ToExistOnFrom && !FromExistInTo)
@@ -394,25 +410,25 @@ namespace Serein.NodeFlow.Env
 
         public void ExitRemoteEnv()
         {
-            Console.WriteLine("远程环境尚未实现的接口：ExitRemoteEnv");
+            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：ExitRemoteEnv");
         }
 
         public void LoadLibrary(string dllPath)
         {
             // 将dll文件发送到远程环境，由远程环境进行加载
-            Console.WriteLine("远程环境尚未实现的接口：LoadDll");
+            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：LoadDll");
         }
 
         public bool UnloadLibrary(string assemblyName)
         {
             // 尝试移除远程环境中的加载了的依赖
-            Console.WriteLine("远程环境尚未实现的接口：RemoteDll");
+            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：RemoteDll");
             return false;
         }
 
         public void ClearAll()
         {
-            Console.WriteLine("远程环境尚未实现的接口：ClearAll");
+            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：ClearAll");
         }
 
         public async Task StartAsync()
@@ -467,7 +483,7 @@ namespace Serein.NodeFlow.Env
 
         public async Task<object> InvokeNodeAsync(IDynamicContext context, string nodeGuid)
         {
-            Console.WriteLine("远程环境尚未实现接口 InvokeNodeAsync");
+            this.WriteLine(InfoType.INFO, "远程环境尚未实现接口 InvokeNodeAsync");
             _ = msgClient.SendAsync(EnvMsgTheme.SetStartNode, new
             {
                 nodeGuid
@@ -717,7 +733,7 @@ namespace Serein.NodeFlow.Env
             }
             else
             {
-                Console.WriteLine("删除失败");
+                this.WriteLine(InfoType.ERROR, "删除失败");
             }
             return result;
         }
@@ -763,7 +779,7 @@ namespace Serein.NodeFlow.Env
 
         public void SetMonitorObjState(string key, bool isMonitor)
         {
-            Console.WriteLine("远程环境尚未实现的接口：SetMonitorObjState");
+            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：SetMonitorObjState");
         }
 
         public async Task<(bool, string[])> CheckObjMonitorStateAsync(string key)
@@ -788,20 +804,20 @@ namespace Serein.NodeFlow.Env
 
         public async Task<ChannelFlowInterrupt.CancelType> GetOrCreateGlobalInterruptAsync()
         {
-            await Console.Out.WriteLineAsync("远程环境尚未实现的接口：GetOrCreateGlobalInterruptAsync");
+            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：GetOrCreateGlobalInterruptAsync");
             return ChannelFlowInterrupt.CancelType.Error;
         }
 
         public bool TryGetMethodDetailsInfo(string libraryName, string methodName, out MethodDetailsInfo mdInfo)
         {
-            Console.WriteLine("远程环境尚未实现的接口：TryGetMethodDetailsInfo");
+            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：TryGetMethodDetailsInfo");
             mdInfo = null;
             return false;
         }
 
         public bool TryGetDelegateDetails(string libraryName, string methodName, out DelegateDetails del)
         {
-            Console.WriteLine("远程环境尚未实现的接口：TryGetDelegateDetails");
+            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：TryGetDelegateDetails");
             del = null;
             return false;
         }
@@ -810,13 +826,13 @@ namespace Serein.NodeFlow.Env
 
         public void MonitorObjectNotification(string nodeGuid, object monitorData, MonitorObjectEventArgs.ObjSourceType sourceType)
         {
-            Console.WriteLine("远程环境尚未实现的接口：MonitorObjectNotification");
+            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：MonitorObjectNotification");
 
         }
 
         public void TriggerInterrupt(string nodeGuid, string expression, InterruptTriggerEventArgs.InterruptTriggerType type)
         {
-            Console.WriteLine("远程环境尚未实现的接口：TriggerInterrupt");
+            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：TriggerInterrupt");
         }
 
         public void NodeLocated(string nodeGuid)
@@ -832,7 +848,7 @@ namespace Serein.NodeFlow.Env
             {
                 return;
             }
-            Console.WriteLine($"通知远程环境修改节点数据：{nodeGuid},name:{path},value:{value}");
+            this.WriteLine(InfoType.INFO, $"通知远程环境修改节点数据：{nodeGuid},name:{path},value:{value}");
             
             _  = msgClient.SendAsync(EnvMsgTheme.ValueNotification, new
             {
@@ -852,7 +868,7 @@ namespace Serein.NodeFlow.Env
         /// <returns></returns>
         public async Task<bool> ChangeParameter(string nodeGuid, bool isAdd, int paramIndex)
         {
-            Console.WriteLine("远程环境尚未实现的接口：ChangeParameter");
+            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：ChangeParameter");
             return false;
         }
 
@@ -865,7 +881,7 @@ namespace Serein.NodeFlow.Env
         /// <returns></returns>
         public bool LoadNativeLibraryOfRuning(string file)
         {
-            Console.WriteLine("远程环境尚未实现的接口：LoadNativeLibraryOfRuning");
+            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：LoadNativeLibraryOfRuning");
             return false;
         }
 
@@ -876,7 +892,7 @@ namespace Serein.NodeFlow.Env
         /// <param name="isRecurrence">是否递归加载</param>
         public void LoadAllNativeLibraryOfRuning(string path, bool isRecurrence = true)
         {
-            Console.WriteLine("远程环境尚未实现的接口：LoadAllNativeLibraryOfRuning");
+            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：LoadAllNativeLibraryOfRuning");
         }
 
         #endregion

@@ -106,7 +106,7 @@ namespace Serein.Library.Web
                 var url = AddRoutesUrl(autoHostingAttribute, routeAttribute, controllerType, method);
                 if (url is null) continue;
 
-                Console.WriteLine(url);
+                SereinEnv.WriteLine(InfoType.INFO, url);
                 var apiType = routeAttribute.ApiType.ToString();
 
                 var config = new ApiHandleConfig(method);
@@ -248,7 +248,7 @@ namespace Serein.Library.Web
                     catch (Exception ex1)
                     {
 
-                        Console.WriteLine(ex1);
+                        SereinEnv.WriteLine(InfoType.ERROR, ex1.ToString());
                     }
                 }
 

@@ -83,7 +83,7 @@ namespace Serein.Library.Utils
         public async Task<bool> ConnectAsync()
         {
             // 第2种，WebSocket连接到远程环境，实时接收远程环境的响应？
-            Console.WriteLine($"准备连接：{Config.Addres}:{Config.Port},{Config.Token}");
+            SereinEnv.WriteLine(InfoType.INFO, $"准备连接：{Config.Addres}:{Config.Port},{Config.Token}");
             bool success = false;
             try
             {
@@ -97,7 +97,7 @@ namespace Serein.Library.Utils
             }
             if (!success)
             {
-                Console.WriteLine($"无法连通远程端口 {Config.Addres}:{Config.Port}");
+                SereinEnv.WriteLine(InfoType.ERROR, $"无法连通远程端口 {Config.Addres}:{Config.Port}");
                 return false;
             }
             else
@@ -150,7 +150,6 @@ namespace Serein.Library.Utils
                 };
             }
             var msg = jsonData.ToString();
-            //Console.WriteLine($"[{msgId}] => {theme}");
             await EnvClient.SendAsync(msg);
         }
 

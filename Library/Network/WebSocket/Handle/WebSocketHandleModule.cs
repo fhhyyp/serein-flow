@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Serein.Library.Utils;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -97,7 +98,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
             string msgId = jsonObject.GetValue(moduleConfig.MsgIdJsonKey)?.ToString();
             if (_myMsgIdHash.Contains(msgId))
             {
-                Console.WriteLine($"[{msgId}]{theme} 消息重复");
+                SereinEnv.WriteLine(InfoType.WARN, $"[{msgId}]{theme} 消息重复");
                 return;
             }
             context.MsgId = msgId; // 添加 ID
@@ -118,7 +119,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"error in ws : {ex.Message}{Environment.NewLine}json value:{jsonObject}");
+                SereinEnv.WriteLine(InfoType.ERROR, $"error in ws : {ex.Message}{Environment.NewLine}json value:{jsonObject}");
             }
             finally
             {

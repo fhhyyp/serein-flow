@@ -83,7 +83,7 @@ namespace Serein.Library
         {
             foreach (var item in value)
             {
-                Console.WriteLine(item);
+                SereinEnv.WriteLine(InfoType.INFO, item.ToString());
             }
             return value;
         }

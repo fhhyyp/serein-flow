@@ -96,7 +96,7 @@ namespace Serein.NodeFlow.Env
             }
             catch (Exception ex)
             {
-                Console.WriteLine("结束远程管理异常：" + ex);
+                SereinEnv.WriteLine(InfoType.ERROR, "结束远程管理异常：" + ex);
             }
         }
 
@@ -192,6 +192,10 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         public UIContextOperation UIContextOperation { get; set; }
 
+        /// <summary>
+        /// 信息输出等级
+        /// </summary>
+        public InfoClass InfoClass { get ; set ; } = InfoClass.General;
 
         /// <summary>
         /// 如果没有全局触发器，且没有循环分支，流程执行完成后自动为 Completion 。
@@ -325,28 +329,43 @@ namespace Serein.NodeFlow.Env
 
         #region 环境对外接口
 
-        /// <summary>
-        /// 重定向Console输出
-        /// </summary>
-        public void SetConsoleOut()
-        {
-            var logTextWriter = new LogTextWriter(msg => Output(msg));
-            Console.SetOut(logTextWriter);
-        }
+        ///// <summary>
+        ///// 重定向Console输出
+        ///// </summary>
+        //public void SetConsoleOut()
+        //{
+        //    var logTextWriter = new LogTextWriter(msg => Output(msg));
+        //    Console.SetOut(logTextWriter);
+        //}
 
         /// <summary>
-        /// 使用JSON处理库输出对象信息
+        /// 输出信息
         /// </summary>
-        /// <param name="obj"></param>
-        public void WriteLineObjToJson(object obj)
+        /// <param name="message">日志内容</param>
+        /// <param name="type">日志类别</param>
+        /// <param name="class">日志级别</param>
+        public void WriteLine(InfoType type, string message, InfoClass @class = InfoClass.Trivial)
         {
-            var msg = JsonConvert.SerializeObject(obj);
-            if (OperatingSystem.IsWindows())
+            if (@class >= this.InfoClass)
             {
-                UIContextOperation?.Invoke(() => OnEnvOut?.Invoke(msg + Environment.NewLine)); 
+                
             }
-
+            OnEnvOut?.Invoke(type, message);
         }
+
+        ///// <summary>
+        ///// 使用JSON处理库输出对象信息
+        ///// </summary>
+        ///// <param name="obj"></param>
+        //public void WriteLineObjToJson(object obj)
+        //{
+        //    var msg = JsonConvert.SerializeObject(obj);
+        //    if (OperatingSystem.IsWindows())
+        //    {
+        //        UIContextOperation?.Invoke(() => OnEnvOut?.Invoke(msg + Environment.NewLine)); 
+        //    }
+
+        //}
 
         /// <summary>
         /// 异步运行
@@ -391,7 +410,7 @@ namespace Serein.NodeFlow.Env
 
             if (flowStarter is null)
             {
-                Console.WriteLine("没有启动流程，无法运行单个节点");
+                SereinEnv.WriteLine(InfoType.ERROR, "没有启动流程，无法运行单个节点");
                 return;
             }
             if (true || FlowState == RunState.Running || FlipFlopState == RunState.Running)
@@ -488,7 +507,7 @@ namespace Serein.NodeFlow.Env
             var libraryMdss = this.FlowLibraryManagement.GetAllLibraryMds().ToArray();
             // 获取当前项目的信息（节点相关的数据）
             var project = await GetProjectInfoAsync();
-            Console.WriteLine("已将当前环境信息发送到远程客户端");
+            SereinEnv.WriteLine(InfoType.INFO, "已将当前环境信息发送到远程客户端");
             return new FlowEnvInfo
             {
                 Project = project, // 项目信息
@@ -747,7 +766,7 @@ namespace Serein.NodeFlow.Env
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"{ex}");
+                SereinEnv.WriteLine(InfoType.ERROR, $"无法加载DLL文件：{ex}");
             }
 
         }
@@ -775,7 +794,7 @@ namespace Serein.NodeFlow.Env
                     NodeModelBase? node = groupedNodes[i];
                     sb.AppendLine($"{i} => {node.Guid}");
                 }
-                Console.WriteLine($"无法卸载[{assemblyName}]程序集，因为这些节点依赖于此程序集：{sb.ToString()}");
+                SereinEnv.WriteLine(InfoType.ERROR, $"无法卸载[{assemblyName}]程序集，因为这些节点依赖于此程序集：{sb.ToString()}");
 
                 return false;
             }
@@ -964,7 +983,7 @@ namespace Serein.NodeFlow.Env
             (var type, var state) = CheckConnect(fromNode, toNode, fromNodeJunctionType, toNodeJunctionType);
             if (!state)
             {
-                Console.WriteLine("出现非预期的连接行为");
+                SereinEnv.WriteLine(InfoType.WARN, "出现非预期的连接行为");
                 return false; // 出现不符预期的连接行为，忽略此次连接行为
             }
 
@@ -1026,7 +1045,7 @@ namespace Serein.NodeFlow.Env
             (var type, var state) = CheckConnect(fromNode, toNode, fromNodeJunctionType, toNodeJunctionType);
             if (!state)
             {
-                Console.WriteLine("出现非预期的连接行为");
+                SereinEnv.WriteLine(InfoType.WARN, "出现非预期的连接行为");
                 return false; // 出现不符预期的连接行为，忽略此次连接行为
             }
 
@@ -1585,99 +1604,6 @@ namespace Serein.NodeFlow.Env
             return true;
         }
 
-        #region 暂时注释
-        /*/// <summary>
-        /// 动态加载程序集
-        /// </summary>
-        /// <param name="assembly">程序集本身</param>
-        /// <returns></returns>
-        private (Dictionary<RegisterSequence, List<Type>>, List<MethodDetails>) LoadAssembly(Assembly assembly)
-        {
-            try
-            {
-                List<Type> types = assembly.GetTypes().ToList(); // 获取程序集中的所有类型
-
-                #region 获取所有需要注册的类型
-                Dictionary<RegisterSequence, List<Type>> autoRegisterTypes = new Dictionary<RegisterSequence, List<Type>>();
-                foreach (Type type in types)
-                {
-                    var autoRegisterAttribute = type.GetCustomAttribute<AutoRegisterAttribute>();
-                    if (autoRegisterAttribute is not null)
-                    {
-                        if (!autoRegisterTypes.TryGetValue(autoRegisterAttribute.Class, out var valus))
-                        {
-                            valus = new List<Type>();
-                            autoRegisterTypes.Add(autoRegisterAttribute.Class, valus);
-                        }
-                        valus.Add(type);
-                    }
-
-                }
-                #endregion
-
-
-                #region 获取 DynamicFlow 特性的流程控制器，如果没有返回空
-                List<(Type, string)> scanTypes = types.Select(t =>
-                        {
-                            if (t.GetCustomAttribute<DynamicFlowAttribute>() is DynamicFlowAttribute dynamicFlowAttribute
-                               && dynamicFlowAttribute.Scan == true)
-                            {
-                                return (t, dynamicFlowAttribute.Name);
-                            }
-                            else
-                            {
-                                return (null, null);
-                            }
-                        }).Where(it => it.t is not null).ToList();
-                if (scanTypes.Count == 0)
-                {
-                    return ([], []);
-                }
-                #endregion
-
-                #region 创建对应的方法元数据
-                List<MethodDetails> methodDetails = new List<MethodDetails>();
-                // 遍历扫描的类型
-                foreach ((var type, var flowName) in scanTypes)
-                {
-                    // 加载DLL，创建 MethodDetails、实例作用对象、委托方法
-                    var assemblyName = type.Assembly.GetName().Name;
-                    if (string.IsNullOrEmpty(assemblyName))
-                    {
-                        continue;
-                    }
-                    var methods = NodeMethodDetailsHelper.GetMethodsToProcess(type);
-                    foreach (var method in methods)
-                    {
-                        (var md, var del) = NodeMethodDetailsHelper.CreateMethodDetails(type, method, assemblyName);
-                        if (md is null || del is null)
-                        {
-                            Console.WriteLine($"无法加载方法信息：{assemblyName}-{type}-{method}");
-                            continue;
-                        }
-                        md.MethodAnotherName = flowName + md.MethodAnotherName;
-                        if (MethodDelegates.TryAdd(md.MethodName, del))
-                        {
-                            methodDetails.Add(md);
-                        }
-                        else
-                        {
-                            Console.WriteLine($"节点委托创建失败：{md.MethodName}");
-                        }
-                    }
-                } 
-                #endregion
-
-                
-                return (autoRegisterTypes, methodDetails);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.ToString());
-                return ([], []);
-            }
-        }*/ 
-        #endregion
 
         /// <summary>
         /// 创建节点
@@ -1801,7 +1727,7 @@ namespace Serein.NodeFlow.Env
                 FromExistInTo = ToOnF.Length > 0;
                 if (ToExistOnFrom && FromExistInTo)
                 {
-                    Console.WriteLine("起始节点已与目标节点存在连接");
+                    SereinEnv.WriteLine(InfoType.WARN, "起始节点已与目标节点存在连接");
                     isPass = false;
                 }
                 else
@@ -1809,13 +1735,13 @@ namespace Serein.NodeFlow.Env
                     // 检查是否可能存在异常
                     if (!ToExistOnFrom && FromExistInTo)
                     {
-                        Console.WriteLine("目标节点不是起始节点的子节点，起始节点却是目标节点的父节点");
+                        SereinEnv.WriteLine(InfoType.WARN, "目标节点不是起始节点的子节点，起始节点却是目标节点的父节点");
                         isPass = false;
                     }
                     else if (ToExistOnFrom && !FromExistInTo)
                     {
                         //
-                        Console.WriteLine(" 起始节点不是目标节点的父节点，目标节点却是起始节点的子节点");
+                        SereinEnv.WriteLine(InfoType.WARN, " 起始节点不是目标节点的父节点，目标节点却是起始节点的子节点");
                         isPass =  false;
                     }
                     else
@@ -1871,16 +1797,6 @@ namespace Serein.NodeFlow.Env
             if (!string.IsNullOrEmpty(toNodeArgSourceGuid))
             {
                 await RemoteConnectAsync(fromNode, toNode, argIndex);
-                //Console.WriteLine("目标入参已确定参数来源，不可连接");
-                //return false;
-                //if (toNodeArgSourceGuid.Equals(fromNode.Guid))
-                //{
-                //    //await RemoteConnectAsync(fromNode, toNode, argIndex); // 相同起始节点不同控制点已经连接,将其移除
-                //}
-                //else
-                //{
-
-                //}
             }
             toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceNodeGuid = fromNode.Guid;
             toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceType = connectionArgSourceType;
@@ -1914,18 +1830,18 @@ namespace Serein.NodeFlow.Env
            
         }
 
-        /// <summary>
-        /// 输出内容
-        /// </summary>
-        /// <param name="msg"></param>
-        private void Output(string msg)
-        {
-            if (OperatingSystem.IsWindows())
-            {
-                UIContextOperation?.Invoke(() => OnEnvOut?.Invoke(msg)); 
-            }
+        ///// <summary>
+        ///// 输出内容
+        ///// </summary>
+        ///// <param name="msg"></param>
+        //private void Output(string msg)
+        //{
+        //    if (OperatingSystem.IsWindows())
+        //    {
+        //        UIContextOperation?.Invoke(() => OnEnvOut?.Invoke(msg)); 
+        //    }
             
-        }
+        //}
 
         #endregion
 

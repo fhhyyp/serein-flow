@@ -34,31 +34,31 @@ namespace Serein.Library.Utils
             foreach (var prop in objType.GetProperties())
             {
                 var value = prop.GetValue(obj);
-                Console.WriteLine($"{indent}{prop.Name} (Type: {prop.PropertyType.Name}): {value}");
+                SereinEnv.WriteLine(InfoType.INFO, $"{indent}{prop.Name} (Type: {prop.PropertyType.Name}): {value}");
 
                 if (value != null)
                 {
                     if (prop.PropertyType.IsArray) // 处理数组类型
                     {
                         var array = (Array)value;
-                        Console.WriteLine($"{indent}{prop.Name} is an array with {array.Length} elements:");
+                        SereinEnv.WriteLine(InfoType.INFO, $"{indent}{prop.Name} is an array with {array.Length} elements:");
                         for (int i = 0; i < array.Length; i++)
                         {
                             var element = array.GetValue(i);
                             if (element != null && element.GetType().IsClass && !(element is string))
                             {
-                                Console.WriteLine($"{indent}\tArray[{i}] (Type: {element.GetType().Name}) contains a nested object:");
+                                SereinEnv.WriteLine(InfoType.INFO, $"{indent}\tArray[{i}] (Type: {element.GetType().Name}) contains a nested object:");
                                 PrintObjectProperties(element, indent + "\t\t");
                             }
                             else
                             {
-                                Console.WriteLine($"{indent}\tArray[{i}] (Type: {element?.GetType().Name}): {element}");
+                                SereinEnv.WriteLine(InfoType.INFO, $"{indent}\tArray[{i}] (Type: {element?.GetType().Name}): {element}");
                             }
                         }
                     }
                     else if (value.GetType().IsClass && !(value is string)) // 处理嵌套对象
                     {
-                        Console.WriteLine($"{indent}{prop.Name} contains a nested object:");
+                        SereinEnv.WriteLine(InfoType.INFO, $"{indent}{prop.Name} contains a nested object:");
                         PrintObjectProperties(value, indent + "\t");
                     }
                 }
@@ -196,7 +196,7 @@ namespace Serein.Library.Utils
                 if (propInfo == null)
                 {
                     // 属性不存在，打印警告并标记失败
-                    Console.WriteLine($"Warning: 属性 '{propName}' 不存在于类型 '{objType.Name}' 中，跳过赋值。");
+                    SereinEnv.WriteLine(InfoType.WARN, $"属性 '{propName}' 不存在于类型 '{objType.Name}' 中，跳过赋值。");
                     allSuccessful = false;
                     continue;
                 }
@@ -206,7 +206,7 @@ namespace Serein.Library.Utils
                 if (!IsCompatibleType(targetType, propValue))
                 {
                     // 如果类型不兼容，打印错误并标记失败
-                    Console.WriteLine($"Error: 无法将类型 '{propValue?.GetType().Name}' 赋值给属性 '{propName}' (Type: {targetType.Name})，跳过赋值。");
+                    SereinEnv.WriteLine(InfoType.ERROR, $"无法将类型 '{propValue?.GetType().Name}' 赋值给属性 '{propName}' (Type: {targetType.Name})，跳过赋值。");
                     allSuccessful = false;
                     continue;
                 }
@@ -257,7 +257,7 @@ namespace Serein.Library.Utils
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error: 为属性 '{propName}' 赋值时发生异常：{ex.Message}");
+                    SereinEnv.WriteLine(InfoType.ERROR, $"为属性 '{propName}' 赋值时发生异常：{ex.Message}");
                     allSuccessful = false;
                 }
             }

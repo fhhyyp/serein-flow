@@ -16,6 +16,8 @@ namespace Serein.NodeFlow.Env
             flowEnvironment = new FlowEnvironment(uiContextOperation);
             // 默认使用本地环境
             currentFlowEnvironment = flowEnvironment;
+
+            SereinEnv.SetEnv(currentFlowEnvironment);
         }
 
         /// <summary>
@@ -65,14 +67,18 @@ namespace Serein.NodeFlow.Env
         public UIContextOperation UIContextOperation => currentFlowEnvironment.UIContextOperation;
 
         public ISereinIOC IOC => (ISereinIOC)currentFlowEnvironment;
-
+  
+   
         public string EnvName => currentFlowEnvironment.EnvName;
 
         public bool IsGlobalInterrupt => currentFlowEnvironment.IsGlobalInterrupt;
 
         public bool IsControlRemoteEnv => currentFlowEnvironment.IsControlRemoteEnv;
 
-
+        /// <summary>
+        /// 信息输出等级
+        /// </summary>
+        public InfoClass InfoClass { get => currentFlowEnvironment.InfoClass; set => currentFlowEnvironment.InfoClass = value; }
         public RunState FlowState { get => currentFlowEnvironment.FlowState; set => currentFlowEnvironment.FlowState = value; }
         public RunState FlipFlopState { get => currentFlowEnvironment.FlipFlopState; set => currentFlowEnvironment.FlipFlopState = value; }
 
@@ -335,9 +341,20 @@ namespace Serein.NodeFlow.Env
         }
 
 
-        public void SetConsoleOut()
+        //public void SetConsoleOut()
+        //{
+        //    currentFlowEnvironment.SetConsoleOut();
+        //}
+
+        /// <summary>
+        /// 输出信息
+        /// </summary>
+        /// <param name="message">日志内容</param>
+        /// <param name="type">日志类别</param>
+        /// <param name="class">日志级别</param>
+        public void WriteLine(InfoType type, string message, InfoClass @class = InfoClass.Trivial)
         {
-            currentFlowEnvironment.SetConsoleOut();
+            currentFlowEnvironment.WriteLine(type,  message,  @class);
         }
 
         public void SetMonitorObjState(string key, bool isMonitor)
@@ -400,10 +417,10 @@ namespace Serein.NodeFlow.Env
             return currentFlowEnvironment.TryGetMethodDetailsInfo(libraryName, methodName, out mdInfo);
         }
 
-        public void WriteLineObjToJson(object obj)
-        {
-            currentFlowEnvironment.WriteLineObjToJson(obj);
-        }
+        //public void WriteLineObjToJson(object obj)
+        //{
+        //    currentFlowEnvironment.WriteLineObjToJson(obj);
+        //}
 
         /// <summary>
         /// （用于远程）通知节点属性变更

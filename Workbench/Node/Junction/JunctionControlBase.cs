@@ -295,7 +295,6 @@ namespace Serein.Workbench.Node.View
         {
             IsMouseOver = false;
             e.Handled = true;
-            //Console.WriteLine("控件失去鼠标焦点");
 
         }
 

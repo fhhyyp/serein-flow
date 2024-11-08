@@ -74,7 +74,7 @@ namespace Serein.Library.Utils.SereinExpression
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex);
+                SereinEnv.WriteLine(InfoType.ERROR, ex.ToString());
                 throw;
             }
         }

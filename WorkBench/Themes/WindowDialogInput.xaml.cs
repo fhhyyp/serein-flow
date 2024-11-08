@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Serein.Library;
+using Serein.Library.Utils;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
@@ -45,13 +47,13 @@ namespace Serein.Workbench.Themes
                     var result = tcpClient.BeginConnect(addres, port, null, null);
                     success = result.AsyncWaitHandle.WaitOne(TimeSpan.FromSeconds(3));
                 }
-                catch (Exception ex)
+                catch 
                 {
-                    
+                    success = false;
                 }
                 if (!success)
                 {
-                    Console.WriteLine($"无法连接远程:{addres}:{port}");
+                    SereinEnv.WriteLine(InfoType.ERROR, $"无法连接远程:{addres}:{port}");
                 }            
             });
             

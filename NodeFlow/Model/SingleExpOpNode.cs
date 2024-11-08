@@ -81,7 +81,6 @@ namespace Serein.NodeFlow.Model
             try
             {
                 var newData = SerinExpressionEvaluator.Evaluate(Expression, parameter, out bool isChange);
-                Console.WriteLine(newData);
                 object? result = null;
                 if (isChange)
                 {

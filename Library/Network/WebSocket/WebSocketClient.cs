@@ -56,17 +56,11 @@ namespace Serein.Library.Network.WebSocketCommunication
         /// <summary>
         /// 发送消息
         /// </summary>
-        /// <param name="webSocket"></param>
         /// <param name="message"></param>
         /// <returns></returns>
         public async Task SendAsync(string message)
         {
-            //Console.WriteLine("发送消息");
-            //await Task.Delay(2000);
             await SocketExtension.SendAsync(this._client, message); // 回复客户端
-            //Console.WriteLine();
-            //var buffer = Encoding.UTF8.GetBytes(message);
-            //await _client.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
         }
 
         /// <summary>

@@ -202,7 +202,7 @@ namespace Serein.Workbench
             EnvDecorator.OnNodeLocated += FlowEnvironment_OnNodeLocate;
             EnvDecorator.OnNodeMoved += FlowEnvironment_OnNodeMoved;
             EnvDecorator.OnEnvOut += FlowEnvironment_OnEnvOut;
-            this.EnvDecorator.SetConsoleOut(); // 设置输出
+            // this.EnvDecorator.SetConsoleOut(); // 设置输出
         }
 
         /// <summary>
@@ -242,7 +242,7 @@ namespace Serein.Workbench
         }
         private void Window_ContentRendered(object sender, EventArgs e)
         {
-            Console.WriteLine("load project...");
+            SereinEnv.WriteLine(InfoType.INFO, "load project...");
             var project = App.FlowProjectData;
             if (project is null)
             {
@@ -253,7 +253,7 @@ namespace Serein.Workbench
             //{
             //    connection.RefreshLine(); // 窗体完成加载后试图刷新所有连接线
             //}
-            Console.WriteLine($"运行环境当前工作目录：{System.IO.Directory.GetCurrentDirectory()}");
+            SereinEnv.WriteLine(InfoType.INFO, $"运行环境当前工作目录：{System.IO.Directory.GetCurrentDirectory()}");
             
             var canvasData = project.Basic.Canvas;
             if (canvasData is not null)
@@ -273,7 +273,7 @@ namespace Serein.Workbench
 
         }
 
-      
+
 
 
         #endregion
@@ -283,10 +283,11 @@ namespace Serein.Workbench
         /// <summary>
         /// 环境内容输出
         /// </summary>
+        /// <param name="type"></param>
         /// <param name="value"></param>
-        private void FlowEnvironment_OnEnvOut(string value)
+        private void FlowEnvironment_OnEnvOut(InfoType type, string value)
         {
-            LogOutWindow.AppendText(value);
+            LogOutWindow.AppendText($"{DateTime.UtcNow} [{type}] : {value}{Environment.NewLine}");
         }
 
         /// <summary>
@@ -304,7 +305,7 @@ namespace Serein.Workbench
         /// <exception cref="NotImplementedException"></exception>
         private void FlowEnvironment_OnFlowRunComplete(FlowEventArgs eventArgs)
         {
-            Console.WriteLine("-------运行完成---------\r\n");
+            SereinEnv.WriteLine(InfoType.INFO, "-------运行完成---------\r\n");
             this.Dispatcher.Invoke(() =>
             {
                 IOCObjectViewer.ClearObjItem();
@@ -347,7 +348,7 @@ namespace Serein.Workbench
                 }
                 else
                 {
-                    Console.WriteLine("卸载失败");
+                    SereinEnv.WriteLine(InfoType.INFO, "卸载失败");
                 }
             }));
 
@@ -383,7 +384,7 @@ namespace Serein.Workbench
                 {
                     if (fromNodeControl is not INodeJunction IFormJunction || toNodeControl is not INodeJunction IToJunction)
                     {
-                        Console.WriteLine("非预期的情况");
+                        SereinEnv.WriteLine(InfoType.INFO, "非预期的连接");
                         return;
                     }
                     JunctionControlBase startJunction = IFormJunction.NextStepJunction;
@@ -449,7 +450,7 @@ namespace Serein.Workbench
                 {
                     if (fromNodeControl is not INodeJunction IFormJunction || toNodeControl is not INodeJunction IToJunction)
                     {
-                        Console.WriteLine("非预期的情况");
+                        SereinEnv.WriteLine(InfoType.INFO, "非预期的情况");
                         return;
                     }
 
@@ -565,7 +566,7 @@ namespace Serein.Workbench
 
             if(nodeModelBase is null)
             {
-                Console.WriteLine("OnNodeCreateEvent事件接收到意外的返回值");
+                SereinEnv.WriteLine(InfoType.WARN, "OnNodeCreateEvent事件接收到意外的返回值");
                 return;
             }
             // MethodDetails methodDetailss = eventArgs.MethodDetailss;
@@ -723,11 +724,11 @@ namespace Serein.Workbench
             if (!TryGetControl(nodeGuid, out var nodeControl)) return;
             if(eventArgs.Type == InterruptTriggerEventArgs.InterruptTriggerType.Exp)
             {
-                Console.WriteLine($"表达式触发了中断:{eventArgs.Expression}");
+                SereinEnv.WriteLine(InfoType.INFO, $"表达式触发了中断:{eventArgs.Expression}");
             }
             else
             {
-                Console.WriteLine($"节点触发了中断:{nodeGuid}");
+                SereinEnv.WriteLine(InfoType.INFO, $"节点触发了中断:{nodeGuid}");
             }
         }
 
@@ -1140,7 +1141,7 @@ namespace Serein.Workbench
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex);
+                SereinEnv.WriteLine(InfoType.ERROR, ex.ToString());
             }
         }
         #endregion
@@ -1308,7 +1309,7 @@ namespace Serein.Workbench
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex);
+                SereinEnv.WriteLine(InfoType.ERROR, ex.ToString());
             }
         }
 
@@ -2433,11 +2434,11 @@ namespace Serein.Workbench
         {
             if (selectNodeControls.Count == 0)
             {
-                Console.WriteLine("请至少选择一个节点");
+                SereinEnv.WriteLine(InfoType.INFO, "请至少选择一个节点");
             }
             else if (selectNodeControls.Count > 1)
             {
-                Console.WriteLine("请只选择一个节点");
+                SereinEnv.WriteLine(InfoType.INFO, "请只选择一个节点");
             }
             else
             {
@@ -2487,28 +2488,25 @@ namespace Serein.Workbench
             //}
             if (!SaveContentToFile(out string savePath, out Action<string, string>? savaProjectFile))
             {
-                Console.WriteLine("保存项目DLL时返回了意外的文件保存路径");
+                SereinEnv.WriteLine(InfoType.ERROR, "保存项目DLL时返回了意外的文件保存路径");
                 return;
             }
 
             string? librarySavePath = System.IO.Path.GetDirectoryName(savePath);
             if (string.IsNullOrEmpty(librarySavePath))
             {
-                Console.WriteLine("保存项目DLL时返回了意外的文件保存路径");
+                SereinEnv.WriteLine(InfoType.ERROR, "保存项目DLL时返回了意外的文件保存路径");
                 return;
             }
-            Console.WriteLine(savePath);
+            SereinEnv.WriteLine(InfoType.INFO, "项目文件保存路径：" + savePath);
             for (int index = 0; index < projectData.Librarys.Length; index++)
             {
                 NodeLibraryInfo? library = projectData.Librarys[index];
                 try
                 {
                     string targetPath = System.IO.Path.Combine(librarySavePath, library.FileName); // 目标文件夹
-                    //Console.WriteLine("targetPath:" + targetPath);
 #if  WINDOWS
-                    //library.Path
                     string sourceFile = library.FilePath; // 源文件夹
-                    //Console.WriteLine("sourceFile:" + sourceFile);
 #else
                     string sourceFile = new Uri(library.Path).LocalPath;
 #endif
@@ -2517,13 +2515,11 @@ namespace Serein.Workbench
 
                     // 获取相对路径
                     string relativePath = System.IO.Path.GetRelativePath(savePath, targetPath);
-                    //Console.WriteLine("Relative Path: " + relativePath);
                     projectData.Librarys[index].FilePath = relativePath;
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.Message);
-                    //WriteLog($"DLL复制失败：{dll.CodeBase} \r\n错误：{ex}\r\n");
+                    SereinEnv.WriteLine(InfoType.ERROR, ex.Message);
                 }
             }
 
@@ -2730,16 +2726,15 @@ namespace Serein.Workbench
 
             if (!ObjDynamicCreateHelper.TryResolve(externalData, "RootType",out var result))
             {
-                Console.WriteLine("赋值过程中有错误，请检查属性名和类型！");
-
+                SereinEnv.WriteLine(InfoType.ERROR, "赋值过程中有错误，请检查属性名和类型！");
+                return;
             }
             ObjDynamicCreateHelper.PrintObjectProperties(result!);
-            Console.WriteLine(  );
             var exp = "@set .Addresses[1].Street = 233";
             var data = SerinExpressionEvaluator.Evaluate(exp, result!, out bool isChange);
             exp = "@get .Addresses[1].Street";
             data = SerinExpressionEvaluator.Evaluate(exp,result!, out isChange);
-            Console.WriteLine($"{exp} => {data}");
+            SereinEnv.WriteLine(InfoType.INFO, $"{exp} => {data}");
         }
 
         /// <summary>

@@ -1,5 +1,6 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
+using Serein.Library.Utils;
 
 
 namespace Serein.NodeFlow.Model
@@ -34,7 +35,7 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         public override void OnCreating()
         {
-            Console.WriteLine("CompositeConditionNode 暂未实现 OnLoading");
+            SereinEnv.WriteLine(InfoType.WARN, "CompositeConditionNode 暂未实现 OnLoading");
         }
 
         public void AddNode(SingleConditionNode node)
@@ -72,7 +73,7 @@ namespace Serein.NodeFlow.Model
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                SereinEnv.WriteLine(InfoType.WARN, ex.Message);
                 context.NextOrientation = ConnectionInvokeType.IsError;
                 context.ExceptionOfRuning = ex;
                 return context.TransmissionData(this); // 条件区域透传上一节点的数据

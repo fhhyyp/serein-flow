@@ -46,8 +46,8 @@ public static class NodeMethodDetailsHelper
             return false;
         }
         
-        var methodName = $"{assemblyName}.{type.Name}.{methodInfo.Name}"; 
-        Console.WriteLine("loading method : " + methodName);
+        var methodName = $"{assemblyName}.{type.Name}.{methodInfo.Name}";
+        SereinEnv.WriteLine(InfoType.INFO, "loading method : " + methodName);
 
         // 创建参数信息
         var explicitDataOfParameters = GetExplicitDataOfParameters(methodInfo.GetParameters());
@@ -78,7 +78,7 @@ public static class NodeMethodDetailsHelper
                 }
                 else
                 {
-                    Console.WriteLine($"[{methodName}]跳过创建，返回类型非预期的Task<IFlipflopContext<TResult>>。");
+                    SereinEnv.WriteLine(InfoType.WARN, $"[{methodName}]跳过创建，返回类型非预期的Task<IFlipflopContext<TResult>>。");
                     methodDetails = null;
                     delegateDetails = null;
                     return false;
@@ -86,7 +86,7 @@ public static class NodeMethodDetailsHelper
             }
             else
             {
-                Console.WriteLine($"[{methodName}]跳过创建，因为触发器方法的返回值并非Task<>，将无法等待。");
+                SereinEnv.WriteLine(InfoType.WARN, $"[{methodName}]跳过创建，因为触发器方法的返回值并非Task<>，将无法等待。");
                 methodDetails = null;
                 delegateDetails = null;
                 return false;

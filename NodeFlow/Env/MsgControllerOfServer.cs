@@ -61,7 +61,7 @@ namespace Serein.NodeFlow.Env
         {
             if (string.IsNullOrEmpty(token))
             {
-                Console.WriteLine("当前没有设置token，但使用了token验证的服务端");
+                SereinEnv.WriteLine(InfoType.WARN, "当前没有设置token，但使用了token验证的服务端");
 
             }
             this.environment = environment;
@@ -96,7 +96,7 @@ namespace Serein.NodeFlow.Env
             catch (Exception ex)
             {
                 FlowEnvRemoteWebSocket.MsgHandleHelper.RemoveModule(this);
-                Console.WriteLine("打开远程管理异常：" + ex);
+                SereinEnv.WriteLine(InfoType.ERROR, "打开远程管理异常：" + ex);
             }
         }
 
@@ -112,7 +112,7 @@ namespace Serein.NodeFlow.Env
             }
             catch (Exception ex)
             {
-                Console.WriteLine("结束远程管理异常：" + ex);
+                SereinEnv.WriteLine(InfoType.ERROR, "结束远程管理异常：" + ex);
             }
         }
 
@@ -263,7 +263,7 @@ namespace Serein.NodeFlow.Env
         // [AutoSocketHandle]
         public void ExitRemoteEnv()
         {
-            Console.WriteLine("暂未实现远程退出远程环境");
+            SereinEnv.WriteLine(InfoType.ERROR, "暂未实现远程退出远程环境");
             IsLcR = false;
         }
 
@@ -385,10 +385,9 @@ namespace Serein.NodeFlow.Env
             {
                 return new { state = false };  // 非预期的控制点连接
             }
-            Console.WriteLine();
-            Console.WriteLine($"起始节点：{fromNodeGuid}");
-            Console.WriteLine($"目标节点：{toNodeGuid}");
-            Console.WriteLine($"链接请求：{(tmpFromJunctionType, tmpToJunctionType)}");
+            SereinEnv.WriteLine(InfoType.INFO, $"起始节点：{fromNodeGuid}");
+            SereinEnv.WriteLine(InfoType.INFO, $"目标节点：{toNodeGuid}");
+            SereinEnv.WriteLine(InfoType.INFO, $"链接请求：{(tmpFromJunctionType, tmpToJunctionType)}");
 
             var result = await environment.ConnectInvokeNodeAsync(fromNodeGuid, toNodeGuid, tmpFromJunctionType, tmpToJunctionType, tmpConnectionType);
             return new { state = result };
@@ -477,10 +476,7 @@ namespace Serein.NodeFlow.Env
             {
                 return new { state = false };  // 非预期的控制点连接
             }
-            //Console.WriteLine();
-            //Console.WriteLine($"起始节点：{fromNodeGuid}");
-            //Console.WriteLine($"目标节点：{toNodeGuid}");
-            //Console.WriteLine($"链接请求：{(tmpFromJunctionType, tmpToJunctionType)}");
+
             // 调用环境接口进行连接
             var result = await environment.ConnectArgSourceNodeAsync(fromNodeGuid, toNodeGuid, tmpFromJunctionType, tmpToJunctionType, tmpArgSourceType, argIndex);
             return new { state = result };

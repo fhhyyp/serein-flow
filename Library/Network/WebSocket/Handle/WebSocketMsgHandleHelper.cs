@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Serein.Library.Utils;
+using System;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -169,13 +170,13 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                 return;
             }
 
-            
 
-            Console.WriteLine($"add websocket handle model :");
-            Console.WriteLine($"theme key, data key : {themeKey}, {dataKey}");
+
+            SereinEnv.WriteLine(InfoType.INFO, $"add websocket handle model :");
+            SereinEnv.WriteLine(InfoType.ERROR, $"theme key, data key : {themeKey}, {dataKey}");
             foreach (var config in configs)
             {
-                Console.WriteLine($"theme value  : {config.ThemeValue} ");
+                SereinEnv.WriteLine(InfoType.ERROR, $"theme value  : {config.ThemeValue} ");
                 var result = handleModule.AddHandleConfigs(config);
             }
 

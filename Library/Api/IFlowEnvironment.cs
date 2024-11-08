@@ -89,8 +89,9 @@ namespace Serein.Library.Api
     /// <summary>
     /// 远程环境内容输出
     /// </summary>
+    /// <param name="type">输出的日志类别</param>
     /// <param name="value">输出的文本信息</param>
-    public delegate void EnvOutHandler(string value);
+    public delegate void EnvOutHandler(InfoType type, string value);
 
 
     #endregion
@@ -486,6 +487,7 @@ namespace Serein.Library.Api
         public double Y { get; private set; }
     }
 
+
     #endregion
 
 
@@ -497,11 +499,15 @@ namespace Serein.Library.Api
     public interface IFlowEnvironment
     {
         #region 属性
+
+
         /// <summary>
         /// <para>单例模式IOC容器，内部维护了一个实例字典，默认使用类型的FullName作为Key，如果以“接口-实现类”的方式注册，那么将使用接口类型的FullName作为Key。</para>
         /// <para>当某个类型注册绑定成功后，将不会因为其它地方尝试注册相同类型的行为导致类型被重新创建。</para>
         /// </summary>
         ISereinIOC IOC { get; }
+
+
 
         /// <summary>
         /// 环境名称
@@ -520,9 +526,9 @@ namespace Serein.Library.Api
         bool IsControlRemoteEnv { get; }
 
         /// <summary>
-        /// 是否运行在控制台上
+        /// 信息输出等级
         /// </summary>
-        // bool IsRuningOnConsole { get; }
+        InfoClass InfoClass { get; set; }
 
         /// <summary>
         /// 流程运行状态
@@ -626,13 +632,20 @@ namespace Serein.Library.Api
         /// </summary>
         // <param name="output"></param>
         // <param name="clearMsg"></param>
-        void SetConsoleOut(); // Action<string> output, Action clearMsg
+        ///void SetConsoleOut(); // Action<string> output, Action clearMsg
 
         /// <summary>
-        /// 使用JSON处理库输出对象信息
+        /// 输出信息
         /// </summary>
-        /// <param name="obj"></param>
-        void WriteLineObjToJson(object obj);
+        /// <param name="message"></param>
+        /// <param name="type"></param>
+        void WriteLine(InfoType type, string message, InfoClass @class = InfoClass.Trivial);
+
+        ///// <summary>
+        ///// 使用JSON处理库输出对象信息
+        ///// </summary>
+        ///// <param name="obj"></param>
+        //void WriteLineObjToJson(object obj);
 
         /// <summary>
         /// 启动远程服务

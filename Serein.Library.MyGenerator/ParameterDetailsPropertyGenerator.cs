@@ -238,13 +238,12 @@ namespace Serein.Library.NodeGenerator
 
                 sb.AppendLine("        protected void SetProperty<T>(ref T storage, T value, [System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)                 ");
                 sb.AppendLine("        {                                                                                                                    ");
-                sb.AppendLine("            if (Equals(storage, value))                                                                                      ");
-                sb.AppendLine("            {                                                                                                                ");
-                sb.AppendLine("                return;                                                                                                      ");
-                sb.AppendLine("            }                                                                                                                ");
+                sb.AppendLine("            //if (Equals(storage, value))                                                                                      ");
+                sb.AppendLine("            //{                                                                                                                ");
+                sb.AppendLine("            //    return;                                                                                                      ");
+                sb.AppendLine("            //}                                                                                                                ");
                 sb.AppendLine("                                                                                                                             ");
                 sb.AppendLine("            storage = value;                                                                                                 ");
-                //sb.AppendLine("            OnPropertyChanged(propertyName);                                                                               ");
                 sb.AppendLine("            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));                 ");
                 sb.AppendLine("        }                                                                                                                    ");
 

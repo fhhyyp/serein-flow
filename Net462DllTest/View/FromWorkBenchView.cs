@@ -1,7 +1,9 @@
 ﻿
 using Net462DllTest.Signal;
 using Net462DllTest.ViewModel;
+using Serein.Library;
 using Serein.Library.Api;
+using Serein.Library.Utils;
 using System;
 using System.Windows.Forms;
 
@@ -18,7 +20,7 @@ namespace Net462DllTest
             ViewModel = env.IOC.Get<FromWorkBenchViewModel>();
             if (ViewModel is null)
             {
-                Console.WriteLine("创建对象并注入依赖项");
+                SereinEnv.WriteLine(InfoType.INFO, "创建对象并注入依赖项");
                 ViewModel = env.IOC.Instantiate<FromWorkBenchViewModel>(); 
             }
             BindData();

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Serein.Library.Utils;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
@@ -54,7 +55,7 @@ namespace Serein.Library.Web
             catch(Exception ex)
             {
                 listener = null;
-                Console.WriteLine(ex);
+                SereinEnv.WriteLine(InfoType.INFO, ex.ToString());
             }
 
             //_ = Task.Run(async () =>
@@ -120,7 +121,7 @@ namespace Serein.Library.Web
             // 获取用户的IP地址和端口
             IPAddress ipAddress = remoteEndPoint.Address;
             int port = remoteEndPoint.Port;
-            Console.WriteLine("外部连接：" + ipAddress.ToString() + ":" + port);
+            SereinEnv.WriteLine(InfoType.INFO, "外部连接：" + ipAddress.ToString() + ":" + port);
         }
 
         // 停止服务器
@@ -132,9 +133,9 @@ namespace Serein.Library.Web
                 listener?.Stop(); // 停止监听
                 listener?.Close(); // 关闭监听器
             }
-            catch (Exception EX)
+            catch (Exception ex)
             {
-                Console.WriteLine(EX);
+                SereinEnv.WriteLine(InfoType.ERROR, ex.ToString());
             }
         }
 

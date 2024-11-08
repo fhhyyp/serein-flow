@@ -24,7 +24,9 @@ namespace Serein.Library.Api
         /// <summary>
         /// 用来在当前流程上下文间传递数据
         /// </summary>
-        Dictionary<string, object> ContextShareData { get; }
+        //Dictionary<string, object> ContextShareData { get; }
+
+        object Tag { get; set; }
 
         /// <summary>
         /// 下一个要执行的节点类别

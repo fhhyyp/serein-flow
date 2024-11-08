@@ -2,6 +2,7 @@
 using Net462DllTest.Enums;
 using Net462DllTest.Signal;
 using Net462DllTest.Trigger;
+using Serein.Library;
 using Serein.Library.Utils;
 using Serein.Library.Web;
 using System;
@@ -36,7 +37,7 @@ namespace Net462DllTest.Web
         {
             if (EnumHelper.TryConvertEnum<PlcVarName>(var, out var signal))
             {
-                Console.WriteLine($"外部触发 {signal} 信号，信号内容 ： {value} ");
+                SereinEnv.WriteLine(InfoType.INFO, $"外部触发 {signal} 信号，信号内容 ： {value} ");
                 plcDevice.Trigger(signal, value);// 通过 Web Api 模拟外部输入信号
                 return new { state = "succeed" };
             }
@@ -61,7 +62,7 @@ namespace Net462DllTest.Web
         {
             if (EnumHelper.TryConvertEnum<CommandSignal>(command, out var signal))
             {
-                Console.WriteLine($"外部触发 {signal} 信号，信号内容 ： {value} ");
+                SereinEnv.WriteLine(InfoType.INFO, $"外部触发 {signal} 信号，信号内容 ： {value} ");
                 viewManagement.Trigger(signal, value);// 通过 Web Api 模拟外部输入信号
                 return new { state = "succeed" };
             }

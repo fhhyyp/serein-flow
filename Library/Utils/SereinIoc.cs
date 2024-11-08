@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 
 namespace Serein.Library.Utils
 {
@@ -130,7 +131,7 @@ namespace Serein.Library.Utils
             var instance = Get(type.FullName);
             if(instance is null)
             {
-                Console.WriteLine("类型没有注册：" + type.FullName);
+                SereinEnv.WriteLine(InfoType.INFO, "类型没有注册：" + type.FullName);
             }
             
             return Get(type.FullName);
@@ -254,8 +255,8 @@ namespace Serein.Library.Utils
         private ConstructorInfo[] GetConstructor(Type type)
         {
             return type.GetConstructors()
-                       .OrderByDescending(c => c.GetParameters().Length)
-                       .OrderBy(ctor => ctor.GetParameters().Length).ToArray();
+                       //.OrderByDescending(c => c.GetParameters().Length)
+                       .OrderByDescending(ctor => ctor.GetParameters().Length).ToArray();
         }
 
         // 生成顺序
@@ -315,11 +316,13 @@ namespace Serein.Library.Utils
             var tmpList = indegree.Where(kv => kv.Value > 0).Select(kv => kv.Key).ToList();
             if (tmpList.Count > 0)
             {
-                Console.WriteLine("以下类型可能产生循环依赖，请避免循环依赖，如果确实需要循环引用，请使用 [AutoInjection] 特性注入属性");
+                StringBuilder sb = new StringBuilder();
+                sb.Append("以下类型可能产生循环依赖，请避免循环依赖，如果确实需要循环引用，请使用 [AutoInjection] 特性注入属性");
                 foreach (var kv in tmpList)
                 {
-                    Console.WriteLine($"Class Name : {kv}");
+                    sb.AppendLine($"Class Name : {kv}");
                 }
+                SereinEnv.WriteLine(InfoType.ERROR, sb.ToString());
             }
             
             return creationOrder;
@@ -369,7 +372,7 @@ namespace Serein.Library.Utils
                             argObj = CreateInstance(fullName);
                             if (argObj is null)
                             {
-                                Console.WriteLine("构造参数创建失败"); // 
+                                SereinEnv.WriteLine(InfoType.WARN, "构造参数创建失败"); 
                                 continue;
                             }
                         }

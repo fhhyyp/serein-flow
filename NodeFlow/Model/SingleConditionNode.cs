@@ -110,8 +110,8 @@ namespace Serein.NodeFlow.Model
                 context.NextOrientation = ConnectionInvokeType.IsError;
                 context.ExceptionOfRuning = ex;
             }
-            
-            Console.WriteLine($"{result} {Expression}  -> " + context.NextOrientation);
+
+            SereinEnv.WriteLine(InfoType.INFO, $"{result} {Expression}  -> " + context.NextOrientation);
             return result;
         }
 

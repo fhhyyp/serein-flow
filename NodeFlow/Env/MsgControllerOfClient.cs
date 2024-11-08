@@ -50,7 +50,7 @@ namespace Serein.NodeFlow.Env
         {
 
             var msgId = MsgIdHelper.GenerateId().ToString();
-            Console.WriteLine($"[{msgId}] => {theme}");
+            SereinEnv.WriteLine(InfoType.INFO, $"[{msgId}] => {theme}");
             await SendCommandAsync(msgId, theme, data); // 客户端发送消息
         }
 

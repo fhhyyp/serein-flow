@@ -33,7 +33,8 @@ namespace Serein.Library.Core
         /// <summary>
         /// 用来在当前流程上下文间传递数据
         /// </summary>
-        public Dictionary<string, object> ContextShareData { get; } = new Dictionary<string, object>();
+        //public Dictionary<string, object> ContextShareData { get; } = new Dictionary<string, object>();
+         public object Tag { get; set; }
 
         /// <summary>
         /// 当前节点执行完成后，设置该属性，让运行环境判断接下来要执行哪个分支的节点。
@@ -82,7 +83,6 @@ namespace Serein.Library.Core
             }
         }
 
-
         /// <summary>
         /// 获取节点当前数据
         /// </summary>
@@ -128,7 +128,6 @@ namespace Serein.Library.Core
             return null;
         }
 
-
         /// <summary>
         /// 结束流程
         /// </summary>
@@ -148,25 +147,14 @@ namespace Serein.Library.Core
 
                 }
             }
-            foreach (var nodeObj in ContextShareData.Values)
+            if (Tag != null && typeof(IDisposable).IsAssignableFrom(Tag?.GetType()) && Tag is IDisposable tagDisposable)
             {
-                if (nodeObj is null)
-                {
-                    continue;
-                }
-                else
-                {
-                    if (typeof(IDisposable).IsAssignableFrom(nodeObj?.GetType()) && nodeObj is IDisposable disposable)
-                    {
-                        disposable?.Dispose();
-                    }
-                }
+                tagDisposable?.Dispose();
             }
+            this.Tag = null;
             this.dictNodeFlowData?.Clear();
-            this.ContextShareData?.Clear();
             RunState = RunState.Completion;
         }
-
 
         private void Dispose(ref IDictionary<string, object>  keyValuePairs)
         {

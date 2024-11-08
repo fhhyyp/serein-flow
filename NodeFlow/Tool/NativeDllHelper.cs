@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Serein.Library;
+using Serein.Library.Utils;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -58,7 +60,7 @@ namespace Serein.NodeFlow.Tool
             }
             else
             {
-                Console.WriteLine("Unsupported OS.");
+                SereinEnv.WriteLine(InfoType.ERROR, "非预期的OS系统");
                 return false;
             }
         }
@@ -82,7 +84,7 @@ namespace Serein.NodeFlow.Tool
             }
             else
             {
-                Console.WriteLine("Unsupported OS.");
+                SereinEnv.WriteLine(InfoType.ERROR, "非预期的OS系统");
             }
             
             foreach (var dir in Directory.GetDirectories(path))
@@ -108,18 +110,18 @@ namespace Serein.NodeFlow.Tool
                 if (hModule != IntPtr.Zero)
                 {
                     Nints.Add(hModule);
-                    Console.WriteLine($"Loaded: {file}");
+                    SereinEnv.WriteLine(InfoType.INFO, $"Loaded: {file}");
                     return true;
                 }
                 else
                 {
-                    Console.WriteLine($"Failed to load {file}: {Marshal.GetLastWin32Error()}");
+                    SereinEnv.WriteLine(InfoType.INFO, $"Failed to load {file}: {Marshal.GetLastWin32Error()}");
                     return false;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error loading {file}: {ex.Message}");
+                SereinEnv.WriteLine(InfoType.ERROR, $"Error loading {file}: {ex.Message}");
                 return false;
             }
         }
@@ -140,20 +142,20 @@ namespace Serein.NodeFlow.Tool
                 if (handle != IntPtr.Zero)
                 {
                     Nints.Add(handle);
-                    Console.WriteLine($"Loaded: {file}");
+                    SereinEnv.WriteLine(InfoType.INFO, $"Loaded: {file}");
                     return true;
                     // 可以调用共享库中的函数
                     // IntPtr procAddress = dlsym(handle, "my_function");
                 }
                 else
                 {
-                    Console.WriteLine($"Failed to load {file}: {Marshal.GetLastWin32Error()}");
+                    SereinEnv.WriteLine(InfoType.INFO, $"Failed to load {file}: {Marshal.GetLastWin32Error()}");
                     return false;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error loading {file}: {ex.Message}");
+                SereinEnv.WriteLine(InfoType.ERROR, $"Error loading {file}: {ex.Message}");
                 return false;
             }
 

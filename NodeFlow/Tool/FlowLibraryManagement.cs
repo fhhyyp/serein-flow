@@ -1,6 +1,7 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.FlowNode;
+using Serein.Library.Utils;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -58,7 +59,7 @@ namespace Serein.NodeFlow.Tool
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"尝试卸载程序集[{assemblyName}]发生错误：{ex}");
+                    SereinEnv.WriteLine(InfoType.ERROR, $"尝试卸载程序集[{assemblyName}]发生错误：{ex}");
                     return false;
                 }
 
@@ -210,7 +211,7 @@ namespace Serein.NodeFlow.Tool
             {
                 
                 return LoadAssembly(typeof(IFlowEnvironment).Assembly, () => {
-                    //Console.WriteLine("基础模块不能卸载");
+                    //SereinEnv.PrintInfo(InfoType.WRAN, "基础模块不能卸载");
                 });
             }
             else

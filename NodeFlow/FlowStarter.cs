@@ -290,7 +290,7 @@ namespace Serein.NodeFlow
             finally
             {
                 env.FlowState = RunState.Completion;
-                Console.WriteLine($"流程运行完毕{Environment.NewLine}");;
+                SereinEnv.WriteLine(InfoType.INFO, $"流程运行完毕{Environment.NewLine}");;
             }
             #endregion
         }
@@ -355,14 +355,15 @@ namespace Serein.NodeFlow
         {
             if(_flipFlopCts is null)
             {
-                Console.WriteLine("flowStarter -> FlipflopExecuteAsync -> _flipFlopCts is null");
+                SereinEnv.WriteLine(InfoType.INFO, "流程尚未启动，flowStarter尚未创建，无法启动该节点");
                 return;
             }
+
             while (!_flipFlopCts.IsCancellationRequested && !cts.IsCancellationRequested)
             {
-                var context = new DynamicContext(env); // 启动全局触发器时新建上下文
                 try
                 {
+                    var context = new DynamicContext(env); // 启动全局触发器时新建上下文
                     var newFlowData = await singleFlipFlopNode.ExecutingAsync(context); // 获取触发器等待Task
                     context.AddOrUpdate(singleFlipFlopNode.Guid, newFlowData);
                     await NodeModelBase.RefreshFlowDataAndExpInterrupt(context, singleFlipFlopNode, newFlowData); // 全局触发器触发后刷新该触发器的节点数据

@@ -21,7 +21,6 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         public override void OnCreating()
         {
-            // Console.WriteLine("SingleFlipflopNode 暂未实现 OnLoading");
         }
 
 

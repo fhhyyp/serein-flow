@@ -21,6 +21,8 @@ using static Serein.Library.Utils.ChannelFlowInterrupt;
 namespace Serein.Library
 {
 
+    
+
     /// <summary>
     /// 节点基类（数据）：条件控件，动作控件，条件区域，动作区域
     /// </summary>
@@ -124,7 +126,8 @@ namespace Serein.Library
                     {
                         if(i >= pds.Length)
                         {
-                            Console.WriteLine($"保存的参数数量大于方法此时的入参参数数量：[{nodeInfo.Guid}][{nodeInfo.MethodName}]");
+                            Env.WriteLine(InfoType.ERROR, $"保存的参数数量大于方法此时的入参参数数量：[{nodeInfo.Guid}][{nodeInfo.MethodName}]");
+
                             break;
                         }
                         var pd = pds[i];
@@ -269,9 +272,6 @@ namespace Serein.Library
 
                 #region 执行完成
 
-
-
-
                 // 首先将指定类别后继分支的所有节点逆序推入栈中
                 var nextNodes = currentNode.SuccessorNodes[context.NextOrientation]; 
                 for (int index = nextNodes.Count - 1; index >= 0; index--)
@@ -350,7 +350,6 @@ namespace Serein.Library
             }
 
             object[] parameters;
-
             Array paramsArgs = null; // 初始化可选参数
             int paramsArgIndex = 0; // 可选参数下标，与 object[] paramsArgs 一起使用
             
@@ -533,7 +532,8 @@ namespace Serein.Library
 
                 #region 对入参数据尝试进行转换
                 object tmpVaue = null; // 临时存放数据，最后才判断是否放置可选参数数组
-                if (inputParameter.GetType() == argDataType)
+                var inputParameterType = inputParameter.GetType();
+                if (inputParameterType == argDataType)
                 {
                     tmpVaue = inputParameter; // 类型一致无需转换，直接装入入参数组
                 }
@@ -551,12 +551,12 @@ namespace Serein.Library
                         var valueStr = inputParameter?.ToString();
                         tmpVaue = valueStr;
                     }
-                    else if(argDataType.IsSubclassOf(inputParameter.GetType())) // 入参类型 是 预入参数据类型 的 子类/实现类 
+                    else if(argDataType.IsSubclassOf(inputParameterType)) // 入参类型 是 预入参数据类型 的 子类/实现类 
                     {
                         // 方法入参中，父类不能隐式转为子类，这里需要进行强制转换
                         tmpVaue =  ObjectConvertHelper.ConvertParentToChild(inputParameter, argDataType);
                     }
-                    else if(argDataType.IsAssignableFrom(inputParameter.GetType()))  // 入参类型 是 预入参数据类型 的 父类/接口
+                    else if(argDataType.IsAssignableFrom(inputParameterType))  // 入参类型 是 预入参数据类型 的 父类/接口
                     {
                         tmpVaue = inputParameter;
                     }
