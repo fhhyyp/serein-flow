@@ -241,12 +241,8 @@ namespace Serein.NodeFlow
                     _flipFlopCts?.Dispose();
                 } // 通知所有流程上下文停止运行
                 TerminateAllGlobalFlipflop(); // 确保所有触发器不再运行
-
-
+                SereinEnv.ClearGlobalData(); // 清空全局数据缓存
                 NativeDllHelper.FreeLibrarys(); // 卸载所有已加载的 Native Dll
-
-                //NativeDllHelper.FreeLibrarys(); // 卸载所有已加载的 Native Dll
-
 
                 env.FlowState = RunState.Completion;
                 env.FlipFlopState = RunState.Completion;
@@ -395,7 +391,7 @@ namespace Serein.NodeFlow
                 }
                 catch (FlipflopException ex) 
                 {
-                    await Console.Out.WriteLineAsync($"触发器[{singleFlipFlopNode.MethodDetails.MethodName}]因非预期异常终止。"+ex.Message);
+                    env.WriteLine(InfoType.ERROR,$"触发器[{singleFlipFlopNode.MethodDetails.MethodName}]因非预期异常终止。"+ex.Message);
                     if (ex.Type == FlipflopException.CancelClass.CancelFlow)
                     {
                         break;
@@ -403,7 +399,8 @@ namespace Serein.NodeFlow
                 }
                 catch (Exception ex)
                 {
-                    await Console.Out.WriteLineAsync(ex.Message);
+                    env.WriteLine(InfoType.ERROR, $"触发器[{singleFlipFlopNode.Guid}]异常。"+ ex.Message);
+                    //await Console.Out.WriteLineAsync(ex.Message);
                 }
                 finally
                 {

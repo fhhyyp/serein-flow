@@ -323,8 +323,6 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         private FlowStarter? flowStarter;
 
-
-
         #endregion
 
         #region 环境对外接口
@@ -526,6 +524,8 @@ namespace Serein.NodeFlow.Env
 
         }
 
+        
+
         /// <summary>
         /// 加载项目文件
         /// </summary>
@@ -535,13 +535,15 @@ namespace Serein.NodeFlow.Env
         {
             var projectData = flowEnvInfo.Project;
             // 加载项目配置文件
-            var dllPaths = projectData.Librarys.Select(it => it.FileName).ToList();
+            var dllPaths = projectData.Librarys.Select(it => it.FilePath).ToList();
             List<MethodDetails> methodDetailss = [];
 
             // 遍历依赖项中的特性注解，生成方法详情
             foreach (var dllPath in dllPaths)
             {
-                var dllFilePath = Path.GetFullPath(Path.Combine(filePath, dllPath));
+                string cleanedRelativePath = dllPath.TrimStart('.', '\\');
+                var tmpPath = Path.Combine(filePath, cleanedRelativePath);
+                var dllFilePath = Path.GetFullPath(tmpPath);
                 LoadLibrary(dllFilePath);  // 加载项目文件时加载对应的程序集
             }
 
@@ -550,39 +552,48 @@ namespace Serein.NodeFlow.Env
             // 加载节点
             foreach (NodeInfo? nodeInfo in projectData.Nodes)
             {
-                var controlType = FlowFunc.GetNodeControlType(nodeInfo);
+                NodeControlType controlType = FlowFunc.GetNodeControlType(nodeInfo);
                 if (controlType == NodeControlType.None)
                 {
                     continue;
                 }
+                MethodDetails? methodDetails = null;
+
+                if (controlType.IsBaseNode())
+                {
+                    // 加载基础节点
+                    methodDetails = new MethodDetails();
+                }
                 else
                 {
+                    // 加载方法节点
                     if (string.IsNullOrEmpty(nodeInfo.AssemblyName) && string.IsNullOrEmpty(nodeInfo.MethodName))
                     {
                         continue;
                     }
-                    MethodDetails? methodDetails = null;
-                    FlowLibraryManagement.TryGetMethodDetails(nodeInfo.AssemblyName, nodeInfo.MethodName,out methodDetails); // 加载项目时尝试获取方法信息
-                    var nodeModel = FlowFunc.CreateNode(this, controlType, methodDetails); // 加载项目时创建节点
-                    nodeModel.LoadInfo(nodeInfo); // 创建节点model
-                    if (nodeModel is null)
-                    {
-                        nodeInfo.Guid = string.Empty;
-                        continue;
-                    }
-
-                    TryAddNode(nodeModel); // 加载项目时将节点加载到环境中
-                    if (nodeInfo.ChildNodeGuids?.Length > 0)
-                    {
-                        regionChildNodes.Add((nodeModel, nodeInfo.ChildNodeGuids));
-
-                        UIContextOperation?.Invoke(() => OnNodeCreate?.Invoke(new NodeCreateEventArgs(nodeModel, nodeInfo.Position)));
-                    }
-                    else
-                    {
-                        ordinaryNodes.Add((nodeModel, nodeInfo.Position));
-                    }
+                    FlowLibraryManagement.TryGetMethodDetails(nodeInfo.AssemblyName, nodeInfo.MethodName, out methodDetails); // 加载项目时尝试获取方法信息
                 }
+               
+                var nodeModel = FlowFunc.CreateNode(this, controlType, methodDetails); // 加载项目时创建节点
+                nodeModel.LoadInfo(nodeInfo); // 创建节点model
+                if (nodeModel is null)
+                {
+                    nodeInfo.Guid = string.Empty;
+                    continue;
+                }
+
+                TryAddNode(nodeModel); // 加载项目时将节点加载到环境中
+                if (nodeInfo.ChildNodeGuids?.Length > 0)
+                {
+                    regionChildNodes.Add((nodeModel, nodeInfo.ChildNodeGuids));
+
+                    UIContextOperation?.Invoke(() => OnNodeCreate?.Invoke(new NodeCreateEventArgs(nodeModel, nodeInfo.Position)));
+                }
+                else
+                {
+                    ordinaryNodes.Add((nodeModel, nodeInfo.Position));
+                }
+                
             }
             // 加载区域子项
             foreach ((NodeModelBase region, string[] childNodeGuids) item in regionChildNodes)
@@ -1323,7 +1334,6 @@ namespace Serein.NodeFlow.Env
             return result;
         }
 
-
         /// <summary>
         /// 记录节点更改数据，防止重复更改
         /// </summary>
@@ -1465,6 +1475,31 @@ namespace Serein.NodeFlow.Env
         #endregion
 
         #region 流程依赖类库的接口
+
+
+        /// <summary>
+        /// 添加或更新全局数据
+        /// </summary>
+        /// <param name="keyName">数据名称</param>
+        /// <param name="data">数据集</param>
+        /// <returns></returns>
+        public object AddOrUpdateGlobalData(string keyName, object data)
+        {
+            SereinEnv.EnvGlobalData.AddOrUpdate(keyName, data, (k, o) => data);
+            return data;
+        }
+
+        /// <summary>
+        /// 获取全局数据
+        /// </summary>
+        /// <param name="keyName">数据名称</param>
+        /// <returns></returns>
+        public object? GetGlobalData(string keyName)
+        {
+            SereinEnv.EnvGlobalData.TryGetValue(keyName, out var data);
+            return data;
+        }
+
 
         /// <summary>
         /// 运行时加载

@@ -3,7 +3,7 @@ using Serein.Workbench.Node.View;
 
 namespace Serein.Workbench.Node.ViewModel
 {
-    public class ExpOpNodeViewModel: NodeControlViewModelBase
+    public class ExpOpNodeControlViewModel: NodeControlViewModelBase
     {
         public  new SingleExpOpNode NodeModel { get; }
 
@@ -18,7 +18,7 @@ namespace Serein.Workbench.Node.ViewModel
         //}
 
 
-        public ExpOpNodeViewModel(SingleExpOpNode nodeModel) : base(nodeModel)
+        public ExpOpNodeControlViewModel(SingleExpOpNode nodeModel) : base(nodeModel)
         { 
             this.NodeModel = nodeModel;
         }

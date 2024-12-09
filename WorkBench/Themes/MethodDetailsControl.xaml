@@ -46,6 +46,7 @@
                                                 Visibility="{Binding IsParams, Mode=OneWay, 
                                                  Converter={StaticResource InvertedBoolConverter},ConverterParameter=Normal}" 
                                         />
+                                    
                                     <ContentControl Content="{Binding}"  Grid.Column="4" VerticalAlignment="Center">
                                         <ContentControl.Style>
                                             <Style TargetType="ContentControl">

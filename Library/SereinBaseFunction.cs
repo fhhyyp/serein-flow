@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Dynamic;
 using System.Linq;
+using System.Text;
 
 namespace Serein.Library
 {
@@ -88,21 +89,57 @@ namespace Serein.Library
             return value;
         }
 
+        [NodeAction(NodeType.Action, "文本拼接")]
+        private string SereinTextJoin(params object[] value)
+        {
+            StringBuilder sb = new StringBuilder();
+            foreach (var item in value)
+            {
+                var tmp = item.ToString();
+                if (tmp == "\\n")
+                {
+                    sb.Append(Environment.NewLine);
+                }
+                else if (tmp == "\\t")
+                {
+                    sb.Append('\t');
+                }
+                else
+                {
+                    sb.Append(tmp);
+                }
+            }
+            return sb.ToString();
+        }
 
-        /* if (!DynamicObjectHelper.TryResolve(dict, className, out var result))
-                    {
-                        Console.WriteLine("赋值过程中有错误，请检查属性名和类型！");
-                    }
-                    else
-                    {
-                        DynamicObjectHelper.PrintObjectProperties(result);
-                    }
-                    //if (!ObjDynamicCreateHelper.TryResolve(externalData, "RootType", out var result))
-                    //{
-                    //    Console.WriteLine("赋值过程中有错误，请检查属性名和类型！");
 
-                    //}
-                    //ObjDynamicCreateHelper.PrintObjectProperties(result!);
-                    return result;*/
+        [NodeAction(NodeType.Action, "键值对动态构建对象")]
+        private object SereinKvDataToObject(Dictionary<string, object> dict, 
+                                            string classTypeName = "newClass_dynamic",
+                                            bool IsPrint = false)
+        {
+            if (!DynamicObjectHelper.TryResolve(dict, classTypeName, out var result))
+            {
+                Console.WriteLine("赋值过程中有错误，请检查属性名和类型！");
+            }
+            else
+            {
+                if (IsPrint)
+                {
+                    Console.WriteLine("创建完成，正在打印结果");
+                    DynamicObjectHelper.PrintObjectProperties(result);
+                }
+            }
+            return result;
+        }
+
+
+        [NodeAction(NodeType.Action, "设置/更新全局数据")]
+        private object SereinAddOrUpdateFlowGlobalData(string name,object data)
+        {
+            SereinEnv.EnvGlobalData.AddOrUpdate(name, data,(k,o)=> data);
+            return data;
+        }
+
     }
 }

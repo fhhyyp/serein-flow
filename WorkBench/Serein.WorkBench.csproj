@@ -55,6 +55,11 @@
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+
+    <!--<PackageReference Include="MySqlConnector" Version="2.4.0" />
+    <PackageReference Include="SqlSugarCore" Version="5.1.4.170" />
+    <PackageReference Include="SqlSugarCoreNoDrive" Version="5.1.4.171" />-->
+    
     <!--<PackageReference Include="LivetCask2" Version="4.0.2" />-->
     <!--<PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.39" />-->
   </ItemGroup>

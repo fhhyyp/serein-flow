@@ -10,7 +10,19 @@ namespace Serein.NodeFlow.Env
     /// </summary>
     public static class FlowFunc
     {
-       
+        /// <summary>
+        /// 判断是否为基础节点
+        /// </summary>
+        /// <returns></returns>
+        public static bool IsBaseNode(this NodeControlType nodeControlType)
+        {
+            if(nodeControlType == NodeControlType.ExpCondition
+                || nodeControlType == NodeControlType.ExpOp)
+            {
+                return true;
+            }
+            return false;
+        }
 
         /// <summary>
         /// 创建节点

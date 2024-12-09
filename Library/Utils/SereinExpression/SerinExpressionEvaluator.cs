@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -82,6 +83,16 @@ namespace Serein.Library.Utils.SereinExpression
             {
                 isChange = true;
                 result = SetMember(targetObJ, operand);
+            }
+            else if (operation == "@dtc")
+            {
+                isChange = true;
+                result = DataTypeConversion(targetObJ, operand);
+            }
+            else if (operation == "@data")
+            {
+                isChange = true;
+                result = GetGlobleData(targetObJ, operand);
             }
             else
             {
@@ -402,11 +413,106 @@ namespace Serein.Library.Utils.SereinExpression
         {
             return ComputedNumber<decimal>(value, expression);
         }
-
         private static T ComputedNumber<T>(object value, string expression) where T : struct, IComparable<T>
         {
             T result = value.ToConvert<T>();
             return SerinArithmeticExpressionEvaluator<T>.Evaluate(expression, result);
+        }
+
+        /// <summary>
+        /// 数据类型转换
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="expression"></param>
+        /// <returns></returns>
+        private static object DataTypeConversion(object value, string expression)
+        {
+            Type tempType;
+
+            int typeStartIndex = expression.IndexOf('<');
+            int typeEndIndex = expression.IndexOf('>');
+            string typeStr = expression.Substring(typeStartIndex + 1, typeEndIndex - typeStartIndex - 1)
+                                           .Trim().ToLower(); // 手动置顶的类型
+            string valueStr = expression.Substring(typeEndIndex + 1, expression.Length - typeEndIndex - 1);
+            switch (typeStr)
+            {
+                case "bool":
+                    tempType = typeof(bool);
+                    break;
+                case "float":
+                    tempType = typeof(float);
+                    break;
+                case "decimal":
+                    tempType = typeof(decimal);
+                    break;
+                case "double":
+                    tempType = typeof(double);
+                    break;
+                case "sbyte":
+                    tempType = typeof(sbyte);
+                    break;
+                case "byte":
+                    tempType = typeof(byte);
+                    break;
+                case "short":
+                    tempType = typeof(short);
+                    break;
+                case "ushort":
+                    tempType = typeof(ushort);
+                    break;
+                case "int":
+                    tempType = typeof(int);
+                    break;
+                case "uint":
+                    tempType = typeof(uint);
+                    break;
+                case "long":
+                    tempType = typeof(long);
+                    break;
+                case "ulong":
+                    tempType = typeof(ulong);
+                    break;
+                // 如果需要支持 nint 和 nuint
+                // case "nint":
+                //     tempType = typeof(nint);
+                //     break;
+                // case "nuint":
+                //     tempType = typeof(nuint);
+                //     break;
+                case "string":
+                    tempType = typeof(string);
+                    break;
+                case "datetime":
+                    tempType = typeof(DateTime);
+                    break;
+                default:
+                    tempType = Type.GetType(typeStr);
+                    break;
+            }
+
+            if (tempType.IsValueType)
+            {
+                return valueStr.ToValueData(tempType);
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+
+        /// <summary>
+        /// 获取全局数据
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="expression"></param>
+        /// <returns></returns>
+        private static object GetGlobleData(object value, string expression)
+        {
+            var keyName = expression;
+            SereinEnv.EnvGlobalData.TryGetValue(keyName, out var data);
+
+            return data;
         }
     }
 }

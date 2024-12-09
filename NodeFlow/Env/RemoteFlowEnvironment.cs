@@ -895,6 +895,31 @@ namespace Serein.NodeFlow.Env
             this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：LoadAllNativeLibraryOfRuning");
         }
 
+
+
+        /// <summary>
+        /// 添加或更新全局数据
+        /// </summary>
+        /// <param name="keyName">数据名称</param>
+        /// <param name="data">数据集</param>
+        /// <returns></returns>
+        public object AddOrUpdateGlobalData(string keyName, object data)
+        {
+            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：AddOrUpdateGlobalData");
+            return null;
+        }
+        /// <summary>
+        /// 获取全局数据
+        /// </summary>
+        /// <param name="keyName">数据名称</param>
+        /// <returns></returns>
+        public object GetGlobalData(string keyName)
+        {
+            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：GetGlobalData");
+            return null;
+        }
+
+
         #endregion
     }
 }

@@ -1,21 +1,37 @@
 ﻿using Serein.NodeFlow.Model;
 using Serein.Workbench.Node.ViewModel;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
 
 namespace Serein.Workbench.Node.View
 {
     /// <summary>
-    /// ExprOpNodeControl.xaml 的交互逻辑
+    /// UserControl1.xaml 的交互逻辑
     /// </summary>
-    public partial class ExpOpNodeControl : NodeControlBase, INodeJunction
+    public partial class GlobalDataControl : NodeControlBase, INodeJunction
     {
-        public ExpOpNodeControl() : base()
+
+        public GlobalDataControl() : base()
         {
             // 窗体初始化需要
-            ViewModel = new ExpOpNodeControlViewModel(new SingleExpOpNode(null));
+            ViewModel = new GlobalDataNodeControlViewModel(new SingleGlobalDataNode(null));
             DataContext = ViewModel;
             InitializeComponent();
         }
-        public ExpOpNodeControl(ExpOpNodeControlViewModel viewModel) :base(viewModel)
+
+        public GlobalDataControl(ConditionNodeControlViewModel viewModel) : base(viewModel)
         {
             DataContext = viewModel;
             InitializeComponent();
@@ -36,21 +52,11 @@ namespace Serein.Workbench.Node.View
         /// </summary>
         JunctionControlBase INodeJunction.ReturnDataJunction => this.ResultJunctionControl;
 
+
         /// <summary>
         /// 方法入参控制点（可能有，可能没）
         /// </summary>
-        private JunctionControlBase[] argDataJunction;
-        /// <summary>
-        /// 方法入参控制点（可能有，可能没）
-        /// </summary>
-        JunctionControlBase[] INodeJunction.ArgDataJunction
-        {
-            get
-            {
-                argDataJunction = new JunctionControlBase[1];
-                argDataJunction[0] = this.ArgJunctionControl;
-                return argDataJunction;
-            }
-        }
+        JunctionControlBase[] INodeJunction.ArgDataJunction => throw new NotImplementedException();
+
     }
 }

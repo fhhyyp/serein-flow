@@ -578,7 +578,7 @@ namespace Serein.Workbench
                 NodeControlType.Action => CreateNodeControl<ActionNodeControl, ActionNodeControlViewModel>(nodeModelBase), //typeof(ActionNodeControl),
                 NodeControlType.Flipflop => CreateNodeControl<FlipflopNodeControl, FlipflopNodeControlViewModel>(nodeModelBase),
                 NodeControlType.ExpCondition => CreateNodeControl<ConditionNodeControl, ConditionNodeControlViewModel>(nodeModelBase),
-                NodeControlType.ExpOp => CreateNodeControl<ExpOpNodeControl, ExpOpNodeViewModel>(nodeModelBase),
+                NodeControlType.ExpOp => CreateNodeControl<ExpOpNodeControl, ExpOpNodeControlViewModel>(nodeModelBase),
                 NodeControlType.ConditionRegion => CreateNodeControl<ConditionRegionControl, ConditionRegionNodeControlViewModel>(nodeModelBase),
                 _ => null,
             };
@@ -2504,7 +2504,7 @@ namespace Serein.Workbench
                 NodeLibraryInfo? library = projectData.Librarys[index];
                 try
                 {
-                    string targetPath = System.IO.Path.Combine(librarySavePath, library.FileName); // 目标文件夹
+                    string targetPath = System.IO.Path.Combine(librarySavePath, library.FilePath); // 目标文件夹
 #if  WINDOWS
                     string sourceFile = library.FilePath; // 源文件夹
 #else

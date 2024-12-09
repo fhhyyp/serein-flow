@@ -15,7 +15,9 @@
         <!--<BooleanToVisibilityConverter x:Key="BoolToVisConverter" />-->
         <converters:InvertableBooleanToVisibilityConverter x:Key="InvertedBoolConverter"/>
         <!--<ResourceDictionary Source="/Serein.Workbench;Node/View/NodeExecuteJunctionControl.xaml" x:Key="NodeExecuteJunctionControl"/>-->
+
     </UserControl.Resources>
+
 
     <Border BorderBrush="#8DE9FD" BorderThickness="4">
         <Grid>
@@ -24,7 +26,10 @@
             </Grid.ToolTip>
             
             <!--<TextBlock Text="{Binding NodelModel.DebugSetting.IsInterrupt}}"></TextBlock>-->
-            <Border x:Name="InterruptBorder" DataContext="{Binding}">
+            <!--DataContext="{Binding}-->
+
+
+            <Border x:Name="InterruptBorder" Tag="{Binding NodeModel.DebugSetting.IsInterrupt}">
                 <Border.Style>
                     <Style TargetType="Border">
                         <!--默认无边框-->
@@ -32,9 +37,9 @@
                         <Setter Property="BorderThickness" Value="0" />
                         <Style.Triggers>
                             <!--NodeModel.DebugSetting.IsInterrupt-->
-                            <!--<DataTrigger Binding="{Binding DataContext.NodeModel.DebugSetting.IsInterrup, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True">-->
-                            <DataTrigger Binding="{Binding IsInterrupt,Mode=OneTime}" Value="True">
-                                <!--<DataTrigger Binding="{Binding NodeModel.DebugSetting.IsInterrup}" Value="True">-->
+                            <!--<DataTrigger Binding="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type local:ActionNodeControl}}, Path=DataContext.DebugSetting.IsInterrupt}" Value="True">-->
+                            <!--<DataTrigger Binding="{Binding DebugSetting.IsInterrupt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Value="True">-->
+                            <DataTrigger Binding="{Binding Path=Tag,RelativeSource={RelativeSource Mode=Self}}" Value="True">
                                 <Setter Property="BorderBrush" Value="Red" />
                                 <Setter Property="BorderThickness" Value="2" />
                                 <Setter Property="Background" Value="#80000000" />
@@ -42,8 +47,12 @@
                         </Style.Triggers>
                     </Style>
                 </Border.Style>
-
+                
+                
                 <Grid>
+
+    
+
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="*"/>

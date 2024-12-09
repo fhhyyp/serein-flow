@@ -78,30 +78,34 @@ namespace Serein.Library
                 args = Array.Empty<object>();
             }
             object result = null;
-            try
+            if (_emitMethodType == EmitMethodType.HasResultTask && _emitDelegate is Func<object, object[], Task<object>> hasResultTask)
             {
-                if (_emitMethodType == EmitMethodType.HasResultTask && _emitDelegate is Func<object, object[], Task<object>> hasResultTask)
-                {
-                    result = await hasResultTask(instance, args);
-                }
-                else if (_emitMethodType == EmitMethodType.Task && _emitDelegate is Func<object, object[], Task> task)
-                {
-                    await task.Invoke(instance, args);
-                }
-                else if (_emitMethodType == EmitMethodType.Func && _emitDelegate is Func<object, object[], object> func)
-                {
-                    result = func.Invoke(instance, args);
-                }
-                else
-                {
-                    throw new NotImplementedException("创建了非预期委托（应该不会出现）");
-                }
-                return result;
+                result = await hasResultTask(instance, args);
             }
-            catch
+            else if (_emitMethodType == EmitMethodType.Task && _emitDelegate is Func<object, object[], Task> task)
             {
-                throw;
+                await task.Invoke(instance, args);
             }
+            else if (_emitMethodType == EmitMethodType.Func && _emitDelegate is Func<object, object[], object> func)
+            {
+                result = func.Invoke(instance, args);
+            }
+            else
+            {
+                throw new NotImplementedException("创建了非预期委托（应该不会出现）");
+            }
+
+            // 
+            return result;
+
+            //try
+            //{
+               
+            //}
+            //catch
+            //{
+            //    throw;
+            //}
         }
     }
 }

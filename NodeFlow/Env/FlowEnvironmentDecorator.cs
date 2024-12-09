@@ -455,6 +455,27 @@ namespace Serein.NodeFlow.Env
         }
 
         #region 流程依赖类库的接口
+        /// <summary>
+        /// 添加或更新全局数据
+        /// </summary>
+        /// <param name="keyName">数据名称</param>
+        /// <param name="data">数据集</param>
+        /// <returns></returns>
+        public object AddOrUpdateGlobalData(string keyName, object data)
+        {
+            return currentFlowEnvironment.AddOrUpdateGlobalData(keyName, data);
+        }
+
+        /// <summary>
+        /// 获取全局数据
+        /// </summary>
+        /// <param name="keyName">数据名称</param>
+        /// <returns></returns>
+        public object GetGlobalData(string keyName)
+        {
+            return currentFlowEnvironment.GetGlobalData(keyName);
+        }
+
 
         /// <summary>
         /// 运行时加载
@@ -573,6 +594,8 @@ namespace Serein.NodeFlow.Env
         {
             return IOC.Run(action);
         }
+
+        
 
         #endregion
 

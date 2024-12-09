@@ -262,8 +262,9 @@ namespace Serein.Library
                 catch (Exception ex)
                 {
                     newFlowData = null;
-                    await Console.Out.WriteLineAsync($"节点[{this.MethodDetails?.MethodName}]异常：" + ex);
+                    context.Env.WriteLine(InfoType.ERROR,$"节点[{this.Guid}]异常：" + ex);
                     context.NextOrientation = ConnectionInvokeType.IsError;
+                    context.ExceptionOfRuning = ex;
                 }
 
 
@@ -455,16 +456,31 @@ namespace Serein.Library
                 }
                 #endregion
 
-                #region 处理Get表达式
-                if (pd.IsExplicitData  // 输入了表达式
-                    && pd.DataValue.StartsWith("@get", StringComparison.OrdinalIgnoreCase) // Get表达式
-                )
+                #region 处理 @Get / @DTC 表达式 （Data type conversion） / @Data (全局数据)
+                if (pd.IsExplicitData)
                 {
-                    //var previousNode = context.GetPreviousNode(nodeModel);
-                    //var previousFlowData = context.GetFlowData(previousNode.Guid); // 当前传递的数据
-                    // 执行表达式从上一节点获取对象
-                    inputParameter = SerinExpressionEvaluator.Evaluate(pd.DataValue, inputParameter, out _);
+
+                    // @Get 表达式 （从上一节点获取对象）
+                    if (pd.DataValue.StartsWith("@get", StringComparison.OrdinalIgnoreCase))
+                    {
+                        inputParameter = SerinExpressionEvaluator.Evaluate(pd.DataValue, inputParameter, out _);
+                    }
+
+                    // @DTC 表达式 （Data type conversion）
+                    if (pd.DataValue.StartsWith("@dtc", StringComparison.OrdinalIgnoreCase))
+                    {
+                        inputParameter = SerinExpressionEvaluator.Evaluate(pd.DataValue, inputParameter, out _);
+                    }
+
+                    // @Data 表达式 （获取全局数据）
+                    if (pd.DataValue.StartsWith("@data", StringComparison.OrdinalIgnoreCase))
+                    {
+                        inputParameter = SerinExpressionEvaluator.Evaluate(pd.DataValue, inputParameter, out _);
+                    }
+
                 }
+
+
                 #endregion
 
                 #endregion

@@ -201,6 +201,10 @@ namespace Serein.Library.Utils
                 result = nuint.Parse(valueStr, CultureInfo.InvariantCulture);
             }
 #endif
+            else if(type == typeof(DateTime))
+            {
+                return DateTime.Parse(valueStr);
+            }
             else
             {
                 throw new ArgumentException("非预期值类型");

@@ -206,10 +206,8 @@ namespace Serein.NodeFlow.Tool
         private (NodeLibraryInfo, List<MethodDetailsInfo>) LoadDllNodeInfo(string dllFilePath)
         {
             var fileName = Path.GetFileName(dllFilePath); // 获取文件名
-            
             if (SereinLibraryDll.Equals(fileName))
             {
-                
                 return LoadAssembly(typeof(IFlowEnvironment).Assembly, () => {
                     //SereinEnv.PrintInfo(InfoType.WRAN, "基础模块不能卸载");
                 });

@@ -917,7 +917,30 @@ namespace Serein.Library.Api
 
         #endregion
 
-        #region 流程依赖类库的接口
+        #region 流程运行时
+
+        #region 全局数据/方法信息
+
+
+        /// <summary>
+        /// 添加或更新全局数据
+        /// </summary>
+        /// <param name="keyName">数据名称</param>
+        /// <param name="data">数据集</param>
+        /// <returns></returns>
+        object AddOrUpdateGlobalData(string keyName, object data);
+
+        /// <summary>
+        /// 获取全局数据
+        /// </summary>
+        /// <param name="keyName">数据名称</param>
+        /// <returns></returns>
+        object GetGlobalData(string keyName);
+
+        #endregion
+
+
+        #region 加载依赖
 
         /// <summary>
         /// 运行时加载
@@ -933,6 +956,7 @@ namespace Serein.Library.Api
         /// <param name="isRecurrence">是否递归加载</param>
         void LoadAllNativeLibraryOfRuning(string path, bool isRecurrence = true);
 
+        #endregion
         #endregion
 
         #region UI视觉

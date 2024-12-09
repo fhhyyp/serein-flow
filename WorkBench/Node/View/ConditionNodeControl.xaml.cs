@@ -21,6 +21,7 @@ namespace Serein.Workbench.Node.View
             DataContext = viewModel;
             InitializeComponent();
         }
+
         /// <summary>
         /// 入参控制点（可能有，可能没）
         /// </summary>
