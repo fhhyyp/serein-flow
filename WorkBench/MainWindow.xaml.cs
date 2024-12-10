@@ -2578,9 +2578,29 @@ namespace Serein.Workbench
             scaleTransform.ScaleX = 1;
             scaleTransform.ScaleY = 1;
         }
+        /// <summary>
+        /// 查看输出日志窗口
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void ButtonOpenConsoleOutWindow_Click(object sender, RoutedEventArgs e)
         {
             LogOutWindow?.Show();
+        }
+        /// <summary>
+        /// 定位节点
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ButtonLocationNode_Click(object sender, RoutedEventArgs e)
+        {
+            InputDialog inputDialog = new InputDialog();
+            inputDialog.Closed += (s, e) =>
+            {
+                var nodeGuid = inputDialog.InputValue;
+                EnvDecorator.NodeLocated(nodeGuid);
+            };
+            inputDialog.ShowDialog();
         }
 
         #endregion

@@ -256,6 +256,7 @@ namespace Serein.Library
         public override string ToString()
         {
              StringBuilder sb = new StringBuilder();
+            sb.AppendLine($"节点Guid：{this.NodeModel.Guid}");
             sb.AppendLine($"方法别名：{this.MethodAnotherName}");
             sb.AppendLine($"方法名称：{this.MethodName}");
             sb.AppendLine($"需要实例：{this.ActingInstanceType?.FullName}");

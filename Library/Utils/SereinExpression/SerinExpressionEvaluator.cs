@@ -52,12 +52,12 @@ namespace Serein.Library.Utils.SereinExpression
         /// <exception cref="NotSupportedException"></exception>
         public static object Evaluate(string expression, object targetObJ, out bool isChange)
         {
-            if (expression is null || targetObJ is null)
-            {
-                throw new Exception("表达式条件expression is null、 targetObJ is null");
-            }
+            //if (expression is null || targetObJ is null)
+            //{
+            //    throw new Exception("表达式条件expression is null、 targetObJ is null");
+            //}
             var parts = expression.Split(new[] { ' ' }, 2, StringSplitOptions.None);
-            if (parts.Length != 2)
+            if (parts.Length < 1)
             {
                 throw new ArgumentException("Invalid expression format.");
             }
@@ -66,11 +66,11 @@ namespace Serein.Library.Utils.SereinExpression
             var operand = parts[1][0] == '.' ? parts[1].Substring(1) : parts[1];
             object result;
             isChange = false;
-            if (operation == "@num")
-            {
-                result = ComputedNumber(targetObJ, operand);
-            }
-            else if (operation == "@call")
+            //if (operation == "@num")
+            //{
+            //    result = ComputedNumber(targetObJ, operand);
+            //}
+            if (operation == "@call")
             {
                 result = InvokeMethod(targetObJ, operand);
             }

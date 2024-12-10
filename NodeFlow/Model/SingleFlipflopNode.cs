@@ -47,20 +47,24 @@ namespace Serein.NodeFlow.Model
                 throw new Exception("不存在对应委托");
             }
             object instance = md.ActingInstance;
-            try
+
+            var args = await GetParametersAsync(context, this, md);
+            // 因为这里会返回不确定的泛型 IFlipflopContext<TRsult>
+            // 而我们只需要获取到 State 和 Value（返回的数据）
+            // 所以使用 dynamic 类型接收
+            dynamic dynamicFlipflopContext = await dd.InvokeAsync(md.ActingInstance, args);
+            FlipflopStateType flipflopStateType = dynamicFlipflopContext.State;
+            context.NextOrientation = flipflopStateType.ToContentType();
+            if (dynamicFlipflopContext.Type == TriggerType.Overtime)
+            {
+                throw new FlipflopException(base.MethodDetails.MethodName + "触发器超时触发。Guid" + base.Guid);
+            }
+            return dynamicFlipflopContext.Value;
+
+            /*try
             {
                 
-                var args = await GetParametersAsync(context, this, md);
-                // 因为这里会返回不确定的泛型 IFlipflopContext<TRsult>
-                // 而我们只需要获取到 State 和 Value（返回的数据）
-                dynamic dynamicFlipflopContext = await dd.InvokeAsync(md.ActingInstance, args);
-                FlipflopStateType flipflopStateType = dynamicFlipflopContext.State;
-                context.NextOrientation = flipflopStateType.ToContentType();
-                if (dynamicFlipflopContext.Type == TriggerType.Overtime)
-                {
-                    throw new FlipflopException(base.MethodDetails.MethodName + "触发器超时触发。Guid" + base.Guid);
-                }
-                return dynamicFlipflopContext.Value;
+               
             
             }
             catch (FlipflopException ex)
@@ -69,14 +73,14 @@ namespace Serein.NodeFlow.Model
                 {
                     throw;
                 }
-                await Console.Out.WriteLineAsync($"触发器[{this.MethodDetails.MethodName}]异常：" + ex);
+                SereinEnv.WriteLine(InfoType.ERROR, $"触发器[{this.MethodDetails.MethodName}]异常：" + ex);
                 context.NextOrientation = ConnectionInvokeType.None;
                 context.ExceptionOfRuning = ex;
                 return null;
             }
             catch (Exception ex)
             {
-                await Console.Out.WriteLineAsync($"触发器[{this.MethodDetails.MethodName}]异常：" + ex);
+                SereinEnv.WriteLine(InfoType.ERROR, $"触发器[{this.MethodDetails.MethodName}]异常：" + ex);
                 context.NextOrientation = ConnectionInvokeType.IsError;
                 context.ExceptionOfRuning = ex;
                 return null;
@@ -84,7 +88,7 @@ namespace Serein.NodeFlow.Model
             finally
             {
                 // flipflopTask?.Dispose();
-            }
+            }*/
         }
 
         /// <summary>

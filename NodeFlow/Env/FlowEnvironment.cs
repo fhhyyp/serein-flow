@@ -1,5 +1,6 @@
 ﻿
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.Core;
@@ -348,6 +349,7 @@ namespace Serein.NodeFlow.Env
             {
                 
             }
+            Console.WriteLine($"{DateTime.UtcNow} [{type}] : {message}{Environment.NewLine}");
             OnEnvOut?.Invoke(type, message);
         }
 

@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using Serein.Library;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Threading;
@@ -15,7 +16,7 @@ namespace Serein.Workbench
         {
         
  #if DEBUG
-            if (1 == 0 )
+            if (1 == 1 )
             {
                 string filePath;
                 filePath = @"F:\临时\project\linux\project.dnf";
@@ -80,6 +81,7 @@ namespace Serein.Workbench
                     MessageBox.Show($"读取文件时发生错误：{ex.Message}");
                     Shutdown(); // 关闭应用程序
                 }
+                
             }
             this.LoadLocalProject();
 
@@ -143,7 +145,7 @@ namespace Serein.Workbench
 
             SerinExpressionEvaluator.Evaluate("set .Data.Tips = 123", testObj);
             // 调用对象方法
-            result = SerinExpressionEvaluator.Evaluate($"invoke .ToUpper({SerinExpressionEvaluator.Evaluate("get .Data.Tips", testObj)})", testObj);
+            result = SerinExpressionEvaluator.Evaluate($"call .ToUpper({SerinExpressionEvaluator.Evaluate("get .Data.Tips", testObj)})", testObj);
             Debug.WriteLine(result); // HELLO
 
             expression = "@number (@+1)/100";

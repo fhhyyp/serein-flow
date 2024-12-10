@@ -254,7 +254,8 @@ namespace Serein.NodeFlow
             
             try
             {
-                
+                await startNode.StartFlowAsync(Context); // 开始运行时从起始节点开始运行
+
                 if (flipflopNodes.Count > 0)
                 {
                     env.FlipFlopState = RunState.Running;
@@ -269,7 +270,8 @@ namespace Serein.NodeFlow
                     }).ToArray();
                     _ = Task.WhenAll(tasks);
                 }
-                await startNode.StartFlowAsync(Context); // 开始运行时从起始节点开始运行
+
+                
                 // 等待结束
                 if(env.FlipFlopState == RunState.Running && _flipFlopCts is not null)
                 {
@@ -391,7 +393,7 @@ namespace Serein.NodeFlow
                 }
                 catch (FlipflopException ex) 
                 {
-                    env.WriteLine(InfoType.ERROR,$"触发器[{singleFlipFlopNode.MethodDetails.MethodName}]因非预期异常终止。"+ex.Message);
+                    SereinEnv.WriteLine(InfoType.ERROR,$"触发器[{singleFlipFlopNode.MethodDetails.MethodName}]因非预期异常终止。"+ex.Message);
                     if (ex.Type == FlipflopException.CancelClass.CancelFlow)
                     {
                         break;
@@ -399,12 +401,8 @@ namespace Serein.NodeFlow
                 }
                 catch (Exception ex)
                 {
-                    env.WriteLine(InfoType.ERROR, $"触发器[{singleFlipFlopNode.Guid}]异常。"+ ex.Message);
+                    SereinEnv.WriteLine(InfoType.ERROR, $"触发器[{singleFlipFlopNode.Guid}]异常。"+ ex.Message);
                     //await Console.Out.WriteLineAsync(ex.Message);
-                }
-                finally
-                {
-                    
                 }
             }
 

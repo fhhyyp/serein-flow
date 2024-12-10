@@ -262,7 +262,7 @@ namespace Serein.Library
                 catch (Exception ex)
                 {
                     newFlowData = null;
-                    context.Env.WriteLine(InfoType.ERROR,$"节点[{this.Guid}]异常：" + ex);
+                    context.Env.WriteLine(InfoType.ERROR, $"节点[{currentNode.Guid}]异常：" + ex);
                     context.NextOrientation = ConnectionInvokeType.IsError;
                     context.ExceptionOfRuning = ex;
                 }
@@ -400,7 +400,7 @@ namespace Serein.Library
 
                 #region 确定[预入参]数据
                 object inputParameter; // 存放解析的临时参数
-                if (pd.IsExplicitData && !pd.DataValue.StartsWith("@get", StringComparison.OrdinalIgnoreCase)) // 判断是否使用显示的输入参数
+                if (pd.IsExplicitData && !pd.DataValue.StartsWith("@", StringComparison.OrdinalIgnoreCase)) // 判断是否使用显示的输入参数
                 {
                     // 使用输入的固定值
                     inputParameter = pd.DataValue;
@@ -447,14 +447,7 @@ namespace Serein.Library
                     #endregion
                 }
 
-                #region 对于非值类型的null检查
-                if (!argDataType.IsValueType &&  inputParameter is null)
-                {
-                    parameters[i] = null;
-                    throw new Exception($"[arg{pd.Index}][{pd.Name}][{argDataType}]参数不能为null");
-                    // continue;
-                }
-                #endregion
+                
 
                 #region 处理 @Get / @DTC 表达式 （Data type conversion） / @Data (全局数据)
                 if (pd.IsExplicitData)
@@ -480,7 +473,15 @@ namespace Serein.Library
 
                 }
 
+                #endregion
 
+                #region 对于非值类型的null检查
+                if (!argDataType.IsValueType && inputParameter is null)
+                {
+                    parameters[i] = null;
+                    throw new Exception($"[arg{pd.Index}][{pd.Name}][{argDataType}]参数不能为null");
+                    continue;
+                }
                 #endregion
 
                 #endregion

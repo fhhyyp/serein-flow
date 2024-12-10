@@ -57,6 +57,7 @@
             <MenuItem Header="视图">
                 <MenuItem Header="输出窗口" Click="ButtonOpenConsoleOutWindow_Click"></MenuItem>
                 <MenuItem Header="重置画布" Click="ButtonResetCanvas_Click"></MenuItem>
+                <MenuItem Header="定位节点" Click="ButtonLocationNode_Click"></MenuItem>
             </MenuItem>
             <MenuItem Header="远程">
                 <MenuItem Header="启动远程服务" Click="ButtonStartRemoteServer_Click"></MenuItem>
@@ -100,7 +101,7 @@
         <Grid  Grid.Row="1"  Grid.Column="2" x:Name="FlowChartStackGrid">
             
             <StackPanel x:Name="FlowChartStackPanel"
-                      
+                        
                          ClipToBounds="True">
                 <Canvas 
                     x:Name="FlowChartCanvas" 
@@ -115,7 +116,8 @@
                     MouseMove="FlowChartCanvas_MouseMove"
                     MouseWheel="FlowChartCanvas_MouseWheel"
                     Drop="FlowChartCanvas_Drop" 
-                    DragOver="FlowChartCanvas_DragOver">
+                    DragOver="FlowChartCanvas_DragOver"
+                    VirtualizingStackPanel.IsVirtualizing="True">
 
                     <Rectangle x:Name="SelectionRectangle" 
                                Stroke="Blue" 
