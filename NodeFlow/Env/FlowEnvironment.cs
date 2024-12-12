@@ -58,6 +58,15 @@ namespace Serein.NodeFlow.Env
             };
             this.UIContextOperation = uiContextOperation; // 为加载的类库提供在UI线程上执行某些操作的封装工具类
             this.FlowLibraryManagement = new FlowLibraryManagement(this); // 实例化类库管理
+
+            #region 注册基本节点类型
+            NodeMVVMManagement.RegisterModel(NodeControlType.Action, typeof(SingleActionNode)); // 动作节点
+            NodeMVVMManagement.RegisterModel(NodeControlType.Flipflop, typeof(SingleFlipflopNode)); // 触发器节点
+            NodeMVVMManagement.RegisterModel(NodeControlType.ExpOp, typeof(SingleExpOpNode)); // 表达式节点
+            NodeMVVMManagement.RegisterModel(NodeControlType.ExpCondition, typeof(SingleConditionNode)); // 条件表达式节点
+            NodeMVVMManagement.RegisterModel(NodeControlType.ConditionRegion, typeof(CompositeConditionNode)); // 条件区域
+            NodeMVVMManagement.RegisterModel(NodeControlType.GlobalData, typeof(SingleGlobalDataNode));  // 全局数据节点
+            #endregion
         }
 
         #region 远程管理
@@ -118,6 +127,11 @@ namespace Serein.NodeFlow.Env
         /// 项目加载完成
         /// </summary>
         public event ProjectLoadedHandler? OnProjectLoaded;
+
+        /// <summary>
+        /// 项目准备保存
+        /// </summary>
+        public event ProjectSavingHandler? OnProjectSaving;
 
         /// <summary>
         /// 节点连接属性改变事件
@@ -347,10 +361,10 @@ namespace Serein.NodeFlow.Env
         {
             if (@class >= this.InfoClass)
             {
-                
+                OnEnvOut?.Invoke(type, message);
             }
-            Console.WriteLine($"{DateTime.UtcNow} [{type}] : {message}{Environment.NewLine}");
-            OnEnvOut?.Invoke(type, message);
+            //Console.WriteLine($"{DateTime.UtcNow} [{type}] : {message}{Environment.NewLine}");
+            
         }
 
         ///// <summary>
@@ -506,7 +520,7 @@ namespace Serein.NodeFlow.Env
             // 获取所有的程序集对应的方法信息（程序集相关的数据）
             var libraryMdss = this.FlowLibraryManagement.GetAllLibraryMds().ToArray();
             // 获取当前项目的信息（节点相关的数据）
-            var project = await GetProjectInfoAsync();
+            var project = await GetProjectInfoAsync(); // 远程连接获取远程环境项目信息
             SereinEnv.WriteLine(InfoType.INFO, "已将当前环境信息发送到远程客户端");
             return new FlowEnvInfo
             {
@@ -526,7 +540,13 @@ namespace Serein.NodeFlow.Env
 
         }
 
-        
+        /// <summary>
+        /// 保存项目
+        /// </summary>
+        public void SaveProject()
+        {
+            OnProjectSaving?.Invoke(new ProjectSavingEventArgs());
+        }
 
         /// <summary>
         /// 加载项目文件
@@ -746,6 +766,7 @@ namespace Serein.NodeFlow.Env
                 Nodes = NodeModels.Values.Select(node => node.ToInfo()).Where(info => info is not null).ToArray(),
                 StartNode = NodeModels.Values.FirstOrDefault(it => it.IsStart)?.Guid,
             };
+
             return Task.FromResult(projectData);
         }
 
@@ -926,17 +947,14 @@ namespace Serein.NodeFlow.Env
             if (remoteNode is null)
                return false;
 
-            //if (remoteNode.IsStart)
-            //{
-            //    return;
-            //}
             if (remoteNode is SingleFlipflopNode flipflopNode)
             {
                 flowStarter?.TerminateGlobalFlipflopRuning(flipflopNode); // 假设被移除的是全局触发器，尝试从启动器移除
             }
 
+            remoteNode.Remove(); // 调用节点的移除方法
 
-            // 遍历所有父节点，从那些父节点中的子节点集合移除该节点
+            // 遍历所有前置节点，从那些前置节点中的后继节点集合移除该节点
             foreach (var pnc in remoteNode.PreviousNodes)
             {
                 var pCType = pnc.Key; // 连接类型
@@ -955,7 +973,7 @@ namespace Serein.NodeFlow.Env
                 }
             }
 
-            // 遍历所有子节点，从那些子节点中的父节点集合移除该节点
+            // 遍历所有后继节点，从那些后继节点中的前置节点集合移除该节点
             foreach (var snc in remoteNode.SuccessorNodes)
             {
                 var connectionType = snc.Key; // 连接类型
@@ -967,6 +985,8 @@ namespace Serein.NodeFlow.Env
 
                 }
             }
+
+            
 
             // 从集合中移除节点
             NodeModels.Remove(nodeGuid);
@@ -1434,7 +1454,7 @@ namespace Serein.NodeFlow.Env
                 isPass = nodeModel.MethodDetails.RemoveParamsArg(paramIndex);
             }
 
-            await Task.Delay(50);
+            await Task.Delay(200);
             foreach ((var fromGuid, var type, var index) in argInfo)
             {
                 await UIContextOperation.InvokeAsync(() =>
@@ -1487,7 +1507,7 @@ namespace Serein.NodeFlow.Env
         /// <returns></returns>
         public object AddOrUpdateGlobalData(string keyName, object data)
         {
-            SereinEnv.EnvGlobalData.AddOrUpdate(keyName, data, (k, o) => data);
+            SereinEnv.AddOrUpdateFlowGlobalData(keyName, data);
             return data;
         }
 
@@ -1498,8 +1518,7 @@ namespace Serein.NodeFlow.Env
         /// <returns></returns>
         public object? GetGlobalData(string keyName)
         {
-            SereinEnv.EnvGlobalData.TryGetValue(keyName, out var data);
-            return data;
+            return SereinEnv.GetFlowGlobalData(keyName);
         }
 
 

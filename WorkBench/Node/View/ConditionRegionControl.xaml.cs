@@ -12,6 +12,7 @@ namespace Serein.Workbench.Node.View
     /// </summary>
     public partial class ConditionRegionControl : NodeControlBase
     {
+        public new CompositeConditionNode ViewModel => ViewModel;
 
         public ConditionRegionControl() : base()
         {
@@ -32,14 +33,14 @@ namespace Serein.Workbench.Node.View
         /// <param name="node"></param>
         public void AddCondition(NodeControlBase node)
         {
-            ((CompositeConditionNode)ViewModel.NodeModel).AddNode((SingleConditionNode)node.ViewModel.NodeModel);
+            
+            //((CompositeConditionNode)ViewModel.NodeModel).AddNode((SingleConditionNode)node.ViewModel.NodeModel);
+            ViewModel.AddNode((SingleConditionNode)node.ViewModel.NodeModel);
 
             this.Width += node.Width;
             this.Height += node.Height;
             ConditionsListBox.Items.Add(node);
         }
-
-      
 
         private void ConditionsListBox_Drop(object sender, DragEventArgs e)
         {

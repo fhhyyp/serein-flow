@@ -2,6 +2,7 @@
 using Serein.Library.Api;
 using Serein.Library.Utils;
 using Serein.Library.Utils.SereinExpression;
+using System.Dynamic;
 using System.Reactive;
 using System.Reflection.Metadata;
 
@@ -25,6 +26,11 @@ namespace Serein.NodeFlow.Model
 
     public partial class SingleExpOpNode : NodeModelBase
     {
+        /// <summary>
+        /// 表达式参数索引
+        /// </summary>
+        private const int INDEX_EXPRESSION = 0;
+
         public SingleExpOpNode(IFlowEnvironment environment) : base(environment)
         {
 
@@ -35,23 +41,46 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         public override void OnCreating()
         {
-            var pd = new ParameterDetails
+            // 这里的这个参数是为了方便使用入参控制点，参数无意义
+            var pd = new ParameterDetails[1];
+            pd[INDEX_EXPRESSION] = new ParameterDetails
             {
-                Index = 0,
+                Index = INDEX_EXPRESSION,
                 Name = nameof(Expression),
-                DataType = typeof(string),
-                ExplicitType = typeof(string),
                 IsExplicitData = false,
                 DataValue = string.Empty,
+                DataType = typeof(string),
+                ExplicitType = typeof(string),
                 ArgDataSourceNodeGuid = string.Empty,
                 ArgDataSourceType = ConnectionArgSourceType.GetPreviousNodeData,
                 NodeModel = this,
                 Convertor = null,
                 ExplicitTypeName = "Value",
-                Items = Array.Empty<string>(),
+                Items = null,
             };
+            this.MethodDetails.ParameterDetailss = [.. pd];
+        }
 
-            this.MethodDetails.ParameterDetailss = new ParameterDetails[] { pd };
+        /// <summary>
+        /// 导出方法信息
+        /// </summary>
+        /// <param name="nodeInfo"></param>
+        /// <returns></returns>
+        public override NodeInfo SaveCustomData(NodeInfo nodeInfo)
+        {
+            dynamic data = new ExpandoObject();
+            data.Expression = Expression ?? "";
+            nodeInfo.CustomData = data;
+            return nodeInfo;
+        }
+
+        /// <summary>
+        /// 加载自定义数据
+        /// </summary>
+        /// <param name="nodeInfo"></param>
+        public override void LoadCustomData(NodeInfo nodeInfo)
+        {
+            this.Expression = nodeInfo.CustomData?.Expression ?? "";
         }
 
 
@@ -75,8 +104,6 @@ namespace Serein.NodeFlow.Model
                 // 条件节点透传上一节点的数据
                 parameter = context.TransmissionData(this);
             }
-
-
 
             try
             {
@@ -103,33 +130,5 @@ namespace Serein.NodeFlow.Model
 
         }
 
-        public override ParameterData[] GetParameterdatas()
-        {
-            return [new ParameterData { 
-                Value = Expression,
-                SourceNodeGuid = this.MethodDetails.ParameterDetailss[0].ArgDataSourceNodeGuid,
-                SourceType = this.MethodDetails.ParameterDetailss[0].ArgDataSourceType.ToString(),
-            }];
-        }
-
-
-
-        public override NodeModelBase LoadInfo(NodeInfo nodeInfo)
-        {
-            var node = this;
-            node.Guid = nodeInfo.Guid;
-            this.Position = nodeInfo.Position;// 加载位置信息
-
-            var pdInfo1 = nodeInfo.ParameterData[0];
-            node.Expression = pdInfo1.Value; // 加载表达式
-            
-            for (int i = 0; i < nodeInfo.ParameterData.Length; i++)
-            {
-                ParameterData? pd = nodeInfo.ParameterData[i];
-                node.MethodDetails.ParameterDetailss[i].ArgDataSourceNodeGuid = pd.SourceNodeGuid;
-                node.MethodDetails.ParameterDetailss[i].ArgDataSourceType = EnumHelper.ConvertEnum<ConnectionArgSourceType>(pd.SourceType);
-            }
-            return this;
-        }
     }
 }

@@ -1,6 +1,8 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
+using Serein.Library.Utils;
 using Serein.NodeFlow.Model;
+using System.Collections.Concurrent;
 
 namespace Serein.NodeFlow.Env
 {
@@ -10,6 +12,8 @@ namespace Serein.NodeFlow.Env
     /// </summary>
     public static class FlowFunc
     {
+      
+
         /// <summary>
         /// 判断是否为基础节点
         /// </summary>
@@ -17,12 +21,14 @@ namespace Serein.NodeFlow.Env
         public static bool IsBaseNode(this NodeControlType nodeControlType)
         {
             if(nodeControlType == NodeControlType.ExpCondition
-                || nodeControlType == NodeControlType.ExpOp)
+                || nodeControlType == NodeControlType.ExpOp
+                || nodeControlType == NodeControlType.GlobalData)
             {
                 return true;
             }
             return false;
         }
+
 
         /// <summary>
         /// 创建节点
@@ -35,24 +41,16 @@ namespace Serein.NodeFlow.Env
         public static NodeModelBase CreateNode(IFlowEnvironment env, NodeControlType nodeControlType,
             MethodDetails? methodDetails = null)
         {
-            // 确定创建的节点类型
-            Type? nodeType = nodeControlType switch
-            {
-                NodeControlType.Action => typeof(SingleActionNode),
-                NodeControlType.Flipflop => typeof(SingleFlipflopNode),
 
-                NodeControlType.ExpOp => typeof(SingleExpOpNode),
-                NodeControlType.ExpCondition => typeof(SingleConditionNode),
-                NodeControlType.ConditionRegion => typeof(CompositeConditionNode),
-                _ => null
-            };
+            // 尝试获取需要创建的节点类型
 
-            if (nodeType is null)
+            if (!NodeMVVMManagement.TryGetType(nodeControlType, out var nodeMVVM) || nodeMVVM.ModelType == null)
             {
-                throw new Exception($"节点类型错误[{nodeControlType}]");
+                throw new Exception($"无法创建{nodeControlType}节点，节点类型尚未注册。");
             }
+
             // 生成实例
-            var nodeObj = Activator.CreateInstance(nodeType, env);
+            var nodeObj = Activator.CreateInstance(nodeMVVM.ModelType, env);
             if (nodeObj is not NodeModelBase nodeModel)
             {
                 throw new Exception($"无法创建目标节点类型的实例[{nodeControlType}]");
@@ -90,6 +88,8 @@ namespace Serein.NodeFlow.Env
                 $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleExpOpNode)}" => NodeControlType.ExpOp, // 操作表达式控件
 
                 $"{NodeStaticConfig.NodeSpaceName}.{nameof(CompositeConditionNode)}" => NodeControlType.ConditionRegion, // 条件区域控件
+
+                $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleGlobalDataNode)}" => NodeControlType.GlobalData, // 数据节点
                 _ => NodeControlType.None,
             };
 

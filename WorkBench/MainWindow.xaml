@@ -28,8 +28,10 @@
     </Window.Resources>
 
     <Window.InputBindings>
-        <KeyBinding Key="Escape" Command="{Binding CancelConnectionCommand}"/>
+        <!--<KeyBinding Key="Escape" Command="{Binding CancelConnectionCommand}"/>-->
     </Window.InputBindings>
+    
+    
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
@@ -82,6 +84,7 @@
                 <!--暂时隐藏基础面板  Visibility="Collapsed"  -->
                 <ScrollViewer Grid.Row="0" HorizontalScrollBarVisibility="Auto">
                     <StackPanel  Orientation="Horizontal">
+                        <nodeView:GlobalDataControl x:Name="GlobalDataControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                         <nodeView:ExpOpNodeControl x:Name="ExpOpNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                         <nodeView:ConditionNodeControl x:Name="ConditionNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                         <!--<nodeView:ConditionRegionControl  x:Name="ConditionRegionControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>-->
@@ -103,6 +106,7 @@
             <StackPanel x:Name="FlowChartStackPanel"
                         
                          ClipToBounds="True">
+                <!-- 虚拟化 VirtualizingStackPanel.IsVirtualizing="True" -->
                 <Canvas 
                     x:Name="FlowChartCanvas" 
                     Background="#E1FBEA"
@@ -117,7 +121,7 @@
                     MouseWheel="FlowChartCanvas_MouseWheel"
                     Drop="FlowChartCanvas_Drop" 
                     DragOver="FlowChartCanvas_DragOver"
-                    VirtualizingStackPanel.IsVirtualizing="True">
+                    >
 
                     <Rectangle x:Name="SelectionRectangle" 
                                Stroke="Blue" 

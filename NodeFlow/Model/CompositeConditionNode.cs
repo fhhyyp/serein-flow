@@ -30,23 +30,6 @@ namespace Serein.NodeFlow.Model
             
         }
 
-        /// <summary>
-        /// 加载完成后调用的方法
-        /// </summary>
-        public override void OnCreating()
-        {
-            SereinEnv.WriteLine(InfoType.WARN, "CompositeConditionNode 暂未实现 OnLoading");
-        }
-
-        public void AddNode(SingleConditionNode node)
-        {
-            if(ConditionNodes is null)
-            {
-                ConditionNodes = new List<SingleConditionNode>();
-            }
-            ConditionNodes.Add(node);
-            MethodDetails ??= node.MethodDetails;
-        }
 
         /// <summary>
         /// 条件节点重写执行方法
@@ -79,49 +62,35 @@ namespace Serein.NodeFlow.Model
                 return context.TransmissionData(this); // 条件区域透传上一节点的数据
             }
 
-           
         }
 
-        
-
-        public override ParameterData[] GetParameterdatas()
+        /// <summary>
+        /// 设置区域子项
+        /// </summary>
+        /// <param name="nodeInfo"></param>
+        /// <returns></returns>
+        public override NodeInfo SaveCustomData(NodeInfo nodeInfo)
         {
-            return [];
+            nodeInfo.ChildNodeGuids = ConditionNodes.Select(node => node.Guid).ToArray();
+            return nodeInfo;
         }
 
-        public override NodeInfo ToInfo()
+        /// <summary>
+        /// 添加条件子项
+        /// </summary>
+        /// <param name="node"></param>
+        public void AddNode(SingleConditionNode node)
         {
-            //if (MethodDetails == null) return null;
-
-            //var trueNodes = SucceedBranch.Select(item => item.Guid); // 真分支
-            //var falseNodes = FailBranch.Select(item => item.Guid);// 假分支
-            //var upstreamNodes = UpstreamBranch.Select(item => item.Guid);// 上游分支
-            //var errorNodes = ErrorBranch.Select(item => item.Guid);// 异常分支
-            var trueNodes = SuccessorNodes[ConnectionInvokeType.IsSucceed].Select(item => item.Guid); // 真分支
-            var falseNodes = SuccessorNodes[ConnectionInvokeType.IsFail].Select(item => item.Guid);// 假分支
-            var errorNodes = SuccessorNodes[ConnectionInvokeType.IsError].Select(item => item.Guid);// 异常分支
-            var upstreamNodes = SuccessorNodes[ConnectionInvokeType.Upstream].Select(item => item.Guid);// 上游分支
-
-            // 生成参数列表
-            ParameterData[] parameterData = GetParameterdatas();
-
-            return new NodeInfo
+            if (ConditionNodes is null)
             {
-                Guid = Guid,
-                AssemblyName = MethodDetails.AssemblyName,
-                MethodName = MethodDetails.MethodName,
-                Label = MethodDetails?.MethodAnotherName,
-                Type = this.GetType().ToString(),
-                TrueNodes = trueNodes.ToArray(),
-                FalseNodes = falseNodes.ToArray(),
-                UpstreamNodes = upstreamNodes.ToArray(),
-                ParameterData = parameterData.ToArray(),
-                ErrorNodes = errorNodes.ToArray(),
-                ChildNodeGuids = ConditionNodes.Select(node => node.Guid).ToArray(),
-                Position = Position,
-            };
+                ConditionNodes = new List<SingleConditionNode>();
+            }
+            ConditionNodes.Add(node);
+            MethodDetails ??= node.MethodDetails;
         }
 
+
+      
     }
 
 }

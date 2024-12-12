@@ -175,6 +175,12 @@ namespace Serein.Library.NodeGenerator
                     sb.AppendLine("            {");
                     sb.AppendLine($"                if ({fieldName} {(isProtection ? "== default" : "!= value")})"); // 非保护的Setter
                     sb.AppendLine("                {");
+                    if (attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.CustomCodeAtStart), value => !string.IsNullOrEmpty(value)))  // 自定义代码
+                    {
+                        var customCode = attributeInfo[nameof(PropertyInfo)][nameof(PropertyInfo.CustomCodeAtStart)] as string;
+                        customCode = customCode.Trim().Substring(1, customCode.Length - 2);
+                        sb.AddCode(5, $"{customCode} // 添加的自定义代码");
+                    }
                     sb.AppendLine($"                    SetProperty<{fieldType}>(ref {fieldName}, value); // 通知UI属性发生改变了");
                     if (attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsPrint), value => bool.Parse(value)))  // 是否打印
                     {
@@ -211,9 +217,9 @@ namespace Serein.Library.NodeGenerator
                         }
                       
                     }
-                    if (attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.CustomCode), value => !string.IsNullOrEmpty(value)))  // 是否打印
+                    if (attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.CustomCodeAtEnd), value => !string.IsNullOrEmpty(value)))  // 自定义代码
                     {
-                        var customCode = attributeInfo[nameof(PropertyInfo)][nameof(PropertyInfo.CustomCode)] as string;
+                        var customCode = attributeInfo[nameof(PropertyInfo)][nameof(PropertyInfo.CustomCodeAtEnd)] as string;
                         customCode = customCode.Trim().Substring(1, customCode.Length - 2);
                         sb.AddCode(5, $"{customCode} // 添加的自定义代码");
                     }

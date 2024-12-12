@@ -93,6 +93,10 @@ namespace Serein.Library
         /// 条件节点区域
         /// </summary>
         ConditionRegion,
+        /// <summary>
+        /// 全局数据
+        /// </summary>
+        GlobalData,
     }
 
 }

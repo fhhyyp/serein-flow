@@ -11,7 +11,7 @@ namespace Serein.Workbench.Node.View
         public ConditionNodeControl() : base()
         {
             // 窗体初始化需要
-            ViewModel = new ConditionNodeControlViewModel (new SingleConditionNode(null));
+            base.ViewModel = new ConditionNodeControlViewModel (new SingleConditionNode(null));
             DataContext = ViewModel;
             InitializeComponent();
         }

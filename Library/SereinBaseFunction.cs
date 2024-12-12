@@ -137,7 +137,7 @@ namespace Serein.Library
         [NodeAction(NodeType.Action, "设置/更新全局数据")]
         private object SereinAddOrUpdateFlowGlobalData(string name,object data)
         {
-            SereinEnv.EnvGlobalData.AddOrUpdate(name, data,(k,o)=> data);
+            SereinEnv.AddOrUpdateFlowGlobalData(name, data);
             return data;
         }
 

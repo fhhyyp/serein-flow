@@ -4,6 +4,8 @@ using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.Utils;
 using Serein.Library.Utils.SereinExpression;
+using Serein.NodeFlow;
+using Serein.NodeFlow.Env;
 using Serein.NodeFlow.Tool;
 using Serein.Workbench.Extension;
 using Serein.Workbench.Node;
@@ -53,14 +55,20 @@ namespace Serein.Workbench
         private readonly LogWindow LogOutWindow = new LogWindow();
 
         /// <summary>
-        /// 流程接口
+        /// 流程环境装饰器，方便在本地与远程环境下切换
         /// </summary>
-        private IFlowEnvironment EnvDecorator { get; }
+        private IFlowEnvironment EnvDecorator => ViewModel.FlowEnvironment;
         private MainWindowViewModel ViewModel { get; set; }
+
+
+        /// <summary>
+        /// 节点对应的控件类型
+        /// </summary>
+        // private Dictionary<NodeControlType, (Type controlType, Type viewModelType)> NodeUITypes { get; } = [];
 
         /// <summary>
         /// 存储所有与节点有关的控件
-        /// 任何情景下都尽量避免直接操作 ViewModel 中的 NodeModel 节点，
+        /// 任何情景下都应避免直接操作 ViewModel 中的 NodeModel 节点，
         /// 而是应该调用 FlowEnvironment 提供接口进行操作，
         /// 因为 Workbench 应该更加关注UI视觉效果，而非直接干扰流程环境运行的逻辑。
         /// 之所以暴露 NodeModel 属性，因为有些场景下不可避免的需要直接获取节点的属性。
@@ -150,13 +158,20 @@ namespace Serein.Workbench
             ViewModel = new MainWindowViewModel(this);
             this.DataContext = ViewModel;
             InitializeComponent();
-            EnvDecorator = ViewModel.FlowEnvironment;
 
-            ViewObjectViewer.FlowEnvironment = EnvDecorator;
-            IOCObjectViewer.FlowEnvironment = EnvDecorator;
-            IOCObjectViewer.SelectObj += ViewObjectViewer.LoadObjectInformation;
+            ViewObjectViewer.FlowEnvironment = EnvDecorator; // 设置 节点树视图 的环境为装饰器
+            IOCObjectViewer.FlowEnvironment = EnvDecorator;  // 设置 IOC容器视图 的环境为装饰器
+            IOCObjectViewer.SelectObj += ViewObjectViewer.LoadObjectInformation; // 使选择 IOC容器视图 的某项（对象）时，可以在 数据视图 呈现数据
 
-           
+            #region 为  NodeControlType 枚举 不同项添加对应的 Control类型 、 ViewModel类型
+            NodeMVVMManagement.RegisterUI(NodeControlType.Action, typeof(ActionNodeControl), typeof(ActionNodeControlViewModel));
+            NodeMVVMManagement.RegisterUI(NodeControlType.Flipflop, typeof(FlipflopNodeControl), typeof(FlipflopNodeControlViewModel));
+            NodeMVVMManagement.RegisterUI(NodeControlType.ExpOp, typeof(ExpOpNodeControl), typeof(ExpOpNodeControlViewModel));
+            NodeMVVMManagement.RegisterUI(NodeControlType.ExpCondition, typeof(ConditionNodeControl), typeof(ConditionNodeControlViewModel));
+            NodeMVVMManagement.RegisterUI(NodeControlType.ConditionRegion, typeof(ConditionRegionControl), typeof(ConditionRegionNodeControlViewModel));
+            NodeMVVMManagement.RegisterUI(NodeControlType.GlobalData, typeof(GlobalDataControl), typeof(GlobalDataNodeControlViewModel));
+            #endregion
+
 
             #region 缩放平移容器
             canvasTransformGroup = new TransformGroup();
@@ -174,7 +189,6 @@ namespace Serein.Workbench
                 EnvDecorator.LoadProject(new FlowEnvInfo { Project = App.FlowProjectData }, App.FileDataPath); // 加载项目
             }
 
-            
         }
 
 
@@ -185,6 +199,7 @@ namespace Serein.Workbench
         private void InitFlowEnvironmentEvent()
         {
             EnvDecorator.OnDllLoad += FlowEnvironment_DllLoadEvent;
+            EnvDecorator.OnProjectSaving += EnvDecorator_OnProjectSaving;
             EnvDecorator.OnProjectLoaded += FlowEnvironment_OnProjectLoaded;
             EnvDecorator.OnStartNodeChange += FlowEnvironment_StartNodeChangeEvent;
             EnvDecorator.OnNodeConnectChange += FlowEnvironment_NodeConnectChangeEvemt;
@@ -202,7 +217,6 @@ namespace Serein.Workbench
             EnvDecorator.OnNodeLocated += FlowEnvironment_OnNodeLocate;
             EnvDecorator.OnNodeMoved += FlowEnvironment_OnNodeMoved;
             EnvDecorator.OnEnvOut += FlowEnvironment_OnEnvOut;
-            // this.EnvDecorator.SetConsoleOut(); // 设置输出
         }
 
         /// <summary>
@@ -211,6 +225,7 @@ namespace Serein.Workbench
         private void ResetFlowEnvironmentEvent()
         {
             EnvDecorator.OnDllLoad -= FlowEnvironment_DllLoadEvent;
+            EnvDecorator.OnProjectSaving -= EnvDecorator_OnProjectSaving;
             EnvDecorator.OnProjectLoaded -= FlowEnvironment_OnProjectLoaded;
             EnvDecorator.OnStartNodeChange -= FlowEnvironment_StartNodeChangeEvent;
             EnvDecorator.OnNodeConnectChange -= FlowEnvironment_NodeConnectChangeEvemt;
@@ -289,6 +304,99 @@ namespace Serein.Workbench
         {
             LogOutWindow.AppendText($"{DateTime.UtcNow} [{type}] : {value}{Environment.NewLine}");
         }
+
+
+        /// <summary>
+        /// 需要保存项目
+        /// </summary>
+        /// <param name="eventArgs"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        private void EnvDecorator_OnProjectSaving(ProjectSavingEventArgs eventArgs)
+        {
+            var projectData = EnvDecorator.GetProjectInfoAsync()
+                               .GetAwaiter().GetResult(); // 保存项目
+
+            projectData.Basic = new Basic
+            {
+                Canvas = new FlowCanvas
+                {
+                    Height = FlowChartCanvas.Height,
+                    Width = FlowChartCanvas.Width,
+                    ViewX = translateTransform.X,
+                    ViewY = translateTransform.Y,
+                    ScaleX = scaleTransform.ScaleX,
+                    ScaleY = scaleTransform.ScaleY,
+                },
+                Versions = "1",
+            };
+
+            // 创建一个新的保存文件对话框
+            SaveFileDialog saveFileDialog = new()
+            {
+                Filter = "DynamicNodeFlow Files (*.dnf)|*.dnf",
+                DefaultExt = "dnf",
+                FileName = "project.dnf"
+                // FileName = System.IO.Path.GetFileName(App.FileDataPath)
+            };
+
+            // 显示保存文件对话框
+            bool? result = saveFileDialog.ShowDialog();
+            // 如果用户选择了文件并点击了保存按钮
+            if (result == false)
+            {
+                SereinEnv.WriteLine(InfoType.ERROR, "取消保存文件");
+                return;
+            }
+
+            var savePath = saveFileDialog.FileName;
+            string? librarySavePath = System.IO.Path.GetDirectoryName(savePath);
+            if (string.IsNullOrEmpty(librarySavePath))
+            {
+                SereinEnv.WriteLine(InfoType.ERROR, "保存项目DLL时返回了意外的文件保存路径");
+                return;
+            }
+
+
+            Uri saveProjectFileUri = new Uri(savePath);
+            SereinEnv.WriteLine(InfoType.INFO, "项目文件保存路径：" + savePath);
+            for (int index = 0; index < projectData.Librarys.Length; index++)
+            {
+                NodeLibraryInfo? library = projectData.Librarys[index];
+                string sourceFile = new Uri(library.FilePath).LocalPath; // 源文件夹
+                string targetPath = System.IO.Path.Combine(librarySavePath, library.FileName); // 目标文件夹
+                SereinEnv.WriteLine(InfoType.INFO, $"源路径   : {sourceFile}");
+                SereinEnv.WriteLine(InfoType.INFO, $"目标路径 : {targetPath}");
+
+                try
+                {
+                    File.Copy(sourceFile, targetPath, true);
+                }
+                catch (IOException ex)
+                {
+                    
+                    SereinEnv.WriteLine(InfoType.ERROR, ex.Message);
+                }
+                var dirName = System.IO.Path.GetDirectoryName(targetPath);
+                if (!string.IsNullOrEmpty(dirName))
+                {
+                    var tmpUri2 = new Uri(targetPath);
+                    var relativePath = saveProjectFileUri.MakeRelativeUri(tmpUri2).ToString(); // 转为类库的相对文件路径
+
+                    
+
+
+                    //string relativePath = System.IO.Path.GetRelativePath(savePath, targetPath);
+                    projectData.Librarys[index].FilePath = relativePath;
+                }
+                
+            }
+
+            JObject projectJsonData = JObject.FromObject(projectData);
+            File.WriteAllText(savePath, projectJsonData.ToString());
+
+
+        }
+
 
         /// <summary>
         /// 加载完成
@@ -572,16 +680,20 @@ namespace Serein.Workbench
             // MethodDetails methodDetailss = eventArgs.MethodDetailss;
             PositionOfUI position = eventArgs.Position;
 
-            // 创建对应控件
-            NodeControlBase? nodeControl = nodeModelBase.ControlType switch
+            if(!NodeMVVMManagement.TryGetType(nodeModelBase.ControlType, out var nodeMVVM))
             {
-                NodeControlType.Action => CreateNodeControl<ActionNodeControl, ActionNodeControlViewModel>(nodeModelBase), //typeof(ActionNodeControl),
-                NodeControlType.Flipflop => CreateNodeControl<FlipflopNodeControl, FlipflopNodeControlViewModel>(nodeModelBase),
-                NodeControlType.ExpCondition => CreateNodeControl<ConditionNodeControl, ConditionNodeControlViewModel>(nodeModelBase),
-                NodeControlType.ExpOp => CreateNodeControl<ExpOpNodeControl, ExpOpNodeControlViewModel>(nodeModelBase),
-                NodeControlType.ConditionRegion => CreateNodeControl<ConditionRegionControl, ConditionRegionNodeControlViewModel>(nodeModelBase),
-                _ => null,
-            };
+                SereinEnv.WriteLine(InfoType.INFO, $"无法创建{nodeModelBase.ControlType}节点，节点类型尚未注册。");
+                return;
+            }
+            if(nodeMVVM.ControlType == null
+                || nodeMVVM.ViewModelType == null)
+            {
+                SereinEnv.WriteLine(InfoType.INFO, $"无法创建{nodeModelBase.ControlType}节点，UI类型尚未注册（请通过 NodeMVVMManagement.RegisterUI() 方法进行注册）。");
+                return;
+            }
+
+            NodeControlBase nodeControl = CreateNodeControl(nodeMVVM.ControlType, nodeMVVM.ViewModelType, nodeModelBase);
+
             if (nodeControl is null)
             {
                 return;
@@ -589,6 +701,7 @@ namespace Serein.Workbench
             NodeControls.TryAdd(nodeModelBase.Guid, nodeControl);
             if (eventArgs.IsAddInRegion && NodeControls.TryGetValue(eventArgs.RegeionGuid, out NodeControlBase? regionControl))
             {
+                // 这里的条件是用于加载项目文件时，直接加载在区域中，而不用再判断控件
                 if (regionControl is not null)
                 {
                     TryPlaceNodeInRegion(regionControl, nodeControl);
@@ -597,8 +710,16 @@ namespace Serein.Workbench
             }
             else
             {
-                if (!TryPlaceNodeInRegion(nodeControl, position)) // 判断是否为区域，如果是，将节点放置在区域中
+                // 这里是正常的编辑流程
+                // 判断是否为区域
+                if (TryPlaceNodeInRegion(nodeControl, position, out var targetNodeControl))
                 {
+                    // 需要将节点放置在区域中
+                    TryPlaceNodeInRegion(targetNodeControl, nodeControl);
+                }
+                else
+                {
+                    // 并非区域，需要手动添加
                     PlaceNodeOnCanvas(nodeControl, position.X, position.Y); // 将节点放置在画布上
                 }
             }
@@ -940,7 +1061,7 @@ namespace Serein.Workbench
         //        }
         //    }
         //}
-       
+
         #endregion
 
         #region 节点控件的创建
@@ -950,7 +1071,8 @@ namespace Serein.Workbench
         /// 创建了节点，添加到画布。配置默认事件
         /// </summary>
         /// <param name="nodeControl"></param>
-        /// <param name="position"></param>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
         private void PlaceNodeOnCanvas(NodeControlBase nodeControl, double x, double y)
         {
             // 添加控件到画布
@@ -974,35 +1096,6 @@ namespace Serein.Workbench
         }
 
        
-        /// <summary>
-        /// 开始创建连接 True线 操作，设置起始块和绘制连接线。
-        /// </summary>
-        //private void StartConnection(NodeControlBase startNodeControl, ConnectionInvokeType connectionType)
-        //{
-        //    var tf = Connections.FirstOrDefault(it => it.Start.MyNode.Guid == startNodeControl.ViewModel.NodeModel.Guid)?.Type;
-        //    IsConnecting = true;
-        //    currentConnectionType = connectionType;
-        //    startConnectNodeControl = startNodeControl;
-
-        //    // 确保起点和终点位置的正确顺序
-        //    currentLine = new Line
-        //    {
-        //        Stroke = connectionType == ConnectionInvokeType.IsSucceed ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10"))
-        //                : connectionType == ConnectionInvokeType.IsFail ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F18905"))
-        //                : connectionType == ConnectionInvokeType.IsError ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#AB616B"))
-        //                                                            : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4A82E4")),
-        //        StrokeDashArray = new DoubleCollection([2]),
-        //        StrokeThickness = 2,
-        //        X1 = Canvas.GetLeft(startConnectNodeControl) + startConnectNodeControl.ActualWidth / 2,
-        //        Y1 = Canvas.GetTop(startConnectNodeControl) + startConnectNodeControl.ActualHeight / 2,
-        //        X2 = Canvas.GetLeft(startConnectNodeControl) + startConnectNodeControl.ActualWidth / 2, // 初始时终点与起点重合
-        //        Y2 = Canvas.GetTop(startConnectNodeControl) + startConnectNodeControl.ActualHeight / 2,
-        //    };
-
-        //    FlowChartCanvas.Children.Add(currentLine);
-        //    this.KeyDown += MainWindow_KeyDown;
-        //}
-
         #endregion
 
         #region 配置右键菜单
@@ -1294,6 +1387,7 @@ namespace Serein.Workbench
                             Type when typeof(ConditionRegionControl).IsAssignableFrom(droppedType) => NodeControlType.ConditionRegion, // 条件区域
                             Type when typeof(ConditionNodeControl).IsAssignableFrom(droppedType) => NodeControlType.ExpCondition,
                             Type when typeof(ExpOpNodeControl).IsAssignableFrom(droppedType) => NodeControlType.ExpOp,
+                            Type when typeof(GlobalDataControl).IsAssignableFrom(droppedType) => NodeControlType.GlobalData,
                             _ => NodeControlType.None,
                         };
                         if (nodeControlType != NodeControlType.None)
@@ -1314,12 +1408,13 @@ namespace Serein.Workbench
         }
 
         /// <summary>
-        ///  判断是否为区域，如果是，将节点放置在区域中
+        ///  尝试判断是否为区域，如果是，将节点放置在区域中
         /// </summary>
         /// <param name="nodeControl"></param>
         /// <param name="position"></param>
+        /// <param name="targetNodeControl">目标节点控件</param>
         /// <returns></returns>
-        private bool TryPlaceNodeInRegion(NodeControlBase nodeControl, PositionOfUI position)
+        private bool TryPlaceNodeInRegion(NodeControlBase nodeControl, PositionOfUI position, out NodeControlBase targetNodeControl)
         {
             var point = new Point(position.X, position.Y);
             HitTestResult hitTestResult = VisualTreeHelper.HitTest(FlowChartCanvas, point);
@@ -1331,14 +1426,24 @@ namespace Serein.Workbench
                     ConditionRegionControl? conditionRegion = GetParentOfType<ConditionRegionControl>(hitElement);
                     if (conditionRegion is not null)
                     {
-                        TryPlaceNodeInRegion(conditionRegion, nodeControl);
+                        targetNodeControl = conditionRegion;
                         //// 如果存在条件区域容器
                         //conditionRegion.AddCondition(nodeControl);
                         return true;
                     }
-
+                }
+                // 准备放置全局数据控件
+                else
+                {
+                    GlobalDataControl? globalDataControl = GetParentOfType<GlobalDataControl>(hitElement);
+                    if (globalDataControl is not null)
+                    {
+                        targetNodeControl = globalDataControl;
+                        return true;
+                    }
                 }
             }
+            targetNodeControl = null;
             return false;
         }
 
@@ -1352,13 +1457,20 @@ namespace Serein.Workbench
             // 准备放置条件表达式控件
             if (nodeControl.ViewModel.NodeModel.ControlType == NodeControlType.ExpCondition)
             {
-                ConditionRegionControl? conditionRegion = regionControl as ConditionRegionControl;
-                if (conditionRegion is not null)
+                if (regionControl is ConditionRegionControl conditionRegion)
                 {
-                    // 如果存在条件区域容器
-                    conditionRegion.AddCondition(nodeControl);
+                    conditionRegion.AddCondition(nodeControl); // 条件区域容器
                 }
             }
+            else if(regionControl.ViewModel.NodeModel.ControlType == NodeControlType.GlobalData)
+            {
+                if (regionControl is GlobalDataControl globalDataControl)
+                {
+                    // 全局数据节点容器
+                    globalDataControl.SetDataNodeControl(nodeControl);
+                }
+            }
+
         }
 
         /// <summary>
@@ -2252,28 +2364,38 @@ namespace Serein.Workbench
 
         #region 静态方法：创建节点，创建菜单子项，获取区域
 
-
-        private static TNodeControl CreateNodeControl<TNodeControl, TNodeViewModel>(NodeModelBase model)
-            where TNodeControl : NodeControlBase
-            where TNodeViewModel : NodeControlViewModelBase
+        /// <summary>
+        /// 创建节点控件
+        /// </summary>
+        /// <param name="controlType">节点控件视图控件类型</param>
+        /// <param name="viewModelType">节点控件ViewModel类型</param>
+        /// <param name="model">节点Model实例</param>
+        /// <returns></returns>
+        /// <exception cref="Exception">无法创建节点控件</exception>
+        private static NodeControlBase CreateNodeControl(Type controlType, Type viewModelType, NodeModelBase model)
         {
-
-            if (model is null)
+            if ((controlType is null)
+                || viewModelType is null 
+                || model is null)
             {
                 throw new Exception("无法创建节点控件");
             }
+            if (typeof(NodeControlBase).IsSubclassOf(controlType) || typeof(NodeControlViewModelBase).IsSubclassOf(viewModelType))
+            {
+                throw new Exception("无法创建节点控件");
+            }
+
             if (string.IsNullOrEmpty(model.Guid))
             {
                 model.Guid = Guid.NewGuid().ToString();
             }
-            var viewModel = Activator.CreateInstance(typeof(TNodeViewModel), [model]);
-            var controlObj = Activator.CreateInstance(typeof(TNodeControl), [viewModel]);
-            if (controlObj is TNodeControl nodeControl)
+
+            // Convert.ChangeType(model, targetType);
+
+            var viewModel = Activator.CreateInstance(viewModelType, [model]);
+            var controlObj = Activator.CreateInstance(controlType, [viewModel]);
+            if (controlObj is NodeControlBase nodeControl)
             {
-                
-                //nodeControl.ExecuteJunctionControl = new NodeExecuteJunctionControl(this);
-
-
                 return nodeControl;
             }
             else
@@ -2281,39 +2403,6 @@ namespace Serein.Workbench
                 throw new Exception("无法创建节点控件");
             }
         }
-
-        //private static TControl CreateNodeControl<TNode, TControl, TViewModel>(MethodDetails? methodDetails = null)
-        //    where TNode : NodeModelBase
-        //    where TControl : NodeControlBase
-        //    where TViewModel : NodeControlViewModelBase
-        //{
-
-        //    var nodeObj = Activator.CreateInstance(typeof(TNode));
-        //    var nodeBase = nodeObj as NodeModelBase ?? throw new Exception("无法创建节点控件");
-            
-
-        //    if (string.IsNullOrEmpty(nodeBase.Guid))
-        //    {
-        //        nodeBase.Guid = Guid.NewGuid().ToString();
-        //    }
-        //    if (methodDetails != null)
-        //    {
-        //        var md = methodDetails.Clone(nodeBase); // 首先创建属于节点的方法信息，然后创建属于节点的参数信息
-        //        nodeBase.DisplayName = md.MethodTips;
-        //        nodeBase.MethodDetails = md;
-        //    }
-
-        //    var viewModel = Activator.CreateInstance(typeof(TViewModel), [nodeObj]);
-        //    var controlObj = Activator.CreateInstance(typeof(TControl), [viewModel]);
-        //    if (controlObj is TControl control)
-        //    {
-        //        return control;
-        //    }
-        //    else
-        //    {
-        //        throw new Exception("无法创建节点控件");
-        //    }
-        //}
 
 
         /// <summary>
@@ -2462,94 +2551,9 @@ namespace Serein.Workbench
         /// <param name="e"></param>
         private async void ButtonSaveFile_Click(object sender, RoutedEventArgs e)
         {
-            var projectData = await EnvDecorator.GetProjectInfoAsync();
-
-            projectData.Basic = new Basic
-            {
-                Canvas = new FlowCanvas
-                {
-                    Height = FlowChartCanvas.Height,
-                    Width = FlowChartCanvas.Width,
-                    ViewX = translateTransform.X,
-                    ViewY = translateTransform.Y,
-                    ScaleX = scaleTransform.ScaleX,
-                    ScaleY = scaleTransform.ScaleY,
-                },
-                Versions = "1",
-            };
-
-            //foreach (var node in projectData.Nodes)
-            //{
-            //    if (NodeControls.TryGetValue(node.Guid, out var nodeControl))
-            //    {
-            //        Point positionRelativeToParent = nodeControl.TranslatePoint(new Point(0, 0), FlowChartCanvas);
-            //        node.Position = new PositionOfUI(positionRelativeToParent.X, positionRelativeToParent.Y);
-            //    }
-            //}
-            if (!SaveContentToFile(out string savePath, out Action<string, string>? savaProjectFile))
-            {
-                SereinEnv.WriteLine(InfoType.ERROR, "保存项目DLL时返回了意外的文件保存路径");
-                return;
-            }
-
-            string? librarySavePath = System.IO.Path.GetDirectoryName(savePath);
-            if (string.IsNullOrEmpty(librarySavePath))
-            {
-                SereinEnv.WriteLine(InfoType.ERROR, "保存项目DLL时返回了意外的文件保存路径");
-                return;
-            }
-            SereinEnv.WriteLine(InfoType.INFO, "项目文件保存路径：" + savePath);
-            for (int index = 0; index < projectData.Librarys.Length; index++)
-            {
-                NodeLibraryInfo? library = projectData.Librarys[index];
-                try
-                {
-                    string targetPath = System.IO.Path.Combine(librarySavePath, library.FilePath); // 目标文件夹
-#if  WINDOWS
-                    string sourceFile = library.FilePath; // 源文件夹
-#else
-                    string sourceFile = new Uri(library.Path).LocalPath;
-#endif
-                    // 复制文件到目标目录
-                    File.Copy(sourceFile, targetPath, true);
-
-                    // 获取相对路径
-                    string relativePath = System.IO.Path.GetRelativePath(savePath, targetPath);
-                    projectData.Librarys[index].FilePath = relativePath;
-                }
-                catch (Exception ex)
-                {
-                    SereinEnv.WriteLine(InfoType.ERROR, ex.Message);
-                }
-            }
-
-            JObject projectJsonData = JObject.FromObject(projectData);
-            savaProjectFile?.Invoke(savePath, projectJsonData.ToString());
+            EnvDecorator.SaveProject();
         }
-        public static bool SaveContentToFile(out string savePath, out Action<string, string>? savaProjectFile)
-        {
-            // 创建一个新的保存文件对话框
-            SaveFileDialog saveFileDialog = new()
-            {
-                Filter = "DynamicNodeFlow Files (*.dnf)|*.dnf",
-                DefaultExt = "dnf",
-                FileName = "project.dnf"
-            };
-
-            // 显示保存文件对话框
-            bool? result = saveFileDialog.ShowDialog();
-
-            // 如果用户选择了文件并点击了保存按钮
-            if (result == true)
-            {
-                savePath = saveFileDialog.FileName;
-                savaProjectFile = File.WriteAllText;
-                return true;
-            }
-            savePath = string.Empty;
-            savaProjectFile = null;
-            return false;
-        }
+        
 
         /// <summary>
         /// 打开本地项目文件

@@ -1,4 +1,5 @@
-﻿using Serein.Library.Api;
+﻿using Newtonsoft.Json.Linq;
+using Serein.Library.Api;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -244,6 +245,11 @@ namespace Serein.Library
         /// 是否选中（暂时无效）
         /// </summary>
         public bool IsSelect { get; set; }
+
+        /// <summary>
+        /// 自定义数据
+        /// </summary>
+        public dynamic CustomData { get; set; }
     }
 
     /// <summary>

@@ -69,9 +69,14 @@ namespace Serein.Library
         public bool IsProtection = false;
 
         /// <summary>
-        /// 自定义代码
+        /// 自定义代码（属性变更前）
         /// </summary>
-        public string CustomCode = null;
+        public string CustomCodeAtStart = null;
+
+        /// <summary>
+        /// 自定义代码（属性变更后）
+        /// </summary>
+        public string CustomCodeAtEnd = null;
 
     }
 

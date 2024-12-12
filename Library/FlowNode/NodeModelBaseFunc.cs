@@ -28,13 +28,55 @@ namespace Serein.Library
     /// </summary>
     public abstract partial class NodeModelBase : IDynamicFlowNode
     {
+        #region 节点移除相关
+        /// <summary>
+        /// 移除该节点
+        /// </summary>
+        public virtual void Remove()
+        {
+
+        }
+
+        #endregion
+
         #region 导出/导入项目文件节点信息
 
         /// <summary>
-        /// 获取节点参数
+        /// 输出方法参数信息
         /// </summary>
         /// <returns></returns>
-        public abstract ParameterData[] GetParameterdatas();
+        public virtual ParameterData[] SaveParameterInfo()
+        {
+            if(MethodDetails.ParameterDetailss == null)
+            {
+                return new ParameterData[0];
+            }
+            if (MethodDetails.ParameterDetailss.Length > 0)
+            {
+                return MethodDetails.ParameterDetailss
+                                    .Select(it => new ParameterData
+                                    {
+                                        SourceNodeGuid = it.ArgDataSourceNodeGuid,
+                                        SourceType = it.ArgDataSourceType.ToString(),
+                                        State = it.IsExplicitData,
+                                        Value = it.DataValue,
+                                    })
+                                    .ToArray();
+            }
+            else
+            {
+                return new ParameterData[0];
+            }
+        }
+
+        /// <summary>
+        /// 保存自定义信息
+        /// </summary>
+        /// <returns></returns>
+        public virtual NodeInfo SaveCustomData(NodeInfo nodeInfo)
+        {
+            return nodeInfo;
+        }
 
         /// <summary>
         /// 导出为节点信息
@@ -43,16 +85,15 @@ namespace Serein.Library
         public virtual NodeInfo ToInfo()
         {
             // if (MethodDetails == null) return null;
-
+           
             var trueNodes = SuccessorNodes[ConnectionInvokeType.IsSucceed].Select(item => item.Guid); // 真分支
             var falseNodes = SuccessorNodes[ConnectionInvokeType.IsFail].Select(item => item.Guid);// 假分支
             var errorNodes = SuccessorNodes[ConnectionInvokeType.IsError].Select(item => item.Guid);// 异常分支
             var upstreamNodes = SuccessorNodes[ConnectionInvokeType.Upstream].Select(item => item.Guid);// 上游分支
-
             // 生成参数列表
-            ParameterData[] parameterData = GetParameterdatas();
+            ParameterData[] parameterData = SaveParameterInfo();
 
-            return new NodeInfo
+            NodeInfo nodeInfo = new NodeInfo
             {
                 Guid = Guid,
                 AssemblyName = MethodDetails.AssemblyName,
@@ -66,6 +107,17 @@ namespace Serein.Library
                 ErrorNodes = errorNodes.ToArray(),
                 Position = Position,
             };
+            nodeInfo = SaveCustomData(nodeInfo);
+            return nodeInfo;
+        }
+
+        /// <summary>
+        /// 加载自定义数据
+        /// </summary>
+        /// <param name="nodeInfo"></param>
+        public virtual void LoadCustomData(NodeInfo nodeInfo)
+        {
+            return;
         }
 
         /// <summary>
@@ -73,78 +125,53 @@ namespace Serein.Library
         /// </summary>
         /// <param name="nodeInfo"></param>
         /// <returns></returns>
-        public virtual NodeModelBase LoadInfo(NodeInfo nodeInfo)
+        public virtual void LoadInfo(NodeInfo nodeInfo)
         {
             this.Guid = nodeInfo.Guid;
-
-            if (nodeInfo.Position is null)
+            this.Position = nodeInfo.Position ?? new PositionOfUI(0, 0);// 加载位置信息
+            var md = this.MethodDetails; // 当前节点的方法说明
+            if (md != null)
             {
-                nodeInfo.Position = new PositionOfUI(0, 0);
-            }
-            this.Position = nodeInfo.Position;// 加载位置信息
-            if (this.MethodDetails != null)
-            {
-                if(this.MethodDetails.ParameterDetailss is null)
+                if(md.ParameterDetailss == null)
                 {
-                    this.MethodDetails.ParameterDetailss = new ParameterDetails[nodeInfo.ParameterData.Length];
-                    this.MethodDetails.ParameterDetailss = nodeInfo.ParameterData.Select((pd,index) =>
-                    {
-                        return new ParameterDetails()
-                        {
-                            Index = index,
-                            NodeModel = this,
-                            DataType = typeof(object),
-                            ExplicitType = typeof(object),
-                            Name = string.Empty,
-                            ExplicitTypeName = "Value",
-                            IsExplicitData = pd.State,
-                            DataValue = pd.Value,
-                            ArgDataSourceType = EnumHelper.ConvertEnum<ConnectionArgSourceType>(pd.SourceType),
-                            ArgDataSourceNodeGuid = pd.SourceNodeGuid,
-                        };
-                    }).ToArray();
+                    md.ParameterDetailss = new ParameterDetails[0];
                 }
-                else
-                {
-                    var md = this.MethodDetails; // 当前节点的方法说明
-                    var pds = md.ParameterDetailss; // 当前节点的入参描述数组
-                    if (nodeInfo.ParameterData.Length > pds.Length && md.HasParamsArg)
-                    {
-                        // 保存的参数信息项数量大于方法本身的方法入参数量（可能存在可变入参）
-                        var length = nodeInfo.ParameterData.Length - pds.Length; // 需要扩容的长度
-                        this.MethodDetails.ParameterDetailss = ArrayHelper.Expansion(pds, length); // 扩容入参描述数组
-                        pds = this.MethodDetails.ParameterDetailss;
-                        var startParmsPd = pds[md.ParamsArgIndex]; // 获取可变入参参数描述
-                        for(int i = md.ParamsArgIndex + 1; i <= md.ParamsArgIndex + length; i++)
-                        {
-                            pds[i] = startParmsPd.CloneOfModel(this);
-                            pds[i].Index = pds[i-1].Index + 1;
-                            pds[i].IsParams = true;
-                        }
-                    }
-                    for (int i = 0; i < nodeInfo.ParameterData.Length; i++)
-                    {
-                        if(i >= pds.Length)
-                        {
-                            Env.WriteLine(InfoType.ERROR, $"保存的参数数量大于方法此时的入参参数数量：[{nodeInfo.Guid}][{nodeInfo.MethodName}]");
+                LoadCustomData(nodeInfo); // 加载自定义数据
 
-                            break;
-                        }
-                        var pd = pds[i];
-                        ParameterData pdInfo = nodeInfo.ParameterData[i];
-                        pd.IsExplicitData = pdInfo.State;
-                        pd.DataValue = pdInfo.Value;
-                        pd.ArgDataSourceType = EnumHelper.ConvertEnum<ConnectionArgSourceType>(pdInfo.SourceType);
-                        pd.ArgDataSourceNodeGuid = pdInfo.SourceNodeGuid;
-                        
+                var pds = md.ParameterDetailss; // 当前节点的入参描述数组
+                #region 类库方法型节点加载参数
+                if (nodeInfo.ParameterData.Length > pds.Length && md.HasParamsArg)
+                {
+                    // 保存的参数信息项数量大于方法本身的方法入参数量（可能存在可变入参）
+                    var length = nodeInfo.ParameterData.Length - pds.Length; // 需要扩容的长度
+                    this.MethodDetails.ParameterDetailss = ArrayHelper.Expansion(pds, length); // 扩容入参描述数组
+                    pds = md.ParameterDetailss; // 当前节点的入参描述数组
+                    var startParmsPd = pds[md.ParamsArgIndex]; // 获取可变入参参数描述
+                    for (int i = md.ParamsArgIndex + 1; i <= md.ParamsArgIndex + length; i++)
+                    {
+                        pds[i] = startParmsPd.CloneOfModel(this);
+                        pds[i].Index = pds[i - 1].Index + 1;
+                        pds[i].IsParams = true;
                     }
                 }
 
-               
+                for (int i = 0; i < nodeInfo.ParameterData.Length; i++)
+                {
+                    if (i >= pds.Length)
+                    {
+                        Env.WriteLine(InfoType.ERROR, $"保存的参数数量大于方法此时的入参参数数量：[{nodeInfo.Guid}][{nodeInfo.MethodName}]");
+                        break;
+                    }
+                    var pd = pds[i];
+                    ParameterData pdInfo = nodeInfo.ParameterData[i];
+                    pd.IsExplicitData = pdInfo.State;
+                    pd.DataValue = pdInfo.Value;
+                    pd.ArgDataSourceType = EnumHelper.ConvertEnum<ConnectionArgSourceType>(pdInfo.SourceType);
+                    pd.ArgDataSourceNodeGuid = pdInfo.SourceNodeGuid;
 
-                
+                } 
+                #endregion
             }
-            return this;
         }
         #endregion
 
@@ -616,7 +643,6 @@ namespace Serein.Library
                     parameters[i] = tmpVaue;
                 }
                 #endregion
-
 
             }
 

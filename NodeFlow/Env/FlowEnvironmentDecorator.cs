@@ -86,11 +86,22 @@ namespace Serein.NodeFlow.Env
             add { currentFlowEnvironment.OnDllLoad += value; }
             remove { currentFlowEnvironment.OnDllLoad -= value; }
         }
+
         public event ProjectLoadedHandler OnProjectLoaded
         {
             add { currentFlowEnvironment.OnProjectLoaded += value; }
             remove { currentFlowEnvironment.OnProjectLoaded -= value; }
         }
+
+        /// <summary>
+        /// 项目准备保存
+        /// </summary>
+        public event ProjectSavingHandler? OnProjectSaving
+        {
+            add { currentFlowEnvironment.OnProjectSaving += value; }
+            remove { currentFlowEnvironment.OnProjectSaving -= value; }
+        }
+
 
         public event NodeConnectChangeHandler OnNodeConnectChange
         {
@@ -287,6 +298,14 @@ namespace Serein.NodeFlow.Env
         public void LoadLibrary(string dllPath)
         {
             currentFlowEnvironment.LoadLibrary(dllPath);
+        }
+
+        /// <summary>
+        /// 保存项目
+        /// </summary>
+        public void SaveProject()
+        {
+            currentFlowEnvironment.SaveProject();
         }
 
         public void LoadProject(FlowEnvInfo flowEnvInfo, string filePath)

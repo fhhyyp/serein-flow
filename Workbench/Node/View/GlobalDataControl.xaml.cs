@@ -22,20 +22,35 @@ namespace Serein.Workbench.Node.View
     /// </summary>
     public partial class GlobalDataControl : NodeControlBase, INodeJunction
     {
+        //private new GlobalDataNodeControlViewModel ViewModel => ViewModel;
 
         public GlobalDataControl() : base()
         {
             // 窗体初始化需要
-            ViewModel = new GlobalDataNodeControlViewModel(new SingleGlobalDataNode(null));
+            base.ViewModel = new GlobalDataNodeControlViewModel(new SingleGlobalDataNode(null));
             DataContext = ViewModel;
             InitializeComponent();
         }
 
-        public GlobalDataControl(ConditionNodeControlViewModel viewModel) : base(viewModel)
+        public GlobalDataControl(GlobalDataNodeControlViewModel viewModel) : base(viewModel)
         {
             DataContext = viewModel;
             InitializeComponent();
         }
+
+
+        /// <summary>
+        /// 设置数据节点
+        /// </summary>
+        /// <param name="nodeControl"></param>
+        public void SetDataNodeControl(NodeControlBase nodeControl)
+        {
+            ((GlobalDataNodeControlViewModel)ViewModel).SetDataNode(nodeControl.ViewModel.NodeModel);
+
+            GlobalDataPanel.Children.Clear();
+            GlobalDataPanel.Children.Add(nodeControl);
+        }
+
 
         /// <summary>
         /// 入参控制点（可能有，可能没）
@@ -50,13 +65,13 @@ namespace Serein.Workbench.Node.View
         /// <summary>
         /// 返回值控制点（可能有，可能没）
         /// </summary>
-        JunctionControlBase INodeJunction.ReturnDataJunction => this.ResultJunctionControl;
-
+        JunctionControlBase INodeJunction.ReturnDataJunction => throw new NotImplementedException();
 
         /// <summary>
         /// 方法入参控制点（可能有，可能没）
         /// </summary>
         JunctionControlBase[] INodeJunction.ArgDataJunction => throw new NotImplementedException();
+
 
     }
 }

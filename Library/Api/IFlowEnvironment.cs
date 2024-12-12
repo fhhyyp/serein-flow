@@ -23,6 +23,14 @@ namespace Serein.Library.Api
     public delegate void ProjectLoadedHandler(ProjectLoadedEventArgs eventArgs);
 
     /// <summary>
+    /// 项目准备保存
+    /// </summary>
+    /// <param name="eventArgs"></param>
+    public delegate void ProjectSavingHandler(ProjectSavingEventArgs eventArgs);
+
+
+
+    /// <summary>
     /// 加载项目文件时成功加载了DLL文件
     /// </summary>
     public delegate void LoadDllHandler(LoadDllEventArgs eventArgs);
@@ -133,6 +141,13 @@ namespace Serein.Library.Api
     public class ProjectLoadedEventArgs : FlowEventArgs
     {
         public ProjectLoadedEventArgs()
+        {
+        }
+    }
+    
+    public class ProjectSavingEventArgs : FlowEventArgs
+    {
+        public ProjectSavingEventArgs()
         {
         }
     }
@@ -259,11 +274,23 @@ namespace Serein.Library.Api
 
     public class NodeCreateEventArgs : FlowEventArgs
     {
+        /// <summary>
+        /// 节点添加事件参数
+        /// </summary>
+        /// <param name="nodeModel">节点对象</param>
+        /// <param name="position">位置</param>
         public NodeCreateEventArgs(object nodeModel, PositionOfUI position)
         {
             this.NodeModel = nodeModel;
             this.Position = position;
         }
+
+        /// <summary>
+        /// 区域子项节点添加事件参数
+        /// </summary>
+        /// <param name="nodeModel">节点对象</param>
+        /// <param name="isAddInRegion">是否添加在区域中</param>
+        /// <param name="regeionGuid">区域Guid</param>
         public NodeCreateEventArgs(object nodeModel, bool isAddInRegion, string regeionGuid)
         {
             this.NodeModel = nodeModel;
@@ -565,6 +592,11 @@ namespace Serein.Library.Api
         event ProjectLoadedHandler OnProjectLoaded;
 
         /// <summary>
+        /// 项目准备保存
+        /// </summary>
+        event ProjectSavingHandler OnProjectSaving;
+
+        /// <summary>
         /// 节点连接属性改变事件
         /// </summary>
         event NodeConnectChangeHandler OnNodeConnectChange;
@@ -656,18 +688,24 @@ namespace Serein.Library.Api
         /// </summary>
         void StopRemoteServer();
 
-
-        /// <summary>
-        /// 保存当前项目
-        /// </summary>
-        /// <returns></returns>
-        Task<SereinProjectData> GetProjectInfoAsync();
         /// <summary>
         /// 加载项目文件
         /// </summary>
         /// <param name="flowEnvInfo">包含项目信息的远程环境</param>
         /// <param name="filePath"></param>
         void LoadProject(FlowEnvInfo flowEnvInfo, string filePath);
+
+        /// <summary>
+        /// 保存项目
+        /// </summary>
+        void SaveProject();
+
+        /// <summary>
+        /// 获取当前项目信息
+        /// </summary>
+        /// <returns></returns>
+        Task<SereinProjectData> GetProjectInfoAsync();
+
         /// <summary>
         /// 加载远程环境
         /// </summary>

@@ -42,7 +42,7 @@ namespace Serein.Library
         /// <summary>
         ///  中断级别，暂时停止继续执行后继分支。
         /// </summary>
-        [PropertyInfo(IsNotification = true, CustomCode = "NodeModel?.Env?.SetNodeInterruptAsync(NodeModel?.Guid, value);")] // CustomCode = "NodeModel?.Env?.SetNodeInterruptAsync(NodeModel?.Guid, value);"
+        [PropertyInfo(IsNotification = true, CustomCodeAtEnd = "NodeModel?.Env?.SetNodeInterruptAsync(NodeModel?.Guid, value);")] // CustomCode = "NodeModel?.Env?.SetNodeInterruptAsync(NodeModel?.Guid, value);"
         private bool _isInterrupt = false;
 
         /// <summary>

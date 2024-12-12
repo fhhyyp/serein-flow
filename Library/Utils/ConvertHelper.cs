@@ -22,7 +22,7 @@ namespace Serein.Library.Utils
             return (TResult)data.ToConvert(type);
 
         }
-        public static object ToConvert(this object data,Type type)
+        public static object ToConvert(this object data, Type type)
         {
             if (type.IsValueType)
             {

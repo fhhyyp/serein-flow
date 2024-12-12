@@ -19,7 +19,7 @@
     </UserControl.Resources>
 
 
-    <Border BorderBrush="#8DE9FD" BorderThickness="4">
+    <Border BorderBrush="#8DE9FD" BorderThickness="4" >
         <Grid>
             <Grid.ToolTip>
                 <ToolTip Background="LightYellow" Foreground="#071042" Content="{Binding NodeModel.MethodDetails}" />
@@ -47,9 +47,9 @@
                         </Style.Triggers>
                     </Style>
                 </Border.Style>
-                
-                
-                <Grid>
+
+
+                <Grid Background="#8DE9FD" >
 
     
 
@@ -61,11 +61,10 @@
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <Grid Grid.Row="0" Background="#8DE9FD" >
+                    <Grid Grid.Row="0" >
                         <!--<Grid Grid.Row="0" >-->
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="3*"/>
-                            <RowDefinition/>
+                            <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="auto"/>

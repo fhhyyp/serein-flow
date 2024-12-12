@@ -56,14 +56,15 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <local:ArgJunctionControl  Grid.Column="0" x:Name="ArgJunctionControl" ArgIndex="0" MyNode="{Binding NodeModel}" />
-            <CheckBox  Grid.Column="1" IsChecked="{Binding NodeModel.IsCustomData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"/>  <!--Converter={StaticResource BoolToVis}-->
-            <TextBox Grid.Column="2" MinWidth="50" Text="{Binding NodeModel.CustomData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
-                     HorizontalAlignment="Stretch" VerticalAlignment="Center">
+            <CheckBox  Grid.Column="1" IsChecked="{Binding NodeModel.IsExplicitData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"/>  <!--Converter={StaticResource BoolToVis}-->
+            <TextBox Grid.Column="2" MinWidth="50" Text="{Binding NodeModel.ExplicitData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                     HorizontalAlignment="Stretch"
+                     VerticalAlignment="Center">
                 <TextBox.Style>
                     <Style TargetType="TextBox">
                         <Setter Property="Visibility" Value="Collapsed" />
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding NodeModel.IsCustomData}" Value="True">
+                            <DataTrigger Binding="{Binding NodeModel.IsExplicitData}" Value="True">
                                 <Setter Property="Visibility" Value="Visible" />
                             </DataTrigger>
                         </Style.Triggers>
@@ -76,7 +77,7 @@
                     <Style TargetType="TextBlock">
                         <Setter Property="Visibility" Value="Collapsed" />
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding NodeModel.IsCustomData}" Value="False">
+                            <DataTrigger Binding="{Binding NodeModel.IsExplicitData}" Value="False">
                                 <Setter Property="Visibility" Value="Visible" />
                             </DataTrigger>
                         </Style.Triggers>

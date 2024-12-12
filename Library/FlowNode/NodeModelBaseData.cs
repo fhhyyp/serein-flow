@@ -72,7 +72,10 @@ namespace Serein.Library
         /// <summary>
         /// 实体节点创建完成后调用的方法，调用时间早于 LoadInfo() 方法
         /// </summary>
-        public abstract void OnCreating();
+        public virtual void OnCreating()
+        {
+
+        }
 
         public NodeModelBase(IFlowEnvironment environment)
         {

@@ -15,16 +15,16 @@ namespace Serein.Workbench.Node.ViewModel
         /// </summary>
         public bool IsCustomData
         {
-            get => NodeModel.IsCustomData;
-            set { NodeModel.IsCustomData= value; OnPropertyChanged(); }
+            get => NodeModel.IsExplicitData;
+            set { NodeModel.IsExplicitData = value; OnPropertyChanged(); }
         }
         /// <summary>
          /// 自定义参数值
          /// </summary>
         public string? CustomData
         {
-            get => NodeModel.CustomData;
-            set { NodeModel.CustomData = value ; OnPropertyChanged(); }
+            get => NodeModel.ExplicitData;
+            set { NodeModel.ExplicitData = value ; OnPropertyChanged(); }
         }
         /// <summary>
         /// 表达式

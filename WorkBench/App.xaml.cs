@@ -16,13 +16,14 @@ namespace Serein.Workbench
         {
         
  #if DEBUG
-            if (1 == 1 )
+            if (1 == 1)
             {
                 string filePath;
                 filePath = @"F:\临时\project\linux\project.dnf";
                 filePath = @"F:\临时\project\linux\http\project.dnf";
                 filePath = @"F:\临时\project\yolo flow\project.dnf";
                 filePath = @"F:\临时\project\data\project.dnf";
+                filePath = @"C:\Users\Az\source\repos\CLBanyunqiState\CLBanyunqiState\bin\Release\net8.0\project.dnf";
                 filePath = @"C:\Users\Az\source\repos\CLBanyunqiState\CLBanyunqiState\bin\Release\net8.0\PLCproject.dnf";
                 string content = System.IO.File.ReadAllText(filePath); // 读取整个文件内容
                 App.FlowProjectData = JsonConvert.DeserializeObject<SereinProjectData>(content);

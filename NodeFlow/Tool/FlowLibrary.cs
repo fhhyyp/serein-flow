@@ -64,6 +64,10 @@ namespace Serein.NodeFlow
             
         }
 
+        /// <summary>
+        /// 转为依赖信息
+        /// </summary>
+        /// <returns></returns>
         public NodeLibraryInfo ToInfo()
         {
             return new NodeLibraryInfo
@@ -72,6 +76,8 @@ namespace Serein.NodeFlow
                 FileName = Path.GetFileName(assembly.Location),
                 FilePath = assembly.Location,
             };
+
+            
         }
 
 

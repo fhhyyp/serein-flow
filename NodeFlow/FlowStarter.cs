@@ -241,7 +241,7 @@ namespace Serein.NodeFlow
                     _flipFlopCts?.Dispose();
                 } // 通知所有流程上下文停止运行
                 TerminateAllGlobalFlipflop(); // 确保所有触发器不再运行
-                SereinEnv.ClearGlobalData(); // 清空全局数据缓存
+                SereinEnv.ClearFlowGlobalData(); // 清空全局数据缓存
                 NativeDllHelper.FreeLibrarys(); // 卸载所有已加载的 Native Dll
 
                 env.FlowState = RunState.Completion;

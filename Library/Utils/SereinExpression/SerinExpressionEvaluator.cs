@@ -510,9 +510,7 @@ namespace Serein.Library.Utils.SereinExpression
         private static object GetGlobleData(object value, string expression)
         {
             var keyName = expression;
-            SereinEnv.EnvGlobalData.TryGetValue(keyName, out var data);
-
-            return data;
+            return SereinEnv.GetFlowGlobalData(keyName);
         }
     }
 }

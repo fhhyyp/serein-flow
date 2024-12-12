@@ -45,6 +45,10 @@ namespace Serein.NodeFlow.Env
 
         public event LoadDllHandler OnDllLoad;
         public event ProjectLoadedHandler OnProjectLoaded;
+        /// <summary>
+        /// 项目准备保存
+        /// </summary>
+        public event ProjectSavingHandler? OnProjectSaving;
         public event NodeConnectChangeHandler OnNodeConnectChange;
         public event NodeCreateHandler OnNodeCreate;
         public event NodeRemoveHandler OnNodeRemove;
@@ -127,6 +131,15 @@ namespace Serein.NodeFlow.Env
             var prjectInfo = await msgClient.SendAndWaitDataAsync<SereinProjectData>(EnvMsgTheme.GetProjectInfo); // 等待服务器返回项目信息
             return prjectInfo;
         }
+
+        /// <summary>
+        /// 保存项目
+        /// </summary>
+        public void SaveProject()
+        {
+            OnProjectSaving?.Invoke(new ProjectSavingEventArgs());
+        }
+
 
         /// <summary>
         /// 远程环境下加载项目

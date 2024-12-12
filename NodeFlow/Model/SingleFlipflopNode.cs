@@ -16,13 +16,6 @@ namespace Serein.NodeFlow.Model
 
         }
 
-        /// <summary>
-        /// 加载完成后调用的方法
-        /// </summary>
-        public override void OnCreating()
-        {
-        }
-
 
         /// <summary>
         /// 执行触发器进行等待触发
@@ -60,59 +53,7 @@ namespace Serein.NodeFlow.Model
                 throw new FlipflopException(base.MethodDetails.MethodName + "触发器超时触发。Guid" + base.Guid);
             }
             return dynamicFlipflopContext.Value;
-
-            /*try
-            {
-                
-               
-            
-            }
-            catch (FlipflopException ex)
-            {
-                if(ex.Type == FlipflopException.CancelClass.CancelFlow)
-                {
-                    throw;
-                }
-                SereinEnv.WriteLine(InfoType.ERROR, $"触发器[{this.MethodDetails.MethodName}]异常：" + ex);
-                context.NextOrientation = ConnectionInvokeType.None;
-                context.ExceptionOfRuning = ex;
-                return null;
-            }
-            catch (Exception ex)
-            {
-                SereinEnv.WriteLine(InfoType.ERROR, $"触发器[{this.MethodDetails.MethodName}]异常：" + ex);
-                context.NextOrientation = ConnectionInvokeType.IsError;
-                context.ExceptionOfRuning = ex;
-                return null;
-            }
-            finally
-            {
-                // flipflopTask?.Dispose();
-            }*/
         }
 
-        /// <summary>
-        /// 获取触发器参数
-        /// </summary>
-        /// <returns></returns>
-        public override ParameterData[] GetParameterdatas()
-        {
-            if (base.MethodDetails.ParameterDetailss.Length > 0)
-            {
-                return MethodDetails.ParameterDetailss
-                                     .Select(it => new ParameterData
-                                     {
-                                         SourceNodeGuid = it.ArgDataSourceNodeGuid,
-                                         SourceType = it.ArgDataSourceType.ToString(),
-                                         State = it.IsExplicitData,
-                                         Value = it.DataValue
-                                     })
-                                     .ToArray();
-            }
-            else
-            {
-                return [];
-            }
-        }
     }
 }

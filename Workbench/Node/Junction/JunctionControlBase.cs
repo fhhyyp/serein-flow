@@ -104,7 +104,7 @@ namespace Serein.Workbench.Node.View
                 cancellationTokenSource = new CancellationTokenSource();
                 Task.Run(async () =>
                 {
-                    await Task.Delay(500);
+                    await Task.Delay(380);
 
                 }, cancellationTokenSource.Token).ContinueWith((t) =>
                 {
