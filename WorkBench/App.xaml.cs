@@ -14,10 +14,11 @@ namespace Serein.Workbench
     {
         void LoadLocalProject()
         {
-        
- #if DEBUG
-            if (1 == 1)
+
+#if DEBUG 
+            if (1 == 11)
             {
+                // 这里是我自己的测试代码，你可以删除
                 string filePath;
                 filePath = @"F:\临时\project\linux\project.dnf";
                 filePath = @"F:\临时\project\linux\http\project.dnf";
