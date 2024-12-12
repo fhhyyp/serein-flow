@@ -31,7 +31,7 @@ namespace Serein.Library
 
 
         /// <summary>
-        /// 是否保护参数（目前仅视觉效果参数，不影响运行实现，后续将设置作用在运行逻辑中）
+        /// 是否保护参数
         /// </summary>
         [PropertyInfo(IsNotification = true)]
         private bool _isProtectionParameter;

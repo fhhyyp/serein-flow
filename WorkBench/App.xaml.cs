@@ -16,7 +16,7 @@ namespace Serein.Workbench
         {
 
 #if DEBUG 
-            if (1 == 11)
+            if (1 == 1)
             {
                 // 这里是我自己的测试代码，你可以删除
                 string filePath;

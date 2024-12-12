@@ -106,6 +106,9 @@ namespace Serein.Library
                 ParameterData = parameterData.ToArray(),
                 ErrorNodes = errorNodes.ToArray(),
                 Position = Position,
+                IsProtectionParameter = this.MethodDetails.IsProtectionParameter,
+                IsInterrupt = this.DebugSetting.IsInterrupt,
+                IsEnable = this.DebugSetting.IsEnable,
             };
             nodeInfo = SaveCustomData(nodeInfo);
             return nodeInfo;
@@ -130,6 +133,10 @@ namespace Serein.Library
             this.Guid = nodeInfo.Guid;
             this.Position = nodeInfo.Position ?? new PositionOfUI(0, 0);// 加载位置信息
             var md = this.MethodDetails; // 当前节点的方法说明
+            this.MethodDetails.IsProtectionParameter = nodeInfo.IsProtectionParameter; // 保护参数
+            this.DebugSetting.IsInterrupt = nodeInfo.IsInterrupt; // 是否中断
+            this.DebugSetting.IsEnable = nodeInfo.IsEnable; // 是否使能
+
             if (md != null)
             {
                 if(md.ParameterDetailss == null)

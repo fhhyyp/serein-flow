@@ -86,23 +86,24 @@
                 </Border>
             </Grid>
 
-            <Grid Grid.Row="4" Background="Azure" >
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <CheckBox  Grid.Row="0" Grid.Column="0" IsChecked="{Binding NodeModel.DebugSetting.IsEnable, Mode=TwoWay}"/>
-                <TextBlock Grid.Row="0" Grid.Column="1" Text="是否使能" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                <CheckBox  Grid.Row="1" Grid.Column="0" IsChecked="{Binding NodeModel.MethodDetails.IsProtectionParameter, Mode=TwoWay}"/>
-                <TextBlock Grid.Row="1" Grid.Column="1" Text="参数保护" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                <CheckBox  Grid.Row="2" Grid.Column="0" IsChecked="{Binding NodeModel.DebugSetting.IsInterrupt, Mode=TwoWay}"/>
-                <TextBlock Grid.Row="2" Grid.Column="1" Text="中断节点" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-            </Grid>
+            <StackPanel Grid.Row="4" Background="Azure"  Orientation="Horizontal" Margin="3">
+                <StackPanel Orientation="Horizontal" Margin="2,1,2,1">
+                    <CheckBox IsChecked="{Binding NodeModel.DebugSetting.IsEnable, Mode=TwoWay}"/>
+                    <TextBlock Text="是否使能" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                </StackPanel>
+
+
+                <StackPanel Orientation="Horizontal" Margin="2,1,2,1">
+                    <CheckBox  IsChecked="{Binding NodeModel.MethodDetails.IsProtectionParameter, Mode=TwoWay}"/>
+                    <TextBlock Text="参数保护" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="2,1,2,1">
+                    <CheckBox  IsChecked="{Binding NodeModel.DebugSetting.IsInterrupt, Mode=TwoWay}"/>
+                    <TextBlock Text="中断节点" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                </StackPanel>
+
+            </StackPanel>
             <!--<themes:ConditionControl Grid.Row="2" ></themes:ConditionControl>-->
         </Grid>
     </Border>

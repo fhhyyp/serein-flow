@@ -241,10 +241,23 @@ namespace Serein.Library
 
         public PositionOfUI Position { get; set; }
 
+
         /// <summary>
-        /// 是否选中（暂时无效）
+        /// 是否中断
         /// </summary>
-        public bool IsSelect { get; set; }
+        public bool IsInterrupt { get; set; }
+
+        /// <summary>
+        /// 是否使能
+        /// </summary>
+        public bool IsEnable { get; set; }
+
+        /// <summary>
+        /// 是否保护参数
+        /// </summary>
+        public bool IsProtectionParameter { get; set; }
+
+
 
         /// <summary>
         /// 自定义数据
