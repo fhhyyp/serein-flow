@@ -11,22 +11,28 @@ namespace Serein.FlowStartTool
 {
     public class Program
     {
+        /// <summary>
+        /// 运行环境
+        /// </summary>
+        private static readonly FlowEnv flowEnv = new FlowEnv();
         public static void Main(string[] args)
         {
+
+
+            #region 获取文件路径
 #if debug
             args = [@"F:\临时\project\linux\project.dnf"];
 #endif
-
-
             Console.WriteLine("Hello :) ");
             Console.WriteLine($"args : {string.Join(" , ", args)}");
+
             string filePath;
             string fileDataPath;
             SereinProjectData? flowProjectData;
+            string? assembly = Assembly.GetExecutingAssembly()?.Location;
+            string exeAssemblyDictPath = Path.GetDirectoryName(assembly)!;
 
-            string exeAssemblyDictPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-           
-            if (args.Length == 1) 
+            if (args.Length == 1)
             {
                 filePath = args[0];
                 fileDataPath = Path.GetDirectoryName(filePath) ?? "";
@@ -35,6 +41,7 @@ namespace Serein.FlowStartTool
             {
                 Console.WriteLine("loading project file data...");
                 filePath = Process.GetCurrentProcess().ProcessName + ".dnf";
+
                 fileDataPath = exeAssemblyDictPath;
 
             }
@@ -45,9 +52,11 @@ namespace Serein.FlowStartTool
 
             Console.WriteLine($"Current Name : {filePath}");
             Console.WriteLine($"Dict Path : {fileDataPath}");
+            #endregion
+
+            #region 读取项目文件内容
             try
             {
-                // 读取文件内容
                 string content = File.ReadAllText(filePath); // 读取整个文件内容
                 flowProjectData = JsonConvert.DeserializeObject<SereinProjectData>(content);
                 if (flowProjectData is null || string.IsNullOrEmpty(fileDataPath))
@@ -60,47 +69,20 @@ namespace Serein.FlowStartTool
                 Console.WriteLine($"读取文件时发生错误：{ex.Message}");
                 return;
             }
+            #endregion
 
-            IsRuning = true;
-            _ = Task.Run(async () => await StartFlow(flowProjectData, fileDataPath));
-            while (IsRuning)
+            #region 加载项目
+            _ = Task.Run(async () => await flowEnv.StartFlow(flowProjectData, fileDataPath));
+            while (flowEnv.IsRuning)
             {
                 Console.ReadKey();
-            }
+            } 
+            #endregion
+
         }
 
 
-        public static IFlowEnvironment? Env;
-        public static bool IsRuning;
-        public static async Task StartFlow(SereinProjectData flowProjectData, string fileDataPath)
-        {
-            
-            SynchronizationContext? uiContext = SynchronizationContext.Current; // 在UI线程上获取UI线程上下文信息
-            var uIContextOperation = new UIContextOperation(uiContext); // 封装一个调用UI线程的工具类
 
-            //if (OperatingSystem.IsLinux())
-            //{
-
-            //}
-
-            // if (uIContextOperation is null)
-            //{
-            //    throw new Exception("无法封装 UIContextOperation ");
-            //}
-            //else
-            //{
-            //    env = new FlowEnvironmentDecorator(uIContextOperation);
-            //    this.window = window;
-            //}
-
-            Env = new FlowEnvironmentDecorator(uIContextOperation); 
-            Env.LoadProject(new FlowEnvInfo { Project = flowProjectData }, fileDataPath); // 加载项目
-            await Env.StartRemoteServerAsync(7525); // 启动 web socket 监听远程请求
-
-            //await Env.StartAsync();
-
-            IsRuning = false;
-        }
-
+        
     }
 }
