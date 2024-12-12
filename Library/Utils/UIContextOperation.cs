@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,11 +9,29 @@ using System.Threading.Tasks;
 namespace Serein.Library.Utils
 {
     /// <summary>
-    /// 为类库提供了在UI线程上下文操作的方法，如果你在Windows平台上运行，不必手动实例化该类
+    /// 为类库提供了在UI线程上下文操作的方法（使用Serein.Workbench时不用处理）
+    /// 在WPF、Winform项目中，多线程中直接操作UI线程可能发生非预期的异常
+    /// 所以当你设置自己的平台时，需要手动实例化这个工具类
     /// </summary>
     public class UIContextOperation
     {
         private readonly SynchronizationContext context;
+
+        static UIContextOperation()
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+
+            }
+        }
 
         /// <summary>
         /// 传入UI线程上下文
