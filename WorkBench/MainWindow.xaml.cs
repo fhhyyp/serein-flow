@@ -1,4 +1,5 @@
 ﻿using Microsoft.Win32;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Serein.Library;
 using Serein.Library.Api;
@@ -12,7 +13,9 @@ using Serein.Workbench.Node;
 using Serein.Workbench.Node.View;
 using Serein.Workbench.Node.ViewModel;
 using Serein.Workbench.Themes;
+using Serein.Workbench.Tool;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -23,6 +26,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Shapes;
+using static Dm.net.buffer.ByteArrayBuffer;
 using DataObject = System.Windows.DataObject;
 
 namespace Serein.Workbench
@@ -1998,7 +2002,10 @@ namespace Serein.Workbench
                 {
                     if (element is NodeControlBase control)
                     {
-                        selectNodeControls.Add(control);
+                        if (!selectNodeControls.Contains(control))
+                        {
+                            selectNodeControls.Add(control);
+                        }
                     }
                 }
             }
@@ -2659,6 +2666,150 @@ namespace Serein.Workbench
                 e.Handled = true; // 禁止默认的Tab键行为
             }
 
+            #region 复制粘贴选择的节点
+            if (Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                #region 复制节点
+                if (e.Key == Key.C && selectNodeControls.Count > 0)
+                {
+                    // 处理复制操作
+                    List<NodeInfo> selectNodeInfos = selectNodeControls.Select(control => control.ViewModel.NodeModel.ToInfo()).ToList();
+
+                    /*foreach (var node in selectNodeInfos.ToArray())
+                    {
+                        // 遍历这些节点的子节点，获得完整的已选节点信息
+                        foreach (var childNodeGuid in node.ChildNodeGuids)
+                        {
+                            if (!string.IsNullOrEmpty(childNodeGuid)
+                                && NodeControls.TryGetValue(childNodeGuid, out var nodeControl))
+                            {
+
+                                var newNodeInfo = nodeControl.ViewModel.NodeModel.ToInfo();
+                                selectNodeInfos.Add(newNodeInfo);
+                            }
+                        }
+                    }*/
+
+
+                    Dictionary<string, string> guids = new Dictionary<string, string>(); // 记录 Guid
+                    // 遍历当前已选节点
+                    foreach (var node in selectNodeInfos.ToArray())
+                    {
+                        if (!guids.ContainsKey(node.Guid))
+                        {
+                            // 如果是没出现过的Guid，则记录并新增对应的映射。
+                            guids.TryAdd(node.Guid, Guid.NewGuid().ToString());
+                        }
+                        else
+                        {
+                            // 出现过的Guid，说明重复添加了。应该不会走到这。
+                            continue;
+                        }
+
+                        if(node.ChildNodeGuids is null)
+                        {
+                            continue; // 跳过没有子节点的节点
+                        }
+
+                        // 遍历这些节点的子节点，获得完整的已选节点信息
+                        foreach (var childNodeGuid in node.ChildNodeGuids)
+                        {
+                            if (!guids.ContainsKey(childNodeGuid))
+                            {
+                                // 如果是没出现过的Guid，则记录并新增对应的映射。
+                                guids.TryAdd(node.Guid, Guid.NewGuid().ToString());
+                            }
+
+                            if (!string.IsNullOrEmpty(childNodeGuid)
+                                && NodeControls.TryGetValue(childNodeGuid, out var nodeControl))
+                            {
+
+                                var newNodeInfo = nodeControl.ViewModel.NodeModel.ToInfo();
+                                selectNodeInfos.Add(newNodeInfo);
+                            }
+                        }
+                    }
+
+                    var replacer = new GuidReplacer();
+                    foreach(var kv in guids)
+                    {
+                        replacer.AddReplacement(kv.Key, kv.Value);
+                    }
+
+                    JObject json = new JObject()
+                    {
+                        ["nodes"] = JArray.FromObject(selectNodeInfos)
+                    };
+                    var jsonText = json.ToString();
+
+                    string result = replacer.Replace(jsonText);
+
+                    try
+                    {
+                        Clipboard.SetDataObject(result, true); // 持久性设置
+                        SereinEnv.WriteLine(InfoType.INFO, $"复制已选节点（{selectNodeInfos.Count}个）");
+                    }
+                    catch (Exception ex)
+                    {
+                        SereinEnv.WriteLine(InfoType.ERROR, $"复制失败：{ex.Message}");
+                    }
+
+                    //SereinEnv.WriteLine(InfoType.INFO, json.ToString());
+                    e.Handled = true;
+                }
+                #endregion
+
+                #region 粘贴节点
+                else if (e.Key == Key.V)
+                {
+                    
+                    if (Clipboard.ContainsText())
+                    {
+                        string clipboardText = Clipboard.GetText(TextDataFormat.Text);
+
+                        List<NodeInfo> nodes = JsonConvert.DeserializeObject<List<NodeInfo>>(JObject.Parse(clipboardText)["nodes"].ToString());
+                        if (nodes is not null && nodes.Count >= 0)
+                        {
+                            Point mousePosition = Mouse.GetPosition(FlowChartCanvas);
+                            PositionOfUI positionOfUI = new PositionOfUI(mousePosition.X, mousePosition.Y); // 坐标数据
+                            SereinEnv.WriteLine(InfoType.INFO, $"粘贴节点({nodes.Count}个)");
+                            // 获取第一个节点的原始位置
+                            var index0NodeX = nodes[0].Position.X;
+                            var index0NodeY = nodes[0].Position.Y;
+
+                            // 计算所有节点相对于第一个节点的偏移量
+                            foreach (var node in nodes)
+                            {
+
+                                var offsetX = node.Position.X - index0NodeX;
+                                var offsetY = node.Position.Y - index0NodeY;
+
+                                // 根据鼠标位置平移节点
+                                node.Position = new PositionOfUI(positionOfUI.X + offsetX, positionOfUI.Y + offsetY);
+                            }
+
+                            _ = EnvDecorator.LoadNodeInfosAsync(nodes);
+                        }
+
+
+                        //SereinEnv.WriteLine(InfoType.INFO, $"剪贴板文本内容: {clipboardText}");
+                    }
+                    else if (Clipboard.ContainsImage())
+                    {
+                        var image = Clipboard.GetImage();
+                    }
+                    else
+                    {
+                        SereinEnv.WriteLine(InfoType.INFO, "剪贴板中没有可识别的数据。");
+                    }
+                    e.Handled = true;
+                } 
+                #endregion
+
+                return;
+            } 
+            #endregion
+
             if (e.KeyStates == Keyboard.GetKeyStates(Key.Escape))
             {
                 IsControlDragging = false;
@@ -2708,6 +2859,8 @@ namespace Serein.Workbench
             
 
         }
+
+
 
         /// <summary>
         /// 对象装箱测试

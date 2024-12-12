@@ -696,6 +696,20 @@ namespace Serein.NodeFlow.Env
             return result;
         }
 
+
+        /// <summary>
+        /// 从节点信息集合批量加载节点控件
+        /// </summary>
+        /// <param name="List<NodeInfo>">节点信息</param>
+        /// <param name="position">需要加载的位置</param>
+        /// <returns></returns>
+        public async Task LoadNodeInfosAsync(List<NodeInfo> nodeInfos)
+        {
+            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口(重要，会尽快实现)：LoadNodeInfoAsync");
+        }
+
+
+
         /// <summary>
         /// 创建节点/区域/基础控件
         /// </summary>

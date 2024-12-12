@@ -802,6 +802,14 @@ namespace Serein.Library.Api
                                                  JunctionType toNodeJunctionType,
                                                  ConnectionArgSourceType argSourceType,
                                                  int argIndex);
+
+        /// <summary>
+        /// 从节点信息集合批量加载节点控件
+        /// </summary>
+        /// <param name="List<NodeInfo>">节点集合信息</param>
+        /// <returns></returns>
+        Task LoadNodeInfosAsync(List<NodeInfo> nodeInfos);
+
         /// <summary>
         /// 创建节点/区域/基础控件
         /// </summary>
@@ -809,6 +817,9 @@ namespace Serein.Library.Api
         /// <param name="position">节点在画布上的位置（</param>
         /// <param name="methodDetailsInfo">节点绑定的方法说明</param>
         Task<NodeInfo> CreateNodeAsync(NodeControlType nodeType, PositionOfUI position, MethodDetailsInfo methodDetailsInfo = null);
+
+
+
 
         /// <summary>
         /// 移除两个节点之间的方法调用关系

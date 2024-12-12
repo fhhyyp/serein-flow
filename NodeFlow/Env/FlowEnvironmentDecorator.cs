@@ -257,6 +257,19 @@ namespace Serein.NodeFlow.Env
             return (isConnect, remoteMsgUtil);
         }
 
+        /// <summary>
+        /// 从节点信息集合批量加载节点控件
+        /// </summary>
+        /// <param name="List<NodeInfo>">节点信息</param>
+        /// <param name="position">需要加载的位置</param>
+        /// <returns></returns>
+        public async Task LoadNodeInfosAsync(List<NodeInfo> nodeInfos)
+        {
+            SetProjectLoadingFlag(false);
+            await currentFlowEnvironment.LoadNodeInfosAsync(nodeInfos); // 装饰器调用
+            SetProjectLoadingFlag(true);
+        }
+
         public async Task<NodeInfo> CreateNodeAsync(NodeControlType nodeBase, PositionOfUI position, MethodDetailsInfo methodDetailsInfo = null)
         {
             SetProjectLoadingFlag(false);

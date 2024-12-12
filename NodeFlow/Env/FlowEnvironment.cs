@@ -615,8 +615,10 @@ namespace Serein.NodeFlow.Env
                 {
                     ordinaryNodes.Add((nodeModel, nodeInfo.Position));
                 }
-                
             }
+
+
+
             // 加载区域子项
             foreach ((NodeModelBase region, string[] childNodeGuids) item in regionChildNodes)
             {
@@ -889,6 +891,99 @@ namespace Serein.NodeFlow.Env
             //}
         }
 
+        /// <summary>
+        /// 从节点信息集合批量加载节点控件
+        /// </summary>
+        /// <param name="List<NodeInfo>">节点信息</param>
+        /// <returns></returns>
+        public Task LoadNodeInfosAsync(List<NodeInfo> nodeInfos)
+        {
+            List<(NodeModelBase, string[])> regionChildNodes = new List<(NodeModelBase, string[])>();
+            List<(NodeModelBase, PositionOfUI)> ordinaryNodes = new List<(NodeModelBase, PositionOfUI)>();
+            // 加载节点
+            foreach (NodeInfo? nodeInfo in nodeInfos)
+            {
+                NodeControlType controlType = FlowFunc.GetNodeControlType(nodeInfo);
+                if (controlType == NodeControlType.None)
+                {
+                    continue;
+                }
+                MethodDetails? methodDetails = null;
+
+                if (controlType.IsBaseNode())
+                {
+                    // 加载基础节点
+                    methodDetails = new MethodDetails();
+                }
+                else
+                {
+                    // 加载方法节点
+                    if (string.IsNullOrEmpty(nodeInfo.AssemblyName) && string.IsNullOrEmpty(nodeInfo.MethodName))
+                    {
+                        continue;
+                    }
+                    FlowLibraryManagement.TryGetMethodDetails(nodeInfo.AssemblyName, nodeInfo.MethodName, out methodDetails); // 加载项目时尝试获取方法信息
+                }
+
+                var nodeModel = FlowFunc.CreateNode(this, controlType, methodDetails); // 加载项目时创建节点
+                nodeModel.LoadInfo(nodeInfo); // 创建节点model
+                if (nodeModel is null)
+                {
+                    nodeInfo.Guid = string.Empty;
+                    continue;
+                }
+
+                TryAddNode(nodeModel); // 加载项目时将节点加载到环境中
+                if (nodeInfo.ChildNodeGuids?.Length > 0)
+                {
+                    regionChildNodes.Add((nodeModel, nodeInfo.ChildNodeGuids));
+
+                    UIContextOperation?.Invoke(() => OnNodeCreate?.Invoke(new NodeCreateEventArgs(nodeModel, nodeInfo.Position)));
+                }
+                else
+                {
+                    ordinaryNodes.Add((nodeModel, nodeInfo.Position));
+                }
+            }
+
+
+
+            // 加载区域子项
+            foreach ((NodeModelBase region, string[] childNodeGuids) item in regionChildNodes)
+            {
+                foreach (var childNodeGuid in item.childNodeGuids)
+                {
+                    NodeModels.TryGetValue(childNodeGuid, out NodeModelBase? childNode);
+                    if (childNode is null)
+                    {
+                        // 节点尚未加载
+                        continue;
+                    }
+                    UIContextOperation?.Invoke(() => OnNodeCreate?.Invoke(new NodeCreateEventArgs(childNode, true, item.region.Guid)));
+                    // 存在节点
+
+                }
+            }
+            // 加载节点
+            foreach ((NodeModelBase nodeModel, PositionOfUI position) item in ordinaryNodes)
+            {
+                bool IsContinue = false;
+                foreach ((NodeModelBase region, string[] childNodeGuids) item2 in regionChildNodes)
+                {
+                    foreach (var childNodeGuid in item2.childNodeGuids)
+                    {
+                        if (item.nodeModel.Guid.Equals(childNodeGuid))
+                        {
+                            IsContinue = true;
+                        }
+                    }
+                }
+                if (IsContinue) continue;
+                UIContextOperation?.Invoke(() => OnNodeCreate?.Invoke(new NodeCreateEventArgs(item.nodeModel, item.position)));
+
+            }
+            return Task.CompletedTask;
+        }
 
         /// <summary>
         /// 流程正在运行时创建节点
