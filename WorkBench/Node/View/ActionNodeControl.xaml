@@ -19,7 +19,7 @@
     </UserControl.Resources>
 
 
-    <Border BorderBrush="#8DE9FD" BorderThickness="4" >
+    <Border BorderBrush="#8DE9FD"  BorderThickness="1">
         <Grid>
             <Grid.ToolTip>
                 <ToolTip Background="LightYellow" Foreground="#071042" Content="{Binding NodeModel.MethodDetails}" />
@@ -32,17 +32,14 @@
             <Border x:Name="InterruptBorder" Tag="{Binding NodeModel.DebugSetting.IsInterrupt}">
                 <Border.Style>
                     <Style TargetType="Border">
-                        <!--默认无边框-->
-                        <Setter Property="BorderBrush" Value="Transparent" />
-                        <Setter Property="BorderThickness" Value="0" />
                         <Style.Triggers>
-                            <!--NodeModel.DebugSetting.IsInterrupt-->
-                            <!--<DataTrigger Binding="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type local:ActionNodeControl}}, Path=DataContext.DebugSetting.IsInterrupt}" Value="True">-->
-                            <!--<DataTrigger Binding="{Binding DebugSetting.IsInterrupt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Value="True">-->
                             <DataTrigger Binding="{Binding Path=Tag,RelativeSource={RelativeSource Mode=Self}}" Value="True">
                                 <Setter Property="BorderBrush" Value="Red" />
                                 <Setter Property="BorderThickness" Value="2" />
-                                <Setter Property="Background" Value="#80000000" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Path=Tag,RelativeSource={RelativeSource Mode=Self}}" Value="False">
+                                <Setter Property="BorderBrush" Value="Transparent" />
+                                <Setter Property="BorderThickness" Value="0" />
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
@@ -50,9 +47,6 @@
 
 
                 <Grid Background="#8DE9FD" >
-
-    
-
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="*"/>
@@ -62,10 +56,6 @@
                     </Grid.RowDefinitions>
 
                     <Grid Grid.Row="0" >
-                        <!--<Grid Grid.Row="0" >-->
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="auto"/>
                             <ColumnDefinition Width="*"/>
@@ -79,19 +69,11 @@
                         <local:NextStepJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}"  x:Name="NextStepJunctionControl" HorizontalAlignment="Right" Grid.RowSpan="2"/>
 
                     </Grid>
-
-
-                    <!--<StackPanel   Background="#8DE9FD" >
-                        
-                    </StackPanel>-->
-
-                    <themes:MethodDetailsControl x:Name="MethodDetailsControl" Grid.Row="2" MethodDetails="{Binding NodeModel.MethodDetails}"/>
-                    <!-- ParameterProtectionMask 参数保护 -->
-                    <!--取反 Visibility="{Binding DebugSetting.IsEnable, Converter={StaticResource InvertedBoolConverter}, ConverterParameter=Inverted}"-->
-                    <Border Grid.Row="2" x:Name="ParameterProtectionMask" Background="LightBlue" Opacity="0.5" BorderBrush="#0A4651" BorderThickness="0" 
+                    <themes:MethodDetailsControl Grid.Row="2"  x:Name="MethodDetailsControl" MethodDetails="{Binding NodeModel.MethodDetails}"/>
+                    <Border Grid.Row="2" x:Name="ParameterProtectionMask" Background="LightBlue" Opacity="0.5" BorderThickness="0" 
                         Visibility="{Binding NodeModel.MethodDetails.IsProtectionParameter, Mode=TwoWay, 
-                                            Converter={StaticResource InvertedBoolConverter},ConverterParameter=Normal}" />
-                    <Grid Grid.Row="3"   Background="#D5F0FC" >
+                                            Converter={StaticResource InvertedBoolConverter}, ConverterParameter=Normal}" />
+                    <Grid Grid.Row="3"  Background="#D5F0FC" >
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="50"/>
                             <ColumnDefinition Width="*"/>
@@ -110,20 +92,20 @@
                     </Grid>
 
                     <StackPanel Grid.Row="4" Background="Azure"  Orientation="Horizontal" Margin="3">
-                        <StackPanel Orientation="Horizontal" Margin="2,1,2,1">
+                        <StackPanel Orientation="Horizontal">
                             <CheckBox IsChecked="{Binding NodeModel.DebugSetting.IsEnable, Mode=TwoWay}"/>
-                            <TextBlock Text="是否使能" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                            <TextBlock Text="是否使能"/>
                         </StackPanel>
 
 
-                        <StackPanel Orientation="Horizontal" Margin="2,1,2,1">
+                        <StackPanel Orientation="Horizontal">
                             <CheckBox  IsChecked="{Binding NodeModel.MethodDetails.IsProtectionParameter, Mode=TwoWay}"/>
-                            <TextBlock Text="参数保护" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                            <TextBlock Text="参数保护"/>
                         </StackPanel>
 
-                        <StackPanel Orientation="Horizontal" Margin="2,1,2,1">
+                        <StackPanel Orientation="Horizontal">
                             <CheckBox  IsChecked="{Binding NodeModel.DebugSetting.IsInterrupt, Mode=TwoWay}"/>
-                            <TextBlock Text="中断节点" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                            <TextBlock Text="中断节点"/>
                         </StackPanel>
 
                     </StackPanel>
@@ -131,10 +113,6 @@
                 </Grid>
 
             </Border>
-
-            <!--Visibility="{Binding IsEnable, Converter={StaticResource BoolToVisConverter}, ConverterParameter=False}"-->
-
-
         </Grid>
     </Border>
 </local:NodeControlBase>

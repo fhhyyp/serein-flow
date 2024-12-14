@@ -918,7 +918,7 @@ namespace Serein.NodeFlow.Env
                 else
                 {
                     // 加载方法节点
-                    if (string.IsNullOrEmpty(nodeInfo.AssemblyName) && string.IsNullOrEmpty(nodeInfo.MethodName))
+                    if (string.IsNullOrEmpty(nodeInfo.MethodName))
                     {
                         continue;
                     }

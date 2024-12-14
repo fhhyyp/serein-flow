@@ -46,7 +46,7 @@ namespace Serein.Workbench.Node.View
              var ellipse = new EllipseGeometry(circlePoint, connectorSize / 2, connectorSize / 2);
 
 
-             drawingContext.DrawGeometry(background, new Pen(Brushes.Black, 1), ellipse);
+             drawingContext.DrawGeometry(background, MyUIFunc.CreateAndFreezePen(), ellipse);
 
 
 
@@ -65,7 +65,7 @@ namespace Serein.Workbench.Node.View
                 context.LineTo(new Point(triangleCenterX, triangleCenterY + 4.5), true, false);
                 context.LineTo(new Point(triangleCenterX, triangleCenterY - 4.5), true, false);
             }
-            drawingContext.DrawGeometry(background, new Pen(Brushes.Black, 1), pathGeometry);
+            drawingContext.DrawGeometry(background, MyUIFunc.CreateAndFreezePen(), pathGeometry);
 
             // 绘制标签
             //var formattedText = new FormattedText(

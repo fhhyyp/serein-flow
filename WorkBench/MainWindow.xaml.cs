@@ -14,11 +14,14 @@ using Serein.Workbench.Node.View;
 using Serein.Workbench.Node.ViewModel;
 using Serein.Workbench.Themes;
 using Serein.Workbench.Tool;
+using SqlSugar.Extensions;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -188,11 +191,7 @@ namespace Serein.Workbench
 
             InitFlowEnvironmentEvent(); // 配置环境事件
 
-            if (App.FlowProjectData is not null)
-            {
-                EnvDecorator.LoadProject(new FlowEnvInfo { Project = App.FlowProjectData }, App.FileDataPath); // 加载项目
-            }
-
+            
         }
 
 
@@ -253,6 +252,13 @@ namespace Serein.Workbench
         #region 窗体加载方法
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            if (App.FlowProjectData is not null)
+            {
+                _ = Task.Run(() =>
+                {
+                    EnvDecorator.LoadProject(new FlowEnvInfo { Project = App.FlowProjectData }, App.FileDataPath); // 加载项目
+                });
+            }
         }
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
@@ -659,15 +665,17 @@ namespace Serein.Workbench
                 }
             }
 
+
+
             FlowChartCanvas.Children.Remove(nodeControl);
             nodeControl.RemoveAllConection();
             NodeControls.Remove(nodeControl.ViewModel.NodeModel.Guid);
         }
 
         /// <summary>
-        /// 编辑项目时添加了节点
+        /// 添加节点事件
         /// </summary>
-        /// <param name="nodeDataBase"></param>
+        /// <param name="eventArgs">添加节点事件参数</param>
         /// <exception cref="NotImplementedException"></exception>
         private void FlowEnvironment_NodeCreateEvent(NodeCreateEventArgs eventArgs)
         {
@@ -738,6 +746,8 @@ namespace Serein.Workbench
                     NodeTreeViewer.AddGlobalFlipFlop(EnvDecorator, node); // 新增的触发器节点添加到全局触发器
                 }
             }
+
+            GC.Collect();
             #endregion
 
         }
@@ -819,7 +829,10 @@ namespace Serein.Workbench
             //{
             //    nodeControl.ViewModel.IsInterrupt = true;
             //}
-
+            if(nodeControl.ContextMenu == null)
+            {
+                return;
+            }
             foreach (var menuItem in nodeControl.ContextMenu.Items)
             {
                 if (menuItem is MenuItem menu)
@@ -2669,147 +2682,16 @@ namespace Serein.Workbench
             #region 复制粘贴选择的节点
             if (Keyboard.Modifiers == ModifierKeys.Control)
             {
-                #region 复制节点
                 if (e.Key == Key.C && selectNodeControls.Count > 0)
                 {
-                    // 处理复制操作
-                    List<NodeInfo> selectNodeInfos = selectNodeControls.Select(control => control.ViewModel.NodeModel.ToInfo()).ToList();
-
-                    /*foreach (var node in selectNodeInfos.ToArray())
-                    {
-                        // 遍历这些节点的子节点，获得完整的已选节点信息
-                        foreach (var childNodeGuid in node.ChildNodeGuids)
-                        {
-                            if (!string.IsNullOrEmpty(childNodeGuid)
-                                && NodeControls.TryGetValue(childNodeGuid, out var nodeControl))
-                            {
-
-                                var newNodeInfo = nodeControl.ViewModel.NodeModel.ToInfo();
-                                selectNodeInfos.Add(newNodeInfo);
-                            }
-                        }
-                    }*/
-
-
-                    Dictionary<string, string> guids = new Dictionary<string, string>(); // 记录 Guid
-                    // 遍历当前已选节点
-                    foreach (var node in selectNodeInfos.ToArray())
-                    {
-                        if (!guids.ContainsKey(node.Guid))
-                        {
-                            // 如果是没出现过的Guid，则记录并新增对应的映射。
-                            guids.TryAdd(node.Guid, Guid.NewGuid().ToString());
-                        }
-                        else
-                        {
-                            // 出现过的Guid，说明重复添加了。应该不会走到这。
-                            continue;
-                        }
-
-                        if(node.ChildNodeGuids is null)
-                        {
-                            continue; // 跳过没有子节点的节点
-                        }
-
-                        // 遍历这些节点的子节点，获得完整的已选节点信息
-                        foreach (var childNodeGuid in node.ChildNodeGuids)
-                        {
-                            if (!guids.ContainsKey(childNodeGuid))
-                            {
-                                // 如果是没出现过的Guid，则记录并新增对应的映射。
-                                guids.TryAdd(node.Guid, Guid.NewGuid().ToString());
-                            }
-
-                            if (!string.IsNullOrEmpty(childNodeGuid)
-                                && NodeControls.TryGetValue(childNodeGuid, out var nodeControl))
-                            {
-
-                                var newNodeInfo = nodeControl.ViewModel.NodeModel.ToInfo();
-                                selectNodeInfos.Add(newNodeInfo);
-                            }
-                        }
-                    }
-
-                    var replacer = new GuidReplacer();
-                    foreach(var kv in guids)
-                    {
-                        replacer.AddReplacement(kv.Key, kv.Value);
-                    }
-
-                    JObject json = new JObject()
-                    {
-                        ["nodes"] = JArray.FromObject(selectNodeInfos)
-                    };
-                    var jsonText = json.ToString();
-
-                    string result = replacer.Replace(jsonText);
-
-                    try
-                    {
-                        Clipboard.SetDataObject(result, true); // 持久性设置
-                        SereinEnv.WriteLine(InfoType.INFO, $"复制已选节点（{selectNodeInfos.Count}个）");
-                    }
-                    catch (Exception ex)
-                    {
-                        SereinEnv.WriteLine(InfoType.ERROR, $"复制失败：{ex.Message}");
-                    }
-
-                    //SereinEnv.WriteLine(InfoType.INFO, json.ToString());
-                    e.Handled = true;
+                    CpoyNodeInfo();
                 }
-                #endregion
-
-                #region 粘贴节点
                 else if (e.Key == Key.V)
                 {
-                    
-                    if (Clipboard.ContainsText())
-                    {
-                        string clipboardText = Clipboard.GetText(TextDataFormat.Text);
-
-                        List<NodeInfo> nodes = JsonConvert.DeserializeObject<List<NodeInfo>>(JObject.Parse(clipboardText)["nodes"].ToString());
-                        if (nodes is not null && nodes.Count >= 0)
-                        {
-                            Point mousePosition = Mouse.GetPosition(FlowChartCanvas);
-                            PositionOfUI positionOfUI = new PositionOfUI(mousePosition.X, mousePosition.Y); // 坐标数据
-                            SereinEnv.WriteLine(InfoType.INFO, $"粘贴节点({nodes.Count}个)");
-                            // 获取第一个节点的原始位置
-                            var index0NodeX = nodes[0].Position.X;
-                            var index0NodeY = nodes[0].Position.Y;
-
-                            // 计算所有节点相对于第一个节点的偏移量
-                            foreach (var node in nodes)
-                            {
-
-                                var offsetX = node.Position.X - index0NodeX;
-                                var offsetY = node.Position.Y - index0NodeY;
-
-                                // 根据鼠标位置平移节点
-                                node.Position = new PositionOfUI(positionOfUI.X + offsetX, positionOfUI.Y + offsetY);
-                            }
-
-                            _ = EnvDecorator.LoadNodeInfosAsync(nodes);
-                        }
-
-
-                        //SereinEnv.WriteLine(InfoType.INFO, $"剪贴板文本内容: {clipboardText}");
-                    }
-                    else if (Clipboard.ContainsImage())
-                    {
-                        var image = Clipboard.GetImage();
-                    }
-                    else
-                    {
-                        SereinEnv.WriteLine(InfoType.INFO, "剪贴板中没有可识别的数据。");
-                    }
-                    e.Handled = true;
-                } 
-                #endregion
-
-                return;
-            } 
+                    PasteNodeInfo();
+                }
+            }
             #endregion
-
             if (e.KeyStates == Keyboard.GetKeyStates(Key.Escape))
             {
                 IsControlDragging = false;
@@ -2860,9 +2742,219 @@ namespace Serein.Workbench
 
         }
 
+        #region 复制节点，粘贴节点
+
+        /// <summary>
+        /// 复制节点
+        /// </summary>
+        private void CpoyNodeInfo()
+        {
+            // 处理复制操作
+            var dictSelection = selectNodeControls
+                .Select(control => control.ViewModel.NodeModel.ToInfo())
+                .ToDictionary(kvp => kvp.Guid, kvp => kvp);
+
+            // 遍历当前已选节点
+            foreach (var node in dictSelection.Values.ToArray())
+            {
+                // 遍历这些节点的子节点，获得完整的已选节点信息
+                foreach (var childNodeGuid in node.ChildNodeGuids)
+                {
+                    if(!dictSelection.ContainsKey(childNodeGuid) &&  NodeControls.TryGetValue(childNodeGuid,out var childNode))
+                    {
+                        dictSelection.Add(childNodeGuid, childNode.ViewModel.NodeModel.ToInfo());
+                    }
+                }
+            }
+            
+
+            JObject json = new JObject()
+            {
+                ["nodes"] = JArray.FromObject(dictSelection.Values)
+            };
+
+            var jsonText = json.ToString();
+
+
+            try
+            {
+                //Clipboard.SetDataObject(result, true); // 持久性设置
+                Clipboard.SetDataObject(jsonText, true); // 持久性设置
+                SereinEnv.WriteLine(InfoType.INFO, $"复制已选节点（{dictSelection.Count}个）");
+            }
+            catch (Exception ex)
+            {
+                SereinEnv.WriteLine(InfoType.ERROR, $"复制失败：{ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 粘贴节点
+        /// </summary>
+        private void PasteNodeInfo()
+        {
+            if (Clipboard.ContainsText())
+            {
+                try
+                {
+
+                    string clipboardText = Clipboard.GetText(TextDataFormat.Text);
+                    string jsonText = JObject.Parse(clipboardText)["nodes"].ToString();
+                    List<NodeInfo> nodes = JsonConvert.DeserializeObject<List<NodeInfo>>(jsonText);
+                    if (nodes is null || nodes.Count < 0)
+                    {
+                        return;
+                    }
+
+                    #region 节点去重
+                    Dictionary<string, string> guids = new Dictionary<string, string>(); // 记录 Guid
+                    // 遍历当前已选节点
+                    foreach (var node in nodes.ToArray())
+                    {
+                        if (NodeControls.ContainsKey(node.Guid) && !guids.ContainsKey(node.Guid))
+                        {
+                            // 如果是没出现过、且在当前记录中重复的Guid，则记录并新增对应的映射。
+                            guids.TryAdd(node.Guid, Guid.NewGuid().ToString());
+                        }
+                        else
+                        {
+                            // 出现过的Guid，说明重复添加了。应该不会走到这。
+                            continue;
+                        }
+
+                        if (node.ChildNodeGuids is null)
+                        {
+                            continue; // 跳过没有子节点的节点
+                        }
+
+                        // 遍历这些节点的子节点，获得完整的已选节点信息
+                        foreach (var childNodeGuid in node.ChildNodeGuids)
+                        {
+                            if (NodeControls.ContainsKey(node.Guid) && !NodeControls.ContainsKey(node.Guid))
+                            {
+                                // 当前Guid并不重复，跳过替换
+                                continue;
+                            }
+                            if (!guids.ContainsKey(childNodeGuid))
+                            {
+                                // 如果是没出现过的Guid，则记录并新增对应的映射。
+                                guids.TryAdd(node.Guid, Guid.NewGuid().ToString());
+                            }
+
+                            if (!string.IsNullOrEmpty(childNodeGuid)
+                                && NodeControls.TryGetValue(childNodeGuid, out var nodeControl))
+                            {
+
+                                var newNodeInfo = nodeControl.ViewModel.NodeModel.ToInfo();
+                                nodes.Add(newNodeInfo);
+                            }
+                        }
+                    }
+
+                    //var flashText = new FlashText.NET.TextReplacer();
+
+                    //var t = guids.Select(kvp => (kvp.Key, kvp.Value)).ToArray();
+                    //var result = flashText.ReplaceWords(jsonText, t);
+
+                    
+
+
+
+                    StringBuilder sb = new StringBuilder(jsonText);
+                     foreach (var kv in guids)
+                     {
+                         sb.Replace(kv.Key, kv.Value);
+                     }
+                     string result = sb.ToString();
+
+
+                    /*var replacer = new GuidReplacer();
+                    foreach (var kv in guids)
+                    {
+                       replacer.AddReplacement(kv.Key, kv.Value);
+                    }
+                    string result = replacer.Replace(jsonText);*/
+
+
+                    //SereinEnv.WriteLine(InfoType.ERROR, result);
+                    nodes = JsonConvert.DeserializeObject<List<NodeInfo>>(result);
+
+                    if (nodes is null || nodes.Count < 0)
+                    {
+                        return;
+                    }
+                    #endregion
+
+                    Point mousePosition = Mouse.GetPosition(FlowChartCanvas);
+                    PositionOfUI positionOfUI = new PositionOfUI(mousePosition.X, mousePosition.Y); // 坐标数据
+
+                    // 获取第一个节点的原始位置
+                    var index0NodeX = nodes[0].Position.X;
+                    var index0NodeY = nodes[0].Position.Y;
+
+                    // 计算所有节点相对于第一个节点的偏移量
+                    foreach (var node in nodes)
+                    {
+
+                        var offsetX = node.Position.X - index0NodeX;
+                        var offsetY = node.Position.Y - index0NodeY;
+
+                        // 根据鼠标位置平移节点
+                        node.Position = new PositionOfUI(positionOfUI.X + offsetX, positionOfUI.Y + offsetY);
+                    }
+
+                    _ = EnvDecorator.LoadNodeInfosAsync(nodes);
+                }
+                catch (Exception ex)
+                {
+
+                    SereinEnv.WriteLine(InfoType.ERROR, $"粘贴节点时发生异常：{ex}");
+                }
+
+
+                // SereinEnv.WriteLine(InfoType.INFO, $"剪贴板文本内容: {clipboardText}");
+            }
+            else if (Clipboard.ContainsImage())
+            {
+                // var image = Clipboard.GetImage();
+            }
+            else
+            {
+                SereinEnv.WriteLine(InfoType.INFO, "剪贴板中没有可识别的数据。");
+            }
+        }
+
+        #endregion
 
 
         /// <summary>
+        /// 卸载DLL文件，清空当前项目
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void UnloadAllButton_Click(object sender, RoutedEventArgs e)
+        {
+            EnvDecorator.ClearAll();
+        }
+
+        /// <summary>
+        /// 卸载DLL文件，清空当前项目
+        /// </summary>
+        private void UnloadAllAssemblies()
+        {
+            DllStackPanel.Children.Clear();
+            FlowChartCanvas.Children.Clear();
+            Connections.Clear();
+            NodeControls.Clear();
+            //currentLine = null;
+            //startConnectNodeControl = null;
+            MessageBox.Show("所有DLL已卸载。", "信息", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+
+
+
+        /* /// <summary>
         /// 对象装箱测试
         /// </summary>
         /// <param name="sender"></param>
@@ -2913,31 +3005,6 @@ namespace Serein.Workbench
             data = SerinExpressionEvaluator.Evaluate(exp,result!, out isChange);
             SereinEnv.WriteLine(InfoType.INFO, $"{exp} => {data}");
         }
-
-        /// <summary>
-        /// 卸载DLL文件，清空当前项目
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void UnloadAllButton_Click(object sender, RoutedEventArgs e)
-        {
-            EnvDecorator.ClearAll();
-        }
-
-        /// <summary>
-        /// 卸载DLL文件，清空当前项目
-        /// </summary>
-        private void UnloadAllAssemblies()
-        {
-            DllStackPanel.Children.Clear();
-            FlowChartCanvas.Children.Clear();
-            Connections.Clear();
-            NodeControls.Clear();
-            //currentLine = null;
-            //startConnectNodeControl = null;
-            MessageBox.Show("所有DLL已卸载。", "信息", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-
-        
+*/
     }
 }

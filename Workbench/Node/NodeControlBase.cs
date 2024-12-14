@@ -22,6 +22,7 @@ namespace Serein.Workbench.Node.View
 
         public NodeControlViewModelBase ViewModel { get; set; }
 
+
         protected NodeControlBase()
         {
             this.Background = Brushes.Transparent;

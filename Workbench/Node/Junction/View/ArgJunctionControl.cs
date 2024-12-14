@@ -50,7 +50,7 @@ namespace Serein.Workbench.Node.View
 
             // 绘制连接器的圆形部分
             var ellipse = new EllipseGeometry(circlePoint, connectorSize / 2, connectorSize / 2);
-            drawingContext.DrawGeometry(background, new Pen(Brushes.Black, 1), ellipse);
+            drawingContext.DrawGeometry(background, MyUIFunc.CreateAndFreezePen(), ellipse);
 
             // 定义三角形的间距
             double triangleOffsetX = 4; // 三角形与圆形的间距
@@ -66,7 +66,7 @@ namespace Serein.Workbench.Node.View
                 context.LineTo(new Point(triangleCenterX, triangleCenterY + 4.5), true, false);
                 context.LineTo(new Point(triangleCenterX, triangleCenterY - 4.5), true, false);
             }
-            drawingContext.DrawGeometry(background, new Pen(Brushes.Black, 1), pathGeometry);
+            drawingContext.DrawGeometry(background, MyUIFunc.CreateAndFreezePen(), pathGeometry);
         }
     }
 

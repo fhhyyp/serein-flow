@@ -103,9 +103,6 @@ namespace Serein.Workbench.Node.View
     /// </summary>
     public class ConnectionControl
     {
-
-
-
         /// <summary>
         /// 所在的画布
         /// </summary>

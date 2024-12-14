@@ -54,7 +54,7 @@ namespace Serein.NodeFlow.Model
                 ArgDataSourceNodeGuid = string.Empty,
                 ArgDataSourceType = ConnectionArgSourceType.GetPreviousNodeData,
                 NodeModel = this,
-                Convertor = null,
+                //Convertor = null,
                 ExplicitTypeName = "Value",
                 Items = null,
             };

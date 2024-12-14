@@ -28,7 +28,26 @@ namespace Serein.Library
     /// </summary>
     public abstract partial class NodeModelBase : IDynamicFlowNode
     {
-        #region 节点移除相关
+        #region 节点相关事件
+
+        /// <summary>
+        /// 保存自定义信息
+        /// </summary>
+        /// <returns></returns>
+        public virtual NodeInfo SaveCustomData(NodeInfo nodeInfo)
+        {
+            return nodeInfo;
+        }
+
+        /// <summary>
+        /// 加载自定义数据
+        /// </summary>
+        /// <param name="nodeInfo"></param>
+        public virtual void LoadCustomData(NodeInfo nodeInfo)
+        {
+            return;
+        }
+
         /// <summary>
         /// 移除该节点
         /// </summary>
@@ -36,16 +55,52 @@ namespace Serein.Library
         {
 
         }
+        /// <summary>
+        /// 移除该节点
+        /// </summary>
+        public virtual void RemoveFromEnv()
+        {
+            if (this.DebugSetting.CancelInterruptCallback != null)
+            {
+                this.DebugSetting.CancelInterruptCallback?.Invoke();
+            }
+            this.DebugSetting.GetInterruptTask = null;
+            this.DebugSetting.NodeModel = null;
+            this.DebugSetting.CancelInterruptCallback = null;
+            this.DebugSetting = null;
+            foreach (var pd in this.MethodDetails.ParameterDetailss)
+            {
+                pd.DataValue = null;
+                pd.Items = null;
+                pd.NodeModel = null;
+                pd.ExplicitType = null;
+                pd.DataType = null;
+                pd.Name = null;
+                pd.ArgDataSourceNodeGuid = null;
+                pd.ExplicitTypeName = null;
+            }
+            this.MethodDetails.ParameterDetailss = null;    
+            this.MethodDetails.ActingInstance = null;
+            this.MethodDetails.NodeModel = null;
+            this.MethodDetails.ReturnType = null;
+            this.MethodDetails.AssemblyName = null;
+            this.MethodDetails.MethodAnotherName = null;
+            this.MethodDetails.MethodLockName = null;
+            this.MethodDetails.MethodName = null;
+            this.MethodDetails.ActingInstanceType = null;
+            this.MethodDetails = null;
+            this.Position = null;
+            this.DisplayName = null;
 
-        #endregion
+            this.Env = null;
+        }
 
-        #region 导出/导入项目文件节点信息
 
         /// <summary>
         /// 输出方法参数信息
         /// </summary>
         /// <returns></returns>
-        public virtual ParameterData[] SaveParameterInfo()
+        public ParameterData[] SaveParameterInfo()
         {
             if(MethodDetails.ParameterDetailss == null)
             {
@@ -69,20 +124,13 @@ namespace Serein.Library
             }
         }
 
-        /// <summary>
-        /// 保存自定义信息
-        /// </summary>
-        /// <returns></returns>
-        public virtual NodeInfo SaveCustomData(NodeInfo nodeInfo)
-        {
-            return nodeInfo;
-        }
+
 
         /// <summary>
         /// 导出为节点信息
         /// </summary>
         /// <returns></returns>
-        public virtual NodeInfo ToInfo()
+        public NodeInfo ToInfo()
         {
             // if (MethodDetails == null) return null;
            
@@ -110,25 +158,20 @@ namespace Serein.Library
                 IsInterrupt = this.DebugSetting.IsInterrupt,
                 IsEnable = this.DebugSetting.IsEnable,
             };
+            nodeInfo.Position.X = Math.Round(nodeInfo.Position.X, 1);
+            nodeInfo.Position.Y = Math.Round(nodeInfo.Position.Y, 1);
             nodeInfo = SaveCustomData(nodeInfo);
             return nodeInfo;
         }
 
-        /// <summary>
-        /// 加载自定义数据
-        /// </summary>
-        /// <param name="nodeInfo"></param>
-        public virtual void LoadCustomData(NodeInfo nodeInfo)
-        {
-            return;
-        }
+
 
         /// <summary>
         /// 从节点信息加载节点
         /// </summary>
         /// <param name="nodeInfo"></param>
         /// <returns></returns>
-        public virtual void LoadInfo(NodeInfo nodeInfo)
+        public void LoadInfo(NodeInfo nodeInfo)
         {
             this.Guid = nodeInfo.Guid;
             this.Position = nodeInfo.Position ?? new PositionOfUI(0, 0);// 加载位置信息
@@ -520,33 +563,33 @@ namespace Serein.Library
 
                 #endregion
 
-                #region 入参存在取值转换器，调用对应的转换器获取入参数据，如果获取成功（不为null）会跳过循环
-                if (pd.ExplicitType.IsEnum && !(pd.Convertor is null))
-                {
-                    //var resultEnum = Enum.ToObject(ed.ExplicitType, ed.DataValue);
-                    var resultEnum = Enum.Parse(pd.ExplicitType, pd.DataValue);
-                    var value = pd.Convertor(resultEnum);
-                    if (value is null)
-                    {
-                        throw new InvalidOperationException("转换器调用失败");
+                //#region 入参存在取值转换器，调用对应的转换器获取入参数据，如果获取成功（不为null）会跳过循环
+                //if (pd.ExplicitType.IsEnum && !(pd.Convertor is null))
+                //{
+                //    //var resultEnum = Enum.ToObject(ed.ExplicitType, ed.DataValue);
+                //    var resultEnum = Enum.Parse(pd.ExplicitType, pd.DataValue);
+                //    var value = pd.Convertor(resultEnum);
+                //    if (value is null)
+                //    {
+                //        throw new InvalidOperationException("转换器调用失败");
 
-                    }
-                    else
-                    {
-                        if (hasParams)
-                        {
-                            paramsArgs.SetValue(value, paramsArgIndex++);
-                            // 处理可选参数
-                            //paramsArgs[paramsArgIndex++] = value;
-                        }
-                        else
-                        {
-                            parameters[i] = value;
-                        }
-                        continue;
-                    }
-                }
-                #endregion
+                //    }
+                //    else
+                //    {
+                //        if (hasParams)
+                //        {
+                //            paramsArgs.SetValue(value, paramsArgIndex++);
+                //            // 处理可选参数
+                //            //paramsArgs[paramsArgIndex++] = value;
+                //        }
+                //        else
+                //        {
+                //            parameters[i] = value;
+                //        }
+                //        continue;
+                //    }
+                //}
+                //#endregion
 
                 #region  入参存在基于BinValue的类型转换器，获取枚举转换器中记录的类型，如果获取成功（不为null）会跳过循环
                 // 入参存在基于BinValue的类型转换器，获取枚举转换器中记录的类型

@@ -15,7 +15,21 @@ using System.Threading;
 
 namespace Serein.Workbench.Node.View
 {
+    internal static class MyUIFunc
+    {
+        public static Pen CreateAndFreezePen()
+        {
+            // 创建Pen
+            Pen pen = new Pen(Brushes.Black, 1);
 
+            // 冻结Pen
+            if (pen.CanFreeze)
+            {
+                pen.Freeze();
+            }
+            return pen;
+        }
+    }
     
     public class ParamsArgControl: Shape
     {
@@ -27,8 +41,6 @@ namespace Serein.Workbench.Node.View
             this.MouseMove += ParamsArgControl_MouseMove;
             this.MouseLeave += ParamsArgControl_MouseLeave;
             AddOrRemoveParamsTask = AddAsync;
-
-
         }
 
         
@@ -84,9 +96,9 @@ namespace Serein.Workbench.Node.View
             // 圆形部分
             var ellipse = new EllipseGeometry(circlePoint, connectorSize / 2, connectorSize / 2);
 
-            drawingContext.DrawGeometry(brush, new Pen(Brushes.Black, 1), ellipse);
+            drawingContext.DrawGeometry(brush, MyUIFunc.CreateAndFreezePen(), ellipse);
         }
-
+        
 
         private bool isMouseOver; // 鼠标悬停状态
 

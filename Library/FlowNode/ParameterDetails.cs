@@ -35,11 +35,11 @@ namespace Serein.Library
         [PropertyInfo(IsNotification = true)] 
         private bool _isExplicitData ;
 
-        /// <summary>
-        /// 转换器 IEnumConvertor&lt;,&gt;
-        /// </summary>
-        [PropertyInfo] 
-        private Func<object, object> _convertor ;
+        ///// <summary>
+        ///// 转换器 IEnumConvertor&lt;,&gt;
+        ///// </summary>
+        //[PropertyInfo] 
+        //private Func<object, object> _convertor ;
 
         /// <summary>
         /// 方法入参若无相关转换器特性标注，则无需关注该变量。该变量用于需要用到枚举BinValue转换器时，指示相应的入参变量需要转为的类型。
@@ -167,7 +167,7 @@ namespace Serein.Library
                 IsExplicitData = this.IsExplicitData,
                 ExplicitType = this.ExplicitType,
                 ExplicitTypeName = this.ExplicitTypeName,
-                Convertor = this.Convertor,
+                //Convertor = this.Convertor,
                 DataType = this.DataType,
                 Name = this.Name,
                 DataValue = string.IsNullOrEmpty(DataValue) ? string.Empty : DataValue,
@@ -180,14 +180,6 @@ namespace Serein.Library
 
         public override string ToString()
         {
-            if(_convertor is null)
-            {
-                return $"[{this.Index}] {this.Name} : {this.DataType?.FullName}";
-            }
-            else
-            {
-
-            }
             return $"[{this.Index}] {this.Name} : {this.ExplicitType.FullName} -> {this.DataType.FullName}";
         }
     }

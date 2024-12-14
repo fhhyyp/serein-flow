@@ -215,13 +215,14 @@ public static class NodeMethodDetailsHelper
                     ConvertorInstance[key] = (instance, convertMethod);
                 }
 
-                object func(object enumValue)
-                {
-                    (var obj, var methodInfo) = ConvertorInstance[key];
-                    return methodInfo?.Invoke(obj, [enumValue]);
-                }
+                //object func(object enumValue)
+                //{
+                //    (var obj, var methodInfo) = ConvertorInstance[key];
+                //    return methodInfo?.Invoke(obj, [enumValue]);
+                //}
+
                 // 确保实例实现了所需接口
-                ParameterDetails ed = GetExplicitDataOfParameter(it, index, paremType, true, func);  // 自定义的转换器 获取参数
+                ParameterDetails ed = GetExplicitDataOfParameter(it, index, paremType, true);  // 自定义的转换器 获取参数
 
                 return ed;
             }
@@ -242,8 +243,7 @@ public static class NodeMethodDetailsHelper
     private static ParameterDetails GetExplicitDataOfParameter(ParameterInfo parameterInfo,
                                                                int index,
                                                                Type explicitParemType,
-                                                               bool isExplicitData,
-                                                               Func<object, object> func = null)
+                                                               bool isExplicitData)
     {
 
         bool hasParams = parameterInfo.IsDefined(typeof(ParamArrayAttribute)); // 判断是否为可变参数
@@ -269,7 +269,7 @@ public static class NodeMethodDetailsHelper
             Index = index, // 索引
             ExplicitTypeName = explicitTypeName, // Select/Bool/Value
             ExplicitType = explicitParemType,// 显示的入参类型
-            Convertor = func, // 转换器
+            //Convertor = func, // 转换器
             DataType = dataType, // 实际的入参类型
             Name = parameterInfo.Name,
             DataValue = parameterInfo.HasDefaultValue ? parameterInfo?.DefaultValue?.ToString() : "", // 如果存在默认值，则使用默认值

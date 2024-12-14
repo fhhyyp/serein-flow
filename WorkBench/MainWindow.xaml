@@ -102,17 +102,23 @@
         <GridSplitter  Grid.Row="1"   Grid.Column="1" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="Gray" />
 
         <Grid  Grid.Row="1"  Grid.Column="2" x:Name="FlowChartStackGrid">
+            <ListBox ItemsSource="{Binding Nodes}" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
             
             <StackPanel x:Name="FlowChartStackPanel"
-                        
                          ClipToBounds="True">
                 <!-- 虚拟化 VirtualizingStackPanel.IsVirtualizing="True" -->
                 <Canvas 
                     x:Name="FlowChartCanvas" 
                     Background="#E1FBEA"
                     AllowDrop="True" 
-                    Width="2000"
-                    Height="2000"
+                    Width="1920"
+                    Height="1080"
                     MouseLeftButtonDown ="FlowChartCanvas_MouseLeftButtonDown"
                     MouseLeftButtonUp="FlowChartCanvas_MouseLeftButtonUp"
                     MouseDown="FlowChartCanvas_MouseDown"
