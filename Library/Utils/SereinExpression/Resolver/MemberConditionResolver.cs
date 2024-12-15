@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Serein.Library.Utils.SereinExpression.Resolver
@@ -24,14 +25,15 @@ namespace Serein.Library.Utils.SereinExpression.Resolver
 
             if (TargetObj is T typedObj)
             {
-                return new ValueTypeConditionResolver<T>
+                var res = new ValueTypeConditionResolver<T>
                 {
                     RangeStart = RangeStart,
                     RangeEnd = RangeEnd,
                     Op = Op,
                     Value = Value,
                     ArithmeticExpression = ArithmeticExpression,
-                }.Evaluate(typedObj);
+                };
+                return res.Evaluate(typedObj);
             }
             return false;
         }

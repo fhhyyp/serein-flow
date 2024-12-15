@@ -317,12 +317,23 @@ namespace Serein.Library.Utils.SereinExpression
             #region 解析类型 bool
             else if (type == typeof(bool))
             {
-                return new MemberConditionResolver<bool>
+                bool targetData = false;
+                if (targetObj is bool tmp)
                 {
-                    //MemberPath = memberPath,
-                    TargetObj = targetObj,
-                    Op = (ValueTypeConditionResolver<bool>.Operator)ParseBoolOperator(operatorStr)
+                    targetData = tmp;
+                }
+                else
+                {
+                    targetObj = bool.Parse(targetObj.ToString());
+                }
+                return new BoolConditionResolver
+                {
+                    //Value = bool.Parse(targetObj.ToString()),
+                    Value = bool.Parse(valueStr),
+                    Data = targetData,
+                    Op = BoolConditionResolver.Operator.Is
                 };
+
             }
             #endregion
             #region 解析类型 string

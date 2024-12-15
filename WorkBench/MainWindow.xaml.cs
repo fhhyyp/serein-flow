@@ -2757,6 +2757,10 @@ namespace Serein.Workbench
             // 遍历当前已选节点
             foreach (var node in dictSelection.Values.ToArray())
             {
+                if(node.ChildNodeGuids is null)
+                {
+                    continue;
+                }
                 // 遍历这些节点的子节点，获得完整的已选节点信息
                 foreach (var childNodeGuid in node.ChildNodeGuids)
                 {
@@ -2780,7 +2784,7 @@ namespace Serein.Workbench
             {
                 //Clipboard.SetDataObject(result, true); // 持久性设置
                 Clipboard.SetDataObject(jsonText, true); // 持久性设置
-                SereinEnv.WriteLine(InfoType.INFO, $"复制已选节点（{dictSelection.Count}个）");
+                    SereinEnv.WriteLine(InfoType.INFO, $"复制已选节点（{dictSelection.Count}个）");
             }
             catch (Exception ex)
             {

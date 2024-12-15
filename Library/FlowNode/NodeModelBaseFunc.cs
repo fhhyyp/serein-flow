@@ -294,33 +294,6 @@ namespace Serein.Library
 
                 // 从栈中弹出一个节点作为当前节点进行处理
                 var currentNode = stack.Pop();
-#if false
-                // 筛选出上游分支
-                var upstreamNodes = currentNode.SuccessorNodes[ConnectionInvokeType.Upstream].ToArray();
-                for (int index = 0; index < upstreamNodes.Length; index++)
-                {
-                    NodeModelBase upstreamNode = upstreamNodes[index];
-                    if (!(upstreamNode is null) && upstreamNode.DebugSetting.IsEnable)
-                    {
-                        if (upstreamNode.DebugSetting.IsInterrupt) // 执行触发前
-                        {
-                            var cancelType = await upstreamNode.DebugSetting.GetInterruptTask();
-                            await Console.Out.WriteLineAsync($"[{upstreamNode.MethodDetails?.MethodName}]中断已{cancelType}，开始执行后继分支");
-                        }
-                        context.SetPreviousNode(upstreamNode, currentNode);
-                        await upstreamNode.StartFlowAsync(context); // 执行流程节点的上游分支
-                        if (context.NextOrientation == ConnectionInvokeType.IsError)
-                        {
-                            // 如果上游分支执行失败，不再继续执行
-                            // 使上游节点（仅上游节点本身，不包含上游节点的后继节点）
-                            // 具备通过抛出异常中断流程的能力
-                            break;
-                        }
-                    }
-                } 
-#endif
-                // 上游分支执行完成，才执行当前节点
-                if (IsBradk(context, flowCts)) break; // 退出执行
                 context.NextOrientation = ConnectionInvokeType.None; // 重置上下文状态
 
                 object newFlowData;

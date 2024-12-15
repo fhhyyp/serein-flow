@@ -210,7 +210,7 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// 信息输出等级
         /// </summary>
-        public InfoClass InfoClass { get ; set ; } = InfoClass.General;
+        public InfoClass InfoClass { get ; set ; } = InfoClass.Trivial;
 
         /// <summary>
         /// 如果没有全局触发器，且没有循环分支，流程执行完成后自动为 Completion 。

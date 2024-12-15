@@ -5,6 +5,7 @@ using System.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Reflection;
 using System.Threading.Tasks;
 
@@ -483,6 +484,10 @@ namespace Serein.Library.Utils.SereinExpression
                     tempType = typeof(string);
                     break;
                 case "datetime":
+                    if(valueStr.Equals("now", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return DateTime.Now;
+                    }
                     tempType = typeof(DateTime);
                     break;
                 default:

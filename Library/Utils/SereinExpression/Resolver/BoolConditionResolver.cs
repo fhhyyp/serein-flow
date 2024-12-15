@@ -18,20 +18,22 @@ namespace Serein.Library.Utils.SereinExpression.Resolver
 
         public Operator Op { get; set; }
         public bool Value { get; set; }
+        public bool Data { get; set; }
 
         public override bool Evaluate(object obj)
         {
 
-            if (obj is bool boolObj)
-            {
-                return boolObj == Value;
-                /*switch (Op)
-                {
-                    case Operator.Is:
-                        return boolObj == Value;
-                }*/
-            }
-            return false;
+            return Value.Equals(Data);
+            //if (obj is bool boolObj && Value is bool boolValue)
+            //{
+
+            //    /*switch (Op)
+            //    {
+            //        case Operator.Is:
+            //            return boolObj == Value;
+            //    }*/
+            //}
+            //return false;
         }
     }
 
