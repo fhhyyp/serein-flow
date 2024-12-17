@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -12,6 +13,8 @@ namespace Serein.Library.Utils
     /// </summary>
     public static class ConvertHelper
     {
+
+
         public static TResult ToConvert<TResult>(this object data)
         {
             var type = typeof(TResult);
@@ -203,6 +206,14 @@ namespace Serein.Library.Utils
 #endif
             else if(type == typeof(DateTime))
             {
+                if (valueStr.Equals("now"))
+                {
+                    return DateTime.Now;
+                }
+                else if (valueStr.Equals("utcnow"))
+                {
+                    return DateTime.UtcNow;
+                }
                 return DateTime.Parse(valueStr);
             }
             else

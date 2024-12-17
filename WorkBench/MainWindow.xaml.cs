@@ -593,7 +593,8 @@ namespace Serein.Workbench
                         eventArgs.ArgIndex,
                         eventArgs.ConnectionArgSourceType,
                         startJunction,
-                        endJunction
+                        endJunction,
+                        IToJunction
                     );
                     Connections.Add(connection);
                     fromNodeControl.AddCnnection(connection);

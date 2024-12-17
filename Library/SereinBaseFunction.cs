@@ -89,6 +89,12 @@ namespace Serein.Library
             return value;
         }
 
+        [NodeAction(NodeType.Action, "逻辑分支")]
+        private object SereinLogicalBranch(bool @bool, object t_value,object f_value)
+        {
+            return @bool ? t_value : f_value;
+        }
+
         [NodeAction(NodeType.Action, "文本拼接")]
         private string SereinTextJoin(params object[] value)
         {

@@ -387,6 +387,25 @@ namespace Serein.NodeFlow
                             }
                             await nextNodes[i].StartFlowAsync(context); // 启动执行触发器后继分支的节点
                         }
+
+                        nextNodes = singleFlipFlopNode.SuccessorNodes[ConnectionInvokeType.Upstream];
+                        for (int i = nextNodes.Count - 1; i >= 0 && !_flipFlopCts.IsCancellationRequested; i--)
+                        {
+                            // 筛选出启用的节点
+                            if (!nextNodes[i].DebugSetting.IsEnable)
+                            {
+                                continue;
+                            }
+
+                            context.SetPreviousNode(nextNodes[i], singleFlipFlopNode);
+                            if (nextNodes[i].DebugSetting.IsInterrupt) // 执行触发前
+                            {
+                                var cancelType = await nextNodes[i].DebugSetting.GetInterruptTask();
+                                await Console.Out.WriteLineAsync($"[{nextNodes[i].MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");
+                            }
+                            await nextNodes[i].StartFlowAsync(context); // 启动执行触发器后继分支的节点
+                        }
+
                         context.Exit();
                     });
                    

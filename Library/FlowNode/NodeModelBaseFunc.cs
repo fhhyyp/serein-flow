@@ -357,6 +357,10 @@ namespace Serein.Library
         /// <returns>节点传回数据对象</returns>
         public virtual async Task<object> ExecutingAsync(IDynamicContext context)
         {
+            if(context.NextOrientation == ConnectionInvokeType.IsError)
+            {
+                Console.WriteLine("");
+            }
             #region 调试中断
 
             if (DebugSetting.IsInterrupt) // 执行触发检查是否需要中断
@@ -468,7 +472,6 @@ namespace Serein.Library
                         else
                         {
                             inputParameter = context.GetFlowData(previousNode.Guid); // 当前传递的数据
-
                         }
                     }
                     #endregion
@@ -485,8 +488,17 @@ namespace Serein.Library
                     else if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke)
                     {
                         // 立刻调用对应节点获取数据。
-                        var result = await context.Env.InvokeNodeAsync(context, pd.ArgDataSourceNodeGuid);
-                        inputParameter = result;
+                        try
+                        {
+                            var result = await context.Env.InvokeNodeAsync(context, pd.ArgDataSourceNodeGuid);
+                            inputParameter = result;
+                        }
+                        catch (Exception ex)
+                        {
+                            context.NextOrientation = ConnectionInvokeType.IsError;
+                            context.ExceptionOfRuning = ex;
+                            throw;
+                        }
                     }
                     #endregion
                     #region 意料之外的参数

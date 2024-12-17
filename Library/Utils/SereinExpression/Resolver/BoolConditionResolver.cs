@@ -23,7 +23,7 @@ namespace Serein.Library.Utils.SereinExpression.Resolver
         public override bool Evaluate(object obj)
         {
 
-            return Value.Equals(Data);
+            return Value.Equals(obj);
             //if (obj is bool boolObj && Value is bool boolValue)
             //{
 

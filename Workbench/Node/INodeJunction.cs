@@ -30,5 +30,15 @@ namespace Serein.Workbench.Node
         /// 返回值控制点
         /// </summary>
         JunctionControlBase ReturnDataJunction { get; }
+
+        /// <summary>
+        /// 获取目标参数控制点，用于防止wpf释放资源导致找不到目标节点，返回-1,-1的坐标
+        /// </summary>
+        /// <param name="index"></param>
+        /// <returns></returns>
+        JunctionControlBase GetJunctionOfArgData(int index)
+        {
+            return ArgDataJunction[index];
+        }
     }
 }

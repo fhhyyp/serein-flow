@@ -62,6 +62,8 @@ namespace Serein.Workbench.Node.View
             InitElementPoint(isDotted, isTop);
             InvalidateVisual(); // 触发重绘
         }
+
+
         public void InitElementPoint(bool isDotted , bool isTop = false)
         {
             hitVisiblePen = new Pen(Brushes.Transparent, 1.0); // 初始化碰撞检测线

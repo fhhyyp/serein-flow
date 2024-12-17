@@ -146,10 +146,11 @@ namespace Serein.NodeFlow.Model
                 }
             }
 
+            bool judgmentResult = false;
             try
             {
-                var isPass = SereinConditionParser.To(parameter, Expression);
-                context.NextOrientation = isPass ? ConnectionInvokeType.IsSucceed : ConnectionInvokeType.IsFail;
+                judgmentResult = SereinConditionParser.To(parameter, Expression);
+                context.NextOrientation = judgmentResult ? ConnectionInvokeType.IsSucceed : ConnectionInvokeType.IsFail;
             }
             catch (Exception ex)
             {
@@ -158,7 +159,8 @@ namespace Serein.NodeFlow.Model
             }
 
             SereinEnv.WriteLine(InfoType.INFO, $"{result} {Expression}  -> " + context.NextOrientation);
-            return result;
+            //return result;
+            return judgmentResult;
         }
 
 

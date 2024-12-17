@@ -31,9 +31,9 @@ namespace Serein.Workbench.Node.View
         }
     }
     
+
     public class ParamsArgControl: Shape
     {
-
 
         public ParamsArgControl()
         {

@@ -114,6 +114,11 @@ namespace Serein.Workbench.Node.View
         public ConnectionInvokeType InvokeType { get; }
 
         /// <summary>
+        /// 目标节点控制点
+        /// </summary>
+        private INodeJunction EndNode;
+
+        /// <summary>
         /// 获取参数类型，第几个参数
         /// </summary>
         public int ArgIndex { get; set; } = -1;
@@ -137,6 +142,8 @@ namespace Serein.Workbench.Node.View
         /// 连接线
         /// </summary>
         private ConnectionLineShape BezierLine;
+
+
 
         private LineType LineType;
 
@@ -168,7 +175,8 @@ namespace Serein.Workbench.Node.View
                                 int argIndex,
                                 ConnectionArgSourceType argSourceType,
                                 JunctionControlBase Start,
-                                JunctionControlBase End)
+                                JunctionControlBase End,
+                                INodeJunction nodeJunction)
         {
             this.LineType = LineType;
             this.Canvas = Canvas;
@@ -176,6 +184,7 @@ namespace Serein.Workbench.Node.View
             this.ArgSourceType = argSourceType;
             this.Start = Start;
             this.End = End;
+            this.EndNode = nodeJunction;
             InitElementPoint();
         }
 
@@ -242,6 +251,10 @@ namespace Serein.Workbench.Node.View
         /// </summary>
         public void RefreshLine()
         {
+            if(ArgIndex > -1)
+            {
+                End = EndNode.GetJunctionOfArgData(ArgIndex);
+            }
             (Point startPoint, Point endPoint) = RefreshPoint(Canvas, Start, End);
             BezierLine.UpdatePoints(startPoint, endPoint);
         }
@@ -255,7 +268,6 @@ namespace Serein.Workbench.Node.View
 
         private (Point startPoint, Point endPoint) RefreshPoint(Canvas canvas, FrameworkElement startElement, FrameworkElement endElement)
         {
-            
             var startPoint = startElement.TranslatePoint(rightCenterOfStartLocation, canvas); // 获取起始节点的中心位置
             var endPoint = endElement.TranslatePoint(leftCenterOfEndLocation, canvas); // 计算终点位置
             return (startPoint, endPoint);

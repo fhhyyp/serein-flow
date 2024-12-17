@@ -5,6 +5,7 @@ using System.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -63,38 +64,48 @@ namespace Serein.Library.Utils.SereinExpression
                 throw new ArgumentException("Invalid expression format.");
             }
 
-            var operation = parts[0].ToLower();
+            var operation = parts[0];
             var operand = parts[1][0] == '.' ? parts[1].Substring(1) : parts[1];
             object result;
             isChange = false;
+
             //if (operation == "@num")
             //{
             //    result = ComputedNumber(targetObJ, operand);
             //}
-            if (operation == "@call")
-            {
-                result = InvokeMethod(targetObJ, operand);
-            }
-            else if (operation == "@get")
+           
+            if (operation.Equals("@get",StringComparison.OrdinalIgnoreCase))
             {
                 isChange = true;
+                if (operand[0].Equals('#'))
+                {
+                    // 存在全局变量表达式
+                    var strIndex = operand.IndexOf('#',1);
+                    var globalDataKeyName = operand.Substring(1, strIndex - 1);
+                    targetObJ = SereinEnv.GetFlowGlobalData(globalDataKeyName);
+                    if(strIndex == operand.Length - 1)
+                    {
+                        return targetObJ;
+                    }
+                    operand = operand.Substring(strIndex+1);
+                }
+                
                 result = GetMember(targetObJ, operand);
             }
-            else if (operation == "@set")
-            {
-                isChange = true;
-                result = SetMember(targetObJ, operand);
-            }
-            else if (operation == "@dtc")
+            else if (operation.Equals("@dtc", StringComparison.OrdinalIgnoreCase))
             {
                 isChange = true;
                 result = DataTypeConversion(targetObJ, operand);
             }
-            else if (operation == "@data")
+            else if (operation.Equals("@call", StringComparison.OrdinalIgnoreCase))
             {
-                isChange = true;
-                result = GetGlobleData(targetObJ, operand);
+                result = InvokeMethod(targetObJ, operand);
             }
+            //else if (operation.Equals("@set",StringComparison.OrdinalIgnoreCase))
+            //{
+            //    isChange = true;
+            //    result = SetMember(targetObJ, operand);
+            //}
             else
             {
                 throw new NotSupportedException($"Operation {operation} is not supported.");
@@ -151,59 +162,49 @@ namespace Serein.Library.Utils.SereinExpression
         private static object GetMember(object target, string memberPath)
         {
             if (target is null) return null;
+
+
             // 分割成员路径，按 '.' 处理多级访问
             var members = memberPath.Split('.');
 
             foreach (var member in members)
             {
+                var hasType = SereinExpressionExtension.TryGetType(member, out var memberName, out var type);
+
+                // 检查成员是否包含数组索引，例如 "array[0]" "dict[key]"
+                var hasIndex = SereinExpressionExtension.TryGetIndex(member, out var elementName, out var strIndexKey);
+
                 // 检查成员是否包含数组索引，例如 "cars[0]"
-                var arrayIndexStart = member.IndexOf('[');
-                if (arrayIndexStart != -1)
+                if (hasIndex)
                 {
                     // 解析数组/集合名与索引部分
-                    var arrayName = member.Substring(0, arrayIndexStart);
-                    var arrayIndexEnd = member.IndexOf(']');
-                    if (arrayIndexEnd == -1 || arrayIndexEnd <= arrayIndexStart + 1)
-                    {
-                        throw new ArgumentException($"Invalid array syntax for member {member}");
-                    }
-
                     var targetType = target?.GetType(); // 目标对象的类型
                     #region 处理键值对
                     if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
                     {
-
-                        var typetmp = target.GetType().FullName;
                         // 目标是键值对
-                        var indexStr = member.Substring(arrayIndexStart + 1, arrayIndexEnd - arrayIndexStart - 1);
                         var method = targetType.GetMethod("get_Item", BindingFlags.Public | BindingFlags.Instance);
                         if (method != null)
                         {
-                            var result = method.Invoke(target, new object[] { indexStr });
-                            if (result != null)
-                            {
-                                target = result;
-                            }
+                            target = method.Invoke(target, new object[] { strIndexKey });
                         }
-
                     } 
                     #endregion
                     else
                     {
-
                         #region 表达式处理集合对象
                         // 获取数组或集合对象
 
                         // 如果arrayName为空，说明target可能是数组，而不需要再获取属性了
-                        if (!string.IsNullOrEmpty(arrayName))
+                        if (!string.IsNullOrEmpty(elementName))
                         {
-                            var arrayProperty = target?.GetType().GetProperty(arrayName);
+                            var arrayProperty = target?.GetType().GetProperty(elementName);
                             if (arrayProperty is null)
                             {
-                                var arrayField = target?.GetType().GetField(arrayName);
+                                var arrayField = target?.GetType().GetField(elementName);
                                 if (arrayField is null)
                                 {
-                                    throw new ArgumentException($"Member {arrayName} not found on target.");
+                                    throw new ArgumentException($"Member {elementName} not found on target.");
                                 }
                                 else
                                 {
@@ -217,17 +218,16 @@ namespace Serein.Library.Utils.SereinExpression
                         }
                        
                         // 提取数组索引
-                        var indexStr = member.Substring(arrayIndexStart + 1, arrayIndexEnd - arrayIndexStart - 1);
-                        if (!int.TryParse(indexStr, out int index))
+                        if (!int.TryParse(strIndexKey, out int index))
                         {
-                            throw new ArgumentException($"Invalid array index '{indexStr}' for member {member}");
+                            throw new ArgumentException($"Invalid array index '{strIndexKey}' for member {member}");
                         }
                         // 访问数组或集合中的指定索引
                         if (target is Array array)
                         {
                             if (index < 0 || index >= array.Length)
                             {
-                                throw new ArgumentException($"Index {index} out of bounds for array {arrayName}");
+                                throw new ArgumentException($"Index {index} out of bounds for array {elementName}");
                             }
                             target = array.GetValue(index);
                         }
@@ -235,22 +235,22 @@ namespace Serein.Library.Utils.SereinExpression
                         {
                             if (index < 0 || index >= list.Count)
                             {
-                                throw new ArgumentException($"Index {index} out of bounds for list {arrayName}");
+                                throw new ArgumentException($"Index {index} out of bounds for list {elementName}");
                             }
                             target = list[index];
                         }
                         else
                         {
-                            throw new ArgumentException($"Member {arrayName} is not an array or list.");
+                            throw new ArgumentException($"Member {elementName} is not an array or list.");
                         }
                         #endregion
                     }
-
                 }
                 else
                 {
                     // 处理非数组情况的属性或字段
-                    var property = target?.GetType().GetProperty(member);
+
+                    var property = target?.GetType().GetProperty(hasType ? memberName : member);
                     if (property is null)
                     {
                         var field = target?.GetType().GetField(member);
@@ -268,6 +268,13 @@ namespace Serein.Library.Utils.SereinExpression
                         target = property.GetValue(target);
                     }
                 }
+
+                if (hasType)
+                {
+                    target = target.ToConvert(type);
+                }
+
+
             }
             return target;
         }
@@ -404,6 +411,37 @@ namespace Serein.Library.Utils.SereinExpression
             return target;
         }
 
+      
+
+        /// <summary>
+        /// 数据类型转换
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="expression"></param>
+        /// <returns></returns>
+        private static object DataTypeConversion(object value, string expression)
+        {
+            // 使用方法
+            // @dtc <int>value
+            // @dtc <int>flowObj
+            if(!SereinExpressionExtension.TryGetType(expression,out var elementName,  out var type))
+            {
+                throw new ArgumentException($"无法获取类型：{expression}");
+            }
+
+            int endIndex = expression.IndexOf('>');
+            if(endIndex == expression.Length -1)
+            {
+                return value.ToConvert(type);
+            }
+            else
+            {
+                string valueStr = expression.Substring(endIndex + 1, expression.Length - endIndex - 1);
+                return valueStr.ToValueData(type);
+            }
+        }
+
+
         /// <summary>
         /// 计算数学简单表达式
         /// </summary>
@@ -414,108 +452,22 @@ namespace Serein.Library.Utils.SereinExpression
         {
             return ComputedNumber<decimal>(value, expression);
         }
+
+        /// <summary>
+        /// 计算数学公式
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="value"></param>
+        /// <param name="expression"></param>
+        /// <returns></returns>
         private static T ComputedNumber<T>(object value, string expression) where T : struct, IComparable<T>
         {
             T result = value.ToConvert<T>();
             return SerinArithmeticExpressionEvaluator<T>.Evaluate(expression, result);
         }
 
-        /// <summary>
-        /// 数据类型转换
-        /// </summary>
-        /// <param name="value"></param>
-        /// <param name="expression"></param>
-        /// <returns></returns>
-        private static object DataTypeConversion(object value, string expression)
-        {
-            Type tempType;
 
-            int typeStartIndex = expression.IndexOf('<');
-            int typeEndIndex = expression.IndexOf('>');
-            string typeStr = expression.Substring(typeStartIndex + 1, typeEndIndex - typeStartIndex - 1)
-                                           .Trim().ToLower(); // 手动置顶的类型
-            string valueStr = expression.Substring(typeEndIndex + 1, expression.Length - typeEndIndex - 1);
-            switch (typeStr)
-            {
-                case "bool":
-                    tempType = typeof(bool);
-                    break;
-                case "float":
-                    tempType = typeof(float);
-                    break;
-                case "decimal":
-                    tempType = typeof(decimal);
-                    break;
-                case "double":
-                    tempType = typeof(double);
-                    break;
-                case "sbyte":
-                    tempType = typeof(sbyte);
-                    break;
-                case "byte":
-                    tempType = typeof(byte);
-                    break;
-                case "short":
-                    tempType = typeof(short);
-                    break;
-                case "ushort":
-                    tempType = typeof(ushort);
-                    break;
-                case "int":
-                    tempType = typeof(int);
-                    break;
-                case "uint":
-                    tempType = typeof(uint);
-                    break;
-                case "long":
-                    tempType = typeof(long);
-                    break;
-                case "ulong":
-                    tempType = typeof(ulong);
-                    break;
-                // 如果需要支持 nint 和 nuint
-                // case "nint":
-                //     tempType = typeof(nint);
-                //     break;
-                // case "nuint":
-                //     tempType = typeof(nuint);
-                //     break;
-                case "string":
-                    tempType = typeof(string);
-                    break;
-                case "datetime":
-                    if(valueStr.Equals("now", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return DateTime.Now;
-                    }
-                    tempType = typeof(DateTime);
-                    break;
-                default:
-                    tempType = Type.GetType(typeStr);
-                    break;
-            }
+       
 
-            if (tempType.IsValueType)
-            {
-                return valueStr.ToValueData(tempType);
-            }
-            else
-            {
-                return null;
-            }
-        }
-
-
-        /// <summary>
-        /// 获取全局数据
-        /// </summary>
-        /// <param name="value"></param>
-        /// <param name="expression"></param>
-        /// <returns></returns>
-        private static object GetGlobleData(object value, string expression)
-        {
-            var keyName = expression;
-            return SereinEnv.GetFlowGlobalData(keyName);
-        }
     }
 }

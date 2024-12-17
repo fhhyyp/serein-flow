@@ -1,17 +1,23 @@
 ﻿using Newtonsoft.Json;
 using Serein.Library;
+using Serein.Library.Utils;
+using Serein.Library.Utils.SereinExpression;
 using System.Diagnostics;
 using System.IO;
 using System.Linq.Expressions;
 using System.Windows;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 
 namespace Serein.Workbench
 {
-    //public class A
-    //{
-    //    public object Data { get; set; }
-    //}
+#if DEBUG
+    public class A
+    {
+        public string Data { get; set; } = "1234";
+        public bool Data2 { get; set; }
+    }
+#endif
 
 
 
@@ -26,10 +32,31 @@ namespace Serein.Workbench
 #if DEBUG 
             if (1 == 1)
             {
-                //var A = new A();
-                //A.Data = true;
-                //var expression = ".Data<bool> == True";
-                //var pass = Serein.Library.Utils.SereinExpression.SereinConditionParser.To(A, expression);
+                //object Data = "false";
+                //var expression = "== false";
+                //var pass = Serein.Library.Utils.SereinExpression.SereinConditionParser.To(Data, expression);
+
+               
+                //string[] objects = new string[]
+                //{
+                //    "124",
+                //    "true",
+                //    "0.42"
+                //};
+                //Dictionary<string, object> keyValuePairs = new Dictionary<string, object>
+                //{
+                //    {"value", objects }
+                //};
+
+
+                //var data = SerinExpressionEvaluator.Evaluate("@Get .[value].[0]<int>", keyValuePairs, out _);
+                //data = SerinExpressionEvaluator.Evaluate("@Get .[value].[1]<bool>", keyValuePairs, out _);
+                //data = SerinExpressionEvaluator.Evaluate("@Dtc <bool>", data, out _);
+                //var result = SereinConditionParser.To(data, "== True");
+
+
+                //SereinEnv.AddOrUpdateFlowGlobalData("My", A);
+                //var data = SerinExpressionEvaluator.Evaluate("@Get #My#",null,out _);
 
 
                 // 这里是我自己的测试代码，你可以删除

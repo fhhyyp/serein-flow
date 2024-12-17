@@ -81,7 +81,7 @@ namespace Serein.Library.Utils.SereinExpression
 
         public static SereinConditionResolver ConditionParse(object data, string expression)
         {
-            if (expression.StartsWith(".")) // 表达式前缀属于从上一个节点数据对象获取成员值
+            if (expression[0] == '.') // 表达式前缀属于从上一个节点数据对象获取成员值
             {
                 return ParseObjectExpression(data, expression);
             }
@@ -190,61 +190,7 @@ namespace Serein.Library.Utils.SereinExpression
                     operatorStr = parts[0].ToLower(); // 操作类型
                     valueStr = string.Join(" ", parts.Skip(1)); // 表达式值
                 }
-                Type tempType;
-
-                switch (typeStr)
-                {
-                    case "bool":
-                        tempType = typeof(bool);
-                        break;
-                    case "float":
-                        tempType = typeof(float);
-                        break;
-                    case "decimal":
-                        tempType = typeof(decimal);
-                        break;
-                    case "double":
-                        tempType = typeof(double);
-                        break;
-                    case "sbyte":
-                        tempType = typeof(sbyte);
-                        break;
-                    case "byte":
-                        tempType = typeof(byte);
-                        break;
-                    case "short":
-                        tempType = typeof(short);
-                        break;
-                    case "ushort":
-                        tempType = typeof(ushort);
-                        break;
-                    case "int":
-                        tempType = typeof(int);
-                        break;
-                    case "uint":
-                        tempType = typeof(uint);
-                        break;
-                    case "long":
-                        tempType = typeof(long);
-                        break;
-                    case "ulong":
-                        tempType = typeof(ulong);
-                        break;
-                    // 如果需要支持 nint 和 nuint
-                    // case "nint":
-                    //     tempType = typeof(nint);
-                    //     break;
-                    // case "nuint":
-                    //     tempType = typeof(nuint);
-                    //     break;
-                    case "string":
-                        tempType = typeof(string);
-                        break;
-                    default:
-                        tempType = Type.GetType(typeStr);
-                        break;
-                }
-                type = tempType ?? throw new ArgumentException("对象表达式无效的类型声明");
+                type = typeStr.ToTypeOfString();
                 if (string.IsNullOrWhiteSpace(memberPath))
                 {
                     targetObj = Convert.ChangeType(data, type);
@@ -362,32 +308,6 @@ namespace Serein.Library.Utils.SereinExpression
         /// <exception cref="NotSupportedException"></exception>
         private static SereinConditionResolver ParseSimpleExpression(object data, string expression)
         {
-            if ("pass".Equals(expression.ToLower()))
-            {
-                return new PassConditionResolver
-                {
-                    Op = PassConditionResolver.Operator.Pass,
-                };
-            }
-            else
-            {
-                if ("not pass".Equals(expression.ToLower()))
-                {
-                    return new PassConditionResolver
-                    {
-                        Op = PassConditionResolver.Operator.NotPass,
-                    };
-                }
-                if ("!pass".Equals(expression.ToLower()))
-                {
-                    return new PassConditionResolver
-                    {
-                        Op = PassConditionResolver.Operator.NotPass,
-                    };
-                }
-            }
-
-
             var parts = expression.Split(' ');
 
             if (parts.Length < 2)
@@ -395,11 +315,11 @@ namespace Serein.Library.Utils.SereinExpression
 
             string operatorStr;
             string valueStr;
-            Type type = null;
             // 尝试获取指定类型
-            int typeStartIndex = expression.IndexOf('<');
-            int typeEndIndex = expression.IndexOf('>');
-            if (typeStartIndex + typeStartIndex == -2)
+
+            var hasType = SereinExpressionExtension.TryGetType(expression, out _, out var type);
+
+            if (!hasType)
             {
                 // 如果不需要转为指定类型
                  operatorStr = parts[0];
@@ -410,72 +330,16 @@ namespace Serein.Library.Utils.SereinExpression
 
                 valueStr = StringHelper.JoinStrings(parts, 1, parts.Length - 1, ' ');
 #endif
-
                 type = data.GetType();
             }
             else
             {//string typeStr = parts[0];
-                string typeStr = expression.Substring(typeStartIndex + 1, typeEndIndex - typeStartIndex - 1)
-                                            .Trim().ToLower(); // 手动置顶的类型
-                parts = expression.Substring(typeEndIndex + 1).Trim().Split(' ');
+
+                int endIndex = expression.IndexOf('>');
+                parts = expression.Substring(endIndex + 1).Split(' ');
                 operatorStr = parts[0].ToLower(); // 操作类型
                 valueStr = string.Join(" ", parts.Skip(1)); // 表达式值
 
-
-                Type tempType;
-
-                switch (typeStr)
-                {
-                    case "bool":
-                        tempType = typeof(bool);
-                        break;
-                    case "float":
-                        tempType = typeof(float);
-                        break;
-                    case "decimal":
-                        tempType = typeof(decimal);
-                        break;
-                    case "double":
-                        tempType = typeof(double);
-                        break;
-                    case "sbyte":
-                        tempType = typeof(sbyte);
-                        break;
-                    case "byte":
-                        tempType = typeof(byte);
-                        break;
-                    case "short":
-                        tempType = typeof(short);
-                        break;
-                    case "ushort":
-                        tempType = typeof(ushort);
-                        break;
-                    case "int":
-                        tempType = typeof(int);
-                        break;
-                    case "uint":
-                        tempType = typeof(uint);
-                        break;
-                    case "long":
-                        tempType = typeof(long);
-                        break;
-                    case "ulong":
-                        tempType = typeof(ulong);
-                        break;
-                    // 如果需要支持 nint 和 nuint
-                    // case "nint":
-                    //     tempType = typeof(nint);
-                    //     break;
-                    // case "nuint":
-                    //     tempType = typeof(nuint);
-                    //     break;
-                    case "string":
-                        tempType = typeof(string);
-                        break;
-                    default:
-                        tempType = Type.GetType(typeStr);
-                        break;
-                }
             }
 
 
