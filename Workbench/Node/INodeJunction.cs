@@ -38,7 +38,12 @@ namespace Serein.Workbench.Node
         /// <returns></returns>
         JunctionControlBase GetJunctionOfArgData(int index)
         {
-            return ArgDataJunction[index];
+            var arr = ArgDataJunction;
+            if (index >= arr.Length)
+            {
+                return null;
+            }
+            return arr[index];
         }
     }
 }

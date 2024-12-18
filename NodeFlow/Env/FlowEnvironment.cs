@@ -569,6 +569,7 @@ namespace Serein.NodeFlow.Env
                 LoadLibrary(dllFilePath);  // 加载项目文件时加载对应的程序集
             }
 
+#if false
             List<(NodeModelBase, string[])> regionChildNodes = new List<(NodeModelBase, string[])>();
             List<(NodeModelBase, PositionOfUI)> ordinaryNodes = new List<(NodeModelBase, PositionOfUI)>();
             // 加载节点
@@ -595,7 +596,7 @@ namespace Serein.NodeFlow.Env
                     }
                     FlowLibraryManagement.TryGetMethodDetails(nodeInfo.AssemblyName, nodeInfo.MethodName, out methodDetails); // 加载项目时尝试获取方法信息
                 }
-               
+
                 var nodeModel = FlowFunc.CreateNode(this, controlType, methodDetails); // 加载项目时创建节点
                 nodeModel.LoadInfo(nodeInfo); // 创建节点model
                 if (nodeModel is null)
@@ -632,7 +633,7 @@ namespace Serein.NodeFlow.Env
                     }
                     UIContextOperation?.Invoke(() => OnNodeCreate?.Invoke(new NodeCreateEventArgs(childNode, true, item.region.Guid)));
                     // 存在节点
-                    
+
                 }
             }
             // 加载节点
@@ -651,7 +652,7 @@ namespace Serein.NodeFlow.Env
                 }
                 if (IsContinue) continue;
                 UIContextOperation?.Invoke(() => OnNodeCreate?.Invoke(new NodeCreateEventArgs(item.nodeModel, item.position)));
-                
+
             }
 
 
@@ -686,7 +687,7 @@ namespace Serein.NodeFlow.Env
                         {
                             _ = ConnectInvokeOfNode(fromNode, toNode, item.connectionType); // 加载时确定节点间的连接关系
                         }
-                    } 
+                    }
                 }
                 #endregion
                 #region 参数调用关系
@@ -695,7 +696,7 @@ namespace Serein.NodeFlow.Env
                     for (var i = 0; i < toNode.MethodDetails.ParameterDetailss.Length; i++)
                     {
                         var pd = toNode.MethodDetails.ParameterDetailss[i];
-                        if (!string.IsNullOrEmpty(pd.ArgDataSourceNodeGuid) 
+                        if (!string.IsNullOrEmpty(pd.ArgDataSourceNodeGuid)
                             && NodeModels.TryGetValue(pd.ArgDataSourceNodeGuid, out var fromNode))
                         {
 
@@ -706,9 +707,10 @@ namespace Serein.NodeFlow.Env
                 #endregion
             });
 
+            UIContextOperation?.Invoke(() => OnProjectLoaded?.Invoke(new ProjectLoadedEventArgs())); 
+#endif
+            LoadNodeInfosAsync(projectData.Nodes.ToList());
             SetStartNode(projectData.StartNode);
-            UIContextOperation?.Invoke(() => OnProjectLoaded?.Invoke(new ProjectLoadedEventArgs()));
-            
 
         }
 
@@ -982,6 +984,59 @@ namespace Serein.NodeFlow.Env
                 UIContextOperation?.Invoke(() => OnNodeCreate?.Invoke(new NodeCreateEventArgs(item.nodeModel, item.position)));
 
             }
+
+            // 确定节点之间的连接关系
+            Task.Run(async () =>
+            {
+                await Task.Delay(400);
+                #region 方法调用关系
+                foreach (var nodeInfo in nodeInfos)
+                {
+                    if (!NodeModels.TryGetValue(nodeInfo.Guid, out NodeModelBase? fromNode))
+                    {
+                        // 不存在对应的起始节点
+                        continue;
+                    }
+                    List<(ConnectionInvokeType connectionType, string[] guids)> allToNodes = [(ConnectionInvokeType.IsSucceed,nodeInfo.TrueNodes),
+                                                                                    (ConnectionInvokeType.IsFail,   nodeInfo.FalseNodes),
+                                                                                    (ConnectionInvokeType.IsError,  nodeInfo.ErrorNodes),
+                                                                                    (ConnectionInvokeType.Upstream, nodeInfo.UpstreamNodes)];
+
+                    List<(ConnectionInvokeType, NodeModelBase[])> fromNodes = allToNodes.Where(info => info.guids.Length > 0)
+                                                                         .Select(info => (info.connectionType,
+                                                                                          info.guids.Where(guid => NodeModels.ContainsKey(guid)).Select(guid => NodeModels[guid])
+                                                                                            .ToArray()))
+                                                                         .ToList();
+                    // 遍历每种类型的节点分支（四种）
+                    foreach ((ConnectionInvokeType connectionType, NodeModelBase[] toNodes) item in fromNodes)
+                    {
+                        // 遍历当前类型分支的节点（确认连接关系）
+                        foreach (var toNode in item.toNodes)
+                        {
+                            _ = ConnectInvokeOfNode(fromNode, toNode, item.connectionType); // 加载时确定节点间的连接关系
+                        }
+                    }
+                }
+                #endregion
+                #region 参数调用关系
+                foreach (var toNode in NodeModels.Values)
+                {
+                    for (var i = 0; i < toNode.MethodDetails.ParameterDetailss.Length; i++)
+                    {
+                        var pd = toNode.MethodDetails.ParameterDetailss[i];
+                        if (!string.IsNullOrEmpty(pd.ArgDataSourceNodeGuid)
+                            && NodeModels.TryGetValue(pd.ArgDataSourceNodeGuid, out var fromNode))
+                        {
+
+                            await ConnectArgSourceOfNodeAsync(fromNode, toNode, pd.ArgDataSourceType, pd.Index);
+                        }
+                    }
+                }
+                #endregion
+            });
+
+            UIContextOperation?.Invoke(() => OnProjectLoaded?.Invoke(new ProjectLoadedEventArgs()));
+
             return Task.CompletedTask;
         }
 

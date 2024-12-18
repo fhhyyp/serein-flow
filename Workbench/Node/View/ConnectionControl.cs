@@ -253,7 +253,7 @@ namespace Serein.Workbench.Node.View
         {
             if(ArgIndex > -1)
             {
-                End = EndNode.GetJunctionOfArgData(ArgIndex);
+                End = EndNode.GetJunctionOfArgData(ArgIndex) ?? End;
             }
             (Point startPoint, Point endPoint) = RefreshPoint(Canvas, Start, End);
             BezierLine.UpdatePoints(startPoint, endPoint);
