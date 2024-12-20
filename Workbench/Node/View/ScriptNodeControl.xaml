@@ -1,0 +1,75 @@
+﻿<local:NodeControlBase x:Class="Serein.Workbench.Node.View.ScriptNodeControl"
+                       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+                       xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+                       xmlns:local="clr-namespace:Serein.Workbench.Node.View"  
+                       xmlns:vm="clr-namespace:Serein.Workbench.Node.ViewModel"
+                       xmlns:themes="clr-namespace:Serein.Workbench.Themes"
+                       d:DataContext="{d:DesignInstance vm:ScriptNodeControlViewModel}"
+                       mc:Ignorable="d"
+                       MinWidth="50">
+    
+    <Grid Background="#FEFAF4">
+        <!--<Grid.ToolTip>
+        <ToolTip Background="LightYellow" Foreground="Black" Content="{Binding NodeModel.MethodDetails.MethodAnotherName, UpdateSourceTrigger=PropertyChanged}" />
+    </Grid.ToolTip>-->
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Background="#E7EFF5" >
+            <!--<Grid Grid.Row="0" >-->
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="auto"/>
+            </Grid.ColumnDefinitions>
+
+            <local:ExecuteJunctionControl  Grid.Column="0"  MyNode="{Binding NodeModel}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
+            <Border Grid.Column="1" BorderThickness="1" HorizontalAlignment="Stretch">
+                <TextBlock Text="脚本节点" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <local:NextStepJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}"  x:Name="NextStepJunctionControl" HorizontalAlignment="Right" Grid.RowSpan="2"/>
+
+        </Grid>
+
+        <Grid Grid.Row="1"   HorizontalAlignment="Stretch" Margin="4">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Row="0"  Grid.Column="0" Orientation="Horizontal">
+                <TextBlock Text="脚本代码：" Margin="2"  HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+
+                <Button Content="加载" Margin="3,0,1,0" Command="{Binding CommandLoadScript}" Height="17.2"></Button>
+                <Button Content="执行" Margin="3,0,1,0" Command="{Binding CommandExecuting}" Height="17.2"></Button>
+                <!--<Button Content="刷新 " Command="{Binding CommandCopyDataExp}" Height="17.2" Margin="2,0,0,0"></Button>-->
+            </StackPanel>
+
+            <TextBox Grid.Row="1" MinHeight="20" MinWidth="100" MaxWidth="270" TextWrapping="Wrap" AcceptsReturn="True"  Text="{Binding Script}"></TextBox>
+
+            <!--<RichTextBox x:Name="richTextBox" VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Auto"
+                          
+                              TextChanged="RichTextBox_TextChanged"/>-->
+            
+            
+            <!--<StackPanel Grid.Row="1"  Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Left">
+            <local:ResultJunctionControl Grid.Column="2"  MyNode="{Binding NodelModel}" x:Name="ResultJunctionControl" HorizontalAlignment="Right"/>
+            <TextBlock  Text="设置数据源" Margin="2"  HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+        </StackPanel>-->
+
+        </Grid>
+    </Grid>
+</local:NodeControlBase>

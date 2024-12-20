@@ -32,6 +32,7 @@
 
   <ItemGroup>
     <Compile Remove="FlowNode\Attribute.cs" />
+    <Compile Remove="FlowNode\ScriptFlowApi.cs" />
     <Compile Remove="Utils\NativeDllHelper.cs" />
   </ItemGroup>
 

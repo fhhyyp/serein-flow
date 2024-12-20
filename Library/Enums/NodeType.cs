@@ -97,6 +97,10 @@ namespace Serein.Library
         /// 全局数据
         /// </summary>
         GlobalData,
+        /// <summary>
+        /// 脚本节点
+        /// </summary>
+        Script,
     }
 
 }

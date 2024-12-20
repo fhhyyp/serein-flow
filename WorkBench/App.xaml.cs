@@ -1,7 +1,11 @@
-﻿using Newtonsoft.Json;
+﻿using Dm.parser;
+using NetTaste;
+using Newtonsoft.Json;
 using Serein.Library;
 using Serein.Library.Utils;
 using Serein.Library.Utils.SereinExpression;
+using Serein.NodeFlow.Model;
+using Serein.Script;
 using System.Diagnostics;
 using System.IO;
 using System.Linq.Expressions;
@@ -12,11 +16,7 @@ using System.Windows.Threading;
 namespace Serein.Workbench
 {
 #if DEBUG
-    public class A
-    {
-        public string Data { get; set; } = "1234";
-        public bool Data2 { get; set; }
-    }
+
 #endif
 
 
@@ -32,39 +32,9 @@ namespace Serein.Workbench
 #if DEBUG 
             if (1 == 1)
             {
-                //object Data = "false";
-                //var expression = "== false";
-                //var pass = Serein.Library.Utils.SereinExpression.SereinConditionParser.To(Data, expression);
-
-               
-                //string[] objects = new string[]
-                //{
-                //    "124",
-                //    "true",
-                //    "0.42"
-                //};
-                //Dictionary<string, object> keyValuePairs = new Dictionary<string, object>
-                //{
-                //    {"value", objects }
-                //};
-
-
-                //var data = SerinExpressionEvaluator.Evaluate("@Get .[value].[0]<int>", keyValuePairs, out _);
-                //data = SerinExpressionEvaluator.Evaluate("@Get .[value].[1]<bool>", keyValuePairs, out _);
-                //data = SerinExpressionEvaluator.Evaluate("@Dtc <bool>", data, out _);
-                //var result = SereinConditionParser.To(data, "== True");
-
-
-                //SereinEnv.AddOrUpdateFlowGlobalData("My", A);
-                //var data = SerinExpressionEvaluator.Evaluate("@Get #My#",null,out _);
-
 
                 // 这里是我自己的测试代码，你可以删除
                 string filePath;
-                filePath = @"F:\临时\project\linux\project.dnf";
-                filePath = @"F:\临时\project\linux\http\project.dnf";
-                filePath = @"F:\临时\project\yolo flow\project.dnf";
-                filePath = @"F:\临时\project\data\project.dnf";
                 filePath = @"C:\Users\Az\source\repos\CLBanyunqiState\CLBanyunqiState\bin\Release\net8.0\PLCproject.dnf";
                 filePath = @"C:\Users\Az\source\repos\CLBanyunqiState\CLBanyunqiState\bin\Release\banyunqi\project.dnf";
                 string content = System.IO.File.ReadAllText(filePath); // 读取整个文件内容
@@ -132,104 +102,5 @@ namespace Serein.Workbench
         }
     }
 
-#if DEBUG && false
-
-        public class TestObject
-        {
-
-            public NestedObject Data { get; set; }
-
-            public class NestedObject
-            {
-                public int Code { get; set; }
-                public int Code2 { get; set; }
-
-                public string Tips { get; set; }
-
-            }
-            public string ToUpper(string input)
-            {
-                return input.ToUpper();
-            }
-        }
-
-
-
-
-
-
-
-        //测试 操作表达式，条件表达式
-        private void TestExp()
-        {
-
-            #region 测试数据
-            string expression = "";
-
-            var testObj = new TestObject
-            {
-                Data = new TestObject.NestedObject
-                {
-                    Code = 15,
-                    Code2 = 20,
-                    Tips = "测试数据"
-                }
-            };
-
-            #endregion
-            #region 对象操作表达式
-            // 获取对象成员
-            var result = SerinExpressionEvaluator.Evaluate("get .Data.Code", testObj);
-            Debug.WriteLine(result); // 15
-
-            // 设置对象成员
-            SerinExpressionEvaluator.Evaluate("set .Data.Code = 20", testObj);
-            Debug.WriteLine(testObj.Data.Code); // 20
-
-            SerinExpressionEvaluator.Evaluate("set .Data.Tips = 123", testObj);
-            // 调用对象方法
-            result = SerinExpressionEvaluator.Evaluate($"call .ToUpper({SerinExpressionEvaluator.Evaluate("get .Data.Tips", testObj)})", testObj);
-            Debug.WriteLine(result); // HELLO
-
-            expression = "@number (@+1)/100";
-            result = SerinExpressionEvaluator.Evaluate(expression, 2);
-            Debug.WriteLine($"{expression}  ->  {result}"); // HELLO 
-            #endregion
-            #region 条件表达式
-
-            expression = ".Data.Code == 15";
-            var pass = SerinConditionParser.To(testObj, expression);
-            Debug.WriteLine($"{expression}  -> " + pass);
-
-            expression = ".Data.Code<int>[@*2] == 31";
-            //expression = ".Data.Tips<string> contains 数据";
-            pass = SerinConditionParser.To(testObj, expression);
-            Debug.WriteLine($"{expression}  -> " + pass);
-
-            expression = ".Data.Code<int> < 20";
-            pass = SerinConditionParser.To(testObj, expression);
-            Debug.WriteLine($"{expression}  -> " + pass);
-
-
-
-            int i = 43;
-
-            expression = "in 11-22";
-            pass = SerinConditionParser.To(i, expression);
-            Debug.WriteLine($"{i} {expression}  -> " + pass);
-
-            expression = "== 43";
-            pass = SerinConditionParser.To(i, expression);
-            Debug.WriteLine($"{i} {expression}  -> " + pass);
-
-            string str = "MY NAME IS COOOOL";
-            expression = "c NAME";
-            pass = SerinConditionParser.To(str, expression);
-            Debug.WriteLine($"{str} {expression}  -> " + pass);
-
-            #endregion
-
-        }
-#endif
-    }
+}
 

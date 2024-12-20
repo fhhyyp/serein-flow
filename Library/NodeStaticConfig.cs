@@ -12,11 +12,11 @@ namespace Serein.Library
         /// <summary>
         /// 全局触发器CTS
         /// </summary>
-        public const string FlipFlopCtsName = "<>.FlowFlipFlopCts";
+        public const string FlipFlopCtsName = "$FlowFlipFlopCts";
         /// <summary>
         /// 流程运行CTS
         /// </summary>
-        public const string FlowRungCtsName = "<>.FlowRungCtsName";
+        public const string FlowRungCtsName = "$FlowRungCtsName";
 
 
         /// <summary>

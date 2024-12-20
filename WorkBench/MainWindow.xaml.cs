@@ -177,6 +177,7 @@ namespace Serein.Workbench
             NodeMVVMManagement.RegisterUI(NodeControlType.ExpCondition, typeof(ConditionNodeControl), typeof(ConditionNodeControlViewModel));
             NodeMVVMManagement.RegisterUI(NodeControlType.ConditionRegion, typeof(ConditionRegionControl), typeof(ConditionRegionNodeControlViewModel));
             NodeMVVMManagement.RegisterUI(NodeControlType.GlobalData, typeof(GlobalDataControl), typeof(GlobalDataNodeControlViewModel));
+            NodeMVVMManagement.RegisterUI(NodeControlType.Script, typeof(ScriptNodeControl), typeof(ScriptNodeControlViewModel));
             #endregion
 
 
@@ -1406,6 +1407,7 @@ namespace Serein.Workbench
                             Type when typeof(ConditionNodeControl).IsAssignableFrom(droppedType) => NodeControlType.ExpCondition,
                             Type when typeof(ExpOpNodeControl).IsAssignableFrom(droppedType) => NodeControlType.ExpOp,
                             Type when typeof(GlobalDataControl).IsAssignableFrom(droppedType) => NodeControlType.GlobalData,
+                            Type when typeof(ScriptNodeControl).IsAssignableFrom(droppedType) => NodeControlType.Script,
                             _ => NodeControlType.None,
                         };
                         if (nodeControlType != NodeControlType.None)
@@ -2913,7 +2915,7 @@ namespace Serein.Workbench
                 catch (Exception ex)
                 {
 
-                    SereinEnv.WriteLine(InfoType.ERROR, $"粘贴节点时发生异常：{ex}");
+                    //SereinEnv.WriteLine(InfoType.ERROR, $"粘贴节点时发生异常：{ex}");
                 }
 
 

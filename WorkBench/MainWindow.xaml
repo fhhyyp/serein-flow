@@ -84,6 +84,7 @@
                 <!--暂时隐藏基础面板  Visibility="Collapsed"  -->
                 <ScrollViewer Grid.Row="0" HorizontalScrollBarVisibility="Auto">
                     <StackPanel  Orientation="Horizontal">
+                        <nodeView:ScriptNodeControl x:Name="ScriptNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                         <nodeView:GlobalDataControl x:Name="GlobalDataControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                         <nodeView:ExpOpNodeControl x:Name="ExpOpNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                         <nodeView:ConditionNodeControl x:Name="ConditionNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>

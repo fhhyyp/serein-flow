@@ -56,19 +56,6 @@ namespace Serein.NodeFlow
 #endif
             await startNode.StartFlowAsync(context); // 开始运行时从选定节点开始运行
             context.Exit();
-
-/*
- 
- foreach (var node in NodeModels.Values)
- {
-     if (node is not null)
-     {
-         node.ReleaseFlowData(); // 退出时释放对象
-     }
- }
- 
- 
- */
         }
 
 
@@ -254,6 +241,7 @@ namespace Serein.NodeFlow
             
             try
             {
+                //await TestScript(env);
                 await startNode.StartFlowAsync(Context); // 开始运行时从起始节点开始运行
 
                 if (flipflopNodes.Count > 0)
@@ -292,6 +280,39 @@ namespace Serein.NodeFlow
             }
             #endregion
         }
+
+
+#if false
+
+        public async Task TestScript(IFlowEnvironment environment)
+        {
+            SingleScriptNode singleScriptNode = new SingleScriptNode(environment);
+            string script =
+            """
+                
+                       //let argData1 = flow.GetArgIndex(0); // 通过索引的方式，获取当前节点入参第一个参数
+                       //let argData2 = flow.GetArgName("name"); // 通过名称的方式，获取当前节点入参的第二个参数
+                       //let nodeData = flow.GetFlowData(); // 获取上一个节点的数据
+                       //let state = flow.GetGlobalData("key name"); // 获取全局数据
+                
+                       //let result1 = flow.CallNode("node guid",); // 立即调用某个节点，获取数据
+                       //let result2 = flow.CallFunc();
+                
+                       class User{
+                           int ID;
+                           string Name;
+                       }
+                      let user = new User();
+                      user.ID = 12345;
+                      user.Name = "张三";
+                      return user;
+                    """;
+            singleScriptNode.Script = script;
+            singleScriptNode.LoadScript();
+            var result = await singleScriptNode.ExecutingAsync(new DynamicContext(environment));
+            SereinEnv.WriteLine(InfoType.INFO, result?.ToString());
+        } 
+#endif
 
         private ConcurrentDictionary<SingleFlipflopNode, CancellationTokenSource> dictGlobalFlipflop = [];
 

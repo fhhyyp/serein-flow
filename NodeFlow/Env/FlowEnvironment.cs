@@ -66,6 +66,7 @@ namespace Serein.NodeFlow.Env
             NodeMVVMManagement.RegisterModel(NodeControlType.ExpCondition, typeof(SingleConditionNode)); // 条件表达式节点
             NodeMVVMManagement.RegisterModel(NodeControlType.ConditionRegion, typeof(CompositeConditionNode)); // 条件区域
             NodeMVVMManagement.RegisterModel(NodeControlType.GlobalData, typeof(SingleGlobalDataNode));  // 全局数据节点
+            NodeMVVMManagement.RegisterModel(NodeControlType.Script, typeof(SingleScriptNode)); // 脚本节点
             #endregion
         }
 
@@ -401,9 +402,13 @@ namespace Serein.NodeFlow.Env
 
             IOC.Reset(); // 开始运行时清空ioc中注册的实例
 
-            IOC.CustomRegisterInstance(typeof(IFlowEnvironment).FullName, this);
+            IOC.Register<IScriptFlowApi, ScriptFlowApi>(); // 注册脚本接口
+            IOC.CustomRegisterInstance(typeof(IFlowEnvironment).FullName, this); // 注册流程实例
             if (this.UIContextOperation is not null)
+            {
+                // 注册封装好的UI线程上下文
                 IOC.CustomRegisterInstance(typeof(UIContextOperation).FullName, this.UIContextOperation, false);
+            }
 
             await flowStarter.RunAsync(this, nodes, autoRegisterTypes, initMethods, loadMethods, exitMethods);
 

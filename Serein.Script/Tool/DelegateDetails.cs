@@ -11,7 +11,7 @@ namespace Serein.Library
 {
     /// <summary>
     /// Emit创建的委托描述，用于WebApi、WebSocket、NodeFlow动态调用方法的场景。
-    /// 一般情况下你无须内部细节，只需要调用 Invoke() 方法即可。
+    /// 一般情况下你无须关注内部细节，只需要调用 Invoke() 方法即可。
     /// </summary>
     public class DelegateDetails
     {
@@ -42,11 +42,6 @@ namespace Serein.Library
         private Delegate _emitDelegate;
         private EmitMethodInfo _emitMethodInfo;
 
-        /// <summary>
-        /// 该Emit委托的相应信息
-        /// </summary>
-        public EmitMethodInfo EmitMethodInfo => _emitMethodInfo;
-
         ///// <summary>
         ///// <para>普通方法：Func&lt;object,object[],object&gt;</para>
         ///// <para>异步方法：Func&lt;object,object[],Task&gt;</para>
@@ -58,7 +53,7 @@ namespace Serein.Library
         ///// </summary>
         //public EmitMethodType EmitMethodType { get => _emitMethodType; }
 
-
+        
 
         public async Task<object> AutoInvokeAsync(object[] args)
         {

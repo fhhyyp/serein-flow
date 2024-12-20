@@ -29,6 +29,15 @@ namespace Serein.Library
     public abstract partial class NodeModelBase : IDynamicFlowNode
     {
         #region 节点相关事件
+        /// <summary>
+        /// 实体节点创建完成后调用的方法，调用时间早于 LoadInfo() 方法
+        /// </summary>
+        public virtual void OnCreating()
+        {
+
+        }
+
+
 
         /// <summary>
         /// 保存自定义信息
@@ -55,6 +64,7 @@ namespace Serein.Library
         {
 
         }
+
         /// <summary>
         /// 移除该节点
         /// </summary>
@@ -95,7 +105,6 @@ namespace Serein.Library
             this.Env = null;
         }
 
-
         /// <summary>
         /// 输出方法参数信息
         /// </summary>
@@ -123,7 +132,6 @@ namespace Serein.Library
                 return new ParameterData[0];
             }
         }
-
 
 
         /// <summary>
@@ -163,8 +171,6 @@ namespace Serein.Library
             nodeInfo = SaveCustomData(nodeInfo);
             return nodeInfo;
         }
-
-
 
         /// <summary>
         /// 从节点信息加载节点
@@ -243,6 +249,8 @@ namespace Serein.Library
         #endregion
 
         #region 节点方法的执行
+
+       
 
         /// <summary>
         /// 是否应该退出执行

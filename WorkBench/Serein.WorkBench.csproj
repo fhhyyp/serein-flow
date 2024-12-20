@@ -51,6 +51,7 @@
     <ProjectReference Include="..\Library.Framework\Serein.Library.Framework.csproj" />
     <ProjectReference Include="..\Library\Serein.Library.csproj" />
     <ProjectReference Include="..\NodeFlow\Serein.NodeFlow.csproj" />
+    <ProjectReference Include="..\Serein.Script\Serein.Script.csproj" />
   </ItemGroup>
 
   <ItemGroup>

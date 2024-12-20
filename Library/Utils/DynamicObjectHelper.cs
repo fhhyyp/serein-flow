@@ -66,6 +66,95 @@ namespace Serein.Library.Utils
         }
 
 
+        public static Type CreateTypeWithProperties(IDictionary<string, Type> properties, string typeName)
+        {
+            // 如果类型已经缓存，直接返回缓存的类型
+            if (typeCache.ContainsKey(typeName))
+            {
+                return typeCache[typeName];
+            }
+
+            // 定义动态程序集和模块
+            var assemblyName = new AssemblyName("DynamicAssembly");
+            var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
+            var moduleBuilder = assemblyBuilder.DefineDynamicModule("MainModule");
+
+            // 定义动态类型
+            var typeBuilder = moduleBuilder.DefineType(typeName, TypeAttributes.Public);
+
+            // 为每个属性名和值添加相应的属性到动态类型中
+            foreach (var kvp in properties)
+            {
+                string propName = kvp.Key;
+                object propValue = kvp.Value;
+                Type propType;
+
+                if (propValue is IList<Dictionary<string, Type>>) // 处理数组类型
+                {
+                    var nestedPropValue = (propValue as IList<Dictionary<string, Type>>)[0];
+                    var nestedType = CreateTypeWithProperties(nestedPropValue, $"{propName}Element");
+                    propType = nestedType.GetType().MakeArrayType(); // 创建数组类型
+                }
+                else if (propValue is Dictionary<string, Type> nestedProperties)
+                {
+                    // 如果值是嵌套的字典，递归创建嵌套类型
+                    propType = CreateTypeWithProperties(nestedProperties, $"{typeName}_{propName}").GetType();
+                }
+                else if (propValue is Type type)
+                {
+                    // 如果是普通类型，使用值的类型
+                    propType = type ?? typeof(object);
+                }
+                else
+                {
+                    throw new Exception($"无法解析的类型：{propValue}");
+                }
+
+                // 定义私有字段和公共属性
+                var fieldBuilder = typeBuilder.DefineField("_" + propName, propType, FieldAttributes.Private);
+                var propertyBuilder = typeBuilder.DefineProperty(propName, PropertyAttributes.HasDefault, propType, null);
+
+                // 定义 getter 方法
+                var getMethodBuilder = typeBuilder.DefineMethod(
+                    "get_" + propName,
+                    MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig,
+                    propType,
+                    Type.EmptyTypes);
+
+                var getIL = getMethodBuilder.GetILGenerator();
+                getIL.Emit(OpCodes.Ldarg_0);
+                getIL.Emit(OpCodes.Ldfld, fieldBuilder);
+                getIL.Emit(OpCodes.Ret);
+
+                // 定义 setter 方法
+                var setMethodBuilder = typeBuilder.DefineMethod(
+                    "set_" + propName,
+                    MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig,
+                    null,
+                    new Type[] { propType });
+
+                var setIL = setMethodBuilder.GetILGenerator();
+                setIL.Emit(OpCodes.Ldarg_0);
+                setIL.Emit(OpCodes.Ldarg_1);
+                setIL.Emit(OpCodes.Stfld, fieldBuilder);
+                setIL.Emit(OpCodes.Ret);
+
+                // 将 getter 和 setter 方法添加到属性
+                propertyBuilder.SetGetMethod(getMethodBuilder);
+                propertyBuilder.SetSetMethod(setMethodBuilder);
+            }
+
+            // 创建类型并缓存
+            var dynamicType = typeBuilder.CreateType();
+            typeCache[typeName] = dynamicType;
+
+            // 创建对象实例
+            return dynamicType;
+        }
+
+
+
+        #region 动态创建对象并赋值
 
         // 方法 1: 创建动态类型及其对象实例
         public static object CreateObjectWithProperties(IDictionary<string, object> properties, string typeName)
@@ -298,6 +387,7 @@ namespace Serein.Library.Utils
             return false;
         }
 
+        #endregion
 
     }
 }

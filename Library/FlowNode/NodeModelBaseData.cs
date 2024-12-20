@@ -69,14 +69,6 @@ namespace Serein.Library
 
     public abstract partial class NodeModelBase : IDynamicFlowNode
     {
-        /// <summary>
-        /// 实体节点创建完成后调用的方法，调用时间早于 LoadInfo() 方法
-        /// </summary>
-        public virtual void OnCreating()
-        {
-
-        }
-
         public NodeModelBase(IFlowEnvironment environment)
         {
             PreviousNodes = new Dictionary<ConnectionInvokeType, List<NodeModelBase>>();

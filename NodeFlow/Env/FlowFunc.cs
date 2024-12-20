@@ -90,6 +90,7 @@ namespace Serein.NodeFlow.Env
                 $"{NodeStaticConfig.NodeSpaceName}.{nameof(CompositeConditionNode)}" => NodeControlType.ConditionRegion, // 条件区域控件
 
                 $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleGlobalDataNode)}" => NodeControlType.GlobalData, // 数据节点
+                $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleScriptNode)}" => NodeControlType.Script, // 数据节点
                 _ => NodeControlType.None,
             };
 
