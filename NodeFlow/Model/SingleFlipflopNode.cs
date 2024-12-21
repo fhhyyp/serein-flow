@@ -41,7 +41,7 @@ namespace Serein.NodeFlow.Model
             }
             object instance = md.ActingInstance;
 
-            var args = await GetParametersAsync(context, this, md);
+            var args = await GetParametersAsync(context, this);
             // 因为这里会返回不确定的泛型 IFlipflopContext<TRsult>
             // 而我们只需要获取到 State 和 Value（返回的数据）
             // 所以使用 dynamic 类型接收

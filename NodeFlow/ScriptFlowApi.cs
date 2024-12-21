@@ -1,5 +1,6 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
+using Serein.Library.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,42 +24,47 @@ namespace Serein.NodeFlow
         /// </summary>
         public NodeModelBase NodeModel { get; private set; }
 
-        IDynamicContext IScriptFlowApi.Context { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public IDynamicContext? Context{ get; set; }
+
+        private string _paramsKey => $"{Context?.Guid}_{NodeModel.Guid}_Params";
+
+
 
         /// <summary>
         /// 创建流程脚本接口
         /// </summary>
         /// <param name="environment">运行环境</param>
         /// <param name="nodeModel">节点</param>
-        public ScriptFlowApi(IFlowEnvironment environment, IDynamicContext dynamicContext, NodeModelBase nodeModel)
+        public ScriptFlowApi(IFlowEnvironment environment,  NodeModelBase nodeModel)
         {
             Env = environment;
             NodeModel = nodeModel;
         }
 
-        Task<object> IScriptFlowApi.CallNode(string nodeGuid)
+        public Task<object> CallNode(string nodeGuid)
         {
             throw new NotImplementedException();
         }
 
-        object IScriptFlowApi.GetDataOfParams(int index)
+        public object? GetArgData(int index)
         {
-            throw new NotImplementedException();
+            var obj = Context?.GetFlowData(_paramsKey);
+            if (obj is object[] @params && index < @params.Length)
+            {
+                return @params[index];
+            }
+            return null;
         }
 
-        object IScriptFlowApi.GetDataOfParams(string name)
+
+        public object? GetFlowData()
         {
-            throw new NotImplementedException();
+            return Context?.GetFlowData(NodeModel.Guid);
         }
 
-        object IScriptFlowApi.GetFlowData()
+        public object? GetGlobalData(string keyName)
         {
-            throw new NotImplementedException();
-        }
-
-        object IScriptFlowApi.GetGlobalData(string keyName)
-        {
-            throw new NotImplementedException();
+            return SereinEnv.GetFlowGlobalData(keyName);
         }
     }
 

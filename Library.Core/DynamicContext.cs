@@ -20,6 +20,9 @@ namespace Serein.Library.Core
             RunState = RunState.Running;
         }
 
+        private readonly string _guid = global::System.Guid.NewGuid().ToString();
+        string IDynamicContext.Guid => _guid;
+
         /// <summary>
         /// 运行环境
         /// </summary>

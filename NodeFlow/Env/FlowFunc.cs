@@ -22,7 +22,8 @@ namespace Serein.NodeFlow.Env
         {
             if(nodeControlType == NodeControlType.ExpCondition
                 || nodeControlType == NodeControlType.ExpOp
-                || nodeControlType == NodeControlType.GlobalData)
+                || nodeControlType == NodeControlType.GlobalData
+                || nodeControlType == NodeControlType.Script)
             {
                 return true;
             }
@@ -68,6 +69,8 @@ namespace Serein.NodeFlow.Env
             nodeModel.OnCreating();
             return nodeModel;
         }
+
+
 
 
         /// <summary>

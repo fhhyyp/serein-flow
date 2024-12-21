@@ -5,7 +5,9 @@ using Serein.Script;
 using Serein.Script.Node;
 using System;
 using System.Collections.Generic;
+using System.Dynamic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
@@ -28,7 +30,7 @@ namespace Serein.NodeFlow.Model
         private IScriptFlowApi ScriptFlowApi { get; }
 
         private ASTNode mainNode;
-
+        private SereinScriptInterpreter ScriptInterpreter;
         /// <summary>
         /// 构建流程脚本节点
         /// </summary>
@@ -37,14 +39,11 @@ namespace Serein.NodeFlow.Model
         {
             //ScriptFlowApi = environment.IOC.Get<ScriptFlowApi>();
             ScriptFlowApi = new ScriptFlowApi(environment, this);
-            
+            ScriptInterpreter = new SereinScriptInterpreter();
+        }
 
-            MethodInfo? method = this.GetType().GetMethod(nameof(GetFlowApi));
-            if (method != null)
-            {
-                SereinScriptInterpreter.AddFunction(nameof(GetFlowApi), method, () => this); // 挂载获取流程接口
-            }
-
+        static SingleScriptNode()
+        {
             // 挂载静态方法
             var tempMethods = typeof(BaseFunc).GetMethods().Where(method =>
                     !(method.Name.Equals("GetHashCode")
@@ -52,21 +51,74 @@ namespace Serein.NodeFlow.Model
                     || method.Name.Equals("ToString")
                     || method.Name.Equals("GetType")
             )).Select(method => (method.Name, method)).ToArray();
-
+            // 加载基础方法
             foreach ((string name, MethodInfo method) item in tempMethods)
             {
-                SereinScriptInterpreter.AddFunction(item.name, item.method); // 加载基础方法
+                SereinScriptInterpreter.AddStaticFunction(item.name, item.method);
             }
         }
 
+
+        public override void OnCreating()
+        {
+            MethodInfo? method = this.GetType().GetMethod(nameof(GetFlowApi));
+            if (method != null)
+            {
+                ScriptInterpreter.AddFunction(nameof(GetFlowApi), method, () => this); // 挂载获取流程接口
+            }
+
+            var md = MethodDetails;
+            var pd = md.ParameterDetailss ??= new ParameterDetails[1];
+            md.ParamsArgIndex = 0;
+            pd[0] =  new ParameterDetails
+            {
+                Index = 0,
+                Name = "object",
+                IsExplicitData = true,
+                DataValue = string.Empty,
+                DataType = typeof(object),
+                ExplicitType = typeof(object),
+                ArgDataSourceNodeGuid = string.Empty,
+                ArgDataSourceType = ConnectionArgSourceType.GetPreviousNodeData,
+                NodeModel = this,
+                ExplicitTypeName = "Value",
+                Items = null,
+                IsParams = true,
+            };
+
+        }
+
         /// <summary>
-        /// 加载脚本代码
+        /// 导出脚本代码
         /// </summary>
-        public void LoadScript()
+        /// <param name="nodeInfo"></param>
+        /// <returns></returns>
+        public override NodeInfo SaveCustomData(NodeInfo nodeInfo)
+        {
+            dynamic data = new ExpandoObject();
+            data.Script = Script ?? "";
+            nodeInfo.CustomData = data;
+            return nodeInfo;
+        }
+
+        /// <summary>
+        /// 加载自定义数据
+        /// </summary>
+        /// <param name="nodeInfo"></param>
+        public override void LoadCustomData(NodeInfo nodeInfo)
+        {
+            this.Script = nodeInfo.CustomData?.Script ?? "";
+        }
+
+        /// <summary>
+        /// 重新加载脚本代码
+        /// </summary>
+        public void ReloadScript()
         {
             try
             {
-                mainNode = new SereinScriptParser(Script).Parse();
+                var p = new SereinScriptParser(Script);
+                mainNode = p.Parse();
             }
             catch (Exception ex)
             {
@@ -81,27 +133,33 @@ namespace Serein.NodeFlow.Model
         /// <returns></returns>
         public override async Task<object?> ExecutingAsync(IDynamicContext context)
         {
+            var @params =  await NodeModelBase.GetParametersAsync(context, this);
+            ScriptFlowApi.Context= context; 
+            context.AddOrUpdate($"{context.Guid}_{this.Guid}_Params", @params[0]); // 后面再改
 
             mainNode ??= new SereinScriptParser(Script).Parse();
-            SereinScriptInterpreter scriptInterpreter = new SereinScriptInterpreter();
-            var result = await scriptInterpreter.InterpretAsync(mainNode); // 从入口节点执行
-            scriptInterpreter.ResetVar();
+             IScriptInvokeContext scriptContext = new ScriptInvokeContext();
+            var result = await ScriptInterpreter.InterpretAsync(scriptContext, mainNode); // 从入口节点执行
             return result;
         }
 
-        
-        public IScriptFlowApi GetFlowApi() 
-        { 
-            return ScriptFlowApi; 
+
+        #region 挂载的方法
+
+        public IScriptFlowApi GetFlowApi()
+        {
+            return ScriptFlowApi;
         }
 
         private static class BaseFunc
         {
+            public static DateTime GetNow() => DateTime.Now;
+
             public static Type TypeOf(object type)
             {
                 return type.GetType();
             }
-            
+
 
             public static void Print(object value)
             {
@@ -120,7 +178,7 @@ namespace Serein.NodeFlow.Model
             public static bool ToBool(object value)
             {
                 return bool.Parse(value.ToString());
-            } 
+            }
             #endregion
 
             public static async Task Delay(object value)
@@ -138,6 +196,7 @@ namespace Serein.NodeFlow.Model
                 }
 
             }
-        }
+        } 
+        #endregion
     }
 }

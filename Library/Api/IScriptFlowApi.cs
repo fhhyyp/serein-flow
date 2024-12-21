@@ -30,13 +30,13 @@ namespace Serein.Library.Api
         /// </summary>
         /// <param name="index"></param>
         /// <returns></returns>
-        object GetDataOfParams(int index);
+        object GetArgData(int index);
         /// <summary>
         /// 根据入参名称从入参数据获取数据
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
-        object GetDataOfParams(string name);
+        // object GetDataOfParams(string name);
         /// <summary>
         /// 获取全局数据
         /// </summary>

@@ -1026,6 +1026,10 @@ namespace Serein.NodeFlow.Env
                 #region 参数调用关系
                 foreach (var toNode in NodeModels.Values)
                 {
+                    if(toNode.MethodDetails.ParameterDetailss == null)
+                    {
+                        continue;
+                    }
                     for (var i = 0; i < toNode.MethodDetails.ParameterDetailss.Length; i++)
                     {
                         var pd = toNode.MethodDetails.ParameterDetailss[i];
@@ -1589,6 +1593,8 @@ namespace Serein.NodeFlow.Env
                                 NodeConnectChangeEventArgs.ConnectChangeType.Remote // 是创建连接还是删除连接
                             ))); // 通知UI 
             }
+
+
             for (int i = 0; i < argInfo.Length; i++)
             {
                 ParameterDetails? pd = nodeModel.MethodDetails.ParameterDetailss[i];

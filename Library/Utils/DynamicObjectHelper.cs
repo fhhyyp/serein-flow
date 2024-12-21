@@ -65,11 +65,18 @@ namespace Serein.Library.Utils
             }
         }
 
-
-        public static Type CreateTypeWithProperties(IDictionary<string, Type> properties, string typeName)
+        /// <summary>
+        /// 创建具有属性的类型
+        /// </summary>
+        /// <param name="properties">成员属性名称及类型</param>
+        /// <param name="typeName">类型名称</param>
+        /// <param name="isOverlay">是否覆盖</param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
+        public static Type CreateTypeWithProperties(IDictionary<string, Type> properties, string typeName, bool isOverlay = false)
         {
-            // 如果类型已经缓存，直接返回缓存的类型
-            if (typeCache.ContainsKey(typeName))
+            // 如果类型已经缓存，且没有显示指定需要覆盖，直接返回缓存的类型
+            if (typeCache.ContainsKey(typeName) && !isOverlay)
             {
                 return typeCache[typeName];
             }

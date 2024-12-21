@@ -3,6 +3,7 @@ using Serein.Library;
 using Serein.Script.Node;
 using System.Collections.Generic;
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace Serein.Script
 {
@@ -32,6 +33,7 @@ namespace Serein.Script
             Statements.Clear();
             while (_currentToken.Type != TokenType.EOF)
             {
+                
                 var astNode = Statement();
                 if (astNode == null)
                 {
@@ -41,8 +43,7 @@ namespace Serein.Script
 
                 //if (astNode is ClassTypeDefinitionNode)
                 //{
-                //    // 类型定义置顶
-                //    statements = [astNode, ..statements];
+                //    statements = [astNode, ..statements]; // 类型定义置顶
                 //}
                 //else
                 //{
@@ -61,9 +62,17 @@ namespace Serein.Script
             }
             if (_currentToken.Type == TokenType.Keyword && _currentToken.Value == "class")
             {
-                return ParseClassDefinition();
+                return ParseClassDefinition(); // 加载类，如果已经加载过，则忽略
             }
-            
+            if (_currentToken.Type == TokenType.Keyword && _currentToken.Value == "new")
+            {
+                var _peekToken = _lexer.PeekToken();
+                if (_peekToken.Type == TokenType.Keyword && _peekToken.Value == "class")
+                {
+                    return ParseClassDefinition(); // 重新加载类
+                }
+            }
+
             if (_currentToken.Type == TokenType.Keyword && _currentToken.Value == "if")
             {
                 return ParseIf();
@@ -134,20 +143,30 @@ namespace Serein.Script
         private ASTNode ParseAssignment()
         {
             string variableName = _currentToken.Value.ToString();
-            _currentToken = _lexer.NextToken();  // consume identifier
 
-            if(_currentToken.Type == TokenType.ParenthesisRight)
+            var _peekToken = _lexer.PeekToken();
+            if (_peekToken.Type == TokenType.ParenthesisRight)
             {
+                _currentToken = _lexer.NextToken();  // 消耗标识符
+
                 return new IdentifierNode(variableName).SetTokenInfo(_currentToken);
             }
 
-            if(_currentToken.Type == TokenType.Operator && _currentToken.Value == "=")
+            if(_peekToken.Type == TokenType.Operator && _peekToken.Value == "=")
             {
                 // 赋值行为
-                _currentToken = _lexer.NextToken();  // consume "="
+                _currentToken = _lexer.NextToken();  // 消耗标识符
+                _currentToken = _lexer.NextToken();  // 消耗 "="
                 var _tempToken = _lexer.PeekToken();
                 ASTNode valueNode;
-                if (_tempToken.Type == TokenType.ParenthesisLeft)
+
+                if(_tempToken.Type == TokenType.Operator && _tempToken.Value != "=")
+                {
+                    //_currentToken = _lexer.NextToken(); // 消耗操作符
+                    //_currentToken = _lexer.NextToken(); // 消耗操作符
+                    valueNode = Expression();
+                }
+                else if (_tempToken.Type == TokenType.ParenthesisLeft)
                 {
                     // 解析赋值右边的表达式
                     // 是函数调用，解析函数调用
@@ -160,9 +179,15 @@ namespace Serein.Script
                 }
                 return new AssignmentNode(variableName, valueNode).SetTokenInfo(_currentToken);
             }
-            if (_currentToken.Type == TokenType.Dot)
+            if (_peekToken.Type == TokenType.Dot)
             {
+                // 可能是方法调用
                 return ParseMemberAccessOrAssignment();
+            }
+
+            if(_peekToken.Type == TokenType.Operator)
+            {
+                return new IdentifierNode(variableName).SetTokenInfo(_currentToken);
             }
             
             
@@ -204,13 +229,19 @@ namespace Serein.Script
 
         private ASTNode ParseClassDefinition()
         {
+            bool isOverlay = false;
+            if (_currentToken.Value == "new")
+            {
+                isOverlay = true; // 重新加载类
+                _currentToken = _lexer.NextToken(); // 消耗 new 关键字
+            }
             _currentToken = _lexer.NextToken(); // 消耗 class 关键字
             var className = _currentToken.Value.ToString(); // 获取定义的类名
-            _currentToken = _lexer.NextToken(); // 消耗括号
+            _currentToken = _lexer.NextToken(); // 消耗类名
             if (_currentToken.Type != TokenType.BraceLeft || _currentToken.Value != "{")
                 throw new Exception("Expected '{' after class definition");
             var classFields = new Dictionary<string, Type>();
-            _currentToken = _lexer.NextToken();
+            _currentToken = _lexer.NextToken();  // 消耗括号
             while (_currentToken.Type != TokenType.BraceRight)
             {
                 var fieldType = _currentToken.Value.ToString().ToTypeOfString(); // 获取定义的类名
@@ -231,7 +262,7 @@ namespace Serein.Script
 
             _currentToken = _lexer.NextToken();
             _currentToken = _lexer.NextToken();
-            return new ClassTypeDefinitionNode(classFields, className).SetTokenInfo(_currentToken);
+            return new ClassTypeDefinitionNode(classFields, className, isOverlay).SetTokenInfo(_currentToken);
         }
 
         public ASTNode ParseObjectInstantiation()
@@ -310,7 +341,6 @@ namespace Serein.Script
                 else
                 {
 
-                  
                     if(_peekToken.Type == TokenType.ParenthesisLeft)
                     {
                         // 成员方法调用 obj.Member(xxx);
@@ -323,6 +353,8 @@ namespace Serein.Script
                     }
                     else
                     {
+
+                        _currentToken = _lexer.NextToken(); // 消耗 成员名称
                         // 成员获取
                         return new MemberAccessNode(identifierNode, memberName).SetTokenInfo(_currentToken);
                     }
@@ -361,7 +393,7 @@ namespace Serein.Script
                 }
             }
 
-            _currentToken = _lexer.NextToken(); // consume ")"
+            //_currentToken = _lexer.NextToken(); // consume ")"
 
             return new MemberFunctionCallNode(targetNode, functionName, arguments).SetTokenInfo(_currentToken);
         }
@@ -548,6 +580,15 @@ namespace Serein.Script
                 _currentToken = _lexer.NextToken();  // 消耗数字
                 return new StringNode(text.ToString()).SetTokenInfo(_currentToken);
             }
+            if( _currentToken.Type == TokenType.InterpolatedString)
+            {
+                // 可能是插值字符串；
+                // let context = $"a{A}b{B}c";
+                // let context = "a" + A + "b" + B + c;
+                _currentToken = _lexer.NextToken(); // 消耗字符串
+                while (_currentToken.Type == TokenType.String) { 
+                }
+            }
 
             if (_currentToken.Type == TokenType.Number)
             {
@@ -589,51 +630,6 @@ namespace Serein.Script
                 if (_identifierPeekToken.Type == TokenType.Dot)
                 {
                     return ParseMemberAccessOrAssignment();
-
-                    var identifierNode = new IdentifierNode(identifier).SetTokenInfo(_currentToken);
-                    // 处理成员访问：identifier.member
-                    if (_currentToken.Type == TokenType.Dot)
-                    {
-                        _currentToken = _lexer.NextToken(); // 消耗 "."
-                        if (_currentToken.Type != TokenType.Identifier)
-                        {
-                            throw new Exception("Expected member name after dot.");
-                        }
-
-                        var memberName = _currentToken.Value;
-                        _currentToken = _lexer.NextToken(); // 消耗成员名
-                        if (_currentToken.Type == TokenType.Operator && _currentToken.Value == "=")
-                        {
-                            // 成员赋值 obj.Member = xxx;
-                            _currentToken = _lexer.NextToken(); // 消耗 "="
-                            var valueNode = Expression();  // 解析右值
-                            return new MemberAssignmentNode(identifierNode, memberName, valueNode).SetTokenInfo(_currentToken);
-                        }
-                        else
-                        {
-                            var _peekToken = _lexer.PeekToken();
-                            if (_peekToken.Type == TokenType.ParenthesisLeft)
-                            {
-                                // 成员方法调用 obj.Member(xxx);
-                                return ParseFunctionCall();
-                            }
-                            else if (_peekToken.Type == TokenType.SquareBracketsLeft)
-                            {
-                                // 数组 index; 字典 key obj.Member[xxx];
-                                return ParseCollectionIndex();
-                            }
-                            else
-                            {
-                                // 成员获取
-                                return new MemberAccessNode(identifierNode, memberName).SetTokenInfo(_currentToken);
-                            }
-
-                        } 
-
-                    }
-
-                    return identifierNode;
-
                 }
                 _currentToken = _lexer.NextToken();  // 消耗标识符
                 return new IdentifierNode(identifier.ToString()).SetTokenInfo(_currentToken);

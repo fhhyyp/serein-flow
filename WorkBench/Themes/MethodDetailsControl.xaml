@@ -16,10 +16,10 @@
                 <ControlTemplate TargetType="{x:Type local:MethodDetailsControl}">
                     
                     <!--根据方法入参数量生成相应的控件-->
-                    <ItemsControl ItemsSource="{Binding MethodDetails.ParameterDetailss, RelativeSource={RelativeSource TemplatedParent}}">
+                    <ItemsControl ItemsSource="{Binding MethodDetails.ParameterDetailss, RelativeSource={RelativeSource TemplatedParent}}" Background="#E3FDFD" >
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Grid Background="#E3FDFD" >
+                                <Grid >
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="auto"/>
                                         <ColumnDefinition Width="auto"/>

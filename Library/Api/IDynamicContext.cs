@@ -12,6 +12,11 @@ namespace Serein.Library.Api
     public interface IDynamicContext
     {
         /// <summary>
+        /// 标识流程
+        /// </summary>
+        string Guid {get; }
+
+        /// <summary>
         /// 运行环境，包含IOC容器。
         /// </summary>
         IFlowEnvironment Env { get; }

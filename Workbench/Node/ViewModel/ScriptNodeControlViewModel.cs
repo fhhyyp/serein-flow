@@ -41,7 +41,7 @@ namespace Serein.Workbench.Node.ViewModel
 
             CommandLoadScript = new RelayCommand( o =>
             {
-                NodeModel.LoadScript();
+                NodeModel.ReloadScript();
             });
         }
 

@@ -27,6 +27,10 @@ namespace Serein.Script
         /// </summary>
         String,
         /// <summary>
+        /// 插值字符串
+        /// </summary>
+        InterpolatedString,
+        /// <summary>
         /// 关键字
         /// </summary>
         Keyword,
@@ -273,6 +277,9 @@ namespace Serein.Script
                     }
                 case '.':
                     return CreateToken(TokenType.Dot, ".");
+
+                //case '$':
+                //    return CreateToken(TokenType.InterpolatedString, "$");  
             }
 
             throw new Exception("Unexpected character: " + currentChar);

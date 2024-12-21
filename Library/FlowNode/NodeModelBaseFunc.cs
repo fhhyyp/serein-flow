@@ -393,7 +393,7 @@ namespace Serein.Library
                 md.ActingInstance = context.Env.IOC.Get(md.ActingInstanceType);
             }
 
-            object[] args = await GetParametersAsync(context, this, md);
+            object[] args = await GetParametersAsync(context, this);
             var result = await dd.InvokeAsync(md.ActingInstance, args);
             return result;
 
@@ -403,10 +403,10 @@ namespace Serein.Library
         /// 获取对应的参数数组
         /// </summary>
         public static async Task<object[]> GetParametersAsync(IDynamicContext context,
-                                                              NodeModelBase nodeModel,
-                                                              MethodDetails md)
+                                                              NodeModelBase nodeModel)
         {
             // 用正确的大小初始化参数数组
+            var md = nodeModel.MethodDetails;
             if (md.ParameterDetailss.Length == 0)
             {
                 return null;// md.ActingInstance
@@ -670,8 +670,6 @@ namespace Serein.Library
                     //    parameters[i] = result;
                     //}
                    
-
-
                 }
 
 
