@@ -19,7 +19,7 @@ namespace Net462DllTest.Trigger
 
 
     [AutoRegister]
-    public class SiemensPlcDevice : FlowTrigger<PlcVarName>
+    public class SiemensPlcDevice : TaskFlowTrigger<PlcVarName>
     {
         public SiemensClient Client { get; set; }
         public SiemensVersion Version { get; set; }
@@ -197,7 +197,7 @@ namespace Net462DllTest.Trigger
                     if (isNotification)
                     {
                         Console.WriteLine($"VarName: {signal}\t\tOld Data: {oldData}\tNew Data: {newData}");
-                        Trigger(signal, newData);
+                        await InvokeTriggerAsync(signal, newData);
                     }
                   
                     
@@ -238,7 +238,7 @@ namespace Net462DllTest.Trigger
             {
                 return VarInfoDict[plcVarEnum];
             }
-            var plcValue = EnumHelper.GetBoundValue<PlcVarName, PlcVarInfoAttribute, PlcVarInfo>(plcVarEnum, attr => attr.Info)
+            var plcValue = EnumHelper.GetAttributeValue<PlcVarName, PlcVarInfoAttribute, PlcVarInfo>(plcVarEnum, attr => attr.Info)
                      ?? throw new Exception($"获取变量异常：{plcVarEnum}，没有标记PlcValueAttribute");
             if (string.IsNullOrEmpty(plcValue.Address))
             {

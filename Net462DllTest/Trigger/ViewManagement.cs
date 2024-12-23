@@ -16,7 +16,7 @@ namespace Net462DllTest.Trigger
     /// 视图管理
     /// </summary>
     [AutoRegister]
-    public class ViewManagement : FlowTrigger<CommandSignal>
+    public class ViewManagement : TaskFlowTrigger<CommandSignal>
     {
         private readonly UIContextOperation uiContextOperation;
         public ViewManagement(UIContextOperation uiContextOperation)

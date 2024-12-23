@@ -17,7 +17,7 @@ namespace Serein.Library.Api
         /// <summary>
         /// 触发类型
         /// </summary>
-        TriggerType Type { get; set; }
+        TriggerDescription Type { get; set; }
         /// <summary>
         /// 触发时传递的数据
         /// </summary>

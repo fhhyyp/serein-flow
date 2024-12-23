@@ -2917,8 +2917,6 @@ namespace Serein.Workbench
 
                     //SereinEnv.WriteLine(InfoType.ERROR, $"粘贴节点时发生异常：{ex}");
                 }
-
-
                 // SereinEnv.WriteLine(InfoType.INFO, $"剪贴板文本内容: {clipboardText}");
             }
             else if (Clipboard.ContainsImage())

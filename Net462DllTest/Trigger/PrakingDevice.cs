@@ -4,7 +4,7 @@ using Serein.Library;
 namespace Net462DllTest.Trigger
 {
     [AutoRegister]
-    public class PrakingDevice : FlowTrigger<ParkingCommand>
+    public class PrakingDevice : TaskFlowTrigger<ParkingCommand>
     {
     }
 

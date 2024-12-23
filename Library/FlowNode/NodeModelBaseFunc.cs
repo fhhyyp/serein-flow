@@ -38,7 +38,6 @@ namespace Serein.Library
         }
 
 
-
         /// <summary>
         /// 保存自定义信息
         /// </summary>
@@ -155,7 +154,7 @@ namespace Serein.Library
                 AssemblyName = MethodDetails.AssemblyName,
                 MethodName = MethodDetails?.MethodName,
                 Label = MethodDetails?.MethodAnotherName,
-                Type = this.GetType().ToString(),
+                Type = ControlType.ToString() , //this.GetType().ToString(),
                 TrueNodes = trueNodes.ToArray(),
                 FalseNodes = falseNodes.ToArray(),
                 UpstreamNodes = upstreamNodes.ToArray(),

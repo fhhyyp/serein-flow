@@ -38,7 +38,7 @@ namespace Net462DllTest.LogicControl
         public void Exit(IDynamicContext context)
         {
             MyPlc.Close();
-            MyPlc.CancelAllTasks();
+            MyPlc.CancelAllTrigger();
         }
 
         #endregion
@@ -50,7 +50,7 @@ namespace Net462DllTest.LogicControl
         {
             try
             {
-                var triggerData = await MyPlc.CreateTaskAsync<object>(varName);
+                var triggerData = await MyPlc.WaitTriggerAsync<object>(varName);
                 await Console.Out.WriteLineAsync($"PLC变量触发器[{varName}]传递数据：{triggerData}");
                 return new FlipflopContext<object>(FlipflopStateType.Succeed, triggerData);
             }

@@ -63,7 +63,7 @@ namespace Serein.Library.Framework.NodeFlow
     {
         public FlipflopStateType State { get; set; }
 
-        public TriggerType Type { get; set; }
+        public TriggerDescription Type { get; set; }
         public TResult Value { get; set; }
 
         public FlipflopContext(FlipflopStateType ffState)

@@ -1,4 +1,6 @@
-﻿using Serein.Library.Utils;
+﻿using Newtonsoft.Json.Linq;
+using Serein.Library.Api;
+using Serein.Library.Utils;
 using System;
 using System.Collections.Concurrent;
 using System.Reactive.Linq;
@@ -6,13 +8,16 @@ using System.Reactive.Subjects;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using System.Transactions;
 
 namespace Serein.Library
 {
+
+
     /// <summary>
     /// 触发类型
     /// </summary>
-    public enum TriggerType
+    public enum TriggerDescription
     {
         /// <summary>
         /// 外部触发
@@ -21,32 +26,37 @@ namespace Serein.Library
         /// <summary>
         /// 超时触发
         /// </summary>
-        Overtime
+        Overtime,
+        /// <summary>
+        /// 触发了，但类型不一致
+        /// </summary>
+        TypeInconsistency
     }
 
-    public class TriggerResult<T> 
+
+    public class TriggerResult<TResult>
     {
-        public TriggerType Type { get; set; }
-        public T Value { get; set; }
+        public TriggerDescription Type { get; set; }
+        public TResult Value { get; set; }
     }
 
     /// <summary>
     /// 信号触发器类，带有消息广播功能。
     /// 使用枚举作为标记，创建
     /// </summary>
-    public class FlowTrigger<TSignal> where TSignal : struct, Enum
+    public class TaskFlowTrigger<TSignal> : IFlowTrigger<TSignal> where TSignal : struct, Enum
     {
         // 使用并发字典管理每个信号对应的广播列表
-        private readonly ConcurrentDictionary<TSignal, Subject<(TriggerType,object)>> _subscribers = new ConcurrentDictionary<TSignal, Subject<(TriggerType, object)>>();
+        private readonly ConcurrentDictionary<TSignal, Subject<TriggerResult<object>>> _subscribers = new ConcurrentDictionary<TSignal, Subject<TriggerResult<object>>>();
 
         /// <summary>
         /// 获取或创建指定信号的 Subject（消息广播者）
         /// </summary>
         /// <param name="signal">枚举信号标识符</param>
         /// <returns>对应的 Subject</returns>
-        private Subject<(TriggerType, object)> GetOrCreateSubject(TSignal signal)
+        private Subject<TriggerResult<object>> GetOrCreateSubject(TSignal signal)
         {
-            return _subscribers.GetOrAdd(signal, _ => new Subject<(TriggerType, object)>());
+            return _subscribers.GetOrAdd(signal, _ => new Subject<TriggerResult<object>>());
         }
 
         /// <summary>
@@ -55,20 +65,23 @@ namespace Serein.Library
         /// <param name="signal">枚举信号标识符</param>
         /// <param name="observer">订阅者</param>
         /// <returns>取消订阅的句柄</returns>
-        public IDisposable Subscribe(TSignal signal, IObserver<(TriggerType, object)> observer)
+        private IDisposable Subscribe<TResult>(TSignal signal, Action<TriggerResult<object>> action)
         {
+            IObserver<TriggerResult<object>> observer = new Observer<TriggerResult<object>>(action);
             var subject = GetOrCreateSubject(signal);
-            // (IObserver<(TriggerType, object)>)
             return subject.Subscribe(observer); // 返回取消订阅的句柄
         }
 
+
+       
         /// <summary>
-        /// 创建信号并指定超时时间，触发时通知所有订阅者
+        /// 等待触发器并指定超时的时间
         /// </summary>
-        /// <param name="signal">枚举信号标识符</param>
+        /// <typeparam name="TResult">返回值类型</typeparam>
+        /// <param name="signal">等待信号</param>
         /// <param name="outTime">超时时间</param>
-        /// <returns>等待任务，返回值为：状态（超时触发，手动触发），数据（超时触发时会使用设置好的数据）</returns>
-        public async Task<(TriggerType, TResult)> CreateTaskWithTimeoutAsync<TResult>(TSignal signal, TimeSpan outTime, TResult outValue)
+        /// <returns></returns>
+        public async Task<TriggerResult<TResult>> WaitTriggerWithTimeoutAsync<TResult>(TSignal signal, TimeSpan outTime)
         {
             var subject = GetOrCreateSubject(signal);
             var cts = new CancellationTokenSource();
@@ -81,7 +94,11 @@ namespace Serein.Library
                     await Task.Delay(outTime, cts.Token);
                     if (!cts.IsCancellationRequested) // 如果还没有被取消
                     {
-                        subject.OnNext((TriggerType.Overtime, outValue)); // 广播给所有订阅者
+                        var outResult = new TriggerResult<object>()
+                        {
+                            Type = TriggerDescription.Overtime
+                        };
+                        subject.OnNext(outResult); // 广播给所有订阅者
                         subject.OnCompleted(); // 通知订阅结束
                     }
                 }
@@ -94,65 +111,67 @@ namespace Serein.Library
                     cts?.Dispose();  // 确保 cts 被释放
                 }
             }, cts.Token);
-
-            var result = await WaitSignalAsync<TResult>(signal);// 返回一个可以超时触发的等待任务
+            var result = await WaitTriggerAsync<TResult>(signal); // 返回一个可以超时触发的等待任务
             return result;
         }
 
-
-
         /// <summary>
-        /// 创建等待任务，触发时通知所有订阅者
+        /// 等待触发
         /// </summary>
-        /// <param name="signal">枚举信号标识符</param>
-        /// <param name="outTime">超时时间</param>
-        /// <returns>等待任务</returns>
-        public async Task<TResult> CreateTaskAsync<TResult>(TSignal signal)
+        /// <typeparam name="TResult"></typeparam>
+        /// <param name="signal"></param>
+        /// <returns></returns>
+        public async Task<TriggerResult<TResult>> WaitTriggerAsync<TResult>(TSignal signal)
         {
-            var subject = GetOrCreateSubject(signal);
-            (_,var result) = await WaitSignalAsync<TResult>(signal);
-
-            return result;// 返回一个等待的任务
-        }
-
-
-        /// <summary>
-        /// 等待指定信号的触发
-        /// </summary>
-        /// <param name="signal">枚举信号标识符</param>
-        /// <returns>等待任务</returns>
-        public async Task<(TriggerType, TResult)> WaitSignalAsync<TResult>(TSignal signal)
-        {
-            var taskCompletionSource = new TaskCompletionSource<(TriggerType, object)>();
-            var subscription = Subscribe(signal, new Observer<(TriggerType, object)>(taskCompletionSource.SetResult));
-            (var type,var result) = await taskCompletionSource.Task;
+            var taskCompletionSource = new TaskCompletionSource<TriggerResult<object>>();
+            var subscription = Subscribe<TResult>(signal, taskCompletionSource.SetResult);
+            var result = await taskCompletionSource.Task;
             subscription.Dispose(); // 取消订阅
-            
-            return (type, result.ToConvert<TResult>());
+            if(result.Value is TResult data)
+            {
+                return new TriggerResult<TResult>()
+                {
+                    Value = data,
+                    Type = TriggerDescription.External,
+                };
+            }
+            else
+            {
+                return new TriggerResult<TResult>()
+                {
+                    Type = TriggerDescription.TypeInconsistency,
+                };
+            }
         }
 
-      
 
         /// <summary>
         /// 手动触发信号，并广播给所有订阅者
         /// </summary>
+        /// <typeparam name="TResult">触发类型</typeparam>
         /// <param name="signal">枚举信号标识符</param>
+        /// <param name="value">传递的数据</param>
         /// <returns>是否成功触发</returns>
-        public bool Trigger<TResult>(TSignal signal, TResult value)
+        public Task<bool> InvokeTriggerAsync<TResult>(TSignal signal, TResult value)
         {
             if (_subscribers.TryGetValue(signal, out var subject))
             {
-                subject.OnNext((TriggerType.External, value)); // 广播给所有订阅者
-                //subject.OnCompleted(); // 通知订阅结束
-                return true;
+                var result = new TriggerResult<object>()
+                {
+                    Type = TriggerDescription.External,
+                    Value = value
+                };
+                subject.OnNext(result); // 广播给所有订阅者
+                subject.OnCompleted(); // 通知订阅结束
+                return Task.FromResult(true);
             }
-            return false;
+            return Task.FromResult(false);
         }
-
         /// <summary>
         /// 取消所有任务
         /// </summary>
-        public void CancelAllTasks()
+
+        public void CancelAllTrigger()
         {
             foreach (var subject in _subscribers.Values)
             {
@@ -160,8 +179,10 @@ namespace Serein.Library
             }
             _subscribers.Clear();
         }
-
     }
+
+
+
 
     /// <summary>
     /// 观察者类，用于包装 Action

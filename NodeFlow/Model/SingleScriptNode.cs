@@ -15,6 +15,7 @@ using System.Xml.Linq;
 
 namespace Serein.NodeFlow.Model
 {
+    
     [NodeProperty(ValuePath = NodeValuePath.Node)]
     public partial class SingleScriptNode : NodeModelBase
     {
@@ -57,7 +58,6 @@ namespace Serein.NodeFlow.Model
                 SereinScriptInterpreter.AddStaticFunction(item.name, item.method);
             }
         }
-
 
         public override void OnCreating()
         {

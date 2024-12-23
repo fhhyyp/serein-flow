@@ -30,7 +30,7 @@ namespace Serein.Workbench.Node.ViewModel
             CommandCopyDataExp = new RelayCommand( o =>
             {
                 string exp = NodeModel.KeyName;
-                string copyValue = "@Data " + exp;
+                string copyValue = $"@Get #{exp}#";
                 Clipboard.SetDataObject(copyValue);
             });
         }

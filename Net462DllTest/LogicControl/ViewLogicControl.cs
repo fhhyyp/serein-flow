@@ -31,15 +31,14 @@ namespace Net462DllTest.LogicControl
         [NodeAction(NodeType.Flipflop, "等待视图命令")]
         public async Task<IFlipflopContext<int>> WaitTask(CommandSignal command)
         {
-            (var type, var result) = await ViewManagement.CreateTaskWithTimeoutAsync(command, TimeSpan.FromHours(10), 0);
-            if (type == TriggerType.Overtime)
+            var result = await ViewManagement.WaitTriggerWithTimeoutAsync<int>(command, TimeSpan.FromHours(10));
+            if (result.Type == TriggerDescription.Overtime)
             {
-                return new FlipflopContext<int>(FlipflopStateType.Cancel, result);
+                return new FlipflopContext<int>(FlipflopStateType.Cancel, result.Value);
             }
             else
             {
-
-                return new FlipflopContext<int>(FlipflopStateType.Succeed, result);
+                return new FlipflopContext<int>(FlipflopStateType.Succeed, result.Value);
             }
 
         }

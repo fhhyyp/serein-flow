@@ -3,8 +3,10 @@ using Serein.Library.Api;
 using Serein.Library.Utils;
 using Serein.NodeFlow.Model;
 using System.Collections.Concurrent;
+using System.ComponentModel;
+using System.Reflection;
 
-namespace Serein.NodeFlow.Env
+namespace Serein.NodeFlow
 {
 
     /// <summary>
@@ -12,18 +14,14 @@ namespace Serein.NodeFlow.Env
     /// </summary>
     public static class FlowFunc
     {
-      
-
         /// <summary>
         /// 判断是否为基础节点
         /// </summary>
         /// <returns></returns>
         public static bool IsBaseNode(this NodeControlType nodeControlType)
         {
-            if(nodeControlType == NodeControlType.ExpCondition
-                || nodeControlType == NodeControlType.ExpOp
-                || nodeControlType == NodeControlType.GlobalData
-                || nodeControlType == NodeControlType.Script)
+            var nodeDesc = EnumHelper.GetAttribute<NodeControlType, DescriptionAttribute>(nodeControlType);
+           if("base".Equals(nodeDesc?.Description, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
@@ -81,23 +79,27 @@ namespace Serein.NodeFlow.Env
         /// <exception cref="NotImplementedException"></exception>
         public static NodeControlType GetNodeControlType(NodeInfo nodeInfo)
         {
-            // 创建控件实例
-            NodeControlType controlType = nodeInfo.Type switch
+            if(!EnumHelper.TryConvertEnum<NodeControlType>(nodeInfo.Type, out var controlType))
             {
-                $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleActionNode)}" => NodeControlType.Action,// 动作节点控件
-                $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleFlipflopNode)}" => NodeControlType.Flipflop, // 触发器节点控件
-
-                $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleConditionNode)}" => NodeControlType.ExpCondition,// 条件表达式控件
-                $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleExpOpNode)}" => NodeControlType.ExpOp, // 操作表达式控件
-
-                $"{NodeStaticConfig.NodeSpaceName}.{nameof(CompositeConditionNode)}" => NodeControlType.ConditionRegion, // 条件区域控件
-
-                $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleGlobalDataNode)}" => NodeControlType.GlobalData, // 数据节点
-                $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleScriptNode)}" => NodeControlType.Script, // 数据节点
-                _ => NodeControlType.None,
-            };
-
+                return NodeControlType.None;
+            }
             return controlType;
+            // 创建控件实例
+            //NodeControlType controlType = nodeInfo.Type switch
+            //{
+            //    $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleActionNode)}" => NodeControlType.Action,// 动作节点控件
+            //    $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleFlipflopNode)}" => NodeControlType.Flipflop, // 触发器节点控件
+
+            //    $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleConditionNode)}" => NodeControlType.ExpCondition,// 条件表达式控件
+            //    $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleExpOpNode)}" => NodeControlType.ExpOp, // 操作表达式控件
+
+            //    $"{NodeStaticConfig.NodeSpaceName}.{nameof(CompositeConditionNode)}" => NodeControlType.ConditionRegion, // 条件区域控件
+
+            //    $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleGlobalDataNode)}" => NodeControlType.GlobalData, // 数据节点
+            //    $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleScriptNode)}" => NodeControlType.Script, // 数据节点
+            //    _ => NodeControlType.None,
+            //};
+            //return controlType;
         }
 
         /// <summary>
@@ -105,7 +107,7 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         /// <param name="libraryInfo"></param>
         /// <returns></returns>
-        public static NodeLibraryInfo ToLibrary(this Library.NodeLibraryInfo libraryInfo)
+        public static NodeLibraryInfo ToLibrary(this NodeLibraryInfo libraryInfo)
         {
             return new NodeLibraryInfo
             {

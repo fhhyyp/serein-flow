@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -72,6 +73,9 @@ namespace Serein.Library
     /// </summary>
     public enum NodeControlType
     {
+        /// <summary>
+        /// 预料之外的情况
+        /// </summary>
         None,
         /// <summary>
         /// 动作节点
@@ -81,25 +85,31 @@ namespace Serein.Library
         /// 触发器节点
         /// </summary>
         Flipflop,
+
         /// <summary>
         /// 表达式操作节点
         /// </summary>
+        [Description("base")]
         ExpOp,
         /// <summary>
         /// 表达式操作节点
         /// </summary>
+        [Description("base")]
         ExpCondition,
         /// <summary>
         /// 条件节点区域
         /// </summary>
+        [Description("base")] 
         ConditionRegion,
         /// <summary>
         /// 全局数据
         /// </summary>
+        [Description("base")] 
         GlobalData,
         /// <summary>
         /// 脚本节点
         /// </summary>
+        [Description("base")] 
         Script,
     }
 

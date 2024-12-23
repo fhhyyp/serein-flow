@@ -80,7 +80,7 @@ namespace Net462DllTest.Web
                 socketServer?.Stop(); // 关闭 Web 服务
             });
             MyPlc.Close();
-            MyPlc.CancelAllTasks();
+            MyPlc.CancelAllTrigger();
         }
 
         #endregion

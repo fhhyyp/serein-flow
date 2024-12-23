@@ -77,7 +77,7 @@ namespace Serein.Library.Utils
         /// <param name="enumValue">枚举值</param>
         /// <param name="valueSelector">特性成员选择</param>
         /// <returns></returns>
-       public static TResult GetBoundValue<TEnum, TAttribute, TResult>(TEnum enumValue,
+       public static TResult GetAttributeValue<TEnum, TAttribute, TResult>(TEnum enumValue,
                                                                        Func<TAttribute, TResult> valueSelector)
            where TEnum : Enum
            where TAttribute : Attribute
@@ -88,6 +88,22 @@ namespace Serein.Library.Utils
            return attribute != null ? valueSelector(attribute) : default;
        }
 
+        /// <summary>
+        /// 从枚举值从获取自定义特性的成员，并自动转换类型
+        /// </summary>
+        /// <typeparam name="TEnum">枚举类型</typeparam>
+        /// <typeparam name="TAttribute">自定义特性类型</typeparam>
+        /// <param name="enumValue">枚举值</param>
+        /// <returns></returns>
+        public static TAttribute GetAttribute<TEnum, TAttribute>(TEnum enumValue)
+            where TEnum : Enum
+            where TAttribute : Attribute
+        {
+            var fieldInfo = typeof(TEnum).GetField(enumValue.ToString());
+            var attribute = fieldInfo.GetCustomAttribute<TAttribute>();
+
+            return attribute;
+        }
 
 
     }

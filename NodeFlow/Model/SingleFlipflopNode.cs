@@ -1,7 +1,6 @@
 ﻿using Serein.Library.Api;
 using Serein.Library;
 using Serein.Library.Utils;
-using Serein.NodeFlow.Env;
 using static Serein.Library.Utils.ChannelFlowInterrupt;
 
 namespace Serein.NodeFlow.Model
@@ -48,7 +47,9 @@ namespace Serein.NodeFlow.Model
             dynamic dynamicFlipflopContext = await dd.InvokeAsync(md.ActingInstance, args);
             FlipflopStateType flipflopStateType = dynamicFlipflopContext.State;
             context.NextOrientation = flipflopStateType.ToContentType();
-            if (dynamicFlipflopContext.Type == TriggerType.Overtime)
+
+
+            if (dynamicFlipflopContext.Type == TriggerDescription.Overtime)
             {
                 throw new FlipflopException(base.MethodDetails.MethodName + "触发器超时触发。Guid" + base.Guid);
             }

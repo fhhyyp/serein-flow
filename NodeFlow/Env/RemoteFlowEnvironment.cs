@@ -14,7 +14,7 @@ namespace Serein.NodeFlow.Env
     /// <summary>
     /// 远程流程环境
     /// </summary>
-    public class RemoteFlowEnvironment : ChannelFlowTrigger<string>, IFlowEnvironment
+    public class RemoteFlowEnvironment : ChannelFlowTrigger<string>, IFlowEnvironment 
     {
         /// <summary>
         /// 连接到远程环境后切换到的环境接口实现

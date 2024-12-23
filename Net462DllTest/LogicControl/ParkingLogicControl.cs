@@ -28,16 +28,16 @@ namespace Net462DllTest.LogicControl
         [NodeAction(NodeType.Flipflop, "等待车位调取命令")]
         public async Task<IFlipflopContext<string>> GetPparkingSpace(ParkingCommand parkingCommand = ParkingCommand.GetPparkingSpace)
         {
-            var spaceNum = await PrakingDevice.CreateTaskAsync<string>(parkingCommand);
-            await Console.Out.WriteLineAsync("收到命令：调取车位，车位号" + spaceNum);
-            return new FlipflopContext<string>(FlipflopStateType.Succeed, spaceNum);
+            var result = await PrakingDevice.WaitTriggerAsync<string>(parkingCommand);
+            await Console.Out.WriteLineAsync("收到命令：调取车位，车位号" + result.Value);
+            return new FlipflopContext<string>(FlipflopStateType.Succeed, result.Value);
         }
 
 
         [NodeAction(NodeType.Action, "调取指定车位")]
-        public void Storage(string spaceNum = "101")
+        public async Task Storage(string spaceNum = "101")
         {
-           if (PrakingDevice.Trigger(ParkingCommand.GetPparkingSpace, spaceNum))
+           if (await PrakingDevice.InvokeTriggerAsync(ParkingCommand.GetPparkingSpace, spaceNum))
             {
                 Console.WriteLine("发送命令成功：调取车位" + spaceNum);
 
