@@ -639,7 +639,18 @@ namespace Serein.NodeFlow.Env
             return result;
         }
 
-
+        /// <summary>
+        /// 设置两个节点某个类型的方法调用关系为优先调用
+        /// </summary>
+        /// <param name="fromNodeGuid">起始节点</param>
+        /// <param name="toNodeGuid">目标节点</param>
+        /// <param name="connectionType">连接关系</param>
+        /// <returns>是否成功调用</returns>
+        public async Task<bool> SetConnectPriorityInvoke(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
+        {
+            this.WriteLine(InfoType.WARN, "远程环境尚未实现的接口(重要，会尽快实现)：SetConnectPriorityInvoke");
+            return false;
+        }
         /// <summary>
         /// 移除两个节点之间的方法调用关系
         /// </summary>
@@ -705,7 +716,7 @@ namespace Serein.NodeFlow.Env
         /// <returns></returns>
         public async Task LoadNodeInfosAsync(List<NodeInfo> nodeInfos)
         {
-            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口(重要，会尽快实现)：LoadNodeInfoAsync");
+            this.WriteLine(InfoType.WARN, "远程环境尚未实现的接口(重要，会尽快实现)：LoadNodeInfoAsync");
         }
 
 

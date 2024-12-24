@@ -224,7 +224,8 @@ namespace Serein.Workbench.Node.View
         private void ConfigureLineContextMenu()
         {
             var contextMenu = new ContextMenu();
-            contextMenu.Items.Add(MainWindow.CreateMenuItem("删除连线", (s, e) => this.Remote()));
+            contextMenu.Items.Add(MainWindow.CreateMenuItem("删除连线", (s, e) => Remote()));
+            contextMenu.Items.Add(MainWindow.CreateMenuItem("于父节点调用顺序中置顶", (s, e) => Topping()));
             BezierLine.ContextMenu = contextMenu;
         }
 
@@ -243,6 +244,18 @@ namespace Serein.Workbench.Node.View
             else if (Start.JunctionType.ToConnectyionType() == JunctionOfConnectionType.Arg)
             {
                 env.RemoveConnectArgSourceAsync(Start.MyNode.Guid, End.MyNode.Guid, ArgIndex) ;
+            }
+        }
+
+        /// <summary>
+        /// 置顶调用关系
+        /// </summary>
+        public void Topping()
+        {
+            var env = Start.MyNode.Env;
+            if (Start.JunctionType.ToConnectyionType() == JunctionOfConnectionType.Invoke)
+            {
+                env.SetConnectPriorityInvoke(Start.MyNode.Guid, End.MyNode.Guid, InvokeType);
             }
         }
 

@@ -38,7 +38,7 @@ namespace Serein.NodeFlow.Model
         }
 
         /// <summary>
-        /// 数据节点
+        /// 数据来源的节点
         /// </summary>
         private string? DataNodeGuid;
 
@@ -76,7 +76,7 @@ namespace Serein.NodeFlow.Model
             if (DataNodeGuid == null)
             {
                 context.NextOrientation = ConnectionInvokeType.IsError;
-                SereinEnv.WriteLine(InfoType.ERROR, $"全局数据节点没有数据[{this.Guid}]");
+                SereinEnv.WriteLine(InfoType.ERROR, $"全局数据节点没有设置数据来源[{this.Guid}]");
                 return null;
             }
 

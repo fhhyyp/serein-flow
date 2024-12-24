@@ -10,6 +10,7 @@ using Serein.Library.Utils.SereinExpression;
 using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Tool;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
 using System.Reflection;
@@ -1192,6 +1193,33 @@ namespace Serein.NodeFlow.Env
             }
             return state;
 
+        }
+
+
+        /// <summary>
+        /// 设置两个节点某个类型的方法调用关系为优先调用
+        /// </summary>
+        /// <param name="fromNodeGuid">起始节点</param>
+        /// <param name="toNodeGuid">目标节点</param>
+        /// <param name="connectionType">连接关系</param>
+        /// <returns>是否成功调用</returns>
+        public Task<bool> SetConnectPriorityInvoke(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
+        {
+            // 获取起始节点与目标节点
+            var fromNode = GuidToModel(fromNodeGuid);
+            var toNode = GuidToModel(toNodeGuid);
+            if (fromNode is null || toNode is null) return Task.FromResult(false);
+            if ( fromNode.SuccessorNodes.TryGetValue(connectionType, out var nodes))
+            {
+                var idx = nodes.IndexOf(toNode);
+                if (idx > -1)
+                {
+                    nodes.RemoveAt(idx);
+                    nodes.Insert(0, toNode);
+                    return Task.FromResult(true);
+                }
+            }
+            return Task.FromResult(false);
         }
 
         /// <summary>

@@ -350,6 +350,24 @@ namespace Serein.NodeFlow.Env
             return currentFlowEnvironment.UnloadLibrary(assemblyName);
         }
 
+        /// <summary>
+        /// 设置两个节点某个类型的方法调用关系为优先调用
+        /// </summary>
+        /// <param name="fromNodeGuid">起始节点</param>
+        /// <param name="toNodeGuid">目标节点</param>
+        /// <param name="connectionType">连接关系</param>
+        /// <returns>是否成功调用</returns>
+        public async Task<bool> SetConnectPriorityInvoke(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
+        {
+            return await currentFlowEnvironment.SetConnectPriorityInvoke(fromNodeGuid, toNodeGuid, connectionType);
+        }
+        /// <summary>
+        /// 移除方法调用关系
+        /// </summary>
+        /// <param name="fromNodeGuid"></param>
+        /// <param name="toNodeGuid"></param>
+        /// <param name="connectionType"></param>
+        /// <returns></returns>
         public async Task<bool> RemoveConnectInvokeAsync(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
         {
             return await currentFlowEnvironment.RemoveConnectInvokeAsync(fromNodeGuid, toNodeGuid, connectionType);

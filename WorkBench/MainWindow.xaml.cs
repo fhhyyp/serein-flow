@@ -373,24 +373,39 @@ namespace Serein.Workbench
             for (int index = 0; index < projectData.Librarys.Length; index++)
             {
                 NodeLibraryInfo? library = projectData.Librarys[index];
-                string sourceFile = new Uri(library.FilePath).LocalPath; // 源文件夹
-                string targetPath = System.IO.Path.Combine(librarySavePath, library.FileName); // 目标文件夹
-                SereinEnv.WriteLine(InfoType.INFO, $"源路径   : {sourceFile}");
-                SereinEnv.WriteLine(InfoType.INFO, $"目标路径 : {targetPath}");
-
+                string sourceFilePath = new Uri(library.FilePath).LocalPath; // 源文件夹
+                string targetFilePath = System.IO.Path.Combine(librarySavePath, library.FileName); // 目标文件夹
+                
                 try
                 {
-                    File.Copy(sourceFile, targetPath, true);
+                    if (File.Exists(sourceFilePath))
+                    {
+                        if (!File.Exists(targetFilePath))
+                        {
+                            SereinEnv.WriteLine(InfoType.INFO, $"源文件路径   : {sourceFilePath}");
+                            SereinEnv.WriteLine(InfoType.INFO, $"目标路径 : {targetFilePath}");
+                            File.Copy(sourceFilePath, targetFilePath, true);
+
+                        }
+                        else
+                        {
+                            SereinEnv.WriteLine(InfoType.WARN, $"目标路径已有类库文件: {targetFilePath}");
+                        }
+                    }
+                    else
+                    {
+                        SereinEnv.WriteLine(InfoType.WARN, $"源文件不存在 : {targetFilePath}");
+                    }
                 }
                 catch (IOException ex)
                 {
                     
                     SereinEnv.WriteLine(InfoType.ERROR, ex.Message);
                 }
-                var dirName = System.IO.Path.GetDirectoryName(targetPath);
+                var dirName = System.IO.Path.GetDirectoryName(targetFilePath);
                 if (!string.IsNullOrEmpty(dirName))
                 {
-                    var tmpUri2 = new Uri(targetPath);
+                    var tmpUri2 = new Uri(targetFilePath);
                     var relativePath = saveProjectFileUri.MakeRelativeUri(tmpUri2).ToString(); // 转为类库的相对文件路径
 
                     
@@ -491,9 +506,6 @@ namespace Serein.Workbench
                 return;
             }
             
-            
-
-
             if (eventArgs.JunctionOfConnectionType == JunctionOfConnectionType.Invoke)
             {
                 ConnectionInvokeType connectionType = eventArgs.ConnectionInvokeType;
@@ -509,7 +521,6 @@ namespace Serein.Workbench
                     JunctionControlBase startJunction = IFormJunction.NextStepJunction;
                     JunctionControlBase endJunction = IToJunction.ExecuteJunction;
 
-
                     // 添加连接
                     var connection = new ConnectionControl(
                         FlowChartCanvas,
@@ -518,20 +529,16 @@ namespace Serein.Workbench
                         endJunction
                     );
 
-                    //() => EnvDecorator.RemoveConnectInvokeAsync(fromNodeGuid, toNodeGuid, connectionType)
-
                     if (toNodeControl is FlipflopNodeControl flipflopControl
                         && flipflopControl?.ViewModel?.NodeModel is NodeModelBase nodeModel) // 某个节点连接到了触发器，尝试从全局触发器视图中移除该触发器
                     {
                         NodeTreeViewer.RemoteGlobalFlipFlop(nodeModel); // 从全局触发器树树视图中移除
                     }
-                    //connection.RefreshLine();  // 添加贝塞尔曲线显示
                     Connections.Add(connection);
                     fromNodeControl.AddCnnection(connection);
                     toNodeControl.AddCnnection(connection);
                     EndConnection(); // 环境触发了创建节点连接事件
-
-
+                    
                 }
                 #endregion
                 #region 移除连接
@@ -1191,13 +1198,6 @@ namespace Serein.Workbench
             contextMenu.Items.Add(CreateMenuItem("设为起点", (s, e) => EnvDecorator.SetStartNode(nodeGuid)));
             contextMenu.Items.Add(CreateMenuItem("删除", (s, e) => EnvDecorator.RemoveNodeAsync(nodeGuid)));
 
-            //contextMenu.Items.Add(CreateMenuItem("添加 真分支", (s, e) => StartConnection(nodeControl, ConnectionInvokeType.IsSucceed)));
-            //contextMenu.Items.Add(CreateMenuItem("添加 假分支", (s, e) => StartConnection(nodeControl, ConnectionInvokeType.IsFail)));
-            //contextMenu.Items.Add(CreateMenuItem("添加 异常分支", (s, e) => StartConnection(nodeControl, ConnectionInvokeType.IsError)));
-            //contextMenu.Items.Add(CreateMenuItem("添加 上游分支", (s, e) => StartConnection(nodeControl, ConnectionInvokeType.Upstream)));
-
-
-          
             #region 右键菜单功能 - 控件对齐
 
             var AvoidMenu = new MenuItem();
@@ -1962,6 +1962,7 @@ namespace Serein.Workbench
                                         myData.ConnectionInvokeType);
                         } 
                         #endregion
+
                         #region 参数来源关系创建
                         else if (myData.Type == JunctionOfConnectionType.Arg)
                         {
@@ -1982,7 +1983,6 @@ namespace Serein.Workbench
                                     argIndex);
                         } 
                         #endregion
-
                     }
                     EndConnection();
                 }

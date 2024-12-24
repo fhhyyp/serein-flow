@@ -818,8 +818,14 @@ namespace Serein.Library.Api
         /// <param name="methodDetailsInfo">节点绑定的方法说明</param>
         Task<NodeInfo> CreateNodeAsync(NodeControlType nodeType, PositionOfUI position, MethodDetailsInfo methodDetailsInfo = null);
 
-
-
+        /// <summary>
+        /// 设置两个节点某个类型的方法调用关系为优先调用
+        /// </summary>
+        /// <param name="fromNodeGuid">起始节点</param>
+        /// <param name="toNodeGuid">目标节点</param>
+        /// <param name="connectionType">连接关系</param>
+        /// <returns></returns>
+        Task<bool> SetConnectPriorityInvoke(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType);
 
         /// <summary>
         /// 移除两个节点之间的方法调用关系
