@@ -209,6 +209,7 @@ namespace Serein.Workbench
             EnvDecorator.OnNodeConnectChange += FlowEnvironment_NodeConnectChangeEvemt;
             EnvDecorator.OnNodeCreate += FlowEnvironment_NodeCreateEvent;
             EnvDecorator.OnNodeRemove += FlowEnvironment_NodeRemoteEvent;
+            EnvDecorator.OnNodeParentChildChange += EnvDecorator_OnNodeParentChildChange;
             EnvDecorator.OnFlowRunComplete += FlowEnvironment_OnFlowRunComplete;
 
 
@@ -223,6 +224,8 @@ namespace Serein.Workbench
             EnvDecorator.OnEnvOut += FlowEnvironment_OnEnvOut;
         }
 
+        
+
         /// <summary>
         /// 移除环境事件
         /// </summary>
@@ -235,6 +238,7 @@ namespace Serein.Workbench
             EnvDecorator.OnNodeConnectChange -= FlowEnvironment_NodeConnectChangeEvemt;
             EnvDecorator.OnNodeCreate -= FlowEnvironment_NodeCreateEvent;
             EnvDecorator.OnNodeRemove -= FlowEnvironment_NodeRemoteEvent;
+            EnvDecorator.OnNodeParentChildChange -= EnvDecorator_OnNodeParentChildChange;
             EnvDecorator.OnFlowRunComplete -= FlowEnvironment_OnFlowRunComplete;
 
 
@@ -313,7 +317,7 @@ namespace Serein.Workbench
         /// <param name="value"></param>
         private void FlowEnvironment_OnEnvOut(InfoType type, string value)
         {
-            LogOutWindow.AppendText($"{DateTime.UtcNow} [{type}] : {value}{Environment.NewLine}");
+            LogOutWindow.AppendText($"{DateTime.Now} [{type}] : {value}{Environment.NewLine}");
         }
 
 
@@ -588,9 +592,14 @@ namespace Serein.Workbench
                         _ => throw new Exception("窗体事件 FlowEnvironment_NodeConnectChangeEvemt 创建/删除节点之间的参数传递关系 JunctionControlBase 枚举值错误 。非预期的枚举值。") // 应该不会触发
                     };
 
-                    if(IToJunction.ArgDataJunction.Length == 0)
+                    if(IToJunction.ArgDataJunction.Length <= eventArgs.ArgIndex)
                     {
-
+                        _ = Task.Run(async () =>
+                        {
+                            await Task.Delay(1000);
+                            FlowEnvironment_NodeConnectChangeEvemt(eventArgs);
+                        });
+                        return;
                     }
                     JunctionControlBase endJunction = IToJunction.ArgDataJunction[eventArgs.ArgIndex];
                     LineType lineType = LineType.Bezier;
@@ -690,15 +699,10 @@ namespace Serein.Workbench
         {
             if (eventArgs.NodeModel is not NodeModelBase nodeModelBase)
             {
-                return;
-            }
-
-            if(nodeModelBase is null)
-            {
                 SereinEnv.WriteLine(InfoType.WARN, "OnNodeCreateEvent事件接收到意外的返回值");
                 return;
             }
-            // MethodDetails methodDetailss = eventArgs.MethodDetailss;
+
             PositionOfUI position = eventArgs.Position;
 
             if(!NodeMVVMManagement.TryGetType(nodeModelBase.ControlType, out var nodeMVVM))
@@ -713,36 +717,25 @@ namespace Serein.Workbench
                 return;
             }
 
-            NodeControlBase nodeControl = CreateNodeControl(nodeMVVM.ControlType, nodeMVVM.ViewModelType, nodeModelBase);
+            NodeControlBase nodeControl = CreateNodeControl(nodeMVVM.ControlType, nodeMVVM.ViewModelType, nodeModelBase); // 创建控件
 
             if (nodeControl is null)
             {
                 return;
             }
-            NodeControls.TryAdd(nodeModelBase.Guid, nodeControl);
-            if (eventArgs.IsAddInRegion && NodeControls.TryGetValue(eventArgs.RegeionGuid, out NodeControlBase? regionControl))
+
+            NodeControls.TryAdd(nodeModelBase.Guid, nodeControl); // 添加到
+            if (TryPlaceNodeInRegion(nodeControl, position, out  var regionControl)) // 判断添加到区域容器
             {
-                // 这里的条件是用于加载项目文件时，直接加载在区域中，而不用再判断控件
-                if (regionControl is not null)
-                {
-                    TryPlaceNodeInRegion(regionControl, nodeControl);
-                }
-                return;
+                // 通知运行环境调用加载节点子项的方法
+                _ = EnvDecorator.ChangeNodeContainerChild(nodeControl.ViewModel.NodeModel.Guid,
+                                                       regionControl.ViewModel.NodeModel.Guid,
+                                                       true);
             }
             else
             {
-                // 这里是正常的编辑流程
-                // 判断是否为区域
-                if (TryPlaceNodeInRegion(nodeControl, position, out var targetNodeControl))
-                {
-                    // 需要将节点放置在区域中
-                    TryPlaceNodeInRegion(targetNodeControl, nodeControl);
-                }
-                else
-                {
-                    // 并非区域，需要手动添加
-                    PlaceNodeOnCanvas(nodeControl, position.X, position.Y); // 将节点放置在画布上
-                }
+                // 并非添加在容器中，直接放置节点
+                PlaceNodeOnCanvas(nodeControl, position.X, position.Y); 
             }
 
 
@@ -758,6 +751,38 @@ namespace Serein.Workbench
 
             GC.Collect();
             #endregion
+
+        }
+
+        /// <summary>
+        /// 节点父子关系发生改变
+        /// </summary>
+        /// <param name="eventArgs"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        private void EnvDecorator_OnNodeParentChildChange(NodeContainerChildChangeEventArgs eventArgs)
+        {
+            string childNodeGuid = eventArgs.ChildNodeGuid;
+            string containerNodeGuid = eventArgs.ContainerNodeGuid;
+            if (!TryGetControl(childNodeGuid, out var childNodeControl)
+               || !TryGetControl(containerNodeGuid, out var containerNodeControl))
+            {
+                return;
+            }
+            if(containerNodeControl is not INodeContainerControl containerControl)
+            {
+                SereinEnv.WriteLine(InfoType.WARN, $"节点[{childNodeGuid}]无法放置在节点[{containerNodeGuid}]，因为后者并不实现 INodeContainerControl 接口");
+                return;
+            }
+            
+            if (eventArgs.State == NodeContainerChildChangeEventArgs.Type.Place)
+            {
+                FlowChartCanvas.Children.Remove(childNodeControl);
+                containerControl.PlaceNode(childNodeControl); // 放置
+            }
+            else
+            {
+                containerControl.TakeOutNode(childNodeControl); // 取出
+            }
 
         }
 
@@ -1031,64 +1056,6 @@ namespace Serein.Workbench
 
         #endregion
 
-        #region 加载项目文件后触发事件相关方法
-
-        /// <summary>
-        /// 运行环节加载了项目文件，需要创建节点控件
-        /// </summary>
-        /// <param name="nodeInfo"></param>
-        /// <param name="methodDetailss"></param>
-        /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
-        //private NodeControlBase? CreateNodeControlOfNodeInfo(NodeInfo nodeInfo, MethodDetails methodDetailss)
-        //{
-        //    // 创建控件实例
-        //    NodeControlBase nodeControl = nodeInfo.Type switch
-        //    {
-        //        $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleActionNode)}" =>
-        //            CreateNodeControl<SingleActionNode, ActionNodeControl, ActionNodeControlViewModel>(methodDetailss),// 动作节点控件
-        //        $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleFlipflopNode)}" =>
-        //            CreateNodeControl<SingleFlipflopNode, FlipflopNodeControl, FlipflopNodeControlViewModel>(methodDetailss), // 触发器节点控件
-
-        //        $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleConditionNode)}" =>
-        //            CreateNodeControl<SingleConditionNode, ConditionNodeControl, ConditionNodeControlViewModel>(), // 条件表达式控件
-        //        $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleExpOpNode)}" =>
-        //            CreateNodeControl<SingleExpOpNode, ExpOpNodeControl, ExpOpNodeViewModel>(), // 操作表达式控件
-
-        //        $"{NodeStaticConfig.NodeSpaceName}.{nameof(CompositeConditionNode)}" =>
-        //            CreateNodeControl<CompositeConditionNode, ConditionRegionControl, ConditionRegionNodeControlViewModel>(), // 条件区域控件
-        //        _ => throw new NotImplementedException($"非预期的节点类型{nodeInfo.Type}"),
-        //    };
-        //    return nodeControl;
-        //}
-
-        /// <summary>
-        /// 加载文件时，添加节点到区域中
-        /// </summary>
-        /// <param name="regionControl"></param>
-        /// <param name="childNodes"></param>
-        //private void AddNodeControlInRegeionControl(NodeControlBase regionControl, NodeInfo[] childNodes)
-        //{
-        //    foreach (var childNode in childNodes)
-        //    {
-        //        if (FlowEnvironment.TryGetMethodDetails(childNode.MethodName, out MethodDetails md))
-        //        {
-        //            var childNodeControl = CreateNodeControlOfNodeInfo(childNode, md);
-        //            if (childNodeControl is null)
-        //            {
-        //                Console.WriteLine($"无法为节点类型创建节点控件: {childNode.MethodName}\r\n");
-        //                continue;
-        //            }
-
-        //            if (regionControl is ConditionRegionControl conditionRegion)
-        //            {
-        //                conditionRegion.AddCondition(childNodeControl);
-        //            }
-        //        }
-        //    }
-        //}
-
-        #endregion
 
         #region 节点控件的创建
 
@@ -1370,9 +1337,13 @@ namespace Serein.Workbench
         {
             if (sender is UserControl control)
             {
-                // 创建一个 DataObject 用于拖拽操作，并设置拖拽效果
-                var dragData = new DataObject(MouseNodeType.CreateBaseNodeInCanvas, control.GetType());
-                DragDrop.DoDragDrop(control, dragData, DragDropEffects.Move);
+                if(e.LeftButton == MouseButtonState.Pressed)
+                {
+                    // 创建一个 DataObject 用于拖拽操作，并设置拖拽效果
+                    var dragData = new DataObject(MouseNodeType.CreateBaseNodeInCanvas, control.GetType());
+                    DragDrop.DoDragDrop(control, dragData, DragDropEffects.Move);
+                }
+                
             }
         }
 
@@ -1434,7 +1405,9 @@ namespace Serein.Workbench
         /// <param name="position"></param>
         /// <param name="targetNodeControl">目标节点控件</param>
         /// <returns></returns>
-        private bool TryPlaceNodeInRegion(NodeControlBase nodeControl, PositionOfUI position, out NodeControlBase targetNodeControl)
+        private bool TryPlaceNodeInRegion(NodeControlBase nodeControl, 
+                                            PositionOfUI position,
+                                            out NodeControlBase targetNodeControl)
         {
             var point = new Point(position.X, position.Y);
             HitTestResult hitTestResult = VisualTreeHelper.HitTest(FlowChartCanvas, point);
@@ -1452,9 +1425,10 @@ namespace Serein.Workbench
                         return true;
                     }
                 }
-                // 准备放置全局数据控件
+                
                 else
                 {
+                    // 准备放置全局数据控件
                     GlobalDataControl? globalDataControl = GetParentOfType<GlobalDataControl>(hitElement);
                     if (globalDataControl is not null)
                     {
@@ -1467,31 +1441,32 @@ namespace Serein.Workbench
             return false;
         }
 
-        /// <summary>
-        /// 将节点放在目标区域中
-        /// </summary>
-        /// <param name="regionControl">区域容器</param>
-        /// <param name="nodeControl">节点控件</param>
-        private void TryPlaceNodeInRegion(NodeControlBase regionControl, NodeControlBase nodeControl)
-        {
-            // 准备放置条件表达式控件
-            if (nodeControl.ViewModel.NodeModel.ControlType == NodeControlType.ExpCondition)
-            {
-                if (regionControl is ConditionRegionControl conditionRegion)
-                {
-                    conditionRegion.AddCondition(nodeControl); // 条件区域容器
-                }
-            }
-            else if(regionControl.ViewModel.NodeModel.ControlType == NodeControlType.GlobalData)
-            {
-                if (regionControl is GlobalDataControl globalDataControl)
-                {
-                    // 全局数据节点容器
-                    globalDataControl.SetDataNodeControl(nodeControl);
-                }
-            }
+        ///// <summary>
+        ///// 将节点放在目标区域中
+        ///// </summary>
+        ///// <param name="regionControl">区域容器</param>
+        ///// <param name="nodeControl">节点控件</param>
+        //private void TryPlaceNodeInRegion(NodeControlBase regionControl, NodeControlBase nodeControl)
+        //{
+        //    // 准备放置条件表达式控件
+        //    if (nodeControl.ViewModel.NodeModel.ControlType == NodeControlType.ExpCondition)
+        //    {
+        //        if (regionControl is ConditionRegionControl conditionRegion)
+        //        {
+        //            conditionRegion.AddCondition(nodeControl); // 条件区域容器
+        //        }
+        //    }
+        //    else if(regionControl.ViewModel.NodeModel.ControlType == NodeControlType.GlobalData)
+        //    {
+        //        if (regionControl is GlobalDataControl globalDataControl)
+        //        {
+        //            // 全局数据节点容器
+        //            globalDataControl.SetDataNodeControl(nodeControl);
+        //        }
+        //    }
+        //}
 
-        }
+
 
         /// <summary>
         /// 拖动效果，根据拖放数据是否为指定类型设置拖放效果
@@ -2413,8 +2388,6 @@ namespace Serein.Workbench
                 model.Guid = Guid.NewGuid().ToString();
             }
 
-            // Convert.ChangeType(model, targetType);
-
             var viewModel = Activator.CreateInstance(viewModelType, [model]);
             var controlObj = Activator.CreateInstance(controlType, [viewModel]);
             if (controlObj is NodeControlBase nodeControl)
@@ -2516,9 +2489,8 @@ namespace Serein.Workbench
             // 获取主线程的 SynchronizationContext
             Action<SynchronizationContext, Action> uiInvoke = (uiContext, action) => uiContext?.Post(state => action?.Invoke(), null);
 
-            
-            
-            Task.Run(async () =>
+            SereinEnv.WriteLine(InfoType.INFO, "流程开始运行");
+            _ = Task.Run(async () =>
             {
                 await EnvDecorator.StartAsync();
             }); 
@@ -2752,32 +2724,34 @@ namespace Serein.Workbench
         /// </summary>
         private void CpoyNodeInfo()
         {
+            if(selectNodeControls.Count == 0)
+            {
+                return;
+            }
             // 处理复制操作
             var dictSelection = selectNodeControls
-                .Select(control => control.ViewModel.NodeModel.ToInfo())
-                .ToDictionary(kvp => kvp.Guid, kvp => kvp);
+                .Select(control => control.ViewModel.NodeModel).ToList();
+
 
             // 遍历当前已选节点
-            foreach (var node in dictSelection.Values.ToArray())
+            foreach (var node in dictSelection.ToArray())
             {
-                if(node.ChildNodeGuids is null)
+                if(node.ChildrenNode.Count == 0)
                 {
                     continue;
                 }
-                // 遍历这些节点的子节点，获得完整的已选节点信息
-                foreach (var childNodeGuid in node.ChildNodeGuids)
+                // 遍历这些节点的子节点，添加过来
+                foreach (var childNode in node.ChildrenNode)
                 {
-                    if(!dictSelection.ContainsKey(childNodeGuid) &&  NodeControls.TryGetValue(childNodeGuid,out var childNode))
-                    {
-                        dictSelection.Add(childNodeGuid, childNode.ViewModel.NodeModel.ToInfo());
-                    }
+                    dictSelection.Add(childNode);
                 }
             }
-            
+
+            var nodeInfos = dictSelection.Select(item => item.ToInfo());
 
             JObject json = new JObject()
             {
-                ["nodes"] = JArray.FromObject(dictSelection.Values)
+                ["nodes"] = JArray.FromObject(nodeInfos)
             };
 
             var jsonText = json.ToString();

@@ -54,6 +54,12 @@ namespace Serein.Library.Api
     public delegate void NodeCreateHandler(NodeCreateEventArgs eventArgs);
 
     /// <summary>
+    /// 容器节点与子项节点的关系发生改变
+    /// </summary>
+    /// <param name="eventArgs"></param>
+    public delegate void NodeContainerChildChangeHandler(NodeContainerChildChangeEventArgs eventArgs);
+
+    /// <summary>
     /// 环境中流程起始节点发生了改变
     /// </summary>
     /// <param name="eventArgs"></param>
@@ -279,32 +285,78 @@ namespace Serein.Library.Api
         /// </summary>
         /// <param name="nodeModel">节点对象</param>
         /// <param name="position">位置</param>
-        public NodeCreateEventArgs(object nodeModel, PositionOfUI position)
+        public NodeCreateEventArgs(NodeModelBase nodeModel, PositionOfUI position)
         {
             this.NodeModel = nodeModel;
             this.Position = position;
         }
 
-        /// <summary>
-        /// 区域子项节点添加事件参数
-        /// </summary>
-        /// <param name="nodeModel">节点对象</param>
-        /// <param name="isAddInRegion">是否添加在区域中</param>
-        /// <param name="regeionGuid">区域Guid</param>
-        public NodeCreateEventArgs(object nodeModel, bool isAddInRegion, string regeionGuid)
-        {
-            this.NodeModel = nodeModel;
-            this.RegeionGuid = regeionGuid;
-            this.IsAddInRegion = isAddInRegion;
-        }
+        ///// <summary>
+        ///// 区域子项节点添加事件参数
+        ///// </summary>
+        ///// <param name="nodeModel">节点对象</param>
+        ///// <param name="isAddInRegion">是否添加在区域中</param>
+        ///// <param name="regeionGuid">区域Guid</param>
+        //public NodeCreateEventArgs(object nodeModel, bool isAddInRegion, string regeionGuid)
+        //{
+        //    this.NodeModel = nodeModel;
+        //    this.RegeionGuid = regeionGuid;
+        //    this.IsAddInRegion = isAddInRegion;
+        //}
 
         /// <summary>
         /// 节点Model对象，目前需要手动转换对应的类型
         /// </summary>
         public object NodeModel { get; private set; }
         public PositionOfUI Position { get; private set; }
-        public bool IsAddInRegion { get; private set; }
+        //public bool IsAddInRegion { get; private set; }
         public string RegeionGuid { get; private set; }
+    }
+
+    /// <summary>
+    /// 节点父子关系改变
+    /// </summary>
+    public class NodeContainerChildChangeEventArgs : FlowEventArgs 
+    {
+        /// <summary>
+        /// 变更类型
+        /// </summary>
+        public enum Type
+        {
+            /// <summary>
+            /// 放置
+            /// </summary>
+            Place,
+            /// <summary>
+            /// 取出
+            /// </summary>
+            TakeOut
+        }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="childNodeGuid">子项节点</param>
+        /// <param name="containerNodeGuid">容器节点</param>
+        /// <param name="state">类别</param>
+        public NodeContainerChildChangeEventArgs(string childNodeGuid, string containerNodeGuid, Type state)
+        {
+            ChildNodeGuid = childNodeGuid;
+            ContainerNodeGuid = containerNodeGuid;
+            State = state;
+        }
+        /// <summary>
+        /// 子节点，该数据为此次时间的主节点
+        /// </summary>
+        public string ChildNodeGuid { get; private set; }
+        /// <summary>
+        /// 父节点
+        /// </summary>
+        public string ContainerNodeGuid { get; private set; }
+
+        /// <summary>
+        /// 改变类型
+        /// </summary>
+        public Type State {  get; private set; }
     }
 
     /// <summary>
@@ -612,6 +664,11 @@ namespace Serein.Library.Api
         event NodeRemoveHandler OnNodeRemove;
 
         /// <summary>
+        /// 节点父子关系发生改变事件
+        /// </summary>
+        event NodeContainerChildChangeHandler OnNodeParentChildChange;
+
+        /// <summary>
         /// 起始节点变化事件
         /// </summary>
         event StartNodeChangeHandler OnStartNodeChange;
@@ -647,7 +704,7 @@ namespace Serein.Library.Api
         event NodeLocatedHandler OnNodeLocated;
 
         /// <summary>
-        /// 节点移动了（远程插件）
+        /// 节点移动了（远程环境）
         /// </summary>
         event NodeMovedHandler OnNodeMoved;
 
@@ -811,12 +868,21 @@ namespace Serein.Library.Api
         Task LoadNodeInfosAsync(List<NodeInfo> nodeInfos);
 
         /// <summary>
-        /// 创建节点/区域/基础控件
+        /// 创建节点
         /// </summary>
-        /// <param name="nodeType">节点/区域/基础控件类型</param>
+        /// <param name="nodeType">控件类型</param>
         /// <param name="position">节点在画布上的位置（</param>
         /// <param name="methodDetailsInfo">节点绑定的方法说明</param>
         Task<NodeInfo> CreateNodeAsync(NodeControlType nodeType, PositionOfUI position, MethodDetailsInfo methodDetailsInfo = null);
+
+        /// <summary>
+        /// 将节点放置在容器中/从容器中取出
+        /// </summary>
+        /// <param name="childNodeGuid">子节点（主要节点）</param>
+        /// <param name="parentNodeGuid">父节点</param>
+        /// <param name="isPlace">是否组合（反之为分解节点组合关系）</param>
+        /// <returns></returns>
+        Task<bool> ChangeNodeContainerChild(string childNodeGuid,string parentNodeGuid,bool isAssembly);
 
         /// <summary>
         /// 设置两个节点某个类型的方法调用关系为优先调用

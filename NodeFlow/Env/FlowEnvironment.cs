@@ -9,6 +9,7 @@ using Serein.Library.Utils;
 using Serein.Library.Utils.SereinExpression;
 using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Tool;
+using Serein.Script.Node;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -149,6 +150,11 @@ namespace Serein.NodeFlow.Env
         /// 移除节点事件
         /// </summary>
         public event NodeRemoveHandler? OnNodeRemove;
+
+        /// <summary>
+        /// 节点父子关系发生改变事件
+        /// </summary>
+        public event NodeContainerChildChangeHandler OnNodeParentChildChange;
 
         /// <summary>
         /// 起始节点变化事件
@@ -575,147 +581,7 @@ namespace Serein.NodeFlow.Env
                 LoadLibrary(dllFilePath);  // 加载项目文件时加载对应的程序集
             }
 
-#if false
-            List<(NodeModelBase, string[])> regionChildNodes = new List<(NodeModelBase, string[])>();
-            List<(NodeModelBase, PositionOfUI)> ordinaryNodes = new List<(NodeModelBase, PositionOfUI)>();
-            // 加载节点
-            foreach (NodeInfo? nodeInfo in projectData.Nodes)
-            {
-                NodeControlType controlType = FlowFunc.GetNodeControlType(nodeInfo);
-                if (controlType == NodeControlType.None)
-                {
-                    continue;
-                }
-                MethodDetails? methodDetails = null;
-
-                if (controlType.IsBaseNode())
-                {
-                    // 加载基础节点
-                    methodDetails = new MethodDetails();
-                }
-                else
-                {
-                    // 加载方法节点
-                    if (string.IsNullOrEmpty(nodeInfo.AssemblyName) && string.IsNullOrEmpty(nodeInfo.MethodName))
-                    {
-                        continue;
-                    }
-                    FlowLibraryManagement.TryGetMethodDetails(nodeInfo.AssemblyName, nodeInfo.MethodName, out methodDetails); // 加载项目时尝试获取方法信息
-                }
-
-                var nodeModel = FlowFunc.CreateNode(this, controlType, methodDetails); // 加载项目时创建节点
-                nodeModel.LoadInfo(nodeInfo); // 创建节点model
-                if (nodeModel is null)
-                {
-                    nodeInfo.Guid = string.Empty;
-                    continue;
-                }
-
-                TryAddNode(nodeModel); // 加载项目时将节点加载到环境中
-                if (nodeInfo.ChildNodeGuids?.Length > 0)
-                {
-                    regionChildNodes.Add((nodeModel, nodeInfo.ChildNodeGuids));
-
-                    UIContextOperation?.Invoke(() => OnNodeCreate?.Invoke(new NodeCreateEventArgs(nodeModel, nodeInfo.Position)));
-                }
-                else
-                {
-                    ordinaryNodes.Add((nodeModel, nodeInfo.Position));
-                }
-            }
-
-
-
-            // 加载区域子项
-            foreach ((NodeModelBase region, string[] childNodeGuids) item in regionChildNodes)
-            {
-                foreach (var childNodeGuid in item.childNodeGuids)
-                {
-                    NodeModels.TryGetValue(childNodeGuid, out NodeModelBase? childNode);
-                    if (childNode is null)
-                    {
-                        // 节点尚未加载
-                        continue;
-                    }
-                    UIContextOperation?.Invoke(() => OnNodeCreate?.Invoke(new NodeCreateEventArgs(childNode, true, item.region.Guid)));
-                    // 存在节点
-
-                }
-            }
-            // 加载节点
-            foreach ((NodeModelBase nodeModel, PositionOfUI position) item in ordinaryNodes)
-            {
-                bool IsContinue = false;
-                foreach ((NodeModelBase region, string[] childNodeGuids) item2 in regionChildNodes)
-                {
-                    foreach (var childNodeGuid in item2.childNodeGuids)
-                    {
-                        if (item.nodeModel.Guid.Equals(childNodeGuid))
-                        {
-                            IsContinue = true;
-                        }
-                    }
-                }
-                if (IsContinue) continue;
-                UIContextOperation?.Invoke(() => OnNodeCreate?.Invoke(new NodeCreateEventArgs(item.nodeModel, item.position)));
-
-            }
-
-
-
-            // 确定节点之间的连接关系
-            Task.Run(async () =>
-            {
-                await Task.Delay(777);
-                #region 方法调用关系
-                foreach (var nodeInfo in projectData.Nodes)
-                {
-                    if (!NodeModels.TryGetValue(nodeInfo.Guid, out NodeModelBase? fromNode))
-                    {
-                        // 不存在对应的起始节点
-                        continue;
-                    }
-                    List<(ConnectionInvokeType connectionType, string[] guids)> allToNodes = [(ConnectionInvokeType.IsSucceed,nodeInfo.TrueNodes),
-                                                                                    (ConnectionInvokeType.IsFail,   nodeInfo.FalseNodes),
-                                                                                    (ConnectionInvokeType.IsError,  nodeInfo.ErrorNodes),
-                                                                                    (ConnectionInvokeType.Upstream, nodeInfo.UpstreamNodes)];
-
-                    List<(ConnectionInvokeType, NodeModelBase[])> fromNodes = allToNodes.Where(info => info.guids.Length > 0)
-                                                                         .Select(info => (info.connectionType,
-                                                                                          info.guids.Where(guid => NodeModels.ContainsKey(guid)).Select(guid => NodeModels[guid])
-                                                                                            .ToArray()))
-                                                                         .ToList();
-                    // 遍历每种类型的节点分支（四种）
-                    foreach ((ConnectionInvokeType connectionType, NodeModelBase[] toNodes) item in fromNodes)
-                    {
-                        // 遍历当前类型分支的节点（确认连接关系）
-                        foreach (var toNode in item.toNodes)
-                        {
-                            _ = ConnectInvokeOfNode(fromNode, toNode, item.connectionType); // 加载时确定节点间的连接关系
-                        }
-                    }
-                }
-                #endregion
-                #region 参数调用关系
-                foreach (var toNode in NodeModels.Values)
-                {
-                    for (var i = 0; i < toNode.MethodDetails.ParameterDetailss.Length; i++)
-                    {
-                        var pd = toNode.MethodDetails.ParameterDetailss[i];
-                        if (!string.IsNullOrEmpty(pd.ArgDataSourceNodeGuid)
-                            && NodeModels.TryGetValue(pd.ArgDataSourceNodeGuid, out var fromNode))
-                        {
-
-                            await ConnectArgSourceOfNodeAsync(fromNode, toNode, pd.ArgDataSourceType, pd.Index);
-                        }
-                    }
-                }
-                #endregion
-            });
-
-            UIContextOperation?.Invoke(() => OnProjectLoaded?.Invoke(new ProjectLoadedEventArgs())); 
-#endif
-            LoadNodeInfosAsync(projectData.Nodes.ToList());
+            _ = LoadNodeInfosAsync(projectData.Nodes.ToList());
             SetStartNode(projectData.StartNode);
 
         }
@@ -899,6 +765,7 @@ namespace Serein.NodeFlow.Env
             //}
         }
 
+ 
         /// <summary>
         /// 从节点信息集合批量加载节点控件
         /// </summary>
@@ -906,18 +773,17 @@ namespace Serein.NodeFlow.Env
         /// <returns></returns>
         public Task LoadNodeInfosAsync(List<NodeInfo> nodeInfos)
         {
-            List<(NodeModelBase, string[])> regionChildNodes = new List<(NodeModelBase, string[])>();
-            List<(NodeModelBase, PositionOfUI)> ordinaryNodes = new List<(NodeModelBase, PositionOfUI)>();
-            // 加载节点
+            List<NodeInfo> needPlaceNodeInfos = [];
+            #region 从NodeInfo创建NodeModel
             foreach (NodeInfo? nodeInfo in nodeInfos)
             {
-                NodeControlType controlType = FlowFunc.GetNodeControlType(nodeInfo);
-                if (controlType == NodeControlType.None)
+                if (!EnumHelper.TryConvertEnum<NodeControlType>(nodeInfo.Type, out var controlType))
                 {
                     continue;
                 }
-                MethodDetails? methodDetails = null;
 
+                #region 获取方法描述
+                MethodDetails? methodDetails;
                 if (controlType.IsBaseNode())
                 {
                     // 加载基础节点
@@ -925,77 +791,50 @@ namespace Serein.NodeFlow.Env
                 }
                 else
                 {
+                    if (string.IsNullOrEmpty(nodeInfo.MethodName)) continue;
                     // 加载方法节点
-                    if (string.IsNullOrEmpty(nodeInfo.MethodName))
-                    {
-                        continue;
-                    }
                     FlowLibraryManagement.TryGetMethodDetails(nodeInfo.AssemblyName, nodeInfo.MethodName, out methodDetails); // 加载项目时尝试获取方法信息
-                }
+                } 
+                #endregion
 
                 var nodeModel = FlowFunc.CreateNode(this, controlType, methodDetails); // 加载项目时创建节点
-                nodeModel.LoadInfo(nodeInfo); // 创建节点model
                 if (nodeModel is null)
                 {
                     nodeInfo.Guid = string.Empty;
                     continue;
                 }
-
+                nodeModel.LoadInfo(nodeInfo); // 创建节点model
                 TryAddNode(nodeModel); // 加载项目时将节点加载到环境中
-                if (nodeInfo.ChildNodeGuids?.Length > 0)
+                if (!string.IsNullOrEmpty(nodeInfo.ParentNodeGuid) &&
+                    NodeModels.TryGetValue(nodeInfo.ParentNodeGuid, out var parentNode))
                 {
-                    regionChildNodes.Add((nodeModel, nodeInfo.ChildNodeGuids));
-
-                    UIContextOperation?.Invoke(() => OnNodeCreate?.Invoke(new NodeCreateEventArgs(nodeModel, nodeInfo.Position)));
+                    needPlaceNodeInfos.Add(nodeInfo); // 需要重新放置的节点
                 }
-                else
-                {
-                    ordinaryNodes.Add((nodeModel, nodeInfo.Position));
-                }
+                UIContextOperation?.Invoke(() => 
+                    OnNodeCreate?.Invoke(new NodeCreateEventArgs(nodeModel, nodeInfo.Position))); // 添加到UI上
             }
+            #endregion
 
-
-
-            // 加载区域子项
-            foreach ((NodeModelBase region, string[] childNodeGuids) item in regionChildNodes)
+            #region 重新放置节点
+            foreach (NodeInfo nodeInfo in needPlaceNodeInfos)
             {
-                foreach (var childNodeGuid in item.childNodeGuids)
+                if (NodeModels.TryGetValue(nodeInfo.Guid, out var childNode) &&
+                    NodeModels.TryGetValue(nodeInfo.ParentNodeGuid, out var parentNode))
                 {
-                    NodeModels.TryGetValue(childNodeGuid, out NodeModelBase? childNode);
-                    if (childNode is null)
-                    {
-                        // 节点尚未加载
-                        continue;
-                    }
-                    UIContextOperation?.Invoke(() => OnNodeCreate?.Invoke(new NodeCreateEventArgs(childNode, true, item.region.Guid)));
-                    // 存在节点
+                    childNode.ParentNode = parentNode;
+                    parentNode.ChildrenNode.Add(childNode);
+                    UIContextOperation?.Invoke(() => OnNodeParentChildChange?.Invoke(
+                        new NodeContainerChildChangeEventArgs(childNode.Guid, parentNode.Guid,
+                                            NodeContainerChildChangeEventArgs.Type.Place)));
 
                 }
             }
-            // 加载节点
-            foreach ((NodeModelBase nodeModel, PositionOfUI position) item in ordinaryNodes)
-            {
-                bool IsContinue = false;
-                foreach ((NodeModelBase region, string[] childNodeGuids) item2 in regionChildNodes)
-                {
-                    foreach (var childNodeGuid in item2.childNodeGuids)
-                    {
-                        if (item.nodeModel.Guid.Equals(childNodeGuid))
-                        {
-                            IsContinue = true;
-                        }
-                    }
-                }
-                if (IsContinue) continue;
-                UIContextOperation?.Invoke(() => OnNodeCreate?.Invoke(new NodeCreateEventArgs(item.nodeModel, item.position)));
+            #endregion
 
-            }
-
-            // 确定节点之间的连接关系
-            Task.Run(async () =>
+            _ = Task.Run(async () =>
             {
-                await Task.Delay(400);
-                #region 方法调用关系
+                await Task.Delay(100);
+                #region 确定节点之间的方法调用关系
                 foreach (var nodeInfo in nodeInfos)
                 {
                     if (!NodeModels.TryGetValue(nodeInfo.Guid, out NodeModelBase? fromNode))
@@ -1024,10 +863,11 @@ namespace Serein.NodeFlow.Env
                     }
                 }
                 #endregion
-                #region 参数调用关系
+
+                #region 确定节点之间的参数调用关系
                 foreach (var toNode in NodeModels.Values)
                 {
-                    if(toNode.MethodDetails.ParameterDetailss == null)
+                    if (toNode.MethodDetails.ParameterDetailss == null)
                     {
                         continue;
                     }
@@ -1038,13 +878,12 @@ namespace Serein.NodeFlow.Env
                             && NodeModels.TryGetValue(pd.ArgDataSourceNodeGuid, out var fromNode))
                         {
 
-                            await ConnectArgSourceOfNodeAsync(fromNode, toNode, pd.ArgDataSourceType, pd.Index);
+                            _ = ConnectArgSourceOfNodeAsync(fromNode, toNode, pd.ArgDataSourceType, pd.Index);
                         }
                     }
                 }
                 #endregion
             });
-
             UIContextOperation?.Invoke(() => OnProjectLoaded?.Invoke(new ProjectLoadedEventArgs()));
 
             return Task.CompletedTask;
@@ -1056,7 +895,9 @@ namespace Serein.NodeFlow.Env
         /// <param name="nodeControlType"></param>
         /// <param name="position"></param>
         /// <param name="methodDetailsInfo">如果是表达式节点条件节点，该项为null</param>
-        public Task<NodeInfo> CreateNodeAsync(NodeControlType nodeControlType, PositionOfUI position, MethodDetailsInfo? methodDetailsInfo = null)
+        public Task<NodeInfo> CreateNodeAsync(NodeControlType nodeControlType, 
+                                              PositionOfUI position,
+                                              MethodDetailsInfo? methodDetailsInfo = null)
         {
             
             NodeModelBase? nodeModel;
@@ -1092,8 +933,40 @@ namespace Serein.NodeFlow.Env
             }
             var nodeInfo = nodeModel.ToInfo();
             return Task.FromResult(nodeInfo);
-;
+        }
 
+        /// <summary>
+        /// 将节点放置在容器中/从容器中取出
+        /// </summary>
+        /// <param name="childNodeGuid">子节点（主要节点）</param>
+        /// <param name="parentNodeGuid">父节点</param>
+        /// <param name="isPlace">是否组合（反之为分解节点组合关系）</param>
+        /// <returns></returns>
+        public async Task<bool> ChangeNodeContainerChild(string childNodeGuid, string parentNodeGuid, bool isPlace)
+        {
+            // 获取起始节点与目标节点
+            var childNode = GuidToModel(childNodeGuid);
+            var parentNode = GuidToModel(parentNodeGuid);
+            if (childNode is null || parentNode is null || parentNode is not INodeContainer nodeContainer) return false;
+
+            if (isPlace)
+            {
+                // 放置节点
+                parentNode.ChildrenNode.Add(childNode);
+                childNode.ParentNode = parentNode;
+                nodeContainer.PlaceNode(childNode);
+            }
+            else
+            {
+                // 取出节点
+                parentNode.ChildrenNode.Remove(childNode);
+                childNode.ParentNode = null;
+                nodeContainer.TakeOutNode(childNode);
+            }
+
+            OnNodeParentChildChange?.Invoke(new NodeContainerChildChangeEventArgs(childNodeGuid, parentNodeGuid,
+                isPlace ? NodeContainerChildChangeEventArgs.Type.Place : NodeContainerChildChangeEventArgs.Type.TakeOut));
+            return true;
         }
 
         /// <summary>
@@ -1597,42 +1470,10 @@ namespace Serein.NodeFlow.Env
         /// <param name="isAdd">true，增加参数；false，减少参数</param>
         /// <param name="paramIndex">以哪个参数为模板进行拷贝，或删去某个参数（该参数必须为可选参数）</param>
         /// <returns></returns>
-        public async Task<bool> ChangeParameter(string nodeGuid, bool isAdd, int paramIndex)
+        public Task<bool> ChangeParameter(string nodeGuid, bool isAdd, int paramIndex)
         {
             var nodeModel = GuidToModel(nodeGuid);
-            if (nodeModel is null) return false;
-
-            var argInfo = nodeModel.MethodDetails.ParameterDetailss
-                                .Where(pd => !string.IsNullOrEmpty(pd.ArgDataSourceNodeGuid))
-                                .Select(pd => (pd.ArgDataSourceNodeGuid, pd.ArgDataSourceType, pd.Index))
-                                .ToArray();
-
-            #region 暂时移除连接关系
-            foreach((var fromGuid, var type, var index) in argInfo)
-            {
-                await UIContextOperation.InvokeAsync(() =>
-                    OnNodeConnectChange?.Invoke(
-                            new NodeConnectChangeEventArgs(
-                                fromGuid, // 从哪个节点开始
-                                nodeModel.Guid, // 连接到那个节点
-                                JunctionOfConnectionType.Arg,
-                                index, // 参数
-                                type, // 连接线的样式类型
-                                NodeConnectChangeEventArgs.ConnectChangeType.Remote // 是创建连接还是删除连接
-                            ))); // 通知UI 
-            }
-
-
-            for (int i = 0; i < argInfo.Length; i++)
-            {
-                ParameterDetails? pd = nodeModel.MethodDetails.ParameterDetailss[i];
-                var fromNode = GuidToModel(pd.ArgDataSourceNodeGuid);
-                if (fromNode is null) continue;
-                var argSourceGuid = pd.ArgDataSourceNodeGuid;
-                var argSourceType = pd.ArgDataSourceType;
-            }
-            #endregion
-
+            if (nodeModel is null) return Task.FromResult(false);
             bool isPass;
             if (isAdd)
             {
@@ -1642,23 +1483,7 @@ namespace Serein.NodeFlow.Env
             {
                 isPass = nodeModel.MethodDetails.RemoveParamsArg(paramIndex);
             }
-
-            await Task.Delay(200);
-            foreach ((var fromGuid, var type, var index) in argInfo)
-            {
-                await UIContextOperation.InvokeAsync(() =>
-                    OnNodeConnectChange?.Invoke(
-                            new NodeConnectChangeEventArgs(
-                                fromGuid, // 从哪个节点开始
-                                nodeModel.Guid, // 连接到那个节点
-                                JunctionOfConnectionType.Arg,
-                                index, // 参数
-                                type, // 连接线的样式类型
-                                NodeConnectChangeEventArgs.ConnectChangeType.Create // 是创建连接还是删除连接
-                            ))); // 通知UI 
-
-            }
-            return isPass;
+            return Task.FromResult(isPass);
         }
 
 

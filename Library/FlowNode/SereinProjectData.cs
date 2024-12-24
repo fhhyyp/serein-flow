@@ -230,8 +230,15 @@ namespace Serein.Library
         /// </summary>
         public ParameterData[] ParameterData { get; set; }
 
+
         /// <summary>
-        /// 如果是区域控件，则会存在子项。
+        /// 父级节点Guid
+        /// </summary>
+        public string ParentNodeGuid{ get; set; }
+
+
+        /// <summary>
+        /// 如果是区域控件，则会存在子项，这里记录的是子项的Guid。
         /// </summary>
         public string[] ChildNodeGuids { get; set; }
 

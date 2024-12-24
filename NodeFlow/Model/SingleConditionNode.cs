@@ -38,6 +38,11 @@ namespace Serein.NodeFlow.Model
     public partial class SingleConditionNode : NodeModelBase
     {
         /// <summary>
+        /// 条件表达式节点是基础节点
+        /// </summary>
+        public override bool IsBase => true;
+
+        /// <summary>
         /// 表达式参数索引
         /// </summary>
         private const int INDEX_EXPRESSION = 0;

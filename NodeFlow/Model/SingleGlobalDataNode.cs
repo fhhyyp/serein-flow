@@ -31,8 +31,17 @@ namespace Serein.NodeFlow.Model
     /// <summary>
     /// 全局数据节点
     /// </summary>
-    public partial class SingleGlobalDataNode : NodeModelBase
+    public partial class SingleGlobalDataNode : NodeModelBase, INodeContainer
     {
+        /// <summary>
+        /// 全局数据节点是基础节点
+        /// </summary>
+        public override bool IsBase => true;
+        /// <summary>
+        /// 数据源只允许放置1个节点。
+        /// </summary>
+        public override int MaxChildrenCount => 1;
+
         public SingleGlobalDataNode(IFlowEnvironment environment) : base(environment)
         {
         }
@@ -40,16 +49,33 @@ namespace Serein.NodeFlow.Model
         /// <summary>
         /// 数据来源的节点
         /// </summary>
-        private string? DataNodeGuid;
+        private NodeModelBase? DataNode;
+
+
+        public void PlaceNode(NodeModelBase nodeModel)
+        {
+            _ = this.Env.RemoveNodeAsync(DataNode?.Guid);
+            DataNode = nodeModel;
+        }
+
+        public void TakeOutAll()
+        {
+            DataNode = null;
+        }
+
+        public void TakeOutNode(NodeModelBase nodeModel)
+        {
+            DataNode = null;
+        }
 
         /// <summary>
         /// 设置数据节点
         /// </summary>
         /// <param name="dataNode"></param>
-        public void SetDataNode(NodeModelBase dataNode)
-        {
-            DataNodeGuid = dataNode.Guid;
-        }
+        //public void SetDataNode(NodeModelBase dataNode)
+        //{
+        //    DataNodeGuid = dataNode.Guid;
+        //}
 
         private void ChangeName(string newName)
         {
@@ -73,7 +99,7 @@ namespace Serein.NodeFlow.Model
                 SereinEnv.WriteLine(InfoType.ERROR, $"全局数据的KeyName不能为空[{this.Guid}]");
                 return null;
             }
-            if (DataNodeGuid == null)
+            if (DataNode is null)
             {
                 context.NextOrientation = ConnectionInvokeType.IsError;
                 SereinEnv.WriteLine(InfoType.ERROR, $"全局数据节点没有设置数据来源[{this.Guid}]");
@@ -82,7 +108,7 @@ namespace Serein.NodeFlow.Model
 
             try
             {
-                var result = await context.Env.InvokeNodeAsync(context, DataNodeGuid);
+                var result = await context.Env.InvokeNodeAsync(context, DataNode.Guid);
                 SereinEnv.AddOrUpdateFlowGlobalData(KeyName, result);
                 return result;
             }
@@ -102,18 +128,9 @@ namespace Serein.NodeFlow.Model
         public override NodeInfo SaveCustomData(NodeInfo nodeInfo)
         {
             dynamic data = new ExpandoObject();
-            nodeInfo.CustomData = data;
-
             data.KeyName = KeyName; // 变量名称
 
-            if (string.IsNullOrEmpty(DataNodeGuid))
-            {
-                return nodeInfo;
-            }
-            
-            data.DataNodeGuid = DataNodeGuid; // 数据节点Guid
-            
-            nodeInfo.ChildNodeGuids = [DataNodeGuid];
+            nodeInfo.CustomData = data;
             return nodeInfo;
         }
 
@@ -124,7 +141,6 @@ namespace Serein.NodeFlow.Model
         public override void LoadCustomData(NodeInfo nodeInfo)
         {
             KeyName = nodeInfo.CustomData?.KeyName;
-            DataNodeGuid = nodeInfo.CustomData?.DataNodeGuid;
         }
 
         /// <summary>
@@ -133,7 +149,7 @@ namespace Serein.NodeFlow.Model
         public override void Remove()
         {
             // 移除数据节点
-            _ = this.Env.RemoveNodeAsync(DataNodeGuid);
+            _ = this.Env.RemoveNodeAsync(DataNode?.Guid);
         }
 
     }

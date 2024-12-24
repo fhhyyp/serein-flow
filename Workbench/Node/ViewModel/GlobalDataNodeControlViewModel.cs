@@ -1,5 +1,6 @@
 ﻿using Serein.Library;
 using Serein.NodeFlow.Model;
+using Serein.Workbench.Node.View;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -44,18 +45,7 @@ namespace Serein.Workbench.Node.ViewModel
             set { NodeModel.KeyName = value; OnPropertyChanged(); }
         }
 
-
-        /// <summary>
-        /// 设置数据节点
-        /// </summary>
-        /// <param name="dataNode"></param>
-        public void SetDataNode(NodeModelBase dataNode)
-        {
-            NodeModel.SetDataNode(dataNode);
-        }
-
-
-
-
+ 
+      
     }
 }

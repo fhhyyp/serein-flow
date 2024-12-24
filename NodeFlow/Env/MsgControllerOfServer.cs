@@ -578,6 +578,22 @@ namespace Serein.NodeFlow.Env
            await environment.NotificationNodeValueChangeAsync(nodeGuid, path, value);
         }
 
+        /// <summary>
+        /// 增加/减少节点入参可选类型参数的个数
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        /// <param name="isAdd"></param>
+        /// <param name="paramIndex"></param>
+        [AutoSocketHandle(ThemeValue = EnvMsgTheme.ChangeParameter)]
+        public async Task<object> ChangeParameter(string nodeGuid, bool isAdd, int paramIndex)
+        {
+            var result = await environment.ChangeParameter(nodeGuid, isAdd, paramIndex);
+            return new
+            {
+                state = result
+            };
+        }
+
 
     }
 

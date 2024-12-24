@@ -41,7 +41,7 @@ namespace Serein.FlowStartTool
             // 获取环境输出
             Env.OnEnvOut += (infoType, value) =>
             {
-                Console.WriteLine($"{DateTime.UtcNow} [{infoType}] : {value}{Environment.NewLine}");
+                Console.WriteLine($"{DateTime.Now} [{infoType}] : {value}{Environment.NewLine}");
             };
 
             await Env.StartRemoteServerAsync(7525); // 启动 web socket 监听远程请求

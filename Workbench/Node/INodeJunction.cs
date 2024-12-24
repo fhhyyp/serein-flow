@@ -8,6 +8,9 @@ using System.Windows;
 
 namespace Serein.Workbench.Node
 {
+
+
+
     /// <summary>
     /// 约束一个节点应该有哪些控制点
     /// </summary>

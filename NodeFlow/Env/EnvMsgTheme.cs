@@ -88,5 +88,10 @@
         /// </summary>
         public const string SetMonitor = nameof(SetMonitor);
 
+        /// <summary>
+        /// 增加/减少方法可选类型的参数个数
+        /// </summary>
+        public const string ChangeParameter = nameof(ChangeParameter);
+
     }
 }

@@ -20,10 +20,8 @@ namespace Serein.Workbench.Node.View
     /// <summary>
     /// UserControl1.xaml 的交互逻辑
     /// </summary>
-    public partial class GlobalDataControl : NodeControlBase, INodeJunction
+    public partial class GlobalDataControl : NodeControlBase, INodeJunction, INodeContainerControl
     {
-        //private new GlobalDataNodeControlViewModel ViewModel => ViewModel;
-
         public GlobalDataControl() : base()
         {
             // 窗体初始化需要
@@ -36,19 +34,6 @@ namespace Serein.Workbench.Node.View
         {
             DataContext = viewModel;
             InitializeComponent();
-        }
-
-
-        /// <summary>
-        /// 设置数据节点
-        /// </summary>
-        /// <param name="nodeControl"></param>
-        public void SetDataNodeControl(NodeControlBase nodeControl)
-        {
-            ((GlobalDataNodeControlViewModel)ViewModel).SetDataNode(nodeControl.ViewModel.NodeModel);
-
-            GlobalDataPanel.Children.Clear();
-            GlobalDataPanel.Children.Add(nodeControl);
         }
 
 
@@ -72,6 +57,22 @@ namespace Serein.Workbench.Node.View
         /// </summary>
         JunctionControlBase[] INodeJunction.ArgDataJunction => throw new NotImplementedException();
 
+
+        public void PlaceNode(NodeControlBase nodeControl)
+        {
+            GlobalDataPanel.Children.Clear();
+            GlobalDataPanel.Children.Add(nodeControl);
+        }
+
+        public void TakeOutNode(NodeControlBase nodeControl)
+        {
+            GlobalDataPanel.Children.Remove(nodeControl);
+        }
+
+        public void TakeOutAll()
+        {
+            GlobalDataPanel.Children.Clear();
+        }
 
     }
 }

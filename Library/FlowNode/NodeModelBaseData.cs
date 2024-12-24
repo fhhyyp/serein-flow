@@ -12,7 +12,7 @@ namespace Serein.Library
 
 
     /// <summary>
-    /// 节点基类（数据）：条件控件，动作控件，条件区域，动作区域
+    /// 节点基类（数据）
     /// </summary>
     [NodeProperty(ValuePath = NodeValuePath.None)]
     public abstract partial class NodeModelBase : IDynamicFlowNode
@@ -69,6 +69,16 @@ namespace Serein.Library
 
     public abstract partial class NodeModelBase : IDynamicFlowNode
     {
+        /// <summary>
+        /// 是否为基础节点
+        /// </summary>
+        public virtual bool IsBase { get; } = false;
+
+        /// <summary>
+        /// 可以放置多少个节点
+        /// </summary>
+        public virtual int MaxChildrenCount { get; } = 0;
+
         public NodeModelBase(IFlowEnvironment environment)
         {
             PreviousNodes = new Dictionary<ConnectionInvokeType, List<NodeModelBase>>();
@@ -78,20 +88,32 @@ namespace Serein.Library
                 PreviousNodes[ctType] = new List<NodeModelBase>();
                 SuccessorNodes[ctType] = new List<NodeModelBase>();
             }
+            ChildrenNode = new List<NodeModelBase>();
             DebugSetting = new NodeDebugSetting(this);
             this.Env = environment;
         }
 
 
         /// <summary>
-        /// 不同分支的父节点
+        /// 不同分支的父节点（流程调用）
         /// </summary>
         public Dictionary<ConnectionInvokeType, List<NodeModelBase>> PreviousNodes { get; }
 
         /// <summary>
-        /// 不同分支的子节点
+        /// 不同分支的子节点（流程调用）
         /// </summary>
         public Dictionary<ConnectionInvokeType, List<NodeModelBase>> SuccessorNodes { get; }
+
+        /// <summary>
+        /// 该节点的父级节点（容器）
+        /// </summary>
+        public NodeModelBase ParentNode {  get; set; } = null;
+
+        /// <summary>
+        /// 该节点的子项节点（容器）
+        /// </summary>
+        public List<NodeModelBase> ChildrenNode {  get; }
+
 
     }
  }

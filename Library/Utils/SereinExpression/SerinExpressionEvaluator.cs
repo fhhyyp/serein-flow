@@ -101,11 +101,11 @@ namespace Serein.Library.Utils.SereinExpression
             {
                 result = InvokeMethod(targetObJ, operand);
             }
-            //else if (operation.Equals("@set",StringComparison.OrdinalIgnoreCase))
-            //{
-            //    isChange = true;
-            //    result = SetMember(targetObJ, operand);
-            //}
+            else if (operation.Equals("@set",StringComparison.OrdinalIgnoreCase))
+            {
+                isChange = true;
+                result = SetMember(targetObJ, operand);
+            }
             else
             {
                 throw new NotSupportedException($"Operation {operation} is not supported.");

@@ -121,6 +121,15 @@ namespace Serein.NodeFlow.Env
             remove { currentFlowEnvironment.OnNodeRemove -= value; }
         }
 
+        /// <summary>
+        /// 节点父子关系发生改变事件
+        /// </summary>
+        public event NodeContainerChildChangeHandler OnNodeParentChildChange
+        {
+            add { currentFlowEnvironment.OnNodeParentChildChange += value; }
+            remove { currentFlowEnvironment.OnNodeParentChildChange -= value; }
+        }
+
         public event StartNodeChangeHandler OnStartNodeChange
         {
             add { currentFlowEnvironment.OnStartNodeChange += value; }
@@ -278,6 +287,21 @@ namespace Serein.NodeFlow.Env
             return result;
         }
 
+        /// <summary>
+        /// 将节点放置在容器中/从容器中取出
+        /// </summary>
+        /// <param name="childNodeGuid">子节点（主要节点）</param>
+        /// <param name="parentNodeGuid">父节点</param>
+        /// <param name="isPlace">是否组合（反之为分解节点组合关系）</param>
+        /// <returns></returns>
+        public async Task<bool> ChangeNodeContainerChild(string childNodeGuid, string parentNodeGuid, bool isAssembly)
+        {
+            SetProjectLoadingFlag(false);
+            var result = await currentFlowEnvironment.ChangeNodeContainerChild(childNodeGuid, parentNodeGuid, isAssembly); // 装饰器调用
+            SetProjectLoadingFlag(true);
+            return result;
+
+        }
 
 
 

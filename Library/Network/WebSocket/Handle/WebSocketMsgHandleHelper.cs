@@ -173,10 +173,10 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
 
 
             SereinEnv.WriteLine(InfoType.INFO, $"add websocket handle model :");
-            SereinEnv.WriteLine(InfoType.ERROR, $"theme key, data key : {themeKey}, {dataKey}");
+            SereinEnv.WriteLine(InfoType.INFO, $"theme key, data key : {themeKey}, {dataKey}");
             foreach (var config in configs)
             {
-                SereinEnv.WriteLine(InfoType.ERROR, $"theme value  : {config.ThemeValue} ");
+                SereinEnv.WriteLine(InfoType.INFO, $"theme value  : {config.ThemeValue} ");
                 var result = handleModule.AddHandleConfigs(config);
             }
 

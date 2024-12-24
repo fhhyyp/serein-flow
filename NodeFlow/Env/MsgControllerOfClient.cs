@@ -145,6 +145,12 @@ namespace Serein.NodeFlow.Env
         {
             _ = remoteFlowEnvironment.InvokeTriggerAsync(msgId, state);
         }
+
+         [AutoSocketHandle(ThemeValue = EnvMsgTheme.ChangeParameter, IsReturnValue = false)]
+        public void ChangeParameter([UseMsgId] string msgId, bool state)
+        {
+            _ = remoteFlowEnvironment.InvokeTriggerAsync(msgId, state);
+        }
         
        
 

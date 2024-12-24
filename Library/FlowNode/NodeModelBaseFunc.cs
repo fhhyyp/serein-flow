@@ -164,6 +164,8 @@ namespace Serein.Library
                 IsProtectionParameter = this.MethodDetails.IsProtectionParameter,
                 IsInterrupt = this.DebugSetting.IsInterrupt,
                 IsEnable = this.DebugSetting.IsEnable,
+                ParentNodeGuid = ParentNode?.Guid,
+                ChildNodeGuids = ChildrenNode.Select(item => item.Guid).ToArray(),
             };
             nodeInfo.Position.X = Math.Round(nodeInfo.Position.X, 1);
             nodeInfo.Position.Y = Math.Round(nodeInfo.Position.Y, 1);

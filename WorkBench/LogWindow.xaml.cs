@@ -18,11 +18,11 @@ namespace Serein.Workbench
     public partial class LogWindow : Window
     {
         private StringBuilder logBuffer = new StringBuilder();
-        private int logUpdateInterval = 500; // 批量更新的时间间隔（毫秒）
+        private int logUpdateInterval = 200; // 批量更新的时间间隔（毫秒）
         private Timer logUpdateTimer;
         private const int MaxLines = 1000; // 最大显示的行数
         private bool autoScroll = true; // 自动滚动标识
-        private int flushThreshold = 1000; // 设置日志刷新阈值
+        private int flushThreshold = 5; // 设置日志刷新阈值
         private const int maxFlushSize = 1000; // 每次最大刷新字符数
 
         public LogWindow()
@@ -49,12 +49,12 @@ namespace Serein.Workbench
 
                 // 异步写入日志到文件
                 // Task.Run(() => File.AppendAllText("log.txt", text));
-                FlushLog();
+                //FlushLog();
                 // 如果日志达到阈值，立即刷新
-                //if (logBuffer.Length > flushThreshold)
-                //{
-                //    FlushLog();
-                //}
+               if (logBuffer.Length > flushThreshold)
+               {
+                   FlushLog();
+               }
             }
         }
 
