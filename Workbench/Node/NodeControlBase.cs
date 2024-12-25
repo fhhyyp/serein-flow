@@ -16,6 +16,17 @@ namespace Serein.Workbench.Node.View
     public abstract class NodeControlBase : UserControl, IDynamicFlowNode
     {
         /// <summary>
+        /// 节点所在的画布（以后需要将画布封装出来，实现多画布的功能）
+        /// </summary>
+        public Canvas NodeCanvas { get; set; }
+        
+        private INodeContainerControl nodeContainerControl;
+        /// <summary>
+        /// 如果该节点放置在了某个容器节点，就会记录这个容器节点
+        /// </summary>
+        private INodeContainerControl NodeContainerControl { get; }
+
+        /// <summary>
         /// 记录与该节点控件有关的所有连接
         /// </summary>
         private readonly List<ConnectionControl> connectionControls = new List<ConnectionControl>();
@@ -34,6 +45,25 @@ namespace Serein.Workbench.Node.View
             this.Background = Brushes.Transparent;
             this.DataContext = viewModelBase;
             SetBinding();
+        }
+
+        /// <summary>
+        /// 放置在某个节点容器中
+        /// </summary>
+        public void PlaceToContainer(INodeContainerControl nodeContainerControl)
+        {
+            this.nodeContainerControl = nodeContainerControl;
+            NodeCanvas.Children.Remove(this); // 从画布上移除
+            nodeContainerControl.PlaceNode(this);
+        }
+
+        /// <summary>
+        /// 从某个节点容器取出
+        /// </summary>
+        public void TakeOutContainer()
+        {
+            nodeContainerControl.TakeOutNode(this);
+            NodeCanvas.Children.Add(this); // 重新添加到画布上
         }
 
         /// <summary>

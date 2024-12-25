@@ -52,6 +52,7 @@ namespace Serein.Workbench.Node.View
         public void AddAction(MethodDetailsInfo mdInfo)
         {
             AddTypeToListBox(mdInfo, ActionsListBox);
+            ActionNodeGroupBox.Visibility = Visibility.Visible;
         }
 
         /// <summary>
@@ -61,6 +62,7 @@ namespace Serein.Workbench.Node.View
         public void AddFlipflop(MethodDetailsInfo mdInfo)
         {
             AddTypeToListBox(mdInfo, FlipflopsListBox);
+            FlipflopNodeGroupBox.Visibility = Visibility.Visible;
         }
 
         /// <summary>

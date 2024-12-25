@@ -55,10 +55,8 @@ namespace Serein.NodeFlow.Env
         public event NodeConnectChangeHandler OnNodeConnectChange;
         public event NodeCreateHandler OnNodeCreate;
         public event NodeRemoveHandler OnNodeRemove;
-        /// <summary>
-        /// 节点父子关系发生改变事件
-        /// </summary>
-        public event NodeContainerChildChangeHandler OnNodeParentChildChange;
+        public event NodePlaceHandler OnNodePlace;
+        public event NodeTakeOutHandler OnNodeTakeOut;
         public event StartNodeChangeHandler OnStartNodeChange;
         public event FlowRunCompleteHandler OnFlowRunComplete;
         public event MonitorObjectChangeHandler OnMonitorObjectChange;
@@ -117,11 +115,6 @@ namespace Serein.NodeFlow.Env
             OnEnvOut?.Invoke(type, message);
         }
 
-        public void WriteLineObjToJson(object obj)
-        {
-            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：WriteLineObjToJson");
-        }
-
         public async Task StartRemoteServerAsync(int port = 7525)
         {
             this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：StartRemoteServerAsync");
@@ -133,10 +126,14 @@ namespace Serein.NodeFlow.Env
             this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：StopRemoteServer");
         }
 
+        /// <summary>
+        /// 获取远程环境
+        /// </summary>
+        /// <returns></returns>
         public async Task<SereinProjectData> GetProjectInfoAsync()
         {
-            var prjectInfo = await msgClient.SendAndWaitDataAsync<SereinProjectData>(EnvMsgTheme.GetProjectInfo); // 等待服务器返回项目信息
-            return prjectInfo;
+            var projectData = await msgClient.SendAndWaitDataAsync<SereinProjectData>(EnvMsgTheme.GetProjectInfo); // 等待服务器返回项目信息
+            return projectData;
         }
 
         /// <summary>
@@ -176,9 +173,9 @@ namespace Serein.NodeFlow.Env
             }
             #endregion
 
-            
-            _ = LoadNodeInfosAsync(flowEnvInfo.Project.Nodes.ToList());
-            SetStartNode(flowEnvInfo.Project.StartNode); // 设置流程起点
+
+            LoadNodeInfos(flowEnvInfo.Project.Nodes.ToList()); // 加载节点
+            _ = SetStartNodeAsync(flowEnvInfo.Project.StartNode); // 设置流程起点
             UIContextOperation?.Invoke(() =>
             {
                 OnProjectLoaded?.Invoke(new ProjectLoadedEventArgs()); // 加载完成
@@ -341,87 +338,95 @@ namespace Serein.NodeFlow.Env
 
         }
 
-
-
-
-
-
-
-
-
-        private bool TryAddNode(NodeModelBase nodeModel)
-        {
-            //nodeModel.Guid ??= Guid.NewGuid().ToString();
-            NodeModels[nodeModel.Guid] = nodeModel;
-
-            // 如果是触发器，则需要添加到专属集合中
-            //if (nodeModel is SingleFlipflopNode flipflopNode)
-            //{
-            //    var guid = flipflopNode.Guid;
-            //    if (!FlipflopNodes.Exists(it => it.Guid.Equals(guid)))
-            //    {
-            //        FlipflopNodes.Add(flipflopNode);
-            //    }
-            //}
-            return true;
-        }
-
-        
+        /// <summary>
+        /// 从远程环境获取项目信息
+        /// </summary>
+        /// <returns></returns>
         public async Task<FlowEnvInfo> GetEnvInfoAsync()
         {
             var envInfo = await msgClient.SendAndWaitDataAsync<FlowEnvInfo>(EnvMsgTheme.GetEnvInfo);
             return envInfo;
         }
 
-
+        /// <summary>
+        /// 连接到远程环境
+        /// </summary>
+        /// <param name="addres"></param>
+        /// <param name="port"></param>
+        /// <param name="token"></param>
+        /// <returns></returns>
         public async Task<(bool, RemoteMsgUtil)> ConnectRemoteEnv(string addres, int port, string token)
         {
             await Console.Out.WriteLineAsync("远程环境尚未实现的接口：ConnectRemoteEnv");
             return (false, null);
         }
-
+        
+        /// <summary>
+        /// 退出远程环境
+        /// </summary>
         public void ExitRemoteEnv()
         {
             this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：ExitRemoteEnv");
         }
-
+        /// <summary>
+        /// （待更新）加载类库
+        /// </summary>
+        /// <param name="dllPath"></param>
         public void LoadLibrary(string dllPath)
         {
             // 将dll文件发送到远程环境，由远程环境进行加载
             this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：LoadDll");
         }
-
-        public bool UnloadLibrary(string assemblyName)
+        /// <summary>
+        /// （待更新）卸载类库
+        /// </summary>
+        /// <param name="assemblyName"></param>
+        /// <returns></returns>
+        public bool TryUnloadLibrary(string assemblyName)
         {
             // 尝试移除远程环境中的加载了的依赖
             this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：RemoteDll");
             return false;
         }
-
-        public void ClearAll()
-        {
-            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：ClearAll");
-        }
-
-        public async Task StartAsync()
+        /// <summary>
+        /// 启动远程环境的流程
+        /// </summary>
+        /// <returns></returns>
+        public async Task<bool> StartFlowAsync()
         {
             // 远程环境下不需要UI上下文
-            await msgClient.SendAsync(EnvMsgTheme.StartFlow);
+            var result = await msgClient.SendAndWaitDataAsync<bool>(EnvMsgTheme.StartFlow);
+            return result;
         }
-
-        public async Task StartAsyncInSelectNode(string startNodeGuid)
+        /// <summary>
+        /// 从选定的节点开始运行
+        /// </summary>
+        /// <param name="startNodeGuid"></param>
+        /// <returns></returns>
+        public async Task<bool> StartAsyncInSelectNode(string startNodeGuid)
         {
-            _  = msgClient.SendAsync(EnvMsgTheme.StartFlowInSelectNode, new
+            var result = await msgClient.SendAndWaitDataAsync<bool>(EnvMsgTheme.StartFlowInSelectNode, new
             {
                 nodeGuid = startNodeGuid
             });
+            return result;
         }
-
-        public async void ExitFlow()
+        /// <summary>
+        /// 结束远程环境的流程运行
+        /// </summary>
+        /// <returns></returns>
+        public async Task<bool> ExitFlowAsync()
         {
-            await msgClient.SendAsync(EnvMsgTheme.ExitFlow, null);
+            var result =  await msgClient.SendAndWaitDataAsync<bool>(EnvMsgTheme.ExitFlow, null);
+            return result;
         }
 
+        /// <summary>
+        /// 移动节点，通知远程环境也一起移动，保持相对位置一致
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
         public void MoveNode(string nodeGuid, double x, double y)
         {
             //UIContextOperation?.Invoke(() =>
@@ -443,26 +448,26 @@ namespace Serein.NodeFlow.Env
             }
         }
 
-        
-        public void SetStartNode(string nodeGuid)
+
+        /// <summary>
+        /// 设置远程环境的流程起点节点
+        /// </summary>
+        /// <param name="nodeGuid">尝试设置为起始节点的节点Guid</param>
+        /// <returns>被设置为起始节点的Guid</returns>
+        public async Task<string> SetStartNodeAsync(string nodeGuid)
         {
-            _ = msgClient.SendAsync(EnvMsgTheme.SetStartNode, new
+            var newNodeGuid = await msgClient.SendAndWaitDataAsync<string>(EnvMsgTheme.SetStartNode, new
             {
                 nodeGuid
             });
-            UIContextOperation?.Invoke(() => OnStartNodeChange?.Invoke(new StartNodeChangeEventArgs(nodeGuid,nodeGuid)));
+            if (NodeModels.TryGetValue(newNodeGuid, out var nodeModel)) // 存在节点
+            {
+                UIContextOperation?.Invoke(() => OnStartNodeChange?.Invoke(new StartNodeChangeEventArgs(nodeGuid, newNodeGuid)));
+            }
+            return newNodeGuid;
         }
 
-        public async Task<object> InvokeNodeAsync(IDynamicContext context, string nodeGuid)
-        {
-            this.WriteLine(InfoType.INFO, "远程环境尚未实现接口 InvokeNodeAsync");
-            //_ = msgClient.SendAsync(EnvMsgTheme.InvokeNodeAsync, new
-            //{
-            //    nodeGuid
-            //});
-            return null;
-        }
-
+       
         /// <summary>
         /// 在两个节点之间创建方法调用关系
         /// </summary>
@@ -599,7 +604,7 @@ namespace Serein.NodeFlow.Env
         }
 
         /// <summary>
-        /// 设置两个节点某个类型的方法调用关系为优先调用
+        /// （待更新）设置两个节点某个类型的方法调用关系为优先调用
         /// </summary>
         /// <param name="fromNodeGuid">起始节点</param>
         /// <param name="toNodeGuid">目标节点</param>
@@ -610,6 +615,7 @@ namespace Serein.NodeFlow.Env
             this.WriteLine(InfoType.WARN, "远程环境尚未实现的接口(重要，会尽快实现)：SetConnectPriorityInvoke");
             return false;
         }
+
         /// <summary>
         /// 移除两个节点之间的方法调用关系
         /// </summary>
@@ -637,6 +643,7 @@ namespace Serein.NodeFlow.Env
             }
             return result;
         }
+        
         /// <summary>
         /// 移除连接节点之间参数传递的关系
         /// </summary>
@@ -670,13 +677,369 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// 从节点信息集合批量加载节点控件
         /// </summary>
-        /// <param name="List<NodeInfo>">节点信息</param>
-        /// <param name="position">需要加载的位置</param>
+        /// <param name="nodeInfos">节点信息</param>
         /// <returns></returns>
         public async Task LoadNodeInfosAsync(List<NodeInfo> nodeInfos)
         {
-            List<NodeInfo> needPlaceNodeInfos = [];
+            if (IsLoadingProject || IsLoadingNode)
+            {
+                return;
+            }
+            
+            List<NodeInfo> loadSuuccessNodes = new List<NodeInfo>(); // 加载成功的节点信息
+            List<NodeInfo> loadFailureNodes = new List<NodeInfo>(); // 加载失败的节点信息
+            List<NodeInfo> needPlaceNodeInfos = new List<NodeInfo>(); // 需要重新放置的节点
 
+            #region 尝试从节点信息加载节点
+            foreach (NodeInfo? nodeInfo in nodeInfos)
+            {
+                if (!EnumHelper.TryConvertEnum<NodeControlType>(nodeInfo.Type, out var controlType))
+                {
+                    continue;
+                }
+                NodeInfo newNodeInfo;
+                try
+                {
+                    if (!string.IsNullOrEmpty(nodeInfo.MethodName))
+                    {
+                        if (!MethodDetailss.TryGetValue(nodeInfo.MethodName, out var methodDetails))
+                        {
+                            loadFailureNodes.Add(nodeInfo);
+                            continue; // 有方法名称，但本地没有缓存的相关方法信息，跳过
+                        }
+                        // 加载远程环境时尝试获取方法信息
+                        newNodeInfo = await CreateNodeAsync(controlType, nodeInfo.Position, methodDetails.ToInfo());
+                    }
+                    else
+                    {
+                        newNodeInfo = await CreateNodeAsync(controlType, nodeInfo.Position);
+                    }
+                    loadSuuccessNodes.Add(nodeInfo);
+                }
+                catch (Exception ex)
+                {
+                    SereinEnv.WriteLine(ex);
+                    loadFailureNodes.Add(nodeInfo);
+                    continue; // 跳过加载失败的节点
+                }
+            } 
+            #endregion
+
+            // 远程环境无法加载的节点，输出信息
+            foreach (var f_node in loadFailureNodes) 
+            {
+                SereinEnv.WriteLine(InfoType.INFO, "无法加载的节点Guid:" + f_node.Guid);
+            }
+
+            #region 尝试重新放置节点的位置
+            // 判断加载的节点是否需要放置在容器中
+            foreach (var nodeInfo in loadSuuccessNodes)
+            {
+                if (!string.IsNullOrEmpty(nodeInfo.ParentNodeGuid) &&
+                    NodeModels.TryGetValue(nodeInfo.ParentNodeGuid, out var parentNode))
+                {
+                    needPlaceNodeInfos.Add(nodeInfo); // 需要重新放置的节点
+                }
+            }
+            loadSuuccessNodes.Clear();
+            loadFailureNodes.Clear();
+            foreach (var nodeInfo in needPlaceNodeInfos)
+            {
+                // 通知远程调整节点放置位置
+                var isSuuccess = await PlaceNodeToContainerAsync(nodeInfo.Guid, nodeInfo.ParentNodeGuid);
+                if (isSuuccess)
+                {
+                    loadSuuccessNodes.Add(nodeInfo);
+                }
+                else
+                {
+                    loadFailureNodes.Add(nodeInfo);
+                }
+            } 
+            #endregion
+
+            foreach (var f_node in loadFailureNodes)
+            {
+                SereinEnv.WriteLine(InfoType.INFO, $"无法移动到指定容器的节点Guid ：{f_node.Guid}" +
+                    $"{Environment.NewLine}容器节点Guid{f_node.ParentNodeGuid}{Environment.NewLine}" );
+            }
+
+        }
+
+        /// <summary>
+        /// 创建节点/区域/基础控件
+        /// </summary>
+        /// <param name="nodeType">节点/区域/基础控件类型</param>
+        /// <param name="position">节点在画布上的位置（</param>
+        /// <param name="methodDetailsInfo">节点绑定的方法说明</param>
+        public async Task<NodeInfo> CreateNodeAsync(NodeControlType nodeControlType, 
+            PositionOfUI position,
+            MethodDetailsInfo methodDetailsInfo = null)
+        {
+            IsLoadingNode = true;
+            var nodeInfo = await msgClient.SendAndWaitDataAsync<NodeInfo>(EnvMsgTheme.CreateNode, new
+            {
+                nodeType = nodeControlType.ToString(),
+                position = position,
+                mdInfo = methodDetailsInfo,
+            });
+            
+            MethodDetails? methodDetails = null;
+            if (!string.IsNullOrEmpty(nodeInfo.MethodName))
+            {
+                MethodDetailss.TryGetValue(nodeInfo.MethodName, out methodDetails);// 加载远程环境时尝试获取方法信息
+            }
+
+            //MethodDetailss.TryGetValue(methodDetailsInfo.MethodName, out var methodDetails);// 加载项目时尝试获取方法信息
+            var nodeModel = FlowFunc.CreateNode(this, nodeControlType, methodDetails); // 远程环境下加载节点
+            nodeModel.LoadInfo(nodeInfo);
+            TryAddNode(nodeModel);
+            IsLoadingNode = false;
+
+            // 通知UI更改
+            UIContextOperation.Invoke(() =>
+            {
+                OnNodeCreate?.Invoke(new NodeCreateEventArgs(nodeModel, position));
+            });
+            return nodeInfo;
+        }
+
+
+
+        /// <summary>
+        /// 将节点放置在容器中
+        /// </summary>
+        /// <returns></returns>
+        public async Task<bool> PlaceNodeToContainerAsync(string nodeGuid, string containerNodeGuid)
+        {
+            var isSuuccess = await msgClient.SendAndWaitDataAsync<bool>(EnvMsgTheme.PlaceNode, new
+            {
+                nodeGuid = nodeGuid,
+                containerNodeGuid = containerNodeGuid,
+            });
+            if (isSuuccess)
+            {
+                OnNodePlace?.Invoke(new NodePlaceEventArgs(nodeGuid, containerNodeGuid)); // 通知UI更改节点放置位置
+            }
+            return isSuuccess;
+        }
+
+        /// <summary>
+        /// 将节点从容器中脱离
+        /// </summary>
+        /// <returns></returns>
+        public async Task<bool> TakeOutNodeToContainerAsync(string nodeGuid)
+        {
+            var isSuuccess = await msgClient.SendAndWaitDataAsync<bool>(EnvMsgTheme.TakeOutNode, new
+            {
+                nodeGuid = nodeGuid,
+            });
+            if (isSuuccess) 
+            {
+                OnNodeTakeOut?.Invoke(new NodeTakeOutEventArgs(nodeGuid)); // 重新放置在画布上
+            }
+            return isSuuccess;
+        }
+
+
+
+        /// <summary>
+        /// 移除远程环境的某个节点
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        /// <returns></returns>
+        public async Task<bool> RemoveNodeAsync(string nodeGuid)
+        {
+            var result = await msgClient.SendAndWaitDataAsync<bool>(EnvMsgTheme.RemoveNode, new
+            {
+                nodeGuid
+            });
+            if (result)
+            {
+                UIContextOperation.Invoke(() =>
+                {
+                    OnNodeRemove?.Invoke(new NodeRemoveEventArgs(nodeGuid));
+                });
+            }
+            else
+            {
+                this.WriteLine(InfoType.ERROR, "删除失败");
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// 激活远程某个全局触发器节点
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        public void ActivateFlipflopNode(string nodeGuid)
+        {
+            // 需要重写
+            _ = msgClient.SendAsync(EnvMsgTheme.ActivateFlipflopNode, new
+            {
+                nodeGuid
+            });
+        }
+
+        /// <summary>
+        /// 暂停远程某个全局触发器节点
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        public void TerminateFlipflopNode(string nodeGuid)
+        {
+            // 需要重写
+            _ = msgClient.SendAsync(EnvMsgTheme.TerminateFlipflopNode, new
+            {
+                nodeGuid
+            });
+        }
+
+        /// <summary>
+        /// 设置远程环境某个节点的中断
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        /// <param name="isInterrupt"></param>
+        /// <returns></returns>
+        public async Task<bool> SetNodeInterruptAsync(string nodeGuid, bool isInterrupt)
+        {
+            var state = await msgClient.SendAndWaitDataAsync<bool>(EnvMsgTheme.SetNodeInterrupt, // 设置节点中断
+                                                       new
+                                                       {
+                                                           nodeGuid,
+                                                           isInterrupt,
+                                                       });
+            return state;
+        }
+
+        /// <summary>
+        /// 为远程某个节点添加中断的表达式
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="expression"></param>
+        /// <returns></returns>
+        public async Task<bool> AddInterruptExpressionAsync(string key, string expression)
+        {
+            var state = await msgClient.SendAndWaitDataAsync<bool>(EnvMsgTheme.AddInterruptExpression,  // 设置节点/对象的中断表达式
+                                                       new
+                                                       {
+                                                           key,
+                                                           expression,
+                                                       });
+            return state;
+        }
+
+        /// <summary>
+        /// 检查并获取节点/对象是否正在监视、以及监视的表达式（需要重写）
+        /// </summary>
+        /// <param name="key"></param>
+        /// <returns></returns>
+        public async Task<(bool, string[])> CheckObjMonitorStateAsync(string key)
+        {
+            if (string.IsNullOrEmpty(key))
+            {
+                var exps = Array.Empty<string>();
+                return (false, exps);
+            }
+            else
+            {
+                var result = await msgClient.SendAndWaitDataAsync<(bool, string[])>(EnvMsgTheme.SetNodeInterrupt, // 检查并获取节点/对象是否正在监视、以及监视的表达式
+                                                                        new
+                                                                        {
+                                                                            key,
+                                                                        });
+                return result;
+            }
+
+        }
+
+
+
+        /// <summary>
+        /// 需要定位某个节点
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        public void NodeLocated(string nodeGuid)
+        {
+            UIContextOperation?.Invoke(() => OnNodeLocated?.Invoke(new NodeLocatedEventArgs(nodeGuid)));
+        }
+
+        /// <summary>
+        /// 通知远程环境修改节点数据
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        /// <param name="path"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public async Task NotificationNodeValueChangeAsync(string nodeGuid, string path, object value)
+        {
+            if(IsLoadingProject || IsLoadingNode)
+            {
+                return;
+            }
+            //this.WriteLine(InfoType.INFO, $"通知远程环境修改节点数据：{nodeGuid},name:{path},value:{value}");
+            await msgClient.SendAsync(EnvMsgTheme.ValueNotification, new
+            {
+                nodeGuid = nodeGuid,
+                path = path,
+                value = value.ToString(),
+            });
+
+        }
+
+        /// <summary>
+        /// 改变可选参数的数目
+        /// </summary>
+        /// <param name="nodeGuid">对应的节点Guid</param>
+        /// <param name="isAdd">true，增加参数；false，减少参数</param>
+        /// <param name="paramIndex">以哪个参数为模板进行拷贝，或删去某个参数（该参数必须为可选参数）</param>
+        /// <returns></returns>
+        public async Task<bool> ChangeParameter(string nodeGuid, bool isAdd, int paramIndex)
+        {
+            if (IsLoadingProject || IsLoadingNode)
+            {
+                return false;
+            }
+            if (!NodeModels.TryGetValue(nodeGuid,out var nodeModel))
+            {
+                return false;
+            }
+            //this.WriteLine(InfoType.INFO, $"通知远程环境修改节点可选数据：{nodeGuid},isAdd:{isAdd},paramIndex:{paramIndex}");
+            var result = await msgClient.SendAndWaitDataAsync<bool>(EnvMsgTheme.ChangeParameter, new
+            {
+                nodeGuid = nodeGuid,
+                isAdd = isAdd,
+                paramIndex = paramIndex,
+            });
+            if (result) {
+                if (isAdd)
+                {
+                    nodeModel.MethodDetails.AddParamsArg(paramIndex);
+                }
+                else
+                {
+                    nodeModel.MethodDetails.RemoveParamsArg(paramIndex);
+                }
+            }
+            return result;
+        }
+
+
+
+        #region 私有方法
+
+
+        private bool TryAddNode(NodeModelBase nodeModel)
+        {
+            NodeModels[nodeModel.Guid] = nodeModel;
+            return true;
+        }
+
+        /// <summary>
+        /// 私有方法，通过节点信息集合加载节点
+        /// </summary>
+        /// <param name="nodeInfos"></param>
+        private void LoadNodeInfos(List<NodeInfo> nodeInfos)
+        {
             #region 从NodeInfo创建NodeModel
             foreach (NodeInfo? nodeInfo in nodeInfos)
             {
@@ -709,27 +1072,32 @@ namespace Serein.NodeFlow.Env
                 }
                 nodeModel.LoadInfo(nodeInfo); // 创建节点model
                 TryAddNode(nodeModel); // 加载项目时将节点加载到环境中
-                if (!string.IsNullOrEmpty(nodeInfo.ParentNodeGuid) &&
-                    NodeModels.TryGetValue(nodeInfo.ParentNodeGuid, out var parentNode))
-                {
-                    needPlaceNodeInfos.Add(nodeInfo); // 需要重新放置的节点
-                }
+                
                 UIContextOperation?.Invoke(() =>
                     OnNodeCreate?.Invoke(new NodeCreateEventArgs(nodeModel, nodeInfo.Position))); // 添加到UI上
             }
             #endregion
 
             #region 重新放置节点
+            List<NodeInfo> needPlaceNodeInfos = [];
+            foreach (NodeInfo? nodeInfo in nodeInfos)
+            {
+                if (!string.IsNullOrEmpty(nodeInfo.ParentNodeGuid) &&
+                    NodeModels.TryGetValue(nodeInfo.ParentNodeGuid, out var parentNode))
+                {
+                    needPlaceNodeInfos.Add(nodeInfo); // 需要重新放置的节点
+                }
+            }
             foreach (NodeInfo nodeInfo in needPlaceNodeInfos)
             {
                 if (NodeModels.TryGetValue(nodeInfo.Guid, out var childNode) &&
                     NodeModels.TryGetValue(nodeInfo.ParentNodeGuid, out var parentNode))
                 {
-                    childNode.ParentNode = parentNode;
+                    childNode.ContainerNode = parentNode;
                     parentNode.ChildrenNode.Add(childNode);
-                    UIContextOperation?.Invoke(() => OnNodeParentChildChange?.Invoke(
-                        new NodeContainerChildChangeEventArgs(childNode.Guid, parentNode.Guid,
-                                            NodeContainerChildChangeEventArgs.Type.Place)));
+                    UIContextOperation?.Invoke(() => 
+                        OnNodePlace?.Invoke(new NodePlaceEventArgs(nodeInfo.Guid, nodeInfo.ParentNodeGuid)) // 通知UI更改节点放置位置
+                    );
 
                 }
             }
@@ -805,140 +1173,22 @@ namespace Serein.NodeFlow.Env
         }
 
 
+        #endregion
 
-        /// <summary>
-        /// 创建节点/区域/基础控件
-        /// </summary>
-        /// <param name="nodeType">节点/区域/基础控件类型</param>
-        /// <param name="position">节点在画布上的位置（</param>
-        /// <param name="methodDetailsInfo">节点绑定的方法说明</param>
-        public async Task<NodeInfo> CreateNodeAsync(NodeControlType nodeControlType, PositionOfUI position, MethodDetailsInfo methodDetailsInfo = null)
-        {
-            IsLoadingNode = true;
-            var nodeInfo = await msgClient.SendAndWaitDataAsync<NodeInfo>(EnvMsgTheme.CreateNode, new
-            {
-                nodeType = nodeControlType.ToString(),
-                position = position,
-                mdInfo = methodDetailsInfo,
-            });
-            
-            MethodDetails? methodDetails = null;
-            if (!string.IsNullOrEmpty(nodeInfo.MethodName))
-            {
-                MethodDetailss.TryGetValue(nodeInfo.MethodName, out methodDetails);// 加载远程环境时尝试获取方法信息
-            }
+        #region 远程环境下暂未实现的接口
 
-            //MethodDetailss.TryGetValue(methodDetailsInfo.MethodName, out var methodDetails);// 加载项目时尝试获取方法信息
-            var nodeModel = FlowFunc.CreateNode(this, nodeControlType, methodDetails); // 远程环境下加载节点
-            nodeModel.LoadInfo(nodeInfo);
-            TryAddNode(nodeModel);
-            IsLoadingNode = false;
-
-            // 通知UI更改
-            UIContextOperation.Invoke(() =>
-            {
-                OnNodeCreate?.Invoke(new NodeCreateEventArgs(nodeModel, position));
-            });
-            return nodeInfo;
-        }
-
-        /// <summary>
-        /// 将节点放置在容器中/从容器中取出
-        /// </summary>
-        /// <param name="childNodeGuid">子节点（主要节点）</param>
-        /// <param name="parentNodeGuid">父节点</param>
-        /// <param name="isPlace">是否组合（反之为分解节点组合关系）</param>
-        /// <returns></returns>
-        public async Task<bool> ChangeNodeContainerChild(string childNodeGuid, string parentNodeGuid, bool isAssembly)
-        {
-            this.WriteLine(InfoType.WARN, "远程环境尚未实现的接口(重要，会尽快实现)：ChangeNodeParentChild");
-            return false;
-        }
-
-
-        public async Task<bool> RemoveNodeAsync(string nodeGuid)
-        {
-            var result = await msgClient.SendAndWaitDataAsync<bool>(EnvMsgTheme.RemoveNode, new
-            {
-                nodeGuid
-            });
-            if (result)
-            {
-                UIContextOperation.Invoke(() =>
-                {
-                    OnNodeRemove?.Invoke(new NodeRemoveEventArgs(nodeGuid));
-                });
-            }
-            else
-            {
-                this.WriteLine(InfoType.ERROR, "删除失败");
-            }
-            return result;
-        }
-
-        public void ActivateFlipflopNode(string nodeGuid)
-        {
-            _ = msgClient.SendAsync(EnvMsgTheme.ActivateFlipflopNode, new
-            {
-                nodeGuid
-            });
-        }
-
-        public void TerminateFlipflopNode(string nodeGuid)
-        {
-            _ = msgClient.SendAsync(EnvMsgTheme.TerminateFlipflopNode, new
-            {
-                nodeGuid
-            });
-        }
-
-        public async Task<bool> SetNodeInterruptAsync(string nodeGuid, bool isInterrupt)
-        {
-            var state = await msgClient.SendAndWaitDataAsync<bool>(EnvMsgTheme.SetNodeInterrupt, // 设置节点中断
-                                                       new
-                                                       {
-                                                           nodeGuid,
-                                                           isInterrupt,
-                                                       });
-            return state;
-        }
-
-
-        public async Task<bool> AddInterruptExpressionAsync(string key, string expression)
-        {
-            var state = await msgClient.SendAndWaitDataAsync<bool>(EnvMsgTheme.AddInterruptExpression,  // 设置节点/对象的中断表达式
-                                                       new
-                                                       {
-                                                           key,
-                                                           expression,
-                                                       });
-            return state;
-        }
 
         public void SetMonitorObjState(string key, bool isMonitor)
         {
             this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：SetMonitorObjState");
         }
 
-        public async Task<(bool, string[])> CheckObjMonitorStateAsync(string key)
+        public async Task<object> InvokeNodeAsync(IDynamicContext context, string nodeGuid)
         {
-            if (string.IsNullOrEmpty(key))
-            {
-                var exps = Array.Empty<string>();
-                return (false, exps);
-            }
-            else
-            {
-                var result = await msgClient.SendAndWaitDataAsync<(bool, string[])>(EnvMsgTheme.SetNodeInterrupt, // 检查并获取节点/对象是否正在监视、以及监视的表达式
-                                                                        new
-                                                                        {
-                                                                            key,
-                                                                        });
-                return result;
-            }
-
+            // 登录到远程环境后，启动器相关方法无效
+            this.WriteLine(InfoType.INFO, "远程环境尚未实现接口 InvokeNodeAsync");
+            return null;
         }
-
 
         public async Task<ChannelFlowInterrupt.CancelType> GetOrCreateGlobalInterruptAsync()
         {
@@ -961,76 +1211,31 @@ namespace Serein.NodeFlow.Env
         }
 
 
-
+        /// <summary>
+        /// 对象监视表达式
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        /// <param name="monitorData"></param>
+        /// <param name="sourceType"></param>
         public void MonitorObjectNotification(string nodeGuid, object monitorData, MonitorObjectEventArgs.ObjSourceType sourceType)
         {
             this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：MonitorObjectNotification");
 
         }
-
+        /// <summary>
+        /// 触发节点的中断
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        /// <param name="expression"></param>
+        /// <param name="type"></param>
         public void TriggerInterrupt(string nodeGuid, string expression, InterruptTriggerEventArgs.InterruptTriggerType type)
         {
             this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：TriggerInterrupt");
         }
 
-        public void NodeLocated(string nodeGuid)
-        {
-            UIContextOperation?.Invoke(() => OnNodeLocated?.Invoke(new NodeLocatedEventArgs(nodeGuid)));
-        }
 
+        #endregion
 
-        public async Task NotificationNodeValueChangeAsync(string nodeGuid, string path, object value)
-        {
-            if(IsLoadingProject || IsLoadingNode)
-            {
-                return;
-            }
-            //this.WriteLine(InfoType.INFO, $"通知远程环境修改节点数据：{nodeGuid},name:{path},value:{value}");
-            _  = msgClient.SendAsync(EnvMsgTheme.ValueNotification, new
-            {
-                nodeGuid = nodeGuid,
-                path = path,
-                value = value.ToString(),
-            });
-
-        }
-
-        /// <summary>
-        /// 改变可选参数的数目
-        /// </summary>
-        /// <param name="nodeGuid">对应的节点Guid</param>
-        /// <param name="isAdd">true，增加参数；false，减少参数</param>
-        /// <param name="paramIndex">以哪个参数为模板进行拷贝，或删去某个参数（该参数必须为可选参数）</param>
-        /// <returns></returns>
-        public async Task<bool> ChangeParameter(string nodeGuid, bool isAdd, int paramIndex)
-        {
-            if (IsLoadingProject || IsLoadingNode)
-            {
-                return false;
-            }
-            if (!NodeModels.TryGetValue(nodeGuid,out var nodeModel))
-            {
-                return false;
-            }
-            //this.WriteLine(InfoType.INFO, $"通知远程环境修改节点可选数据：{nodeGuid},isAdd:{isAdd},paramIndex:{paramIndex}");
-            var result = await msgClient.SendAndWaitDataAsync<bool>(EnvMsgTheme.ChangeParameter, new
-            {
-                nodeGuid = nodeGuid,
-                isAdd = isAdd,
-                paramIndex = paramIndex,
-            });
-            if (result) {
-                if (isAdd)
-                {
-                    nodeModel.MethodDetails.AddParamsArg(paramIndex);
-                }
-                else
-                {
-                    nodeModel.MethodDetails.RemoveParamsArg(paramIndex);
-                }
-            }
-            return result;
-        }
 
         #region 流程依赖类库的接口
 
@@ -1081,5 +1286,9 @@ namespace Serein.NodeFlow.Env
 
 
         #endregion
+
+
+
+
     }
 }

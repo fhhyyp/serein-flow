@@ -54,10 +54,16 @@ namespace Serein.Library.Api
     public delegate void NodeCreateHandler(NodeCreateEventArgs eventArgs);
 
     /// <summary>
-    /// 容器节点与子项节点的关系发生改变
+    /// 节点放置事件
     /// </summary>
     /// <param name="eventArgs"></param>
-    public delegate void NodeContainerChildChangeHandler(NodeContainerChildChangeEventArgs eventArgs);
+    public delegate void NodePlaceHandler(NodePlaceEventArgs eventArgs);
+
+    /// <summary>
+    /// 节点取出事件
+    /// </summary>
+    /// <param name="eventArgs"></param>
+    public delegate void NodeTakeOutHandler(NodeTakeOutEventArgs eventArgs);
 
     /// <summary>
     /// 环境中流程起始节点发生了改变
@@ -314,50 +320,40 @@ namespace Serein.Library.Api
     }
 
     /// <summary>
-    /// 节点父子关系改变
+    /// 节点放置事件参数
     /// </summary>
-    public class NodeContainerChildChangeEventArgs : FlowEventArgs 
+    public class NodePlaceEventArgs : FlowEventArgs 
     {
-        /// <summary>
-        /// 变更类型
-        /// </summary>
-        public enum Type
+        public NodePlaceEventArgs(string nodeGuid, string containerNodeGuid)
         {
-            /// <summary>
-            /// 放置
-            /// </summary>
-            Place,
-            /// <summary>
-            /// 取出
-            /// </summary>
-            TakeOut
-        }
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="childNodeGuid">子项节点</param>
-        /// <param name="containerNodeGuid">容器节点</param>
-        /// <param name="state">类别</param>
-        public NodeContainerChildChangeEventArgs(string childNodeGuid, string containerNodeGuid, Type state)
-        {
-            ChildNodeGuid = childNodeGuid;
+            NodeGuid = nodeGuid;
             ContainerNodeGuid = containerNodeGuid;
-            State = state;
         }
         /// <summary>
         /// 子节点，该数据为此次时间的主节点
         /// </summary>
-        public string ChildNodeGuid { get; private set; }
+        public string NodeGuid { get; private set; }
         /// <summary>
         /// 父节点
         /// </summary>
         public string ContainerNodeGuid { get; private set; }
-
-        /// <summary>
-        /// 改变类型
-        /// </summary>
-        public Type State {  get; private set; }
     }
+
+    /// <summary>
+    /// 节点取出事件参数
+    /// </summary>
+    public class NodeTakeOutEventArgs : FlowEventArgs
+    {
+        public NodeTakeOutEventArgs(string nodeGuid)
+        {
+            NodeGuid = nodeGuid;
+        }
+        /// <summary>
+        /// 需要取出的节点Guid
+        /// </summary>
+        public string NodeGuid { get; private set; }
+    }
+
 
     /// <summary>
     /// 环境中移除了一个节点
@@ -664,9 +660,14 @@ namespace Serein.Library.Api
         event NodeRemoveHandler OnNodeRemove;
 
         /// <summary>
-        /// 节点父子关系发生改变事件
+        /// 节点放置事件
         /// </summary>
-        event NodeContainerChildChangeHandler OnNodeParentChildChange;
+        event NodePlaceHandler OnNodePlace;
+
+        /// <summary>
+        /// 节点取出事件
+        /// </summary>
+        event NodeTakeOutHandler OnNodeTakeOut;
 
         /// <summary>
         /// 起始节点变化事件
@@ -740,6 +741,7 @@ namespace Serein.Library.Api
         /// 启动远程服务
         /// </summary>
         Task StartRemoteServerAsync(int port = 7525);
+
         /// <summary>
         /// 停止远程服务
         /// </summary>
@@ -781,40 +783,29 @@ namespace Serein.Library.Api
         /// </summary>
         /// <param name="dllPath"></param>
         void LoadLibrary(string dllPath);
+
         /// <summary>
         /// 移除DLL
         /// </summary>
         /// <param name="assemblyFullName">程序集的名称</param>
-        bool UnloadLibrary(string assemblyFullName);
+        bool TryUnloadLibrary(string assemblyFullName);
 
-        /// <summary>
-        /// 清理加载的DLL（待更改）
-        /// </summary>
-        void ClearAll();
-        
         /// <summary>
         /// 开始运行
         /// </summary>
-        Task StartAsync();
+        Task<bool> StartFlowAsync();
+
         /// <summary>
         /// 从选定的节点开始运行
         /// </summary>
         /// <param name="startNodeGuid"></param>
         /// <returns></returns>
-        Task StartAsyncInSelectNode(string startNodeGuid);
-
-        /// <summary>
-        /// 立刻调用某个节点，并获取其返回值
-        /// </summary>
-        /// <param name="context">调用时的上下文</param>
-        /// <param name="nodeGuid">节点Guid</param>
-        /// <returns></returns>
-        Task<object> InvokeNodeAsync(IDynamicContext context, string nodeGuid);
+        Task<bool> StartAsyncInSelectNode(string startNodeGuid);
 
         /// <summary>
         /// 结束运行
         /// </summary>
-        void ExitFlow();
+        Task<bool> ExitFlowAsync();
 
         /// <summary>
         /// 移动了某个节点(远程插件使用）
@@ -827,8 +818,9 @@ namespace Serein.Library.Api
         /// <summary>
         /// 设置流程起点节点
         /// </summary>
-        /// <param name="nodeGuid"></param>
-        void SetStartNode(string nodeGuid);
+        /// <param name="nodeGuid">尝试设置为起始节点的节点Guid</param>
+        /// <returns>被设置为起始节点的Guid</returns>
+        Task<string> SetStartNodeAsync(string nodeGuid);
 
         /// <summary>
         /// 在两个节点之间创建连接关系
@@ -875,14 +867,27 @@ namespace Serein.Library.Api
         /// <param name="methodDetailsInfo">节点绑定的方法说明</param>
         Task<NodeInfo> CreateNodeAsync(NodeControlType nodeType, PositionOfUI position, MethodDetailsInfo methodDetailsInfo = null);
 
+        ///// <summary>
+        ///// 将节点放置在容器中/从容器中取出
+        ///// </summary>
+        ///// <param name="childNodeGuid">子节点（主要节点）</param>
+        ///// <param name="parentNodeGuid">父节点</param>
+        ///// <param name="isAssembly">是否组合（反之为分解节点组合关系）</param>
+        ///// <returns></returns>
+        //Task<bool> ChangeNodeContainerChildAsync(string childNodeGuid,string parentNodeGuid,bool isAssembly);
+
         /// <summary>
-        /// 将节点放置在容器中/从容器中取出
+        /// 将节点放置在容器中
         /// </summary>
-        /// <param name="childNodeGuid">子节点（主要节点）</param>
-        /// <param name="parentNodeGuid">父节点</param>
-        /// <param name="isPlace">是否组合（反之为分解节点组合关系）</param>
         /// <returns></returns>
-        Task<bool> ChangeNodeContainerChild(string childNodeGuid,string parentNodeGuid,bool isAssembly);
+        Task<bool> PlaceNodeToContainerAsync(string nodeGuid, string containerNodeGuid);
+
+        /// <summary>
+        /// 将节点从容器中脱离
+        /// </summary>
+        /// <returns></returns>
+        Task<bool> TakeOutNodeToContainerAsync(string nodeGuid);
+
 
         /// <summary>
         /// 设置两个节点某个类型的方法调用关系为优先调用
@@ -909,7 +914,6 @@ namespace Serein.Library.Api
         /// <param name="argIndex">连接到第几个参数</param>
         /// <param name="connectionArgSourceType">参数来源类型</param>
         Task<bool> RemoveConnectArgSourceAsync(string fromNodeGuid, string toNodeGuid, int argIndex);
-
 
         /// <summary>
         /// 移除节点/区域/基础控件
@@ -1035,6 +1039,13 @@ namespace Serein.Library.Api
         /// <param name="type">中断类型。0主动监视，1表达式</param>
         void TriggerInterrupt(string nodeGuid, string expression, InterruptTriggerEventArgs.InterruptTriggerType type);
 
+        /// <summary>
+        /// 立刻调用某个节点，并获取其返回值
+        /// </summary>
+        /// <param name="context">调用时的上下文</param>
+        /// <param name="nodeGuid">节点Guid</param>
+        /// <returns></returns>
+        Task<object> InvokeNodeAsync(IDynamicContext context, string nodeGuid);
 
         #endregion
 

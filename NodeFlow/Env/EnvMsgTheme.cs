@@ -38,6 +38,14 @@
         /// </summary>
         public const string RemoveNode = nameof(RemoveNode);
         /// <summary>
+        /// 尝试放置节点
+        /// </summary>
+        public const string PlaceNode = nameof(PlaceNode);
+        /// <summary>
+        /// 尝试取出节点
+        /// </summary>
+        public const string TakeOutNode = nameof(TakeOutNode);
+        /// <summary>
         /// 尝试连接两个节点的方法调用关系
         /// </summary>
         public const string ConnectInvokeNode = nameof(ConnectInvokeNode);

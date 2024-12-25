@@ -54,8 +54,19 @@ namespace Serein.NodeFlow.Model
 
         public void PlaceNode(NodeModelBase nodeModel)
         {
-            _ = this.Env.RemoveNodeAsync(DataNode?.Guid);
-            DataNode = nodeModel;
+            // 全局数据节点只有一个子控件
+            if (DataNode is not null)
+            {
+                _ = Task.Run(async () =>
+                {
+                    await this.Env.RemoveNodeAsync(DataNode?.Guid);
+                    DataNode = nodeModel;
+                });
+            }
+            else
+            {
+                DataNode = nodeModel;
+            }
         }
 
         public void TakeOutAll()

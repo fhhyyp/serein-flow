@@ -433,7 +433,7 @@ namespace Serein.NodeFlow
                 }
                 catch (FlipflopException ex) 
                 {
-                    SereinEnv.WriteLine(InfoType.ERROR,$"触发器[{singleFlipFlopNode.MethodDetails.MethodName}]因非预期异常终止。"+ex.Message);
+                    SereinEnv.WriteLine(InfoType.ERROR, $"触发器[{singleFlipFlopNode.MethodDetails.MethodName}]因非预期异常终止。"+ex.Message);
                     if (ex.Type == FlipflopException.CancelClass.CancelFlow)
                     {
                         break;
@@ -442,7 +442,7 @@ namespace Serein.NodeFlow
                 catch (Exception ex)
                 {
                     SereinEnv.WriteLine(InfoType.ERROR, $"触发器[{singleFlipFlopNode.Guid}]异常。"+ ex.Message);
-                    //await Console.Out.WriteLineAsync(ex.Message);
+                    await Task.Delay(100);
                 }
             }
 

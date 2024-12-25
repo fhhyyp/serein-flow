@@ -124,6 +124,16 @@ namespace Serein.Library.Utils
         {
             SereinEnv.environment.WriteLine(type,message,@class);
         }
+        
+        /// <summary>
+        /// 输出异常信息
+        /// </summary>
+        /// <param name="ex"></param>
+        /// <param name="class"></param>
+        public static void WriteLine(Exception ex, InfoClass @class = InfoClass.General)
+        {
+            SereinEnv.environment.WriteLine(InfoType.ERROR, ex.ToString(), @class);
+        }
 
 
         

@@ -201,12 +201,15 @@ namespace Serein.NodeFlow.Tool
 
         #region 功能性方法
 
-        private readonly string SereinLibraryDll = $"{nameof(Serein)}.{nameof(Serein.Library)}.dll";
+        /// <summary>
+        /// 基础依赖
+        /// </summary>
+        public readonly static string SereinBaseLibrary = $"{nameof(Serein)}.{nameof(Serein.Library)}.dll";
 
         private (NodeLibraryInfo, List<MethodDetailsInfo>) LoadDllNodeInfo(string dllFilePath)
         {
             var fileName = Path.GetFileName(dllFilePath); // 获取文件名
-            if (SereinLibraryDll.Equals(fileName))
+            if (SereinBaseLibrary.Equals(fileName))
             {
                 return LoadAssembly(typeof(IFlowEnvironment).Assembly, () => {
                     //SereinEnv.PrintInfo(InfoType.WRAN, "基础模块不能卸载");
@@ -215,9 +218,9 @@ namespace Serein.NodeFlow.Tool
             else
             {
                 var dir = Path.GetDirectoryName(dllFilePath); // 获取目录路径
-                var sereinFlowLibraryPath = Path.Combine(dir, SereinLibraryDll);
+                var sereinFlowBaseLibraryPath = Path.Combine(dir, SereinBaseLibrary);
                 // 每个类库下面至少需要有“Serein.Library.dll”类库依赖
-                var flowAlc = new FlowLibraryAssemblyContext(sereinFlowLibraryPath, fileName);
+                var flowAlc = new FlowLibraryAssemblyContext(sereinFlowBaseLibraryPath, fileName);
                 Action actionUnload = () =>
                 {
                     flowAlc?.Unload(); // 卸载程序集

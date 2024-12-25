@@ -3,6 +3,7 @@ using Serein.Library.Api;
 using Serein.Library.FlowNode;
 using Serein.Library.Utils;
 using Serein.NodeFlow.Tool;
+using System.Reflection;
 
 namespace Serein.NodeFlow.Env
 {
@@ -121,13 +122,16 @@ namespace Serein.NodeFlow.Env
             remove { currentFlowEnvironment.OnNodeRemove -= value; }
         }
 
-        /// <summary>
-        /// 节点父子关系发生改变事件
-        /// </summary>
-        public event NodeContainerChildChangeHandler OnNodeParentChildChange
+        public event NodePlaceHandler OnNodePlace
         {
-            add { currentFlowEnvironment.OnNodeParentChildChange += value; }
-            remove { currentFlowEnvironment.OnNodeParentChildChange -= value; }
+            add { currentFlowEnvironment.OnNodePlace += value; }
+            remove { currentFlowEnvironment.OnNodePlace -= value; }
+        }
+
+        public event NodeTakeOutHandler OnNodeTakeOut
+        {
+            add { currentFlowEnvironment.OnNodeTakeOut += value; }
+            remove { currentFlowEnvironment.OnNodeTakeOut -= value; }
         }
 
         public event StartNodeChangeHandler OnStartNodeChange
@@ -203,10 +207,6 @@ namespace Serein.NodeFlow.Env
             return await currentFlowEnvironment.CheckObjMonitorStateAsync(key);
         }
 
-        public void ClearAll()
-        {
-            currentFlowEnvironment.ClearAll();
-        }
 
         /// <summary>
         /// 在两个节点之间创建连接关系
@@ -287,27 +287,35 @@ namespace Serein.NodeFlow.Env
             return result;
         }
 
+
         /// <summary>
-        /// 将节点放置在容器中/从容器中取出
+        /// 将节点放置在容器中
         /// </summary>
-        /// <param name="childNodeGuid">子节点（主要节点）</param>
-        /// <param name="parentNodeGuid">父节点</param>
-        /// <param name="isPlace">是否组合（反之为分解节点组合关系）</param>
         /// <returns></returns>
-        public async Task<bool> ChangeNodeContainerChild(string childNodeGuid, string parentNodeGuid, bool isAssembly)
+        public async Task<bool> PlaceNodeToContainerAsync(string nodeGuid, string containerNodeGuid)
         {
             SetProjectLoadingFlag(false);
-            var result = await currentFlowEnvironment.ChangeNodeContainerChild(childNodeGuid, parentNodeGuid, isAssembly); // 装饰器调用
+            var result = await currentFlowEnvironment.PlaceNodeToContainerAsync(nodeGuid, containerNodeGuid); // 装饰器调用
             SetProjectLoadingFlag(true);
             return result;
+        }
 
+        /// <summary>
+        /// 将节点从容器中脱离
+        /// </summary>
+        /// <returns></returns>
+        public async Task<bool> TakeOutNodeToContainerAsync(string nodeGuid)
+        {
+            SetProjectLoadingFlag(false);
+            var result = await currentFlowEnvironment.TakeOutNodeToContainerAsync(nodeGuid); // 装饰器调用
+            SetProjectLoadingFlag(true);
+            return result;
         }
 
 
-
-        public void ExitFlow()
+        public async Task<bool> ExitFlowAsync()
         {
-            currentFlowEnvironment.ExitFlow();
+            return await currentFlowEnvironment.ExitFlowAsync();
         }
 
         public void ExitRemoteEnv()
@@ -369,9 +377,9 @@ namespace Serein.NodeFlow.Env
         }
 
 
-        public bool UnloadLibrary(string assemblyName)
+        public bool TryUnloadLibrary(string assemblyName)
         {
-            return currentFlowEnvironment.UnloadLibrary(assemblyName);
+            return currentFlowEnvironment.TryUnloadLibrary(assemblyName);
         }
 
         /// <summary>
@@ -441,19 +449,19 @@ namespace Serein.NodeFlow.Env
             return await currentFlowEnvironment.SetNodeInterruptAsync(nodeGuid, isInterrupt);
         }
 
-        public void SetStartNode(string nodeGuid)
+        public async Task<string> SetStartNodeAsync(string nodeGuid)
         {
-            currentFlowEnvironment.SetStartNode(nodeGuid);
+            return await currentFlowEnvironment.SetStartNodeAsync(nodeGuid);
         }
 
-        public async Task StartAsync()
+        public async Task<bool> StartFlowAsync()
         {
-            await currentFlowEnvironment.StartAsync();
+            return await currentFlowEnvironment.StartFlowAsync();
         }
 
-        public async Task StartAsyncInSelectNode(string startNodeGuid)
+        public async Task<bool> StartAsyncInSelectNode(string startNodeGuid)
         {
-            await currentFlowEnvironment.StartAsyncInSelectNode(startNodeGuid);
+           return await currentFlowEnvironment.StartAsyncInSelectNode(startNodeGuid);
         }
 
         public async Task<object> InvokeNodeAsync(IDynamicContext context, string nodeGuid)

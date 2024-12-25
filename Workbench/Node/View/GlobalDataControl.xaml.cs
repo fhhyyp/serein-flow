@@ -60,7 +60,7 @@ namespace Serein.Workbench.Node.View
 
         public void PlaceNode(NodeControlBase nodeControl)
         {
-            GlobalDataPanel.Children.Clear();
+            //GlobalDataPanel.Children.Clear();
             GlobalDataPanel.Children.Add(nodeControl);
         }
 

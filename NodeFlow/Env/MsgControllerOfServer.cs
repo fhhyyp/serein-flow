@@ -172,10 +172,14 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         /// <returns></returns>
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.StartFlow)]
-        private async Task StartAsync()
+        private async Task<object> StartAsync()
         {
             var uiContextOperation = environment.IOC.Get<UIContextOperation>();
-            await environment.StartAsync();
+            var state = await environment.StartFlowAsync();
+            return new
+            {
+                state = state,
+            };
         }
 
         /// <summary>
@@ -184,19 +188,26 @@ namespace Serein.NodeFlow.Env
         /// <param name="nodeGuid"></param>
         /// <returns></returns>
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.StartFlowInSelectNode)]
-        private async Task StartAsyncInSelectNode(string nodeGuid)
+        private async Task<object> StartAsyncInSelectNode(string nodeGuid)
         {
-            await environment.StartAsyncInSelectNode(nodeGuid);
+            var state =  await environment.StartAsyncInSelectNode(nodeGuid);
+            return new
+            {
+                state = state,
+            };
         }
 
         /// <summary>
         /// 结束流程
         /// </summary>
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.ExitFlow)]
-        private void ExitFlow()
+        private async Task<object> ExitFlow()
         {
-            environment.ExitFlow();
-
+            var state = await environment.ExitFlowAsync();
+            return new
+            {
+                state = state,
+            };
         }
 
         /// <summary>
@@ -519,7 +530,7 @@ namespace Serein.NodeFlow.Env
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.SetStartNode)]
         public void SetStartNode(string nodeGuid)
         {
-            environment.SetStartNode(nodeGuid);
+            environment.SetStartNodeAsync(nodeGuid);
         }
 
 

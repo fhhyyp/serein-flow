@@ -105,12 +105,12 @@ namespace Serein.Library
         public Dictionary<ConnectionInvokeType, List<NodeModelBase>> SuccessorNodes { get; }
 
         /// <summary>
-        /// 该节点的父级节点（容器）
+        /// 该节点的容器节点
         /// </summary>
-        public NodeModelBase ParentNode {  get; set; } = null;
+        public NodeModelBase ContainerNode {  get; set; } = null;
 
         /// <summary>
-        /// 该节点的子项节点（容器）
+        /// 该节点的子项节点（如果该节点是容器节点，那就会有这个参数）
         /// </summary>
         public List<NodeModelBase> ChildrenNode {  get; }
 
