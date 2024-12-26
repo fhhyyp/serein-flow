@@ -36,7 +36,6 @@ namespace Serein.Library
 
         }
 
-
         /// <summary>
         /// 保存自定义信息
         /// </summary>
@@ -60,21 +59,11 @@ namespace Serein.Library
         /// </summary>
         public virtual void Remove()
         {
-
-        }
-
-        /// <summary>
-        /// 移除该节点
-        /// </summary>
-        public virtual void RemoveFromEnv()
-        {
-            if (this.DebugSetting.CancelInterruptCallback != null)
+            if (this.DebugSetting.CancelInterrupt != null)
             {
-                this.DebugSetting.CancelInterruptCallback?.Invoke();
+                this.DebugSetting.CancelInterrupt?.Invoke();
             }
-            this.DebugSetting.GetInterruptTask = null;
             this.DebugSetting.NodeModel = null;
-            this.DebugSetting.CancelInterruptCallback = null;
             this.DebugSetting = null;
             foreach (var pd in this.MethodDetails.ParameterDetailss)
             {
@@ -87,7 +76,7 @@ namespace Serein.Library
                 pd.ArgDataSourceNodeGuid = null;
                 pd.ExplicitTypeName = null;
             }
-            this.MethodDetails.ParameterDetailss = null;    
+            this.MethodDetails.ParameterDetailss = null;
             this.MethodDetails.ActingInstance = null;
             this.MethodDetails.NodeModel = null;
             this.MethodDetails.ReturnType = null;
@@ -130,7 +119,6 @@ namespace Serein.Library
                 return new ParameterData[0];
             }
         }
-
 
         /// <summary>
         /// 导出为节点信息
@@ -231,10 +219,6 @@ namespace Serein.Library
         }
         #endregion
 
-        #region 程序集更新，更新节点方法描述、以及所有入参描述的类型
-
-        #endregion
-
         #region 调试中断
 
         /// <summary>
@@ -243,14 +227,12 @@ namespace Serein.Library
         public void CancelInterrupt()
         {
             this.DebugSetting.IsInterrupt = false;
-            DebugSetting.CancelInterruptCallback?.Invoke();
+            DebugSetting.CancelInterrupt?.Invoke();
         }
 
         #endregion
 
         #region 节点方法的执行
-
-       
 
         /// <summary>
         /// 是否应该退出执行
@@ -271,6 +253,7 @@ namespace Serein.Library
             {
                 return true;
             }
+
             // 如果存在全局触发器，且触发器的执行任务已经被取消时，退出执行。
             if (flowCts != null)
             {
@@ -365,15 +348,21 @@ namespace Serein.Library
         /// <returns>节点传回数据对象</returns>
         public virtual async Task<object> ExecutingAsync(IDynamicContext context)
         {
-            //if(context.NextOrientation == ConnectionInvokeType.IsError)
-            //{
-            //}
-            #region 调试中断
 
-            if (DebugSetting.IsInterrupt) // 执行触发检查是否需要中断
+            #region 调试中断
+            if(context.NextOrientation == ConnectionInvokeType.IsError)
             {
-                //var cancelType = await this.DebugSetting.GetInterruptTask(); // 等待中断结束
-                await Console.Out.WriteLineAsync($"[{this.MethodDetails?.MethodName}]中断已取消，开始执行后继分支");
+            }
+
+            // 执行触发检查是否需要中断
+            if (DebugSetting.IsInterrupt) 
+            {
+                context.Env.TriggerInterrupt(Guid, "", InterruptTriggerEventArgs.InterruptTriggerType.Monitor); // 通知运行环境该节点中断了
+                await DebugSetting.GetInterruptTask.Invoke();
+                //await fit.WaitTriggerAsync(Guid); // 创建一个等待的中断任务
+                SereinEnv.WriteLine(InfoType.INFO, $"[{this.MethodDetails?.MethodName}]中断已取消，开始执行后继分支");
+                var flowCts = context.Env.IOC.Get<CancellationTokenSource>(NodeStaticConfig.FlipFlopCtsName);
+                if (IsBradk(context, flowCts)) return null; // 流程已终止，取消后续的执行
             }
 
             #endregion
@@ -405,9 +394,10 @@ namespace Serein.Library
         {
             if (MethodDetails.ParameterDetailss.Length == 0)
             {
-                return new object[0];// md.ActingInstance
+                return new object[0]; // 无参数
             }
 
+            #region 定义返回的参数数组
             object[] args;
             Array paramsArgs = null; // 初始化可选参数
             int paramsArgIndex = 0; // 可选参数下标，与 object[] paramsArgs 一起使用
@@ -423,13 +413,16 @@ namespace Serein.Library
             {
                 // 不存在可选参数
                 args = new object[MethodDetails.ParameterDetailss.Length]; // 调用方法的入参数组
-            }
+            } 
+            #endregion
 
+            // 常规参数的获取
             for (int i = 0; i < args.Length; i++) {
                 var pd = MethodDetails.ParameterDetailss[i];
                 args[i] = await pd.ToMethodArgData(context); // 获取数据
             }
 
+            // 可选参数的获取
             if(MethodDetails.ParamsArgIndex >= 0)
             {
                 for (int i = 0; i < paramsArgs.Length; i++)
@@ -440,10 +433,12 @@ namespace Serein.Library
                 }
                 args[args.Length - 1] = paramsArgs;
             }
-           
 
             return args;
         }
+
+
+
 
         /// <summary>
         /// 更新节点数据，并检查监视表达式是否生效
@@ -518,26 +513,6 @@ namespace Serein.Library
             //}
         }
 
-        ///// <summary>
-        ///// 释放对象
-        ///// </summary>
-        //public void ReleaseFlowData()
-        //{
-        //    if (typeof(IDisposable).IsAssignableFrom(FlowData?.GetType()) && FlowData is IDisposable disposable)
-        //    {
-        //        disposable?.Dispose();
-        //    }
-        //    this.FlowData = null;
-        //}
-
-        ///// <summary>
-        ///// 获取节点数据
-        ///// </summary>
-        ///// <returns></returns>
-        //public object GetFlowData()
-        //{
-        //    return this.FlowData;
-        //}
         #endregion
 
     }

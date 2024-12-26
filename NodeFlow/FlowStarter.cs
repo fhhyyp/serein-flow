@@ -15,9 +15,8 @@ namespace Serein.NodeFlow
     /// </summary>
     public class FlowStarter
     {
-        
         /// <summary>
-        /// 控制全局触发器的结束
+        /// 控制所有全局触发器的结束
         /// </summary>
         private CancellationTokenSource? _flipFlopCts;
         
@@ -30,15 +29,6 @@ namespace Serein.NodeFlow
         /// 结束运行时需要执行的方法
         /// </summary>
         private  Func<Task>? ExitAction { get; set; }
-
-        private void CheckStartState()
-        {
-            if (IsStopStart)
-            {
-                throw new Exception("停止启动");
-
-            }
-        }
 
         /// <summary>
         /// 从选定的节点开始运行
@@ -75,6 +65,10 @@ namespace Serein.NodeFlow
                                    List<MethodDetails> loadingMethods,
                                    List<MethodDetails> exitMethods)
         {
+
+            #region 注册基本类
+            env.IOC.Register<IScriptFlowApi, ScriptFlowApi>(); // 注册脚本接口
+            #endregion
 
             env.FlowState = RunState.Running; // 开始运行
             NodeModelBase? startNode = nodes.FirstOrDefault(node => node.IsStart);
@@ -116,13 +110,12 @@ namespace Serein.NodeFlow
             thisRuningMds.AddRange(loadingMethods.Where(md => md?.ActingInstanceType is not null));
             thisRuningMds.AddRange(exitMethods.Where(md => md?.ActingInstanceType is not null));
 
-            // .AddRange(initMethods).AddRange(loadingMethods).a
+            
             foreach (var nodeMd in thisRuningMds)
             {
                 nodeMd.ActingInstance = null;
             }
             
-            env.IOC.CustomRegisterInstance(typeof(ISereinIOC).FullName, env);
             // 初始化ioc容器中的类型对象
             foreach (var md in thisRuningMds)
             {
@@ -206,12 +199,12 @@ namespace Serein.NodeFlow
             #region 设置流程退出时的回调函数
             ExitAction = async () =>
             {
-                env.IOC.Run<WebApiServer>(web => {
-                    web?.Stop();
-                });
-                env.IOC.Run<WebSocketServer>(server => {
-                    server?.Stop();
-                });
+                //env.IOC.Run<WebApiServer>(web => {
+                //    web?.Stop();
+                //});
+                //env.IOC.Run<WebSocketServer>(server => {
+                //    server?.Stop();
+                //});
 
                 foreach (MethodDetails? md in exitMethods)
                 {
@@ -230,7 +223,7 @@ namespace Serein.NodeFlow
                 TerminateAllGlobalFlipflop(); // 确保所有触发器不再运行
                 SereinEnv.ClearFlowGlobalData(); // 清空全局数据缓存
                 NativeDllHelper.FreeLibrarys(); // 卸载所有已加载的 Native Dll
-
+                env.IOC.Run<FlowInterruptTool>(fit => fit.CancelAllTrigger());// 取消所有中断
                 env.FlowState = RunState.Completion;
                 env.FlipFlopState = RunState.Completion;
 
@@ -249,7 +242,7 @@ namespace Serein.NodeFlow
                     env.FlipFlopState = RunState.Running;
                     // 如果存在需要启动的触发器，则开始启动
                     _flipFlopCts = new CancellationTokenSource();
-                    env.IOC.CustomRegisterInstance(NodeStaticConfig.FlipFlopCtsName, _flipFlopCts,false);
+                    env.IOC.RegisterInstance(NodeStaticConfig.FlipFlopCtsName, _flipFlopCts);
 
                     // 使用 TaskCompletionSource 创建未启动的触发器任务
                     var tasks = flipflopNodes.Select(async node =>
@@ -280,39 +273,6 @@ namespace Serein.NodeFlow
             }
             #endregion
         }
-
-
-#if false
-
-        public async Task TestScript(IFlowEnvironment environment)
-        {
-            SingleScriptNode singleScriptNode = new SingleScriptNode(environment);
-            string script =
-            """
-                
-                       //let argData1 = flow.GetArgIndex(0); // 通过索引的方式，获取当前节点入参第一个参数
-                       //let argData2 = flow.GetArgName("name"); // 通过名称的方式，获取当前节点入参的第二个参数
-                       //let nodeData = flow.GetFlowData(); // 获取上一个节点的数据
-                       //let state = flow.GetGlobalData("key name"); // 获取全局数据
-                
-                       //let result1 = flow.CallNode("node guid",); // 立即调用某个节点，获取数据
-                       //let result2 = flow.CallFunc();
-                
-                       class User{
-                           int ID;
-                           string Name;
-                       }
-                      let user = new User();
-                      user.ID = 12345;
-                      user.Name = "张三";
-                      return user;
-                    """;
-            singleScriptNode.Script = script;
-            singleScriptNode.LoadScript();
-            var result = await singleScriptNode.ExecutingAsync(new DynamicContext(environment));
-            SereinEnv.WriteLine(InfoType.INFO, result?.ToString());
-        } 
-#endif
 
         private ConcurrentDictionary<SingleFlipflopNode, CancellationTokenSource> dictGlobalFlipflop = [];
 
@@ -403,7 +363,7 @@ namespace Serein.NodeFlow
                             context.SetPreviousNode(nextNodes[i], singleFlipFlopNode);
                             if (nextNodes[i].DebugSetting.IsInterrupt) // 执行触发前
                             {
-                                await nextNodes[i].DebugSetting.GetInterruptTask();
+                                await nextNodes[i].DebugSetting.GetInterruptTask.Invoke();
                                 await Console.Out.WriteLineAsync($"[{nextNodes[i].MethodDetails.MethodName}]中断已取消，开始执行后继分支");
                             }
                             await nextNodes[i].StartFlowAsync(context); // 启动执行触发器后继分支的节点
@@ -421,7 +381,7 @@ namespace Serein.NodeFlow
                             context.SetPreviousNode(nextNodes[i], singleFlipFlopNode);
                             if (nextNodes[i].DebugSetting.IsInterrupt) // 执行触发前
                             {
-                                await nextNodes[i].DebugSetting.GetInterruptTask();
+                                await nextNodes[i].DebugSetting.GetInterruptTask.Invoke();
                                 await Console.Out.WriteLineAsync($"[{nextNodes[i].MethodDetails.MethodName}]中断已取消，开始执行后继分支");
                             }
                             await nextNodes[i].StartFlowAsync(context); // 启动执行触发器后继分支的节点
@@ -448,12 +408,14 @@ namespace Serein.NodeFlow
 
         }
 
-
+        /// <summary>
+        /// 结束流程
+        /// </summary>
         public void Exit()
         {
             ExitAction?.Invoke();
-        }
 
+        }
 
     }
 }

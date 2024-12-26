@@ -69,6 +69,16 @@ namespace Serein.NodeFlow.Env
             NodeMVVMManagement.RegisterModel(NodeControlType.GlobalData, typeof(SingleGlobalDataNode));  // 全局数据节点
             NodeMVVMManagement.RegisterModel(NodeControlType.Script, typeof(SingleScriptNode)); // 脚本节点
             #endregion
+
+            #region 注册基本服务类
+            PersistennceInstance.Add(typeof(FlowInterruptTool).FullName, new FlowInterruptTool()); // 缓存流程实例
+            PersistennceInstance.Add(typeof(IFlowEnvironment).FullName, (FlowEnvironment)this); // 缓存流程实例
+            PersistennceInstance.Add(typeof(ISereinIOC).FullName, this); // 缓存容器服务
+            PersistennceInstance.Add(typeof(UIContextOperation).FullName, uiContextOperation); // 缓存封装好的UI线程上下文
+
+            ReRegisterPersistennceInstance(); 
+            
+            #endregion
         }
 
         #region 远程管理
@@ -304,6 +314,11 @@ namespace Serein.NodeFlow.Env
         private readonly SereinIOC sereinIOC;
 
         /// <summary>
+        /// 本地运行环境缓存的持久化实例
+        /// </summary>
+        private Dictionary<string, object> PersistennceInstance { get; } = new Dictionary<string, object>();
+
+        /// <summary>
         /// 环境加载的节点集合
         /// Node Guid - Node Model
         /// </summary>
@@ -376,34 +391,23 @@ namespace Serein.NodeFlow.Env
         /// <returns></returns>
         public async Task<bool> StartFlowAsync()
         {
-            flowStarter = new FlowStarter();
+            flowStarter ??= new FlowStarter();
             var nodes = NodeModels.Values.ToList();
-
-           
 
             List<MethodDetails> initMethods = this.FlowLibraryManagement.GetMdsOnFlowStart(NodeType.Init);
             List<MethodDetails> loadMethods = this.FlowLibraryManagement.GetMdsOnFlowStart(NodeType.Loading);
             List<MethodDetails> exitMethods = this.FlowLibraryManagement.GetMdsOnFlowStart(NodeType.Exit);
             Dictionary<RegisterSequence, List<Type>> autoRegisterTypes = this.FlowLibraryManagement.GetaAutoRegisterType();
 
-
-            IOC.Reset(); // 开始运行时清空ioc中注册的实例
-
-            IOC.Register<IScriptFlowApi, ScriptFlowApi>(); // 注册脚本接口
-            IOC.CustomRegisterInstance(typeof(IFlowEnvironment).FullName, this); // 注册流程实例
-            if (this.UIContextOperation is not null)
-            {
-                // 注册封装好的UI线程上下文
-                IOC.CustomRegisterInstance(typeof(UIContextOperation).FullName, this.UIContextOperation, false);
-            }
-            _ = Task.Run(async () =>
-            {
-                await flowStarter.RunAsync(this, nodes, autoRegisterTypes, initMethods, loadMethods, exitMethods);
-                if (FlipFlopState == RunState.Completion)
-                {
-                    await ExitFlowAsync(); // 未运行触发器时，才会调用结束方法
-                }
-            });
+            IOC.Reset();
+            await flowStarter.RunAsync(this, nodes, autoRegisterTypes, initMethods, loadMethods, exitMethods);
+            //_ = Task.Run(async () =>
+            //{
+            //    //if (FlipFlopState == RunState.Completion)
+            //    //{
+            //    //    await ExitFlowAsync(); // 未运行触发器时，才会调用结束方法
+            //    //}
+            //});
             return true;
             
             
@@ -466,6 +470,7 @@ namespace Serein.NodeFlow.Env
         {
             flowStarter?.Exit();
             UIContextOperation?.Invoke(() => OnFlowRunComplete?.Invoke(new FlowEventArgs()));
+            IOC.Reset();
             flowStarter = null;
             GC.Collect();
             return Task.FromResult(true);
@@ -829,7 +834,10 @@ namespace Serein.NodeFlow.Env
                     foreach (var toNodeGuid in item.toNodeGuids)
                     {
                         var toNodeModel = GuidToModel(toNodeGuid);
-                        if (toNodeModel is null) continue;
+                        if (toNodeModel is null) {
+                            // 防御性代码，加载正常保存的项目文件不会进入这里
+                            continue;
+                        };
                         var isSuccessful = ConnectInvokeOfNode(fromNodeModel, toNodeModel, item.connectionType); // 加载时确定节点间的连接关系
                     }
                 }
@@ -1397,29 +1405,6 @@ namespace Serein.NodeFlow.Env
 
 
         /// <summary>
-        /// 添加或更新全局数据
-        /// </summary>
-        /// <param name="keyName">数据名称</param>
-        /// <param name="data">数据集</param>
-        /// <returns></returns>
-        public object AddOrUpdateGlobalData(string keyName, object data)
-        {
-            SereinEnv.AddOrUpdateFlowGlobalData(keyName, data);
-            return data;
-        }
-
-        /// <summary>
-        /// 获取全局数据
-        /// </summary>
-        /// <param name="keyName">数据名称</param>
-        /// <returns></returns>
-        public object? GetGlobalData(string keyName)
-        {
-            return SereinEnv.GetFlowGlobalData(keyName);
-        }
-
-
-        /// <summary>
         /// 运行时加载
         /// </summary>
         /// <param name="file">文件名</param>
@@ -1796,6 +1781,20 @@ namespace Serein.NodeFlow.Env
 
         //}
 
+        /// <summary>
+        /// 向容器登记缓存的持久化实例
+        /// </summary>
+        private void ReRegisterPersistennceInstance()
+        {
+            lock (PersistennceInstance)
+            {
+                foreach (var kvp in PersistennceInstance)
+                {
+                    IOC.RegisterPersistennceInstance(kvp.Key, kvp.Value);
+                } 
+            }
+        }
+
         #endregion
 
         #region 视觉效果
@@ -1819,6 +1818,7 @@ namespace Serein.NodeFlow.Env
         ISereinIOC ISereinIOC.Reset()
         {
             sereinIOC.Reset();
+            ReRegisterPersistennceInstance(); // 重置后重新登记
             return this;
         }
 
@@ -1866,10 +1866,17 @@ namespace Serein.NodeFlow.Env
         }
 
 
-        bool ISereinIOC.CustomRegisterInstance(string key, object instance, bool needInjectProperty)
+        bool ISereinIOC.RegisterPersistennceInstance(string key, object instance)
         {
-            return sereinIOC.CustomRegisterInstance(key, instance, needInjectProperty);
+            PersistennceInstance.TryAdd(key, instance); // 记录需要持久化的实例
+            return sereinIOC.RegisterPersistennceInstance(key, instance);
         }
+        
+        bool ISereinIOC.RegisterInstance(string key, object instance)
+        {
+            return sereinIOC.RegisterInstance(key, instance);
+        }
+
 
         object ISereinIOC.Instantiate(Type type)
         {

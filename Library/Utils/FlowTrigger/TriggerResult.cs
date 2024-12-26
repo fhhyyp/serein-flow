@@ -76,18 +76,18 @@ namespace Serein.Library.Utils
     /// 使用 ObjectPool 来复用 TriggerResult 对象
     /// </summary>
       // 示例 TriggerResult 对象池
-    public class TriggerResultPool
+    public class TriggerResultPool<TResult>
     {
-        private readonly ConcurrentExpandingObjectPool<TriggerResult<object>> _objectPool;
+        private readonly ConcurrentExpandingObjectPool<TriggerResult<TResult>> _objectPool;
 
         public TriggerResultPool(int defaultCapacity = 30)
         {
-            _objectPool = new ConcurrentExpandingObjectPool<TriggerResult<object>>(defaultCapacity);
+            _objectPool = new ConcurrentExpandingObjectPool<TriggerResult<TResult>>(defaultCapacity);
         }
 
-        public TriggerResult<object> Get() => _objectPool.Get();
+        public TriggerResult<TResult> Get() => _objectPool.Get();
 
-        public void Return(TriggerResult<object> result) => _objectPool.Return(result);
+        public void Return(TriggerResult<TResult> result) => _objectPool.Return(result);
     }
 
 

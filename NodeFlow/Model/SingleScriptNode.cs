@@ -141,12 +141,23 @@ namespace Serein.NodeFlow.Model
         public override async Task<object?> ExecutingAsync(IDynamicContext context)
         {
             var @params =  await GetParametersAsync(context);
-            ScriptFlowApi.Context= context; 
+            //dynamic obj = ((object[])@params[0])[0];
+            //try
+            //{
+            //    SereinEnv.WriteLine(InfoType.INFO, "Dynamic Object Value ：" + obj.VarInfo);
+            //}
+            //catch (Exception ex)
+            //{
+            //    SereinEnv.WriteLine(ex);
+            //}
+            //ScriptFlowApi.Context = context; // 并发破坏了数据状态
             context.AddOrUpdate($"{context.Guid}_{this.Guid}_Params", @params[0]); // 后面再改
 
             mainNode ??= new SereinScriptParser(Script).Parse();
-             IScriptInvokeContext scriptContext = new ScriptInvokeContext();
+            IScriptInvokeContext scriptContext = new ScriptInvokeContext(context);
+
             var result = await ScriptInterpreter.InterpretAsync(scriptContext, mainNode); // 从入口节点执行
+            //SereinEnv.WriteLine(InfoType.INFO, "FlowContext Guid : " + context.Guid);
             return result;
         }
 

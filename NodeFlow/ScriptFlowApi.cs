@@ -24,11 +24,7 @@ namespace Serein.NodeFlow
         /// </summary>
         public NodeModelBase NodeModel { get; private set; }
 
-        public IDynamicContext? Context{ get; set; }
-
-        private string _paramsKey => $"{Context?.Guid}_{NodeModel.Guid}_Params";
-
-
+      
 
         /// <summary>
         /// 创建流程脚本接口
@@ -46,9 +42,10 @@ namespace Serein.NodeFlow
             throw new NotImplementedException();
         }
 
-        public object? GetArgData(int index)
+        public object? GetArgData(IDynamicContext context, int index)
         {
-            var obj = Context?.GetFlowData(_paramsKey);
+            var _paramsKey = $"{context?.Guid}_{NodeModel.Guid}_Params";
+            var obj = context?.GetFlowData(_paramsKey);
             if (obj is object[] @params && index < @params.Length)
             {
                 return @params[index];
@@ -57,9 +54,9 @@ namespace Serein.NodeFlow
         }
 
 
-        public object? GetFlowData()
+        public object? GetFlowData(IDynamicContext context)
         {
-            return Context?.GetFlowData(NodeModel.Guid);
+            return context?.GetFlowData(NodeModel.Guid);
         }
 
         public object? GetGlobalData(string keyName)

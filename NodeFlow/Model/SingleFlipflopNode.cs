@@ -27,7 +27,7 @@ namespace Serein.NodeFlow.Model
             if (DebugSetting.IsInterrupt) // 执行触发前
             {
                 string guid = this.Guid.ToString();
-                await this.DebugSetting.GetInterruptTask();
+                await this.DebugSetting.GetInterruptTask.Invoke();
                 await Console.Out.WriteLineAsync($"[{this.MethodDetails.MethodName}]中断已取消，开始执行后继分支");
             }
             #endregion

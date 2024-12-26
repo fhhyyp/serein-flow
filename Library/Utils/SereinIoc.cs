@@ -107,12 +107,20 @@ namespace Serein.Library.Utils
         #region 通过名称记录或获取一个实例
 
         /// <summary>
-        /// 指定key值注册一个已经实例化的实例对象
+        /// 指定key值注册一个已经实例化的实例对象，并持久化储存
         /// </summary>
         /// <param name="key"></param>
         /// <param name="instance"></param>
-        /// <param name="needInjectProperty"></param>
-        public bool CustomRegisterInstance(string key, object instance, bool needInjectProperty = true)
+        public bool RegisterInstance(string key, object instance)
+        {
+            return  RegisterPersistennceInstance(key, instance);
+        }
+        /// <summary>
+        /// 指定key值注册一个已经实例化的实例对象，并持久化储存
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="instance"></param>
+        public bool RegisterPersistennceInstance(string key, object instance)
         {
             // 不存在时才允许创建
             if (_dependencies.ContainsKey(key))
@@ -120,11 +128,11 @@ namespace Serein.Library.Utils
                 return false;
             }
             _dependencies.TryAdd(key, instance);
-            if (needInjectProperty)
-            {
-                InjectDependencies(instance); // 注入实例需要的依赖项
-            }
-            InjectUnfinishedDependencies(key, instance); // 检查是否存在其它实例需要该类型
+            //if (needInjectProperty)
+            //{
+            //    InjectDependencies(instance); // 注入实例需要的依赖项
+            //}
+            //InjectUnfinishedDependencies(key, instance); // 检查是否存在其它实例需要该类型
             OnIOCMembersChanged?.Invoke(new IOCMembersChangedEventArgs(key, instance));
             return true;
         }

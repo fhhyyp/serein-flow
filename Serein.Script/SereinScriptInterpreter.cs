@@ -26,6 +26,7 @@ namespace Serein.Script
     /// </summary>
     public interface IScriptInvokeContext
     {
+        IDynamicContext FlowContext { get; }
         /// <summary>
         /// 是否该退出了
         /// </summary>
@@ -61,6 +62,13 @@ namespace Serein.Script
 
     public class ScriptInvokeContext : IScriptInvokeContext
     {
+        public ScriptInvokeContext(IDynamicContext dynamicContext)
+        {
+            FlowContext = dynamicContext;
+        }
+
+        public IDynamicContext FlowContext{ get; }
+
         /// <summary>
         /// 定义的变量
         /// </summary>
@@ -75,6 +83,7 @@ namespace Serein.Script
         /// 是否严格检查 Null 值 （禁止使用 Null）
         /// </summary>
         public bool IsCheckNullValue { get; set; }
+
 
         object IScriptInvokeContext.GetVarValue(string varName)
         {
@@ -309,6 +318,11 @@ namespace Serein.Script
         }
         private async Task<object> InterpretFunctionCallAsync(IScriptInvokeContext context, FunctionCallNode functionCallNode)
         {
+            if (functionCallNode.FunctionName.Equals("GetFlowContext", StringComparison.OrdinalIgnoreCase))
+            {
+                return context.FlowContext;
+            }
+
             // 评估函数参数
             var arguments = new object?[functionCallNode.Arguments.Count];
             for (int i = 0; i < functionCallNode.Arguments.Count; i++)
@@ -320,6 +334,7 @@ namespace Serein.Script
             var funcName = functionCallNode.FunctionName;
 
             object? instance = null; // 静态方法不需要传入实例，所以可以传入null 
+
 
             // 查找并执行对应的函数
             if (_functionTable.TryGetValue(funcName, out DelegateDetails? function))

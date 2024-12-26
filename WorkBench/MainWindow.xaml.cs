@@ -2904,11 +2904,7 @@ namespace Serein.Workbench
                     //var t = guids.Select(kvp => (kvp.Key, kvp.Value)).ToArray();
                     //var result = flashText.ReplaceWords(jsonText, t);
 
-                    
-
-
-
-                    StringBuilder sb = new StringBuilder(jsonText);
+                     StringBuilder sb = new StringBuilder(jsonText);
                      foreach (var kv in guids)
                      {
                          sb.Replace(kv.Key, kv.Value);

@@ -8,7 +8,6 @@ using Net462DllTest.Signal;
 using Net462DllTest.Utils;
 using Serein.Library;
 using Serein.Library.Utils;
-using Serein.Library.Utils.FlowTrigger;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;

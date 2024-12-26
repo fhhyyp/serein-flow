@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using Serein.Library.Utils;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
@@ -33,52 +35,67 @@ namespace Serein.Library
         private bool _isEnable = true;
 
         /// <summary>
-        ///  中断级别，暂时停止继续执行后继分支。
+        ///  是否中断节点。
         /// </summary>
-        //[PropertyInfo]
-        //private InterruptClass _interruptClass = InterruptClass.None;
-
-        /// <summary>
-        ///  中断级别，暂时停止继续执行后继分支。
-        /// </summary>
-        [PropertyInfo(IsNotification = true, CustomCodeAtEnd = "// NodeModel?.Env?.SetNodeInterruptAsync(NodeModel?.Guid, value);")] // CustomCode = "NodeModel?.Env?.SetNodeInterruptAsync(NodeModel?.Guid, value);"
+        [PropertyInfo(IsNotification = true, CustomCodeAtEnd = "ChangeInterruptState(value);")] // CustomCode = "NodeModel?.Env?.SetNodeInterruptAsync(NodeModel?.Guid, value);"
         private bool _isInterrupt = false;
 
+    }
+
+    /// <summary>
+    /// 节点中断
+    /// </summary>
+    public partial class NodeDebugSetting
+    {
         /// <summary>
         /// 取消中断的回调函数
         /// </summary>
-        [PropertyInfo]
-        private Action _cancelInterruptCallback;
+        private Action _cancelInterrupt { get; set; }
+        /// <summary>
+        /// 取消中断
+        /// </summary>
+        public Action CancelInterrupt => _cancelInterrupt;
+        /// <summary>
+        /// 中断节点
+        /// </summary>
+        public Func<Task> _getInterruptTask;
 
         /// <summary>
-        /// 中断Task（用来中断）
+        /// 获取中断的Task
         /// </summary>
-        [PropertyInfo]
-        private Func<Task> _getInterruptTask;
+        public Func<Task> GetInterruptTask => _getInterruptTask;
 
-    }
-
-   
 
         /// <summary>
-        /// 中断级别，暂时停止继续执行后继分支。
+        /// 改变中断状态
         /// </summary>
-        //public enum InterruptClass
-        //{
-        //    /// <summary>
-        //    /// 不中断
-        //    /// </summary>
-        //    None,
-        //    /// <summary>
-        //    /// 分支中断，中断进入当前节点的分支。
-        //    /// </summary>
-        //    Branch,
-        //    /// <summary>
-        //    /// 全局中断，中断全局所有节点的运行。（暂未实现相关）
-        //    /// </summary>
-        //    Global,
-        //}
+        public void ChangeInterruptState(bool state)
+        {
+            if (state && _getInterruptTask is null)
+            {
+                // 设置获取中断的委托
+                _getInterruptTask = () => NodeModel.Env.IOC.Get<FlowInterruptTool>().WaitTriggerAsync(NodeModel.Guid);
+            }
+            else if (!state)
+            {
+                if (_getInterruptTask is null)
+                {
+
+                }
+                else
+                {
+                    // 设置解除中断的委托
+                    _cancelInterrupt = () => NodeModel.Env.IOC.Get<FlowInterruptTool>().InvokeTrigger(NodeModel.Guid);
+                    _cancelInterrupt.Invoke();
+                    _getInterruptTask = null;
+                }
+               
+            }
+        }
+
+
     }
+}
 
 
 

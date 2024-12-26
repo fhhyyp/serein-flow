@@ -36,6 +36,22 @@ namespace Serein.Library.Api
         ISereinIOC Register<TService, TImplementation>(params object[] parameters) where TImplementation : TService;
 
         /// <summary>
+        /// 指定一个Key登记一个持久化的实例。
+        /// </summary>
+        /// <param name="key">登记使用的名称</param>
+        /// <param name="instance">实例对象</param>
+        /// <returns>是否注册成功</returns>
+        bool RegisterPersistennceInstance(string key, object instance);
+
+        /// <summary>
+        /// 指定一个Key登记一个实例。
+        /// </summary>
+        /// <param name="key">登记使用的名称</param>
+        /// <param name="instance">实例对象</param>
+        /// <returns>是否注册成功</returns>
+        bool RegisterInstance(string key, object instance);
+
+        /// <summary>
         /// 获取类型的实例。如果需要获取的类型以“接口-实现类”的方式注册，请使用接口的类型。
         /// </summary>
         object Get(Type type);
@@ -53,14 +69,7 @@ namespace Serein.Library.Api
         /// <returns></returns>
         T Get<T>(string key);
 
-        /// <summary>
-        /// 指定一个Key登记一个实例。如果实例中需要注入的依赖项，需要将needInjectProperty设置为true。
-        /// </summary>
-        /// <param name="key">注入名称</param>
-        /// <param name="instance">实例对象</param>
-        /// <param name="needInjectProperty">是否需要注入依赖项</param>
-        /// <returns>是否注册成功</returns>
-        bool CustomRegisterInstance(string key, object instance, bool needInjectProperty = true);
+
 
         /// <summary>
         /// <para>创建实例并注入依赖项，不会注册到IOC容器中。</para>

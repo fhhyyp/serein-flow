@@ -714,14 +714,7 @@ namespace Serein.Library.Api
         event EnvOutHandler OnEnvOut;
         #endregion
 
-        #region 流程接口
-
-        /// <summary>
-        /// 设置输出
-        /// </summary>
-        // <param name="output"></param>
-        // <param name="clearMsg"></param>
-        ///void SetConsoleOut(); // Action<string> output, Action clearMsg
+        #region 基本接口
 
         /// <summary>
         /// 输出信息
@@ -730,21 +723,6 @@ namespace Serein.Library.Api
         /// <param name="type"></param>
         void WriteLine(InfoType type, string message, InfoClass @class = InfoClass.Trivial);
 
-        ///// <summary>
-        ///// 使用JSON处理库输出对象信息
-        ///// </summary>
-        ///// <param name="obj"></param>
-        //void WriteLineObjToJson(object obj);
-
-        /// <summary>
-        /// 启动远程服务
-        /// </summary>
-        Task StartRemoteServerAsync(int port = 7525);
-
-        /// <summary>
-        /// 停止远程服务
-        /// </summary>
-        void StopRemoteServer();
 
         /// <summary>
         /// 加载项目文件
@@ -765,46 +743,59 @@ namespace Serein.Library.Api
         Task<SereinProjectData> GetProjectInfoAsync();
 
         /// <summary>
+        /// 从节点信息集合批量加载节点控件
+        /// </summary>
+        /// <param name="nodeInfos">节点集合信息</param>
+        /// <returns></returns>
+        Task LoadNodeInfosAsync(List<NodeInfo> nodeInfos);
+
+
+        #endregion
+
+        #region 远程相关
+        /// <summary>
+        /// 启动远程服务
+        /// </summary>
+        Task StartRemoteServerAsync(int port = 7525);
+
+        /// <summary>
+        /// 停止远程服务
+        /// </summary>
+        void StopRemoteServer();
+
+        /// <summary>
+        /// (适用于远程连接后获取环境的运行状态)获取当前环境的信息
+        /// </summary>
+        /// <returns></returns>
+        Task<FlowEnvInfo> GetEnvInfoAsync();
+
+        /// <summary>
         /// 加载远程环境
         /// </summary>
         /// <param name="addres">远程环境地址</param>
         /// <param name="port">远程环境端口</param>
         /// <param name="token">密码</param>
-        Task<(bool, RemoteMsgUtil)> ConnectRemoteEnv(string addres,int port, string token);
+        Task<(bool, RemoteMsgUtil)> ConnectRemoteEnv(string addres, int port, string token);
 
         /// <summary>
         /// 退出远程环境
         /// </summary>
         void ExitRemoteEnv();
 
-        /// <summary>
-        /// 从文件中加载Dll
-        /// </summary>
-        /// <param name="dllPath"></param>
-        void LoadLibrary(string dllPath);
+
 
         /// <summary>
-        /// 移除DLL
+        /// （用于远程）通知节点属性变更
         /// </summary>
-        /// <param name="assemblyFullName">程序集的名称</param>
-        bool TryUnloadLibrary(string assemblyFullName);
-
-        /// <summary>
-        /// 开始运行
-        /// </summary>
-        Task<bool> StartFlowAsync();
-
-        /// <summary>
-        /// 从选定的节点开始运行
-        /// </summary>
-        /// <param name="startNodeGuid"></param>
+        /// <param name="nodeGuid">节点Guid</param>
+        /// <param name="path">属性路径</param>
+        /// <param name="value">属性值</param>
         /// <returns></returns>
-        Task<bool> StartAsyncInSelectNode(string startNodeGuid);
+        Task NotificationNodeValueChangeAsync(string nodeGuid, string path, object value);
 
-        /// <summary>
-        /// 结束运行
-        /// </summary>
-        Task<bool> ExitFlowAsync();
+        #endregion
+
+        #region 流程节点操作接口
 
         /// <summary>
         /// 移动了某个节点(远程插件使用）
@@ -851,12 +842,7 @@ namespace Serein.Library.Api
                                                  ConnectionArgSourceType argSourceType,
                                                  int argIndex);
 
-        /// <summary>
-        /// 从节点信息集合批量加载节点控件
-        /// </summary>
-        /// <param name="List<NodeInfo>">节点集合信息</param>
-        /// <returns></returns>
-        Task LoadNodeInfosAsync(List<NodeInfo> nodeInfos);
+        
 
         /// <summary>
         /// 创建节点
@@ -865,15 +851,6 @@ namespace Serein.Library.Api
         /// <param name="position">节点在画布上的位置（</param>
         /// <param name="methodDetailsInfo">节点绑定的方法说明</param>
         Task<NodeInfo> CreateNodeAsync(NodeControlType nodeType, PositionOfUI position, MethodDetailsInfo methodDetailsInfo = null);
-
-        ///// <summary>
-        ///// 将节点放置在容器中/从容器中取出
-        ///// </summary>
-        ///// <param name="childNodeGuid">子节点（主要节点）</param>
-        ///// <param name="parentNodeGuid">父节点</param>
-        ///// <param name="isAssembly">是否组合（反之为分解节点组合关系）</param>
-        ///// <returns></returns>
-        //Task<bool> ChangeNodeContainerChildAsync(string childNodeGuid,string parentNodeGuid,bool isAssembly);
 
         /// <summary>
         /// 将节点放置在容器中
@@ -921,23 +898,21 @@ namespace Serein.Library.Api
         Task<bool> RemoveNodeAsync(string nodeGuid);
 
         /// <summary>
-        /// 激活未启动的全局触发器
+        /// 改变可选参数的数目
         /// </summary>
-        /// <param name="nodeGuid"></param>
-        void ActivateFlipflopNode(string nodeGuid);
-
-        /// <summary>
-        /// 终结一个全局触发器，在它触发后将不会再次监听消息（表现为已经启动的触发器至少会再次处理一次消息，后面版本再修正这个非预期行为）
-        /// </summary>
-        /// <param name="nodeGuid"></param>
-        void TerminateFlipflopNode(string nodeGuid);
+        /// <param name="nodeGuid">对应的节点Guid</param>
+        /// <param name="isAdd">true，增加参数；false，减少参数</param>
+        /// <param name="paramIndex">以哪个参数为模板进行拷贝，或删去某个参数（该参数必须为可选参数）</param>
+        /// <returns></returns>
+        Task<bool> ChangeParameter(string nodeGuid, bool isAdd, int paramIndex);
 
 
+        #endregion
 
         #region 节点中断、表达式
 #if false
 
-/// <summary>
+        /// <summary>
         /// 设置节点中断
         /// </summary>
         /// <param name="nodeGuid">更改中断状态的节点Guid</param>
@@ -978,24 +953,7 @@ namespace Serein.Library.Api
 #endif
         #endregion
 
-        /// <summary>
-        /// （用于远程）通知节点属性变更
-        /// </summary>
-        /// <param name="nodeGuid">节点Guid</param>
-        /// <param name="path">属性路径</param>
-        /// <param name="value">属性值</param>
-        /// <returns></returns>
-        Task NotificationNodeValueChangeAsync(string nodeGuid, string path, object value);
-
-        /// <summary>
-        /// 改变可选参数的数目
-        /// </summary>
-        /// <param name="nodeGuid">对应的节点Guid</param>
-        /// <param name="isAdd">true，增加参数；false，减少参数</param>
-        /// <param name="paramIndex">以哪个参数为模板进行拷贝，或删去某个参数（该参数必须为可选参数）</param>
-        /// <returns></returns>
-        Task<bool> ChangeParameter(string nodeGuid, bool isAdd, int paramIndex);
-
+        #region 流程运行相关
 
         /// <summary>
         /// 获取方法描述信息
@@ -1016,17 +974,34 @@ namespace Serein.Library.Api
         bool TryGetDelegateDetails(string assemblyName, string methodName, out DelegateDetails del);
 
 
-        #region 远程相关
         /// <summary>
-        /// (适用于远程连接后获取环境的运行状态)获取当前环境的信息
+        /// 开始运行
         /// </summary>
+        Task<bool> StartFlowAsync();
+
+        /// <summary>
+        /// 从选定的节点开始运行
+        /// </summary>
+        /// <param name="startNodeGuid"></param>
         /// <returns></returns>
-        Task<FlowEnvInfo> GetEnvInfoAsync();
-        #endregion
+        Task<bool> StartAsyncInSelectNode(string startNodeGuid);
 
-        #endregion
+        /// <summary>
+        /// 结束运行
+        /// </summary>
+        Task<bool> ExitFlowAsync();
 
-        #region 启动器调用
+        /// <summary>
+        /// 激活未启动的全局触发器
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        void ActivateFlipflopNode(string nodeGuid);
+
+        /// <summary>
+        /// 终结一个全局触发器，在它触发后将不会再次监听消息（表现为已经启动的触发器至少会再次处理一次消息，后面版本再修正这个非预期行为）
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        void TerminateFlipflopNode(string nodeGuid);
 
         /// <summary>
         /// 流程启动器调用，监视数据更新通知
@@ -1054,31 +1029,19 @@ namespace Serein.Library.Api
 
         #endregion
 
-        #region 流程运行时
-
-        #region 全局数据/方法信息
-
+        #region 类库依赖相关
 
         /// <summary>
-        /// 添加或更新全局数据
+        /// 从文件中加载Dll
         /// </summary>
-        /// <param name="keyName">数据名称</param>
-        /// <param name="data">数据集</param>
-        /// <returns></returns>
-        object AddOrUpdateGlobalData(string keyName, object data);
+        /// <param name="dllPath"></param>
+        void LoadLibrary(string dllPath);
 
         /// <summary>
-        /// 获取全局数据
+        /// 移除DLL
         /// </summary>
-        /// <param name="keyName">数据名称</param>
-        /// <returns></returns>
-        object GetGlobalData(string keyName);
-
-        #endregion
-
-
-        #region 加载依赖
-
+        /// <param name="assemblyFullName">程序集的名称</param>
+        bool TryUnloadLibrary(string assemblyFullName);
         /// <summary>
         /// 运行时加载
         /// </summary>
@@ -1093,7 +1056,6 @@ namespace Serein.Library.Api
         /// <param name="isRecurrence">是否递归加载</param>
         void LoadAllNativeLibraryOfRuning(string path, bool isRecurrence = true);
 
-        #endregion
         #endregion
 
         #region UI视觉

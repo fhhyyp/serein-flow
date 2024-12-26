@@ -23,7 +23,7 @@ namespace Serein.Library.Utils
     {
         // 使用并发字典管理每个信号对应的广播列表
         private readonly ConcurrentDictionary<TSignal, Subject<TriggerResult<object>>> _subscribers = new ConcurrentDictionary<TSignal, Subject<TriggerResult<object>>>();
-        private readonly TriggerResultPool _triggerResultPool = new TriggerResultPool();
+        private readonly TriggerResultPool<object> _triggerResultPool = new TriggerResultPool<object>();
         /// <summary>
         /// 获取或创建指定信号的 Subject（消息广播者）
         /// </summary>

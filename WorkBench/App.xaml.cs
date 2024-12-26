@@ -1,36 +1,30 @@
 ﻿using Newtonsoft.Json;
 using Serein.Library;
+using Serein.Library.Utils;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 
 namespace Serein.Workbench
 {
-#if DEBUG
-    public class People
-    {
-        public string Name { get; set; } 
-        public int Id { get; set; } 
-        public int Age { get; set; } 
-    }
-#endif
-
-
 
     /// <summary>
     /// Interaction logic for App.xaml
     /// </summary>
     public partial class App : Application
     {
-        void LoadLocalProject()
+        private async Task LoadLocalProjectAsync()
         {
+
 #if DEBUG 
             if (1 == 1)
             {
-                // 这里是我自己的测试代码，你可以删除
+                // 这里是测试代码，可以删除
                 string filePath;
                 filePath = @"C:\Users\Az\source\repos\CLBanyunqiState\CLBanyunqiState\bin\Release\net8.0\PLCproject.dnf";
                 filePath = @"C:\Users\Az\source\repos\CLBanyunqiState\CLBanyunqiState\bin\Release\banyunqi\project.dnf";
                 filePath = @"C:\Users\Az\source\repos\CLBanyunqiState\CLBanyunqiState\bin\debug\net8.0\project.dnf";
+                //filePath = @"C:\Users\Az\source\repos\CLBanyunqiState\CLBanyunqiState\bin\debug\net8.0\test.dnf";
                 string content = System.IO.File.ReadAllText(filePath); // 读取整个文件内容
                 App.FlowProjectData = JsonConvert.DeserializeObject<SereinProjectData>(content);
                 App.FileDataPath = System.IO.Path.GetDirectoryName(filePath)!;   //  filePath;//
@@ -42,7 +36,7 @@ namespace Serein.Workbench
         public static SereinProjectData? FlowProjectData { get; set; }
         public static string FileDataPath { get; set; } = "";
 
-        private void Application_Startup(object sender, StartupEventArgs e)
+        private async void Application_Startup(object sender, StartupEventArgs e)
         {
             // 检查是否传入了参数
             if (e.Args.Length == 1)
@@ -71,7 +65,7 @@ namespace Serein.Workbench
                 }
                 
             }
-            this.LoadLocalProject();
+            await this.LoadLocalProjectAsync();
 
 
         }
