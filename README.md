@@ -14,6 +14,20 @@ https://space.bilibili.com/33526379
 使用 **NodeAction** 特性标记你的方法。
 * 动作节点 - Action
 * 触发器节点 - Flipflop
+# 关于 IDynamicContext 说明（重要）**
+ * 基本说明：IDynamicContext 是节点之间传递数据的接口、载体，其实例由 FlowEnvironment 运行环境自动实现，内部提供全局单例的环境接口，用以注册、获取实例（单例模式），一般情况下，你无须关注 FlowEnvironment 对外暴露的属性方法。
+ * 重要概念：
+   * 每个节点其实对应类库中的某一个方法，这些方法组合起来，加上预先设置的逻辑分支，就是一个完整的节点流。在这个节点流当中，从第一个节点开始、直到所有可达的节点，都会通过同一个流程上下文传递、共享数据。为了符合多线程操作的理念，每个运行起来的节点流之间，流程数据并不互通，从根本隔绝了“脏数据”的产生。
+ * 一些重要的属性：
+    * RunState - 流程状态：
+      * 简述：枚举，标识流程运行的状态（初始化，运行中，运行完成）
+      * 场景：类库代码中创建了运行时间较长的异步任务、或开辟了另一个线程进行循环操作时，可以在方法入参定义一个 IDynamicContext 类型入参，然后在代码中使用形成闭包，以及时判断流程是否已经结束。另外的，如果想监听项目停止运行，可以订阅 context.Env.OnFlowRunComplete 事件。
+    * NextOrientation - 即将进入的分支：
+     * 简述：流程分支枚举， Upstream（上游分支）、IsSucceed（真分支）、IsFail（假分支），IsError（异常分支）。
+     * 场景：允许你在类库代码中操作该属性，手动控制当前节点运行完成后，下一个会执行哪一个类别的节点。
+   * Exit() - 结束流程
+     * 简述：顾名思义，能够让你在类库代码中提前结束当前流程运行
+
 # 关于 DynamicNodeType 枚举的补充说明。
 ## 1. 不生成节点控件的枚举值：
 * **Init - 初始化方法**
@@ -28,8 +42,6 @@ https://space.bilibili.com/33526379
   * 入参：**IDynamicContext**（有且只有一个参数）。
   * 返回值：自定义，但不会处理返回值，支持异步等待。
   * 描述：当结束/手动结束运行时，会调用所有Dll的Exit方法。使用场景类似于：终止内部的其它线程，通知其它进程关闭，例如停止第三方服务。
-* **关于IDynamicContext说明**
-  * 基本说明：IDynamicContext是动态上下文接口，内部提供全局单例的IFlowEnvironment环境接口，用以注册、获取实例（单例模式），一般情况下，你无须关注IFlowEnvironment对外暴露的属性方法。
 ## 2. 基础节点
 * **Script - 脚本节点**
   * 入参：可选可变
@@ -37,27 +49,30 @@ https://space.bilibili.com/33526379
   * 使用方式：
   ```
   // 定义一个类
-   class Info{
-     string PlcName;
-     string Content;
-     string LogType;
-     DateTime LogTime;
-   }
+  class Info{
+    string PlcName;
+    string Content;
+    string LogType;
+    DateTime LogTime;
+  }
 
    // 获取必要的参数
-   let flow = GetFlowApi(); // 脚本默认挂载的方法，获取当前流程的API
-   let plc = flow.GetGlobalData("JC-PLC"); // 流程API对应的方法，获取全局数据
-   let arg = flow.GetArgData(0); // 获取第一个入参
-   let varInfo = arg.Var; // 获取入参对象的Var属性
-   let data = arg.Data; // 获取入参对象的Data属性
+  let flow = GetFlowApi(); // 脚本默认挂载的方法，获取脚本流程的API
+  let context = GetFlowContext(); // 脚本解释器内置的方法，用以获取当前流程上下文
+  
+  let plc = flow.GetGlobalData("JC-PLC"); // 流程API对应的方法，获取全局数据
+  let arg = flow.GetArgData(context, 0); // 从当前流程上下文获取第一个入参
+  //let arg = flow.GetFlowData(context); // 从当前流程上下文获取运行时上一个节点的返回对象
+  let varInfo = arg.Var; // 获取入参对象的Var属性
+  let data = arg.Data; // 获取入参对象的Data属性
 
-   let log = new Info(); // 创建一个类
-   log.Content =  plc + " " + varInfo + " - 状态 Value  : " + data;
-   log.PlcName = plc.Name;
-   log.LogType = "info";
-   log.LogTime = GetNow(); // 脚本默认挂载的方法，获取当前时间
-   return log; // 返回对象
-   ```
+  let log = new Info(); // 创建一个类
+  log.Content =  plc + " " + varInfo + " - 状态 Value  : " + data;
+  log.PlcName = plc.Name;
+  log.LogType = "info";
+  log.LogTime = GetNow(); // 脚本默认挂载的方法，获取当前时间
+  return log; // 返回对象
+  ```
 * **GlobalData - 全局数据节点**
   * 入参：KeyName ，在整个流程环境中标识某个数据的key值。
   * 描述：有时需要获取其它节点的数据，但如果强行在两个节点之间进行连线，会让项目流程图变得无比丑陋，如果在类库代码中自己对全局数据进行维护，可能也不太优雅，所以引入了全局数据节点（全局变量）
