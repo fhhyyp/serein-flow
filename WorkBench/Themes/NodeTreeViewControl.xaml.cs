@@ -42,7 +42,7 @@ namespace Serein.Workbench.Themes
                 viewer.RefreshTree();
             }
         }
-        public void RemoteGlobalFlipFlop(NodeModelBase nodeModel)
+        public void RemoveGlobalFlipFlop(NodeModelBase nodeModel)
         {
             if (globalFlipflopNodes.TryGetValue(nodeModel.Guid, out var viewer))
             {

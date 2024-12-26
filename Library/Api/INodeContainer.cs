@@ -15,13 +15,13 @@ namespace Serein.Library.Api
         /// 放置一个节点
         /// </summary>
         /// <param name="nodeModel"></param>
-        void PlaceNode(NodeModelBase nodeModel);
+        bool PlaceNode(NodeModelBase nodeModel);
 
         /// <summary>
         /// 取出一个节点
         /// </summary>
         /// <param name="nodeModel"></param>
-        void TakeOutNode(NodeModelBase nodeModel);
+        bool TakeOutNode(NodeModelBase nodeModel);
 
         /// <summary>
         /// 取出所有节点（用于删除容器）

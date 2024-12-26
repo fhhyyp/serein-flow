@@ -6,7 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using static Serein.Library.Utils.ChannelFlowInterrupt;
 
 namespace Serein.Library.Api
 {
@@ -203,7 +202,7 @@ namespace Serein.Library.Api
             /// <summary>
             /// 移除
             /// </summary>
-            Remote,
+            Remove,
         }
 
         /// <summary>
@@ -311,9 +310,9 @@ namespace Serein.Library.Api
         //}
 
         /// <summary>
-        /// 节点Model对象，目前需要手动转换对应的类型
+        /// 节点Model对象
         /// </summary>
-        public object NodeModel { get; private set; }
+        public NodeModelBase NodeModel { get; private set; }
         public PositionOfUI Position { get; private set; }
         //public bool IsAddInRegion { get; private set; }
         public string RegeionGuid { get; private set; }
@@ -934,13 +933,17 @@ namespace Serein.Library.Api
         void TerminateFlipflopNode(string nodeGuid);
 
 
-        /// <summary>
+
+        #region 节点中断、表达式
+#if false
+
+/// <summary>
         /// 设置节点中断
         /// </summary>
         /// <param name="nodeGuid">更改中断状态的节点Guid</param>
         /// <param name="isInterrup">是否中断</param>
         /// <returns></returns>
-        Task<bool> SetNodeInterruptAsync(string nodeGuid,bool isInterrup);
+        Task<bool> SetNodeInterruptAsync(string nodeGuid, bool isInterrup);
 
         /// <summary>
         /// 添加作用于某个对象的中断表达式
@@ -955,7 +958,7 @@ namespace Serein.Library.Api
         /// </summary>
         /// <param name="key">需要监视的对象</param>
         /// <param name="isMonitor">是否启用监视</param>
-        void SetMonitorObjState(string key,bool isMonitor);
+        void SetMonitorObjState(string key, bool isMonitor);
 
         /// <summary>
         /// 检查一个对象是否处于监听状态，如果是，则传出与该对象相关的表达式（用于中断），如果不是，则返回false。
@@ -971,7 +974,9 @@ namespace Serein.Library.Api
         /// <param name="signal"></param>
         /// <param name="interruptClass"></param>
         /// <returns></returns>
-        Task<CancelType> GetOrCreateGlobalInterruptAsync();
+        Task<CancelType> InterruptNode(); 
+#endif
+        #endregion
 
         /// <summary>
         /// （用于远程）通知节点属性变更

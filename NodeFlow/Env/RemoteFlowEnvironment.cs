@@ -12,8 +12,6 @@ using System.Threading.Channels;
 
 namespace Serein.NodeFlow.Env
 {
-
-
     /// <summary>
     /// 远程流程环境
     /// </summary>
@@ -638,7 +636,7 @@ namespace Serein.NodeFlow.Env
                                                                             toNodeGuid,
                                                                             JunctionOfConnectionType.Invoke,
                                                                             invokeType,
-                                                                            NodeConnectChangeEventArgs.ConnectChangeType.Remote));
+                                                                            NodeConnectChangeEventArgs.ConnectChangeType.Remove));
                 });
             }
             return result;
@@ -667,7 +665,7 @@ namespace Serein.NodeFlow.Env
                                                                                JunctionOfConnectionType.Arg,
                                                                                argIndex,
                                                                                ConnectionArgSourceType.GetPreviousNodeData,
-                                                                               NodeConnectChangeEventArgs.ConnectChangeType.Remote)); // 通知UI
+                                                                               NodeConnectChangeEventArgs.ConnectChangeType.Remove)); // 通知UI
                 });
             }
             return result;
@@ -819,7 +817,20 @@ namespace Serein.NodeFlow.Env
             });
             if (isSuuccess)
             {
-                OnNodePlace?.Invoke(new NodePlaceEventArgs(nodeGuid, containerNodeGuid)); // 通知UI更改节点放置位置
+                var nodeModel = GuidToModel(nodeGuid); // 获取目标节点
+                if (nodeModel is null) return false; 
+                var containerNode = GuidToModel(containerNodeGuid); // 获取容器节点
+                if (containerNode is not INodeContainer nodeContainer) return false;
+                var result = nodeContainer.PlaceNode(nodeModel);
+                if (result)
+                {
+                    // 通知UI更改
+                    UIContextOperation.Invoke(() =>
+                    {
+                        OnNodePlace?.Invoke(new NodePlaceEventArgs(nodeGuid, containerNodeGuid)); // 通知UI更改节点放置位置
+                    });
+                }
+                return result;
             }
             return isSuuccess;
         }
@@ -836,7 +847,22 @@ namespace Serein.NodeFlow.Env
             });
             if (isSuuccess) 
             {
-                OnNodeTakeOut?.Invoke(new NodeTakeOutEventArgs(nodeGuid)); // 重新放置在画布上
+                var nodeModel = GuidToModel(nodeGuid); // 获取目标节点
+                if (nodeModel is null) return false;
+                if (nodeModel.ContainerNode is not INodeContainer nodeContainer)
+                {
+                    return false;
+                }
+                var result = nodeContainer.TakeOutNode(nodeModel); // 从容器节点取出
+                if (result)
+                {
+                    // 通知UI更改
+                    UIContextOperation.Invoke(() =>
+                    {
+                        OnNodeTakeOut?.Invoke(new NodeTakeOutEventArgs(nodeGuid)); // 重新放置在画布上
+                    });
+                }
+                return result;
             }
             return isSuuccess;
         }
@@ -1027,7 +1053,20 @@ namespace Serein.NodeFlow.Env
 
         #region 私有方法
 
-
+        private NodeModelBase? GuidToModel(string nodeGuid)
+        {
+            if (string.IsNullOrEmpty(nodeGuid))
+            {
+                //throw new ArgumentNullException("not contains - Guid没有对应节点:" + (nodeGuid));
+                return null;
+            }
+            if (!NodeModels.TryGetValue(nodeGuid, out NodeModelBase? nodeModel) || nodeModel is null)
+            {
+                //throw new ArgumentNullException("null - Guid存在对应节点,但节点为null:" + (nodeGuid));
+                return null;
+            }
+            return nodeModel;
+        }
         private bool TryAddNode(NodeModelBase nodeModel)
         {
             NodeModels[nodeModel.Guid] = nodeModel;
@@ -1190,11 +1229,7 @@ namespace Serein.NodeFlow.Env
             return null;
         }
 
-        public async Task<ChannelFlowInterrupt.CancelType> GetOrCreateGlobalInterruptAsync()
-        {
-            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：GetOrCreateGlobalInterruptAsync");
-            return ChannelFlowInterrupt.CancelType.Error;
-        }
+       
 
         public bool TryGetMethodDetailsInfo(string libraryName, string methodName, out MethodDetailsInfo mdInfo)
         {

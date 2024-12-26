@@ -403,8 +403,8 @@ namespace Serein.NodeFlow
                             context.SetPreviousNode(nextNodes[i], singleFlipFlopNode);
                             if (nextNodes[i].DebugSetting.IsInterrupt) // 执行触发前
                             {
-                                var cancelType = await nextNodes[i].DebugSetting.GetInterruptTask();
-                                await Console.Out.WriteLineAsync($"[{nextNodes[i].MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");
+                                await nextNodes[i].DebugSetting.GetInterruptTask();
+                                await Console.Out.WriteLineAsync($"[{nextNodes[i].MethodDetails.MethodName}]中断已取消，开始执行后继分支");
                             }
                             await nextNodes[i].StartFlowAsync(context); // 启动执行触发器后继分支的节点
                         }
@@ -421,8 +421,8 @@ namespace Serein.NodeFlow
                             context.SetPreviousNode(nextNodes[i], singleFlipFlopNode);
                             if (nextNodes[i].DebugSetting.IsInterrupt) // 执行触发前
                             {
-                                var cancelType = await nextNodes[i].DebugSetting.GetInterruptTask();
-                                await Console.Out.WriteLineAsync($"[{nextNodes[i].MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");
+                                await nextNodes[i].DebugSetting.GetInterruptTask();
+                                await Console.Out.WriteLineAsync($"[{nextNodes[i].MethodDetails.MethodName}]中断已取消，开始执行后继分支");
                             }
                             await nextNodes[i].StartFlowAsync(context); // 启动执行触发器后继分支的节点
                         }
@@ -442,7 +442,7 @@ namespace Serein.NodeFlow
                 catch (Exception ex)
                 {
                     SereinEnv.WriteLine(InfoType.ERROR, $"触发器[{singleFlipFlopNode.Guid}]异常。"+ ex.Message);
-                    await Task.Delay(100);
+                    await Task.Delay(1000);
                 }
             }
 

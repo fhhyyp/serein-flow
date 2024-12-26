@@ -23,7 +23,7 @@ namespace Serein.NodeFlow.Model
         /// <summary>
         /// 表达式
         /// </summary>
-        [PropertyInfo(IsNotification = true, CustomCodeAtStart = "ChangeName(value);")] 
+        [PropertyInfo(IsNotification = true, CustomCodeAtStart = "// ChangeName(value);")] 
         private string _keyName;
 
     }
@@ -52,41 +52,50 @@ namespace Serein.NodeFlow.Model
         private NodeModelBase? DataNode;
 
 
-        public void PlaceNode(NodeModelBase nodeModel)
+        public bool PlaceNode(NodeModelBase nodeModel)
         {
-            // 全局数据节点只有一个子控件
-            if (DataNode is not null)
+            if(DataNode is null)
             {
-                _ = Task.Run(async () =>
-                {
-                    await this.Env.RemoveNodeAsync(DataNode?.Guid);
-                    DataNode = nodeModel;
-                });
+                // 放置节点
+                nodeModel.ContainerNode = this;  
+                ChildrenNode.Add(nodeModel);
+                DataNode = nodeModel;
+                return true;
             }
             else
             {
-                DataNode = nodeModel;
+                // 全局数据节点只有一个子控件
+                return false;
             }
+
+            
         }
 
-        public void TakeOutAll()
+
+        public bool TakeOutNode(NodeModelBase nodeModel)
         {
+            if (ChildrenNode.Contains(nodeModel))
+            {
+                ChildrenNode.Remove(nodeModel);
+                nodeModel.ContainerNode = null;
+                DataNode = null;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+            
+        }
+
+        public async void TakeOutAll()
+        {
+            foreach (var nodeModel in ChildrenNode) 
+            {
+                await nodeModel.Env.TakeOutNodeToContainerAsync(nodeModel.Guid);
+            }
             DataNode = null;
         }
-
-        public void TakeOutNode(NodeModelBase nodeModel)
-        {
-            DataNode = null;
-        }
-
-        /// <summary>
-        /// 设置数据节点
-        /// </summary>
-        /// <param name="dataNode"></param>
-        //public void SetDataNode(NodeModelBase dataNode)
-        //{
-        //    DataNodeGuid = dataNode.Guid;
-        //}
 
         private void ChangeName(string newName)
         {

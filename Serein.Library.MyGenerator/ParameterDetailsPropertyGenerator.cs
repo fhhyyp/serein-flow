@@ -125,7 +125,7 @@ namespace Serein.Library.NodeGenerator
             sb.AppendLine($"using System.Collections.Generic;");
             sb.AppendLine($"using Serein.Library;");
             sb.AppendLine($"using Serein.Library.Api;");
-            sb.AppendLine($"using static Serein.Library.Utils.ChannelFlowInterrupt;");
+            //sb.AppendLine($"using static Serein.Library.Utils.ChannelFlowInterrupt;");
             sb.AppendLine($"");
             sb.AppendLine($"namespace {namespaceName}");
             sb.AppendLine("{");

@@ -16,7 +16,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
-using static Serein.Library.Utils.ChannelFlowInterrupt;
 
 namespace Serein.Library
 {
@@ -366,16 +365,15 @@ namespace Serein.Library
         /// <returns>节点传回数据对象</returns>
         public virtual async Task<object> ExecutingAsync(IDynamicContext context)
         {
-            if(context.NextOrientation == ConnectionInvokeType.IsError)
-            {
-                Console.WriteLine("");
-            }
+            //if(context.NextOrientation == ConnectionInvokeType.IsError)
+            //{
+            //}
             #region 调试中断
 
             if (DebugSetting.IsInterrupt) // 执行触发检查是否需要中断
             {
-                var cancelType = await this.DebugSetting.GetInterruptTask(); // 等待中断结束
-                await Console.Out.WriteLineAsync($"[{this.MethodDetails?.MethodName}]中断已{cancelType}，开始执行后继分支");
+                //var cancelType = await this.DebugSetting.GetInterruptTask(); // 等待中断结束
+                await Console.Out.WriteLineAsync($"[{this.MethodDetails?.MethodName}]中断已取消，开始执行后继分支");
             }
 
             #endregion
@@ -394,7 +392,7 @@ namespace Serein.Library
                 md.ActingInstance = context.Env.IOC.Get(md.ActingInstanceType);
             }
 
-            object[] args = await GetParametersAsync(context, this);
+            object[] args = await GetParametersAsync(context);
             var result = await dd.InvokeAsync(md.ActingInstance, args);
             return result;
 
@@ -403,295 +401,49 @@ namespace Serein.Library
         /// <summary>
         /// 获取对应的参数数组
         /// </summary>
-        public static async Task<object[]> GetParametersAsync(IDynamicContext context,
-                                                              NodeModelBase nodeModel)
+        public async Task<object[]> GetParametersAsync(IDynamicContext context)
         {
-            // 用正确的大小初始化参数数组
-            var md = nodeModel.MethodDetails;
-            if (md.ParameterDetailss.Length == 0)
+            if (MethodDetails.ParameterDetailss.Length == 0)
             {
-                return null;// md.ActingInstance
+                return new object[0];// md.ActingInstance
             }
 
-            object[] parameters;
+            object[] args;
             Array paramsArgs = null; // 初始化可选参数
             int paramsArgIndex = 0; // 可选参数下标，与 object[] paramsArgs 一起使用
-            
-            if (md.ParamsArgIndex >= 0) 
+            if (MethodDetails.ParamsArgIndex >= 0) // 存在可变入参参数
             {
-                // 存在可变入参参数
-                var paramsArgType = md.ParameterDetailss[md.ParamsArgIndex].DataType; // 获取可变参数的参数类型
-                // 可变参数数组长度 = 方法参数个数 - （ 可选入参下标 + 1 ）
-                int paramsLength = md.ParameterDetailss.Length - md.ParamsArgIndex;
+                var paramsArgType = MethodDetails.ParameterDetailss[MethodDetails.ParamsArgIndex].DataType; // 获取可变参数的参数类型
+                int paramsLength = MethodDetails.ParameterDetailss.Length - MethodDetails.ParamsArgIndex;  // 可变参数数组长度 = 方法参数个数 - （ 可选入参下标 + 1 ）
                 paramsArgs = Array.CreateInstance(paramsArgType, paramsLength);// 可变参数
-                parameters = new object[md.ParamsArgIndex+1]; // 调用方法的入参数组
-                parameters[md.ParamsArgIndex] = paramsArgs; // 如果存在可选参数，入参参数最后一项则为可变参数
+                args = new object[MethodDetails.ParamsArgIndex + 1]; // 调用方法的入参数组
+                args[MethodDetails.ParamsArgIndex] = paramsArgs; // 如果存在可选参数，入参参数最后一项则为可变参数
             }
             else
             {
                 // 不存在可选参数
-                parameters = new object[md.ParameterDetailss.Length]; // 调用方法的入参数组
+                args = new object[MethodDetails.ParameterDetailss.Length]; // 调用方法的入参数组
             }
 
-            bool hasParams = false;
-            for (int i = 0; i < md.ParameterDetailss.Length; i++)
+            for (int i = 0; i < args.Length; i++) {
+                var pd = MethodDetails.ParameterDetailss[i];
+                args[i] = await pd.ToMethodArgData(context); // 获取数据
+            }
+
+            if(MethodDetails.ParamsArgIndex >= 0)
             {
-                var pd = md.ParameterDetailss[i]; // 方法入参描述
-                var argDataType = pd.DataType;
-
-                // 入参参数下标循环到可选参数时，开始写入到可选参数数组
-                if (paramsArgs != null && i >= md.ParamsArgIndex)
+                for (int i = 0; i < paramsArgs.Length; i++)
                 {
-                    // 控制参数赋值方向：
-                    // true  => paramsArgs
-                    // false => parameters
-                    hasParams = true;
+                    var pd = MethodDetails.ParameterDetailss[paramsArgIndex + i];
+                    var data = await pd.ToMethodArgData(context); // 获取数据
+                    paramsArgs.SetValue(data, i);// 设置到数组中
                 }
-
-                #region 获取基础的上下文数据
-                if (argDataType == typeof(IFlowEnvironment)) // 获取流程上下文
-                {
-                    parameters[i] = nodeModel.Env;
-                    continue;
-                }
-                if (argDataType == typeof(IDynamicContext)) // 获取流程上下文
-                {
-                    parameters[i] = context;
-                    continue;
-                } 
-                #endregion
-
-                #region 确定[预入参]数据
-                object inputParameter; // 存放解析的临时参数
-                if (pd.IsExplicitData && !pd.DataValue.StartsWith("@", StringComparison.OrdinalIgnoreCase)) // 判断是否使用显示的输入参数
-                {
-                    // 使用输入的固定值
-                    inputParameter = pd.DataValue;
-                }
-                else
-                {
-                    #region （默认的）从运行时上游节点获取其返回值
-                    if (pd.ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData)
-                    {
-                        var previousNode = context.GetPreviousNode(nodeModel);
-                        if (previousNode is null)
-                        {
-                            inputParameter = null;
-                        }
-                        else
-                        {
-                            inputParameter = context.GetFlowData(previousNode.Guid); // 当前传递的数据
-                        }
-                    }
-                    #endregion
-                    #region  从指定节点获取其返回值
-                    else if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
-                    {
-                        // 获取指定节点的数据
-                        // 如果指定节点没有被执行，会返回null
-                        // 如果执行过，会获取上一次执行结果作为预入参数据
-                        inputParameter = context.GetFlowData(pd.ArgDataSourceNodeGuid);
-                    }
-                    #endregion
-                    #region 立刻执行指定节点，然后获取返回值
-                    else if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke)
-                    {
-                        // 立刻调用对应节点获取数据。
-                        try
-                        {
-                            var result = await context.Env.InvokeNodeAsync(context, pd.ArgDataSourceNodeGuid);
-                            inputParameter = result;
-                        }
-                        catch (Exception ex)
-                        {
-                            context.NextOrientation = ConnectionInvokeType.IsError;
-                            context.ExceptionOfRuning = ex;
-                            throw;
-                        }
-                    }
-                    #endregion
-                    #region 意料之外的参数
-                    else
-                    {
-                        throw new Exception("节点执行方法获取入参参数时，ConnectionArgSourceType枚举是意外的枚举值");
-                    } 
-                    #endregion
-                }
-
-                
-
-                #region 处理 @Get / @DTC 表达式 （Data type conversion） / @Data (全局数据)
-                if (pd.IsExplicitData)
-                {
-
-                    // @Get 表达式 （从上一节点获取对象）
-                    if (pd.DataValue.StartsWith("@get", StringComparison.OrdinalIgnoreCase))
-                    {
-                        inputParameter = SerinExpressionEvaluator.Evaluate(pd.DataValue, inputParameter, out _);
-                    }
-
-                    // @DTC 表达式 （Data type conversion）
-                    if (pd.DataValue.StartsWith("@dtc", StringComparison.OrdinalIgnoreCase))
-                    {
-                        inputParameter = SerinExpressionEvaluator.Evaluate(pd.DataValue, inputParameter, out _);
-                    }
-
-                    // @Data 表达式 （获取全局数据）
-                    if (pd.DataValue.StartsWith("@data", StringComparison.OrdinalIgnoreCase))
-                    {
-                        inputParameter = SerinExpressionEvaluator.Evaluate(pd.DataValue, inputParameter, out _);
-                    }
-
-                }
-
-                #endregion
-
-                #region 对于非值类型的null检查
-                if (!argDataType.IsValueType && inputParameter is null)
-                {
-                    parameters[i] = null;
-                    throw new Exception($"[arg{pd.Index}][{pd.Name}][{argDataType}]参数不能为null");
-                    continue;
-                }
-                #endregion
-
-                #endregion
-
-                //#region 入参存在取值转换器，调用对应的转换器获取入参数据，如果获取成功（不为null）会跳过循环
-                //if (pd.ExplicitType.IsEnum && !(pd.Convertor is null))
-                //{
-                //    //var resultEnum = Enum.ToObject(ed.ExplicitType, ed.DataValue);
-                //    var resultEnum = Enum.Parse(pd.ExplicitType, pd.DataValue);
-                //    var value = pd.Convertor(resultEnum);
-                //    if (value is null)
-                //    {
-                //        throw new InvalidOperationException("转换器调用失败");
-
-                //    }
-                //    else
-                //    {
-                //        if (hasParams)
-                //        {
-                //            paramsArgs.SetValue(value, paramsArgIndex++);
-                //            // 处理可选参数
-                //            //paramsArgs[paramsArgIndex++] = value;
-                //        }
-                //        else
-                //        {
-                //            parameters[i] = value;
-                //        }
-                //        continue;
-                //    }
-                //}
-                //#endregion
-
-                #region  入参存在基于BinValue的类型转换器，获取枚举转换器中记录的类型，如果获取成功（不为null）会跳过循环
-                // 入参存在基于BinValue的类型转换器，获取枚举转换器中记录的类型
-                if (pd.ExplicitType.IsEnum && argDataType != pd.ExplicitType)
-                {
-                    var resultEnum = Enum.Parse(pd.ExplicitType, pd.DataValue);
-                    // 获取绑定的类型
-                    var type = EnumHelper.GetBoundValue(pd.ExplicitType, resultEnum, attr => attr.Value);
-                    if (type is Type enumBindType && !(enumBindType is null))
-                    {
-                        var value = nodeModel.Env.IOC.Instantiate(enumBindType);
-                        if (value is null)
-                        {
-
-                        }
-                        else
-                        {
-                            if (hasParams)
-                            {
-                                // 处理可选参数
-                                paramsArgs.SetValue(value, paramsArgIndex++);
-                                //paramsArgs[paramsArgIndex++] = value;
-                            }
-                            else
-                            {
-                                parameters[i] = value;
-                            }
-                            continue;
-                        }
-                    }
-                }
-
-                #endregion
-
-                #region 对入参数据尝试进行转换
-                object tmpVaue = null; // 临时存放数据，最后才判断是否放置可选参数数组
-                var inputParameterType = inputParameter.GetType();
-                if (inputParameterType == argDataType)
-                {
-                    tmpVaue = inputParameter; // 类型一致无需转换，直接装入入参数组
-                }
-                else if (argDataType.IsValueType) 
-                {
-                    // 值类型
-                    var valueStr = inputParameter?.ToString();
-                    tmpVaue = valueStr.ToValueData(argDataType); // 类型不一致，尝试进行转换，如果转换失败返回类型对应的默认值
-                }
-                else 
-                {
-                    // 引用类型
-                    if (argDataType == typeof(string)) // 转为字符串
-                    {
-                        var valueStr = inputParameter?.ToString();
-                        tmpVaue = valueStr;
-                    }
-                    else if(argDataType.IsSubclassOf(inputParameterType)) // 入参类型 是 预入参数据类型 的 子类/实现类 
-                    {
-                        // 方法入参中，父类不能隐式转为子类，这里需要进行强制转换
-                        tmpVaue =  ObjectConvertHelper.ConvertParentToChild(inputParameter, argDataType);
-                    }
-                    else if(argDataType.IsAssignableFrom(inputParameterType))  // 入参类型 是 预入参数据类型 的 父类/接口
-                    {
-                        tmpVaue = inputParameter;
-                    }
-                    // 集合类型
-                    //else if(inputParameter is IEnumerable collection)
-                    //{
-                    //    var enumerableMethods = typeof(Enumerable).GetMethods();   // 获取所有的 Enumerable 扩展方法
-                    //    MethodInfo conversionMethod;
-                    //    if (argDataType.IsArray) // 转为数组
-                    //    {
-                    //        parameters[i] = inputParameter;
-                    //        conversionMethod = enumerableMethods.FirstOrDefault(m => m.Name == "ToArray" && m.IsGenericMethodDefinition);
-                    //    }
-                    //    else if (argDataType.GetGenericTypeDefinition() == typeof(List<>)) // 转为集合
-                    //    {
-                    //         conversionMethod = enumerableMethods.FirstOrDefault(m => m.Name == "ToList" && m.IsGenericMethodDefinition);
-                    //    }
-                    //    else
-                    //    {
-                    //        throw new InvalidOperationException("输入对象不是集合或目标类型不支持（目前仅支持Array、List的自动转换）");
-                    //    }
-                    //    var genericMethod = conversionMethod.MakeGenericMethod(argDataType);
-                    //    var result = genericMethod.Invoke(null, new object[] { collection });
-                    //    parameters[i] = result;
-                    //}
-                   
-                }
-
-
-                if (hasParams)
-                {
-                    // 处理可选参数
-                    paramsArgs.SetValue(tmpVaue, paramsArgIndex++);
-                    //paramsArgs[paramsArgIndex++] = tmpVaue;
-                }
-                else
-                {
-                    parameters[i] = tmpVaue;
-                }
-                #endregion
-
+                args[args.Length - 1] = paramsArgs;
             }
+           
 
-
-            return parameters;
+            return args;
         }
-
 
         /// <summary>
         /// 更新节点数据，并检查监视表达式是否生效
@@ -733,37 +485,37 @@ namespace Serein.Library
             {
                 return;
             }
-            (var isMonitor, var exps) = await context.Env.CheckObjMonitorStateAsync(key);
-            if (isMonitor) // 如果新的数据处于查看状态，通知UI进行更新？交给运行环境判断？
-            {
-                context.Env.MonitorObjectNotification(nodeModel.Guid, data, sourceType); // 对象处于监视状态，通知UI更新数据显示
-                if (exps.Length > 0)
-                {
-                    // 表达式环境下判断是否需要执行中断
-                    bool isExpInterrupt = false;
-                    string exp = "";
-                    // 判断执行监视表达式，直到为 true 时退出
-                    for (int i = 0; i < exps.Length && !isExpInterrupt; i++)
-                    {
-                        exp = exps[i];
-                        if (string.IsNullOrEmpty(exp)) continue;
-                        // isExpInterrupt = SereinConditionParser.To(data, exp);
-                    }
+            //(var isMonitor, var exps) = await context.Env.CheckObjMonitorStateAsync(key);
+            //if (isMonitor) // 如果新的数据处于查看状态，通知UI进行更新？交给运行环境判断？
+            //{
+            //    context.Env.MonitorObjectNotification(nodeModel.Guid, data, sourceType); // 对象处于监视状态，通知UI更新数据显示
+            //    if (exps.Length > 0)
+            //    {
+            //        // 表达式环境下判断是否需要执行中断
+            //        bool isExpInterrupt = false;
+            //        string exp = "";
+            //        // 判断执行监视表达式，直到为 true 时退出
+            //        for (int i = 0; i < exps.Length && !isExpInterrupt; i++)
+            //        {
+            //            exp = exps[i];
+            //            if (string.IsNullOrEmpty(exp)) continue;
+            //            // isExpInterrupt = SereinConditionParser.To(data, exp);
+            //        }
 
-                    if (isExpInterrupt) // 触发中断
-                    {
-                        nodeModel.DebugSetting.IsInterrupt = true;
-                        if (await context.Env.SetNodeInterruptAsync(nodeModel.Guid,true))
-                        {
-                            context.Env.TriggerInterrupt(nodeModel.Guid, exp, InterruptTriggerEventArgs.InterruptTriggerType.Exp);
-                            var cancelType = await nodeModel.DebugSetting.GetInterruptTask();
-                            await Console.Out.WriteLineAsync($"[{data}]中断已{cancelType}，开始执行后继分支");
-                            nodeModel.DebugSetting.IsInterrupt = false;
-                        }
-                    }
-                }
+            //        if (isExpInterrupt) // 触发中断
+            //        {
+            //            nodeModel.DebugSetting.IsInterrupt = true;
+            //            if (await context.Env.SetNodeInterruptAsync(nodeModel.Guid,true))
+            //            {
+            //                context.Env.TriggerInterrupt(nodeModel.Guid, exp, InterruptTriggerEventArgs.InterruptTriggerType.Exp);
+            //                var cancelType = await nodeModel.DebugSetting.GetInterruptTask();
+            //                await Console.Out.WriteLineAsync($"[{data}]中断已{cancelType}，开始执行后继分支");
+            //                nodeModel.DebugSetting.IsInterrupt = false;
+            //            }
+            //        }
+            //    }
 
-            }
+            //}
         }
 
         ///// <summary>

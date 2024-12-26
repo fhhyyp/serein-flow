@@ -1,8 +1,10 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Microsoft.Extensions.ObjectPool;
+using Newtonsoft.Json.Linq;
 using Serein.Library.Api;
 using Serein.Library.Utils;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Threading;
@@ -10,45 +12,18 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using System.Transactions;
 
-namespace Serein.Library
+namespace Serein.Library.Utils
 {
-
-
-    /// <summary>
-    /// 触发类型
-    /// </summary>
-    public enum TriggerDescription
-    {
-        /// <summary>
-        /// 外部触发
-        /// </summary>
-        External,
-        /// <summary>
-        /// 超时触发
-        /// </summary>
-        Overtime,
-        /// <summary>
-        /// 触发了，但类型不一致
-        /// </summary>
-        TypeInconsistency
-    }
-
-
-    public class TriggerResult<TResult>
-    {
-        public TriggerDescription Type { get; set; }
-        public TResult Value { get; set; }
-    }
 
     /// <summary>
     /// 信号触发器类，带有消息广播功能。
     /// 使用枚举作为标记，创建
     /// </summary>
-    public class TaskFlowTrigger<TSignal> : IFlowTrigger<TSignal> where TSignal : struct, Enum
+    public class TaskFlowTrigger<TSignal> : IFlowTrigger<TSignal>
     {
         // 使用并发字典管理每个信号对应的广播列表
         private readonly ConcurrentDictionary<TSignal, Subject<TriggerResult<object>>> _subscribers = new ConcurrentDictionary<TSignal, Subject<TriggerResult<object>>>();
-
+        private readonly TriggerResultPool _triggerResultPool = new TriggerResultPool();
         /// <summary>
         /// 获取或创建指定信号的 Subject（消息广播者）
         /// </summary>
@@ -63,7 +38,7 @@ namespace Serein.Library
         /// 订阅指定信号的消息
         /// </summary>
         /// <param name="signal">枚举信号标识符</param>
-        /// <param name="observer">订阅者</param>
+        /// <param name="action">订阅者</param>
         /// <returns>取消订阅的句柄</returns>
         private IDisposable Subscribe<TResult>(TSignal signal, Action<TriggerResult<object>> action)
         {
@@ -73,7 +48,7 @@ namespace Serein.Library
         }
 
 
-       
+
         /// <summary>
         /// 等待触发器并指定超时的时间
         /// </summary>
@@ -86,33 +61,24 @@ namespace Serein.Library
             var subject = GetOrCreateSubject(signal);
             var cts = new CancellationTokenSource();
 
-            // 异步任务：超时后自动触发信号
-            _ = Task.Run(async () =>
+            // 超时任务：延迟后触发超时信号
+            var timeoutTask = Task.Delay(outTime, cts.Token).ContinueWith(t =>
             {
-                try
+                if (!cts.Token.IsCancellationRequested)
                 {
-                    await Task.Delay(outTime, cts.Token);
-                    if (!cts.IsCancellationRequested) // 如果还没有被取消
-                    {
-                        var outResult = new TriggerResult<object>()
-                        {
-                            Type = TriggerDescription.Overtime
-                        };
-                        subject.OnNext(outResult); // 广播给所有订阅者
-                        subject.OnCompleted(); // 通知订阅结束
-                    }
+                    var outResult = _triggerResultPool.Get();
+                    outResult.Type = TriggerDescription.Overtime;
+                    subject.OnNext(outResult);
+                    subject.OnCompleted();
                 }
-                catch (OperationCanceledException)
-                {
-                    // 超时任务被取消
-                }
-                finally
-                {
-                    cts?.Dispose();  // 确保 cts 被释放
-                }
-            }, cts.Token);
-            var result = await WaitTriggerAsync<TResult>(signal); // 返回一个可以超时触发的等待任务
+            }, cts.Token, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
+
+            var result = await WaitTriggerAsync<TResult>(signal); // 获取触发的结果
+            cts.Cancel();  // 取消超时任务
+            await timeoutTask; // 确保超时任务完成
+            cts.Dispose();
             return result;
+
         }
 
         /// <summary>
@@ -127,21 +93,11 @@ namespace Serein.Library
             var subscription = Subscribe<TResult>(signal, taskCompletionSource.SetResult);
             var result = await taskCompletionSource.Task;
             subscription.Dispose(); // 取消订阅
-            if(result.Value is TResult data)
-            {
-                return new TriggerResult<TResult>()
-                {
-                    Value = data,
-                    Type = TriggerDescription.External,
-                };
-            }
-            else
-            {
-                return new TriggerResult<TResult>()
-                {
-                    Type = TriggerDescription.TypeInconsistency,
-                };
-            }
+            var result2 = result.Value is TResult data
+                ? new TriggerResult<TResult> { Value = data, Type = TriggerDescription.External }
+                : new TriggerResult<TResult> { Type = TriggerDescription.TypeInconsistency };
+            _triggerResultPool.Return(result); // 将结果归还池中
+            return result2;
         }
 
 
@@ -156,11 +112,9 @@ namespace Serein.Library
         {
             if (_subscribers.TryGetValue(signal, out var subject))
             {
-                var result = new TriggerResult<object>()
-                {
-                    Type = TriggerDescription.External,
-                    Value = value
-                };
+                var result = _triggerResultPool.Get();
+                result.Type = TriggerDescription.External;
+                result.Value = value;
                 subject.OnNext(result); // 广播给所有订阅者
                 subject.OnCompleted(); // 通知订阅结束
                 return Task.FromResult(true);

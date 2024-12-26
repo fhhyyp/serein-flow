@@ -188,6 +188,27 @@ namespace Serein.NodeFlow.Env
         {
             _ = remoteFlowEnvironment.InvokeTriggerAsync(msgId, state);
         }
+        /// <summary>
+        /// 放置节点
+        /// </summary>
+        /// <param name="msgId"></param>
+        /// <param name="state"></param>
+        [AutoSocketHandle(ThemeValue = EnvMsgTheme.PlaceNode, IsReturnValue = false)]
+        public void PlaceNode([UseMsgId] string msgId, bool state)
+        {
+            _ = remoteFlowEnvironment.InvokeTriggerAsync(msgId, state);
+        }
+        /// <summary>
+        /// 取出节点
+        /// </summary>
+        /// <param name="msgId"></param>
+        /// <param name="state"></param>
+        [AutoSocketHandle(ThemeValue = EnvMsgTheme.TakeOutNode, IsReturnValue = false)]
+        public void TakeOutNode([UseMsgId] string msgId, bool state)
+        {
+            _ = remoteFlowEnvironment.InvokeTriggerAsync(msgId, state);
+        }
+
 
         /// <summary>
         /// 创建节点之间的调用关系

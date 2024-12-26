@@ -140,7 +140,7 @@ namespace Serein.NodeFlow.Model
         /// <returns></returns>
         public override async Task<object?> ExecutingAsync(IDynamicContext context)
         {
-            var @params =  await NodeModelBase.GetParametersAsync(context, this);
+            var @params =  await GetParametersAsync(context);
             ScriptFlowApi.Context= context; 
             context.AddOrUpdate($"{context.Guid}_{this.Guid}_Params", @params[0]); // 后面再改
 

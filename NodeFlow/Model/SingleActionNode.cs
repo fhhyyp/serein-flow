@@ -14,14 +14,5 @@ namespace Serein.NodeFlow.Model
             
         }
 
-        /// <summary>
-        /// 执行方法
-        /// </summary>
-        /// <param name="context"></param>
-        /// <returns></returns>
-        public override Task<object> ExecutingAsync(IDynamicContext context)
-        {
-            return base.ExecutingAsync(context);
-        }
     }
 }

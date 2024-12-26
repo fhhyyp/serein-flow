@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
-using static Serein.Library.Utils.ChannelFlowInterrupt;
 
 namespace Serein.Library
 {
@@ -42,7 +41,7 @@ namespace Serein.Library
         /// <summary>
         ///  中断级别，暂时停止继续执行后继分支。
         /// </summary>
-        [PropertyInfo(IsNotification = true, CustomCodeAtEnd = "NodeModel?.Env?.SetNodeInterruptAsync(NodeModel?.Guid, value);")] // CustomCode = "NodeModel?.Env?.SetNodeInterruptAsync(NodeModel?.Guid, value);"
+        [PropertyInfo(IsNotification = true, CustomCodeAtEnd = "// NodeModel?.Env?.SetNodeInterruptAsync(NodeModel?.Guid, value);")] // CustomCode = "NodeModel?.Env?.SetNodeInterruptAsync(NodeModel?.Guid, value);"
         private bool _isInterrupt = false;
 
         /// <summary>
@@ -55,7 +54,7 @@ namespace Serein.Library
         /// 中断Task（用来中断）
         /// </summary>
         [PropertyInfo]
-        private Func<Task<CancelType>> _getInterruptTask;
+        private Func<Task> _getInterruptTask;
 
     }
 

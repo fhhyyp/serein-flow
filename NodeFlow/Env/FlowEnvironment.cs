@@ -14,13 +14,13 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
+using System.Reactive;
 using System.Reflection;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.Loader;
 using System.Security.AccessControl;
 using System.Text;
 using System.Xml.Linq;
-using static Serein.Library.Utils.ChannelFlowInterrupt;
 
 namespace Serein.NodeFlow.Env
 {
@@ -31,7 +31,7 @@ namespace Serein.NodeFlow.Env
     /// <summary>
     /// 运行环境
     /// </summary>
-    public class FlowEnvironment : IFlowEnvironment, ISereinIOC
+    public class FlowEnvironment : IFlowEnvironment, ISereinIOC 
     {
         /// <summary>
         /// 节点的命名空间
@@ -47,7 +47,6 @@ namespace Serein.NodeFlow.Env
         public FlowEnvironment(UIContextOperation uiContextOperation)
         {
             this.sereinIOC = new SereinIOC();
-            this.ChannelFlowInterrupt = new ChannelFlowInterrupt();
             this.IsGlobalInterrupt = false;
             this.flowStarter = null;
             this.sereinIOC.OnIOCMembersChanged += e =>
@@ -244,10 +243,10 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         public bool IsGlobalInterrupt { get; set; }
 
-        /// <summary>
-        /// 流程中断器
-        /// </summary>
-        public ChannelFlowInterrupt ChannelFlowInterrupt { get; set; }
+        ///// <summary>
+        ///// 流程中断器
+        ///// </summary>
+        //public ChannelFlowInterrupt ChannelFlowInterrupt { get; set; }
 
         /// <summary>
         /// <para>单例模式IOC容器，内部维护了一个实例字典，默认使用类型的FullName作为Key，如果以“接口-实现类”的方式注册，那么将使用接口类型的FullName作为Key。</para>
@@ -377,7 +376,6 @@ namespace Serein.NodeFlow.Env
         /// <returns></returns>
         public async Task<bool> StartFlowAsync()
         {
-            ChannelFlowInterrupt?.CancelAllTasks();
             flowStarter = new FlowStarter();
             var nodes = NodeModels.Values.ToList();
 
@@ -453,7 +451,7 @@ namespace Serein.NodeFlow.Env
         /// <returns></returns>
         public async Task<object> InvokeNodeAsync(IDynamicContext context, string nodeGuid)
         {
-            object result = true;
+            object result = new Unit();
             if (this.NodeModels.TryGetValue(nodeGuid, out var model))
             {
                 result =  await model.ExecutingAsync(context);
@@ -466,7 +464,6 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         public Task<bool> ExitFlowAsync()
         {
-            ChannelFlowInterrupt?.CancelAllTasks();
             flowStarter?.Exit();
             UIContextOperation?.Invoke(() => OnFlowRunComplete?.Invoke(new FlowEventArgs()));
             flowStarter = null;
@@ -555,8 +552,11 @@ namespace Serein.NodeFlow.Env
                 LoadLibrary(dllFilePath);  // 加载项目文件时加载对应的程序集
             }
 
-            _ = LoadNodeInfosAsync(projectData.Nodes.ToList());
-            SetStartNodeAsync(projectData.StartNode);
+            _ = Task.Run( async () =>
+            {
+                await LoadNodeInfosAsync(projectData.Nodes.ToList());
+                await SetStartNodeAsync(projectData.StartNode);
+            });
 
         }
 
@@ -745,7 +745,7 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         /// <param name="List<NodeInfo>">节点信息</param>
         /// <returns></returns>
-        public Task LoadNodeInfosAsync(List<NodeInfo> nodeInfos)
+        public async Task LoadNodeInfosAsync(List<NodeInfo> nodeInfos)
         {
             #region 从NodeInfo创建NodeModel
             foreach (NodeInfo? nodeInfo in nodeInfos)
@@ -779,7 +779,7 @@ namespace Serein.NodeFlow.Env
                 nodeModel.LoadInfo(nodeInfo); // 创建节点model
                 TryAddNode(nodeModel); // 加载项目时将节点加载到环境中
                 
-                UIContextOperation?.Invoke(() => 
+                await UIContextOperation.InvokeAsync(() => 
                     OnNodeCreate?.Invoke(new NodeCreateEventArgs(nodeModel, nodeInfo.Position))); // 添加到UI上
             }
             #endregion
@@ -798,77 +798,92 @@ namespace Serein.NodeFlow.Env
 
             foreach (NodeInfo nodeInfo in needPlaceNodeInfos)
             {
-                if (NodeModels.TryGetValue(nodeInfo.Guid, out var nodeMoel) &&
+                if (NodeModels.TryGetValue(nodeInfo.Guid, out var nodeModel) &&
                     NodeModels.TryGetValue(nodeInfo.ParentNodeGuid, out var containerNode)
                     && containerNode is INodeContainer nodeContainer)
                 {
-                    nodeMoel.ContainerNode = containerNode;  // 放置节点
-                    containerNode.ChildrenNode.Add(nodeMoel);
-                    nodeContainer.PlaceNode(nodeMoel);
-
-                    UIContextOperation?.Invoke(() => OnNodePlace?.Invoke(
-                        new NodePlaceEventArgs(nodeMoel.Guid, containerNode.Guid)));
+                    var result = nodeContainer.PlaceNode(nodeModel);
+                    if (result)
+                    {
+                        await UIContextOperation.InvokeAsync(() => OnNodePlace?.Invoke(
+                            new NodePlaceEventArgs(nodeModel.Guid, containerNode.Guid)));
+                    }
+                    
 
                 }
             }
             #endregion
 
-            _ = Task.Run(async () =>
+            #region 确定节点之间的方法调用关系
+            foreach (var nodeInfo in nodeInfos)
             {
-                await Task.Delay(100);
-                #region 确定节点之间的方法调用关系
-                foreach (var nodeInfo in nodeInfos)
-                {
-                    if (!NodeModels.TryGetValue(nodeInfo.Guid, out NodeModelBase? fromNode))
-                    {
-                        // 不存在对应的起始节点
-                        continue;
-                    }
-                    List<(ConnectionInvokeType connectionType, string[] guids)> allToNodes = [(ConnectionInvokeType.IsSucceed,nodeInfo.TrueNodes),
+                var fromNodeModel = GuidToModel(nodeInfo.Guid);
+                if (fromNodeModel is null) continue;
+                List<(ConnectionInvokeType connectionType, string[] guids)> allToNodes = [(ConnectionInvokeType.IsSucceed,nodeInfo.TrueNodes),
                                                                                     (ConnectionInvokeType.IsFail,   nodeInfo.FalseNodes),
                                                                                     (ConnectionInvokeType.IsError,  nodeInfo.ErrorNodes),
                                                                                     (ConnectionInvokeType.Upstream, nodeInfo.UpstreamNodes)];
-
-                    List<(ConnectionInvokeType, NodeModelBase[])> fromNodes = allToNodes.Where(info => info.guids.Length > 0)
-                                                                         .Select(info => (info.connectionType,
-                                                                                          info.guids.Where(guid => NodeModels.ContainsKey(guid)).Select(guid => NodeModels[guid])
-                                                                                            .ToArray()))
-                                                                         .ToList();
-                    // 遍历每种类型的节点分支（四种）
-                    foreach ((ConnectionInvokeType connectionType, NodeModelBase[] toNodes) item in fromNodes)
-                    {
-                        // 遍历当前类型分支的节点（确认连接关系）
-                        foreach (var toNode in item.toNodes)
-                        {
-                            _ = ConnectInvokeOfNode(fromNode, toNode, item.connectionType); // 加载时确定节点间的连接关系
-                        }
-                    }
-                }
-                #endregion
-
-                #region 确定节点之间的参数调用关系
-                foreach (var toNode in NodeModels.Values)
+                foreach ((ConnectionInvokeType connectionType, string[] toNodeGuids) item in allToNodes)
                 {
-                    if (toNode.MethodDetails.ParameterDetailss == null)
+                    // 遍历当前类型分支的节点（确认连接关系）
+                    foreach (var toNodeGuid in item.toNodeGuids)
                     {
-                        continue;
-                    }
-                    for (var i = 0; i < toNode.MethodDetails.ParameterDetailss.Length; i++)
-                    {
-                        var pd = toNode.MethodDetails.ParameterDetailss[i];
-                        if (!string.IsNullOrEmpty(pd.ArgDataSourceNodeGuid)
-                            && NodeModels.TryGetValue(pd.ArgDataSourceNodeGuid, out var fromNode))
-                        {
-
-                            _ = ConnectArgSourceOfNodeAsync(fromNode, toNode, pd.ArgDataSourceType, pd.Index);
-                        }
+                        var toNodeModel = GuidToModel(toNodeGuid);
+                        if (toNodeModel is null) continue;
+                        var isSuccessful = ConnectInvokeOfNode(fromNodeModel, toNodeModel, item.connectionType); // 加载时确定节点间的连接关系
                     }
                 }
-                #endregion
-            });
-            UIContextOperation?.Invoke(() => OnProjectLoaded?.Invoke(new ProjectLoadedEventArgs()));
 
-            return Task.CompletedTask;
+
+                //List<(ConnectionInvokeType connectionType, string[] guids)> allToNodes = [(ConnectionInvokeType.IsSucceed,nodeInfo.TrueNodes),
+                //                                                                (ConnectionInvokeType.IsFail,   nodeInfo.FalseNodes),
+                //                                                                (ConnectionInvokeType.IsError,  nodeInfo.ErrorNodes),
+                //                                                                (ConnectionInvokeType.Upstream, nodeInfo.UpstreamNodes)];
+
+                //List<(ConnectionInvokeType, NodeModelBase[])> fromNodes = allToNodes.Where(info => info.guids.Length > 0)
+                //                                                     .Select(info => (info.connectionType,
+                //                                                                      info.guids.Where(guid => NodeModels.ContainsKey(guid)).Select(guid => NodeModels[guid])
+                //                                                                        .ToArray()))
+                //                                                     .ToList();
+                // 遍历每种类型的节点分支（四种）
+                //foreach ((ConnectionInvokeType connectionType, NodeModelBase[] toNodes) item in nodeInfo)
+                //{
+                //    // 遍历当前类型分支的节点（确认连接关系）
+                //    foreach (var toNode in item.toNodes)
+                //    {
+                //        _ = ConnectInvokeOfNode(fromNode, toNode, item.connectionType); // 加载时确定节点间的连接关系
+                //    }
+                //}
+            }
+            #endregion
+
+            #region 确定节点之间的参数调用关系
+            foreach (var toNode in NodeModels.Values)
+            {
+                if (toNode.MethodDetails.ParameterDetailss == null)
+                {
+                    continue;
+                }
+                for (var i = 0; i < toNode.MethodDetails.ParameterDetailss.Length; i++)
+                {
+                    var pd = toNode.MethodDetails.ParameterDetailss[i];
+                    if (!string.IsNullOrEmpty(pd.ArgDataSourceNodeGuid)
+                        && NodeModels.TryGetValue(pd.ArgDataSourceNodeGuid, out var fromNode))
+                    {
+
+                        _ = ConnectArgSourceOfNodeAsync(fromNode, toNode, pd.ArgDataSourceType, pd.Index);
+                    }
+                }
+            }
+            #endregion
+
+
+            await UIContextOperation.InvokeAsync(() =>
+            {
+                UIContextOperation?.Invoke(() => OnProjectLoaded?.Invoke(new ProjectLoadedEventArgs()));
+            });
+
+            return;
         }
 
         /// <summary>
@@ -925,24 +940,28 @@ namespace Serein.NodeFlow.Env
         public async Task<bool> PlaceNodeToContainerAsync(string nodeGuid, string containerNodeGuid)
         {
             // 获取目标节点与容器节点
-            var nodeMoel = GuidToModel(nodeGuid);
-            if (nodeMoel is null ) return false;
+            var nodeModel = GuidToModel(nodeGuid);
+            if (nodeModel is null ) return false;
 
-            if(nodeMoel.ContainerNode is INodeContainer tmpContainer)
+            if(nodeModel.ContainerNode is INodeContainer tmpContainer)
             {
                 SereinEnv.WriteLine(InfoType.WARN, $"节点放置失败，节点[{nodeGuid}]已经放置于容器节点[{((NodeModelBase)tmpContainer).Guid}]");
                 return false; 
             }
 
-            var containerNode = GuidToModel(containerNodeGuid);
+            var containerNode = GuidToModel(containerNodeGuid); // 获取容器节点
             if (containerNode is not INodeContainer nodeContainer) return false;
 
-            nodeMoel.ContainerNode = containerNode;  // 放置节点
-            containerNode.ChildrenNode.Add(nodeMoel);
-            nodeContainer.PlaceNode(nodeMoel);
-            OnNodePlace?.Invoke(new NodePlaceEventArgs(nodeGuid, containerNodeGuid)); // 通知UI更改节点放置位置
-            return true;
-            
+            var result = nodeContainer.PlaceNode(nodeModel); // 放置在容器节点
+            if (result)
+            {
+                _ = UIContextOperation?.InvokeAsync(() =>
+                {
+                    OnNodePlace?.Invoke(new NodePlaceEventArgs(nodeGuid, containerNodeGuid)); // 通知UI更改节点放置位置
+                });
+            }
+            return result;
+
         }
 
         /// <summary>
@@ -952,18 +971,24 @@ namespace Serein.NodeFlow.Env
         public async Task<bool> TakeOutNodeToContainerAsync(string nodeGuid)
         {
             // 获取目标节点与容器节点
-            var nodeMoel = GuidToModel(nodeGuid);
-            if (nodeMoel is null) return false;
+            var nodeModel = GuidToModel(nodeGuid);
+            if (nodeModel is null) return false;
 
-            if(nodeMoel.ContainerNode is not INodeContainer nodeContainer)
+            if(nodeModel.ContainerNode is not INodeContainer nodeContainer)
             {
                 return false;
             }
-            nodeContainer.TakeOutNode(nodeMoel); // 从容器节点取出
-            nodeMoel.ContainerNode = null; // 取消映射关系
-            
-            OnNodeTakeOut?.Invoke(new NodeTakeOutEventArgs(nodeGuid)); // 重新放置在画布上
-            return true;
+            var result = nodeContainer.TakeOutNode(nodeModel); // 从容器节点取出
+            if (result)
+            {
+                _ = UIContextOperation?.InvokeAsync(() =>
+                {
+                    OnNodeTakeOut?.Invoke(new NodeTakeOutEventArgs(nodeGuid)); // 重新放置在画布上
+                });
+            }
+            return result;
+
+
         }
 
 
@@ -1000,7 +1025,7 @@ namespace Serein.NodeFlow.Env
                                                                     remoteNode.Guid,
                                                                     JunctionOfConnectionType.Invoke,
                                                                     pCType, // 对应的连接关系
-                                                                    NodeConnectChangeEventArgs.ConnectChangeType.Remote))); // 通知UI
+                                                                    NodeConnectChangeEventArgs.ConnectChangeType.Remove))); // 通知UI
 
                 }
             }
@@ -1241,149 +1266,6 @@ namespace Serein.NodeFlow.Env
         }
 
         /// <summary>
-        /// 中断指定节点，并指定中断等级。
-        /// </summary>
-        /// <param name="nodeGuid">被中断的目标节点Guid</param>
-        /// <param name="interruptClass">中断级别</param>
-        /// <returns>操作是否成功</returns>
-        public Task<bool> SetNodeInterruptAsync(string nodeGuid, bool isInterrupt)
-        {
-           
-
-            var nodeModel = GuidToModel(nodeGuid);
-            if (nodeModel is null) 
-                return Task.FromResult(false);
-            if (!isInterrupt)
-            {
-                nodeModel.CancelInterrupt();
-            }
-            else if (isInterrupt)
-            {
-                nodeModel.DebugSetting.CancelInterruptCallback?.Invoke();
-                nodeModel.DebugSetting.GetInterruptTask = async () =>
-                {
-                    TriggerInterrupt(nodeGuid, "", InterruptTriggerEventArgs.InterruptTriggerType.Monitor);
-                    var result = await ChannelFlowInterrupt.GetOrCreateChannelAsync(nodeGuid);
-                    return result;
-                };
-                nodeModel.DebugSetting.CancelInterruptCallback = () =>
-                {
-                    //nodeModel.DebugSetting.IsInterrupt = false;
-                    ChannelFlowInterrupt.TriggerSignal(nodeGuid);
-                };
-
-            }
-            
-            //nodeModel.DebugSetting.IsInterrupt = true; 
-            if (OperatingSystem.IsWindows())
-            {
-
-                UIContextOperation?.Invoke(() => OnNodeInterruptStateChange?.Invoke(new NodeInterruptStateChangeEventArgs(nodeGuid, isInterrupt))); 
-            }
-            
-            return Task.FromResult(true);
-        }
-
-
-        /// <summary>
-        /// 添加表达式中断
-        /// </summary>
-        /// <param name="key">如果是节点，传入Guid；如果是对象，传入类型FullName</param>
-        /// <param name="expression">合法的条件表达式</param>
-        /// <returns></returns>
-        public Task<bool> AddInterruptExpressionAsync(string key, string expression)
-        {
-            if (string.IsNullOrEmpty(expression)) return Task.FromResult(false);
-            if (dictMonitorObjExpInterrupt.TryGetValue(key, out var condition))
-            {
-                condition.Clear(); // 暂时
-                condition.Add(expression);// 暂时
-            }
-            else
-            {
-                var exps = new List<string>();
-                exps.Add(expression);
-                dictMonitorObjExpInterrupt.TryAdd(key, exps);
-            }
-            return Task.FromResult(true);
-        }
-
-        /// <summary>
-        /// 要监视的对象，以及与其关联的表达式
-        /// </summary>
-        private ConcurrentDictionary<string, List<string>> dictMonitorObjExpInterrupt = [];
-
-        /// <summary>
-        /// 设置对象的监视状态
-        /// </summary>
-        /// <param name="key">如果是节点，传入Guid；如果是对象，传入类型FullName</param>
-        /// <param name="isMonitor">ture监视对象；false取消对象监视</param>
-        /// <returns></returns>
-        public void SetMonitorObjState(string key, bool isMonitor)
-        {
-            if (string.IsNullOrEmpty(key)) { return; }
-            var isExist = dictMonitorObjExpInterrupt.ContainsKey(key);
-            if (isExist)
-            {
-                if (!isMonitor) // 对象存在且需要不监视
-                {
-                    dictMonitorObjExpInterrupt.Remove(key, out _);
-                }
-            }
-            else
-            {
-                if (isMonitor) // 对象不存在且需要监视，添加在集合中。
-                {
-                    dictMonitorObjExpInterrupt.TryAdd(key, new List<string>()); ;
-                }
-            }
-        }
-
-        /// <summary>
-        /// 检查一个对象是否处于监听状态，如果是，则传出与该对象相关的表达式（用于中断），如果不是，则返回false。
-        /// </summary>
-        /// <param name="key"></param>
-        /// <param name="exps"></param>
-        /// <returns></returns>
-        public Task<(bool, string[])> CheckObjMonitorStateAsync(string key)
-        {
-            if (string.IsNullOrEmpty(key))
-            {
-                var data = (false, Array.Empty<string>());
-                return Task.FromResult(data);
-            }
-            else
-            {
-                var isMonitor = dictMonitorObjExpInterrupt.TryGetValue(key, out var exps);
-
-                if (exps is null)
-                {
-                    var data = (isMonitor, Array.Empty<string>());
-                    return Task.FromResult(data);
-                }
-                else
-                {
-                    var data = (isMonitor, exps.ToArray());
-                    return Task.FromResult(data);
-                }
-
-
-            }
-            
-            //if (exps is null)
-            //{
-            //    var data = (isMonitor, Array.Empty<string>());
-            //    return Task.FromResult(data);
-            //}
-            //else
-            //{
-            //    var data = (isMonitor, exps.ToArray());
-            //    return Task.FromResult(data);
-            //}
-
-        }
-
-        /// <summary>
         /// 启动器调用，运行到某个节点时触发了监视对象的更新（对象预览视图将会自动更新）
         /// </summary>
         /// <param name="nodeGuid"></param>
@@ -1406,16 +1288,16 @@ namespace Serein.NodeFlow.Env
         }
 
 
-        /// <summary>
-        /// 环境执行中断
-        /// </summary>
-        /// <returns></returns>
-        public async Task<CancelType> GetOrCreateGlobalInterruptAsync()
-        {
-            IsGlobalInterrupt = true;
-            var result = await ChannelFlowInterrupt.GetOrCreateChannelAsync(EnvName);
-            return result;
-        }
+        ///// <summary>
+        ///// 环境执行中断
+        ///// </summary>
+        ///// <returns></returns>
+        //public async Task InterruptNode()
+        //{
+        //    IsGlobalInterrupt = true;
+        //    var result = await ChannelFlowInterrupt.GetOrCreateChannelAsync(EnvName);
+        //    return result;
+        //}
 
         /// <summary>
         /// 记录节点更改数据，防止重复更改
@@ -1642,7 +1524,7 @@ namespace Serein.NodeFlow.Env
                                                                           toNode.Guid,
                                                                           JunctionOfConnectionType.Invoke,
                                                                           connectionType,
-                                                                          NodeConnectChangeEventArgs.ConnectChangeType.Remote)));
+                                                                          NodeConnectChangeEventArgs.ConnectChangeType.Remove)));
             }
             return true;
         }
@@ -1670,7 +1552,7 @@ namespace Serein.NodeFlow.Env
                                                                           JunctionOfConnectionType.Arg,
                                                                           argIndex,
                                                                           ConnectionArgSourceType.GetPreviousNodeData,
-                                                                          NodeConnectChangeEventArgs.ConnectChangeType.Remote)));
+                                                                          NodeConnectChangeEventArgs.ConnectChangeType.Remove)));
             }
             return true;
         }

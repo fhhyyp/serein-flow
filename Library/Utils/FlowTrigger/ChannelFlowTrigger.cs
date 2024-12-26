@@ -1,6 +1,4 @@
-﻿
-
-using Serein.Library.Api;
+﻿using Serein.Library.Api;
 using System;
 using System.Collections.Concurrent;
 using System.Threading;
@@ -13,7 +11,7 @@ namespace Serein.Library.Utils
 
 
 
-    public class ChannelFlowTrigger<TSignal> : IFlowTrigger<TSignal> 
+    public class ChannelFlowTrigger<TSignal> : IFlowTrigger<TSignal>
     {
         // 使用并发字典管理每个枚举信号对应的 Channel
         private readonly ConcurrentDictionary<TSignal, Channel<TriggerResult<object>>> _channels = new ConcurrentDictionary<TSignal, Channel<TriggerResult<object>>>();

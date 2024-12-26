@@ -17,13 +17,13 @@ namespace Serein.Workbench.Node
         /// 放置一个节点
         /// </summary>
         /// <param name="nodeControl"></param>
-        void PlaceNode(NodeControlBase nodeControl);
+        bool PlaceNode(NodeControlBase nodeControl);
 
         /// <summary>
         /// 取出一个节点
         /// </summary>
         /// <param name="nodeControl"></param>
-        void TakeOutNode(NodeControlBase nodeControl);
+        bool TakeOutNode(NodeControlBase nodeControl);
 
         /// <summary>
         /// 取出所有节点（用于删除容器）

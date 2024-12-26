@@ -1,7 +1,6 @@
 ﻿using Serein.Library.Api;
 using Serein.Library;
 using Serein.Library.Utils;
-using static Serein.Library.Utils.ChannelFlowInterrupt;
 
 namespace Serein.NodeFlow.Model
 {
@@ -28,8 +27,8 @@ namespace Serein.NodeFlow.Model
             if (DebugSetting.IsInterrupt) // 执行触发前
             {
                 string guid = this.Guid.ToString();
-                var cancelType = await this.DebugSetting.GetInterruptTask();
-                await Console.Out.WriteLineAsync($"[{this.MethodDetails.MethodName}]中断已{cancelType}，开始执行后继分支");
+                await this.DebugSetting.GetInterruptTask();
+                await Console.Out.WriteLineAsync($"[{this.MethodDetails.MethodName}]中断已取消，开始执行后继分支");
             }
             #endregion
 
@@ -40,7 +39,7 @@ namespace Serein.NodeFlow.Model
             }
             object instance = md.ActingInstance;
 
-            var args = await GetParametersAsync(context, this);
+            var args = await GetParametersAsync(context);
             // 因为这里会返回不确定的泛型 IFlipflopContext<TRsult>
             // 而我们只需要获取到 State 和 Value（返回的数据）
             // 所以使用 dynamic 类型接收

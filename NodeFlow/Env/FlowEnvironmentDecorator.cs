@@ -196,16 +196,7 @@ namespace Serein.NodeFlow.Env
             currentFlowEnvironment.ActivateFlipflopNode(nodeGuid);
         }
 
-        public async Task<bool> AddInterruptExpressionAsync(string key, string expression)
-        {
-            return await currentFlowEnvironment.AddInterruptExpressionAsync(key, expression);
-        }
-
-
-        public async Task<(bool, string[])> CheckObjMonitorStateAsync(string key)
-        {
-            return await currentFlowEnvironment.CheckObjMonitorStateAsync(key);
-        }
+        
 
 
         /// <summary>
@@ -329,11 +320,7 @@ namespace Serein.NodeFlow.Env
             return await currentFlowEnvironment.GetEnvInfoAsync();
         }
 
-        public async Task<ChannelFlowInterrupt.CancelType> GetOrCreateGlobalInterruptAsync()
-        {
-            return await currentFlowEnvironment.GetOrCreateGlobalInterruptAsync();
-        }
-
+        
         public async Task<SereinProjectData> GetProjectInfoAsync()
         {
             return await currentFlowEnvironment.GetProjectInfoAsync();
@@ -439,6 +426,24 @@ namespace Serein.NodeFlow.Env
             currentFlowEnvironment.WriteLine(type,  message,  @class);
         }
 
+
+        #region MyRegion
+#if false
+        public async Task<bool> AddInterruptExpressionAsync(string key, string expression)
+        {
+            return await currentFlowEnvironment.AddInterruptExpressionAsync(key, expression);
+        }
+
+
+        public async Task<(bool, string[])> CheckObjMonitorStateAsync(string key)
+        {
+            return await currentFlowEnvironment.CheckObjMonitorStateAsync(key);
+        }
+        public async Task<ChannelFlowInterrupt.CancelType> GetOrCreateGlobalInterruptAsync()
+        {
+            return await currentFlowEnvironment.InterruptNode();
+        }
+
         public void SetMonitorObjState(string key, bool isMonitor)
         {
             currentFlowEnvironment.SetMonitorObjState(key, isMonitor);
@@ -447,8 +452,10 @@ namespace Serein.NodeFlow.Env
         public async Task<bool> SetNodeInterruptAsync(string nodeGuid, bool isInterrupt)
         {
             return await currentFlowEnvironment.SetNodeInterruptAsync(nodeGuid, isInterrupt);
-        }
+        } 
+#endif
 
+        #endregion
         public async Task<string> SetStartNodeAsync(string nodeGuid)
         {
             return await currentFlowEnvironment.SetStartNodeAsync(nodeGuid);

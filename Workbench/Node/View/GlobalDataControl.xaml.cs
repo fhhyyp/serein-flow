@@ -58,15 +58,24 @@ namespace Serein.Workbench.Node.View
         JunctionControlBase[] INodeJunction.ArgDataJunction => throw new NotImplementedException();
 
 
-        public void PlaceNode(NodeControlBase nodeControl)
+        public bool PlaceNode(NodeControlBase nodeControl)
         {
-            //GlobalDataPanel.Children.Clear();
+            if (GlobalDataPanel.Children.Contains(nodeControl))
+            {
+                return false;
+            }
             GlobalDataPanel.Children.Add(nodeControl);
+            return true;
         }
 
-        public void TakeOutNode(NodeControlBase nodeControl)
+        public bool TakeOutNode(NodeControlBase nodeControl)
         {
+            if (!GlobalDataPanel.Children.Contains(nodeControl))
+            {
+                return false;
+            }
             GlobalDataPanel.Children.Remove(nodeControl);
+            return true;
         }
 
         public void TakeOutAll()

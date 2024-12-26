@@ -4,6 +4,7 @@ using Serein.Library.Api;
 using Serein.Library.Network.WebSocketCommunication;
 using Serein.Library.Network.WebSocketCommunication.Handle;
 using Serein.Library.Utils;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Serein.NodeFlow.Env
 {
@@ -267,7 +268,6 @@ namespace Serein.NodeFlow.Env
         }
 
 
-
         /// <summary>
         /// 退出远程环境
         /// </summary>
@@ -298,6 +298,7 @@ namespace Serein.NodeFlow.Env
         public void LoadDll(string dllPath)
         {
         }
+
         /// <summary>
         /// 移除DLL
         /// </summary>
@@ -334,9 +335,30 @@ namespace Serein.NodeFlow.Env
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.RemoveNode)]
         public async Task<object> RemoveNode(string nodeGuid)
         {
-            //var result = environment.RemoveNodeAsync(nodeGuid).GetAwaiter().GetResult();
             var result = await environment.RemoveNodeAsync(nodeGuid);
-            //return result;
+            return new { state = result };
+        }
+        /// <summary>
+        /// 远程从远程环境移除节点
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        /// <param name="containerNodeGuid"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        [AutoSocketHandle(ThemeValue = EnvMsgTheme.PlaceNode)]
+        public async Task<object> PlaceNode(string nodeGuid, string containerNodeGuid)
+        {
+            var result = await environment.PlaceNodeToContainerAsync(nodeGuid, containerNodeGuid);
+            return new { state = result };
+        }
+        /// <summary>
+        /// 远程从远程环境移除节点
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        [AutoSocketHandle(ThemeValue = EnvMsgTheme.TakeOutNode)]
+        public async Task<object> TakeOutNode(string nodeGuid)
+        {
+            var result = await environment.TakeOutNodeToContainerAsync(nodeGuid);
             return new { state = result };
         }
 
@@ -528,12 +550,13 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         /// <param name="nodeGuid"></param>
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.SetStartNode)]
-        public void SetStartNode(string nodeGuid)
+        public async Task<string> SetStartNode([NotNull]string nodeGuid)
         {
-            environment.SetStartNodeAsync(nodeGuid);
+            return await environment.SetStartNodeAsync(nodeGuid);
         }
 
 
+#if false
 
         /// <summary>
         /// 中断指定节点，并指定中断等级。
@@ -544,10 +567,9 @@ namespace Serein.NodeFlow.Env
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.SetNodeInterrupt)]
         public async Task<bool> SetNodeInterruptAsync(string nodeGuid, bool isInterrupt)
         {
-            
-           
-            return await this.environment.SetNodeInterruptAsync(nodeGuid, isInterrupt);
-            
+            return false;
+            // return await this.environment.SetNodeInterruptAsync(nodeGuid, isInterrupt);
+
         }
 
 
@@ -573,7 +595,8 @@ namespace Serein.NodeFlow.Env
         public void SetMonitorObjState(string key, bool isMonitor)
         {
             environment.SetMonitorObjState(key, isMonitor);
-        }
+        } 
+#endif
 
 
         /// <summary>

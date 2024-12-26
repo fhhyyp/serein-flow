@@ -198,7 +198,7 @@ namespace Serein.Workbench
             EnvDecorator.OnStartNodeChange += FlowEnvironment_StartNodeChangeEvent;
             EnvDecorator.OnNodeConnectChange += FlowEnvironment_NodeConnectChangeEvemt;
             EnvDecorator.OnNodeCreate += FlowEnvironment_NodeCreateEvent;
-            EnvDecorator.OnNodeRemove += FlowEnvironment_NodeRemoteEvent;
+            EnvDecorator.OnNodeRemove += FlowEnvironment_NodeRemoveEvent;
             EnvDecorator.OnNodePlace += EnvDecorator_OnNodePlaceEvent;
             EnvDecorator.OnNodeTakeOut += EnvDecorator_OnNodeTakeOutEvent; 
             EnvDecorator.OnFlowRunComplete += FlowEnvironment_OnFlowRunCompleteEvent;
@@ -228,7 +228,7 @@ namespace Serein.Workbench
             EnvDecorator.OnStartNodeChange -= FlowEnvironment_StartNodeChangeEvent;
             EnvDecorator.OnNodeConnectChange -= FlowEnvironment_NodeConnectChangeEvemt;
             EnvDecorator.OnNodeCreate -= FlowEnvironment_NodeCreateEvent;
-            EnvDecorator.OnNodeRemove -= FlowEnvironment_NodeRemoteEvent;
+            EnvDecorator.OnNodeRemove -= FlowEnvironment_NodeRemoveEvent;
             EnvDecorator.OnNodePlace -= EnvDecorator_OnNodePlaceEvent;
             EnvDecorator.OnNodeTakeOut -= EnvDecorator_OnNodeTakeOutEvent;
             EnvDecorator.OnFlowRunComplete -= FlowEnvironment_OnFlowRunCompleteEvent;
@@ -247,7 +247,7 @@ namespace Serein.Workbench
         }
 
         #region 窗体加载方法
-        private void Window_Loaded(object sender, RoutedEventArgs e)
+        private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
             var currentPath = System.IO.Directory.GetCurrentDirectory(); // 当前目录
             var baseLibraryFilePath = Path.Combine(currentPath, FlowLibraryManagement.SereinBaseLibrary);
@@ -260,7 +260,7 @@ namespace Serein.Workbench
             {
                 try
                 { 
-                    _ = Task.Run(() =>
+                    await Task.Run(() =>
                     {
                         EnvDecorator.LoadProject(new FlowEnvInfo { Project = App.FlowProjectData }, App.FileDataPath); // 加载项目
                     });
@@ -553,7 +553,7 @@ namespace Serein.Workbench
                     if (toNodeControl is FlipflopNodeControl flipflopControl
                         && flipflopControl?.ViewModel?.NodeModel is NodeModelBase nodeModel) // 某个节点连接到了触发器，尝试从全局触发器视图中移除该触发器
                     {
-                        NodeTreeViewer.RemoteGlobalFlipFlop(nodeModel); // 从全局触发器树树视图中移除
+                        NodeTreeViewer.RemoveGlobalFlipFlop(nodeModel); // 从全局触发器树树视图中移除
                     }
                     Connections.Add(connection);
                     fromNodeControl.AddCnnection(connection);
@@ -563,7 +563,7 @@ namespace Serein.Workbench
                 }
                 #endregion
                 #region 移除连接
-                else if (eventArgs.ChangeType == NodeConnectChangeEventArgs.ConnectChangeType.Remote) // 移除连接
+                else if (eventArgs.ChangeType == NodeConnectChangeEventArgs.ConnectChangeType.Remove) // 移除连接
                 {
                     // 需要移除连接
                     var removeConnections = Connections.Where(c => 
@@ -639,7 +639,7 @@ namespace Serein.Workbench
                 }
                 #endregion
                 #region 移除连接
-                else if (eventArgs.ChangeType == NodeConnectChangeEventArgs.ConnectChangeType.Remote) // 移除连接
+                else if (eventArgs.ChangeType == NodeConnectChangeEventArgs.ConnectChangeType.Remove) // 移除连接
                 {
                     // 需要移除连接
                     var removeConnections = Connections.Where(c => c.Start.MyNode.Guid.Equals(fromNodeGuid)
@@ -674,7 +674,7 @@ namespace Serein.Workbench
         /// 节点移除事件
         /// </summary>
         /// <param name="eventArgs"></param>
-        private void FlowEnvironment_NodeRemoteEvent(NodeRemoveEventArgs eventArgs)
+        private void FlowEnvironment_NodeRemoveEvent(NodeRemoveEventArgs eventArgs)
         {
             var nodeGuid = eventArgs.NodeGuid;
             if (!TryGetControl(nodeGuid, out var nodeControl))
@@ -696,7 +696,7 @@ namespace Serein.Workbench
                 var node = flipflopControl?.ViewModel?.NodeModel;
                 if (node is not null)
                 {
-                    NodeTreeViewer.RemoteGlobalFlipFlop(node); // 从全局触发器树树视图中移除
+                    NodeTreeViewer.RemoveGlobalFlipFlop(node); // 从全局触发器树树视图中移除
                 }
             }
 
@@ -714,23 +714,24 @@ namespace Serein.Workbench
         /// <exception cref="NotImplementedException"></exception>
         private void FlowEnvironment_NodeCreateEvent(NodeCreateEventArgs eventArgs)
         {
-            if (eventArgs.NodeModel is not NodeModelBase nodeModelBase)
+            var nodeModel = eventArgs.NodeModel;
+            if (NodeControls.ContainsKey(nodeModel.Guid))
             {
-                SereinEnv.WriteLine(InfoType.WARN, "OnNodeCreateEvent事件接收到意外的返回值");
+                SereinEnv.WriteLine(InfoType.WARN, $"OnNodeCreateEvent 事件接收到意外的返回值：节点Guid重复 - {nodeModel.Guid}");
                 return;
             }
 
             PositionOfUI position = eventArgs.Position;
 
-            if(!NodeMVVMManagement.TryGetType(nodeModelBase.ControlType, out var nodeMVVM))
+            if(!NodeMVVMManagement.TryGetType(nodeModel.ControlType, out var nodeMVVM))
             {
-                SereinEnv.WriteLine(InfoType.INFO, $"无法创建{nodeModelBase.ControlType}节点，节点类型尚未注册。");
+                SereinEnv.WriteLine(InfoType.INFO, $"无法创建{nodeModel.ControlType}节点，节点类型尚未注册。");
                 return;
             }
             if(nodeMVVM.ControlType == null
                 || nodeMVVM.ViewModelType == null)
             {
-                SereinEnv.WriteLine(InfoType.INFO, $"无法创建{nodeModelBase.ControlType}节点，UI类型尚未注册（请通过 NodeMVVMManagement.RegisterUI() 方法进行注册）。");
+                SereinEnv.WriteLine(InfoType.INFO, $"无法创建{nodeModel.ControlType}节点，UI类型尚未注册（请通过 NodeMVVMManagement.RegisterUI() 方法进行注册）。");
                 return;
             }
 
@@ -740,7 +741,7 @@ namespace Serein.Workbench
             {
                 nodeControl = CreateNodeControl(nodeMVVM.ControlType, // 控件UI类型
                                                                     nodeMVVM.ViewModelType, // 控件VIewModel类型
-                                                                    nodeModelBase,  // 控件数据实体
+                                                                    nodeModel,  // 控件数据实体
                                                                     nodeCanvas); // 所在画布
             }
             catch (Exception ex)
@@ -749,7 +750,7 @@ namespace Serein.Workbench
                 return;
             }
 
-            NodeControls.TryAdd(nodeModelBase.Guid, nodeControl); // 添加到
+            NodeControls.TryAdd(nodeModel.Guid, nodeControl); // 添加到
             if (TryPlaceNodeInRegion(nodeControl, position, out var regionControl)) // 判断添加到区域容器
             {
                 // 通知运行环境调用加载节点子项的方法
@@ -764,7 +765,7 @@ namespace Serein.Workbench
 
 
             #region 节点树视图
-            if (nodeModelBase.ControlType == NodeControlType.Flipflop)
+            if (nodeModel.ControlType == NodeControlType.Flipflop)
             {
                 var node = nodeControl?.ViewModel?.NodeModel;
                 if (node is not null)
@@ -779,7 +780,7 @@ namespace Serein.Workbench
         }
 
         /// <summary>
-        /// 节点父子关系发生改变
+        /// 放置一个节点
         /// </summary>
         /// <param name="eventArgs"></param>
         /// <exception cref="NotImplementedException"></exception>
@@ -802,6 +803,10 @@ namespace Serein.Workbench
             nodeControl.PlaceToContainer(containerControl); // 放置在容器节点中
         }
 
+        /// <summary>
+        /// 取出一个节点
+        /// </summary>
+        /// <param name="eventArgs"></param>
         private void EnvDecorator_OnNodeTakeOutEvent(NodeTakeOutEventArgs eventArgs)
         {
             string nodeGuid = eventArgs.NodeGuid;
@@ -1170,34 +1175,13 @@ namespace Serein.Workbench
                 }));
             }
 
-            #region 右键菜单功能 - 中断
-
-            contextMenu.Items.Add(CreateMenuItem("在此中断", async (s, e) =>
-            {
-                if ((s is MenuItem menuItem) && menuItem is not null)
-                {
-                    if (nodeControl?.ViewModel?.NodeModel?.DebugSetting?.IsInterrupt == true)
-                    {
-                        await EnvDecorator.SetNodeInterruptAsync(nodeGuid,false);
-                        nodeControl.ViewModel.IsInterrupt = false;
-
-                        menuItem.Header = "取消中断";
-                    }
-                    else
-                    {
-                        nodeControl!.ViewModel!.IsInterrupt = true;
-                        await EnvDecorator.SetNodeInterruptAsync(nodeGuid, true);
-                        menuItem.Header = "在此中断";
-
-                    }
-                }
-            }));
-
-            #endregion
-
+            
            
             contextMenu.Items.Add(CreateMenuItem("设为起点", (s, e) => EnvDecorator.SetStartNodeAsync(nodeGuid)));
-            contextMenu.Items.Add(CreateMenuItem("删除", (s, e) => EnvDecorator.RemoveNodeAsync(nodeGuid)));
+            contextMenu.Items.Add(CreateMenuItem("删除", async (s, e) =>
+            {
+                var result = await EnvDecorator.RemoveNodeAsync(nodeGuid);
+            }));
 
             #region 右键菜单功能 - 控件对齐
 
@@ -1642,7 +1626,7 @@ namespace Serein.Workbench
         {
             if (ViewObjectViewer.MonitorObj is null)
             {
-                EnvDecorator.SetMonitorObjState(key, true); // 通知环境，该节点的数据更新后需要传到UI
+                // EnvDecorator.SetMonitorObjState(key, true); // 通知环境，该节点的数据更新后需要传到UI
                 return;
             }
             if (instance is null)
@@ -1656,8 +1640,8 @@ namespace Serein.Workbench
             }
             else
             {
-                EnvDecorator.SetMonitorObjState(ViewObjectViewer.MonitorKey,false); // 取消对旧节点的监视
-                EnvDecorator.SetMonitorObjState(key, true); // 通知环境，该节点的数据更新后需要传到UI
+                //EnvDecorator.SetMonitorObjState(ViewObjectViewer.MonitorKey,false); // 取消对旧节点的监视
+                //EnvDecorator.SetMonitorObjState(key, true); // 通知环境，该节点的数据更新后需要传到UI
             }
         }
         #endregion
@@ -2499,7 +2483,7 @@ namespace Serein.Workbench
                 }
                 else
                 {
-                    NodeTreeViewer.RemoteGlobalFlipFlop(nodeModel); // 从全局触发器树树视图中移除
+                    NodeTreeViewer.RemoveGlobalFlipFlop(nodeModel); // 从全局触发器树树视图中移除
                 }
             }
         }

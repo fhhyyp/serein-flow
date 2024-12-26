@@ -9,6 +9,7 @@ using System.Threading;
 using System.Windows.Forms;
 using System.Windows.Threading;
 using Serein.Library.Utils;
+using Serein.Library.Utils.FlowTrigger;
 
 namespace Net462DllTest.Trigger
 {

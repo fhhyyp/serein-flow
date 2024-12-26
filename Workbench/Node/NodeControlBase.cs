@@ -53,8 +53,13 @@ namespace Serein.Workbench.Node.View
         public void PlaceToContainer(INodeContainerControl nodeContainerControl)
         {
             this.nodeContainerControl = nodeContainerControl;
-            NodeCanvas.Children.Remove(this); // 从画布上移除
-            nodeContainerControl.PlaceNode(this);
+            NodeCanvas.Children.Remove(this); // 临时从画布上移除
+            var result = nodeContainerControl.PlaceNode(this);
+            if (!result) // 检查是否放置成功，如果不成功，需要重新添加回来
+            {
+                NodeCanvas.Children.Add(this); // 从画布上移除
+
+            }
         }
 
         /// <summary>
@@ -62,8 +67,17 @@ namespace Serein.Workbench.Node.View
         /// </summary>
         public void TakeOutContainer()
         {
-            nodeContainerControl.TakeOutNode(this);
-            NodeCanvas.Children.Add(this); // 重新添加到画布上
+            var result = nodeContainerControl.TakeOutNode(this); // 从控件取出
+            if (result) // 移除成功时才添加到画布上
+            {
+                NodeCanvas.Children.Add(this); // 重新添加到画布上
+                if (nodeContainerControl is NodeControlBase containerControl)
+                {
+                    this.ViewModel.NodeModel.Position.X = containerControl.ViewModel.NodeModel.Position.X + containerControl.Width + 10;
+                    this.ViewModel.NodeModel.Position.Y = containerControl.ViewModel.NodeModel.Position.Y;
+                }
+            }
+            
         }
 
         /// <summary>

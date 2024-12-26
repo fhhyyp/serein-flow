@@ -132,17 +132,17 @@ namespace Serein.Workbench.Themes
         /// <param name="e"></param>
         private async void UpMonitorExpressionButton_Click(object sender, RoutedEventArgs e)
         {
-            if (FlowEnvironment is not null && await FlowEnvironment.AddInterruptExpressionAsync(monitorKey, MonitorExpression)) // 对象预览器尝试添加中断表达式
-            {
-                if (string.IsNullOrEmpty(MonitorExpression))
-                {
-                    ExpressionTextBox.Text = "表达式已清空";
-                }
-                else
-                {
-                    UpMonitorExpressionButton.Content = "更新监视表达式";
-                }
-            }
+            //if (FlowEnvironment is not null && await FlowEnvironment.AddInterruptExpressionAsync(monitorKey, MonitorExpression)) // 对象预览器尝试添加中断表达式
+            //{
+            //    if (string.IsNullOrEmpty(MonitorExpression))
+            //    {
+            //        ExpressionTextBox.Text = "表达式已清空";
+            //    }
+            //    else
+            //    {
+            //        UpMonitorExpressionButton.Content = "更新监视表达式";
+            //    }
+            //}
         }
 
         private TreeViewItem? LoadTree(object? obj)
