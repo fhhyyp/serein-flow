@@ -296,19 +296,6 @@ namespace Serein.Library.Api
             this.Position = position;
         }
 
-        ///// <summary>
-        ///// 区域子项节点添加事件参数
-        ///// </summary>
-        ///// <param name="nodeModel">节点对象</param>
-        ///// <param name="isAddInRegion">是否添加在区域中</param>
-        ///// <param name="regeionGuid">区域Guid</param>
-        //public NodeCreateEventArgs(object nodeModel, bool isAddInRegion, string regeionGuid)
-        //{
-        //    this.NodeModel = nodeModel;
-        //    this.RegeionGuid = regeionGuid;
-        //    this.IsAddInRegion = isAddInRegion;
-        //}
-
         /// <summary>
         /// 节点Model对象
         /// </summary>
@@ -565,69 +552,11 @@ namespace Serein.Library.Api
     #endregion
 
 
-
-
     /// <summary>
-    /// 运行环境
+    /// 流程环境事件接口
     /// </summary>
-    public interface IFlowEnvironment
+    public interface IFlowEnvironmentEvent
     {
-        #region 属性
-
-
-        /// <summary>
-        /// <para>单例模式IOC容器，内部维护了一个实例字典，默认使用类型的FullName作为Key，如果以“接口-实现类”的方式注册，那么将使用接口类型的FullName作为Key。</para>
-        /// <para>当某个类型注册绑定成功后，将不会因为其它地方尝试注册相同类型的行为导致类型被重新创建。</para>
-        /// </summary>
-        ISereinIOC IOC { get; }
-
-
-
-        /// <summary>
-        /// 环境名称
-        /// </summary>
-        string EnvName { get; }
-
-        /// <summary>
-        /// 是否全局中断
-        /// </summary>
-        bool IsGlobalInterrupt { get; }
-
-        /// <summary>
-        /// <para>表示是否正在控制远程</para>
-        /// <para>Local control remote env</para>
-        /// </summary>
-        bool IsControlRemoteEnv { get; }
-
-        /// <summary>
-        /// 信息输出等级
-        /// </summary>
-        InfoClass InfoClass { get; set; }
-
-        /// <summary>
-        /// 流程运行状态
-        /// </summary>
-        RunState FlowState { get;  set; }
-
-        /// <summary>
-        /// 全局触发器运行状态
-        /// </summary>
-        RunState FlipFlopState { get;  set; }
-
-        /// <summary>
-        /// 表示当前环境
-        /// </summary>
-        IFlowEnvironment CurrentEnv { get; }
-
-        /// <summary>
-        /// 由运行环境提供的UI线程上下文操作，用于类库中需要在UI线程中操作视觉元素的场景
-        /// </summary>
-        UIContextOperation UIContextOperation { get;  }
-
-        #endregion
-
-        #region 事件
-
         /// <summary>
         /// 加载Dll
         /// </summary>
@@ -712,6 +641,64 @@ namespace Serein.Library.Api
         /// 运行环境输出
         /// </summary>
         event EnvOutHandler OnEnvOut;
+    }
+
+
+    /// <summary>
+    /// 运行环境
+    /// </summary>
+    public interface IFlowEnvironment 
+    {
+        #region 属性
+
+
+        /// <summary>
+        /// <para>单例模式IOC容器，内部维护了一个实例字典，默认使用类型的FullName作为Key，如果以“接口-实现类”的方式注册，那么将使用接口类型的FullName作为Key。</para>
+        /// <para>当某个类型注册绑定成功后，将不会因为其它地方尝试注册相同类型的行为导致类型被重新创建。</para>
+        /// </summary>
+        ISereinIOC IOC { get; }
+
+        /// <summary>
+        /// 环境名称
+        /// </summary>
+        string EnvName { get; }
+
+        /// <summary>
+        /// 是否全局中断
+        /// </summary>
+        bool IsGlobalInterrupt { get; }
+
+        /// <summary>
+        /// <para>表示是否正在控制远程</para>
+        /// <para>Local control remote env</para>
+        /// </summary>
+        bool IsControlRemoteEnv { get; }
+
+        /// <summary>
+        /// 信息输出等级
+        /// </summary>
+        InfoClass InfoClass { get; set; }
+
+        /// <summary>
+        /// 流程运行状态
+        /// </summary>
+        RunState FlowState { get;  set; }
+
+        /// <summary>
+        /// 全局触发器运行状态
+        /// </summary>
+        RunState FlipFlopState { get;  set; }
+
+        /// <summary>
+        /// 表示当前环境
+        /// </summary>
+        IFlowEnvironment CurrentEnv { get; }
+
+        /// <summary>
+        /// 由运行环境提供的UI线程上下文操作，用于类库中需要在UI线程中操作视觉元素的场景
+        /// </summary>
+        UIContextOperation UIContextOperation { get;  }
+
         #endregion
 
         #region 基本接口

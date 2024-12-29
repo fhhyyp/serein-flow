@@ -15,7 +15,8 @@ namespace Serein.Library.Utils
     /// </summary>
     public class UIContextOperation
     {
-        private readonly SynchronizationContext context;
+        private SynchronizationContext context;
+        private readonly Func<SynchronizationContext> getUiContext = null;
 
         static UIContextOperation()
         {
@@ -43,11 +44,24 @@ namespace Serein.Library.Utils
         }
 
         /// <summary>
+        /// 传入UI线程上下文
+        /// </summary>
+        /// <param name="synchronizationContext">线程上下文</param>
+        public UIContextOperation(Func<SynchronizationContext> getUiContext)
+        {
+            this.getUiContext = getUiContext;
+        }
+
+        /// <summary>
         /// 同步方式进行调用方法
         /// </summary>
         /// <param name="uiAction">要执行的UI操作</param>
         public void Invoke(Action uiAction)
         {
+            if(context is null && getUiContext != null)
+            {
+                context = getUiContext.Invoke();
+            }
             context?.Post(state =>
             {
                 uiAction?.Invoke();
@@ -61,6 +75,10 @@ namespace Serein.Library.Utils
         /// <returns></returns>
         public Task InvokeAsync(Action uiAction)
         {
+            if (context is null && getUiContext != null)
+            {
+                context = getUiContext.Invoke();
+            }
             var tcs = new TaskCompletionSource<bool>();
 
             context?.Post(state =>

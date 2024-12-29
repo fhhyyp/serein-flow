@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -14,7 +15,43 @@ namespace Serein.Library.Utils
     public static class ConvertHelper
     {
 
+        /// <summary>
+        /// 对象转JSON文本
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns></returns>
+        public static string ToJsonText(this object obj)
+        {
+            var jsonText = JsonConvert.SerializeObject(obj, Formatting.Indented);
+            return jsonText;
+        }
 
+        /// <summary>
+        /// JSON文本转对象
+        /// </summary>
+        /// <typeparam name="T">转换类型</typeparam>
+        /// <param name="json">JSON文本</param>
+        /// <returns></returns>
+        public static T ToJsonObject<T>(this string json)
+        {
+            try
+            {
+                return JsonConvert.DeserializeObject<T>(json);
+            }
+            catch (Exception)
+            {
+                return default(T);
+            }
+        }
+
+
+
+        /// <summary>
+        /// 对象转换（好像没啥用）
+        /// </summary>
+        /// <typeparam name="TResult"></typeparam>
+        /// <param name="data"></param>
+        /// <returns></returns>
         public static TResult ToConvert<TResult>(this object data)
         {
             var type = typeof(TResult);
@@ -25,6 +62,14 @@ namespace Serein.Library.Utils
             return (TResult)data.ToConvert(type);
 
         }
+
+
+        /// <summary>
+        /// 对象转换（好像没啥用）
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="type"></param>
+        /// <returns></returns>
         public static object ToConvert(this object data, Type type)
         {
             if (type.IsValueType)
@@ -44,12 +89,24 @@ namespace Serein.Library.Utils
 
 
 
+        /// <summary>
+        /// 文本
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="value"></param>
+        /// <returns></returns>
         public static T ValueParse<T>(object value) where T : struct, IComparable<T>
         {
             string valueStr = value.ToString();
             return valueStr.ToValueData<T>() ;
         }
 
+        /// <summary>
+        /// 文本转换数值
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
         public static object ValueParse(Type type, object value)
         {
             string valueStr = value.ToString();
@@ -57,7 +114,13 @@ namespace Serein.Library.Utils
            
         }
 
-
+        /// <summary>
+        ///  文本转换值对象
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="valueStr"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
         public static T ToValueData<T>(this string valueStr) where T : struct, IComparable<T>
         {
             if (string.IsNullOrEmpty(valueStr))

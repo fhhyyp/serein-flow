@@ -1,4 +1,7 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Serialization;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,8 +10,13 @@ using System.Threading.Tasks;
 
 namespace Serein.Library.Utils
 {
+    /// <summary>
+    /// 对象转换工具类
+    /// </summary>
     public static class ObjectConvertHelper
     {
+       
+
         /// <summary>
         /// 父类转为子类
         /// </summary>

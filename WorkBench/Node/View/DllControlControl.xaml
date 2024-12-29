@@ -20,10 +20,10 @@
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <GroupBox x:Name="ActionNodeGroupBox" Grid.Row="0" Header="动作" Margin="5" Visibility="Collapsed">
+                <GroupBox x:Name="ActionNodeGroupBox" Grid.Row="0" Header="动作" Margin="5" >
                     <ListBox x:Name="ActionsListBox" Background="#D0F1F9"/>
                 </GroupBox>
-                <GroupBox x:Name="FlipflopNodeGroupBox" Grid.Row="1" Header="触发器" Margin="5" Visibility="Collapsed">
+                <GroupBox x:Name="FlipflopNodeGroupBox" Grid.Row="1" Header="触发器" Margin="5">
                     <ListBox x:Name="FlipflopsListBox" Background="#FACFC1"/>
                 </GroupBox>
             </Grid>

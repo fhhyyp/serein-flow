@@ -82,9 +82,6 @@ namespace Serein.Library.Api
         /// </summary>
         void Exit();
 
-        
-
-
         /*/// <summary>
         /// 定时循环触发
         /// </summary>

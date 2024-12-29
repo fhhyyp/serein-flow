@@ -31,7 +31,7 @@ namespace Serein.NodeFlow.Env
     /// <summary>
     /// 运行环境
     /// </summary>
-    public class FlowEnvironment : IFlowEnvironment, ISereinIOC 
+    public class FlowEnvironment : IFlowEnvironment, IFlowEnvironmentEvent , ISereinIOC 
     {
         /// <summary>
         /// 节点的命名空间

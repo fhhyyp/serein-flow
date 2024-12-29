@@ -9,9 +9,6 @@
             <ResourceDictionary.MergedDictionaries>
                 <!--<ResourceDictionary Source="/Themes/ExplicitDataControl.xaml" />-->
                 <ResourceDictionary Source="/Themes/MethodDetailsControl.xaml" />
-
-                 
-
             </ResourceDictionary.MergedDictionaries>
 
             <Style TargetType="{x:Type TextBlock }">

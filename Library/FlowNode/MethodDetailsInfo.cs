@@ -9,7 +9,7 @@ namespace Serein.Library
     /// <summary>
     /// 方法描述信息
     /// </summary>
-    public class MethodDetailsInfo
+    public class MethodDetailsInfo 
     {
         /// <summary>
         /// 属于哪个程序集
