@@ -317,7 +317,7 @@ namespace Serein.Library
 
         public override string ToString()
         {
-            return $"[{this.Index}] {this.Name} : {this.ExplicitType?.FullName} -> {this.DataType?.FullName}";
+            return $"[{this.Index}] {this.Name} : {this.DataType?.FullName}";
         }
     }
 

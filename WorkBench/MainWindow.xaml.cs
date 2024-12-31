@@ -55,6 +55,7 @@ namespace Serein.Workbench
         /// 流程环境装饰器，方便在本地与远程环境下切换
         /// </summary>
         private IFlowEnvironment EnvDecorator => ViewModel.FlowEnvironment;
+        private IFlowEnvironmentEvent EnvEventDecorator => ViewModel.FlowEnvironment as IFlowEnvironmentEvent;
         private MainWindowViewModel ViewModel { get; set; }
 
 
@@ -192,27 +193,27 @@ namespace Serein.Workbench
         /// </summary>
         private void InitFlowEnvironmentEvent()
         {
-            EnvDecorator.OnDllLoad += FlowEnvironment_DllLoadEvent;
-            EnvDecorator.OnProjectSaving += EnvDecorator_OnProjectSaving;
-            EnvDecorator.OnProjectLoaded += FlowEnvironment_OnProjectLoaded;
-            EnvDecorator.OnStartNodeChange += FlowEnvironment_StartNodeChangeEvent;
-            EnvDecorator.OnNodeConnectChange += FlowEnvironment_NodeConnectChangeEvemt;
-            EnvDecorator.OnNodeCreate += FlowEnvironment_NodeCreateEvent;
-            EnvDecorator.OnNodeRemove += FlowEnvironment_NodeRemoveEvent;
-            EnvDecorator.OnNodePlace += EnvDecorator_OnNodePlaceEvent;
-            EnvDecorator.OnNodeTakeOut += EnvDecorator_OnNodeTakeOutEvent; 
-            EnvDecorator.OnFlowRunComplete += FlowEnvironment_OnFlowRunCompleteEvent;
-
-
-            EnvDecorator.OnMonitorObjectChange += FlowEnvironment_OnMonitorObjectChangeEvent;
-            EnvDecorator.OnNodeInterruptStateChange += FlowEnvironment_OnNodeInterruptStateChangeEvent;
-            EnvDecorator.OnInterruptTrigger += FlowEnvironment_OnInterruptTriggerEvent;
-
-            EnvDecorator.OnIOCMembersChanged += FlowEnvironment_OnIOCMembersChangedEvent;
-                   
-            EnvDecorator.OnNodeLocated += FlowEnvironment_OnNodeLocateEvent;
-            EnvDecorator.OnNodeMoved += FlowEnvironment_OnNodeMovedEvent;
-            EnvDecorator.OnEnvOut += FlowEnvironment_OnEnvOutEvent;
+           EnvEventDecorator.OnDllLoad += FlowEnvironment_DllLoadEvent;
+           EnvEventDecorator.OnProjectSaving += EnvDecorator_OnProjectSaving;
+           EnvEventDecorator.OnProjectLoaded += FlowEnvironment_OnProjectLoaded;
+           EnvEventDecorator.OnStartNodeChange += FlowEnvironment_StartNodeChangeEvent;
+           EnvEventDecorator.OnNodeConnectChange += FlowEnvironment_NodeConnectChangeEvemt;
+           EnvEventDecorator.OnNodeCreate += FlowEnvironment_NodeCreateEvent;
+           EnvEventDecorator.OnNodeRemove += FlowEnvironment_NodeRemoveEvent;
+           EnvEventDecorator.OnNodePlace += EnvDecorator_OnNodePlaceEvent;
+           EnvEventDecorator.OnNodeTakeOut += EnvDecorator_OnNodeTakeOutEvent; 
+           EnvEventDecorator.OnFlowRunComplete += FlowEnvironment_OnFlowRunCompleteEvent;
+           
+           
+           EnvEventDecorator.OnMonitorObjectChange += FlowEnvironment_OnMonitorObjectChangeEvent;
+           EnvEventDecorator.OnNodeInterruptStateChange += FlowEnvironment_OnNodeInterruptStateChangeEvent;
+           EnvEventDecorator.OnInterruptTrigger += FlowEnvironment_OnInterruptTriggerEvent;
+           
+           EnvEventDecorator.OnIOCMembersChanged += FlowEnvironment_OnIOCMembersChangedEvent;
+           
+           EnvEventDecorator.OnNodeLocated += FlowEnvironment_OnNodeLocateEvent;
+           EnvEventDecorator.OnNodeMoved += FlowEnvironment_OnNodeMovedEvent;
+            EnvEventDecorator.OnEnvOut += FlowEnvironment_OnEnvOutEvent;
         }
 
        
@@ -222,27 +223,27 @@ namespace Serein.Workbench
         /// </summary>
         private void ResetFlowEnvironmentEvent()
         {
-            EnvDecorator.OnDllLoad -= FlowEnvironment_DllLoadEvent;
-            EnvDecorator.OnProjectSaving -= EnvDecorator_OnProjectSaving;
-            EnvDecorator.OnProjectLoaded -= FlowEnvironment_OnProjectLoaded;
-            EnvDecorator.OnStartNodeChange -= FlowEnvironment_StartNodeChangeEvent;
-            EnvDecorator.OnNodeConnectChange -= FlowEnvironment_NodeConnectChangeEvemt;
-            EnvDecorator.OnNodeCreate -= FlowEnvironment_NodeCreateEvent;
-            EnvDecorator.OnNodeRemove -= FlowEnvironment_NodeRemoveEvent;
-            EnvDecorator.OnNodePlace -= EnvDecorator_OnNodePlaceEvent;
-            EnvDecorator.OnNodeTakeOut -= EnvDecorator_OnNodeTakeOutEvent;
-            EnvDecorator.OnFlowRunComplete -= FlowEnvironment_OnFlowRunCompleteEvent;
-
-
-            EnvDecorator.OnMonitorObjectChange -= FlowEnvironment_OnMonitorObjectChangeEvent;
-            EnvDecorator.OnNodeInterruptStateChange -= FlowEnvironment_OnNodeInterruptStateChangeEvent;
-            EnvDecorator.OnInterruptTrigger -= FlowEnvironment_OnInterruptTriggerEvent;
-
-            EnvDecorator.OnIOCMembersChanged -= FlowEnvironment_OnIOCMembersChangedEvent;
-            EnvDecorator.OnNodeLocated -= FlowEnvironment_OnNodeLocateEvent;
-            EnvDecorator.OnNodeMoved -= FlowEnvironment_OnNodeMovedEvent;
-
-            EnvDecorator.OnEnvOut -= FlowEnvironment_OnEnvOutEvent;
+            EnvEventDecorator.OnDllLoad -= FlowEnvironment_DllLoadEvent;
+            EnvEventDecorator.OnProjectSaving -= EnvDecorator_OnProjectSaving;
+            EnvEventDecorator.OnProjectLoaded -= FlowEnvironment_OnProjectLoaded;
+            EnvEventDecorator.OnStartNodeChange -= FlowEnvironment_StartNodeChangeEvent;
+            EnvEventDecorator.OnNodeConnectChange -= FlowEnvironment_NodeConnectChangeEvemt;
+            EnvEventDecorator.OnNodeCreate -= FlowEnvironment_NodeCreateEvent;
+            EnvEventDecorator.OnNodeRemove -= FlowEnvironment_NodeRemoveEvent;
+            EnvEventDecorator.OnNodePlace -= EnvDecorator_OnNodePlaceEvent;
+            EnvEventDecorator.OnNodeTakeOut -= EnvDecorator_OnNodeTakeOutEvent;
+            EnvEventDecorator.OnFlowRunComplete -= FlowEnvironment_OnFlowRunCompleteEvent;
+            
+            
+            EnvEventDecorator.OnMonitorObjectChange -= FlowEnvironment_OnMonitorObjectChangeEvent;
+            EnvEventDecorator.OnNodeInterruptStateChange -= FlowEnvironment_OnNodeInterruptStateChangeEvent;
+            EnvEventDecorator.OnInterruptTrigger -= FlowEnvironment_OnInterruptTriggerEvent;
+            
+            EnvEventDecorator.OnIOCMembersChanged -= FlowEnvironment_OnIOCMembersChangedEvent;
+            EnvEventDecorator.OnNodeLocated -= FlowEnvironment_OnNodeLocateEvent;
+            EnvEventDecorator.OnNodeMoved -= FlowEnvironment_OnNodeMovedEvent;
+            
+            EnvEventDecorator.OnEnvOut -= FlowEnvironment_OnEnvOutEvent;
 
         }
 
