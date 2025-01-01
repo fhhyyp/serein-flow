@@ -1,0 +1,34 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:Serein.Workbench.Avalonia.ViewModels"
+             xmlns:cv="clr-namespace:Serein.Workbench.Avalonia.Custom.Views"
+             mc:Ignorable="d" d:DesignWidth="1024" d:DesignHeight="640"
+             x:Class="Serein.Workbench.Avalonia.Views.MainView"
+             x:DataType="vm:MainViewModel">
+  <Design.DataContext>
+    <vm:MainViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+  </UserControl.Styles>
+  <Grid RowDefinitions="auto,0,*" ColumnDefinitions="*">
+    <cv:MainMenuBarView Grid.Row="0" Grid.Column="0" Background="#E2E9EE"/>
+    <!--这里留空，以后放置功能区-->
+    <Grid Grid.Row="2" Grid.Column="0"
+          RowDefinitions="*" ColumnDefinitions="auto,*">
+      <!--依赖信息-->
+      <Grid RowDefinitions="*,auto" HorizontalAlignment="Left">
+        <!--已加载的依赖-->
+        <cv:FlowLibrarysView Grid.Row="0"/>
+        <!--<cv:FlowLibraryMethodInfoView Grid.Row="1"  HorizontalAlignment="Left"/>-->
+        <!--当前预览的节点方法信息-->
+      </Grid>
+      
+      <!--画布-->
+      <cv:NodeContainerView  Grid.Column="1"/>
+      <!--其他视图-->
+    
+    </Grid>
+  </Grid>
+</UserControl>

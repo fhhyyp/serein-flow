@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Serein.Workbench.Avalonia.Custom.Views.NodeContainerView"
+             xmlns:vm="clr-namespace:Serein.Workbench.Avalonia.Custom.ViewModels"
+             xmlns:baselibrary="clr-namespace:Serein.Library;assembly=Serein.Library"
+             x:DataType="vm:NodeContainerViewModel"
+             Background="#F8FBF1"
+             DragDrop.AllowDrop="True">
+  
+  <Design.DataContext>
+    <vm:NodeContainerViewModel />
+  </Design.DataContext>
+
+  <DockPanel>
+    <!--放置节点-->
+    <Canvas x:Name="PART_NodeContainer">
+    </Canvas>
+  </DockPanel>
+</UserControl>

@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="200" d:DesignHeight="100"
+             x:Class="Serein.Workbench.Avalonia.Custom.Node.Views.ActionNodeView"
+             xmlns:vm="clr-namespace:Serein.Workbench.Avalonia.Custom.Node.ViewModels"
+             xmlns:baselibrary="clr-namespace:Serein.Library;assembly=Serein.Library"
+             xmlns:cv="clr-namespace:Serein.Workbench.Avalonia.Custom.Views"
+             xmlns:dtp="using:Serein.Workbench.Avalonia.DataTemplates"
+             
+             Background="#C6EEF7" 
+             x:DataType="vm:ActionNodeViewModel">
+  <Design.DataContext>
+    <vm:ActionNodeViewModel />
+  </Design.DataContext>
+
+  <Border>
+    <Grid RowDefinitions="25,*,*,*,*">
+      
+      <!--调用控制点，方法名称，下一个方法调用控制点-->
+      <Grid x:Name="HeaderGrid" Grid.Row="0" ColumnDefinitions="auto,*,auto"  VerticalAlignment="Center">
+        <cv:NodeJunctionView Grid.Column="0" JunctionType="Execute" MyNode="{Binding NodeMoel}" Width="30" Height="15"  Margin="4,0,2,0" />
+        <StackPanel Grid.Column="1" Grid.RowSpan="2" >
+          <TextBlock  Text="{Binding NodeMoel.DisplayName}" FontSize="17" HorizontalAlignment="Center">
+            <ToolTip.Tip>
+              <StackPanel >
+                <TextBlock Text="{Binding NodeMoel.MethodDetails}"  FontSize="12"/>
+              </StackPanel>
+            </ToolTip.Tip>
+          </TextBlock>
+        </StackPanel>
+        <cv:NodeJunctionView Grid.Column="2" JunctionType="NextStep" MyNode="{Binding NodeMoel}"  Width="30" Height="15"   Margin="2,0,8,0"/>
+      </Grid>
+
+      <!--入参信息-->
+      <StackPanel Grid.Row="1" Background="#E3FDFD">
+        <ItemsControl ItemsSource="{Binding NodeMoel.MethodDetails.ParameterDetailss}">
+          <ItemsControl.ItemTemplate>
+            <dtp:NodeMethodParameterInfoDataTemplate>
+            </dtp:NodeMethodParameterInfoDataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+      
+      
+    </Grid>
+  </Border>
+</UserControl>

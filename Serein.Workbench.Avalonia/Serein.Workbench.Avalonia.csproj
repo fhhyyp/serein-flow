@@ -1,0 +1,60 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaXaml Remove="Commands\**" />
+    <Compile Remove="Commands\**" />
+    <EmbeddedResource Remove="Commands\**" />
+    <None Remove="Commands\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Custom\ViewModels\FlowLibraryInfoViewModel.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Skia" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.3" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+
+    <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
+    <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.2.3" />
+    <PackageReference Include="MessageBox.Avalonia" Version="3.2.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Resources\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\DynamicControl\SereinFlow\Library\Serein.Library.csproj" />
+    <ProjectReference Include="..\..\..\DynamicControl\SereinFlow\NodeFlow\Serein.NodeFlow.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Custom\Views\FlowLibraryMethodInfoView.axaml.cs">
+      <DependentUpon>FlowLibraryMethodInfoView1. axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Custom\Views\MainMenuBarView.axaml.cs">
+      <DependentUpon>MainMenuBarView.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Custom\Views\FlowLibraryInfoView.axaml.cs">
+      <DependentUpon>FlowLibraryInfoView. axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Custom\Views\NodeContainerView.axaml.cs">
+      <DependentUpon>NodeContainerView.axaml</DependentUpon>
+    </Compile>
+  </ItemGroup>
+</Project>

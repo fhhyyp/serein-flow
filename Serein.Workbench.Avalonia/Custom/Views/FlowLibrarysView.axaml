@@ -1,0 +1,39 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Serein.Workbench.Avalonia.Custom.Views.FlowLibrarysView"
+             xmlns:vm="clr-namespace:Serein.Workbench.Avalonia.Custom.ViewModels"
+             xmlns:cv="clr-namespace:Serein.Workbench.Avalonia.Custom.Views"
+             xmlns:baselibrary="clr-namespace:Serein.Library;assembly=Serein.Library"
+             x:DataType="vm:FlowLibrarysViewModel"
+             >
+  <Design.DataContext>
+    <vm:FlowLibrarysViewModel />
+  </Design.DataContext>
+
+  <UserControl.Resources>
+    <cv:FlowLibraryInfoView x:Key="FlowLibraryInfoView">
+    </cv:FlowLibraryInfoView>
+  </UserControl.Resources>
+
+    <!-- , DataType={x:Type vm:FlowLibrarysViewModel} -->
+    <!--  x:DataType="baselibrary:LibraryMds" -->
+    <!--  LibraryInfo="{Binding}"-->
+  <ScrollViewer HorizontalAlignment="Left" VerticalAlignment="Top">
+    <!--Displays dependecy information loaded from runtime environment-->
+    <!--显示从运行环境加载的所有依赖信息-->
+    <ItemsControl  ItemsSource="{Binding LibraryList}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate  x:DataType="baselibrary:LibraryMds" >
+          <cv:FlowLibraryInfoView LibraryName="{Binding AssemblyName}" Mds="{Binding Mds}"/>
+          <!--<StackPanel Background="{DynamicResource SystemRegionBrush}" Margin="2,2,2,8">
+
+          </StackPanel>-->
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </ScrollViewer>
+ 
+</UserControl>

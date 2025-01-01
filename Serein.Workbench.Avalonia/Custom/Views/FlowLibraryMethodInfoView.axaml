@@ -1,0 +1,40 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Serein.Workbench.Avalonia.Custom.Views.FlowLibraryMethodInfoView"
+             xmlns:vm="clr-namespace:Serein.Workbench.Avalonia.Custom.ViewModels"
+             xmlns:cv="clr-namespace:Serein.Workbench.Avalonia.Custom.Views"
+             xmlns:baselibrary="clr-namespace:Serein.Library;assembly=Serein.Library"
+             x:DataType="vm:FlowLibraryMethodInfoViewModel">
+  
+  <Design.DataContext>
+    <vm:FlowLibraryMethodInfoViewModel />
+  </Design.DataContext>
+  
+  <UserControl.Styles>
+    <Style Selector="StackPanel">
+      <Setter Property="Margin"  Value="2,1,2,1" />
+    </Style>
+  </UserControl.Styles>
+  
+  <StackPanel>
+    <StackPanel Orientation="Horizontal">
+      <TextBlock Text="节点类型 - "/>
+      <TextBlock Text="{Binding MethodDetailsInfo.NodeType}"/>
+    </StackPanel>
+    <StackPanel Orientation="Horizontal">
+      <TextBlock Text="方法描述 - "/>
+      <TextBlock Text="{Binding MethodDetailsInfo.MethodAnotherName}"/>
+    </StackPanel>
+    <StackPanel Orientation="Horizontal">
+      <TextBlock Text="方法名称 - "/>
+      <TextBlock Text="{Binding MethodDetailsInfo.MethodName}"/>
+    </StackPanel>
+    <StackPanel Orientation="Horizontal">
+      <TextBlock Text=" 返 回 值  - "/>
+      <TextBlock Text="{Binding MethodDetailsInfo.ReturnTypeFullName}"/>
+    </StackPanel>
+  </StackPanel>
+</UserControl>

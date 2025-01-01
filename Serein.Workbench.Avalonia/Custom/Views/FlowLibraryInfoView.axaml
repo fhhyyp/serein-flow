@@ -1,0 +1,56 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                    xmlns:baselibrary="clr-namespace:Serein.Library;assembly=Serein.Library"
+                    xmlns:cv="using:Serein.Workbench.Avalonia.Custom.Views"
+                    xmlns:converter="using:Serein.Workbench.Avalonia.Converters"
+                    xmlns:dtp="using:Serein.Workbench.Avalonia.DataTemplates"
+                    >
+
+  <!--预览-->
+  <Design.PreviewWith>
+    <StackPanel Width="400" Spacing="10">
+      <StackPanel Background="{DynamicResource SystemRegionBrush}">
+        <cv:FlowLibraryInfoView />
+      </StackPanel>
+    </StackPanel>
+  </Design.PreviewWith>
+
+  <ControlTheme x:Key="{x:Type cv:FlowLibraryInfoView}" TargetType="cv:FlowLibraryInfoView">
+    <Setter Property="Template">
+      <ControlTemplate>
+        <StackPanel>
+          <!--类库名称-->
+          <StackPanel HorizontalAlignment="Left" Orientation="Horizontal" Margin="2">
+            <TextBlock Text="library : " FontSize="18"></TextBlock>
+            <TextBlock Text="{TemplateBinding LibraryName}" FontSize="18"></TextBlock>
+          </StackPanel>
+          
+          <!--Action Method Info-->
+          <!--动作节点方法信息-->
+          <ListBox x:Name="PART_ActionMethodInfos" ItemsSource="{TemplateBinding ActionMethods}" Background="#F1FBFB">
+            <ItemsControl.ItemTemplate>
+              <!--use custom DataTemplate create items -->
+              <!--使用自定义模板创建子项控件-->
+              <dtp:LibraryMethodInfoDataTemplate>
+              </dtp:LibraryMethodInfoDataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ListBox>
+
+          <!--Flipflop Method Info-->
+          <!--触发器节点方法信息-->
+          <ListBox x:Name="PART_FlipflopMethodInfos"  ItemsSource="{TemplateBinding FlipflopMethods}" Background="#FBF8F1">
+            <ItemsControl.ItemTemplate>
+              <dtp:LibraryMethodInfoDataTemplate>
+              </dtp:LibraryMethodInfoDataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ListBox>
+
+        </StackPanel>
+      </ControlTemplate>
+    </Setter>
+  </ControlTheme>
+  
+</ResourceDictionary>
+

@@ -28,6 +28,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.BaseNode", "Serein.B
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Script", "Serein.Script\Serein.Script.csproj", "{D14BC18C-3D69-49FA-BEEA-A9AA570C7469}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Workbench.Avalonia", "Serein.Workbench.Avalonia\Serein.Workbench.Avalonia.csproj", "{3E11F86C-5914-4998-81DC-6688E5E1A59B}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Workbench.Avalonia.Desktop", "Serein.Workbench.Avalonia.Desktop\Serein.Workbench.Avalonia.Desktop.csproj", "{D46C9E9E-9994-45E6-8084-A8A9497B1DC2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -74,6 +78,14 @@ Global
 		{D14BC18C-3D69-49FA-BEEA-A9AA570C7469}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D14BC18C-3D69-49FA-BEEA-A9AA570C7469}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D14BC18C-3D69-49FA-BEEA-A9AA570C7469}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3E11F86C-5914-4998-81DC-6688E5E1A59B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3E11F86C-5914-4998-81DC-6688E5E1A59B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3E11F86C-5914-4998-81DC-6688E5E1A59B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3E11F86C-5914-4998-81DC-6688E5E1A59B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D46C9E9E-9994-45E6-8084-A8A9497B1DC2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D46C9E9E-9994-45E6-8084-A8A9497B1DC2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D46C9E9E-9994-45E6-8084-A8A9497B1DC2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D46C9E9E-9994-45E6-8084-A8A9497B1DC2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,0 +1,43 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Serein.Workbench.Avalonia.Custom.Views.MainMenuBarView"
+             xmlns:vm="clr-namespace:Serein.Workbench.Avalonia.Custom.ViewModels"
+             x:DataType="vm:MainMenuBarViewModel">
+  <UserControl.Styles>
+    <Style Selector="MenuItem">
+      <Setter Property="FontSize"  Value="20" />
+    </Style>
+  </UserControl.Styles>
+  
+  <Design.DataContext>
+    <vm:MainMenuBarViewModel />
+  </Design.DataContext>
+  <StackPanel  HorizontalAlignment="Center" >
+      <StackPanel.Resources>
+        <SolidColorBrush x:Key="MenuFlyoutBackground">#FFFFFF</SolidColorBrush>
+      </StackPanel.Resources>
+      <Menu Background="Transparent">
+        <MenuItem Header="项目">
+          <MenuItem Header="保存项目" Command="{Binding SaveProjectCommand}"/>
+          <MenuItem Header="打开本地项目"/>
+        </MenuItem>
+        <MenuItem Header="调试">
+          <MenuItem Header="运行（从起始节点）"/>
+          <MenuItem Header="运行（从当前节点）"/>
+          <MenuItem Header="结束流程"/>
+        </MenuItem>
+        <MenuItem Header="视图">
+          <MenuItem Header="输出窗口"/>
+          <MenuItem Header="重置画布"/>
+          <MenuItem Header="定位节点"/>
+        </MenuItem>
+        <MenuItem Header="远程">
+          <MenuItem Header="启动远程服务" />
+          <MenuItem Header="连接远程环境" />
+        </MenuItem>
+      </Menu>
+    </StackPanel>
+</UserControl>
