@@ -18,7 +18,7 @@
     <Grid Grid.Row="2" Grid.Column="0"
           RowDefinitions="*" ColumnDefinitions="auto,*">
       <!--依赖信息-->
-      <Grid RowDefinitions="*,auto" HorizontalAlignment="Left">
+      <Grid IsVisible="False" RowDefinitions="*,auto" HorizontalAlignment="Left">
         <!--已加载的依赖-->
         <cv:FlowLibrarysView Grid.Row="0"/>
         <!--<cv:FlowLibraryMethodInfoView Grid.Row="1"  HorizontalAlignment="Left"/>-->

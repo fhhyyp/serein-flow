@@ -30,12 +30,7 @@ namespace Serein.Workbench.Avalonia.DataTemplates
                 textBlock.Margin = new Thickness(2d, -6d, 2d, -6d);
                 textBlock.FontSize = 12;
                 textBlock.PointerPressed += TextBlock_PointerPressed;
-                //var stackPanel = new StackPanel();
-                //stackPanel.Children.Add(textBlock);
-                //ToolTip toolTip = new ToolTip();
-                //toolTip.FontSize = 12;
-                //toolTip.Content = mdInfo.MethodAnotherName;
-                //textBlock.Tag = mdInfo;
+                textBlock.Tag = mdInfo;
                 return textBlock;
             }
             else
@@ -43,7 +38,6 @@ namespace Serein.Workbench.Avalonia.DataTemplates
                 var textBlock = new TextBlock() { Text = $"Binding 类型不为预期的[MethodDetailsInfo]，而是[{param?.GetType()}]" };
                 textBlock.Margin = new Thickness(2d, -6d, 2d, -6d);
                 textBlock.FontSize = 12;
-                textBlock.PointerPressed += TextBlock_PointerPressed;
                 return textBlock;
             }
             

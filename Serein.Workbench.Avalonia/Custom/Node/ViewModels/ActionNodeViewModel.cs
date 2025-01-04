@@ -15,6 +15,7 @@ namespace Serein.Workbench.Avalonia.Custom.Node.ViewModels
         [ObservableProperty]
         private SingleActionNode? nodeMoel;
 
+       
         internal override NodeModelBase NodeModelBase 
             { get => NodeMoel ?? throw new NotImplementedException(); set => NodeMoel = (SingleActionNode)value; }
 

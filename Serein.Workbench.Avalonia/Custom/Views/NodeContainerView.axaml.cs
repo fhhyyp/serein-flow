@@ -98,6 +98,7 @@ public partial class NodeContainerView : UserControl
             {
                 IsCanvasDragging = false;
                 IsControlDragging = false;
+                nodeOperationService.ConnectingData.Reset();
             }
         };
         #endregion
@@ -190,12 +191,11 @@ public partial class NodeContainerView : UserControl
 
     private void NodeContainerView_PointerMoved(object? sender, PointerEventArgs e)
     {
-
+        // 是否正在连接
         var myData = nodeOperationService.ConnectingData;
         if (myData.IsCreateing)
         {
             var isPass = e.JudgePointer(sender, PointerType.Mouse, p => p.IsLeftButtonPressed);
-            //Debug.WriteLine("canvas ispass = " + isPass);
             if (isPass)
             {
                 if (myData.Type == JunctionOfConnectionType.Invoke)
@@ -208,7 +208,9 @@ public partial class NodeContainerView : UserControl
                     _vm.IsConnectionArgSourceNode = true; // 正在连接节点的调用关系
                 }
                 var currentPoint = e.GetPosition(PART_NodeContainer);
+                //myData.CurrentJunction?.InvalidateVisual();
                 myData.UpdatePoint(new Point(currentPoint.X - 5, currentPoint.Y - 5));
+                e.Handled = true;
                 return;
 
             }

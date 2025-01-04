@@ -1,8 +1,10 @@
 ﻿using Avalonia;
+using Avalonia.Threading;
 using Serein.Library;
 using Serein.Workbench.Avalonia.Custom.Views;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -34,7 +36,7 @@ namespace Serein.Workbench.Avalonia.Model
         /// <summary>
         /// 线条样式
         /// </summary>
-        public MyLine? TempLine { get; set; }
+        public NodeConnectionLineView? TempLine { get; set; }
 
         /// <summary>
         /// 线条类别（方法调用）
@@ -49,38 +51,33 @@ namespace Serein.Workbench.Avalonia.Model
         /// 判断当前连接类型
         /// </summary>
         public JunctionOfConnectionType? Type => StartJunction?.JunctionType.ToConnectyionType();
-
+        
 
         /// <summary>
         /// 是否允许连接
         /// </summary>
-
-        public bool IsCanConnected
+        public bool IsCanConnected()
         {
-            get
+            if (StartJunction is null
+                || CurrentJunction is null )
             {
+                return false;
+            }
+            if (StartJunction?.MyNode is null 
+                || StartJunction.MyNode.Equals(CurrentJunction.MyNode))
+                return false;
 
-                if (StartJunction is null
-                    || CurrentJunction is null
-                    )
-                {
-                    return false;
-                }
-                if(StartJunction?.MyNode is null)
-                {
-                    return false;
-                }
-                if (!StartJunction.MyNode.Equals(CurrentJunction.MyNode)
-                    && StartJunction.JunctionType.IsCanConnection(CurrentJunction.JunctionType))
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+            if (StartJunction.JunctionType.IsCanConnection(CurrentJunction.JunctionType))
+            {
+                return true;
+            }
+            else
+            {
+                return false;
             }
         }
+
+
 
         /// <summary>
         /// 更新临时的连接线
@@ -88,20 +85,22 @@ namespace Serein.Workbench.Avalonia.Model
         /// <param name="point"></param>
         public void UpdatePoint(Point point)
         {
-            if (StartJunction is null
-                    || CurrentJunction is null
-                    )
+            if (StartJunction is null || CurrentJunction is null )
+            {
+                return;
+            }
+            if (IsCanConnected())
             {
                 return;
             }
             if (StartJunction.JunctionType == Library.JunctionType.Execute
                 || StartJunction.JunctionType == Library.JunctionType.ArgData)
             {
-                TempLine?.Line.UpdateStartPoints(point);
+                TempLine?.RefreshLeftPointOfTempLineDsiplay(point);
             }
             else
             {
-                TempLine?.Line.UpdateEndPoints(point);
+                TempLine?.RefreshRightPointOfTempLineDsiplay(point);
 
             }
         }
@@ -111,9 +110,17 @@ namespace Serein.Workbench.Avalonia.Model
         /// </summary>
         public void Reset()
         {
+            if(CurrentJunction is not null)
+            {
+                CurrentJunction.IsPreviewing = false;
+                Dispatcher.UIThread.InvokeAsync(CurrentJunction.InvalidateVisual, DispatcherPriority.Background);
+            }
+            if(StartJunction is not null)
+            {
+                StartJunction.IsPreviewing = false;
+                Dispatcher.UIThread.InvokeAsync(StartJunction.InvalidateVisual, DispatcherPriority.Background);
+            }
             IsCreateing = false;
-            StartJunction = null;
-            CurrentJunction = null;
             TempLine?.Remove();
             ConnectionInvokeType = ConnectionInvokeType.IsSucceed;
             ConnectionArgSourceType = ConnectionArgSourceType.GetOtherNodeData;

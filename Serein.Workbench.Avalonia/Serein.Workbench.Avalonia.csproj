@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <Compile Remove="Custom\ViewModels\FlowLibraryInfoViewModel.cs" />
+    <Compile Remove="Model\NodeConnectionLine.cs" />
   </ItemGroup>
 
   <ItemGroup>

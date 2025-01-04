@@ -15,6 +15,7 @@ using Serein.Workbench.Avalonia.Extension;
 using Serein.Workbench.Avalonia.Model;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -81,12 +82,12 @@ namespace Serein.Workbench.Avalonia.Api
 
     internal class NodeViewCreateEventArgs : EventArgs
     {
-        internal NodeViewCreateEventArgs(INodeControl nodeControl, PositionOfUI position)
+        internal NodeViewCreateEventArgs(NodeControlBase nodeControl, PositionOfUI position)
         {
             this.NodeControl = nodeControl;
             this.Position = position;
         }
-        public INodeControl NodeControl { get; private set; }
+        public NodeControlBase NodeControl { get; private set; }
         public PositionOfUI Position { get; private set; }
     }
 
@@ -112,11 +113,9 @@ namespace Serein.Workbench.Avalonia.Services
         {
             this.flowEnvironment = flowEnvironment;
             this.feefService = feefService;
-
-            NodeMVVMManagement.RegisterUI(NodeControlType.Action, typeof(ActionNodeView), typeof(ActionNodeViewModel)); // 注册动作节点
-            ConnectingData = new ConnectingData();
             feefService.OnNodeCreate += FeefService_OnNodeCreate; // 订阅运行环境创建节点事件
-
+            feefService.OnNodeConnectChange += FeefService_OnNodeConnectChange; // 订阅运行环境连接了节点事件
+            NodeMVVMManagement.RegisterUI(NodeControlType.Action, typeof(ActionNodeView), typeof(ActionNodeViewModel)); // 注册动作节点
 
             // 手动加载项目
             _ = Task.Run(async delegate
@@ -133,17 +132,24 @@ namespace Serein.Workbench.Avalonia.Services
 
         }
 
-        public ConnectingData ConnectingData { get; private set; }
+
+        #region 接口属性
+        public ConnectingData ConnectingData { get; private set; } = new ConnectingData();
         public Canvas MainCanvas { get; set; }
 
-
+        #endregion
 
         #region 私有变量
 
         /// <summary>
         /// 存储所有与节点有关的控件
         /// </summary>
-        private Dictionary<string, INodeControl> NodeControls { get; } = [];
+        private Dictionary<string, NodeControlBase> NodeControls { get; } = [];
+
+        /// <summary>
+        /// 存储所有连接
+        /// </summary>
+        private List<NodeConnectionLineView> Connections { get; } = [];
 
 
 
@@ -158,28 +164,16 @@ namespace Serein.Workbench.Avalonia.Services
         private readonly IFlowEEForwardingService feefService;
         #endregion
 
+        #region 节点操作事件
+
         /// <summary>
         /// 创建了节点控件
         /// </summary>
         public event NodeViewCreateHandle OnNodeViewCreate;
 
-        /// <summary>
-        /// 创建节点控件
-        /// </summary>
-        /// <param name="nodeType">控件类型</param>
-        /// <param name="position">创建坐标</param>
-        /// <param name="methodDetailsInfo">节点方法信息（基础节点传null）</param>
-        public void CreateNodeView(MethodDetailsInfo methodDetailsInfo, PositionOfUI position)
-        {
-            Task.Run(async () =>
-            {
-                if (EnumHelper.TryConvertEnum<NodeControlType>(methodDetailsInfo.NodeType, out var nodeType))
-                {
-                    await flowEnvironment.CreateNodeAsync(nodeType, position, methodDetailsInfo);
-                }
-            });
-        }
+        #endregion
 
+        #region 转发事件的处理
 
         /// <summary>
         /// 从工作台事件转发器监听节点创建事件
@@ -225,6 +219,178 @@ namespace Serein.Workbench.Avalonia.Services
 
         }
 
+
+        /// <summary>
+        /// 运行环境连接了节点事件
+        /// </summary>
+        /// <param name="eventArgs"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        private void FeefService_OnNodeConnectChange(NodeConnectChangeEventArgs eventArgs)
+        {
+#if false
+            string fromNodeGuid = eventArgs.FromNodeGuid;
+            string toNodeGuid = eventArgs.ToNodeGuid;
+            if (!TryGetControl(fromNodeGuid, out var fromNodeControl)
+               || !TryGetControl(toNodeGuid, out var toNodeControl))
+            {
+                return;
+            }
+
+            if (eventArgs.JunctionOfConnectionType == JunctionOfConnectionType.Invoke)
+            {
+                ConnectionInvokeType connectionType = eventArgs.ConnectionInvokeType;
+                #region 创建/删除节点之间的调用关系
+                #region 创建连接
+                if (eventArgs.ChangeType == NodeConnectChangeEventArgs.ConnectChangeType.Create) // 添加连接
+                {
+                    if (fromNodeControl is not INodeJunction IFormJunction || toNodeControl is not INodeJunction IToJunction)
+                    {
+                        SereinEnv.WriteLine(InfoType.INFO, "非预期的连接");
+                        return;
+                    }
+                    var startJunction = IFormJunction.NextStepJunction;
+                    var endJunction = IToJunction.ExecuteJunction;
+
+                    startJunction.TransformToVisual(MainCanvas);
+
+                    // 添加连接
+                    var shape = new ConnectionLineShape(
+                        FlowChartCanvas,
+                        connectionType,
+                        startJunction,
+                        endJunction
+                    );
+                    NodeConnectionLine nodeConnectionLine = new NodeConnectionLine(MainCanvas, shape);
+
+                    //if (toNodeControl is FlipflopNodeControl flipflopControl
+                    //    && flipflopControl?.ViewModel?.NodeModel is NodeModelBase nodeModel) // 某个节点连接到了触发器，尝试从全局触发器视图中移除该触发器
+                    //{
+                    //    NodeTreeViewer.RemoveGlobalFlipFlop(nodeModel); // 从全局触发器树树视图中移除
+                    //}
+
+                    Connections.Add(nodeConnectionLine);
+                    fromNodeControl.AddCnnection(shape);
+                    toNodeControl.AddCnnection(shape);
+                }
+                #endregion
+#if false
+
+                #region 移除连接
+                else if (eventArgs.ChangeType == NodeConnectChangeEventArgs.ConnectChangeType.Remove) // 移除连接
+                {
+                    // 需要移除连接
+                    var removeConnections = Connections.Where(c =>
+                                               c.Start.MyNode.Guid.Equals(fromNodeGuid)
+                                            && c.End.MyNode.Guid.Equals(toNodeGuid)
+                                            && (c.Start.JunctionType.ToConnectyionType() == JunctionOfConnectionType.Invoke
+                                            || c.End.JunctionType.ToConnectyionType() == JunctionOfConnectionType.Invoke))
+                                            .ToList();
+
+
+                    foreach (var connection in removeConnections)
+                    {
+                        Connections.Remove(connection);
+                        fromNodeControl.RemoveConnection(connection); // 移除连接
+                        toNodeControl.RemoveConnection(connection); // 移除连接
+                        if (NodeControls.TryGetValue(connection.End.MyNode.Guid, out var control))
+                        {
+                            JudgmentFlipFlopNode(control); // 连接关系变更时判断
+                        }
+                    }
+                }
+                #endregion
+
+#endif
+                #endregion
+            }
+            else
+            {
+ #if false
+		ConnectionArgSourceType connectionArgSourceType = eventArgs.ConnectionArgSourceType;
+                 #region 创建/删除节点之间的参数传递关系
+                 #region 创建连接
+                 if (eventArgs.ChangeType == NodeConnectChangeEventArgs.ConnectChangeType.Create) // 添加连接
+                 {
+                     if (fromNodeControl is not INodeJunction IFormJunction || toNodeControl is not INodeJunction IToJunction)
+                     {
+                         SereinEnv.WriteLine(InfoType.INFO, "非预期的情况");
+                         return;
+                     }
+
+                     JunctionControlBase startJunction = eventArgs.ConnectionArgSourceType switch
+                     {
+                         ConnectionArgSourceType.GetPreviousNodeData => IFormJunction.ReturnDataJunction, // 自身节点
+                         ConnectionArgSourceType.GetOtherNodeData => IFormJunction.ReturnDataJunction, // 其它节点的返回值控制点
+                         ConnectionArgSourceType.GetOtherNodeDataOfInvoke => IFormJunction.ReturnDataJunction, // 其它节点的返回值控制点
+                         _ => throw new Exception("窗体事件 FlowEnvironment_NodeConnectChangeEvemt 创建/删除节点之间的参数传递关系 JunctionControlBase 枚举值错误 。非预期的枚举值。") // 应该不会触发
+                     };
+
+                     if (IToJunction.ArgDataJunction.Length <= eventArgs.ArgIndex)
+                     {
+                         _ = Task.Run(async () =>
+                         {
+                             await Task.Delay(500);
+                             FlowEnvironment_NodeConnectChangeEvemt(eventArgs);
+                         });
+                         return;
+                     }
+                     JunctionControlBase endJunction = IToJunction.ArgDataJunction[eventArgs.ArgIndex];
+                     LineType lineType = LineType.Bezier;
+                     // 添加连接
+                     var connection = new ConnectionControl(
+                         lineType,
+                         FlowChartCanvas,
+                         eventArgs.ArgIndex,
+                         eventArgs.ConnectionArgSourceType,
+                         startJunction,
+                         endJunction,
+                         IToJunction
+                     );
+                     Connections.Add(connection);
+                     fromNodeControl.AddCnnection(connection);
+                     toNodeControl.AddCnnection(connection);
+                     EndConnection(); // 环境触发了创建节点连接事件
+
+
+                 }
+                 #endregion
+                 #region 移除连接
+                 else if (eventArgs.ChangeType == NodeConnectChangeEventArgs.ConnectChangeType.Remove) // 移除连接
+                 {
+                     // 需要移除连接
+                     var removeConnections = Connections.Where(c => c.Start.MyNode.Guid.Equals(fromNodeGuid)
+                                                                     && c.End.MyNode.Guid.Equals(toNodeGuid))
+                                                                 .ToList(); // 获取这两个节点之间的所有连接关系
+
+
+
+                     foreach (var connection in removeConnections)
+                     {
+                         if (connection.End is ArgJunctionControl junctionControl && junctionControl.ArgIndex == eventArgs.ArgIndex)
+                         {
+                             // 找到符合删除条件的连接线
+                             Connections.Remove(connection); // 从本地记录中移除
+                             fromNodeControl.RemoveConnection(connection); // 从节点持有的记录移除
+                             toNodeControl.RemoveConnection(connection); // 从节点持有的记录移除
+                         }
+
+
+                         //if (NodeControls.TryGetValue(connection.End.MyNode.Guid, out var control))
+                         //{
+                         //    JudgmentFlipFlopNode(control); // 连接关系变更时判断
+                         //}
+                     }
+                 }
+                 #endregion
+                 #endregion 
+#endif
+            } 
+#endif
+        }
+        #endregion
+
+        #region 私有方法
+
         /// <summary>
         /// 创建节点控件
         /// </summary>
@@ -234,7 +400,7 @@ namespace Serein.Workbench.Avalonia.Services
         /// <param name="nodeView">返回的节点对象</param>
         /// <returns>是否创建成功</returns>
         /// <exception cref="Exception">无法创建节点控件</exception>
-        private bool TryCreateNodeView(Type viewType, Type viewModelType, NodeModelBase nodeModel, out INodeControl? nodeView)
+        private bool TryCreateNodeView(Type viewType, Type viewModelType, NodeModelBase nodeModel, out NodeControlBase? nodeView)
         {
             if (string.IsNullOrEmpty(nodeModel.Guid))
             {
@@ -248,16 +414,16 @@ namespace Serein.Workbench.Avalonia.Services
             }
             viewModelBase.NodeModelBase = nodeModel; // 设置节点对象
             var controlObj = Activator.CreateInstance(viewType);
-            if (controlObj is not INodeControl nodeControl)
+            if (controlObj is NodeControlBase nodeControl)
             {
-                nodeView = null;
-                return false;
+                nodeControl.DataContext = viewModelBase;
+                nodeView = nodeControl;
+                return true;
             }
             else
             {
-                nodeControl.SetNodeModel(nodeModel);
-                nodeView = nodeControl;
-                return true;
+                nodeView = null;
+                return false;
             }
 
             // 在其它地方验证过了，所以注释
@@ -276,6 +442,47 @@ namespace Serein.Workbench.Avalonia.Services
             //}
         }
 
+        private bool TryGetControl(string nodeGuid, out NodeControlBase nodeControl)
+        {
+            if (string.IsNullOrEmpty(nodeGuid))
+            {
+                nodeControl = null;
+                return false;
+            }
+            if (!NodeControls.TryGetValue(nodeGuid, out nodeControl))
+            {
+                nodeControl = null;
+                return false;
+            }
+            if (nodeControl is null)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        #endregion
+
+        #region 操作接口对外暴露的接口
+
+        /// <summary>
+        /// 创建节点控件
+        /// </summary>
+        /// <param name="nodeType">控件类型</param>
+        /// <param name="position">创建坐标</param>
+        /// <param name="methodDetailsInfo">节点方法信息（基础节点传null）</param>
+        public void CreateNodeView(MethodDetailsInfo methodDetailsInfo, PositionOfUI position)
+        {
+            Task.Run(async () =>
+            {
+                if (EnumHelper.TryConvertEnum<NodeControlType>(methodDetailsInfo.NodeType, out var nodeType))
+                {
+                    await flowEnvironment.CreateNodeAsync(nodeType, position, methodDetailsInfo);
+                }
+            });
+        }
+
+
         /// <summary>
         /// 尝试在连接控制点之间创建连接线
         /// </summary>
@@ -283,25 +490,23 @@ namespace Serein.Workbench.Avalonia.Services
         {
             if (MainCanvas is not null)
             {
-                var myData = ConnectingData;
-                var junctionSize = startJunction.GetTransformedBounds()!.Value.Bounds.Size;
-                var junctionPoint = new Point(junctionSize.Width / 2, junctionSize.Height / 2);
-                if (startJunction.TranslatePoint(junctionPoint, MainCanvas) is Point point)
+                ConnectingData.Reset();
+                ConnectingData.IsCreateing = true; // 表示开始连接
+                ConnectingData.StartJunction = startJunction;
+                ConnectingData.CurrentJunction = startJunction;
+                if(startJunction.JunctionType == JunctionType.NextStep || startJunction.JunctionType == JunctionType.ReturnData)
                 {
-                    myData.StartPoint = point;
+
+                    ConnectingData.TempLine = new NodeConnectionLineView(MainCanvas, startJunction, null);
                 }
                 else
                 {
-                    return;
+                    ConnectingData.TempLine = new NodeConnectionLineView(MainCanvas,null ,startJunction);
                 }
 
-                myData.Reset();
-                myData.IsCreateing = true; // 表示开始连接
-                myData.StartJunction = startJunction;
-                myData.CurrentJunction = startJunction;
 
-                var junctionOfConnectionType = startJunction.JunctionType.ToConnectyionType();
-                ConnectionLineShape bezierLine; // 类别
+                /*var junctionOfConnectionType = startJunction.JunctionType.ToConnectyionType();
+                ConnectionLineShape bezierLine; 
                 Brush brushColor; // 临时线的颜色
                 if (junctionOfConnectionType == JunctionOfConnectionType.Invoke)
                 {
@@ -319,11 +524,13 @@ namespace Serein.Workbench.Avalonia.Services
                                                      myData.StartPoint,
                                                      brushColor,
                                                      isTop: true); // 绘制临时的线
-
+                */
                 //Mouse.OverrideCursor = Cursors.Cross; // 设置鼠标为正在创建连线
-                myData.TempLine = new MyLine(MainCanvas, bezierLine);
+
             }
-        }
+        } 
+
+        #endregion
     }
 
 }
