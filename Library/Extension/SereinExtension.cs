@@ -158,25 +158,7 @@ namespace Serein.Library
                     || (start == JunctionType.ArgData && end == JunctionType.ReturnData);
             }
 
-            //var endType = end.ToConnectyionType();
-            //if (startType != endType
-            //    || startType == JunctionOfConnectionType.None
-            //    || endType == JunctionOfConnectionType.None)
-            //{
-            //    return false;
-            //}
-            //else
-            //{
-            //    if (startType == JunctionOfConnectionType.Invoke)
-            //    {
-
-            //        return end == JunctionType.NextStep;
-            //    }
-            //    else // if (startType == JunctionOfConnectionType.Arg)
-            //    {
-            //        return end == JunctionType.ReturnData;
-            //    }
-            //}
+         
         }
 
     }

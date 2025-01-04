@@ -22,7 +22,7 @@
 
 
 
-    <Grid ColumnDefinitions="20,40,90,auto"  Margin="6,0,10,0">
+    <Grid ColumnDefinitions="20,40,90,*"  Margin="6,0,10,0">
       
       <!--<ToolTip.Tip>
         <StackPanel>
@@ -31,11 +31,13 @@
       </ToolTip.Tip>-->
       <!--<ToolTip Background="LightYellow" Foreground="#071042" Content="" />-->
       
-      <cv:NodeJunctionView Grid.Column="0" JunctionType="ArgData" MyNode="{Binding ParameterDetails.NodeModel}" Width="30" Height="15" Margin="2" HorizontalAlignment="Center" VerticalAlignment="Center" />
+      <cv:NodeJunctionView Grid.Column="0" JunctionType="ArgData" ArgIndex="{Binding ParameterDetails.Index}" MyNode="{Binding ParameterDetails.NodeModel}" Width="30" Height="15" Margin="2" HorizontalAlignment="Center" VerticalAlignment="Center" />
+      
+      <!--指定参数-->
       <CheckBox Grid.Column="1" IsChecked="{Binding ParameterDetails.IsExplicitData, Mode=TwoWay}" HorizontalAlignment="Center" VerticalAlignment="Center" >
         
       </CheckBox>
-      <!--<TextBlock Grid.Column="2" Text="{Binding ParameterDetails.Index, StringFormat='arg{0} '}" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />-->
+      <!--参数名称-->
       <TextBlock Grid.Column="2"  Text="{Binding ParameterDetails.Name}" FontSize="14"
                  HorizontalAlignment="Left" VerticalAlignment="Center" 
                   ToolTip.Placement="Bottom" ToolTip.VerticalOffset="6">
@@ -45,12 +47,16 @@
           </StackPanel>
         </ToolTip.Tip>
       </TextBlock>
-      <TextBlock Grid.Column="3" IsVisible="{Binding IsVisibleA}" FontSize="14" Text="   [ 自动取参 ]"   MinWidth="100" MaxWidth="300" HorizontalAlignment="Left" VerticalAlignment="Center" />
-      <TextBox Grid.Column="3" IsVisible="{Binding IsVisibleB}"  FontSize="14" Text="{Binding ParameterDetails.DataValue, Mode=TwoWay}"   MinWidth="100" MaxWidth="300" HorizontalAlignment="Left" VerticalAlignment="Center" />
+      <!--参数内容-->
+      <TextBlock Grid.Column="3" IsVisible="{Binding IsVisibleA}" FontSize="14" Text="   [ 自动取参 ]"  
+                 MinWidth="120" MaxWidth="300" HorizontalAlignment="Left" VerticalAlignment="Center" />
+      <TextBox Grid.Column="3" IsVisible="{Binding IsVisibleB}"  FontSize="14" Text="{Binding ParameterDetails.DataValue, Mode=TwoWay}"  
+               MinWidth="120" MaxWidth="300" HorizontalAlignment="Left" VerticalAlignment="Center" />
       <ComboBox Grid.Column="3"  IsVisible="{Binding IsVisibleC}" 
                 ItemsSource="{Binding ParameterDetails.Items}"
                 SelectedValue="{Binding ParameterDetails.DataValue,Mode=OneTime}"
-                MinWidth="100" MaxWidth="300">
+                MinWidth="120" MaxWidth="300"
+                HorizontalAlignment="Left" VerticalAlignment="Center">
         <ComboBox.ItemTemplate>
           <DataTemplate>
             <TextBlock Text="{Binding}" FontFamily="{Binding}" FontSize="14"/>

@@ -23,23 +23,22 @@ namespace Serein.Workbench.Avalonia.Custom.Views
     {
         private readonly double strokeThickness;
 
-
         /// <summary>
-        /// 确定起始坐标和目标坐标、外光样式的曲线
+        /// 确定起始坐标和目标坐标、外观样式的曲线
         /// </summary>
-        /// <param name="start">起始坐标</param>
-        /// <param name="end">结束坐标</param>
+        /// <param name="left">起始坐标</param>
+        /// <param name="right">结束坐标</param>
         /// <param name="brush">颜色</param>
         /// <param name="isDotted">是否为虚线</param>
-        public ConnectionLineShape(Point start,
-                                   Point end,
+        public ConnectionLineShape(Point left,
+                                   Point right,
                                    Brush brush,
                                    bool isDotted = false,
                                    bool isTop = false)
         {
             this.brush = brush;
-            startPoint = start;
-            endPoint = end;
+            this.leftPoint = left;
+            this.rightPoint = right;
             this.strokeThickness = 4;
             InitElementPoint(isDotted, isTop);
             InvalidateVisual(); // 触发重绘
@@ -50,9 +49,10 @@ namespace Serein.Workbench.Avalonia.Custom.Views
         {
             //hitVisiblePen = new Pen(Brushes.Transparent, 1.0); // 初始化碰撞检测线
             //hitVisiblePen.Freeze(); // Freeze以提高性能
+            
             visualPen = new Pen(brush, 3.0); // 默认可视化Pen
             opacity = 1.0d;
-            var dashStyle = new     DashStyle();
+            //var dashStyle = new     DashStyle();
 
             if (isDotted)
             {
@@ -71,31 +71,44 @@ namespace Serein.Workbench.Avalonia.Custom.Views
         /// <summary>
         /// 更新线条落点位置
         /// </summary>
-        /// <param name="start"></param>
-        /// <param name="end"></param>
-        public void UpdatePoints(Point start, Point end)
+        /// <param name="left"></param>
+        /// <param name="right"></param>
+        public void UpdatePoint(Point left, Point right, Brush? brush = null)
         {
-            startPoint = start;
-            endPoint = end;
+            if(brush is not null)
+            {
+                visualPen = new Pen(brush, 3.0); // 默认可视化Pen
+            }
+            this.leftPoint = left;
+            this.rightPoint = right;
             InvalidateVisual(); // 触发重绘
         }
 
         /// <summary>
         /// 更新线条落点位置
         /// </summary>
-        /// <param name="point"></param>
-        public void UpdateEndPoints(Point point)
+        /// <param name="right"></param>
+        public void UpdateRightPoint(Point right, Brush? brush = null)
         {
-            endPoint = point;
+            if (brush is not null)
+            {
+                visualPen = new Pen(brush, 3.0); // 默认可视化Pen
+            }
+            this.rightPoint = right;
             InvalidateVisual(); // 触发重绘
         }
+
         /// <summary>
         /// 更新线条起点位置
         /// </summary>
-        /// <param name="point"></param>
-        public void UpdateStartPoints(Point point)
+        /// <param name="left"></param>
+        public void UpdateLeftPoints(Point left, Brush? brush = null)
         {
-            startPoint = point;
+            if (brush is not null)
+            {
+                visualPen = new Pen(brush, 3.0); // 默认可视化Pen
+            }
+            this.leftPoint = left;
             InvalidateVisual(); // 触发重绘
         }
 
@@ -106,7 +119,7 @@ namespace Serein.Workbench.Avalonia.Custom.Views
         public override void Render(DrawingContext drawingContext)
         {
             // 刷新线条显示位置
-            DrawBezierCurve(drawingContext, startPoint, endPoint);
+            DrawBezierCurve(drawingContext, leftPoint, rightPoint);
 
         }
         #region 重绘
@@ -116,8 +129,8 @@ namespace Serein.Workbench.Avalonia.Custom.Views
         private Point leftCenterOfEndLocation;  // 起始节点选择右侧边缘中心 
         //private Pen hitVisiblePen;  // 初始化碰撞检测线
         private Pen visualPen; // 默认可视化Pen
-        private Point startPoint; // 连接线的起始节点
-        private Point endPoint; // 连接线的终点
+        private Point leftPoint; // 连接线的起始节点
+        private Point rightPoint; // 连接线的终点
         private Brush brush; // 线条颜色
         private double opacity; // 透明度
 
@@ -135,8 +148,8 @@ namespace Serein.Workbench.Avalonia.Custom.Views
         private Vector startToEnd;
         private int i = 0;
         private void DrawBezierCurve(DrawingContext drawingContext,
-                                   Point start,
-                                   Point end)
+                                   Point left,
+                                   Point right)
         {
             // 控制点的计算逻辑
             double power = 140;  // 控制贝塞尔曲线的“拉伸”强度
@@ -144,7 +157,7 @@ namespace Serein.Workbench.Avalonia.Custom.Views
 
             // 计算轴向向量与起点到终点的向量
             //var axis = new Vector(1, 0);
-            startToEnd = (end.ToVector() - start.ToVector()).NormalizeTo();
+            startToEnd = (right.ToVector() - left.ToVector()).NormalizeTo();
 
 
 
@@ -163,10 +176,10 @@ namespace Serein.Workbench.Avalonia.Custom.Views
             pow = pow > 0 ? 0 : pow;
             var k = 1 - pow;
             // 如果起点x大于终点x，增加额外的偏移量，避免重叠
-            var bias = start.X > end.X ? Math.Abs(start.X - end.X) * 0.25 : 0;
+            var bias = left.X > right.X ? Math.Abs(left.X - right.X) * 0.25 : 0;
             // 控制点的实际计算
-            c0 = new Point(+(power + bias) * k + start.X, start.Y);
-            c1 = new Point(-(power + bias) * k + end.X, end.Y);
+            c0 = new Point(+(power + bias) * k + left.X, left.Y);
+            c1 = new Point(-(power + bias) * k + right.X, right.Y);
 
             // 准备StreamGeometry以用于绘制曲线
             // why can't clearValue()?
@@ -204,8 +217,8 @@ namespace Serein.Workbench.Avalonia.Custom.Views
             // streamGeometry.ClearValue("AvaloniaProperty");  
             using (var context = streamGeometry.Open())
             {
-                context.BeginFigure(start, true);   // start point of the bezier-line 
-                context.CubicBezierTo(c0, c1, end, true); // drawing bezier-line
+                context.BeginFigure(left, true);   // start point of the bezier-line 
+                context.CubicBezierTo(c0, c1, right, true); // drawing bezier-line
             }
             drawingContext.DrawGeometry(null, visualPen, streamGeometry);
 
