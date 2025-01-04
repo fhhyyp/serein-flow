@@ -18,8 +18,7 @@ namespace Serein.Workbench.Node.View
             InitializeComponent();
             if(ExecuteJunctionControl.MyNode != null)
             {
-                
-            ExecuteJunctionControl.MyNode.Guid = viewModel.NodeModel.Guid;
+                ExecuteJunctionControl.MyNode.Guid = viewModel.NodeModel.Guid;
             }
         }
 
