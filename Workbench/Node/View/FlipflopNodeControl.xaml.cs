@@ -1,27 +1,21 @@
 ﻿using Serein.NodeFlow.Model;
 using Serein.Workbench.Node.ViewModel;
-using System.Runtime.CompilerServices;
-using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
+using System.Windows;
 
 namespace Serein.Workbench.Node.View
 {
     /// <summary>
-    /// ActionNode.xaml 的交互逻辑
+    /// StateNode.xaml 的交互逻辑
     /// </summary>
-    public partial class ActionNodeControl : NodeControlBase, INodeJunction
+    public partial class FlipflopNodeControl : NodeControlBase, INodeJunction
     {
-        public ActionNodeControl(ActionNodeControlViewModel viewModel) : base(viewModel) 
+        public FlipflopNodeControl(FlipflopNodeControlViewModel viewModel) : base(viewModel)
         {
             DataContext = viewModel;
             InitializeComponent();
-            if(ExecuteJunctionControl.MyNode != null)
-            {
-                
-            ExecuteJunctionControl.MyNode.Guid = viewModel.NodeModel.Guid;
-            }
         }
+
 
         /// <summary>
         /// 入参控制点（可能有，可能没）
@@ -72,12 +66,7 @@ namespace Serein.Workbench.Node.View
                     return [];
                 }
             }
-
-
         }
-
-
-
 
     }
 }
