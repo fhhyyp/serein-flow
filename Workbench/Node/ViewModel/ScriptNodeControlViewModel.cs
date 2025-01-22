@@ -1,5 +1,4 @@
 ﻿using Serein.Library;
-using Serein.Library.Core;
 using Serein.Library.Utils;
 using Serein.NodeFlow.Model;
 using System;
@@ -30,7 +29,7 @@ namespace Serein.Workbench.Node.ViewModel
             {
                 try
                 {
-                    var result = await NodeModel.ExecutingAsync(new DynamicContext(nodeModel.Env));
+                    var result = await NodeModel.ExecutingAsync(new Library.DynamicContext(nodeModel.Env));
                     SereinEnv.WriteLine(InfoType.INFO, result?.ToString());
                 }
                 catch (Exception ex)

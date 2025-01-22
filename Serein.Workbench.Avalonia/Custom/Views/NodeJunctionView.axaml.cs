@@ -7,6 +7,7 @@ using Serein.Library.Api;
 using Serein.Workbench.Avalonia.Api;
 using Serein.Workbench.Avalonia.Extension;
 using System;
+using System.Diagnostics;
 using Color = Avalonia.Media.Color;
 using Point = Avalonia.Point;
 
@@ -76,7 +77,7 @@ public class NodeJunctionView : TemplatedControl
 
     private void NodeJunctionView_PointerMoved(object? sender, PointerEventArgs e)
     {
-        if (!nodeOperationService.ConnectingData.IsCreateing)
+        if (!nodeOperationService.ConnectingManage.IsCreateing)
             return;
         if (nodeOperationService.MainCanvas is not InputElement inputElement)
             return;
@@ -87,7 +88,7 @@ public class NodeJunctionView : TemplatedControl
         }
         else
         {
-            var oldNj = nodeOperationService.ConnectingData.CurrentJunction;
+            var oldNj = nodeOperationService.ConnectingManage.CurrentJunction;
             if (oldNj is not null)
             {
                 oldNj.IsPreviewing = false;
@@ -98,7 +99,7 @@ public class NodeJunctionView : TemplatedControl
 
     private void RefreshDisplay(NodeJunctionView junctionView)
     {
-        var oldNj = nodeOperationService.ConnectingData.CurrentJunction;
+        var oldNj = nodeOperationService.ConnectingManage.CurrentJunction;
         if (oldNj is not null )
         {
             if (junctionView.Equals(oldNj))
@@ -108,11 +109,11 @@ public class NodeJunctionView : TemplatedControl
             oldNj.IsPreviewing = false;
             oldNj.InvalidateVisual();
         }
-        nodeOperationService.ConnectingData.CurrentJunction = junctionView;
-        if (!this.Equals(junctionView))
+        nodeOperationService.ConnectingManage.CurrentJunction = junctionView;
+        if (!this.Equals(junctionView) && nodeOperationService.ConnectingManage.IsCanConnected())
         {
-
-            nodeOperationService.ConnectingData.TempLine?.ToEnd(junctionView);
+            Debug.WriteLine("ok");
+            nodeOperationService.ConnectingManage.TempLine?.ToEnd(junctionView);
         }
         junctionView.IsPreviewing = true;
         junctionView.InvalidateVisual();
@@ -132,12 +133,12 @@ public class NodeJunctionView : TemplatedControl
     private void NodeJunctionView_PointerReleased(object? sender, PointerReleasedEventArgs e)
     {
         CheckJunvtion();
-        nodeOperationService.ConnectingData.Reset();
+        nodeOperationService.ConnectingManage.Reset();
     }
 
     private void CheckJunvtion()
     {
-        var myData = nodeOperationService.ConnectingData;
+        var myData = nodeOperationService.ConnectingManage;
         if(myData.StartJunction is null || myData.CurrentJunction is null)
         {
             return;
@@ -246,7 +247,7 @@ public class NodeJunctionView : TemplatedControl
     /// <returns></returns>
     protected IBrush GetBackgrounp()
     {
-        var myData = nodeOperationService.ConnectingData;
+        var myData = nodeOperationService.ConnectingManage;
         if (IsPreviewing == false || !myData.IsCreateing )
         {
             return new SolidColorBrush(Color.Parse("#76ABEE"));

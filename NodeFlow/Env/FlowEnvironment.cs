@@ -1,31 +1,14 @@
-﻿
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using Serein.Library;
+﻿using Serein.Library;
 using Serein.Library.Api;
-using Serein.Library.Core;
-using Serein.Library.FlowNode;
 using Serein.Library.Utils;
 using Serein.Library.Utils.SereinExpression;
 using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Tool;
-using Serein.Script.Node;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Numerics;
 using System.Reactive;
-using System.Reflection;
-using System.Reflection.Metadata.Ecma335;
-using System.Runtime.Loader;
-using System.Security.AccessControl;
 using System.Text;
-using System.Xml.Linq;
 
 namespace Serein.NodeFlow.Env
 {
-
-
 
 
     /// <summary>
@@ -44,7 +27,7 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// 流程运行环境
         /// </summary>
-        public FlowEnvironment(UIContextOperation uiContextOperation)
+        public FlowEnvironment()
         {
             this.sereinIOC = new SereinIOC();
             this.IsGlobalInterrupt = false;
@@ -57,7 +40,6 @@ namespace Serein.NodeFlow.Env
                 }
                 
             };
-            this.UIContextOperation = uiContextOperation; // 为加载的类库提供在UI线程上执行某些操作的封装工具类
             this.FlowLibraryManagement = new FlowLibraryManagement(this); // 实例化类库管理
 
             #region 注册基本节点类型
@@ -74,7 +56,6 @@ namespace Serein.NodeFlow.Env
             PersistennceInstance.Add(typeof(FlowInterruptTool).FullName, new FlowInterruptTool()); // 缓存流程实例
             PersistennceInstance.Add(typeof(IFlowEnvironment).FullName, (FlowEnvironment)this); // 缓存流程实例
             PersistennceInstance.Add(typeof(ISereinIOC).FullName, this); // 缓存容器服务
-            PersistennceInstance.Add(typeof(UIContextOperation).FullName, uiContextOperation); // 缓存封装好的UI线程上下文
 
             ReRegisterPersistennceInstance(); 
             
@@ -1242,6 +1223,21 @@ namespace Serein.NodeFlow.Env
             return FlowLibraryManagement.TryGetDelegateDetails(assemblyName, methodName, out delegateDetails);
         }
 
+        /// <summary>
+        /// 设置在UI线程操作的线程上下文
+        /// </summary>
+        /// <param name="uiContextOperation"></param>
+        public void SetUIContextOperation(UIContextOperation uiContextOperation)
+        {
+            this.UIContextOperation = uiContextOperation;
+            var fullName = typeof(UIContextOperation).FullName;
+            if (!string.IsNullOrEmpty(fullName))
+            {
+                PersistennceInstance[fullName] = uiContextOperation; // 缓存封装好的UI线程上下文
+
+            }
+
+        }
 
         /// <summary>
         /// 移动了某个节点(远程插件使用）
@@ -1400,6 +1396,8 @@ namespace Serein.NodeFlow.Env
         }
 
         #endregion
+
+      
 
         #region 流程依赖类库的接口
 

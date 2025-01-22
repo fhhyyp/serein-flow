@@ -710,7 +710,6 @@ namespace Serein.Library.Api
         /// <param name="type"></param>
         void WriteLine(InfoType type, string message, InfoClass @class = InfoClass.Trivial);
 
-
         /// <summary>
         /// 加载项目文件
         /// </summary>
@@ -960,6 +959,11 @@ namespace Serein.Library.Api
         /// <returns></returns>
         bool TryGetDelegateDetails(string assemblyName, string methodName, out DelegateDetails del);
 
+        /// <summary>
+        /// 提供设置UI上下文的能力
+        /// </summary>
+        /// <param name="uiContextOperation"></param>
+        void SetUIContextOperation(UIContextOperation uiContextOperation);
 
         /// <summary>
         /// 开始运行

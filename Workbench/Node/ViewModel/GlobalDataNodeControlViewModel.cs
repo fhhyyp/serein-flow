@@ -1,11 +1,4 @@
-﻿using Serein.Library;
-using Serein.NodeFlow.Model;
-using Serein.Workbench.Node.View;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Serein.NodeFlow.Model;
 using System.Windows;
 using System.Windows.Input;
 

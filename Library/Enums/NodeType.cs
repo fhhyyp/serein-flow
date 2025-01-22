@@ -12,6 +12,7 @@ namespace Serein.Library
     /// </summary>
     public enum NodeType
     {
+
         /// <summary>
         /// 初始化，流程启动时执行（不生成节点）
         /// <para>可以异步等待</para>
@@ -27,6 +28,7 @@ namespace Serein.Library
         /// <para>可以异步等待</para>
         /// </summary>
         Exit,
+
 
         /// <summary>
         /// <para>触发器节点，必须为标记在可异步等待的方法，建议与继承了 FlowTriggerk&lt;TEnum&gt; 的实例对象搭配使用</para>

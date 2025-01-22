@@ -62,7 +62,7 @@ namespace Serein.Workbench.Avalonia.Custom.Views
             //visualPen.Freeze(); // Freeze以提高性能
 
             linkSize = 4;  // 整线条粗细
-            int zIndex = 999999;
+            int zIndex = -999999;
            
             this.ZIndex = zIndex;
             //Panel.SetZIndex(this, zIndex); // 置底
@@ -109,6 +109,15 @@ namespace Serein.Workbench.Avalonia.Custom.Views
                 visualPen = new Pen(brush, 3.0); // 默认可视化Pen
             }
             this.leftPoint = left;
+            InvalidateVisual(); // 触发重绘
+        }
+        /// <summary>
+        /// 刷新颜色
+        /// </summary>
+        /// <param name="brush"></param>
+        public void UpdateColor(Brush brush )
+        {
+            visualPen = new Pen(brush, 3.0); // 默认可视化Pen
             InvalidateVisual(); // 触发重绘
         }
 

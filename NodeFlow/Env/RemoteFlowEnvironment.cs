@@ -1244,7 +1244,7 @@ namespace Serein.NodeFlow.Env
             del = null;
             return false;
         }
-
+        
 
         /// <summary>
         /// 对象监视表达式
@@ -1268,7 +1268,14 @@ namespace Serein.NodeFlow.Env
             this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：TriggerInterrupt");
         }
 
-
+        /// <summary>
+        /// 设置在UI线程操作的线程上下文
+        /// </summary>
+        /// <param name="uiContextOperation"></param>
+        public void SetUIContextOperation(UIContextOperation uiContextOperation)
+        {
+            // 无须实现
+        }
         #endregion
 
 

@@ -1,7 +1,6 @@
-﻿using Serein.NodeFlow.Model;
-using Serein.Workbench.Node.ViewModel;
-using System.Windows.Controls;
+﻿using Serein.Workbench.Node.ViewModel;
 using System.Windows;
+using System.Windows.Controls;
 
 namespace Serein.Workbench.Node.View
 {

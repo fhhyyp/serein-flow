@@ -74,7 +74,8 @@ public static class ServiceCollectionExtensions
 
         UIContextOperation? uIContextOperation = null;
         uIContextOperation = new UIContextOperation(getSyncContext); // 封装一个调用UI线程的工具类
-        FlowEnvironmentDecorator flowEnvironmentDecorator = new FlowEnvironmentDecorator(uIContextOperation);
+        var flowEnvironmentDecorator = new FlowEnvironmentDecorator();
+        flowEnvironmentDecorator.SetUIContextOperation(uIContextOperation);
         collection.AddSingleton<UIContextOperation>(uIContextOperation); // 注册UI线程操作上下文
         collection.AddSingleton<IFlowEnvironment>(flowEnvironmentDecorator); // 注册运行环境
         collection.AddSingleton<IFlowEnvironmentEvent>(flowEnvironmentDecorator); // 注册运行环境事件

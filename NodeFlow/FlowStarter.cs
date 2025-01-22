@@ -1,9 +1,6 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
-using Serein.Library.Core;
-using Serein.Library.Network.WebSocketCommunication;
 using Serein.Library.Utils;
-using Serein.Library.Web;
 using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Tool;
 using System.Collections.Concurrent;
@@ -39,11 +36,7 @@ namespace Serein.NodeFlow
         public async Task StartFlowInSelectNodeAsync(IFlowEnvironment env, NodeModelBase startNode)
         {
             IDynamicContext context;
-#if NET6_0_OR_GREATER
-            context = new Serein.Library.Core.DynamicContext(env); // 从起始节点启动流程时创建上下文
-#else
-            Context = new Serein.Library.Framework.DynamicContext(env);
-#endif
+            context = new Serein.Library.DynamicContext(env); // 从起始节点启动流程时创建上下文
             await startNode.StartFlowAsync(context); // 开始运行时从选定节点开始运行
             context.Exit();
         }
@@ -93,12 +86,7 @@ namespace Serein.NodeFlow
             #region 选择运行环境的上下文
 
             // 判断使用哪一种流程上下文
-            IDynamicContext Context;
-#if NET6_0_OR_GREATER
-            Context = new Serein.Library.Core.DynamicContext(env); // 从起始节点启动流程时创建上下文
-#else
-            Context = new Serein.Library.Framework.DynamicContext(env);
-#endif
+            IDynamicContext Context = new Serein.Library.DynamicContext(env); // 从起始节点启动流程时创建上下文
             #endregion
 
             #region 初始化运行环境的Ioc容器
@@ -342,7 +330,7 @@ namespace Serein.NodeFlow
             {
                 try
                 {
-                    var context = new DynamicContext(env); // 启动全局触发器时新建上下文
+                    var context = new Library.DynamicContext(env); // 启动全局触发器时新建上下文
                     var newFlowData = await singleFlipFlopNode.ExecutingAsync(context); // 获取触发器等待Task
                     context.AddOrUpdate(singleFlipFlopNode.Guid, newFlowData);
                     await NodeModelBase.RefreshFlowDataAndExpInterrupt(context, singleFlipFlopNode, newFlowData); // 全局触发器触发后刷新该触发器的节点数据

@@ -12,9 +12,9 @@ namespace Serein.NodeFlow.Env
     /// </summary>
     public class FlowEnvironmentDecorator : IFlowEnvironment, IFlowEnvironmentEvent, ISereinIOC
     {
-        public FlowEnvironmentDecorator(UIContextOperation uiContextOperation)
+        public FlowEnvironmentDecorator()
         {
-            flowEnvironment = new FlowEnvironment(uiContextOperation);
+            flowEnvironment = new FlowEnvironment();
             // 默认使用本地环境
             currentFlowEnvironment = flowEnvironment;
             currentFlowEnvironmentEvent = flowEnvironment;
@@ -511,7 +511,14 @@ namespace Serein.NodeFlow.Env
         {
             currentFlowEnvironment.TriggerInterrupt(nodeGuid, expression, type);
         }
-
+        /// <summary>
+        /// 设置在UI线程操作的线程上下文
+        /// </summary>
+        /// <param name="uiContextOperation"></param>
+        public void SetUIContextOperation(UIContextOperation uiContextOperation)
+        {
+            currentFlowEnvironment.SetUIContextOperation(uiContextOperation);
+        }
         public bool TryGetDelegateDetails(string libraryName, string methodName, out DelegateDetails del)
         {
             return currentFlowEnvironment.TryGetDelegateDetails(libraryName, methodName, out del);

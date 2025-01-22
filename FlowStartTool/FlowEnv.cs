@@ -35,14 +35,20 @@ namespace Serein.FlowStartTool
             //    this.window = window;
             //}
 
-            Env = new FlowEnvironmentDecorator(uIContextOperation);
+            Env = new FlowEnvironmentDecorator();
+            Env.SetUIContextOperation(uIContextOperation);
             Env.LoadProject(new FlowEnvInfo { Project = flowProjectData }, fileDataPath); // 加载项目
 
-            // 获取环境输出
-            Env.OnEnvOut += (infoType, value) =>
+            if(Env is IFlowEnvironmentEvent @event)
             {
-                Console.WriteLine($"{DateTime.Now} [{infoType}] : {value}{Environment.NewLine}");
-            };
+                // 获取环境输出
+                @event.OnEnvOut += (infoType, value) =>
+                {
+                    Console.WriteLine($"{DateTime.Now} [{infoType}] : {value}{Environment.NewLine}");
+                };
+            }
+
+           
 
             await Env.StartRemoteServerAsync(7525); // 启动 web socket 监听远程请求
 

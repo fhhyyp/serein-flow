@@ -4,7 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using Serein.Library;
 using Serein.Workbench.Avalonia.Api;
 using Serein.Workbench.Avalonia.Custom.Node.Views;
-using Serein.Workbench.Avalonia.Custom.Views;
+using Serein.Workbench.Avalonia.Model;
 using Serein.Workbench.Avalonia.ViewModels;
 using System;
 using System.Collections.Generic;
@@ -30,59 +30,13 @@ namespace Serein.Workbench.Avalonia.Custom.Node.ViewModels
 
         public NodeModelBase NodeModel { get; set; }
 
-        /// <summary>
-        /// 记录与该节点控件有关的所有连接
-        /// </summary>
-        private readonly List<NodeConnectionLineView> connectionControls = new List<NodeConnectionLineView>();
-
+ 
         //public NodeControlViewModelBase ViewModel { get; set; }
 
 
 
         public void SetNodeModel(NodeModelBase nodeModel) => this.NodeModel = nodeModel;
         
-
-        /// <summary>
-        /// 添加与该节点有关的连接后，记录下来
-        /// </summary>
-        /// <param name="connection"></param>
-        public void AddCnnection(NodeConnectionLineView connection)
-        {
-            connectionControls.Add(connection);
-        }
-
-        /// <summary>
-        /// 删除了连接之后，还需要从节点中的记录移除
-        /// </summary>
-        /// <param name="connection"></param>
-        public void RemoveConnection(NodeConnectionLineView connection)
-        {
-            connectionControls.Remove(connection);
-            //connection.Remote();
-        }
-
-        /// <summary>
-        /// 删除所有连接
-        /// </summary>
-        public void RemoveAllConection()
-        {
-            foreach (var connection in this.connectionControls)
-            {
-                //connection.Remote();
-            }
-        }
-
-        /// <summary>
-        /// 更新与该节点有关的数据
-        /// </summary>
-        public void UpdateLocationConnections()
-        {
-            foreach (var connection in this.connectionControls)
-            {
-                //connection.RefreshLine(); // 主动更新连线位置
-            }
-        }
-
 
         /// <summary>
         /// 设置绑定：

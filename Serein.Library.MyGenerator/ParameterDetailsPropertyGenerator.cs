@@ -521,7 +521,7 @@ namespace Serein.Library.NodeGenerator
         /// <para>通过条件检查缓存的信息，决定是否添加代码</para>
         /// <para>首先检查是否存在该特性，如果不存在，返回 false。</para>
         /// <para>然后检查是否存在属性，如果不存在，返回 false</para>
-        /// <para>如果存在属性，则返回属性对应的值与 comparisonValue 进行比较，返回
+        /// <para>如果存在属性，则返回属性对应的值与 comparisonValue 进行比较，返回</para>
         /// <para></para>
         /// <para>若只传入 attributeName 参数，则只会检查是否存在该特性</para>
         /// <para>若只传入 attributeName与attributePropertyName 参数，则只会检查是否存在该特性的该属性</para>
@@ -529,7 +529,7 @@ namespace Serein.Library.NodeGenerator
         /// <param name="dict">缓存的特性信息</param>
         /// <param name="attributeName">查询的特性名称</param>
         /// <param name="attributePropertyName">查询的特性属性名称</param>
-        /// <param name="comparisonValue">比较值</param>
+        /// <param name="judgeFunc">比较方法</param>
         /// <returns>如果存在查询项，返回 true ，否则返回 false</returns>
         public static bool Search(this Dictionary<string, Dictionary<string, string>> dict,
             string attributeName = null,
@@ -569,7 +569,6 @@ namespace Serein.Library.NodeGenerator
                 var retract = new string(' ', retractCount * 4);
                 sb.AppendLine(retract + code);
             }
-
             return sb;
         }
 

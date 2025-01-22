@@ -96,10 +96,6 @@
     <Compile Include="Web\PlcSocketService.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\DynamicControl\SereinFlow\Library.Framework\Serein.Library.Framework.csproj">
-      <Project>{73B272E8-222D-4D08-A030-F1E1DB70B9D1}</Project>
-      <Name>Serein.Library.Framework</Name>
-    </ProjectReference>
     <ProjectReference Include="..\Library\Serein.Library.csproj">
       <Project>{5e19d0f2-913a-4d1c-a6f8-1e1227baa0e3}</Project>
       <Name>Serein.Library</Name>

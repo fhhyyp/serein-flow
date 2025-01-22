@@ -14,12 +14,61 @@ using System.Threading.Tasks;
 
 namespace Serein.Workbench.Avalonia.Custom.Node.Views
 {
-    public class NodeControlBase : UserControl
+    public abstract class NodeControlBase : UserControl
     {
+        /// <summary>
+        /// 记录与该节点控件有关的所有连接
+        /// </summary>
+        private readonly List<NodeConnectionLineControl> connectionControls = new List<NodeConnectionLineControl>();
+
         protected NodeControlBase()
         {
             this.Background = Brushes.Transparent;
         }
+
+
+        /// <summary>
+        /// 添加与该节点有关的连接后，记录下来
+        /// </summary>
+        /// <param name="connection"></param>
+        public void AddConnection(NodeConnectionLineControl connection)
+        {
+            connectionControls.Add(connection);
+        }
+
+        /// <summary>
+        /// 删除了连接之后，还需要从节点中的记录移除
+        /// </summary>
+        /// <param name="connection"></param>
+        public void RemoveConnection(NodeConnectionLineControl connection)
+        {
+            connectionControls.Remove(connection);
+            connection.Remove();
+        }
+
+        /// <summary>
+        /// 删除所有连接
+        /// </summary>
+        public void RemoveAllConection()
+        {
+            foreach (var connection in this.connectionControls)
+            {
+                connection.Remove();
+            }
+        }
+
+        /// <summary>
+        /// 更新与该节点有关的数据
+        /// </summary>
+        public void UpdateLocationConnections()
+        {
+            foreach (var connection in this.connectionControls)
+            {
+                connection.RefreshLineDsiplay(); // 主动更新连线位置
+            }
+        }
+
+
 
         /// <summary>
         /// 放置在某个节点容器中

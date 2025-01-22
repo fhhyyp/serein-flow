@@ -41,7 +41,8 @@ namespace Serein.Workbench
             }
             else
             {
-                FlowEnvironment = new FlowEnvironmentDecorator(uIContextOperation);
+                FlowEnvironment = new FlowEnvironmentDecorator();
+                FlowEnvironment.SetUIContextOperation(uIContextOperation);
                 //_ = FlowEnvironment.StartRemoteServerAsync();
                 this.window = window;
             }

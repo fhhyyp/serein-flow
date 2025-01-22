@@ -40,7 +40,7 @@ namespace Serein.Workbench.Avalonia.DataTemplates
                 textBlock.FontSize = 12;
                 return textBlock;
             }
-            
+
         }
 
         public bool Match(object data)
@@ -57,7 +57,7 @@ namespace Serein.Workbench.Avalonia.DataTemplates
             }
             var dragData = new DataObject(); // 设置需要传递的数据
             dragData.Set(DataFormats.Text, mdInfo.ToJsonText());
-             _ = DragDrop.DoDragDrop(e, dragData, DragDropEffects.Copy);
+            _ = DragDrop.DoDragDrop(e, dragData, DragDropEffects.Copy);
             //var result = await DragDrop.DoDragDrop(e, dragData, DragDropEffects.Copy);
             //Debug.WriteLine("DoDrag :" + result);
             //switch (result)

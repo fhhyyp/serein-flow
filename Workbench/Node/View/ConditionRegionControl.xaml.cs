@@ -1,9 +1,6 @@
 ﻿using Serein.NodeFlow.Model;
 using Serein.Workbench.Node.ViewModel;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
-using System.Windows.Input;
 
 namespace Serein.Workbench.Node.View
 {

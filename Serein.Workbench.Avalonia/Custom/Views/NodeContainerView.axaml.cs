@@ -9,6 +9,7 @@ using Newtonsoft.Json.Linq;
 using Serein.Library;
 using Serein.Library.Utils;
 using Serein.Workbench.Avalonia.Api;
+using Serein.Workbench.Avalonia.Custom.Node.Views;
 using Serein.Workbench.Avalonia.Custom.ViewModels;
 using Serein.Workbench.Avalonia.Extension;
 using Serein.Workbench.Avalonia.Services;
@@ -51,7 +52,7 @@ public partial class NodeContainerView : UserControl
     /// <summary>
     /// 当前选取的控件
     /// </summary>
-    private readonly List<Control> selectNodeControls = [];
+    private readonly List<NodeControlBase> selectNodeControls = [];
 
     /// <summary>
     /// 记录开始拖动节点控件时的鼠标位置
@@ -98,7 +99,7 @@ public partial class NodeContainerView : UserControl
             {
                 IsCanvasDragging = false;
                 IsControlDragging = false;
-                nodeOperationService.ConnectingData.Reset();
+                nodeOperationService.ConnectingManage.Reset();
             }
         };
         #endregion
@@ -192,7 +193,7 @@ public partial class NodeContainerView : UserControl
     private void NodeContainerView_PointerMoved(object? sender, PointerEventArgs e)
     {
         // 是否正在连接
-        var myData = nodeOperationService.ConnectingData;
+        var myData = nodeOperationService.ConnectingManage;
         if (myData.IsCreateing)
         {
             var isPass = e.JudgePointer(sender, PointerType.Mouse, p => p.IsLeftButtonPressed);
@@ -318,7 +319,7 @@ public partial class NodeContainerView : UserControl
     }
 
     /// <summary>
-    /// 控件的鼠标左键按下事件，启动拖动操作。
+    /// 控件的鼠标右键按下事件，启动拖动操作。
     /// </summary>
     private void Block_MouseLeftButtonDown(object? sender, PointerPressedEventArgs e)
     {
@@ -328,10 +329,11 @@ public partial class NodeContainerView : UserControl
             return;
         }
 
-        if (sender is Control nodeControl)
+        if (sender is NodeControlBase nodeControl)
         {
             IsControlDragging = true;
             startControlDragPoint = GetPositionOfCanvas(e); // 记录鼠标按下时的位置
+            
             e.Handled = true; // 防止事件传播影响其他控件
         }
 
@@ -343,7 +345,7 @@ public partial class NodeContainerView : UserControl
     private void Block_MouseMove(object? sender, PointerEventArgs e)
     {
 
-        if (sender is not Control nodeControl)
+        if (sender is not NodeControlBase nodeControl)
         {
             return;
         }
@@ -365,6 +367,7 @@ public partial class NodeContainerView : UserControl
                 double newLeft = Canvas.GetLeft(nodeControl) + deltaX; // 新的左边距
                 double newTop = Canvas.GetTop(nodeControl) + deltaY; // 新的上边距
                 DragControl(nodeControl, newLeft, newTop);
+                nodeControl.UpdateLocationConnections();
             }
             // 批量移动
             else
@@ -401,10 +404,10 @@ public partial class NodeContainerView : UserControl
                 }
 
                 // 更新节点之间线的连接位置
-                //foreach (var nodeControl in selectNodeControls)
-                //{
-                //    //nodeControl.UpdateLocationConnections();
-                //}
+               foreach (var item in selectNodeControls)
+               {
+                    item.UpdateLocationConnections();
+               }
             }
             startControlDragPoint = currentPosition; // 更新起始点位置
         } 
