@@ -65,8 +65,6 @@
   <ItemGroup>
     <ProjectReference Include="..\Serein.Library.MyGenerator\Serein.Library.NodeGenerator.csproj" OutputItemType="Analyzer" />
     
-    <ProjectReference Include="..\Library.Core\Serein.Library.Core.csproj" />
-    <ProjectReference Include="..\Library.Framework\Serein.Library.Framework.csproj" />
     <ProjectReference Include="..\Library\Serein.Library.csproj" />
     <ProjectReference Include="..\Serein.Script\Serein.Script.csproj" />
   </ItemGroup>
