@@ -190,12 +190,12 @@ namespace Serein.Library
             var env = nodeModel.Env;
             #region 显然的流程基本类型
             // 返回运行环境
-            if (DataType == typeof(IFlowEnvironment))
+            if (typeof(IFlowEnvironment).IsAssignableFrom(DataType))
             {
                 return env;
             }
             // 返回流程上下文
-            if (DataType == typeof(IDynamicContext))
+            if (typeof(IDynamicContext).IsAssignableFrom(DataType))
             {
                 return context;
             }

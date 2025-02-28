@@ -12,7 +12,6 @@ namespace Serein.Library
     /// <summary>
     /// 不提供流程操作能力，仅提供容器功能
     /// </summary>
-
     public class ContainerFlowEnvironment : IFlowEnvironment, ISereinIOC
     {
         /// <summary>
