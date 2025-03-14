@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 
 namespace Serein.Library.Utils
 {
+    /// <summary>
+    /// 通过字典构造动态对象
+    /// </summary>
     public class DynamicObjectHelper
     {
         // 类型缓存，键为类型的唯一名称（可以根据实际需求调整生成方式）

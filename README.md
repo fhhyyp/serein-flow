@@ -1,5 +1,5 @@
 # 自述
-基于WPF（Dotnet 8）的流程可视化编辑器，需二次开发。
+基于Dotnet 8 的流程可视化编辑器，需二次开发。
 不定期在Bilibili个人空间上更新相关的视频。
 https://space.bilibili.com/33526379
 
@@ -16,6 +16,7 @@ https://space.bilibili.com/33526379
 使用 **NodeAction** 特性标记你的方法。
 * 动作节点 - Action
 * 触发器节点 - Flipflop
+* UI节点 - UI
 # 关于 IDynamicContext 说明（重要）**
  * 基本说明：IDynamicContext 是节点之间传递数据的接口、载体，其实例由 FlowEnvironment 运行环境自动实现，内部提供全局单例的环境接口，用以注册、获取实例（单例模式），一般情况下，你无须关注 FlowEnvironment 对外暴露的属性方法。
  * 重要概念：
@@ -25,10 +26,10 @@ https://space.bilibili.com/33526379
       * 简述：枚举，标识流程运行的状态（初始化，运行中，运行完成）
       * 场景：类库代码中创建了运行时间较长的异步任务、或开辟了另一个线程进行循环操作时，可以在方法入参定义一个 IDynamicContext 类型入参，然后在代码中使用形成闭包，以及时判断流程是否已经结束。另外的，如果想监听项目停止运行，可以订阅 context.Env.OnFlowRunComplete 事件。
     * NextOrientation - 即将进入的分支：
-     * 简述：流程分支枚举， Upstream（上游分支）、IsSucceed（真分支）、IsFail（假分支），IsError（异常分支）。
-     * 场景：允许你在类库代码中操作该属性，手动控制当前节点运行完成后，下一个会执行哪一个类别的节点。
-   * Exit() - 结束流程
-     * 简述：顾名思义，能够让你在类库代码中提前结束当前流程运行
+      * 简述：流程分支枚举， Upstream（上游分支）、IsSucceed（真分支）、IsFail（假分支），IsError（异常分支）。
+      * 场景：允许你在类库代码中操作该属性，手动控制当前节点运行完成后，下一个会执行哪一个类别的节点。
+    * Exit() - 结束流程
+      * 简述：顾名思义，能够让你在类库代码中提前结束当前流程运行
 
 # 关于 DynamicNodeType 枚举的补充说明。
 ## 1. 不生成节点控件的枚举值：
@@ -156,13 +157,60 @@ https://space.bilibili.com/33526379
     * 入参：依照Action节点。
     * 返回值：Task`<IFlipflopContext<TResult>>`
     * 描述：接收上一节点传递的上下文，同样进入异步等待，但执行完成后不会再次等待自身（只会触发一次）。
-  * IFlipflopContext`<TResult>`
+  * 关于 IFlipflopContext`<TResult>` 接口
     * 基本说明：IFlipflopContext是一个接口，你无须关心内部实现。
     * 参数描述：State，状态枚举描述（Succeed、Cancel、Error、Cancel），如果返回Cancel，则不会执行后继分支，如果返回其它状态，则会获取对应的后继分支，开始执行。
     * 参数描述：Type，触发状态描述（External外部触发，Overtime超时触发），当你在代码中的其他地方主动触发了触发器，则该次触发类型为External，当你在创建触发器后超过了指定时间（创建触发器时会要求声明超时时间），则会自动触发，但触发类型为Overtime，触发参数未你在创建触发器时指定的值）
     * 参数描述：Value，触发时传递的参数。
-  * 使用场景：配合 FlowTrigger`<TEnum>` 使用，例如定时从PLC中获取状态，当某个变量发生改变时，会通知相应的触发器，如果需要，可以传递对应的数据。
-    演示：
+	* 使用场景：配合 FlowTrigger`<TEnum>` 使用，例如定时从PLC中获取状态，当某个变量发生改变时，会通知相应的触发器，如果需要，可以传递对应的数据。
+* **UI - 自定义控件**
+  * 入参：默认使用上一节点返回值。
+  * 返回值：IEmbeddedContent 接口
+  * 描述：将类库中的WPF UserControl嵌入并显示在一个节点上，显示在工作台UI中。例如在视觉处理流程中，需要即时的显示图片。
+  * 关于 IEmbeddedContent 接口
+    * IEmbeddedContent 需要由你实现，框架并不负责
+```
+	  [DynamicFlow("[界面显示]")]
+	  internal class FlowControl
+	  {
+		  [NodeAction(NodeType.UI)]
+		  public async Task<IEmbeddedContent> CreateImageControl(DynamicContext context)
+		  {
+			  WpfUserControlAdapter adapter = null;
+			  // 其实你也可以直接创建实例
+			  // 但如果你的实例化操作涉及到了对UI元素修改，还是建议像这里一样使用异步方法
+			  await context.Env.UIContextOperation.InvokeAsync(() =>
+			  {
+				  var userControl = new UserControl();
+				  adapter = new WpfUserControlAdapter(userControl, userControl);
+			  });
+			  return adapter;
+		  }
+	  }
+	public class WpfUserControlAdapter : IEmbeddedContent
+	{
+		private readonly UserControl userControl;
+		private readonly IFlowControl flowControl;
+
+		public WpfUserControlAdapter(UserControl userControl, IFlowControl flowControl)
+		{
+			this.userControl = userControl;
+			this.flowControl= flowControl;
+		}
+
+		public IFlowControl GetFlowControl()
+		{
+			return flowControl;
+		}
+
+		public object GetUserControl()
+		{
+			return userControl;
+		}
+	}
+```
+  
+## 演示：
     ![image](https://github.com/fhhyyp/serein-flow/blob/cc5f8255135b96c6bb3669bc4aa8d8167a71c262/Image/%E6%BC%94%E7%A4%BA%20-%201.png)
     ![image](https://github.com/fhhyyp/serein-flow/blob/cc5f8255135b96c6bb3669bc4aa8d8167a71c262/Image/%E6%BC%94%E7%A4%BA%20-%202.png)
     ![image](https://github.com/fhhyyp/serein-flow/blob/8f17b786f3585cabfeef60d9ab871d43b69e5461/Image/%E6%BC%94%E7%A4%BA%20-%203.png)

@@ -15,6 +15,7 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -25,6 +26,9 @@
                 </GroupBox>
                 <GroupBox x:Name="FlipflopNodeGroupBox" Grid.Row="1" Header="触发器" Margin="5">
                     <ListBox x:Name="FlipflopsListBox" Background="#FACFC1"/>
+                </GroupBox>
+                <GroupBox x:Name="UINodeGroupBox" Grid.Row="2" Header="UI" Margin="5">
+                    <ListBox x:Name="UIListBox" Background="#FFFBD7"/>
                 </GroupBox>
             </Grid>
             

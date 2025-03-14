@@ -1,0 +1,40 @@
+﻿<local:NodeControlBase x:Class="Serein.Workbench.Node.View.UINodeControl"
+                        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+                        xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+                        xmlns:local="clr-namespace:Serein.Workbench.Node.View"  
+                        xmlns:vm="clr-namespace:Serein.Workbench.Node.ViewModel"
+                        xmlns:themes="clr-namespace:Serein.Workbench.Themes"
+                        d:DataContext="{d:DesignInstance vm:UINodeControlViewModel}"
+                        mc:Ignorable="d"
+                        MinWidth="50"
+                        Initialized="NodeControlBase_Initialized"
+                        Loaded="NodeControlBase_Loaded"
+                       >
+    <Grid x:Name="MainGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="0" Background="#E7EFF5" >
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <local:ExecuteJunctionControl  Grid.Column="0"  MyNode="{Binding NodeModel}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
+            <Border Grid.Column="1" BorderThickness="1" HorizontalAlignment="Stretch">
+                <TextBlock Text="UI控件" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+
+        </Grid>
+
+        <Border Grid.Row="1" x:Name="EmbedContainer" BorderBrush="Black" BorderThickness="1"
+            Width="500" Height="400"/>
+        
+        
+    </Grid>
+</local:NodeControlBase>

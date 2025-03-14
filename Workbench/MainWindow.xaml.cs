@@ -162,6 +162,7 @@ namespace Serein.Workbench
             IOCObjectViewer.SelectObj += ViewObjectViewer.LoadObjectInformation; // 使选择 IOC容器视图 的某项（对象）时，可以在 数据视图 呈现数据
 
             #region 为  NodeControlType 枚举 不同项添加对应的 Control类型 、 ViewModel类型
+            NodeMVVMManagement.RegisterUI(NodeControlType.UI, typeof(UINodeControl), typeof(UINodeControlViewModel));
             NodeMVVMManagement.RegisterUI(NodeControlType.Action, typeof(ActionNodeControl), typeof(ActionNodeControlViewModel));
             NodeMVVMManagement.RegisterUI(NodeControlType.Flipflop, typeof(FlipflopNodeControl), typeof(FlipflopNodeControlViewModel));
             NodeMVVMManagement.RegisterUI(NodeControlType.ExpOp, typeof(ExpOpNodeControl), typeof(ExpOpNodeControlViewModel));
@@ -491,6 +492,9 @@ namespace Serein.Workbench
                         break;
                     case Library.NodeType.Flipflop:
                         dllControl.AddFlipflop(methodDetailsInfo);  // 添加触发器方法到控件
+                        break;
+                    case Library.NodeType.UI:
+                        dllControl.AddUI(methodDetailsInfo);  // 添加触发器方法到控件
                         break;
                 }
 

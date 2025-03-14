@@ -33,7 +33,6 @@ namespace Serein.NodeFlow.Env
             });
         }
 
-        //private readonly Func<string, object?, Task> SendCommandAsync; 
         private readonly RemoteMsgUtil RemoteMsgUtil;
         private readonly MsgControllerOfClient msgClient;
         private readonly ConcurrentDictionary<string, MethodDetails> MethodDetailss = [];
@@ -46,9 +45,6 @@ namespace Serein.NodeFlow.Env
 
         public event LoadDllHandler OnDllLoad;
         public event ProjectLoadedHandler OnProjectLoaded;
-        /// <summary>
-        /// 项目准备保存
-        /// </summary>
         public event ProjectSavingHandler? OnProjectSaving;
         public event NodeConnectChangeHandler OnNodeConnectChange;
         public event NodeCreateHandler OnNodeCreate;
@@ -93,14 +89,7 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         private bool IsLoadingNode = false;
 
-        //public void SetConsoleOut()
-        //{
-        //    var logTextWriter = new LogTextWriter(msg =>
-        //    {
-        //        OnEnvOut?.Invoke(msg);
-        //    });
-        //    Console.SetOut(logTextWriter);
-        //}
+ 
 
         /// <summary>
         /// 输出信息
@@ -454,6 +443,7 @@ namespace Serein.NodeFlow.Env
         /// <returns>被设置为起始节点的Guid</returns>
         public async Task<string> SetStartNodeAsync(string nodeGuid)
         {
+
             var newNodeGuid = await msgClient.SendAndWaitDataAsync<string>(EnvMsgTheme.SetStartNode, new
             {
                 nodeGuid

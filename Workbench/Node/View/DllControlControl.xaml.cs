@@ -6,10 +6,7 @@ using System.Windows.Input;
 
 namespace Serein.Workbench.Node.View
 {
-
-
-
-
+    
 
     /// <summary>
     /// UserControl1.xaml 的交互逻辑
@@ -28,8 +25,11 @@ namespace Serein.Workbench.Node.View
             this.nodeLibraryInfo = nodeLibraryInfo;
             Header = "DLL name :  " + nodeLibraryInfo.AssemblyName;
             InitializeComponent();
-        }
 
+            FlipflopNodeGroupBox.Visibility = Visibility.Collapsed;
+            ActionNodeGroupBox.Visibility = Visibility.Collapsed;
+            UINodeGroupBox.Visibility = Visibility.Collapsed;
+        }
 
 
         /// <summary>
@@ -63,6 +63,16 @@ namespace Serein.Workbench.Node.View
         {
             AddTypeToListBox(mdInfo, FlipflopsListBox);
             FlipflopNodeGroupBox.Visibility = Visibility.Visible;
+        }
+
+        /// <summary>
+        /// 向触发器面板添加类型的文本块
+        /// </summary>
+        /// <param name="type">要添加的类型</param>
+        public void AddUI(MethodDetailsInfo mdInfo)
+        {
+            AddTypeToListBox(mdInfo, UIListBox);
+            UINodeGroupBox.Visibility = Visibility.Visible;
         }
 
         /// <summary>
@@ -137,6 +147,7 @@ namespace Serein.Workbench.Node.View
                         {
                             NodeType.Action => NodeControlType.Action,
                             NodeType.Flipflop => NodeControlType.Flipflop,
+                            NodeType.UI => NodeControlType.UI,
                             _ => NodeControlType.None,
                         },
                         MethodDetailsInfo = mdInfo,

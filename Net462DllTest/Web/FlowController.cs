@@ -19,7 +19,6 @@ namespace Net462DllTest.Web
         {
             this.plcDevice = plcDevice;
             this.viewManagement = viewManagement;
-
         }
 
         /*

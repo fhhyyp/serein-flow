@@ -43,6 +43,8 @@ namespace Serein.NodeFlow.Env
             this.FlowLibraryManagement = new FlowLibraryManagement(this); // 实例化类库管理
 
             #region 注册基本节点类型
+            NodeMVVMManagement.RegisterModel(NodeControlType.UI, typeof(SingleUINode)); // 动作节点
+
             NodeMVVMManagement.RegisterModel(NodeControlType.Action, typeof(SingleActionNode)); // 动作节点
             NodeMVVMManagement.RegisterModel(NodeControlType.Flipflop, typeof(SingleFlipflopNode)); // 触发器节点
             NodeMVVMManagement.RegisterModel(NodeControlType.ExpOp, typeof(SingleExpOpNode)); // 表达式节点

@@ -17,13 +17,13 @@ namespace Serein.Workbench
         {
 
 #if DEBUG 
-            if (1 == 2)
+            if (1 == 1)
             {
                 // 这里是测试代码，可以删除
                 string filePath;
                 filePath = @"C:\Users\Az\source\repos\CLBanyunqiState\CLBanyunqiState\bin\Release\net8.0\PLCproject.dnf";
                 filePath = @"C:\Users\Az\source\repos\CLBanyunqiState\CLBanyunqiState\bin\Release\banyunqi\project.dnf";
-                filePath = @"C:\Users\Az\source\repos\CLBanyunqiState\CLBanyunqiState\bin\debug\net8.0\project.dnf";
+                filePath = @"F:\临时\project\project.dnf";
                 //filePath = @"C:\Users\Az\source\repos\CLBanyunqiState\CLBanyunqiState\bin\debug\net8.0\test.dnf";
                 string content = System.IO.File.ReadAllText(filePath); // 读取整个文件内容
                 App.FlowProjectData = JsonConvert.DeserializeObject<SereinProjectData>(content);

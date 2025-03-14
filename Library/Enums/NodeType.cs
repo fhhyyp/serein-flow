@@ -29,6 +29,12 @@ namespace Serein.Library
         /// </summary>
         Exit,
 
+        /// <summary>
+        /// <para>UI节点(每个节点只会执行一次对应的方法)</para>
+        /// <para>需要返回IEmbeddedContent接口</para>
+        /// <para>IEmbeddedContent接口实现由你决定</para>
+        /// </summary>
+        UI,
 
         /// <summary>
         /// <para>触发器节点，必须为标记在可异步等待的方法，建议与继承了 FlowTriggerk&lt;TEnum&gt; 的实例对象搭配使用</para>
@@ -87,6 +93,11 @@ namespace Serein.Library
         /// 触发器节点
         /// </summary>
         Flipflop,
+
+        /// <summary>
+        /// UI节点
+        /// </summary>
+        UI,
 
         /// <summary>
         /// 表达式操作节点

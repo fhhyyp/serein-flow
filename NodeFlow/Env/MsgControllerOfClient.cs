@@ -39,8 +39,6 @@ namespace Serein.NodeFlow.Env
             await SendCommandFunc.Invoke(msgId, theme, data);
         }
 
-
-
         /// <summary>
         /// 发送请求
         /// </summary>

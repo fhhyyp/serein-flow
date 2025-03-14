@@ -16,7 +16,6 @@ namespace Serein.Library.Utils
     public static class ObjectConvertHelper
     {
        
-
         /// <summary>
         /// 父类转为子类
         /// </summary>

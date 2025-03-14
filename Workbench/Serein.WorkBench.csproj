@@ -51,14 +51,18 @@
     <ProjectReference Include="..\NodeFlow\Serein.NodeFlow.csproj" />
     <ProjectReference Include="..\Serein.Script\Serein.Script.csproj" />
   </ItemGroup>
-
+  
+  <ItemGroup>
+    <Reference Include="WindowsFormsIntegration" />
+    <Reference Include="System.Windows.Forms" />
+  </ItemGroup>
+  
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 
-    <PackageReference Include="Lagrange.Core" Version="0.3.1" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.6" />
-    <PackageReference Include="ZXing.Net" Version="0.16.10" />
-    <PackageReference Include="ZXing.Net.Bindings.ImageSharp" Version="0.16.15" />
+    <!--<PackageReference Include="Lagrange.Core" Version="0.3.1" />-->
+    <!--<PackageReference Include="SixLabors.ImageSharp" Version="3.1.6" />-->
+    <!--<PackageReference Include="ZXing.Net.Bindings.ImageSharp" Version="0.16.15" />-->
     
     <!--<PackageReference Include="MySqlConnector" Version="2.4.0" />
     <PackageReference Include="SqlSugarCore" Version="5.1.4.170" />
@@ -72,6 +76,11 @@
     <Compile Update="Themes\MethodDetailsControl.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Views\" />
+    <Folder Include="VIewModels\" />
   </ItemGroup>
 
 </Project>

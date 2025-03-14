@@ -379,8 +379,12 @@ namespace Serein.Library
             if (md.ActingInstance is null)
             {
                 md.ActingInstance = context.Env.IOC.Get(md.ActingInstanceType);
+                if (md.ActingInstance is null)
+                {
+                    md.ActingInstance = context.Env.IOC.Instantiate(md.ActingInstanceType);
+                }
             }
-
+            
             object[] args = await GetParametersAsync(context);
             var result = await dd.InvokeAsync(md.ActingInstance, args);
             return result;
