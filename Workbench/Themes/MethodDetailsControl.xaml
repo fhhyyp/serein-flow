@@ -3,12 +3,17 @@
                     xmlns:local="clr-namespace:Serein.Workbench.Themes"
                     xmlns:view="clr-namespace:Serein.Workbench.Node.View"
                     xmlns:sys="clr-namespace:System;assembly=mscorlib" 
+                    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                    xmlns:serein="clr-namespace:Serein.Library;assembly=Serein.Library"
                     xmlns:converters="clr-namespace:Serein.Workbench.Tool.Converters">
 
 
     <ResourceDictionary.MergedDictionaries>
     </ResourceDictionary.MergedDictionaries>
+    
+    
     <converters:InvertableBooleanToVisibilityConverter x:Key="InvertedBoolConverter"/>
+    <converters:EnumToBooleanConverter x:Key="EnumToBooleanConverter"/>
 
     <Style TargetType="{x:Type local:MethodDetailsControl}">
         <Setter Property="Template">
@@ -18,8 +23,8 @@
                     <!--根据方法入参数量生成相应的控件-->
                     <ItemsControl ItemsSource="{Binding MethodDetails.ParameterDetailss, RelativeSource={RelativeSource TemplatedParent}}" Background="#E3FDFD" >
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Grid >
+                            <DataTemplate DataType="serein:ParameterData">
+                                <Grid DataContext="{Binding}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="auto"/>
                                         <ColumnDefinition Width="auto"/>
@@ -31,11 +36,70 @@
                                     <!--连接控制器-->
                                     <view:ArgJunctionControl x:Name="ArgJunctionControl" Grid.Column="0" ArgIndex="{Binding Index}" MyNode="{Binding NodeModel}" />
                                     <!--参数索引提示-->
-                                    <TextBlock Grid.Column="1" Text="{Binding Index,StringFormat=agr{0}}"  Margin="2,0,2,0" VerticalAlignment="Center"/>
+                                    <!--<TextBlock Grid.Column="1" Text="{Binding Index,StringFormat=agr{0}}"  Margin="2,0,2,0" VerticalAlignment="Center"/>-->
+                                    
                                     <!--是否设置为显式参数-->
                                     <CheckBox  Grid.Column="2" IsChecked="{Binding IsExplicitData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="2,0,2,0" VerticalContentAlignment="Center"/>
+                                    
+                                    
                                     <!--入参参数名称-->
-                                    <TextBlock Grid.Column="3" MinWidth="50" Text="{Binding Name}" Margin="2,0,2,0" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                    <ContentControl Content="{Binding}"   Grid.Column="3"   Margin="2,0,2,0" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <ContentControl.Resources>
+                                            <local:DataContextProxy x:Key="Proxy"
+                                                   DataContext="{Binding}" />
+                                        </ContentControl.Resources>
+                                        <ContentControl.Style>
+                                            <Style TargetType="ContentControl">
+                                                <Style.Triggers>
+                                                    
+                                                    <!--脚本节点输入变量名称-->
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding NodeModel.ControlType}" Value="{x:Static serein:NodeControlType.Script}"/>
+                                                        </MultiDataTrigger.Conditions>
+                                                        <Setter Property="ContentTemplate">
+                                                            <Setter.Value>
+                                                                <DataTemplate>
+                                                                    <TextBox MinWidth="50" Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+                                                                </DataTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </MultiDataTrigger>
+
+
+                                                    <!--显示Action节点方法入参名称-->
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding NodeModel.ControlType}" Value="{x:Static serein:NodeControlType.Action}"/>
+                                                        </MultiDataTrigger.Conditions>
+                                                        <Setter Property="ContentTemplate">
+                                                            <Setter.Value>
+                                                                <DataTemplate>
+                                                                    <TextBlock  Grid.Column="0" MinWidth="50" Text="{Binding Name}"/>
+                                                                </DataTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </MultiDataTrigger>
+
+                                                    <!--显示Flip方法入参名称-->
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding NodeModel.ControlType}" Value="{x:Static serein:NodeControlType.Flipflop}"/>
+                                                        </MultiDataTrigger.Conditions>
+                                                        <Setter Property="ContentTemplate">
+                                                            <Setter.Value>
+                                                                <DataTemplate>
+                                                                    <TextBlock  Grid.Column="0" MinWidth="50" Text="{Binding Name}"/>
+                                                                </DataTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </MultiDataTrigger>
+                                                    
+                                                </Style.Triggers>
+                                            </Style>
+                                        </ContentControl.Style>
+                                    </ContentControl>
+                                    
                                     <!--增加可选参数（如果有）-->
                                     <view:ParamsArgControl x:Name="ParamsArgControl"
                                                            ArgIndex="{Binding Index}"
@@ -44,7 +108,7 @@
                                                            Grid.Column="5"  Margin="2,0,2,0" HorizontalAlignment="Right" VerticalAlignment="Center"
                                                            Visibility="{Binding IsParams, Mode=OneWay, 
                                                            Converter={StaticResource InvertedBoolConverter},ConverterParameter=Normal}" 
-                                        />
+                                     />
                                     
                                     <ContentControl Content="{Binding}"  Grid.Column="4" VerticalAlignment="Center">
                                         <ContentControl.Style>

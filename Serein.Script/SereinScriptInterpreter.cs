@@ -212,6 +212,8 @@ namespace Serein.Script
         /// <returns></returns>
         private async Task<object?> ExecutionProgramNodeAsync(IScriptInvokeContext context, ProgramNode programNode) 
         {
+            // 加载变量
+
             // 遍历 ProgramNode 中的所有语句并执行它们
             foreach (var statement in programNode.Statements)
             {
@@ -364,8 +366,6 @@ namespace Serein.Script
                 throw new Exception($"Unknown function: {functionCallNode.FunctionName}");
             }
         }
-
-
 
 
         public async Task<object?> InterpretAsync(IScriptInvokeContext context, ASTNode node)

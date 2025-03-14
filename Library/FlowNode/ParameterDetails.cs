@@ -81,7 +81,7 @@ namespace Serein.Library
         /// <summary>
         /// 方法入参参数名称
         /// </summary>
-        [PropertyInfo] 
+        [PropertyInfo(IsNotification = true)] 
         private string _name ;
 
         /// <summary>

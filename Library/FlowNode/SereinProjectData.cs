@@ -277,10 +277,12 @@ namespace Serein.Library
     /// </summary>
     public class ParameterData
     {
+        
         /// <summary>
         /// 参数类型，true时使用自定义的入参，false时由运行环境自动传参
         /// </summary>
         public bool State { get; set; }
+
 
         /// <summary>
         /// 参数来源节点
@@ -292,15 +294,16 @@ namespace Serein.Library
         /// </summary>
         public string SourceType { get; set; }
 
+
+        /// <summary>
+        /// 参数名称
+        /// </summary>
+        public string ArgName { get; set; }
+
         /// <summary>
         /// 自定义入参
         /// </summary>
         public string Value { get; set; }
-
-        /// <summary>
-        /// 表达式相关节点的表达式内容
-        /// </summary>
-        // public string Expression { get; set; }
 
     }
 

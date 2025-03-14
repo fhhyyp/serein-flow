@@ -39,6 +39,29 @@ namespace Serein.Workbench.Themes
     }
 
 
+    public class DataContextProxy : Freezable
+    {
+        public DataContextProxy()
+        {
+            BindingOperations.SetBinding(this, DataContextProperty, new Binding());
+        }
+
+        public ParameterDetails DataContext
+        {
+            get { return (ParameterDetails)GetValue(DataContextProperty); }
+            set { SetValue(DataContextProperty, value); }
+        }
+
+
+        public static readonly DependencyProperty DataContextProperty = FrameworkElement
+            .DataContextProperty.AddOwner(typeof(DataContextProxy));
+
+        protected override Freezable CreateInstanceCore()
+        {
+            return new DataContextProxy();
+        }
+    }
+
 
     /// <summary>
     /// 方法参数控件
@@ -78,13 +101,17 @@ namespace Serein.Workbench.Themes
             CommandAddParams = new RelayCommand(ExecuteAddParams);
         }
 
+        
+
         private void ExecuteAddParams(object parameter)
         {
             // 方法逻辑
             this.MethodDetails.AddParamsArg();
         }
 
-
-
+       
     }
+
+
+
 }

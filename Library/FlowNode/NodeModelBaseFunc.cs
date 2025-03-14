@@ -110,7 +110,9 @@ namespace Serein.Library
                                         SourceNodeGuid = it.ArgDataSourceNodeGuid,
                                         SourceType = it.ArgDataSourceType.ToString(),
                                         State = it.IsExplicitData,
+                                        ArgName = it.Name,
                                         Value = it.DataValue,
+
                                     })
                                     .ToArray();
             }

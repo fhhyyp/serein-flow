@@ -66,6 +66,7 @@ namespace Serein.NodeFlow.Model
             }
         }
 
+
         public override void OnCreating()
         {
             MethodInfo? method = this.GetType().GetMethod(nameof(GetFlowApi));
@@ -115,6 +116,14 @@ namespace Serein.NodeFlow.Model
         public override void LoadCustomData(NodeInfo nodeInfo)
         {
             this.Script = nodeInfo.CustomData?.Script ?? "";
+
+            // 更新变量名
+            for (int i = 0; i < Math.Min(this.MethodDetails.ParameterDetailss.Length, nodeInfo.ParameterData.Length); i++)
+            {
+                this.MethodDetails.ParameterDetailss[i].Name = nodeInfo.ParameterData[i].ArgName;
+            }
+
+
         }
 
         /// <summary>
@@ -124,12 +133,30 @@ namespace Serein.NodeFlow.Model
         {
             try
             {
+                HashSet<string> varNames = new HashSet<string>();   
+                foreach (var pd in MethodDetails.ParameterDetailss) 
+                { 
+                    if (varNames.Contains(pd.Name))
+                    {
+                        throw new Exception($"脚本节点重复的变量名称：{pd.Name} - {Guid}");
+                    }
+                    varNames.Add(pd.Name);
+                }
+
+                //StringBuilder sb  = new StringBuilder();
+                //foreach (var pd in MethodDetails.ParameterDetailss)
+                //{
+                //    sb.AppendLine($"let {pd.Name};"); // 提前声明这些变量
+                //}
+                //sb.Append(Script);
+                //var p = new SereinScriptParser(sb.ToString());
                 var p = new SereinScriptParser(Script);
-                mainNode = p.Parse();
+                mainNode = p.Parse(); // 开始解析
             }
             catch (Exception ex)
             {
                 SereinEnv.WriteLine(InfoType.ERROR, ex.ToString());
+                
             }
         }
 
@@ -141,20 +168,22 @@ namespace Serein.NodeFlow.Model
         public override async Task<object?> ExecutingAsync(IDynamicContext context)
         {
             var @params =  await GetParametersAsync(context);
-            //dynamic obj = ((object[])@params[0])[0];
-            //try
-            //{
-            //    SereinEnv.WriteLine(InfoType.INFO, "Dynamic Object Value ：" + obj.VarInfo);
-            //}
-            //catch (Exception ex)
-            //{
-            //    SereinEnv.WriteLine(ex);
-            //}
-            //ScriptFlowApi.Context = context; // 并发破坏了数据状态
-            context.AddOrUpdate($"{context.Guid}_{this.Guid}_Params", @params[0]); // 后面再改
 
-            mainNode ??= new SereinScriptParser(Script).Parse();
+            //context.AddOrUpdate($"{context.Guid}_{this.Guid}_Params", @params[0]); // 后面再改
+             ReloadScript();// 每次都重新解析
+
             IScriptInvokeContext scriptContext = new ScriptInvokeContext(context);
+
+            if (@params[0] is object[] agrDatas)
+            {
+                for (int i = 0; i < agrDatas.Length; i++)
+                {
+                    var argName = MethodDetails.ParameterDetailss[i].Name;
+                    var argData = agrDatas[i];
+                    scriptContext.SetVarValue(argName, argData);
+                }
+            }
+            
 
             var result = await ScriptInterpreter.InterpretAsync(scriptContext, mainNode); // 从入口节点执行
             //SereinEnv.WriteLine(InfoType.INFO, "FlowContext Guid : " + context.Guid);
