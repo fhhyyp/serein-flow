@@ -107,7 +107,6 @@
                             <CheckBox  IsChecked="{Binding NodeModel.DebugSetting.IsInterrupt, Mode=TwoWay}"/>
                             <TextBlock Text="中断节点"/>
                         </StackPanel>
-
                     </StackPanel>
 
                 </Grid>

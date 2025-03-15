@@ -92,6 +92,8 @@ namespace Serein.NodeFlow.Model
                 InputType = ParameterValueInputType.Input,
                 Items = null,
                 IsParams = true,
+                Description = "脚本节点入参"
+
             };
 
         }

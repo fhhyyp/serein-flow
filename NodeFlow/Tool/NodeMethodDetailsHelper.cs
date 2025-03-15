@@ -7,6 +7,7 @@ using Serein.Library.FlowNode;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel;
 
 namespace Serein.NodeFlow.Tool;
 
@@ -309,6 +310,7 @@ public static class NodeMethodDetailsHelper
         {
             dataType = parameterInfo.ParameterType;
         }
+        var description = parameterInfo.GetCustomAttribute<DescriptionAttribute>()?.Description ?? "";
 
         var inputType = GetInputType(explicitParemType);
         var items = GetExplicitItems(explicitParemType, inputType);
@@ -325,6 +327,8 @@ public static class NodeMethodDetailsHelper
             DataValue = parameterInfo.HasDefaultValue ? parameterInfo?.DefaultValue?.ToString() : "", // 如果存在默认值，则使用默认值
             Items = items.ToArray(), // 如果是枚举值入参，则获取枚举类型的字面量
             IsParams = hasParams,  // 判断是否为可变参数
+            Description = description // 入参描述
+
         };
 
     }

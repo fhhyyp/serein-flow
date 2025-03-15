@@ -62,6 +62,8 @@ namespace Serein.NodeFlow.Model
                 //Convertor = null,
                 InputType = ParameterValueInputType.Input,
                 Items = null,
+                Description = "表达式节点入参控制点"
+
             };
             this.MethodDetails.ParameterDetailss = [.. pd];
         }

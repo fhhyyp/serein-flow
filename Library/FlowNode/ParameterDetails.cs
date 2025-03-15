@@ -87,6 +87,12 @@ namespace Serein.Library
         private string _name ;
 
         /// <summary>
+        /// 入参注释
+        /// </summary>
+        [PropertyInfo]
+        private string _description;
+
+        /// <summary>
         /// 自定义的方法入参数据
         /// </summary>
         [PropertyInfo(IsNotification = true)] // IsPrint = true
@@ -179,7 +185,7 @@ namespace Serein.Library
                 DataValue = string.IsNullOrEmpty(DataValue) ? string.Empty : DataValue,
                 Items = this.Items?.Select(it => it).ToArray(),
                 IsParams = this.IsParams,
-
+                Description = this.Description,
             };
             return pd;
         }
@@ -326,7 +332,7 @@ namespace Serein.Library
 
         public override string ToString()
         {
-            return $"[{this.Index}] {this.Name} : {this.DataType?.FullName}";
+            return $"[{this.Index}] {(string.IsNullOrWhiteSpace(this.Description) ? string.Empty : $"({this.Description})")}{this.Name} : {this.DataType?.FullName}";
         }
     }
 
