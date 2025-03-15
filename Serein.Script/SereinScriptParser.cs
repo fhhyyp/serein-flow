@@ -127,6 +127,11 @@ namespace Serein.Script
                 // 对象成员的获取
                 return ParseMemberAccessOrAssignment();
             }
+            else if (_tempToken.Type == TokenType.SquareBracketsLeft)
+            {
+                // 数组 index; 字典 key obj.Member[xxx];
+                return ParseCollectionIndex();
+            }
             else
             {
                 // 不是函数调用，是变量赋值或其他
@@ -292,10 +297,13 @@ namespace Serein.Script
 
         public ASTNode ParseCollectionIndex()
         {
-            string functionName = _currentToken.Value.ToString();
-            _currentToken = _lexer.NextToken(); // consume identifier
+            var identifierNode = new IdentifierNode(_currentToken.Value.ToString()).SetTokenInfo(_currentToken);
 
-            if (_currentToken.Type != TokenType.ParenthesisLeft)
+            string collectionName = _currentToken.Value.ToString();
+            //_lexer.NextToken(); // consume "["
+            _currentToken = _lexer.NextToken(); // consume identifier
+            // ParenthesisLeft
+            if (_currentToken.Type != TokenType.SquareBracketsLeft)
                 throw new Exception("Expected '[' after function name");
 
             _currentToken = _lexer.NextToken(); // consume "["
@@ -303,7 +311,7 @@ namespace Serein.Script
             ASTNode indexValue = Expression(); // get index value
 
             _currentToken = _lexer.NextToken(); // consume "]"
-            return new CollectionIndexNode(indexValue).SetTokenInfo(_currentToken);
+            return new CollectionIndexNode(identifierNode,indexValue).SetTokenInfo(_currentToken);
         }
 
         /// <summary>
@@ -631,6 +639,14 @@ namespace Serein.Script
                 {
                     return ParseMemberAccessOrAssignment();
                 }
+
+
+                // 数组 index; 字典 key obj.Member[xxx];
+                if (_identifierPeekToken.Type == TokenType.SquareBracketsLeft)
+                {
+                    return ParseCollectionIndex();
+                }
+
                 _currentToken = _lexer.NextToken();  // 消耗标识符
                 return new IdentifierNode(identifier.ToString()).SetTokenInfo(_currentToken);
             }

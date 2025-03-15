@@ -102,6 +102,7 @@ namespace Serein.Library
             {
                 return new ParameterData[0];
             }
+            
             if (MethodDetails.ParameterDetailss.Length > 0)
             {
                 return MethodDetails.ParameterDetailss
@@ -182,8 +183,7 @@ namespace Serein.Library
                 {
                     md.ParameterDetailss = new ParameterDetails[0];
                 }
-                LoadCustomData(nodeInfo); // 加载自定义数据
-
+                
                 var pds = md.ParameterDetailss; // 当前节点的入参描述数组
                 #region 类库方法型节点加载参数
                 if (nodeInfo.ParameterData.Length > pds.Length && md.HasParamsArg)
@@ -215,7 +215,10 @@ namespace Serein.Library
                     pd.ArgDataSourceType = EnumHelper.ConvertEnum<ConnectionArgSourceType>(pdInfo.SourceType);
                     pd.ArgDataSourceNodeGuid = pdInfo.SourceNodeGuid;
 
-                } 
+                }
+
+                LoadCustomData(nodeInfo); // 加载自定义数据
+
                 #endregion
             }
         }

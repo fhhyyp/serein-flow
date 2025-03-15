@@ -60,7 +60,7 @@
                                                         <Setter Property="ContentTemplate">
                                                             <Setter.Value>
                                                                 <DataTemplate>
-                                                                    <TextBox MinWidth="50" Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+                                                                    <TextBox MinWidth="50" Text="{Binding Name, Mode=TwoWay}"/>
                                                                 </DataTemplate>
                                                             </Setter.Value>
                                                         </Setter>

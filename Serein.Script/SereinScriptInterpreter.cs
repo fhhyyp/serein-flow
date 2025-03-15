@@ -3,7 +3,9 @@ using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.Utils;
 using Serein.Script.Node;
+using System.ComponentModel.Design;
 using System.Reflection;
+using System.Reflection.Metadata.Ecma335;
 using System.Runtime.CompilerServices;
 using System.Xml.Linq;
 
@@ -21,12 +23,15 @@ namespace Serein.Script
         }
     }
 
+
+
     /// <summary>
     /// 脚本运行上下文
     /// </summary>
     public interface IScriptInvokeContext
     {
         IDynamicContext FlowContext { get; }
+
         /// <summary>
         /// 是否该退出了
         /// </summary>
@@ -35,7 +40,7 @@ namespace Serein.Script
         /// <summary>
         /// 是否严格检查 Null 值 （禁止使用 Null）
         /// </summary>
-        bool IsCheckNullValue { get;  }
+        bool IsCheckNullValue { get; set; }
 
         /// <summary>
         /// 获取变量的值
@@ -56,7 +61,7 @@ namespace Serein.Script
         /// 结束调用
         /// </summary>
         /// <returns></returns>
-        bool Exit();
+        void OnExit();
     }
 
 
@@ -73,11 +78,13 @@ namespace Serein.Script
         /// 定义的变量
         /// </summary>
         private Dictionary<string, object> _variables = new Dictionary<string, object>();
+        
+        private CancellationTokenSource _tokenSource = new CancellationTokenSource();
 
         /// <summary>
         /// 是否该退出了
         /// </summary>
-        public bool IsReturn { get; set; }
+        public bool IsReturn => _tokenSource.IsCancellationRequested;
 
         /// <summary>
         /// 是否严格检查 Null 值 （禁止使用 Null）
@@ -104,7 +111,7 @@ namespace Serein.Script
         
 
 
-        bool IScriptInvokeContext.Exit()
+        void IScriptInvokeContext.OnExit()
         {
             // 清理脚本中加载的非托管资源
             foreach (var nodeObj in _variables.Values)
@@ -121,8 +128,8 @@ namespace Serein.Script
 
                 }
             }
+            _tokenSource.Cancel();
             _variables.Clear();
-            return true ;
         }
 
     }
@@ -213,6 +220,7 @@ namespace Serein.Script
         private async Task<object?> ExecutionProgramNodeAsync(IScriptInvokeContext context, ProgramNode programNode) 
         {
             // 加载变量
+            
 
             // 遍历 ProgramNode 中的所有语句并执行它们
             foreach (var statement in programNode.Statements)
@@ -290,8 +298,13 @@ namespace Serein.Script
         /// <exception cref="Exception"></exception>
         private async Task ExectutionWhileNodeAsync(IScriptInvokeContext context, WhileNode whileNode)
         {
+
             while (true)
             {
+                if (context.IsReturn) // 停止流程
+                { 
+                    return;
+                }
                 var result = await EvaluateAsync(context, whileNode.Condition) ?? throw new SereinSciptException(whileNode, $"条件语句返回了 null");
                 if (result is not bool condition)
                 {
@@ -316,7 +329,11 @@ namespace Serein.Script
         private async Task ExecutionAssignmentNodeAsync(IScriptInvokeContext context, AssignmentNode assignmentNode)
         {
             var tmp = await EvaluateAsync(context, assignmentNode.Value);
-            context.SetVarValue(assignmentNode.Variable, tmp);
+            if(tmp is not null)
+            {
+                context.SetVarValue(assignmentNode.Variable, tmp);
+
+            }
         }
         private async Task<object> InterpretFunctionCallAsync(IScriptInvokeContext context, FunctionCallNode functionCallNode)
         {
@@ -378,6 +395,7 @@ namespace Serein.Script
             switch (node)
             {
                 case ProgramNode programNode: // AST树入口
+
                     var scritResult = await ExecutionProgramNodeAsync(context, programNode); 
                     return scritResult; // 遍历 ProgramNode 中的所有语句并执行它们
                 case ClassTypeDefinitionNode classTypeDefinitionNode: // 定义类型
@@ -463,16 +481,18 @@ namespace Serein.Script
                         throw new SereinSciptException(objectInstantiationNode, $"使用了未定义的类型\"{objectInstantiationNode.TypeName}\"");
 
                     }
-                case FunctionCallNode callNode:
+                case FunctionCallNode callNode: // 调用方法
                     return await InterpretFunctionCallAsync(context, callNode); // 调用方法返回函数的返回值
-                case MemberFunctionCallNode memberFunctionCallNode:
+                case MemberFunctionCallNode memberFunctionCallNode: // 对象方法调用
                     return await CallMemberFunction(context, memberFunctionCallNode);
-                case MemberAccessNode memberAccessNode:
+                case MemberAccessNode memberAccessNode: // 对象成员访问
                     return await GetValue(context, memberAccessNode);
-                case ReturnNode returnNode: // 
+                case CollectionIndexNode collectionIndexNode:
+                    return await GetCollectionValue(context, collectionIndexNode);
+                case ReturnNode returnNode: // 返回内容
                     return await EvaluateAsync(context, returnNode.Value); // 直接返回响应的内容
                 default:
-                    throw new SereinSciptException(node, "解释器 EvaluateAsync() 未实现节点行为");
+                    throw new SereinSciptException(node, $"解释器 EvaluateAsync() 未实现{node}节点行为");
             }
         }
 
@@ -592,6 +612,74 @@ namespace Serein.Script
             {
                 return lastProperty.GetValue(target);
             }
+        }
+        
+        /// <summary>
+        /// 获取集合中的成员
+        /// </summary>
+        /// <param name="memberAccessNode"></param>
+        /// <returns></returns>
+        /// <exception cref="SereinSciptException"></exception>
+        public async Task<object?> GetCollectionValue(IScriptInvokeContext context, CollectionIndexNode collectionIndexNode)
+        {
+            var target = await EvaluateAsync(context, collectionIndexNode.TargetValue); // 获取对象
+            if (target is null)
+            {
+                throw new ArgumentNullException($"解析{collectionIndexNode}节点时，TargetValue返回空。");
+            }
+            
+            // 解析数组/集合名与索引部分
+            var targetType = target.GetType(); // 目标对象的类型
+            #region 处理键值对
+            if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
+            {
+                // 目标是键值对
+                var method = targetType.GetMethod("get_Item", BindingFlags.Public | BindingFlags.Instance);
+                if (method is not null)
+                {
+                    var key = await EvaluateAsync(context, collectionIndexNode.IndexValue); // 获取索引值;
+                    var result = method.Invoke(target, new object[] { key });
+                    return result;
+                }
+            }
+            #endregion
+            #region 处理集合对象
+            else
+            {
+                var indexValue = await EvaluateAsync(context, collectionIndexNode.IndexValue); // 获取索引值
+                object? result;
+                if (indexValue is int index)
+                {
+                    // 获取数组或集合对象
+                    // 访问数组或集合中的指定索引
+                    if (target is Array array)
+                    {
+                        if (index < 0 || index >= array.Length)
+                        {
+                            throw new ArgumentException($"解析{collectionIndexNode}节点时，数组下标越界。");
+                        }
+                        result = array.GetValue(index);
+                        return result;
+                    }
+                    else if (target is IList<object> list)
+                    {
+                        if (index < 0 || index >= list.Count)
+                        {
+                            throw new ArgumentException($"解析{collectionIndexNode}节点时，数组下标越界。");
+                        }
+                        result = list[index];
+                        return result;
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"解析{collectionIndexNode}节点时，左值并非有效集合。");
+                    }
+                }
+            }
+            #endregion
+
+            throw new ArgumentException($"解析{collectionIndexNode}节点时，左值并非有效集合。");
+
         }
 
         /// <summary>

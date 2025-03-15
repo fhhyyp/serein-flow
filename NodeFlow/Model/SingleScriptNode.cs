@@ -143,14 +143,14 @@ namespace Serein.NodeFlow.Model
                     varNames.Add(pd.Name);
                 }
 
-                //StringBuilder sb  = new StringBuilder();
-                //foreach (var pd in MethodDetails.ParameterDetailss)
-                //{
-                //    sb.AppendLine($"let {pd.Name};"); // 提前声明这些变量
-                //}
-                //sb.Append(Script);
-                //var p = new SereinScriptParser(sb.ToString());
-                var p = new SereinScriptParser(Script);
+                StringBuilder sb  = new StringBuilder();
+                foreach (var pd in MethodDetails.ParameterDetailss)
+                {
+                    sb.AppendLine($"let {pd.Name};"); // 提前声明这些变量
+                }
+                sb.Append(Script);
+                var p = new SereinScriptParser(sb.ToString());
+                //var p = new SereinScriptParser(Script);
                 mainNode = p.Parse(); // 开始解析
             }
             catch (Exception ex)
@@ -168,6 +168,7 @@ namespace Serein.NodeFlow.Model
         public override async Task<object?> ExecutingAsync(IDynamicContext context)
         {
             var @params =  await GetParametersAsync(context);
+            
 
             //context.AddOrUpdate($"{context.Guid}_{this.Guid}_Params", @params[0]); // 后面再改
              ReloadScript();// 每次都重新解析
@@ -183,9 +184,17 @@ namespace Serein.NodeFlow.Model
                     scriptContext.SetVarValue(argName, argData);
                 }
             }
-            
 
+            
+            FlowRunCompleteHandler onFlowStop = (e) =>
+            {
+                scriptContext.OnExit();
+            };
+
+            var envEvent = (IFlowEnvironmentEvent)context.Env;
+            envEvent.OnFlowRunComplete += onFlowStop; // 防止运行后台流程
             var result = await ScriptInterpreter.InterpretAsync(scriptContext, mainNode); // 从入口节点执行
+            envEvent.OnFlowRunComplete -= onFlowStop; 
             //SereinEnv.WriteLine(InfoType.INFO, "FlowContext Guid : " + context.Guid);
             return result;
         }
@@ -237,7 +246,6 @@ namespace Serein.NodeFlow.Model
                 }
                 else if (value is TimeSpan timeSpan)
                 {
-
                     Console.WriteLine($"等待{timeSpan}");
                     await Task.Delay(timeSpan);
                 }
