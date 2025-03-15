@@ -229,7 +229,8 @@ namespace Serein.NodeFlow.Tool
                     GC.WaitForPendingFinalizers();
                 };
                 var assembly = flowAlc.LoadFromAssemblyPath(dllFilePath); // 加载指定路径的程序集
-                return LoadAssembly(assembly, actionUnload);
+                var assembly_result = LoadAssembly(assembly, actionUnload);
+                return assembly_result;
             }
 
            /* var dir = Path.GetDirectoryName(dllFilePath); // 获取目录路径
@@ -272,15 +273,26 @@ namespace Serein.NodeFlow.Tool
             }
 
             FlowLibrary flowLibrary = new FlowLibrary(assembly, actionUnload);
-            if (flowLibrary.LoadAssembly(assembly))
+            var loadResult = flowLibrary.LoadAssembly(assembly); // 加载程序集
+            if (loadResult)
             {
-                _myFlowLibrarys.TryAdd(assembly.GetName().Name, flowLibrary);
-                (NodeLibraryInfo, List<MethodDetailsInfo>) result = (flowLibrary.ToInfo(),
-                                                                flowLibrary.MethodDetailss.Values.Select(md => md.ToInfo()).ToList());
+                var assemblyName = assembly.GetName().Name;
+                if (string.IsNullOrEmpty(assemblyName))
+                {
+                    actionUnload.Invoke();
+                    throw new Exception($"程序集[{assembly.GetName().FullName}]加载失败，没有程序集名称");
+                }
+                _myFlowLibrarys.TryAdd(assemblyName, flowLibrary);
+
+                List<MethodDetailsInfo> mdInfos = flowLibrary.MethodDetailss.Values.Select(md => md.ToInfo()).ToList();
+                mdInfos.Sort((a, b) => string.Compare(a.MethodName, b.MethodName, StringComparison.OrdinalIgnoreCase));
+
+                (NodeLibraryInfo, List<MethodDetailsInfo>) result = (flowLibrary.ToInfo(), mdInfos);
                 return result;
             }
             else
             {
+                actionUnload.Invoke();
                 throw new Exception($"程序集[{assembly.GetName().FullName}]加载失败");
             }
         }

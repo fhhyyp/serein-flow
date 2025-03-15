@@ -10,6 +10,8 @@ using System.Threading.Tasks;
 namespace Serein.Library
 {
 
+
+
     /// <summary>
     /// 节点入参参数详情
     /// </summary>
@@ -57,7 +59,7 @@ namespace Serein.Library
         /// <para>Value  ：除以上类型之外的任意参数</para>
         /// </summary>
         [PropertyInfo] 
-        private string _explicitTypeName ;
+        private ParameterValueInputType _inputType ;
 
         /// <summary>
         /// 入参数据来源。默认使用上一节点作为入参数据。
@@ -91,7 +93,7 @@ namespace Serein.Library
         private string _dataValue;
 
         /// <summary>
-        /// 只有当ExplicitTypeName 为 Select 时，才会需要该成员。
+        /// 只有当 InputType 为 Select 时，才会需要该成员。
         /// </summary>
         [PropertyInfo(IsNotification = true)] 
         private string[] _items ;
@@ -102,6 +104,8 @@ namespace Serein.Library
         [PropertyInfo]
         private bool _isParams;
     }
+
+
 
 
     public partial class ParameterDetails
@@ -133,7 +137,7 @@ namespace Serein.Library
             Name = info.Name;
             DataType = Type.GetType(info.DataTypeFullName);
             ExplicitType = Type.GetType(info.ExplicitTypeFullName);
-            ExplicitTypeName = info.ExplicitTypeName;
+            InputType = info.InputType.ConvertEnum<ParameterValueInputType>();
             Items = info.Items;
             IsParams = info.IsParams;
         }
@@ -151,7 +155,7 @@ namespace Serein.Library
                 DataTypeFullName = this.DataType.FullName,
                 Name = this.Name,
                 ExplicitTypeFullName = this.ExplicitType.FullName,
-                ExplicitTypeName = this.ExplicitTypeName,
+                InputType = this.InputType.ToString(),
                 Items = this.Items.Select(it => it).ToArray(),
             };
         }
@@ -168,7 +172,7 @@ namespace Serein.Library
                 Index = this.Index,
                 IsExplicitData = this.IsExplicitData,
                 ExplicitType = this.ExplicitType,
-                ExplicitTypeName = this.ExplicitTypeName,
+                InputType = this.InputType,
                 //Convertor = this.Convertor,
                 DataType = this.DataType,
                 Name = this.Name,
@@ -198,6 +202,11 @@ namespace Serein.Library
             if (typeof(IDynamicContext).IsAssignableFrom(DataType))
             {
                 return context;
+            }
+            // 返回流程上下文
+            if (typeof(NodeModelBase).IsAssignableFrom(DataType))
+            {
+                return NodeModel;
             }
             // 显式设置的参数
             if (IsExplicitData && !DataValue.StartsWith("@", StringComparison.OrdinalIgnoreCase))

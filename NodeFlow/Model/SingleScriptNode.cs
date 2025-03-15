@@ -89,7 +89,7 @@ namespace Serein.NodeFlow.Model
                 ArgDataSourceNodeGuid = string.Empty,
                 ArgDataSourceType = ConnectionArgSourceType.GetPreviousNodeData,
                 NodeModel = this,
-                ExplicitTypeName = "Value",
+                InputType = ParameterValueInputType.Input,
                 Items = null,
                 IsParams = true,
             };

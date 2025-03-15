@@ -6,6 +6,7 @@ using System.Reflection;
 using Serein.Library.FlowNode;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.ComponentModel.DataAnnotations;
 
 namespace Serein.NodeFlow.Tool;
 
@@ -47,12 +48,9 @@ public static class NodeMethodDetailsHelper
         }
         
         var methodName = $"{assemblyName}.{type.Name}.{methodInfo.Name}";
-        SereinEnv.WriteLine(InfoType.INFO, "loading method : " + methodName);
-
+        
         // 创建参数信息
         var explicitDataOfParameters = GetExplicitDataOfParameters(methodInfo.GetParameters());
-
-        
 
         //// 通过表达式树生成委托
         //var methodDelegate = GenerateMethodDelegate(type,   // 方法所在的对象类型
@@ -65,6 +63,34 @@ public static class NodeMethodDetailsHelper
         Type? returnType;
         bool isTask = IsGenericTask(methodInfo.ReturnType, out var taskResult);
 
+
+        if (attribute.MethodDynamicType == Library.NodeType.UI)
+        {
+            if (isTask)
+            {
+                var innerType = methodInfo.ReturnType.GetGenericArguments()[0];
+                if (innerType.IsGenericType && innerType != typeof(IEmbeddedContent))
+                {
+                    SereinEnv.WriteLine(InfoType.WARN, $"[{methodName}]跳过创建，因为UI方法的返回值并非IEmbeddedContent，流程工作台将无法正确显示自定义控件界面以及传递数据。");
+                    methodDetails = null;
+                    delegateDetails = null;
+                    return false;
+                }
+            }
+            else
+            {
+                if (methodInfo.ReturnType != typeof(IEmbeddedContent))
+                {
+                    SereinEnv.WriteLine(InfoType.WARN, $"[{methodName}]跳过创建，因为UI方法的返回值并非IEmbeddedContent，流程工作台将无法正确显示自定义控件界面以及传递数据。");
+                    methodDetails = null;
+                    delegateDetails = null;
+                    return false;
+                }
+            }
+          
+        }
+
+        // 对于触发器
         if (attribute.MethodDynamicType == Library.NodeType.Flipflop)
         {
             if (methodInfo.ReturnType.IsGenericType && methodInfo.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
@@ -91,13 +117,8 @@ public static class NodeMethodDetailsHelper
                 delegateDetails = null;
                 return false;
             }
-              
-            //if (!isTask || taskResult != typeof(IFlipflopContext<object>))
-            //{
-            //    
-            //}
-            
         }
+        
         else if(isTask)
         {
             returnType = taskResult is null ? typeof(Task) : taskResult;
@@ -111,8 +132,6 @@ public static class NodeMethodDetailsHelper
             attribute.AnotherName = methodInfo.Name;
         }
 
-
-       
         var asyncPrefix = "[异步]"; // IsGenericTask(returnType) ? "[async]" : ;
         var methodMethodAnotherName = isTask ? asyncPrefix + attribute.AnotherName : attribute.AnotherName;
 
@@ -126,7 +145,7 @@ public static class NodeMethodDetailsHelper
         {
             ActingInstanceType = type,
             // ActingInstance = instance, 
-            MethodName = methodName,
+            MethodName = NodeMethodDetailsHelper.GetMethodSignature(methodInfo),
             AssemblyName = assemblyName,
             MethodDynamicType = attribute.MethodDynamicType,
             MethodLockName = attribute.LockName,
@@ -147,7 +166,17 @@ public static class NodeMethodDetailsHelper
         return true;
 
     }
+    public static string GetMethodSignature(MethodInfo method)
+    {
+        if (method == null) return string.Empty;
 
+        string methodName = method.Name;
+        string returnType = method.ReturnType.Name;
+        string parameters = string.Join(", ", method.GetParameters()
+            .Select(p => $"{p.ParameterType.Name} {p.Name}"));
+
+        return $"{methodName}({parameters}) : {returnType}";
+    }
     public static bool IsGenericTask(Type returnType, out Type? taskResult)
     {
         // 判断是否为 Task 类型或泛型 Task<T>
@@ -236,6 +265,27 @@ public static class NodeMethodDetailsHelper
             #endregion
         }).ToArray();
 
+        foreach(var pd in tempParams)
+        {
+            var argType = pd.DataType;
+            // 运行环境
+            if (typeof(IFlowEnvironment).IsAssignableFrom(argType))
+            {
+                continue;
+            }
+            // 流程上下文
+            if (typeof(IDynamicContext).IsAssignableFrom(argType))
+            {
+                continue;
+            }
+            // 节点模型
+            if (typeof(NodeModelBase).IsAssignableFrom(argType))
+            {
+                continue;
+            }
+            pd.IsExplicitData = true;
+            
+        }
        
         return tempParams;
     }
@@ -260,14 +310,14 @@ public static class NodeMethodDetailsHelper
             dataType = parameterInfo.ParameterType;
         }
 
-        string explicitTypeName = GetExplicitTypeName(explicitParemType);
-        var items = GetExplicitItems(explicitParemType, explicitTypeName);
-        if ("Bool".Equals(explicitTypeName)) explicitTypeName = "Select"; // 布尔值 转为 可选类型
+        var inputType = GetInputType(explicitParemType);
+        var items = GetExplicitItems(explicitParemType, inputType);
+        //if ("Bool".Equals(inputType)) inputType = "Select"; // 布尔值 转为 可选类型
         return new ParameterDetails
         {
             IsExplicitData = isExplicitData, //attribute is null ? parameterInfo.HasDefaultValue : true,
             Index = index, // 索引
-            ExplicitTypeName = explicitTypeName, // Select/Bool/Value
+            InputType = inputType, // Select/Bool/Value
             ExplicitType = explicitParemType,// 显示的入参类型
             //Convertor = func, // 转换器
             DataType = dataType, // 实际的入参类型
@@ -286,17 +336,17 @@ public static class NodeMethodDetailsHelper
     /// </summary>
     /// <param name="type"></param>
     /// <returns></returns>
-    private static string GetExplicitTypeName(Type type)
+    private static ParameterValueInputType GetInputType(Type type)
     {
         
         return type switch
         {
-            Type t when t.IsEnum => "Select",
-            Type t when t == typeof(bool) => "Bool",
-            Type t when t == typeof(string) => "Value",
-            Type t when t == typeof(int) => "Value",
-            Type t when t == typeof(double) => "Value",
-            _ => "Value"
+            Type t when t.IsEnum => ParameterValueInputType.Select,
+            Type t when t == typeof(bool) => ParameterValueInputType.Select,
+            Type t when t == typeof(string) => ParameterValueInputType.Input,
+            Type t when t == typeof(int) => ParameterValueInputType.Input,
+            Type t when t == typeof(double) => ParameterValueInputType.Input,
+            _ => ParameterValueInputType.Input
         };
     }
 
@@ -305,14 +355,14 @@ public static class NodeMethodDetailsHelper
     /// 获取参数列表选项
     /// </summary>
     /// <param name="type"></param>
-    /// <param name="explicitTypeName"></param>
+    /// <param name="InputType"></param>
     /// <returns></returns>
-    private static IEnumerable<string> GetExplicitItems(Type type, string explicitTypeName)
+    private static IEnumerable<string> GetExplicitItems(Type type, ParameterValueInputType InputType)
     {
-        IEnumerable<string>  items =  explicitTypeName switch
+        IEnumerable<string>  items =  InputType switch
         {
-            "Select" => Enum.GetNames(type),
-            "Bool" => ["True", "False"],
+            ParameterValueInputType.Select when type == typeof(bool) => ["True", "False"],
+            ParameterValueInputType.Select  => Enum.GetNames(type),
             _ => []
         };
         return items;

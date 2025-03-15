@@ -137,7 +137,7 @@
                                                     <MultiDataTrigger>
                                                         <MultiDataTrigger.Conditions>
                                                             <Condition Binding="{Binding IsExplicitData}" Value="true" />
-                                                            <Condition Binding="{Binding ExplicitTypeName}" Value="Select" />
+                                                            <Condition Binding="{Binding InputType}" Value="Select" />
                                                         </MultiDataTrigger.Conditions>
                                                         <Setter Property="ContentTemplate">
                                                             <Setter.Value>
@@ -160,7 +160,7 @@
                                                     <MultiDataTrigger>
                                                         <MultiDataTrigger.Conditions>
                                                             <Condition Binding="{Binding IsExplicitData}" Value="true" />
-                                                            <Condition Binding="{Binding ExplicitTypeName}" Value="Value" />
+                                                            <Condition Binding="{Binding InputType}" Value="Input" />
                                                         </MultiDataTrigger.Conditions>
                                                         <Setter Property="ContentTemplate">
                                                             <Setter.Value>

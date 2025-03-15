@@ -43,7 +43,7 @@ namespace Serein.Library
         /// <para>Bool   : 布尔类型</para>
         /// <para>Value  ： 除以上类型之外的任意参数</para>
         /// </summary>
-        public string ExplicitTypeName { get; set; }
+        public string InputType { get; set; }
 
         /// <summary>
         /// 参数选择器

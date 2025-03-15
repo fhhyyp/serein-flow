@@ -60,7 +60,7 @@ namespace Serein.NodeFlow.Model
                 ArgDataSourceType = ConnectionArgSourceType.GetPreviousNodeData,
                 NodeModel = this,
                 //Convertor = null,
-                ExplicitTypeName = "Value",
+                InputType = ParameterValueInputType.Input,
                 Items = null,
             };
             this.MethodDetails.ParameterDetailss = [.. pd];

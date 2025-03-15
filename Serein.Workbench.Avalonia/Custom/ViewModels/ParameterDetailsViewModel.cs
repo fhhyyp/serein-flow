@@ -48,7 +48,7 @@ namespace Serein.Workbench.Avalonia.Custom.ViewModels
                 return;
             }
 
-            if ("Value".Equals(ParameterDetails.ExplicitTypeName))
+            if (ParameterDetails.InputType == ParameterValueInputType.Input )
             {
                 // 值类型
                 IsVisibleA = false;

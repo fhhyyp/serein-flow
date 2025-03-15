@@ -17,8 +17,8 @@ namespace Serein.Workbench.Avalonia.Converters
            
             if(value is ParameterDetails pd)
             {
-                
-                if (pd.ExplicitTypeName == "Value")
+                    
+                if (pd.InputType == ParameterValueInputType.Input)
                 {
                     
                     return false;

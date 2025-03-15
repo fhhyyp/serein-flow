@@ -72,7 +72,7 @@ namespace Serein.Workbench.Node.View
                 // 获取 MethodDetailsControl 实例
                 var methodDetailsControl = this.MethodDetailsControl;
                 var itemsControl = FindVisualChild<ItemsControl>(methodDetailsControl); // 查找 ItemsControl
-                if (itemsControl != null)
+                if (itemsControl != null && base.ViewModel.NodeModel.MethodDetails.ParameterDetailss != null)
                 {
                     var argDataJunction = new JunctionControlBase[base.ViewModel.NodeModel.MethodDetails.ParameterDetailss.Length];
                     var controls = new List<JunctionControlBase>();

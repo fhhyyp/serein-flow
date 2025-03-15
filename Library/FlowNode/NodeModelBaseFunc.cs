@@ -74,7 +74,7 @@ namespace Serein.Library
                 pd.DataType = null;
                 pd.Name = null;
                 pd.ArgDataSourceNodeGuid = null;
-                pd.ExplicitTypeName = null;
+                pd.InputType = ParameterValueInputType.Input;
             }
             this.MethodDetails.ParameterDetailss = null;
             this.MethodDetails.ActingInstance = null;

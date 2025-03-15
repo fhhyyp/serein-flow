@@ -5,13 +5,21 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Serein.NodeFlow
 {
+    public class LibraryMdDd (MethodDetails methodDetails,DelegateDetails delegateDetails)
+    {
+        public MethodDetails MethodDetails { get;  } = methodDetails;
+        public DelegateDetails DelegateDetails { get; } = delegateDetails;
+    }
+
 
     /// <summary>
     /// 加载在流程中的程序集依赖
@@ -111,7 +119,7 @@ namespace Serein.NodeFlow
                 var loaderExceptions = ex.LoaderExceptions;
                 foreach (var loaderException in loaderExceptions)
                 {
-                    SereinEnv.WriteLine(InfoType.ERROR, loaderException.Message);
+                    SereinEnv.WriteLine(InfoType.ERROR, loaderException?.Message);
                 }
                 return false;
             }
@@ -149,7 +157,7 @@ namespace Serein.NodeFlow
             // 从 scanTypes.Type 创建的方法信息
             // Md : 方法描述
             // Dd ：方法对应的Emit委托
-            List<(MethodDetails Md, DelegateDetails Dd)> detailss = new List<(MethodDetails Md, DelegateDetails Dd)>();
+            List<LibraryMdDd> detailss = new List<LibraryMdDd>();
 
             // 遍历扫描的类型
             foreach ((var type, var flowName) in scanTypes)
@@ -165,7 +173,7 @@ namespace Serein.NodeFlow
                         continue;
                     }
                     md.MethodAnotherName = flowName + md.MethodAnotherName; // 方法别名
-                    detailss.Add((md, dd));
+                    detailss.Add(new LibraryMdDd(md, dd));
                 }
             }
 
@@ -176,11 +184,26 @@ namespace Serein.NodeFlow
             {
                 return false;
             }
-            #region 加载成功，缓存所有方法、委托的信息
-            foreach ((var md, var dd) in detailss)
+            // 简单排序一下
+            //detailss = detailss.OrderBy(k => k.MethodDetails.MethodName,).ToList();
+
+           
+            
+            detailss.Sort((a, b) => string.Compare(a.MethodDetails.MethodName, b.MethodDetails.MethodName, StringComparison.OrdinalIgnoreCase));
+            foreach (var item in detailss)
             {
-                MethodDetailss.TryAdd(md.MethodName, md);
-                DelegateDetailss.TryAdd(md.MethodName, dd);
+                SereinEnv.WriteLine(InfoType.INFO, "loading method : " + item.MethodDetails.MethodName);
+
+            }
+
+            //detailss.Sort((a, b) => string.Compare());
+
+            #region 加载成功，缓存所有方法、委托的信息
+            foreach (var item in detailss)
+            {
+                var key = item.MethodDetails.MethodName;
+                MethodDetailss.TryAdd(key, item.MethodDetails);
+                DelegateDetailss.TryAdd(key, item.DelegateDetails);
             }
 
             #endregion
