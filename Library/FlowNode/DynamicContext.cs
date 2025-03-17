@@ -134,28 +134,28 @@ namespace Serein.Library
         }
 
         /// <summary>
-        /// 结束流程
+        /// 结束当前流程上下文
         /// </summary>
         public void Exit()
         {
-            foreach (var nodeObj in dictNodeFlowData.Values)
-            {
-                if (nodeObj is null)
-                {
+            //foreach (var nodeObj in dictNodeFlowData.Values)
+            //{
+            //    if (nodeObj is null)
+            //    {
                     
-                }
-                else 
-                {
-                    if (typeof(IDisposable).IsAssignableFrom(nodeObj?.GetType()) && nodeObj is IDisposable disposable)
-                    {
-                        disposable?.Dispose();
-                    }
-                }
-            }
-            if (Tag != null && typeof(IDisposable).IsAssignableFrom(Tag?.GetType()) && Tag is IDisposable tagDisposable)
-            {
-                tagDisposable?.Dispose();
-            }
+            //    }
+            //    else 
+            //    {
+            //        if (typeof(IDisposable).IsAssignableFrom(nodeObj?.GetType()) && nodeObj is IDisposable disposable)
+            //        {
+            //            disposable?.Dispose();
+            //        }
+            //    }
+            //}
+            //if (Tag != null && typeof(IDisposable).IsAssignableFrom(Tag?.GetType()) && Tag is IDisposable tagDisposable)
+            //{
+            //    tagDisposable?.Dispose();
+            //}
             this.Tag = null;
             this.dictNodeFlowData?.Clear();
             RunState = RunState.Completion;

@@ -35,7 +35,8 @@ namespace Serein.NodeFlow.Model
             {
                 var p = context.GetPreviousNode(this);
                 var data = context.GetFlowData(p.Guid);
-                Adapter.GetFlowControl().OnExecuting(data);
+                var iflowContorl = Adapter.GetFlowControl();
+                iflowContorl.OnExecuting(data);
             }
             
             return Task.FromResult<object?>(null);
