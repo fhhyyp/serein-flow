@@ -169,7 +169,7 @@
                                                                         <Grid.ColumnDefinitions>
                                                                             <ColumnDefinition Width="*"/>
                                                                         </Grid.ColumnDefinitions>
-                                                                        <TextBox   Grid.Column="0" MinWidth="50" Text="{Binding DataValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                                                        <TextBox   Grid.Column="0" MinWidth="50" Text="{Binding DataValue, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
                                                                     </Grid>
                                                                 </DataTemplate>
                                                             </Setter.Value>

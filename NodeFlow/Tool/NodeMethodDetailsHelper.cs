@@ -172,11 +172,12 @@ public static class NodeMethodDetailsHelper
         if (method == null) return string.Empty;
 
         string methodName = method.Name;
-        string returnType = method.ReturnType.Name;
+        //string returnType = method.ReturnType.Name;
         string parameters = string.Join(", ", method.GetParameters()
             .Select(p => $"{p.ParameterType.Name} {p.Name}"));
 
-        return $"{methodName}({parameters}) : {returnType}";
+        return $"{methodName}({parameters})";
+        //return $"{methodName}({parameters}) : {returnType}";
     }
     public static bool IsGenericTask(Type returnType, out Type? taskResult)
     {

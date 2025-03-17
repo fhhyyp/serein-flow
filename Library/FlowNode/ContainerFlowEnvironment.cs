@@ -27,6 +27,7 @@ namespace Serein.Library
         public ISereinIOC IOC => sereinIOC;
 
         public string EnvName => throw new NotImplementedException();
+        public string ProjectFileLocation => throw new NotImplementedException();
 
         public bool IsGlobalInterrupt => throw new NotImplementedException();
 

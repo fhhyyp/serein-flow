@@ -1372,7 +1372,14 @@ namespace Serein.Workbench
                 {
                     // 创建一个 DataObject 用于拖拽操作，并设置拖拽效果
                     var dragData = new DataObject(MouseNodeType.CreateBaseNodeInCanvas, control.GetType());
-                    DragDrop.DoDragDrop(control, dragData, DragDropEffects.Move);
+                     try
+                    {
+                        DragDrop.DoDragDrop(control, dragData, DragDropEffects.Move);
+                    }
+                    catch (Exception ex)
+                    {
+                        SereinEnv.WriteLine(ex);
+                    }
                 }
                 
             }

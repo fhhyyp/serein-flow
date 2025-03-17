@@ -91,7 +91,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBox Grid.Column="0" Background="#FEFAF4" MinWidth="100" Text="{Binding NodeModel.Expression, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  
+                <TextBox IsEnabled="{Binding IsEnabledOnView}"  Grid.Column="0" Background="#FEFAF4" MinWidth="100" Text="{Binding NodeModel.Expression, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  
     HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
 
                 <local:ResultJunctionControl Grid.Column="1"  MyNode="{Binding NodeModel}" x:Name="ResultJunctionControl" HorizontalAlignment="Right"/>

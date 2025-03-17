@@ -29,6 +29,9 @@ namespace Serein.Workbench.Node.View
 
         public ScriptNodeControl()
         {
+            base.ViewModel = new ScriptNodeControlViewModel(null);
+            base.ViewModel.IsEnabledOnView = false;
+            base.DataContext = viewModel;
             InitializeComponent();
         }
         public ScriptNodeControl(ScriptNodeControlViewModel viewModel) : base(viewModel)

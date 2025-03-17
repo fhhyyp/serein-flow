@@ -663,6 +663,12 @@ namespace Serein.Library.Api
         /// </summary>
         string EnvName { get; }
 
+
+        /// <summary>
+        /// 项目文件位置
+        /// </summary>
+        string ProjectFileLocation { get; }
+
         /// <summary>
         /// 是否全局中断
         /// </summary>
@@ -698,6 +704,7 @@ namespace Serein.Library.Api
         /// 由运行环境提供的UI线程上下文操作，用于类库中需要在UI线程中操作视觉元素的场景
         /// </summary>
         UIContextOperation UIContextOperation { get;  }
+
 
         #endregion
 
@@ -1033,6 +1040,7 @@ namespace Serein.Library.Api
         /// </summary>
         /// <param name="assemblyFullName">程序集的名称</param>
         bool TryUnloadLibrary(string assemblyFullName);
+
         /// <summary>
         /// 运行时加载
         /// </summary>

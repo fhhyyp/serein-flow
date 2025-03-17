@@ -231,6 +231,12 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         public string EnvName { get; set; } = SpaceName;
 
+
+        /// <summary>
+        /// 本地加载的项目文件路径
+        /// </summary>
+        public string ProjectFileLocation { get; set; } = string.Empty;
+
         /// <summary>
         /// 是否全局中断
         /// </summary>
@@ -526,6 +532,7 @@ namespace Serein.NodeFlow.Env
         /// <param name="filePath"></param>
         public void LoadProject(FlowEnvInfo flowEnvInfo, string filePath)
         {
+            this.ProjectFileLocation = filePath;
             var projectData = flowEnvInfo.Project;
             // 加载项目配置文件
             var dllPaths = projectData.Librarys.Select(it => it.FilePath).ToList();
@@ -542,8 +549,8 @@ namespace Serein.NodeFlow.Env
 
             _ = Task.Run( async () =>
             {
-                await LoadNodeInfosAsync(projectData.Nodes.ToList());
-                await SetStartNodeAsync(projectData.StartNode);
+                await LoadNodeInfosAsync(projectData.Nodes.ToList()); // 加载节点信息
+                await SetStartNodeAsync(projectData.StartNode); // 设置起始节点
             });
 
         }
@@ -651,7 +658,7 @@ namespace Serein.NodeFlow.Env
         public bool TryUnloadLibrary(string assemblyName)
         {
             // 获取与此程序集相关的节点
-            var groupedNodes = NodeModels.Values.Where(node => node.MethodDetails.AssemblyName.Equals(assemblyName)).ToArray();
+            var groupedNodes = NodeModels.Values.Where(node => !string.IsNullOrWhiteSpace(node.MethodDetails.AssemblyName) && node.MethodDetails.AssemblyName.Equals(assemblyName)).ToArray();
             if (groupedNodes.Length == 0)
             {
                 var isPass = FlowLibraryManagement.UnloadLibrary(assemblyName);
@@ -1411,6 +1418,7 @@ namespace Serein.NodeFlow.Env
         /// <returns></returns>
         public bool LoadNativeLibraryOfRuning(string file)
         {
+          
             return NativeDllHelper.LoadDll(file);
         }
 
@@ -1421,7 +1429,7 @@ namespace Serein.NodeFlow.Env
         /// <param name="isRecurrence">是否递归加载</param>
         public void LoadAllNativeLibraryOfRuning(string path, bool isRecurrence = true)
         {
-            NativeDllHelper.LoadAllDll(path, isRecurrence);
+            NativeDllHelper.LoadAllDll(path);
         }
 
         #endregion

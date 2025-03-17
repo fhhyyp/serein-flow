@@ -8,6 +8,7 @@ namespace Serein.Workbench.Node.ViewModel
     /// </summary>
     public class ConditionNodeControlViewModel : NodeControlViewModelBase
     {
+        
         public new SingleConditionNode NodeModel { get; }
 
         /// <summary>

@@ -87,6 +87,7 @@ namespace Serein.NodeFlow.Env
   
    
         public string EnvName => currentFlowEnvironment.EnvName;
+        public string ProjectFileLocation => currentFlowEnvironment.EnvName;
 
         public bool IsGlobalInterrupt => currentFlowEnvironment.IsGlobalInterrupt;
 

@@ -54,6 +54,11 @@ namespace Serein.Library.Utils.SereinExpression
         /// <exception cref="NotSupportedException"></exception>
         public static object Evaluate(string expression, object targetObJ, out bool isChange)
         {
+            if (expression.Equals("@get", StringComparison.OrdinalIgnoreCase))
+            {
+                isChange = false;
+                return targetObJ;
+            }
             //if (expression is null || targetObJ is null)
             //{
             //    throw new Exception("表达式条件expression is null、 targetObJ is null");

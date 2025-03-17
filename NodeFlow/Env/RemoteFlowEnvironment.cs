@@ -65,6 +65,10 @@ namespace Serein.NodeFlow.Env
 
         public string EnvName => FlowEnvironment.SpaceName;
 
+        /// <summary>
+        /// 远程项目的网络位置（WebSocket + IP + 端口 ： 远程主机的文件路径）
+        /// </summary>
+        public string ProjectFileLocation { get; set; } = string.Empty;
         public bool IsGlobalInterrupt => false;
 
         public bool IsControlRemoteEnv => true;

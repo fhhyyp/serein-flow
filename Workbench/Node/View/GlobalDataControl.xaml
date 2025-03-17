@@ -54,7 +54,7 @@
 
             <StackPanel Grid.Row="0"  Grid.Column="0" Orientation="Horizontal">
                 <TextBlock Text="全局数据名称" Margin="2"  HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
-                <TextBox MinWidth="50" Margin="2" Text="{Binding NodeModel.KeyName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                <TextBox IsEnabled="{Binding IsEnabledOnView}" MinWidth="50" Margin="2" Text="{Binding NodeModel.KeyName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
       HorizontalAlignment="Stretch" VerticalAlignment="Center">
                 </TextBox>
                 <Button Content="EXP" Command="{Binding CommandCopyDataExp}" Height="17.2"></Button>

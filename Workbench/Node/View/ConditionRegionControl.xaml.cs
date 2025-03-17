@@ -13,6 +13,7 @@ namespace Serein.Workbench.Node.View
 
         public ConditionRegionControl() : base()
         {
+            base.ViewModel.IsEnabledOnView = false;
             InitializeComponent();
         }
 

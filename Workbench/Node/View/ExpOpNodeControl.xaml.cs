@@ -12,6 +12,7 @@ namespace Serein.Workbench.Node.View
         {
             // 窗体初始化需要
             ViewModel = new ExpOpNodeControlViewModel(new SingleExpOpNode(null));
+            base.ViewModel.IsEnabledOnView = false;
             DataContext = ViewModel;
             InitializeComponent();
         }

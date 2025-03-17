@@ -24,6 +24,7 @@ namespace Serein.Workbench.Node.View
     {
         public UINodeControl()
         {
+            base.ViewModel.IsEnabledOnView = true;
             InitializeComponent();
         }
 

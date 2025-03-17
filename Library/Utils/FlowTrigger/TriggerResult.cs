@@ -75,7 +75,6 @@ namespace Serein.Library.Utils
     /// <summary>
     /// 使用 ObjectPool 来复用 TriggerResult 对象
     /// </summary>
-      // 示例 TriggerResult 对象池
     public class TriggerResultPool<TResult>
     {
         private readonly ConcurrentExpandingObjectPool<TriggerResult<TResult>> _objectPool;

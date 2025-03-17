@@ -57,9 +57,13 @@
     <Reference Include="System.Windows.Forms" />
   </ItemGroup>
   
+  
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 
+
+    <PackageReference Include="OpenCvSharp4.Extensions" Version="4.10.0.20241108" />
+    
     <!--<PackageReference Include="Lagrange.Core" Version="0.3.1" />-->
     <!--<PackageReference Include="SixLabors.ImageSharp" Version="3.1.6" />-->
     <!--<PackageReference Include="ZXing.Net.Bindings.ImageSharp" Version="0.16.15" />-->

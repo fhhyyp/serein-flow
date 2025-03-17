@@ -220,6 +220,10 @@ namespace Serein.NodeFlow.Tool
                 var dir = Path.GetDirectoryName(dllFilePath); // 获取目录路径
                 var sereinFlowBaseLibraryPath = Path.Combine(dir, SereinBaseLibrary);
                 // 每个类库下面至少需要有“Serein.Library.dll”类库依赖
+
+                //AssemblyLoader assemblyLoader = new AssemblyLoader(dllFilePath);
+                
+
                 var flowAlc = new FlowLibraryAssemblyContext(sereinFlowBaseLibraryPath, fileName);
                 Action actionUnload = () =>
                 {
@@ -312,7 +316,7 @@ namespace Serein.NodeFlow.Tool
         /// <summary>
         ///  创建新的加载上下文
         /// </summary>
-        /// <param name="sereinFlowLibraryPath">类库主</param>
+        /// <param name="sereinFlowLibraryPath">类库路径</param>
         /// <param name="name"></param>
         public FlowLibraryAssemblyContext(string sereinFlowLibraryPath, string name) : base(name, isCollectible: true)
         {
@@ -350,15 +354,15 @@ namespace Serein.NodeFlow.Tool
             //return null; // 如果没有找到，返回 null
         }
     }
-    public static class PluginAssemblyContextExtensions
-    {
+    //public static class PluginAssemblyContextExtensions
+    //{
 
-        public static Assembly FromAssemblyPath(this AssemblyLoadContext context, string path)
-        {
+    //    public static Assembly FromAssemblyPath(this AssemblyLoadContext context, string path)
+    //    {
 
-            return context.LoadFromAssemblyPath(path);
+    //        return context.LoadFromAssemblyPath(path);
 
-        }
+    //    }
 
-    }
+    //}
 }

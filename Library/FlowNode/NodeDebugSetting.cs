@@ -75,6 +75,7 @@ namespace Serein.Library
             {
                 // 设置获取中断的委托
                 _getInterruptTask = () => NodeModel.Env.IOC.Get<FlowInterruptTool>().WaitTriggerAsync(NodeModel.Guid);
+                
             }
             else if (!state)
             {
