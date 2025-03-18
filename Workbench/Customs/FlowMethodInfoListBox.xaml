@@ -1,0 +1,29 @@
+﻿<UserControl x:Class="Serein.Workbench.Customs.FlowMethodInfoListBox"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:converter="clr-namespace:Serein.Workbench.Converters"
+             xmlns:local="clr-namespace:Serein.Workbench.Customs"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <UserControl.Resources>
+        <converter:CountToVisibilityConverter x:Key="CountToVisibilityConverter"/>
+    </UserControl.Resources>
+
+    <ListBox ItemsSource="{Binding Nodes}"
+             Visibility="{Binding Nodes, Converter={StaticResource CountToVisibilityConverter}}"
+             Background="{Binding BackgroundColor}">
+        <ListBox.ItemTemplate>
+            <DataTemplate>
+                <Grid Margin="2">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding NodeType}"></TextBlock>
+                        <TextBlock Text="{Binding AnotherName}" Margin="4,0,0,0"></TextBlock>
+                        <TextBlock Text="{Binding MethodName}" Margin="6,0,0,0"></TextBlock>
+                    </StackPanel>
+                </Grid>
+            </DataTemplate>
+        </ListBox.ItemTemplate>
+    </ListBox>
+</UserControl>

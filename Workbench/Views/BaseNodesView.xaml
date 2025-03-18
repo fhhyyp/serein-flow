@@ -1,0 +1,23 @@
+﻿<UserControl x:Class="Serein.Workbench.Views.BaseNodesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Serein.Workbench.Views"
+             xmlns:nodeView="clr-namespace:Serein.Workbench.Node.View"
+             mc:Ignorable="d" 
+             d:DesignHeight="150" d:DesignWidth="400">
+    <Grid>
+        <!--暂时隐藏基础面板  Visibility="Collapsed"  -->
+        <ScrollViewer Grid.Row="0" HorizontalScrollBarVisibility="Auto">
+            <StackPanel  Orientation="Horizontal">
+                <!--<nodeView:NetScriptNodeControl x:Name="NetScriptNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>-->
+                <nodeView:ScriptNodeControl x:Name="ScriptNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
+                <nodeView:GlobalDataControl x:Name="GlobalDataControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
+                <nodeView:ExpOpNodeControl x:Name="ExpOpNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
+                <nodeView:ConditionNodeControl x:Name="ConditionNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
+                <!--<nodeView:ConditionRegionControl  x:Name="ConditionRegionControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>-->
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>
