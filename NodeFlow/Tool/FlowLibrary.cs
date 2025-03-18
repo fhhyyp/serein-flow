@@ -26,7 +26,7 @@ namespace Serein.NodeFlow
     /// </summary>
     public class FlowLibrary
     {
-        private readonly Assembly _assembly;
+        public  Assembly Assembly { get; private set; }
 
 
 
@@ -36,16 +36,16 @@ namespace Serein.NodeFlow
 
         public FlowLibrary(Assembly assembly)
         {
-            this._assembly = assembly;
-            this.FullName  = Path.GetFileName(_assembly.Location);
+            this.Assembly = assembly;
+            this.FullName  = Path.GetFileName(Assembly.Location);
 
-            this.FilePath = _assembly.Location;
+            this.FilePath = Assembly.Location;
         }
 
         public FlowLibrary(Assembly assembly,
                           string filePath)
         {
-            this._assembly = assembly;
+            this.Assembly = assembly;
             this.FullName = Path.GetFileName(filePath); ;
             this.FilePath = filePath;
         }
@@ -92,7 +92,7 @@ namespace Serein.NodeFlow
         /// <returns></returns>
         public NodeLibraryInfo ToInfo()
         {
-            var assemblyName = _assembly.GetName().Name;    
+            var assemblyName = Assembly.GetName().Name;    
             return new NodeLibraryInfo
             {
                 AssemblyName = assemblyName,
@@ -111,7 +111,7 @@ namespace Serein.NodeFlow
         /// <returns></returns>
         public bool LoadAssembly()
         {
-            Assembly assembly = this._assembly;
+            Assembly assembly = this.Assembly;
             #region 检查入参
 
             // 加载DLL，创建 MethodDetails、实例作用对象、委托方法

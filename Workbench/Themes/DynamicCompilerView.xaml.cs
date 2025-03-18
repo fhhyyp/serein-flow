@@ -1,4 +1,5 @@
 ﻿using Microsoft.Win32;
+using Serein.NodeFlow;
 using Serein.NodeFlow.Tool;
 using System;
 using System.Collections.Generic;
@@ -33,7 +34,7 @@ namespace Serein.Workbench.Themes
         /// <summary>
         /// 编译成功回调
         /// </summary>
-        public Action<Assembly> OnCompileComplete { get; set; }
+        public Action<FlowLibrary> OnCompileComplete { get; set; }
         public DynamicCompilerView()
         {
             InitializeComponent();
@@ -127,16 +128,17 @@ namespace Serein.Workbench.Themes
             try
             {
                 txtErrors.Clear();
-                string code = codeEditor.Text;
-                Assembly assembly = _compiler.Compile(code, textboxAssemblyName.Text);
-                
+                var code = codeEditor.Text;
+                var path = textboxAssemblyName.Text;
+                Assembly assembly = _compiler.Compile(code, path);
 
+                FlowLibrary flowLibrary = new FlowLibrary(assembly, path);
 
                 if (assembly != null)
                 {
                     txtErrors.Text = "编译成功！";
                     txtErrors.Background = System.Windows.Media.Brushes.LightGreen;
-                    OnCompileComplete.Invoke(assembly);
+                    OnCompileComplete.Invoke(flowLibrary);
                     count++;
                 }
             }

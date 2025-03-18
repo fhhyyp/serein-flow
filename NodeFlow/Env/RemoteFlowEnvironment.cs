@@ -83,6 +83,7 @@ namespace Serein.NodeFlow.Env
 
         public IFlowEnvironment CurrentEnv => this;
         public UIContextOperation UIContextOperation { get; }
+        public NodeMVVMManagement NodeMVVMManagement { get; }
 
         /// <summary>
         /// 标示是否正在加载项目

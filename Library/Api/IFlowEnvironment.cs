@@ -705,7 +705,10 @@ namespace Serein.Library.Api
         /// </summary>
         UIContextOperation UIContextOperation { get;  }
 
-
+        /// <summary>
+        /// 节点视图模型管理类
+        /// </summary>
+        NodeMVVMManagement NodeMVVMManagement { get;  }
         #endregion
 
         #region 基本接口

@@ -71,9 +71,8 @@ public class FlowLibrary
             });
         }
 
-        private static void OnCompileComplete(System.Reflection.Assembly assembly)
+        private static void OnCompileComplete(FlowLibrary flowLibrary)
         {
-            FlowLibrary flowLibrary = new FlowLibrary(assembly);
             var loadResult = flowLibrary.LoadAssembly(); // 动态编译完成后加载程序集
             if (!loadResult)
             {

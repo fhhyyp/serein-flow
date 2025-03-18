@@ -7,32 +7,34 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Serein.NodeFlow
+namespace Serein.Library
 {
     /// <summary>
     /// 节点类型
     /// </summary>
     public class NodeMVVM
     {
+
+
         /// <summary>
         /// 节点类型
         /// </summary>
-        public required NodeControlType NodeType { get; set; }
+        public NodeControlType NodeType { get; set; }
 
         /// <summary>
         /// 节点Model类型
         /// </summary>
-        public required Type ModelType {  get; set; }
+        public Type ModelType {  get; set; }
 
         /// <summary>
         /// 节点视图控件类型
         /// </summary>
-        public Type? ControlType {  get; set; }
+        public Type ControlType {  get; set; }
 
         /// <summary>
         /// 节点视图VM类型
         /// </summary>
-        public Type? ViewModelType {  get; set; }
+        public Type ViewModelType {  get; set; }
 
         public override string ToString()
         {
@@ -43,19 +45,19 @@ namespace Serein.NodeFlow
     /// <summary>
     /// 节点 数据、视图、VM 管理
     /// </summary>
-    public static class NodeMVVMManagement
+    public class NodeMVVMManagement
     {
         /// <summary>
         /// 节点对应的控件类型
         /// </summary>
-        private static ConcurrentDictionary<NodeControlType, NodeMVVM> FlowNodeTypes { get; } = [];
+        private ConcurrentDictionary<NodeControlType, NodeMVVM> FlowNodeTypes { get; } = [];
 
         /// <summary>
         /// 注册 Model 类型
         /// </summary>
         /// <param name="type"></param>
         /// <param name="modelType"></param>
-        public static bool RegisterModel(NodeControlType type, Type modelType)
+        public bool RegisterModel(NodeControlType type, Type modelType)
         {
             if(FlowNodeTypes.TryGetValue(type,out var nodeMVVM))
             {
@@ -76,7 +78,7 @@ namespace Serein.NodeFlow
         /// <param name="type"></param>
         /// <param name="controlType"></param>
         /// <param name="viewModelType"></param>
-        public static bool RegisterUI(NodeControlType type, Type controlType,Type viewModelType)
+        public bool RegisterUI(NodeControlType type, Type controlType,Type viewModelType)
         {
             if (!FlowNodeTypes.TryGetValue(type, out var nodeMVVM))
             {
@@ -94,7 +96,7 @@ namespace Serein.NodeFlow
         /// <param name="type"></param>
         /// <param name="nodeMVVM"></param>
         /// <returns></returns>
-        public static bool TryGetType(NodeControlType type, out NodeMVVM nodeMVVM)
+        public bool TryGetType(NodeControlType type, out NodeMVVM nodeMVVM)
         {
             if( FlowNodeTypes.TryGetValue(type, out nodeMVVM))
             {

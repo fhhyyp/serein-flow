@@ -82,6 +82,10 @@ namespace Serein.NodeFlow.Env
         public IFlowEnvironment CurrentEnv { get => currentFlowEnvironment; }
 
         public UIContextOperation UIContextOperation => currentFlowEnvironment.UIContextOperation;
+        /// <summary>
+        /// 节点视图模型管理类
+        /// </summary>
+        public NodeMVVMManagement NodeMVVMManagement => currentFlowEnvironment.NodeMVVMManagement;
 
         public ISereinIOC IOC => (ISereinIOC)currentFlowEnvironment;
   

@@ -42,7 +42,7 @@ namespace Serein.NodeFlow.Env
                 
             };
             this.FlowLibraryManagement = new FlowLibraryManagement(this); // 实例化类库管理
-
+            this.NodeMVVMManagement = new NodeMVVMManagement();
             #region 注册基本节点类型
             NodeMVVMManagement.RegisterModel(NodeControlType.UI, typeof(SingleUINode)); // 动作节点
 
@@ -213,6 +213,11 @@ namespace Serein.NodeFlow.Env
         /// UI线程操作类
         /// </summary>
         public UIContextOperation UIContextOperation { get; set; }
+
+        /// <summary>
+        /// 节点视图模型管理类
+        /// </summary>
+        public NodeMVVMManagement NodeMVVMManagement { get; set; }
 
         /// <summary>
         /// 信息输出等级
@@ -654,12 +659,12 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// 加载本地程序集
         /// </summary>
-        /// <param name="assembly"></param>
-        public void LoadLibrary(Assembly assembly)
+        /// <param name="flowLibrary"></param>
+        public void LoadLibrary(FlowLibrary flowLibrary)
         {
             try
             {
-                (var libraryInfo, var mdInfos) = FlowLibraryManagement.LoadLibraryOfPath(assembly);
+                (var libraryInfo, var mdInfos) = FlowLibraryManagement.LoadLibraryOfPath(flowLibrary);
                 if (mdInfos.Count > 0)
                 {
                     UIContextOperation?.Invoke(() => OnDllLoad?.Invoke(new LoadDllEventArgs(libraryInfo, mdInfos))); // 通知UI创建dll面板显示

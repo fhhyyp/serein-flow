@@ -40,6 +40,7 @@ namespace Serein.Library
         public IFlowEnvironment CurrentEnv => this;
 
         public UIContextOperation UIContextOperation { get; set; }
+        public NodeMVVMManagement NodeMVVMManagement { get; set; }
 
         /// <summary>
         /// 设置在UI线程操作的线程上下文

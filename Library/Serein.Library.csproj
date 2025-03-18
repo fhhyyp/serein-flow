@@ -12,7 +12,8 @@
     <RepositoryUrl>https://github.com/fhhyyp/serein-flow</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
-    
+    <LangVersion>latest</LangVersion>
+
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <CompilerGeneratedFilesOutputPath>.\obj\g</CompilerGeneratedFilesOutputPath>

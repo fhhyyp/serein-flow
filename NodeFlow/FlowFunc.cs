@@ -43,7 +43,7 @@ namespace Serein.NodeFlow
 
             // 尝试获取需要创建的节点类型
 
-            if (!NodeMVVMManagement.TryGetType(nodeControlType, out var nodeMVVM) || nodeMVVM.ModelType == null)
+            if (!env.NodeMVVMManagement.TryGetType(nodeControlType, out var nodeMVVM) || nodeMVVM.ModelType == null)
             {
                 throw new Exception($"无法创建{nodeControlType}节点，节点类型尚未注册。");
             }

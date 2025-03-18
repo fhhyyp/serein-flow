@@ -101,12 +101,12 @@ namespace Serein.NodeFlow.Tool
                     }
                     return null;
                 }
+                
                 ms.Seek(0, SeekOrigin.Begin);
+                var t12 = AppContext.BaseDirectory;
                 var assembly = Assembly.Load(ms.ToArray());
                 var t1 = assembly.Location;
                 var t = assembly.GetType().Assembly.Location;
-
-                
 
                 // 保存
                 

@@ -164,15 +164,15 @@ namespace Serein.Workbench
             IOCObjectViewer.SelectObj += ViewObjectViewer.LoadObjectInformation; // 使选择 IOC容器视图 的某项（对象）时，可以在 数据视图 呈现数据
 
             #region 为  NodeControlType 枚举 不同项添加对应的 Control类型 、 ViewModel类型
-            NodeMVVMManagement.RegisterUI(NodeControlType.UI, typeof(UINodeControl), typeof(UINodeControlViewModel));
-            NodeMVVMManagement.RegisterUI(NodeControlType.Action, typeof(ActionNodeControl), typeof(ActionNodeControlViewModel));
-            NodeMVVMManagement.RegisterUI(NodeControlType.Flipflop, typeof(FlipflopNodeControl), typeof(FlipflopNodeControlViewModel));
-            NodeMVVMManagement.RegisterUI(NodeControlType.ExpOp, typeof(ExpOpNodeControl), typeof(ExpOpNodeControlViewModel));
-            NodeMVVMManagement.RegisterUI(NodeControlType.ExpCondition, typeof(ConditionNodeControl), typeof(ConditionNodeControlViewModel));
-            NodeMVVMManagement.RegisterUI(NodeControlType.ConditionRegion, typeof(ConditionRegionControl), typeof(ConditionRegionNodeControlViewModel));
-            NodeMVVMManagement.RegisterUI(NodeControlType.GlobalData, typeof(GlobalDataControl), typeof(GlobalDataNodeControlViewModel));
-            NodeMVVMManagement.RegisterUI(NodeControlType.Script, typeof(ScriptNodeControl), typeof(ScriptNodeControlViewModel));
-            NodeMVVMManagement.RegisterUI(NodeControlType.NetScript, typeof(NetScriptNodeControl), typeof(NetScriptNodeControlViewModel));
+            EnvDecorator.NodeMVVMManagement.RegisterUI(NodeControlType.UI, typeof(UINodeControl), typeof(UINodeControlViewModel));
+            EnvDecorator.NodeMVVMManagement.RegisterUI(NodeControlType.Action, typeof(ActionNodeControl), typeof(ActionNodeControlViewModel));
+            EnvDecorator.NodeMVVMManagement.RegisterUI(NodeControlType.Flipflop, typeof(FlipflopNodeControl), typeof(FlipflopNodeControlViewModel));
+            EnvDecorator.NodeMVVMManagement.RegisterUI(NodeControlType.ExpOp, typeof(ExpOpNodeControl), typeof(ExpOpNodeControlViewModel));
+            EnvDecorator.NodeMVVMManagement.RegisterUI(NodeControlType.ExpCondition, typeof(ConditionNodeControl), typeof(ConditionNodeControlViewModel));
+            EnvDecorator.NodeMVVMManagement.RegisterUI(NodeControlType.ConditionRegion, typeof(ConditionRegionControl), typeof(ConditionRegionNodeControlViewModel));
+            EnvDecorator.NodeMVVMManagement.RegisterUI(NodeControlType.GlobalData, typeof(GlobalDataControl), typeof(GlobalDataNodeControlViewModel));
+            EnvDecorator.NodeMVVMManagement.RegisterUI(NodeControlType.Script, typeof(ScriptNodeControl), typeof(ScriptNodeControlViewModel));
+            EnvDecorator.NodeMVVMManagement.RegisterUI(NodeControlType.NetScript, typeof(NetScriptNodeControl), typeof(NetScriptNodeControlViewModel));
             #endregion
 
 
@@ -733,7 +733,7 @@ namespace Serein.Workbench
 
             PositionOfUI position = eventArgs.Position;
 
-            if(!NodeMVVMManagement.TryGetType(nodeModel.ControlType, out var nodeMVVM))
+            if(!EnvDecorator.NodeMVVMManagement.TryGetType(nodeModel.ControlType, out var nodeMVVM))
             {
                 SereinEnv.WriteLine(InfoType.INFO, $"无法创建{nodeModel.ControlType}节点，节点类型尚未注册。");
                 return;
@@ -2707,11 +2707,11 @@ public class FlowLibrary
 
                 DynamicCompilerView dynamicCompilerView = new DynamicCompilerView();
                 dynamicCompilerView.ScriptCode = script;
-                dynamicCompilerView.OnCompileComplete = (assembly) => 
+                dynamicCompilerView.OnCompileComplete = (flowLibrary) => 
                 { 
                     if(EnvDecorator.CurrentEnv is FlowEnvironment environment)
                     {
-                        environment.LoadLibrary(assembly);
+                        environment.LoadLibrary(flowLibrary);
                     }
                     //EnvDecorator.LoadLibrary
                 };

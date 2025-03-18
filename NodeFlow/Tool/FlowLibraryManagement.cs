@@ -49,26 +49,31 @@ namespace Serein.NodeFlow.Tool
 
             var flowAlc = new FlowLibraryAssemblyContext(sereinFlowBaseLibraryPath, Path.GetFileName(libraryfilePath));
             var assembly = flowAlc.LoadFromAssemblyPath(libraryfilePath); // 加载指定路径的程序集
-            var reulst = LoadDllNodeInfo(assembly);
-            if(reulst.Item1 is null || reulst.Item2.Count == 0)
+
+            var flowLibrary = new FlowLibrary(assembly);
+            try
+            {
+                var reulst = LoadFlowLibrary(flowLibrary);
+                return reulst;
+            }
+            catch (Exception)
             {
                 flowAlc?.Unload(); // 卸载程序集
                 flowAlc = null;
                 GC.Collect(); // 强制触发GC确保卸载成功
                 GC.WaitForPendingFinalizers();
-                throw new Exception("从文件加载DLL失败："+ libraryfilePath);
+                throw;
             }
-            return reulst;
         }
 
         /// <summary>
         /// 加载类库
         /// </summary>
-        /// <param name="assembly"></param>
+        /// <param name="flowLibrary"></param>
         /// <returns></returns>
-        public (NodeLibraryInfo, List<MethodDetailsInfo>) LoadLibraryOfPath(Assembly assembly)
+        public (NodeLibraryInfo, List<MethodDetailsInfo>) LoadLibraryOfPath(FlowLibrary flowLibrary)
         {
-            return LoadDllNodeInfo(assembly);
+            return LoadFlowLibrary(flowLibrary);
         }
 
         /// <summary>
@@ -235,38 +240,48 @@ namespace Serein.NodeFlow.Tool
         /// </summary>
         public readonly static string SereinBaseLibrary = $"{nameof(Serein)}.{nameof(Serein.Library)}.dll";
 
-        private (NodeLibraryInfo, List<MethodDetailsInfo>) LoadDllNodeInfo(Assembly assembly)
-        {
+        //private (NodeLibraryInfo, List<MethodDetailsInfo>) LoadDllNodeInfo(Assembly assembly)
+        //{
             
+        //    if (assembly.FullName?.ToString().Equals(typeof(IFlowEnvironment).Assembly.FullName?.ToString()) == true)
+        //    {
+
+        //        // 加载基础依赖
+        //        return LoadAssembly(typeof(IFlowEnvironment).Assembly);
+        //    }
+        //    else
+        //    {
+        //        try
+        //        {
+        //            var assembly_result = LoadAssembly(assembly);
+        //            return assembly_result;
+        //        }
+        //        catch (Exception)
+        //        {
+        //            return (null,[]);
+        //        }
+                
+        //    }
+
+        //}
+
+
+
+        private (NodeLibraryInfo, List<MethodDetailsInfo>) LoadFlowLibrary(FlowLibrary flowLibrary)
+        {
+            var assembly = flowLibrary.Assembly;
             if (assembly.FullName?.ToString().Equals(typeof(IFlowEnvironment).Assembly.FullName?.ToString()) == true)
             {
                 // 加载基础依赖
-                return LoadAssembly(typeof(IFlowEnvironment).Assembly);
-            }
-            else
-            {
-                try
-                {
-                    var assembly_result = LoadAssembly(assembly);
-                    return assembly_result;
-                }
-                catch (Exception)
-                {
-                    return (null,[]);
-                }
-                
+                flowLibrary = new FlowLibrary(typeof(IFlowEnvironment).Assembly);
             }
 
-        }
+            var assmblyName = assembly.GetName().Name;
+           if (!string.IsNullOrEmpty(assmblyName) && _myFlowLibrarys.ContainsKey(assmblyName))
+           {
+               throw new Exception($"程序集[{assembly.GetName().FullName}]已经加载过!");
+           }
 
-        private (NodeLibraryInfo, List<MethodDetailsInfo>) LoadAssembly(Assembly assembly)
-        {
-            if (_myFlowLibrarys.ContainsKey(assembly.GetName().Name))
-            {
-                throw new Exception($"程序集[{assembly.GetName().FullName}]已经加载过!");
-            }
-
-            FlowLibrary flowLibrary = new FlowLibrary(assembly);
             var loadResult = flowLibrary.LoadAssembly(); // 加载程序集
             if (loadResult)
             {
