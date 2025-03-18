@@ -46,10 +46,15 @@
         </Grid.ColumnDefinitions>
 
         <Menu DockPanel.Dock="Top" Grid.Row="0" Grid.ColumnSpan="5" Height="20">
+            
             <MenuItem Header="项目">
                 <!--菜单项为MenuItem，文字使用属性 Header-->
                 <MenuItem Header="保存项目" Click="ButtonSaveFile_Click" ></MenuItem>
                 <MenuItem Header="打开本地文件" Click="ButtonOpenLocalProject_Click"></MenuItem>
+            </MenuItem>
+            <MenuItem Header="拓展">
+                <!--菜单项为MenuItem，文字使用属性 Header-->
+                <MenuItem Header="动态编译" Click="OpenDynamicCompileEdit_Click" ></MenuItem>
             </MenuItem>
             <MenuItem Header="调试">
                 <MenuItem Header="运行（从起始节点）" Click="ButtonDebugRun_Click"></MenuItem>
@@ -84,6 +89,7 @@
                 <!--暂时隐藏基础面板  Visibility="Collapsed"  -->
                 <ScrollViewer Grid.Row="0" HorizontalScrollBarVisibility="Auto">
                     <StackPanel  Orientation="Horizontal">
+                        <!--<nodeView:NetScriptNodeControl x:Name="NetScriptNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>-->
                         <nodeView:ScriptNodeControl x:Name="ScriptNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                         <nodeView:GlobalDataControl x:Name="GlobalDataControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                         <nodeView:ExpOpNodeControl x:Name="ExpOpNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>

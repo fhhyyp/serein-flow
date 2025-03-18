@@ -26,19 +26,33 @@ namespace Serein.NodeFlow
     /// </summary>
     public class FlowLibrary
     {
-        private readonly Assembly assembly;
-        private readonly Action actionOfUnloadAssmbly;
+        private readonly Assembly _assembly;
 
-        public FlowLibrary(Assembly assembly,
-                           Action actionOfUnloadAssmbly)
+
+
+        //private readonly Action actionOfUnloadAssmbly;
+        /*, Action actionOfUnloadAssmbly*/
+        //this.actionOfUnloadAssmbly = actionOfUnloadAssmbly;
+
+        public FlowLibrary(Assembly assembly)
         {
-            this.assembly = assembly;
-            this.actionOfUnloadAssmbly = actionOfUnloadAssmbly;
+            this._assembly = assembly;
+            this.FullName  = Path.GetFileName(_assembly.Location);
+
+            this.FilePath = _assembly.Location;
         }
 
-        public string FullName => assembly.GetName().FullName;
+        public FlowLibrary(Assembly assembly,
+                          string filePath)
+        {
+            this._assembly = assembly;
+            this.FullName = Path.GetFileName(filePath); ;
+            this.FilePath = filePath;
+        }
 
-        public string Version => assembly.GetName().Version.ToString();
+        public string FullName { get; private set; }
+
+        public string FilePath { get; private set; }
 
         /// <summary>
         /// 加载程序集时创建的方法描述
@@ -68,7 +82,7 @@ namespace Serein.NodeFlow
             DelegateDetailss.Clear();
             RegisterTypes.Clear();
             MethodDetailss.Clear();
-            actionOfUnloadAssmbly?.Invoke();
+            //actionOfUnloadAssmbly?.Invoke();
             
         }
 
@@ -78,11 +92,12 @@ namespace Serein.NodeFlow
         /// <returns></returns>
         public NodeLibraryInfo ToInfo()
         {
+            var assemblyName = _assembly.GetName().Name;    
             return new NodeLibraryInfo
             {
-                AssemblyName = assembly.GetName().Name,
-                FileName = Path.GetFileName(assembly.Location),
-                FilePath = assembly.Location,
+                AssemblyName = assemblyName,
+                FileName = this.FullName,
+                FilePath = this.FilePath,
             };
 
             
@@ -94,8 +109,9 @@ namespace Serein.NodeFlow
         /// </summary>
         /// <param name="assembly">程序集本身</param>
         /// <returns></returns>
-        public bool LoadAssembly(Assembly assembly)
+        public bool LoadAssembly()
         {
+            Assembly assembly = this._assembly;
             #region 检查入参
 
             // 加载DLL，创建 MethodDetails、实例作用对象、委托方法

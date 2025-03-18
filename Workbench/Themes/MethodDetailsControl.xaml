@@ -14,7 +14,8 @@
     
     <converters:InvertableBooleanToVisibilityConverter x:Key="InvertedBoolConverter"/>
     <converters:EnumToBooleanConverter x:Key="EnumToBooleanConverter"/>
-
+    <local:DescriptionOrNameConverter x:Key="DescOrNameConverter"/>
+    
     <Style TargetType="{x:Type local:MethodDetailsControl}">
         <Setter Property="Template">
             <Setter.Value>
@@ -66,7 +67,6 @@
                                                         </Setter>
                                                     </MultiDataTrigger>
 
-
                                                     <!--显示Action节点方法入参名称-->
                                                     <MultiDataTrigger>
                                                         <MultiDataTrigger.Conditions>
@@ -75,7 +75,16 @@
                                                         <Setter Property="ContentTemplate">
                                                             <Setter.Value>
                                                                 <DataTemplate>
-                                                                    <TextBlock  Grid.Column="0" MinWidth="50" Text="{Binding Name}"/>
+
+                                                                    <TextBlock Grid.Column="0" MinWidth="50">
+                                                                        <TextBlock.Text>
+                                                                            <MultiBinding Converter="{StaticResource DescOrNameConverter}">
+                                                                                <Binding Path="Description"/>
+                                                                                <Binding Path="Name"/>
+                                                                            </MultiBinding>
+                                                                        </TextBlock.Text>
+                                                                    </TextBlock>
+                                                                    
                                                                 </DataTemplate>
                                                             </Setter.Value>
                                                         </Setter>
@@ -89,7 +98,16 @@
                                                         <Setter Property="ContentTemplate">
                                                             <Setter.Value>
                                                                 <DataTemplate>
-                                                                    <TextBlock  Grid.Column="0" MinWidth="50" Text="{Binding Name}"/>
+                                                                    
+                                                                    <TextBlock Grid.Column="0" MinWidth="50">
+                                                                        <TextBlock.Text>
+                                                                            <MultiBinding Converter="{StaticResource DescOrNameConverter}">
+                                                                                <Binding Path="Description"/>
+                                                                                <Binding Path="Name"/>
+                                                                            </MultiBinding>
+                                                                        </TextBlock.Text>
+                                                                    </TextBlock>
+                                                                    
                                                                 </DataTemplate>
                                                             </Setter.Value>
                                                         </Setter>
@@ -169,7 +187,7 @@
                                                                         <Grid.ColumnDefinitions>
                                                                             <ColumnDefinition Width="*"/>
                                                                         </Grid.ColumnDefinitions>
-                                                                        <TextBox   Grid.Column="0" MinWidth="50" Text="{Binding DataValue, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+                                                                        <TextBox   Grid.Column="0" MinWidth="50" Text="{Binding DataValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                                                     </Grid>
                                                                 </DataTemplate>
                                                             </Setter.Value>

@@ -5,6 +5,7 @@ using Serein.Library.Utils.SereinExpression;
 using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Tool;
 using System.Reactive;
+using System.Reflection;
 using System.Text;
 
 namespace Serein.NodeFlow.Env
@@ -52,6 +53,7 @@ namespace Serein.NodeFlow.Env
             NodeMVVMManagement.RegisterModel(NodeControlType.ConditionRegion, typeof(CompositeConditionNode)); // 条件区域
             NodeMVVMManagement.RegisterModel(NodeControlType.GlobalData, typeof(SingleGlobalDataNode));  // 全局数据节点
             NodeMVVMManagement.RegisterModel(NodeControlType.Script, typeof(SingleScriptNode)); // 脚本节点
+            NodeMVVMManagement.RegisterModel(NodeControlType.NetScript, typeof(SingleNetScriptNode)); // 脚本节点
             #endregion
 
             #region 注册基本服务类
@@ -647,8 +649,29 @@ namespace Serein.NodeFlow.Env
             {
                 SereinEnv.WriteLine(InfoType.ERROR, $"无法加载DLL文件：{ex}");
             }
+        }
+
+        /// <summary>
+        /// 加载本地程序集
+        /// </summary>
+        /// <param name="assembly"></param>
+        public void LoadLibrary(Assembly assembly)
+        {
+            try
+            {
+                (var libraryInfo, var mdInfos) = FlowLibraryManagement.LoadLibraryOfPath(assembly);
+                if (mdInfos.Count > 0)
+                {
+                    UIContextOperation?.Invoke(() => OnDllLoad?.Invoke(new LoadDllEventArgs(libraryInfo, mdInfos))); // 通知UI创建dll面板显示
+                }
+            }
+            catch (Exception ex)
+            {
+                SereinEnv.WriteLine(InfoType.ERROR, $"无法加载DLL文件：{ex}");
+            }
 
         }
+
 
         /// <summary>
         /// 移除DLL

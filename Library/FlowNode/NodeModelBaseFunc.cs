@@ -65,17 +65,21 @@ namespace Serein.Library
             }
             this.DebugSetting.NodeModel = null;
             this.DebugSetting = null;
-            foreach (var pd in this.MethodDetails.ParameterDetailss)
+            if(this.MethodDetails.ParameterDetailss != null)
             {
-                pd.DataValue = null;
-                pd.Items = null;
-                pd.NodeModel = null;
-                pd.ExplicitType = null;
-                pd.DataType = null;
-                pd.Name = null;
-                pd.ArgDataSourceNodeGuid = null;
-                pd.InputType = ParameterValueInputType.Input;
+                foreach (var pd in this.MethodDetails.ParameterDetailss)
+                {
+                    pd.DataValue = null;
+                    pd.Items = null;
+                    pd.NodeModel = null;
+                    pd.ExplicitType = null;
+                    pd.DataType = null;
+                    pd.Name = null;
+                    pd.ArgDataSourceNodeGuid = null;
+                    pd.InputType = ParameterValueInputType.Input;
+                }
             }
+            
             this.MethodDetails.ParameterDetailss = null;
             this.MethodDetails.ActingInstance = null;
             this.MethodDetails.NodeModel = null;

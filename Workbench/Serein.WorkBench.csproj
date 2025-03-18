@@ -59,10 +59,11 @@
   
   
   <ItemGroup>
+    <PackageReference Include="AvalonEdit" Version="6.3.0.90" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 
 
-    <PackageReference Include="OpenCvSharp4.Extensions" Version="4.10.0.20241108" />
+    <!--<PackageReference Include="OpenCvSharp4.Extensions" Version="4.10.0.20241108" />-->
     
     <!--<PackageReference Include="Lagrange.Core" Version="0.3.1" />-->
     <!--<PackageReference Include="SixLabors.ImageSharp" Version="3.1.6" />-->

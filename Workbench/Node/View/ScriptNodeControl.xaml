@@ -9,11 +9,8 @@
                        d:DataContext="{d:DesignInstance vm:ScriptNodeControlViewModel}"
                        mc:Ignorable="d"
                        MinWidth="50">
-    
+
     <Grid Background="#FEFAF4">
-        <!--<Grid.ToolTip>
-        <ToolTip Background="LightYellow" Foreground="Black" Content="{Binding NodeModel.MethodDetails.MethodAnotherName, UpdateSourceTrigger=PropertyChanged}" />
-    </Grid.ToolTip>-->
 
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>

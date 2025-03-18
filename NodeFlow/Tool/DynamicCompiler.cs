@@ -9,7 +9,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Serein.Library.Utils
+namespace Serein.NodeFlow.Tool
 {
     /// <summary>
     /// 动态编译
@@ -22,7 +22,7 @@ namespace Serein.Library.Utils
         {
             // 默认添加当前 AppDomain 加载的所有程序集
             var defaultReferences = AppDomain.CurrentDomain.GetAssemblies()
-                .Where(a =>  !string.IsNullOrEmpty(a.Location)) // a.IsDynamic  动态程序集
+                .Where(a => !string.IsNullOrEmpty(a.Location)) // a.IsDynamic  动态程序集
                 .Select(a => MetadataReference.CreateFromFile(a.Location));
 
 
@@ -64,17 +64,28 @@ namespace Serein.Library.Utils
         public Assembly Compile(string code, string assemblyName = null)
         {
             SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(code);
-            if(assemblyName is null)
+            if (assemblyName is null)
             {
                 assemblyName = Path.GetRandomFileName(); // 生成随机程序集名称
 
             }
 
+            var temp_dir = Path.Combine(Directory.GetCurrentDirectory(), "temp");
+            if (!Directory.Exists(temp_dir))
+            {
+                Directory.CreateDirectory(temp_dir);
+            }
+            var savePath = Path.Combine(temp_dir, $"{assemblyName}.dll");
+
+            var options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);
+
+            
             CSharpCompilation compilation = CSharpCompilation.Create(
                 assemblyName,
                 new[] { syntaxTree },
                 _references,
-                new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
+               options
+
             );
 
             using (var ms = new MemoryStream())
@@ -90,11 +101,27 @@ namespace Serein.Library.Utils
                     }
                     return null;
                 }
-
                 ms.Seek(0, SeekOrigin.Begin);
-                return Assembly.Load(ms.ToArray());
+                var assembly = Assembly.Load(ms.ToArray());
+                var t1 = assembly.Location;
+                var t = assembly.GetType().Assembly.Location;
+
+                
+
+                // 保存
+                
+                compilation.Emit(savePath);
+                return assembly;
             }
-               
+
         }
+
+        public void Save()
+        {
+            
+        }
+
+
+
     }
 }

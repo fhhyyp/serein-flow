@@ -9,7 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 
-namespace Serein.Library.Utils
+namespace Serein.Library
 {
     public static class SereinEnv
     {

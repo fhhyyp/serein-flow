@@ -14,7 +14,7 @@ namespace Serein.NodeFlow.Model
 {
 
     
-        /// <summary>
+    /// <summary>
     /// Expression Operation - 表达式操作
     /// </summary>
     [NodeProperty(ValuePath = NodeValuePath.Node)]
@@ -51,7 +51,11 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         private NodeModelBase? DataNode;
 
-
+        /// <summary>
+        /// 有节点被放置
+        /// </summary>
+        /// <param name="nodeModel"></param>
+        /// <returns></returns>
         public bool PlaceNode(NodeModelBase nodeModel)
         {
             if(DataNode is null)

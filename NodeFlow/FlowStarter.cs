@@ -76,7 +76,7 @@ namespace Serein.NodeFlow
 
             flipflopNodes = nodes.Where(it => it.MethodDetails?.MethodDynamicType == NodeType.Flipflop && it.IsStart == false)
                                                           .Select(it => (SingleFlipflopNode)it)
-                                                          .Where(node => node is SingleFlipflopNode flipflopNode && flipflopNode.NotExitPreviousNode())
+                                                          .Where(node => node.DebugSetting.IsEnable && node is SingleFlipflopNode flipflopNode && flipflopNode.NotExitPreviousNode())
                                                           .ToList();// 获取需要再运行开始之前启动的触发器节点
             runNodeMd = nodes.Select(item => item.MethodDetails).ToList(); // 获取环境中所有节点的方法信息 
 

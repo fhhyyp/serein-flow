@@ -5,6 +5,7 @@ using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.Utils;
 using Serein.NodeFlow;
+using Serein.NodeFlow.Env;
 using Serein.NodeFlow.Tool;
 using Serein.Workbench.Extension;
 using Serein.Workbench.Node;
@@ -12,6 +13,7 @@ using Serein.Workbench.Node.View;
 using Serein.Workbench.Node.ViewModel;
 using Serein.Workbench.Themes;
 using System.IO;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Windows;
@@ -170,6 +172,7 @@ namespace Serein.Workbench
             NodeMVVMManagement.RegisterUI(NodeControlType.ConditionRegion, typeof(ConditionRegionControl), typeof(ConditionRegionNodeControlViewModel));
             NodeMVVMManagement.RegisterUI(NodeControlType.GlobalData, typeof(GlobalDataControl), typeof(GlobalDataNodeControlViewModel));
             NodeMVVMManagement.RegisterUI(NodeControlType.Script, typeof(ScriptNodeControl), typeof(ScriptNodeControlViewModel));
+            NodeMVVMManagement.RegisterUI(NodeControlType.NetScript, typeof(NetScriptNodeControl), typeof(NetScriptNodeControlViewModel));
             #endregion
 
 
@@ -398,7 +401,12 @@ namespace Serein.Workbench
             {
                 NodeLibraryInfo? library = projectData.Librarys[index];
                 string sourceFilePath = new Uri(library.FilePath).LocalPath; // 源文件夹
-                string targetFilePath = System.IO.Path.Combine(librarySavePath, library.FileName); // 目标文件夹
+                string targetDir = System.IO.Path.Combine(librarySavePath, library.AssemblyName); // 目标文件夹
+                if (!Path.Exists(targetDir))
+                {
+                    Directory.CreateDirectory(targetDir);
+                }
+                string targetFilePath = System.IO.Path.Combine(targetDir, library.FileName); // 目标文件夹
                 
                 try
                 {
@@ -431,9 +439,6 @@ namespace Serein.Workbench
                 {
                     var tmpUri2 = new Uri(targetFilePath);
                     var relativePath = saveProjectFileUri.MakeRelativeUri(tmpUri2).ToString(); // 转为类库的相对文件路径
-
-                    
-
 
                     //string relativePath = System.IO.Path.GetRelativePath(savePath, targetPath);
                     projectData.Librarys[index].FilePath = relativePath;
@@ -1417,6 +1422,7 @@ namespace Serein.Workbench
                             Type when typeof(ExpOpNodeControl).IsAssignableFrom(droppedType) => NodeControlType.ExpOp,
                             Type when typeof(GlobalDataControl).IsAssignableFrom(droppedType) => NodeControlType.GlobalData,
                             Type when typeof(ScriptNodeControl).IsAssignableFrom(droppedType) => NodeControlType.Script,
+                            Type when typeof(NetScriptNodeControl).IsAssignableFrom(droppedType) => NodeControlType.NetScript,
                             _ => NodeControlType.None,
                         };
                         if (nodeControlType != NodeControlType.None)
@@ -2669,6 +2675,55 @@ namespace Serein.Workbench
 
         #endregion
 
+        #region 顶部菜单栏 - 拓展
+        /// <summary>
+        /// 动态编译
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void OpenDynamicCompileEdit_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string script = @"using Serein.Library;
+using Serein.Library.Api;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+
+[DynamicFlow(""[动态编译]"")]
+public class FlowLibrary
+{
+	[NodeAction(NodeType.Action, AnotherName = ""输出"")]
+    public void Print(IDynamicContext context,string value = ""Hello World!"")
+    {
+        context.Env.WriteLine(InfoType.INFO, value);
+    }
+}";
+
+                DynamicCompilerView dynamicCompilerView = new DynamicCompilerView();
+                dynamicCompilerView.ScriptCode = script;
+                dynamicCompilerView.OnCompileComplete = (assembly) => 
+                { 
+                    if(EnvDecorator.CurrentEnv is FlowEnvironment environment)
+                    {
+                        environment.LoadLibrary(assembly);
+                    }
+                    //EnvDecorator.LoadLibrary
+                };
+                dynamicCompilerView.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                SereinEnv.WriteLine(ex);
+                return;
+            }
+        }
+        #endregion
         #region 顶部菜单栏 - 远程管理
         private async void ButtonStartRemoteServer_Click(object sender, RoutedEventArgs e)
         {

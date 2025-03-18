@@ -124,6 +124,11 @@ namespace Serein.Library
         /// </summary>
         [Description("base")] 
         Script,
+        /// <summary>
+        /// C#脚本节点
+        /// </summary>
+        [Description("base")] 
+        NetScript,
     }
 
 }

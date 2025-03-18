@@ -28,12 +28,10 @@ namespace Serein.NodeFlow.Model
     /// </summary>
     public partial class SingleScriptNode : NodeModelBase
     {
-
         /// <summary>
         /// 脚本节点是基础节点
         /// </summary>
         public override bool IsBase => true;
-
 
         private IScriptFlowApi ScriptFlowApi { get; }
 

@@ -24,6 +24,7 @@ namespace Serein.Workbench
                 filePath = @"C:\Users\Az\source\repos\CLBanyunqiState\CLBanyunqiState\bin\Release\net8.0\PLCproject.dnf";
                 filePath = @"C:\Users\Az\source\repos\CLBanyunqiState\CLBanyunqiState\bin\Release\banyunqi\project.dnf";
                 filePath = @"F:\临时\project\project.dnf";
+                filePath = @"F:\临时\flow\qrcode\project.dnf";
                 //filePath = @"C:\Users\Az\source\repos\CLBanyunqiState\CLBanyunqiState\bin\debug\net8.0\test.dnf";
                 string content = System.IO.File.ReadAllText(filePath); // 读取整个文件内容
                 App.FlowProjectData = JsonConvert.DeserializeObject<SereinProjectData>(content);

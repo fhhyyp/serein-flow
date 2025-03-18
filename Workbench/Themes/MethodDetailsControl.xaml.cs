@@ -9,6 +9,23 @@ using System.Windows.Input;
 
 namespace Serein.Workbench.Themes
 {
+
+    public class DescriptionOrNameConverter : IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            string description = values[0] as string;
+            string name = values[1] as string;
+            return string.IsNullOrWhiteSpace(description) ? name : description;
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+
     public class MultiConditionConverter : IMultiValueConverter
     {
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)

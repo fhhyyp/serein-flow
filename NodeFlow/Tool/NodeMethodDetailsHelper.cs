@@ -19,7 +19,7 @@ public static class NodeMethodDetailsHelper
     /// </summary>
     public static IEnumerable<MethodInfo> GetMethodsToProcess(Type type)
     {
-        return type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+        return type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
                        .Where(m => m.GetCustomAttribute<NodeActionAttribute>()?.Scan == true);
     }
 
