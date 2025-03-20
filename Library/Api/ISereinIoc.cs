@@ -49,7 +49,7 @@ namespace Serein.Library.Api
         /// <param name="key">登记使用的名称</param>
         /// <param name="instance">实例对象</param>
         /// <returns>是否注册成功</returns>
-        bool RegisterInstance(string key, object instance);
+        /// bool RegisterInstance(string key, object instance);
 
         /// <summary>
         /// 获取类型的实例。如果需要获取的类型以“接口-实现类”的方式注册，请使用接口的类型。
@@ -67,7 +67,7 @@ namespace Serein.Library.Api
         /// <typeparam name="T"></typeparam>
         /// <param name="key">登记实例时使用的Key</param>
         /// <returns></returns>
-        T Get<T>(string key);
+        /// T Get<T>(string key);
 
 
 

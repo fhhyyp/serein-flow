@@ -115,8 +115,9 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        public override async Task<object> ExecutingAsync(IDynamicContext context)
+        public override async Task<object?> ExecutingAsync(IDynamicContext context, CancellationToken token)
         {
+            if (token.IsCancellationRequested) return null;
             if (string.IsNullOrEmpty(KeyName))
             {
                 context.NextOrientation = ConnectionInvokeType.IsError;

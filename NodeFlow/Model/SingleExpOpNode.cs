@@ -1,4 +1,5 @@
-﻿using Serein.Library;
+﻿using Newtonsoft.Json.Linq;
+using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.Utils;
 using Serein.Library.Utils.SereinExpression;
@@ -91,8 +92,10 @@ namespace Serein.NodeFlow.Model
         }
 
 
-        public override async Task<object?> ExecutingAsync(IDynamicContext context)
+        public override async Task<object?> ExecutingAsync(IDynamicContext context, CancellationToken token)
         {
+            if(token.IsCancellationRequested) return null;
+
             object? parameter = null;// context.TransmissionData(this); // 表达式节点使用上一节点数据
             var pd = MethodDetails.ParameterDetailss[0];
 

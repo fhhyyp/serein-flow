@@ -45,8 +45,8 @@ namespace Serein.Library
         /// <summary>
         /// 作用实例（多个相同的节点将会共享同一个实例）
         /// </summary>
-        [PropertyInfo]
-        private object _actingInstance;
+        // [PropertyInfo]
+        // private object _actingInstance;
 
         /// <summary>
         /// 方法名称
@@ -237,16 +237,16 @@ namespace Serein.Library
             // this => 是元数据
             var md = new MethodDetails( nodeModel) // 创建新节点时拷贝实例
             {
-                AssemblyName = this.AssemblyName,
-                ActingInstance = this.ActingInstance,
-                ActingInstanceType = this.ActingInstanceType,
-                MethodDynamicType = this.MethodDynamicType,
-                MethodAnotherName = this.MethodAnotherName,
-                ReturnType = this.ReturnType,
-                MethodName = this.MethodName,
-                MethodLockName = this.MethodLockName,
-                IsProtectionParameter = this.IsProtectionParameter,
-                ParamsArgIndex = this.ParamsArgIndex,
+                AssemblyName = this.AssemblyName, // 拷贝
+                //ActingInstance = this.ActingInstance,
+                ActingInstanceType = this.ActingInstanceType,  // 拷贝
+                MethodDynamicType = this.MethodDynamicType,  // 拷贝
+                MethodAnotherName = this.MethodAnotherName,  // 拷贝
+                ReturnType = this.ReturnType,  // 拷贝
+                MethodName = this.MethodName,  // 拷贝
+                MethodLockName = this.MethodLockName,  // 拷贝
+                IsProtectionParameter = this.IsProtectionParameter,  // 拷贝
+                ParamsArgIndex = this.ParamsArgIndex,  // 拷贝
                 ParameterDetailss = this.ParameterDetailss?.Select(p => p?.CloneOfModel(nodeModel)).ToArray(), // 拷贝属于节点方法的新入参描述
             };
 

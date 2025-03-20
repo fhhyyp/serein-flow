@@ -102,7 +102,7 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         public InfoClass InfoClass { get => currentFlowEnvironment.InfoClass; set => currentFlowEnvironment.InfoClass = value; }
         public RunState FlowState { get => currentFlowEnvironment.FlowState; set => currentFlowEnvironment.FlowState = value; }
-        public RunState FlipFlopState { get => currentFlowEnvironment.FlipFlopState; set => currentFlowEnvironment.FlipFlopState = value; }
+        //public RunState FlipFlopState { get => currentFlowEnvironment.FlipFlopState; set => currentFlowEnvironment.FlipFlopState = value; }
 
         public event LoadDllHandler OnDllLoad { 
             add { currentFlowEnvironmentEvent.OnDllLoad += value; }
@@ -607,10 +607,10 @@ namespace Serein.NodeFlow.Env
             return IOC.RegisterPersistennceInstance(key, instance);
         }
 
-        public bool RegisterInstance(string key, object instance)
-        {
-            return IOC.RegisterInstance(key, instance);
-        }
+        //public bool RegisterInstance(string key, object instance)
+        //{
+        //    return IOC.RegisterInstance(key, instance);
+        //}
 
         public object Get(Type type)
         {
@@ -622,10 +622,10 @@ namespace Serein.NodeFlow.Env
             return IOC.Get<T>();
         }
 
-        public T Get<T>(string key)
-        {
-            return IOC.Get<T>(key);
-        }
+        //public T Get<T>(string key)
+        //{
+        //    return IOC.Get<T>(key);
+        //}
 
         public object Instantiate(Type type)
         {

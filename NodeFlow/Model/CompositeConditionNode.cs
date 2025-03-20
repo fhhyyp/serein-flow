@@ -36,14 +36,18 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        public override async Task<object?> ExecutingAsync(IDynamicContext context)
+        public override async Task<object?> ExecutingAsync(IDynamicContext context, CancellationToken token)
         {
             try
             {
                 // 条件区域中遍历每个条件节点
                 foreach (SingleConditionNode? node in ConditionNodes)
                 {
-                    var state = await node.ExecutingAsync(context);
+                    if (token.IsCancellationRequested)
+                    {
+                        return null;
+                    }
+                    var state = await node.ExecutingAsync(context, token);
                     if (context.NextOrientation != ConnectionInvokeType.IsSucceed)
                     {
                         // 如果条件不通过，立刻推出循环

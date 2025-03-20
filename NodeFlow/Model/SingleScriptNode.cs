@@ -165,13 +165,15 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        public override async Task<object?> ExecutingAsync(IDynamicContext context)
+        public override async Task<object?> ExecutingAsync(IDynamicContext context, CancellationToken token)
         {
-            var @params =  await GetParametersAsync(context);
-            
+            if(token.IsCancellationRequested) return null;
+            var @params =  await GetParametersAsync(context, token);
+            if(token.IsCancellationRequested) return null;
+
 
             //context.AddOrUpdate($"{context.Guid}_{this.Guid}_Params", @params[0]); // 后面再改
-             ReloadScript();// 每次都重新解析
+            ReloadScript();// 每次都重新解析
 
             IScriptInvokeContext scriptContext = new ScriptInvokeContext(context);
 
@@ -193,6 +195,9 @@ namespace Serein.NodeFlow.Model
 
             var envEvent = (IFlowEnvironmentEvent)context.Env;
             envEvent.OnFlowRunComplete += onFlowStop; // 防止运行后台流程
+
+            if (token.IsCancellationRequested) return null;
+
             var result = await ScriptInterpreter.InterpretAsync(scriptContext, mainNode); // 从入口节点执行
             envEvent.OnFlowRunComplete -= onFlowStop; 
             //SereinEnv.WriteLine(InfoType.INFO, "FlowContext Guid : " + context.Guid);

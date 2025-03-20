@@ -26,12 +26,6 @@ namespace Serein.Library.Api
         /// </summary>
         RunState RunState { get; }
 
-        /// <summary>
-        /// 用来在当前流程上下文间传递数据
-        /// </summary>
-        //Dictionary<string, object> ContextShareData { get; }
-
-        object Tag { get; set; }
 
         /// <summary>
         /// 下一个要执行的节点类别
@@ -77,6 +71,11 @@ namespace Serein.Library.Api
         /// <param name="flowData"></param>
         void AddOrUpdate(string nodeGuid, object flowData);
 
+        /// <summary>
+        /// 重置流程状态（用于对象池回收）
+        /// </summary>
+        void Reset();
+        
         /// <summary>
         /// 用以提前结束当前上下文流程的运行
         /// </summary>

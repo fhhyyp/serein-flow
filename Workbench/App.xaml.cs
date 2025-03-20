@@ -90,17 +90,19 @@ namespace Serein.Workbench
 
         public App()
         {
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(500);
+                await this.LoadLocalProjectAsync();
+            });
+            return;
             var collection = new ServiceCollection();
             collection.AddWorkbenchServices();
             collection.AddFlowServices();
             collection.AddViewModelServices();
             var services = collection.BuildServiceProvider(); // 绑定并返回获取实例的服务接口
             App.ServiceProvider = services;
-            _ = Task.Run(async () =>
-            {
-                await Task.Delay(500);
-                await this.LoadLocalProjectAsync();
-            });
+            
         }
 
 
@@ -115,14 +117,14 @@ namespace Serein.Workbench
                 filePath = @"C:\Users\Az\source\repos\CLBanyunqiState\CLBanyunqiState\bin\Release\net8.0\PLCproject.dnf";
                 filePath = @"C:\Users\Az\source\repos\CLBanyunqiState\CLBanyunqiState\bin\Release\banyunqi\project.dnf";
                 filePath = @"F:\临时\project\project.dnf";
-                filePath = @"F:\临时\flow\qrcode\project.dnf";
+                filePath = @"F:\TempFile\flow\qrcode\project.dnf";
                 //filePath = @"C:\Users\Az\source\repos\CLBanyunqiState\CLBanyunqiState\bin\debug\net8.0\test.dnf";
                 string content = System.IO.File.ReadAllText(filePath); // 读取整个文件内容
                 App.FlowProjectData = JsonConvert.DeserializeObject<SereinProjectData>(content);
                 App.FileDataPath = System.IO.Path.GetDirectoryName(filePath)!;   //  filePath;//
                 var dir = Path.GetDirectoryName(filePath);
 
-                App.GetService<IFlowEnvironment>().LoadProject(new FlowEnvInfo { Project = App.FlowProjectData },App.FileDataPath);
+                //App.GetService<IFlowEnvironment>().LoadProject(new FlowEnvInfo { Project = App.FlowProjectData },App.FileDataPath);
             }
 #endif
         }

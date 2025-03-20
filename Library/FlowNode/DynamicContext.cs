@@ -22,7 +22,7 @@ namespace Serein.Library
             RunState = RunState.Running;
         }
 
-        private readonly string _guid = global::System.Guid.NewGuid().ToString();
+        private string _guid = global::System.Guid.NewGuid().ToString();
         string IDynamicContext.Guid => _guid;
 
         /// <summary>
@@ -35,11 +35,6 @@ namespace Serein.Library
         /// </summary>
         public RunState RunState { get; set; } = RunState.NoStart;
 
-        /// <summary>
-        /// 用来在当前流程上下文间传递数据
-        /// </summary>
-        //public Dictionary<string, object> ContextShareData { get; } = new Dictionary<string, object>();
-         public object Tag { get; set; }
 
         /// <summary>
         /// 当前节点执行完成后，设置该属性，让运行环境判断接下来要执行哪个分支的节点。
@@ -134,6 +129,37 @@ namespace Serein.Library
         }
 
         /// <summary>
+        /// 重置
+        /// </summary>
+        public void Reset()
+        {
+            //foreach (var nodeObj in dictNodeFlowData.Values)
+            //{
+            //    if (nodeObj is null)
+            //    {
+
+            //    }
+            //    else 
+            //    {
+            //        if (typeof(IDisposable).IsAssignableFrom(nodeObj?.GetType()) && nodeObj is IDisposable disposable)
+            //        {
+            //            disposable?.Dispose();
+            //        }
+            //    }
+            //}
+            //if (Tag != null && typeof(IDisposable).IsAssignableFrom(Tag?.GetType()) && Tag is IDisposable tagDisposable)
+            //{
+            //    tagDisposable?.Dispose();
+            //}
+            this.dictNodeFlowData?.Clear();
+            ExceptionOfRuning = null;
+            NextOrientation = ConnectionInvokeType.None;
+            RunState = RunState.Running;
+            _guid = global::System.Guid.NewGuid().ToString();
+        }
+
+
+        /// <summary>
         /// 结束当前流程上下文
         /// </summary>
         public void Exit()
@@ -156,9 +182,11 @@ namespace Serein.Library
             //{
             //    tagDisposable?.Dispose();
             //}
-            this.Tag = null;
             this.dictNodeFlowData?.Clear();
+            ExceptionOfRuning = null;
+            NextOrientation = ConnectionInvokeType.None;
             RunState = RunState.Completion;
+            _guid = global::System.Guid.NewGuid().ToString();
         }
 
         private void Dispose(ref IDictionary<string, object>  keyValuePairs)

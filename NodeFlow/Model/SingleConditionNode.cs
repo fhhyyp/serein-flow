@@ -110,8 +110,9 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        public override async Task<object?> ExecutingAsync(IDynamicContext context)
+        public override async Task<object?> ExecutingAsync(IDynamicContext context, CancellationToken token)
         {
+            if (token.IsCancellationRequested) return null;
             // 接收上一节点参数or自定义参数内容
             object? parameter;
             object? result = null;

@@ -784,7 +784,7 @@ namespace Serein.NodeFlow.Env
             }
 
             //MethodDetailss.TryGetValue(methodDetailsInfo.MethodName, out var methodDetails);// 加载项目时尝试获取方法信息
-            var nodeModel = FlowFunc.CreateNode(this, nodeControlType, methodDetails); // 远程环境下加载节点
+            var nodeModel = FlowNodeExtension.CreateNode(this, nodeControlType, methodDetails); // 远程环境下加载节点
             nodeModel.LoadInfo(nodeInfo);
             TryAddNode(nodeModel);
             IsLoadingNode = false;
@@ -1098,7 +1098,7 @@ namespace Serein.NodeFlow.Env
                 }
                 #endregion
 
-                var nodeModel = FlowFunc.CreateNode(this, controlType, methodDetails); // 加载项目时创建节点
+                var nodeModel = FlowNodeExtension.CreateNode(this, controlType, methodDetails); // 加载项目时创建节点
                 if (nodeModel is null)
                 {
                     nodeInfo.Guid = string.Empty;

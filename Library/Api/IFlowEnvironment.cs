@@ -693,7 +693,7 @@ namespace Serein.Library.Api
         /// <summary>
         /// 全局触发器运行状态
         /// </summary>
-        RunState FlipFlopState { get;  set; }
+        //RunState FlipFlopState { get;  set; }
 
         /// <summary>
         /// 表示当前环境

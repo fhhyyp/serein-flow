@@ -25,7 +25,9 @@ namespace Serein.Workbench.Node.ViewModel
             Task.Factory.StartNew(async () =>
             {
                 var context = new DynamicContext(NodeModel.Env);
-                await NodeModel.ExecutingAsync(context);
+                var cts = new CancellationTokenSource();    
+                await NodeModel.ExecutingAsync(context, cts.Token);
+                cts?.Dispose();
                 if (context.NextOrientation == ConnectionInvokeType.IsSucceed
                         && NodeModel.Adapter.GetUserControl() is UserControl userControl) 
                 {

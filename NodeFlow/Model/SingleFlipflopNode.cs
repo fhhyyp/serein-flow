@@ -1,6 +1,7 @@
 ﻿using Serein.Library.Api;
 using Serein.Library;
 using Serein.Library.Utils;
+using System;
 
 namespace Serein.NodeFlow.Model
 {
@@ -21,7 +22,7 @@ namespace Serein.NodeFlow.Model
         /// <param name="context"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public override async Task<object?> ExecutingAsync(IDynamicContext context)
+        public override async Task<object?> ExecutingAsync(IDynamicContext context, CancellationToken token)
         {
             #region 执行前中断
             if (DebugSetting.IsInterrupt) // 执行触发前
@@ -37,13 +38,18 @@ namespace Serein.NodeFlow.Model
             {
                 throw new Exception("不存在对应委托");
             }
-            object instance = md.ActingInstance;
 
-            var args = await GetParametersAsync(context);
+            var instance = context.Env.IOC.Get(md.ActingInstanceType);
+            await dd.InvokeAsync(instance, [context]);
+            var args = await GetParametersAsync(context, token);
             // 因为这里会返回不确定的泛型 IFlipflopContext<TRsult>
             // 而我们只需要获取到 State 和 Value（返回的数据）
             // 所以使用 dynamic 类型接收
-            dynamic dynamicFlipflopContext = await dd.InvokeAsync(md.ActingInstance, args);
+            if (token.IsCancellationRequested)
+            {
+                return null;
+            }
+            dynamic dynamicFlipflopContext = await dd.InvokeAsync(instance, args);
             FlipflopStateType flipflopStateType = dynamicFlipflopContext.State;
             context.NextOrientation = flipflopStateType.ToContentType();
 

@@ -81,7 +81,7 @@ namespace Serein.Library
             }
             
             this.MethodDetails.ParameterDetailss = null;
-            this.MethodDetails.ActingInstance = null;
+            //this.MethodDetails.ActingInstance = null;
             this.MethodDetails.NodeModel = null;
             this.MethodDetails.ReturnType = null;
             this.MethodDetails.AssemblyName = null;
@@ -249,43 +249,46 @@ namespace Serein.Library
         /// <param name="context"></param>
         /// <param name="flowCts"></param>
         /// <returns></returns>
-        public static bool IsBradk(IDynamicContext context, CancellationTokenSource flowCts)
-        {
-            // 上下文不再执行
-            if (context.RunState == RunState.Completion)
-            {
-                return true;
-            }
+        //public static bool IsBradk(IDynamicContext context)
+        //{
+        //    // 上下文不再执行
+        //    if (context.RunState == RunState.Completion)
+        //    {
+        //        return true;
+        //    }
 
-            // 不存在全局触发器时，流程运行状态被设置为完成，退出执行，用于打断无限循环分支。
-            if (flowCts is null && context.Env.FlowState == RunState.Completion)
-            {
-                return true;
-            }
+        //    // 不存在全局触发器时，流程运行状态被设置为完成，退出执行，用于打断无限循环分支。
+        //    if (flowCts is null && context.Env.FlowState == RunState.Completion)
+        //    {
+        //        return true;
+        //    }
 
-            // 如果存在全局触发器，且触发器的执行任务已经被取消时，退出执行。
-            if (flowCts != null)
-            {
-                if (flowCts.IsCancellationRequested)
-                    return true;
-            }
-            return false;
-        }
+        //    // 如果存在全局触发器，且触发器的执行任务已经被取消时，退出执行。
+        //    if (flowCts != null)
+        //    {
+        //        if (flowCts.IsCancellationRequested)
+        //            return true;
+        //    }
+        //    return false;
+        //}
 
         /// <summary>
         /// 开始执行
         /// </summary>
         /// <param name="context"></param>
+        /// <param name="token">流程运行</param>
         /// <returns></returns>
-        public async Task StartFlowAsync(IDynamicContext context)
+        public async Task StartFlowAsync(IDynamicContext context, CancellationToken token)
         {
             Stack<NodeModelBase> stack = new Stack<NodeModelBase>();
             HashSet<NodeModelBase> processedNodes = new HashSet<NodeModelBase>(); // 用于记录已处理上游节点的节点
             stack.Push(this);
-            var flowCts = context.Env.IOC.Get<CancellationTokenSource>(NodeStaticConfig.FlipFlopCtsName);
-            bool hasFlipflow = flowCts != null;
-            while (stack.Count > 0) // 循环中直到栈为空才会退出循环
+            while (context.RunState != RunState.Completion  // 没有完成
+                && token.IsCancellationRequested == false // 没有取消
+                && stack.Count > 0) // 循环中直到栈为空才会退出循环
             {
+                
+
 #if DEBUG
                 await Task.Delay(1);
 #endif
@@ -299,15 +302,12 @@ namespace Serein.Library
                 object newFlowData;
                 try
                 {
+                    newFlowData = await currentNode.ExecutingAsync(context, token);
 
-                    if (IsBradk(context, flowCts)) break; // 退出执行
-                    newFlowData = await currentNode.ExecutingAsync(context);
-                    if (IsBradk(context, flowCts)) break; // 退出执行
                     if (context.NextOrientation == ConnectionInvokeType.None) // 没有手动设置时，进行自动设置
                     {
                         context.NextOrientation = ConnectionInvokeType.IsSucceed;
                     }
-
                 }
                 catch (Exception ex)
                 {
@@ -316,9 +316,7 @@ namespace Serein.Library
                     context.NextOrientation = ConnectionInvokeType.IsError;
                     context.ExceptionOfRuning = ex;
                 }
-
-
-                await RefreshFlowDataAndExpInterrupt(context, currentNode, newFlowData); // 执行当前节点后刷新数据
+                context.AddOrUpdate(currentNode.Guid, newFlowData); // 上下文中更新数据
                 #endregion
 
                 #region 执行完成
@@ -355,14 +353,10 @@ namespace Serein.Library
         /// </summary>
         /// <param name="context">流程上下文</param>
         /// <returns>节点传回数据对象</returns>
-        public virtual async Task<object> ExecutingAsync(IDynamicContext context)
+        public virtual async Task<object> ExecutingAsync(IDynamicContext context, CancellationToken token)
         {
 
             #region 调试中断
-            if(context.NextOrientation == ConnectionInvokeType.IsError)
-            {
-            }
-
             // 执行触发检查是否需要中断
             if (DebugSetting.IsInterrupt) 
             {
@@ -370,8 +364,8 @@ namespace Serein.Library
                 await DebugSetting.GetInterruptTask.Invoke();
                 //await fit.WaitTriggerAsync(Guid); // 创建一个等待的中断任务
                 SereinEnv.WriteLine(InfoType.INFO, $"[{this.MethodDetails?.MethodName}]中断已取消，开始执行后继分支");
-                var flowCts = context.Env.IOC.Get<CancellationTokenSource>(NodeStaticConfig.FlipFlopCtsName);
-                if (IsBradk(context, flowCts)) return null; // 流程已终止，取消后续的执行
+                //var flowCts = context.Env.IOC.Get<CancellationTokenSource>(NodeStaticConfig.FlipFlopCtsName);
+                if (token.IsCancellationRequested) { return null; }
             }
 
             #endregion
@@ -385,17 +379,14 @@ namespace Serein.Library
             {
                 throw new Exception($"节点{this.Guid}不存在对应委托");
             }
-            if (md.ActingInstance is null)
+            var instance = Env.IOC.Get(md.ActingInstanceType);
+            if(instance == null)
             {
-                md.ActingInstance = context.Env.IOC.Get(md.ActingInstanceType);
-                if (md.ActingInstance is null)
-                {
-                    md.ActingInstance = context.Env.IOC.Instantiate(md.ActingInstanceType);
-                }
+                Env.IOC.Register(md.ActingInstanceType).Build();
+                instance = Env.IOC.Get(md.ActingInstanceType);
             }
-            
-            object[] args = await GetParametersAsync(context);
-            var result = await dd.InvokeAsync(md.ActingInstance, args);
+            object[] args = await GetParametersAsync(context, token);
+            var result = await dd.InvokeAsync(instance, args);
             return result;
 
         }
@@ -403,7 +394,7 @@ namespace Serein.Library
         /// <summary>
         /// 获取对应的参数数组
         /// </summary>
-        public async Task<object[]> GetParametersAsync(IDynamicContext context)
+        public async Task<object[]> GetParametersAsync(IDynamicContext context, CancellationToken token)
         {
             if (MethodDetails.ParameterDetailss.Length == 0)
             {
@@ -454,13 +445,13 @@ namespace Serein.Library
 
 
         /// <summary>
-        /// 更新节点数据，并检查监视表达式是否生效
+        /// 检查监视表达式是否生效
         /// </summary>
         /// <param name="context">上下文</param>
         /// <param name="nodeModel">节点Moel</param>
         /// <param name="newData">新的数据</param>
         /// <returns></returns>
-        public static async Task RefreshFlowDataAndExpInterrupt(IDynamicContext context, NodeModelBase nodeModel, object newData = null)
+        public static async Task CheckExpInterrupt(IDynamicContext context, NodeModelBase nodeModel, object newData = null)
         {
             string guid = nodeModel.Guid;
             context.AddOrUpdate(guid, newData); // 上下文中更新数据

@@ -295,10 +295,10 @@ namespace Serein.Library
         {
             return (T)sereinIOC.Get(typeof(T));
         }
-        T ISereinIOC.Get<T>(string key)
-        {
-            return sereinIOC.Get<T>(key);
-        }
+        //T ISereinIOC.Get<T>(string key)
+        //{
+        //    return sereinIOC.Get<T>(key);
+        //}
 
 
         bool ISereinIOC.RegisterPersistennceInstance(string key, object instance)
@@ -311,10 +311,10 @@ namespace Serein.Library
             return sereinIOC.RegisterPersistennceInstance(key, instance);
         }
 
-        bool ISereinIOC.RegisterInstance(string key, object instance)
-        {
-            return sereinIOC.RegisterInstance(key, instance);
-        }
+        //bool ISereinIOC.RegisterInstance(string key, object instance)
+        //{
+        //    return sereinIOC.RegisterInstance(key, instance);
+        //}
 
 
         object ISereinIOC.Instantiate(Type type)

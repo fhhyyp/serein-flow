@@ -12,7 +12,7 @@ namespace Serein.NodeFlow
     /// <summary>
     /// 流程环境需要的扩展方法
     /// </summary>
-    public static class FlowFunc
+    public static class FlowNodeExtension
     {
         /// <summary>
         /// 判断是否为基础节点
@@ -70,37 +70,6 @@ namespace Serein.NodeFlow
 
 
 
-
-        ///// <summary>
-        ///// 从节点信息读取节点类型
-        ///// </summary>
-        ///// <param name="nodeInfo"></param>
-        ///// <returns></returns>
-        ///// <exception cref="NotImplementedException"></exception>
-        //public static NodeControlType GetNodeControlType(NodeInfo nodeInfo)
-        //{
-        //    if(!EnumHelper.TryConvertEnum<NodeControlType>(nodeInfo.Type, out var controlType))
-        //    {
-        //        return NodeControlType.None;
-        //    }
-        //    return controlType;
-        //    // 创建控件实例
-        //    //NodeControlType controlType = nodeInfo.Type switch
-        //    //{
-        //    //    $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleActionNode)}" => NodeControlType.Action,// 动作节点控件
-        //    //    $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleFlipflopNode)}" => NodeControlType.Flipflop, // 触发器节点控件
-
-        //    //    $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleConditionNode)}" => NodeControlType.ExpCondition,// 条件表达式控件
-        //    //    $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleExpOpNode)}" => NodeControlType.ExpOp, // 操作表达式控件
-
-        //    //    $"{NodeStaticConfig.NodeSpaceName}.{nameof(CompositeConditionNode)}" => NodeControlType.ConditionRegion, // 条件区域控件
-
-        //    //    $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleGlobalDataNode)}" => NodeControlType.GlobalData, // 数据节点
-        //    //    $"{NodeStaticConfig.NodeSpaceName}.{nameof(SingleScriptNode)}" => NodeControlType.Script, // 数据节点
-        //    //    _ => NodeControlType.None,
-        //    //};
-        //    //return controlType;
-        //}
 
         /// <summary>
         /// 程序集封装依赖

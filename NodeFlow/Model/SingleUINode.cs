@@ -15,12 +15,13 @@ namespace Serein.NodeFlow.Model
         {
         }
 
-        public override async Task<object> ExecutingAsync(IDynamicContext context)
+        public override async Task<object?> ExecutingAsync(IDynamicContext context, CancellationToken token)
         {
+            if (token.IsCancellationRequested) return null;
             if(Adapter is null)
             {
 
-                var result = await base.ExecutingAsync(context);
+                var result = await base.ExecutingAsync(context, token);
                 if (result is IEmbeddedContent adapter) 
                 {
                     this.Adapter = adapter;
@@ -39,7 +40,7 @@ namespace Serein.NodeFlow.Model
                 iflowContorl.OnExecuting(data);
             }
             
-            return Task.FromResult<object?>(null);
+            return null;
         }
     }
 }

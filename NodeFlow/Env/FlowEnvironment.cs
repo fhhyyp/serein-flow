@@ -4,6 +4,7 @@ using Serein.Library.Utils;
 using Serein.Library.Utils.SereinExpression;
 using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Tool;
+using System;
 using System.Reactive;
 using System.Reflection;
 using System.Text;
@@ -32,7 +33,7 @@ namespace Serein.NodeFlow.Env
         {
             this.sereinIOC = new SereinIOC();
             this.IsGlobalInterrupt = false;
-            this.flowStarter = null;
+            this.flowTaskManagement = null;
             this.sereinIOC.OnIOCMembersChanged += e =>
             {
                 if (OperatingSystem.IsWindows())
@@ -357,9 +358,9 @@ namespace Serein.NodeFlow.Env
         }
 
         /// <summary>
-        /// 流程启动器（每次运行时都会重新new一个）
+        /// 流程任务管理
         /// </summary>
-        private FlowStarter? flowStarter;
+        private FlowWorkManagement? flowTaskManagement;
 
         #endregion
 
@@ -381,29 +382,44 @@ namespace Serein.NodeFlow.Env
             
         }
 
+        
         /// <summary>
         /// 异步运行
         /// </summary>
         /// <returns></returns>
         public async Task<bool> StartFlowAsync()
         {
-            flowStarter ??= new FlowStarter();
-            var nodes = NodeModels.Values.ToList();
-
-            List<MethodDetails> initMethods = this.FlowLibraryManagement.GetMdsOnFlowStart(NodeType.Init);
-            List<MethodDetails> loadMethods = this.FlowLibraryManagement.GetMdsOnFlowStart(NodeType.Loading);
-            List<MethodDetails> exitMethods = this.FlowLibraryManagement.GetMdsOnFlowStart(NodeType.Exit);
-            Dictionary<RegisterSequence, List<Type>> autoRegisterTypes = this.FlowLibraryManagement.GetaAutoRegisterType();
-
             IOC.Reset();
-            await flowStarter.RunAsync(this, nodes, autoRegisterTypes, initMethods, loadMethods, exitMethods);
-            //_ = Task.Run(async () =>
-            //{
-            //    //if (FlipFlopState == RunState.Completion)
-            //    //{
-            //    //    await ExitFlowAsync(); // 未运行触发器时，才会调用结束方法
-            //    //}
-            //});
+            IOC.Register<IScriptFlowApi, ScriptFlowApi>(); // 注册脚本接口
+
+            var flowTaskOptions = new FlowTaskLibrary
+            {
+
+                Environment = this,
+                FlowContextPool = new ObjectPool<IDynamicContext>(() => new DynamicContext(this)),
+                Nodes = NodeModels.Values.ToList(),
+                AutoRegisterTypes = this.FlowLibraryManagement.GetaAutoRegisterType(),
+                InitMds = this.FlowLibraryManagement.GetMdsOnFlowStart(NodeType.Init),
+                LoadMds = this.FlowLibraryManagement.GetMdsOnFlowStart(NodeType.Loading),
+                ExitMds = this.FlowLibraryManagement.GetMdsOnFlowStart(NodeType.Exit),
+                
+            };
+            flowTaskManagement = new FlowWorkManagement(flowTaskOptions);
+            var cts = new CancellationTokenSource();
+            try
+            {
+                var t =await flowTaskManagement.RunAsync(cts.Token);
+            }
+            catch (Exception ex)
+            {
+                SereinEnv.WriteLine(ex);
+            }
+            finally
+            {
+               
+                SereinEnv.WriteLine(InfoType.INFO, $"流程运行完毕{Environment.NewLine}"); ;
+            }
+            flowTaskOptions = null;
             return true;
             
             
@@ -417,7 +433,7 @@ namespace Serein.NodeFlow.Env
         public async Task<bool> StartAsyncInSelectNode(string startNodeGuid)
         {
 
-            if (flowStarter is null)
+            if (flowTaskManagement is null)
             {
                 SereinEnv.WriteLine(InfoType.ERROR, "没有启动流程，无法运行单个节点");
                 return false;
@@ -435,7 +451,7 @@ namespace Serein.NodeFlow.Env
                 //SerinExpressionEvaluator.Evaluate(setExp, nodeModel,out _);
                 //var getExpResult2 = SerinExpressionEvaluator.Evaluate(getExp, nodeModel, out _);
 
-                await flowStarter.StartFlowInSelectNodeAsync(this, nodeModel);
+                await flowTaskManagement.StartFlowInSelectNodeAsync(this, nodeModel);
                 return true;
             }
             else
@@ -454,7 +470,9 @@ namespace Serein.NodeFlow.Env
             object result = new Unit();
             if (this.NodeModels.TryGetValue(nodeGuid, out var model))
             {
-                result =  await model.ExecutingAsync(context);
+                CancellationTokenSource cts = new CancellationTokenSource();    
+                result =  await model.ExecutingAsync(context, cts.Token);
+                cts?.Cancel();
             }
             return result;
         }
@@ -464,10 +482,10 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         public Task<bool> ExitFlowAsync()
         {
-            flowStarter?.Exit();
+            flowTaskManagement?.Exit();
             UIContextOperation?.Invoke(() => OnFlowRunComplete?.Invoke(new FlowEventArgs()));
             IOC.Reset();
-            flowStarter = null;
+            flowTaskManagement = null;
             GC.Collect();
             return Task.FromResult(true);
         }
@@ -480,12 +498,12 @@ namespace Serein.NodeFlow.Env
         {
             var nodeModel = GuidToModel(nodeGuid);
             if (nodeModel is null) return;
-            if (flowStarter is not null && nodeModel is SingleFlipflopNode flipflopNode) // 子节点为触发器
+            if (flowTaskManagement is not null && nodeModel is SingleFlipflopNode flipflopNode) // 子节点为触发器
             {
                 if (FlowState != RunState.Completion
                     && flipflopNode.NotExitPreviousNode()) // 正在运行，且该触发器没有上游节点
                 {
-                    _ = flowStarter.RunGlobalFlipflopAsync(this, flipflopNode);// 被父节点移除连接关系的子节点若为触发器，且无上级节点，则当前流程正在运行，则加载到运行环境中
+                    _ = flowTaskManagement.RunGlobalFlipflopAsync(this, flipflopNode);// 被父节点移除连接关系的子节点若为触发器，且无上级节点，则当前流程正在运行，则加载到运行环境中
 
                 }
             }
@@ -499,9 +517,9 @@ namespace Serein.NodeFlow.Env
         {
             var nodeModel = GuidToModel(nodeGuid);
             if (nodeModel is null) return;
-            if (flowStarter is not null && nodeModel is SingleFlipflopNode flipflopNode) // 子节点为触发器
+            if (flowTaskManagement is not null && nodeModel is SingleFlipflopNode flipflopNode) // 子节点为触发器
             {
-                flowStarter.TerminateGlobalFlipflopRuning(flipflopNode);
+                flowTaskManagement.TerminateGlobalFlipflopRuning(flipflopNode);
             }
         }
 
@@ -793,7 +811,7 @@ namespace Serein.NodeFlow.Env
                 } 
                 #endregion
 
-                var nodeModel = FlowFunc.CreateNode(this, controlType, methodDetails); // 加载项目时创建节点
+                var nodeModel = FlowNodeExtension.CreateNode(this, controlType, methodDetails); // 加载项目时创建节点
                 if (nodeModel is null)
                 {
                     nodeInfo.Guid = string.Empty;
@@ -926,7 +944,7 @@ namespace Serein.NodeFlow.Env
             NodeModelBase? nodeModel;
             if (methodDetailsInfo is null)
             {
-                nodeModel = FlowFunc.CreateNode(this, nodeControlType); // 加载基础节点
+                nodeModel = FlowNodeExtension.CreateNode(this, nodeControlType); // 加载基础节点
             }
             else
             {
@@ -934,7 +952,7 @@ namespace Serein.NodeFlow.Env
                                                               methodDetailsInfo.MethodName, 
                                                               out var methodDetails))
                 {
-                    nodeModel = FlowFunc.CreateNode(this, nodeControlType, methodDetails); // 一般的加载节点方法
+                    nodeModel = FlowNodeExtension.CreateNode(this, nodeControlType, methodDetails); // 一般的加载节点方法
                 }
                 else
                 {
@@ -1032,7 +1050,7 @@ namespace Serein.NodeFlow.Env
 
             if (remoteNode is SingleFlipflopNode flipflopNode)
             {
-                flowStarter?.TerminateGlobalFlipflopRuning(flipflopNode); // 假设被移除的是全局触发器，尝试从启动器移除
+                flowTaskManagement?.TerminateGlobalFlipflopRuning(flipflopNode); // 假设被移除的是全局触发器，尝试从启动器移除
             }
 
             remoteNode.Remove(); // 调用节点的移除方法
@@ -1689,7 +1707,7 @@ namespace Serein.NodeFlow.Env
 
             if (toNode is SingleFlipflopNode flipflopNode)
             {
-                flowStarter?.TerminateGlobalFlipflopRuning(flipflopNode); // 假设被连接的是全局触发器，尝试移除
+                flowTaskManagement?.TerminateGlobalFlipflopRuning(flipflopNode); // 假设被连接的是全局触发器，尝试移除
             }
 
             var isPass = false;
@@ -1896,10 +1914,10 @@ namespace Serein.NodeFlow.Env
         {
             return (T)sereinIOC.Get(typeof(T));
         }
-        T ISereinIOC.Get<T>(string key)
-        {
-            return sereinIOC.Get<T>(key);
-        }
+        //T ISereinIOC.Get<T>(string key)
+        //{
+        //    return sereinIOC.Get<T>(key);
+        //}
 
 
         bool ISereinIOC.RegisterPersistennceInstance(string key, object instance)
@@ -1908,10 +1926,10 @@ namespace Serein.NodeFlow.Env
             return sereinIOC.RegisterPersistennceInstance(key, instance);
         }
         
-        bool ISereinIOC.RegisterInstance(string key, object instance)
-        {
-            return sereinIOC.RegisterInstance(key, instance);
-        }
+        //bool ISereinIOC.RegisterInstance(string key, object instance)
+        //{
+        //    return sereinIOC.RegisterInstance(key, instance);
+        //}
 
 
         object ISereinIOC.Instantiate(Type type)

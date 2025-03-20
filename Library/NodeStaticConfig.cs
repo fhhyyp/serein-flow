@@ -10,16 +10,6 @@ namespace Serein.Library
     public static class NodeStaticConfig
     {
         /// <summary>
-        /// 全局触发器CTS
-        /// </summary>
-        public const string FlipFlopCtsName = "$FlowFlipFlopCts";
-        /// <summary>
-        /// 流程运行CTS
-        /// </summary>
-        public const string FlowRungCtsName = "$FlowRungCtsName";
-
-
-        /// <summary>
         /// 节点的命名空间
         /// </summary>
         //public const string NodeSpaceName = $"{nameof(Serein)}.{nameof(Serein.NodeFlow)}.{nameof(Serein.NodeFlow.Model)}";
