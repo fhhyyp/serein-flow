@@ -9,8 +9,10 @@ using System.Threading.Tasks;
 
 namespace Serein.NodeFlow
 {
-
-    public class FlowTaskLibrary()
+    /// <summary>
+    /// 节点任务执行依赖
+    /// </summary>
+    public class FlowWorkLibrary()
     {
         /// <summary>
         /// 流程运行环境

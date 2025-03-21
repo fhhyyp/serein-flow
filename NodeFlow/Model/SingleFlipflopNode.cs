@@ -22,7 +22,7 @@ namespace Serein.NodeFlow.Model
         /// <param name="context"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public override async Task<object?> ExecutingAsync(IDynamicContext context, CancellationToken token)
+        public override async Task<FlowResult> ExecutingAsync(IDynamicContext context, CancellationToken token)
         {
             #region 执行前中断
             if (DebugSetting.IsInterrupt) // 执行触发前
@@ -40,8 +40,13 @@ namespace Serein.NodeFlow.Model
             }
 
             var instance = context.Env.IOC.Get(md.ActingInstanceType);
+            if (instance is null)
+            {
+                Env.IOC.Register(md.ActingInstanceType).Build();
+                instance = Env.IOC.Get(md.ActingInstanceType);
+            }
             await dd.InvokeAsync(instance, [context]);
-            var args = await GetParametersAsync(context, token);
+            var args = await this.GetParametersAsync(context, token);
             // 因为这里会返回不确定的泛型 IFlipflopContext<TRsult>
             // 而我们只需要获取到 State 和 Value（返回的数据）
             // 所以使用 dynamic 类型接收
@@ -58,7 +63,9 @@ namespace Serein.NodeFlow.Model
             {
                 throw new FlipflopException(base.MethodDetails.MethodName + "触发器超时触发。Guid" + base.Guid);
             }
-            return dynamicFlipflopContext.Value;
+            object result = dynamicFlipflopContext.Value;
+            var flowReslt = new FlowResult(this, context, result);
+            return flowReslt;
         }
 
     }

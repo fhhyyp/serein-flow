@@ -92,22 +92,32 @@ namespace Serein.NodeFlow.Model
         }
 
 
-        public override async Task<object?> ExecutingAsync(IDynamicContext context, CancellationToken token)
+        public override async Task<FlowResult> ExecutingAsync(IDynamicContext context, CancellationToken token)
         {
-            if(token.IsCancellationRequested) return null;
+            if(token.IsCancellationRequested) return new FlowResult(this, context);
 
             object? parameter = null;// context.TransmissionData(this); // 表达式节点使用上一节点数据
             var pd = MethodDetails.ParameterDetailss[0];
 
+            var hasNode = context.Env.TryGetNodeModel(pd.ArgDataSourceNodeGuid, out var argSourceNode);
+            if (hasNode)
+            {
+                context.NextOrientation = ConnectionInvokeType.IsError;
+                return new FlowResult(this, context);
+            }
             if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
             {
                 // 使用自定义节点的参数
-                parameter = context.GetFlowData(pd.ArgDataSourceNodeGuid);
+                parameter = context.GetFlowData(argSourceNode).Value;
             }
             else if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke)
             {
                 // 立刻调用目标节点，然后使用其返回值
-                parameter = await Env.InvokeNodeAsync(context, pd.ArgDataSourceNodeGuid);
+                var cts = new   CancellationTokenSource();
+                var result = await argSourceNode.ExecutingAsync(context, cts.Token);
+                cts?.Cancel();
+                cts?.Dispose();
+                parameter = result.Value;
             }
             else
             {
@@ -129,13 +139,13 @@ namespace Serein.NodeFlow.Model
                 }
 
                 context.NextOrientation = ConnectionInvokeType.IsSucceed;
-                return result;
+                return new FlowResult(this,context, result);
             }
             catch (Exception ex)
             {
                 context.NextOrientation = ConnectionInvokeType.IsError;
                 context.ExceptionOfRuning = ex;
-                return parameter;
+                return new FlowResult(this, context);
             }
 
         }

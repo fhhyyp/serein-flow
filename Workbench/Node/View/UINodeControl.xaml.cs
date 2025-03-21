@@ -54,7 +54,6 @@ namespace Serein.Workbench.Node.View
                 EmbedContainer.Child = userControl;
             });
 
-            
         }
 
         private void NodeControlBase_Initialized(object sender, EventArgs e)

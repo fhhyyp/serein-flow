@@ -54,22 +54,21 @@ namespace Serein.Library.Api
         /// <summary>
         /// 获取节点的数据（当前节点需要获取上一节点数据时，需要从 运行时上一节点 的Guid 通过这个方法进行获取
         /// </summary>
-        /// <param name="nodeGuid"></param>
+        /// <param name="nodeModel"></param>
         /// <returns></returns>
-        object GetFlowData(string nodeGuid);
-
+        FlowResult GetFlowData(NodeModelBase nodeModel);
         /// <summary>
         /// 上一节点数据透传到下一节点
         /// </summary>
         /// <param name="nodeModel"></param>
-        object TransmissionData(NodeModelBase nodeModel);
+        FlowResult TransmissionData(NodeModelBase nodeModel);
 
         /// <summary>
         /// 添加或更新当前节点的数据
         /// </summary>
-        /// <param name="nodeGuid"></param>
+        /// <param name="nodeModel"></param>
         /// <param name="flowData"></param>
-        void AddOrUpdate(string nodeGuid, object flowData);
+        void AddOrUpdate(NodeModelBase nodeModel, FlowResult flowData);
 
         /// <summary>
         /// 重置流程状态（用于对象池回收）

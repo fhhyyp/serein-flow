@@ -26,13 +26,13 @@ namespace Serein.Library.Api
         /// <param name="context"></param>
         /// <param name="index"></param>
         /// <returns></returns>
-        object GetArgData(IDynamicContext context, int index);
+        //object GetArgData(IDynamicContext context, int index);
         /// <summary>
         /// 获取流程当前传递的数据
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        object GetFlowData(IDynamicContext context);
+        /// FlowResult GetFlowData(IDynamicContext context);
 
         /// <summary>
         /// 获取全局数据

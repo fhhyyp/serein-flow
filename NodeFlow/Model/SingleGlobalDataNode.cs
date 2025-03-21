@@ -115,33 +115,34 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        public override async Task<object?> ExecutingAsync(IDynamicContext context, CancellationToken token)
+        public override async Task<FlowResult> ExecutingAsync(IDynamicContext context, CancellationToken token)
         {
-            if (token.IsCancellationRequested) return null;
+            if (token.IsCancellationRequested) return new FlowResult(this, context);
             if (string.IsNullOrEmpty(KeyName))
             {
                 context.NextOrientation = ConnectionInvokeType.IsError;
                 SereinEnv.WriteLine(InfoType.ERROR, $"全局数据的KeyName不能为空[{this.Guid}]");
-                return null;
+                return new FlowResult(this, context);
             }
             if (DataNode is null)
             {
                 context.NextOrientation = ConnectionInvokeType.IsError;
                 SereinEnv.WriteLine(InfoType.ERROR, $"全局数据节点没有设置数据来源[{this.Guid}]");
-                return null;
+                return new FlowResult(this, context);
             }
 
             try
             {
-                var result = await context.Env.InvokeNodeAsync(context, DataNode.Guid);
-                SereinEnv.AddOrUpdateFlowGlobalData(KeyName, result);
+               
+                var result = await DataNode.ExecutingAsync(context, token);
+                SereinEnv.AddOrUpdateFlowGlobalData(KeyName, result.Value);
                 return result;
             }
             catch (Exception ex)
             {
                 context.NextOrientation = ConnectionInvokeType.IsError;
                 context.ExceptionOfRuning = ex;
-                return null;
+                return new FlowResult(this, context);
             }
         }
         

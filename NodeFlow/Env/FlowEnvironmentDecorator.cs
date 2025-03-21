@@ -492,10 +492,7 @@ namespace Serein.NodeFlow.Env
            return await currentFlowEnvironment.StartAsyncInSelectNode(startNodeGuid);
         }
 
-        public async Task<object> InvokeNodeAsync(IDynamicContext context, string nodeGuid)
-        {
-            return await currentFlowEnvironment.InvokeNodeAsync(context, nodeGuid);
-        }
+       
 
         public async Task StartRemoteServerAsync(int port = 7525)
         {
@@ -523,6 +520,11 @@ namespace Serein.NodeFlow.Env
         public void SetUIContextOperation(UIContextOperation uiContextOperation)
         {
             currentFlowEnvironment.SetUIContextOperation(uiContextOperation);
+        }
+
+        public bool TryGetNodeModel(string nodeGuid, out NodeModelBase nodeModel)
+        {
+            return currentFlowEnvironment.TryGetNodeModel(nodeGuid, out nodeModel);
         }
         public bool TryGetDelegateDetails(string libraryName, string methodName, out DelegateDetails del)
         {

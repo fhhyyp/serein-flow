@@ -950,6 +950,13 @@ namespace Serein.Library.Api
         #endregion
 
         #region 流程运行相关
+        /// <summary>
+        /// 获取节点信息
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        /// <param name="nodeModel"></param>
+        /// <returns></returns>
+        bool TryGetNodeModel(string nodeGuid, out NodeModelBase nodeModel);
 
         /// <summary>
         /// 获取方法描述信息
@@ -1026,7 +1033,7 @@ namespace Serein.Library.Api
         /// <param name="context">调用时的上下文</param>
         /// <param name="nodeGuid">节点Guid</param>
         /// <returns></returns>
-        Task<object> InvokeNodeAsync(IDynamicContext context, string nodeGuid);
+        // Task<object> InvokeNodeAsync(IDynamicContext context, string nodeGuid);
 
         #endregion
 

@@ -30,13 +30,13 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 初始化选项
         /// </summary>
-        public FlowTaskLibrary WorkLibrary { get; }
+        public FlowWorkLibrary WorkLibrary { get; }
 
         /// <summary>
         /// 流程任务管理
         /// </summary>
         /// <param name="library"></param>
-        public FlowWorkManagement(FlowTaskLibrary library)
+        public FlowWorkManagement(FlowWorkLibrary library)
         {
             WorkLibrary = library;
           
@@ -301,7 +301,7 @@ namespace Serein.NodeFlow
                 {
                     var context = pool.Allocate(); // 启动全局触发器时新建上下文
                     var newFlowData = await singleFlipFlopNode.ExecutingAsync(context, singleToken); // 获取触发器等待Task
-                    context.AddOrUpdate(singleFlipFlopNode.Guid, newFlowData);
+                    context.AddOrUpdate(singleFlipFlopNode, newFlowData);
                     if (context.NextOrientation == ConnectionInvokeType.None)
                     {
                         continue;
@@ -326,6 +326,14 @@ namespace Serein.NodeFlow
 
         }
 
+        /// <summary>
+        /// 全局触发器触发后的调用
+        /// </summary>
+        /// <param name="singleFlipFlopNode"></param>
+        /// <param name="singleToken"></param>
+        /// <param name="pool"></param>
+        /// <param name="context"></param>
+        /// <returns></returns>
         private static async Task? CallSubsequentNode(SingleFlipflopNode singleFlipFlopNode, CancellationToken singleToken, ObjectPool<IDynamicContext> pool, IDynamicContext context)
         {
             var flowState = context.NextOrientation; // 记录一下流程状态

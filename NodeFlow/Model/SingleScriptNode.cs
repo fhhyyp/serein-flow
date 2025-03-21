@@ -165,12 +165,11 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        public override async Task<object?> ExecutingAsync(IDynamicContext context, CancellationToken token)
+        public override async Task<FlowResult> ExecutingAsync(IDynamicContext context, CancellationToken token)
         {
-            if(token.IsCancellationRequested) return null;
-            var @params =  await GetParametersAsync(context, token);
-            if(token.IsCancellationRequested) return null;
-
+            if (token.IsCancellationRequested) return new FlowResult(this, context);
+            var @params =  await this.GetParametersAsync(context, token);
+            if(token.IsCancellationRequested) return new FlowResult(this, context);
 
             //context.AddOrUpdate($"{context.Guid}_{this.Guid}_Params", @params[0]); // 后面再改
             ReloadScript();// 每次都重新解析
@@ -199,9 +198,9 @@ namespace Serein.NodeFlow.Model
             if (token.IsCancellationRequested) return null;
 
             var result = await ScriptInterpreter.InterpretAsync(scriptContext, mainNode); // 从入口节点执行
-            envEvent.OnFlowRunComplete -= onFlowStop; 
+            envEvent.OnFlowRunComplete -= onFlowStop;
+            return new FlowResult(this, context, result);
             //SereinEnv.WriteLine(InfoType.INFO, "FlowContext Guid : " + context.Guid);
-            return result;
         }
 
 

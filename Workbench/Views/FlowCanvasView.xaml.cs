@@ -309,7 +309,7 @@ namespace Serein.Workbench.Views
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FlowChartCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        private async void FlowChartCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
             if (IsSelectControl)
             {
@@ -340,7 +340,7 @@ namespace Serein.Workbench.Views
                         #region 方法调用关系创建
                         if (myData.Type == JunctionOfConnectionType.Invoke)
                         {
-                            this.EnvDecorator.ConnectInvokeNodeAsync(myData.StartJunction.MyNode.Guid, myData.CurrentJunction.MyNode.Guid,
+                            await EnvDecorator.ConnectInvokeNodeAsync(myData.StartJunction.MyNode.Guid, myData.CurrentJunction.MyNode.Guid,
                                         myData.StartJunction.JunctionType,
                                         myData.CurrentJunction.JunctionType,
                                         myData.ConnectionInvokeType);
@@ -360,7 +360,7 @@ namespace Serein.Workbench.Views
                                 argIndex = argJunction2.ArgIndex;
                             }
 
-                            this.EnvDecorator.ConnectArgSourceNodeAsync(myData.StartJunction.MyNode.Guid, myData.CurrentJunction.MyNode.Guid,
+                            await EnvDecorator.ConnectArgSourceNodeAsync(myData.StartJunction.MyNode.Guid, myData.CurrentJunction.MyNode.Guid,
                                     myData.StartJunction.JunctionType,
                                     myData.CurrentJunction.JunctionType,
                                     myData.ConnectionArgSourceType,

@@ -36,7 +36,7 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        public override async Task<object?> ExecutingAsync(IDynamicContext context, CancellationToken token)
+        public override async Task<FlowResult> ExecutingAsync(IDynamicContext context, CancellationToken token)
         {
             try
             {
@@ -45,7 +45,7 @@ namespace Serein.NodeFlow.Model
                 {
                     if (token.IsCancellationRequested)
                     {
-                        return null;
+                        return new FlowResult(this, context);
                     }
                     var state = await node.ExecutingAsync(context, token);
                     if (context.NextOrientation != ConnectionInvokeType.IsSucceed)
@@ -56,7 +56,8 @@ namespace Serein.NodeFlow.Model
                 }
 
                 //var previousNode = context.GetPreviousNode()
-                return context.TransmissionData(this); // 条件区域透传上一节点的数据
+                var result = context.TransmissionData(this); // 条件区域透传上一节点的数据
+                return new FlowResult(this,context, result);
             }
             catch (Exception ex)
             {

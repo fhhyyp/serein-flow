@@ -42,22 +42,21 @@ namespace Serein.NodeFlow
             throw new NotImplementedException();
         }
 
-        public object? GetArgData(IDynamicContext context, int index)
-        {
-            var _paramsKey = $"{context?.Guid}_{NodeModel.Guid}_Params";
-            var obj = context?.GetFlowData(_paramsKey);
-            if (obj is object[] @params && index < @params.Length)
-            {
-                return @params[index];
-            }
-            return null;
-        }
+        //public object? GetArgData(IDynamicContext context, int index)
+        //{
+        //    var _paramsKey = $"{context?.Guid}_{NodeModel.Guid}_Params";
+        //    var obj = context?.GetFlowData(_paramsKey);
+        //    if (obj is object[] @params && index < @params.Length)
+        //    {
+        //        return @params[index];
+        //    }
+        //    return null;
+        //}
 
-
-        public object? GetFlowData(IDynamicContext context)
-        {
-            return context?.GetFlowData(NodeModel.Guid);
-        }
+        //public object? GetFlowData(IDynamicContext context)
+        //{
+        //    return context?.GetFlowData(NodeModel.Guid);
+        //}
 
         public object? GetGlobalData(string keyName)
         {

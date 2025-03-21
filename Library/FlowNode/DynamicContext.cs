@@ -49,7 +49,7 @@ namespace Serein.Library
         /// <summary>
         /// 每个流程上下文分别存放节点的当前数据
         /// </summary>
-        private readonly ConcurrentDictionary<string, object> dictNodeFlowData = new ConcurrentDictionary<string, object>();
+        private readonly ConcurrentDictionary<NodeModelBase, FlowResult> dictNodeFlowData = new ConcurrentDictionary<NodeModelBase, FlowResult>();
 
         /// <summary>
         /// 每个流程上下文存储运行时节点的调用关系
@@ -88,7 +88,7 @@ namespace Serein.Library
         /// </summary>
         /// <param name="nodeGuid">节点</param>
         /// <returns></returns>
-        public object GetFlowData(string nodeGuid)
+        public FlowResult GetFlowData(NodeModelBase nodeGuid)
         {
             if (dictNodeFlowData.TryGetValue(nodeGuid, out var data))
             {
@@ -103,29 +103,29 @@ namespace Serein.Library
         /// <summary>
         /// 添加或更新当前节点数据
         /// </summary>
-        /// <param name="nodeGuid">节点</param>
+        /// <param name="nodeModel">节点</param>
         /// <param name="flowData">新的数据</param>
-        public void AddOrUpdate(string nodeGuid, object flowData)
+        public void AddOrUpdate(NodeModelBase nodeModel, FlowResult flowData)
         {
             // this.dictNodeFlowData.TryGetValue(nodeGuid, out var oldFlowData);
-            dictNodeFlowData.AddOrUpdate(nodeGuid, _ => flowData, (o,n ) => flowData);
+            dictNodeFlowData.AddOrUpdate(nodeModel, _ => flowData, (o,n ) => flowData);
         }
 
         /// <summary>
         /// 上一节点数据透传到下一节点
         /// </summary>
         /// <param name="nodeModel"></param>
-        public object TransmissionData(NodeModelBase nodeModel)
+        public FlowResult TransmissionData(NodeModelBase nodeModel)
         {
             if (dictPreviousNodes.TryGetValue(nodeModel, out var previousNode)) // 首先获取当前节点的上一节点
             {
-                if (dictNodeFlowData.TryGetValue(previousNode.Guid, out var data)) // 其次获取上一节点的数据
+                if (dictNodeFlowData.TryGetValue(previousNode, out var data)) // 其次获取上一节点的数据
                 {
                     return data;
                     //AddOrUpdate(nodeModel.Guid, data); // 然后作为当前节点的数据记录在上下文中
                 }
             }
-            return null;
+            throw new InvalidOperationException($"透传{nodeModel.Guid}节点数据时发生异常：上一节点不存在数据");
         }
 
         /// <summary>

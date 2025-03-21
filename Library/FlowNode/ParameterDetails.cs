@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Serein.Library
@@ -237,6 +238,7 @@ namespace Serein.Library
             // 需要获取预入参数据
             object inputParameter;
             #region （默认的）从运行时上游节点获取其返回值
+            
             if (ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData)
             {
                 var previousNode = context.GetPreviousNode(nodeModel);
@@ -246,40 +248,32 @@ namespace Serein.Library
                 }
                 else
                 {
-                    inputParameter = context.GetFlowData(previousNode.Guid); // 当前传递的数据
+                    inputParameter = context.GetFlowData(previousNode).Value; // 当前传递的数据
                 }
             }
-            #endregion
-            #region  从指定节点获取其返回值
-            else if (ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
-            {
-                // 获取指定节点的数据
-                // 如果指定节点没有被执行，会返回null
-                // 如果执行过，会获取上一次执行结果作为预入参数据
-                inputParameter = context.GetFlowData(ArgDataSourceNodeGuid);
-            }
-            #endregion
-            #region 立刻执行指定节点，然后获取返回值
-            else if (ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke)
-            {
-                // 立刻调用对应节点获取数据。
-                try
-                {
-                    var result = await env.InvokeNodeAsync(context, ArgDataSourceNodeGuid);
-                    inputParameter = result;
-                }
-                catch (Exception ex)
-                {
-                    context.NextOrientation = ConnectionInvokeType.IsError;
-                    context.ExceptionOfRuning = ex;
-                    throw;
-                }
-            }
-            #endregion
-            #region 意料之外的参数
             else
             {
-                throw new Exception("节点执行方法获取入参参数时，ConnectionArgSourceType枚举是意外的枚举值");
+                if(!env.TryGetNodeModel(ArgDataSourceNodeGuid, out var argSourceNodeModel))
+                {
+                    throw new Exception($"[arg{Index}][{Name}][{DataType}]需要节点[{ArgDataSourceNodeGuid}]的参数，但节点不存在");
+                }
+                if (ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
+                {
+                    inputParameter = context.GetFlowData(argSourceNodeModel).Value;
+                }
+                else if (ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke)
+                {
+                    // 立刻调用对应节点获取数据。
+                    var cts = new CancellationTokenSource();
+                    var result = await argSourceNodeModel.ExecutingAsync(context, cts.Token);
+                    cts?.Cancel();
+                    cts?.Dispose();
+                    inputParameter = result.Value;
+                }
+                else
+                {
+                    throw new Exception("节点执行方法获取入参参数时，ConnectionArgSourceType枚举是意外的枚举值");
+                }
             }
             #endregion
             #region 判断是否执行表达式

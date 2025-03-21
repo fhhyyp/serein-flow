@@ -378,6 +378,11 @@ namespace Serein.Library
             sereinIOC.Run(action);
             return this;
         }
+
+        public bool TryGetNodeModel(string nodeGuid, out NodeModelBase nodeModel)
+        {
+            throw new NotImplementedException();
+        }
         #endregion
 
 

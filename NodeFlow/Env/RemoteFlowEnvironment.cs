@@ -1217,14 +1217,13 @@ namespace Serein.NodeFlow.Env
             this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：SetMonitorObjState");
         }
 
-        public async Task<object> InvokeNodeAsync(IDynamicContext context, string nodeGuid)
-        {
-            // 登录到远程环境后，启动器相关方法无效
-            this.WriteLine(InfoType.INFO, "远程环境尚未实现接口 InvokeNodeAsync");
-            return null;
-        }
 
-       
+        public bool TryGetNodeModel(string nodeGuid, out NodeModelBase nodeModel)
+        {
+            this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：TryGetNodeModel");
+            nodeModel = null;
+            return false;
+        }
 
         public bool TryGetMethodDetailsInfo(string libraryName, string methodName, out MethodDetailsInfo mdInfo)
         {

@@ -110,9 +110,12 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        public override async Task<object?> ExecutingAsync(IDynamicContext context, CancellationToken token)
+        public override async Task<FlowResult> ExecutingAsync(IDynamicContext context, CancellationToken token)
         {
-            if (token.IsCancellationRequested) return null;
+            if (token.IsCancellationRequested)
+            {
+                return new FlowResult(this, context);
+            }
             // 接收上一节点参数or自定义参数内容
             object? parameter;
             object? result = null;
@@ -121,17 +124,31 @@ namespace Serein.NodeFlow.Model
             {
                 // 使用自动取参
                 var pd = MethodDetails.ParameterDetailss[INDEX_EXPRESSION];
+                var hasNode = context.Env.TryGetNodeModel(pd.ArgDataSourceNodeGuid, out var argSourceNode);
+                if (hasNode)
+                {
+                    context.NextOrientation = ConnectionInvokeType.IsError;
+                    return new FlowResult(this, context);
+                }
+                if (hasNode)
+                {
+                    return new FlowResult(this, context);
+                }
                 if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
                 {
-                    result = context.GetFlowData(pd.ArgDataSourceNodeGuid); // 使用自定义节点的参数
+                    result = context.GetFlowData(argSourceNode).Value; // 使用自定义节点的参数
                 }
                 else if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke)
                 {
-                    result = await Env.InvokeNodeAsync(context, pd.ArgDataSourceNodeGuid); // 立刻调用目标节点，然后使用其返回值
+                    CancellationTokenSource cts = new CancellationTokenSource();
+                    var nodeResult = await argSourceNode.ExecutingAsync(context, cts.Token);
+                    result = nodeResult.Value;
+                    cts?.Cancel();
+                    cts?.Dispose();
                 }
                 else
                 {
-                    result = context.TransmissionData(this);    // 条件节点透传上一节点的数据
+                    result = context.TransmissionData(this).Value;    // 条件节点透传上一节点的数据
                 }
                 parameter = result;  // 使用上一节点的参数
 
@@ -167,7 +184,7 @@ namespace Serein.NodeFlow.Model
 
             SereinEnv.WriteLine(InfoType.INFO, $"{result} {Expression}  -> " + context.NextOrientation);
             //return result;
-            return judgmentResult;
+            return new FlowResult(this, context, judgmentResult);
         }
 
 

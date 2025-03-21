@@ -136,7 +136,7 @@ public class NodeJunctionView : TemplatedControl
         nodeOperationService.ConnectingManage.Reset();
     }
 
-    private void CheckJunvtion()
+    private async void CheckJunvtion()
     {
         var myData = nodeOperationService.ConnectingManage;
         if(myData.StartJunction is null || myData.CurrentJunction is null)
@@ -157,7 +157,7 @@ public class NodeJunctionView : TemplatedControl
         #region 方法调用关系创建
         if (myData.Type == JunctionOfConnectionType.Invoke)
         {
-            flowEnvironment.ConnectInvokeNodeAsync(myData.StartJunction.MyNode.Guid, myData.CurrentJunction.MyNode.Guid,
+            await flowEnvironment.ConnectInvokeNodeAsync(myData.StartJunction.MyNode.Guid, myData.CurrentJunction.MyNode.Guid,
                         myData.StartJunction.JunctionType,
                         myData.CurrentJunction.JunctionType,
                         myData.ConnectionInvokeType);
@@ -177,7 +177,7 @@ public class NodeJunctionView : TemplatedControl
                 argIndex = myData.CurrentJunction.ArgIndex;
             }
 
-            flowEnvironment.ConnectArgSourceNodeAsync(myData.StartJunction.MyNode.Guid, myData.CurrentJunction.MyNode.Guid,
+           await flowEnvironment.ConnectArgSourceNodeAsync(myData.StartJunction.MyNode.Guid, myData.CurrentJunction.MyNode.Guid,
                     myData.StartJunction.JunctionType,
                     myData.CurrentJunction.JunctionType,
                     myData.ConnectionArgSourceType,

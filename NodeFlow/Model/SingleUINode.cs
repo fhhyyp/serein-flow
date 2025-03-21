@@ -15,14 +15,14 @@ namespace Serein.NodeFlow.Model
         {
         }
 
-        public override async Task<object?> ExecutingAsync(IDynamicContext context, CancellationToken token)
+        public override async Task<FlowResult> ExecutingAsync(IDynamicContext context, CancellationToken token)
         {
-            if (token.IsCancellationRequested) return null;
+            if (token.IsCancellationRequested) return new FlowResult(this,context);
             if(Adapter is null)
             {
 
                 var result = await base.ExecutingAsync(context, token);
-                if (result is IEmbeddedContent adapter) 
+                if (result.Value is IEmbeddedContent adapter) 
                 {
                     this.Adapter = adapter;
                     context.NextOrientation = ConnectionInvokeType.IsSucceed;
@@ -35,12 +35,12 @@ namespace Serein.NodeFlow.Model
             else
             {
                 var p = context.GetPreviousNode(this);
-                var data = context.GetFlowData(p.Guid);
+                var data = context.GetFlowData(p).Value;
                 var iflowContorl = Adapter.GetFlowControl();
                 iflowContorl.OnExecuting(data);
             }
-            
-            return null;
+
+            return new FlowResult(this, context);
         }
     }
 }

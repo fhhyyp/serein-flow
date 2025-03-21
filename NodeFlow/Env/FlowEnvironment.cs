@@ -392,7 +392,7 @@ namespace Serein.NodeFlow.Env
             IOC.Reset();
             IOC.Register<IScriptFlowApi, ScriptFlowApi>(); // 注册脚本接口
 
-            var flowTaskOptions = new FlowTaskLibrary
+            var flowTaskOptions = new FlowWorkLibrary
             {
 
                 Environment = this,
@@ -440,8 +440,8 @@ namespace Serein.NodeFlow.Env
             }
             if (true || FlowState == RunState.Running || FlipFlopState == RunState.Running)
             {
-                NodeModelBase? nodeModel = GuidToModel(startNodeGuid);
-                if (nodeModel is null || nodeModel is SingleFlipflopNode)
+                
+                if (!TryGetNodeModel(startNodeGuid,out var nodeModel) || nodeModel is SingleFlipflopNode)
                 {
                     return false;
                 }
@@ -460,14 +460,14 @@ namespace Serein.NodeFlow.Env
             }
         }
 
-        /// <summary>
+        /*/// <summary>
         /// 单独运行一个节点
         /// </summary>
         /// <param name="nodeGuid"></param>
         /// <returns></returns>
         public async Task<object> InvokeNodeAsync(IDynamicContext context, string nodeGuid)
         {
-            object result = new Unit();
+            object result = Unit.Default;
             if (this.NodeModels.TryGetValue(nodeGuid, out var model))
             {
                 CancellationTokenSource cts = new CancellationTokenSource();    
@@ -475,7 +475,7 @@ namespace Serein.NodeFlow.Env
                 cts?.Cancel();
             }
             return result;
-        }
+        }*/
 
         /// <summary>
         /// 结束流程
@@ -496,7 +496,10 @@ namespace Serein.NodeFlow.Env
         /// <param name="nodeGuid"></param>
         public void ActivateFlipflopNode(string nodeGuid)
         {
-            var nodeModel = GuidToModel(nodeGuid);
+            if(!TryGetNodeModel(nodeGuid, out var nodeModel))
+            {
+                return;
+            }
             if (nodeModel is null) return;
             if (flowTaskManagement is not null && nodeModel is SingleFlipflopNode flipflopNode) // 子节点为触发器
             {
@@ -515,7 +518,10 @@ namespace Serein.NodeFlow.Env
         /// <param name="nodeGuid"></param>
         public void TerminateFlipflopNode(string nodeGuid)
         {
-            var nodeModel = GuidToModel(nodeGuid);
+            if(!TryGetNodeModel(nodeGuid, out var nodeModel))
+            {
+                return;
+            }
             if (nodeModel is null) return;
             if (flowTaskManagement is not null && nodeModel is SingleFlipflopNode flipflopNode) // 子节点为触发器
             {
@@ -858,7 +864,10 @@ namespace Serein.NodeFlow.Env
             #region 确定节点之间的方法调用关系
             foreach (var nodeInfo in nodeInfos)
             {
-                var fromNodeModel = GuidToModel(nodeInfo.Guid);
+                if (!TryGetNodeModel(nodeInfo.Guid, out var fromNodeModel))
+                {
+                    return;
+                }
                 if (fromNodeModel is null) continue;
                 List<(ConnectionInvokeType connectionType, string[] guids)> allToNodes = [(ConnectionInvokeType.IsSucceed,nodeInfo.TrueNodes),
                                                                                     (ConnectionInvokeType.IsFail,   nodeInfo.FalseNodes),
@@ -869,7 +878,10 @@ namespace Serein.NodeFlow.Env
                     // 遍历当前类型分支的节点（确认连接关系）
                     foreach (var toNodeGuid in item.toNodeGuids)
                     {
-                        var toNodeModel = GuidToModel(toNodeGuid);
+                        if (!TryGetNodeModel(toNodeGuid, out var toNodeModel))
+                        {
+                            return;
+                        }
                         if (toNodeModel is null) {
                             // 防御性代码，加载正常保存的项目文件不会进入这里
                             continue;
@@ -915,7 +927,7 @@ namespace Serein.NodeFlow.Env
                         && NodeModels.TryGetValue(pd.ArgDataSourceNodeGuid, out var fromNode))
                     {
 
-                        _ = ConnectArgSourceOfNodeAsync(fromNode, toNode, pd.ArgDataSourceType, pd.Index);
+                        await ConnectArgSourceOfNodeAsync(fromNode, toNode, pd.ArgDataSourceType, pd.Index);
                     }
                 }
             }
@@ -981,20 +993,24 @@ namespace Serein.NodeFlow.Env
         /// 将节点放置在容器中
         /// </summary>
         /// <returns></returns>
-        public async Task<bool> PlaceNodeToContainerAsync(string nodeGuid, string containerNodeGuid)
+        public Task<bool> PlaceNodeToContainerAsync(string nodeGuid, string containerNodeGuid)
         {
             // 获取目标节点与容器节点
-            var nodeModel = GuidToModel(nodeGuid);
-            if (nodeModel is null ) return false;
-
-            if(nodeModel.ContainerNode is INodeContainer tmpContainer)
+            if (!TryGetNodeModel(nodeGuid, out var nodeModel))
+            {
+                return Task.FromResult(false);
+            }
+            if (nodeModel.ContainerNode is INodeContainer tmpContainer)
             {
                 SereinEnv.WriteLine(InfoType.WARN, $"节点放置失败，节点[{nodeGuid}]已经放置于容器节点[{((NodeModelBase)tmpContainer).Guid}]");
-                return false; 
+                return Task.FromResult(false); 
             }
 
-            var containerNode = GuidToModel(containerNodeGuid); // 获取容器节点
-            if (containerNode is not INodeContainer nodeContainer) return false;
+            if (!TryGetNodeModel(containerNodeGuid, out var containerNode))
+            {
+                return Task.FromResult(false);
+            }
+            if (containerNode is not INodeContainer nodeContainer) return Task.FromResult(false);
 
             var result = nodeContainer.PlaceNode(nodeModel); // 放置在容器节点
             if (result)
@@ -1004,7 +1020,7 @@ namespace Serein.NodeFlow.Env
                     OnNodePlace?.Invoke(new NodePlaceEventArgs(nodeGuid, containerNodeGuid)); // 通知UI更改节点放置位置
                 });
             }
-            return result;
+            return Task.FromResult(result);
 
         }
 
@@ -1012,15 +1028,16 @@ namespace Serein.NodeFlow.Env
         /// 将节点从容器节点中脱离
         /// </summary>
         /// <returns></returns>
-        public async Task<bool> TakeOutNodeToContainerAsync(string nodeGuid)
+        public Task<bool> TakeOutNodeToContainerAsync(string nodeGuid)
         {
             // 获取目标节点与容器节点
-            var nodeModel = GuidToModel(nodeGuid);
-            if (nodeModel is null) return false;
-
-            if(nodeModel.ContainerNode is not INodeContainer nodeContainer)
+            if (!TryGetNodeModel(nodeGuid, out var nodeModel))
             {
-                return false;
+                return Task.FromResult(false);
+            }
+            if (nodeModel.ContainerNode is not INodeContainer nodeContainer)
+            {
+                return Task.FromResult(false);
             }
             var result = nodeContainer.TakeOutNode(nodeModel); // 从容器节点取出
             if (result)
@@ -1030,7 +1047,7 @@ namespace Serein.NodeFlow.Env
                     OnNodeTakeOut?.Invoke(new NodeTakeOutEventArgs(nodeGuid)); // 重新放置在画布上
                 });
             }
-            return result;
+            return Task.FromResult(result);
 
 
         }
@@ -1044,9 +1061,10 @@ namespace Serein.NodeFlow.Env
         /// <exception cref="NotImplementedException"></exception>
         public async Task<bool> RemoveNodeAsync(string nodeGuid)
         {
-            var remoteNode = GuidToModel(nodeGuid);
-            if (remoteNode is null)
-               return false;
+            if (!TryGetNodeModel(nodeGuid, out var remoteNode))
+            {
+                return false;
+            }
 
             if (remoteNode is SingleFlipflopNode flipflopNode)
             {
@@ -1103,7 +1121,7 @@ namespace Serein.NodeFlow.Env
         /// <param name="fromNodeJunctionType">起始节点控制点</param>
         /// <param name="toNodeJunctionType">目标节点控制点</param>
         /// <param name="invokeType">连接关系</param>
-        public async Task<bool> ConnectInvokeNodeAsync(string fromNodeGuid,
+        public Task<bool> ConnectInvokeNodeAsync(string fromNodeGuid,
                                                  string toNodeGuid,
                                                  JunctionType fromNodeJunctionType,
                                                  JunctionType toNodeJunctionType,
@@ -1111,17 +1129,19 @@ namespace Serein.NodeFlow.Env
         {
 
             // 获取起始节点与目标节点
-            var fromNode = GuidToModel(fromNodeGuid);
-            var toNode = GuidToModel(toNodeGuid);
-            if (fromNode is null || toNode is null) return false;
+            if (!TryGetNodeModel(fromNodeGuid, out var fromNode) || !TryGetNodeModel(toNodeGuid, out var toNode))
+            {
+                return Task.FromResult(false);
+            }
+
+            if (fromNode is null || toNode is null) return Task.FromResult(false);
             (var type, var state) = CheckConnect(fromNode, toNode, fromNodeJunctionType, toNodeJunctionType);
             if (!state)
             {
                 SereinEnv.WriteLine(InfoType.WARN, "出现非预期的连接行为");
-                return false; // 出现不符预期的连接行为，忽略此次连接行为
+                return Task.FromResult(false); // 出现不符预期的连接行为，忽略此次连接行为
             }
 
-            
             if(type == JunctionOfConnectionType.Invoke)
             {
                 if (fromNodeJunctionType == JunctionType.Execute) 
@@ -1132,7 +1152,7 @@ namespace Serein.NodeFlow.Env
                 // 从起始节点“下一个方法”控制点，连接到目标节点“方法调用”控制点
                 state = ConnectInvokeOfNode(fromNode, toNode, invokeType); // 本地环境进行连接
             }
-            return state;
+            return Task.FromResult(state); 
 
         }
 
@@ -1147,8 +1167,10 @@ namespace Serein.NodeFlow.Env
         public Task<bool> SetConnectPriorityInvoke(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
         {
             // 获取起始节点与目标节点
-            var fromNode = GuidToModel(fromNodeGuid);
-            var toNode = GuidToModel(toNodeGuid);
+            if (!TryGetNodeModel(fromNodeGuid, out var fromNode) || !TryGetNodeModel(toNodeGuid, out var toNode))
+            {
+                return Task.FromResult(false);
+            }
             if (fromNode is null || toNode is null) return Task.FromResult(false);
             if ( fromNode.SuccessorNodes.TryGetValue(connectionType, out var nodes))
             {
@@ -1173,8 +1195,10 @@ namespace Serein.NodeFlow.Env
         public async Task<bool> RemoveConnectInvokeAsync(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
         {
             // 获取起始节点与目标节点
-            var fromNode = GuidToModel(fromNodeGuid);
-            var toNode = GuidToModel(toNodeGuid);
+            if (!TryGetNodeModel(fromNodeGuid, out var fromNode) || !TryGetNodeModel(toNodeGuid, out var toNode))
+            {
+                return false;
+            }
             if (fromNode is null || toNode is null) return false;
 
             var result = await RemoteConnectAsync(fromNode, toNode, connectionType);
@@ -1200,8 +1224,10 @@ namespace Serein.NodeFlow.Env
         {
 
             // 获取起始节点与目标节点
-            var fromNode = GuidToModel(fromNodeGuid);
-            var toNode = GuidToModel(toNodeGuid);
+            if (!TryGetNodeModel(fromNodeGuid, out var fromNode) || !TryGetNodeModel(toNodeGuid, out var toNode))
+            {
+                return false;
+            }
             if (fromNode is null || toNode is null) return false;
             (var type, var state) = CheckConnect(fromNode, toNode, fromNodeJunctionType, toNodeJunctionType);
             if (!state)
@@ -1236,8 +1262,10 @@ namespace Serein.NodeFlow.Env
         public async Task<bool> RemoveConnectArgSourceAsync(string fromNodeGuid, string toNodeGuid, int argIndex)
         {
             // 获取起始节点与目标节点
-            var fromNode = GuidToModel(fromNodeGuid);
-            var toNode = GuidToModel(toNodeGuid);
+            if (!TryGetNodeModel(fromNodeGuid, out var fromNode) || !TryGetNodeModel(toNodeGuid, out var toNode))
+            {
+                return false;
+            }
             if (fromNode is null || toNode is null) return false;
             var result = await RemoteConnectAsync(fromNode, toNode, argIndex);
             return result;
@@ -1302,10 +1330,11 @@ namespace Serein.NodeFlow.Env
         /// <param name="y"></param>
         public void MoveNode(string nodeGuid, double x, double y)
         {
-            NodeModelBase? nodeModel = GuidToModel(nodeGuid);
-            if (nodeModel is null) return;
+            if (!TryGetNodeModel(nodeGuid, out var nodeModel))
+            {
+                return;
+            }
             nodeModel.Position.X = x;
-
             nodeModel.Position.Y = y;
             UIContextOperation?.Invoke(() => OnNodeMoved?.Invoke(new NodeMovedEventArgs(nodeGuid, x, y)));
            
@@ -1317,9 +1346,10 @@ namespace Serein.NodeFlow.Env
         /// <param name="newNodeGuid"></param>
         public Task<string> SetStartNodeAsync(string newNodeGuid)
         {
-            var newStartNodeModel = GuidToModel(newNodeGuid);
-            if (newStartNodeModel is null) 
-                   return Task.FromResult(StartNode?.Guid ?? string.Empty);
+            if (!TryGetNodeModel(newNodeGuid, out var newStartNodeModel))
+            {
+                return Task.FromResult(StartNode?.Guid ?? string.Empty);
+            }
             SetStartNode(newStartNodeModel);
             return Task.FromResult(StartNode?.Guid ?? string.Empty);
         }
@@ -1370,12 +1400,13 @@ namespace Serein.NodeFlow.Env
         /// <param name="path">属性路径</param>
         /// <param name="value">变化后的属性值</param>
         /// <returns></returns>
-        public async Task NotificationNodeValueChangeAsync(string nodeGuid, string path, object value)
+        public Task NotificationNodeValueChangeAsync(string nodeGuid, string path, object value)
         {
-            var nodeModel = GuidToModel(nodeGuid);
-            if (nodeModel is null) return;
-            SerinExpressionEvaluator.Evaluate($"@Set .{path} = {value}", nodeModel, out _); // 更改对应的数据
-
+            if (TryGetNodeModel(nodeGuid, out var nodeModel))
+            {
+                SerinExpressionEvaluator.Evaluate($"@Set .{path} = {value}", nodeModel, out _); // 更改对应的数据
+            }
+            return Task.CompletedTask;
             //if (NodeValueChangeLogger.Remove((nodeGuid, path, value)))
             //{
             //    // 说明存在过重复的修改
@@ -1414,7 +1445,10 @@ namespace Serein.NodeFlow.Env
         /// <returns></returns>
         public Task<bool> ChangeParameter(string nodeGuid, bool isAdd, int paramIndex)
         {
-            var nodeModel = GuidToModel(nodeGuid);
+            if (!TryGetNodeModel(nodeGuid, out var nodeModel))
+            {
+                return Task.FromResult(false);
+            }
             if (nodeModel is null) return Task.FromResult(false);
             bool isPass;
             if (isAdd)
@@ -1429,30 +1463,26 @@ namespace Serein.NodeFlow.Env
         }
 
 
+
         /// <summary>
         /// Guid 转 NodeModel
         /// </summary>
         /// <param name="nodeGuid">节点Guid</param>
         /// <returns>节点Model</returns>
         /// <exception cref="ArgumentNullException">无法获取节点、Guid/节点为null时报错</exception>
-        private NodeModelBase? GuidToModel(string nodeGuid)
+        public bool TryGetNodeModel(string nodeGuid,out NodeModelBase nodeModel)
         {
             if (string.IsNullOrEmpty(nodeGuid))
             {
-                //throw new ArgumentNullException("not contains - Guid没有对应节点:" + (nodeGuid));
-                return null;
+                nodeModel = null;
+                return false;
             }
-            if (!NodeModels.TryGetValue(nodeGuid, out NodeModelBase? nodeModel) || nodeModel is null)
-            {
-                //throw new ArgumentNullException("null - Guid存在对应节点,但节点为null:" + (nodeGuid));
-                return null;
-            }
-            return nodeModel;
+            return NodeModels.TryGetValue(nodeGuid, out nodeModel) && nodeModel is not null;
+
         }
 
         #endregion
 
-      
 
         #region 流程依赖类库的接口
 
