@@ -15,17 +15,14 @@
         <tool:HorizontalCenterThumbPositionConverter x:Key="HorizontalCenterThumbPositionConverter" />
     </UserControl.Resources>
 
-
-
-    <StackPanel x:Name="FlowChartStackPanel"
+    <DockPanel x:Name="FlowChartStackPanel"
                          ClipToBounds="True">
-        <!-- 虚拟化 VirtualizingStackPanel.IsVirtualizing="True" -->
-        <Canvas 
+        <Canvas  ClipToBounds="True"
                     x:Name="FlowChartCanvas" 
                     Background="#E1FBEA"
                     AllowDrop="True" 
-                    Width="1920"
-                    Height="1080"
+                    Width="1000"
+                    Height="600"
                     MouseLeftButtonDown ="FlowChartCanvas_MouseLeftButtonDown"
                     MouseLeftButtonUp="FlowChartCanvas_MouseLeftButtonUp"
                     MouseDown="FlowChartCanvas_MouseDown"
@@ -116,6 +113,6 @@ Canvas.Top="{Binding ActualHeight, ElementName=FlowChartCanvas, Mode=OneWay, Con
         </Canvas>
 
 
-    </StackPanel>
+    </DockPanel>
 
 </UserControl>

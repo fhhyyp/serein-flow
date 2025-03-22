@@ -109,6 +109,14 @@ namespace Serein.Workbench.Services
         /// 运行环境输出事件
         /// </summary>
         public event EnvOutHandler? OnEnvOut;
+        /// <summary>
+        /// 添加画布事件
+        /// </summary>
+        public event CanvasCreateHandler OnCanvasCreate;
+        /// <summary>
+        /// 移除了画布事件
+        /// </summary>
+        public event CanvasRemoveHandler OnCanvasRemove;
 
         #endregion
 
@@ -119,6 +127,8 @@ namespace Serein.Workbench.Services
             flowEnvironmentEvent.OnDllLoad += FlowEnvironment_DllLoadEvent;
             flowEnvironmentEvent.OnProjectSaving += EnvDecorator_OnProjectSaving;
             flowEnvironmentEvent.OnProjectLoaded += FlowEnvironment_OnProjectLoaded;
+            flowEnvironmentEvent.OnCanvasCreate += FlowEnvironmentEvent_OnCanvasCreate;
+            flowEnvironmentEvent.OnCanvasRemove += FlowEnvironmentEvent_OnCanvasRemove;
             flowEnvironmentEvent.OnStartNodeChange += FlowEnvironment_StartNodeChangeEvent;
             flowEnvironmentEvent.OnNodeConnectChange += FlowEnvironment_NodeConnectChangeEvemt;
             flowEnvironmentEvent.OnNodeCreate += FlowEnvironment_NodeCreateEvent;
@@ -139,6 +149,7 @@ namespace Serein.Workbench.Services
             flowEnvironmentEvent.OnEnvOut += FlowEnvironment_OnEnvOutEvent;
         }
 
+      
         private void ResetFlowEnvironmentEvent()
         {
            flowEnvironmentEvent.OnDllLoad -= FlowEnvironment_DllLoadEvent;
@@ -222,6 +233,28 @@ namespace Serein.Workbench.Services
         private void FlowEnvironment_NodeConnectChangeEvemt(NodeConnectChangeEventArgs eventArgs)
         {
             OnNodeConnectChange?.Invoke(eventArgs);
+        }
+
+
+        /// <summary>
+        /// 添加了画布
+        /// </summary>
+        /// <param name="eventArgs"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        private void FlowEnvironmentEvent_OnCanvasCreate(CanvasCreateEventArgs eventArgs)
+        {
+            OnCanvasCreate?.Invoke(eventArgs);
+        }
+
+        /// <summary>
+        /// 移除了画布
+        /// </summary>
+        /// <param name="eventArgs"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        private void FlowEnvironmentEvent_OnCanvasRemove(CanvasRemoveEventArgs eventArgs)
+        {
+            OnCanvasRemove?.Invoke(eventArgs);
+
         }
 
         /// <summary>

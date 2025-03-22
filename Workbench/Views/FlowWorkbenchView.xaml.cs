@@ -25,7 +25,6 @@ namespace Serein.Workbench.Views
             this.DataContext = App.GetService<Locator>().FlowWorkbenchViewModel;
             InitializeComponent();
         }
-
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             this.MaxHeight = SystemParameters.PrimaryScreenHeight;

@@ -22,6 +22,14 @@
         /// </summary>
         public const string ExitFlow = nameof(ExitFlow);
         /// <summary>
+        /// 尝试新增画布
+        /// </summary>
+        public const string CreateCanvas = nameof(CreateCanvas);
+        /// <summary>
+        /// 尝试移除画布
+        /// </summary>
+        public const string RemoveCanvas = nameof(RemoveCanvas);
+        /// <summary>
         /// 尝试移动某个节点
         /// </summary>
         public const string MoveNode = nameof(MoveNode);

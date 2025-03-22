@@ -28,7 +28,6 @@ namespace Serein.Library.Api
     public delegate void ProjectSavingHandler(ProjectSavingEventArgs eventArgs);
 
 
-
     /// <summary>
     /// 加载项目文件时成功加载了DLL文件
     /// </summary>
@@ -46,11 +45,33 @@ namespace Serein.Library.Api
     /// <param name="eventArgs"></param>
     public delegate void NodeConnectChangeHandler(NodeConnectChangeEventArgs eventArgs);
 
+    
+
+
+    /// <summary>
+    /// 环境中新增了一个画布
+    /// </summary>
+    /// <param name="eventArgs"></param>
+    public delegate void CanvasCreateHandler(CanvasCreateEventArgs eventArgs);
+
+    /// <summary>
+    /// 环境中移除了一个画布
+    /// </summary>
+    /// <param name="eventArgs"></param>
+    public delegate void CanvasRemoveHandler(CanvasRemoveEventArgs eventArgs);
+
     /// <summary>
     /// 环境中加载了一个节点
     /// </summary>
     /// <param name="eventArgs"></param>
     public delegate void NodeCreateHandler(NodeCreateEventArgs eventArgs);
+
+    /// <summary>
+    /// 环境中移除了一个节点
+    /// </summary>
+    /// <param name="eventArgs"></param>
+
+    public delegate void NodeRemoveHandler(NodeRemoveEventArgs eventArgs);
 
     /// <summary>
     /// 节点放置事件
@@ -132,23 +153,9 @@ namespace Serein.Library.Api
         public string ErrorTips { get; protected set; } = string.Empty;
     }
 
-    //public class LoadNodeEventArgs : FlowEventArgs
-    //{
-    //    public LoadNodeEventArgs(NodeInfo NodeInfo, MethodDetails MethodDetailss)
-    //    {
-    //        this.NodeInfo = NodeInfo;
-    //        this.MethodDetailss = MethodDetailss;
-    //    }
-    //    /// <summary>
-    //    /// 项目文件节点信息参数
-    //    /// </summary>
-    //    public NodeInfo NodeInfo { get; protected set; }
-    //    /// <summary>
-    //    /// 已加载在环境中的方法描述
-    //    /// </summary>
-    //    public MethodDetails MethodDetailss { get; protected set; }
-    //}
-
+    /// <summary>
+    /// 项目加载完成
+    /// </summary>
     public class ProjectLoadedEventArgs : FlowEventArgs
     {
         public ProjectLoadedEventArgs()
@@ -156,6 +163,9 @@ namespace Serein.Library.Api
         }
     }
     
+    /// <summary>
+    /// 项目保存
+    /// </summary>
     public class ProjectSavingEventArgs : FlowEventArgs
     {
         public ProjectSavingEventArgs()
@@ -163,6 +173,9 @@ namespace Serein.Library.Api
         }
     }
 
+    /// <summary>
+    /// 加载了DLL外部依赖
+    /// </summary>
     public class LoadDllEventArgs : FlowEventArgs
     {
         public LoadDllEventArgs(NodeLibraryInfo nodeLibraryInfo, List<MethodDetailsInfo> MethodDetailss)
@@ -180,6 +193,9 @@ namespace Serein.Library.Api
         public List<MethodDetailsInfo> MethodDetailss { get; protected set; }
     }
 
+    /// <summary>
+    /// 移除了DLL外部依赖
+    /// </summary>
     public class RemoteDllEventArgs : FlowEventArgs
     {
         public RemoteDllEventArgs()
@@ -187,6 +203,9 @@ namespace Serein.Library.Api
         }
     }
 
+    /// <summary>
+    /// 改变节点连接关系
+    /// </summary>
 
     public class NodeConnectChangeEventArgs : FlowEventArgs
     {
@@ -213,12 +232,14 @@ namespace Serein.Library.Api
         /// <param name="junctionOfConnectionType"></param>
         /// <param name="connectionInvokeType"></param>
         /// <param name="changeType"></param>
-        public NodeConnectChangeEventArgs(string fromNodeGuid,
+        public NodeConnectChangeEventArgs(string canvasGuid,
+                                          string fromNodeGuid,
                                           string toNodeGuid,
                                           JunctionOfConnectionType junctionOfConnectionType, // 指示需要创建什么类型的连接线
                                           ConnectionInvokeType connectionInvokeType, // 节点调用的方法类型（true/false/error/cancel )
                                           ConnectChangeType changeType) // 需要创建连接线还是删除连接线
         {
+            this.CanvasGuid = canvasGuid;
             this.FromNodeGuid = fromNodeGuid;
             this.ToNodeGuid = toNodeGuid;
             this.ConnectionInvokeType = connectionInvokeType;
@@ -235,13 +256,15 @@ namespace Serein.Library.Api
         /// <param name="argIndex"></param>
         /// <param name="connectionArgSourceType"></param>
         /// <param name="changeType"></param>
-        public NodeConnectChangeEventArgs(string fromNodeGuid,
+        public NodeConnectChangeEventArgs(string canvasGuid,
+                                          string fromNodeGuid,
                                           string toNodeGuid,
                                           JunctionOfConnectionType junctionOfConnectionType, // 指示需要创建什么类型的连接线
                                           int argIndex,
                                           ConnectionArgSourceType connectionArgSourceType, // 节点对应的方法入参所需参数来源
                                           ConnectChangeType changeType) // 需要创建连接线还是删除连接线
         {
+            CanvasGuid = canvasGuid;
             this.FromNodeGuid = fromNodeGuid;
             this.ToNodeGuid = toNodeGuid;
             this.ChangeType = changeType;
@@ -250,6 +273,9 @@ namespace Serein.Library.Api
             this.JunctionOfConnectionType = junctionOfConnectionType;
 
         }
+
+        public string CanvasGuid { get; }
+
         /// <summary>
         /// 连接关系中始节点的Guid
         /// </summary>
@@ -282,7 +308,36 @@ namespace Serein.Library.Api
         
     }
 
+    /// <summary>
+    /// 添加了一个画布
+    /// </summary>
+    public class CanvasCreateEventArgs : FlowEventArgs
+    {
+        public CanvasCreateEventArgs(
+            FlowCanvasInfo info)
+        {
+            Info = info;
+        }
 
+        public FlowCanvasInfo Info { get; }
+    }
+
+    /// <summary>
+    /// 移除了一个画布
+    /// </summary>
+    public class CanvasRemoveEventArgs : FlowEventArgs
+    {
+        public CanvasRemoveEventArgs(string canvasGuid)
+        {
+            CanvasGuid = canvasGuid;
+        }
+
+        public string CanvasGuid { get; }
+    }
+
+    /// <summary>
+    /// 添加了节点
+    /// </summary>
     public class NodeCreateEventArgs : FlowEventArgs
     {
         /// <summary>
@@ -290,19 +345,40 @@ namespace Serein.Library.Api
         /// </summary>
         /// <param name="nodeModel">节点对象</param>
         /// <param name="position">位置</param>
-        public NodeCreateEventArgs(NodeModelBase nodeModel, PositionOfUI position)
+        public NodeCreateEventArgs(string canvasGuid, NodeModelBase nodeModel, PositionOfUI position)
         {
+            CanvasGuid = canvasGuid;
             this.NodeModel = nodeModel;
             this.Position = position;
         }
+
+        public string CanvasGuid { get; }
 
         /// <summary>
         /// 节点Model对象
         /// </summary>
         public NodeModelBase NodeModel { get; private set; }
         public PositionOfUI Position { get; private set; }
-        //public bool IsAddInRegion { get; private set; }
         public string RegeionGuid { get; private set; }
+    }
+
+    /// <summary>
+    /// 移除了节点的事件
+    /// </summary>
+    public class NodeRemoveEventArgs : FlowEventArgs
+    {
+        public NodeRemoveEventArgs(string canvasGuid, string nodeGuid)
+        {
+            CanvasGuid = canvasGuid;
+            this.NodeGuid = nodeGuid;
+        }
+
+        public string CanvasGuid { get; }
+
+        /// <summary>
+        /// 被移除节点的Guid
+        /// </summary>
+        public string NodeGuid { get; private set; }
     }
 
     /// <summary>
@@ -310,11 +386,15 @@ namespace Serein.Library.Api
     /// </summary>
     public class NodePlaceEventArgs : FlowEventArgs 
     {
-        public NodePlaceEventArgs(string nodeGuid, string containerNodeGuid)
+        public NodePlaceEventArgs(string canvasGuid, string nodeGuid, string containerNodeGuid)
         {
+            CanvasGuid = canvasGuid;
             NodeGuid = nodeGuid;
             ContainerNodeGuid = containerNodeGuid;
         }
+
+        public string CanvasGuid { get; }
+
         /// <summary>
         /// 子节点，该数据为此次时间的主节点
         /// </summary>
@@ -330,10 +410,14 @@ namespace Serein.Library.Api
     /// </summary>
     public class NodeTakeOutEventArgs : FlowEventArgs
     {
-        public NodeTakeOutEventArgs(string nodeGuid)
+        public NodeTakeOutEventArgs(string canvasGuid, string nodeGuid)
         {
+            CanvasGuid = canvasGuid;
             NodeGuid = nodeGuid;
         }
+
+        public string CanvasGuid { get; }
+
         /// <summary>
         /// 需要取出的节点Guid
         /// </summary>
@@ -341,34 +425,21 @@ namespace Serein.Library.Api
     }
 
 
-    /// <summary>
-    /// 环境中移除了一个节点
-    /// </summary>
-    /// <param name="eventArgs"></param>
-
-    public delegate void NodeRemoveHandler(NodeRemoveEventArgs eventArgs);
-    public class NodeRemoveEventArgs : FlowEventArgs
-    {
-        public NodeRemoveEventArgs(string nodeGuid)
-        {
-            this.NodeGuid = nodeGuid;
-        }
-        /// <summary>
-        /// 被移除节点的Guid
-        /// </summary>
-        public string NodeGuid { get; private set; }
-    }
 
 
 
 
     public class StartNodeChangeEventArgs : FlowEventArgs
     {
-        public StartNodeChangeEventArgs(string oldNodeGuid, string newNodeGuid)
+        public StartNodeChangeEventArgs(string canvasGuid, string oldNodeGuid, string newNodeGuid)
         {
+            CanvasGuid = canvasGuid;
             this.OldNodeGuid = oldNodeGuid;
             this.NewNodeGuid = newNodeGuid; ;
         }
+
+        public string CanvasGuid { get; }
+
         /// <summary>
         /// 原来的起始节点Guid
         /// </summary>
@@ -576,6 +647,16 @@ namespace Serein.Library.Api
         /// 节点连接属性改变事件
         /// </summary>
         event NodeConnectChangeHandler OnNodeConnectChange;
+
+        /// <summary>
+        /// 增加画布事件
+        /// </summary>
+        event CanvasCreateHandler OnCanvasCreate;
+
+        /// <summary>
+        /// 删除画布事件
+        /// </summary>
+        event CanvasRemoveHandler OnCanvasRemove;
 
         /// <summary>
         /// 节点创建事件
@@ -794,19 +875,36 @@ namespace Serein.Library.Api
         #region 流程节点操作接口
 
         /// <summary>
+        /// 增加画布
+        /// </summary>
+        /// <param name="canvasName">画布名称</param>
+        /// <param name="width">宽度</param>
+        /// <param name="height">高度</param>
+        /// <returns></returns>
+        Task<FlowCanvasInfo> CreateCanvasAsync(string canvasName, int width , int height);
+
+        /// <summary>
+        /// 删除画布
+        /// </summary>
+        /// <param name="canvasGuid">画布Guid</param>
+        /// <returns></returns>
+        Task<bool> RemoteCanvasAsync(string canvasGuid);
+
+
+        /// <summary>
         /// 移动了某个节点(远程插件使用）
         /// </summary>
         /// <param name="nodeGuid"></param>
         /// <param name="x"></param>
         /// <param name="y"></param>
-        void MoveNode(string nodeGuid,double x, double y);
+        void MoveNode(string canvasGuid, string nodeGuid, double x, double y);
 
         /// <summary>
         /// 设置流程起点节点
         /// </summary>
         /// <param name="nodeGuid">尝试设置为起始节点的节点Guid</param>
         /// <returns>被设置为起始节点的Guid</returns>
-        Task<string> SetStartNodeAsync(string nodeGuid);
+        Task<string> SetStartNodeAsync(string canvasGuid, string nodeGuid);
 
         /// <summary>
         /// 在两个节点之间创建连接关系
@@ -816,11 +914,12 @@ namespace Serein.Library.Api
         /// <param name="fromNodeJunctionType">起始节点控制点</param>
         /// <param name="toNodeJunctionType">目标节点控制点</param>
         /// <param name="invokeType">决定了方法执行后的后继行为</param>
-        Task<bool> ConnectInvokeNodeAsync(string fromNodeGuid,
-                                    string toNodeGuid,
-                                    JunctionType fromNodeJunctionType,
-                                    JunctionType toNodeJunctionType,
-                                    ConnectionInvokeType invokeType);
+        Task<bool> ConnectInvokeNodeAsync(string canvasGuid, 
+                                          string fromNodeGuid,
+                                          string toNodeGuid,
+                                          JunctionType fromNodeJunctionType,
+                                          JunctionType toNodeJunctionType,
+                                          ConnectionInvokeType invokeType);
 
         /// <summary>
         /// 在两个节点之间创建连接关系
@@ -831,12 +930,13 @@ namespace Serein.Library.Api
         /// <param name="toNodeJunctionType">目标节点控制点</param>
         /// <param name="argSourceType">决定了方法参数来源</param>
         /// <param name="argIndex">设置第几个参数</param>
-        Task<bool> ConnectArgSourceNodeAsync(string fromNodeGuid,
-                                                 string toNodeGuid,
-                                                 JunctionType fromNodeJunctionType,
-                                                 JunctionType toNodeJunctionType,
-                                                 ConnectionArgSourceType argSourceType,
-                                                 int argIndex);
+        Task<bool> ConnectArgSourceNodeAsync(string canvasGuid, 
+                                             string fromNodeGuid,
+                                             string toNodeGuid,
+                                             JunctionType fromNodeJunctionType,
+                                             JunctionType toNodeJunctionType,
+                                             ConnectionArgSourceType argSourceType,
+                                             int argIndex);
 
         
 
@@ -846,19 +946,19 @@ namespace Serein.Library.Api
         /// <param name="nodeType">控件类型</param>
         /// <param name="position">节点在画布上的位置（</param>
         /// <param name="methodDetailsInfo">节点绑定的方法说明</param>
-        Task<NodeInfo> CreateNodeAsync(NodeControlType nodeType, PositionOfUI position, MethodDetailsInfo methodDetailsInfo = null);
+        Task<NodeInfo> CreateNodeAsync(string canvasGuid, NodeControlType nodeType, PositionOfUI position, MethodDetailsInfo methodDetailsInfo = null);
 
         /// <summary>
         /// 将节点放置在容器中
         /// </summary>
         /// <returns></returns>
-        Task<bool> PlaceNodeToContainerAsync(string nodeGuid, string containerNodeGuid);
+        Task<bool> PlaceNodeToContainerAsync(string canvasGuid, string nodeGuid, string containerNodeGuid);
 
         /// <summary>
         /// 将节点从容器中脱离
         /// </summary>
         /// <returns></returns>
-        Task<bool> TakeOutNodeToContainerAsync(string nodeGuid);
+        Task<bool> TakeOutNodeToContainerAsync(string canvasGuid, string nodeGuid);
 
 
         /// <summary>
@@ -876,7 +976,7 @@ namespace Serein.Library.Api
         /// <param name="fromNodeGuid">起始节点</param>
         /// <param name="toNodeGuid">目标节点</param>
         /// <param name="connectionType">连接类型</param>
-        Task<bool> RemoveConnectInvokeAsync(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType);
+        Task<bool> RemoveConnectInvokeAsync(string canvasGuid, string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType);
 
         /// <summary>
         /// 移除连接节点之间参数传递的关系
@@ -885,13 +985,13 @@ namespace Serein.Library.Api
         /// <param name="toNodeGuid">目标节点Guid</param>
         /// <param name="argIndex">连接到第几个参数</param>
         /// <param name="connectionArgSourceType">参数来源类型</param>
-        Task<bool> RemoveConnectArgSourceAsync(string fromNodeGuid, string toNodeGuid, int argIndex);
+        Task<bool> RemoveConnectArgSourceAsync(string canvasGuid, string fromNodeGuid, string toNodeGuid, int argIndex);
 
         /// <summary>
         /// 移除节点/区域/基础控件
         /// </summary>
         /// <param name="nodeGuid">待移除的节点Guid</param>
-        Task<bool> RemoveNodeAsync(string nodeGuid);
+        Task<bool> RemoveNodeAsync(string canvasGuid, string nodeGuid);
 
         /// <summary>
         /// 改变可选参数的数目

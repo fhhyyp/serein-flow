@@ -310,6 +310,22 @@ namespace Serein.NodeFlow.Env
             return false;
         }
 
+
+        [AutoSocketHandle(ThemeValue = EnvMsgTheme.CreateCanvas, IsReturnValue = false)]
+        public  async Task<FlowCanvasInfo> CreateCanvas(string canvasName, int width, int height)
+        {
+            var canvasInfo = await environment.CreateCanvasAsync(canvasName, width, height); // 监听到客户端创建节点的请求
+            return canvasInfo;
+        }
+
+        [AutoSocketHandle(ThemeValue = EnvMsgTheme.RemoveCanvas, IsReturnValue = false)]
+        public async Task<object> RemoveCanvas([Needful] string canvasGuid)
+        {
+            var result = await environment.RemoteCanvasAsync(canvasGuid); // 监听到客户端创建节点的请求
+            return new { state = result} ;
+        }
+
+
         /// <summary>
         /// 从远程环境创建节点
         /// </summary>
@@ -317,13 +333,13 @@ namespace Serein.NodeFlow.Env
         /// <param name="position"></param>
         /// <param name="mdInfo">如果是表达式节点条件节点，该项为null</param>
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.CreateNode,ArgNotNull = false)]
-        public async Task<NodeInfo> CreateNode([Needful] string nodeType, [Needful] PositionOfUI position, MethodDetailsInfo? mdInfo = null)
+        public async Task<NodeInfo> CreateNode([Needful] string canvasGuid, [Needful] string nodeType, [Needful] PositionOfUI position, MethodDetailsInfo? mdInfo = null)
         {
             if (!EnumHelper.TryConvertEnum<NodeControlType>(nodeType, out var nodeControlType))
             {
                 return null;
             }
-           var nodeInfo =  await environment.CreateNodeAsync(nodeControlType, position, mdInfo); // 监听到客户端创建节点的请求
+           var nodeInfo =  await environment.CreateNodeAsync(canvasGuid,  nodeControlType, position, mdInfo); // 监听到客户端创建节点的请求
             return nodeInfo;
         }
 
@@ -333,9 +349,9 @@ namespace Serein.NodeFlow.Env
         /// <param name="nodeGuid"></param>
         /// <exception cref="NotImplementedException"></exception>
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.RemoveNode)]
-        public async Task<object> RemoveNode(string nodeGuid)
+        public async Task<object> RemoveNode(string canvasGuid, string nodeGuid)
         {
-            var result = await environment.RemoveNodeAsync(nodeGuid);
+            var result = await environment.RemoveNodeAsync(canvasGuid, nodeGuid);
             return new { state = result };
         }
         /// <summary>
@@ -345,20 +361,21 @@ namespace Serein.NodeFlow.Env
         /// <param name="containerNodeGuid"></param>
         /// <exception cref="NotImplementedException"></exception>
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.PlaceNode)]
-        public async Task<object> PlaceNode(string nodeGuid, string containerNodeGuid)
+        public async Task<object> PlaceNode( string canvasGuid, string nodeGuid, string containerNodeGuid)
         {
-            var result = await environment.PlaceNodeToContainerAsync(nodeGuid, containerNodeGuid);
+            var result = await environment.PlaceNodeToContainerAsync(canvasGuid,nodeGuid, containerNodeGuid);
             return new { state = result };
         }
+
         /// <summary>
         /// 远程从远程环境移除节点
         /// </summary>
         /// <param name="nodeGuid"></param>
         /// <exception cref="NotImplementedException"></exception>
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.TakeOutNode)]
-        public async Task<object> TakeOutNode(string nodeGuid)
+        public async Task<object> TakeOutNode(string canvasGuid, string nodeGuid)
         {
-            var result = await environment.TakeOutNodeToContainerAsync(nodeGuid);
+            var result = await environment.TakeOutNodeToContainerAsync(canvasGuid, nodeGuid);
             return new { state = result };
         }
 
@@ -366,13 +383,15 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// 远程连接节点的方法调用关系
         /// </summary>
+        /// <param name="canvasGuid">画布</param>
         /// <param name="fromNodeGuid">起始节点</param>
         /// <param name="toNodeGuid">目标节点</param>
         /// <param name="fromJunctionType">起始节点控制点</param>
         /// <param name="toJunctionType">目标节点控制点</param>
         /// <param name="invokeType">连接关系</param>
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.ConnectInvokeNode)]
-        public async Task<object> ConnectInvokeNode(string fromNodeGuid, 
+        public async Task<object> ConnectInvokeNode(string canvasGuid,
+                                                    string fromNodeGuid, 
                                                     string toNodeGuid, 
                                                     string fromJunctionType,
                                                     string toJunctionType,
@@ -422,7 +441,7 @@ namespace Serein.NodeFlow.Env
             SereinEnv.WriteLine(InfoType.INFO, $"目标节点：{toNodeGuid}");
             SereinEnv.WriteLine(InfoType.INFO, $"链接请求：{(tmpFromJunctionType, tmpToJunctionType)}");
 
-            var result = await environment.ConnectInvokeNodeAsync(fromNodeGuid, toNodeGuid, tmpFromJunctionType, tmpToJunctionType, tmpConnectionType);
+            var result = await environment.ConnectInvokeNodeAsync(canvasGuid, fromNodeGuid, toNodeGuid, tmpFromJunctionType, tmpToJunctionType, tmpConnectionType);
             return new { state = result };
         }
 
@@ -433,7 +452,7 @@ namespace Serein.NodeFlow.Env
         /// <param name="toNodeGuid">目标节点Guid</param>
         /// <param name="invokeType">连接关系</param>
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.RemoveInvokeConnect)]
-        public async Task<object> RemoveInvokeConnect(string fromNodeGuid, string toNodeGuid, string invokeType)
+        public async Task<object> RemoveInvokeConnect(string canvasGuid, string fromNodeGuid, string toNodeGuid, string invokeType)
         {
             if (!EnumHelper.TryConvertEnum<ConnectionInvokeType>(invokeType, out var tmpConnectionType))
             {
@@ -442,10 +461,11 @@ namespace Serein.NodeFlow.Env
                     state = false
                 };
             }
-            var result = await environment.RemoveConnectInvokeAsync(fromNodeGuid, toNodeGuid, tmpConnectionType);
+            var result = await environment.RemoveConnectInvokeAsync(canvasGuid,fromNodeGuid, toNodeGuid, tmpConnectionType);
             return new { state = result };
         }
 
+        
 
         /// <summary>
         /// 远程连接节点的参数传递关系
@@ -457,7 +477,8 @@ namespace Serein.NodeFlow.Env
         /// <param name="argSourceType">入参参数来源类型</param>
         /// <param name="argIndex">第几个参数</param>
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.ConnectArgSourceNode)]
-        public async Task<object> ConnectArgSourceNode(string fromNodeGuid,
+        public async Task<object> ConnectArgSourceNode(string canvasGuid, 
+                                                       string fromNodeGuid,
                                                        string toNodeGuid,
                                                        string fromJunctionType,
                                                        string toJunctionType,
@@ -511,7 +532,7 @@ namespace Serein.NodeFlow.Env
             }
 
             // 调用环境接口进行连接
-            var result = await environment.ConnectArgSourceNodeAsync(fromNodeGuid, toNodeGuid, tmpFromJunctionType, tmpToJunctionType, tmpArgSourceType, argIndex);
+            var result = await environment.ConnectArgSourceNodeAsync(canvasGuid, fromNodeGuid, toNodeGuid, tmpFromJunctionType, tmpToJunctionType, tmpArgSourceType, argIndex);
             return new { state = result };
         }
 
@@ -522,11 +543,11 @@ namespace Serein.NodeFlow.Env
         /// <param name="toNodeGuid">目标节点Guid</param>
         /// <param name="argIndex">目标节点的第几个参数</param>
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.RemoveArgSourceConnect)]
-        public async Task<object> RemoveArgSourceConnect(string fromNodeGuid, string toNodeGuid, int argIndex)
+        public async Task<object> RemoveArgSourceConnect(string canvasGuid, string fromNodeGuid, string toNodeGuid, int argIndex)
         {
 
 
-            var result = await environment.RemoveConnectArgSourceAsync(fromNodeGuid, toNodeGuid, argIndex);
+            var result = await environment.RemoveConnectArgSourceAsync(canvasGuid,fromNodeGuid, toNodeGuid, argIndex);
             return new
             {
                 state = result
@@ -540,9 +561,9 @@ namespace Serein.NodeFlow.Env
         /// <param name="x"></param>
         /// <param name="y"></param>
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.MoveNode)]
-        public void MoveNode(string nodeGuid, double x, double y)
+        public void MoveNode(string canvasGuid, string nodeGuid, double x, double y)
         {
-            environment.MoveNode(nodeGuid, x, y);
+            environment.MoveNode(canvasGuid, nodeGuid, x, y);
         }
 
         /// <summary>
@@ -550,9 +571,9 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         /// <param name="nodeGuid"></param>
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.SetStartNode)]
-        public async Task<string> SetStartNode([NotNull]string nodeGuid)
+        public async Task<string> SetStartNode(string canvasGuid, [NotNull]string nodeGuid)
         {
-            return await environment.SetStartNodeAsync(nodeGuid);
+            return await environment.SetStartNodeAsync(canvasGuid, nodeGuid);
         }
 
 

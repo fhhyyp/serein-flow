@@ -3,9 +3,10 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:Serein.Workbench"
              xmlns:view="clr-namespace:Serein.Workbench.Views"
-             StartupUri="MainWindow.xaml"
+             StartupUri="Views/FlowWorkbenchView.xaml"
              Startup="Application_Startup">
     <!--StartupUri="Views/FlowWorkbenchView.xaml"-->
+    <!--StartupUri="MainWindow.xaml"-->
 
     <Application.Resources>
         <ResourceDictionary>

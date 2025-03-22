@@ -132,7 +132,6 @@ namespace Serein.NodeFlow.Env
 
 
 
-
         /// <summary>
         /// 从某个节点开始运行
         /// </summary>
@@ -162,6 +161,18 @@ namespace Serein.NodeFlow.Env
         public void AddInterruptExpression([UseMsgId] string msgId)
         {
             _ = remoteFlowEnvironment.InvokeTriggerAsync<object>(msgId, null);
+        }
+
+        [AutoSocketHandle(ThemeValue = EnvMsgTheme.CreateCanvas, IsReturnValue = false)]
+        public void CreateCanvas([UseMsgId] string msgId, [UseData] FlowCanvasInfo canvasInfo)
+        {
+            _ = remoteFlowEnvironment.InvokeTriggerAsync(msgId, canvasInfo);
+        }
+
+        [AutoSocketHandle(ThemeValue = EnvMsgTheme.RemoveCanvas, IsReturnValue = false)]
+        public void RemoveCanvas([UseMsgId] string msgId, [UseData] bool state)
+        {
+            _ = remoteFlowEnvironment.InvokeTriggerAsync(msgId, state);
         }
 
 

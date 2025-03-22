@@ -35,6 +35,14 @@ namespace Serein.Library
         [PropertyInfo(IsProtection = true)]
         private NodeControlType _controlType;
 
+
+        /// <summary>
+        /// 所属画布
+        /// </summary>
+        [PropertyInfo(IsProtection = true)] 
+        private string _canvasGuid ;
+        
+
         /// <summary>
         /// 在画布中的位置
         /// </summary>

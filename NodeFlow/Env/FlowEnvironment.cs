@@ -1,5 +1,6 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
+using Serein.Library.FlowNode;
 using Serein.Library.Utils;
 using Serein.Library.Utils.SereinExpression;
 using Serein.NodeFlow.Model;
@@ -201,6 +202,16 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         public event EnvOutHandler? OnEnvOut;
 
+        /// <summary>
+        /// 本地环境添加了画布
+        /// </summary>
+        public event CanvasCreateHandler OnCanvasCreate;
+
+        /// <summary>
+        /// 本地环境移除了画布
+        /// </summary>
+        public event CanvasRemoveHandler OnCanvasRemove;
+
         #endregion
 
         #region 属性
@@ -271,40 +282,6 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         private readonly FlowLibraryManagement FlowLibraryManagement;
 
-#if false
-
-        /// <summary>
-        /// Library 与 MethodDetailss的依赖关系
-        /// </summary>
-        public ConcurrentDictionary<NodeLibraryInfo, List<MethodDetails>> MethodDetailsOfLibraryInfos { get; } = [];
-
-
-        /// <summary>
-        /// <para>存储已加载的程序集</para>
-        /// <para>Key：程序集的FullName </para>
-        /// <para>Value：构造的方法信息</para>
-        /// </summary>
-        public ConcurrentDictionary<string, NodeLibraryInfo> LibraryInfos { get; } = [];
-
-        /// <summary>
-        /// <para>存储已加载的方法信息。描述所有DLL中NodeAction特性的方法的原始副本</para>
-        /// <para>Key：反射时获取的MethodInfo.MehtodName</para>
-        /// <para>Value：构造的方法信息</para>
-        /// </summary>
-        public ConcurrentDictionary<string, MethodDetails> MethodDetailss { get; } = [];
-
-        /// <summary>
-        /// 从dll中加载的类的注册类型
-        /// </summary>
-        private Dictionary<RegisterSequence, List<Type>> AutoRegisterTypes { get; } = [];
-
-        /// <summary>
-        /// 存放所有通过Emit加载的委托
-        /// md.Methodname - delegate
-        /// </summary>
-        private ConcurrentDictionary<string, DelegateDetails> MethodDelegates { get; } = []; 
-#endif
-
         /// <summary>
         /// IOC对象容器管理
         /// </summary>
@@ -320,6 +297,11 @@ namespace Serein.NodeFlow.Env
         /// Node Guid - Node Model
         /// </summary>
         private Dictionary<string, NodeModelBase> NodeModels { get; } = [];
+
+        /// <summary>
+        /// 运行环境加载的画布集合
+        /// </summary>
+        private Dictionary<string, FlowCanvasModel> FlowCanvass { get; } = [];
 
         /// <summary>
         /// 存放触发器节点（运行时全部调用）
@@ -382,7 +364,6 @@ namespace Serein.NodeFlow.Env
             
         }
 
-        
         /// <summary>
         /// 异步运行
         /// </summary>
@@ -581,7 +562,7 @@ namespace Serein.NodeFlow.Env
             _ = Task.Run( async () =>
             {
                 await LoadNodeInfosAsync(projectData.Nodes.ToList()); // 加载节点信息
-                await SetStartNodeAsync(projectData.StartNode); // 设置起始节点
+                await SetStartNodeAsync("", projectData.StartNode); // 设置起始节点
             });
 
         }
@@ -786,7 +767,46 @@ namespace Serein.NodeFlow.Env
             //}
         }
 
- 
+        /// <summary>
+        /// 增加画布
+        /// </summary>
+        /// <param name="canvasName">画布名称</param>
+        /// <param name="width">宽度</param>
+        /// <param name="height">高度</param>
+        /// <returns></returns>
+        public Task<FlowCanvasInfo> CreateCanvasAsync(string canvasName, int width, int height)
+        {
+            var model = new FlowCanvasModel(this)
+            {
+                Guid = Guid.NewGuid().ToString(),
+                Height = height,
+                Name = canvasName,
+                Width = height,
+            };
+            var info = model.ToInfo();
+            FlowCanvass.Add(model.Guid, model);
+            OnCanvasCreate.Invoke(new CanvasCreateEventArgs(info));
+            return Task.FromResult(info);
+        }
+
+        /// <summary>
+        /// 删除画布
+        /// </summary>
+        /// <param name="canvasGuid">画布Guid</param>
+        /// <returns></returns>
+        public Task<bool> RemoteCanvasAsync(string canvasGuid)
+        {
+
+            if (!FlowCanvass.TryGetValue(canvasGuid, out var model))
+            {
+                return Task.FromResult(false);
+            }
+            var count = NodeModels.Values.Count(node => node.CanvasGuid.Equals(canvasGuid));
+            return Task.FromResult(count == 0);
+        }
+
+
+
         /// <summary>
         /// 从节点信息集合批量加载节点控件
         /// </summary>
@@ -827,7 +847,7 @@ namespace Serein.NodeFlow.Env
                 TryAddNode(nodeModel); // 加载项目时将节点加载到环境中
                 
                 await UIContextOperation.InvokeAsync(() => 
-                    OnNodeCreate?.Invoke(new NodeCreateEventArgs(nodeModel, nodeInfo.Position))); // 添加到UI上
+                    OnNodeCreate?.Invoke(new NodeCreateEventArgs(nodeInfo.CanvasGuid, nodeModel, nodeInfo.Position))); // 添加到UI上
             }
             #endregion
 
@@ -853,7 +873,7 @@ namespace Serein.NodeFlow.Env
                     if (result)
                     {
                         await UIContextOperation.InvokeAsync(() => OnNodePlace?.Invoke(
-                            new NodePlaceEventArgs(nodeModel.Guid, containerNode.Guid)));
+                            new NodePlaceEventArgs(nodeInfo.CanvasGuid, nodeModel.Guid, containerNode.Guid)));
                     }
                     
 
@@ -864,6 +884,7 @@ namespace Serein.NodeFlow.Env
             #region 确定节点之间的方法调用关系
             foreach (var nodeInfo in nodeInfos)
             {
+                var canvasGuid = nodeInfo.CanvasGuid;
                 if (!TryGetNodeModel(nodeInfo.Guid, out var fromNodeModel))
                 {
                     return;
@@ -886,7 +907,7 @@ namespace Serein.NodeFlow.Env
                             // 防御性代码，加载正常保存的项目文件不会进入这里
                             continue;
                         };
-                        var isSuccessful = ConnectInvokeOfNode(fromNodeModel, toNodeModel, item.connectionType); // 加载时确定节点间的连接关系
+                        var isSuccessful = ConnectInvokeOfNode(canvasGuid, fromNodeModel, toNodeModel, item.connectionType); // 加载时确定节点间的连接关系
                     }
                 }
 
@@ -916,6 +937,7 @@ namespace Serein.NodeFlow.Env
             #region 确定节点之间的参数调用关系
             foreach (var toNode in NodeModels.Values)
             {
+                var canvasGuid = toNode.Guid;
                 if (toNode.MethodDetails.ParameterDetailss == null)
                 {
                     continue;
@@ -927,7 +949,7 @@ namespace Serein.NodeFlow.Env
                         && NodeModels.TryGetValue(pd.ArgDataSourceNodeGuid, out var fromNode))
                     {
 
-                        await ConnectArgSourceOfNodeAsync(fromNode, toNode, pd.ArgDataSourceType, pd.Index);
+                        await ConnectArgSourceOfNodeAsync(canvasGuid, fromNode, toNode, pd.ArgDataSourceType, pd.Index);
                     }
                 }
             }
@@ -945,14 +967,19 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// 流程正在运行时创建节点
         /// </summary>
-        /// <param name="nodeControlType"></param>
-        /// <param name="position"></param>
+        /// <param name="canvasGuid">所属画布</param>
+        /// <param name="nodeControlType">所属类型</param>
+        /// <param name="position">所处位置</param>
         /// <param name="methodDetailsInfo">如果是表达式节点条件节点，该项为null</param>
-        public Task<NodeInfo> CreateNodeAsync(NodeControlType nodeControlType, 
+        public Task<NodeInfo> CreateNodeAsync(string canvasGuid, 
+                                              NodeControlType nodeControlType, 
                                               PositionOfUI position,
                                               MethodDetailsInfo? methodDetailsInfo = null)
         {
-            
+            if (!FlowCanvass.ContainsKey(canvasGuid))
+            {
+                return Task.FromResult<NodeInfo>(null);
+            }
             NodeModelBase? nodeModel;
             if (methodDetailsInfo is null)
             {
@@ -976,13 +1003,13 @@ namespace Serein.NodeFlow.Env
             nodeModel.Position = position;
 
             // 通知UI更改
-            UIContextOperation?.Invoke(() => OnNodeCreate?.Invoke(new NodeCreateEventArgs(nodeModel, position)));
+            UIContextOperation?.Invoke(() => OnNodeCreate?.Invoke(new NodeCreateEventArgs(canvasGuid, nodeModel, position)));
 
             // 因为需要UI先布置了元素，才能通知UI变更特效
             // 如果不存在流程起始控件，默认设置为流程起始控件
             if (StartNode is null)
             {
-                SetStartNode(nodeModel);
+                SetStartNode(canvasGuid, nodeModel);
             }
             var nodeInfo = nodeModel.ToInfo();
             return Task.FromResult(nodeInfo);
@@ -993,8 +1020,13 @@ namespace Serein.NodeFlow.Env
         /// 将节点放置在容器中
         /// </summary>
         /// <returns></returns>
-        public Task<bool> PlaceNodeToContainerAsync(string nodeGuid, string containerNodeGuid)
+        public Task<bool> PlaceNodeToContainerAsync(string canvasGuid,
+                                              string nodeGuid, string containerNodeGuid)
         {
+            if (!FlowCanvass.ContainsKey(canvasGuid))
+            {
+                return Task.FromResult<bool>(false);
+            }
             // 获取目标节点与容器节点
             if (!TryGetNodeModel(nodeGuid, out var nodeModel))
             {
@@ -1017,7 +1049,7 @@ namespace Serein.NodeFlow.Env
             {
                 _ = UIContextOperation?.InvokeAsync(() =>
                 {
-                    OnNodePlace?.Invoke(new NodePlaceEventArgs(nodeGuid, containerNodeGuid)); // 通知UI更改节点放置位置
+                    OnNodePlace?.Invoke(new NodePlaceEventArgs(canvasGuid, nodeGuid, containerNodeGuid)); // 通知UI更改节点放置位置
                 });
             }
             return Task.FromResult(result);
@@ -1028,8 +1060,13 @@ namespace Serein.NodeFlow.Env
         /// 将节点从容器节点中脱离
         /// </summary>
         /// <returns></returns>
-        public Task<bool> TakeOutNodeToContainerAsync(string nodeGuid)
+        public Task<bool> TakeOutNodeToContainerAsync(string canvasGuid,
+                                              string nodeGuid)
         {
+            if (!FlowCanvass.ContainsKey(canvasGuid))
+            {
+                return Task.FromResult<bool>(false);
+            }
             // 获取目标节点与容器节点
             if (!TryGetNodeModel(nodeGuid, out var nodeModel))
             {
@@ -1044,7 +1081,7 @@ namespace Serein.NodeFlow.Env
             {
                 _ = UIContextOperation?.InvokeAsync(() =>
                 {
-                    OnNodeTakeOut?.Invoke(new NodeTakeOutEventArgs(nodeGuid)); // 重新放置在画布上
+                    OnNodeTakeOut?.Invoke(new NodeTakeOutEventArgs(canvasGuid, nodeGuid)); // 重新放置在画布上
                 });
             }
             return Task.FromResult(result);
@@ -1059,8 +1096,12 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         /// <param name="nodeGuid"></param>
         /// <exception cref="NotImplementedException"></exception>
-        public async Task<bool> RemoveNodeAsync(string nodeGuid)
+        public async Task<bool> RemoveNodeAsync(string canvasGuid, string nodeGuid)
         {
+            if (!FlowCanvass.ContainsKey(canvasGuid))
+            {
+                return false;
+            }
             if (!TryGetNodeModel(nodeGuid, out var remoteNode))
             {
                 return false;
@@ -1083,6 +1124,7 @@ namespace Serein.NodeFlow.Env
                     pNode.SuccessorNodes[pCType].Remove(remoteNode);
 
                     UIContextOperation?.Invoke(() => OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(
+                                                                    canvasGuid,
                                                                     pNode.Guid,
                                                                     remoteNode.Guid,
                                                                     JunctionOfConnectionType.Invoke,
@@ -1100,7 +1142,7 @@ namespace Serein.NodeFlow.Env
                 {
                     NodeModelBase? toNode = snc.Value[i];
 
-                    await RemoteConnectAsync(remoteNode, toNode, connectionType);
+                    await RemoteConnectAsync(canvasGuid, remoteNode, toNode, connectionType);
 
                 }
             }
@@ -1109,7 +1151,7 @@ namespace Serein.NodeFlow.Env
 
             // 从集合中移除节点
             NodeModels.Remove(nodeGuid);
-            UIContextOperation?.Invoke(() => OnNodeRemove?.Invoke(new NodeRemoveEventArgs(nodeGuid)));
+            UIContextOperation?.Invoke(() => OnNodeRemove?.Invoke(new NodeRemoveEventArgs(canvasGuid, nodeGuid)));
             return true;
         }
 
@@ -1121,15 +1163,16 @@ namespace Serein.NodeFlow.Env
         /// <param name="fromNodeJunctionType">起始节点控制点</param>
         /// <param name="toNodeJunctionType">目标节点控制点</param>
         /// <param name="invokeType">连接关系</param>
-        public Task<bool> ConnectInvokeNodeAsync(string fromNodeGuid,
+        public Task<bool> ConnectInvokeNodeAsync(string canvasGuid,
+                                                 string fromNodeGuid,
                                                  string toNodeGuid,
                                                  JunctionType fromNodeJunctionType,
                                                  JunctionType toNodeJunctionType,
                                                  ConnectionInvokeType invokeType)
         {
-
+   
             // 获取起始节点与目标节点
-            if (!TryGetNodeModel(fromNodeGuid, out var fromNode) || !TryGetNodeModel(toNodeGuid, out var toNode))
+            if (!FlowCanvass.ContainsKey(canvasGuid) || !TryGetNodeModel(fromNodeGuid, out var fromNode) || !TryGetNodeModel(toNodeGuid, out var toNode))
             {
                 return Task.FromResult(false);
             }
@@ -1150,7 +1193,7 @@ namespace Serein.NodeFlow.Env
                     (fromNode, toNode) = (toNode, fromNode);
                 }
                 // 从起始节点“下一个方法”控制点，连接到目标节点“方法调用”控制点
-                state = ConnectInvokeOfNode(fromNode, toNode, invokeType); // 本地环境进行连接
+                state = ConnectInvokeOfNode(canvasGuid, fromNode, toNode, invokeType); // 本地环境进行连接
             }
             return Task.FromResult(state); 
 
@@ -1192,16 +1235,16 @@ namespace Serein.NodeFlow.Env
         /// <param name="toNodeGuid">目标节点Guid</param>
         /// <param name="connectionType">连接关系</param>
         /// <exception cref="NotImplementedException"></exception>
-        public async Task<bool> RemoveConnectInvokeAsync(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
+        public async Task<bool> RemoveConnectInvokeAsync(string canvasGuid, string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
         {
             // 获取起始节点与目标节点
-            if (!TryGetNodeModel(fromNodeGuid, out var fromNode) || !TryGetNodeModel(toNodeGuid, out var toNode))
+            if (!FlowCanvass.ContainsKey(canvasGuid) || !TryGetNodeModel(fromNodeGuid, out var fromNode) || !TryGetNodeModel(toNodeGuid, out var toNode))
             {
                 return false;
             }
             if (fromNode is null || toNode is null) return false;
 
-            var result = await RemoteConnectAsync(fromNode, toNode, connectionType);
+            var result = await RemoteConnectAsync(canvasGuid, fromNode, toNode, connectionType);
             return result;
         }
 
@@ -1215,7 +1258,8 @@ namespace Serein.NodeFlow.Env
         /// <param name="argIndex">目标节点的第几个参数</param>
         /// <param name="connectionArgSourceType">调用目标节点对应方法时，对应参数来源类型</param>
         /// <returns></returns>
-        public async Task<bool> ConnectArgSourceNodeAsync(string fromNodeGuid,
+        public async Task<bool> ConnectArgSourceNodeAsync(string canvasGuid, 
+                                                string fromNodeGuid,
                                                  string toNodeGuid,
                                                  JunctionType fromNodeJunctionType,
                                                  JunctionType toNodeJunctionType,
@@ -1224,7 +1268,7 @@ namespace Serein.NodeFlow.Env
         {
 
             // 获取起始节点与目标节点
-            if (!TryGetNodeModel(fromNodeGuid, out var fromNode) || !TryGetNodeModel(toNodeGuid, out var toNode))
+            if (!FlowCanvass.ContainsKey(canvasGuid) || !TryGetNodeModel(fromNodeGuid, out var fromNode) || !TryGetNodeModel(toNodeGuid, out var toNode))
             {
                 return false;
             }
@@ -1246,7 +1290,7 @@ namespace Serein.NodeFlow.Env
                 }
 
                 // 确定方法入参关系
-                state = await ConnectArgSourceOfNodeAsync(fromNode, toNode, connectionArgSourceType, argIndex);  // 本地环境进行连接
+                state = await ConnectArgSourceOfNodeAsync(canvasGuid, fromNode, toNode, connectionArgSourceType, argIndex);  // 本地环境进行连接
             }
             return state;
 
@@ -1259,15 +1303,15 @@ namespace Serein.NodeFlow.Env
         /// <param name="fromNodeGuid">起始节点Guid</param>
         /// <param name="toNodeGuid">目标节点Guid</param>
         /// <param name="argIndex">连接到第几个参数</param>
-        public async Task<bool> RemoveConnectArgSourceAsync(string fromNodeGuid, string toNodeGuid, int argIndex)
+        public async Task<bool> RemoveConnectArgSourceAsync(string canvasGuid, string fromNodeGuid, string toNodeGuid, int argIndex)
         {
             // 获取起始节点与目标节点
-            if (!TryGetNodeModel(fromNodeGuid, out var fromNode) || !TryGetNodeModel(toNodeGuid, out var toNode))
+            if (!FlowCanvass.ContainsKey(canvasGuid) || !TryGetNodeModel(fromNodeGuid, out var fromNode) || !TryGetNodeModel(toNodeGuid, out var toNode))
             {
                 return false;
             }
             if (fromNode is null || toNode is null) return false;
-            var result = await RemoteConnectAsync(fromNode, toNode, argIndex);
+            var result = await RemoteConnectAsync(canvasGuid, fromNode, toNode, argIndex);
             return result;
         }
 
@@ -1328,9 +1372,9 @@ namespace Serein.NodeFlow.Env
         /// <param name="nodeGuid"></param>
         /// <param name="x"></param>
         /// <param name="y"></param>
-        public void MoveNode(string nodeGuid, double x, double y)
+        public void MoveNode(string canvasGuid, string nodeGuid, double x, double y)
         {
-            if (!TryGetNodeModel(nodeGuid, out var nodeModel))
+            if (!FlowCanvass.ContainsKey(canvasGuid) || !TryGetNodeModel(nodeGuid, out var nodeModel))
             {
                 return;
             }
@@ -1344,13 +1388,13 @@ namespace Serein.NodeFlow.Env
         /// 设置起点控件
         /// </summary>
         /// <param name="newNodeGuid"></param>
-        public Task<string> SetStartNodeAsync(string newNodeGuid)
+        public Task<string> SetStartNodeAsync(string canvasGuid, string newNodeGuid)
         {
-            if (!TryGetNodeModel(newNodeGuid, out var newStartNodeModel))
+            if (!FlowCanvass.ContainsKey(canvasGuid) || !TryGetNodeModel(newNodeGuid, out var newStartNodeModel))
             {
                 return Task.FromResult(StartNode?.Guid ?? string.Empty);
             }
-            SetStartNode(newStartNodeModel);
+            SetStartNode(canvasGuid, newStartNodeModel);
             return Task.FromResult(StartNode?.Guid ?? string.Empty);
         }
 
@@ -1483,7 +1527,6 @@ namespace Serein.NodeFlow.Env
 
         #endregion
 
-
         #region 流程依赖类库的接口
 
 
@@ -1580,21 +1623,27 @@ namespace Serein.NodeFlow.Env
         /// <param name="toNodeGuid">目标节点Model</param>
         /// <param name="connectionType">连接关系</param>
         /// <exception cref="NotImplementedException"></exception>
-        private async Task<bool> RemoteConnectAsync(NodeModelBase fromNode, NodeModelBase toNode, ConnectionInvokeType connectionType)
+        private async Task<bool> RemoteConnectAsync(string canvasGuid, NodeModelBase fromNode, NodeModelBase toNode, ConnectionInvokeType connectionType)
         {
+            if (!FlowCanvass.ContainsKey(canvasGuid))
+            {
+                return false;
+            }
             fromNode.SuccessorNodes[connectionType].Remove(toNode);
             toNode.PreviousNodes[connectionType].Remove(fromNode);
 
 
             if (OperatingSystem.IsWindows())
             {
-                await UIContextOperation.InvokeAsync(() => OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(
-                                                                          fromNode.Guid,
-                                                                          toNode.Guid,
-                                                                          JunctionOfConnectionType.Invoke,
-                                                                          connectionType,
-                                                                          NodeConnectChangeEventArgs.ConnectChangeType.Remove)));
-            }
+                await UIContextOperation.InvokeAsync(() => OnNodeConnectChange?.Invoke(
+                    new NodeConnectChangeEventArgs(
+                        canvasGuid,
+                        fromNode.Guid,
+                        toNode.Guid,
+                        JunctionOfConnectionType.Invoke,
+                        connectionType,
+                        NodeConnectChangeEventArgs.ConnectChangeType.Remove)));
+                    }
             return true;
         }
          /// <summary>
@@ -1604,8 +1653,12 @@ namespace Serein.NodeFlow.Env
         /// <param name="toNodeGuid">目标节点Model</param>
         /// <param name="connectionType">连接关系</param>
         /// <exception cref="NotImplementedException"></exception>
-        private async Task<bool> RemoteConnectAsync(NodeModelBase fromNode, NodeModelBase toNode, int argIndex)
+        private async Task<bool> RemoteConnectAsync(string canvasGuid, NodeModelBase fromNode, NodeModelBase toNode, int argIndex)
         {
+            if (!FlowCanvass.ContainsKey(canvasGuid))
+            {
+                return false;
+            }
             if (string.IsNullOrEmpty(toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceNodeGuid))
             {
                 return false;
@@ -1615,14 +1668,16 @@ namespace Serein.NodeFlow.Env
 
             if (OperatingSystem.IsWindows())
             {
-                await UIContextOperation.InvokeAsync(() => OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(
-                                                                          fromNode.Guid,
-                                                                          toNode.Guid,
-                                                                          JunctionOfConnectionType.Arg,
-                                                                          argIndex,
-                                                                          ConnectionArgSourceType.GetPreviousNodeData,
-                                                                          NodeConnectChangeEventArgs.ConnectChangeType.Remove)));
-            }
+                await UIContextOperation.InvokeAsync(() => OnNodeConnectChange?.Invoke(
+                    new NodeConnectChangeEventArgs(
+                        canvasGuid,                                             
+                        fromNode.Guid,
+                        toNode.Guid,
+                        JunctionOfConnectionType.Arg,
+                        argIndex,
+                        ConnectionArgSourceType.GetPreviousNodeData,
+                        NodeConnectChangeEventArgs.ConnectChangeType.Remove)));
+                    }
             return true;
         }
 
@@ -1721,8 +1776,12 @@ namespace Serein.NodeFlow.Env
         /// <param name="fromNode">起始节点</param>
         /// <param name="toNode">目标节点</param>
         /// <param name="invokeType">连接关系</param>
-        private bool ConnectInvokeOfNode(NodeModelBase fromNode, NodeModelBase toNode, ConnectionInvokeType invokeType)
+        private bool ConnectInvokeOfNode(string canvasGuid, NodeModelBase fromNode, NodeModelBase toNode, ConnectionInvokeType invokeType)
         {
+            if (!FlowCanvass.ContainsKey(canvasGuid))
+            {
+                return false;
+            }
             if (fromNode is null || toNode is null || fromNode == toNode)
             {
                 return false;
@@ -1783,6 +1842,7 @@ namespace Serein.NodeFlow.Env
                     UIContextOperation?.Invoke(() => 
                         OnNodeConnectChange?.Invoke(
                                 new NodeConnectChangeEventArgs(
+                                     canvasGuid,
                                     fromNode.Guid, // 从哪个节点开始
                                     toNode.Guid, // 连接到那个节点
                                     JunctionOfConnectionType.Invoke, 
@@ -1810,21 +1870,28 @@ namespace Serein.NodeFlow.Env
         /// <param name="connectionArgSourceType"></param>
         /// <param name="argIndex"></param>
         /// <returns></returns>
-        private async Task<bool> ConnectArgSourceOfNodeAsync(NodeModelBase fromNode,
+        private async Task<bool> ConnectArgSourceOfNodeAsync(string canvasGuid,
+                                                            NodeModelBase fromNode,
                                                              NodeModelBase toNode,
                                                              ConnectionArgSourceType connectionArgSourceType,
                                                              int argIndex)
         {
+            if (!FlowCanvass.ContainsKey(canvasGuid))
+            {
+                return false;
+            }
+
             var toNodeArgSourceGuid = toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceNodeGuid;
             if (!string.IsNullOrEmpty(toNodeArgSourceGuid))
             {
-                await RemoteConnectAsync(fromNode, toNode, argIndex);
+                await RemoteConnectAsync(canvasGuid, fromNode, toNode, argIndex);
             }
             toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceNodeGuid = fromNode.Guid;
             toNode.MethodDetails.ParameterDetailss[argIndex].ArgDataSourceType = connectionArgSourceType;
             await UIContextOperation.InvokeAsync(() =>
                         OnNodeConnectChange?.Invoke(
                                 new NodeConnectChangeEventArgs(
+                                    canvasGuid,
                                     fromNode.Guid, // 从哪个节点开始
                                     toNode.Guid, // 连接到那个节点
                                     JunctionOfConnectionType.Arg,
@@ -1841,11 +1908,15 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         /// <param name="newStartNode"></param>
         /// <param name="oldStartNode"></param>
-        private void SetStartNode(NodeModelBase newStartNode)
+        private void SetStartNode(string canvasGuid, NodeModelBase newStartNode)
         {
+            if (!FlowCanvass.ContainsKey(canvasGuid))
+            {
+                return;
+            }
             var oldNodeGuid = StartNode?.Guid;
             StartNode = newStartNode;
-            UIContextOperation?.Invoke(() => OnStartNodeChange?.Invoke(new StartNodeChangeEventArgs(oldNodeGuid, StartNode.Guid)));
+            UIContextOperation?.Invoke(() => OnStartNodeChange?.Invoke(new StartNodeChangeEventArgs(canvasGuid, oldNodeGuid, StartNode.Guid)));
 
             //if (OperatingSystem.IsWindows())
             //{

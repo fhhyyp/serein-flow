@@ -39,7 +39,7 @@ namespace Serein.Workbench
         {
             collection.AddSingleton<IFlowEEForwardingService, FlowEEForwardingService>(); // 流程事件管理
             collection.AddSingleton<IWorkbenchEventService, WorkbenchEventService>(); // 流程事件管理
-            collection.AddSingleton<INodeOperationService, NodeOperationService>(); // 节点操作管理
+            collection.AddSingleton<NodeControlService>(); // 节点操作管理
             // collection.AddSingleton<IKeyEventService, KeyEventService>(); // 按键事件管理
                                                                           //collection.AddSingleton<FlowNodeControlService>(); // 流程节点控件管理
         }
@@ -90,19 +90,20 @@ namespace Serein.Workbench
 
         public App()
         {
-            _ = Task.Run(async () =>
-            {
-                await Task.Delay(500);
-                await this.LoadLocalProjectAsync();
-            });
-            return;
+            
             var collection = new ServiceCollection();
             collection.AddWorkbenchServices();
             collection.AddFlowServices();
             collection.AddViewModelServices();
             var services = collection.BuildServiceProvider(); // 绑定并返回获取实例的服务接口
             App.ServiceProvider = services;
-            
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(500);
+                await this.LoadLocalProjectAsync();
+                App.GetService<IFlowEnvironment>().LoadProject(new FlowEnvInfo { Project = App.FlowProjectData }, App.FileDataPath);
+
+            });
         }
 
 
@@ -124,7 +125,6 @@ namespace Serein.Workbench
                 App.FileDataPath = System.IO.Path.GetDirectoryName(filePath)!;   //  filePath;//
                 var dir = Path.GetDirectoryName(filePath);
 
-                //App.GetService<IFlowEnvironment>().LoadProject(new FlowEnvInfo { Project = App.FlowProjectData },App.FileDataPath);
             }
 #endif
         }

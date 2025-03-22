@@ -87,7 +87,7 @@ namespace Serein.Library
         /// 画布
         /// </summary>
 
-        public FlowCanvas Canvas { get; set; }
+        public FlowCanvasInfo Canvas { get; set; }
 
         /// <summary>
         /// 版本
@@ -98,8 +98,12 @@ namespace Serein.Library
     /// <summary>
     /// 画布信息，项目文件相关
     /// </summary>
-    public class FlowCanvas
+    public class FlowCanvasInfo
     {
+        public string Guid { get; set; }
+
+        public string Name { get; set; }
+
         /// <summary>
         /// 宽度
         /// </summary>
@@ -178,6 +182,12 @@ namespace Serein.Library
     /// </summary>
     public class NodeInfo
     {
+        /// <summary>
+        /// 所属画布Guid
+        /// </summary>
+        public string CanvasGuid { get; set; }  
+
+
         /// <summary>
         /// 节点的GUID
         /// </summary>

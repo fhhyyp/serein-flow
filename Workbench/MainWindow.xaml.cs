@@ -356,7 +356,7 @@ namespace Serein.Workbench
 
             projectData.Basic = new Basic
             {
-                Canvas = new FlowCanvas
+                Canvas = new FlowCanvasInfo
                 {
                     Height = FlowChartCanvas.Height,
                     Width = FlowChartCanvas.Width,
@@ -763,9 +763,11 @@ namespace Serein.Workbench
             NodeControls.TryAdd(nodeModel.Guid, nodeControl); // 添加到
             if (TryPlaceNodeInRegion(nodeControl, position, out var regionControl)) // 判断添加到区域容器
             {
+                var canvasGuid = nodeControl.ViewModel.NodeModel.CanvasGuid;
                 // 通知运行环境调用加载节点子项的方法
-                _ = EnvDecorator.PlaceNodeToContainerAsync(nodeControl.ViewModel.NodeModel.Guid, // 待移动的节点
-                                                       regionControl.ViewModel.NodeModel.Guid); // 目标的容器节点
+                _ = EnvDecorator.PlaceNodeToContainerAsync(canvasGuid,
+                                                        nodeControl.ViewModel.NodeModel.Guid, // 待移动的节点
+                                                        regionControl.ViewModel.NodeModel.Guid); // 目标的容器节点
             }
             else
             {
@@ -1148,7 +1150,7 @@ namespace Serein.Workbench
         /// </param>
         private void ConfigureContextMenu(NodeControlBase nodeControl)
         {
-            
+            var canvasGuid = nodeControl.ViewModel.NodeModel.CanvasGuid;
             var contextMenu = new ContextMenu();
             var nodeGuid = nodeControl.ViewModel?.NodeModel?.Guid;
             #region 触发器节点
@@ -1187,10 +1189,10 @@ namespace Serein.Workbench
 
             
            
-            contextMenu.Items.Add(CreateMenuItem("设为起点", (s, e) => EnvDecorator.SetStartNodeAsync(nodeGuid)));
+            contextMenu.Items.Add(CreateMenuItem("设为起点", (s, e) => EnvDecorator.SetStartNodeAsync(canvasGuid, nodeGuid)));
             contextMenu.Items.Add(CreateMenuItem("删除", async (s, e) =>
             {
-                var result = await EnvDecorator.RemoveNodeAsync(nodeGuid);
+                var result = await EnvDecorator.RemoveNodeAsync(canvasGuid, nodeGuid);
             }));
 
             #region 右键菜单功能 - 控件对齐
@@ -1407,7 +1409,8 @@ namespace Serein.Workbench
                     {
                         Task.Run(async () =>
                         {
-                            await EnvDecorator.CreateNodeAsync(nodeData.NodeControlType, position, nodeData.MethodDetailsInfo); // 创建DLL文件的节点对象
+                            
+                            await EnvDecorator.CreateNodeAsync("MainCanvas", nodeData.NodeControlType, position, nodeData.MethodDetailsInfo); // 创建DLL文件的节点对象
                         });
                     }
                 }
@@ -1429,7 +1432,7 @@ namespace Serein.Workbench
                         {
                             Task.Run(async () =>
                             {
-                                await EnvDecorator.CreateNodeAsync(nodeControlType, position); // 创建基础节点对象
+                                await EnvDecorator.CreateNodeAsync("MainCanvas", nodeControlType, position); // 创建基础节点对象
                             });
                         }
                     }
@@ -1580,7 +1583,7 @@ namespace Serein.Workbench
                     var newLeft = oldLeft + deltaX;
                     var newTop = oldTop + deltaY;
 
-                    this.EnvDecorator.MoveNode(nodeControlMain.ViewModel.NodeModel.Guid, newLeft, newTop); // 移动节点
+                    this.EnvDecorator.MoveNode("MainCanvas", nodeControlMain.ViewModel.NodeModel.Guid, newLeft, newTop); // 移动节点
 
                     // 计算控件实际移动的距离
                     var actualDeltaX = newLeft - oldLeft;
@@ -1593,7 +1596,7 @@ namespace Serein.Workbench
                         {
                             var otherNewLeft = Canvas.GetLeft(nodeControl) + actualDeltaX;
                             var otherNewTop = Canvas.GetTop(nodeControl) + actualDeltaY;
-                            this.EnvDecorator.MoveNode(nodeControl.ViewModel.NodeModel.Guid, otherNewLeft, otherNewTop); // 移动节点
+                            this.EnvDecorator.MoveNode("MainCanvas", nodeControl.ViewModel.NodeModel.Guid, otherNewLeft, otherNewTop); // 移动节点
                         }
                     }
 
@@ -1613,7 +1616,7 @@ namespace Serein.Workbench
                     double deltaY = currentPosition.Y - startControlDragPoint.Y; // 计算Y轴方向的偏移量
                     double newLeft = Canvas.GetLeft(nodeControl) + deltaX; // 新的左边距
                     double newTop = Canvas.GetTop(nodeControl) + deltaY; // 新的上边距
-                    this.EnvDecorator.MoveNode(nodeControl.ViewModel.NodeModel.Guid, newLeft, newTop); // 移动节点
+                    this.EnvDecorator.MoveNode("MainCanvas", nodeControl.ViewModel.NodeModel.Guid, newLeft, newTop); // 移动节点
                     nodeControl.UpdateLocationConnections();
                 }
                 startControlDragPoint = currentPosition; // 更新起始点位置
@@ -1975,7 +1978,9 @@ namespace Serein.Workbench
                         #region 方法调用关系创建
                         if (myData.Type == JunctionOfConnectionType.Invoke)
                         {
-                            await EnvDecorator.ConnectInvokeNodeAsync(myData.StartJunction.MyNode.Guid, myData.CurrentJunction.MyNode.Guid,
+                            await EnvDecorator.ConnectInvokeNodeAsync(
+                                "MainCanvas", 
+                                    myData.StartJunction.MyNode.Guid, myData.CurrentJunction.MyNode.Guid,
                                         myData.StartJunction.JunctionType,
                                         myData.CurrentJunction.JunctionType,
                                         myData.ConnectionInvokeType);
@@ -1995,7 +2000,9 @@ namespace Serein.Workbench
                                 argIndex = argJunction2.ArgIndex;
                             }
 
-                            await EnvDecorator.ConnectArgSourceNodeAsync(myData.StartJunction.MyNode.Guid, myData.CurrentJunction.MyNode.Guid,
+                            await EnvDecorator.ConnectArgSourceNodeAsync(
+                                "MainCanvas", 
+                                myData.StartJunction.MyNode.Guid, myData.CurrentJunction.MyNode.Guid,
                                     myData.StartJunction.JunctionType,
                                     myData.CurrentJunction.JunctionType,
                                     myData.ConnectionArgSourceType,
@@ -2060,7 +2067,7 @@ namespace Serein.Workbench
                         var guid = node?.ViewModel?.NodeModel?.Guid;
                         if (!string.IsNullOrEmpty(guid))
                         {
-                            EnvDecorator.RemoveNodeAsync(guid);
+                            EnvDecorator.RemoveNodeAsync("MainCanvas", guid);
                         }
                     }
                 }

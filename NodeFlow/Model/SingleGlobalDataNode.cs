@@ -96,7 +96,7 @@ namespace Serein.NodeFlow.Model
         {
             foreach (var nodeModel in ChildrenNode) 
             {
-                await nodeModel.Env.TakeOutNodeToContainerAsync(nodeModel.Guid);
+                await nodeModel.Env.TakeOutNodeToContainerAsync(nodeModel.CanvasGuid, nodeModel.Guid);
             }
             DataNode = null;
         }
@@ -174,8 +174,11 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         public override void Remove()
         {
+            if (DataNode is null) {
+                return;
+            }
             // 移除数据节点
-            _ = this.Env.RemoveNodeAsync(DataNode?.Guid);
+            _ = this.Env.RemoveNodeAsync(DataNode.CanvasGuid, DataNode.Guid);
         }
 
     }

@@ -7,14 +7,52 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace Serein.Library
 {
     /// <summary>
     /// 节点方法拓展
     /// </summary>
-    public static class NodeModelExtension
+    public static class FlowModelExtension
     {
+        /// <summary>
+        /// 导出为画布信息
+        /// </summary>
+        /// <param name="model"></param>
+        /// <returns></returns>
+        public static FlowCanvasInfo ToInfo(this FlowCanvasModel model)
+        {
+            return new FlowCanvasInfo
+            {
+                Guid = model.Guid,
+                Height = model.Height,
+                Width = model.Width,
+                Name = model.Name,
+                ScaleX = model.ScaleX,
+                ScaleY = model.ScaleY,
+                ViewX = model.ViewX,
+                ViewY = model.ViewY,
+            };
+        }
+
+        /// <summary>
+        /// 从画布信息加载
+        /// </summary>
+        /// <param name="model"></param>
+        /// <param name="info"></param>
+        public static void LoadInfo(this FlowCanvasModel model, FlowCanvasInfo info)
+        {
+            model.Guid = info.Guid;
+            model.Height = info.Height;
+            model.Width = info.Width;
+            model.Name = info.Name;
+            model.ScaleX = info.ScaleX;
+            model.ScaleY = info.ScaleY;
+            model.ViewX = info.ViewX;
+            model.ViewY = info.ViewY;
+        }
+
         /// <summary>
         /// 输出方法参数信息
         /// </summary>

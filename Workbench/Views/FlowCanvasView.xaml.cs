@@ -71,19 +71,6 @@ namespace Serein.Workbench.Views
         private Point startSelectControolPoint;
 
 
-        /// <summary>
-        /// 记录开始连接的文本块
-        /// </summary>
-        //private NodeControlBase? startConnectNodeControl;
-        /// <summary>
-        /// 当前正在绘制的连接线
-        /// </summary>
-        //private Line? currentLine;
-        /// <summary>
-        /// 当前正在绘制的真假分支属性
-        /// </summary>
-        //private ConnectionInvokeType currentConnectionType;
-
 
         /// <summary>
         /// 组合变换容器
@@ -103,9 +90,8 @@ namespace Serein.Workbench.Views
         public FlowCanvasView()
         {
             ViewModel = App.GetService<Locator>().FlowCanvasViewModel;
-
+            this.DataContext = ViewModel;
             EnvDecorator =  App.GetService<IFlowEnvironment>();
-
             InitializeComponent();
 
             #region 缩放平移容器
@@ -185,7 +171,6 @@ namespace Serein.Workbench.Views
             }
         }
 
-
         /// <summary>
         /// 放置操作，根据拖放数据创建相应的控件，并处理相关操作
         /// </summary>
@@ -201,9 +186,10 @@ namespace Serein.Workbench.Views
                 {
                     if (e.Data.GetData(MouseNodeType.CreateDllNodeInCanvas) is MoveNodeData nodeData)
                     {
+                        var canvasGuid = this.ViewModel.CanvasGuid;
                         Task.Run(async () =>
                         {
-                            await EnvDecorator.CreateNodeAsync(nodeData.NodeControlType, position, nodeData.MethodDetailsInfo); // 创建DLL文件的节点对象
+                            await EnvDecorator.CreateNodeAsync(canvasGuid, nodeData.NodeControlType, position, nodeData.MethodDetailsInfo); // 创建DLL文件的节点对象
                         });
                     }
                 }
@@ -223,9 +209,10 @@ namespace Serein.Workbench.Views
                         };
                         if (nodeControlType != NodeControlType.None)
                         {
+                            var canvasGuid = this.ViewModel.CanvasGuid;
                             Task.Run(async () =>
                             {
-                                await EnvDecorator.CreateNodeAsync(nodeControlType, position); // 创建基础节点对象
+                                await EnvDecorator.CreateNodeAsync(canvasGuid, nodeControlType, position); // 创建基础节点对象
                             });
                         }
                     }
@@ -256,11 +243,6 @@ namespace Serein.Workbench.Views
             }
             e.Handled = true;
         }
-
-
-
-
-
 
         /// <summary>
         /// 在画布中尝试选取控件
@@ -340,7 +322,12 @@ namespace Serein.Workbench.Views
                         #region 方法调用关系创建
                         if (myData.Type == JunctionOfConnectionType.Invoke)
                         {
-                            await EnvDecorator.ConnectInvokeNodeAsync(myData.StartJunction.MyNode.Guid, myData.CurrentJunction.MyNode.Guid,
+                            var canvasGuid = this.ViewModel.CanvasGuid;
+
+                            await EnvDecorator.ConnectInvokeNodeAsync(
+                                        canvasGuid,
+                                        myData.StartJunction.MyNode.Guid, 
+                                        myData.CurrentJunction.MyNode.Guid,
                                         myData.StartJunction.JunctionType,
                                         myData.CurrentJunction.JunctionType,
                                         myData.ConnectionInvokeType);
@@ -359,8 +346,12 @@ namespace Serein.Workbench.Views
                             {
                                 argIndex = argJunction2.ArgIndex;
                             }
+                            var canvasGuid = this.ViewModel.CanvasGuid;
 
-                            await EnvDecorator.ConnectArgSourceNodeAsync(myData.StartJunction.MyNode.Guid, myData.CurrentJunction.MyNode.Guid,
+                            await EnvDecorator.ConnectArgSourceNodeAsync(
+                                    canvasGuid,
+                                    myData.StartJunction.MyNode.Guid, 
+                                    myData.CurrentJunction.MyNode.Guid,
                                     myData.StartJunction.JunctionType,
                                     myData.CurrentJunction.JunctionType,
                                     myData.ConnectionArgSourceType,
@@ -375,9 +366,6 @@ namespace Serein.Workbench.Views
             e.Handled = true;
 
         }
-
-
-
 
         #region 拖动画布实现缩放平移效果
         private void FlowChartCanvas_MouseDown(object sender, MouseButtonEventArgs e)
@@ -568,7 +556,6 @@ namespace Serein.Workbench.Views
         #endregion
 
 
-
         /// 完成选取操作
         /// </summary>
         private void CompleteSelection()
@@ -607,7 +594,9 @@ namespace Serein.Workbench.Views
             SelectedNode();
         }
 
-
+        /// <summary>
+        /// 选择控件
+        /// </summary>
         private void SelectedNode()
         {
 
@@ -657,7 +646,10 @@ namespace Serein.Workbench.Views
         }
 
 
-
+        /// <summary>
+        /// 选择范围配置
+        /// </summary>
+        /// <returns></returns>
         private ContextMenu ConfiguerSelectionRectangle()
         {
             var contextMenu = new ContextMenu();
@@ -670,7 +662,8 @@ namespace Serein.Workbench.Views
                         var guid = node?.ViewModel?.NodeModel?.Guid;
                         if (!string.IsNullOrEmpty(guid))
                         {
-                            EnvDecorator.RemoveNodeAsync(guid);
+                            var canvasGuid = this.ViewModel.CanvasGuid;
+                            EnvDecorator.RemoveNodeAsync(canvasGuid, guid);
                         }
                     }
                 }
