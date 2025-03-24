@@ -39,7 +39,7 @@ namespace Serein.Workbench
         {
             collection.AddSingleton<IFlowEEForwardingService, FlowEEForwardingService>(); // 流程事件管理
             collection.AddSingleton<IWorkbenchEventService, WorkbenchEventService>(); // 流程事件管理
-            collection.AddSingleton<NodeControlService>(); // 节点操作管理
+            collection.AddSingleton<FlowNodeService>(); // 节点操作管理
             // collection.AddSingleton<IKeyEventService, KeyEventService>(); // 按键事件管理
                                                                           //collection.AddSingleton<FlowNodeControlService>(); // 流程节点控件管理
         }

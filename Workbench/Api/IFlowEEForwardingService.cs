@@ -10,7 +10,7 @@ namespace Serein.Workbench.Api
     /// <summary>
     /// 流程事件管理，转发流程运行环境中触发的事件到工作台各个订阅者
     /// </summary>
-    internal interface IFlowEEForwardingService : IFlowEnvironmentEvent
+    public interface IFlowEEForwardingService : IFlowEnvironmentEvent
     {
 
     }

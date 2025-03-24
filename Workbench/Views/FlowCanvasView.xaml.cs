@@ -26,7 +26,7 @@ namespace Serein.Workbench.Views
     /// </summary>
     public partial class FlowCanvasView : UserControl
     {
-        private FlowCanvasViewModel ViewModel;
+        public FlowCanvasViewModel ViewModel => ViewModel as FlowCanvasViewModel;
         /// <summary>
         /// 存储所有的连接。考虑集成在运行环境中。
         /// </summary>

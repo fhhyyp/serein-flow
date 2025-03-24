@@ -1,4 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
+using Serein.Library;
+using Serein.Workbench.Node.View;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,6 +11,12 @@ namespace Serein.Workbench.ViewModels
 {
     public partial class FlowCanvasViewModel : ObservableObject
     {
+        /// <summary>
+        /// 画布当前选中的节点
+        /// </summary>
+        public NodeControlBase CurrentSelectNodeControl {  get; set; }  
+
+
         /// <summary>
         /// 正在创建节点方法调用关系
         /// </summary>
@@ -32,6 +40,12 @@ namespace Serein.Workbench.ViewModels
         /// </summary>
         [ObservableProperty]
         private string _canvasGuid;
+
+        /// <summary>
+        /// 画布数据实体
+        /// </summary>
+        [ObservableProperty]
+        private FlowCanvasModel _model;
 
 
 

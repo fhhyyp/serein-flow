@@ -248,9 +248,9 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         /// <param name="canvasGuid">画布Guid</param>
         /// <returns></returns>
-        public async Task<bool> RemoteCanvasAsync(string canvasGuid)
+        public async Task<bool> RemoveCanvasAsync(string canvasGuid)
         {
-            return await currentFlowEnvironment.RemoteCanvasAsync(canvasGuid);
+            return await currentFlowEnvironment.RemoveCanvasAsync(canvasGuid);
         }
 
 

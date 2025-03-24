@@ -783,9 +783,9 @@ namespace Serein.NodeFlow.Env
                 Name = canvasName,
                 Width = height,
             };
-            var info = model.ToInfo();
             FlowCanvass.Add(model.Guid, model);
-            OnCanvasCreate.Invoke(new CanvasCreateEventArgs(info));
+            OnCanvasCreate.Invoke(new CanvasCreateEventArgs(model));
+            var info = model.ToInfo();
             return Task.FromResult(info);
         }
 
@@ -794,7 +794,7 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         /// <param name="canvasGuid">画布Guid</param>
         /// <returns></returns>
-        public Task<bool> RemoteCanvasAsync(string canvasGuid)
+        public Task<bool> RemoveCanvasAsync(string canvasGuid)
         {
 
             if (!FlowCanvass.TryGetValue(canvasGuid, out var model))

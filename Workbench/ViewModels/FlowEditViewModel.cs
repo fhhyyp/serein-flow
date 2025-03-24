@@ -1,6 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Serein.Workbench.Models;
+using Serein.Workbench.Services;
 using Serein.Workbench.Views;
 using System;
 using System.Collections.Generic;
@@ -10,6 +11,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace Serein.Workbench.ViewModels
 {
@@ -18,7 +20,7 @@ namespace Serein.Workbench.ViewModels
     /// </summary>
     public partial class FlowEditViewModel : ObservableObject
     {
-        public ObservableCollection<FlowCanvasModel> Tabs { get; set; }
+        public ObservableCollection<FlowCanvasModel> Tabs { get; set; } = [];
         public ICommand AddTabCommand { get; set; }
         public ICommand RemoveTabCommand { get; set; }
         public ICommand RenameTabCommand { get; set; }
@@ -27,39 +29,59 @@ namespace Serein.Workbench.ViewModels
         private FlowCanvasModel _selectedTab;
 
         private int _addCount = 0;
+        private readonly FlowNodeService flowNodeService;
 
-        public FlowEditViewModel()
+        public FlowEditViewModel(FlowNodeService flowNodeService)
         {
-            Tabs = new ObservableCollection<FlowCanvasModel>();
+            this.flowNodeService = flowNodeService;
             AddTabCommand = new RelayCommand(AddTab);
             RemoveTabCommand = new RelayCommand(RemoveTab, CanRemoveTab);
 
-            // 初始化时添加一个默认的Tab
-            AddTab(); // 添加一个默认选项卡
+            flowNodeService.OnCreateFlowCanvasView += OnCreateFlowCanvasView; // 环境创建了节点
+            flowNodeService.OnRemoveFlowCanvasView += OnRemoveFlowCanvasView;
+            this.PropertyChanged += OnPropertyChanged;
         }
 
-        private void AddTab()
+        private void OnPropertyChanged(object? value, PropertyChangedEventArgs e)
         {
-            var flowCanvasView = new FlowCanvasView(); // 创建FlowCanvasView实例
-            Tabs.Add(new FlowCanvasModel { Content = flowCanvasView ,Name = $"New Tab {_addCount++}"});
-            SelectedTab = Tabs[Tabs.Count - 1]; // 选择刚添加的Tab
-        }
-
-        private void RemoveTab()
-        {
-            if (Tabs.Count > 0 && SelectedTab != null)
+            if (nameof(SelectedTab).Equals(e.PropertyName) && value is FlowCanvasModel model)
             {
-                Tabs.Remove(SelectedTab);
-                SelectedTab = Tabs.Count > 0 ? Tabs[Tabs.Count - 1] : null;
+                flowNodeService.CurrentSelectCanvas = model.Content;  // 选中的视图发生改变
             }
         }
 
-        private bool CanRemoveTab()
+        #region 响应环境事件
+        private void OnCreateFlowCanvasView(FlowCanvasView FlowCanvasView)
         {
-            return SelectedTab != null;
+            var model = new FlowCanvasModel { Content = FlowCanvasView, Name = FlowCanvasView.ViewModel.Name };
+            Tabs.Add(model);
+        }
+        private void OnRemoveFlowCanvasView(string canvasGuid)
+        {
+            var tab = Tabs.FirstOrDefault(t => t.Content.ViewModel.Model.Guid.Equals(canvasGuid, StringComparison.OrdinalIgnoreCase));
+            if (tab is null)
+            {
+                return;
+            }
+            Tabs.Remove(tab);
+            Tabs.Remove(SelectedTab);
+            if(Tabs.Count > 0 && Tabs[^1] is FlowCanvasModel view )
+            {
+                SelectedTab = view;
+            }
+        }
+        #endregion
+
+
+        private void AddTab() => flowNodeService.CreateFlowCanvas();
+        private void RemoveTab()
+        {
+            if (Tabs.Count > 0 && SelectedTab != null) flowNodeService.RemoveFlowCanvas();
         }
 
-       
+        private bool CanRemoveTab() => SelectedTab != null;
+
+
 
         /// <summary>
         /// 进入编辑模式

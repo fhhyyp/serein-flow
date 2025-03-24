@@ -321,7 +321,7 @@ namespace Serein.NodeFlow.Env
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.RemoveCanvas, IsReturnValue = false)]
         public async Task<object> RemoveCanvas([Needful] string canvasGuid)
         {
-            var result = await environment.RemoteCanvasAsync(canvasGuid); // 监听到客户端创建节点的请求
+            var result = await environment.RemoveCanvasAsync(canvasGuid); // 监听到客户端创建节点的请求
             return new { state = result} ;
         }
 

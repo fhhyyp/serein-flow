@@ -458,7 +458,7 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         /// <param name="canvasGuid">画布Guid</param>
         /// <returns></returns>
-        public async Task<bool> RemoteCanvasAsync(string canvasGuid)
+        public async Task<bool> RemoveCanvasAsync(string canvasGuid)
         {
             var result = await msgClient.SendAndWaitDataAsync<bool>(EnvMsgTheme.RemoveCanvas, new
             {

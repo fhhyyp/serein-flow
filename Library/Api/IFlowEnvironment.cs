@@ -313,13 +313,12 @@ namespace Serein.Library.Api
     /// </summary>
     public class CanvasCreateEventArgs : FlowEventArgs
     {
-        public CanvasCreateEventArgs(
-            FlowCanvasInfo info)
+        public CanvasCreateEventArgs(FlowCanvasModel model)
         {
-            Info = info;
+            Model = model;
         }
 
-        public FlowCanvasInfo Info { get; }
+        public FlowCanvasModel Model { get; }
     }
 
     /// <summary>
@@ -888,7 +887,7 @@ namespace Serein.Library.Api
         /// </summary>
         /// <param name="canvasGuid">画布Guid</param>
         /// <returns></returns>
-        Task<bool> RemoteCanvasAsync(string canvasGuid);
+        Task<bool> RemoveCanvasAsync(string canvasGuid);
 
 
         /// <summary>
