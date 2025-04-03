@@ -767,6 +767,8 @@ namespace Serein.NodeFlow.Env
             //}
         }
 
+        private int _addCanvasCount = 0;
+
         /// <summary>
         /// 增加画布
         /// </summary>
@@ -780,11 +782,14 @@ namespace Serein.NodeFlow.Env
             {
                 Guid = Guid.NewGuid().ToString(),
                 Height = height,
-                Name = canvasName,
+                Name = !string.IsNullOrWhiteSpace(canvasName) ? canvasName : $"流程图 {_addCanvasCount++}",
                 Width = height,
             };
             FlowCanvass.Add(model.Guid, model);
-            OnCanvasCreate.Invoke(new CanvasCreateEventArgs(model));
+            UIContextOperation.Invoke(() =>
+            {
+                OnCanvasCreate.Invoke(new CanvasCreateEventArgs(model));
+            });
             var info = model.ToInfo();
             return Task.FromResult(info);
         }

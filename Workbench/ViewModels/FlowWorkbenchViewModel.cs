@@ -14,8 +14,6 @@ namespace Serein.Workbench.ViewModels
     {
         private readonly IFlowEEForwardingService flowEEForwardingService;
 
-
-
         public FlowWorkbenchViewModel(IFlowEEForwardingService flowEEForwardingService)
         {
             this.flowEEForwardingService = flowEEForwardingService;

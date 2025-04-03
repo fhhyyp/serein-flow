@@ -445,7 +445,7 @@ namespace Serein.NodeFlow.Env
                     Width = info.Width,
                 };
                 UIContextOperation?.Invoke(() =>
-                    OnCanvasCreate?.Invoke(new CanvasCreateEventArgs(info)));
+                    OnCanvasCreate?.Invoke(new CanvasCreateEventArgs(model)));
 
                 return info;
             }

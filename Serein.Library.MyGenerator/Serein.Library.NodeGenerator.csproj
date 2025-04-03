@@ -4,8 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <Version>1.1.0</Version>
     <IsRoslynComponent>true</IsRoslynComponent>
-    
-    <BaseOutputPath>D:\Project\C#\DynamicControl\SereinFlow\.Output</BaseOutputPath>
+    <BaseOutputPath>..\.\.Output</BaseOutputPath>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Title>SereinFow</Title>
     <Description>基础依赖必须添加项，用于生成NodeModel部分的依赖实体代码</Description>

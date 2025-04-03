@@ -4,7 +4,8 @@
     <Version>1.1.0</Version>
     <!--<TargetFrameworks>net8.0</TargetFrameworks>-->
     <TargetFrameworks>net8.0;net462</TargetFrameworks>
-    <BaseOutputPath>D:\Project\C#\DynamicControl\SereinFlow\.Output</BaseOutputPath>
+    <BaseOutputPath>..\.\.Output</BaseOutputPath>
+    <!--<BaseOutputPath>D:\Project\C#\DynamicControl\SereinFlow\.Output</BaseOutputPath>-->
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Title>SereinFow</Title>
     <Description>基础依赖</Description>

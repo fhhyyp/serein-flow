@@ -19,8 +19,6 @@ namespace Serein.Workbench.ViewModels
         [ObservableProperty]
         private ObservableCollection<FlowLibraryInfo> flowLibraryInfos; 
 
-
-
         public FlowLibrarysViewModel(IFlowEEForwardingService flowEEForwardingService)
         {
             this.flowEEForwardingService = flowEEForwardingService;

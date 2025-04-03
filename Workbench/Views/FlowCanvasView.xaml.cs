@@ -26,7 +26,7 @@ namespace Serein.Workbench.Views
     /// </summary>
     public partial class FlowCanvasView : UserControl
     {
-        public FlowCanvasViewModel ViewModel => ViewModel as FlowCanvasViewModel;
+        public FlowCanvasViewModel ViewModel => this.DataContext as FlowCanvasViewModel;
         /// <summary>
         /// 存储所有的连接。考虑集成在运行环境中。
         /// </summary>
@@ -89,8 +89,8 @@ namespace Serein.Workbench.Views
         private IFlowEnvironment EnvDecorator;
         public FlowCanvasView()
         {
-            ViewModel = App.GetService<Locator>().FlowCanvasViewModel;
-            this.DataContext = ViewModel;
+            var vm = App.GetService<Locator>().FlowCanvasViewModel;
+            this.DataContext = vm;
             EnvDecorator =  App.GetService<IFlowEnvironment>();
             InitializeComponent();
 

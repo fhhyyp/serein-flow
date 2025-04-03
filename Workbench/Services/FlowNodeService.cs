@@ -117,7 +117,7 @@ namespace Serein.Workbench.Services
 
         #endregion
 
-        
+
 
 
         #region 向运行环境发出请求
@@ -128,10 +128,13 @@ namespace Serein.Workbench.Services
         /// <returns></returns>
         public void CreateFlowCanvas()
         {
-            string canvasName = "";
             int height = 1000;
             int width = 600;
-            _ = flowEnvironment.CreateCanvasAsync(canvasName, width, height);
+            _ = Task.Run(async () =>
+            {
+               var result = await flowEnvironment.CreateCanvasAsync("", width, height);
+                Console.WriteLine(result.Guid);
+            });
         }
 
         /// <summary>
