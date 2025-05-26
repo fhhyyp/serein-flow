@@ -59,10 +59,12 @@ namespace Serein.Library
         /// 是否通知UI
         /// </summary>
         public bool IsNotification = false;
+
         /// <summary>
         /// 是否使用Console.WriteLine打印
         /// </summary>
         public bool IsPrint = false;
+
         /// <summary>
         /// 是否禁止参数进行修改（初始化后不能再通过 Setter 修改）
         /// </summary>

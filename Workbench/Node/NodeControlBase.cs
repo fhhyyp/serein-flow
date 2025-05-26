@@ -1,6 +1,8 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
+using Serein.Workbench.Api;
 using Serein.Workbench.Node.ViewModel;
+using Serein.Workbench.Views;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -18,13 +20,14 @@ namespace Serein.Workbench.Node.View
         /// <summary>
         /// 节点所在的画布（以后需要将画布封装出来，实现多画布的功能）
         /// </summary>
-        public Canvas NodeCanvas { get; set; }
-        
-        private INodeContainerControl nodeContainerControl;
+        public IFlowCanvas FlowCanvas { get; set; }
+
         /// <summary>
         /// 如果该节点放置在了某个容器节点，就会记录这个容器节点
         /// </summary>
-        private INodeContainerControl NodeContainerControl { get; }
+
+        private INodeContainerControl nodeContainerControl;
+
 
         /// <summary>
         /// 记录与该节点控件有关的所有连接
@@ -53,11 +56,11 @@ namespace Serein.Workbench.Node.View
         public void PlaceToContainer(INodeContainerControl nodeContainerControl)
         {
             this.nodeContainerControl = nodeContainerControl;
-            NodeCanvas.Children.Remove(this); // 临时从画布上移除
+            FlowCanvas.Remove(this); // 临时从画布上移除
             var result = nodeContainerControl.PlaceNode(this);
             if (!result) // 检查是否放置成功，如果不成功，需要重新添加回来
             {
-                NodeCanvas.Children.Add(this); // 从画布上移除
+                FlowCanvas.Add(this); // 从画布上移除
 
             }
         }
@@ -70,7 +73,7 @@ namespace Serein.Workbench.Node.View
             var result = nodeContainerControl.TakeOutNode(this); // 从控件取出
             if (result) // 移除成功时才添加到画布上
             {
-                NodeCanvas.Children.Add(this); // 重新添加到画布上
+                FlowCanvas.Add(this); // 重新添加到画布上
                 if (nodeContainerControl is NodeControlBase containerControl)
                 {
                     this.ViewModel.NodeModel.Position.X = containerControl.ViewModel.NodeModel.Position.X + containerControl.Width + 10;
@@ -128,20 +131,12 @@ namespace Serein.Workbench.Node.View
         /// </summary>
         public void SetBinding()
         {
-            // 绑定 Canvas.Left
-            Binding leftBinding = new Binding("X")
-            {
-                Source = ViewModel.NodeModel.Position, // 如果 X 属性在当前 DataContext 中
-                Mode = BindingMode.TwoWay
-            };
+            var p = ViewModel.NodeModel.Position;
+
+            Binding leftBinding = new(nameof(p.X)) { Source = p, Mode = BindingMode.TwoWay };
             BindingOperations.SetBinding(this, Canvas.LeftProperty, leftBinding);
 
-            // 绑定 Canvas.Top
-            Binding topBinding = new Binding("Y")
-            {
-                Source = ViewModel.NodeModel.Position, // 如果 Y 属性在当前 DataContext 中
-                Mode = BindingMode.TwoWay
-            };
+            Binding topBinding = new(nameof(p.Y)) { Source = p, Mode = BindingMode.TwoWay };
             BindingOperations.SetBinding(this, Canvas.TopProperty, topBinding);
         }
 

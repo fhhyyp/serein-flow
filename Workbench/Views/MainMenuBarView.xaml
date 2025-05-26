@@ -4,12 +4,15 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Serein.Workbench.Views"
+             xmlns:vm="clr-namespace:Serein.Workbench.ViewModels"
              mc:Ignorable="d" 
-             d:DesignHeight="70" d:DesignWidth="350">
+             d:DesignHeight="70" d:DesignWidth="350"
+             d:DataContext="{d:DesignInstance vm:MainMenuBarViewModel}"
+             >
     <Grid >
         <Menu DockPanel.Dock="Top" Grid.Row="0" Grid.ColumnSpan="5" Height="20">
             <MenuItem Header="项目">
-                <MenuItem Header="保存项目"  ></MenuItem>
+                <MenuItem Header="保存项目" Command="{Binding SaveProjectCommand}"></MenuItem>
                 <MenuItem Header="加载本地项目" ></MenuItem>
                 <MenuItem Header="加载远程项目"></MenuItem>
             </MenuItem>

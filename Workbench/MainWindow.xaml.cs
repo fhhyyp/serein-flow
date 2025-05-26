@@ -7,6 +7,7 @@ using Serein.Library.Utils;
 using Serein.NodeFlow;
 using Serein.NodeFlow.Env;
 using Serein.NodeFlow.Tool;
+using Serein.Workbench.Api;
 using Serein.Workbench.Extension;
 using Serein.Workbench.Node;
 using Serein.Workbench.Node.View;
@@ -292,14 +293,14 @@ namespace Serein.Workbench
             {
                 return;
             }
-            InitializeCanvas(project.Basic.Canvas.Width, project.Basic.Canvas.Height);// 设置画布大小
+            //InitializeCanvas(project.Basic.Canvas.Width, project.Basic.Canvas.Height);// 设置画布大小
             //foreach (var connection in Connections)
             //{
             //    connection.RefreshLine(); // 窗体完成加载后试图刷新所有连接线
             //}
             SereinEnv.WriteLine(InfoType.INFO, $"运行环境当前工作目录：{System.IO.Directory.GetCurrentDirectory()}");
             
-            var canvasData = project.Basic.Canvas;
+            /*var canvasData = project.Basic.Canvas;
             if (canvasData is not null)
             {
                 scaleTransform.ScaleX = 1;
@@ -312,7 +313,7 @@ namespace Serein.Workbench
                 translateTransform.Y += canvasData.ViewY;
                 // 应用变换组
                 FlowChartCanvas.RenderTransform = canvasTransformGroup;
-            }
+            }*/
 
 
         }
@@ -356,15 +357,15 @@ namespace Serein.Workbench
 
             projectData.Basic = new Basic
             {
-                Canvas = new FlowCanvasInfo
-                {
-                    Height = FlowChartCanvas.Height,
-                    Width = FlowChartCanvas.Width,
-                    ViewX = translateTransform.X,
-                    ViewY = translateTransform.Y,
-                    ScaleX = scaleTransform.ScaleX,
-                    ScaleY = scaleTransform.ScaleY,
-                },
+                //Canvas = new FlowCanvasInfo
+                //{
+                //    Height = FlowChartCanvas.Height,
+                //    Width = FlowChartCanvas.Width,
+                //    ViewX = translateTransform.X,
+                //    ViewY = translateTransform.Y,
+                //    ScaleX = scaleTransform.ScaleX,
+                //    ScaleY = scaleTransform.ScaleY,
+                //},
                 Versions = "1",
             };
 
@@ -527,7 +528,7 @@ namespace Serein.Workbench
         /// 节点连接关系变更
         /// </summary>
         /// <param name="eventArgs"></param>
-        private  void FlowEnvironment_NodeConnectChangeEvemt(NodeConnectChangeEventArgs eventArgs)
+        private void FlowEnvironment_NodeConnectChangeEvemt(NodeConnectChangeEventArgs eventArgs)
         {
             string fromNodeGuid = eventArgs.FromNodeGuid;
             string toNodeGuid = eventArgs.ToNodeGuid;
@@ -2444,7 +2445,7 @@ namespace Serein.Workbench
             var controlObj = Activator.CreateInstance(controlType, [viewModel]);
             if (controlObj is NodeControlBase nodeControl)
             {
-                nodeControl.NodeCanvas = nodeCanvas;
+                nodeControl.FlowCanvas = (Api.IFlowCanvas)nodeCanvas;
                 return nodeControl;
             }
             else
@@ -2731,6 +2732,7 @@ public class FlowLibrary
             }
         }
         #endregion
+
         #region 顶部菜单栏 - 远程管理
         private async void ButtonStartRemoteServer_Click(object sender, RoutedEventArgs e)
         {

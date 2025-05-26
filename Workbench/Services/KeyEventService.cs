@@ -1,10 +1,11 @@
-﻿/*
+﻿
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Input;
 
 namespace Serein.Workbench.Services
 {
@@ -38,7 +39,6 @@ namespace Serein.Workbench.Services
     /// </summary>
     internal class KeyEventService : IKeyEventService
     {
-
         /// <summary>
         /// 按键按下
         /// </summary>
@@ -77,4 +77,3 @@ namespace Serein.Workbench.Services
         }
     }
 }
-*/

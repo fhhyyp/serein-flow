@@ -6,6 +6,10 @@
     public static class EnvMsgTheme
     {
         /// <summary>
+        /// 尝试保存项目
+        /// </summary>
+        public const string SaveProject  = nameof(SaveProject);
+        /// <summary>
         /// 获取远程环境信息
         /// </summary>
         public const string GetEnvInfo = nameof(GetEnvInfo);

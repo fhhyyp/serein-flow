@@ -21,9 +21,9 @@ namespace Serein.Library
         /// </summary>
         /// <param name="model"></param>
         /// <returns></returns>
-        public static FlowCanvasInfo ToInfo(this FlowCanvasModel model)
+        public static FlowCanvasDetailsInfo ToInfo(this FlowCanvasDetails model)
         {
-            return new FlowCanvasInfo
+            return new FlowCanvasDetailsInfo
             {
                 Guid = model.Guid,
                 Height = model.Height,
@@ -33,6 +33,7 @@ namespace Serein.Library
                 ScaleY = model.ScaleY,
                 ViewX = model.ViewX,
                 ViewY = model.ViewY,
+                StartNode = model.StartNode,
             };
         }
 
@@ -41,7 +42,7 @@ namespace Serein.Library
         /// </summary>
         /// <param name="model"></param>
         /// <param name="info"></param>
-        public static void LoadInfo(this FlowCanvasModel model, FlowCanvasInfo info)
+        public static void LoadInfo(this FlowCanvasDetails model, FlowCanvasDetailsInfo info)
         {
             model.Guid = info.Guid;
             model.Height = info.Height;
@@ -51,6 +52,7 @@ namespace Serein.Library
             model.ScaleY = info.ScaleY;
             model.ViewX = info.ViewX;
             model.ViewY = info.ViewY;
+            model.StartNode = info.StartNode;
         }
 
         /// <summary>
@@ -102,6 +104,7 @@ namespace Serein.Library
             NodeInfo nodeInfo = new NodeInfo
             {
                 Guid = nodeModel.Guid,
+                CanvasGuid = nodeModel.CanvasGuid,
                 AssemblyName = nodeModel.MethodDetails.AssemblyName,
                 MethodName = nodeModel.MethodDetails?.MethodName,
                 Label = nodeModel.MethodDetails?.MethodAnotherName,

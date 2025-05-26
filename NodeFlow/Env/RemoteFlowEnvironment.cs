@@ -131,11 +131,28 @@ namespace Serein.NodeFlow.Env
         }
 
         /// <summary>
-        /// 保存项目
+        /// 远程环境下保存项目
         /// </summary>
         public void SaveProject()
         {
-            OnProjectSaving?.Invoke(new ProjectSavingEventArgs());
+            _ = Task.Run(async () =>
+            {
+                // 保存项目
+                var result = await msgClient.SendAndWaitDataAsync<SereinProjectData>(EnvMsgTheme.SaveProject);
+                if (result is not null)
+                {
+                    OnProjectSaving?.Invoke(new ProjectSavingEventArgs(result));
+                }
+            });
+           
+            // 获取远程环境
+            //var projectData = new SereinProjectData()
+            //{
+            //    Librarys = this.FlowLibraryManagement.GetAllLibraryInfo().ToArray(),
+            //    Nodes = NodeModels.Values.Select(node => node.ToInfo()).Where(info => info is not null).ToArray(),
+            //    StartNode = NodeModels.Values.FirstOrDefault(it => it.IsStart)?.Guid,
+            //};
+            
         }
 
 
@@ -167,14 +184,26 @@ namespace Serein.NodeFlow.Env
             }
             #endregion
 
-            var nodeInfos = flowEnvInfo.Project.Nodes.ToList();
-            LoadNodeInfos(nodeInfos); // 加载节点
-
-            var canvasGuid = nodeInfos.FirstOrDefault(item => item.Guid == flowEnvInfo.Project.StartNode)?.CanvasGuid;
-            if (!string.IsNullOrEmpty(canvasGuid))
+            // 加载画布
+            foreach (var info in flowEnvInfo.Project.Canvass)
             {
-                _ = SetStartNodeAsync(canvasGuid, flowEnvInfo.Project.StartNode); // 设置流程起点
+                var canvasModel = new FlowCanvasDetails(this); 
+                canvasModel.LoadInfo(info);
+                var e = new CanvasCreateEventArgs(canvasModel);
+                OnCanvasCreate?.Invoke(e);
             }
+            
+            // 加载节点
+            var nodeInfos = flowEnvInfo.Project.Nodes.ToList();
+            LoadNodeInfos(nodeInfos);
+
+            // 设置每个画布的起始节点
+            foreach (var info in flowEnvInfo.Project.Canvass)
+            {
+                _ = SetStartNodeAsync(info.Guid, info.StartNode); // 设置流程起点
+               
+            }
+
             UIContextOperation?.Invoke(() =>
             {
                 OnProjectLoaded?.Invoke(new ProjectLoadedEventArgs()); // 加载完成
@@ -427,9 +456,9 @@ namespace Serein.NodeFlow.Env
         /// <param name="width">宽度</param>
         /// <param name="height">高度</param>
         /// <returns></returns>
-        public async Task<FlowCanvasInfo> CreateCanvasAsync(string canvasName, int width, int height)
+        public async Task<FlowCanvasDetailsInfo> CreateCanvasAsync(string canvasName, int width, int height)
         {
-            var info = await msgClient.SendAndWaitDataAsync<FlowCanvasInfo>(EnvMsgTheme.CreateCanvas, new
+            var info = await msgClient.SendAndWaitDataAsync<FlowCanvasDetailsInfo>(EnvMsgTheme.CreateCanvas, new
             {
                 canvasName,
                 width,
@@ -437,7 +466,7 @@ namespace Serein.NodeFlow.Env
             });
             if (info is not null)
             {
-                var model = new FlowCanvasModel(this)
+                var model = new FlowCanvasDetails(this)
                 {
                     Guid = info.Guid,
                     Height = info.Height,
@@ -506,6 +535,7 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// 设置远程环境的流程起点节点
         /// </summary>
+        /// <param name="canvasGuid">节点画布</param>
         /// <param name="nodeGuid">尝试设置为起始节点的节点Guid</param>
         /// <returns>被设置为起始节点的Guid</returns>
         public async Task<string> SetStartNodeAsync(string canvasGuid, string nodeGuid)

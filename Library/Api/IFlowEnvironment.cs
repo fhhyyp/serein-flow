@@ -146,11 +146,11 @@ namespace Serein.Library.Api
         /// <summary>
         /// 是否完成
         /// </summary>
-        public bool IsSucceed { get; protected set; } = true;
+        public bool IsSucceed { get;} = true;
         /// <summary>
         /// 错误提示
         /// </summary>
-        public string ErrorTips { get; protected set; } = string.Empty;
+        public string ErrorTips { get;} = string.Empty;
     }
 
     /// <summary>
@@ -168,9 +168,15 @@ namespace Serein.Library.Api
     /// </summary>
     public class ProjectSavingEventArgs : FlowEventArgs
     {
-        public ProjectSavingEventArgs()
+        public ProjectSavingEventArgs(SereinProjectData projectData)
         {
+            ProjectData = projectData;
         }
+
+        /// <summary>
+        /// 项目数据
+        /// </summary>
+        public SereinProjectData ProjectData { get; }
     }
 
     /// <summary>
@@ -186,11 +192,11 @@ namespace Serein.Library.Api
         /// <summary>
         /// 已加载了的程序集
         /// </summary>
-        public NodeLibraryInfo NodeLibraryInfo { get; protected set; }
+        public NodeLibraryInfo NodeLibraryInfo { get;}
         /// <summary>
         /// dll文件中有效的流程方法描述
         /// </summary>
-        public List<MethodDetailsInfo> MethodDetailss { get; protected set; }
+        public List<MethodDetailsInfo> MethodDetailss { get;}
     }
 
     /// <summary>
@@ -279,31 +285,31 @@ namespace Serein.Library.Api
         /// <summary>
         /// 连接关系中始节点的Guid
         /// </summary>
-        public string FromNodeGuid { get; protected set; }
+        public string FromNodeGuid { get;}
         /// <summary>
         /// 连接关系中目标节点的Guid
         /// </summary>
-        public string ToNodeGuid { get; protected set; }
+        public string ToNodeGuid { get;}
         /// <summary>
         /// 连接类型
         /// </summary>
-        public ConnectionInvokeType ConnectionInvokeType { get; protected set; }
+        public ConnectionInvokeType ConnectionInvokeType { get;}
         /// <summary>
         /// 表示此次需要在两个节点之间创建连接关系，或是移除连接关系
         /// </summary>
-        public ConnectChangeType ChangeType { get; protected set; }
+        public ConnectChangeType ChangeType { get;}
         /// <summary>
         /// 指示需要创建什么类型的连接线
         /// </summary>
-        public JunctionOfConnectionType JunctionOfConnectionType { get; protected set; }
+        public JunctionOfConnectionType JunctionOfConnectionType { get;}
         /// <summary>
         /// 节点对应的方法入参所需参数来源
         /// </summary>
-        public ConnectionArgSourceType ConnectionArgSourceType { get; protected set; }
+        public ConnectionArgSourceType ConnectionArgSourceType { get;}
         /// <summary>
         /// 第几个参数
         /// </summary>
-        public int ArgIndex { get; protected set; }
+        public int ArgIndex { get;}
 
         
     }
@@ -313,12 +319,12 @@ namespace Serein.Library.Api
     /// </summary>
     public class CanvasCreateEventArgs : FlowEventArgs
     {
-        public CanvasCreateEventArgs(FlowCanvasModel model)
+        public CanvasCreateEventArgs(FlowCanvasDetails model)
         {
             Model = model;
         }
 
-        public FlowCanvasModel Model { get; }
+        public FlowCanvasDetails Model { get; }
     }
 
     /// <summary>
@@ -342,6 +348,7 @@ namespace Serein.Library.Api
         /// <summary>
         /// 节点添加事件参数
         /// </summary>
+        /// <param name="canvasGuid">画布</param>
         /// <param name="nodeModel">节点对象</param>
         /// <param name="position">位置</param>
         public NodeCreateEventArgs(string canvasGuid, NodeModelBase nodeModel, PositionOfUI position)
@@ -350,15 +357,23 @@ namespace Serein.Library.Api
             this.NodeModel = nodeModel;
             this.Position = position;
         }
-
+        /// <summary>
+        /// 所处画布Guid
+        /// </summary>
         public string CanvasGuid { get; }
 
         /// <summary>
         /// 节点Model对象
         /// </summary>
         public NodeModelBase NodeModel { get; private set; }
+        /// <summary>
+        /// 在UI上的位置
+        /// </summary>
         public PositionOfUI Position { get; private set; }
-        public string RegeionGuid { get; private set; }
+        /// <summary>
+        /// 容器
+        /// </summary>
+        //public string RegeionGuid { get; private set; }
     }
 
     /// <summary>
@@ -487,16 +502,16 @@ namespace Serein.Library.Api
         /// <summary>
         /// 中断的节点Guid
         /// </summary>
-        public string NodeGuid { get; protected set; }
+        public string NodeGuid { get;}
 
         /// <summary>
         /// 监听对象类别
         /// </summary>
-        public ObjSourceType ObjSource { get; protected set; }
+        public ObjSourceType ObjSource { get;}
         /// <summary>
         /// 新的数据
         /// </summary>
-        public object NewData { get; protected set; }
+        public object NewData { get;}
     }
 
     /// <summary>
@@ -514,9 +529,9 @@ namespace Serein.Library.Api
         /// <summary>
         /// 中断的节点Guid
         /// </summary>
-        public string NodeGuid { get; protected set; }
-        public bool IsInterrupt { get; protected set; }
-        // public InterruptClass Class { get; protected set; }
+        public string NodeGuid { get;}
+        public bool IsInterrupt { get;}
+        // public InterruptClass Class { get;}
     }
     /// <summary>
     /// 节点触发了中断事件参数
@@ -549,9 +564,9 @@ namespace Serein.Library.Api
         /// <summary>
         /// 中断的节点Guid
         /// </summary>
-        public string NodeGuid { get; protected set; }
-        public string Expression { get; protected set; }
-        public InterruptTriggerType Type { get; protected set; }
+        public string NodeGuid { get;}
+        public string Expression { get;}
+        public InterruptTriggerType Type { get;}
     }
 
 
@@ -880,7 +895,7 @@ namespace Serein.Library.Api
         /// <param name="width">宽度</param>
         /// <param name="height">高度</param>
         /// <returns></returns>
-        Task<FlowCanvasInfo> CreateCanvasAsync(string canvasName, int width , int height);
+        Task<FlowCanvasDetailsInfo> CreateCanvasAsync(string canvasName, int width , int height);
 
         /// <summary>
         /// 删除画布

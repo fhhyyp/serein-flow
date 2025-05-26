@@ -19,29 +19,30 @@
         <!--DragOver="TabControl_DragOver" 
         Drop="TabControl_Drop"
 AllowDrop="True"-->
-        <TabControl SelectedItem="{Binding SelectedTab}" >
+        <TabControl SelectedItem="{Binding SelectedTab}" 
+                    SelectionChanged="TabControl_SelectionChanged"
+                    x:Name="CanvasTab">
             <TabControl.ItemTemplate>
                 <DataTemplate>
-                    <StackPanel>
+                    <StackPanel >
                         <!-- 双击选项卡名称来进入编辑模式 -->
                         <TextBlock Text="{Binding Name}"
                                    FontSize="18"
-                                   Visibility="{Binding IsEditing, Converter={StaticResource           InvertableBooleanToVisibilityConverter},ConverterParameter=Inverted}"
+                                   Visibility="{Binding IsEditing, Converter={StaticResource   InvertableBooleanToVisibilityConverter},ConverterParameter=Inverted}"
                                    PreviewMouseLeftButtonDown="TextBlock_PreviewMouseLeftButtonDown"
                                    MouseLeftButtonDown="TextBlock_MouseLeftButtonDown"/>
                         <!-- 编辑模式下显示TextBox -->
                         <TextBox Text="{Binding Name, Mode=TwoWay}" 
                                  FontSize="18"
                                  Visibility="{Binding IsEditing, Converter={StaticResource   InvertableBooleanToVisibilityConverter},ConverterParameter=Normal}"
-                                 KeyDown="TextBox_KeyDown" 
-                                 LostFocus="TextBox_LostFocus"/>
+                                 KeyDown="TextBox_KeyDown" />
                     </StackPanel>
                 </DataTemplate>
             </TabControl.ItemTemplate>
 
             <!-- Tabs Collection -->
             <TabControl.ItemsSource>
-                <Binding Path="Tabs" />
+                <Binding Path="CanvasTabs" />
             </TabControl.ItemsSource>
 
             <!-- Content of the Tab (e.g., FlowCanvasView) -->

@@ -1,6 +1,8 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Serein.Workbench.Api;
 using Serein.Workbench.Models;
+using Serein.Workbench.Node.View;
 using Serein.Workbench.Services;
 using Serein.Workbench.Views;
 using System;
@@ -20,13 +22,17 @@ namespace Serein.Workbench.ViewModels
     /// </summary>
     public partial class FlowEditViewModel : ObservableObject
     {
-        public ObservableCollection<FlowCanvasModel> Tabs { get; set; } = [];
+        public ObservableCollection<FlowEditorTabModel> CanvasTabs { get; set; } = [];
         public ICommand AddTabCommand { get; set; }
         public ICommand RemoveTabCommand { get; set; }
         public ICommand RenameTabCommand { get; set; }
 
+
+        /// <summary>
+        /// 当前选择的画布
+        /// </summary>
         [ObservableProperty]
-        private FlowCanvasModel _selectedTab;
+        private FlowEditorTabModel _selectedTab;
 
         private readonly FlowNodeService flowNodeService;
 
@@ -34,39 +40,42 @@ namespace Serein.Workbench.ViewModels
         {
             this.flowNodeService = flowNodeService;
             AddTabCommand = new RelayCommand(AddTab);
-            RemoveTabCommand = new RelayCommand(RemoveTab, CanRemoveTab);
+            RemoveTabCommand = new RelayCommand(RemoveTab);
 
-            flowNodeService.OnCreateFlowCanvasView += OnCreateFlowCanvasView; // 运行环境创建了画布
-            flowNodeService.OnRemoveFlowCanvasView += OnRemoveFlowCanvasView; // 运行环境移除了画布
+            flowNodeService.OnCreateFlowCanvasView += OnCreateFlowCanvasView; // 创建了画布
+            flowNodeService.OnRemoveFlowCanvasView += OnRemoveFlowCanvasView; // 移除了画布
             this.PropertyChanged += OnPropertyChanged;
+
+            
         }
+
+        
 
         private void OnPropertyChanged(object? value, PropertyChangedEventArgs e)
         {
-            if (nameof(SelectedTab).Equals(e.PropertyName) && value is FlowCanvasModel model)
-            {
-                flowNodeService.CurrentSelectCanvas = model.Content;  // 选中的视图发生改变
-            }
+            if (this.SelectedTab is null) return;
+            flowNodeService.CurrentSelectCanvas = this.SelectedTab.Content;
         }
 
         #region 响应环境事件
-        private void OnCreateFlowCanvasView(FlowCanvasView FlowCanvasView)
+        private void OnCreateFlowCanvasView(FlowCanvasView canvas)
         {
-            var model = new FlowCanvasModel { Content = FlowCanvasView, Name = FlowCanvasView.ViewModel.Name };
-            Tabs.Add(model);
+            var model = new FlowEditorTabModel(canvas);
+            CanvasTabs.Add(model);
+            SelectedTab = model;
         }
-        private void OnRemoveFlowCanvasView(string canvasGuid)
+        private void OnRemoveFlowCanvasView(FlowCanvasView canvas)
         {
-            var tab = Tabs.FirstOrDefault(t => t.Content.ViewModel.Model.Guid.Equals(canvasGuid, StringComparison.OrdinalIgnoreCase));
+            var tab = CanvasTabs.FirstOrDefault(c => c.Content.Guid.Equals(canvas.Guid));
             if (tab is null)
             {
                 return;
             }
-            Tabs.Remove(tab);
-            Tabs.Remove(SelectedTab);
-            if(Tabs.Count > 0 && Tabs[^1] is FlowCanvasModel view )
+            CanvasTabs.Remove(tab);
+
+            if (CanvasTabs.Count > 0 && CanvasTabs[^1] is FlowEditorTabModel c)
             {
-                SelectedTab = view;
+                SelectedTab = c;
             }
         }
         #endregion
@@ -75,10 +84,9 @@ namespace Serein.Workbench.ViewModels
         private void AddTab() => flowNodeService.CreateFlowCanvas();
         private void RemoveTab()
         {
-            if (Tabs.Count > 0 && SelectedTab != null) flowNodeService.RemoveFlowCanvas();
+            if (CanvasTabs.Count > 0 && SelectedTab != null) flowNodeService.RemoveFlowCanvas();
         }
 
-        private bool CanRemoveTab() => SelectedTab != null;
 
 
 
@@ -86,12 +94,12 @@ namespace Serein.Workbench.ViewModels
         /// 进入编辑模式
         /// </summary>
         /// <param name="tab"></param>
-        public void StartEditingTab(FlowCanvasModel tab)
+        public void StartEditingTab(FlowEditorTabModel tab)
         {
             if (tab != null)
             {
                 tab.IsEditing = true;
-                OnPropertyChanged(nameof(Tabs)); // 刷新Tabs集合，以便更新UI
+                OnPropertyChanged(nameof(CanvasTabs)); // 刷新Tabs集合，以便更新UI
             }
         }
 
@@ -100,13 +108,13 @@ namespace Serein.Workbench.ViewModels
         /// </summary>
         /// <param name="tab"></param>
         /// <param name="newName"></param>
-        public void EndEditingTab(FlowCanvasModel tab, string newName)
+        public void EndEditingTab(FlowEditorTabModel tab, string? newName = null)
         {
             if (tab != null)
             {
                 tab.IsEditing = false;
-                tab.Name = newName; // 设置新名称
-                OnPropertyChanged(nameof(Tabs)); // 刷新Tabs集合
+                if(tab.Name != newName && !string.IsNullOrWhiteSpace(newName)) tab.Name = newName; // 名称合法时设置新名称
+                OnPropertyChanged(nameof(CanvasTabs)); // 刷新Tabs集合
             }
         }
         

@@ -164,7 +164,7 @@ namespace Serein.NodeFlow.Env
         }
 
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.CreateCanvas, IsReturnValue = false)]
-        public void CreateCanvas([UseMsgId] string msgId, [UseData] FlowCanvasInfo canvasInfo)
+        public void CreateCanvas([UseMsgId] string msgId, [UseData] FlowCanvasDetailsInfo canvasInfo)
         {
             _ = remoteFlowEnvironment.InvokeTriggerAsync(msgId, canvasInfo);
         }

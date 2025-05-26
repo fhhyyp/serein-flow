@@ -18,14 +18,6 @@ using System.Threading.Tasks;
 using System.Windows.Controls;
 
 
-
-
-
-namespace Serein.Workbench.Api
-{
-
-}
-
 namespace Serein.Workbench.Services
 {
     /// <summary>

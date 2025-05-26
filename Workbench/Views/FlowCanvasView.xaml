@@ -5,8 +5,11 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Serein.Workbench.Views"
              xmlns:tool="clr-namespace:Serein.Workbench.Tool.Converters"
+             xmlns:vm="clr-namespace:Serein.Workbench.ViewModels"
              mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800">
+             d:DesignHeight="450" 
+             d:DesignWidth="800"
+             d:DataContext="{d:DesignInstance vm:FlowCanvasViewModel}">
 
     <UserControl.Resources>
         <tool:RightThumbPositionConverter x:Key="RightThumbPositionConverter" />
@@ -16,22 +19,23 @@
     </UserControl.Resources>
 
     <DockPanel x:Name="FlowChartStackPanel"
-                         ClipToBounds="True">
+               ClipToBounds="True">
+      
         <Canvas  ClipToBounds="True"
-                    x:Name="FlowChartCanvas" 
-                    Background="#E1FBEA"
-                    AllowDrop="True" 
-                    Width="1000"
-                    Height="600"
-                    MouseLeftButtonDown ="FlowChartCanvas_MouseLeftButtonDown"
-                    MouseLeftButtonUp="FlowChartCanvas_MouseLeftButtonUp"
-                    MouseDown="FlowChartCanvas_MouseDown"
-                    MouseUp="FlowChartCanvas_MouseUp"
-                    MouseMove="FlowChartCanvas_MouseMove"
-                    MouseWheel="FlowChartCanvas_MouseWheel"
-                    Drop="FlowChartCanvas_Drop" 
-                    DragOver="FlowChartCanvas_DragOver"
-                    >
+                 x:Name="FlowChartCanvas" 
+                 Background="#E1FBEA"
+                 AllowDrop="True" 
+                 Width="{Binding Model.Width, Mode=TwoWay}"
+                 Height="{Binding Model.Height, Mode=TwoWay}"
+                 MouseLeftButtonDown ="FlowChartCanvas_MouseLeftButtonDown"
+                 MouseLeftButtonUp="FlowChartCanvas_MouseLeftButtonUp"
+                 MouseDown="FlowChartCanvas_MouseDown"
+                 MouseUp="FlowChartCanvas_MouseUp"
+                 MouseMove="FlowChartCanvas_MouseMove"
+                 MouseWheel="FlowChartCanvas_MouseWheel"
+                 Drop="FlowChartCanvas_Drop" 
+                 DragOver="FlowChartCanvas_DragOver"
+                 >
 
             <Rectangle x:Name="SelectionRectangle" 
                                Stroke="Blue" 

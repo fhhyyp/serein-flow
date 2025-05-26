@@ -9,10 +9,29 @@ using System.Threading.Tasks;
 
 namespace Serein.NodeFlow
 {
+
+    public class FlowTask
+    {
+        /// <summary>
+        /// 是否异步启动流程
+        /// </summary>
+        public bool IsTaskAsync { get; set; }  
+
+        /// <summary>
+        /// 流程起始节点
+        /// </summary>
+        public Func<NodeModelBase> GetStartNode { get; set; }
+
+        /// <summary>
+        /// 获取当前画布流程的所有节点
+        /// </summary>
+        public Func<List<NodeModelBase>> GetNodes { get; set; }
+    }
+
     /// <summary>
     /// 节点任务执行依赖
     /// </summary>
-    public class FlowWorkLibrary()
+    public class FlowWorkOptions()
     {
         /// <summary>
         /// 流程运行环境
@@ -30,13 +49,20 @@ namespace Serein.NodeFlow
         public Serein.Library.Utils.ObjectPool<IDynamicContext> FlowContextPool { get; set; }   
 
         /// <summary>
+        /// 每个画布需要启用的节点
+        /// </summary>
+        public Dictionary<string, FlowTask> Flows { get; set; }
+
+        /// <summary>
         /// 当前任务加载的所有节点
         /// </summary>
-        public List<NodeModelBase> Nodes { get; set; }// = nodes;
+        //public List<NodeModelBase> Nodes { get; set; }// = nodes;
+
         /// <summary>
         /// 需要注册的类型
         /// </summary>
         public Dictionary<RegisterSequence, List<Type>> AutoRegisterTypes { get; set; } //= autoRegisterTypes;
+
         /// <summary>
         /// 初始化时需要的方法
         /// </summary>

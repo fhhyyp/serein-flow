@@ -32,7 +32,7 @@ namespace Serein.Workbench
             collection.AddSingleton<FlowLibrarysViewModel>();
             collection.AddSingleton<FlowEditViewModel>();
 
-            collection.AddTransient<FlowCanvasViewModel>(); // 依赖信息
+            collection.AddTransient<FlowCanvasViewModel>(); // 画布
         }
 
         public static void AddWorkbenchServices(this IServiceCollection collection)
@@ -40,8 +40,8 @@ namespace Serein.Workbench
             collection.AddSingleton<IFlowEEForwardingService, FlowEEForwardingService>(); // 流程事件管理
             collection.AddSingleton<IWorkbenchEventService, WorkbenchEventService>(); // 流程事件管理
             collection.AddSingleton<FlowNodeService>(); // 节点操作管理
-            // collection.AddSingleton<IKeyEventService, KeyEventService>(); // 按键事件管理
-                                                                          //collection.AddSingleton<FlowNodeControlService>(); // 流程节点控件管理
+                                                        // collection.AddSingleton<IKeyEventService, KeyEventService>(); // 按键事件管理
+                                                        //collection.AddSingleton<FlowNodeControlService>(); // 流程节点控件管理
         }
 
 
@@ -97,21 +97,17 @@ namespace Serein.Workbench
             collection.AddViewModelServices();
             var services = collection.BuildServiceProvider(); // 绑定并返回获取实例的服务接口
             App.ServiceProvider = services;
-            _ = Task.Run(async () =>
-            {
-                await Task.Delay(500);
-                await this.LoadLocalProjectAsync();
-                App.GetService<IFlowEnvironment>().LoadProject(new FlowEnvInfo { Project = App.FlowProjectData }, App.FileDataPath);
-
-            });
+#if DEBUG
+            _ = this.LoadLocalProjectAsync();
+#endif
         }
 
 
         private async Task LoadLocalProjectAsync()
         {
-
+            await Task.Delay(500);
 #if DEBUG 
-            if (1 == 1)
+            if (1 == 10)
             {
                 // 这里是测试代码，可以删除
                 string filePath;
@@ -124,7 +120,7 @@ namespace Serein.Workbench
                 App.FlowProjectData = JsonConvert.DeserializeObject<SereinProjectData>(content);
                 App.FileDataPath = System.IO.Path.GetDirectoryName(filePath)!;   //  filePath;//
                 var dir = Path.GetDirectoryName(filePath);
-
+                App.GetService<IFlowEnvironment>().LoadProject(new FlowEnvInfo { Project = App.FlowProjectData }, App.FileDataPath);
             }
 #endif
         }

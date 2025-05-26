@@ -48,7 +48,7 @@ namespace Serein.Library
 
 
     /// <summary>
-    /// 项目保存文件
+    /// 项目数据
     /// </summary>
     public class SereinProjectData
     {
@@ -64,16 +64,20 @@ namespace Serein.Library
 
         public NodeLibraryInfo[] Librarys { get; set; }
 
-        /// <summary>
-        /// 起始节点GUID
-        /// </summary>
+        ///// <summary>
+        ///// 起始节点GUID
+        ///// </summary>
 
-        public string StartNode { get; set; }
+        //public string StartNode { get; set; }
+
+        /// <summary>
+        /// 画布集合
+        /// </summary>
+        public FlowCanvasDetailsInfo[] Canvass { get; set; }
 
         /// <summary>
         /// 节点集合
         /// </summary>
-
         public NodeInfo[] Nodes { get; set; }
 
     }
@@ -83,11 +87,10 @@ namespace Serein.Library
     /// </summary>
     public class Basic
     {
-        /// <summary>
-        /// 画布
-        /// </summary>
-
-        public FlowCanvasInfo Canvas { get; set; }
+        ///// <summary>
+        ///// 画布
+        ///// </summary>
+        //public FlowCanvasInfo Canvas { get; set; }
 
         /// <summary>
         /// 版本
@@ -95,7 +98,9 @@ namespace Serein.Library
 
         public string Versions { get; set; }
     }
-    /// <summary>
+
+
+   /* /// <summary>
     /// 画布信息，项目文件相关
     /// </summary>
     public class FlowCanvasInfo
@@ -132,7 +137,7 @@ namespace Serein.Library
         /// 缩放比例Y
         /// </summary>
         public double ScaleY { get; set; }
-    }
+    }*/
 
     /// <summary>
     /// 项目依赖的程序集，项目文件相关
@@ -186,7 +191,6 @@ namespace Serein.Library
         /// 所属画布Guid
         /// </summary>
         public string CanvasGuid { get; set; }  
-
 
         /// <summary>
         /// 节点的GUID

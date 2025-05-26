@@ -6,6 +6,7 @@ using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Tool;
 using System;
 using System.Collections.Concurrent;
+using System.Threading.Tasks.Dataflow;
 using System.Xml.Linq;
 
 namespace Serein.NodeFlow
@@ -20,25 +21,24 @@ namespace Serein.NodeFlow
         /// </summary>
         private ConcurrentDictionary<SingleFlipflopNode, CancellationTokenSource> dictGlobalFlipflop = [];
 
-        
-
 
         /// <summary>
         /// 结束运行时需要执行的方法
         /// </summary>
         private  Func<Task>? ExitAction { get; set; }
+
         /// <summary>
         /// 初始化选项
         /// </summary>
-        public FlowWorkLibrary WorkLibrary { get; }
+        public FlowWorkOptions WorkOptions { get; }
 
         /// <summary>
         /// 流程任务管理
         /// </summary>
-        /// <param name="library"></param>
-        public FlowWorkManagement(FlowWorkLibrary library)
+        /// <param name="options"></param>
+        public FlowWorkManagement(FlowWorkOptions options)
         {
-            WorkLibrary = library;
+            WorkOptions = options;
           
         }
 
@@ -48,43 +48,83 @@ namespace Serein.NodeFlow
         /// <returns></returns>
         public async Task<bool> RunAsync(CancellationToken token)
         {
-            NodeModelBase? startNode = WorkLibrary.Nodes.FirstOrDefault(node => node.IsStart);
-            if (startNode is null)
+            #region 注册所有节点所属的类的类型，如果注册失败则退出
+            List<NodeModelBase> nodes = new List<NodeModelBase>();
+            foreach (var item in WorkOptions.Flows.Values)
+            {
+                var temp = item.GetNodes();
+                nodes.AddRange(temp);
+            }
+            if (!RegisterAllType(nodes))
             {
                 return false;
             }
+            #endregion
 
-            if (!RegisterAllType())
-            {
-                return false;
-            };
+            #region 调用所有流程类的Init、Load事件
+
             var initState = await TryInit();
             if (!initState)
             {
                 return false;
-            };
+            }
+            ;
             var loadState = await TryLoadAsync();
             if (!loadState)
             {
                 return false;
-            };
-            var task = CallFlipflopNode();
-            await CallStartNode(startNode);
-            await task;
+            }
+            ;
+            #endregion
+
+            // 开始调用流程
+            foreach (var kvp in WorkOptions.Flows)
+            {
+                var guid = kvp.Key;
+                var flow = kvp.Value;
+                var flowNodes = flow.GetNodes();
+
+                // 找到流程的起始节点，开始运行
+                NodeModelBase? startNode = flowNodes.FirstOrDefault(node => node.IsStart);
+                if (startNode is null)
+                {
+                    return false;
+                }
+                // 是否后台运行当前画布流程
+                if (flow.IsTaskAsync)
+                {
+                    _ = Task.Run(async () => await CallStartNode(startNode));
+                }
+                else
+                {
+                    await CallStartNode(startNode);
+                }
+                var flipflopTasks = CallFlipflopNode(flow); // 获取所有触发器异步任务
+                _ = Task.Run(async () => await flipflopTasks); // 后台调用流程中的触发器
+            }
+
+            // 等待流程运行完成
             await CallExit();
             return true;
         }
 
         #region 初始化
-        private bool RegisterAllType()
+        /// <summary>
+        /// 初始化节点所需的所有类型
+        /// </summary>
+        /// <returns></returns>
+        private bool RegisterAllType(List<NodeModelBase> nodes)
         {
-            var env = WorkLibrary.Environment;
-            var nodeMds = WorkLibrary.Nodes.Select(item => item.MethodDetails).ToList(); // 获取环境中所有节点的方法信息 
+            var env = WorkOptions.Environment;
+
+            
+
+            var nodeMds = nodes.Select(item => item.MethodDetails).ToList(); // 获取环境中所有节点的方法信息 
             var allMds = new List<MethodDetails>();
             allMds.AddRange(nodeMds.Where(md => md?.ActingInstanceType is not null));
-            allMds.AddRange(WorkLibrary.InitMds.Where(md => md?.ActingInstanceType is not null));
-            allMds.AddRange(WorkLibrary.LoadMds.Where(md => md?.ActingInstanceType is not null));
-            allMds.AddRange(WorkLibrary.ExitMds.Where(md => md?.ActingInstanceType is not null));
+            allMds.AddRange(WorkOptions.InitMds.Where(md => md?.ActingInstanceType is not null));
+            allMds.AddRange(WorkOptions.LoadMds.Where(md => md?.ActingInstanceType is not null));
+            allMds.AddRange(WorkOptions.ExitMds.Where(md => md?.ActingInstanceType is not null));
             var isSuccessful = true;
             foreach (var md in allMds)
             {
@@ -114,10 +154,10 @@ namespace Serein.NodeFlow
 
         private async Task<bool> TryInit()
         {
-            var env = WorkLibrary.Environment;
-            var initMds = WorkLibrary.InitMds;
-            var pool = WorkLibrary.FlowContextPool;
-            var ioc = WorkLibrary.Environment.IOC;
+            var env = WorkOptions.Environment;
+            var initMds = WorkOptions.InitMds;
+            var pool = WorkOptions.FlowContextPool;
+            var ioc = WorkOptions.Environment.IOC;
             foreach (var md in initMds) // 初始化
             {
                 if (!env.TryGetDelegateDetails(md.AssemblyName, md.MethodName, out var dd)) // 流程运行初始化
@@ -136,10 +176,10 @@ namespace Serein.NodeFlow
         }
         private async Task<bool> TryLoadAsync()
         {
-            var env = WorkLibrary.Environment;
-            var loadMds = WorkLibrary.LoadMds;
-            var pool = WorkLibrary.FlowContextPool;
-            var ioc = WorkLibrary.Environment.IOC;
+            var env = WorkOptions.Environment;
+            var loadMds = WorkOptions.LoadMds;
+            var pool = WorkOptions.FlowContextPool;
+            var ioc = WorkOptions.Environment.IOC;
             foreach (var md in loadMds) // 加载时
             {
                 if (!env.TryGetDelegateDetails(md.AssemblyName, md.MethodName, out var dd)) // 流程运行初始化
@@ -159,10 +199,10 @@ namespace Serein.NodeFlow
         }
         private async Task<bool> CallExit()
         {
-            var env = WorkLibrary.Environment;
-            var mds = WorkLibrary.ExitMds;
-            var pool = WorkLibrary.FlowContextPool;
-            var ioc = WorkLibrary.Environment.IOC;
+            var env = WorkOptions.Environment;
+            var mds = WorkOptions.ExitMds;
+            var pool = WorkOptions.FlowContextPool;
+            var ioc = WorkOptions.Environment.IOC;
 
             ioc.Run<FlowInterruptTool>(fit => fit.CancelAllTrigger());// 取消所有中断
             foreach (var md in mds) // 结束时
@@ -186,10 +226,10 @@ namespace Serein.NodeFlow
             return isSuccessful;
         }
 
-        private Task CallFlipflopNode()
+        private Task CallFlipflopNode(FlowTask flow)
         {
-            var env = WorkLibrary.Environment;
-            var flipflopNodes = WorkLibrary.Nodes.Where(item => item is SingleFlipflopNode node
+            var env = WorkOptions.Environment;
+            var flipflopNodes = flow.GetNodes().Where(item => item is SingleFlipflopNode node
                                                   && !node.IsStart
                                                   && node.DebugSetting.IsEnable
                                                   && node.NotExitPreviousNode())
@@ -206,10 +246,16 @@ namespace Serein.NodeFlow
             }
             return Task.CompletedTask;
         }
+
+        /// <summary>
+        /// 从某一个节点开始执行
+        /// </summary>
+        /// <param name="startNode"></param>
+        /// <returns></returns>
         private async Task CallStartNode(NodeModelBase startNode)
         {
-            var pool = WorkLibrary.FlowContextPool;
-            var token = WorkLibrary.CancellationTokenSource.Token;
+            var pool = WorkOptions.FlowContextPool;
+            var token = WorkOptions.CancellationTokenSource.Token;
             var context = pool.Allocate();
             await startNode.StartFlowAsync(context, token);
             context.Exit();
@@ -227,9 +273,9 @@ namespace Serein.NodeFlow
         /// <returns></returns>
         public async Task StartFlowInSelectNodeAsync(IFlowEnvironment env, NodeModelBase startNode)
         {
-            var pool = WorkLibrary.FlowContextPool;
+            var pool = WorkOptions.FlowContextPool;
             var context = pool.Allocate();
-            var token = WorkLibrary.CancellationTokenSource.Token;
+            var token = WorkOptions.CancellationTokenSource.Token;
             await startNode.StartFlowAsync(context, token); // 开始运行时从选定节点开始运行
             context.Reset();
             pool.Free(context);
@@ -294,7 +340,7 @@ namespace Serein.NodeFlow
                                                 CancellationToken singleToken)
         {
 
-            var pool = WorkLibrary.FlowContextPool;
+            var pool = WorkOptions.FlowContextPool;
             while (!singleToken.IsCancellationRequested && !singleToken.IsCancellationRequested)
             {
                 try

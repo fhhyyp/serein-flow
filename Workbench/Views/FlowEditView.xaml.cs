@@ -2,6 +2,7 @@
 using Serein.Workbench.ViewModels;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -30,16 +31,18 @@ namespace Serein.Workbench.Views
     /// </summary>
     public partial class FlowEditView : UserControl
     {
+        
         public FlowEditView()
         {
             this.DataContext = App.GetService<Locator>().FlowEditViewModel;
             InitializeComponent();
+            
         }
 
         private void TextBlock_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             var textBlock = sender as TextBlock;
-            var tab = textBlock?.DataContext as FlowCanvasModel;
+            var tab = textBlock?.DataContext as FlowCanvasViewModel;
             if (tab != null)
             {
                 DragDrop.DoDragDrop(textBlock, tab, DragDropEffects.Move);
@@ -47,7 +50,7 @@ namespace Serein.Workbench.Views
         }
         private void TabControl_DragOver(object sender, DragEventArgs e)
         {
-            if (e.Data.GetDataPresent(typeof(FlowCanvasModel)))
+            if (e.Data.GetDataPresent(typeof(FlowCanvasViewModel)))
             {
                 e.Effects = DragDropEffects.Move;
             }
@@ -59,73 +62,83 @@ namespace Serein.Workbench.Views
 
         private void TabControl_Drop(object sender, DragEventArgs e)
         {
-            var sourceTab = e.Data.GetData(typeof(FlowCanvasModel)) as FlowCanvasModel;
-            var targetTab = (sender as TabControl)?.SelectedItem as FlowCanvasModel;
+            var sourceTab = e.Data.GetData(typeof(FlowEditorTabModel)) as FlowEditorTabModel;
+            var targetTab = (sender as TabControl)?.SelectedItem as FlowEditorTabModel;
             var viewModel = (FlowEditViewModel)this.DataContext;
             if (sourceTab != null && targetTab != null && sourceTab != targetTab)
             {
-                var sourceIndex = viewModel.Tabs.IndexOf(sourceTab);
-                var targetIndex = viewModel.Tabs.IndexOf(targetTab);
+                var sourceIndex = viewModel.CanvasTabs.IndexOf(sourceTab);
+                var targetIndex = viewModel.CanvasTabs.IndexOf(targetTab);
 
                 // 删除源项并插入到目标位置
-                viewModel.Tabs.Remove(sourceTab);
-                viewModel.Tabs.Insert(targetIndex, sourceTab);
-
+                viewModel.CanvasTabs.Remove(sourceTab);
+                viewModel.CanvasTabs.Insert(targetIndex, sourceTab);
+                
                 // 更新视图模型中的选中的Tab
                 viewModel.SelectedTab = sourceTab;
             }
         }
 
-
+        /// <summary>
+        /// 按下确认或回车
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void TextBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
-         
             if (e.Key == Key.Enter || e.Key == Key.Escape)
             {
-                var textBox = sender as TextBox;
-                var newName = textBox?.Text;
-                if (string.IsNullOrEmpty(newName))
+                if (sender is TextBox textBox
+                     && textBox.DataContext is FlowEditorTabModel tab
+                     && DataContext is FlowEditViewModel viewModel)
                 {
+                    viewModel.EndEditingTab(tab, textBox.Text); // 确认新名称
                     return;
                 }
-                var tab = textBox?.DataContext as FlowCanvasModel;
-                if (tab != null)
-                {
-                    var viewModel = (FlowEditViewModel)this.DataContext;
-                    viewModel.EndEditingTab(tab, newName); // 确认新名称
-                }
             }
         }
 
-        private void TextBox_LostFocus(object sender, RoutedEventArgs e)
-        {
-            var textBox = sender as TextBox;
-            var newName = textBox?.Text;
-            if (string.IsNullOrEmpty(newName))
-            {
-                return;
-            }
-            var tab = textBox?.DataContext as FlowCanvasModel;
-            if (tab != null && tab.IsEditing)
-            {
-                var viewModel = (FlowEditViewModel)this.DataContext;
-                viewModel.EndEditingTab(tab, newName); // 确认新名称
-            }
-        }
-
+  
+        /// <summary>
+        /// 双击tab进入编辑状态
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void TextBlock_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ClickCount == 2)
             {
-                var textBlock = sender as TextBlock;
-                var tab = textBlock?.DataContext as FlowCanvasModel;
-                if (tab != null)
+                if (sender is TextBlock textBlock
+                     && textBlock.DataContext is FlowEditorTabModel tab
+                     && DataContext is FlowEditViewModel viewModel)
                 {
-                    var viewModel = (FlowEditViewModel)this.DataContext;
-                    viewModel.StartEditingTab(tab);
+                    viewModel.StartEditingTab(tab); // 确认新名称
+                    return;
                 }
+
+               
             }
             
         }
+
+        private FlowEditorTabModel lastTab;
+
+        private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is TabControl tabControl
+                && tabControl.SelectedIndex > 0
+                && DataContext is FlowEditViewModel viewModel
+                && viewModel.CanvasTabs[tabControl.SelectedIndex] is FlowEditorTabModel tab)
+            {
+
+                viewModel.EndEditingTab(lastTab); // 确认新名称
+                lastTab = tab;
+                return;
+            }
+
+        }
+
+
+
     }
 }

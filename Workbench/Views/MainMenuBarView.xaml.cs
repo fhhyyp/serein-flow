@@ -23,7 +23,7 @@ namespace Serein.Workbench.Views
     {
         public MainMenuBarView()
         {
-            this.DataContext = App.GetService<Locator>().MainViewModel;
+            this.DataContext = App.GetService<Locator>().MainMenuBarViewModel;
             InitializeComponent();
         }
     }

@@ -31,7 +31,7 @@ namespace Serein.Workbench.Services
         /// 转发流程运行环境各个事件的实现类
         /// </summary>
         /// <param name="flowEnvironment"></param>
-        /// <param name="flowNodeControlService"></param>
+        /// <param name="flowEnvironmentEvent"></param>
         public FlowEEForwardingService(IFlowEnvironment flowEnvironment,
                                        IFlowEnvironmentEvent flowEnvironmentEvent)
         {

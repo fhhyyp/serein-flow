@@ -238,7 +238,7 @@ namespace Serein.NodeFlow.Env
         /// <param name="width">宽度</param>
         /// <param name="height">高度</param>
         /// <returns></returns>
-        public async Task<FlowCanvasInfo> CreateCanvasAsync(string canvasName, int width, int height)
+        public async Task<FlowCanvasDetailsInfo> CreateCanvasAsync(string canvasName, int width, int height)
         {
             return await currentFlowEnvironment.CreateCanvasAsync(canvasName, width, height);
         }

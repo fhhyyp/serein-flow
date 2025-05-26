@@ -301,7 +301,7 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// 运行环境加载的画布集合
         /// </summary>
-        private Dictionary<string, FlowCanvasModel> FlowCanvass { get; } = [];
+        private Dictionary<string, FlowCanvasDetails> FlowCanvass { get; } = [];
 
         /// <summary>
         /// 存放触发器节点（运行时全部调用）
@@ -309,35 +309,35 @@ namespace Serein.NodeFlow.Env
         private List<SingleFlipflopNode> FlipflopNodes { get; } = [];
 
 
+        /*
+       /// <summary>
+       /// 起始节点私有属性
+       /// </summary>
+       private NodeModelBase? _startNode = null;
 
-        /// <summary>
-        /// 起始节点私有属性
-        /// </summary>
-        private NodeModelBase? _startNode = null;
-
-        /// <summary>
-        /// 起始节点
-        /// </summary>
-        private NodeModelBase? StartNode
-        {
-            get
-            {
-                return _startNode;
-            }
-            set
-            {
-                if (value is null)
-                {
-                    return;
-                }
-                if (_startNode is not null)
-                {
-                    _startNode.IsStart = false;
-                }
-                value.IsStart = true;
-                _startNode = value;
-            }
-        }
+      /// <summary>
+       /// 起始节点
+       /// </summary>
+       private NodeModelBase? StartNode
+       {
+           get
+           {
+               return _startNode;
+           }
+           set
+           {
+               if (value is null)
+               {
+                   return;
+               }
+               if (_startNode is not null)
+               {
+                   _startNode.IsStart = false;
+               }
+               value.IsStart = true;
+               _startNode = value;
+           }
+       }*/
 
         /// <summary>
         /// 流程任务管理
@@ -373,12 +373,11 @@ namespace Serein.NodeFlow.Env
             IOC.Reset();
             IOC.Register<IScriptFlowApi, ScriptFlowApi>(); // 注册脚本接口
 
-            var flowTaskOptions = new FlowWorkLibrary
+            var flowTaskOptions = new FlowWorkOptions
             {
-
                 Environment = this,
                 FlowContextPool = new ObjectPool<IDynamicContext>(() => new DynamicContext(this)),
-                Nodes = NodeModels.Values.ToList(),
+                //Nodes = NodeModels.Values.ToList(),
                 AutoRegisterTypes = this.FlowLibraryManagement.GetaAutoRegisterType(),
                 InitMds = this.FlowLibraryManagement.GetMdsOnFlowStart(NodeType.Init),
                 LoadMds = this.FlowLibraryManagement.GetMdsOnFlowStart(NodeType.Loading),
@@ -534,7 +533,8 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         public void SaveProject()
         {
-            OnProjectSaving?.Invoke(new ProjectSavingEventArgs());
+            var project =  GetProjectInfoAsync().GetAwaiter().GetResult();
+            OnProjectSaving?.Invoke(new ProjectSavingEventArgs(project));
         }
 
         /// <summary>
@@ -562,7 +562,7 @@ namespace Serein.NodeFlow.Env
             _ = Task.Run( async () =>
             {
                 await LoadNodeInfosAsync(projectData.Nodes.ToList()); // 加载节点信息
-                await SetStartNodeAsync("", projectData.StartNode); // 设置起始节点
+                //await SetStartNodeAsync("", projectData.StartNode); // 设置起始节点
             });
 
         }
@@ -615,16 +615,17 @@ namespace Serein.NodeFlow.Env
         /// 序列化当前项目的依赖信息、节点信息
         /// </summary>
         /// <returns></returns>
-        public Task<SereinProjectData> GetProjectInfoAsync()
+        public async Task<SereinProjectData> GetProjectInfoAsync()
         {
             var projectData = new SereinProjectData()
             {
                 Librarys = this.FlowLibraryManagement.GetAllLibraryInfo().ToArray(),
                 Nodes = NodeModels.Values.Select(node => node.ToInfo()).Where(info => info is not null).ToArray(),
-                StartNode = NodeModels.Values.FirstOrDefault(it => it.IsStart)?.Guid,
+                Canvass = FlowCanvass.Values.Select(canvas => canvas.ToInfo()).ToArray(),
+                //StartNode = NodeModels.Values.FirstOrDefault(it => it.IsStart)?.Guid,
             };
 
-            return Task.FromResult(projectData);
+            return projectData;
         }
 
 
@@ -776,22 +777,22 @@ namespace Serein.NodeFlow.Env
         /// <param name="width">宽度</param>
         /// <param name="height">高度</param>
         /// <returns></returns>
-        public Task<FlowCanvasInfo> CreateCanvasAsync(string canvasName, int width, int height)
+        public async Task<FlowCanvasDetailsInfo> CreateCanvasAsync(string canvasName, int width, int height)
         {
-            var model = new FlowCanvasModel(this)
+            var model = new FlowCanvasDetails(this)
             {
                 Guid = Guid.NewGuid().ToString(),
                 Height = height,
-                Name = !string.IsNullOrWhiteSpace(canvasName) ? canvasName : $"流程图 {_addCanvasCount++}",
-                Width = height,
+                Width = width,
+                Name = !string.IsNullOrWhiteSpace(canvasName) ? canvasName : $"流程图{_addCanvasCount++}",
             };
             FlowCanvass.Add(model.Guid, model);
-            UIContextOperation.Invoke(() =>
+            await UIContextOperation.InvokeAsync(() =>
             {
                 OnCanvasCreate.Invoke(new CanvasCreateEventArgs(model));
             });
             var info = model.ToInfo();
-            return Task.FromResult(info);
+            return info;
         }
 
         /// <summary>
@@ -799,15 +800,29 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         /// <param name="canvasGuid">画布Guid</param>
         /// <returns></returns>
-        public Task<bool> RemoveCanvasAsync(string canvasGuid)
+        public async Task<bool> RemoveCanvasAsync(string canvasGuid)
         {
 
             if (!FlowCanvass.TryGetValue(canvasGuid, out var model))
             {
-                return Task.FromResult(false);
+                return false;
             }
             var count = NodeModels.Values.Count(node => node.CanvasGuid.Equals(canvasGuid));
-            return Task.FromResult(count == 0);
+            if(count > 0)
+            {
+                SereinEnv.WriteLine(InfoType.WARN, "无法删除具有节点的画布");
+                return false;
+            }
+            if (FlowCanvass.Remove(canvasGuid))
+            {
+                await UIContextOperation.InvokeAsync(() =>
+                {
+                    OnCanvasRemove.Invoke(new CanvasRemoveEventArgs(canvasGuid));
+                });
+                return true;
+            }
+            
+            return false;
         }
 
 
@@ -981,7 +996,7 @@ namespace Serein.NodeFlow.Env
                                               PositionOfUI position,
                                               MethodDetailsInfo? methodDetailsInfo = null)
         {
-            if (!FlowCanvass.ContainsKey(canvasGuid))
+            if (!TryGetCanvasModel(canvasGuid,out var cavnasModel))
             {
                 return Task.FromResult<NodeInfo>(null);
             }
@@ -1005,16 +1020,17 @@ namespace Serein.NodeFlow.Env
             }
            
             TryAddNode(nodeModel);
-            nodeModel.Position = position;
+            nodeModel.CanvasGuid = canvasGuid; // 设置所属于的画布
+            nodeModel.Position = position; // 设置位置
 
             // 通知UI更改
             UIContextOperation?.Invoke(() => OnNodeCreate?.Invoke(new NodeCreateEventArgs(canvasGuid, nodeModel, position)));
 
             // 因为需要UI先布置了元素，才能通知UI变更特效
             // 如果不存在流程起始控件，默认设置为流程起始控件
-            if (StartNode is null)
+            if (cavnasModel.StartNode is null)
             {
-                SetStartNode(canvasGuid, nodeModel);
+                SetStartNode(cavnasModel, nodeModel);
             }
             var nodeInfo = nodeModel.ToInfo();
             return Task.FromResult(nodeInfo);
@@ -1392,15 +1408,16 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// 设置起点控件
         /// </summary>
-        /// <param name="newNodeGuid"></param>
+        /// <param name="canvasGuid">画布</param>
+        /// <param name="newNodeGuid">节点Guid</param>
         public Task<string> SetStartNodeAsync(string canvasGuid, string newNodeGuid)
         {
-            if (!FlowCanvass.ContainsKey(canvasGuid) || !TryGetNodeModel(newNodeGuid, out var newStartNodeModel))
+            if (!TryGetCanvasModel(canvasGuid, out var canvasModel) || !TryGetNodeModel(newNodeGuid, out var newStartNodeModel))
             {
-                return Task.FromResult(StartNode?.Guid ?? string.Empty);
+                return Task.FromResult(canvasModel.StartNode ?? string.Empty);
             }
-            SetStartNode(canvasGuid, newStartNodeModel);
-            return Task.FromResult(StartNode?.Guid ?? string.Empty);
+            SetStartNode(canvasModel, newStartNodeModel);
+            return Task.FromResult(canvasModel.StartNode ?? string.Empty);
         }
 
         /// <summary>
@@ -1512,9 +1529,25 @@ namespace Serein.NodeFlow.Env
         }
 
 
+        /// <summary>
+        /// 从Guid获取画布
+        /// </summary>
+        /// <param name="nodeGuid">节点Guid</param>
+        /// <returns>节点Model</returns>
+        /// <exception cref="ArgumentNullException">无法获取节点、Guid/节点为null时报错</exception>
+        public bool TryGetCanvasModel(string nodeGuid, out FlowCanvasDetails canvasDetails)
+        {
+            if (string.IsNullOrEmpty(nodeGuid))
+            {
+                canvasDetails = null;
+                return false;
+            }
+            return FlowCanvass.TryGetValue(nodeGuid, out canvasDetails) && canvasDetails is not null;
+
+        }
 
         /// <summary>
-        /// Guid 转 NodeModel
+        /// 从Guid获取节点
         /// </summary>
         /// <param name="nodeGuid">节点Guid</param>
         /// <returns>节点Model</returns>
@@ -1913,15 +1946,11 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         /// <param name="newStartNode"></param>
         /// <param name="oldStartNode"></param>
-        private void SetStartNode(string canvasGuid, NodeModelBase newStartNode)
+        private void SetStartNode(FlowCanvasDetails cavnasModel, NodeModelBase newStartNode)
         {
-            if (!FlowCanvass.ContainsKey(canvasGuid))
-            {
-                return;
-            }
-            var oldNodeGuid = StartNode?.Guid;
-            StartNode = newStartNode;
-            UIContextOperation?.Invoke(() => OnStartNodeChange?.Invoke(new StartNodeChangeEventArgs(canvasGuid, oldNodeGuid, StartNode.Guid)));
+            var oldNodeGuid = cavnasModel.StartNode;
+            cavnasModel.StartNode = newStartNode.Guid;
+            UIContextOperation?.Invoke(() => OnStartNodeChange?.Invoke(new StartNodeChangeEventArgs(cavnasModel.Guid, oldNodeGuid, cavnasModel.StartNode)));
 
             //if (OperatingSystem.IsWindows())
             //{

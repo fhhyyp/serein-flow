@@ -312,7 +312,7 @@ namespace Serein.NodeFlow.Env
 
 
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.CreateCanvas, IsReturnValue = false)]
-        public  async Task<FlowCanvasInfo> CreateCanvas(string canvasName, int width, int height)
+        public  async Task<FlowCanvasDetailsInfo> CreateCanvas(string canvasName, int width, int height)
         {
             var canvasInfo = await environment.CreateCanvasAsync(canvasName, width, height); // 监听到客户端创建节点的请求
             return canvasInfo;
