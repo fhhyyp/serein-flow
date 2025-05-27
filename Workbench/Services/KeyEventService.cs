@@ -78,14 +78,14 @@ namespace Serein.Workbench.Services
         {
             KeysState[(int)key] = true;
             OnKeyDown?.Invoke(key);
-            Debug.WriteLine($"按键按下事件：{key}");
+            //Debug.WriteLine($"按键按下事件：{key}");
         }
 
         public void KeyUp(Key key)
         {
             KeysState[(int)key] = false;
             OnKeyUp?.Invoke(key);
-            Debug.WriteLine($"按键抬起事件：{key}");
+            //Debug.WriteLine($"按键抬起事件：{key}");
 
         }
     }

@@ -39,6 +39,8 @@
         <!--流程编辑区-->
         <local:FlowEditView Grid.Row="1" Grid.Column="2"/>
         <!--编辑区和视图区的分割线-->
-        <GridSplitter  Grid.Row="1"   Grid.Column="3" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="#CCD5F0" />
+        <GridSplitter  Grid.Row="1"  Grid.Column="3" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="#CCD5F0" />
+
+        <local:CanvasInfoView Grid.Row="1"  Grid.Column="4" />
     </Grid>
 </Window>

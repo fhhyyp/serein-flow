@@ -24,12 +24,15 @@
   <ItemGroup>
     <Compile Remove="Entity\Base\**" />
     <Compile Remove="Http\**" />
+    <Compile Remove="Network\Socket\**" />
     <Compile Remove="Utils\SerinExpression\**" />
     <EmbeddedResource Remove="Entity\Base\**" />
     <EmbeddedResource Remove="Http\**" />
+    <EmbeddedResource Remove="Network\Socket\**" />
     <EmbeddedResource Remove="Utils\SerinExpression\**" />
     <None Remove="Entity\Base\**" />
     <None Remove="Http\**" />
+    <None Remove="Network\Socket\**" />
     <None Remove="Utils\SerinExpression\**" />
   </ItemGroup>
 
@@ -49,10 +52,6 @@
     <PackageReference Include="System.Reactive" Version="6.0.1" />
     <PackageReference Include="System.Threading.Channels" Version="8.0.0" />
     <PackageReference Include="System.ValueTuple" Version="4.3.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Network\Socket\" />
   </ItemGroup>
 
   <ItemGroup>

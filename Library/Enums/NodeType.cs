@@ -65,16 +65,6 @@ namespace Serein.Library
     }
 
     
-    
-    class UserInfo
-    {
-        public string Name;
-        public int Id;
-        public string[] PhoneNums;
-    }
-    
-    
-    
 
     /// <summary>
     /// 生成的节点控件
@@ -109,11 +99,7 @@ namespace Serein.Library
         /// </summary>
         [Description("base")]
         ExpCondition,
-        /// <summary>
-        /// 条件节点区域
-        /// </summary>
-        [Description("base")] 
-        ConditionRegion,
+        
         /// <summary>
         /// 全局数据
         /// </summary>
@@ -129,6 +115,15 @@ namespace Serein.Library
         /// </summary>
         [Description("base")] 
         NetScript,
+
+        /// <summary>
+        /// 流程调用节点（流程图公开的节点）
+        /// </summary>
+        [Description("base")]
+        FlowCall,
+
+
+
     }
 
 }

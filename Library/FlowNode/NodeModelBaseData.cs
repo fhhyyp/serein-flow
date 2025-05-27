@@ -14,7 +14,7 @@ namespace Serein.Library
     /// <summary>
     /// 节点基类（数据）
     /// </summary>
-    [NodeProperty(ValuePath = NodeValuePath.None)]
+    [NodeProperty(ValuePath = NodeValuePath.Node)]
     public abstract partial class NodeModelBase : IDynamicFlowNode
     {
         /// <summary>
@@ -35,13 +35,11 @@ namespace Serein.Library
         [PropertyInfo(IsProtection = true)]
         private NodeControlType _controlType;
 
-
         /// <summary>
         /// 所属画布
         /// </summary>
-        [PropertyInfo(IsProtection = true)] 
-        private string _canvasGuid ;
-        
+        [PropertyInfo(IsProtection = true)]
+        private FlowCanvasDetails _canvasDetails ;
 
         /// <summary>
         /// 在画布中的位置
@@ -56,10 +54,10 @@ namespace Serein.Library
         private string _displayName;
 
         /// <summary>
-        /// 是否为起点控件
+        /// 是否公开
         /// </summary>
-        [PropertyInfo]
-        private bool _isStart;
+        [PropertyInfo(IsNotification = true, CustomCodeAtEnd = "NodePublicStateChanged();")]
+        private bool _isPublic;
 
         /// <summary>
         /// 附加的调试功能
@@ -68,7 +66,7 @@ namespace Serein.Library
         private NodeDebugSetting _debugSetting ;
 
         /// <summary>
-        /// 方法描述。不包含Method与委托，需要通过MethodName从环境中获取委托进行调用。
+        /// 方法描述。包含参数信息。不包含Method与委托，如若需要调用对应的方法，需要通过MethodName从环境中获取委托进行调用。
         /// </summary>
         [PropertyInfo(IsProtection = true)] 
         private MethodDetails _methodDetails ;
@@ -122,7 +120,29 @@ namespace Serein.Library
         /// </summary>
         public List<NodeModelBase> ChildrenNode {  get; }
 
-
+        /// <summary>
+        /// 节点公开状态发生改变
+        /// </summary>
+        private void NodePublicStateChanged()
+        {
+            
+            if (IsPublic)
+            {
+                // 公开节点
+                if (!CanvasDetails.PublicNodes.Contains(this))
+                {
+                    CanvasDetails.PublicNodes.Add(this);
+                }
+            }
+            else
+            {
+                // 取消公开
+                if (CanvasDetails.PublicNodes.Contains(this))
+                {
+                    CanvasDetails.PublicNodes.Remove(this);
+                }
+            }
+        }
     }
  }
 

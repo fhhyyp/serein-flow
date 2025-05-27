@@ -2,6 +2,7 @@
 using Serein.Library.FlowNode;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -27,9 +28,21 @@ namespace Serein.Library
         public IFlowEnvironment Env { get; }
 
         /// <summary>
-        /// 标识画布ID
+        /// 画布拥有的节点
         /// </summary>
         [PropertyInfo(IsProtection = true)]
+        private System.Collections.ObjectModel.ObservableCollection<NodeModelBase> _nodes = [];
+        
+        /// <summary>
+        /// 画布公开的节点
+        /// </summary>
+        [PropertyInfo(IsProtection = true)]
+        private System.Collections.ObjectModel.ObservableCollection<NodeModelBase> _publicNodes = [];
+
+        /// <summary>
+        /// 标识画布ID
+        /// </summary>
+        [PropertyInfo(IsProtection = false)]
         private string _guid;
 
         /// <summary>
@@ -54,19 +67,19 @@ namespace Serein.Library
         /// 预览位置X
         /// </summary>
         [PropertyInfo(IsNotification = true)]
-        private double _viewX ;
+        private double _viewX;
 
         /// <summary>
         /// 预览位置Y
         /// </summary>
         [PropertyInfo(IsNotification = true)]
-        private double _viewY ;
+        private double _viewY;
 
         /// <summary>
         /// 缩放比例X
         /// </summary>
         [PropertyInfo(IsNotification = true)]
-        private double _scaleX  = 1; 
+        private double _scaleX = 1;
 
         /// <summary>
         /// 缩放比例Y
@@ -85,7 +98,7 @@ namespace Serein.Library
 
     public partial class FlowCanvasDetails
     {
-       
+
 
     }
 

@@ -374,14 +374,14 @@ namespace Serein.Workbench.Views
                 // 准备放置条件表达式控件
                 if (nodeControl.ViewModel.NodeModel.ControlType == NodeControlType.ExpCondition)
                 {
-                    ConditionRegionControl? conditionRegion =  WpfFuncTool.GetParentOfType<ConditionRegionControl>(hitElement);
+                   /* ConditionRegionControl? conditionRegion =  WpfFuncTool.GetParentOfType<ConditionRegionControl>(hitElement);
                     if (conditionRegion is not null)
                     {
                         targetNodeControl = conditionRegion;
                         //// 如果存在条件区域容器
                         //conditionRegion.AddCondition(nodeControl);
                         return true;
-                    }
+                    }*/
                 }
 
                 else
@@ -408,13 +408,24 @@ namespace Serein.Workbench.Views
         /// <param name="key"></param>
         private void KeyEventService_OnKeyDown(Key key)
         {
-            if (!flowNodeService.CurrentSelectCanvas.Guid.Equals(Guid))
+            
+            if (flowNodeService.CurrentSelectCanvas is null || !flowNodeService.CurrentSelectCanvas.Guid.Equals(Guid))
             {
                 return;
             }
+            
+
+            if (key == Key.F5)
+            {
+                // F5 调试当前流程
+                _ = flowEnvironment.StartFlowAsync([Guid]);
+            }
+
+
 
             if (key == Key.Escape)
             {
+                // 退出连线、选取状态
                 IsControlDragging = false;
                 IsCanvasDragging = false;
                 SelectionRectangle.Visibility = Visibility.Collapsed;
@@ -427,16 +438,33 @@ namespace Serein.Workbench.Views
             if (selectNodeControls.Count > 0 && key == Key.C && (keyEventService.GetKeyState(Key.LeftCtrl) || keyEventService.GetKeyState(Key.RightCtrl))) 
             {
                 var text = flowNodeService.CpoyNodeInfo([.. selectNodeControls.Select(c => c.ViewModel.NodeModel)]);
-                Clipboard.SetDataObject(text, true); // 复制，持久性设置
-                return;
+                //Clipboard.SetText(text); // 复制，持久性设置
+                try
+                {
+                    Clipboard.SetDataObject(text, true); // 复制，持久性设置
+                }
+                catch 
+                {
+                    Clipboard.SetText(text);
+                    return;
+                }
             }
-
+            
             // 粘贴节点
             if (key == Key.V && (keyEventService.GetKeyState(Key.LeftCtrl) || keyEventService.GetKeyState(Key.RightCtrl))) 
             {
                 string clipboardText = Clipboard.GetText(TextDataFormat.Text); // 获取复制的文本
-                var jobject = JObject.Parse(clipboardText);
-                var nodesText = jobject["nodes"]?.ToString();
+                string nodesText = "";
+                try
+                {
+                    var jobject = JObject.Parse(clipboardText);
+                    nodesText = jobject["nodes"]?.ToString();
+                }
+                catch (Exception ex)
+                {
+                    return;
+                }
+                
                 if (!string.IsNullOrWhiteSpace(nodesText))
                 {
                     
@@ -596,7 +624,7 @@ namespace Serein.Workbench.Views
                     {
                         NodeControlType nodeControlType = droppedType switch
                         {
-                            Type when typeof(ConditionRegionControl).IsAssignableFrom(droppedType) => NodeControlType.ConditionRegion, // 条件区域
+                            //Type when typeof(ConditionRegionControl).IsAssignableFrom(droppedType) => NodeControlType.ConditionRegion, // 条件区域
                             Type when typeof(ConditionNodeControl).IsAssignableFrom(droppedType) => NodeControlType.ExpCondition,
                             Type when typeof(ExpOpNodeControl).IsAssignableFrom(droppedType) => NodeControlType.ExpOp,
                             Type when typeof(GlobalDataControl).IsAssignableFrom(droppedType) => NodeControlType.GlobalData,

@@ -198,6 +198,11 @@ namespace Serein.Library
         public string Guid { get; set; }
 
         /// <summary>
+        /// 是否全局公开
+        /// </summary>
+        public bool IsPublic { get; set; } 
+
+        /// <summary>
         /// 节点方法所属的程序集名称
         /// </summary>
         public string AssemblyName { get;set; }

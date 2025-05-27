@@ -198,7 +198,7 @@ namespace Serein.Library.Utils
             public string Name { get; set; }
             public Type Type { get; set; }
         }
-        private const string FlowBaseClassName = "<>$FlowBaseClass!@#";
+        private const string FlowBaseClassName = "@FlowBaseClass";
 
 
         public Dictionary<string, List<string>> BuildDependencyTree()

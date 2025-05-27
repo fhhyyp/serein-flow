@@ -96,7 +96,7 @@ namespace Serein.NodeFlow.Model
         {
             foreach (var nodeModel in ChildrenNode) 
             {
-                await nodeModel.Env.TakeOutNodeToContainerAsync(nodeModel.CanvasGuid, nodeModel.Guid);
+                await nodeModel.Env.TakeOutNodeToContainerAsync(nodeModel.CanvasDetails.Guid, nodeModel.Guid);
             }
             DataNode = null;
         }
@@ -178,7 +178,7 @@ namespace Serein.NodeFlow.Model
                 return;
             }
             // 移除数据节点
-            _ = this.Env.RemoveNodeAsync(DataNode.CanvasGuid, DataNode.Guid);
+            _ = this.Env.RemoveNodeAsync(DataNode.CanvasDetails.Guid, DataNode.Guid);
         }
 
     }

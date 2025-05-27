@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using Newtonsoft.Json.Linq;
+using Serein.Library;
 using Serein.Workbench.ViewModels;
 using Serein.Workbench.Views;
 using System;
@@ -19,7 +20,7 @@ namespace Serein.Workbench.Models
         /// <summary>
         /// tab 名称
         /// </summary>
-        public string Name
+       /* public string Name
         {
             get
             {
@@ -34,6 +35,10 @@ namespace Serein.Workbench.Models
                 OnPropertyChanged(nameof(Name));
             }
         }
+*/
+
+        [ObservableProperty]
+        private FlowCanvasDetails _model;
 
 
         /// <summary>

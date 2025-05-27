@@ -91,7 +91,13 @@
                         </Border>
                     </Grid>
 
-                    <StackPanel Grid.Row="4" Background="Azure"  Orientation="Horizontal" Margin="3">
+
+                    <StackPanel Grid.Row="4" Background="Azure"  Orientation="Horizontal" Margin="3"> 
+                        <StackPanel Orientation="Horizontal">
+                            <CheckBox  IsChecked="{Binding NodeModel.IsPublic, Mode=TwoWay}"/>
+                            <TextBlock Text="全局公开"/>
+                        </StackPanel>
+
                         <StackPanel Orientation="Horizontal">
                             <CheckBox IsChecked="{Binding NodeModel.DebugSetting.IsEnable, Mode=TwoWay}"/>
                             <TextBlock Text="是否使能"/>
@@ -107,6 +113,8 @@
                             <CheckBox  IsChecked="{Binding NodeModel.DebugSetting.IsInterrupt, Mode=TwoWay}"/>
                             <TextBlock Text="中断节点"/>
                         </StackPanel>
+                        
+                        
                     </StackPanel>
 
                 </Grid>

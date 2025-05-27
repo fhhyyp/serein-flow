@@ -56,7 +56,7 @@ namespace Serein.Library
     public sealed class PropertyInfoAttribute : Attribute
     {
         /// <summary>
-        /// 是否通知UI
+        /// 是否通知远程环境（如果在远程环境下）
         /// </summary>
         public bool IsNotification = false;
 

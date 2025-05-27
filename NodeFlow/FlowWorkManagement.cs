@@ -227,7 +227,7 @@ namespace Serein.NodeFlow
         {
             var env = WorkOptions.Environment;
             var flipflopNodes = flow.GetNodes().Where(item => item is SingleFlipflopNode node
-                                                  && !node.IsStart
+                                                 
                                                   && node.DebugSetting.IsEnable
                                                   && node.NotExitPreviousNode())
                                         .Select(item => (SingleFlipflopNode)item);

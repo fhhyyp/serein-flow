@@ -23,7 +23,7 @@ namespace Serein.Library
     
 
     /// <summary>
-    /// 节点基类（数据）：条件控件，动作控件，条件区域，动作区域
+    /// 节点基类
     /// </summary>
     public abstract partial class NodeModelBase : IDynamicFlowNode
     {

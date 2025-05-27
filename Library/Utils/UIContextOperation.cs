@@ -54,10 +54,11 @@ namespace Serein.Library.Utils
         }
 
         /// <summary>
-        /// 同步方式进行调用方法
+        /// 同步方式在UI线程上进行调用方法
         /// </summary>
         /// <param name="uiAction">要执行的UI操作</param>
-        public void Invoke(Action uiAction)
+        /// <param name="onException">异常发生时的回调</param>
+        public void Invoke(Action uiAction, Action<Exception> onException = null)
         {
             if(context is null && getUiContext != null)
             {
@@ -65,7 +66,15 @@ namespace Serein.Library.Utils
             }
             context?.Post(state =>
             {
-                uiAction?.Invoke();
+                try
+                {
+                    uiAction?.Invoke();
+                }
+                catch (Exception ex)
+                {
+                    if(onException != null) onException(ex);
+                    Debug.WriteLine(ex);
+                }
             }, null);
         }
 
@@ -73,8 +82,9 @@ namespace Serein.Library.Utils
         /// 异步方式进行调用
         /// </summary>
         /// <param name="uiAction">要执行的UI操作</param>
+        /// <param name="onException">异常发生时的回调</param>
         /// <returns></returns>
-        public Task InvokeAsync(Action uiAction)
+        public Task InvokeAsync(Action uiAction, Action<Exception> onException = null)
         {
             if (context is null && getUiContext != null)
             {
@@ -92,6 +102,7 @@ namespace Serein.Library.Utils
                 catch (Exception ex)
                 {
                     tcs.SetException(ex);
+                    if (onException != null) onException(ex);
                     Debug.WriteLine(ex);
                 }
             }, null);

@@ -87,6 +87,12 @@ namespace Serein.NodeFlow.Env
         public UIContextOperation UIContextOperation { get; }
         public NodeMVVMManagement NodeMVVMManagement { get; }
 
+
+        /// <summary>
+        /// 运行环境加载的画布集合
+        /// </summary>
+        private Dictionary<string, FlowCanvasDetails> FlowCanvass { get; } = [];
+
         /// <summary>
         /// 标示是否正在加载项目
         /// </summary>
@@ -893,7 +899,11 @@ namespace Serein.NodeFlow.Env
 
             //MethodDetailss.TryGetValue(methodDetailsInfo.MethodName, out var methodDetails);// 加载项目时尝试获取方法信息
             var nodeModel = FlowNodeExtension.CreateNode(this, nodeControlType, methodDetails); // 远程环境下加载节点
-            nodeModel.LoadInfo(nodeInfo);
+            
+            if (FlowCanvass.TryGetValue(nodeInfo.CanvasGuid, out var canvasModel))
+            {
+            }
+            nodeModel.LoadInfo(nodeInfo); // 创建节点model
             TryAddNode(nodeModel);
             IsLoadingNode = false;
 
@@ -1214,6 +1224,10 @@ namespace Serein.NodeFlow.Env
                     nodeInfo.Guid = string.Empty;
                     continue;
                 }
+
+                if (FlowCanvass.TryGetValue(nodeInfo.CanvasGuid, out var canvasModel))
+                {
+                }
                 nodeModel.LoadInfo(nodeInfo); // 创建节点model
                 TryAddNode(nodeModel); // 加载项目时将节点加载到环境中
                 
@@ -1300,7 +1314,7 @@ namespace Serein.NodeFlow.Env
                         if (!string.IsNullOrEmpty(pd.ArgDataSourceNodeGuid)
                             && NodeModels.TryGetValue(pd.ArgDataSourceNodeGuid, out var fromNode))
                         {
-                            var canvasGuid = toNode.CanvasGuid;
+                            var canvasGuid = toNode.CanvasDetails.Guid;
                             UIContextOperation?.Invoke(() =>
                                          OnNodeConnectChange?.Invoke(
                                          new NodeConnectChangeEventArgs(

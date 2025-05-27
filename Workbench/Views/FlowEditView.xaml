@@ -4,11 +4,11 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Serein.Workbench.Views"
+             xmlns:converters="clr-namespace:Serein.Workbench.Tool.Converters"
              xmlns:vm="clr-namespace:Serein.Workbench.ViewModels"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800"
              d:DataContext="{d:DesignInstance vm:FlowEditViewModel}"
-             xmlns:converters="clr-namespace:Serein.Workbench.Tool.Converters"
              Background="#E7F0F6">
     <UserControl.Resources>
         <converters:InvertableBooleanToVisibilityConverter x:Key="InvertableBooleanToVisibilityConverter"/>
@@ -17,19 +17,20 @@
     <Grid>
         
         <TabControl SelectedItem="{Binding SelectedTab}" 
+                    ItemsSource="{Binding CanvasTabs}"
                     SelectionChanged="TabControl_SelectionChanged"
                     x:Name="CanvasTab">
             <TabControl.ItemTemplate>
                 <DataTemplate>
                     <StackPanel >
                         <!-- 双击选项卡名称来进入编辑模式 -->
-                        <TextBlock Text="{Binding Name}"
+                        <TextBlock Text="{Binding Model.Name}"
                                    FontSize="18"
-                                   Visibility="{Binding IsEditing, Converter={StaticResource   InvertableBooleanToVisibilityConverter},ConverterParameter=Inverted}"
+                                   Visibility="{Binding IsEditing, Converter={StaticResource  InvertableBooleanToVisibilityConverter},ConverterParameter=Inverted}"
                                    PreviewMouseLeftButtonDown="TextBlock_PreviewMouseLeftButtonDown"
                                    MouseLeftButtonDown="TextBlock_MouseLeftButtonDown"/>
                         <!-- 编辑模式下显示TextBox -->
-                        <TextBox Text="{Binding Name, Mode=TwoWay}" 
+                        <TextBox Text="{Binding Model.Name, Mode=TwoWay}" 
                                  FontSize="18"
                                  Visibility="{Binding IsEditing, Converter={StaticResource   InvertableBooleanToVisibilityConverter},ConverterParameter=Normal}"
                                  KeyDown="TextBox_KeyDown" />
@@ -37,10 +38,7 @@
                 </DataTemplate>
             </TabControl.ItemTemplate>
 
-            <!-- Tabs Collection -->
-            <TabControl.ItemsSource>
-                <Binding Path="CanvasTabs" />
-            </TabControl.ItemsSource>
+          
 
             <!-- Content of the Tab (e.g., FlowCanvasView) -->
             <TabControl.ContentTemplate>

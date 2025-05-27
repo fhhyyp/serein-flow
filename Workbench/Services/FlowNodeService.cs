@@ -36,14 +36,31 @@ namespace Serein.Workbench.Services
         /// 添加了节点
         /// </summary>
         public Action<NodeControlBase> OnCreateNode { get; set; }
-        
+
+        /// <summary>
+        /// 查看的画布发生改变
+        /// </summary>
+        public Action<FlowCanvasView> OnViewCanvasChanged{ get; set; }
+
         #endregion
 
         #region 创建节点相关的属性
+
+
+        private FlowCanvasView currentSelectCanvas;
         /// <summary>
         /// 当前查看的画布
         /// </summary>
-        public FlowCanvasView CurrentSelectCanvas { get; set; }
+        public FlowCanvasView CurrentSelectCanvas { get => currentSelectCanvas; set
+            {
+                if (value == null || value.Equals(currentSelectCanvas))
+                {
+                    return;
+                }
+                currentSelectCanvas = value;
+                OnViewCanvasChanged?.Invoke(value);
+            }
+        }
 
         /// <summary>
         /// 当前拖动的方法信息
@@ -128,7 +145,7 @@ namespace Serein.Workbench.Services
            flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.Flipflop, typeof(FlipflopNodeControl), typeof(FlipflopNodeControlViewModel));
            flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.ExpOp, typeof(ExpOpNodeControl), typeof(ExpOpNodeControlViewModel));
            flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.ExpCondition, typeof(ConditionNodeControl), typeof(ConditionNodeControlViewModel));
-           flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.ConditionRegion, typeof(ConditionRegionControl), typeof(ConditionRegionNodeControlViewModel));
+           //flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.ConditionRegion, typeof(ConditionRegionControl), typeof(ConditionRegionNodeControlViewModel));
            flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.GlobalData, typeof(GlobalDataControl), typeof(GlobalDataNodeControlViewModel));
            flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.Script, typeof(ScriptNodeControl), typeof(ScriptNodeControlViewModel));
            flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.NetScript, typeof(NetScriptNodeControl), typeof(NetScriptNodeControlViewModel));
@@ -648,7 +665,7 @@ namespace Serein.Workbench.Services
                 return;
             }
 
-            _ = flowEnvironment.RemoveNodeAsync(model.CanvasGuid, model.Guid);
+            _ = flowEnvironment.RemoveNodeAsync(model.CanvasDetails.Guid, model.Guid);
         }
 
         #endregion

@@ -93,7 +93,6 @@ namespace Serein.Library
         public static NodeInfo ToInfo(this NodeModelBase nodeModel)
         {
             // if (MethodDetails == null) return null;
-
             var trueNodes = nodeModel.SuccessorNodes[ConnectionInvokeType.IsSucceed].Select(item => item.Guid); // 真分支
             var falseNodes = nodeModel.SuccessorNodes[ConnectionInvokeType.IsFail].Select(item => item.Guid);// 假分支
             var errorNodes = nodeModel.SuccessorNodes[ConnectionInvokeType.IsError].Select(item => item.Guid);// 异常分支
@@ -103,8 +102,9 @@ namespace Serein.Library
 
             var nodeInfo = new NodeInfo
             {
-                CanvasGuid = nodeModel.CanvasGuid,
+                CanvasGuid = nodeModel.CanvasDetails.Guid,
                 Guid = nodeModel.Guid,
+                IsPublic = nodeModel.IsPublic,
                 AssemblyName = nodeModel.MethodDetails.AssemblyName,
                 MethodName = nodeModel.MethodDetails?.MethodName,
                 Label = nodeModel.MethodDetails?.MethodAnotherName,
@@ -131,18 +131,18 @@ namespace Serein.Library
         /// 从节点信息加载节点
         /// </summary>
         /// <param name="nodeModel"></param>
+        /// <param name="canvas"></param>
         /// <param name="nodeInfo"></param>
         /// <returns></returns>
         public static void LoadInfo(this NodeModelBase nodeModel, NodeInfo nodeInfo)
         {
-            nodeModel.CanvasGuid = nodeInfo.CanvasGuid;
             nodeModel.Guid = nodeInfo.Guid;
             nodeModel.Position = nodeInfo.Position ?? new PositionOfUI(0, 0);// 加载位置信息
             var md = nodeModel.MethodDetails; // 当前节点的方法说明
             nodeModel.MethodDetails.IsProtectionParameter = nodeInfo.IsProtectionParameter; // 保护参数
             nodeModel.DebugSetting.IsInterrupt = nodeInfo.IsInterrupt; // 是否中断
             nodeModel.DebugSetting.IsEnable = nodeInfo.IsEnable; // 是否使能
-
+            nodeModel.IsPublic = nodeInfo.IsPublic; // 是否全局公开
             if (md != null)
             {
                 if (md.ParameterDetailss == null)

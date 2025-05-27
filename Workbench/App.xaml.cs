@@ -34,6 +34,7 @@ namespace Serein.Workbench
             collection.AddSingleton<FlowEditViewModel>();
 
             collection.AddTransient<FlowCanvasViewModel>(); // 画布
+            collection.AddTransient<CanvasInfoViewModel>(); // 画布节点树视图
         }
 
         public static void AddWorkbenchServices(this IServiceCollection collection)
