@@ -1,14 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>1.1.1</Version>
+    <Version>1.2.0</Version>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <BaseOutputPath>..\.\.Output</BaseOutputPath>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Title>SereinFow</Title>
-    <Description>管理节点的运行环境，非二次开发无须添加</Description>
+    <Description>动态流程的运行环境，非二次开发无须添加</Description>
     <PackageProjectUrl></PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/fhhyyp/serein-flow</RepositoryUrl>
