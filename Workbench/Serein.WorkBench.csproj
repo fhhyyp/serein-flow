@@ -30,7 +30,6 @@
     <Compile Remove="Node\INodeContainerControl.cs" />
     <Compile Remove="Node\Junction\NodeJunctionViewBase.cs" />
     <Compile Remove="Node\NodeBase.cs" />
-    <Compile Remove="Node\View\ActionNodeControl.xaml.cs" />
     <Compile Remove="Node\View\ActionRegionControl.xaml.cs" />
     <Compile Remove="Services\NodeControlService.cs" />
     <Compile Remove="Themes\ConditionControl.xaml.cs" />
@@ -43,7 +42,6 @@
   <ItemGroup>
     <Page Remove="MainWindow.xaml" />
     <Page Remove="Node\FlipflopRegionControl.xaml" />
-    <Page Remove="Node\View\ActionNodeControl.xaml" />
     <Page Remove="Node\View\ActionRegionControl.xaml" />
     <Page Remove="Themes\ConditionControl.xaml" />
     <Page Remove="Themes\ConnectionControl.xaml" />
