@@ -1,6 +1,7 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.Utils;
+using Serein.Workbench.Tool;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -137,11 +138,11 @@ namespace Serein.Workbench.Themes
                         treeViewItem.Expanded += TreeViewItem_Expanded;
 
                         var contextMenu = new ContextMenu();
-                        contextMenu.Items.Add(MainWindow.CreateMenuItem("从此节点执行", async (s, e) => 
+                        contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("从此节点执行", async (s, e) => 
                         {
                             try
                             {
-                                await flowEnvironment.StartAsyncInSelectNode(tmpNodeTreeModel.RootNode.Guid);
+                                await flowEnvironment.StartFlowFromSelectNodeAsync(tmpNodeTreeModel.RootNode.Guid);
                             }
                             catch (Exception ex)
                             {
@@ -149,7 +150,7 @@ namespace Serein.Workbench.Themes
                                 return;
                             }
                         }));
-                        contextMenu.Items.Add(MainWindow.CreateMenuItem("定位", (s, e) => flowEnvironment.NodeLocated(tmpNodeTreeModel.RootNode.Guid)));
+                        contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("定位", (s, e) => flowEnvironment.NodeLocated(tmpNodeTreeModel.RootNode.Guid)));
 
                         treeViewItem.ContextMenu = contextMenu;
                         treeViewItem.Margin = new Thickness(-20, 0, 0, 0);

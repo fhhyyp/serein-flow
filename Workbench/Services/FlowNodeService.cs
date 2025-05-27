@@ -1,4 +1,6 @@
-﻿using Serein.Library;
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Serein.Library;
 using Serein.Library.Api;
 using Serein.Workbench.Api;
 using Serein.Workbench.Node;
@@ -6,7 +8,10 @@ using Serein.Workbench.Node.View;
 using Serein.Workbench.Node.ViewModel;
 using Serein.Workbench.ViewModels;
 using Serein.Workbench.Views;
+using System.Text;
+using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 
 namespace Serein.Workbench.Services
 {
@@ -34,7 +39,6 @@ namespace Serein.Workbench.Services
         
         #endregion
 
-
         #region 创建节点相关的属性
         /// <summary>
         /// 当前查看的画布
@@ -51,7 +55,6 @@ namespace Serein.Workbench.Services
         /// </summary>
         public NodeControlType CurrentNodeControlType { get; set; } = NodeControlType.None;
 
-
         /// <summary>
         /// 当前鼠标位置
         /// </summary>
@@ -61,6 +64,12 @@ namespace Serein.Workbench.Services
         /// 当前选中的节点
         /// </summary>
         public NodeControlBase? CurrentSelectNodeControl { get; set; }
+
+        /// <summary>
+        /// 连接数据
+        /// </summary>
+        public ConnectingData ConnectingData { get; } = new ConnectingData();
+
         #endregion
 
         /// <summary>
@@ -71,6 +80,11 @@ namespace Serein.Workbench.Services
         /// 连接最终落点节点
         /// </summary>
         public NodeControlBase? ConnectionEndNode { get; set; }
+
+        /// <summary>
+        /// 当前所有画布
+        /// </summary>
+        public FlowCanvasView[] FlowCanvass => Canvass.Select(c => c.Value).ToArray();
 
         /// <summary>
         /// 记录流程画布
@@ -134,7 +148,27 @@ namespace Serein.Workbench.Services
             flowEEForwardingService.OnNodeTakeOut += FlowEEForwardingService_OnNodeTakeOut; ; // 节点从容器中取出
 
             flowEEForwardingService.OnNodeConnectChange += FlowEEForwardingService_OnNodeConnectChange; // 节点连接状态改变事件
-            
+
+            flowEEForwardingService.OnStartNodeChange += FlowEEForwardingService_OnStartNodeChange; // 画布起始节点改变
+
+
+        }
+
+        private void FlowEEForwardingService_OnStartNodeChange(StartNodeChangeEventArgs eventArgs)
+        {
+            string oldNodeGuid = eventArgs.OldNodeGuid;
+            string newNodeGuid = eventArgs.NewNodeGuid;
+            if (!TryGetControl(newNodeGuid, out var newStartNodeControl)) return;
+            if (!string.IsNullOrEmpty(oldNodeGuid))
+            {
+                if (!TryGetControl(oldNodeGuid, out var oldStartNodeControl)) return;
+                oldStartNodeControl.BorderBrush = Brushes.Black;
+                oldStartNodeControl.BorderThickness = new Thickness(0);
+            }
+
+            newStartNodeControl.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10"));
+            newStartNodeControl.BorderThickness = new Thickness(2);
+            var node = newStartNodeControl?.ViewModel?.NodeModel;
         }
 
         private void FlowEEForwardingService_OnNodeConnectChange(NodeConnectChangeEventArgs e)
@@ -387,7 +421,167 @@ namespace Serein.Workbench.Services
             return Canvass.TryGetValue(nodeGuid, out flowCanvas);
         }
 
+        #region 节点的复制与粘贴
+        /// <summary>
+        /// 从节点信息转换为Json文本数据
+        /// </summary>
+        public string CpoyNodeInfo(List<NodeModelBase> dictSelection)
+        {
 
+            // 遍历当前已选节点
+            foreach (var node in dictSelection.ToArray())
+            {
+                if (node.ChildrenNode.Count == 0)
+                {
+                    continue;
+                }
+                // 遍历这些节点的子节点，添加过来
+                foreach (var childNode in node.ChildrenNode)
+                {
+                    dictSelection.Add(childNode);
+                }
+            }
+
+            var nodeInfos = dictSelection.Select(item => item.ToInfo());
+
+            JObject json = new JObject()
+            {
+                ["nodes"] = JArray.FromObject(nodeInfos)
+            };
+
+            var jsonText = json.ToString();
+
+
+            try
+            {
+                SereinEnv.WriteLine(InfoType.INFO, $"复制已选节点（{dictSelection.Count}个）");
+                return jsonText;
+            }
+            catch (Exception ex)
+            {
+                SereinEnv.WriteLine(InfoType.ERROR, $"复制失败：{ex.Message}");
+                return string.Empty;
+            }
+        }
+
+
+        /// <summary>
+        /// 从Json中加载节点
+        /// </summary>
+        /// <param name="canvasGuid">需要加载在哪个画布上</param>
+        /// <param name="jsonText">文本内容</param>
+        /// <param name="positionOfUI">需要加载的位置</param>
+        public void PasteNodeInfo(string canvasGuid, string jsonText, PositionOfUI positionOfUI)
+        {
+            try
+            {
+                List<NodeInfo>? nodes = JsonConvert.DeserializeObject<List<NodeInfo>>(jsonText);
+                if (nodes is not null && nodes.Count != 0)
+                {
+
+                }
+                if (nodes is null || nodes.Count < 0)
+                {
+                    return;
+                }
+
+                #region 节点去重
+                Dictionary<string, string> guids = new Dictionary<string, string>(); // 记录 Guid
+                
+                // 遍历当前节点
+                foreach (var node in nodes.ToArray())
+                {
+                    if (NodeControls.ContainsKey(node.Guid) && !guids.ContainsKey(node.Guid))
+                    {
+                        // 如果是没出现过、且在当前记录中重复的Guid，则记录并新增对应的映射。
+                        guids.TryAdd(node.Guid, Guid.NewGuid().ToString());
+                    }
+                    else
+                    {
+                        // 出现过的Guid，说明重复添加了。应该不会走到这。
+                        continue;
+                    }
+
+                    if (node.ChildNodeGuids is null)
+                    {
+                        continue; // 跳过没有子节点的节点
+                    }
+
+                    // 遍历这些节点的子节点，获得完整的已选节点信息
+                    foreach (var childNodeGuid in node.ChildNodeGuids)
+                    {
+                        if (NodeControls.ContainsKey(node.Guid) && !NodeControls.ContainsKey(node.Guid))
+                        {
+                            // 当前Guid并不重复，跳过替换
+                            continue;
+                        }
+                        if (!guids.ContainsKey(childNodeGuid))
+                        {
+                            // 如果是没出现过的Guid，则记录并新增对应的映射。
+                            guids.TryAdd(node.Guid, Guid.NewGuid().ToString());
+                        }
+
+                        if (!string.IsNullOrEmpty(childNodeGuid)
+                            && NodeControls.TryGetValue(childNodeGuid, out var nodeControl))
+                        {
+
+                            var newNodeInfo = nodeControl.ViewModel.NodeModel.ToInfo();
+                            nodes.Add(newNodeInfo);
+                        }
+                    }
+                }
+
+                // Guid去重
+                StringBuilder sb = new StringBuilder(jsonText);
+                foreach (var kv in guids)
+                {
+                    sb.Replace(kv.Key, kv.Value);
+                }
+                string result = sb.ToString();
+
+                /*var replacer = new GuidReplacer();
+                foreach (var kv in guids)
+                {
+                   replacer.AddReplacement(kv.Key, kv.Value);
+                }
+                string result = replacer.Replace(jsonText);*/
+
+
+                //SereinEnv.WriteLine(InfoType.ERROR, result);
+                nodes = JsonConvert.DeserializeObject<List<NodeInfo>>(result);
+
+                if (nodes is null || nodes.Count < 0)
+                {
+                    return;
+                }
+                #endregion
+
+                // 获取第一个节点的原始位置
+                var index0NodeX = nodes[0].Position.X;
+                var index0NodeY = nodes[0].Position.Y;
+
+                // 计算所有节点相对于第一个节点的偏移量
+                foreach (var node in nodes)
+                {
+                    node.CanvasGuid = canvasGuid; // 替换画布Guid
+
+                    var offsetX = node.Position.X - index0NodeX;
+                    var offsetY = node.Position.Y - index0NodeY;
+
+                    // 根据鼠标位置平移节点
+                    node.Position = new PositionOfUI(positionOfUI.X + offsetX, positionOfUI.Y + offsetY);
+                }
+
+                _ = flowEnvironment.LoadNodeInfosAsync(nodes);
+            }
+            catch (Exception ex)
+            {
+
+                //SereinEnv.WriteLine(InfoType.ERROR, $"粘贴节点时发生异常：{ex}");
+            }
+            // SereinEnv.WriteLine(InfoType.INFO, $"剪贴板文本内容: {clipboardText}");
+        }
+        #endregion
 
         #region 向运行环境发出请求
 

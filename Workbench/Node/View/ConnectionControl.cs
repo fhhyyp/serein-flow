@@ -1,6 +1,7 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
 using Serein.Workbench.Extension;
+using Serein.Workbench.Tool;
 using System;
 using System.Net;
 using System.Windows;
@@ -224,8 +225,8 @@ namespace Serein.Workbench.Node.View
         private void ConfigureLineContextMenu()
         {
             var contextMenu = new ContextMenu();
-            contextMenu.Items.Add(MainWindow.CreateMenuItem("删除连线", (s, e) => Remote()));
-            contextMenu.Items.Add(MainWindow.CreateMenuItem("于父节点调用顺序中置顶", (s, e) => Topping()));
+            contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("删除连线", (s, e) => Remote()));
+            contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("于父节点调用顺序中置顶", (s, e) => Topping()));
             BezierLine.ContextMenu = contextMenu;
         }
 

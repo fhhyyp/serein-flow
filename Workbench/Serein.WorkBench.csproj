@@ -24,6 +24,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="MainWindow.xaml.cs" />
+    <Compile Remove="MainWindowViewModel.cs" />
     <Compile Remove="Node\FlipflopRegionControl.xaml.cs" />
     <Compile Remove="Node\INodeContainerControl.cs" />
     <Compile Remove="Node\Junction\NodeJunctionViewBase.cs" />
@@ -38,6 +40,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Page Remove="MainWindow.xaml" />
     <Page Remove="Node\FlipflopRegionControl.xaml" />
     <Page Remove="Node\View\ActionRegionControl.xaml" />
     <Page Remove="Themes\ConditionControl.xaml" />

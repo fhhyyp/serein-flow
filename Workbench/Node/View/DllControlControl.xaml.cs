@@ -140,26 +140,26 @@ namespace Serein.Workbench.Node.View
                         return;
                     }
 
-                    MoveNodeData moveNodeData = new MoveNodeData
-                    {
+                    //MoveNodeData moveNodeData = new MoveNodeData
+                    //{
 
-                        NodeControlType = nodeType switch
-                        {
-                            NodeType.Action => NodeControlType.Action,
-                            NodeType.Flipflop => NodeControlType.Flipflop,
-                            NodeType.UI => NodeControlType.UI,
-                            _ => NodeControlType.None,
-                        },
-                        MethodDetailsInfo = mdInfo,
-                    };
-                    if(moveNodeData.NodeControlType == NodeControlType.None)
-                    {
-                        return;
-                    }
+                    //    NodeControlType = nodeType switch
+                    //    {
+                    //        NodeType.Action => NodeControlType.Action,
+                    //        NodeType.Flipflop => NodeControlType.Flipflop,
+                    //        NodeType.UI => NodeControlType.UI,
+                    //        _ => NodeControlType.None,
+                    //    },
+                    //    MethodDetailsInfo = mdInfo,
+                    //};
+                    //if(moveNodeData.NodeControlType == NodeControlType.None)
+                    //{
+                    //    return;
+                    //}
 
-                    // 创建一个 DataObject 用于拖拽操作，并设置拖拽效果
-                    DataObject dragData = new DataObject(MouseNodeType.CreateDllNodeInCanvas, moveNodeData);
-                    DragDrop.DoDragDrop(typeText, dragData, DragDropEffects.Move);
+                    //// 创建一个 DataObject 用于拖拽操作，并设置拖拽效果
+                    //DataObject dragData = new DataObject(MouseNodeType.CreateDllNodeInCanvas, moveNodeData);
+                    //DragDrop.DoDragDrop(typeText, dragData, DragDropEffects.Move);
                 }
             }
         }

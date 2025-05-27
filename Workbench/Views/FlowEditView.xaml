@@ -56,11 +56,11 @@ AllowDrop="True"-->
         </TabControl>
 
         <!-- Tab control buttons -->
-        <StackPanel Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right">
+        <!--<StackPanel Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right">
             <Button Content="添加" Command="{Binding AddTabCommand}"  Margin="5" Width="80"/>
             <Button Content="移除" Command="{Binding RemoveTabCommand}"  Margin="5" Width="80"/>
-            <!--<Button Content="Rename Tab" Command="{Binding RenameTabCommand}" />-->
-        </StackPanel>
+            --><!--<Button Content="Rename Tab" Command="{Binding RenameTabCommand}" />--><!--
+        </StackPanel>-->
     </Grid>
 </UserControl>
 

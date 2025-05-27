@@ -24,6 +24,11 @@ namespace Serein.Workbench.Api
         string Name { get; }
 
         /// <summary>
+        /// 数据
+        /// </summary>
+        FlowCanvasDetails Model { get; }
+
+        /// <summary>
         /// 移除节点
         /// </summary>
         void Remove(NodeControlBase nodeControl);

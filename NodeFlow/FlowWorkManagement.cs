@@ -43,7 +43,7 @@ namespace Serein.NodeFlow
         }
 
         /// <summary>
-        /// 初始化啊
+        /// 初始化
         /// </summary>
         /// <returns></returns>
         public async Task<bool> RunAsync(CancellationToken token)
@@ -85,22 +85,19 @@ namespace Serein.NodeFlow
                 var flowNodes = flow.GetNodes();
 
                 // 找到流程的起始节点，开始运行
-                NodeModelBase? startNode = flowNodes.FirstOrDefault(node => node.IsStart);
-                if (startNode is null)
-                {
-                    return false;
-                }
+                NodeModelBase startNode = flow.GetStartNode();
                 // 是否后台运行当前画布流程
                 if (flow.IsTaskAsync)
                 {
-                    _ = Task.Run(async () => await CallStartNode(startNode));
+                    _ = Task.Run(async () => await CallStartNode(startNode), token); // 后台调用流程中的触发器
+
                 }
                 else
                 {
                     await CallStartNode(startNode);
+
                 }
-                var flipflopTasks = CallFlipflopNode(flow); // 获取所有触发器异步任务
-                _ = Task.Run(async () => await flipflopTasks); // 后台调用流程中的触发器
+                _ = Task.Run(async () => await CallFlipflopNode(flow), token); // 后台调用流程中的触发器
             }
 
             // 等待流程运行完成
@@ -226,7 +223,7 @@ namespace Serein.NodeFlow
             return isSuccessful;
         }
 
-        private Task CallFlipflopNode(FlowTask flow)
+        private async Task CallFlipflopNode(FlowTask flow)
         {
             var env = WorkOptions.Environment;
             var flipflopNodes = flow.GetNodes().Where(item => item is SingleFlipflopNode node
@@ -242,9 +239,8 @@ namespace Serein.NodeFlow
                 {
                     await RunGlobalFlipflopAsync(env, node); // 启动流程时启动全局触发器
                 });
-                Task.WhenAll(tasks);
+                await Task.WhenAll(tasks);
             }
-            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -257,6 +253,7 @@ namespace Serein.NodeFlow
             var pool = WorkOptions.FlowContextPool;
             var token = WorkOptions.CancellationTokenSource.Token;
             var context = pool.Allocate();
+            context.Reset();
             await startNode.StartFlowAsync(context, token);
             context.Exit();
             pool.Free(context);

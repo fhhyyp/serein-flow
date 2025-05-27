@@ -27,7 +27,7 @@ namespace Serein.Library
         public string NodeType { get; set; }
 
         /// <summary>
-        /// 方法说明
+        /// 方法别名
         /// </summary>
         public string MethodAnotherName { get; set; }
 

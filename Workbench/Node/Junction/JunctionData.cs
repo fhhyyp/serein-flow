@@ -123,7 +123,7 @@ namespace Serein.Workbench.Node.View
         }
 
         /// <summary>
-        /// 重置
+        /// 重置连线状态
         /// </summary>
         public void Reset()
         {
@@ -139,7 +139,7 @@ namespace Serein.Workbench.Node.View
 
     }
 
-    public static class GlobalJunctionData
+    public static class GlobalJunctionData1
     {
         //private static ConnectingData? myGlobalData;
         //private static object _lockObj = new object();

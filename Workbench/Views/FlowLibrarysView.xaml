@@ -9,11 +9,24 @@
              xmlns:vm="clr-namespace:Serein.Workbench.ViewModels"
              mc:Ignorable="d" 
              d:DataContext="{d:DesignInstance vm:FlowLibrarysViewModel}"
-             
-             d:DesignHeight="450" d:DesignWidth="800">
+             d:DesignHeight="450" d:DesignWidth="800"
+             AllowDrop="True"
+             Drop="FlowLibrarysView_Drop" 
+             DragOver="FlowLibrarysView_DragOver" >
 
     <UserControl.Resources>
         <converter:CountToVisibilityConverter x:Key="CountToVisibilityConverter"/>
+
+       
+        <!--<DataTemplate x:Key="NodeListTemplate">
+            <Grid Margin="2">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{Binding NodeType}"/>
+                    <TextBlock Text="{Binding AnotherName}" Margin="4,0,0,0"/>
+                    <TextBlock Text="{Binding MethodName}" Margin="6,0,0,0"/>
+                </StackPanel>
+            </Grid>
+        </DataTemplate>-->
     </UserControl.Resources>
 
     <ScrollViewer>
@@ -31,58 +44,27 @@
                             <TextBlock Text="{Binding LibraryName}" ></TextBlock>
                             <TextBlock Text="{Binding FilePath}" Margin="6,0,0,0"></TextBlock>
                         </StackPanel>
-
-                        <!--<custom:FlowMethodInfoListBox Grid.Row="1"  Nodes="{Binding ActionNodes}" BackgroundColor="#D0F1F9"/>
-                        <custom:FlowMethodInfoListBox Grid.Row="2"  Nodes="{Binding FlipflopNodes}" BackgroundColor="#FACFC1"/>
-                        <custom:FlowMethodInfoListBox Grid.Row="3"  Nodes="{Binding UINodes}" BackgroundColor="#FFFBD7"/>-->
-
-                        <ListBox Grid.Row="1" Margin="6,2,2,2" ItemsSource="{Binding ActionNodes}"
+                        <custom:FlowMethodInfoListBox Grid.Row="1"  ItemsSource="{Binding ActionNodes}" Background="#D0F1F9"/>
+                        <custom:FlowMethodInfoListBox Grid.Row="2"  ItemsSource="{Binding FlipflopNodes}" Background="#FACFC1"/>
+                        <custom:FlowMethodInfoListBox Grid.Row="3"  ItemsSource="{Binding UINodes}" Background="#FFFBD7"/>
+                        
+                        <!--<ListBox Grid.Row="1" Margin="6,2,2,2" ItemsSource="{Binding ActionNodes}"
                                   Visibility="{Binding ActionNodes, Converter={StaticResource CountToVisibilityConverter}}"
-                                  Background="#D0F1F9">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid Margin="2" >
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding NodeType}"></TextBlock>
-                                            <TextBlock Text="{Binding AnotherName}" Margin="4,0,0,0"></TextBlock>
-                                            <TextBlock Text="{Binding MethodName}" Margin="6,0,0,0"></TextBlock>
-                                        </StackPanel>
-                                    </Grid>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
+                                  Background="#D0F1F9"
+                                  ItemTemplate="{StaticResource NodeListTemplate}">
                         </ListBox>
 
                         <ListBox Grid.Row="2" Margin="6,2,2,2" ItemsSource="{Binding FlipflopNodes}" 
                                   Visibility="{Binding FlipflopNodes, Converter={StaticResource CountToVisibilityConverter}}"
-                                  Background="#FACFC1">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid Margin="2" >
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding NodeType}"></TextBlock>
-                                            <TextBlock Text="{Binding AnotherName}" Margin="4,0,0,0"></TextBlock>
-                                            <TextBlock Text="{Binding MethodName}" Margin="6,0,0,0"></TextBlock>
-                                        </StackPanel>
-                                    </Grid>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
+                                  Background="#FACFC1"
+                                  ItemTemplate="{StaticResource NodeListTemplate}">
                         </ListBox>
 
                         <ListBox Grid.Row="3" Margin="6,2,2,2" ItemsSource="{Binding UINodes}"
                                   Visibility="{Binding UINodes, Converter={StaticResource CountToVisibilityConverter}}"
-                                  Background="#FFFBD7">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid Margin="2" >
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding NodeType}"></TextBlock>
-                                            <TextBlock Text="{Binding AnotherName}" Margin="4,0,0,0"></TextBlock>
-                                            <TextBlock Text="{Binding MethodName}" Margin="6,0,0,0"></TextBlock>
-                                        </StackPanel>
-                                    </Grid>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                                  Background="#FFFBD7"
+                                 ItemTemplate="{StaticResource NodeListTemplate}">
+                        </ListBox>-->
 
                     </Grid>
                 </DataTemplate>
@@ -90,3 +72,9 @@
         </ItemsControl>
     </ScrollViewer>
 </UserControl>
+
+
+<!--<custom:FlowMethodInfoListBox Grid.Row="1"  Nodes="{Binding ActionNodes}" BackgroundColor="#D0F1F9"/>
+    <custom:FlowMethodInfoListBox Grid.Row="2"  Nodes="{Binding FlipflopNodes}" BackgroundColor="#FACFC1"/>
+    <custom:FlowMethodInfoListBox Grid.Row="3"  Nodes="{Binding UINodes}" BackgroundColor="#FFFBD7"/>             -->
+                        

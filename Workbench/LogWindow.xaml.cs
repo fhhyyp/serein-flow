@@ -17,6 +17,10 @@ namespace Serein.Workbench
     /// </summary>
     public partial class LogWindow : Window
     {
+        private static LogWindow instance = new LogWindow();
+        public static LogWindow Instance => instance;
+
+
         private StringBuilder logBuffer = new StringBuilder();
         private int logUpdateInterval = 200; // 批量更新的时间间隔（毫秒）
         private Timer logUpdateTimer;

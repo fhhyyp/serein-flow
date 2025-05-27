@@ -23,6 +23,7 @@ namespace Serein.Library
             Env = env;
         }
 
+
         public IFlowEnvironment Env { get; }
 
         /// <summary>
@@ -78,8 +79,6 @@ namespace Serein.Library
         /// 起始节点私有属性
         /// </summary>
         private string _startNode;
-
-       
 
     }
 

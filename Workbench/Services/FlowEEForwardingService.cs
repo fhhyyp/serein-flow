@@ -26,17 +26,21 @@ namespace Serein.Workbench.Services
         /// </summary>
         private readonly IFlowEnvironment flowEnvironment;
         private readonly IFlowEnvironmentEvent flowEnvironmentEvent;
+        private readonly UIContextOperation uIContextOperation;
 
         /// <summary>
         /// 转发流程运行环境各个事件的实现类
         /// </summary>
         /// <param name="flowEnvironment"></param>
         /// <param name="flowEnvironmentEvent"></param>
+        /// <param name="uIContextOperation"></param>
         public FlowEEForwardingService(IFlowEnvironment flowEnvironment,
-                                       IFlowEnvironmentEvent flowEnvironmentEvent)
+                                       IFlowEnvironmentEvent flowEnvironmentEvent,
+                                       UIContextOperation uIContextOperation)
         {
             this.flowEnvironment = flowEnvironment;
             this.flowEnvironmentEvent = flowEnvironmentEvent;
+            this.uIContextOperation = uIContextOperation;
             InitFlowEnvironmentEvent();
         }
 
@@ -185,7 +189,10 @@ namespace Serein.Workbench.Services
         /// <param name="value"></param>
         private void FlowEnvironment_OnEnvOutEvent(InfoType type, string value)
         {
-            //LogOutWindow.AppendText($"{DateTime.Now} [{type}] : {value}{Environment.NewLine}");
+            uIContextOperation.Invoke(() =>
+            {
+                OnEnvOut?.Invoke(type, value);
+            });
         }
 
         /// <summary>

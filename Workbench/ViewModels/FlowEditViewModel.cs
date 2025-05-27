@@ -23,9 +23,6 @@ namespace Serein.Workbench.ViewModels
     public partial class FlowEditViewModel : ObservableObject
     {
         public ObservableCollection<FlowEditorTabModel> CanvasTabs { get; set; } = [];
-        public ICommand AddTabCommand { get; set; }
-        public ICommand RemoveTabCommand { get; set; }
-        public ICommand RenameTabCommand { get; set; }
 
 
         /// <summary>
@@ -39,8 +36,7 @@ namespace Serein.Workbench.ViewModels
         public FlowEditViewModel(FlowNodeService flowNodeService)
         {
             this.flowNodeService = flowNodeService;
-            AddTabCommand = new RelayCommand(AddTab);
-            RemoveTabCommand = new RelayCommand(RemoveTab);
+            
 
             flowNodeService.OnCreateFlowCanvasView += OnCreateFlowCanvasView; // 创建了画布
             flowNodeService.OnRemoveFlowCanvasView += OnRemoveFlowCanvasView; // 移除了画布
@@ -79,13 +75,6 @@ namespace Serein.Workbench.ViewModels
             }
         }
         #endregion
-
-
-        private void AddTab() => flowNodeService.CreateFlowCanvas();
-        private void RemoveTab()
-        {
-            if (CanvasTabs.Count > 0 && SelectedTab != null) flowNodeService.RemoveFlowCanvas();
-        }
 
 
 

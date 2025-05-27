@@ -263,7 +263,7 @@ namespace Serein.NodeFlow.Env
         /// <param name="toNodeJunctionType">目标节点控制点</param>
         /// <param name="invokeType">决定了方法执行后的后继行为</param>
         public async Task<bool> ConnectInvokeNodeAsync(string canvasGuid, 
-                                                string fromNodeGuid,
+                                                 string fromNodeGuid,
                                                  string toNodeGuid,
                                                  JunctionType fromNodeJunctionType,
                                                  JunctionType toNodeJunctionType,
@@ -518,14 +518,16 @@ namespace Serein.NodeFlow.Env
             return await currentFlowEnvironment.SetStartNodeAsync(canvasGuid, nodeGuid);
         }
 
-        public async Task<bool> StartFlowAsync()
+        public async Task<bool> StartFlowAsync(string[] canvasGuids)
         {
-            return await currentFlowEnvironment.StartFlowAsync();
+            return await currentFlowEnvironment.StartFlowAsync(canvasGuids);
         }
 
-        public async Task<bool> StartAsyncInSelectNode(string startNodeGuid)
+
+
+        public async Task<bool> StartFlowFromSelectNodeAsync(string startNodeGuid)
         {
-           return await currentFlowEnvironment.StartAsyncInSelectNode(startNodeGuid);
+           return await currentFlowEnvironment.StartFlowFromSelectNodeAsync(startNodeGuid);
         }
 
        

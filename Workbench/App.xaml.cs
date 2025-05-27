@@ -10,6 +10,7 @@ using Serein.Workbench.ViewModels;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Threading;
 
 namespace Serein.Workbench
@@ -38,10 +39,9 @@ namespace Serein.Workbench
         public static void AddWorkbenchServices(this IServiceCollection collection)
         {
             collection.AddSingleton<IFlowEEForwardingService, FlowEEForwardingService>(); // 流程事件管理
+            collection.AddSingleton<IKeyEventService, KeyEventService>();// 按键事件管理
             collection.AddSingleton<IWorkbenchEventService, WorkbenchEventService>(); // 流程事件管理
             collection.AddSingleton<FlowNodeService>(); // 节点操作管理
-                                                        // collection.AddSingleton<IKeyEventService, KeyEventService>(); // 按键事件管理
-                                                        //collection.AddSingleton<FlowNodeControlService>(); // 流程节点控件管理
         }
 
 
@@ -87,27 +87,30 @@ namespace Serein.Workbench
         {
             return ServiceProvider?.GetService<T>() ?? throw new NullReferenceException();
         }
-
+       
         public App()
         {
-            
             var collection = new ServiceCollection();
             collection.AddWorkbenchServices();
             collection.AddFlowServices();
             collection.AddViewModelServices();
             var services = collection.BuildServiceProvider(); // 绑定并返回获取实例的服务接口
             App.ServiceProvider = services;
-#if DEBUG
+
+
+
+
             _ = this.LoadLocalProjectAsync();
-#endif
+
         }
+       
 
 
         private async Task LoadLocalProjectAsync()
         {
             await Task.Delay(500);
 #if DEBUG 
-            if (1 == 10)
+            if (1 ==1)
             {
                 // 这里是测试代码，可以删除
                 string filePath;
@@ -115,12 +118,17 @@ namespace Serein.Workbench
                 filePath = @"C:\Users\Az\source\repos\CLBanyunqiState\CLBanyunqiState\bin\Release\banyunqi\project.dnf";
                 filePath = @"F:\临时\project\project.dnf";
                 filePath = @"F:\TempFile\flow\qrcode\project.dnf";
-                //filePath = @"C:\Users\Az\source\repos\CLBanyunqiState\CLBanyunqiState\bin\debug\net8.0\test.dnf";
-                string content = System.IO.File.ReadAllText(filePath); // 读取整个文件内容
-                App.FlowProjectData = JsonConvert.DeserializeObject<SereinProjectData>(content);
-                App.FileDataPath = System.IO.Path.GetDirectoryName(filePath)!;   //  filePath;//
-                var dir = Path.GetDirectoryName(filePath);
-                App.GetService<IFlowEnvironment>().LoadProject(new FlowEnvInfo { Project = App.FlowProjectData }, App.FileDataPath);
+                filePath = @"F:\TempFile\flow\temp\project.dnf";
+                if (File.Exists(filePath))
+                {
+                    string content = System.IO.File.ReadAllText(filePath); // 读取整个文件内容
+                    App.FlowProjectData = JsonConvert.DeserializeObject<SereinProjectData>(content);
+                    App.FileDataPath = System.IO.Path.GetDirectoryName(filePath)!;   //  filePath;//
+                    var dir = Path.GetDirectoryName(filePath);
+                    App.GetService<IFlowEnvironment>().LoadProject(new FlowEnvInfo { Project = App.FlowProjectData }, App.FileDataPath);
+                }
+                    
+               
             }
 #endif
         }

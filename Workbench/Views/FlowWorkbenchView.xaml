@@ -6,7 +6,8 @@
         xmlns:local="clr-namespace:Serein.Workbench.Views"
         mc:Ignorable="d"
         Loaded="Window_Loaded"
-        Title="FlowWorkbenchView" Height="450" Width="800">
+        Title="FlowWorkbenchView" Height="450" Width="800"
+        Closing="Window_Closing">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
@@ -23,7 +24,7 @@
         <local:MainMenuBarView Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="5"/>
 
         <!--左侧功能区-->
-        <Grid Grid.Row="1"  Grid.Column="0" >
+        <Grid Grid.Row="1"  Grid.Column="0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="auto"></RowDefinition>
                 <RowDefinition Height="*"></RowDefinition>
@@ -31,10 +32,13 @@
                 <!--<RowDefinition Height="3*"></RowDefinition>-->
             </Grid.RowDefinitions>
             <local:BaseNodesView Grid.Row="0" Grid.ColumnSpan="1" Margin="0,0,0,15"/>
-            <local:FlowLibrarysView Grid.Row="1" Grid.ColumnSpan="1" Margin="0,0,0,15"/>
+            <local:FlowLibrarysView Grid.Row="1" Grid.ColumnSpan="1" Margin="0,0,0,15" />
         </Grid>
-
+        <!--功能区和编辑区的分割线-->
+        <GridSplitter  Grid.Row="1"   Grid.Column="1" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="#CCD5F0" />
         <!--流程编辑区-->
         <local:FlowEditView Grid.Row="1" Grid.Column="2"/>
+        <!--编辑区和视图区的分割线-->
+        <GridSplitter  Grid.Row="1"   Grid.Column="3" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="#CCD5F0" />
     </Grid>
 </Window>

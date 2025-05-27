@@ -5,8 +5,6 @@
              xmlns:view="clr-namespace:Serein.Workbench.Views"
              StartupUri="Views/FlowWorkbenchView.xaml"
              Startup="Application_Startup">
-    <!--StartupUri="Views/FlowWorkbenchView.xaml"-->
-    <!--StartupUri="MainWindow.xaml"-->
 
     <Application.Resources>
         <ResourceDictionary>

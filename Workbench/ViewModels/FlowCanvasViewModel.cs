@@ -19,9 +19,9 @@ namespace Serein.Workbench.ViewModels
     {
 
         /// <summary>
-        /// 画布当前选中的节点
+        /// 画布当前的节点
         /// </summary>
-        public NodeControlBase CurrentSelectNode {  get; set; }  
+        public Dictionary<string, NodeControlBase> NodeControls { get; set; } = [];
 
         /// <summary>
         /// 正在创建节点方法调用关系

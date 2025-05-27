@@ -11,16 +11,16 @@
         <converter:CountToVisibilityConverter x:Key="CountToVisibilityConverter"/>
     </UserControl.Resources>
 
-    <ListBox ItemsSource="{Binding Nodes}"
-             Visibility="{Binding Nodes, Converter={StaticResource CountToVisibilityConverter}}"
-             Background="{Binding BackgroundColor}">
+    <ListBox ItemsSource="{Binding ItemsSource, RelativeSource={RelativeSource AncestorType=UserControl}}"
+             Visibility="{Binding ItemsSource, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource CountToVisibilityConverter}}"
+             Background="{Binding Background, RelativeSource={RelativeSource AncestorType=UserControl}}">
         <ListBox.ItemTemplate>
             <DataTemplate>
-                <Grid Margin="2">
+                <Grid Margin="2" MouseLeftButtonDown="Grid_MouseLeftButtonDown" MouseMove="Grid_MouseMove" DataContext="{Binding}">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="{Binding NodeType}"></TextBlock>
-                        <TextBlock Text="{Binding AnotherName}" Margin="4,0,0,0"></TextBlock>
-                        <TextBlock Text="{Binding MethodName}" Margin="6,0,0,0"></TextBlock>
+                        <TextBlock Text="{Binding NodeType}"/>
+                        <TextBlock Text="{Binding MethodAnotherName}" Margin="4,0,0,0"/>
+                        <TextBlock Text="{Binding MethodName}" Margin="6,0,0,0"/>
                     </StackPanel>
                 </Grid>
             </DataTemplate>

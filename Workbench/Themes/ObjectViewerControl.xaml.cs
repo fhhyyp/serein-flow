@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json.Linq;
 using Serein.Library.Api;
 using Serein.Library.Utils.SereinExpression;
+using Serein.Workbench.Tool;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -294,7 +295,7 @@ namespace Serein.Workbench.Themes
 
                     // 配置右键菜单
                     var contextMenu = new ContextMenu();
-                    contextMenu.Items.Add(MainWindow.CreateMenuItem($"表达式", (s, e) =>
+                    contextMenu.Items.Add(WpfFuncTool.CreateMenuItem($"表达式", (s, e) =>
                     {
                         ExpressionTextBox.Text = subPath; // 获取表达式
 

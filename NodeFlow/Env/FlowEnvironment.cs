@@ -368,27 +368,87 @@ namespace Serein.NodeFlow.Env
         /// 异步运行
         /// </summary>
         /// <returns></returns>
-        public async Task<bool> StartFlowAsync()
+        public async Task<bool> StartFlowAsync(string[] canvasGuids)
         {
+            #region 校验参数
+            HashSet<string> guids = new HashSet<string>();
+            bool isBreak = false;
+            foreach (var canvasGuid in canvasGuids)
+            {
+                if (guids.Contains(canvasGuid))
+                {
+                    SereinEnv.WriteLine(InfoType.WARN, $"画布重复，停止运行。{canvasGuid}");
+                    isBreak = true;
+                }
+                if (!FlowCanvass.ContainsKey(canvasGuid))
+                {
+                    SereinEnv.WriteLine(InfoType.WARN, $"画布不存在，停止运行。{canvasGuid}");
+                    isBreak = true;
+                }
+                var count = NodeModels.Values.Count(n => n.CanvasGuid.Equals(canvasGuid));
+                if(count == 0)
+                {
+                    SereinEnv.WriteLine(InfoType.WARN, $"画布没有节点，停止运行。{canvasGuid}");
+                    isBreak = true;
+                }
+                else
+                {
+                    guids.Add(canvasGuid);
+                }
+            }
+            if (isBreak)
+            {
+                guids.Clear();
+                return false;
+            }
+            #endregion
+
+
+            #region 初始化每个画布的数据，转换为流程任务
+            Dictionary<string, FlowTask> flowTasks = [];
+            foreach (var guid in guids)
+            {
+                if (!TryGetCanvasModel(guid, out var canvasModel))
+                {
+                    SereinEnv.WriteLine(InfoType.WARN, $"画布不存在，停止运行。{guid}");
+                    return false;
+                }
+                var ft = new FlowTask();
+                ft.GetNodes = () => NodeModels.Values.Where(node => node.CanvasGuid.Equals(guid)).ToList();
+                var startNodeModel = NodeModels.GetValueOrDefault(canvasModel.StartNode);
+                if(startNodeModel is null)
+                {
+                    SereinEnv.WriteLine(InfoType.WARN, $"画布不存在起始节点，将停止运行。{guid}");
+                    return false;
+                }
+                ft.GetStartNode = () => startNodeModel;
+                flowTasks.Add(guid, ft);
+            }
+            #endregion
+
+            
+
             IOC.Reset();
             IOC.Register<IScriptFlowApi, ScriptFlowApi>(); // 注册脚本接口
 
             var flowTaskOptions = new FlowWorkOptions
             {
-                Environment = this,
-                FlowContextPool = new ObjectPool<IDynamicContext>(() => new DynamicContext(this)),
-                //Nodes = NodeModels.Values.ToList(),
-                AutoRegisterTypes = this.FlowLibraryManagement.GetaAutoRegisterType(),
-                InitMds = this.FlowLibraryManagement.GetMdsOnFlowStart(NodeType.Init),
+                Environment = this, // 流程
+                Flows = flowTasks,
+                FlowContextPool = new ObjectPool<IDynamicContext>(() => new DynamicContext(this)), // 上下文对象池
+                AutoRegisterTypes = this.FlowLibraryManagement.GetaAutoRegisterType(), // 需要自动实例化的类型
+                InitMds = this.FlowLibraryManagement.GetMdsOnFlowStart(NodeType.Init), 
                 LoadMds = this.FlowLibraryManagement.GetMdsOnFlowStart(NodeType.Loading),
                 ExitMds = this.FlowLibraryManagement.GetMdsOnFlowStart(NodeType.Exit),
-                
             };
+
+
+
             flowTaskManagement = new FlowWorkManagement(flowTaskOptions);
             var cts = new CancellationTokenSource();
             try
             {
-                var t =await flowTaskManagement.RunAsync(cts.Token);
+                var t = await flowTaskManagement.RunAsync(cts.Token);
             }
             catch (Exception ex)
             {
@@ -405,12 +465,13 @@ namespace Serein.NodeFlow.Env
             
         }
 
+  
         /// <summary>
         /// 从选定节点开始运行
         /// </summary>
         /// <param name="startNodeGuid"></param>
         /// <returns></returns>
-        public async Task<bool> StartAsyncInSelectNode(string startNodeGuid)
+        public async Task<bool> StartFlowFromSelectNodeAsync(string startNodeGuid)
         {
 
             if (flowTaskManagement is null)
@@ -425,12 +486,6 @@ namespace Serein.NodeFlow.Env
                 {
                     return false;
                 }
-                //var getExp = "@get .DebugSetting.IsEnable";
-                //var getExpResult1 = SerinExpressionEvaluator.Evaluate(getExp, nodeModel,out _);
-                //var setExp = "@set .DebugSetting.IsEnable = false";
-                //SerinExpressionEvaluator.Evaluate(setExp, nodeModel,out _);
-                //var getExpResult2 = SerinExpressionEvaluator.Evaluate(getExp, nodeModel, out _);
-
                 await flowTaskManagement.StartFlowInSelectNodeAsync(this, nodeModel);
                 return true;
             }
@@ -559,9 +614,22 @@ namespace Serein.NodeFlow.Env
                 LoadLibrary(dllFilePath);  // 加载项目文件时加载对应的程序集
             }
 
+           
+
             _ = Task.Run( async () =>
-            {
+            { 
+                // 加载画布
+                foreach (var canvasInfo in projectData.Canvass)
+                {
+                    LoadCanvas(canvasInfo);
+                }
                 await LoadNodeInfosAsync(projectData.Nodes.ToList()); // 加载节点信息
+
+                // 加载画布
+                foreach (var canvasInfo in projectData.Canvass)
+                {
+                    await SetStartNodeAsync(canvasInfo.Guid, canvasInfo.StartNode); // 设置起始节点
+                }
                 //await SetStartNodeAsync("", projectData.StartNode); // 设置起始节点
             });
 
@@ -779,20 +847,31 @@ namespace Serein.NodeFlow.Env
         /// <returns></returns>
         public async Task<FlowCanvasDetailsInfo> CreateCanvasAsync(string canvasName, int width, int height)
         {
-            var model = new FlowCanvasDetails(this)
+            var info = new FlowCanvasDetailsInfo()
             {
                 Guid = Guid.NewGuid().ToString(),
                 Height = height,
                 Width = width,
+                ViewX = 0,
+                ViewY = 0,
+                ScaleY = 1,
+                ScaleX = 1,
                 Name = !string.IsNullOrWhiteSpace(canvasName) ? canvasName : $"流程图{_addCanvasCount++}",
             };
+            var model = LoadCanvas(info);
+            return info;
+        }
+
+        private FlowCanvasDetails LoadCanvas(FlowCanvasDetailsInfo info)
+        {
+            var model = new FlowCanvasDetails(this);
+            model.LoadInfo(info);
             FlowCanvass.Add(model.Guid, model);
-            await UIContextOperation.InvokeAsync(() =>
+            UIContextOperation.InvokeAsync(() =>
             {
                 OnCanvasCreate.Invoke(new CanvasCreateEventArgs(model));
             });
-            var info = model.ToInfo();
-            return info;
+            return model;
         }
 
         /// <summary>
@@ -957,7 +1036,7 @@ namespace Serein.NodeFlow.Env
             #region 确定节点之间的参数调用关系
             foreach (var toNode in NodeModels.Values)
             {
-                var canvasGuid = toNode.Guid;
+                var canvasGuid = toNode.CanvasGuid;
                 if (toNode.MethodDetails.ParameterDetailss == null)
                 {
                     continue;
@@ -1727,7 +1806,7 @@ namespace Serein.NodeFlow.Env
         private bool TryAddNode(NodeModelBase nodeModel)
         {
             nodeModel.Guid ??= Guid.NewGuid().ToString();
-            NodeModels[nodeModel.Guid] = nodeModel;
+            NodeModels.TryAdd(nodeModel.Guid, nodeModel);
 
             // 如果是触发器，则需要添加到专属集合中
             if (nodeModel is SingleFlipflopNode flipflopNode)
@@ -1944,31 +2023,21 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// 更改起点节点
         /// </summary>
-        /// <param name="newStartNode"></param>
-        /// <param name="oldStartNode"></param>
+        /// <param name="cavnasModel">节点所在的画布</param>
+        /// <param name="newStartNode">起始节点</param>
         private void SetStartNode(FlowCanvasDetails cavnasModel, NodeModelBase newStartNode)
         {
             var oldNodeGuid = cavnasModel.StartNode;
+            /*if(TryGetNodeModel(oldNodeGuid, out var newStartNodeModel))
+            {
+                newStartNode.IsStart = false;
+            }*/
             cavnasModel.StartNode = newStartNode.Guid;
+            //newStartNode.IsStart = true;
+            
             UIContextOperation?.Invoke(() => OnStartNodeChange?.Invoke(new StartNodeChangeEventArgs(cavnasModel.Guid, oldNodeGuid, cavnasModel.StartNode)));
 
-            //if (OperatingSystem.IsWindows())
-            //{
-            //     }
         }
-
-        ///// <summary>
-        ///// 输出内容
-        ///// </summary>
-        ///// <param name="msg"></param>
-        //private void Output(string msg)
-        //{
-        //    if (OperatingSystem.IsWindows())
-        //    {
-        //        UIContextOperation?.Invoke(() => OnEnvOut?.Invoke(msg)); 
-        //    }
-
-        //}
 
         /// <summary>
         /// 向容器登记缓存的持久化实例

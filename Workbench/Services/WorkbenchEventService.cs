@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
@@ -71,9 +72,15 @@ namespace Serein.Workbench.Services
         private void InitEvents()
         {
             flowEEForwardingService.OnProjectSaving += SaveProjectToLocalFile;
+            flowEEForwardingService.OnEnvOut += FlowEEForwardingService_OnEnvOut;
         }
 
-        
+        private void FlowEEForwardingService_OnEnvOut(InfoType type, string value)
+        {
+            LogWindow.Instance.AppendText($"{DateTime.Now} [{type}] : {value}{Environment.NewLine}");
+        }
+
+
 
         /// <summary>
         /// 预览了某个方法信息（待创建）
@@ -103,6 +110,8 @@ namespace Serein.Workbench.Services
         private void SaveProjectToLocalFile(ProjectSavingEventArgs e)
         {
             var project = e.ProjectData;
+
+            #region 获取保存路径
             // 创建一个新的保存文件对话框
             SaveFileDialog saveFileDialog = new()
             {
@@ -128,8 +137,10 @@ namespace Serein.Workbench.Services
                 SereinEnv.WriteLine(InfoType.ERROR, "保存项目DLL时返回了意外的文件保存路径");
                 return;
             }
+            #endregion
 
 
+            #region 将Dll输出到指定路径
             Uri saveProjectFileUri = new Uri(savePath);
             SereinEnv.WriteLine(InfoType.INFO, "项目文件保存路径：" + savePath);
             for (int index = 0; index < project.Librarys.Length; index++)
@@ -180,12 +191,104 @@ namespace Serein.Workbench.Services
                 }
 
             }
+            #endregion
 
+            #region 输出项目保存文件
             JObject projectJsonData = JObject.FromObject(project);
             File.WriteAllText(savePath, projectJsonData.ToString());
+            #endregion
 
+            
         }
+
+
+
+
     }
     
 }
+
+
+#region 抽取重复文件（例如net运行时）
+/*
+ 
+ 1. 扫描目录并计算哈希
+string[] directories = new[] { "path1", "path2" };
+var fileHashMap = new Dictionary<string, List<string>>(); // hash -> List<full paths>
+
+foreach (var dir in directories)
+{
+    foreach (var file in Directory.EnumerateFiles(dir, "*.*", SearchOption.AllDirectories))
+    {
+        using var stream = File.OpenRead(file);
+        using var sha = SHA256.Create();
+        var hash = Convert.ToHexString(sha.ComputeHash(stream));
+
+        if (!fileHashMap.ContainsKey(hash))
+            fileHashMap[hash] = new List<string>();
+
+        fileHashMap[hash].Add(file);
+    }
+}
+
+2. 将重复文件压缩并保存
+string archiveDir = "compressed_output";
+Directory.CreateDirectory(archiveDir);
+
+var manifest = new List<FileRecord>();
+
+foreach (var kvp in fileHashMap.Where(kvp => kvp.Value.Count > 1))
+{
+    var hash = kvp.Key;
+    var originalFile = kvp.Value[0];
+    var archivePath = Path.Combine(archiveDir, $"{hash}.gz");
+
+    using (var input = File.OpenRead(originalFile))
+    using (var output = File.Create(archivePath))
+    using (var gzip = new GZipStream(output, CompressionLevel.Optimal))
+    {
+        input.CopyTo(gzip);
+    }
+
+    manifest.Add(new FileRecord
+    {
+        Hash = hash,
+        ArchiveFile = $"{hash}.gz",
+        OriginalPaths = kvp.Value
+    });
+}
+
+3. 生成清单文件（JSON）
+public class FileRecord
+{
+    public string Hash { get; set; }
+    public string ArchiveFile { get; set; }
+    public List<string> OriginalPaths { get; set; }
+}
+
+File.WriteAllText("manifest.json", JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }));
+
+
+4. 根据清单还原原始文件结构
+var manifestJson = File.ReadAllText("manifest.json");
+var manifest = JsonSerializer.Deserialize<List<FileRecord>>(manifestJson);
+
+foreach (var record in manifest)
+{
+    var archivePath = Path.Combine("compressed_output", record.ArchiveFile);
+
+    foreach (var path in record.OriginalPaths)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+
+        using var input = File.OpenRead(archivePath);
+        using var gzip = new GZipStream(input, CompressionMode.Decompress);
+        using var output = File.Create(path);
+
+        gzip.CopyTo(output);
+    }
+}
+ 
+ */
+#endregion
 

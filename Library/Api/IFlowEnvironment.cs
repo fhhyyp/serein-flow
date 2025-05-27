@@ -1097,16 +1097,19 @@ namespace Serein.Library.Api
         void SetUIContextOperation(UIContextOperation uiContextOperation);
 
         /// <summary>
-        /// 开始运行
+        /// 开始运行流程
         /// </summary>
-        Task<bool> StartFlowAsync();
+        /// <param name="canvasGuids">需要运行的流程Guid</param>
+        /// <returns></returns>
+        Task<bool> StartFlowAsync(string[] canvasGuids);
+
 
         /// <summary>
         /// 从选定的节点开始运行
         /// </summary>
         /// <param name="startNodeGuid"></param>
         /// <returns></returns>
-        Task<bool> StartAsyncInSelectNode(string startNodeGuid);
+        Task<bool> StartFlowFromSelectNodeAsync(string startNodeGuid);
 
         /// <summary>
         /// 结束运行

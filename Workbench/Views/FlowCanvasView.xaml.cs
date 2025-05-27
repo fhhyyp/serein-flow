@@ -1,14 +1,21 @@
-﻿using Serein.Library;
+﻿using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
+using Serein.Library;
 using Serein.Library.Api;
 using Serein.NodeFlow.Env;
 using Serein.Workbench.Api;
+using Serein.Workbench.Customs;
+using Serein.Workbench.Extension;
+using Serein.Workbench.Models;
 using Serein.Workbench.Node;
 using Serein.Workbench.Node.View;
 using Serein.Workbench.Services;
 using Serein.Workbench.Themes;
+using Serein.Workbench.Tool;
 using Serein.Workbench.ViewModels;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Tracing;
 using System.Drawing.Printing;
 using System.Linq;
@@ -19,13 +26,20 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Documents;
+using System.Windows.Forms;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Media.Media3D;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
-using static Serein.Workbench.MainWindow;
+using Binding = System.Windows.Data.Binding;
+using DragDropEffects = System.Windows.DragDropEffects;
+using DragEventArgs = System.Windows.DragEventArgs;
+using MouseEventArgs = System.Windows.Input.MouseEventArgs;
+using UserControl = System.Windows.Controls.UserControl;
+using Clipboard = System.Windows.Clipboard;
+using TextDataFormat = System.Windows.TextDataFormat;
 
 namespace Serein.Workbench.Views
 {
@@ -34,9 +48,11 @@ namespace Serein.Workbench.Views
     /// </summary>
     public partial class FlowCanvasView : UserControl, IFlowCanvas
     {
-
+        
         private readonly IFlowEnvironment flowEnvironment;
+        private readonly IKeyEventService keyEventService;
         private readonly FlowNodeService flowNodeService;
+
         /// <summary>
         /// 存储所有的连接。考虑集成在运行环境中。
         /// </summary>
@@ -44,7 +60,6 @@ namespace Serein.Workbench.Views
 
         private FlowCanvasViewModel ViewModel => this.DataContext as FlowCanvasViewModel ?? throw new ArgumentNullException();
 
-        
         #region 画布接口实现
         private IFlowCanvas Api => this;
 
@@ -57,9 +72,10 @@ namespace Serein.Workbench.Views
         }
 
         public string Name => ViewModel.Model.Name;
-
+        FlowCanvasDetails IFlowCanvas.Model => ViewModel.Model;
         void IFlowCanvas.Remove(NodeControlBase nodeControl)
         {
+            ViewModel.NodeControls.Remove(nodeControl.ViewModel.NodeModel.Guid);
             FlowChartCanvas.Dispatcher.Invoke(() =>
             {
                 FlowChartCanvas.Children.Remove(nodeControl);
@@ -67,10 +83,14 @@ namespace Serein.Workbench.Views
         }
         void IFlowCanvas.Add(NodeControlBase nodeControl)
         {
+            ViewModel.NodeControls.TryAdd(nodeControl.ViewModel.NodeModel.Guid, nodeControl);
             FlowChartCanvas.Dispatcher.Invoke(() =>
             {
                 FlowChartCanvas.Children.Add(nodeControl);
             });
+
+            ConfigureNodeEvents(nodeControl); // 配置相关事件
+            ConfigureContextMenu(nodeControl); // 添加右键菜单
 
         }
 
@@ -224,6 +244,9 @@ namespace Serein.Workbench.Views
         /// 标记是否正在拖动画布
         /// </summary>
         private bool IsCanvasDragging;
+        /// <summary>
+        /// 是否正在选取控件
+        /// </summary>
         private bool IsSelectDragging;
 
         /// <summary>
@@ -258,8 +281,7 @@ namespace Serein.Workbench.Views
         private readonly TranslateTransform translateTransform;
         #endregion
 
-
-        #region 初始化
+        #region 初始化以及相关事件
 
         public FlowCanvasView(FlowCanvasDetails model)
         {
@@ -270,9 +292,9 @@ namespace Serein.Workbench.Views
 
             flowEnvironment = App.GetService<IFlowEnvironment>();
             flowNodeService = App.GetService<FlowNodeService>();
-
+            keyEventService = App.GetService<IKeyEventService>();
             flowNodeService.OnCreateNode += OnCreateNode;
-
+            keyEventService.OnKeyDown += KeyEventService_OnKeyDown; ;
 
             // 缩放平移容器
             canvasTransformGroup = new TransformGroup();
@@ -286,6 +308,10 @@ namespace Serein.Workbench.Views
         }
 
 
+        /// <summary>
+        /// 设置绑定
+        /// </summary>
+        /// <param name="canvasModel"></param>
         private void SetBinding(FlowCanvasDetails canvasModel)
         {
             Binding bindingScaleX = new(nameof(canvasModel.ScaleX)) { Source = canvasModel, Mode = BindingMode.TwoWay };
@@ -325,8 +351,7 @@ namespace Serein.Workbench.Views
             {
                 // 并非添加在容器中，直接放置节点
                 Api.Add(nodeControl); // 添加到对应的画布上
-                ConfigureNodeEvents(nodeControl); // 添加了节点
-                ConfigureContextMenu(nodeControl); // 添加右键菜单
+
             }
 
         }
@@ -349,7 +374,7 @@ namespace Serein.Workbench.Views
                 // 准备放置条件表达式控件
                 if (nodeControl.ViewModel.NodeModel.ControlType == NodeControlType.ExpCondition)
                 {
-                    ConditionRegionControl? conditionRegion = GetParentOfType<ConditionRegionControl>(hitElement);
+                    ConditionRegionControl? conditionRegion =  WpfFuncTool.GetParentOfType<ConditionRegionControl>(hitElement);
                     if (conditionRegion is not null)
                     {
                         targetNodeControl = conditionRegion;
@@ -362,7 +387,7 @@ namespace Serein.Workbench.Views
                 else
                 {
                     // 准备放置全局数据控件
-                    GlobalDataControl? globalDataControl = GetParentOfType<GlobalDataControl>(hitElement);
+                    GlobalDataControl? globalDataControl = WpfFuncTool.GetParentOfType<GlobalDataControl>(hitElement);
                     if (globalDataControl is not null)
                     {
                         targetNodeControl = globalDataControl;
@@ -376,6 +401,107 @@ namespace Serein.Workbench.Views
 
         #endregion
 
+        #region 画布键盘操作
+        /// <summary>
+        /// 监听按键事件
+        /// </summary>
+        /// <param name="key"></param>
+        private void KeyEventService_OnKeyDown(Key key)
+        {
+            if (!flowNodeService.CurrentSelectCanvas.Guid.Equals(Guid))
+            {
+                return;
+            }
+
+            if (key == Key.Escape)
+            {
+                IsControlDragging = false;
+                IsCanvasDragging = false;
+                SelectionRectangle.Visibility = Visibility.Collapsed;
+                CancelSelectNode();
+                EndConnection();
+                return;
+            }
+
+            // 复制节点
+            if (selectNodeControls.Count > 0 && key == Key.C && (keyEventService.GetKeyState(Key.LeftCtrl) || keyEventService.GetKeyState(Key.RightCtrl))) 
+            {
+                var text = flowNodeService.CpoyNodeInfo([.. selectNodeControls.Select(c => c.ViewModel.NodeModel)]);
+                Clipboard.SetDataObject(text, true); // 复制，持久性设置
+                return;
+            }
+
+            // 粘贴节点
+            if (key == Key.V && (keyEventService.GetKeyState(Key.LeftCtrl) || keyEventService.GetKeyState(Key.RightCtrl))) 
+            {
+                string clipboardText = Clipboard.GetText(TextDataFormat.Text); // 获取复制的文本
+                var jobject = JObject.Parse(clipboardText);
+                var nodesText = jobject["nodes"]?.ToString();
+                if (!string.IsNullOrWhiteSpace(nodesText))
+                {
+                    
+                    if (Clipboard.ContainsText())
+                    {
+                        Point mousePosition = Mouse.GetPosition(FlowChartCanvas);
+                        PositionOfUI positionOfUI = new PositionOfUI(mousePosition.X, mousePosition.Y); // 坐标数据
+                        flowNodeService.PasteNodeInfo(Guid, nodesText, positionOfUI); // 粘贴节点信息
+                    }
+                    else if (Clipboard.ContainsImage())
+                    {
+                        // var image = Clipboard.GetImage();
+                    }
+                    else
+                    {
+                        SereinEnv.WriteLine(InfoType.INFO, "剪贴板中没有可识别的数据。");
+                    }
+                }
+                return;
+            }
+
+            var cd = flowNodeService.ConnectingData;
+            if (cd.IsCreateing)
+            {
+                if (cd.Type == JunctionOfConnectionType.Invoke)
+                {
+                    ConnectionInvokeType connectionInvokeType = key switch
+                    {
+                        Key.D1 => ConnectionInvokeType.Upstream,
+                        Key.D2 => ConnectionInvokeType.IsSucceed,
+                        Key.D3 => ConnectionInvokeType.IsFail,
+                        Key.D4 => ConnectionInvokeType.IsError,
+                        _ => ConnectionInvokeType.None,
+                    };
+
+                    if (connectionInvokeType != ConnectionInvokeType.None)
+                    {
+                        cd.ConnectionInvokeType = connectionInvokeType;
+                        cd.MyLine.Line.UpdateLineColor(connectionInvokeType.ToLineColor());
+                    }
+                }
+                else if (cd.Type == JunctionOfConnectionType.Arg)
+                {
+                    ConnectionArgSourceType connectionArgSourceType = key switch
+                    {
+                        Key.D1 => ConnectionArgSourceType.GetOtherNodeData,
+                        Key.D2 => ConnectionArgSourceType.GetOtherNodeDataOfInvoke,
+                        _ => ConnectionArgSourceType.GetPreviousNodeData,
+                    };
+
+                    if (connectionArgSourceType != ConnectionArgSourceType.GetPreviousNodeData)
+                    {
+                        cd.ConnectionArgSourceType = connectionArgSourceType;
+                        cd.MyLine.Line.UpdateLineColor(connectionArgSourceType.ToLineColor());
+                    }
+                }
+                cd.CurrentJunction.InvalidateVisual(); // 刷新目标节点控制点样式
+
+            }
+        }
+        
+        #endregion
+
+        #region 画布鼠标操作
+
 
         /// <summary>
         /// 鼠标在画布移动。
@@ -385,11 +511,11 @@ namespace Serein.Workbench.Views
         /// </summary>
         private void FlowChartCanvas_MouseMove(object sender, MouseEventArgs e)
         {
-            var myData = GlobalJunctionData.MyGlobalConnectingData;
-            if (myData.IsCreateing && e.LeftButton == MouseButtonState.Pressed)
+            var cd = flowNodeService.ConnectingData;
+            if (cd.IsCreateing && e.LeftButton == MouseButtonState.Pressed)
             {
 
-                if (myData.Type == JunctionOfConnectionType.Invoke)
+                if (cd.Type == JunctionOfConnectionType.Invoke)
                 {
                     ViewModel.IsConnectionInvokeNode = true; // 正在连接节点的调用关系
 
@@ -401,7 +527,7 @@ namespace Serein.Workbench.Views
                 var currentPoint = e.GetPosition(FlowChartCanvas);
                 currentPoint.X -= 2;
                 currentPoint.Y -= 2;
-                myData.UpdatePoint(currentPoint);
+                cd.UpdatePoint(currentPoint);
                 return;
             }
 
@@ -456,10 +582,10 @@ namespace Serein.Workbench.Views
                 PositionOfUI position = new PositionOfUI(canvasDropPosition.X, canvasDropPosition.Y);
                 if (e.Data.GetDataPresent(MouseNodeType.CreateDllNodeInCanvas))
                 {
-                    if (e.Data.GetData(MouseNodeType.CreateDllNodeInCanvas) is MoveNodeData nodeData)
+                    if (e.Data.GetData(MouseNodeType.CreateDllNodeInCanvas) is MoveNodeModel nodeModel)
                     {
-                        flowNodeService.CurrentNodeControlType = nodeData.NodeControlType; // 设置基础节点类型
-                        flowNodeService.CurrentDragMdInfo = nodeData.MethodDetailsInfo; // 基础节点不需要参数信息
+                        flowNodeService.CurrentNodeControlType = nodeModel.NodeControlType; // 设置基础节点类型
+                        flowNodeService.CurrentDragMdInfo = nodeModel.MethodDetailsInfo; // 基础节点不需要参数信息
                         flowNodeService.CurrentMouseLocation = position; // 设置当前鼠标为止
                         flowNodeService.CreateNode(); // 创建来自DLL加载的方法节点
                     }
@@ -524,7 +650,8 @@ namespace Serein.Workbench.Views
         /// <param name="e"></param>
         private void FlowChartCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (GlobalJunctionData.MyGlobalConnectingData.IsCreateing)
+
+            if (flowNodeService.ConnectingData.IsCreateing)
             {
                 return;
             }
@@ -580,42 +707,42 @@ namespace Serein.Workbench.Views
             }
 
             // 创建连线
-            if (GlobalJunctionData.MyGlobalConnectingData is ConnectingData myData && myData.IsCreateing)
+            var cd = flowNodeService.ConnectingData;
+            if (cd.IsCreateing)
             {
-
-                if (myData.IsCanConnected)
+                if (cd.IsCanConnected)
                 {
                     var canvas = this.FlowChartCanvas;
                     var currentendPoint = e.GetPosition(canvas); // 当前鼠标落点
-                    var changingJunctionPosition = myData.CurrentJunction.TranslatePoint(new Point(0, 0), canvas);
-                    var changingJunctionRect = new Rect(changingJunctionPosition, new Size(myData.CurrentJunction.Width, myData.CurrentJunction.Height));
+                    var changingJunctionPosition = cd.CurrentJunction.TranslatePoint(new Point(0, 0), canvas);
+                    var changingJunctionRect = new Rect(changingJunctionPosition, new Size(cd.CurrentJunction.Width, cd.CurrentJunction.Height));
 
                     if (changingJunctionRect.Contains(currentendPoint)) // 可以创建连接
                     {
                         #region 方法调用关系创建
-                        if (myData.Type == JunctionOfConnectionType.Invoke)
+                        if (cd.Type == JunctionOfConnectionType.Invoke)
                         {
                             var canvasGuid = this.Guid;
 
                             await flowEnvironment.ConnectInvokeNodeAsync(
                                         canvasGuid,
-                                        myData.StartJunction.MyNode.Guid, 
-                                        myData.CurrentJunction.MyNode.Guid,
-                                        myData.StartJunction.JunctionType,
-                                        myData.CurrentJunction.JunctionType,
-                                        myData.ConnectionInvokeType);
+                                        cd.StartJunction.MyNode.Guid,
+                                        cd.CurrentJunction.MyNode.Guid,
+                                        cd.StartJunction.JunctionType,
+                                        cd.CurrentJunction.JunctionType,
+                                        cd.ConnectionInvokeType);
                         }
                         #endregion
 
                         #region 参数来源关系创建
-                        else if (myData.Type == JunctionOfConnectionType.Arg)
+                        else if (cd.Type == JunctionOfConnectionType.Arg)
                         {
                             var argIndex = 0;
-                            if (myData.StartJunction is ArgJunctionControl argJunction1)
+                            if (cd.StartJunction is ArgJunctionControl argJunction1)
                             {
                                 argIndex = argJunction1.ArgIndex;
                             }
-                            else if (myData.CurrentJunction is ArgJunctionControl argJunction2)
+                            else if (cd.CurrentJunction is ArgJunctionControl argJunction2)
                             {
                                 argIndex = argJunction2.ArgIndex;
                             }
@@ -623,11 +750,11 @@ namespace Serein.Workbench.Views
 
                             await flowEnvironment.ConnectArgSourceNodeAsync(
                                     canvasGuid,
-                                    myData.StartJunction.MyNode.Guid, 
-                                    myData.CurrentJunction.MyNode.Guid,
-                                    myData.StartJunction.JunctionType,
-                                    myData.CurrentJunction.JunctionType,
-                                    myData.ConnectionArgSourceType,
+                                    cd.StartJunction.MyNode.Guid,
+                                    cd.CurrentJunction.MyNode.Guid,
+                                    cd.StartJunction.JunctionType,
+                                    cd.CurrentJunction.JunctionType,
+                                    cd.ConnectionArgSourceType,
                                     argIndex);
                         }
                         #endregion
@@ -640,7 +767,14 @@ namespace Serein.Workbench.Views
 
         }
 
+
         #region 拖动画布实现缩放平移效果
+
+        /// <summary>
+        /// 开始拖动画布
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void FlowChartCanvas_MouseDown(object sender, MouseButtonEventArgs e)
         {
             IsCanvasDragging = true;
@@ -649,11 +783,13 @@ namespace Serein.Workbench.Views
             e.Handled = true; // 防止事件传播影响其他控件
         }
 
+       /// <summary>
+       /// 停止拖动
+       /// </summary>
+       /// <param name="sender"></param>
+       /// <param name="e"></param>
         private void FlowChartCanvas_MouseUp(object sender, MouseButtonEventArgs e)
         {
-
-
-
             if (IsCanvasDragging)
             {
                 IsCanvasDragging = false;
@@ -661,7 +797,11 @@ namespace Serein.Workbench.Views
             }
         }
 
-        // 单纯缩放画布，不改变画布大小
+        /// <summary>
+        /// 单纯缩放画布，不改变画布大小
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void FlowChartCanvas_MouseWheel(object sender, MouseWheelEventArgs e)
         {
             // if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
@@ -820,6 +960,9 @@ namespace Serein.Workbench.Views
 
         #endregion
         #endregion
+        #endregion
+
+        #region 私有方法
 
         /// <summary>
         /// 完成选取操作
@@ -887,6 +1030,27 @@ namespace Serein.Workbench.Views
             }
         }
 
+
+        private void CancelSelectNode()
+        {
+            IsSelectControl = false;
+            foreach (var nodeControl in selectNodeControls)
+            {
+                //nodeControl.ViewModel.IsSelect = false;
+                nodeControl.BorderBrush = Brushes.Black;
+                nodeControl.BorderThickness = new Thickness(0);
+
+                var startNodeGuid = ViewModel.Model.StartNode;
+                var nodeGuid = nodeControl.ViewModel.NodeModel.Guid;
+                if (startNodeGuid.Equals(nodeGuid))
+                {
+                    nodeControl.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#04FC10"));
+                    nodeControl.BorderThickness = new Thickness(2);
+                }
+            }
+            selectNodeControls.Clear();
+        }
+
         /// <summary>
         /// 结束连接操作，清理状态并移除虚线。
         /// </summary>
@@ -895,21 +1059,9 @@ namespace Serein.Workbench.Views
             Mouse.OverrideCursor = null; // 恢复视觉效果
             ViewModel.IsConnectionArgSourceNode = false;
             ViewModel.IsConnectionInvokeNode = false;
-            GlobalJunctionData.OK();
+            flowNodeService.ConnectingData.Reset();
         }
 
-        /// <summary>
-        /// 创建菜单子项
-        /// </summary>
-        /// <param name="header"></param>
-        /// <param name="handler"></param>
-        /// <returns></returns>
-        public static MenuItem CreateMenuItem(string header, RoutedEventHandler handler)
-        {
-            var menuItem = new MenuItem { Header = header };
-            menuItem.Click += handler;
-            return menuItem;
-        }
 
         /// <summary>
         /// 选择范围配置
@@ -918,7 +1070,7 @@ namespace Serein.Workbench.Views
         private ContextMenu ConfiguerSelectionRectangle()
         {
             var contextMenu = new ContextMenu();
-            contextMenu.Items.Add(CreateMenuItem("删除", (s, e) =>
+            contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("删除", (s, e) =>
             {
                 if (selectNodeControls.Count > 0)
                 {
@@ -938,6 +1090,10 @@ namespace Serein.Workbench.Views
             // nodeControl.ContextMenu = contextMenu;
         }
 
+
+
+        #endregion
+
         #region 节点控件相关事件
         /// <summary>
         /// 配置节点事件(移动，点击相关）
@@ -950,13 +1106,7 @@ namespace Serein.Workbench.Views
             nodeControl.MouseMove += Block_MouseMove;
             nodeControl.MouseLeftButtonUp += Block_MouseLeftButtonUp;
 
-        }
-        private void EmptyNodeEvents(NodeControlBase nodeControl)
-        {
-            
-            nodeControl.MouseLeftButtonDown -= Block_MouseLeftButtonDown;
-            nodeControl.MouseMove -= Block_MouseMove;
-            nodeControl.MouseLeftButtonUp -= Block_MouseLeftButtonUp;
+
 
         }
 
@@ -972,8 +1122,8 @@ namespace Serein.Workbench.Views
                 IsControlDragging = true;
                 startControlDragPoint = e.GetPosition(FlowChartCanvas); // 记录鼠标按下时的位置
                 ((UIElement)sender).CaptureMouse(); // 捕获鼠标
-                e.Handled = true; // 防止事件传播影响其他控件
             }
+                e.Handled = true; // 防止事件传播影响其他控件
         }
 
         /// <summary>
@@ -981,12 +1131,13 @@ namespace Serein.Workbench.Views
         /// </summary>
         private void Block_MouseMove(object sender, MouseEventArgs e)
         {
+            
             if (IsCanvasDragging)
                 return;
             if (IsSelectControl)
                 return;
 
-            if (IsControlDragging) // 如果正在拖动控件
+            if (IsControlDragging && !flowNodeService.ConnectingData.IsCreateing) // 如果正在拖动控件
             {
                 Point currentPosition = e.GetPosition(FlowChartCanvas); // 获取当前鼠标位置 
 
@@ -1005,21 +1156,26 @@ namespace Serein.Workbench.Views
                     var newLeft = oldLeft + deltaX;
                     var newTop = oldTop + deltaY;
 
-                    this.flowEnvironment.MoveNode(Guid, nodeControlMain.ViewModel.NodeModel.Guid, newLeft, newTop); // 移动节点
-
                     // 计算控件实际移动的距离
                     var actualDeltaX = newLeft - oldLeft;
                     var actualDeltaY = newTop - oldTop;
 
-                    // 移动其它选中的控件
-                    foreach (var nodeControl in selectNodeControls)
+                    List<(string Guid, double NewLeft, double NewTop, double MaxWidth, double MaxHeight)> moveSizes  =
+                        selectNodeControls.Select(control =>
+                            (control.ViewModel.NodeModel.Guid,
+                            Canvas.GetLeft(control) + actualDeltaX, 
+                            Canvas.GetTop(control) + actualDeltaY, 
+                            control.FlowCanvas.Model.Width - control.ActualWidth - 10,
+                            control.FlowCanvas.Model.Height - control.ActualHeight - 10)).ToList();
+
+                    var isNeedCancel = moveSizes.Exists(item => item.NewLeft < 5 || item.NewTop < 5|| item.NewLeft > item.MaxWidth || item.NewTop > item.MaxHeight);
+                    if (isNeedCancel)
                     {
-                        if (nodeControl != nodeControlMain) // 跳过已经移动的控件
-                        {
-                            var otherNewLeft = Canvas.GetLeft(nodeControl) + actualDeltaX;
-                            var otherNewTop = Canvas.GetTop(nodeControl) + actualDeltaY;
-                            this.flowEnvironment.MoveNode(Guid, nodeControl.ViewModel.NodeModel.Guid, otherNewLeft, otherNewTop); // 移动节点
-                        }
+                        return;
+                    }
+                    foreach (var item in moveSizes)
+                    {
+                        this.flowEnvironment.MoveNode(this.Guid, item.Guid, item.NewLeft, item.NewTop); // 移动节点
                     }
 
                     // 更新节点之间线的连接位置
@@ -1038,6 +1194,14 @@ namespace Serein.Workbench.Views
                     double deltaY = currentPosition.Y - startControlDragPoint.Y; // 计算Y轴方向的偏移量
                     double newLeft = Canvas.GetLeft(nodeControl) + deltaX; // 新的左边距
                     double newTop = Canvas.GetTop(nodeControl) + deltaY; // 新的上边距
+
+                    // 如果被移动的控件接触到画布边缘，则限制移动范围
+                    var canvasModel = nodeControl.FlowCanvas.Model;
+                    var canvasWidth = canvasModel.Width - nodeControl.ActualWidth - 10;
+                    var canvasHeight= canvasModel.Height - nodeControl.ActualHeight - 10;
+                    newLeft = newLeft < 5 ? 5 : newLeft > canvasWidth ? canvasWidth : newLeft;
+                    newTop = newTop < 5 ? 5 : newTop > canvasHeight ? canvasHeight : newTop;
+
                     this.flowEnvironment.MoveNode(Guid, nodeControl.ViewModel.NodeModel.Guid, newLeft, newTop); // 移动节点
                     nodeControl.UpdateLocationConnections();
                 }
@@ -1095,7 +1259,7 @@ namespace Serein.Workbench.Views
 
             if (nodeControl.ViewModel?.NodeModel.ControlType == NodeControlType.Flipflop)
             {
-                contextMenu.Items.Add(CreateMenuItem("启动触发器", (s, e) =>
+                contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("启动触发器", (s, e) =>
                 {
                     if (s is MenuItem menuItem)
                     {
@@ -1119,7 +1283,7 @@ namespace Serein.Workbench.Views
 
             if (nodeControl.ViewModel?.NodeModel?.MethodDetails?.ReturnType is Type returnType && returnType != typeof(void))
             {
-                contextMenu.Items.Add(CreateMenuItem("查看返回类型", (s, e) =>
+                contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("查看返回类型", (s, e) =>
                 {
                     DisplayReturnTypeTreeViewer(returnType);
                 }));
@@ -1127,8 +1291,8 @@ namespace Serein.Workbench.Views
 
 
 
-            contextMenu.Items.Add(CreateMenuItem("设为起点", (s, e) => flowEnvironment.SetStartNodeAsync(canvasGuid, nodeGuid)));
-            contextMenu.Items.Add(CreateMenuItem("删除", async (s, e) =>
+            contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("设为起点", (s, e) => flowEnvironment.SetStartNodeAsync(canvasGuid, nodeGuid)));
+            contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("删除", async (s, e) =>
             {
                 var result = await flowEnvironment.RemoveNodeAsync(canvasGuid, nodeGuid);
             }));
@@ -1136,28 +1300,28 @@ namespace Serein.Workbench.Views
             #region 右键菜单功能 - 控件对齐
 
             var AvoidMenu = new MenuItem();
-            AvoidMenu.Items.Add(CreateMenuItem("群组对齐", (s, e) =>
+            AvoidMenu.Items.Add(WpfFuncTool.CreateMenuItem("群组对齐", (s, e) =>
             {
                 AlignControlsWithGrouping(selectNodeControls, AlignMode.Grouping);
             }));
-            AvoidMenu.Items.Add(CreateMenuItem("规划对齐", (s, e) =>
+            AvoidMenu.Items.Add(WpfFuncTool.CreateMenuItem("规划对齐", (s, e) =>
             {
                 AlignControlsWithGrouping(selectNodeControls, AlignMode.Planning);
             }));
-            AvoidMenu.Items.Add(CreateMenuItem("水平中心对齐", (s, e) =>
+            AvoidMenu.Items.Add(WpfFuncTool.CreateMenuItem("水平中心对齐", (s, e) =>
             {
                 AlignControlsWithGrouping(selectNodeControls, AlignMode.HorizontalCenter);
             }));
-            AvoidMenu.Items.Add(CreateMenuItem("垂直中心对齐 ", (s, e) =>
+            AvoidMenu.Items.Add(WpfFuncTool.CreateMenuItem("垂直中心对齐 ", (s, e) =>
             {
                 AlignControlsWithGrouping(selectNodeControls, AlignMode.VerticalCenter);
             }));
 
-            AvoidMenu.Items.Add(CreateMenuItem("垂直对齐时水平斜分布", (s, e) =>
+            AvoidMenu.Items.Add(WpfFuncTool.CreateMenuItem("垂直对齐时水平斜分布", (s, e) =>
             {
                 AlignControlsWithGrouping(selectNodeControls, AlignMode.Vertical);
             }));
-            AvoidMenu.Items.Add(CreateMenuItem("水平对齐时垂直斜分布", (s, e) =>
+            AvoidMenu.Items.Add(WpfFuncTool.CreateMenuItem("水平对齐时垂直斜分布", (s, e) =>
             {
                 AlignControlsWithGrouping(selectNodeControls, AlignMode.Horizontal);
             }));

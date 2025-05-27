@@ -420,18 +420,22 @@ namespace Serein.NodeFlow.Env
         /// 启动远程环境的流程
         /// </summary>
         /// <returns></returns>
-        public async Task<bool> StartFlowAsync()
+        public async Task<bool> StartFlowAsync(string[] canvasGuids)
         {
             // 远程环境下不需要UI上下文
-            var result = await msgClient.SendAndWaitDataAsync<bool>(EnvMsgTheme.StartFlow);
+            var result = await msgClient.SendAndWaitDataAsync<bool>(EnvMsgTheme.StartFlow, new
+            {
+                canvasGuids
+            });
             return result;
         }
+
         /// <summary>
         /// 从选定的节点开始运行
         /// </summary>
         /// <param name="startNodeGuid"></param>
         /// <returns></returns>
-        public async Task<bool> StartAsyncInSelectNode(string startNodeGuid)
+        public async Task<bool> StartFlowFromSelectNodeAsync(string startNodeGuid)
         {
             var result = await msgClient.SendAndWaitDataAsync<bool>(EnvMsgTheme.StartFlowInSelectNode, new
             {

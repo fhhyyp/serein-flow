@@ -9,21 +9,10 @@ using System.Threading.Tasks;
 
 namespace Serein.Workbench.Models
 {
-    public partial class FlowLibraryMethodDetailsInfo(MethodDetailsInfo info): ObservableObject
-    {
-        [ObservableProperty]
-        private string _anotherName = info.MethodAnotherName;
 
-        [ObservableProperty]
-        private string _assmblyName = info.AssemblyName;
-
-        [ObservableProperty]
-        private string _methodName = info.MethodName;
-
-        [ObservableProperty]
-        private string _nodeType = info.NodeType;
-    }
-
+    /// <summary>
+    /// 依赖信息
+    /// </summary>
     internal partial class FlowLibraryInfo : ObservableObject
     {
         [ObservableProperty]
@@ -33,12 +22,11 @@ namespace Serein.Workbench.Models
         private string _libraryName;
 
         [ObservableProperty]
-        private ObservableCollection<FlowLibraryMethodDetailsInfo> _methodInfo;
+        private ObservableCollection<MethodDetailsInfo> _methodInfo;
 
-
-        public List<FlowLibraryMethodDetailsInfo> ActionNodes { get =>  MethodInfo.Where(x => x.NodeType == NodeType.Action.ToString()).ToList(); set { } }
-        public List<FlowLibraryMethodDetailsInfo> FlipflopNodes { get => MethodInfo.Where(x => x.NodeType == NodeType.Flipflop.ToString()).ToList(); set { } }
-        public List<FlowLibraryMethodDetailsInfo> UINodes { get => MethodInfo.Where(x => x.NodeType == NodeType.UI.ToString()).ToList(); set { } }
+        public List<MethodDetailsInfo> ActionNodes { get =>  MethodInfo.Where(x => x.NodeType == NodeType.Action.ToString()).ToList(); set { } }
+        public List<MethodDetailsInfo> FlipflopNodes { get => MethodInfo.Where(x => x.NodeType == NodeType.Flipflop.ToString()).ToList(); set { } }
+        public List<MethodDetailsInfo> UINodes { get => MethodInfo.Where(x => x.NodeType == NodeType.UI.ToString()).ToList(); set { } }
 
     }
 }

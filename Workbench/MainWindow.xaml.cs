@@ -9,6 +9,7 @@ using Serein.NodeFlow.Env;
 using Serein.NodeFlow.Tool;
 using Serein.Workbench.Api;
 using Serein.Workbench.Extension;
+using Serein.Workbench.Models;
 using Serein.Workbench.Node;
 using Serein.Workbench.Node.View;
 using Serein.Workbench.Node.ViewModel;
@@ -27,20 +28,7 @@ using DataObject = System.Windows.DataObject;
 
 namespace Serein.Workbench
 {
-    /// <summary>
-    /// 拖拽创建节点类型
-    /// </summary>
-    public static class MouseNodeType
-    {
-        /// <summary>
-        /// 创建来自DLL的节点
-        /// </summary>
-        public static string CreateDllNodeInCanvas { get; } = nameof(CreateDllNodeInCanvas);
-        /// <summary>
-        /// 创建基础节点
-        /// </summary>
-        public static string CreateBaseNodeInCanvas { get; } = nameof(CreateBaseNodeInCanvas);
-    }
+    
 
 
 
@@ -1257,6 +1245,7 @@ namespace Serein.Workbench
         #endregion
 
         #region 拖拽DLL文件到左侧功能区，加载相关节点清单
+
         /// <summary>
         /// 当拖动文件到窗口时触发，加载DLL文件
         /// </summary>
@@ -1308,6 +1297,7 @@ namespace Serein.Workbench
         /// </summary>
         private void FlowChartCanvas_MouseMove(object sender, MouseEventArgs e)
         {
+            dynamic GlobalJunctionData = "";
             var myData = GlobalJunctionData.MyGlobalConnectingData;
             if (myData.IsCreateing && e.LeftButton == MouseButtonState.Pressed)
             {
@@ -1406,12 +1396,12 @@ namespace Serein.Workbench
                 PositionOfUI position = new PositionOfUI(canvasDropPosition.X, canvasDropPosition.Y);
                 if (e.Data.GetDataPresent(MouseNodeType.CreateDllNodeInCanvas))
                 {
-                    if (e.Data.GetData(MouseNodeType.CreateDllNodeInCanvas) is MoveNodeData nodeData) 
+                    if (e.Data.GetData(MouseNodeType.CreateDllNodeInCanvas) is MoveNodeModel moveModel) 
                     {
                         Task.Run(async () =>
                         {
                             
-                            await EnvDecorator.CreateNodeAsync("MainCanvas", nodeData.NodeControlType, position, nodeData.MethodDetailsInfo); // 创建DLL文件的节点对象
+                            await EnvDecorator.CreateNodeAsync("MainCanvas", moveModel.NodeControlType, position, moveModel.MethodDetailsInfo); // 创建DLL文件的节点对象
                         });
                     }
                 }
@@ -1704,7 +1694,8 @@ namespace Serein.Workbench
             Mouse.OverrideCursor = null; // 恢复视觉效果
             ViewModel.IsConnectionArgSourceNode = false;
             ViewModel.IsConnectionInvokeNode = false;
-            GlobalJunctionData.OK();
+            dynamic GlobalJunctionData = "";
+
         }
 
         #region 拖动画布实现缩放平移效果
@@ -1908,6 +1899,8 @@ namespace Serein.Workbench
         /// <param name="e"></param>
         private void FlowChartCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            dynamic GlobalJunctionData = "";
+
             if (GlobalJunctionData.MyGlobalConnectingData.IsCreateing)
             {
                 return;
@@ -1963,6 +1956,7 @@ namespace Serein.Workbench
                 FlowChartCanvas.ReleaseMouseCapture();
             }
            
+            dynamic GlobalJunctionData = "";
             // 创建连线
             if (GlobalJunctionData.MyGlobalConnectingData is ConnectingData myData && myData.IsCreateing)
             {
@@ -2818,8 +2812,9 @@ public class FlowLibrary
                 CancelSelectNode();
                 EndConnection();
             }
+            dynamic GlobalJunctionData = "";
 
-            if(GlobalJunctionData.MyGlobalConnectingData is ConnectingData myData && myData.IsCreateing)
+            if (GlobalJunctionData.MyGlobalConnectingData is ConnectingData myData && myData.IsCreateing)
             {
                 if(myData.Type == JunctionOfConnectionType.Invoke)
                 {

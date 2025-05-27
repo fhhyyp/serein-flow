@@ -1,4 +1,5 @@
-﻿using Serein.Workbench.ViewModels;
+﻿using Serein.Workbench.Node.ViewModel;
+using Serein.Workbench.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,10 +22,32 @@ namespace Serein.Workbench.Views
     /// </summary>
     public partial class FlowLibrarysView : UserControl
     {
+        private FlowLibrarysViewModel ViewModel => DataContext as FlowLibrarysViewModel ?? throw new ArgumentNullException();
         public FlowLibrarysView()
         {
             this.DataContext = App.GetService<Locator>().FlowLibrarysViewModel;
             InitializeComponent();
+        }
+
+        private void FlowLibrarysView_Drop(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                foreach (string file in files)
+                {
+                    if (file.EndsWith(".dll"))
+                    {
+                        ViewModel.LoadFileLibrary(file);
+                    }
+                }
+            }
+        }
+
+        private void FlowLibrarysView_DragOver(object sender, DragEventArgs e)
+        {
+            e.Effects = DragDropEffects.Copy;
+            e.Handled = true;
         }
     }
 }

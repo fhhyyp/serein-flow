@@ -126,12 +126,11 @@ namespace Serein.Workbench.Views
         private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (sender is TabControl tabControl
-                && tabControl.SelectedIndex > 0
+                && tabControl.SelectedIndex > -1
                 && DataContext is FlowEditViewModel viewModel
                 && viewModel.CanvasTabs[tabControl.SelectedIndex] is FlowEditorTabModel tab)
             {
-
-                viewModel.EndEditingTab(lastTab); // 确认新名称
+                viewModel.EndEditingTab(lastTab); // 取消编辑
                 lastTab = tab;
                 return;
             }

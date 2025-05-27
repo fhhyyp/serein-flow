@@ -23,7 +23,7 @@
       
         <Canvas  ClipToBounds="True"
                  x:Name="FlowChartCanvas" 
-                 Background="#E1FBEA"
+                 Background="#FFFFFF"
                  AllowDrop="True" 
                  Width="{Binding Model.Width, Mode=TwoWay}"
                  Height="{Binding Model.Height, Mode=TwoWay}"

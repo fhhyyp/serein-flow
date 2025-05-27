@@ -173,10 +173,10 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         /// <returns></returns>
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.StartFlow)]
-        private async Task<object> StartAsync()
+        private async Task<object> StartAsync(string[] canvasGuid)
         {
             var uiContextOperation = environment.IOC.Get<UIContextOperation>();
-            var state = await environment.StartFlowAsync();
+            var state = await environment.StartFlowAsync(canvasGuid);
             return new
             {
                 state = state,
@@ -191,7 +191,7 @@ namespace Serein.NodeFlow.Env
         [AutoSocketHandle(ThemeValue = EnvMsgTheme.StartFlowInSelectNode)]
         private async Task<object> StartAsyncInSelectNode(string nodeGuid)
         {
-            var state =  await environment.StartAsyncInSelectNode(nodeGuid);
+            var state =  await environment.StartFlowFromSelectNodeAsync(nodeGuid);
             return new
             {
                 state = state,

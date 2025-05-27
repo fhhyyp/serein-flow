@@ -336,6 +336,7 @@ namespace Serein.Library
             _x = x; _y = y;
         }
 
+
         /// <summary>
         /// 指示控件在画布的横向向方向上的位置
         /// </summary>

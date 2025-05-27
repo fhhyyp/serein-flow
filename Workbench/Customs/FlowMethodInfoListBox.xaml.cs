@@ -1,4 +1,5 @@
 ﻿using Serein.Library;
+using Serein.Library.Utils;
 using Serein.Workbench.Models;
 using System;
 using System.Collections;
@@ -20,10 +21,19 @@ using System.Windows.Shapes;
 namespace Serein.Workbench.Customs
 {
 
-
-    public class Test: DependencyObject
+    /// <summary>
+    /// 拖拽创建节点类型
+    /// </summary>
+    public static class MouseNodeType
     {
-
+        /// <summary>
+        /// 创建来自DLL的节点
+        /// </summary>
+        public static string CreateDllNodeInCanvas { get; } = nameof(CreateDllNodeInCanvas);
+        /// <summary>
+        /// 创建基础节点
+        /// </summary>
+        public static string CreateBaseNodeInCanvas { get; } = nameof(CreateBaseNodeInCanvas);
     }
 
     /// <summary>
@@ -35,66 +45,90 @@ namespace Serein.Workbench.Customs
 
         public FlowMethodInfoListBox()
         {
-            this.DataContext = this;
             InitializeComponent();
         }
 
 
-        public IEnumerable<FlowLibraryMethodDetailsInfo> Nodes
+        public static readonly DependencyProperty ItemsSourceProperty =
+          DependencyProperty.Register(nameof(ItemsSource), typeof(IEnumerable), typeof(FlowMethodInfoListBox), new PropertyMetadata(null));
+
+        public IEnumerable ItemsSource
         {
-            get { return (IEnumerable<FlowLibraryMethodDetailsInfo>)GetValue(NodesProperty); }
-            set { SetValue(NodesProperty, value); }
+            get => (IEnumerable)GetValue(ItemsSourceProperty);
+            set => SetValue(ItemsSourceProperty, value);
         }
 
-        //public ItemCollection Items
-        //{
-        //    get
-        //    {
-        //        return (ItemCollection)GetValue(ItemsProperty);
-        //    }
-        //    set
-        //    {
-        //        SetValue(ItemsProperty, value);
-        //    }
-        //}
+        public static readonly DependencyProperty BackgroundProperty =
+            DependencyProperty.Register(nameof(Background), typeof(Brush), typeof(FlowMethodInfoListBox), new PropertyMetadata(Brushes.Transparent));
 
-
-         public static readonly DependencyProperty NodesProperty = DependencyProperty.Register("NodesProperty", typeof(IEnumerable<FlowLibraryMethodDetailsInfo>), typeof(FlowMethodInfoListBox));
-        
-        //public int TurnValue
-        //{
-        //    get
-        //    {
-        //        return (int)GetValue(TurnValueProperty);
-        //    }
-        //    set
-        //    {
-        //        SetValue(TurnValueProperty, value);
-        //    }
-
-        //}
-
-
-        // public static readonly DependencyProperty NodesProperty = DependencyProperty.Register(nameof(Nodes), typeof(IEnumerable<FlowLibraryMethodDetailsInfo>), typeof(FlowMethodInfoListBox), new PropertyMetadata(null));
-
-        public Brush BackgroundColor
+        public Brush Background
         {
-            get { return (Brush)GetValue(BackgroundColorProperty); }
-            set { SetValue(BackgroundColorProperty, value); }
+            get => (Brush)GetValue(BackgroundProperty);
+            set => SetValue(BackgroundProperty, value);
         }
 
-        public static readonly DependencyProperty BackgroundColorProperty =
-            DependencyProperty.Register(nameof(BackgroundColor), typeof(Brush), typeof(FlowMethodInfoListBox), new PropertyMetadata(Brushes.White));
 
+        /// <summary>
+        /// 存储拖拽开始时的鼠标位置
+        /// </summary>
+        private Point _dragStartPoint;
 
+        private void Grid_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
 
+            // 记录鼠标按下时的位置
+            _dragStartPoint = e.GetPosition(null);
+        }
 
+        private void Grid_MouseMove(object sender, MouseEventArgs e)
+        {
+            // 获取当前鼠标位置
+            Point mousePos = e.GetPosition(null);
+            // 计算鼠标移动的距离
+            Vector diff = _dragStartPoint - mousePos;
 
+            // 判断是否符合拖拽的最小距离要求
+            if (e.LeftButton == MouseButtonState.Pressed &&
+                (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
+                 Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance))
+            {
+                // 获取触发事件的 TextBlock
 
+                if (sender is Grid grid && grid.DataContext is MethodDetailsInfo mdInfo)
+                {
+                    if (!EnumHelper.TryConvertEnum<Library.NodeType>(mdInfo.NodeType, out var nodeType))
+                    {
+                        return;
+                    }
 
+                    MoveNodeModel moveNodeModel = new MoveNodeModel()
+                    {
+                        NodeControlType = nodeType switch
+                        {
+                            NodeType.Action => NodeControlType.Action,
+                            NodeType.Flipflop => NodeControlType.Flipflop,
+                            NodeType.UI => NodeControlType.UI,
+                            _ => NodeControlType.None,
+                        },
+                        MethodDetailsInfo = mdInfo
+                    };
+                    //MoveNodeData moveNodeData = new MoveNodeData
+                    //{
 
+                       
+                    //    MethodDetailsInfo = mdInfo,
+                    //};
+                    if (moveNodeModel.NodeControlType == NodeControlType.None)
+                    {
+                        return;
+                    }
 
-
+                    // 创建一个 DataObject 用于拖拽操作，并设置拖拽效果
+                    DataObject dragData = new DataObject(MouseNodeType.CreateDllNodeInCanvas, moveNodeModel);
+                    DragDrop.DoDragDrop(grid, dragData, DragDropEffects.Move);
+                }
+            }
+        }
 
     }
 }

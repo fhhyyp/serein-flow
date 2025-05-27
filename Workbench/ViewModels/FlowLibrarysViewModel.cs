@@ -1,5 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using Serein.Library;
+using Serein.Library.Api;
+using Serein.NodeFlow.Env;
 using Serein.Workbench.Api;
 using Serein.Workbench.Models;
 using Serein.Workbench.Services;
@@ -15,15 +17,32 @@ namespace Serein.Workbench.ViewModels
     internal partial class FlowLibrarysViewModel : ObservableObject
     {
         private readonly IFlowEEForwardingService flowEEForwardingService;
-
+        private readonly IFlowEnvironment flowEnvironment;
         [ObservableProperty]
         private ObservableCollection<FlowLibraryInfo> flowLibraryInfos; 
 
-        public FlowLibrarysViewModel(IFlowEEForwardingService flowEEForwardingService)
+        public FlowLibrarysViewModel(IFlowEEForwardingService flowEEForwardingService,IFlowEnvironment flowEnvironment)
         {
             this.flowEEForwardingService = flowEEForwardingService;
+            this.flowEnvironment = flowEnvironment;
             FlowLibraryInfos = new ObservableCollection<FlowLibraryInfo>();
             flowEEForwardingService.OnDllLoad += FlowEEForwardingService_OnDllLoad;
+        }
+        /// <summary>
+        /// 加载文件依赖
+        /// </summary>
+        /// <param name="filePath"></param>
+        public void LoadFileLibrary(string filePath)
+        {
+            try
+            {
+                flowEnvironment.LoadLibrary(filePath);
+            }
+            catch (Exception ex)
+            {
+                flowEnvironment.WriteLine(Library.InfoType.ERROR, ex.ToString());
+                return;
+            }
         }
 
         private void FlowEEForwardingService_OnDllLoad(Library.Api.LoadDllEventArgs eventArgs)
@@ -32,10 +51,10 @@ namespace Serein.Workbench.ViewModels
             List<MethodDetailsInfo> mds = eventArgs.MethodDetailss;
             NodeLibraryInfo libraryInfo = eventArgs.NodeLibraryInfo;
 
-            var methodInfo = new ObservableCollection<FlowLibraryMethodDetailsInfo>();
+            var methodInfo = new ObservableCollection<MethodDetailsInfo>();
             foreach (var md in mds) 
             {
-                methodInfo.Add(new FlowLibraryMethodDetailsInfo(md));
+                methodInfo.Add(md);
             }
             var flInfo = new FlowLibraryInfo
             {

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Serein.Workbench.Tool;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -165,7 +166,7 @@ namespace Serein.Workbench.Themes
             {
                 isChange = true;
                 contextMenu = new ContextMenu();
-                contextMenu.Items.Add(MainWindow.CreateMenuItem($"取值表达式", (s, e) =>
+                contextMenu.Items.Add(WpfFuncTool.CreateMenuItem($"取值表达式", (s, e) =>
                 {
                     string fullPath = GetNodeFullPath(memberNode);
                     string copyValue = "@Get " + fullPath;
@@ -181,7 +182,7 @@ namespace Serein.Workbench.Themes
             {
                 isChange = true; 
                 contextMenu = new ContextMenu();
-                contextMenu.Items.Add(MainWindow.CreateMenuItem($"取值表达式", (s, e) =>
+                contextMenu.Items.Add(WpfFuncTool.CreateMenuItem($"取值表达式", (s, e) =>
                 {
                     string fullPath = GetNodeFullPath(memberNode);
                     string copyValue = "@Get " + fullPath;

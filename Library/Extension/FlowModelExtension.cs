@@ -101,10 +101,10 @@ namespace Serein.Library
             // 生成参数列表
             ParameterData[] parameterData = nodeModel.SaveParameterInfo();
 
-            NodeInfo nodeInfo = new NodeInfo
+            var nodeInfo = new NodeInfo
             {
-                Guid = nodeModel.Guid,
                 CanvasGuid = nodeModel.CanvasGuid,
+                Guid = nodeModel.Guid,
                 AssemblyName = nodeModel.MethodDetails.AssemblyName,
                 MethodName = nodeModel.MethodDetails?.MethodName,
                 Label = nodeModel.MethodDetails?.MethodAnotherName,
@@ -130,10 +130,12 @@ namespace Serein.Library
         /// <summary>
         /// 从节点信息加载节点
         /// </summary>
+        /// <param name="nodeModel"></param>
         /// <param name="nodeInfo"></param>
         /// <returns></returns>
         public static void LoadInfo(this NodeModelBase nodeModel, NodeInfo nodeInfo)
         {
+            nodeModel.CanvasGuid = nodeInfo.CanvasGuid;
             nodeModel.Guid = nodeInfo.Guid;
             nodeModel.Position = nodeInfo.Position ?? new PositionOfUI(0, 0);// 加载位置信息
             var md = nodeModel.MethodDetails; // 当前节点的方法说明
@@ -191,6 +193,7 @@ namespace Serein.Library
         /// <summary>
         /// 开始执行
         /// </summary>
+        /// <param name="nodeModel"></param>
         /// <param name="context"></param>
         /// <param name="token">流程运行</param>
         /// <returns></returns>

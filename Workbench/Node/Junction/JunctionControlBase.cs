@@ -12,9 +12,15 @@ using System.Windows.Shapes;
 using System.Windows.Media.Media3D;
 using System.Windows.Documents;
 using System.Threading;
+using Serein.Workbench.Services;
+using Serein.Workbench.Tool;
 
 namespace Serein.Workbench.Node.View
 {
+
+    /// <summary>
+    /// 控制带的拓展方法
+    /// </summary>
     internal static class MyUIFunc
     {
         public static Pen CreateAndFreezePen()
@@ -31,10 +37,11 @@ namespace Serein.Workbench.Node.View
         }
     }
     
+    /// <summary>
+    /// 入参控件
+    /// </summary>
     public class ParamsArgControl: Shape
     {
-
-
         public ParamsArgControl()
         {
             this.MouseDown += ParamsArg_OnMouseDown; // 增加或删除
@@ -159,8 +166,10 @@ namespace Serein.Workbench.Node.View
 
     public abstract class JunctionControlBase : Shape 
     {
+        private readonly FlowNodeService flowNodeService;
         protected JunctionControlBase()
         {
+            flowNodeService = App.GetService<FlowNodeService>();
             this.Width = 25;
             this.Height = 20;
             this.MouseDown += JunctionControlBase_MouseDown;
@@ -229,7 +238,7 @@ namespace Serein.Workbench.Node.View
             {
                 if(_isMouseOver != value)
                 {
-                    GlobalJunctionData.MyGlobalConnectingData.CurrentJunction = this;
+                    flowNodeService.ConnectingData.CurrentJunction = this;
                     _isMouseOver = value;
                     InvalidateVisual();
                 }
@@ -252,22 +261,22 @@ namespace Serein.Workbench.Node.View
         /// <returns></returns>
         protected Brush GetBackgrounp()
         {
-            var myData = GlobalJunctionData.MyGlobalConnectingData;
-            if(!myData.IsCreateing)
+            var cd = flowNodeService.ConnectingData;
+            if(!cd.IsCreateing)
             {
                 return Brushes.Transparent;
             }
             if (IsMouseOver)
             {
-                if (myData.IsCanConnected)
+                if (cd.IsCanConnected)
                 {
-                    if (myData.Type == JunctionOfConnectionType.Invoke)
+                    if (cd.Type == JunctionOfConnectionType.Invoke)
                     {
-                        return myData.ConnectionInvokeType.ToLineColor();
+                        return cd.ConnectionInvokeType.ToLineColor();
                     }
                     else
                     {
-                        return myData.ConnectionArgSourceType.ToLineColor();
+                        return cd.ConnectionArgSourceType.ToLineColor();
                     }
                 }
                 else
@@ -320,15 +329,15 @@ namespace Serein.Workbench.Node.View
         {
             if (e.LeftButton == MouseButtonState.Pressed)
             {
-                var canvas = MainWindow.GetParentOfType<Canvas>(this);
+                var canvas = WpfFuncTool.GetParentOfType<Canvas>(this);
                 if (canvas != null)
                 {
-                    var myData = GlobalJunctionData.MyGlobalConnectingData;
-                    myData.Reset();
-                    myData.IsCreateing = true; // 表示开始连接
-                    myData.StartJunction = this;
-                    myData.CurrentJunction = this;
-                    myData.StartPoint = this.TranslatePoint(new Point(this.Width / 2, this.Height / 2), canvas);
+                    var cd = flowNodeService.ConnectingData;
+                    cd.Reset();
+                    cd.IsCreateing = true; // 表示开始连接
+                    cd.StartJunction = this;
+                    cd.CurrentJunction = this;
+                    cd.StartPoint = this.TranslatePoint(new Point(this.Width / 2, this.Height / 2), canvas);
 
                     var junctionOfConnectionType = this.JunctionType.ToConnectyionType();
                     ConnectionLineShape bezierLine; // 类别
@@ -346,13 +355,13 @@ namespace Serein.Workbench.Node.View
                         return;
                     }
                     bezierLine = new ConnectionLineShape(LineType.Bezier,
-                                                         myData.StartPoint,
-                                                         myData.StartPoint,
+                                                         cd.StartPoint,
+                                                         cd.StartPoint,
                                                          brushColor,
                                                          isTop: true); // 绘制临时的线
 
                     Mouse.OverrideCursor = Cursors.Cross; // 设置鼠标为正在创建连线
-                    myData.MyLine = new MyLine(canvas, bezierLine);
+                    cd.MyLine = new MyLine(canvas, bezierLine);
                 }
             }
             e.Handled = true;

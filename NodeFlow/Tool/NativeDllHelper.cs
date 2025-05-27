@@ -69,6 +69,11 @@ namespace Serein.NodeFlow.Tool
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
+                if (!Directory.Exists(path))
+                {
+                    SereinEnv.WriteLine(InfoType.ERROR, $"尝试加载Dll时失败，路径不存在。{path}");
+                    return;
+                }
                 foreach (var file in Directory.GetFiles(path, "*.dll"))
                 {
                     LoadWindowsLibrarie(file);
