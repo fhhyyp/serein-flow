@@ -15,10 +15,7 @@
 
     </UserControl.Resources>
     <Grid>
-        <!-- TabControl -->
-        <!--DragOver="TabControl_DragOver" 
-        Drop="TabControl_Drop"
-AllowDrop="True"-->
+        
         <TabControl SelectedItem="{Binding SelectedTab}" 
                     SelectionChanged="TabControl_SelectionChanged"
                     x:Name="CanvasTab">
