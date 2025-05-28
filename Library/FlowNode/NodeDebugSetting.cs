@@ -22,6 +22,13 @@ namespace Serein.Library
             NodeModel = nodeModel;
         }
 
+
+        /// <summary>
+        /// 是否保护参数
+        /// </summary>
+        [PropertyInfo(IsNotification = true)]
+        private bool _isProtectionParameter;
+
         /// <summary>
         /// 对应的节点
         /// </summary>
@@ -37,7 +44,7 @@ namespace Serein.Library
         /// <summary>
         ///  是否中断节点。
         /// </summary>
-        [PropertyInfo(IsNotification = true, CustomCodeAtEnd = "ChangeInterruptState(value);")] // CustomCode = "NodeModel?.Env?.SetNodeInterruptAsync(NodeModel?.Guid, value);"
+        [PropertyInfo(IsNotification = true)]
         private bool _isInterrupt = false;
 
     }
@@ -66,18 +73,16 @@ namespace Serein.Library
         public Func<Task> GetInterruptTask => _getInterruptTask;
 
 
-        /// <summary>
-        /// 改变中断状态
-        /// </summary>
-        public void ChangeInterruptState(bool state)
+
+        partial void OnIsInterruptChanged(bool oldValue, bool newValue)
         {
-            if (state && _getInterruptTask is null)
+            if (newValue && _getInterruptTask is null)
             {
                 // 设置获取中断的委托
                 _getInterruptTask = () => NodeModel.Env.IOC.Get<FlowInterruptTool>().WaitTriggerAsync(NodeModel.Guid);
-                
+
             }
-            else if (!state)
+            else if (!newValue)
             {
                 if (_getInterruptTask is null)
                 {
@@ -90,9 +95,11 @@ namespace Serein.Library
                     _cancelInterrupt.Invoke();
                     _getInterruptTask = null;
                 }
-               
+
             }
         }
+
+
 
 
     }

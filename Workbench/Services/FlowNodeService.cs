@@ -102,6 +102,7 @@ namespace Serein.Workbench.Services
         /// 当前所有画布
         /// </summary>
         public FlowCanvasView[] FlowCanvass => Canvass.Select(c => c.Value).ToArray();
+        public NodeControlBase[] FlowNodeControls => NodeControls.Select(c => c.Value).ToArray();
 
         /// <summary>
         /// 记录流程画布
@@ -145,10 +146,10 @@ namespace Serein.Workbench.Services
            flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.Flipflop, typeof(FlipflopNodeControl), typeof(FlipflopNodeControlViewModel));
            flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.ExpOp, typeof(ExpOpNodeControl), typeof(ExpOpNodeControlViewModel));
            flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.ExpCondition, typeof(ConditionNodeControl), typeof(ConditionNodeControlViewModel));
-           //flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.ConditionRegion, typeof(ConditionRegionControl), typeof(ConditionRegionNodeControlViewModel));
            flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.GlobalData, typeof(GlobalDataControl), typeof(GlobalDataNodeControlViewModel));
            flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.Script, typeof(ScriptNodeControl), typeof(ScriptNodeControlViewModel));
            flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.NetScript, typeof(NetScriptNodeControl), typeof(NetScriptNodeControlViewModel));
+           flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.FlowCall, typeof(FlowCallNodeControl), typeof(FlowCallNodeControlViewModel));
         }
 
         /// <summary>
@@ -301,6 +302,11 @@ namespace Serein.Workbench.Services
             }
             #endregion
 
+            //if (nodeModel.ControlType == NodeControlType.FlowCall)
+            //{
+            //    Console.WriteLine("test");
+            //}
+
             #region 创建控件
 
             NodeControlBase nodeControl;
@@ -335,6 +341,7 @@ namespace Serein.Workbench.Services
                 SereinEnv.WriteLine(InfoType.INFO, $"无法移除画布，画布不存在。");
                 return;
             }
+            Canvass.Remove(eventArgs.CanvasGuid);
             OnRemoveFlowCanvasView.Invoke(nodeCanvas);
         }
 

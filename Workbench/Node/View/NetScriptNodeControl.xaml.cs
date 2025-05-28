@@ -1,4 +1,5 @@
-﻿using Serein.NodeFlow.Model;
+﻿using Serein.Library.Api;
+using Serein.NodeFlow.Model;
 using Serein.Workbench.Node.ViewModel;
 using System;
 using System.Collections.Generic;
@@ -24,7 +25,9 @@ namespace Serein.Workbench.Node.View
     {
         public NetScriptNodeControl()
         {
-            base.ViewModel = new NetScriptNodeControlViewModel(new SingleNetScriptNode(null));
+
+            var env = App.GetService<IFlowEnvironment>();
+            base.ViewModel = new NetScriptNodeControlViewModel(new SingleNetScriptNode(env));
             base.ViewModel.IsEnabledOnView = false;
             base.DataContext = ViewModel;
             InitializeComponent();

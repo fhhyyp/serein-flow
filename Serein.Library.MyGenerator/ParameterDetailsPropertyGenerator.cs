@@ -166,6 +166,8 @@ namespace Serein.Library.NodeGenerator
 
                     var isProtection = attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsProtection), value => bool.Parse(value)); // 是否为保护字段
 
+                    sb.AppendLine($"        partial void On{propertyName}Changed({fieldType} oldValue,{fieldType} newValue);");
+                    sb.AppendLine($"        partial void On{propertyName}Changed({fieldType} value);");
                     // 生成 getter / setter
                     sb.AppendLine(leadingTrivia);
                     sb.AppendLine($"        public {fieldType} {propertyName}");
@@ -175,13 +177,10 @@ namespace Serein.Library.NodeGenerator
                     sb.AppendLine("            {");
                     sb.AppendLine($"                if ({fieldName} {(isProtection ? "== default" : "!= value")})"); // 非保护的Setter
                     sb.AppendLine("                {");
-                    if (attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.CustomCodeAtStart), value => !string.IsNullOrEmpty(value)))  // 自定义代码
-                    {
-                        var customCode = attributeInfo[nameof(PropertyInfo)][nameof(PropertyInfo.CustomCodeAtStart)] as string;
-                        customCode = customCode.Trim().Substring(1, customCode.Length - 2);
-                        sb.AddCode(5, $"{customCode} // 添加的自定义代码");
-                    }
+                    sb.AppendLine($"                    var __oldValue = {fieldName};");
                     sb.AppendLine($"                    SetProperty<{fieldType}>(ref {fieldName}, value); // 通知UI属性发生改变了");
+                    sb.AppendLine($"                    On{propertyName}Changed(value);");
+                    sb.AppendLine($"                    On{propertyName}Changed(__oldValue, value);");
                     if (attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsPrint), value => bool.Parse(value)))  // 是否打印
                     {
                         sb.AddCode(5, $"Console.WriteLine({fieldName});");
@@ -217,14 +216,7 @@ namespace Serein.Library.NodeGenerator
                         }
                       
                     }
-                    if (attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.CustomCodeAtEnd), value => !string.IsNullOrEmpty(value)))  // 自定义代码
-                    {
-                        var customCode = attributeInfo[nameof(PropertyInfo)][nameof(PropertyInfo.CustomCodeAtEnd)] as string;
-                        customCode = customCode.Trim().Substring(1, customCode.Length - 2);
-                        sb.AddCode(5, $"{customCode} // 添加的自定义代码");
-                    }
-                    //sb.AppendLine($"                    {fieldName} = value;");
-                    //sb.AppendLine($"                    OnPropertyChanged(); // 通知UI属性发生改变了");
+                    
                     sb.AppendLine("                }");
                     sb.AppendLine("            }");
                     sb.AppendLine("        }"); // 属性的结尾大括号
@@ -253,6 +245,11 @@ namespace Serein.Library.NodeGenerator
                 sb.AppendLine("            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));                 ");
                 sb.AppendLine("        }                                                                                                                    ");
 
+                sb.AppendLine("         protected void OnPropertyChanged(string propertyName) =>                                                              ");
+                sb.AppendLine("                   PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));                         ");
+                sb.AppendLine("                                                                                                                             ");
+                sb.AppendLine("                                                                                                                           ");
+                sb.AppendLine("                                                                                                                             ");
                 //sb.AppendLine("        /// <summary>                                                                                                        ");
                 //sb.AppendLine("        /// 略                                                                                                               ");
                 //sb.AppendLine("        /// <para>此方法为自动生成</para>                                                                                    "); 

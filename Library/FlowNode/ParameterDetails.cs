@@ -183,7 +183,7 @@ namespace Serein.Library
                 //Convertor = this.Convertor,
                 DataType = this.DataType,
                 Name = this.Name,
-                DataValue = string.IsNullOrEmpty(DataValue) ? string.Empty : DataValue,
+                DataValue = this.DataValue,
                 Items = this.Items?.Select(it => it).ToArray(),
                 IsParams = this.IsParams,
                 Description = this.Description,

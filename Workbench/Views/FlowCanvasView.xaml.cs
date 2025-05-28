@@ -87,6 +87,14 @@ namespace Serein.Workbench.Views
             FlowChartCanvas.Dispatcher.Invoke(() =>
             {
                 FlowChartCanvas.Children.Add(nodeControl);
+                if(nodeControl.ViewModel.NodeModel.ControlType == NodeControlType.UI)
+                {
+                    // 需要切换到对应画布，尽可能让UI线程获取到适配器
+                    var edit = App.GetService<Locator>().FlowEditViewModel;
+                    var tab = edit.CanvasTabs.First(tab => tab.Content == this);
+                    App.GetService<Locator>().FlowEditViewModel.SelectedTab = tab;
+
+                }
             });
 
             ConfigureNodeEvents(nodeControl); // 配置相关事件
@@ -294,7 +302,7 @@ namespace Serein.Workbench.Views
             flowNodeService = App.GetService<FlowNodeService>();
             keyEventService = App.GetService<IKeyEventService>();
             flowNodeService.OnCreateNode += OnCreateNode;
-            keyEventService.OnKeyDown += KeyEventService_OnKeyDown; ;
+            keyEventService.OnKeyDown += KeyEventService_OnKeyDown; 
 
             // 缩放平移容器
             canvasTransformGroup = new TransformGroup();
@@ -413,14 +421,25 @@ namespace Serein.Workbench.Views
             {
                 return;
             }
-            
+
+
 
             if (key == Key.F5)
             {
-                // F5 调试当前流程
-                _ = flowEnvironment.StartFlowAsync([Guid]);
-            }
+                if (keyEventService.GetKeyState(Key.LeftCtrl) || keyEventService.GetKeyState(Key.RightCtrl))
+                {
+                    // Ctrl + F5 调试当前流程
+                    _ = flowEnvironment.StartFlowAsync([flowNodeService.CurrentSelectCanvas.Guid]);
+                }
+                else if (selectNodeControls.Count == 1 )
+                {
+                    // F5 调试当前选定节点
+                    var nodeModel = selectNodeControls[0].ViewModel.NodeModel;
+                    SereinEnv.WriteLine(InfoType.INFO, $"调试运行当前节点:{nodeModel.Guid}");
+                    _ = nodeModel.StartFlowAsync(new DynamicContext(flowEnvironment), new CancellationToken());
+                }
 
+            }
 
 
             if (key == Key.Escape)
@@ -630,6 +649,7 @@ namespace Serein.Workbench.Views
                             Type when typeof(GlobalDataControl).IsAssignableFrom(droppedType) => NodeControlType.GlobalData,
                             Type when typeof(ScriptNodeControl).IsAssignableFrom(droppedType) => NodeControlType.Script,
                             Type when typeof(NetScriptNodeControl).IsAssignableFrom(droppedType) => NodeControlType.NetScript,
+                            Type when typeof(FlowCallNodeControl).IsAssignableFrom(droppedType) => NodeControlType.FlowCall,
                             _ => NodeControlType.None,
                         };
                         if (nodeControlType != NodeControlType.None)
@@ -1146,7 +1166,7 @@ namespace Serein.Workbench.Views
             if (sender is NodeControlBase nodeControl)
             {
                 //ChangeViewerObjOfNode(nodeControl); // 对象树
-                if (nodeControl?.ViewModel?.NodeModel?.MethodDetails?.IsProtectionParameter == true) return;
+                //if (nodeControl?.ViewModel?.NodeModel?.DebugSetting.IsProtectionParameter == true) return;
                 IsControlDragging = true;
                 startControlDragPoint = e.GetPosition(FlowChartCanvas); // 记录鼠标按下时的位置
                 ((UIElement)sender).CaptureMouse(); // 捕获鼠标

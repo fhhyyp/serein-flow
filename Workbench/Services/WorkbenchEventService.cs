@@ -11,6 +11,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Input;
 
 namespace Serein.Workbench.Services
 {
@@ -56,16 +57,25 @@ namespace Serein.Workbench.Services
 
         private readonly IFlowEnvironment flowEnvironment;
         private readonly IFlowEEForwardingService flowEEForwardingService;
+        private readonly IKeyEventService keyEventService;
+        private readonly FlowNodeService flowNodeService;
 
         /// <summary>
         /// 管理工作台的事件
         /// </summary>
         /// <param name="flowEnvironment"></param>
         /// <param name="flowEEForwardingService"></param>
-        public WorkbenchEventService(IFlowEnvironment flowEnvironment, IFlowEEForwardingService flowEEForwardingService)
+        /// <param name="keyEventService"></param>
+        /// <param name="flowNodeService"></param>
+        public WorkbenchEventService(IFlowEnvironment flowEnvironment, 
+            IFlowEEForwardingService flowEEForwardingService,
+            IKeyEventService keyEventService,
+            FlowNodeService flowNodeService)
         {
             this.flowEnvironment = flowEnvironment;
             this.flowEEForwardingService = flowEEForwardingService;
+            this.keyEventService = keyEventService;
+            this.flowNodeService = flowNodeService;
             InitEvents();
         }
 
@@ -73,6 +83,12 @@ namespace Serein.Workbench.Services
         {
             flowEEForwardingService.OnProjectSaving += SaveProjectToLocalFile;
             flowEEForwardingService.OnEnvOut += FlowEEForwardingService_OnEnvOut;
+            keyEventService.OnKeyDown += KeyEventService_OnKeyDown; ;
+        }
+
+        private void KeyEventService_OnKeyDown(System.Windows.Input.Key key)
+        {
+            
         }
 
         private void FlowEEForwardingService_OnEnvOut(InfoType type, string value)

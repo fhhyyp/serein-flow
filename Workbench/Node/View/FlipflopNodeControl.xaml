@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:Converters="clr-namespace:Serein.Workbench.Tool.Converters"
+             xmlns:converter="clr-namespace:Serein.Workbench.Converters"
              xmlns:local="clr-namespace:Serein.Workbench.Node.View"
              xmlns:vm="clr-namespace:Serein.Workbench.Node.ViewModel"
              xmlns:themes="clr-namespace:Serein.Workbench.Themes"
@@ -14,12 +14,10 @@
     <UserControl.Resources>
         <vm:TypeToStringConverter x:Key="TypeToStringConverter"/>
         <!--<themes:ConditionControl x:Key="ConditionControl"/>-->
-        <Converters:InvertableBooleanToVisibilityConverter x:Key="InvertedBoolConverter"/>
+        <converter:InvertableBooleanToVisibilityConverter x:Key="InvertedBoolConverter"/>
     </UserControl.Resources>
 
     <Border  BorderBrush="#FCB334" BorderThickness="1">
-
-
         <Grid>
             <Grid.ToolTip>
                 <ToolTip Background="LightYellow" Foreground="#071042" Content="{Binding NodeModel.MethodDetails, UpdateSourceTrigger=PropertyChanged}" />
@@ -53,17 +51,11 @@
 
             </Grid>
             
-            <!--<StackPanel Grid.Row="0" Orientation="Horizontal" Background="#FCB334">
-                <CheckBox  IsChecked="{Binding NodeModel.DebugSetting.IsEnable, Mode=TwoWay}" VerticalContentAlignment="Center"/>
-                <CheckBox  IsChecked="{Binding NodeModel.MethodDetails.IsProtectionParameter, Mode=TwoWay}" VerticalContentAlignment="Center"/>
-
-                <TextBlock  Text="{Binding NodeModel.MethodDetails.MethodTips, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </StackPanel>-->
-
+            <!--方法描述-->
             <themes:MethodDetailsControl x:Name="MethodDetailsControl" Grid.Row="1" MethodDetails="{Binding NodeModel.MethodDetails}" />
 
-            <Border Grid.Row="2" x:Name="ParameterProtectionMask" Background="LightBlue" Opacity="0.5" BorderBrush="#0A4651" BorderThickness="0" 
-                Visibility="{Binding NodeModel.MethodDetails.IsProtectionParameter, Converter={StaticResource InvertedBoolConverter},ConverterParameter=Normal}" />
+            <Border Grid.Row="2" x:Name="ParameterProtectionMask" Background="#40508D" Opacity="0.5" BorderBrush="#0A4651" BorderThickness="0" 
+                Visibility="{Binding NodeModel.DebugSetting.IsProtectionParameter, Converter={StaticResource InvertedBoolConverter},ConverterParameter=Normal}" />
             <!--<Border  Grid.Row="0"  Background="#FCB334" >
                
             </Border>-->
@@ -94,7 +86,7 @@
 
 
                 <StackPanel Orientation="Horizontal" Margin="2,1,2,1">
-                    <CheckBox  IsChecked="{Binding NodeModel.MethodDetails.IsProtectionParameter, Mode=TwoWay}"/>
+                    <CheckBox  IsChecked="{Binding NodeModel.DebugSetting.IsProtectionParameter, Mode=TwoWay}"/>
                     <TextBlock Text="参数保护" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                 </StackPanel>
 

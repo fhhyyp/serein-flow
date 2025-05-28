@@ -115,7 +115,7 @@ namespace Serein.Library
                 ParameterData = parameterData.ToArray(),
                 ErrorNodes = errorNodes.ToArray(),
                 Position = nodeModel.Position,
-                IsProtectionParameter = nodeModel.MethodDetails.IsProtectionParameter,
+                IsProtectionParameter = nodeModel.DebugSetting.IsProtectionParameter,
                 IsInterrupt = nodeModel.DebugSetting.IsInterrupt,
                 IsEnable = nodeModel.DebugSetting.IsEnable,
                 ParentNodeGuid = nodeModel.ContainerNode?.Guid,
@@ -139,7 +139,7 @@ namespace Serein.Library
             nodeModel.Guid = nodeInfo.Guid;
             nodeModel.Position = nodeInfo.Position ?? new PositionOfUI(0, 0);// 加载位置信息
             var md = nodeModel.MethodDetails; // 当前节点的方法说明
-            nodeModel.MethodDetails.IsProtectionParameter = nodeInfo.IsProtectionParameter; // 保护参数
+            nodeModel.DebugSetting.IsProtectionParameter = nodeInfo.IsProtectionParameter; // 保护参数
             nodeModel.DebugSetting.IsInterrupt = nodeInfo.IsInterrupt; // 是否中断
             nodeModel.DebugSetting.IsEnable = nodeInfo.IsEnable; // 是否使能
             nodeModel.IsPublic = nodeInfo.IsPublic; // 是否全局公开
@@ -169,7 +169,7 @@ namespace Serein.Library
 
                 for (int i = 0; i < nodeInfo.ParameterData.Length; i++)
                 {
-                    if (i >= pds.Length)
+                    if (i >= pds.Length && nodeModel.ControlType != NodeControlType.FlowCall)
                     {
                         nodeModel.Env.WriteLine(InfoType.ERROR, $"保存的参数数量大于方法此时的入参参数数量：[{nodeInfo.Guid}][{nodeInfo.MethodName}]");
                         break;

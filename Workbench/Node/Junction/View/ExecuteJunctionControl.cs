@@ -8,9 +8,6 @@ namespace Serein.Workbench.Node.View
 {
     public class ExecuteJunctionControl : JunctionControlBase
     {
-
-
-
         public ExecuteJunctionControl()
         {
             base.JunctionType = JunctionType.Execute;

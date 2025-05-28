@@ -15,12 +15,16 @@
   <ItemGroup>
     <Compile Remove="Node\NodeModel\**" />
     <Compile Remove="Themes\Condition\**" />
+    <Compile Remove="Tool\Converters\**" />
     <EmbeddedResource Remove="Node\NodeModel\**" />
     <EmbeddedResource Remove="Themes\Condition\**" />
+    <EmbeddedResource Remove="Tool\Converters\**" />
     <None Remove="Node\NodeModel\**" />
     <None Remove="Themes\Condition\**" />
+    <None Remove="Tool\Converters\**" />
     <Page Remove="Node\NodeModel\**" />
     <Page Remove="Themes\Condition\**" />
+    <Page Remove="Tool\Converters\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -30,6 +34,7 @@
     <Compile Remove="Node\INodeContainerControl.cs" />
     <Compile Remove="Node\Junction\NodeJunctionViewBase.cs" />
     <Compile Remove="Node\NodeBase.cs" />
+    <Compile Remove="Node\ViewModel\ConditionRegionNodeControlViewModel.cs" />
     <Compile Remove="Node\View\ActionRegionControl.xaml.cs" />
     <Compile Remove="Node\View\ConditionRegionControl.xaml.cs" />
     <Compile Remove="Node\View\DllControlControl.xaml.cs" />

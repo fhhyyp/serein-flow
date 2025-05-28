@@ -1,4 +1,5 @@
-﻿using Serein.NodeFlow.Model;
+﻿using Serein.Library.Api;
+using Serein.NodeFlow.Model;
 using Serein.Workbench.Api;
 using Serein.Workbench.Node.ViewModel;
 
@@ -12,7 +13,8 @@ namespace Serein.Workbench.Node.View
         public GlobalDataControl() : base()
         {
             // 窗体初始化需要
-            base.ViewModel = new GlobalDataNodeControlViewModel(new SingleGlobalDataNode(null));
+            var env = App.GetService<IFlowEnvironment>();
+            base.ViewModel = new GlobalDataNodeControlViewModel(new SingleGlobalDataNode(env));
             base.ViewModel.IsEnabledOnView = false;
             DataContext = ViewModel;
             InitializeComponent();

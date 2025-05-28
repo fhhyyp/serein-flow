@@ -31,12 +31,6 @@ namespace Serein.Library
 
 
         /// <summary>
-        /// 是否保护参数
-        /// </summary>
-        [PropertyInfo(IsNotification = true)]
-        private bool _isProtectionParameter;
-
-        /// <summary>
         /// 调用节点方法时需要的实例（多个相同的节点将拥有相同的类型）
         /// </summary>
         [PropertyInfo]
@@ -245,7 +239,6 @@ namespace Serein.Library
                 ReturnType = this.ReturnType,  // 拷贝
                 MethodName = this.MethodName,  // 拷贝
                 MethodLockName = this.MethodLockName,  // 拷贝
-                IsProtectionParameter = this.IsProtectionParameter,  // 拷贝
                 ParamsArgIndex = this.ParamsArgIndex,  // 拷贝
                 ParameterDetailss = this.ParameterDetailss?.Select(p => p?.CloneOfModel(nodeModel)).ToArray(), // 拷贝属于节点方法的新入参描述
             };
@@ -255,6 +248,10 @@ namespace Serein.Library
 
         public override string ToString()
         {
+            if (string.IsNullOrEmpty(this.MethodName))
+            {
+                return "";
+            }
             var tmp = this.MethodName.Split('.') ;
             var methodName = tmp[tmp.Length - 1];
              StringBuilder sb = new StringBuilder();

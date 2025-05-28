@@ -15,7 +15,7 @@ namespace Serein.Workbench.Node.View
     /// <summary>
     /// 节点控件基类（控件）
     /// </summary>
-    public abstract class NodeControlBase : UserControl, IDynamicFlowNode
+    public abstract class NodeControlBase : UserControl //, IDynamicFlowNode
     {
         /// <summary>
         /// 节点所在的画布（以后需要将画布封装出来，实现多画布的功能）

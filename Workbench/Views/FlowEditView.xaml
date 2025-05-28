@@ -4,14 +4,14 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Serein.Workbench.Views"
-             xmlns:converters="clr-namespace:Serein.Workbench.Tool.Converters"
+             xmlns:converter="clr-namespace:Serein.Workbench.Converters"
              xmlns:vm="clr-namespace:Serein.Workbench.ViewModels"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800"
              d:DataContext="{d:DesignInstance vm:FlowEditViewModel}"
              Background="#E7F0F6">
     <UserControl.Resources>
-        <converters:InvertableBooleanToVisibilityConverter x:Key="InvertableBooleanToVisibilityConverter"/>
+        <converter:InvertableBooleanToVisibilityConverter x:Key="InvertableBooleanToVisibilityConverter"/>
 
     </UserControl.Resources>
     <Grid>

@@ -23,7 +23,7 @@ namespace Serein.NodeFlow.Model
         /// <summary>
         /// 表达式
         /// </summary>
-        [PropertyInfo(IsNotification = true, CustomCodeAtStart = "// ChangeName(value);")] 
+        [PropertyInfo(IsNotification = true)] 
         private string _keyName;
 
     }
@@ -101,14 +101,7 @@ namespace Serein.NodeFlow.Model
             DataNode = null;
         }
 
-        private void ChangeName(string newName)
-        {
-            if(SereinEnv.GetFlowGlobalData(_keyName) == null)
-            {
-                return;
-            }
-            SereinEnv.ChangeNameFlowGlobalData(_keyName, newName);
-        }
+      
 
         /// <summary>
         /// 设置全局数据

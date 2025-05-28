@@ -5,16 +5,16 @@
                     xmlns:sys="clr-namespace:System;assembly=mscorlib" 
                     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                     xmlns:serein="clr-namespace:Serein.Library;assembly=Serein.Library"
-                    xmlns:converters="clr-namespace:Serein.Workbench.Tool.Converters">
+                    xmlns:converter="clr-namespace:Serein.Workbench.Converters">
 
 
     <ResourceDictionary.MergedDictionaries>
     </ResourceDictionary.MergedDictionaries>
-    
-    
-    <converters:InvertableBooleanToVisibilityConverter x:Key="InvertedBoolConverter"/>
-    <converters:EnumToBooleanConverter x:Key="EnumToBooleanConverter"/>
+
+    <converter:InvertableBooleanToVisibilityConverter x:Key="InvertedBoolConverter"/>
+    <converter:EnumToBooleanConverter x:Key="EnumToBooleanConverter"/>
     <local:DescriptionOrNameConverter x:Key="DescOrNameConverter"/>
+    
     
     <Style TargetType="{x:Type local:MethodDetailsControl}">
         <Setter Property="Template">
@@ -108,6 +108,29 @@
                                                                         </TextBlock.Text>
                                                                     </TextBlock>
                                                                     
+                                                                </DataTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </MultiDataTrigger>
+
+                                                    <!--显示FlowCall节点方法入参名称-->
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding NodeModel.ControlType}" Value="{x:Static serein:NodeControlType.FlowCall}"/>
+                                                        </MultiDataTrigger.Conditions>
+                                                        <Setter Property="ContentTemplate">
+                                                            <Setter.Value>
+                                                                <DataTemplate>
+
+                                                                    <TextBlock Grid.Column="0" MinWidth="50">
+                                                                        <TextBlock.Text>
+                                                                            <MultiBinding Converter="{StaticResource DescOrNameConverter}">
+                                                                                <Binding Path="Description"/>
+                                                                                <Binding Path="Name"/>
+                                                                            </MultiBinding>
+                                                                        </TextBlock.Text>
+                                                                    </TextBlock>
+
                                                                 </DataTemplate>
                                                             </Setter.Value>
                                                         </Setter>

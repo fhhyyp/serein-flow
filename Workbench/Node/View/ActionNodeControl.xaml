@@ -5,7 +5,7 @@
                        xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
                        xmlns:local="clr-namespace:Serein.Workbench.Node.View"
                        xmlns:vm="clr-namespace:Serein.Workbench.Node.ViewModel"
-                       xmlns:converters="clr-namespace:Serein.Workbench.Tool.Converters"
+                       xmlns:converter="clr-namespace:Serein.Workbench.Converters"
                        xmlns:themes="clr-namespace:Serein.Workbench.Themes"
                        d:DataContext="{d:DesignInstance vm:ActionNodeControlViewModel}"
                        mc:Ignorable="d"
@@ -13,7 +13,7 @@
 
     <UserControl.Resources>
         <!--<BooleanToVisibilityConverter x:Key="BoolToVisConverter" />-->
-        <converters:InvertableBooleanToVisibilityConverter x:Key="InvertedBoolConverter"/>
+        <converter:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <!--<ResourceDictionary Source="/Serein.Workbench;Node/View/NodeExecuteJunctionControl.xaml" x:Key="NodeExecuteJunctionControl"/>-->
 
     </UserControl.Resources>
@@ -69,10 +69,13 @@
                         <local:NextStepJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}"  x:Name="NextStepJunctionControl" HorizontalAlignment="Right" Grid.RowSpan="2"/>
 
                     </Grid>
+                    
                     <themes:MethodDetailsControl Grid.Row="2"  x:Name="MethodDetailsControl" MethodDetails="{Binding NodeModel.MethodDetails}"/>
-                    <Border Grid.Row="2" x:Name="ParameterProtectionMask" Background="LightBlue" Opacity="0.5" BorderThickness="0" 
-                        Visibility="{Binding NodeModel.MethodDetails.IsProtectionParameter, Mode=TwoWay, 
-                                            Converter={StaticResource InvertedBoolConverter}, ConverterParameter=Normal}" />
+                    
+                    <Border Grid.Row="2" x:Name="ParameterProtectionMask" Background="#40508D" Opacity="0.5" BorderThickness="0" 
+                        Visibility="{Binding NodeModel.DebugSetting.IsProtectionParameter, Mode=TwoWay, 
+                                            Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Normal}" />
+                    
                     <Grid Grid.Row="3"  Background="#D5F0FC" >
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="50"/>
@@ -105,7 +108,7 @@
 
 
                         <StackPanel Orientation="Horizontal">
-                            <CheckBox  IsChecked="{Binding NodeModel.MethodDetails.IsProtectionParameter, Mode=TwoWay}"/>
+                            <CheckBox  IsChecked="{Binding NodeModel.DebugSetting.IsProtectionParameter, Mode=TwoWay}"/>
                             <TextBlock Text="参数保护"/>
                         </StackPanel>
 

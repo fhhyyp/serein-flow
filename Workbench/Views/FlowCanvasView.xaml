@@ -4,7 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Serein.Workbench.Views"
-             xmlns:tool="clr-namespace:Serein.Workbench.Tool.Converters"
+             xmlns:converter="clr-namespace:Serein.Workbench.Converters"
              xmlns:vm="clr-namespace:Serein.Workbench.ViewModels"
              mc:Ignorable="d" 
              d:DesignHeight="450" 
@@ -12,10 +12,10 @@
              d:DataContext="{d:DesignInstance vm:FlowCanvasViewModel}">
 
     <UserControl.Resources>
-        <tool:RightThumbPositionConverter x:Key="RightThumbPositionConverter" />
-        <tool:BottomThumbPositionConverter x:Key="BottomThumbPositionConverter" />
-        <tool:VerticalCenterThumbPositionConverter x:Key="VerticalCenterThumbPositionConverter" />
-        <tool:HorizontalCenterThumbPositionConverter x:Key="HorizontalCenterThumbPositionConverter" />
+        <converter:RightThumbPositionConverter x:Key="RightThumbPositionConverter" />
+        <converter:BottomThumbPositionConverter x:Key="BottomThumbPositionConverter" />
+        <converter:VerticalCenterThumbPositionConverter x:Key="VerticalCenterThumbPositionConverter" />
+        <converter:HorizontalCenterThumbPositionConverter x:Key="HorizontalCenterThumbPositionConverter" />
     </UserControl.Resources>
 
     <DockPanel x:Name="FlowChartStackPanel"

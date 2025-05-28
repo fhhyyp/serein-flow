@@ -6,7 +6,9 @@ using Serein.Library.Utils.SereinExpression;
 using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Tool;
 using System;
+using System.Collections.Specialized;
 using System.Diagnostics;
+using System.Net.Mime;
 using System.Reactive;
 using System.Reflection;
 using System.Text;
@@ -57,6 +59,7 @@ namespace Serein.NodeFlow.Env
             NodeMVVMManagement.RegisterModel(NodeControlType.GlobalData, typeof(SingleGlobalDataNode));  // 全局数据节点
             NodeMVVMManagement.RegisterModel(NodeControlType.Script, typeof(SingleScriptNode)); // 脚本节点
             NodeMVVMManagement.RegisterModel(NodeControlType.NetScript, typeof(SingleNetScriptNode)); // 脚本节点
+            NodeMVVMManagement.RegisterModel(NodeControlType.FlowCall, typeof(SingleFlowCallNode)); // 流程调用节点
             #endregion
 
             #region 注册基本服务类
@@ -887,11 +890,12 @@ namespace Serein.NodeFlow.Env
             #region 从NodeInfo创建NodeModel
             foreach (NodeInfo? nodeInfo in nodeInfos)
             {
+                
                 if (!EnumHelper.TryConvertEnum<NodeControlType>(nodeInfo.Type, out var controlType))
                 {
                     continue;
                 }
-
+                
                 #region 获取方法描述
                 MethodDetails? methodDetails;
                 if (controlType.IsBaseNode())

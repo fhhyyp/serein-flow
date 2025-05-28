@@ -20,6 +20,10 @@ namespace Serein.NodeFlow
         /// <returns></returns>
         public static bool IsBaseNode(this NodeControlType nodeControlType)
         {
+            if(nodeControlType == NodeControlType.FlowCall)
+            {
+                return false;
+            }
             var nodeDesc = EnumHelper.GetAttribute<NodeControlType, DescriptionAttribute>(nodeControlType);
            if("base".Equals(nodeDesc?.Description, StringComparison.OrdinalIgnoreCase))
             {

@@ -62,33 +62,37 @@ namespace Serein.Library
             {
                 this.DebugSetting.CancelInterrupt?.Invoke();
             }
-            this.DebugSetting.NodeModel = null;
-            this.DebugSetting = null;
-            if (this.MethodDetails.ParameterDetailss != null)
+
+            if (this.IsPublic)
             {
-                foreach (var pd in this.MethodDetails.ParameterDetailss)
-                {
-                    pd.DataValue = null;
-                    pd.Items = null;
-                    pd.NodeModel = null;
-                    pd.ExplicitType = null;
-                    pd.DataType = null;
-                    pd.Name = null;
-                    pd.ArgDataSourceNodeGuid = null;
-                    pd.InputType = ParameterValueInputType.Input;
-                }
+                this.CanvasDetails.PublicNodes.Remove(this);
             }
 
-            this.MethodDetails.ParameterDetailss = null;
-            //this.MethodDetails.ActingInstance = null;
-            this.MethodDetails.NodeModel = null;
-            this.MethodDetails.ReturnType = null;
-            this.MethodDetails.AssemblyName = null;
-            this.MethodDetails.MethodAnotherName = null;
-            this.MethodDetails.MethodLockName = null;
-            this.MethodDetails.MethodName = null;
-            this.MethodDetails.ActingInstanceType = null;
-            this.MethodDetails = null;
+            this.DebugSetting.NodeModel = null;
+            this.DebugSetting = null;
+            if(this.MethodDetails is not null)
+            {
+                if (this.MethodDetails.ParameterDetailss != null)
+                {
+                    foreach (var pd in this.MethodDetails.ParameterDetailss)
+                    {
+                        pd.DataValue = null;
+                        pd.Items = null;
+                        pd.NodeModel = null;
+                        pd.ExplicitType = null;
+                        pd.DataType = null;
+                        pd.Name = null;
+                        pd.ArgDataSourceNodeGuid = null;
+                        pd.InputType = ParameterValueInputType.Input;
+                    }
+                }
+                this.MethodDetails.ParameterDetailss = null;
+                this.MethodDetails.NodeModel = null;
+                this.MethodDetails.ReturnType = null;
+                this.MethodDetails.ActingInstanceType = null;
+                this.MethodDetails = null;
+            }
+           
             this.Position = null;
             this.DisplayName = null;
 
@@ -99,6 +103,8 @@ namespace Serein.Library
         /// 执行节点对应的方法
         /// </summary>
         /// <param name="context">流程上下文</param>
+        /// <param name="token"></param>
+        /// <param name="args">自定义参数</param>
         /// <returns>节点传回数据对象</returns>
         public virtual async Task<FlowResult> ExecutingAsync(IDynamicContext context, CancellationToken token)
         {

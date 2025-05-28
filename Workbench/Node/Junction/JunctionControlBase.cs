@@ -14,6 +14,7 @@ using System.Windows.Documents;
 using System.Threading;
 using Serein.Workbench.Services;
 using Serein.Workbench.Tool;
+using System.ComponentModel;
 
 namespace Serein.Workbench.Node.View
 {
@@ -169,15 +170,24 @@ namespace Serein.Workbench.Node.View
         private readonly FlowNodeService flowNodeService;
         protected JunctionControlBase()
         {
-            flowNodeService = App.GetService<FlowNodeService>();
+            
+          
             this.Width = 25;
             this.Height = 20;
             this.MouseDown += JunctionControlBase_MouseDown;
             this.MouseMove += JunctionControlBase_MouseMove;
-            this.MouseLeave += JunctionControlBase_MouseLeave; ;
+            this.MouseLeave += JunctionControlBase_MouseLeave;
+#if DEBUG
+
+            if (DesignerProperties.GetIsInDesignMode(new DependencyObject()))
+                return;
+
+#endif
+            flowNodeService = App.GetService<FlowNodeService>();
+
         }
 
-       
+
         #region 控件属性，所在的节点
         public static readonly DependencyProperty NodeProperty =
             DependencyProperty.Register(nameof(MyNode), typeof(NodeModelBase), typeof(JunctionControlBase), new PropertyMetadata(default(NodeModelBase)));
@@ -238,7 +248,11 @@ namespace Serein.Workbench.Node.View
             {
                 if(_isMouseOver != value)
                 {
-                    flowNodeService.ConnectingData.CurrentJunction = this;
+                    if(flowNodeService is not null)
+                    {
+
+                        flowNodeService.ConnectingData.CurrentJunction = this;
+                    }
                     _isMouseOver = value;
                     InvalidateVisual();
                 }
@@ -261,6 +275,10 @@ namespace Serein.Workbench.Node.View
         /// <returns></returns>
         protected Brush GetBackgrounp()
         {
+            if(flowNodeService is null)
+            {
+                return Brushes.Transparent;
+            }
             var cd = flowNodeService.ConnectingData;
             if(!cd.IsCreateing)
             {

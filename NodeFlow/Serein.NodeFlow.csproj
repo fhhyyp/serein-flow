@@ -41,6 +41,7 @@
     <Compile Remove="ConnectionType.cs" />
     <Compile Remove="DynamicContext.cs" />
     <Compile Remove="MethodDetails.cs" />
+    <Compile Remove="Model\CompositeConditionNode.cs" />
     <Compile Remove="NodeStaticConfig.cs" />
     <Compile Remove="Tool\Attribute.cs" />
     <Compile Remove="Tool\DynamicTool.cs" />

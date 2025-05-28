@@ -11,11 +11,13 @@ namespace Serein.Library
 
 
 
+
+
     /// <summary>
     /// 节点基类（数据）
     /// </summary>
     [NodeProperty(ValuePath = NodeValuePath.Node)]
-    public abstract partial class NodeModelBase : IDynamicFlowNode
+    public abstract partial class NodeModelBase : INotifyPropertyChanged, IDynamicFlowNode
     {
         /// <summary>
         /// 节点运行环境
@@ -56,8 +58,14 @@ namespace Serein.Library
         /// <summary>
         /// 是否公开
         /// </summary>
-        [PropertyInfo(IsNotification = true, CustomCodeAtEnd = "NodePublicStateChanged();")]
+        [PropertyInfo(IsNotification = true)]
         private bool _isPublic;
+
+       /* /// <summary>
+        /// 是否保护参数
+        /// </summary>
+        [PropertyInfo(IsNotification = true)]
+        private bool _isProtectionParameter;*/
 
         /// <summary>
         /// 附加的调试功能
@@ -68,7 +76,7 @@ namespace Serein.Library
         /// <summary>
         /// 方法描述。包含参数信息。不包含Method与委托，如若需要调用对应的方法，需要通过MethodName从环境中获取委托进行调用。
         /// </summary>
-        [PropertyInfo(IsProtection = true)] 
+        [PropertyInfo] 
         private MethodDetails _methodDetails ;
     }
 
@@ -108,7 +116,7 @@ namespace Serein.Library
         /// <summary>
         /// 不同分支的子节点（流程调用）
         /// </summary>
-        public Dictionary<ConnectionInvokeType, List<NodeModelBase>> SuccessorNodes { get; }
+        public Dictionary<ConnectionInvokeType, List<NodeModelBase>> SuccessorNodes { get; set; }
 
         /// <summary>
         /// 该节点的容器节点
@@ -123,10 +131,9 @@ namespace Serein.Library
         /// <summary>
         /// 节点公开状态发生改变
         /// </summary>
-        private void NodePublicStateChanged()
+        partial void OnIsPublicChanged(bool oldValue, bool newValue)
         {
-            
-            if (IsPublic)
+            if (newValue)
             {
                 // 公开节点
                 if (!CanvasDetails.PublicNodes.Contains(this))
@@ -143,6 +150,8 @@ namespace Serein.Library
                 }
             }
         }
+
+
     }
  }
 

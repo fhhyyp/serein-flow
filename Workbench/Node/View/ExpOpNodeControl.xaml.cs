@@ -1,4 +1,5 @@
-﻿using Serein.NodeFlow.Model;
+﻿using Serein.Library.Api;
+using Serein.NodeFlow.Model;
 using Serein.Workbench.Node.ViewModel;
 
 namespace Serein.Workbench.Node.View
@@ -11,7 +12,8 @@ namespace Serein.Workbench.Node.View
         public ExpOpNodeControl() : base()
         {
             // 窗体初始化需要
-            ViewModel = new ExpOpNodeControlViewModel(new SingleExpOpNode(null));
+            var env = App.GetService<IFlowEnvironment>();
+            ViewModel = new ExpOpNodeControlViewModel(new SingleExpOpNode(env));
             base.ViewModel.IsEnabledOnView = false;
             DataContext = ViewModel;
             InitializeComponent();
