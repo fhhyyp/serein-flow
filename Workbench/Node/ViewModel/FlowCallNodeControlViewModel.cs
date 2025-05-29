@@ -68,10 +68,9 @@ namespace Serein.Workbench.Node.ViewModel
             {
                 return;
             }
-            if (targetNodeControl.FlowCanvas is FlowCanvasView view 
-                && view.DataContext is FlowCanvasViewModel viewModel)
+            if (targetNodeControl.FlowCanvas is FlowCanvasView view )
             {
-                SelectCanvas = viewModel;
+                SelectCanvas = view.ViewModel;
                 SelectNode = targetNodeControl.ViewModel.NodeModel;
             }
         }
@@ -80,7 +79,9 @@ namespace Serein.Workbench.Node.ViewModel
         {
             flowEEForwardingService.OnCanvasCreate += (e) => RershCanvass(); // 画布创建了
             flowEEForwardingService.OnCanvasRemove += (e) => RershCanvass(); // 画布移除了
+
         }
+
 
         partial void OnSelectCanvasChanged(FlowCanvasViewModel value)
         {
@@ -89,7 +90,12 @@ namespace Serein.Workbench.Node.ViewModel
 
         partial void OnSelectNodeChanged(NodeModelBase value)
         {
-            FlowCallNode.SetTargetNode(value);
+            if(value is null)
+            {
+                FlowCallNode.ResetTargetNode();
+                return;
+            }
+            FlowCallNode.SetTargetNode(value.Guid);
         }
 
         private void RershCanvass()

@@ -196,7 +196,7 @@ namespace Serein.Workbench.Node.View
         {
             leftCenterOfEndLocation = Start.MyCenterPoint;
             rightCenterOfStartLocation = End.MyCenterPoint;
-
+             
             (Point startPoint, Point endPoint) = RefreshPoint(Canvas, Start, End);
             var connectionType = Start.JunctionType.ToConnectyionType();
             bool isDotted;
@@ -214,7 +214,7 @@ namespace Serein.Workbench.Node.View
             BezierLine = new ConnectionLineShape(LineType, startPoint, endPoint, brush, isDotted); 
             Grid.SetZIndex(BezierLine, -9999999); // 置底
             Canvas.Children.Add(BezierLine);
-
+           
             ConfigureLineContextMenu(); //配置右键菜单
         }
 

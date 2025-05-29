@@ -8,7 +8,9 @@ using Serein.Workbench.Node.View;
 using Serein.Workbench.Node.ViewModel;
 using Serein.Workbench.ViewModels;
 using Serein.Workbench.Views;
+using System;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -210,7 +212,9 @@ namespace Serein.Workbench.Services
                 (JunctionOfConnectionType.Arg, NodeConnectChangeEventArgs.ConnectChangeType.Remove) => () => flow.RemoveArgConnection(fromNode, toNode, e.ArgIndex), // 移除节点之间的参数传递关系
                 _ => null
             };
+
             action?.Invoke();
+          
             return;
 
         }

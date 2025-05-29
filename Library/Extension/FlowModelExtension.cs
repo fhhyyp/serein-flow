@@ -33,26 +33,29 @@ namespace Serein.Library
                 ScaleY = model.ScaleY,
                 ViewX = model.ViewX,
                 ViewY = model.ViewY,
-                StartNode = model.StartNode,
+                StartNode = model.StartNode?.Guid,
             };
         }
 
         /// <summary>
         /// 从画布信息加载
         /// </summary>
-        /// <param name="model"></param>
-        /// <param name="info"></param>
-        public static void LoadInfo(this FlowCanvasDetails model, FlowCanvasDetailsInfo info)
+        /// <param name="canvasModel"></param>
+        /// <param name="canvasInfo"></param>
+        public static void LoadInfo(this FlowCanvasDetails canvasModel, FlowCanvasDetailsInfo canvasInfo)
         {
-            model.Guid = info.Guid;
-            model.Height = info.Height;
-            model.Width = info.Width;
-            model.Name = info.Name;
-            model.ScaleX = info.ScaleX;
-            model.ScaleY = info.ScaleY;
-            model.ViewX = info.ViewX;
-            model.ViewY = info.ViewY;
-            model.StartNode = info.StartNode;
+            canvasModel.Guid = canvasInfo.Guid;
+            canvasModel.Height = canvasInfo.Height;
+            canvasModel.Width = canvasInfo.Width;
+            canvasModel.Name = canvasInfo.Name;
+            canvasModel.ScaleX = canvasInfo.ScaleX;
+            canvasModel.ScaleY = canvasInfo.ScaleY;
+            canvasModel.ViewX = canvasInfo.ViewX;
+            canvasModel.ViewY = canvasInfo.ViewY;
+            if(canvasModel.Env.TryGetNodeModel(canvasInfo.StartNode,out var nodeModel))
+            {
+                canvasModel.StartNode = nodeModel;
+            }
         }
 
         /// <summary>
@@ -61,7 +64,7 @@ namespace Serein.Library
         /// <returns></returns>
         public static ParameterData[] SaveParameterInfo(this NodeModelBase nodeModel)
         {
-            if (nodeModel.MethodDetails.ParameterDetailss == null)
+            if (nodeModel.MethodDetails is null || nodeModel.MethodDetails.ParameterDetailss == null)
             {
                 return new ParameterData[0];
             }

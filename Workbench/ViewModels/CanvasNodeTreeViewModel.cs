@@ -32,10 +32,7 @@ namespace Serein.Workbench.ViewModels
         /// <param name="flowCanvas"></param>
         private void OnViewCanvasChanged(FlowCanvasView flowCanvas)
         {
-            if (flowCanvas.DataContext is FlowCanvasViewModel vm) 
-            {
-                Model = vm.Model;
-            }
+            Model = flowCanvas.ViewModel.Model;
         }
     }
 }

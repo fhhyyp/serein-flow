@@ -13,6 +13,7 @@ using Serein.Library;
 using Serein.Library.Utils;
 using Serein.Workbench.Avalonia.Api;
 using Serein.Workbench.Api;
+using System.Diagnostics;
 
 namespace Serein.Workbench.Services
 {

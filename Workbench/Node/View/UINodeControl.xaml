@@ -32,8 +32,9 @@
 
         </Grid>
 
-        <Border Grid.Row="1" x:Name="EmbedContainer" BorderBrush="Black" BorderThickness="1"
-            Width="500" Height="400"/>
+        <Border x:Name="EmbedContainer" Width="200" Height="200"  Grid.Row="1" BorderBrush="Black" BorderThickness="1">
+            <!--<ContentControl  />-->
+        </Border>
         
         
     </Grid>

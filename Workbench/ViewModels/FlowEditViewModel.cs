@@ -43,15 +43,15 @@ namespace Serein.Workbench.ViewModels
 
             flowNodeService.OnCreateFlowCanvasView += OnCreateFlowCanvasView; // 创建了画布
             flowNodeService.OnRemoveFlowCanvasView += OnRemoveFlowCanvasView; // 移除了画布
-            this.PropertyChanged += OnPropertyChanged;
+            //this.PropertyChanged += OnPropertyChanged;
 
         }
 
-        private void OnPropertyChanged(object? value, PropertyChangedEventArgs e)
+        partial void OnSelectedTabChanged(FlowEditorTabModel value)
         {
-            if (this.SelectedTab is null) return;
-            flowNodeService.CurrentSelectCanvas = this.SelectedTab.Content;
+            flowNodeService.CurrentSelectCanvas = value.Content;
         }
+
 
         #region 响应环境事件
         private void OnCreateFlowCanvasView(FlowCanvasView canvas)

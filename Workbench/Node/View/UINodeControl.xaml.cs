@@ -22,6 +22,7 @@ namespace Serein.Workbench.Node.View
     /// </summary>
     public partial class UINodeControl : NodeControlBase, INodeJunction
     {
+        private  new UINodeControlViewModel ViewModel {  get; }
         public UINodeControl()
         {
             base.ViewModel.IsEnabledOnView = true;
@@ -30,6 +31,7 @@ namespace Serein.Workbench.Node.View
 
         public UINodeControl(UINodeControlViewModel viewModel) : base(viewModel)
         {
+            ViewModel = viewModel;
             DataContext = viewModel;
             InitializeComponent();
 
@@ -49,8 +51,8 @@ namespace Serein.Workbench.Node.View
 
         private void NodeControlBase_Loaded(object sender, RoutedEventArgs e)
         {
-            UINodeControlViewModel vm = (UINodeControlViewModel)DataContext;
-            vm.InitAdapter(userControl => {
+            //ViewModel.InitAdapter(); 
+            ViewModel.InitAdapter(userControl => {
                 EmbedContainer.Child = userControl;
             });
 

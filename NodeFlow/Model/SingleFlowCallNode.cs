@@ -16,14 +16,17 @@ namespace Serein.NodeFlow.Model
     [NodeProperty(ValuePath = NodeValuePath.Node)]
     public partial class SingleFlowCallNode
     {
-        
-        
+        /// <summary>
+        /// 目标公开节点
+        /// </summary>
+        [PropertyInfo(IsNotification = true)]
+        private string targetNodeGuid;
 
         /// <summary>
         /// 使用目标节点的参数（如果为true，则使用目标节点的入参，如果为false，则使用节点自定义入参）
         /// </summary>
         [PropertyInfo(IsNotification = true)]
-        private bool _isShareParam = true ;
+        private bool _isShareParam  ;
     }
 
 
@@ -38,9 +41,13 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         private NodeModelBase targetNode;
         /// <summary>
+        /// 缓存的方法信息
+        /// </summary>
+        public MethodDetails CacheMethodDetails { get; private set; }
+        /// <summary>
         /// 接口节点Guid
         /// </summary>
-        public string? TargetNodeGuid => targetNode?.Guid;
+        //public string? TargetNodeGuid => targetNode?.Guid;
 
 
         public SingleFlowCallNode(IFlowEnvironment environment) : base(environment)
@@ -48,43 +55,70 @@ namespace Serein.NodeFlow.Model
 
         }
 
+
         /// <summary>
         /// 重置接口节点
         /// </summary>
         public void ResetTargetNode()
         {
-            if(targetNode is not null)
+            if (targetNode is not null)
             {
                 // 取消接口
-                targetNode.PropertyChanged -= TargetNode_PropertyChanged;
-                this.MethodDetails = null;
-                foreach (ConnectionInvokeType ctType in NodeStaticConfig.ConnectionTypes)
-                {
-                    this.SuccessorNodes[ctType] = new List<NodeModelBase>();
-                }
+                TargetNodeGuid = string.Empty;
             }
-           
-            
         }
 
         /// <summary>
-        /// 设置接口节点（如果传入null，则视为取消设置）
+        /// 设置接口节点
         /// </summary>
-        /// <param name="value"></param>
-        public void SetTargetNode(NodeModelBase? value)
+        /// <param name="nodeGuid"></param>
+        public void SetTargetNode(string? nodeGuid)
         {
-            if( value is null)
+            if (nodeGuid is null || !Env.TryGetNodeModel(nodeGuid, out _))
             {
                 return;
             }
-            this.targetNode = value;
-            tmpMethodDetails = targetNode.MethodDetails.CloneOfNode(this); // 从目标节点复制一份
-            targetNode.PropertyChanged += TargetNode_PropertyChanged;
-            this.MethodDetails = tmpMethodDetails;
-            this.SuccessorNodes = targetNode.SuccessorNodes;
+            TargetNodeGuid = nodeGuid;
         }
 
-        private MethodDetails tmpMethodDetails;
+        partial void OnTargetNodeGuidChanged(string value)
+        {
+            if (string.IsNullOrEmpty(value) || !Env.TryGetNodeModel(value, out targetNode))
+            {
+                // 取消设置接口节点
+                targetNode.PropertyChanged -= TargetNode_PropertyChanged;
+                this.MethodDetails = new MethodDetails();
+                /*foreach (ConnectionInvokeType ctType in NodeStaticConfig.ConnectionTypes)
+                {
+                    this.SuccessorNodes[ctType] = new List<NodeModelBase>();
+                }*/
+            }
+            else
+            {
+                //if (this.MethodDetails.ActingInstanceType.FullName.Equals())
+                
+                if(!this.IsShareParam 
+                    && CacheMethodDetails is not null
+                    && targetNode.MethodDetails.AssemblyName.Equals(CacheMethodDetails.AssemblyName) 
+                    && targetNode.MethodDetails.MethodName.Equals(CacheMethodDetails.MethodName))
+                {
+                    this.MethodDetails = CacheMethodDetails;
+                }
+                else
+                {
+                    CacheMethodDetails = targetNode.MethodDetails.CloneOfNode(this); // 从目标节点复制一份
+                    targetNode.PropertyChanged += TargetNode_PropertyChanged;
+                    this.MethodDetails = CacheMethodDetails;
+                    /*foreach (ConnectionInvokeType ctType in NodeStaticConfig.ConnectionTypes)
+                    {
+                        this.SuccessorNodes[ctType] = targetNode.SuccessorNodes[ctType];
+                    }*/
+                }
+                
+            }
+            OnPropertyChanged(nameof(MethodDetails));
+        }
+
         partial void OnIsShareParamChanged(bool value)
         {
             if (targetNode is null)
@@ -93,40 +127,26 @@ namespace Serein.NodeFlow.Model
             }
             if (value)
             {
-                tmpMethodDetails = this.MethodDetails;
+                CacheMethodDetails = this.MethodDetails;
                 this.MethodDetails = targetNode.MethodDetails;
             }
             else
             {
-                this.MethodDetails = tmpMethodDetails;
-                OnPropertyChanged(nameof(MethodDetails));
+                this.MethodDetails = CacheMethodDetails;
             }
+
+            OnPropertyChanged(nameof(MethodDetails));
         }
-
-        /*  partial void OnTargetNodeGuidChanged(string value)
-          {
-              var guid = value;
-              if (string.IsNullOrEmpty(guid))
-              {
-                  targetNode = null;
-                  return;
-              }
-              if (!Env.TryGetNodeModel(guid, out targetNode))
-              {
-                  SereinEnv.WriteLine(InfoType.ERROR, $"流程接口找不到节点{guid}");
-                  return;
-              }
-              SetTargetNode(targetNode);
-              //OnIsShareParamChanged(IsShareParam); // 更新参数状态
-          }*/
-
 
         private void TargetNode_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
             // 如果不再公开
             if (sender is NodeModelBase node && !node.IsPublic)
             {
-                this.SuccessorNodes = [];
+                foreach (ConnectionInvokeType ctType in NodeStaticConfig.ConnectionTypes)
+                {
+                    this.SuccessorNodes[ctType] = [];
+                }
                 targetNode.PropertyChanged -= TargetNode_PropertyChanged;
             }
         }
@@ -168,7 +188,12 @@ namespace Serein.NodeFlow.Model
             {
                 throw new ArgumentNullException();
             }
-            return await base.ExecutingAsync(context, token); 
+            if (IsShareParam)
+            {
+                this.MethodDetails = targetNode.MethodDetails;
+            }
+            this.SuccessorNodes = targetNode.SuccessorNodes;
+            return await base.ExecutingAsync(context, token);
         }
 
 
@@ -192,19 +217,30 @@ namespace Serein.NodeFlow.Model
         /// <param name="nodeInfo"></param>
         public override void LoadCustomData(NodeInfo nodeInfo)
         {
+            CacheMethodDetails = this.MethodDetails; // 缓存
             string targetNodeGuid = nodeInfo.CustomData?.TargetNodeGuid ?? "";
             this.IsShareParam = nodeInfo.CustomData?.IsShareParam;
             if (Env.TryGetNodeModel(targetNodeGuid, out var targetNode))
             {
+                TargetNodeGuid = targetNode.Guid;
                 this.targetNode = targetNode;
             }
             else
             {
                 SereinEnv.WriteLine(InfoType.ERROR, $"流程接口节点[{this.Guid}]无法找到对应的节点:{targetNodeGuid}");
             }
+
         }
 
 
+        public override void Remove()
+        {
+            var tmp = this;
+            targetNode = null;
+            CacheMethodDetails = null;
+
+        }
+            
 
     }
 }

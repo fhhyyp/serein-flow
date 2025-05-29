@@ -17,7 +17,6 @@ namespace Serein.Workbench.ViewModels
 {
     public partial class FlowCanvasViewModel : ObservableObject
     {
-
         /// <summary>
         /// 画布当前的节点
         /// </summary>

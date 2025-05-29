@@ -61,6 +61,7 @@ namespace Serein.Workbench
                 {
                     getSyncContext = () => uiContext;
                 }
+                
             });
 
             UIContextOperation? uIContextOperation = null;
@@ -84,6 +85,12 @@ namespace Serein.Workbench
     public partial class App : Application
     {
         private static IServiceProvider? ServiceProvider;
+
+        /// <summary>
+        /// UI线程
+        /// </summary>
+        public static UIContextOperation UIContextOperation => App.GetService<UIContextOperation>() ?? throw new NullReferenceException();
+
         public static T GetService<T>() where T : class
         {
             return ServiceProvider?.GetService<T>() ?? throw new NullReferenceException();
@@ -111,7 +118,7 @@ namespace Serein.Workbench
         {
             await Task.Delay(500);
 #if DEBUG 
-            if (1 ==1)
+            if (1 == 1)
             {
                 // 这里是测试代码，可以删除
                 string filePath;

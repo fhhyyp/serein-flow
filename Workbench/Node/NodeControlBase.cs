@@ -1,7 +1,9 @@
-﻿using Serein.Library;
+﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Serein.Library;
 using Serein.Library.Api;
 using Serein.Workbench.Api;
 using Serein.Workbench.Node.ViewModel;
+using Serein.Workbench.Themes;
 using Serein.Workbench.Views;
 using System.Windows;
 using System.Windows.Controls;
@@ -146,7 +148,7 @@ namespace Serein.Workbench.Node.View
         /// <typeparam name="T"></typeparam>
         /// <param name="parent"></param>
         /// <returns></returns>
-        protected T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+        protected static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
         {
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
             {
@@ -165,13 +167,58 @@ namespace Serein.Workbench.Node.View
             return null;
         }
 
+        protected static JunctionControlBase[] GetArgJunction(NodeControlBase nodeControl, MethodDetailsControl methodDetailsControl)
+        {
+            // 获取 MethodDetailsControl 实例
+            try
+            {
+                var itemsControl = FindVisualChild<ItemsControl>(methodDetailsControl); // 查找 ItemsControl
+                if (itemsControl != null)
+                {
+                    var md = nodeControl.ViewModel.NodeModel.MethodDetails;
+                    if (md is null)
+                    {
+                        return [];
+                    }
+                    if(md.ParameterDetailss is null)
+                    {
+                        return [];
+                    }
+                    var argDataJunction = new JunctionControlBase[md.ParameterDetailss.Length];
+                    var controls = new List<JunctionControlBase>();
+
+                    for (int i = 0; i < itemsControl.Items.Count; i++)
+                    {
+                        var container = itemsControl.ItemContainerGenerator.ContainerFromIndex(i) as FrameworkElement;
+                        if (container != null)
+                        {
+                            var argControl = FindVisualChild<ArgJunctionControl>(container);
+                            if (argControl != null)
+                            {
+                                controls.Add(argControl); // 收集 ArgJunctionControl 实例
+                            }
+                        }
+                    }
+                    return argDataJunction = controls.ToArray();
+                }
+                return [];
+            }
+            catch (Exception ex)
+            {
+
+                SereinEnv.WriteLine(InfoType.ERROR,$"节点获取入参控制点时发生异常{Environment.NewLine}节点：{nodeControl.ViewModel.NodeModel.Guid}");
+                SereinEnv.WriteLine(ex);
+                return [];
+            }
+        }
+
 
 
     }
 
 
 
- 
+
     //public class FLowNodeObObservableCollection<T> : ObservableCollection<T>
     //{
 

@@ -24,7 +24,6 @@ namespace Serein.Library
             Env = env;
         }
 
-
         public IFlowEnvironment Env { get; }
 
         /// <summary>
@@ -87,19 +86,17 @@ namespace Serein.Library
         [PropertyInfo(IsNotification = true)]
         private double _scaleY = 1;
 
-
         /// <summary>
-        /// 起始节点私有属性
+        /// 起始节点
         /// </summary>
-        private string _startNode;
+        [PropertyInfo]
+        private NodeModelBase _startNode;
 
     }
 
 
     public partial class FlowCanvasDetails
     {
-
-
     }
 
 

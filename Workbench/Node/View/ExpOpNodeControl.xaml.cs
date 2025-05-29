@@ -43,6 +43,7 @@ namespace Serein.Workbench.Node.View
         /// 方法入参控制点（可能有，可能没）
         /// </summary>
         private JunctionControlBase[] argDataJunction;
+
         /// <summary>
         /// 方法入参控制点（可能有，可能没）
         /// </summary>

@@ -60,7 +60,15 @@ namespace Serein.Workbench.Node.View
             endPoint = end;
             this.strokeThickness = 4;
             InitElementPoint(isDotted, isTop);
-            InvalidateVisual(); // 触发重绘
+
+            _ = Task.Run(async () =>
+            {
+                await App.UIContextOperation.InvokeAsync(() =>
+                {
+                    InvalidateVisual(); // 触发重绘
+                });
+            });
+           
         }
 
 

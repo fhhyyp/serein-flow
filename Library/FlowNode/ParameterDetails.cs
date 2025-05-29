@@ -248,7 +248,8 @@ namespace Serein.Library
                 }
                 else
                 {
-                    inputParameter = context.GetFlowData(previousNode).Value; // 当前传递的数据
+                    var flowData = context.GetFlowData(previousNode);
+                    inputParameter = flowData.Value; // 当前传递的数据
                 }
             }
             else
@@ -259,7 +260,16 @@ namespace Serein.Library
                 }
                 if (ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
                 {
-                    inputParameter = context.GetFlowData(argSourceNodeModel).Value;
+                    var flowData = context.GetFlowData(argSourceNodeModel);
+                    if(flowData is null)
+                    {
+                        inputParameter = null;
+                    }
+                    else
+                    {
+
+                        inputParameter = flowData.Value;
+                    }
                 }
                 else if (ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke)
                 {
