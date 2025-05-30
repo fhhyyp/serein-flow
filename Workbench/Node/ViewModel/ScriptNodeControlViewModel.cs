@@ -31,8 +31,9 @@ namespace Serein.Workbench.Node.ViewModel
                 {
                     var cts = new CancellationTokenSource(); 
                     var result = await NodeModel.ExecutingAsync(new Library.DynamicContext(nodeModel.Env), cts.Token);
+                    var data = result.Value;
                     cts.Cancel();
-                    SereinEnv.WriteLine(InfoType.INFO, result?.ToString());
+                    SereinEnv.WriteLine(InfoType.INFO, data?.ToString());
                 }
                 catch (Exception ex)
                 {

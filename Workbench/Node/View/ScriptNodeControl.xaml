@@ -31,7 +31,7 @@
 
             <local:ExecuteJunctionControl  Grid.Column="0"  MyNode="{Binding NodeModel}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
             <Border Grid.Column="1" BorderThickness="1" HorizontalAlignment="Stretch">
-                <TextBlock Text="脚本节点" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding NodeModel.DisplayName, Mode=TwoWay}"  HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <local:NextStepJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}"  x:Name="NextStepJunctionControl" HorizontalAlignment="Right" Grid.RowSpan="2"/>
 
@@ -39,6 +39,7 @@
 
         <Grid Grid.Row="1"   HorizontalAlignment="Stretch" Margin="4">
             <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="*"/>
@@ -73,7 +74,18 @@
                 <Border Grid.Column="2"  BorderThickness="1">
                     <local:ResultJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}" x:Name="ResultJunctionControl" HorizontalAlignment="Right"/>
                 </Border>
+
+
             </Grid>
+
+
+            <StackPanel Grid.Row="4" Background="Azure"  Orientation="Horizontal" Margin="3">
+                <StackPanel Orientation="Horizontal">
+                    <CheckBox  IsChecked="{Binding NodeModel.IsPublic, Mode=TwoWay}"/>
+                    <TextBlock Text="全局公开"/>
+                </StackPanel>
+            </StackPanel>
+            
             <!--<RichTextBox x:Name="richTextBox" VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Auto"
                           

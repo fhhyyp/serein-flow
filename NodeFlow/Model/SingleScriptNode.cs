@@ -33,17 +33,17 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         public override bool IsBase => true;
 
-        private IScriptFlowApi ScriptFlowApi { get; }
-
+        private IScriptFlowApi ScriptFlowApi;
         private ASTNode mainNode;
         private SereinScriptInterpreter ScriptInterpreter;
+        private bool IsScriptChanged = false;
+
         /// <summary>
         /// 构建流程脚本节点
         /// </summary>
         /// <param name="environment"></param>
         public SingleScriptNode(IFlowEnvironment environment):base(environment) 
         {
-            //ScriptFlowApi = environment.IOC.Get<ScriptFlowApi>();
             ScriptFlowApi = new ScriptFlowApi(environment, this);
             ScriptInterpreter = new SereinScriptInterpreter();
         }
@@ -64,7 +64,19 @@ namespace Serein.NodeFlow.Model
             }
         }
 
+        /// <summary>
+        /// 代码改变后
+        /// </summary>
+        /// <param name="value"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        partial void OnScriptChanged(string value)
+        {
+            IsScriptChanged = true;
+        }
 
+        /// <summary>
+        /// 节点创建时
+        /// </summary>
         public override void OnCreating()
         {
             MethodInfo? method = this.GetType().GetMethod(nameof(GetFlowApi));
@@ -90,7 +102,7 @@ namespace Serein.NodeFlow.Model
                 InputType = ParameterValueInputType.Input,
                 Items = null,
                 IsParams = true,
-                Description = "脚本节点入参"
+                //Description = "脚本节点入参"
 
             };
 
@@ -167,12 +179,34 @@ namespace Serein.NodeFlow.Model
         /// <returns></returns>
         public override async Task<FlowResult> ExecutingAsync(IDynamicContext context, CancellationToken token)
         {
+            return await ExecutingAsync(this, context, token);
+        }
+
+        /// <summary>
+        /// 流程接口提供参数进行调用脚本节点
+        /// </summary>
+        /// <param name="flowCallNode"></param>
+        /// <param name="context"></param>
+        /// <param name="token"></param>
+        /// <returns></returns>
+        public async Task<FlowResult> ExecutingAsync(NodeModelBase flowCallNode,  IDynamicContext context, CancellationToken token)
+        {
             if (token.IsCancellationRequested) return new FlowResult(this, context);
-            var @params =  await this.GetParametersAsync(context, token);
-            if(token.IsCancellationRequested) return new FlowResult(this, context);
+            var @params = await flowCallNode.GetParametersAsync(context, token);
+            if (token.IsCancellationRequested) return new FlowResult(this, context);
 
             //context.AddOrUpdate($"{context.Guid}_{this.Guid}_Params", @params[0]); // 后面再改
-            ReloadScript();// 每次都重新解析
+
+            if (IsScriptChanged)
+            {
+                lock (@params) {
+                    if (IsScriptChanged)
+                    {
+                        ReloadScript();// 每次都重新解析
+                        IsScriptChanged = false; 
+                    }
+                }
+            }
 
             IScriptInvokeContext scriptContext = new ScriptInvokeContext(context);
 
@@ -180,13 +214,12 @@ namespace Serein.NodeFlow.Model
             {
                 for (int i = 0; i < agrDatas.Length; i++)
                 {
-                    var argName = MethodDetails.ParameterDetailss[i].Name;
+                    var argName = flowCallNode.MethodDetails.ParameterDetailss[i].Name;
                     var argData = agrDatas[i];
                     scriptContext.SetVarValue(argName, argData);
                 }
             }
 
-            
             FlowRunCompleteHandler onFlowStop = (e) =>
             {
                 scriptContext.OnExit();
@@ -200,9 +233,7 @@ namespace Serein.NodeFlow.Model
             var result = await ScriptInterpreter.InterpretAsync(scriptContext, mainNode); // 从入口节点执行
             envEvent.OnFlowRunComplete -= onFlowStop;
             return new FlowResult(this, context, result);
-            //SereinEnv.WriteLine(InfoType.INFO, "FlowContext Guid : " + context.Guid);
         }
-
 
         #region 挂载的方法
 

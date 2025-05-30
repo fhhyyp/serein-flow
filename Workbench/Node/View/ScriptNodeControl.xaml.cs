@@ -35,11 +35,13 @@ namespace Serein.Workbench.Node.View
             base.ViewModel = new ScriptNodeControlViewModel(new SingleScriptNode(env));
             base.ViewModel.IsEnabledOnView = false;
             base.DataContext = viewModel;
+            viewModel.NodeModel.DisplayName = "[脚本节点]";
             InitializeComponent();
         }
         public ScriptNodeControl(ScriptNodeControlViewModel viewModel) : base(viewModel)
         {
             DataContext = viewModel;
+            viewModel.NodeModel.DisplayName = "[脚本节点]"; 
             InitializeComponent();
         }
 

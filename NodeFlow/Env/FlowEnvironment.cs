@@ -878,61 +878,6 @@ namespace Serein.NodeFlow.Env
             return false;
         }
 
-        /// <summary>
-        /// 从节点信息创建节点，并返回状态指示是否创建成功
-        /// </summary>
-        /// <param name="nodeInfo"></param>
-        /// <returns></returns>
-        private bool CreateNodeFromNodeInfo(NodeInfo nodeInfo)
-        {
-            if (!EnumHelper.TryConvertEnum<NodeControlType>(nodeInfo.Type, out var controlType))
-            {
-                return false;
-            }
-
-            #region 获取方法描述
-            MethodDetails? methodDetails;
-            if (controlType.IsBaseNode())
-            {
-                // 加载基础节点
-                methodDetails = new MethodDetails();
-            }
-            else
-            {
-                if (string.IsNullOrEmpty(nodeInfo.MethodName)) return false;
-                // 加载方法节点
-                FlowLibraryManagement.TryGetMethodDetails(nodeInfo.AssemblyName, nodeInfo.MethodName, out methodDetails); // 加载项目时尝试获取方法信息
-            }
-            #endregion
-
-            var nodeModel = FlowNodeExtension.CreateNode(this, controlType, methodDetails); // 加载项目时创建节点
-            if (nodeModel is null)
-            {
-                nodeInfo.Guid = string.Empty;
-                return false;
-            }
-            if (FlowCanvass.TryGetValue(nodeInfo.CanvasGuid, out var canvasModel))
-            {
-
-                // 节点与画布互相绑定
-                // 需要在UI线程上进行添加，否则会报 “不支持从调度程序线程以外的线程对其 SourceCollection 进行的更改”异常
-                nodeModel.CanvasDetails = canvasModel;
-                UIContextOperation?.Invoke(() => canvasModel.Nodes.Add(nodeModel));
-
-                nodeModel.LoadInfo(nodeInfo); // 创建节点model
-                TryAddNode(nodeModel); // 加载项目时将节点加载到环境中
-            }
-            else
-            {
-                SereinEnv.WriteLine(InfoType.ERROR, $"加载节点[{nodeInfo.Guid}]时发生异常，画布[{nodeInfo.CanvasGuid}]不存在");
-                return false;
-            }
-
-            UIContextOperation?.Invoke(() =>
-                OnNodeCreate?.Invoke(new NodeCreateEventArgs(nodeInfo.CanvasGuid, nodeModel, nodeInfo.Position))); // 添加到UI上
-            return true;
-        }
-
 
         /// <summary>
         /// 从节点信息集合批量加载节点控件
@@ -1127,13 +1072,6 @@ namespace Serein.NodeFlow.Env
 
             // 通知UI更改
             UIContextOperation?.Invoke(() => OnNodeCreate?.Invoke(new NodeCreateEventArgs(canvasGuid, nodeModel, position)));
-
-            // 因为需要UI先布置了元素，才能通知UI变更特效
-            // 如果不存在流程起始控件，默认设置为流程起始控件
-            if (canvasModel.StartNode is null)
-            {
-                SetStartNode(canvasModel, nodeModel);
-            }
             var nodeInfo = nodeModel.ToInfo();
             return Task.FromResult(nodeInfo);
         }
@@ -1764,8 +1702,87 @@ namespace Serein.NodeFlow.Env
 
            
 
-        }*/ 
+        }*/
         #endregion
+
+
+        /// <summary>
+        /// 从节点信息创建节点，并返回状态指示是否创建成功
+        /// </summary>
+        /// <param name="nodeInfo"></param>
+        /// <returns></returns>
+        private bool CreateNodeFromNodeInfo(NodeInfo nodeInfo)
+        {
+            if (!EnumHelper.TryConvertEnum<NodeControlType>(nodeInfo.Type, out var controlType))
+            {
+                return false;
+            }
+
+            #region 获取方法描述
+            MethodDetails? methodDetails;
+            if (controlType == NodeControlType.FlowCall)
+            {
+                if (string.IsNullOrEmpty(nodeInfo.MethodName))
+                {
+                    methodDetails = new MethodDetails();
+                    methodDetails.ParamsArgIndex = 0;
+                    methodDetails.ParameterDetailss = new ParameterDetails[nodeInfo.ParameterData.Length];
+                    for (int i = 0; i < methodDetails.ParameterDetailss.Length; i++)
+                    {
+                        var pdInfo = nodeInfo.ParameterData[i];
+                        var t = new ParameterDetailsInfo();
+                        var pd = new ParameterDetails(pdInfo, i);
+                        methodDetails.ParameterDetailss[i] = pd;
+                    }
+                }
+                else
+                {
+                    // 目标节点可能是方法节点
+                    FlowLibraryManagement.TryGetMethodDetails(nodeInfo.AssemblyName, nodeInfo.MethodName, out methodDetails); // 加载项目时尝试获取方法信息
+                }
+            }
+            else if (controlType.IsBaseNode())
+            {
+                // 加载基础节点
+                methodDetails = new MethodDetails();
+                
+            }
+            else
+            {
+                if (string.IsNullOrEmpty(nodeInfo.MethodName)) return false;
+                // 加载方法节点
+                FlowLibraryManagement.TryGetMethodDetails(nodeInfo.AssemblyName, nodeInfo.MethodName, out methodDetails); // 加载项目时尝试获取方法信息
+            }
+            #endregion
+
+            var nodeModel = FlowNodeExtension.CreateNode(this, controlType, methodDetails); // 加载项目时创建节点
+            if (nodeModel is null)
+            {
+                nodeInfo.Guid = string.Empty;
+                return false;
+            }
+            if (FlowCanvass.TryGetValue(nodeInfo.CanvasGuid, out var canvasModel))
+            {
+
+                // 节点与画布互相绑定
+                // 需要在UI线程上进行添加，否则会报 “不支持从调度程序线程以外的线程对其 SourceCollection 进行的更改”异常
+                nodeModel.CanvasDetails = canvasModel;
+                UIContextOperation?.Invoke(() => canvasModel.Nodes.Add(nodeModel));
+
+                nodeModel.LoadInfo(nodeInfo); // 创建节点model
+                TryAddNode(nodeModel); // 加载项目时将节点加载到环境中
+            }
+            else
+            {
+                SereinEnv.WriteLine(InfoType.ERROR, $"加载节点[{nodeInfo.Guid}]时发生异常，画布[{nodeInfo.CanvasGuid}]不存在");
+                return false;
+            }
+
+            UIContextOperation?.Invoke(() =>
+                OnNodeCreate?.Invoke(new NodeCreateEventArgs(nodeInfo.CanvasGuid, nodeModel, nodeInfo.Position))); // 添加到UI上
+            return true;
+        }
+
 
         /// <summary>
         /// 移除连接关系

@@ -19,12 +19,14 @@ namespace Serein.Workbench.Node.View
             base.ViewModel = new FlowCallNodeControlViewModel(new SingleFlowCallNode(env));
             base.ViewModel.IsEnabledOnView = false;
             DataContext = base.ViewModel;
+            base.ViewModel.NodeModel.DisplayName = "[流程接口]";
             InitializeComponent();
         }
         public FlowCallNodeControl(FlowCallNodeControlViewModel viewModel) : base(viewModel)
         {
             DataContext = viewModel;
             ViewModel = viewModel;
+            viewModel.NodeModel.DisplayName = "[流程接口]";
             InitializeComponent();
             ViewModel.UploadMethodDetailsControl = UploadMethodDetailsControl;
 

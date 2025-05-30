@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json.Linq;
 using Serein.Library;
 using Serein.Library.Api;
+using Serein.Script;
 using System;
 using System.Collections.Generic;
 using System.Dynamic;
@@ -88,10 +89,6 @@ namespace Serein.NodeFlow.Model
                 // 取消设置接口节点
                 targetNode.PropertyChanged -= TargetNode_PropertyChanged;
                 this.MethodDetails = new MethodDetails();
-                /*foreach (ConnectionInvokeType ctType in NodeStaticConfig.ConnectionTypes)
-                {
-                    this.SuccessorNodes[ctType] = new List<NodeModelBase>();
-                }*/
             }
             else
             {
@@ -99,20 +96,21 @@ namespace Serein.NodeFlow.Model
                 
                 if(!this.IsShareParam 
                     && CacheMethodDetails is not null
-                    && targetNode.MethodDetails.AssemblyName.Equals(CacheMethodDetails.AssemblyName) 
-                    && targetNode.MethodDetails.MethodName.Equals(CacheMethodDetails.MethodName))
+                    && targetNode.MethodDetails is not null
+                    && targetNode.MethodDetails.AssemblyName == CacheMethodDetails.AssemblyName
+                    && targetNode.MethodDetails.MethodName == CacheMethodDetails.MethodName)
                 {
                     this.MethodDetails = CacheMethodDetails;
                 }
                 else
                 {
-                    CacheMethodDetails = targetNode.MethodDetails.CloneOfNode(this); // 从目标节点复制一份
-                    targetNode.PropertyChanged += TargetNode_PropertyChanged;
-                    this.MethodDetails = CacheMethodDetails;
-                    /*foreach (ConnectionInvokeType ctType in NodeStaticConfig.ConnectionTypes)
+                    if (targetNode.MethodDetails is not null)
                     {
-                        this.SuccessorNodes[ctType] = targetNode.SuccessorNodes[ctType];
-                    }*/
+                        CacheMethodDetails = targetNode.MethodDetails.CloneOfNode(this); // 从目标节点复制一份
+                        targetNode.PropertyChanged += TargetNode_PropertyChanged;
+                        this.MethodDetails = CacheMethodDetails;
+                    }
+               
                 }
                 
             }
@@ -127,11 +125,20 @@ namespace Serein.NodeFlow.Model
             }
             if (value)
             {
-                CacheMethodDetails = this.MethodDetails;
-                this.MethodDetails = targetNode.MethodDetails;
+                CacheMethodDetails = targetNode.MethodDetails.CloneOfNode(this);
+                this.MethodDetails = CacheMethodDetails;
             }
             else
             {
+
+                if(targetNode.ControlType == NodeControlType.Script)
+                {
+                    // 脚本节点入参需不可编辑入参数量、入参名称
+                    foreach (var item in CacheMethodDetails.ParameterDetailss)
+                    {
+                        item.IsParams = false;
+                    }
+                }
                 this.MethodDetails = CacheMethodDetails;
             }
 
@@ -177,52 +184,6 @@ namespace Serein.NodeFlow.Model
         }
 
         /// <summary>
-        /// 需要调用其它流程图中的某个节点
-        /// </summary>
-        /// <param name="context"></param>
-        /// <param name="token"></param>
-        /// <returns></returns>
-        public override async Task<FlowResult> ExecutingAsync(IDynamicContext context, CancellationToken token)
-        {
-            if (!UploadTargetNode())
-            {
-                throw new ArgumentNullException();
-            }
-            if (IsShareParam)
-            {
-                this.MethodDetails = targetNode.MethodDetails;
-            }
-            this.SuccessorNodes = targetNode.SuccessorNodes;
-            var flowData = await base.ExecutingAsync(context, token);
-
-            if (IsShareParam)
-            {
-                // 设置运行时上一节点
-
-                // 此处代码与SereinFlow.Library.FlowNode.ParameterDetails
-                // ToMethodArgData()方法中判断流程接口节点分支逻辑耦合
-                // 不要轻易修改
-                context.AddOrUpdate(targetNode, flowData);
-                foreach (ConnectionInvokeType ctType in NodeStaticConfig.ConnectionTypes)
-                {
-                    if (this.SuccessorNodes[ctType] == null) continue;
-                    foreach (var node in this.SuccessorNodes[ctType])
-                    {
-                        if (node.DebugSetting.IsEnable)
-                        {
-                           
-                            context.SetPreviousNode(node, this); 
-                        }
-                    }
-                }
-            }
-           
-
-            return flowData;
-        }
-
-
-        /// <summary>
         /// 保存全局变量的数据
         /// </summary>
         /// <param name="nodeInfo"></param>
@@ -265,7 +226,61 @@ namespace Serein.NodeFlow.Model
             CacheMethodDetails = null;
 
         }
-            
+
+
+
+        /// <summary>
+        /// 需要调用其它流程图中的某个节点
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="token"></param>
+        /// <returns></returns>
+        public override async Task<FlowResult> ExecutingAsync(IDynamicContext context, CancellationToken token)
+        {
+            if (!UploadTargetNode())
+            {
+                throw new ArgumentNullException();
+            }
+            if (IsShareParam)
+            {
+                this.MethodDetails = targetNode.MethodDetails;
+            }
+            this.SuccessorNodes = targetNode.SuccessorNodes;
+
+            FlowResult flowData = await (targetNode.ControlType switch
+            {
+                NodeControlType.Script => ((SingleScriptNode)targetNode).ExecutingAsync(this, context, token),
+                _ => base.ExecutingAsync(context, token)
+            });
+
+
+            if (IsShareParam)
+            {
+                // 设置运行时上一节点
+
+                // 此处代码与SereinFlow.Library.FlowNode.ParameterDetails
+                // ToMethodArgData()方法中判断流程接口节点分支逻辑耦合
+                // 不要轻易修改
+                context.AddOrUpdate(targetNode, flowData);
+                foreach (ConnectionInvokeType ctType in NodeStaticConfig.ConnectionTypes)
+                {
+                    if (this.SuccessorNodes[ctType] == null) continue;
+                    foreach (var node in this.SuccessorNodes[ctType])
+                    {
+                        if (node.DebugSetting.IsEnable)
+                        {
+
+                            context.SetPreviousNode(node, this);
+                        }
+                    }
+                }
+            }
+
+
+            return flowData;
+        }
+
+
 
     }
 }

@@ -135,6 +135,18 @@ namespace Serein.Library
             this.NodeModel = nodeModel;
         }
 
+        public ParameterDetails(ParameterData pdInfo, int argIndex)
+        {
+            this.Index = argIndex;
+            this.DataType = typeof(object);
+            this.ArgDataSourceNodeGuid = pdInfo.SourceNodeGuid;
+            this.ArgDataSourceType = EnumHelper.ConvertEnum<ConnectionArgSourceType>(pdInfo.SourceType);
+            this.DataValue = pdInfo.Value;
+            this.InputType = ParameterValueInputType.Input;
+            this.IsExplicitData = pdInfo.State;
+            this.Name = pdInfo.ArgName;
+        }
+
         /// <summary>
         /// 通过参数信息加载实体，用于加载项目文件、远程连接的场景
         /// </summary>
@@ -223,7 +235,7 @@ namespace Serein.Library
             } 
             #endregion
             #region “枚举-类型”转换器
-            if (ExplicitType.IsEnum && DataType != ExplicitType)
+            if (ExplicitType is not null && ExplicitType.IsEnum && DataType != ExplicitType)
             {
                 var resultEnum = Enum.Parse(ExplicitType, DataValue);
                 // 获取绑定的类型

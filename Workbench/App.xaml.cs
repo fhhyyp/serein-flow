@@ -126,7 +126,7 @@ namespace Serein.Workbench
                 filePath = @"C:\Users\Az\source\repos\CLBanyunqiState\CLBanyunqiState\bin\Release\banyunqi\project.dnf";
                 filePath = @"F:\临时\project\project.dnf";
                 filePath = @"F:\TempFile\flow\qrcode\project.dnf";
-                filePath = @"F:\TempFile\flow\temp\project.dnf";
+                filePath = @"F:\TempFile\flow\temp2\project.dnf";
                 if (File.Exists(filePath))
                 {
                     string content = System.IO.File.ReadAllText(filePath); // 读取整个文件内容
