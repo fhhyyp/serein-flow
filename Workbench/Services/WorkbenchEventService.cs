@@ -3,6 +3,7 @@ using Newtonsoft.Json.Linq;
 using Serein.Library;
 using Serein.Library.Api;
 using Serein.Workbench.Api;
+using Serein.Workbench.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -89,7 +90,20 @@ namespace Serein.Workbench.Services
 
         private void FlowEEForwardingService_OnProjectLoaded(ProjectLoadedEventArgs eventArgs)
         {
+            var edit = App.GetService<Locator>().FlowEditViewModel;
 
+            App.UIContextOperation.Invoke(async () => {
+
+                foreach (var item in flowNodeService.FlowCanvass)
+                {
+                    await Task.Delay(50);
+                    flowNodeService.CurrentSelectCanvas = item;
+                    var tab = edit.CanvasTabs.First(tab => tab.Content == item);
+                    edit.SelectedTab = tab;
+                }
+            });
+
+            
         }
 
         private void KeyEventService_OnKeyDown(System.Windows.Input.Key key)

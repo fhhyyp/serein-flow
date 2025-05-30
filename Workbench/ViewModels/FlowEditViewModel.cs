@@ -50,6 +50,14 @@ namespace Serein.Workbench.ViewModels
         partial void OnSelectedTabChanged(FlowEditorTabModel value)
         {
             flowNodeService.CurrentSelectCanvas = value?.Content;
+            if(value is not null)
+            {
+                App.UIContextOperation.Invoke(() => {
+
+                    value.Content.RefreshAllLine();
+                });
+            }
+            
         }
 
 
