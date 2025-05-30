@@ -8,10 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="bin\**" />
     <Compile Remove="TestExpression\**" />
     <Compile Remove="Tool\**" />
+    <EmbeddedResource Remove="bin\**" />
     <EmbeddedResource Remove="TestExpression\**" />
     <EmbeddedResource Remove="Tool\**" />
+    <None Remove="bin\**" />
     <None Remove="TestExpression\**" />
     <None Remove="Tool\**" />
   </ItemGroup>

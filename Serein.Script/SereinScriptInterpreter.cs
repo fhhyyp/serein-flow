@@ -442,6 +442,8 @@ namespace Serein.Script
                     return numberNode.Value; // 返回数值
                 case StringNode stringNode:
                     return stringNode.Value; // 返回字符串值
+                case CharNode charNode:
+                    return charNode.Value; // 返回Char
                 case IdentifierNode identifierNode:
                     return context.GetVarValue(identifierNode.Name);
                     //throw new SereinSciptException(identifierNode, "尝试使用值为null的变量");

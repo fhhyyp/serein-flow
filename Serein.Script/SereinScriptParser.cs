@@ -210,7 +210,7 @@ namespace Serein.Script
         private ASTNode ParseLetAssignment()
         {
             _currentToken = _lexer.NextToken(); // Consume "let"
-            string variable = _currentToken.Value.ToString();
+            string variable = _currentToken.Value.ToString(); // 变量名称
             _currentToken = _lexer.NextToken(); // Consume identifier
             ASTNode value;
             if (_currentToken.Type == TokenType.Semicolon)
@@ -419,6 +419,7 @@ namespace Serein.Script
             _currentToken = _lexer.NextToken(); // consume "("
 
             var arguments = new List<ASTNode>();
+            bool isBreak = false;
             while (_currentToken.Type != TokenType.ParenthesisRight)
             {
                 var arg = Expression();
@@ -430,11 +431,12 @@ namespace Serein.Script
                 }
                 if (_currentToken.Type == TokenType.Semicolon)
                 {
+                    isBreak = true;
                     break; // consume ";"
                 }
             }
-
-            _currentToken = _lexer.NextToken(); // consume ")"
+            if(!isBreak)
+                _currentToken = _lexer.NextToken(); // consume ")"
 
            
             //var node = Statements[^1];
@@ -586,8 +588,14 @@ namespace Serein.Script
             if (_currentToken.Type == TokenType.String)
             {
                 var text = _currentToken.Value;
-                _currentToken = _lexer.NextToken();  // 消耗数字
-                return new StringNode(text.ToString()).SetTokenInfo(_currentToken);
+                _currentToken = _lexer.NextToken();  // 消耗字符串
+                return new StringNode(text).SetTokenInfo(_currentToken);
+            }
+            if (_currentToken.Type == TokenType.Char)
+            {
+                var text = _currentToken.Value;
+                _currentToken = _lexer.NextToken();  // 消耗Char
+                return new CharNode(text).SetTokenInfo(_currentToken);
             }
             if( _currentToken.Type == TokenType.InterpolatedString)
             {

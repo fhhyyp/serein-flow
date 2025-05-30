@@ -11,7 +11,7 @@ namespace Serein.Script
         /// </summary>
         Null,
         /// <summary>
-        /// 标识符
+        /// 标识符（变量）
         /// </summary>
         Identifier,
         /// <summary>
@@ -26,6 +26,10 @@ namespace Serein.Script
         /// 字符串
         /// </summary>
         String,
+        /// <summary>
+        /// Char字符
+        /// </summary>
+        Char,
         /// <summary>
         /// 插值字符串
         /// </summary>
@@ -162,6 +166,20 @@ namespace Serein.Script
             {
                 return ReadString();
             }
+
+            if (currentChar == '\'')
+            {
+                if (_input[_index + 2] == '\'')
+                {
+
+                    return ReadChar();
+                }
+                else
+                {
+                    throw new Exception($"not is char: {currentChar},in Line.{_row}.");
+                }
+            }
+
 
             // 跳过注释
             if (_input[_index] == '/' && _input[_index + 1] == '/')
@@ -327,6 +345,23 @@ namespace Serein.Script
 
             _index = start + 1; // 跳过引号
             return CreateToken(TokenType.String, value);
+
+            // _index++;  // 跳过结束的引号
+            //return new Token(TokenType.String, value.ToString());
+        }
+
+        /// <summary>
+        /// 读取硬编码的Char字符
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
+        private Token ReadChar()
+        {
+            _index++;  // 跳过开头的引号
+            var start = _index;
+            var cahrValue = _input.Slice(start, 1).ToString();
+            _index++; // 跳过Char字符串后的引号
+            return CreateToken(TokenType.Char, cahrValue);
 
             // _index++;  // 跳过结束的引号
             //return new Token(TokenType.String, value.ToString());

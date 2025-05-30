@@ -13,7 +13,7 @@
         <Menu DockPanel.Dock="Top" Grid.Row="0" Grid.ColumnSpan="5" Height="20">
             <MenuItem Header="项目">
                 <MenuItem Header="保存项目" Command="{Binding SaveProjectCommand}"></MenuItem>
-                <MenuItem Header="加载本地项目" ></MenuItem>
+                <MenuItem Header="加载本地项目"  Command="{Binding LoadLocalProjectCommand}" ></MenuItem>
                 <MenuItem Header="加载远程项目"></MenuItem>
             </MenuItem>
 
