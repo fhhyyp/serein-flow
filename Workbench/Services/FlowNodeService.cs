@@ -9,6 +9,7 @@ using Serein.Workbench.Node.ViewModel;
 using Serein.Workbench.ViewModels;
 using Serein.Workbench.Views;
 using System;
+using System.Reactive;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -20,7 +21,7 @@ namespace Serein.Workbench.Services
     /// <summary>
     /// 流程节点管理
     /// </summary>
-    public class FlowNodeService
+    public class FlowNodeService 
     {
 
 
@@ -44,6 +45,16 @@ namespace Serein.Workbench.Services
         /// </summary>
         public Action<FlowCanvasView> OnViewCanvasChanged{ get; set; }
 
+        /// <summary>
+        /// 查看的节点发生变化
+        /// </summary>
+        public Action<NodeControlBase> OnViewNodeControlChanged{ get; set; }
+
+        /// <summary>
+        /// 查看方法发生变化
+        /// </summary>
+        public Action<MethodDetailsInfo> OnViewMethodDetailsInfoChanged { get; set; }
+
         #endregion
 
         #region 创建节点相关的属性
@@ -64,10 +75,39 @@ namespace Serein.Workbench.Services
             }
         }
 
+
+        private NodeControlBase? currentSelectNodeControl;
+
+        /// <summary>
+        /// 当前选中的节点
+        /// </summary>
+        public NodeControlBase? CurrentSelectNodeControl { get => currentSelectNodeControl; set
+            {
+                if (value == null || value.Equals(currentSelectNodeControl))
+                {
+                    return;
+                }
+                currentSelectNodeControl = value;
+                OnViewNodeControlChanged?.Invoke(value);
+            }
+        }
+
+        private MethodDetailsInfo? currentMethodDetailsInfo;
+
         /// <summary>
         /// 当前拖动的方法信息
         /// </summary>
-        public MethodDetailsInfo? CurrentDragMdInfo { get; set; }
+        public MethodDetailsInfo? CurrentMethodDetailsInfo { get => currentMethodDetailsInfo; set
+            {
+                if (value == null || value.Equals(currentMethodDetailsInfo))
+                {
+                    return;
+                }
+                currentMethodDetailsInfo = value;
+                OnViewMethodDetailsInfoChanged?.Invoke(value);
+            }
+        }
+
 
         /// <summary>
         /// 当前需要创建的节点类型
@@ -79,10 +119,6 @@ namespace Serein.Workbench.Services
         /// </summary>
         public PositionOfUI? CurrentMouseLocation { get; set; }
 
-        /// <summary>
-        /// 当前选中的节点
-        /// </summary>
-        public NodeControlBase? CurrentSelectNodeControl { get; set; }
 
         /// <summary>
         /// 连接数据
@@ -651,7 +687,7 @@ namespace Serein.Workbench.Services
             string canvasGuid = model.Guid;
             NodeControlType nodeType = CurrentNodeControlType;
             PositionOfUI? position = CurrentMouseLocation;
-            MethodDetailsInfo? methodDetailsInfo = CurrentDragMdInfo;
+            MethodDetailsInfo? methodDetailsInfo = CurrentMethodDetailsInfo;
 
             if (position is null)
             {

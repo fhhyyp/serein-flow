@@ -11,7 +11,8 @@
         <converter:CountToVisibilityConverter x:Key="CountToVisibilityConverter"/>
     </UserControl.Resources>
 
-    <ListBox ItemsSource="{Binding ItemsSource, RelativeSource={RelativeSource AncestorType=UserControl}}"
+    <ListBox SelectionChanged="ListBox_SelectionChanged"
+             ItemsSource="{Binding ItemsSource, RelativeSource={RelativeSource AncestorType=UserControl}}"
              Visibility="{Binding ItemsSource, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource CountToVisibilityConverter}}"
              Background="{Binding Background, RelativeSource={RelativeSource AncestorType=UserControl}}">
         <ListBox.ItemTemplate>

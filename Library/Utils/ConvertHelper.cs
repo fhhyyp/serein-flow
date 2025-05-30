@@ -200,6 +200,10 @@ namespace Serein.Library.Utils
         /// <returns></returns>
         public static T ValueParse<T>(object value) where T : struct, IComparable<T>
         {
+            if (value is T data)
+            {
+                return data;
+            }
             string valueStr = value.ToString();
             return valueStr.ToValueData<T>() ;
         }
@@ -228,7 +232,8 @@ namespace Serein.Library.Utils
         {
             if (string.IsNullOrEmpty(valueStr))
             {
-                return default(T);
+                throw new NullReferenceException();
+                //return default(T);
             }
             var type = typeof(T);
             object result;

@@ -1,0 +1,75 @@
+﻿<UserControl x:Class="Serein.Workbench.Views.ViewNodeMethodInfoView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Serein.Workbench.Views"
+             xmlns:vm="clr-namespace:Serein.Workbench.ViewModels"            
+             xmlns:converter="clr-namespace:Serein.Workbench.Converters"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="350" 
+             d:DataContext="{d:DesignInstance vm:ViewNodeMethodInfoViewModel}">
+    
+    <UserControl.Resources>
+        <converter:CountToVisibilityConverter x:Key="CountToVisibilityConverter"/>
+        <Style  x:Key="InfoTipsTextBlock" TargetType="TextBlock">
+            <Setter Property="Width" Value="70"/>
+            <Setter Property="MinWidth" Value="70"/>
+            <Setter Property="MaxHeight" Value="70"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style  x:Key="InfoValueTextBox" TargetType="TextBox">
+            <Setter Property="Width" Value="170"/>
+            <Setter Property="MinWidth" Value="170"/>
+            <Setter Property="MaxHeight" Value="170"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+    </UserControl.Resources>
+    
+    <Border BorderBrush="Black" BorderThickness="1">
+        <!--<ContentControl  />-->
+
+        <StackPanel  Grid.Row="0" Margin="10">
+            <TextBlock Text="方法信息" HorizontalAlignment="Left"/>
+            <StackPanel Margin="1" Orientation="Horizontal">
+                <TextBlock Text="程序集" Style="{StaticResource InfoTipsTextBlock}" />
+                <TextBox Text="{Binding MdInfo.AssemblyName}" Style="{StaticResource InfoValueTextBox}" IsReadOnly="True"/>
+            </StackPanel>
+            <StackPanel Margin="1" Orientation="Horizontal">
+                <TextBlock Text="方法名称" Style="{StaticResource InfoTipsTextBlock}" />
+                <TextBox Text="{Binding MdInfo.MethodName}" Style="{StaticResource InfoValueTextBox}" IsReadOnly="True"/>
+            </StackPanel>
+
+            <ListBox ItemsSource="{Binding MdInfo.ParameterDetailsInfos}" 
+  Visibility="{Binding ItemsSource, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource CountToVisibilityConverter}}"
+  ScrollViewer.HorizontalScrollBarVisibility="Auto" 
+  ScrollViewer.VerticalScrollBarVisibility="Auto">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <!--<Grid >
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="auto"/>
+                                <ColumnDefinition Width="auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{Binding}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding}"/>
+                        </Grid>-->
+                        <StackPanel Orientation="Horizontal">
+                            <!--参数索引提示-->
+                            <TextBlock Text="{Binding Index, StringFormat=[{0}]}"  Margin="2,0,2,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding Name}"  Margin="2,0,2,0" VerticalAlignment="Center"/>
+                            <TextBlock Text=" : "  Margin="2,0,2,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding DataTypeFullName}"  Margin="2,0,2,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding IsParams, StringFormat=[param:{0}]}"  Margin="2,0,2,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+
+            </ListBox>
+        </StackPanel>
+
+       
+    </Border>
+</UserControl>

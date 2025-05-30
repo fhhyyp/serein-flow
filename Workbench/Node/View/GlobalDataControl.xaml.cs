@@ -16,6 +16,7 @@ namespace Serein.Workbench.Node.View
             var env = App.GetService<IFlowEnvironment>();
             base.ViewModel = new GlobalDataNodeControlViewModel(new SingleGlobalDataNode(env));
             base.ViewModel.IsEnabledOnView = false;
+            base.ViewModel.NodeModel.DisplayName = "[全局数据]";
             DataContext = ViewModel;
             InitializeComponent();
         }
@@ -23,6 +24,7 @@ namespace Serein.Workbench.Node.View
         public GlobalDataControl(GlobalDataNodeControlViewModel viewModel) : base(viewModel)
         {
             DataContext = viewModel;
+            viewModel.NodeModel.DisplayName = "[全局数据]";
             InitializeComponent();
         }
 

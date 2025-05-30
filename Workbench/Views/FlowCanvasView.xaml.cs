@@ -40,6 +40,7 @@ using MouseEventArgs = System.Windows.Input.MouseEventArgs;
 using UserControl = System.Windows.Controls.UserControl;
 using Clipboard = System.Windows.Clipboard;
 using TextDataFormat = System.Windows.TextDataFormat;
+using System.Windows.Media.Animation;
 
 namespace Serein.Workbench.Views
 {
@@ -119,7 +120,7 @@ namespace Serein.Workbench.Views
         private readonly TranslateTransform translateTransform;
         #endregion
 
-        #region 初始化以及相关事件
+        #region 初始化
 
         public FlowCanvasView(FlowCanvasDetails model)
         {
@@ -128,12 +129,13 @@ namespace Serein.Workbench.Views
             this.DataContext = vm;
             InitializeComponent();
 
+
             flowEnvironment = App.GetService<IFlowEnvironment>();
             flowNodeService = App.GetService<FlowNodeService>();
             keyEventService = App.GetService<IKeyEventService>();
             flowEEForwardingService = App.GetService<IFlowEEForwardingService>();
-            flowNodeService.OnCreateNode += OnCreateNode;
-            keyEventService.OnKeyDown += KeyEventService_OnKeyDown;
+           
+
             //flowEEForwardingService.OnProjectLoaded += FlowEEForwardingService_OnProjectLoaded;
 
             // 缩放平移容器
@@ -144,17 +146,10 @@ namespace Serein.Workbench.Views
             canvasTransformGroup.Children.Add(translateTransform);
             FlowChartCanvas.RenderTransform = canvasTransformGroup;
             SetBinding(model);
-
+            InitEvent();
 
 
         }
-
-        private void FlowEEForwardingService_OnProjectLoaded(ProjectLoadedEventArgs eventArgs)
-        {
-            RefreshAllLine();
-        }
-
-
         /// <summary>
         /// 设置绑定
         /// </summary>
@@ -162,12 +157,12 @@ namespace Serein.Workbench.Views
         private void SetBinding(FlowCanvasDetails canvasModel)
         {
             Binding bindingScaleX = new(nameof(canvasModel.ScaleX)) { Source = canvasModel, Mode = BindingMode.TwoWay };
-            BindingOperations.SetBinding(scaleTransform, ScaleTransform.ScaleXProperty,  bindingScaleX);
+            BindingOperations.SetBinding(scaleTransform, ScaleTransform.ScaleXProperty, bindingScaleX);
 
-            Binding bindingScaleY = new(nameof(canvasModel.ScaleY)){ Source = canvasModel, Mode = BindingMode.TwoWay };
+            Binding bindingScaleY = new(nameof(canvasModel.ScaleY)) { Source = canvasModel, Mode = BindingMode.TwoWay };
             BindingOperations.SetBinding(scaleTransform, ScaleTransform.ScaleYProperty, bindingScaleY);
 
-            Binding bindingX = new(nameof(canvasModel.ViewX))  { Source = canvasModel, Mode = BindingMode.TwoWay };
+            Binding bindingX = new(nameof(canvasModel.ViewX)) { Source = canvasModel, Mode = BindingMode.TwoWay };
             BindingOperations.SetBinding(translateTransform, TranslateTransform.XProperty, bindingX);
 
             Binding bindingY = new(nameof(canvasModel.ViewY)) { Source = canvasModel, Mode = BindingMode.TwoWay };
@@ -176,17 +171,114 @@ namespace Serein.Workbench.Views
         }
 
 
+        private void InitEvent()
+        {
+            flowNodeService.OnCreateNode += OnCreateNode;
+            keyEventService.OnKeyDown += KeyEventService_OnKeyDown;
+            flowEEForwardingService.OnNodeLocated += FlowEEForwardingService_OnNodeLocated;
+        }
+
+        /// <summary>
+        /// 节点需要定位
+        /// </summary>
+        /// <param name="eventArgs"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        private void FlowEEForwardingService_OnNodeLocated(NodeLocatedEventArgs eventArgs)
+        {
+            if(!ViewModel.NodeControls.TryGetValue(eventArgs.NodeGuid,out var nodeControl))
+            {
+                return;
+            }
+            /*if (nodeControl.FlowCanvas.Guid.Equals(Guid)) // 防止事件传播到其它画布
+            {
+                return;
+            }*/
+
+            // 获取控件在 FlowChartCanvas 上的相对位置
+#if false
+            Rect controlBounds = VisualTreeHelper.GetDescendantBounds(nodeControl);
+            Point controlPosition = nodeControl.TransformToAncestor(FlowChartCanvas).Transform(new Point(0, 0));
+
+            // 获取控件在画布上的中心点
+            double controlCenterX = controlPosition.X + controlBounds.Width / 2;
+            double controlCenterY = controlPosition.Y + controlBounds.Height / 2;
+
+            // 考虑缩放因素计算目标位置的中心点
+            double scaledCenterX = controlCenterX * scaleTransform.ScaleX;
+            double scaledCenterY = controlCenterY * scaleTransform.ScaleY;
+
+            // 计算平移偏移量，使得控件在可视区域的中心
+            double translateX = scaledCenterX - this.FlowChartStackPanel.ActualWidth / 2;
+            double translateY = scaledCenterY - FlowChartStackPanel.ActualHeight / 2;
+
+            var translate = this.translateTransform;
+            // 应用平移变换
+            translate.X = 0;
+            translate.Y = 0;
+            translate.X -= translateX;
+            translate.Y -= translateY; 
+#endif
+
+            // 设置RenderTransform以实现移动效果
+            TranslateTransform translateTransform = new TranslateTransform();
+            nodeControl.RenderTransform = translateTransform;
+            ElasticAnimation(nodeControl, translateTransform, 6, 0.5, 0.5);
+        }
+        /// <summary>
+        /// 控件抖动
+        /// 来源：https://www.cnblogs.com/RedSky/p/17705411.html
+        /// 作者：HotSky
+        /// </summary>
+        /// <param name="translate"></param>
+        /// <param name="nodeControl">需要抖动的控件</param>
+        /// <param name="power">抖动第一下偏移量</param>
+        /// <param name="range">减弱幅度（小于等于power，大于0）</param>
+        /// <param name="speed">持续系数(大于0)，越大时间越长，</param>
+        private static void ElasticAnimation(NodeControlBase nodeControl, TranslateTransform translate, double power, double range = 1, double speed = 1)
+        {
+            DoubleAnimationUsingKeyFrames animation1 = new DoubleAnimationUsingKeyFrames();
+            for (double i = power, j = 1; i >= 0; i -= range)
+            {
+                animation1.KeyFrames.Add(new LinearDoubleKeyFrame(-i, TimeSpan.FromMilliseconds(j++ * 100 * speed)));
+                animation1.KeyFrames.Add(new LinearDoubleKeyFrame(i, TimeSpan.FromMilliseconds(j++ * 100 * speed)));
+            }
+            translate.BeginAnimation(TranslateTransform.YProperty, animation1);
+            DoubleAnimationUsingKeyFrames animation2 = new DoubleAnimationUsingKeyFrames();
+            for (double i = power, j = 1; i >= 0; i -= range)
+            {
+                animation2.KeyFrames.Add(new LinearDoubleKeyFrame(-i, TimeSpan.FromMilliseconds(j++ * 100 * speed)));
+                animation2.KeyFrames.Add(new LinearDoubleKeyFrame(i, TimeSpan.FromMilliseconds(j++ * 100 * speed)));
+            }
+            translate.BeginAnimation(TranslateTransform.XProperty, animation2);
+
+            animation2.Completed += (s, e) =>
+            {
+                nodeControl.RenderTransform = null; // 或者重新设置为默认值
+            };
+        }
+
+
+        /// <summary>
+        /// 加载完成后刷新显示
+        /// </summary>
+        /// <param name="eventArgs"></param>
+        private void FlowEEForwardingService_OnProjectLoaded(ProjectLoadedEventArgs eventArgs)
+        {
+            RefreshAllLine();
+        }
+
+     
+
         /// <summary>
         /// 当前画布创建了节点
         /// </summary>
         /// <param name="nodeControl"></param>
         private void OnCreateNode(NodeControlBase nodeControl)
         {
-           if (!nodeControl.FlowCanvas.Guid.Equals(Guid))
-           {
-                // 防止事件传播到其它画布
-               return;
-           }
+            if (!nodeControl.FlowCanvas.Guid.Equals(Guid)) // 防止事件传播到其它画布
+            {
+                return;
+            }
             var p = nodeControl.ViewModel.NodeModel.Position;
             PositionOfUI position = new PositionOfUI(p.X, p.Y);
             if (TryPlaceNodeInRegion(nodeControl, position, out var regionControl)) // 判断添加到区域容器
@@ -223,14 +315,14 @@ namespace Serein.Workbench.Views
                 // 准备放置条件表达式控件
                 if (nodeControl.ViewModel.NodeModel.ControlType == NodeControlType.ExpCondition)
                 {
-                   /* ConditionRegionControl? conditionRegion =  WpfFuncTool.GetParentOfType<ConditionRegionControl>(hitElement);
-                    if (conditionRegion is not null)
-                    {
-                        targetNodeControl = conditionRegion;
-                        //// 如果存在条件区域容器
-                        //conditionRegion.AddCondition(nodeControl);
-                        return true;
-                    }*/
+                    /* ConditionRegionControl? conditionRegion =  WpfFuncTool.GetParentOfType<ConditionRegionControl>(hitElement);
+                     if (conditionRegion is not null)
+                     {
+                         targetNodeControl = conditionRegion;
+                         //// 如果存在条件区域容器
+                         //conditionRegion.AddCondition(nodeControl);
+                         return true;
+                     }*/
                 }
 
                 else
@@ -246,11 +338,13 @@ namespace Serein.Workbench.Views
             }
             targetNodeControl = null;
             return false;
-        }
-
+        } 
         #endregion
 
-        #region 画布接口实现
+
+
+
+        #region 接口实现
         private IFlowCanvas Api => this;
 
         public string Guid
@@ -273,7 +367,7 @@ namespace Serein.Workbench.Views
         }
         void IFlowCanvas.Add(NodeControlBase nodeControl)
         {
-           
+
             ViewModel.NodeControls.TryAdd(nodeControl.ViewModel.NodeModel.Guid, nodeControl);
 
             FlowChartCanvas.Dispatcher.Invoke(() =>
@@ -356,7 +450,7 @@ namespace Serein.Workbench.Views
                 //}
             }
         }
-        void IFlowCanvas.CreateArgConnection(NodeControlBase fromNodeControl, NodeControlBase toNodeControl,ConnectionArgSourceType type, int index)
+        void IFlowCanvas.CreateArgConnection(NodeControlBase fromNodeControl, NodeControlBase toNodeControl, ConnectionArgSourceType type, int index)
         {
             if (fromNodeControl is not INodeJunction IFormJunction || toNodeControl is not INodeJunction IToJunction)
             {
@@ -377,7 +471,8 @@ namespace Serein.Workbench.Views
                 _ = Task.Run(async () =>
                 {
                     await Task.Delay(100);
-                    await App.UIContextOperation.InvokeAsync(() => {
+                    await App.UIContextOperation.InvokeAsync(() =>
+                    {
                         Api.CreateArgConnection(fromNodeControl, toNodeControl, type, index);
                     });
                 });
@@ -651,7 +746,7 @@ namespace Serein.Workbench.Views
                     if (e.Data.GetData(MouseNodeType.CreateDllNodeInCanvas) is MoveNodeModel nodeModel)
                     {
                         flowNodeService.CurrentNodeControlType = nodeModel.NodeControlType; // 设置基础节点类型
-                        flowNodeService.CurrentDragMdInfo = nodeModel.MethodDetailsInfo; // 基础节点不需要参数信息
+                        flowNodeService.CurrentMethodDetailsInfo = nodeModel.MethodDetailsInfo; // 基础节点不需要参数信息
                         flowNodeService.CurrentMouseLocation = position; // 设置当前鼠标为止
                         flowNodeService.CreateNode(); // 创建来自DLL加载的方法节点
                     }
@@ -674,7 +769,7 @@ namespace Serein.Workbench.Views
                         if (nodeControlType != NodeControlType.None)
                         {
                             flowNodeService.CurrentNodeControlType = nodeControlType; // 设置基础节点类型
-                            flowNodeService.CurrentDragMdInfo = null; // 基础节点不需要参数信息
+                            flowNodeService.CurrentMethodDetailsInfo = null; // 基础节点不需要参数信息
                             flowNodeService.CurrentMouseLocation = position; // 设置当前鼠标为止
                             flowNodeService.CreateNode(); // 创建基础节点
 
@@ -1095,6 +1190,10 @@ namespace Serein.Workbench.Views
             }
             if (selectNodeControls.Count == 1)
             {
+                var nodeConotrol = selectNodeControls[0]; 
+                // 选取了控件
+                flowNodeService.CurrentSelectNodeControl = nodeConotrol; // 更新选取节点显示
+                App.GetService<FlowNodeService>().CurrentMethodDetailsInfo = nodeConotrol.ViewModel.NodeModel.MethodDetails.ToInfo();
                 // ChangeViewerObjOfNode(selectNodeControls[0]);
             }
 

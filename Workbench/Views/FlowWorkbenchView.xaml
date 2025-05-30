@@ -14,9 +14,9 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="250"/>
+            <ColumnDefinition Width="1.3*"/>
             <ColumnDefinition Width="5"/>
-            <ColumnDefinition Width="3*"/>
+            <ColumnDefinition Width="6*"/>
             <ColumnDefinition Width="5"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
@@ -31,16 +31,34 @@
                 <!--<RowDefinition Height="3"></RowDefinition>-->
                 <!--<RowDefinition Height="3*"></RowDefinition>-->
             </Grid.RowDefinitions>
-            <local:BaseNodesView Grid.Row="0" Grid.ColumnSpan="1" Margin="0,0,0,15"/>
-            <local:FlowLibrarysView Grid.Row="1" Grid.ColumnSpan="1" Margin="0,0,0,15" />
+            <local:BaseNodesView Grid.Row="0" Grid.ColumnSpan="1"  Margin="5,2,5,2"/>
+            <local:FlowLibrarysView Grid.Row="1" Grid.ColumnSpan="1"  Margin="5,2,5,2" />
         </Grid>
         <!--功能区和编辑区的分割线-->
-        <GridSplitter  Grid.Row="1"   Grid.Column="1" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="#CCD5F0" />
+        <GridSplitter  Grid.Row="1"   Grid.Column="1" Width="2" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="#E7F0F6" />
         <!--流程编辑区-->
-        <local:FlowEditView Grid.Row="1" Grid.Column="2"/>
+        <local:FlowEditView Grid.Row="1" Grid.Column="2"  Margin="5,2,5,2"/>
         <!--编辑区和视图区的分割线-->
-        <GridSplitter  Grid.Row="1"  Grid.Column="3" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="#CCD5F0" />
+        <GridSplitter  Grid.Row="1"  Grid.Column="3" Width="2" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="#E7F0F6" />
 
-        <local:CanvasInfoView Grid.Row="1"  Grid.Column="4" />
+
+
+        <Grid Grid.Row="1"  Grid.Column="4" >
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="auto" MaxHeight="400"/>
+                <RowDefinition Height="auto" MaxHeight="400"/>
+                <RowDefinition Height="auto" MaxHeight="400"/>
+                <RowDefinition Height="*" MaxHeight="400"/>
+            </Grid.RowDefinitions>
+
+            
+             <local:ViewCanvasInfoView Grid.Row="0"  Margin="5,2,5,2"/>
+            <local:ViewNodeInfoView Grid.Row="1"  Margin="5,2,5,2"/>
+            <local:ViewNodeMethodInfoView Grid.Row="2"  Margin="5,2,5,2"/>
+        </Grid>
+
     </Grid>
 </Window>

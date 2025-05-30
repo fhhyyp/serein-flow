@@ -10,6 +10,7 @@ namespace Serein.Workbench.ViewModels
     {
         private readonly IFlowEnvironment environment;
         private readonly FlowNodeService flowNodeService;
+        private readonly FlowProjectService flowProjectService;
 
         /// <summary>
         /// 保存项目
@@ -61,10 +62,13 @@ namespace Serein.Workbench.ViewModels
 
 
 
-        public MainMenuBarViewModel(IFlowEnvironment environment, FlowNodeService flowNodeService)
+        public MainMenuBarViewModel(IFlowEnvironment environment, 
+                                    FlowNodeService flowNodeService,
+                                    FlowProjectService flowProjectService)
         {
             this.environment = environment;
             this.flowNodeService = flowNodeService;
+            this.flowProjectService = flowProjectService;
             SaveProjectCommand = new RelayCommand(SaveProject); // 保存项目
             LoadLocalProjectCommand = new RelayCommand(LoadLocalProject); // 加载本地项目
             LoadRemoteProjectCommand = new RelayCommand(LoadRemoteProject); // 加载远程项目
@@ -78,12 +82,16 @@ namespace Serein.Workbench.ViewModels
 
             OpenEnvOutWindowCommand = new RelayCommand(OpenEnvOutWindow); // 打开运行输出窗口
             OpenDynamicCompilerCommand = new RelayCommand(OpenDynamicCompiler); // 打开动态编译仓库窗口
+            this.flowProjectService = flowProjectService;
         }
 
         private void SaveProject() => environment.SaveProject(); // 保存项目
         private void LoadLocalProject() {
-            //environment.LoadProject(); // 加载项目
+
+            flowProjectService.SelectProjectFile(); //选择项目
         }
+
+
         private void LoadRemoteProject() 
         { 
         }
@@ -91,7 +99,7 @@ namespace Serein.Workbench.ViewModels
 
         private void RemoteFlowCanvas() => flowNodeService.RemoveFlowCanvas();
 
-        private void StartFlow() => environment.StartFlowAsync([.. flowNodeService.FlowCanvass.Select(c => c.Guid)]);
+        private void StartUIFlow() => environment.StartFlowAsync([.. flowNodeService.FlowCanvass.Select(c => c.Guid)]);
         private void StartCurrentCanvasFlow() => environment.StartFlowAsync([flowNodeService.CurrentSelectCanvas.Guid]);
         private void StopCurrentCanvasFlow() { }
         private void OpenDynamicCompiler() { }

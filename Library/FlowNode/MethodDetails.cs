@@ -216,8 +216,8 @@ namespace Serein.Library
                 MethodName = this.MethodName,
                 MethodAnotherName = this.MethodAnotherName,
                 NodeType = this.MethodDynamicType.ToString(),
-                ParameterDetailsInfos = this.ParameterDetailss.Select(p => p.ToInfo()).ToArray(),
-                ReturnTypeFullName = this.ReturnType.FullName,
+                ParameterDetailsInfos = this.ParameterDetailss?.Select(p => p.ToInfo()).ToArray(),
+                ReturnTypeFullName = this.ReturnType?.FullName,
                 IsParamsArgIndex = this.ParamsArgIndex,
             };
         }

@@ -174,9 +174,9 @@ namespace Serein.Library
                 IsParams = this.IsParams,
                 DataTypeFullName = this.DataType.FullName,
                 Name = this.Name,
-                ExplicitTypeFullName = this.ExplicitType.FullName,
+                ExplicitTypeFullName = this.ExplicitType?.FullName,
                 InputType = this.InputType.ToString(),
-                Items = this.Items.Select(it => it).ToArray(),
+                Items = this.Items?.Select(it => it).ToArray(),
             };
         }
 

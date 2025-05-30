@@ -17,15 +17,16 @@ using System.Windows.Shapes;
 namespace Serein.Workbench.Views
 {
     /// <summary>
-    /// CanvasNodeTreeView.xaml 的交互逻辑
+    /// NodeInfoView.xaml 的交互逻辑
     /// </summary>
-    public partial class CanvasInfoView : UserControl
+    public partial class ViewNodeInfoView : UserControl
     {
-        private readonly CanvasInfoViewModel ViewModel;
-        public CanvasInfoView()
+        private readonly ViewNodeInfoViewModel ViewModel;
+        public ViewNodeInfoView()
         {
-            this.ViewModel = App.GetService<CanvasInfoViewModel>();
-            this.DataContext = this.ViewModel;
+
+            ViewModel = App.GetService<Locator>().NodeInfoViewModel;
+            this.DataContext = ViewModel;
             InitializeComponent();
         }
     }

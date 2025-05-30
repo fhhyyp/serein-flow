@@ -15,12 +15,14 @@ namespace Serein.Workbench.Node.View
             var env = App.GetService<IFlowEnvironment>();
             ViewModel = new ExpOpNodeControlViewModel(new SingleExpOpNode(env));
             base.ViewModel.IsEnabledOnView = false;
+            base.ViewModel.NodeModel.DisplayName = "[表达式]";
             DataContext = ViewModel;
             InitializeComponent();
         }
         public ExpOpNodeControl(ExpOpNodeControlViewModel viewModel) :base(viewModel)
         {
             DataContext = viewModel;
+            viewModel.NodeModel.DisplayName = "[表达式]";
             InitializeComponent();
         }
 

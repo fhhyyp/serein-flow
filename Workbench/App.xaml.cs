@@ -32,9 +32,11 @@ namespace Serein.Workbench
             collection.AddSingleton<BaseNodesViewModel>();
             collection.AddSingleton<FlowLibrarysViewModel>();
             collection.AddSingleton<FlowEditViewModel>();
+            collection.AddSingleton<ViewNodeInfoViewModel>();
+            collection.AddSingleton<ViewNodeMethodInfoViewModel>();
 
             collection.AddTransient<FlowCanvasViewModel>(); // 画布
-            collection.AddTransient<CanvasInfoViewModel>(); // 画布节点树视图
+            collection.AddTransient<ViewCanvasInfoViewModel>(); // 画布节点树视图
         }
 
         public static void AddWorkbenchServices(this IServiceCollection collection)
@@ -42,6 +44,7 @@ namespace Serein.Workbench
             collection.AddSingleton<IFlowEEForwardingService, FlowEEForwardingService>(); // 流程事件管理
             collection.AddSingleton<IKeyEventService, KeyEventService>();// 按键事件管理
             collection.AddSingleton<IWorkbenchEventService, WorkbenchEventService>(); // 流程事件管理
+            collection.AddSingleton<FlowProjectService>(); // 项目管理
             collection.AddSingleton<FlowNodeService>(); // 节点操作管理
         }
 
@@ -104,69 +107,45 @@ namespace Serein.Workbench
             collection.AddViewModelServices();
             var services = collection.BuildServiceProvider(); // 绑定并返回获取实例的服务接口
             App.ServiceProvider = services;
-
-
-
-
+#if DEBUG
             _ = this.LoadLocalProjectAsync();
-
-        }
-       
-
-
-        private async Task LoadLocalProjectAsync()
-        {
-            await Task.Delay(500);
-#if DEBUG 
-            if (1 == 1)
-            {
-                // 这里是测试代码，可以删除
-                string filePath;
-                filePath = @"C:\Users\Az\source\repos\CLBanyunqiState\CLBanyunqiState\bin\Release\net8.0\PLCproject.dnf";
-                filePath = @"C:\Users\Az\source\repos\CLBanyunqiState\CLBanyunqiState\bin\Release\banyunqi\project.dnf";
-                filePath = @"F:\临时\project\project.dnf";
-                filePath = @"F:\TempFile\flow\qrcode\project.dnf";
-                filePath = @"F:\TempFile\flow\temp2\project.dnf";
-                if (File.Exists(filePath))
-                {
-                    string content = System.IO.File.ReadAllText(filePath); // 读取整个文件内容
-                    App.FlowProjectData = JsonConvert.DeserializeObject<SereinProjectData>(content);
-                    App.FileDataPath = System.IO.Path.GetDirectoryName(filePath)!;   //  filePath;//
-                    var dir = Path.GetDirectoryName(filePath);
-                    App.GetService<IFlowEnvironment>().LoadProject(new FlowEnvInfo { Project = App.FlowProjectData }, App.FileDataPath);
-                }
-                    
-               
-            }
 #endif
         }
-        
 
+#if DEBUG
 
-        public static SereinProjectData? FlowProjectData { get; set; }
-        public static string FileDataPath { get; set; } = "";
+        // 这里是测试代码，可以删除
+        private async Task LoadLocalProjectAsync()
+        {
+            var projectService = App.GetService<FlowProjectService>();
+            await Task.Delay(500);
+            if (1 == 1)
+            {
+                string filePath;
+                filePath = @"F:\TempFile\flow\temp2\project.dnf";
+                projectService.LoadLocalProject(filePath);
+            }
+
+        }
+#endif
+
 
         private async void Application_Startup(object sender, StartupEventArgs e)
         {
-            // 检查是否传入了参数
+           var projectService = App.GetService<FlowProjectService>();
             if (e.Args.Length == 1)
             {
-                // 获取文件路径
                 string filePath = e.Args[0];
-                // 检查文件是否存在
-                if (!System.IO.File.Exists(filePath))
+                if (!System.IO.File.Exists(filePath))  // 检查文件是否存在
                 {
                     MessageBox.Show($"文件未找到：{filePath}");
                     Shutdown(); // 关闭应用程序
                     return;
                 }
-
                 try
                 {
                     // 读取文件内容
-                    string content = System.IO.File.ReadAllText(filePath); // 读取整个文件内容
-                    FlowProjectData = JsonConvert.DeserializeObject<SereinProjectData>(content);
-                    FileDataPath = System.IO.Path.GetDirectoryName(filePath) ?? "";
+                    projectService.LoadLocalProject(filePath);
                 }
                 catch (Exception ex)
                 {

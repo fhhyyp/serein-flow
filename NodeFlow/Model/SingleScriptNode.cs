@@ -12,6 +12,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Serein.NodeFlow.Model
 {
@@ -246,11 +247,28 @@ namespace Serein.NodeFlow.Model
         {
             public static DateTime GetNow() => DateTime.Now;
 
+
+            #region 常用的类型转换
+            public static bool BoolOf(object value)
+            {
+                return ConvertHelper.ValueParse<bool>(value);
+            }
+            public static int IntOf(object value)
+            {
+                return ConvertHelper.ValueParse<int>(value);
+            }
+            public static int LongOf(object value)
+            {
+                return ConvertHelper.ValueParse<int>(value);
+            }
+            
+
+            #endregion
+
             public static Type TypeOf(object type)
             {
                 return type.GetType();
             }
-
 
             public static void Print(object value)
             {

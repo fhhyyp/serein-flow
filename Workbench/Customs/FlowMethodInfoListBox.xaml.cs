@@ -1,6 +1,7 @@
 ﻿using Serein.Library;
 using Serein.Library.Utils;
 using Serein.Workbench.Models;
+using Serein.Workbench.Services;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -39,9 +40,23 @@ namespace Serein.Workbench.Customs
     /// <summary>
     /// FlowMethodInfoListBox.xaml 的交互逻辑
     /// </summary>
-    public partial class FlowMethodInfoListBox :  UserControl
+    public partial class FlowMethodInfoListBox :  UserControl,System.ComponentModel.INotifyPropertyChanged
     {
+        private object viewMethodInfo;
+        public object ViewMethodInfo
+        {
+            get => viewMethodInfo;
+            set
+            {
+                if (viewMethodInfo != value)
+                {
+                    viewMethodInfo = value;
+                    PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(ViewMethodInfo)));
+                }
+            }
+        }
 
+        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;                  
 
         public FlowMethodInfoListBox()
         {
@@ -130,5 +145,20 @@ namespace Serein.Workbench.Customs
             }
         }
 
+        private void ListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if(sender is ListBox listBox)
+            {
+                if (listBox.SelectedIndex != -1)
+                {
+                    var item = listBox.SelectedItem;
+                    if (item is MethodDetailsInfo mdInfo)
+                    {
+                        App.GetService<FlowNodeService>().CurrentMethodDetailsInfo = mdInfo;
+                    }
+                }
+                // Serein.Workbench.Models.FlowLibraryInfo
+            }
+        }
     }
 }

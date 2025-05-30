@@ -26,6 +26,7 @@ namespace Serein.Workbench.Node.View
         public UINodeControl()
         {
             base.ViewModel.IsEnabledOnView = true;
+            base.ViewModel.NodeModel.DisplayName = "[流程UI]";
             InitializeComponent();
         }
 
@@ -33,6 +34,7 @@ namespace Serein.Workbench.Node.View
         {
             ViewModel = viewModel;
             DataContext = viewModel;
+            ViewModel.NodeModel.DisplayName = "[流程UI]";
             InitializeComponent();
 
 

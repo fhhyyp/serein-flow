@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace Serein.Workbench.ViewModels
 {
-    internal partial class CanvasInfoViewModel : ObservableObject
+    internal partial class ViewCanvasInfoViewModel : ObservableObject
     {
         private readonly FlowNodeService flowNodeService;
 
@@ -20,7 +20,7 @@ namespace Serein.Workbench.ViewModels
         [ObservableProperty]
         private FlowCanvasDetails _model;
 
-        public CanvasInfoViewModel(FlowNodeService flowNodeService)
+        public ViewCanvasInfoViewModel(FlowNodeService flowNodeService)
         {
             this.flowNodeService = flowNodeService;
             this.flowNodeService.OnViewCanvasChanged += OnViewCanvasChanged;
@@ -34,5 +34,8 @@ namespace Serein.Workbench.ViewModels
         {
             Model = flowCanvas.ViewModel.Model;
         }
+
+
+
     }
 }

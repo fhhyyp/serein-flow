@@ -17,13 +17,14 @@ namespace Serein.Workbench.Node.View
             base.ViewModel = new ConditionNodeControlViewModel (new SingleConditionNode(env));
             base.ViewModel.IsEnabledOnView = false;
             DataContext = ViewModel;
-           
+            base.ViewModel.NodeModel.DisplayName = "[条件节点]";
             InitializeComponent();
         }
 
         public ConditionNodeControl(ConditionNodeControlViewModel viewModel):base(viewModel)
         {
             DataContext = viewModel;
+            viewModel.NodeModel.DisplayName = "[条件节点]";
             InitializeComponent();
         }
 

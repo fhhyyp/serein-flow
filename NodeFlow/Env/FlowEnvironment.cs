@@ -1048,7 +1048,9 @@ namespace Serein.NodeFlow.Env
                 return Task.FromResult<NodeInfo>(null);
             }
             NodeModelBase? nodeModel;
-            if (methodDetailsInfo is null)
+            if (methodDetailsInfo is null 
+                || string.IsNullOrEmpty(methodDetailsInfo.AssemblyName)
+                || string.IsNullOrEmpty(methodDetailsInfo.MethodName))
             {
                 nodeModel = FlowNodeExtension.CreateNode(this, nodeControlType); // 加载基础节点
             }

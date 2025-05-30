@@ -22,11 +22,13 @@ namespace Serein.Workbench.ViewModels
         public BaseNodesViewModel BaseNodesViewModel => App.GetService<BaseNodesViewModel>() ?? throw new NotImplementedException();
         public FlowLibrarysViewModel FlowLibrarysViewModel => App.GetService<FlowLibrarysViewModel>() ?? throw new NotImplementedException();
         public FlowEditViewModel FlowEditViewModel => App.GetService<FlowEditViewModel>() ?? throw new NotImplementedException();
+        public ViewNodeInfoViewModel NodeInfoViewModel => App.GetService<ViewNodeInfoViewModel>() ?? throw new NotImplementedException();
+        public ViewNodeMethodInfoViewModel ViewNodeMethodInfoViewModel => App.GetService<ViewNodeMethodInfoViewModel>() ?? throw new NotImplementedException();
 
 
 
         public FlowCanvasViewModel FlowCanvasViewModel => App.GetService<FlowCanvasViewModel>() ?? throw new NotImplementedException();
-        public CanvasInfoViewModel CanvasNodeTreeViewModel => App.GetService<CanvasInfoViewModel>() ?? throw new NotImplementedException();
+        public ViewCanvasInfoViewModel CanvasNodeTreeViewModel => App.GetService<ViewCanvasInfoViewModel>() ?? throw new NotImplementedException();
 
         public IServiceProvider ServiceProvider { get; }
     }
