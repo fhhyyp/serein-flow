@@ -46,6 +46,17 @@ https://space.bilibili.com/33526379
   * 返回值：自定义，但不会处理返回值，支持异步等待。
   * 描述：当结束/手动结束运行时，会调用所有Dll的Exit方法。使用场景类似于：终止内部的其它线程，通知其它进程关闭，例如停止第三方服务。
 ## 2. 基础节点
+* **FLowCall - 流程接口**
+    * 入参：根据目标节点变化。
+    * 描述：有时我们需要将流程图的逻辑解耦，单独使用某个画布编写逻辑，抽取出一个通用的处理模板，在其它流程图中像接口一样进行调用。
+    * 使用方式：
+        0. 创建两个画布，分别命名画布A，画布B。
+        1. 在画布A上，选择希望暴露出去的一个节点，勾选“全局公开”。
+        2. 在画布B上，拖拽创建“流程接口”节点，画布选择“画布A”，节点选择公开的节点。
+        3. 在画布B上正常调用即可。
+     * 关于“参数共享”设置的说明：
+        * 如果启用了，那么流程接口对应的节点，入参参数将在全局保持一致，一处地方修改后，处处同步（仅限于启用了这一设置的相同的流程接口节点）。
+        * 如果没有启用，那么流程接口将会从目标节点拷贝相同的入参，单独使用，并不受目标节点的入参参数修改而修改。
 * **Script - 脚本节点**
   * 入参：可选可变
   * 描述：有时我们需要定义一个临时的类对象，但又不想在代码中写死属性，又或者某些流程操作中，因为业务场景需要布置大量的逻辑判断，导致流程图变得极为臃肿不堪入目，于是引入了脚本节点。脚本节点动态能力强，不同于表达式使用递归下降，而是基于AST抽象语法树调用相应的C#代码，性能至少差强人意。
@@ -211,7 +222,7 @@ https://space.bilibili.com/33526379
 ```
   
 ## 演示：
-    ![image](https://github.com/fhhyyp/serein-flow/blob/cc5f8255135b96c6bb3669bc4aa8d8167a71c262/Image/%E6%BC%94%E7%A4%BA%20-%201.png)
-    ![image](https://github.com/fhhyyp/serein-flow/blob/cc5f8255135b96c6bb3669bc4aa8d8167a71c262/Image/%E6%BC%94%E7%A4%BA%20-%202.png)
-    ![image](https://github.com/fhhyyp/serein-flow/blob/8f17b786f3585cabfeef60d9ab871d43b69e5461/Image/%E6%BC%94%E7%A4%BA%20-%203.png)
-    ![image](https://github.com/fhhyyp/serein-flow/blob/8f17b786f3585cabfeef60d9ab871d43b69e5461/Image/%E6%BC%94%E7%A4%BA%20-%204.png)
+    ![image1](https://github.com/fhhyyp/serein-flow/blob/cc5f8255135b96c6bb3669bc4aa8d8167a71c262/Image/%E6%BC%94%E7%A4%BA%20-%201.png)
+    ![image2](https://github.com/fhhyyp/serein-flow/blob/cc5f8255135b96c6bb3669bc4aa8d8167a71c262/Image/%E6%BC%94%E7%A4%BA%20-%202.png)
+    ![image3](https://github.com/fhhyyp/serein-flow/blob/8f17b786f3585cabfeef60d9ab871d43b69e5461/Image/%E6%BC%94%E7%A4%BA%20-%203.png)
+    ![image4](https://github.com/fhhyyp/serein-flow/blob/8f17b786f3585cabfeef60d9ab871d43b69e5461/Image/%E6%BC%94%E7%A4%BA%20-%204.png)
