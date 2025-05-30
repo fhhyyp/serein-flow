@@ -267,7 +267,7 @@ public static class NodeMethodDetailsHelper
             #endregion
         }).ToArray();
 
-        foreach(var pd in tempParams)
+       /* foreach(var pd in tempParams)
         {
             var argType = pd.DataType;
             // 运行环境
@@ -285,9 +285,8 @@ public static class NodeMethodDetailsHelper
             {
                 continue;
             }
-            pd.IsExplicitData = true;
             
-        }
+        }*/
        
         return tempParams;
     }
@@ -311,7 +310,26 @@ public static class NodeMethodDetailsHelper
         {
             dataType = parameterInfo.ParameterType;
         }
-        var description = parameterInfo.GetCustomAttribute<DescriptionAttribute>()?.Description ?? "";
+        isExplicitData = true;
+        string description = string.Empty; // 入参描述
+        var nodeParmsAttribute = parameterInfo.GetCustomAttribute<NodeParamAttribute>();
+        if(nodeParmsAttribute is not null)
+        {
+            if (!parameterInfo.HasDefaultValue)
+            {
+                isExplicitData  = nodeParmsAttribute.IsExplicit; // 设置是否是显式参数
+            }
+            if (string.IsNullOrEmpty(nodeParmsAttribute.Name)) 
+            {
+                description = nodeParmsAttribute.Name; // 设置显示的名称
+            }
+            
+        }
+        else
+        {
+            description = parameterInfo.GetCustomAttribute<DescriptionAttribute>()?.Description ?? string.Empty; // 判断是否存在注释特性
+        }
+        
 
         var inputType = GetInputType(explicitParemType);
         var items = GetExplicitItems(explicitParemType, inputType);

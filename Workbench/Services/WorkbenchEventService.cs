@@ -68,9 +68,9 @@ namespace Serein.Workbench.Services
         /// <param name="keyEventService"></param>
         /// <param name="flowNodeService"></param>
         public WorkbenchEventService(IFlowEnvironment flowEnvironment, 
-            IFlowEEForwardingService flowEEForwardingService,
-            IKeyEventService keyEventService,
-            FlowNodeService flowNodeService)
+                                     IFlowEEForwardingService flowEEForwardingService,
+                                     IKeyEventService keyEventService,
+                                     FlowNodeService flowNodeService)
         {
             this.flowEnvironment = flowEnvironment;
             this.flowEEForwardingService = flowEEForwardingService;
@@ -81,9 +81,15 @@ namespace Serein.Workbench.Services
 
         private void InitEvents()
         {
+            flowEEForwardingService.OnProjectLoaded += FlowEEForwardingService_OnProjectLoaded;
             flowEEForwardingService.OnProjectSaving += SaveProjectToLocalFile;
             flowEEForwardingService.OnEnvOut += FlowEEForwardingService_OnEnvOut;
             keyEventService.OnKeyDown += KeyEventService_OnKeyDown; ;
+        }
+
+        private void FlowEEForwardingService_OnProjectLoaded(ProjectLoadedEventArgs eventArgs)
+        {
+
         }
 
         private void KeyEventService_OnKeyDown(System.Windows.Input.Key key)

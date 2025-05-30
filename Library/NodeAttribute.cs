@@ -58,7 +58,7 @@ namespace Serein.Library
     /// <para>表示该类中存在节点信息</para>
     /// </summary>
     [AttributeUsage(AttributeTargets.Class)]
-    public class DynamicFlowAttribute : Attribute
+    public sealed class DynamicFlowAttribute : Attribute
     {
         public DynamicFlowAttribute(string name = "",bool scan = true)
         {
@@ -82,7 +82,7 @@ namespace Serein.Library
     ///  <para>如果是Task类型的返回值，将会自动进行等待</para>
     /// </summary>
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
-    public class NodeActionAttribute : Attribute
+    public sealed class NodeActionAttribute : Attribute
     {
         public NodeActionAttribute(NodeType methodDynamicType,
                                        string methodTips = "",
@@ -113,17 +113,25 @@ namespace Serein.Library
     }
 
 
+    /// <summary>
+    /// 节点参数设置
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Parameter)]
+    public sealed class NodeParamAttribute : Attribute
+    {
+        /// <summary>
+        /// 显示名称
+        /// </summary>
+        public string Name;
 
-    //[AttributeUsage(AttributeTargets.Field)]
-    //public class BindTypeAttribute : Attribute
-    //{
-    //    public Type Type { get; }
+        /// <summary>
+        /// 是否显式设置（此设置对于有入参默认值的参数无效）
+        /// </summary>
+        public bool IsExplicit;
 
-    //    public BindTypeAttribute(Type type)
-    //    {
-    //        Type = type;
-    //    }
-    //}
+     
+    }
+
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class BindValueAttribute : Attribute
@@ -135,6 +143,8 @@ namespace Serein.Library
             Value = value;
         }
     }
+
+
 
     /// <summary>
     /// 枚举值转换器，要求枚举项标记的BindValueAttribute特性，与搭配的参数类型一致，否则参数不会传入

@@ -17,51 +17,11 @@ namespace Serein.Library
     [DynamicFlow(Name ="[基础功能]")]
     public class SereinBaseFunction
     {
-        //[NodeAction(NodeType.Action,"条件节点")]
-        //private bool SereinConditionNode(IDynamicContext context,
-        //                                 object targetObject,
-        //                                 string exp = "ISPASS")
-        //{
-        //    var isPass = SereinConditionParser.To(targetObject, exp);
-        //    context.NextOrientation = isPass ? ConnectionInvokeType.IsSucceed : ConnectionInvokeType.IsFail;
-        //    return isPass;
-        //}
-
-        //[NodeAction(NodeType.Action, "表达式节点")]
-        //private object SereinExpNode(IDynamicContext context,
-        //                                 object targetObject,
-        //                                 string exp)
-        //{
-
-        //    exp = "@" + exp;
-        //    var newData = SerinExpressionEvaluator.Evaluate(exp, targetObject, out bool isChange);
-        //    object result;
-        //    if (isChange || exp.StartsWith("@GET",System.StringComparison.OrdinalIgnoreCase))
-        //    {
-        //        result = newData;
-        //    }
-        //    else
-        //    {
-        //        result = targetObject;
-        //    }
-        //    context.NextOrientation = ConnectionInvokeType.IsSucceed;
-        //    return result;
-        //}
-
-
-
+        
         [NodeAction(NodeType.Action, "键值对组装")]
-        private Dictionary<string, object> SereinKvDataCollectionNode(/*NodeModelBase nodeModel, */
-                                                                      string argName, 
+        private Dictionary<string, object> SereinKvDataCollectionNode(string argName, 
                                                                       params object[] value)
         {
-            //var paramsArgIndex = nodeModel.MethodDetails.ParamsArgIndex;
-            //var pds = nodeModel.MethodDetails.ParameterDetailss;
-            //var length = pds.Length - paramsArgIndex;
-            //for(int i = paramsArgIndex; i < pds.Length; i++)
-            //{
-            //    var pd = pds[i];
-            //}
 
             var names = argName.Split(';');
             var count = Math.Min(value.Length, names.Length);
@@ -90,7 +50,9 @@ namespace Serein.Library
         }
 
         [NodeAction(NodeType.Action, "逻辑分支")]
-        private object SereinLogicalBranch(bool @bool, object t_value,object f_value)
+        private object SereinLogicalBranch([NodeParam(IsExplicit = false)]bool @bool, 
+                                            object t_value,
+                                            object f_value)
         {
             return @bool ? t_value : f_value;
         }
@@ -141,7 +103,7 @@ namespace Serein.Library
 
 
         [NodeAction(NodeType.Action, "设置/更新全局数据")]
-        private object SereinAddOrUpdateFlowGlobalData(string name,object data)
+        private object SereinAddOrUpdateFlowGlobalData(string name, object data)
         {
             SereinEnv.AddOrUpdateFlowGlobalData(name, data);
             return data;
