@@ -411,10 +411,10 @@ namespace Serein.Workbench.Views
             JunctionControlBase endJunction = IToJunction.ExecuteJunction;
 
             var removeConnections = Connections.Where(c =>
-                                               c.Start.Equals(startJunction)
-                                            && c.End.Equals(endJunction)
-                                            && (c.Start.JunctionType.ToConnectyionType() == JunctionOfConnectionType.Invoke
-                                            || c.End.JunctionType.ToConnectyionType() == JunctionOfConnectionType.Invoke))
+                                               c.Start.MyNode.Guid == startJunction.MyNode.Guid
+                                            && c.End.MyNode.Guid == endJunction.MyNode.Guid
+                                            && (c.Start.JunctionType.ToConnectyionType() == JunctionOfConnectionType.Arg
+                                            || c.End.JunctionType.ToConnectyionType() == JunctionOfConnectionType.Arg))
                                             .ToList();
 
 

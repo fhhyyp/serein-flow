@@ -41,13 +41,6 @@ namespace Serein.Workbench.Node.View
         {
             DataContext = viewModel;
             InitializeComponent();
-
-#if false
-            // 初始化定时器
-            _debounceTimer = new DispatcherTimer();
-            _debounceTimer.Interval = TimeSpan.FromMilliseconds(500); // 停止输入 500ms 后更新
-            _debounceTimer.Tick += DebounceTimer_Tick; 
-#endif
         }
 
 

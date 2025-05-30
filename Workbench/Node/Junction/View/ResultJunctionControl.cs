@@ -8,8 +8,6 @@ namespace Serein.Workbench.Node.View
 
     public class ResultJunctionControl : JunctionControlBase
     {
-        //public override JunctionType JunctionType { get; } = JunctionType.ReturnData;
-
         public ResultJunctionControl()
         {
             base.JunctionType = JunctionType.ReturnData;

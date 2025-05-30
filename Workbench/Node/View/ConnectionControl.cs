@@ -239,11 +239,13 @@ namespace Serein.Workbench.Node.View
             Canvas.Children.Remove(BezierLine);
             var env = Start.MyNode.Env;
             var canvasGuid = Start.MyNode.CanvasDetails.Guid;
-            if (Start.JunctionType.ToConnectyionType() == JunctionOfConnectionType.Invoke)
+            var jct = Start.JunctionType.ToConnectyionType();
+            var jctEnd = End.JunctionType.ToConnectyionType();
+            if (jct == JunctionOfConnectionType.Invoke)
             {
                 env.RemoveConnectInvokeAsync(canvasGuid, Start.MyNode.Guid, End.MyNode.Guid, InvokeType);
             }
-            else if (Start.JunctionType.ToConnectyionType() == JunctionOfConnectionType.Arg)
+            else if (jct == JunctionOfConnectionType.Arg)
             {
                 env.RemoveConnectArgSourceAsync(canvasGuid,Start.MyNode.Guid, End.MyNode.Guid, ArgIndex) ;
             }

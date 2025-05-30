@@ -15,6 +15,7 @@ using System.Threading;
 using Serein.Workbench.Services;
 using Serein.Workbench.Tool;
 using System.ComponentModel;
+using System.Diagnostics;
 
 namespace Serein.Workbench.Node.View
 {
@@ -48,7 +49,7 @@ namespace Serein.Workbench.Node.View
             this.MouseDown += ParamsArg_OnMouseDown; // 增加或删除
             this.MouseMove += ParamsArgControl_MouseMove;
             this.MouseLeave += ParamsArgControl_MouseLeave;
-            AddOrRemoveParamsTask = AddAsync;
+            AddOrRemoveParamsTask = AddParamAsync;
         }
 
         
@@ -120,18 +121,18 @@ namespace Serein.Workbench.Node.View
         private void ParamsArgControl_MouseMove(object sender, MouseEventArgs e)
         {
             isMouseOver = true;
-            if (cancellationTokenSource.IsCancellationRequested) {
-                cancellationTokenSource = new CancellationTokenSource();
+            if (cts.IsCancellationRequested) {
+                cts = new CancellationTokenSource();
                 Task.Run(async () =>
                 {
                     await Task.Delay(380);
 
-                }, cancellationTokenSource.Token).ContinueWith((t) =>
+                }, cts.Token).ContinueWith((t) =>
                 {
                     // 如果焦点仍在控件上时，则改变点击事件
                     if (isMouseOver)
                     {
-                        AddOrRemoveParamsTask = RemoveAsync;
+                        AddOrRemoveParamsTask = RemoveParamAsync;
                         this.Dispatcher.Invoke(InvalidateVisual);// 触发一次重绘
                        
                     }
@@ -139,24 +140,27 @@ namespace Serein.Workbench.Node.View
             }
             
         }
-        private CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+
+
+        private CancellationTokenSource cts = new CancellationTokenSource();
 
 
         private void ParamsArgControl_MouseLeave(object sender, MouseEventArgs e)
         {
             isMouseOver = false;
-            AddOrRemoveParamsTask = AddAsync; // 鼠标焦点离开时恢复点击事件
-            cancellationTokenSource?.Cancel();
+            AddOrRemoveParamsTask = AddParamAsync; // 鼠标焦点离开时恢复点击事件
+            cts?.Cancel();
             this.Dispatcher.Invoke(InvalidateVisual);// 触发一次重绘
 
         }
 
 
-        private async Task AddAsync()
+
+        private async Task AddParamAsync()
         {
            await this.MyNode.Env.ChangeParameter(MyNode.Guid, true, ArgIndex);
         }
-        private async Task RemoveAsync()
+        private async Task RemoveParamAsync()
         {
            await this.MyNode.Env.ChangeParameter(MyNode.Guid, false, ArgIndex);
         }
@@ -347,7 +351,7 @@ namespace Serein.Workbench.Node.View
         {
             if (e.LeftButton == MouseButtonState.Pressed)
             {
-                var canvas = WpfFuncTool.GetParentOfType<Canvas>(this);
+                var canvas = WpfFuncTool.GetParentOfType<Canvas>(this); 
                 if (canvas != null)
                 {
                     var cd = flowNodeService.ConnectingData;
@@ -358,6 +362,7 @@ namespace Serein.Workbench.Node.View
                     cd.StartPoint = this.TranslatePoint(new Point(this.Width / 2, this.Height / 2), canvas);
 
                     var junctionOfConnectionType = this.JunctionType.ToConnectyionType();
+                    //Debug.WriteLine(this.JunctionType);
                     ConnectionLineShape bezierLine; // 类别
                     Brush brushColor; // 临时线的颜色
                     if (junctionOfConnectionType == JunctionOfConnectionType.Invoke)
