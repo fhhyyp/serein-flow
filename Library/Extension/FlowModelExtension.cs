@@ -209,14 +209,11 @@ namespace Serein.Library
                 && token.IsCancellationRequested == false // 没有取消
                 && stack.Count > 0) // 循环中直到栈为空才会退出循环
             {
-
-
 #if DEBUG
                 await Task.Delay(1);
 #endif
 
                 #region 执行相关
-
                 // 从栈中弹出一个节点作为当前节点进行处理
                 var currentNode = stack.Pop();
                 context.NextOrientation = ConnectionInvokeType.None; // 重置上下文状态
@@ -238,11 +235,14 @@ namespace Serein.Library
                     context.NextOrientation = ConnectionInvokeType.IsError;
                     context.ExceptionOfRuning = ex;
                 }
-                context.AddOrUpdate(currentNode, flowResult); // 上下文中更新数据
                 #endregion
 
                 #region 执行完成
-
+                //var ignodeState =  context.GetIgnodeFlowStateUpload(currentNode);
+                // 更新数据
+                //if(!ignodeState)
+                    context.AddOrUpdate(currentNode, flowResult); // 上下文中更新数据
+               
                 // 首先将指定类别后继分支的所有节点逆序推入栈中
                 var nextNodes = currentNode.SuccessorNodes[context.NextOrientation];
                 for (int index = nextNodes.Count - 1; index >= 0; index--)
@@ -250,7 +250,8 @@ namespace Serein.Library
                     // 筛选出启用的节点的节点
                     if (nextNodes[index].DebugSetting.IsEnable)
                     {
-                        context.SetPreviousNode(nextNodes[index], currentNode);
+                        //if (!ignodeState)
+                            context.SetPreviousNode(nextNodes[index], currentNode);
                         stack.Push(nextNodes[index]);
                     }
                 }
@@ -261,10 +262,12 @@ namespace Serein.Library
                     // 筛选出启用的节点的节点
                     if (upstreamNodes[index].DebugSetting.IsEnable)
                     {
-                        context.SetPreviousNode(upstreamNodes[index], currentNode);
+                        //if (!ignodeState)
+                            context.SetPreviousNode(upstreamNodes[index], currentNode);
                         stack.Push(upstreamNodes[index]);
                     }
                 }
+                //context.RecoverIgnodeFlowStateUpload(currentNode);
                 #endregion
 
             }

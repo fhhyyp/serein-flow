@@ -3,6 +3,7 @@ using Serein.Library.Utils;
 using Serein.Library.Utils.SereinExpression;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -254,10 +255,23 @@ namespace Serein.Library
             }
             else
             {
+               
+
                 if(!env.TryGetNodeModel(ArgDataSourceNodeGuid, out var argSourceNodeModel))
                 {
                     throw new Exception($"[arg{Index}][{Name}][{DataType}]需要节点[{ArgDataSourceNodeGuid}]的参数，但节点不存在");
                 }
+                
+                // 如果是公开的节点，需要判断上下文调用中是否存在流程接口节点
+                if (argSourceNodeModel.IsPublic)
+                {
+                    var pn = context.GetPreviousNode(NodeModel);
+                    if(pn.ControlType == NodeControlType.FlowCall)
+                    {
+                        argSourceNodeModel = pn;
+                    }
+                }
+
                 if (ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
                 {
                     var flowData = context.GetFlowData(argSourceNodeModel);

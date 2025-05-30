@@ -37,6 +37,24 @@ namespace Serein.Library.Api
         /// </summary>
         Exception ExceptionOfRuning { get; set; }
 
+  /*      /// <summary>
+        /// 忽略处理该节点流程
+        /// </summary>
+        void IgnoreFlowHandle(NodeModelBase node);
+        /// <summary>
+        /// 获取此次流程处理状态
+        /// </summary>
+        /// <param name="node"></param>
+        /// <returns></returns>
+        bool GetIgnodeFlowStateUpload(NodeModelBase node);
+        /// <summary>
+        /// 恢复流程处理状态
+        /// </summary>
+        /// <param name="node"></param>
+        /// <returns></returns>
+        void RecoverIgnodeFlowStateUpload(NodeModelBase node);*/
+
+
         /// <summary>
         /// 设置节点的运行时上一节点，用以多线程中隔开不同流程的数据
         /// </summary>

@@ -193,7 +193,32 @@ namespace Serein.NodeFlow.Model
                 this.MethodDetails = targetNode.MethodDetails;
             }
             this.SuccessorNodes = targetNode.SuccessorNodes;
-            return await base.ExecutingAsync(context, token);
+            var flowData = await base.ExecutingAsync(context, token);
+
+            if (IsShareParam)
+            {
+                // 设置运行时上一节点
+
+                // 此处代码与SereinFlow.Library.FlowNode.ParameterDetails
+                // ToMethodArgData()方法中判断流程接口节点分支逻辑耦合
+                // 不要轻易修改
+                context.AddOrUpdate(targetNode, flowData);
+                foreach (ConnectionInvokeType ctType in NodeStaticConfig.ConnectionTypes)
+                {
+                    if (this.SuccessorNodes[ctType] == null) continue;
+                    foreach (var node in this.SuccessorNodes[ctType])
+                    {
+                        if (node.DebugSetting.IsEnable)
+                        {
+                           
+                            context.SetPreviousNode(node, this); 
+                        }
+                    }
+                }
+            }
+           
+
+            return flowData;
         }
 
 

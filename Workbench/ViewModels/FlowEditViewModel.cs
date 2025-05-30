@@ -49,7 +49,7 @@ namespace Serein.Workbench.ViewModels
 
         partial void OnSelectedTabChanged(FlowEditorTabModel value)
         {
-            flowNodeService.CurrentSelectCanvas = value.Content;
+            flowNodeService.CurrentSelectCanvas = value?.Content;
         }
 
 

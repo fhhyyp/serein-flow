@@ -57,6 +57,11 @@ namespace Serein.Library
         private readonly ConcurrentDictionary<NodeModelBase, NodeModelBase> dictPreviousNodes = new ConcurrentDictionary<NodeModelBase, NodeModelBase>();
 
         /// <summary>
+        /// 记录忽略处理的流程
+        /// </summary>
+        private readonly ConcurrentDictionary<NodeModelBase, bool> dictIgnoreNodeFlow = new ConcurrentDictionary<NodeModelBase, bool>();
+
+        /// <summary>
         /// 设置运行时上一节点
         /// </summary>
         /// <param name="currentNodeModel">当前节点</param>
@@ -65,6 +70,35 @@ namespace Serein.Library
         {
             dictPreviousNodes.AddOrUpdate(currentNodeModel, (_) => PreviousNode, (o, n) => PreviousNode);
         }
+
+        /// <summary>
+        /// 忽略处理该节点流程
+        /// </summary>
+        /// <param name="node"></param>
+        public void IgnoreFlowHandle(NodeModelBase node)
+        {
+            dictIgnoreNodeFlow.AddOrUpdate(node, (o) => true, (o, n) => true); 
+        }
+
+        /// <summary>
+        /// 获取此次流程处理状态
+        /// </summary>
+        /// <param name="node"></param>
+        /// <returns></returns>
+        public bool GetIgnodeFlowStateUpload(NodeModelBase node)
+        {
+            return dictIgnoreNodeFlow.TryGetValue(node, out var state) ? state : false;
+        }
+        /// <summary>
+        /// 恢复流程处理状态
+        /// </summary>
+        /// <param name="node"></param>
+        /// <returns></returns>
+        public void RecoverIgnodeFlowStateUpload(NodeModelBase node)
+        {
+            dictIgnoreNodeFlow.AddOrUpdate(node, (o) => false, (o, n) => false);
+        }
+
 
         /// <summary>
         /// 获取当前节点的运行时上一节点
