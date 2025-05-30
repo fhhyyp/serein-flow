@@ -76,7 +76,7 @@ namespace Serein.Workbench.ViewModels
             CreateFlowCanvasCommand = new RelayCommand(CreateFlowCanvas); // 增加画布
             RemoteFlowCanvasCommand = new RelayCommand(RemoteFlowCanvas); // 移除画布
 
-            StartFlowCommand = new RelayCommand(StartFlow);
+            StartFlowCommand = new RelayCommand(StartUIFlow);
             StartCurrentCanvasFlowCommand = new RelayCommand(StartCurrentCanvasFlow); // 运行当前所查看画布的流程
             StopCurrentCanvasFlowCommand = new RelayCommand(StopCurrentCanvasFlow); // 停止当前流程
 
