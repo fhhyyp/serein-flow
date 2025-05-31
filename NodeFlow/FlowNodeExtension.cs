@@ -38,7 +38,7 @@ namespace Serein.NodeFlow
         /// <param name="methodDetails">方法描述</param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public static NodeModelBase CreateNode(IFlowEnvironment env, NodeControlType nodeControlType,
+        public static IFlowNode CreateNode(IFlowEnvironment env, NodeControlType nodeControlType,
             MethodDetails? methodDetails = null)
         {
 
@@ -51,7 +51,7 @@ namespace Serein.NodeFlow
 
             // 生成实例
             var nodeObj = Activator.CreateInstance(nodeMVVM.ModelType, env);
-            if (nodeObj is not NodeModelBase nodeModel)
+            if (nodeObj is not IFlowNode nodeModel)
             {
                 throw new Exception($"无法创建目标节点类型的实例[{nodeControlType}]");
             }

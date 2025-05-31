@@ -560,7 +560,7 @@ namespace Serein.NodeFlow.Env
             currentFlowEnvironment.SetUIContextOperation(uiContextOperation);
         }
 
-        public bool TryGetNodeModel(string nodeGuid, out NodeModelBase nodeModel)
+        public bool TryGetNodeModel(string nodeGuid, out IFlowNode nodeModel)
         {
             return currentFlowEnvironment.TryGetNodeModel(nodeGuid, out nodeModel);
         }

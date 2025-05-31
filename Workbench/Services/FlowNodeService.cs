@@ -421,7 +421,7 @@ namespace Serein.Workbench.Services
         /// <param name="nodeCanvas">节点所在画布</param>
         /// <returns></returns>
         /// <exception cref="Exception">无法创建节点控件</exception>
-        private static NodeControlBase CreateNodeControl(Type controlType, Type viewModelType, NodeModelBase model, IFlowCanvas nodeCanvas)
+        private static NodeControlBase CreateNodeControl(Type controlType, Type viewModelType, IFlowNode model, IFlowCanvas nodeCanvas)
         {
             if ((controlType is null)
                 || viewModelType is null
@@ -489,7 +489,7 @@ namespace Serein.Workbench.Services
         /// <summary>
         /// 从节点信息转换为Json文本数据
         /// </summary>
-        public string CpoyNodeInfo(List<NodeModelBase> dictSelection)
+        public string CpoyNodeInfo(List<IFlowNode> dictSelection)
         {
 
             // 遍历当前已选节点

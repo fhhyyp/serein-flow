@@ -49,24 +49,24 @@ namespace Serein.Library
         /// <summary>
         /// 每个流程上下文分别存放节点的当前数据
         /// </summary>
-        private readonly ConcurrentDictionary<NodeModelBase, FlowResult> dictNodeFlowData = new ConcurrentDictionary<NodeModelBase, FlowResult>();
+        private readonly ConcurrentDictionary<IFlowNode, FlowResult> dictNodeFlowData = new ConcurrentDictionary<IFlowNode, FlowResult>();
 
         /// <summary>
         /// 每个流程上下文存储运行时节点的调用关系
         /// </summary>
-        private readonly ConcurrentDictionary<NodeModelBase, NodeModelBase> dictPreviousNodes = new ConcurrentDictionary<NodeModelBase, NodeModelBase>();
+        private readonly ConcurrentDictionary<IFlowNode, IFlowNode> dictPreviousNodes = new ConcurrentDictionary<IFlowNode, IFlowNode>();
 
         /// <summary>
         /// 记录忽略处理的流程
         /// </summary>
-        private readonly ConcurrentDictionary<NodeModelBase, bool> dictIgnoreNodeFlow = new ConcurrentDictionary<NodeModelBase, bool>();
+        private readonly ConcurrentDictionary<IFlowNode, bool> dictIgnoreNodeFlow = new ConcurrentDictionary<IFlowNode, bool>();
 
         /// <summary>
         /// 设置运行时上一节点
         /// </summary>
         /// <param name="currentNodeModel">当前节点</param>
         /// <param name="PreviousNode">上一节点</param>
-        public void SetPreviousNode(NodeModelBase currentNodeModel, NodeModelBase PreviousNode)
+        public void SetPreviousNode(IFlowNode currentNodeModel, IFlowNode PreviousNode)
         {
             dictPreviousNodes.AddOrUpdate(currentNodeModel, (_) => PreviousNode, (o, n) => PreviousNode);
         }
@@ -75,7 +75,7 @@ namespace Serein.Library
         /// 忽略处理该节点流程
         /// </summary>
         /// <param name="node"></param>
-        public void IgnoreFlowHandle(NodeModelBase node)
+        public void IgnoreFlowHandle(IFlowNode node)
         {
             dictIgnoreNodeFlow.AddOrUpdate(node, (o) => true, (o, n) => true); 
         }
@@ -85,7 +85,7 @@ namespace Serein.Library
         /// </summary>
         /// <param name="node"></param>
         /// <returns></returns>
-        public bool GetIgnodeFlowStateUpload(NodeModelBase node)
+        public bool GetIgnodeFlowStateUpload(IFlowNode node)
         {
             return dictIgnoreNodeFlow.TryGetValue(node, out var state) ? state : false;
         }
@@ -94,7 +94,7 @@ namespace Serein.Library
         /// </summary>
         /// <param name="node"></param>
         /// <returns></returns>
-        public void RecoverIgnodeFlowStateUpload(NodeModelBase node)
+        public void RecoverIgnodeFlowStateUpload(IFlowNode node)
         {
             dictIgnoreNodeFlow.AddOrUpdate(node, (o) => false, (o, n) => false);
         }
@@ -105,7 +105,7 @@ namespace Serein.Library
         /// </summary>
         /// <param name="currentNodeModel"></param>
         /// <returns></returns>
-        public NodeModelBase GetPreviousNode(NodeModelBase currentNodeModel)
+        public IFlowNode GetPreviousNode(IFlowNode currentNodeModel)
         {
             if (dictPreviousNodes.TryGetValue(currentNodeModel, out var node))
             {
@@ -122,7 +122,7 @@ namespace Serein.Library
         /// </summary>
         /// <param name="nodeGuid">节点</param>
         /// <returns></returns>
-        public FlowResult GetFlowData(NodeModelBase nodeGuid)
+        public FlowResult GetFlowData(IFlowNode nodeGuid)
         {
             if (dictNodeFlowData.TryGetValue(nodeGuid, out var data))
             {
@@ -139,7 +139,7 @@ namespace Serein.Library
         /// </summary>
         /// <param name="nodeModel">节点</param>
         /// <param name="flowData">新的数据</param>
-        public void AddOrUpdate(NodeModelBase nodeModel, FlowResult flowData)
+        public void AddOrUpdate(IFlowNode nodeModel, FlowResult flowData)
         {
             // this.dictNodeFlowData.TryGetValue(nodeGuid, out var oldFlowData);
             dictNodeFlowData.AddOrUpdate(nodeModel, _ => flowData, (o,n ) => flowData);
@@ -149,7 +149,7 @@ namespace Serein.Library
         /// 上一节点数据透传到下一节点
         /// </summary>
         /// <param name="nodeModel"></param>
-        public FlowResult TransmissionData(NodeModelBase nodeModel)
+        public FlowResult TransmissionData(IFlowNode nodeModel)
         {
             if (dictPreviousNodes.TryGetValue(nodeModel, out var previousNode)) // 首先获取当前节点的上一节点
             {

@@ -22,7 +22,7 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 对应的节点
         /// </summary>
-        public NodeModelBase NodeModel { get; private set; }
+        public IFlowNode NodeModel { get; private set; }
 
       
 
@@ -31,7 +31,7 @@ namespace Serein.NodeFlow
         /// </summary>
         /// <param name="environment">运行环境</param>
         /// <param name="nodeModel">节点</param>
-        public ScriptFlowApi(IFlowEnvironment environment,  NodeModelBase nodeModel)
+        public ScriptFlowApi(IFlowEnvironment environment, IFlowNode nodeModel)
         {
             Env = environment;
             NodeModel = nodeModel;

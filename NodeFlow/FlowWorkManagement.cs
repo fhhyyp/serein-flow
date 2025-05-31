@@ -49,7 +49,7 @@ namespace Serein.NodeFlow
         public async Task<bool> RunAsync(CancellationToken token)
         {
             #region 注册所有节点所属的类的类型，如果注册失败则退出
-            List<NodeModelBase> nodes = new List<NodeModelBase>();
+            List<IFlowNode> nodes = new List<IFlowNode>();
             foreach (var item in WorkOptions.Flows.Values)
             {
                 var temp = item.GetNodes();
@@ -85,7 +85,7 @@ namespace Serein.NodeFlow
                 var flowNodes = flow.GetNodes();
 
                 // 找到流程的起始节点，开始运行
-                NodeModelBase startNode = flow.GetStartNode();
+                IFlowNode startNode = flow.GetStartNode();
                 // 是否后台运行当前画布流程
                 if (flow.IsTaskAsync)
                 {
@@ -110,7 +110,7 @@ namespace Serein.NodeFlow
         /// 初始化节点所需的所有类型
         /// </summary>
         /// <returns></returns>
-        private bool RegisterAllType(List<NodeModelBase> nodes)
+        private bool RegisterAllType(List<IFlowNode> nodes)
         {
             var env = WorkOptions.Environment;
 
@@ -248,7 +248,7 @@ namespace Serein.NodeFlow
         /// </summary>
         /// <param name="startNode"></param>
         /// <returns></returns>
-        private async Task CallStartNode(NodeModelBase startNode)
+        private async Task CallStartNode(IFlowNode startNode)
         {
             var pool = WorkOptions.FlowContextPool;
             var token = WorkOptions.CancellationTokenSource.Token;
@@ -268,7 +268,7 @@ namespace Serein.NodeFlow
         /// <param name="env"></param>
         /// <param name="startNode"></param>
         /// <returns></returns>
-        public async Task StartFlowInSelectNodeAsync(IFlowEnvironment env, NodeModelBase startNode)
+        public async Task StartFlowInSelectNodeAsync(IFlowEnvironment env, IFlowNode  startNode)
         {
             var pool = WorkOptions.FlowContextPool;
             var context = pool.Allocate();

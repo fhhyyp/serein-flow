@@ -16,6 +16,7 @@ using Serein.Workbench.Services;
 using Serein.Workbench.Tool;
 using System.ComponentModel;
 using System.Diagnostics;
+using Serein.Library.Api;
 
 namespace Serein.Workbench.Node.View
 {
@@ -60,15 +61,15 @@ namespace Serein.Workbench.Node.View
 
         #region 控件属性，所在的节点
         public static readonly DependencyProperty NodeProperty =
-            DependencyProperty.Register(nameof(MyNode), typeof(NodeModelBase), typeof(ParamsArgControl), new PropertyMetadata(default(NodeModelBase)));
+            DependencyProperty.Register(nameof(MyNode), typeof(IFlowNode), typeof(ParamsArgControl), new PropertyMetadata(default(IFlowNode)));
         //public NodeModelBase NodeModel;
 
         /// <summary>
         /// 所在的节点
         /// </summary>
-        public NodeModelBase MyNode
+        public IFlowNode MyNode
         {
-            get { return (NodeModelBase)GetValue(NodeProperty); }
+            get { return (IFlowNode)GetValue(NodeProperty); }
             set { SetValue(NodeProperty, value); }
         }
         #endregion
@@ -194,15 +195,15 @@ namespace Serein.Workbench.Node.View
 
         #region 控件属性，所在的节点
         public static readonly DependencyProperty NodeProperty =
-            DependencyProperty.Register(nameof(MyNode), typeof(NodeModelBase), typeof(JunctionControlBase), new PropertyMetadata(default(NodeModelBase)));
+            DependencyProperty.Register(nameof(MyNode), typeof(IFlowNode), typeof(JunctionControlBase), new PropertyMetadata(default(IFlowNode)));
         //public NodeModelBase NodeModel;
 
         /// <summary>
         /// 所在的节点
         /// </summary>
-        public NodeModelBase MyNode
+        public IFlowNode MyNode
         {
-            get { return (NodeModelBase)GetValue(NodeProperty); }
+            get { return (IFlowNode)GetValue(NodeProperty); }
             set { SetValue(NodeProperty, value); }
         }
         #endregion

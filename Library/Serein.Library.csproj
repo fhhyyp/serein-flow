@@ -38,6 +38,8 @@
 
   <ItemGroup>
     <Compile Remove="FlowNode\Attribute.cs" />
+    <Compile Remove="FlowNode\NodeModelBaseData.cs" />
+    <Compile Remove="FlowNode\NodeModelBaseFunc.cs" />
     <Compile Remove="FlowNode\ScriptFlowApi.cs" />
     <Compile Remove="Utils\NativeDllHelper.cs" />
   </ItemGroup>

@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using Serein.Library;
+using Serein.Library.Api;
 using Serein.NodeFlow.Model;
 using Serein.Workbench.Api;
 using Serein.Workbench.Services;
@@ -37,7 +38,7 @@ namespace Serein.Workbench.Node.ViewModel
         /// 当前所选节点
         /// </summary>
         [ObservableProperty]
-        private NodeModelBase _selectNode;
+        private IFlowNode _selectNode;
 
 
         [ObservableProperty]
@@ -88,7 +89,7 @@ namespace Serein.Workbench.Node.ViewModel
             FlowCallNode.ResetTargetNode();
         }
 
-        partial void OnSelectNodeChanged(NodeModelBase value)
+        partial void OnSelectNodeChanged(IFlowNode value)
         {
             if(value is null)
             {

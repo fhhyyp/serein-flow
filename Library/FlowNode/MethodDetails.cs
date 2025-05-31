@@ -21,7 +21,7 @@ namespace Serein.Library
         /// 对应的节点
         /// </summary>
         [PropertyInfo(IsProtection = true)]
-        private NodeModelBase _nodeModel;
+        private IFlowNode _nodeModel;
 
         /// <summary>
         /// 对应的程序集
@@ -179,7 +179,7 @@ namespace Serein.Library
         /// 生成元数据
         /// </summary>
         /// <param name="nodeModel">标识属于哪个节点</param>
-        public MethodDetails(NodeModelBase nodeModel)
+        public MethodDetails(IFlowNode nodeModel)
         {
             NodeModel = nodeModel;
         }
@@ -226,10 +226,10 @@ namespace Serein.Library
         /// 从DLL拖动出来时，从元数据拷贝新的实例，作为属于节点独享的方法描述
         /// </summary>
         /// <returns></returns>
-        public MethodDetails CloneOfNode( NodeModelBase nodeModel)
+        public MethodDetails CloneOfNode( IFlowNode nodeModel)
         {
             // this => 是元数据
-            var md = new MethodDetails( nodeModel) // 创建新节点时拷贝实例
+            var md = new MethodDetails(nodeModel) // 创建新节点时拷贝实例
             {
                 AssemblyName = this.AssemblyName, // 拷贝
                 //ActingInstance = this.ActingInstance,

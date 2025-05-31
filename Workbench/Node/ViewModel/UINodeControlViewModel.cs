@@ -23,7 +23,7 @@ namespace Serein.Workbench.Node.ViewModel
         private UserControl _nodeUIContent;
 
 
-        public UINodeControlViewModel(NodeModelBase nodeModel) : base(nodeModel)
+        public UINodeControlViewModel(IFlowNode nodeModel) : base(nodeModel)
         {
             
         }

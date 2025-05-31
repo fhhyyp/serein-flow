@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.Utils;
 using Serein.Library.Utils.SereinExpression;
@@ -17,7 +18,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 
-namespace Serein.Library
+namespace Serein.NodeFlow.Model
 {
 
     

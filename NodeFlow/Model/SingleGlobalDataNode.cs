@@ -49,14 +49,14 @@ namespace Serein.NodeFlow.Model
         /// <summary>
         /// 数据来源的节点
         /// </summary>
-        private NodeModelBase? DataNode;
+        private IFlowNode? DataNode;
 
         /// <summary>
         /// 有节点被放置
         /// </summary>
         /// <param name="nodeModel"></param>
         /// <returns></returns>
-        public bool PlaceNode(NodeModelBase nodeModel)
+        public bool PlaceNode(IFlowNode nodeModel)
         {
             if(DataNode is null)
             {
@@ -76,7 +76,7 @@ namespace Serein.NodeFlow.Model
         }
 
 
-        public bool TakeOutNode(NodeModelBase nodeModel)
+        public bool TakeOutNode(IFlowNode nodeModel)
         {
             if (ChildrenNode.Contains(nodeModel))
             {

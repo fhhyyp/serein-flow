@@ -62,7 +62,7 @@ namespace Serein.Library
         /// 输出方法参数信息
         /// </summary>
         /// <returns></returns>
-        public static ParameterData[] SaveParameterInfo(this NodeModelBase nodeModel)
+        public static ParameterData[] SaveParameterInfo(this IFlowNode nodeModel)
         {
             if (nodeModel.MethodDetails is null || nodeModel.MethodDetails.ParameterDetailss == null)
             {
@@ -93,7 +93,7 @@ namespace Serein.Library
         /// 导出为节点信息
         /// </summary>
         /// <returns></returns>
-        public static NodeInfo ToInfo(this NodeModelBase nodeModel)
+        public static NodeInfo ToInfo(this IFlowNode nodeModel)
         {
             // if (MethodDetails == null) return null;
             var trueNodes = nodeModel.SuccessorNodes[ConnectionInvokeType.IsSucceed].Select(item => item.Guid); // 真分支
@@ -137,7 +137,7 @@ namespace Serein.Library
         /// <param name="canvas"></param>
         /// <param name="nodeInfo"></param>
         /// <returns></returns>
-        public static void LoadInfo(this NodeModelBase nodeModel, NodeInfo nodeInfo)
+        public static void LoadInfo(this IFlowNode nodeModel, NodeInfo nodeInfo)
         {
             nodeModel.Guid = nodeInfo.Guid;
             nodeModel.Position = nodeInfo.Position ?? new PositionOfUI(0, 0);// 加载位置信息
@@ -200,10 +200,10 @@ namespace Serein.Library
         /// <param name="context"></param>
         /// <param name="token">流程运行</param>
         /// <returns></returns>
-        public static async Task StartFlowAsync(this NodeModelBase nodeModel, IDynamicContext context, CancellationToken token)
+        public static async Task StartFlowAsync(this IFlowNode nodeModel, IDynamicContext context, CancellationToken token)
         {
-            Stack<NodeModelBase> stack = new Stack<NodeModelBase>();
-            HashSet<NodeModelBase> processedNodes = new HashSet<NodeModelBase>(); // 用于记录已处理上游节点的节点
+            Stack<IFlowNode> stack = new Stack<IFlowNode>();
+            HashSet<IFlowNode> processedNodes = new HashSet<IFlowNode>(); // 用于记录已处理上游节点的节点
             stack.Push(nodeModel);
             while (context.RunState != RunState.Completion  // 没有完成
                 && token.IsCancellationRequested == false // 没有取消
@@ -276,7 +276,7 @@ namespace Serein.Library
         /// <summary>
         /// 获取对应的参数数组
         /// </summary>
-        public static async Task<object[]> GetParametersAsync(this NodeModelBase nodeModel, IDynamicContext context, CancellationToken token)
+        public static async Task<object[]> GetParametersAsync(this IFlowNode nodeModel, IDynamicContext context, CancellationToken token)
         {
             if (nodeModel.MethodDetails.ParameterDetailss.Length == 0)
             {
@@ -412,7 +412,7 @@ namespace Serein.Library
         /// <summary>
         /// 不再中断
         /// </summary>
-        public static void CancelInterrupt(NodeModelBase nodeModel)
+        public static void CancelInterrupt(IFlowNode nodeModel)
         {
             nodeModel.DebugSetting.IsInterrupt = false;
             nodeModel.DebugSetting.CancelInterrupt?.Invoke();
@@ -424,7 +424,7 @@ namespace Serein.Library
         /// </summary>
         /// <param name="nodeModel">节点Model</param>
         /// <param name="newMd">新的方法描述</param>
-        public static void UploadMethod(this NodeModelBase nodeModel, MethodDetails newMd)
+        public static void UploadMethod(this IFlowNode nodeModel, MethodDetails newMd)
         {
             var thisMd = nodeModel.MethodDetails;
 

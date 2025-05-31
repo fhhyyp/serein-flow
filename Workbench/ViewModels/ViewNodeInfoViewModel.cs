@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using Serein.Library;
+using Serein.Library.Api;
 using Serein.Workbench.Node.View;
 using Serein.Workbench.Services;
 using System;
@@ -18,7 +19,7 @@ namespace Serein.Workbench.ViewModels
         /// 当前预览的节点
         /// </summary>
         [ObservableProperty]
-        private NodeModelBase viewNodeModel;
+        private IFlowNode viewNodeModel;
 
         public ViewNodeInfoViewModel(FlowNodeService flowNodeService)
         {

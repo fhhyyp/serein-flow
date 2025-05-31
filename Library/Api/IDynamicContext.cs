@@ -60,33 +60,33 @@ namespace Serein.Library.Api
         /// </summary>
         /// <param name="currentNodeModel">当前节点</param>
         /// <param name="PreviousNode">运行时上一节点</param>
-        void SetPreviousNode(NodeModelBase currentNodeModel, NodeModelBase PreviousNode);
+        void SetPreviousNode(IFlowNode currentNodeModel, IFlowNode PreviousNode);
 
         /// <summary>
         /// 获取当前节点的运行时上一节点，用以流程中获取数据
         /// </summary>
         /// <param name="currentNodeModel"></param>
         /// <returns></returns>
-        NodeModelBase GetPreviousNode(NodeModelBase currentNodeModel);
+        IFlowNode GetPreviousNode(IFlowNode currentNodeModel);
 
         /// <summary>
         /// 获取节点的数据（当前节点需要获取上一节点数据时，需要从 运行时上一节点 的Guid 通过这个方法进行获取
         /// </summary>
         /// <param name="nodeModel"></param>
         /// <returns></returns>
-        FlowResult GetFlowData(NodeModelBase nodeModel);
+        FlowResult GetFlowData(IFlowNode nodeModel);
         /// <summary>
         /// 上一节点数据透传到下一节点
         /// </summary>
         /// <param name="nodeModel"></param>
-        FlowResult TransmissionData(NodeModelBase nodeModel);
+        FlowResult TransmissionData(IFlowNode nodeModel);
 
         /// <summary>
         /// 添加或更新当前节点的数据
         /// </summary>
         /// <param name="nodeModel"></param>
         /// <param name="flowData"></param>
-        void AddOrUpdate(NodeModelBase nodeModel, FlowResult flowData);
+        void AddOrUpdate(IFlowNode nodeModel, FlowResult flowData);
 
         /// <summary>
         /// 重置流程状态（用于对象池回收）

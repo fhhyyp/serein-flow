@@ -41,7 +41,7 @@ namespace Serein.NodeFlow.Env
         /// 环境加载的节点集合
         /// Node Guid - Node Model
         /// </summary>
-        private Dictionary<string, NodeModelBase> NodeModels { get; } = [];
+        private Dictionary<string, IFlowNode> NodeModels { get; } = [];
 
         public event LoadDllHandler OnDllLoad;
         public event ProjectLoadedHandler OnProjectLoaded;
@@ -1167,21 +1167,21 @@ namespace Serein.NodeFlow.Env
 
         #region 私有方法
 
-        private NodeModelBase? GuidToModel(string nodeGuid)
+        private IFlowNode? GuidToModel(string nodeGuid)
         {
             if (string.IsNullOrEmpty(nodeGuid))
             {
                 //throw new ArgumentNullException("not contains - Guid没有对应节点:" + (nodeGuid));
                 return null;
             }
-            if (!NodeModels.TryGetValue(nodeGuid, out NodeModelBase? nodeModel) || nodeModel is null)
+            if (!NodeModels.TryGetValue(nodeGuid, out IFlowNode? nodeModel) || nodeModel is null)
             {
                 //throw new ArgumentNullException("null - Guid存在对应节点,但节点为null:" + (nodeGuid));
                 return null;
             }
             return nodeModel;
         }
-        private bool TryAddNode(NodeModelBase nodeModel)
+        private bool TryAddNode(IFlowNode nodeModel)
         {
             NodeModels[nodeModel.Guid] = nodeModel;
             return true;
@@ -1268,7 +1268,7 @@ namespace Serein.NodeFlow.Env
                 #region 确定节点之间的方法调用关系
                 foreach (var nodeInfo in nodeInfos)
                 {
-                    if (!NodeModels.TryGetValue(nodeInfo.Guid, out NodeModelBase? fromNode))
+                    if (!NodeModels.TryGetValue(nodeInfo.Guid, out IFlowNode? fromNode))
                     {
                         // 不存在对应的起始节点
                         continue;
@@ -1279,13 +1279,13 @@ namespace Serein.NodeFlow.Env
                                                                                     (ConnectionInvokeType.IsError,  nodeInfo.ErrorNodes),
                                                                                     (ConnectionInvokeType.Upstream, nodeInfo.UpstreamNodes)];
 
-                    List<(ConnectionInvokeType, NodeModelBase[])> fromNodes = allToNodes.Where(info => info.guids.Length > 0)
+                    List<(ConnectionInvokeType, IFlowNode[])> fromNodes = allToNodes.Where(info => info.guids.Length > 0)
                                                                          .Select(info => (info.connectionType,
                                                                                           info.guids.Where(guid => NodeModels.ContainsKey(guid)).Select(guid => NodeModels[guid])
                                                                                             .ToArray()))
                                                                          .ToList();
                     // 遍历每种类型的节点分支（四种）
-                    foreach ((ConnectionInvokeType connectionType, NodeModelBase[] toNodes) item in fromNodes)
+                    foreach ((ConnectionInvokeType connectionType, IFlowNode[] toNodes) item in fromNodes)
                     {
                         // 遍历当前类型分支的节点（确认连接关系）
                         foreach (var toNode in item.toNodes)
@@ -1346,7 +1346,7 @@ namespace Serein.NodeFlow.Env
         }
 
 
-        public bool TryGetNodeModel(string nodeGuid, out NodeModelBase nodeModel)
+        public bool TryGetNodeModel(string nodeGuid, out IFlowNode nodeModel)
         {
             this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：TryGetNodeModel");
             nodeModel = null;

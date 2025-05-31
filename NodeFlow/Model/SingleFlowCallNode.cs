@@ -40,7 +40,7 @@ namespace Serein.NodeFlow.Model
         /// <summary>
         /// 接口节点
         /// </summary>
-        private NodeModelBase targetNode;
+        private IFlowNode targetNode;
         /// <summary>
         /// 缓存的方法信息
         /// </summary>

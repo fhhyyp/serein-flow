@@ -23,11 +23,11 @@ namespace Serein.Workbench.Node.View
         /// <summary>
         /// 起始节点
         /// </summary>
-        public NodeModelBase StartNode { get; set; }
+        public IFlowNode StartNode { get; set; }
         /// <summary>
         /// 目标节点
         /// </summary>
-        public NodeModelBase EndNode { get; set; }
+        public IFlowNode EndNode { get; set; }
 
         /// <summary>
         /// 来源于起始节点的（控制点）类型
@@ -63,7 +63,7 @@ namespace Serein.Workbench.Node.View
         /// <summary>
         /// 对应的视图对象
         /// </summary>
-        public NodeModelBase NodeModel { get; set; }
+        public IFlowNode NodeModel { get; set; }
         /// <summary>
         /// 
         /// </summary>

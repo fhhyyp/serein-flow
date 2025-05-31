@@ -26,7 +26,7 @@ namespace Serein.Library
         /// 所在的节点
         /// </summary>
         [PropertyInfo(IsProtection = true)]
-        private NodeModelBase _nodeModel;
+        private IFlowNode _nodeModel;
 
         /// <summary>
         /// 参数索引
@@ -130,7 +130,7 @@ namespace Serein.Library
         /// <summary>
         /// 为节点实例化新的入参描述
         /// </summary>
-        public ParameterDetails(NodeModelBase nodeModel)
+        public ParameterDetails(IFlowNode nodeModel)
         {
             this.NodeModel = nodeModel;
         }
@@ -185,7 +185,7 @@ namespace Serein.Library
         /// </summary>
         /// <param name="nodeModel">对应的节点</param>
         /// <returns></returns>
-        public ParameterDetails CloneOfModel(NodeModelBase nodeModel)
+        public ParameterDetails CloneOfModel(IFlowNode nodeModel)
         {
             var pd = new ParameterDetails(nodeModel)
             {
@@ -224,7 +224,7 @@ namespace Serein.Library
                 return context;
             }
             // 返回流程上下文
-            if (typeof(NodeModelBase).IsAssignableFrom(DataType))
+            if (typeof(IFlowNode).IsAssignableFrom(DataType))
             {
                 return NodeModel;
             }

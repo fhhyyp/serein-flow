@@ -18,14 +18,14 @@ namespace Serein.Workbench.Themes
         private Dictionary<string, NodeTreeItemViewControl> globalFlipflopNodes = [];
         private Dictionary<string, NodeTreeItemViewControl> unemployedNodes = [];
 
-        public void LoadNodeTreeOfStartNode(IFlowEnvironment flowEnvironment, NodeModelBase nodeModel)
+        public void LoadNodeTreeOfStartNode(IFlowEnvironment flowEnvironment, IFlowNode nodeModel)
         {
             startNodeGuid = nodeModel.Guid;
             StartNodeViewer.InitAndLoadTree(flowEnvironment, nodeModel);
         }
 
         #region 触发器
-        public void AddGlobalFlipFlop(IFlowEnvironment flowEnvironment, NodeModelBase nodeModel)
+        public void AddGlobalFlipFlop(IFlowEnvironment flowEnvironment, IFlowNode nodeModel)
         {
             if (!globalFlipflopNodes.ContainsKey(nodeModel.Guid))
             {
@@ -35,14 +35,14 @@ namespace Serein.Workbench.Themes
                 GlobalFlipflopNodeListbox.Items.Add(flipflopTreeViewer);
             }
         }
-        public void RefreshGlobalFlipFlop(NodeModelBase nodeModel)
+        public void RefreshGlobalFlipFlop(IFlowNode nodeModel)
         {
             if (globalFlipflopNodes.TryGetValue(nodeModel.Guid, out var viewer))
             {
                 viewer.RefreshTree();
             }
         }
-        public void RemoveGlobalFlipFlop(NodeModelBase nodeModel)
+        public void RemoveGlobalFlipFlop(IFlowNode nodeModel)
         {
             if (globalFlipflopNodes.TryGetValue(nodeModel.Guid, out var viewer))
             {
@@ -54,7 +54,7 @@ namespace Serein.Workbench.Themes
 
 
         #region 无业游民（定义：不存在于起始节点与全局触发器的调用链上的节点，只能手动刷新？）
-        public void AddUnemployed(IFlowEnvironment flowEnvironment, NodeModelBase nodeModel)
+        public void AddUnemployed(IFlowEnvironment flowEnvironment, IFlowNode nodeModel)
         {
             if (!unemployedNodes.ContainsKey(nodeModel.Guid))
             {
@@ -64,14 +64,14 @@ namespace Serein.Workbench.Themes
                 GlobalFlipflopNodeListbox.Items.Add(flipflopTreeViewer);
             }
         }
-        public void RefreshUnemployed(NodeModelBase nodeModel)
+        public void RefreshUnemployed(IFlowNode nodeModel)
         {
             if (unemployedNodes.TryGetValue(nodeModel.Guid, out var viewer))
             {
                 viewer.RefreshTree();
             }
         }
-        public void RemoteUnemployed(NodeModelBase nodeModel)
+        public void RemoteUnemployed(   IFlowNode nodeModel)
         {
             if (unemployedNodes.TryGetValue(nodeModel.Guid, out var viewer))
             {

@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json.Linq;
+using Serein.Library.Api;
 using Serein.Library.Utils;
 using System;
 using System.Collections.Generic;
@@ -17,7 +18,7 @@ namespace Serein.Library
         /// 创建属于某个节点的调试设置
         /// </summary>
         /// <param name="nodeModel"></param>
-        public NodeDebugSetting(NodeModelBase nodeModel)
+        public NodeDebugSetting(IFlowNode nodeModel)
         {
             NodeModel = nodeModel;
         }
@@ -33,7 +34,7 @@ namespace Serein.Library
         /// 对应的节点
         /// </summary>
         [PropertyInfo(IsProtection = true)]
-        private NodeModelBase _nodeModel;
+        private IFlowNode _nodeModel;
 
         /// <summary>
         /// 是否使能

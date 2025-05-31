@@ -20,12 +20,12 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 流程起始节点
         /// </summary>
-        public Func<NodeModelBase> GetStartNode { get; set; }
+        public Func<IFlowNode> GetStartNode { get; set; }
 
         /// <summary>
         /// 获取当前画布流程的所有节点
         /// </summary>
-        public Func<List<NodeModelBase>> GetNodes { get; set; }
+        public Func<List<IFlowNode>> GetNodes { get; set; }
     }
 
     /// <summary>

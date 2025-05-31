@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Serein.Library.Api;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -32,7 +33,7 @@ namespace Serein.Library.FlowNode
     /// </summary>
     public class JunctionModel
     {
-        public JunctionModel(NodeModelBase NodeModel, JunctionType JunctionType)
+        public JunctionModel(IFlowNode NodeModel, JunctionType JunctionType)
         {
             Guid = System.Guid.NewGuid().ToString();
             this.NodeModel = NodeModel;
@@ -51,6 +52,6 @@ namespace Serein.Library.FlowNode
         /// <summary>
         /// 连接点依附的节点
         /// </summary>
-        public NodeModelBase NodeModel { get; }
+        public IFlowNode NodeModel { get; }
     }
 }

@@ -18,7 +18,7 @@ namespace Serein.Library.Api
         /// <summary>
         /// 对应的节点
         /// </summary>
-        NodeModelBase NodeModel { get; }
+        IFlowNode NodeModel { get; }
 
         /// <summary>
         /// 根据索引从入参数据获取数据 

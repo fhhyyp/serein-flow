@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Serein.Library.Api;
 
 namespace Serein.Workbench.Node.ViewModel
 {
@@ -14,9 +15,9 @@ namespace Serein.Workbench.Node.ViewModel
         ///// <summary>
         ///// 对应的节点实体类
         ///// </summary>
-        public NodeModelBase NodeModel { get; }
+        public IFlowNode NodeModel { get; }
 
-        public NodeControlViewModelBase(NodeModelBase nodeModel)
+        public NodeControlViewModelBase(IFlowNode nodeModel)
         {
             NodeModel = nodeModel;
 

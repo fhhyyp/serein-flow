@@ -351,7 +351,7 @@ namespace Serein.Library.Api
         /// <param name="canvasGuid">画布</param>
         /// <param name="nodeModel">节点对象</param>
         /// <param name="position">位置</param>
-        public NodeCreateEventArgs(string canvasGuid, NodeModelBase nodeModel, PositionOfUI position)
+        public NodeCreateEventArgs(string canvasGuid, IFlowNode nodeModel, PositionOfUI position)
         {
             CanvasGuid = canvasGuid;
             this.NodeModel = nodeModel;
@@ -365,7 +365,7 @@ namespace Serein.Library.Api
         /// <summary>
         /// 节点Model对象
         /// </summary>
-        public NodeModelBase NodeModel { get; private set; }
+        public IFlowNode NodeModel { get; private set; }
         /// <summary>
         /// 在UI上的位置
         /// </summary>
@@ -1070,7 +1070,7 @@ namespace Serein.Library.Api
         /// <param name="nodeGuid"></param>
         /// <param name="nodeModel"></param>
         /// <returns></returns>
-        bool TryGetNodeModel(string nodeGuid, out NodeModelBase nodeModel);
+        bool TryGetNodeModel(string nodeGuid, out IFlowNode nodeModel);
 
         /// <summary>
         /// 获取方法描述信息

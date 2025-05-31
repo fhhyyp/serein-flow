@@ -36,7 +36,7 @@ namespace Serein.Workbench.Views
 
         private void Grid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (sender is Grid grid && grid.DataContext is NodeModelBase nodeModel)
+            if (sender is Grid grid && grid.DataContext is IFlowNode nodeModel)
             {
                 NodeInfoViewModel.ViewNodeModel = nodeModel;
                 App.GetService<IFlowEnvironment>().NodeLocated(nodeModel.Guid);

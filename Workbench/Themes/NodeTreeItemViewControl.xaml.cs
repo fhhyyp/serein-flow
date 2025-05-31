@@ -26,18 +26,18 @@ namespace Serein.Workbench.Themes
         /// <summary>
         ///  保存的节点数据
         /// </summary>
-        private NodeModelBase nodeModel;
+        private IFlowNode nodeModel;
         private IFlowEnvironment flowEnvironment { get; set; }
 
 
         private class NodeTreeModel
         {
-            public NodeModelBase RootNode { get; set; }
-            public Dictionary<ConnectionInvokeType, List<NodeModelBase>> ChildNodes { get; set; }
+            public IFlowNode RootNode { get; set; }
+            public Dictionary<ConnectionInvokeType, List<IFlowNode>> ChildNodes { get; set; }
         }
 
 
-        public void InitAndLoadTree(IFlowEnvironment flowEnvironment, NodeModelBase nodeModel)
+        public void InitAndLoadTree(IFlowEnvironment flowEnvironment, IFlowNode nodeModel)
         {
             this.flowEnvironment = flowEnvironment;
             this.nodeModel = nodeModel;
@@ -46,11 +46,11 @@ namespace Serein.Workbench.Themes
 
         public TreeViewItem RefreshTree()
         {
-            NodeModelBase rootNodeModel = this.nodeModel;
+            IFlowNode rootNodeModel = this.nodeModel;
             NodeTreeModel nodeTreeModel = new NodeTreeModel
             {
                 RootNode = rootNodeModel,
-                ChildNodes = new Dictionary<ConnectionInvokeType, List<NodeModelBase>>()
+                ChildNodes = new Dictionary<ConnectionInvokeType, List<IFlowNode>>()
                 {
                     {ConnectionInvokeType.Upstream, []},
                     {ConnectionInvokeType.IsSucceed, [rootNodeModel]},
