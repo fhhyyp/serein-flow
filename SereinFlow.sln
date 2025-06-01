@@ -26,6 +26,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Workbench.Avalonia",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Workbench.Avalonia.Desktop", "Serein.Workbench.Avalonia.Desktop\Serein.Workbench.Avalonia.Desktop.csproj", "{D46C9E9E-9994-45E6-8084-A8A9497B1DC2}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Serein.CollaborationSync", "Serein.CollaborationSync\Serein.CollaborationSync.csproj", "{913AAB34-7383-4F9D-A7DF-A5E6191DDB3D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -68,6 +70,10 @@ Global
 		{D46C9E9E-9994-45E6-8084-A8A9497B1DC2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D46C9E9E-9994-45E6-8084-A8A9497B1DC2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D46C9E9E-9994-45E6-8084-A8A9497B1DC2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{913AAB34-7383-4F9D-A7DF-A5E6191DDB3D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{913AAB34-7383-4F9D-A7DF-A5E6191DDB3D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{913AAB34-7383-4F9D-A7DF-A5E6191DDB3D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{913AAB34-7383-4F9D-A7DF-A5E6191DDB3D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

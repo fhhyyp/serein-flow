@@ -20,7 +20,9 @@ obj/
 # 排除发布文件夹
 .Output/
 /.git1
+doc
 WorkBench.ControlLibrary.Core
 WorkBench.Remote
 Serein.FlowStartTool
 Serein.CloudWorkbench
+Serein.CollaborationSync

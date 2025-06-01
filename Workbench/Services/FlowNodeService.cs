@@ -36,11 +36,6 @@ namespace Serein.Workbench.Services
         public Action<FlowCanvasView> OnRemoveFlowCanvasView { get; set; }
 
         /// <summary>
-        /// 添加了节点
-        /// </summary>
-        public Action<NodeControlBase> OnCreateNode { get; set; }
-
-        /// <summary>
         /// 查看的画布发生改变
         /// </summary>
         public Action<FlowCanvasView> OnViewCanvasChanged{ get; set; }
@@ -356,7 +351,11 @@ namespace Serein.Workbench.Services
                                                  nodeMVVM.ViewModelType, // 控件VIewModel类型
                                                  nodeModel,  // 控件数据实体
                                                  nodeCanvas); // 所在画布
-                OnCreateNode.Invoke(nodeControl); // 创建节点
+
+                if(nodeCanvas is IFlowCanvas flowCanvas)
+                {
+                    flowCanvas.Add(nodeControl);  // 创建节点
+                }
             }
             catch (Exception ex)
             {

@@ -18,6 +18,8 @@ namespace Serein.Library
     public class SereinBaseFunction
     {
         
+        
+
         [NodeAction(NodeType.Action, "键值对组装")]
         private Dictionary<string, object> SereinKvDataCollectionNode(string argName, 
                                                                       params object[] value)

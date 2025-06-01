@@ -8,7 +8,6 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-
 namespace Serein.Library
 {
 
@@ -118,6 +117,11 @@ namespace Serein.Library
 
     public partial class ParameterDetails
     {
+         
+        
+
+        
+
 
         /// <summary>
         /// 用于创建元数据

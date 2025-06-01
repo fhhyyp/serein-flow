@@ -173,7 +173,6 @@ namespace Serein.Workbench.Views
 
         private void InitEvent()
         {
-            flowNodeService.OnCreateNode += OnCreateNode;
             keyEventService.OnKeyDown += KeyEventService_OnKeyDown;
             flowEEForwardingService.OnNodeLocated += FlowEEForwardingService_OnNodeLocated;
         }
@@ -273,7 +272,7 @@ namespace Serein.Workbench.Views
         /// 当前画布创建了节点
         /// </summary>
         /// <param name="nodeControl"></param>
-        private void OnCreateNode(NodeControlBase nodeControl)
+       /* private void OnCreateNode(NodeControlBase nodeControl)
         {
             if (!nodeControl.FlowCanvas.Guid.Equals(Guid)) // 防止事件传播到其它画布
             {
@@ -295,7 +294,7 @@ namespace Serein.Workbench.Views
 
             }
 
-        }
+        }*/
 
         /// <summary>
         ///  尝试判断是否为区域，如果是，将节点放置在区域中
@@ -367,6 +366,18 @@ namespace Serein.Workbench.Views
         }
         void IFlowCanvas.Add(NodeControlBase nodeControl)
         {
+            var p = nodeControl.ViewModel.NodeModel.Position;
+            PositionOfUI position = new PositionOfUI(p.X, p.Y);
+            if (TryPlaceNodeInRegion(nodeControl, position, out var regionControl)) // 判断添加到区域容器
+            {
+                // 通知运行环境调用加载节点子项的方法
+                _ = flowEnvironment.PlaceNodeToContainerAsync(Guid,
+                                                  nodeControl.ViewModel.NodeModel.Guid, // 待移动的节点
+                                                  regionControl.ViewModel.NodeModel.Guid); // 目标的容器节点
+                return;
+            }
+
+            // 并非添加在容器中，直接放置节点
 
             ViewModel.NodeControls.TryAdd(nodeControl.ViewModel.NodeModel.Guid, nodeControl);
 

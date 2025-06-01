@@ -150,7 +150,7 @@ namespace Serein.Library.Utils
 
 
         /// <summary>
-        /// 对象转换（好像没啥用）
+        /// 对象转换为对应类型
         /// </summary>
         /// <typeparam name="TResult"></typeparam>
         /// <param name="data"></param>

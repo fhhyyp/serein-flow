@@ -77,13 +77,11 @@ namespace Serein.NodeFlow.Env
 
         private MsgControllerOfServer clientMsgManage;
 
-
         /// <summary>
         /// <para>表示是否正在控制远程</para>
         /// <para>Local control remote env</para>
         /// </summary>
         public bool IsControlRemoteEnv { get; set; }
-
 
         /// <summary>
         /// 打开远程管理
@@ -1521,10 +1519,13 @@ namespace Serein.NodeFlow.Env
         /// <returns></returns>
         public Task NotificationNodeValueChangeAsync(string nodeGuid, string path, object value)
         {
+            // "NodeModel.Path"
             if (TryGetNodeModel(nodeGuid, out var nodeModel))
             {
                 SerinExpressionEvaluator.Evaluate($"@Set .{path} = {value}", nodeModel, out _); // 更改对应的数据
             }
+
+
             return Task.CompletedTask;
             //if (NodeValueChangeLogger.Remove((nodeGuid, path, value)))
             //{

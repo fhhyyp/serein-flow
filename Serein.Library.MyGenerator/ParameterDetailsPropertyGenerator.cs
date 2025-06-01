@@ -125,11 +125,10 @@ namespace Serein.Library.NodeGenerator
             sb.AppendLine($"using System.Collections.Generic;");
             sb.AppendLine($"using Serein.Library;");
             sb.AppendLine($"using Serein.Library.Api;");
-            //sb.AppendLine($"using static Serein.Library.Utils.ChannelFlowInterrupt;");
             sb.AppendLine($"");
-            sb.AppendLine($"namespace {namespaceName}");
+            sb.AppendLine($"namespace {namespaceName}"); // 命名空间
             sb.AppendLine("{");
-            sb.AppendLine($"    public partial class {className} : System.ComponentModel.INotifyPropertyChanged");
+            sb.AppendLine($"    public partial class {className} : global::System.ComponentModel.INotifyPropertyChanged"); // 类名
             sb.AppendLine("    {");
 
             //object path = null ;
@@ -143,10 +142,6 @@ namespace Serein.Library.NodeGenerator
 
             // "ParameterDetails";
             // "MethodDetails";
-
-
-
-
             try
             {
                 var expInfo = MyAttributeResolver.BuildCacheOfField(classSyntax.Members.OfType<FieldDeclarationSyntax>());
@@ -158,35 +153,46 @@ namespace Serein.Library.NodeGenerator
                         continue;
                     }
 
-                    var leadingTrivia = field.GetLeadingTrivia().InsertSummaryComment("（此属性为自动生成）").ToString(); // 获取注释
+                    //var leadingTrivia = field.GetLeadingTrivia().InsertSummaryComment("（此属性为自动生成）").ToString(); // 获取注释
                     var fieldName = field.Declaration.Variables.First().Identifier.Text; // 获取字段名称
                     var fieldType = field.Declaration.Type.ToString(); // 获取字段类型
                     var propertyName = field.ToPropertyName(); // 转为合适的属性名称
                     var attributeInfo = fieldKV.Value; // 缓存的特性信息
 
                     var isProtection = attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsProtection), value => bool.Parse(value)); // 是否为保护字段
-
-                    sb.AppendLine($"        partial void On{propertyName}Changed({fieldType} oldValue,{fieldType} newValue);");
+                    //sb.AppendLine(leadingTrivia);
+                    sb.AppendLine($"        partial void On{propertyName}Changed({fieldType} oldValue, {fieldType} newValue);");
                     sb.AppendLine($"        partial void On{propertyName}Changed({fieldType} value);");
+                    sb.AppendLine();
                     // 生成 getter / setter
-                    sb.AppendLine(leadingTrivia);
+                    sb.AppendLine($"        /// <inheritdoc cref=\"{fieldName}\"/>");
+                    sb.AppendLine( "        [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]");
                     sb.AppendLine($"        public {fieldType} {propertyName}");
                     sb.AppendLine("        {");
                     sb.AppendLine($"            get => {fieldName};"); // getter方法
-                    sb.AppendLine("            set");
-                    sb.AppendLine("            {");
+                    sb.AppendLine( "            set");
+                    sb.AppendLine( "            {");
                     sb.AppendLine($"                if ({fieldName} {(isProtection ? "== default" : "!= value")})"); // 非保护的Setter
-                    sb.AppendLine("                {");
+                    sb.AppendLine( "                {");
                     sb.AppendLine($"                    var __oldValue = {fieldName};");
                     sb.AppendLine($"                    SetProperty<{fieldType}>(ref {fieldName}, value); // 通知UI属性发生改变了");
                     sb.AppendLine($"                    On{propertyName}Changed(value);");
                     sb.AppendLine($"                    On{propertyName}Changed(__oldValue, value);");
-                    if (attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsPrint), value => bool.Parse(value)))  // 是否打印
+                    if (attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsPrint), value => bool.Parse(value))) 
                     {
                         sb.AddCode(5, $"Console.WriteLine({fieldName});");
-                    }
+                    } // 是否打印
+
+                    // private void ValueChangedNotificationRemoteEnv(string nodeGuid, string nodeValuePath, string proprtyName, string fieldType, string otherData = null)
+
+                    // NodeValuePath.Node  ： 作用在节点
+                    // NodeValuePath.DebugSetting  ： 节点 → 参数信息 
+                    // NodeValuePath.Method  ： 节点 → 方法描述 
+                    // NodeValuePath.Parameter  ： 节点 → 方法描述 → 参数描述
+
                     if (attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsNotification), value => bool.Parse(value))) // 是否通知
                     {
+
                         if (classInfo.ExitsPath(nameof(NodeValuePath.Node))) // 节点 or 自定义节点
                         {
                             sb.AddCode(5, $"if (this?.Env?.IsControlRemoteEnv == true) // 正在控制远程环境时才触发");
@@ -214,9 +220,9 @@ namespace Serein.Library.NodeGenerator
                             }
                             sb.AddCode(5, $"}}");
                         }
-                      
-                    }
-                    
+
+                    } // 是否通知
+
                     sb.AppendLine("                }");
                     sb.AppendLine("            }");
                     sb.AppendLine("        }"); // 属性的结尾大括号
@@ -250,6 +256,11 @@ namespace Serein.Library.NodeGenerator
                 sb.AppendLine("                                                                                                                             ");
                 sb.AppendLine("                                                                                                                           ");
                 sb.AppendLine("                                                                                                                             ");
+
+                // 生成变量修改
+
+
+
                 //sb.AppendLine("        /// <summary>                                                                                                        ");
                 //sb.AppendLine("        /// 略                                                                                                               ");
                 //sb.AppendLine("        /// <para>此方法为自动生成</para>                                                                                    "); 
@@ -272,11 +283,40 @@ namespace Serein.Library.NodeGenerator
 
             return sb.ToString(); // 返回生成的代码
         }
-        
-        
-        
-        
-        
+
+
+
+        /*private void ModifyValue(string path, string value)
+       {
+           if (string.IsNullOrWhiteSpace(path))
+           {
+               return;
+           }
+           else if (path.Equals(nameof(MaxChildrenCount), StringComparison.OrdinalIgnoreCase))
+           {
+               if (typeof(int) == typeof(string))
+               {
+                   this.MaxChildrenCount = value;
+               }
+               else
+               {
+                   this.MaxChildrenCount = ConvertHelper.ValueParse<int>(value);
+               }
+           }
+           else if (path.Equals(nameof(Guid), StringComparison.OrdinalIgnoreCase))
+           {
+               if (typeof(string) == typeof(string))
+               {
+                   this.Guid = value;
+               }
+               else
+               {
+                   this.Guid = ConvertHelper.ValueParse<string>(value);
+               }
+           }
+       }*/
+
+
         /// <summary>
         /// 获取类所在的命名空间。
         /// </summary>
@@ -310,7 +350,7 @@ namespace Serein.Library.NodeGenerator
 
 
         /// <summary>
-        /// 为 XML 文档注释中的 <summary> 标签插入指定的文本
+        /// 为 XML 文档注释中的 summary 标签插入指定的文本
         /// </summary>
         /// <param name="triviaList">语法节点的 LeadingTrivia 或 TrailingTrivia 列表</param>
         /// <param name="comment">要插入的注释文本</param>
@@ -348,14 +388,19 @@ namespace Serein.Library.NodeGenerator
                     var paraElement = SyntaxFactory.XmlElement(
                         SyntaxFactory.XmlElementStartTag(SyntaxFactory.XmlName("para")),   // 起始标签 <para>
                         SyntaxFactory.SingletonList<XmlNodeSyntax>(                        // 内容
-                            SyntaxFactory.XmlText(comment).WithLeadingTrivia(SyntaxFactory.Whitespace(" "))
+                            SyntaxFactory.XmlText(comment)
                         ),
                         SyntaxFactory.XmlElementEndTag(SyntaxFactory.XmlName("para"))     // 结束标签 </para>
                     );
 
+                    // WithLeadingTrivia(SyntaxFactory.Whitespace(""))
+
+                    // .AddContent(SyntaxFactory.XmlNewLine("123")
 
                     // 将 <para> 插入到 <summary> 中
-                    var updatedSummaryNode = summaryNode.AddContent(paraElement);
+                    var updatedSummaryNode = summaryNode.AddContent(paraElement).AddContent();
+
+
                     // 用新的 <summary> 标签替换原来的
                     var updatedStructuredTrivia = structuredTrivia.ReplaceNode(summaryNode, updatedSummaryNode);
 

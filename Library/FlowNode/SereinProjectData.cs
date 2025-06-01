@@ -28,6 +28,8 @@ namespace Serein.Library
         // IOC节点对象信息
     }
 
+
+
     /// <summary>
     /// 程序集相关的方法信息
     /// </summary>
@@ -64,12 +66,6 @@ namespace Serein.Library
 
         public NodeLibraryInfo[] Librarys { get; set; }
 
-        ///// <summary>
-        ///// 起始节点GUID
-        ///// </summary>
-
-        //public string StartNode { get; set; }
-
         /// <summary>
         /// 画布集合
         /// </summary>
@@ -100,45 +96,7 @@ namespace Serein.Library
     }
 
 
-   /* /// <summary>
-    /// 画布信息，项目文件相关
-    /// </summary>
-    public class FlowCanvasInfo
-    {
-        public string Guid { get; set; }
-
-        public string Name { get; set; }
-
-        /// <summary>
-        /// 宽度
-        /// </summary>
-        public double Width { get; set; }
-        /// <summary>
-        /// 高度
-        /// </summary>
-        public double Height { get; set; }
-
-        /// <summary>
-        /// 预览位置X
-        /// </summary>
-        public double ViewX { get; set; }
-
-        /// <summary>
-        /// 预览位置Y
-        /// </summary>
-        public double ViewY { get; set; }
-
-        /// <summary>
-        /// 缩放比例X
-        /// </summary>
-        public double ScaleX { get; set; }
-
-        /// <summary>
-        /// 缩放比例Y
-        /// </summary>
-        public double ScaleY { get; set; }
-    }*/
-
+   
     /// <summary>
     /// 项目依赖的程序集，项目文件相关
     /// </summary>
@@ -161,27 +119,7 @@ namespace Serein.Library
         public string AssemblyName { get; set; }
     }
 
-    #region 暂时注释
-    /*public class LibraryInfo
-{
-    /// <summary>
-    /// 文件名称
-    /// </summary>
-
-    public string FileName { get; set; }
-
-    /// <summary>
-    /// 文件路径
-    /// </summary>
-    public string FilePath { get; set; }
-
-    /// <summary>
-    /// 程序集名称
-    /// </summary>
-    public string AssemblyName { get; set; }
-}*/
-    #endregion
-
+   
     /// <summary>
     /// 节点信息，项目文件相关
     /// </summary>
@@ -290,6 +228,8 @@ namespace Serein.Library
         /// </summary>
         public dynamic CustomData { get; set; }
     }
+
+
 
     /// <summary>
     /// 参数信息，项目文件相关
