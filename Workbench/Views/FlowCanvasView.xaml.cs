@@ -1204,7 +1204,7 @@ namespace Serein.Workbench.Views
                 var nodeConotrol = selectNodeControls[0]; 
                 // 选取了控件
                 flowNodeService.CurrentSelectNodeControl = nodeConotrol; // 更新选取节点显示
-                App.GetService<FlowNodeService>().CurrentMethodDetailsInfo = nodeConotrol.ViewModel.NodeModel.MethodDetails.ToInfo();
+                // App.GetService<FlowNodeService>().CurrentMethodDetailsInfo = nodeConotrol.ViewModel.NodeModel.MethodDetails.ToInfo();
                 // ChangeViewerObjOfNode(selectNodeControls[0]);
             }
 
