@@ -31,11 +31,11 @@ namespace Serein.FlowStartTool
             //}
             //else
             //{
-            //    env = new FlowEnvironmentDecorator(uIContextOperation);
+            //    env = new FlowEnvironment(uIContextOperation);
             //    this.window = window;
             //}
 
-            Env = new FlowEnvironmentDecorator();
+            Env = new FlowEnvironment();
             Env.SetUIContextOperation(uIContextOperation);
             Env.LoadProject(new FlowEnvInfo { Project = flowProjectData }, fileDataPath); // 加载项目
 

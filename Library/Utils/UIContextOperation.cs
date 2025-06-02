@@ -45,9 +45,9 @@ namespace Serein.Library.Utils
         }
 
         /// <summary>
-        /// 传入UI线程上下文
+        /// 传入获取UI线程上下文的闭包创建
         /// </summary>
-        /// <param name="synchronizationContext">线程上下文</param>
+        /// <param name="getUiContext">获取线程上下文的闭包函数</param>
         public UIContextOperation(Func<SynchronizationContext> getUiContext)
         {
             this.getUiContext = getUiContext;

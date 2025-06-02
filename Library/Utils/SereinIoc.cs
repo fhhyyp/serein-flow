@@ -12,7 +12,7 @@ namespace Serein.Library.Utils
 {
 
     /// <summary>
-    /// IOC管理容器
+    /// 一个轻量级的IOC容器
     /// </summary>
     public class SereinIOC : ISereinIOC
     {
@@ -79,6 +79,20 @@ namespace Serein.Library.Utils
         }
 
 
+        /// <summary>
+        /// 向容器注册类型，并指定其实例成员
+        /// </summary>
+        /// <typeparam name="T">需要注册的类型</typeparam>
+        /// <param name="getInstance">获取实例的回调函数</param>
+        /// <returns></returns>
+        public ISereinIOC Register<T>()
+        {
+            var type = typeof(T);
+            RegisterType(type.FullName, type);
+            return this;
+        }
+
+        
         /// <summary>
         /// 向容器注册类型，并指定其实例成员
         /// </summary>
@@ -485,7 +499,7 @@ namespace Serein.Library.Utils
                     continue;
                 }
                 _dependencies[typeName] = value;
-                OnIOCMembersChanged.Invoke(new IOCMembersChangedEventArgs(typeName, value));
+                OnIOCMembersChanged?.Invoke(new IOCMembersChangedEventArgs(typeName, value));
             }
             _typeMappings.Clear();
             return this;
@@ -577,84 +591,44 @@ namespace Serein.Library.Utils
             return isPass;
         }
 
-       
-        private void Run<T>(Action<T> action)
+        #endregion
+
+        #region 运行
+
+        public ISereinIOC Run<T>(Action<T> action)
         {
             var service = Get<T>();
             action(service);
+            return this;
         }
 
-        private void Run<T1, T2>(Action<T1, T2> action)
+        public ISereinIOC Run<T1, T2>(Action<T1, T2> action)
         {
             var service1 = Get<T1>();
             var service2 = Get<T2>();
 
-            action(service1, service2);
+            action(service1, service2); 
+            return this;
         }
 
-        private void Run<T1, T2, T3>(Action<T1, T2, T3> action)
+        public ISereinIOC Run<T1, T2, T3>(Action<T1, T2, T3> action)
         {
             var service1 = Get<T1>();
             var service2 = Get<T2>();
             var service3 = Get<T3>();
             action(service1, service2, service3);
+            return this;
         }
 
-        private void Run<T1, T2, T3, T4>(Action<T1, T2, T3, T4> action)  
+        public ISereinIOC Run<T1, T2, T3, T4>(Action<T1, T2, T3, T4> action)  
         {
             var service1 = Get<T1>();
             var service2 = Get<T2>();
             var service3 = Get<T3>();
             var service4 = Get<T4>();
             action(service1, service2, service3, service4);
+            return this;
         }
-
-        private void Run<T1, T2, T3, T4, T5>(Action<T1, T2, T3, T4, T5> action)
-        {
-            var service1 = Get<T1>();
-            var service2 = Get<T2>();
-            var service3 = Get<T3>();
-            var service4 = Get<T4>();
-            var service5 = Get<T5>();
-            action(service1, service2, service3, service4, service5);
-        }
-
-        private void Run<T1, T2, T3, T4, T5, T6>(Action<T1, T2, T3, T4, T5, T6> action)
-        {
-            var service1 = Get<T1>();
-            var service2 = Get<T2>();
-            var service3 = Get<T3>();
-            var service4 = Get<T4>();
-            var service5 = Get<T5>();
-            var service6 = Get<T6>();
-            action(service1, service2, service3, service4, service5, service6);
-        }
-
-        private void Run<T1, T2, T3, T4, T5, T6, T7>(Action<T1, T2, T3, T4, T5, T6, T7> action)
-        {
-            var service1 = Get<T1>();
-            var service2 = Get<T2>();
-            var service3 = Get<T3>();
-            var service4 = Get<T4>();
-            var service5 = Get<T5>();
-            var service6 = Get<T6>();
-            var service7 = Get<T7>();
-            action(service1, service2, service3, service4, service5, service6, service7);
-        }
-
-        private void Run<T1, T2, T3, T4, T5, T6, T7, T8>(Action<T1, T2, T3, T4, T5, T6, T7, T8> action)
-        {
-            var service1 = Get<T1>();
-            var service2 = Get<T2>();
-            var service3 = Get<T3>();
-            var service4 = Get<T4>();
-            var service5 = Get<T5>();
-            var service6 = Get<T6>();
-            var service7 = Get<T7>();
-            var service8 = Get<T8>();
-            action(service1, service2, service3, service4, service5, service6, service7, service8);
-        }
-
 
         #endregion
     }

@@ -739,6 +739,7 @@ namespace Serein.Library.Api
     }
 
 
+
     /// <summary>
     /// 运行环境
     /// </summary>
@@ -757,7 +758,6 @@ namespace Serein.Library.Api
         /// 环境名称
         /// </summary>
         string EnvName { get; }
-
 
         /// <summary>
         /// 项目文件位置
@@ -786,11 +786,6 @@ namespace Serein.Library.Api
         RunState FlowState { get;  set; }
 
         /// <summary>
-        /// 全局触发器运行状态
-        /// </summary>
-        //RunState FlipFlopState { get;  set; }
-
-        /// <summary>
         /// 表示当前环境
         /// </summary>
         IFlowEnvironment CurrentEnv { get; }
@@ -811,8 +806,9 @@ namespace Serein.Library.Api
         /// <summary>
         /// 输出信息
         /// </summary>
-        /// <param name="message"></param>
-        /// <param name="type"></param>
+        /// <param name="message">消息</param>
+        /// <param name="type">输出类型</param>
+        /// <param name="class">输出级别</param>
         void WriteLine(InfoType type, string message, InfoClass @class = InfoClass.Trivial);
 
         /// <summary>
@@ -839,7 +835,6 @@ namespace Serein.Library.Api
         /// <param name="nodeInfos">节点集合信息</param>
         /// <returns></returns>
         Task LoadNodeInfosAsync(List<NodeInfo> nodeInfos);
-
 
         #endregion
 
@@ -906,6 +901,7 @@ namespace Serein.Library.Api
         /// <summary>
         /// 移动了某个节点(远程插件使用）
         /// </summary>
+        /// <param name="canvasGuid">所在画布</param>
         /// <param name="nodeGuid"></param>
         /// <param name="x"></param>
         /// <param name="y"></param>
@@ -914,6 +910,7 @@ namespace Serein.Library.Api
         /// <summary>
         /// 设置流程起点节点
         /// </summary>
+        /// <param name="canvasGuid">所在画布</param>
         /// <param name="nodeGuid">尝试设置为起始节点的节点Guid</param>
         /// <returns>被设置为起始节点的Guid</returns>
         Task<string> SetStartNodeAsync(string canvasGuid, string nodeGuid);
@@ -921,6 +918,7 @@ namespace Serein.Library.Api
         /// <summary>
         /// 在两个节点之间创建连接关系
         /// </summary>
+        /// <param name="canvasGuid">所在画布</param>
         /// <param name="fromNodeGuid">起始节点Guid</param>
         /// <param name="toNodeGuid">目标节点Guid</param>
         /// <param name="fromNodeJunctionType">起始节点控制点</param>
@@ -936,6 +934,7 @@ namespace Serein.Library.Api
         /// <summary>
         /// 在两个节点之间创建连接关系
         /// </summary>
+        /// <param name="canvasGuid">所在画布</param>
         /// <param name="fromNodeGuid">起始节点Guid</param>
         /// <param name="toNodeGuid">目标节点Guid</param>
         /// <param name="fromNodeJunctionType">起始节点控制点</param>
@@ -950,26 +949,32 @@ namespace Serein.Library.Api
                                              ConnectionArgSourceType argSourceType,
                                              int argIndex);
 
-        
+
 
         /// <summary>
         /// 创建节点
         /// </summary>
+        /// <param name="canvasGuid">所在画布</param>
         /// <param name="nodeType">控件类型</param>
         /// <param name="position">节点在画布上的位置（</param>
         /// <param name="methodDetailsInfo">节点绑定的方法说明</param>
         Task<NodeInfo> CreateNodeAsync(string canvasGuid, NodeControlType nodeType, PositionOfUI position, MethodDetailsInfo methodDetailsInfo = null);
 
+
         /// <summary>
-        /// 将节点放置在容器中
+        ///  将节点放置在容器中
         /// </summary>
+        /// <param name="canvasGuid">所在画布</param>
+        /// <param name="nodeGuid">需要放置的节点Guid</param>
+        /// <param name="containerNodeGuid">存放节点的容器Guid</param>
         /// <returns></returns>
         Task<bool> PlaceNodeToContainerAsync(string canvasGuid, string nodeGuid, string containerNodeGuid);
 
         /// <summary>
-        /// 将节点从容器中脱离
+        ///  将节点放置在容器中
         /// </summary>
-        /// <returns></returns>
+        /// <param name="canvasGuid">所在画布</param>
+        /// <param name="nodeGuid">需要取出的节点Guid</param>
         Task<bool> TakeOutNodeToContainerAsync(string canvasGuid, string nodeGuid);
 
 
@@ -984,7 +989,8 @@ namespace Serein.Library.Api
 
         /// <summary>
         /// 移除两个节点之间的方法调用关系
-        /// </summary>
+        /// </summary>        
+        /// <param name="canvasGuid">所在画布</param>
         /// <param name="fromNodeGuid">起始节点</param>
         /// <param name="toNodeGuid">目标节点</param>
         /// <param name="connectionType">连接类型</param>
@@ -993,15 +999,16 @@ namespace Serein.Library.Api
         /// <summary>
         /// 移除连接节点之间参数传递的关系
         /// </summary>
+        /// <param name="canvasGuid">所在画布</param>
         /// <param name="fromNodeGuid">起始节点Guid</param>
         /// <param name="toNodeGuid">目标节点Guid</param>
         /// <param name="argIndex">连接到第几个参数</param>
-        /// <param name="connectionArgSourceType">参数来源类型</param>
         Task<bool> RemoveConnectArgSourceAsync(string canvasGuid, string fromNodeGuid, string toNodeGuid, int argIndex);
 
         /// <summary>
         /// 移除节点/区域/基础控件
         /// </summary>
+        /// <param name="canvasGuid">所在画布</param>
         /// <param name="nodeGuid">待移除的节点Guid</param>
         Task<bool> RemoveNodeAsync(string canvasGuid, string nodeGuid);
 
@@ -1089,10 +1096,20 @@ namespace Serein.Library.Api
         bool TryGetDelegateDetails(string assemblyName, string methodName, out DelegateDetails del);
 
         /// <summary>
-        /// 提供设置UI上下文的能力
+        /// <para>提供设置UI上下文的能力</para>
+        /// <para>提供设置UI上下文的能力，在WinForm/WPF项目中，在UI线程外对UI元素的修改将会导致异常</para>
+        /// <para>需要你提供</para>
         /// </summary>
         /// <param name="uiContextOperation"></param>
         void SetUIContextOperation(UIContextOperation uiContextOperation);
+
+        /// <summary>
+        /// <para>需要你提供一个由你实现的ISereinIOC接口实现类</para>
+        /// <para>当你将流程运行环境集成在你的项目时，并希望流程运行时使用你提供的对象，而非自动创建</para>
+        /// <para>就需要你调用这个方法，用来替换运行环境的IOC容器</para>
+        /// </summary>
+        /// <param name="ioc"></param>
+        void UseExternalIOC(ISereinIOC ioc);
 
         /// <summary>
         /// 开始运行流程
@@ -1100,7 +1117,6 @@ namespace Serein.Library.Api
         /// <param name="canvasGuids">需要运行的流程Guid</param>
         /// <returns></returns>
         Task<bool> StartFlowAsync(string[] canvasGuids);
-
 
         /// <summary>
         /// 从选定的节点开始运行
@@ -1141,14 +1157,6 @@ namespace Serein.Library.Api
         /// <param name="expression">被触发的表达式</param>
         /// <param name="type">中断类型。0主动监视，1表达式</param>
         void TriggerInterrupt(string nodeGuid, string expression, InterruptTriggerEventArgs.InterruptTriggerType type);
-
-        /// <summary>
-        /// 立刻调用某个节点，并获取其返回值
-        /// </summary>
-        /// <param name="context">调用时的上下文</param>
-        /// <param name="nodeGuid">节点Guid</param>
-        /// <returns></returns>
-        // Task<object> InvokeNodeAsync(IDynamicContext context, string nodeGuid);
 
         #endregion
 

@@ -25,8 +25,38 @@ namespace Serein.Library
             var emitMethodType = EmitHelper.CreateDynamicMethod(methodInfo, out var emitDelegate);
             _emitMethodInfo = emitMethodType;
             _emitDelegate = emitDelegate;
+            
+            SetFunc();
         }
 
+
+        private void SetFunc()
+        {
+            if (_emitDelegate is Func<object, object[], Task<object>> hasResultTask)
+            {
+                this.hasResultTask = hasResultTask;
+                funcType = 2;
+            }
+            else if (_emitDelegate is Func<object, object[], Task> task)
+            {
+                this.task = task;
+                funcType = 1;
+            }
+            else if (_emitDelegate is Func<object, object[], object> func)
+            {
+                this.func = func;
+                funcType = 0;
+            }
+            else
+            {
+                throw new NotSupportedException();
+            }
+        }
+
+
+        public Func<object, object[], Task<object>> hasResultTask;
+        public Func<object, object[], Task> task;
+        public Func<object, object[], object> func;
 
         
         /*/// <summary>
@@ -42,6 +72,12 @@ namespace Serein.Library
 
         private Delegate _emitDelegate;
         private EmitMethodInfo _emitMethodInfo;
+        /// <summary>
+        /// 0是普通
+        /// 1是异步无返回值
+        /// 2是异步有返回值
+        /// </summary>
+        private int funcType;
 
         /// <summary>
         /// 该Emit委托的相应信息
@@ -92,34 +128,25 @@ namespace Serein.Library
                 instance = null;
             }
             object result = null;
-            if (_emitDelegate is Func<object, object[], Task<object>> hasResultTask)
-            {
-                result = await hasResultTask(instance, args);
-            }
-            else if (_emitDelegate is Func<object, object[], Task> task)
-            {
-                await task.Invoke(instance, args);
-            }
-            else if (_emitDelegate is Func<object, object[], object> func)
+            if(funcType == 0)
             {
                 result = func.Invoke(instance, args);
+
+            }
+            else if (funcType == 2)
+            {
+                result = await hasResultTask(instance, args);
+            } 
+            else if (funcType == 1)
+            {
+                await task(instance, args);
+                result = null;
             }
             else
             {
                 throw new NotImplementedException("创建了非预期委托（应该不会出现）");
             }
-
-            // 
             return result;
-
-            //try
-            //{
-               
-            //}
-            //catch
-            //{
-            //    throw;
-            //}
         }
     }
 }

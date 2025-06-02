@@ -130,7 +130,7 @@ namespace Serein.Workbench.Services
         private void InitFlowEnvironmentEvent()
         {
             flowEnvironmentEvent.OnDllLoad += FlowEnvironment_DllLoadEvent;
-            flowEnvironmentEvent.OnProjectSaving += EnvDecorator_OnProjectSaving;
+            flowEnvironmentEvent.OnProjectSaving += FlowEnvironment_OnProjectSaving;
             flowEnvironmentEvent.OnProjectLoaded += FlowEnvironment_OnProjectLoaded;
             flowEnvironmentEvent.OnCanvasCreate += FlowEnvironmentEvent_OnCanvasCreate;
             flowEnvironmentEvent.OnCanvasRemove += FlowEnvironmentEvent_OnCanvasRemove;
@@ -138,8 +138,8 @@ namespace Serein.Workbench.Services
             flowEnvironmentEvent.OnNodeConnectChange += FlowEnvironment_NodeConnectChangeEvemt;
             flowEnvironmentEvent.OnNodeCreate += FlowEnvironment_NodeCreateEvent;
             flowEnvironmentEvent.OnNodeRemove += FlowEnvironment_NodeRemoveEvent;
-            flowEnvironmentEvent.OnNodePlace += EnvDecorator_OnNodePlaceEvent;
-            flowEnvironmentEvent.OnNodeTakeOut += EnvDecorator_OnNodeTakeOutEvent;
+            flowEnvironmentEvent.OnNodePlace += FlowEnvironment_OnNodePlaceEvent;
+            flowEnvironmentEvent.OnNodeTakeOut += FlowEnvironment_OnNodeTakeOutEvent;
             flowEnvironmentEvent.OnFlowRunComplete += FlowEnvironment_OnFlowRunCompleteEvent;
             
             flowEnvironmentEvent.OnMonitorObjectChange += FlowEnvironment_OnMonitorObjectChangeEvent;
@@ -158,14 +158,14 @@ namespace Serein.Workbench.Services
         private void ResetFlowEnvironmentEvent()
         {
            flowEnvironmentEvent.OnDllLoad -= FlowEnvironment_DllLoadEvent;
-           flowEnvironmentEvent.OnProjectSaving -= EnvDecorator_OnProjectSaving;
+           flowEnvironmentEvent.OnProjectSaving -= FlowEnvironment_OnProjectSaving;
            flowEnvironmentEvent.OnProjectLoaded -= FlowEnvironment_OnProjectLoaded;
            flowEnvironmentEvent.OnStartNodeChange -= FlowEnvironment_StartNodeChangeEvent;
            flowEnvironmentEvent.OnNodeConnectChange -= FlowEnvironment_NodeConnectChangeEvemt;
            flowEnvironmentEvent.OnNodeCreate -= FlowEnvironment_NodeCreateEvent;
            flowEnvironmentEvent.OnNodeRemove -= FlowEnvironment_NodeRemoveEvent;
-           flowEnvironmentEvent.OnNodePlace -= EnvDecorator_OnNodePlaceEvent;
-           flowEnvironmentEvent.OnNodeTakeOut -= EnvDecorator_OnNodeTakeOutEvent;
+           flowEnvironmentEvent.OnNodePlace -= FlowEnvironment_OnNodePlaceEvent;
+           flowEnvironmentEvent.OnNodeTakeOut -= FlowEnvironment_OnNodeTakeOutEvent;
             flowEnvironmentEvent.OnFlowRunComplete -= FlowEnvironment_OnFlowRunCompleteEvent;
 
 
@@ -201,7 +201,7 @@ namespace Serein.Workbench.Services
         /// </summary>
         /// <param name="eventArgs"></param>
         /// <exception cref="NotImplementedException"></exception>
-        private void EnvDecorator_OnProjectSaving(ProjectSavingEventArgs eventArgs)
+        private void FlowEnvironment_OnProjectSaving(ProjectSavingEventArgs eventArgs)
         {
             OnProjectSaving?.Invoke(eventArgs);
         }
@@ -289,7 +289,7 @@ namespace Serein.Workbench.Services
         /// </summary>
         /// <param name="eventArgs"></param>
         /// <exception cref="NotImplementedException"></exception>
-        private void EnvDecorator_OnNodePlaceEvent(NodePlaceEventArgs eventArgs)
+        private void FlowEnvironment_OnNodePlaceEvent(NodePlaceEventArgs eventArgs)
         {
             OnNodePlace?.Invoke(eventArgs);
         }
@@ -298,7 +298,7 @@ namespace Serein.Workbench.Services
         /// 取出一个节点
         /// </summary>
         /// <param name="eventArgs"></param>
-        private void EnvDecorator_OnNodeTakeOutEvent(NodeTakeOutEventArgs eventArgs)
+        private void FlowEnvironment_OnNodeTakeOutEvent(NodeTakeOutEventArgs eventArgs)
         {
             OnNodeTakeOut?.Invoke(eventArgs);
 

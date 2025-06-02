@@ -10,9 +10,9 @@ namespace Serein.NodeFlow.Env
     /// 客户端的消息管理（用于处理服务端的响应）
     /// </summary>
 
-    [AutoSocketModule(ThemeKey = FlowEnvironment.ThemeKey, 
-                      DataKey = FlowEnvironment.DataKey,
-                      MsgIdKey = FlowEnvironment.MsgIdKey)]
+    [AutoSocketModule(ThemeKey = LocalFlowEnvironment.ThemeKey, 
+                      DataKey = LocalFlowEnvironment.DataKey,
+                      MsgIdKey = LocalFlowEnvironment.MsgIdKey)]
     public class MsgControllerOfClient : ISocketHandleModule
     {
         public Guid HandleGuid => new Guid();

@@ -65,7 +65,7 @@ namespace Serein.NodeFlow.Env
 
         public ISereinIOC IOC => throw new NotImplementedException();
 
-        public string EnvName => FlowEnvironment.SpaceName;
+        public string EnvName => LocalFlowEnvironment.SpaceName;
 
         /// <summary>
         /// 远程项目的网络位置（WebSocket + IP + 端口 ： 远程主机的文件路径）
@@ -1422,6 +1422,11 @@ namespace Serein.NodeFlow.Env
         public void LoadAllNativeLibraryOfRuning(string path, bool isRecurrence = true)
         {
             this.WriteLine(InfoType.INFO, "远程环境尚未实现的接口：LoadAllNativeLibraryOfRuning");
+        }
+
+        public void UseExternalIOC(ISereinIOC ioc)
+        {
+            throw new NotImplementedException();
         }
 
 

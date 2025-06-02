@@ -11,9 +11,9 @@ namespace Serein.NodeFlow.Env
     /// <summary>
     /// 服务端的消息管理（用于处理客户端的请求）
     /// </summary>
-    [AutoSocketModule(ThemeKey = FlowEnvironment.ThemeKey,
-                      DataKey = FlowEnvironment.DataKey,
-                      MsgIdKey = FlowEnvironment.MsgIdKey)]
+    [AutoSocketModule(ThemeKey = LocalFlowEnvironment.ThemeKey,
+                      DataKey = LocalFlowEnvironment.DataKey,
+                      MsgIdKey = LocalFlowEnvironment.MsgIdKey)]
     public class MsgControllerOfServer : ISocketHandleModule
     {
         /// <summary>
@@ -156,8 +156,8 @@ namespace Serein.NodeFlow.Env
             {
                 JObject sendJson = new JObject
                 {
-                    [FlowEnvironment.ThemeKey] = theme,
-                    [FlowEnvironment.DataKey] = JObject.FromObject(data),
+                    [LocalFlowEnvironment.ThemeKey] = theme,
+                    [LocalFlowEnvironment.DataKey] = JObject.FromObject(data),
                 };
                 var msg = sendJson.ToString();
                 await SendAsync(msg);

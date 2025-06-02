@@ -36,6 +36,13 @@ namespace Serein.Library.Api
         /// 通过泛型的方式注册实例
         /// </summary>
         /// <typeparam name="T">实例类型</typeparam>
+        /// <returns></returns>
+        ISereinIOC Register<T>();
+
+        /// <summary>
+        /// 通过泛型的方式注册实例
+        /// </summary>
+        /// <typeparam name="T">实例类型</typeparam>
         /// <param name="getInstance">获取实例的回调函数</param>
         /// <returns></returns>
         ISereinIOC Register<T>(Func<T> getInstance);
@@ -84,6 +91,19 @@ namespace Serein.Library.Api
         /// </summary>
         /// <returns></returns>
         ISereinIOC Build();
+
+
+        /// <summary>
+        /// 从容器中获取某个类型的实例进行运行
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="action"></param>
+        /// <returns></returns>
+        ISereinIOC Run<T>(Action<T> action);
+        ISereinIOC Run<T1, T2>(Action<T1, T2> action);
+        ISereinIOC Run<T1, T2, T3>(Action<T1, T2, T3> action);
+        ISereinIOC Run<T1, T2, T3, T4>(Action<T1, T2, T3, T4> action);
+
     }
 
 }

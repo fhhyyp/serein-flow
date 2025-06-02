@@ -22,19 +22,19 @@ namespace Serein.Workbench
         /// <param name="collection"></param>
         public static void AddViewModelServices(this IServiceCollection collection)
         {
-            collection.AddSingleton<Locator>(); // 主窗体
+            collection.AddSingleton<Locator>(); // 视图模型路由
 
-            collection.AddSingleton<MainViewModel>();
-            collection.AddSingleton<MainMenuBarViewModel>();
-            collection.AddSingleton<FlowWorkbenchViewModel>();
-            collection.AddSingleton<BaseNodesViewModel>();
-            collection.AddSingleton<FlowLibrarysViewModel>();
-            collection.AddSingleton<FlowEditViewModel>();
-            collection.AddSingleton<ViewNodeInfoViewModel>();
-            collection.AddSingleton<ViewNodeMethodInfoViewModel>();
+            collection.AddSingleton<MainViewModel>(); 
+            collection.AddSingleton<MainMenuBarViewModel>(); // 菜单栏视图模型
+            collection.AddSingleton<FlowWorkbenchViewModel>(); // 工作台视图模型
+            collection.AddSingleton<BaseNodesViewModel>(); // 基础节点视图模型
+            collection.AddSingleton<FlowLibrarysViewModel>(); // 流程已加载依赖视图模型
+            collection.AddSingleton<FlowEditViewModel>(); // 流程画布编辑器视图模型
+            collection.AddSingleton<ViewNodeInfoViewModel>(); // 节点信息视图模型
+            collection.AddSingleton<ViewNodeMethodInfoViewModel>(); // 方法信息视图模型
+            collection.AddSingleton<ViewCanvasInfoViewModel>(); // 画布视图模型
 
             collection.AddTransient<FlowCanvasViewModel>(); // 画布
-            collection.AddTransient<ViewCanvasInfoViewModel>(); // 画布节点树视图
         }
 
         public static void AddWorkbenchServices(this IServiceCollection collection)
@@ -54,7 +54,7 @@ namespace Serein.Workbench
         public static void AddFlowServices(this IServiceCollection collection)
         {
             #region 创建实例
-            Func<SynchronizationContext> getSyncContext = null;
+            Func<SynchronizationContext>? getSyncContext = null;
             Dispatcher.CurrentDispatcher.Invoke(() =>
             {
                 var uiContext = SynchronizationContext.Current; // 在UI线程上获取UI线程上下文信息
@@ -62,16 +62,14 @@ namespace Serein.Workbench
                 {
                     getSyncContext = () => uiContext;
                 }
-
             });
-
             UIContextOperation? uIContextOperation = null;
             uIContextOperation = new UIContextOperation(getSyncContext); // 封装一个调用UI线程的工具类
-            var flowEnvironmentDecorator = new FlowEnvironmentDecorator();
-            flowEnvironmentDecorator.SetUIContextOperation(uIContextOperation);
+            var flowEnvironment = new FlowEnvironment();
+            flowEnvironment.SetUIContextOperation(uIContextOperation);
             collection.AddSingleton<UIContextOperation>(uIContextOperation); // 注册UI线程操作上下文
-            collection.AddSingleton<IFlowEnvironment>(flowEnvironmentDecorator); // 注册运行环境
-            collection.AddSingleton<IFlowEnvironmentEvent>(flowEnvironmentDecorator); // 注册运行环境事件
+            collection.AddSingleton<IFlowEnvironment>(flowEnvironment); // 注册运行环境
+            collection.AddSingleton<IFlowEnvironmentEvent>(flowEnvironment); // 注册运行环境事件
 
             #endregion
 
