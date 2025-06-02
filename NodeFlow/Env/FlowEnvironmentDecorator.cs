@@ -642,11 +642,6 @@ namespace Serein.NodeFlow.Env
             return IOC.Build();
         }
 
-        public bool RegisterPersistennceInstance(string key, object instance)
-        {
-            return IOC.RegisterPersistennceInstance(key, instance);
-        }
-
         //public bool RegisterInstance(string key, object instance)
         //{
         //    return IOC.RegisterInstance(key, instance);
@@ -667,29 +662,39 @@ namespace Serein.NodeFlow.Env
         //    return IOC.Get<T>(key);
         //}
 
-        public object Instantiate(Type type)
+        public object CreateTempObject(Type type)
         {
-            return IOC.Instantiate(type);
+            return IOC.CreateTempObject(type);
         }
 
-        public T Instantiate<T>()
+        public T CreateTempObject<T>()
         {
-            return IOC.Instantiate<T>();
+            return IOC.CreateTempObject<T>();
         }
 
-        public ISereinIOC Register(Type type, params object[] parameters)
+        public ISereinIOC Register(Type type)
         {
-            return IOC.Register(type, parameters);
+            return IOC.Register(type);
         }
 
-        public ISereinIOC Register<T>(params object[] parameters)
+        public ISereinIOC Register(Type type, Func<object> getInstance)
         {
-            return IOC.Register<T>(parameters);
+            return IOC.Register(type, getInstance);
         }
 
-        public ISereinIOC Register<TService, TImplementation>(params object[] parameters) where TImplementation : TService
+        public ISereinIOC Register<T>(Func<T> getInstance)
         {
-            return IOC.Register<TService, TImplementation>(parameters);
+            return IOC.Register<T>(getInstance);
+        }
+
+        public ISereinIOC Register<TService, TImplementation>(Func<TService> getInstance) where TImplementation : TService
+        {
+            return IOC.Register<TService, TImplementation>(getInstance);
+        }
+
+        public ISereinIOC Register<TService, TImplementation>() where TImplementation : TService
+        {
+            return IOC.Register<TService, TImplementation>();
         }
 
         public ISereinIOC Reset()
@@ -697,47 +702,6 @@ namespace Serein.NodeFlow.Env
             return IOC.Reset();
         }
 
-        public ISereinIOC Run<T>(Action<T> action)
-        {
-            return IOC.Run(action);
-        }
-
-        public ISereinIOC Run<T1, T2>(Action<T1, T2> action)
-        {
-            return IOC.Run(action);
-        }
-
-        public ISereinIOC Run<T1, T2, T3>(Action<T1, T2, T3> action)
-        {
-            return IOC.Run(action);
-        }
-
-        public ISereinIOC Run<T1, T2, T3, T4>(Action<T1, T2, T3, T4> action)
-        {
-            return IOC.Run(action);
-        }
-
-        public ISereinIOC Run<T1, T2, T3, T4, T5>(Action<T1, T2, T3, T4, T5> action)
-        {
-            return IOC.Run(action);
-        }
-
-        public ISereinIOC Run<T1, T2, T3, T4, T5, T6>(Action<T1, T2, T3, T4, T5, T6> action)
-        {
-            return IOC.Run(action);
-        }
-
-        public ISereinIOC Run<T1, T2, T3, T4, T5, T6, T7>(Action<T1, T2, T3, T4, T5, T6, T7> action)
-        {
-            return IOC.Run(action);
-        }
-
-        public ISereinIOC Run<T1, T2, T3, T4, T5, T6, T7, T8>(Action<T1, T2, T3, T4, T5, T6, T7, T8> action)
-        {
-            return IOC.Run(action);
-        }
-
-        
 
         #endregion
 

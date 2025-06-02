@@ -201,7 +201,8 @@ namespace Serein.NodeFlow
             var pool = WorkOptions.FlowContextPool;
             var ioc = WorkOptions.Environment.IOC;
 
-            ioc.Run<FlowInterruptTool>(fit => fit.CancelAllTrigger());// 取消所有中断
+            var fit = ioc.Get<FlowInterruptTool>();
+            fit.CancelAllTrigger(); // 取消所有中断
             foreach (var md in mds) // 结束时
             {
                 if (!env.TryGetDelegateDetails(md.AssemblyName, md.MethodName, out var dd)) // 流程运行初始化

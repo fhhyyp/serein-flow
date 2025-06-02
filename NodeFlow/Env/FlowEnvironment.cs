@@ -64,9 +64,9 @@ namespace Serein.NodeFlow.Env
             #endregion
 
             #region 注册基本服务类
-            PersistennceInstance.Add(typeof(FlowInterruptTool).FullName, new FlowInterruptTool()); // 缓存流程实例
-            PersistennceInstance.Add(typeof(IFlowEnvironment).FullName, (FlowEnvironment)this); // 缓存流程实例
-            PersistennceInstance.Add(typeof(ISereinIOC).FullName, this); // 缓存容器服务
+            PersistennceInstance.Add(typeof(FlowInterruptTool), new FlowInterruptTool()); // 缓存流程实例
+            PersistennceInstance.Add(typeof(IFlowEnvironment), (FlowEnvironment)this); // 缓存流程实例
+            PersistennceInstance.Add(typeof(ISereinIOC), this); // 缓存容器服务
 
             ReRegisterPersistennceInstance(); 
             
@@ -293,7 +293,7 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// 本地运行环境缓存的持久化实例
         /// </summary>
-        private Dictionary<string, object> PersistennceInstance { get; } = new Dictionary<string, object>();
+        private Dictionary<Type, object> PersistennceInstance { get; } = new Dictionary<Type, object>();
 
         /// <summary>
         /// 环境加载的节点集合
@@ -1428,13 +1428,13 @@ namespace Serein.NodeFlow.Env
         /// <param name="uiContextOperation"></param>
         public void SetUIContextOperation(UIContextOperation uiContextOperation)
         {
-            this.UIContextOperation = uiContextOperation;
-            var fullName = typeof(UIContextOperation).FullName;
-            if (!string.IsNullOrEmpty(fullName))
+            if(uiContextOperation is not null)
             {
-                PersistennceInstance[fullName] = uiContextOperation; // 缓存封装好的UI线程上下文
-
+                this.UIContextOperation = uiContextOperation;
+                PersistennceInstance[typeof(UIContextOperation)] = uiContextOperation; // 缓存封装好的UI线程上下文
             }
+   
+
 
         }
 
@@ -2150,7 +2150,7 @@ namespace Serein.NodeFlow.Env
             {
                 foreach (var kvp in PersistennceInstance)
                 {
-                    IOC.RegisterPersistennceInstance(kvp.Key, kvp.Value);
+                    IOC.Register(kvp.Key, () => kvp.Value);
                 } 
             }
         }
@@ -2182,21 +2182,32 @@ namespace Serein.NodeFlow.Env
             return this;
         }
 
-        ISereinIOC ISereinIOC.Register(Type type, params object[] parameters)
+        ISereinIOC ISereinIOC.Register(Type type)
         {
-            sereinIOC.Register(type, parameters);
+            sereinIOC.Register(type);
+            return this;
+        }
+        ISereinIOC ISereinIOC.Register(Type type, Func<object> getInstance)
+        {
+            sereinIOC.Register(type, getInstance);
             return this;
         }
 
-        ISereinIOC ISereinIOC.Register<T>(params object[] parameters)
+        ISereinIOC ISereinIOC.Register<T>(Func<T> getInstance)
         {
-            sereinIOC.Register<T>(parameters);
+            sereinIOC.Register<T>(getInstance);
             return this;
         }
 
-        ISereinIOC ISereinIOC.Register<TService, TImplementation>(params object[] parameters)
+        ISereinIOC ISereinIOC.Register<TService, TImplementation>()
         {
-            sereinIOC.Register<TService, TImplementation>(parameters);
+            sereinIOC.Register<TService, TImplementation>();
+            return this;
+        }
+
+        ISereinIOC ISereinIOC.Register<TService, TImplementation>(Func<TService> getInstance)
+        {
+            sereinIOC.Register<TService, TImplementation>(getInstance);
             return this;
         }
 
@@ -2226,11 +2237,6 @@ namespace Serein.NodeFlow.Env
         //}
 
 
-        bool ISereinIOC.RegisterPersistennceInstance(string key, object instance)
-        {
-            PersistennceInstance.TryAdd(key, instance); // 记录需要持久化的实例
-            return sereinIOC.RegisterPersistennceInstance(key, instance);
-        }
         
         //bool ISereinIOC.RegisterInstance(string key, object instance)
         //{
@@ -2238,13 +2244,13 @@ namespace Serein.NodeFlow.Env
         //}
 
 
-        object ISereinIOC.Instantiate(Type type)
+        object ISereinIOC.CreateTempObject(Type type)
         {
-            return sereinIOC.Instantiate(type);
+            return sereinIOC.CreateTempObject(type);
         }
-        T ISereinIOC.Instantiate<T>()
+        T ISereinIOC.CreateTempObject<T>()
         {
-            return sereinIOC.Instantiate<T>();
+            return sereinIOC.CreateTempObject<T>();
         }
         ISereinIOC ISereinIOC.Build()
         {
@@ -2252,53 +2258,7 @@ namespace Serein.NodeFlow.Env
             return this;
         }
 
-        ISereinIOC ISereinIOC.Run<T>(Action<T> action)
-        {
-            sereinIOC.Run(action);
-            return this;
-        }
-
-        ISereinIOC ISereinIOC.Run<T1, T2>(Action<T1, T2> action)
-        {
-            sereinIOC.Run(action);
-            return this;
-        }
-
-        ISereinIOC ISereinIOC.Run<T1, T2, T3>(Action<T1, T2, T3> action)
-        {
-            sereinIOC.Run(action);
-            return this;
-        }
-
-        ISereinIOC ISereinIOC.Run<T1, T2, T3, T4>(Action<T1, T2, T3, T4> action)
-        {
-            sereinIOC.Run(action);
-            return this;
-        }
-
-        ISereinIOC ISereinIOC.Run<T1, T2, T3, T4, T5>(Action<T1, T2, T3, T4, T5> action)
-        {
-            sereinIOC.Run(action);
-            return this;
-        }
-
-        ISereinIOC ISereinIOC.Run<T1, T2, T3, T4, T5, T6>(Action<T1, T2, T3, T4, T5, T6> action)
-        {
-            sereinIOC.Run(action);
-            return this;
-        }
-
-        ISereinIOC ISereinIOC.Run<T1, T2, T3, T4, T5, T6, T7>(Action<T1, T2, T3, T4, T5, T6, T7> action)
-        {
-            sereinIOC.Run(action);
-            return this;
-        }
-
-        ISereinIOC ISereinIOC.Run<T1, T2, T3, T4, T5, T6, T7, T8>(Action<T1, T2, T3, T4, T5, T6, T7, T8> action)
-        {
-            sereinIOC.Run(action);
-            return this;
-        }
+        
         #endregion
 
 

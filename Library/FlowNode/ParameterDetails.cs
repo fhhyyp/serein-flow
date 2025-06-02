@@ -246,7 +246,7 @@ namespace Serein.Library
                 var type = EnumHelper.GetBoundValue(ExplicitType, resultEnum, attr => attr.Value);
                 if (type is Type enumBindType && !(enumBindType is null))
                 {
-                    var value = nodeModel.Env.IOC.Instantiate(enumBindType);
+                    var value = nodeModel.Env.IOC.CreateTempObject(enumBindType);
                     return value;
                 }
             } 

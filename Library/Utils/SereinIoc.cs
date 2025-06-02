@@ -1,4 +1,5 @@
-﻿using Serein.Library.Api;
+﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Serein.Library.Api;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -13,10 +14,8 @@ namespace Serein.Library.Utils
     /// <summary>
     /// IOC管理容器
     /// </summary>
-    public class SereinIOC/* : ISereinIOC*/
+    public class SereinIOC : ISereinIOC
     {
-       
-
         /// <summary>
         /// 类型集合，暂放待实例化的类型，完成实例化之后移除
         /// </summary>
@@ -26,7 +25,11 @@ namespace Serein.Library.Utils
         /// 已完成注入的实例集合
         /// </summary>
         private readonly ConcurrentDictionary<string, object> _dependencies;
-        private readonly ConcurrentDictionary<string, object[]> _registerParameterss;
+
+        /// <summary>
+        /// 能够获取类型实例的闭包
+        /// </summary>
+        private readonly ConcurrentDictionary<string, Func<object>> _registerCallback;
 
         /// <summary>
         /// 未完成注入的实例集合。
@@ -35,107 +38,147 @@ namespace Serein.Library.Utils
         /// </summary>
         private readonly ConcurrentDictionary<string, List<(object,PropertyInfo)>> _unfinishedDependencies;
 
+        /// <summary>
+        /// IOC容器成功创建了类型
+        /// </summary>
         public event IOCMembersChangedHandler OnIOCMembersChanged;
 
+        /// <summary>
+        /// 一个轻量级的IOC容器
+        /// </summary>
         public SereinIOC()
         {
             _dependencies = new ConcurrentDictionary<string, object>();
-            _registerParameterss = new ConcurrentDictionary<string, object[]>();
+            _registerCallback = new ConcurrentDictionary<string, Func<object>>();
             _typeMappings = new ConcurrentDictionary<string, Type>(); 
-
             _unfinishedDependencies = new ConcurrentDictionary<string, List<(object, PropertyInfo)>>();
         }
 
-
-
         #region 类型的注册
+        /// <summary>
+        /// 向容器注册类型
+        /// </summary>
+        /// <param name="type">需要注册的类型</param>
+        /// <returns></returns>
+        public ISereinIOC Register(Type type)
+        {
+            RegisterType(type.FullName, type);
+            return this;
+        }
 
         /// <summary>
-        /// 注册类型
+        /// 向容器注册类型，并指定其实例成员
         /// </summary>
-        /// <param name="type">目标类型</param>
-        /// <param name="parameters">参数</param>
-        public bool Register(Type type, params object[] parameters)
+        /// <param name="type">需要注册的类型</param>
+        /// <param name="getInstance">获取实例的回调函数</param>
+        /// <returns></returns>
+        public ISereinIOC Register(Type type, Func<object> getInstance)
         {
-            return RegisterType(type?.FullName, type, parameters);
+            RegisterType(type.FullName, type, getInstance);
+            return this;
         }
+
+
         /// <summary>
-        /// 注册类型
+        /// 向容器注册类型，并指定其实例成员
         /// </summary>
-        /// <param name="type">目标类型</param>
-        /// <param name="parameters">参数</param>
-        public bool Register<T>(params object[] parameters)
+        /// <typeparam name="T">需要注册的类型</typeparam>
+        /// <param name="getInstance">获取实例的回调函数</param>
+        /// <returns></returns>
+        public ISereinIOC Register<T>(Func<T> getInstance)
         {
             var type = typeof(T);
-            return RegisterType(type.FullName, type, parameters);
+            RegisterType(type.FullName, type, () => getInstance.Invoke());
+            return this;
+        }
+
+
+        /// <summary>
+        /// 向容器注册接口类型，并指定其实例成员
+        /// </summary>
+        /// <typeparam name="TService">接口类型</typeparam>
+        /// <typeparam name="TImplementation">实现类类型</typeparam>
+        /// <param name="getInstance">获取实例的方法</param>
+        /// <returns></returns>
+        public ISereinIOC Register<TService, TImplementation>(Func<TService> getInstance)
+            where TImplementation : TService
+        {
+            RegisterType(typeof(TService).FullName, typeof(TImplementation), () => getInstance.Invoke());
+            return this;
         }
 
         /// <summary>
-        /// 注册接口类型
+        /// 向容器注册接口类型，其实例成员由容器自动创建
         /// </summary>
-        /// <param name="type">目标类型</param>
-        /// <param name="parameters">参数</param>
-        public bool Register<TService, TImplementation>(params object[] parameters)
+        /// <typeparam name="TService">接口类型</typeparam>
+        /// <typeparam name="TImplementation">实现类类型</typeparam>
+        /// <returns></returns>
+        public ISereinIOC Register<TService, TImplementation>()
             where TImplementation : TService
         {
-            return RegisterType(typeof(TService).FullName, typeof(TImplementation), parameters);
+            RegisterType(typeof(TService).FullName, typeof(TImplementation));
+            return this;
         }
+
+
         #endregion
 
+        #region 示例的获取
         /// <summary>
         /// 用于临时实例的创建，不登记到IOC容器中，依赖项注入失败时也不记录。
         /// </summary>
         /// <param name="type"></param>
         /// <returns></returns>
-        public object Instantiate(Type type)
+        public object CreateTempObject(Type type)
         {
-            var constructor = type.GetConstructors().First(); // 获取第一个构造函数
-            var parameters = constructor.GetParameters(); // 获取参数列表
-            var parameterValues = parameters.Select(param => ResolveDependency(param.ParameterType)).ToArray(); // 生成创建类型的入参参数
-            var instance = Activator.CreateInstance(type, parameterValues); // 创建实例
-            if (instance != null)
+            var ctors = GetConstructor(type); // 获取构造函数
+            object instance = null;
+            // 从入参最多的构造函数开始构建对象
+            foreach (var ctor in ctors)
             {
+
+                var parameters = ctor.GetParameters(); // 获取构造函数参数列表
+                var parametersNames = parameters.Select(p => $"{p.ParameterType} {p.Name}");
+                var parametersName = string.Join(", ", parametersNames);
+                try
+                {
+                    var parameterValues = parameters.Select(param => Get(param.ParameterType)).ToArray(); // 生成创建类型的入参参数
+                    instance = Activator.CreateInstance(type, parameterValues); // 创建实例
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine(ex);
+                    SereinEnv.WriteLine(InfoType.INFO, $"在【{type}】类型上使用ctor({parametersName})构造函数时创建对象失败。错误信息：{ex.Message}");
+                    continue;
+                }
                 InjectDependencies(instance, false); // 完成创建后注入实例需要的特性依赖项
+                break;
+            }
+            if (instance == null)
+            {
+                throw new Exception($"无法为【{type}】类型创建实例");
             }
             return instance;
         }
 
-        public T Instantiate<T>()
+        /// <summary>
+        /// 用于临时实例的创建，不登记到IOC容器中，依赖项注入失败时也不记录。
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        public T CreateTempObject<T>()
         {
-            return (T)Instantiate(typeof(T));
-        }
+            return (T)CreateTempObject(typeof(T));
+        } 
+        #endregion
+
         #region 通过名称记录或获取一个实例
 
         /// <summary>
-        /// 指定key值注册一个已经实例化的实例对象，并持久化储存
+        /// 尝试获取指定类型的示例
         /// </summary>
-        /// <param name="key"></param>
-        /// <param name="instance"></param>
-        public bool RegisterInstance(string key, object instance)
-        {
-            return  RegisterPersistennceInstance(key, instance);
-        }
-        /// <summary>
-        /// 指定key值注册一个已经实例化的实例对象，并持久化储存
-        /// </summary>
-        /// <param name="key"></param>
-        /// <param name="instance"></param>
-        public bool RegisterPersistennceInstance(string key, object instance)
-        {
-            // 不存在时才允许创建
-            if (_dependencies.ContainsKey(key))
-            {
-                return false;
-            }
-            _dependencies.TryAdd(key, instance);
-            //if (needInjectProperty)
-            //{
-            //    InjectDependencies(instance); // 注入实例需要的依赖项
-            //}
-            //InjectUnfinishedDependencies(key, instance); // 检查是否存在其它实例需要该类型
-            OnIOCMembersChanged?.Invoke(new IOCMembersChangedEventArgs(key, instance));
-            return true;
-        }
+        /// <param name="type"></param>
+        /// <returns></returns>
         public object Get(Type type)
         {
             var instance = Get(type.FullName);
@@ -147,13 +190,14 @@ namespace Serein.Library.Utils
             return Get(type.FullName);
         }
 
+        /// <summary>
+        /// 尝试获取指定类型的示例
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
         public T Get<T>()
         {
             return (T)Get(typeof(T).FullName);
-        }
-        public T Get<T>(string name)
-        {
-            return (T)Get(name);
         }
         private object Get(string name)
         {
@@ -172,7 +216,7 @@ namespace Serein.Library.Utils
         /// 清空容器对象
         /// </summary>
         /// <returns></returns>
-        public bool Reset()
+        public ISereinIOC Reset()
         {
             // 检查是否存在非托管资源
             foreach (var instancei in _dependencies.Values)
@@ -182,13 +226,14 @@ namespace Serein.Library.Utils
                     disposable?.Dispose();
                 }
             }
-            _registerParameterss?.Clear();
+            _registerCallback?.Clear();
             _unfinishedDependencies?.Clear();
             _typeMappings?.Clear();
             _dependencies?.Clear();
-            return true;
+            return this;
         }
-        public class TypeKeyValue
+
+        class TypeKeyValue
         {
             public TypeKeyValue(string name, Type type)
             {
@@ -198,19 +243,19 @@ namespace Serein.Library.Utils
             public string Name { get; set; }
             public Type Type { get; set; }
         }
-        private const string FlowBaseClassName = "@FlowBaseClass";
+        private const string FlowBaseClassName = "@LibraryRootNode";
 
-
-        public Dictionary<string, List<string>> BuildDependencyTree()
+        /// <summary>
+        /// 构建依赖关系树
+        /// </summary>
+        /// <returns></returns>
+        private Dictionary<string, List<string>> BuildDependencyTree()
         {
             var dependencyMap = new Dictionary<string, HashSet<string>>();
             dependencyMap[FlowBaseClassName] = new HashSet<string>();
             foreach (var typeMapping in _typeMappings)
             {
-                //var constructor = GetConstructorWithMostParameters(typeMapping.Value); // 获取参数最多的构造函数
-
-                var constructors = GetConstructor(typeMapping.Value); // 获取参数最多的构造函数
-
+                var constructors = GetConstructor(typeMapping.Value); // 获取构造函数
                 foreach (var constructor in constructors)
                 {
                     if (constructor != null)
@@ -254,22 +299,22 @@ namespace Serein.Library.Utils
             var tmp = dependencyMap.ToDictionary(key => key.Key, value => value.Value.ToList());
             return tmp;
         }
-        // 获取参数最多的构造函数
-        private ConstructorInfo GetConstructorWithMostParameters(Type type)
-        {
-            return type.GetConstructors()
-                       .OrderByDescending(c => c.GetParameters().Length)
-                       .FirstOrDefault();
-        }
-        // 获取所有构造函数
+
+        /// <summary>
+        ///  获取类型的获取所有构造函数
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
         private ConstructorInfo[] GetConstructor(Type type)
         {
-            return type.GetConstructors()
-                       //.OrderByDescending(c => c.GetParameters().Length)
-                       .OrderByDescending(ctor => ctor.GetParameters().Length).ToArray();
+            return type.GetConstructors().OrderByDescending(ctor => ctor.GetParameters().Length).ToArray();
         }
 
-        // 生成顺序
+        /// <summary>
+        /// 创建示例的生成顺序
+        /// </summary>
+        /// <param name="dependencyMap"></param>
+        /// <returns></returns>
         public List<string> GetCreationOrder(Dictionary<string, List<string>> dependencyMap)
         {
             var graph = new Dictionary<string, List<string>>();
@@ -338,19 +383,24 @@ namespace Serein.Library.Utils
             return creationOrder;
         }
 
-        public object CreateInstance(string typeName)
+        /// <summary>
+        /// 创建实例对象
+        /// </summary>
+        /// <param name="typeName"></param>
+        /// <returns></returns>
+        private object CreateInstance(string typeName)
         {
-            if (!_typeMappings.TryGetValue(typeName, out var type))
+            if (!_typeMappings.TryGetValue(typeName, out var type)) // 获取类型
             {
                 return null;
             }
-            if (_dependencies.TryGetValue(typeName, out var instance))
+            if (_dependencies.TryGetValue(typeName, out var instance)) // 获取实例
             {
                 return instance;
             }
-            if (_registerParameterss.TryGetValue(typeName,out var @params))
+            if (_registerCallback.TryGetValue(typeName,out var obj))
             {
-                instance = Activator.CreateInstance(type, @params);
+                instance = obj;
             }
 
             // 字符串、值类型，抽象类型，暂时不支持自动创建
@@ -410,8 +460,11 @@ namespace Serein.Library.Utils
             return instance;
         }
 
-
-        public bool Build()
+        /// <summary>
+        /// 绑定所有类型，生成示例
+        /// </summary>
+        /// <returns></returns>
+        public ISereinIOC Build()
         {
             var dependencyTree = BuildDependencyTree();
             var creationOrder = GetCreationOrder(dependencyTree);
@@ -435,29 +488,29 @@ namespace Serein.Library.Utils
                 OnIOCMembersChanged.Invoke(new IOCMembersChangedEventArgs(typeName, value));
             }
             _typeMappings.Clear();
-            return true;
+            return this;
 
         }
 
-        
+
         #endregion
 
         #region 私有方法
 
-
         /// <summary>
         /// 注册类型
         /// </summary>
-        /// <param name="typeFull"></param>
-        /// <param name="type"></param>
-        private bool RegisterType(string typeFull, Type type, params object[] parameters)
+        /// <param name="typeFull">类型名称</param>
+        /// <param name="type">要注册的类型</param>
+        /// <param name="getInstance">获取实例的闭包</param>
+        private bool RegisterType(string typeFull, Type type, Func<object> getInstance = null)
         {
             if (!_typeMappings.ContainsKey(typeFull))
             {
                 _typeMappings[typeFull] = type;
-                if(parameters.Length > 0)
+                if(getInstance != null)
                 {
-                    _registerParameterss[typeFull] = parameters;
+                    _registerCallback[typeFull] = getInstance;
                 }
                 return true;
             }
@@ -467,20 +520,11 @@ namespace Serein.Library.Utils
             }
         }
 
-        private object ResolveDependency(Type parameterType)
-        {
-            var obj = Get(parameterType);
-            if (obj is null)
-            {
-                throw new InvalidOperationException($"构造函数注入时类型[{parameterType}]不存在实例");
-            }
-            return obj;
-        }
 
         /// <summary>
         /// 如果其它实例想要该对象时，注入过去
         /// </summary>
-        private void InjectUnfinishedDependencies(string key,object instance)
+        private void InjectUnfinishedDependencies(string key, object instance)
         {
             if (_unfinishedDependencies.TryGetValue(key, out var unfinishedPropertyList))
             {
@@ -534,14 +578,13 @@ namespace Serein.Library.Utils
         }
 
        
-        public void Run<T>(Action<T> action)
+        private void Run<T>(Action<T> action)
         {
             var service = Get<T>();
             action(service);
-           
         }
 
-        public void Run<T1, T2>(Action<T1, T2> action)
+        private void Run<T1, T2>(Action<T1, T2> action)
         {
             var service1 = Get<T1>();
             var service2 = Get<T2>();
@@ -549,7 +592,7 @@ namespace Serein.Library.Utils
             action(service1, service2);
         }
 
-        public void Run<T1, T2, T3>(Action<T1, T2, T3> action)
+        private void Run<T1, T2, T3>(Action<T1, T2, T3> action)
         {
             var service1 = Get<T1>();
             var service2 = Get<T2>();
@@ -557,7 +600,7 @@ namespace Serein.Library.Utils
             action(service1, service2, service3);
         }
 
-        public void Run<T1, T2, T3, T4>(Action<T1, T2, T3, T4> action)  
+        private void Run<T1, T2, T3, T4>(Action<T1, T2, T3, T4> action)  
         {
             var service1 = Get<T1>();
             var service2 = Get<T2>();
@@ -566,7 +609,7 @@ namespace Serein.Library.Utils
             action(service1, service2, service3, service4);
         }
 
-        public void Run<T1, T2, T3, T4, T5>(Action<T1, T2, T3, T4, T5> action)
+        private void Run<T1, T2, T3, T4, T5>(Action<T1, T2, T3, T4, T5> action)
         {
             var service1 = Get<T1>();
             var service2 = Get<T2>();
@@ -576,7 +619,7 @@ namespace Serein.Library.Utils
             action(service1, service2, service3, service4, service5);
         }
 
-        public void Run<T1, T2, T3, T4, T5, T6>(Action<T1, T2, T3, T4, T5, T6> action)
+        private void Run<T1, T2, T3, T4, T5, T6>(Action<T1, T2, T3, T4, T5, T6> action)
         {
             var service1 = Get<T1>();
             var service2 = Get<T2>();
@@ -587,7 +630,7 @@ namespace Serein.Library.Utils
             action(service1, service2, service3, service4, service5, service6);
         }
 
-        public void Run<T1, T2, T3, T4, T5, T6, T7>(Action<T1, T2, T3, T4, T5, T6, T7> action)
+        private void Run<T1, T2, T3, T4, T5, T6, T7>(Action<T1, T2, T3, T4, T5, T6, T7> action)
         {
             var service1 = Get<T1>();
             var service2 = Get<T2>();
@@ -599,7 +642,7 @@ namespace Serein.Library.Utils
             action(service1, service2, service3, service4, service5, service6, service7);
         }
 
-        public void Run<T1, T2, T3, T4, T5, T6, T7, T8>(Action<T1, T2, T3, T4, T5, T6, T7, T8> action)
+        private void Run<T1, T2, T3, T4, T5, T6, T7, T8>(Action<T1, T2, T3, T4, T5, T6, T7, T8> action)
         {
             var service1 = Get<T1>();
             var service2 = Get<T2>();

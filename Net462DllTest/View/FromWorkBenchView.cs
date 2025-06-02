@@ -21,7 +21,7 @@ namespace Net462DllTest
             if (ViewModel is null)
             {
                 SereinEnv.WriteLine(InfoType.INFO, "创建对象并注入依赖项");
-                ViewModel = env.IOC.Instantiate<FromWorkBenchViewModel>(); 
+                ViewModel = env.IOC.CreateTempObject<FromWorkBenchViewModel>(); 
             }
             BindData();
         }

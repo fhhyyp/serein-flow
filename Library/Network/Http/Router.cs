@@ -145,7 +145,7 @@ namespace Serein.Library.Web
                 return false; // 没有对应的处理配置
             }
 
-            ControllerBase controllerInstance = (ControllerBase)SereinIOC.Instantiate(controllerType);
+            ControllerBase controllerInstance = (ControllerBase)SereinIOC.CreateTempObject(controllerType);
 
             if (controllerInstance is null)
             {
