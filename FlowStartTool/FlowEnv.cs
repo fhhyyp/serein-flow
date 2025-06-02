@@ -22,7 +22,7 @@ namespace Serein.FlowStartTool
             flowEnvironment.SetUIContextOperation(uIContextOperation);
             flowEnvironment.LoadProject(new FlowEnvInfo { Project = flowProjectData }, fileDataPath); // 加载项目
 
-            flowEnvironment.Event.OnEnvOut += (infoType, value) =>
+            flowEnvironment.Event.EnvOutput += (infoType, value) =>
             {
                 Console.WriteLine($"{DateTime.Now} [{infoType}] : {value}{Environment.NewLine}");
             };

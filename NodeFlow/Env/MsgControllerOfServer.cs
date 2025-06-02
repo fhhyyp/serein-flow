@@ -554,17 +554,7 @@ namespace Serein.NodeFlow.Env
             };
         }
 
-        /// <summary>
-        /// 移动了某个节点(远程插件使用）
-        /// </summary>
-        /// <param name="nodeGuid"></param>
-        /// <param name="x"></param>
-        /// <param name="y"></param>
-        [AutoSocketHandle(ThemeValue = EnvMsgTheme.MoveNode)]
-        public void MoveNode(string canvasGuid, string nodeGuid, double x, double y)
-        {
-            environment.MoveNode(canvasGuid, nodeGuid, x, y);
-        }
+        
 
         /// <summary>
         /// 设置起点控件

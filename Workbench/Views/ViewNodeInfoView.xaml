@@ -41,6 +41,14 @@
                 <TextBlock Text="节点名称" Style="{StaticResource InfoTipsTextBlock}" />
                 <TextBox Text="{Binding ViewNodeModel.DisplayName, Mode=TwoWay}" Style="{StaticResource InfoValueTextBox}" IsReadOnly="True"/>
             </StackPanel>
+            <StackPanel Margin="1" Orientation="Horizontal">
+                <TextBlock Text="X轴位置" Style="{StaticResource InfoTipsTextBlock}" />
+                <TextBox Text="{Binding ViewNodeModel.Position.X, Mode=TwoWay}" Style="{StaticResource InfoValueTextBox}" IsReadOnly="True"/>
+            </StackPanel>
+            <StackPanel Margin="1" Orientation="Horizontal">
+                <TextBlock Text="Y轴位置" Style="{StaticResource InfoTipsTextBlock}" />
+                <TextBox Text="{Binding ViewNodeModel.Position.Y, Mode=TwoWay}" Style="{StaticResource InfoValueTextBox}" IsReadOnly="True"/>
+            </StackPanel>
         </StackPanel>
     </Border>
 </UserControl>

@@ -39,7 +39,7 @@ namespace Serein.Workbench.Views
             if (sender is Grid grid && grid.DataContext is IFlowNode nodeModel)
             {
                 NodeInfoViewModel.ViewNodeModel = nodeModel;
-                App.GetService<IFlowEnvironment>().NodeLocated(nodeModel.Guid);
+                App.GetService<IFlowEnvironment>().NodeLocate(nodeModel.Guid);
             }
 
             // 定位节点

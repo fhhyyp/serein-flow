@@ -69,7 +69,7 @@ namespace Serein.Workbench
             flowEnvironment.SetUIContextOperation(uIContextOperation);
             collection.AddSingleton<UIContextOperation>(uIContextOperation); // 注册UI线程操作上下文
             collection.AddSingleton<IFlowEnvironment>(flowEnvironment); // 注册运行环境
-            collection.AddSingleton<IFlowEnvironmentEvent>(flowEnvironment); // 注册运行环境事件
+            collection.AddSingleton<IFlowEnvironmentEvent>(flowEnvironment.Event); // 注册运行环境事件
 
             #endregion
 

@@ -150,7 +150,7 @@ namespace Serein.Workbench.Themes
                                 return;
                             }
                         }));
-                        contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("定位", (s, e) => flowEnvironment.NodeLocated(tmpNodeTreeModel.RootNode.Guid)));
+                        contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("定位", (s, e) => flowEnvironment.NodeLocate(tmpNodeTreeModel.RootNode.Guid)));
 
                         treeViewItem.ContextMenu = contextMenu;
                         treeViewItem.Margin = new Thickness(-20, 0, 0, 0);

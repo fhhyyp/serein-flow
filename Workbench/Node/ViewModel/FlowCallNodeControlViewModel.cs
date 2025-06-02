@@ -78,8 +78,8 @@ namespace Serein.Workbench.Node.ViewModel
 
         private void InitEvent()
         {
-            flowEEForwardingService.OnCanvasCreate += (e) => RershCanvass(); // 画布创建了
-            flowEEForwardingService.OnCanvasRemove += (e) => RershCanvass(); // 画布移除了
+            flowEEForwardingService.CanvasCreated += (e) => RershCanvass(); // 画布创建了
+            flowEEForwardingService.CanvasRemoved += (e) => RershCanvass(); // 画布移除了
 
         }
 

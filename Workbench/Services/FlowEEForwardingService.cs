@@ -49,79 +49,75 @@ namespace Serein.Workbench.Services
         /// <summary>
         /// 加载了依赖文件事件
         /// </summary>
-        public event LoadDllHandler? OnDllLoad;
+        public event LoadDllHandler? DllLoad;
         /// <summary>
         /// 项目加载完成事件
         /// </summary>
-        public event ProjectLoadedHandler? OnProjectLoaded;
+        public event ProjectLoadedHandler? ProjectLoaded;
         /// <summary>
         /// 项目保存中事件
         /// </summary>
-        public event ProjectSavingHandler? OnProjectSaving;
+        public event ProjectSavingHandler? ProjectSaving;
         /// <summary>
         /// 节点连接改变事件
         /// </summary>
-        public event NodeConnectChangeHandler? OnNodeConnectChange;
+        public event NodeConnectChangeHandler? NodeConnectChanged;
         /// <summary>
         /// 节点创建事件
         /// </summary>
-        public event NodeCreateHandler? OnNodeCreate;
+        public event NodeCreateHandler? NodeCreated;
         /// <summary>
         /// 节点移除事件
         /// </summary>
-        public event NodeRemoveHandler? OnNodeRemove;
+        public event NodeRemoveHandler? NodeRemoved;
         /// <summary>
         /// 节点放置容器事件
         /// </summary>
-        public event NodePlaceHandler? OnNodePlace;
+        public event NodePlaceHandler? NodePlace;
         /// <summary>
         /// 节点取出事件
         /// </summary>
-        public event NodeTakeOutHandler? OnNodeTakeOut;
+        public event NodeTakeOutHandler? NodeTakeOut;
         /// <summary>
         /// 流程起始节点改变事件
         /// </summary>
-        public event StartNodeChangeHandler? OnStartNodeChange;
+        public event StartNodeChangeHandler? StartNodeChanged;
         /// <summary>
         /// 流程运行完毕事件
         /// </summary>
-        public event FlowRunCompleteHandler? OnFlowRunComplete;
+        public event FlowRunCompleteHandler? FlowRunComplete;
         /// <summary>
         /// 被监视的对象数据改变事件
         /// </summary>
-        public event MonitorObjectChangeHandler? OnMonitorObjectChange;
+        public event MonitorObjectChangeHandler? MonitorObjectChanged;
         /// <summary>
         /// 节点中断状态改变事件
         /// </summary>
-        public event NodeInterruptStateChangeHandler? OnNodeInterruptStateChange;
+        public event NodeInterruptStateChangeHandler? NodeInterruptStateChanged;
         /// <summary>
         /// 表达式中断触发事件
         /// </summary>
-        public event ExpInterruptTriggerHandler? OnInterruptTrigger;
+        public event ExpInterruptTriggerHandler? InterruptTriggered;
         /// <summary>
         /// 容器对象改变事件
         /// </summary>
-        public event IOCMembersChangedHandler? OnIOCMembersChanged;
+        public event IOCMembersChangedHandler? IOCMembersChanged;
         /// <summary>
         /// 节点定位事件
         /// </summary>
-        public event NodeLocatedHandler? OnNodeLocated;
-        /// <summary>
-        /// 节点移动事件
-        /// </summary>
-        public event NodeMovedHandler? OnNodeMoved;
+        public event NodeLocatedHandler? NodeLocated;
         /// <summary>
         /// 运行环境输出事件
         /// </summary>
-        public event EnvOutHandler? OnEnvOut;
+        public event EnvOutHandler? EnvOutput;
         /// <summary>
         /// 添加画布事件
         /// </summary>
-        public event CanvasCreateHandler OnCanvasCreate;
+        public event CanvasCreateHandler CanvasCreated;
         /// <summary>
         /// 移除了画布事件
         /// </summary>
-        public event CanvasRemoveHandler OnCanvasRemove;
+        public event CanvasRemoveHandler CanvasRemoved;
 
         #endregion
 
@@ -129,55 +125,53 @@ namespace Serein.Workbench.Services
 
         private void InitFlowEnvironmentEvent()
         {
-            flowEnvironmentEvent.OnDllLoad += FlowEnvironment_DllLoadEvent;
-            flowEnvironmentEvent.OnProjectSaving += FlowEnvironment_OnProjectSaving;
-            flowEnvironmentEvent.OnProjectLoaded += FlowEnvironment_OnProjectLoaded;
-            flowEnvironmentEvent.OnCanvasCreate += FlowEnvironmentEvent_OnCanvasCreate;
-            flowEnvironmentEvent.OnCanvasRemove += FlowEnvironmentEvent_OnCanvasRemove;
-            flowEnvironmentEvent.OnStartNodeChange += FlowEnvironment_StartNodeChangeEvent;
-            flowEnvironmentEvent.OnNodeConnectChange += FlowEnvironment_NodeConnectChangeEvemt;
-            flowEnvironmentEvent.OnNodeCreate += FlowEnvironment_NodeCreateEvent;
-            flowEnvironmentEvent.OnNodeRemove += FlowEnvironment_NodeRemoveEvent;
-            flowEnvironmentEvent.OnNodePlace += FlowEnvironment_OnNodePlaceEvent;
-            flowEnvironmentEvent.OnNodeTakeOut += FlowEnvironment_OnNodeTakeOutEvent;
-            flowEnvironmentEvent.OnFlowRunComplete += FlowEnvironment_OnFlowRunCompleteEvent;
+            flowEnvironmentEvent.DllLoad += FlowEnvironment_DllLoadEvent;
+            flowEnvironmentEvent.ProjectSaving += FlowEnvironment_OnProjectSaving;
+            flowEnvironmentEvent.ProjectLoaded += FlowEnvironment_OnProjectLoaded;
+            flowEnvironmentEvent.CanvasCreated += FlowEnvironmentEvent_OnCanvasCreate;
+            flowEnvironmentEvent.CanvasRemoved += FlowEnvironmentEvent_OnCanvasRemove;
+            flowEnvironmentEvent.StartNodeChanged += FlowEnvironment_StartNodeChangeEvent;
+            flowEnvironmentEvent.NodeConnectChanged += FlowEnvironment_NodeConnectChangeEvemt;
+            flowEnvironmentEvent.NodeCreated += FlowEnvironment_NodeCreateEvent;
+            flowEnvironmentEvent.NodeRemoved += FlowEnvironment_NodeRemoveEvent;
+            flowEnvironmentEvent.NodePlace += FlowEnvironment_OnNodePlaceEvent;
+            flowEnvironmentEvent.NodeTakeOut += FlowEnvironment_OnNodeTakeOutEvent;
+            flowEnvironmentEvent.FlowRunComplete += FlowEnvironment_OnFlowRunCompleteEvent;
             
-            flowEnvironmentEvent.OnMonitorObjectChange += FlowEnvironment_OnMonitorObjectChangeEvent;
-            flowEnvironmentEvent.OnNodeInterruptStateChange += FlowEnvironment_OnNodeInterruptStateChangeEvent;
-            flowEnvironmentEvent.OnInterruptTrigger += FlowEnvironment_OnInterruptTriggerEvent;
+            flowEnvironmentEvent.MonitorObjectChanged += FlowEnvironment_OnMonitorObjectChangeEvent;
+            flowEnvironmentEvent.NodeInterruptStateChanged += FlowEnvironment_OnNodeInterruptStateChangeEvent;
+            flowEnvironmentEvent.InterruptTriggered += FlowEnvironment_OnInterruptTriggerEvent;
             
-            flowEnvironmentEvent.OnIOCMembersChanged += FlowEnvironment_OnIOCMembersChangedEvent;
+            flowEnvironmentEvent.IOCMembersChanged += FlowEnvironment_OnIOCMembersChangedEvent;
             
-            flowEnvironmentEvent.OnNodeLocated += FlowEnvironment_OnNodeLocateEvent;
-            flowEnvironmentEvent.OnNodeMoved += FlowEnvironment_OnNodeMovedEvent;
+            flowEnvironmentEvent.NodeLocated += FlowEnvironment_OnNodeLocateEvent;;
             
-            flowEnvironmentEvent.OnEnvOut += FlowEnvironment_OnEnvOutEvent;
+            flowEnvironmentEvent.EnvOutput += FlowEnvironment_OnEnvOutEvent;
         }
 
       
         private void ResetFlowEnvironmentEvent()
         {
-           flowEnvironmentEvent.OnDllLoad -= FlowEnvironment_DllLoadEvent;
-           flowEnvironmentEvent.OnProjectSaving -= FlowEnvironment_OnProjectSaving;
-           flowEnvironmentEvent.OnProjectLoaded -= FlowEnvironment_OnProjectLoaded;
-           flowEnvironmentEvent.OnStartNodeChange -= FlowEnvironment_StartNodeChangeEvent;
-           flowEnvironmentEvent.OnNodeConnectChange -= FlowEnvironment_NodeConnectChangeEvemt;
-           flowEnvironmentEvent.OnNodeCreate -= FlowEnvironment_NodeCreateEvent;
-           flowEnvironmentEvent.OnNodeRemove -= FlowEnvironment_NodeRemoveEvent;
-           flowEnvironmentEvent.OnNodePlace -= FlowEnvironment_OnNodePlaceEvent;
-           flowEnvironmentEvent.OnNodeTakeOut -= FlowEnvironment_OnNodeTakeOutEvent;
-            flowEnvironmentEvent.OnFlowRunComplete -= FlowEnvironment_OnFlowRunCompleteEvent;
+           flowEnvironmentEvent.DllLoad -= FlowEnvironment_DllLoadEvent;
+           flowEnvironmentEvent.ProjectSaving -= FlowEnvironment_OnProjectSaving;
+           flowEnvironmentEvent.ProjectLoaded -= FlowEnvironment_OnProjectLoaded;
+           flowEnvironmentEvent.StartNodeChanged -= FlowEnvironment_StartNodeChangeEvent;
+           flowEnvironmentEvent.NodeConnectChanged -= FlowEnvironment_NodeConnectChangeEvemt;
+           flowEnvironmentEvent.NodeCreated -= FlowEnvironment_NodeCreateEvent;
+           flowEnvironmentEvent.NodeRemoved -= FlowEnvironment_NodeRemoveEvent;
+           flowEnvironmentEvent.NodePlace -= FlowEnvironment_OnNodePlaceEvent;
+           flowEnvironmentEvent.NodeTakeOut -= FlowEnvironment_OnNodeTakeOutEvent;
+            flowEnvironmentEvent.FlowRunComplete -= FlowEnvironment_OnFlowRunCompleteEvent;
 
 
-           flowEnvironmentEvent.OnMonitorObjectChange -= FlowEnvironment_OnMonitorObjectChangeEvent;
-           flowEnvironmentEvent.OnNodeInterruptStateChange -= FlowEnvironment_OnNodeInterruptStateChangeEvent;
-            flowEnvironmentEvent.OnInterruptTrigger -= FlowEnvironment_OnInterruptTriggerEvent;
+           flowEnvironmentEvent.MonitorObjectChanged -= FlowEnvironment_OnMonitorObjectChangeEvent;
+           flowEnvironmentEvent.NodeInterruptStateChanged -= FlowEnvironment_OnNodeInterruptStateChangeEvent;
+            flowEnvironmentEvent.InterruptTriggered -= FlowEnvironment_OnInterruptTriggerEvent;
 
-            flowEnvironmentEvent.OnIOCMembersChanged -= FlowEnvironment_OnIOCMembersChangedEvent;
-            flowEnvironmentEvent.OnNodeLocated -= FlowEnvironment_OnNodeLocateEvent;
-            flowEnvironmentEvent.OnNodeMoved -= FlowEnvironment_OnNodeMovedEvent;
+            flowEnvironmentEvent.IOCMembersChanged -= FlowEnvironment_OnIOCMembersChangedEvent;
+            flowEnvironmentEvent.NodeLocated -= FlowEnvironment_OnNodeLocateEvent;
 
-            flowEnvironmentEvent.OnEnvOut -= FlowEnvironment_OnEnvOutEvent;
+            flowEnvironmentEvent.EnvOutput -= FlowEnvironment_OnEnvOutEvent;
 
         }
 
@@ -192,7 +186,7 @@ namespace Serein.Workbench.Services
         {
             uIContextOperation.Invoke(() =>
             {
-                OnEnvOut?.Invoke(type, value);
+                EnvOutput?.Invoke(type, value);
             });
         }
 
@@ -203,7 +197,7 @@ namespace Serein.Workbench.Services
         /// <exception cref="NotImplementedException"></exception>
         private void FlowEnvironment_OnProjectSaving(ProjectSavingEventArgs eventArgs)
         {
-            OnProjectSaving?.Invoke(eventArgs);
+            ProjectSaving?.Invoke(eventArgs);
         }
 
         /// <summary>
@@ -212,7 +206,7 @@ namespace Serein.Workbench.Services
         /// <param name="eventArgs"></param>
         private void FlowEnvironment_OnProjectLoaded(ProjectLoadedEventArgs eventArgs)
         {
-            OnProjectLoaded?.Invoke(eventArgs);
+            ProjectLoaded?.Invoke(eventArgs);
         }
 
         /// <summary>
@@ -223,7 +217,7 @@ namespace Serein.Workbench.Services
         private void FlowEnvironment_OnFlowRunCompleteEvent(FlowEventArgs eventArgs)
         {
             SereinEnv.WriteLine(InfoType.INFO, "-------运行完成---------\r\n");
-            OnFlowRunComplete?.Invoke(eventArgs);
+            FlowRunComplete?.Invoke(eventArgs);
         }
 
         /// <summary>
@@ -231,7 +225,7 @@ namespace Serein.Workbench.Services
         /// </summary>
         private void FlowEnvironment_DllLoadEvent(LoadDllEventArgs eventArgs)
         {
-            OnDllLoad?.Invoke(eventArgs);
+            DllLoad?.Invoke(eventArgs);
         }
 
         /// <summary>
@@ -240,7 +234,7 @@ namespace Serein.Workbench.Services
         /// <param name="eventArgs"></param>
         private void FlowEnvironment_NodeConnectChangeEvemt(NodeConnectChangeEventArgs eventArgs)
         {
-            OnNodeConnectChange?.Invoke(eventArgs);
+            NodeConnectChanged?.Invoke(eventArgs);
         }
 
 
@@ -251,7 +245,7 @@ namespace Serein.Workbench.Services
         /// <exception cref="NotImplementedException"></exception>
         private void FlowEnvironmentEvent_OnCanvasCreate(CanvasCreateEventArgs eventArgs)
         {
-            OnCanvasCreate?.Invoke(eventArgs);
+            CanvasCreated?.Invoke(eventArgs);
         }
 
         /// <summary>
@@ -261,7 +255,7 @@ namespace Serein.Workbench.Services
         /// <exception cref="NotImplementedException"></exception>
         private void FlowEnvironmentEvent_OnCanvasRemove(CanvasRemoveEventArgs eventArgs)
         {
-            OnCanvasRemove?.Invoke(eventArgs);
+            CanvasRemoved?.Invoke(eventArgs);
 
         }
 
@@ -271,7 +265,7 @@ namespace Serein.Workbench.Services
         /// <param name="eventArgs"></param>
         private void FlowEnvironment_NodeRemoveEvent(NodeRemoveEventArgs eventArgs)
         {
-            OnNodeRemove?.Invoke(eventArgs);
+            NodeRemoved?.Invoke(eventArgs);
         }
 
         /// <summary>
@@ -281,7 +275,7 @@ namespace Serein.Workbench.Services
         /// <exception cref="NotImplementedException"></exception>
         private void FlowEnvironment_NodeCreateEvent(NodeCreateEventArgs eventArgs)
         {
-            OnNodeCreate?.Invoke(eventArgs);
+            NodeCreated?.Invoke(eventArgs);
         }
 
         /// <summary>
@@ -291,7 +285,7 @@ namespace Serein.Workbench.Services
         /// <exception cref="NotImplementedException"></exception>
         private void FlowEnvironment_OnNodePlaceEvent(NodePlaceEventArgs eventArgs)
         {
-            OnNodePlace?.Invoke(eventArgs);
+            NodePlace?.Invoke(eventArgs);
         }
 
         /// <summary>
@@ -300,7 +294,7 @@ namespace Serein.Workbench.Services
         /// <param name="eventArgs"></param>
         private void FlowEnvironment_OnNodeTakeOutEvent(NodeTakeOutEventArgs eventArgs)
         {
-            OnNodeTakeOut?.Invoke(eventArgs);
+            NodeTakeOut?.Invoke(eventArgs);
 
         }
 
@@ -312,7 +306,7 @@ namespace Serein.Workbench.Services
         private void FlowEnvironment_StartNodeChangeEvent(StartNodeChangeEventArgs eventArgs)
         {
 
-            OnStartNodeChange?.Invoke(eventArgs);
+            StartNodeChanged?.Invoke(eventArgs);
         }
 
         /// <summary>
@@ -321,7 +315,7 @@ namespace Serein.Workbench.Services
         /// <param name="eventArgs"></param>
         private void FlowEnvironment_OnMonitorObjectChangeEvent(MonitorObjectEventArgs eventArgs)
         {
-            OnMonitorObjectChange?.Invoke(eventArgs);
+            MonitorObjectChanged?.Invoke(eventArgs);
         }
 
         /// <summary>
@@ -330,7 +324,7 @@ namespace Serein.Workbench.Services
         /// <param name="eventArgs"></param>
         private void FlowEnvironment_OnNodeInterruptStateChangeEvent(NodeInterruptStateChangeEventArgs eventArgs)
         {
-            OnNodeInterruptStateChange?.Invoke(eventArgs);
+            NodeInterruptStateChanged?.Invoke(eventArgs);
         }
 
         /// <summary>
@@ -340,7 +334,7 @@ namespace Serein.Workbench.Services
         /// <exception cref="NotImplementedException"></exception>
         private void FlowEnvironment_OnInterruptTriggerEvent(InterruptTriggerEventArgs eventArgs)
         {
-            OnInterruptTrigger?.Invoke(eventArgs);
+            InterruptTriggered?.Invoke(eventArgs);
         }
 
         /// <summary>
@@ -350,7 +344,7 @@ namespace Serein.Workbench.Services
         /// <exception cref="NotImplementedException"></exception>
         private void FlowEnvironment_OnIOCMembersChangedEvent(IOCMembersChangedEventArgs eventArgs)
         {
-            OnIOCMembersChanged?.Invoke(eventArgs);
+            IOCMembersChanged?.Invoke(eventArgs);
 
         }
 
@@ -361,25 +355,110 @@ namespace Serein.Workbench.Services
         /// <exception cref="NotImplementedException"></exception>
         private void FlowEnvironment_OnNodeLocateEvent(NodeLocatedEventArgs eventArgs)
         {
-            OnNodeLocated?.Invoke(eventArgs);
+            NodeLocated?.Invoke(eventArgs);
         }
 
-       
-        /// <summary>
-        /// 节点移动
-        /// </summary>
-        /// <param name="eventArgs"></param>
-        private void FlowEnvironment_OnNodeMovedEvent(NodeMovedEventArgs eventArgs)
+
+
+
+
+
+
+        #endregion
+
+
+        #endregion
+
+        #region 主动触发运行环境事件
+        public void OnDllLoad(LoadDllEventArgs eventArgs)
         {
-            OnNodeMoved?.Invoke(eventArgs);
+            throw new NotImplementedException();
         }
 
+        public void OnProjectLoaded(ProjectLoadedEventArgs eventArgs)
+        {
+            throw new NotImplementedException();
+        }
 
+        public void OnProjectSaving(ProjectSavingEventArgs eventArgs)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void OnNodeConnectChanged(NodeConnectChangeEventArgs eventArgs)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void OnCanvasCreated(CanvasCreateEventArgs eventArgs)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void OnCanvasRemoved(CanvasRemoveEventArgs eventArgs)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void OnNodeCreated(NodeCreateEventArgs eventArgs)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void OnNodeRemoved(NodeRemoveEventArgs eventArgs)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void OnNodePlace(NodePlaceEventArgs eventArgs)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void OnNodeTakeOut(NodeTakeOutEventArgs eventArgs)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void OnStartNodeChanged(StartNodeChangeEventArgs eventArgs)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void OnFlowRunComplete(FlowEventArgs eventArgs)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void OnMonitorObjectChanged(MonitorObjectEventArgs eventArgs)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void OnNodeInterruptStateChanged(NodeInterruptStateChangeEventArgs eventArgs)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void OnInterruptTriggered(InterruptTriggerEventArgs eventArgs)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void OnIOCMembersChanged(IOCMembersChangedEventArgs eventArgs)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void OnNodeLocated(NodeLocatedEventArgs eventArgs)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void OnEnvOutput(InfoType type, string value)
+        {
+            throw new NotImplementedException();
+        }
         #endregion
-
-
-        #endregion
-
-
     }
 }

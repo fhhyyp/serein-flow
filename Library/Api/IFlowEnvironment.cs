@@ -120,11 +120,6 @@ namespace Serein.Library.Api
     /// <param name="eventArgs"></param>
     public delegate void NodeLocatedHandler(NodeLocatedEventArgs eventArgs);
 
-    /// <summary>
-    /// 节点移动了（远程插件）
-    /// </summary>
-    /// <param name="eventArgs"></param>
-    public delegate void NodeMovedHandler(NodeMovedEventArgs eventArgs);
 
     /// <summary>
     /// 远程环境内容输出
@@ -608,30 +603,30 @@ namespace Serein.Library.Api
         public string NodeGuid { get; private set; }
     }
 
-    /// <summary>
+/*    /// <summary>
     /// 节点移动了
     /// </summary>
      public class NodeMovedEventArgs : FlowEventArgs
-    {
-        public NodeMovedEventArgs(string nodeGuid, double x, double y)
         {
-            this.NodeGuid = nodeGuid;
-            this.X = x;
-            this.Y = y;
-        }
-        /// <summary>
-        /// 节点唯一标识
-        /// </summary>
-        public string NodeGuid { get; private set; }
-        /// <summary>
-        /// 画布上的x坐标
-        /// </summary>
-        public double X { get; private set; }
-        /// <summary>
-        /// 画布上的y坐标
-        /// </summary>
-        public double Y { get; private set; }
-    }
+            public NodeMovedEventArgs(string nodeGuid, double x, double y)
+            {
+                this.NodeGuid = nodeGuid;
+                this.X = x;
+                this.Y = y;
+            }
+            /// <summary>
+            /// 节点唯一标识
+            /// </summary>
+            public string NodeGuid { get; private set; }
+            /// <summary>
+            /// 画布上的x坐标
+            /// </summary>
+            public double X { get; private set; }
+            /// <summary>
+            /// 画布上的y坐标
+            /// </summary>
+            public double Y { get; private set; }
+        }*/
 
 
     #endregion
@@ -645,97 +640,112 @@ namespace Serein.Library.Api
         /// <summary>
         /// 加载Dll
         /// </summary>
-        event LoadDllHandler OnDllLoad;
+        event LoadDllHandler DllLoad;
 
         /// <summary>
         /// 项目加载完成
         /// </summary>
-        event ProjectLoadedHandler OnProjectLoaded;
+        event ProjectLoadedHandler ProjectLoaded;
 
         /// <summary>
         /// 项目准备保存
         /// </summary>
-        event ProjectSavingHandler OnProjectSaving;
+        event ProjectSavingHandler ProjectSaving;
 
         /// <summary>
         /// 节点连接属性改变事件
         /// </summary>
-        event NodeConnectChangeHandler OnNodeConnectChange;
+        event NodeConnectChangeHandler NodeConnectChanged;
 
         /// <summary>
         /// 增加画布事件
         /// </summary>
-        event CanvasCreateHandler OnCanvasCreate;
+        event CanvasCreateHandler CanvasCreated;
 
         /// <summary>
         /// 删除画布事件
         /// </summary>
-        event CanvasRemoveHandler OnCanvasRemove;
+        event CanvasRemoveHandler CanvasRemoved;
 
         /// <summary>
         /// 节点创建事件
         /// </summary>
-        event NodeCreateHandler OnNodeCreate;
+        event NodeCreateHandler NodeCreated;
 
         /// <summary>
         /// 移除节点事件
         /// </summary>
-        event NodeRemoveHandler OnNodeRemove;
+        event NodeRemoveHandler NodeRemoved;
 
         /// <summary>
         /// 节点放置事件
         /// </summary>
-        event NodePlaceHandler OnNodePlace;
+        event NodePlaceHandler NodePlace;
 
         /// <summary>
         /// 节点取出事件
         /// </summary>
-        event NodeTakeOutHandler OnNodeTakeOut;
+        event NodeTakeOutHandler NodeTakeOut;
 
         /// <summary>
         /// 起始节点变化事件
         /// </summary>
-        event StartNodeChangeHandler OnStartNodeChange;
+        event StartNodeChangeHandler StartNodeChanged;
 
         /// <summary>
         /// 流程运行完成事件
         /// </summary>
-        event FlowRunCompleteHandler OnFlowRunComplete;
+        event FlowRunCompleteHandler FlowRunComplete;
 
         /// <summary>
         /// 被监视的对象改变事件
         /// </summary>
-        event MonitorObjectChangeHandler OnMonitorObjectChange;
+        event MonitorObjectChangeHandler MonitorObjectChanged;
 
         /// <summary>
         /// 节点中断状态变化事件
         /// </summary>
-        event NodeInterruptStateChangeHandler OnNodeInterruptStateChange;
+        event NodeInterruptStateChangeHandler NodeInterruptStateChanged;
 
         /// <summary>
         /// 触发中断
         /// </summary>
-        event ExpInterruptTriggerHandler OnInterruptTrigger;
+        event ExpInterruptTriggerHandler InterruptTriggered;
 
         /// <summary>
         /// IOC容器发生改变
         /// </summary>
-        event IOCMembersChangedHandler OnIOCMembersChanged;
+        event IOCMembersChangedHandler IOCMembersChanged;
 
         /// <summary>
         /// 节点需要定位
         /// </summary>
-        event NodeLocatedHandler OnNodeLocated;
+        event NodeLocatedHandler NodeLocated;
 
-        /// <summary>
-        /// 节点移动了（远程环境）
-        /// </summary>
-        event NodeMovedHandler OnNodeMoved;
 
         /// <summary>
         /// 运行环境输出
         /// </summary>
-        event EnvOutHandler OnEnvOut;
+        event EnvOutHandler EnvOutput;
+
+        public void OnDllLoad(LoadDllEventArgs eventArgs);
+        public void OnProjectLoaded(ProjectLoadedEventArgs eventArgs);
+        public void OnProjectSaving(ProjectSavingEventArgs eventArgs);
+        public void OnNodeConnectChanged(NodeConnectChangeEventArgs eventArgs);
+        public void OnCanvasCreated(CanvasCreateEventArgs eventArgs);
+        public void OnCanvasRemoved(CanvasRemoveEventArgs eventArgs);
+        public void OnNodeCreated(NodeCreateEventArgs eventArgs);
+        public void OnNodeRemoved(NodeRemoveEventArgs eventArgs);
+        public void OnNodePlace(NodePlaceEventArgs eventArgs);
+        public void OnNodeTakeOut(NodeTakeOutEventArgs eventArgs);
+        public void OnStartNodeChanged(StartNodeChangeEventArgs eventArgs);
+        public void OnFlowRunComplete(FlowEventArgs eventArgs);
+        public void OnMonitorObjectChanged(MonitorObjectEventArgs eventArgs);
+        public void OnNodeInterruptStateChanged(NodeInterruptStateChangeEventArgs eventArgs);
+        public void OnInterruptTriggered(InterruptTriggerEventArgs eventArgs);
+        public void OnIOCMembersChanged(IOCMembersChangedEventArgs eventArgs);
+        public void OnNodeLocated(NodeLocatedEventArgs eventArgs);
+        public void OnEnvOutput(InfoType type, string value);
     }
 
 
@@ -903,15 +913,6 @@ namespace Serein.Library.Api
         /// <returns></returns>
         Task<bool> RemoveCanvasAsync(string canvasGuid);
 
-
-        /// <summary>
-        /// 移动了某个节点(远程插件使用）
-        /// </summary>
-        /// <param name="canvasGuid">所在画布</param>
-        /// <param name="nodeGuid"></param>
-        /// <param name="x"></param>
-        /// <param name="y"></param>
-        void MoveNode(string canvasGuid, string nodeGuid, double x, double y);
 
         /// <summary>
         /// 设置流程起点节点
@@ -1202,7 +1203,7 @@ namespace Serein.Library.Api
         /// 节点定位
         /// </summary>
         /// <param name="nodeGuid"></param>
-        void NodeLocated(string nodeGuid);
+        void NodeLocate(string nodeGuid);
 
         #endregion
     }

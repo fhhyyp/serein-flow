@@ -109,6 +109,14 @@
                     <TextBlock Text="预览位置Y" Style="{StaticResource InfoTipsTextBlock}" />
                     <TextBox Text="{Binding Model.ViewY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InfoValueTextBox}"/>
                 </StackPanel>
+                <StackPanel Margin="1" Orientation="Horizontal">
+                    <TextBlock Text="缩放比例X" Style="{StaticResource InfoTipsTextBlock}" />
+                    <TextBox Text="{Binding Model.ScaleX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InfoValueTextBox}"/>
+                </StackPanel>
+                <StackPanel Margin="1" Orientation="Horizontal">
+                    <TextBlock Text="缩放比例Y" Style="{StaticResource InfoTipsTextBlock}" />
+                    <TextBox Text="{Binding Model.ScaleY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InfoValueTextBox}"/>
+                </StackPanel>
             
             </StackPanel>
         </Grid>

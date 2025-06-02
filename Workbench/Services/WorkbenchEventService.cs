@@ -82,9 +82,9 @@ namespace Serein.Workbench.Services
 
         private void InitEvents()
         {
-            flowEEForwardingService.OnProjectLoaded += FlowEEForwardingService_OnProjectLoaded;
-            flowEEForwardingService.OnProjectSaving += SaveProjectToLocalFile;
-            flowEEForwardingService.OnEnvOut += FlowEEForwardingService_OnEnvOut;
+            flowEEForwardingService.ProjectLoaded += FlowEEForwardingService_OnProjectLoaded;
+            flowEEForwardingService.ProjectSaving += SaveProjectToLocalFile;
+            flowEEForwardingService.EnvOutput += FlowEEForwardingService_OnEnvOut;
             keyEventService.OnKeyDown += KeyEventService_OnKeyDown; ;
         }
 

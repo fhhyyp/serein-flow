@@ -10,14 +10,15 @@ namespace Serein.NodeFlow.Env
     /// <summary>
     /// 流程运行环境
     /// </summary>
-    public class FlowEnvironment : IFlowEnvironment, IFlowEnvironmentEvent
+    public class FlowEnvironment : IFlowEnvironment
     {
         public FlowEnvironment()
         {
-            flowEnvironment = new LocalFlowEnvironment();
+            flowEnvironmentEvent = new FlowEnvironmentEvent();
+            flowEnvironment = new LocalFlowEnvironment(flowEnvironmentEvent);
             // 默认使用本地环境
             currentFlowEnvironment = flowEnvironment;
-            currentFlowEnvironmentEvent = flowEnvironment;
+            currentFlowEnvironmentEvent = flowEnvironmentEvent;
             SereinEnv.SetEnv(currentFlowEnvironment);
         }
 
@@ -105,135 +106,128 @@ namespace Serein.NodeFlow.Env
         public RunState FlowState { get => currentFlowEnvironment.FlowState; set => currentFlowEnvironment.FlowState = value; }
 
         /// <inheritdoc/>
-        public event LoadDllHandler OnDllLoad { 
-            add { currentFlowEnvironmentEvent.OnDllLoad += value; }
-            remove { currentFlowEnvironmentEvent.OnDllLoad -= value; }
+        public event LoadDllHandler DllLoad { 
+            add { currentFlowEnvironmentEvent.DllLoad += value; }
+            remove { currentFlowEnvironmentEvent.DllLoad -= value; }
         }
 
         /// <inheritdoc/>
-        public event ProjectLoadedHandler OnProjectLoaded
+        public event ProjectLoadedHandler ProjectLoaded
         {
-            add { currentFlowEnvironmentEvent.OnProjectLoaded += value; }
-            remove { currentFlowEnvironmentEvent.OnProjectLoaded -= value; }
+            add { currentFlowEnvironmentEvent.ProjectLoaded += value; }
+            remove { currentFlowEnvironmentEvent.ProjectLoaded -= value; }
         }
 
         /// <inheritdoc/>
-        public event ProjectSavingHandler? OnProjectSaving
+        public event ProjectSavingHandler? ProjectSaving
         {
-            add { currentFlowEnvironmentEvent.OnProjectSaving += value; }
-            remove { currentFlowEnvironmentEvent.OnProjectSaving -= value; }
+            add { currentFlowEnvironmentEvent.ProjectSaving += value; }
+            remove { currentFlowEnvironmentEvent.ProjectSaving -= value; }
         }
 
         /// <inheritdoc/>
-        public event NodeConnectChangeHandler OnNodeConnectChange
+        public event NodeConnectChangeHandler NodeConnectChanged
         {
-            add { currentFlowEnvironmentEvent.OnNodeConnectChange += value; }
-            remove { currentFlowEnvironmentEvent.OnNodeConnectChange -= value; }
+            add { currentFlowEnvironmentEvent.NodeConnectChanged += value; }
+            remove { currentFlowEnvironmentEvent.NodeConnectChanged -= value; }
         }
 
         /// <inheritdoc/>
-        public event CanvasCreateHandler OnCanvasCreate
+        public event CanvasCreateHandler CanvasCreated
         {
-            add { currentFlowEnvironmentEvent.OnCanvasCreate += value; }
-            remove { currentFlowEnvironmentEvent.OnCanvasCreate -= value; }
+            add { currentFlowEnvironmentEvent.CanvasCreated += value; }
+            remove { currentFlowEnvironmentEvent.CanvasCreated -= value; }
         }
 
         /// <inheritdoc/>
-        public event CanvasRemoveHandler OnCanvasRemove
+        public event CanvasRemoveHandler CanvasRemoved
         {
-            add { currentFlowEnvironmentEvent.OnCanvasRemove += value; }
-            remove { currentFlowEnvironmentEvent.OnCanvasRemove -= value; }
+            add { currentFlowEnvironmentEvent.CanvasRemoved += value; }
+            remove { currentFlowEnvironmentEvent.CanvasRemoved -= value; }
         }
 
         /// <inheritdoc/>
-        public event NodeCreateHandler OnNodeCreate
+        public event NodeCreateHandler NodeCreated
         {
-            add { currentFlowEnvironmentEvent.OnNodeCreate += value; }
-            remove { currentFlowEnvironmentEvent.OnNodeCreate -= value; }
+            add { currentFlowEnvironmentEvent.NodeCreated += value; }
+            remove { currentFlowEnvironmentEvent.NodeCreated -= value; }
         }
 
         /// <inheritdoc/>
-        public event NodeRemoveHandler OnNodeRemove
+        public event NodeRemoveHandler NodeRemoved
         {
-            add { currentFlowEnvironmentEvent.OnNodeRemove += value; }
-            remove { currentFlowEnvironmentEvent.OnNodeRemove -= value; }
+            add { currentFlowEnvironmentEvent.NodeRemoved += value; }
+            remove { currentFlowEnvironmentEvent.NodeRemoved -= value; }
         }
 
         /// <inheritdoc/>
-        public event NodePlaceHandler OnNodePlace
+        public event NodePlaceHandler NodePlace
         {
-            add { currentFlowEnvironmentEvent.OnNodePlace += value; }
-            remove { currentFlowEnvironmentEvent.OnNodePlace -= value; }
+            add { currentFlowEnvironmentEvent.NodePlace += value; }
+            remove { currentFlowEnvironmentEvent.NodePlace -= value; }
         }
 
         /// <inheritdoc/>
-        public event NodeTakeOutHandler OnNodeTakeOut
+        public event NodeTakeOutHandler NodeTakeOut
         {
-            add { currentFlowEnvironmentEvent.OnNodeTakeOut += value; }
-            remove { currentFlowEnvironmentEvent.OnNodeTakeOut -= value; }
+            add { currentFlowEnvironmentEvent.NodeTakeOut += value; }
+            remove { currentFlowEnvironmentEvent.NodeTakeOut -= value; }
         }
 
         /// <inheritdoc/>
-        public event StartNodeChangeHandler OnStartNodeChange
+        public event StartNodeChangeHandler StartNodeChanged
         {
-            add { currentFlowEnvironmentEvent.OnStartNodeChange += value; }
-            remove { currentFlowEnvironmentEvent.OnStartNodeChange -= value; }
+            add { currentFlowEnvironmentEvent.StartNodeChanged += value; }
+            remove { currentFlowEnvironmentEvent.StartNodeChanged -= value; }
         }
 
         /// <inheritdoc/>
-        public event FlowRunCompleteHandler OnFlowRunComplete
+        public event FlowRunCompleteHandler FlowRunComplete
         {
-            add { currentFlowEnvironmentEvent.OnFlowRunComplete += value; }
-            remove { currentFlowEnvironmentEvent.OnFlowRunComplete -= value; }
+            add { currentFlowEnvironmentEvent.FlowRunComplete += value; }
+            remove { currentFlowEnvironmentEvent.FlowRunComplete -= value; }
         }
 
         /// <inheritdoc/>
-        public event MonitorObjectChangeHandler OnMonitorObjectChange
+        public event MonitorObjectChangeHandler MonitorObjectChanged
         {
-            add { currentFlowEnvironmentEvent.OnMonitorObjectChange += value; }
-            remove { currentFlowEnvironmentEvent.OnMonitorObjectChange -= value; }
+            add { currentFlowEnvironmentEvent.MonitorObjectChanged += value; }
+            remove { currentFlowEnvironmentEvent.MonitorObjectChanged -= value; }
         }
 
         /// <inheritdoc/>
-        public event NodeInterruptStateChangeHandler OnNodeInterruptStateChange
+        public event NodeInterruptStateChangeHandler NodeInterruptStateChanged
         {
-            add { currentFlowEnvironmentEvent.OnNodeInterruptStateChange += value; }
-            remove { currentFlowEnvironmentEvent.OnNodeInterruptStateChange -= value; }
+            add { currentFlowEnvironmentEvent.NodeInterruptStateChanged += value; }
+            remove { currentFlowEnvironmentEvent.NodeInterruptStateChanged -= value; }
         }
 
         /// <inheritdoc/>
-        public event ExpInterruptTriggerHandler OnInterruptTrigger
+        public event ExpInterruptTriggerHandler InterruptTriggered
         {
-            add { currentFlowEnvironmentEvent.OnInterruptTrigger += value; }
-            remove { currentFlowEnvironmentEvent.OnInterruptTrigger -= value; }
+            add { currentFlowEnvironmentEvent.InterruptTriggered += value; }
+            remove { currentFlowEnvironmentEvent.InterruptTriggered -= value; }
         }
 
         /// <inheritdoc/>
-        public event IOCMembersChangedHandler OnIOCMembersChanged
+        public event IOCMembersChangedHandler IOCMembersChanged
         {
-            add { currentFlowEnvironmentEvent.OnIOCMembersChanged += value; }
-            remove { currentFlowEnvironmentEvent.OnIOCMembersChanged -= value; }
+            add { currentFlowEnvironmentEvent.IOCMembersChanged += value; }
+            remove { currentFlowEnvironmentEvent.IOCMembersChanged -= value; }
         }
 
         /// <inheritdoc/>
-        public event NodeLocatedHandler OnNodeLocated
+        public event NodeLocatedHandler NodeLocated
         {
-            add { currentFlowEnvironmentEvent.OnNodeLocated += value; }
-            remove { currentFlowEnvironmentEvent.OnNodeLocated -= value; }
+            add { currentFlowEnvironmentEvent.NodeLocated += value; }
+            remove { currentFlowEnvironmentEvent.NodeLocated -= value; }
         }
 
         /// <inheritdoc/>
-        public event NodeMovedHandler OnNodeMoved
+        public event EnvOutHandler EnvOutput
         {
-            add { currentFlowEnvironmentEvent.OnNodeMoved += value; }
-            remove { currentFlowEnvironmentEvent.OnNodeMoved -= value; }
-        }
-
-        /// <inheritdoc/>
-        public event EnvOutHandler OnEnvOut
-        {
-            add { currentFlowEnvironmentEvent.OnEnvOut += value; }
-            remove { currentFlowEnvironmentEvent.OnEnvOut -= value; }
+            add { currentFlowEnvironmentEvent.EnvOutput += value; }
+            remove { currentFlowEnvironmentEvent.EnvOutput -= value; }
         }
 
 
@@ -287,7 +281,7 @@ namespace Serein.NodeFlow.Env
             if (isConnect)
             {
                 
-                remoteFlowEnvironment ??= new RemoteFlowEnvironment(remoteMsgUtil, this.UIContextOperation);
+                remoteFlowEnvironment ??= new RemoteFlowEnvironment(remoteMsgUtil, this.Event,  this.UIContextOperation);
                 currentFlowEnvironment = remoteFlowEnvironment;
             }
             return (isConnect, remoteMsgUtil);
@@ -380,16 +374,16 @@ namespace Serein.NodeFlow.Env
             currentFlowEnvironment.MonitorObjectNotification(nodeGuid, monitorData, sourceType);
         }
 
-        /// <inheritdoc/>
+        /*/// <inheritdoc/>
         public void MoveNode(string canvasGuid, string nodeGuid, double x, double y)
         {
             currentFlowEnvironment.MoveNode(canvasGuid, nodeGuid, x, y);
         }
-
+*/
         /// <inheritdoc/>
-        public void NodeLocated(string nodeGuid)
+        public void NodeLocate(string nodeGuid)
         {
-            currentFlowEnvironment.NodeLocated(nodeGuid);
+            currentFlowEnvironment.NodeLocate(nodeGuid);
         }
 
         /// <inheritdoc/>

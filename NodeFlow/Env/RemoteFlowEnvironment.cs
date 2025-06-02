@@ -15,16 +15,19 @@ namespace Serein.NodeFlow.Env
     /// <summary>
     /// 远程流程环境
     /// </summary>
-    public class RemoteFlowEnvironment : ChannelFlowTrigger<string>, IFlowEnvironment , IFlowEnvironmentEvent
+    public class RemoteFlowEnvironment : ChannelFlowTrigger<string>, IFlowEnvironment
     {
         /// <summary>
         /// 连接到远程环境后切换到的环境接口实现
         /// </summary>
         /// <param name="remoteMsgUtil">连接到远程环境后，本地环境自动切换到对应的环境实体</param>
         /// <param name="uIContextOperation">远程环境下需要操作UI线程时，所提供的线程上下文封装工具</param>
-        public RemoteFlowEnvironment(RemoteMsgUtil remoteMsgUtil, UIContextOperation uIContextOperation)
+        public RemoteFlowEnvironment(RemoteMsgUtil remoteMsgUtil,
+                                     IFlowEnvironmentEvent flowEnvironmentEvent,
+                                     UIContextOperation uIContextOperation)
         {
             this.UIContextOperation = uIContextOperation;
+            this.Event = flowEnvironmentEvent;
             RemoteMsgUtil = remoteMsgUtil;
             msgClient = new MsgControllerOfClient(this, remoteMsgUtil.SendAsync); // 这里提供的是主动发送消息的方法
             remoteMsgUtil.EnvClient.MsgHandleHelper.AddModule(msgClient, (ex, send) =>
@@ -43,32 +46,13 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         private Dictionary<string, IFlowNode> NodeModels { get; } = [];
 
-        public event LoadDllHandler OnDllLoad;
-        public event ProjectLoadedHandler OnProjectLoaded;
-        public event ProjectSavingHandler OnProjectSaving;
-        public event CanvasCreateHandler OnCanvasCreate;
-        public event CanvasRemoveHandler OnCanvasRemove;
-        public event NodeConnectChangeHandler OnNodeConnectChange;
-        public event NodeCreateHandler OnNodeCreate;
-        public event NodeRemoveHandler OnNodeRemove;
-        public event NodePlaceHandler OnNodePlace;
-        public event NodeTakeOutHandler OnNodeTakeOut;
-        public event StartNodeChangeHandler OnStartNodeChange;
-        public event FlowRunCompleteHandler OnFlowRunComplete;
-        public event MonitorObjectChangeHandler OnMonitorObjectChange;
-        public event NodeInterruptStateChangeHandler OnNodeInterruptStateChange;
-        public event ExpInterruptTriggerHandler OnInterruptTrigger;
-        public event IOCMembersChangedHandler OnIOCMembersChanged;
-        public event NodeLocatedHandler OnNodeLocated;
-        public event NodeMovedHandler OnNodeMoved;
-        public event EnvOutHandler OnEnvOut;
 
         public ISereinIOC IOC => throw new NotImplementedException();
 
         /// <summary>
         /// 流程事件
         /// </summary>
-        public IFlowEnvironmentEvent Event { get => this; }
+        public IFlowEnvironmentEvent Event {  get; private set; }
         public string EnvName => LocalFlowEnvironment.SpaceName;
 
         /// <summary>
@@ -116,7 +100,7 @@ namespace Serein.NodeFlow.Env
         /// <param name="class">日志级别</param>
         public void WriteLine(InfoType type,  string message, InfoClass @class = InfoClass.Trivial)
         {
-            OnEnvOut?.Invoke(type, message);
+            Event.OnEnvOutput(type, message);
         }
 
         public async Task StartRemoteServerAsync(int port = 7525)
@@ -151,7 +135,7 @@ namespace Serein.NodeFlow.Env
                 var result = await msgClient.SendAndWaitDataAsync<SereinProjectData>(EnvMsgTheme.SaveProject);
                 if (result is not null)
                 {
-                    OnProjectSaving?.Invoke(new ProjectSavingEventArgs(result));
+                    Event.OnProjectSaving(new ProjectSavingEventArgs(result));
                 }
             });
            
@@ -186,7 +170,7 @@ namespace Serein.NodeFlow.Env
                     FileName = "Remote",
                 };
                 var mdInfos = lib.Mds.ToList();
-                UIContextOperation?.Invoke(() => OnDllLoad?.Invoke(new LoadDllEventArgs(nodeLibraryInfo, mdInfos))); // 通知UI创建dll面板显示
+                UIContextOperation?.Invoke(() => Event.OnDllLoad(new LoadDllEventArgs(nodeLibraryInfo, mdInfos))); // 通知UI创建dll面板显示
                 foreach (var mdInfo in mdInfos)
                 {
                     MethodDetailss.TryAdd(mdInfo.MethodName, new MethodDetails(mdInfo)); // 从DLL读取时生成元数据
@@ -200,7 +184,7 @@ namespace Serein.NodeFlow.Env
                 var canvasModel = new FlowCanvasDetails(this); 
                 canvasModel.LoadInfo(info);
                 var e = new CanvasCreateEventArgs(canvasModel);
-                OnCanvasCreate?.Invoke(e);
+                Event.OnCanvasCreated(e);
             }
             
             // 加载节点
@@ -216,7 +200,7 @@ namespace Serein.NodeFlow.Env
 
             UIContextOperation?.Invoke(() =>
             {
-                OnProjectLoaded?.Invoke(new ProjectLoadedEventArgs()); // 加载完成
+                Event.OnProjectLoaded(new ProjectLoadedEventArgs()); // 加载完成
             });
             IsLoadingProject = false;
 
@@ -488,7 +472,7 @@ namespace Serein.NodeFlow.Env
                     Width = info.Width,
                 };
                 UIContextOperation?.Invoke(() =>
-                    OnCanvasCreate?.Invoke(new CanvasCreateEventArgs(model)));
+                    Event.OnCanvasCreated(new CanvasCreateEventArgs(model)));
 
                 return info;
             }
@@ -510,40 +494,14 @@ namespace Serein.NodeFlow.Env
             if (result)
             {
                 UIContextOperation?.Invoke(() =>
-                    OnCanvasRemove?.Invoke(new CanvasRemoveEventArgs(canvasGuid)));
+                    Event.OnCanvasRemoved(new CanvasRemoveEventArgs(canvasGuid)));
 
             }
             return true;
         }
 
 
-        /// <summary>
-        /// 移动节点，通知远程环境也一起移动，保持相对位置一致
-        /// </summary>
-        /// <param name="nodeGuid"></param>
-        /// <param name="x"></param>
-        /// <param name="y"></param>
-        public void MoveNode(string cavnasGuid, string nodeGuid, double x, double y)
-        {
-            //UIContextOperation?.Invoke(() =>
-            //{
-            //    OnNodeMoved?.Invoke(new NodeMovedEventArgs(nodeGuid, x, y));
-            //});
-            _ = msgClient.SendAsync(EnvMsgTheme.MoveNode,
-                    new
-                    {
-                        cavnasGuid,
-                        nodeGuid,
-                        x,
-                        y
-                    });
-
-            if(NodeModels.TryGetValue(nodeGuid, out var nodeModel))
-            {
-                nodeModel.Position.X = x;
-                nodeModel.Position.Y = y;
-            }
-        }
+       
 
 
         /// <summary>
@@ -561,7 +519,7 @@ namespace Serein.NodeFlow.Env
             });
             if (NodeModels.TryGetValue(newNodeGuid, out var nodeModel)) // 存在节点
             {
-                UIContextOperation?.Invoke(() => OnStartNodeChange?.Invoke(new StartNodeChangeEventArgs(canvasGuid, nodeGuid, newNodeGuid)));
+                UIContextOperation?.Invoke(() => Event.OnStartNodeChanged(new StartNodeChangeEventArgs(canvasGuid, nodeGuid, newNodeGuid)));
             }
             return newNodeGuid;
         }
@@ -622,7 +580,7 @@ namespace Serein.NodeFlow.Env
             var result = await msgClient.SendAndWaitDataAsync<bool>(EnvMsgTheme.ConnectInvokeNode, sendObj);
             if (result)
             {
-                OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(canvasGuid,
+                Event.OnNodeConnectChanged(new NodeConnectChangeEventArgs(canvasGuid,
                                                                             fromNodeGuid,
                                                                             toNodeGuid,
                                                                             JunctionOfConnectionType.Invoke,
@@ -697,7 +655,7 @@ namespace Serein.NodeFlow.Env
             var result = await msgClient.SendAndWaitDataAsync<bool>(EnvMsgTheme.ConnectArgSourceNode, sendObj);
             if (result)
             {
-                OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(canvasGuid,
+                Event.OnNodeConnectChanged(new NodeConnectChangeEventArgs(canvasGuid,
                                                                             fromNodeGuid,
                                                                             toNodeGuid,
                                                                             JunctionOfConnectionType.Arg,
@@ -739,7 +697,7 @@ namespace Serein.NodeFlow.Env
             {
                 UIContextOperation.Invoke(() =>
                 {
-                    OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(canvasGuid,
+                    Event.OnNodeConnectChanged(new NodeConnectChangeEventArgs(canvasGuid,
                                                                             fromNodeGuid,
                                                                             toNodeGuid,
                                                                             JunctionOfConnectionType.Invoke,
@@ -768,7 +726,7 @@ namespace Serein.NodeFlow.Env
             {
                 UIContextOperation.Invoke(() =>
                 {
-                    OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(canvasGuid,
+                    Event.OnNodeConnectChanged(new NodeConnectChangeEventArgs(canvasGuid,
                                                                                fromNodeGuid,
                                                                                toNodeGuid,
                                                                                JunctionOfConnectionType.Arg,
@@ -914,7 +872,7 @@ namespace Serein.NodeFlow.Env
             // 通知UI更改
             UIContextOperation.Invoke(() =>
             {
-                OnNodeCreate?.Invoke(new NodeCreateEventArgs(canvasGuid, nodeModel, position));
+                Event.OnNodeCreated(new NodeCreateEventArgs(canvasGuid, nodeModel, position));
             });
             return nodeInfo;
         }
@@ -945,7 +903,7 @@ namespace Serein.NodeFlow.Env
                     // 通知UI更改
                     UIContextOperation.Invoke(() =>
                     {
-                        OnNodePlace?.Invoke(new NodePlaceEventArgs(canvasGuid, nodeGuid, containerNodeGuid)); // 通知UI更改节点放置位置
+                        Event.OnNodePlace(new NodePlaceEventArgs(canvasGuid, nodeGuid, containerNodeGuid)); // 通知UI更改节点放置位置
                     });
                 }
                 return result;
@@ -977,7 +935,7 @@ namespace Serein.NodeFlow.Env
                     // 通知UI更改
                     UIContextOperation.Invoke(() =>
                     {
-                        OnNodeTakeOut?.Invoke(new NodeTakeOutEventArgs(canvasGuid, nodeGuid)); // 重新放置在画布上
+                        Event.OnNodeTakeOut(new NodeTakeOutEventArgs(canvasGuid, nodeGuid)); // 重新放置在画布上
                     });
                 }
                 return result;
@@ -1002,7 +960,7 @@ namespace Serein.NodeFlow.Env
             {
                 UIContextOperation.Invoke(() =>
                 {
-                    OnNodeRemove?.Invoke(new NodeRemoveEventArgs(canvasGuid, nodeGuid));
+                    Event.OnNodeRemoved(new NodeRemoveEventArgs(canvasGuid, nodeGuid));
                 });
             }
             else
@@ -1102,9 +1060,9 @@ namespace Serein.NodeFlow.Env
         /// 需要定位某个节点
         /// </summary>
         /// <param name="nodeGuid"></param>
-        public void NodeLocated(string nodeGuid)
+        public void NodeLocate(string nodeGuid)
         {
-            UIContextOperation?.Invoke(() => OnNodeLocated?.Invoke(new NodeLocatedEventArgs(nodeGuid)));
+            UIContextOperation?.Invoke(() => Event.OnNodeLocated(new NodeLocatedEventArgs(nodeGuid)));
         }
 
         /// <summary>
@@ -1236,7 +1194,7 @@ namespace Serein.NodeFlow.Env
                 TryAddNode(nodeModel); // 加载项目时将节点加载到环境中
                 
                 UIContextOperation?.Invoke(() =>
-                    OnNodeCreate?.Invoke(new NodeCreateEventArgs(canvasGuid, nodeModel, nodeInfo.Position))); // 添加到UI上
+                    Event.OnNodeCreated(new NodeCreateEventArgs(canvasGuid, nodeModel, nodeInfo.Position))); // 添加到UI上
             }
             #endregion
 
@@ -1258,8 +1216,8 @@ namespace Serein.NodeFlow.Env
                     var canvasGuid = nodeInfo.CanvasGuid;
                     childNode.ContainerNode = parentNode;
                     parentNode.ChildrenNode.Add(childNode);
-                    UIContextOperation?.Invoke(() => 
-                        OnNodePlace?.Invoke(new NodePlaceEventArgs(canvasGuid,nodeInfo.Guid, nodeInfo.ParentNodeGuid)) // 通知UI更改节点放置位置
+                    UIContextOperation?.Invoke(() =>
+                        Event.OnNodePlace(new NodePlaceEventArgs(canvasGuid,nodeInfo.Guid, nodeInfo.ParentNodeGuid)) // 通知UI更改节点放置位置
                     );
 
                 }
@@ -1294,7 +1252,7 @@ namespace Serein.NodeFlow.Env
                         // 遍历当前类型分支的节点（确认连接关系）
                         foreach (var toNode in item.toNodes)
                         {
-                            UIContextOperation?.Invoke(() => OnNodeConnectChange?.Invoke(new NodeConnectChangeEventArgs(canvasGuid,
+                            UIContextOperation?.Invoke(() => Event.OnNodeConnectChanged(new NodeConnectChangeEventArgs(canvasGuid,
                                                                                 fromNode.Guid,
                                                                                 toNode.Guid,
                                                                                 JunctionOfConnectionType.Invoke,
@@ -1320,7 +1278,7 @@ namespace Serein.NodeFlow.Env
                         {
                             var canvasGuid = toNode.CanvasDetails.Guid;
                             UIContextOperation?.Invoke(() =>
-                                         OnNodeConnectChange?.Invoke(
+                                         Event.OnNodeConnectChanged(
                                          new NodeConnectChangeEventArgs(
                                              canvasGuid,
                                              fromNode.Guid, // 从哪个节点开始
@@ -1335,7 +1293,7 @@ namespace Serein.NodeFlow.Env
                 }
                 #endregion 
             });
-            UIContextOperation?.Invoke(() => OnProjectLoaded?.Invoke(new ProjectLoadedEventArgs()));
+            UIContextOperation?.Invoke(() => Event.OnProjectLoaded(new ProjectLoadedEventArgs()));
         }
 
 

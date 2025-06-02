@@ -34,10 +34,6 @@
         /// </summary>
         public const string RemoveCanvas = nameof(RemoveCanvas);
         /// <summary>
-        /// 尝试移动某个节点
-        /// </summary>
-        public const string MoveNode = nameof(MoveNode);
-        /// <summary>
         /// 尝试设置流程起点
         /// </summary>
         public const string SetStartNode = nameof(SetStartNode);

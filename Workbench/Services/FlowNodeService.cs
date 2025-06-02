@@ -190,17 +190,17 @@ namespace Serein.Workbench.Services
         /// </summary>
         private void InitFlowEvent()
         {
-            flowEEForwardingService.OnCanvasCreate += FlowEEForwardingService_OnCanvasCreate;  // 创建了画布
-            flowEEForwardingService.OnCanvasRemove += FlowEEForwardingService_OnCanvasRemove; // 移除了画布
-            flowEEForwardingService.OnNodeCreate += FlowEEForwardingService_OnNodeCreate; // 创建了节点
-            flowEEForwardingService.OnNodeRemove += FlowEEForwardingService_OnNodeRemove; // 移除了节点
+            flowEEForwardingService.CanvasCreated += FlowEEForwardingService_OnCanvasCreate;  // 创建了画布
+            flowEEForwardingService.CanvasRemoved += FlowEEForwardingService_OnCanvasRemove; // 移除了画布
+            flowEEForwardingService.NodeCreated += FlowEEForwardingService_OnNodeCreate; // 创建了节点
+            flowEEForwardingService.NodeRemoved += FlowEEForwardingService_OnNodeRemove; // 移除了节点
 
-            flowEEForwardingService.OnNodePlace += FlowEEForwardingService_OnNodePlace; // 节点放置在容器中
-            flowEEForwardingService.OnNodeTakeOut += FlowEEForwardingService_OnNodeTakeOut; ; // 节点从容器中取出
+            flowEEForwardingService.NodePlace += FlowEEForwardingService_OnNodePlace; // 节点放置在容器中
+            flowEEForwardingService.NodeTakeOut += FlowEEForwardingService_OnNodeTakeOut; ; // 节点从容器中取出
 
-            flowEEForwardingService.OnNodeConnectChange += FlowEEForwardingService_OnNodeConnectChange; // 节点连接状态改变事件
+            flowEEForwardingService.NodeConnectChanged += FlowEEForwardingService_OnNodeConnectChange; // 节点连接状态改变事件
 
-            flowEEForwardingService.OnStartNodeChange += FlowEEForwardingService_OnStartNodeChange; // 画布起始节点改变
+            flowEEForwardingService.StartNodeChanged += FlowEEForwardingService_OnStartNodeChange; // 画布起始节点改变
 
 
         }

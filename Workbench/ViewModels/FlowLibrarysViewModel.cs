@@ -26,7 +26,7 @@ namespace Serein.Workbench.ViewModels
             this.flowEEForwardingService = flowEEForwardingService;
             this.flowEnvironment = flowEnvironment;
             FlowLibraryInfos = new ObservableCollection<FlowLibraryInfo>();
-            flowEEForwardingService.OnDllLoad += FlowEEForwardingService_OnDllLoad;
+            flowEEForwardingService.DllLoad += FlowEEForwardingService_OnDllLoad;
         }
         /// <summary>
         /// 加载文件依赖

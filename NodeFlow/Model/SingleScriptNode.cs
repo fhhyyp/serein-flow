@@ -227,12 +227,12 @@ namespace Serein.NodeFlow.Model
             };
 
             var envEvent = (IFlowEnvironmentEvent)context.Env;
-            envEvent.OnFlowRunComplete += onFlowStop; // 防止运行后台流程
+            envEvent.FlowRunComplete += onFlowStop; // 防止运行后台流程
 
             if (token.IsCancellationRequested) return null;
 
             var result = await ScriptInterpreter.InterpretAsync(scriptContext, mainNode); // 从入口节点执行
-            envEvent.OnFlowRunComplete -= onFlowStop;
+            envEvent.FlowRunComplete -= onFlowStop;
             return new FlowResult(this, context, result);
         }
 

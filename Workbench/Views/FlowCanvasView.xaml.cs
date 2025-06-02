@@ -41,6 +41,7 @@ using UserControl = System.Windows.Controls.UserControl;
 using Clipboard = System.Windows.Clipboard;
 using TextDataFormat = System.Windows.TextDataFormat;
 using System.Windows.Media.Animation;
+using Serein.NodeFlow.Model;
 
 namespace Serein.Workbench.Views
 {
@@ -174,7 +175,7 @@ namespace Serein.Workbench.Views
         private void InitEvent()
         {
             keyEventService.OnKeyDown += KeyEventService_OnKeyDown;
-            flowEEForwardingService.OnNodeLocated += FlowEEForwardingService_OnNodeLocated;
+            flowEEForwardingService.NodeLocated += FlowEEForwardingService_OnNodeLocated;
         }
 
         /// <summary>
@@ -1348,9 +1349,9 @@ namespace Serein.Workbench.Views
                     var actualDeltaX = newLeft - oldLeft;
                     var actualDeltaY = newTop - oldTop;
 
-                    List<(string Guid, double NewLeft, double NewTop, double MaxWidth, double MaxHeight)> moveSizes  =
+                    List<(IFlowNode Node, double NewLeft, double NewTop, double MaxWidth, double MaxHeight)> moveSizes  =
                         selectNodeControls.Select(control =>
-                            (control.ViewModel.NodeModel.Guid,
+                            (control.ViewModel.NodeModel,
                             Canvas.GetLeft(control) + actualDeltaX, 
                             Canvas.GetTop(control) + actualDeltaY, 
                             control.FlowCanvas.Model.Width - control.ActualWidth - 10,
@@ -1363,7 +1364,10 @@ namespace Serein.Workbench.Views
                     }
                     foreach (var item in moveSizes)
                     {
-                        this.flowEnvironment.MoveNode(this.Guid, item.Guid, item.NewLeft, item.NewTop); // 移动节点
+                        item.Node.Position.X = item.NewLeft;
+                        item.Node.Position.Y = item.NewTop;
+
+                        //this.flowEnvironment.MoveNode(this.Guid, item.Guid, item.NewLeft, item.NewTop); // 移动节点
                     }
 
                     // 更新节点之间线的连接位置
@@ -1390,7 +1394,11 @@ namespace Serein.Workbench.Views
                     newLeft = newLeft < 5 ? 5 : newLeft > canvasWidth ? canvasWidth : newLeft;
                     newTop = newTop < 5 ? 5 : newTop > canvasHeight ? canvasHeight : newTop;
 
-                    this.flowEnvironment.MoveNode(Guid, nodeControl.ViewModel.NodeModel.Guid, newLeft, newTop); // 移动节点
+                    var node = nodeControl.ViewModel.NodeModel;
+                    node.Position.X = newLeft;
+                    node.Position.Y = newTop;
+
+                    //this.flowEnvironment.MoveNode(Guid, nodeControl.ViewModel.NodeModel.Guid, newLeft, newTop); // 移动节点
                     nodeControl.UpdateLocationConnections();
                 }
                 startControlDragPoint = currentPosition; // 更新起始点位置
