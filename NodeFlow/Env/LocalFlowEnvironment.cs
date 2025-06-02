@@ -225,6 +225,11 @@ namespace Serein.NodeFlow.Env
         public IFlowEnvironment CurrentEnv { get => this; }
 
         /// <summary>
+        /// 流程事件
+        /// </summary>
+        public IFlowEnvironmentEvent Event { get => this; }
+
+        /// <summary>
         /// UI线程操作类
         /// </summary>
         public UIContextOperation UIContextOperation { get; private set; }

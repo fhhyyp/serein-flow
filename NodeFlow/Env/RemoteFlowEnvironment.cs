@@ -65,6 +65,10 @@ namespace Serein.NodeFlow.Env
 
         public ISereinIOC IOC => throw new NotImplementedException();
 
+        /// <summary>
+        /// 流程事件
+        /// </summary>
+        public IFlowEnvironmentEvent Event { get => this; }
         public string EnvName => LocalFlowEnvironment.SpaceName;
 
         /// <summary>

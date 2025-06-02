@@ -80,7 +80,11 @@ namespace Serein.NodeFlow.Env
         /// <inheritdoc/>
         public NodeMVVMManagement NodeMVVMManagement => currentFlowEnvironment.NodeMVVMManagement;
         /// <inheritdoc/>
-        public ISereinIOC IOC => (ISereinIOC)currentFlowEnvironment;
+        public ISereinIOC IOC => currentFlowEnvironment.IOC;
+
+        /// <inheritdoc/>
+        public IFlowEnvironmentEvent Event => currentFlowEnvironment.Event;
+
 
         /// <inheritdoc/>
         public string EnvName => currentFlowEnvironment.EnvName;

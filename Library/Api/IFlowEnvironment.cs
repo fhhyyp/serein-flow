@@ -754,6 +754,12 @@ namespace Serein.Library.Api
         /// </summary>
         ISereinIOC IOC { get; }
 
+
+        /// <summary>
+        /// 流程事件接口
+        /// </summary>
+        IFlowEnvironmentEvent Event { get; }
+
         /// <summary>
         /// 环境名称
         /// </summary>
