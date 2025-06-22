@@ -23,6 +23,11 @@ namespace Serein.Workbench.Services
             this.flowEnvironment = flowEnvironment;
         }
 
+        public void StartProjectManagementServer()
+        {
+            // CollabrationSideManagement
+        }
+
         public void LoadLocalProject(string filePath)
         {
             if (File.Exists(filePath))

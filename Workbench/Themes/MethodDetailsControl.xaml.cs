@@ -123,7 +123,7 @@ namespace Serein.Workbench.Themes
         private void ExecuteAddParams(object parameter)
         {
             // 方法逻辑
-            this.MethodDetails.AddParamsArg();
+            this.MethodDetails.AddParamsArg(0);
         }
 
        

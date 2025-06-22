@@ -9,7 +9,7 @@ namespace Serein.Library
     /// <para>这种情况会导致流程启动时，IOC容器无法注入构造函数并创建类型，导致启动失败。</para>
     /// <para>解决方法：从ServiceA类的构造函数中移除ServiceB类型的入参，将该类型更改为公开可见的可写属性成员ServiceB serviceB{get;set;}，并在该属性上标记[AutoInjection]特性</para>
     /// </summary>
-    [AttributeUsage(AttributeTargets.Property)]
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
     public sealed class AutoInjectionAttribute : Attribute
     {
     }

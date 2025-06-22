@@ -260,8 +260,8 @@ namespace Serein.Library.Api
         public NodeConnectChangeEventArgs(string canvasGuid,
                                           string fromNodeGuid,
                                           string toNodeGuid,
-                                          JunctionOfConnectionType junctionOfConnectionType, // 指示需要创建什么类型的连接线
                                           int argIndex,
+                                          JunctionOfConnectionType junctionOfConnectionType, // 指示需要创建什么类型的连接线
                                           ConnectionArgSourceType connectionArgSourceType, // 节点对应的方法入参所需参数来源
                                           ConnectChangeType changeType) // 需要创建连接线还是删除连接线
         {
@@ -296,15 +296,15 @@ namespace Serein.Library.Api
         /// <summary>
         /// 指示需要创建什么类型的连接线
         /// </summary>
-        public JunctionOfConnectionType JunctionOfConnectionType { get;}
+        public JunctionOfConnectionType JunctionOfConnectionType { get; } = JunctionOfConnectionType.None;
         /// <summary>
         /// 节点对应的方法入参所需参数来源
         /// </summary>
-        public ConnectionArgSourceType ConnectionArgSourceType { get;}
+        public ConnectionArgSourceType ConnectionArgSourceType { get;} 
         /// <summary>
         /// 第几个参数
         /// </summary>
-        public int ArgIndex { get;}
+        public int ArgIndex { get; } = -1; 
 
         
     }
@@ -814,7 +814,7 @@ namespace Serein.Library.Api
         /// <summary>
         /// 节点视图模型管理类
         /// </summary>
-        NodeMVVMManagement NodeMVVMManagement { get;  }
+        NodeMVVMService NodeMVVMManagement { get;  }
         #endregion
 
         #region 基本接口
@@ -904,23 +904,17 @@ namespace Serein.Library.Api
         /// <param name="width">宽度</param>
         /// <param name="height">高度</param>
         /// <returns></returns>
-        Task<FlowCanvasDetailsInfo> CreateCanvasAsync(string canvasName, int width , int height);
+        void CreateCanvas(string canvasName, int width , int height);
 
         /// <summary>
         /// 删除画布
         /// </summary>
         /// <param name="canvasGuid">画布Guid</param>
         /// <returns></returns>
-        Task<bool> RemoveCanvasAsync(string canvasGuid);
+        void RemoveCanvas(string canvasGuid);
 
 
-        /// <summary>
-        /// 设置流程起点节点
-        /// </summary>
-        /// <param name="canvasGuid">所在画布</param>
-        /// <param name="nodeGuid">尝试设置为起始节点的节点Guid</param>
-        /// <returns>被设置为起始节点的Guid</returns>
-        Task<string> SetStartNodeAsync(string canvasGuid, string nodeGuid);
+
 
         /// <summary>
         /// 在两个节点之间创建连接关系
@@ -931,7 +925,7 @@ namespace Serein.Library.Api
         /// <param name="fromNodeJunctionType">起始节点控制点</param>
         /// <param name="toNodeJunctionType">目标节点控制点</param>
         /// <param name="invokeType">决定了方法执行后的后继行为</param>
-        Task<bool> ConnectInvokeNodeAsync(string canvasGuid, 
+        void ConnectInvokeNode(string canvasGuid, 
                                           string fromNodeGuid,
                                           string toNodeGuid,
                                           JunctionType fromNodeJunctionType,
@@ -948,7 +942,7 @@ namespace Serein.Library.Api
         /// <param name="toNodeJunctionType">目标节点控制点</param>
         /// <param name="argSourceType">决定了方法参数来源</param>
         /// <param name="argIndex">设置第几个参数</param>
-        Task<bool> ConnectArgSourceNodeAsync(string canvasGuid, 
+        void ConnectArgSourceNode(string canvasGuid, 
                                              string fromNodeGuid,
                                              string toNodeGuid,
                                              JunctionType fromNodeJunctionType,
@@ -956,6 +950,23 @@ namespace Serein.Library.Api
                                              ConnectionArgSourceType argSourceType,
                                              int argIndex);
 
+        /// <summary>
+        /// 移除两个节点之间的方法调用关系
+        /// </summary>        
+        /// <param name="canvasGuid">所在画布</param>
+        /// <param name="fromNodeGuid">起始节点</param>
+        /// <param name="toNodeGuid">目标节点</param>
+        /// <param name="connectionType">连接类型</param>
+        void RemoveInvokeConnect(string canvasGuid, string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType);
+
+        /// <summary>
+        /// 移除连接节点之间参数传递的关系
+        /// </summary>
+        /// <param name="canvasGuid">所在画布</param>
+        /// <param name="fromNodeGuid">起始节点Guid</param>
+        /// <param name="toNodeGuid">目标节点Guid</param>
+        /// <param name="argIndex">连接到第几个参数</param>
+        void RemoveArgSourceConnect(string canvasGuid, string fromNodeGuid, string toNodeGuid, int argIndex);
 
 
         /// <summary>
@@ -965,8 +976,14 @@ namespace Serein.Library.Api
         /// <param name="nodeType">控件类型</param>
         /// <param name="position">节点在画布上的位置（</param>
         /// <param name="methodDetailsInfo">节点绑定的方法说明</param>
-        Task<NodeInfo> CreateNodeAsync(string canvasGuid, NodeControlType nodeType, PositionOfUI position, MethodDetailsInfo methodDetailsInfo = null);
+        void CreateNode(string canvasGuid, NodeControlType nodeType, PositionOfUI position, MethodDetailsInfo methodDetailsInfo = null);
 
+        /// <summary>
+        /// 移除节点
+        /// </summary>
+        /// <param name="canvasGuid">所在画布</param>
+        /// <param name="nodeGuid">待移除的节点Guid</param>
+        void RemoveNode(string canvasGuid, string nodeGuid);
 
         /// <summary>
         ///  将节点放置在容器中
@@ -975,15 +992,22 @@ namespace Serein.Library.Api
         /// <param name="nodeGuid">需要放置的节点Guid</param>
         /// <param name="containerNodeGuid">存放节点的容器Guid</param>
         /// <returns></returns>
-        Task<bool> PlaceNodeToContainerAsync(string canvasGuid, string nodeGuid, string containerNodeGuid);
+        void PlaceNodeToContainer(string canvasGuid, string nodeGuid, string containerNodeGuid);
 
         /// <summary>
         ///  将节点放置在容器中
         /// </summary>
         /// <param name="canvasGuid">所在画布</param>
         /// <param name="nodeGuid">需要取出的节点Guid</param>
-        Task<bool> TakeOutNodeToContainerAsync(string canvasGuid, string nodeGuid);
+        void TakeOutNodeToContainer(string canvasGuid, string nodeGuid);
 
+        /// <summary>
+        /// 设置流程起点节点
+        /// </summary>
+        /// <param name="canvasGuid">所在画布</param>
+        /// <param name="nodeGuid">尝试设置为起始节点的节点Guid</param>
+        /// <returns>被设置为起始节点的Guid</returns>
+        void SetStartNode(string canvasGuid, string nodeGuid);
 
         /// <summary>
         /// 设置两个节点某个类型的方法调用关系为优先调用
@@ -992,32 +1016,8 @@ namespace Serein.Library.Api
         /// <param name="toNodeGuid">目标节点</param>
         /// <param name="connectionType">连接关系</param>
         /// <returns></returns>
-        Task<bool> SetConnectPriorityInvoke(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType);
+        void SetConnectPriorityInvoke(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType);
 
-        /// <summary>
-        /// 移除两个节点之间的方法调用关系
-        /// </summary>        
-        /// <param name="canvasGuid">所在画布</param>
-        /// <param name="fromNodeGuid">起始节点</param>
-        /// <param name="toNodeGuid">目标节点</param>
-        /// <param name="connectionType">连接类型</param>
-        Task<bool> RemoveConnectInvokeAsync(string canvasGuid, string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType);
-
-        /// <summary>
-        /// 移除连接节点之间参数传递的关系
-        /// </summary>
-        /// <param name="canvasGuid">所在画布</param>
-        /// <param name="fromNodeGuid">起始节点Guid</param>
-        /// <param name="toNodeGuid">目标节点Guid</param>
-        /// <param name="argIndex">连接到第几个参数</param>
-        Task<bool> RemoveConnectArgSourceAsync(string canvasGuid, string fromNodeGuid, string toNodeGuid, int argIndex);
-
-        /// <summary>
-        /// 移除节点/区域/基础控件
-        /// </summary>
-        /// <param name="canvasGuid">所在画布</param>
-        /// <param name="nodeGuid">待移除的节点Guid</param>
-        Task<bool> RemoveNodeAsync(string canvasGuid, string nodeGuid);
 
         /// <summary>
         /// 改变可选参数的数目
@@ -1026,8 +1026,7 @@ namespace Serein.Library.Api
         /// <param name="isAdd">true，增加参数；false，减少参数</param>
         /// <param name="paramIndex">以哪个参数为模板进行拷贝，或删去某个参数（该参数必须为可选参数）</param>
         /// <returns></returns>
-        Task<bool> ChangeParameter(string nodeGuid, bool isAdd, int paramIndex);
-
+        void ChangeParameter(string nodeGuid, bool isAdd, int paramIndex);
 
         #endregion
 
@@ -1114,6 +1113,7 @@ namespace Serein.Library.Api
         /// <para>需要你提供一个由你实现的ISereinIOC接口实现类</para>
         /// <para>当你将流程运行环境集成在你的项目时，并希望流程运行时使用你提供的对象，而非自动创建</para>
         /// <para>就需要你调用这个方法，用来替换运行环境的IOC容器</para>
+        /// <para>注意，是流程运行时，而非运行环境</para>
         /// </summary>
         /// <param name="ioc"></param>
         void UseExternalIOC(ISereinIOC ioc);

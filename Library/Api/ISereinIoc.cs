@@ -18,14 +18,14 @@ namespace Serein.Library.Api
         ISereinIOC Reset();
 
         /// <summary>
-        /// 通过指定类型的方式注册实例
+        /// 通过指定类型的方式注册实例，该类型的实例由你提供
         /// </summary>
         /// <param name="type">实例类型</param>
         /// <returns></returns>
         ISereinIOC Register(Type type);
 
         /// <summary>
-        /// 通过指定类型的方式注册实例
+        /// 通过指定类型的方式注册实例，该类型将由IOC容器自动创建
         /// </summary>
         /// <param name="type">实例类型</param>
         /// <param name="getInstance">获取实例的回调函数</param>
@@ -33,14 +33,14 @@ namespace Serein.Library.Api
         ISereinIOC Register(Type type, Func<object> getInstance);
         
         /// <summary>
-        /// 通过泛型的方式注册实例
+        /// 通过泛型的方式注册类型，该类型将由IOC容器自动创建
         /// </summary>
         /// <typeparam name="T">实例类型</typeparam>
         /// <returns></returns>
         ISereinIOC Register<T>();
 
         /// <summary>
-        /// 通过泛型的方式注册实例
+        /// 通过泛型的方式注册类型，该类型的实例由你提供
         /// </summary>
         /// <typeparam name="T">实例类型</typeparam>
         /// <param name="getInstance">获取实例的回调函数</param>
@@ -48,7 +48,7 @@ namespace Serein.Library.Api
         ISereinIOC Register<T>(Func<T> getInstance);
 
         /// <summary>
-        /// 注册接口的实例
+        /// 注册接口的实例，该接口类型的实现类实例由你提供
         /// </summary>
         /// <typeparam name="TService">接口类型</typeparam>
         /// <typeparam name="TImplementation">实例类型</typeparam>
@@ -78,13 +78,21 @@ namespace Serein.Library.Api
         /// <para>给定一个类型，由IOC容器负责创建实例，如果存在多个构造函数，将由参数最多的构造函数开始尝试创建。</para>
         /// <para></para>
         /// </summary>
-        object CreateTempObject(Type type);
+        object CreateObject(Type type);
 
         /// <summary>
         /// <para>给定一个类型，由IOC容器负责创建实例，如果存在多个构造函数，将由参数最多的构造函数开始尝试创建。</para>
         /// <para></para>
         /// </summary>
-        T CreateTempObject<T>();
+        T CreateObject<T>();
+
+        /// <summary>
+        /// 给定一个实例，尽可能地在该实例中具有[AutoInjection]特性的属性上，设置为IOC容器中已有的对应类型的对象。
+        /// </summary>
+        /// <typeparam name="T">对应的类型</typeparam>
+        /// <param name="instance">传入的实例</param>
+        /// <returns></returns>
+        T InjectDependenciesProperty<T>(T instance);
 
         /// <summary>
         /// 搜寻已注册的类型生成依赖关系，依次实例化并注入依赖项，缓存在由IOC容器维护的Map中，直到手动调用Reset()方法。

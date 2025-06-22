@@ -656,11 +656,7 @@ namespace Serein.Workbench.Services
         {
             int width = 1200;
             int height = 780;
-            _ = Task.Run(async () =>
-            {
-               var result = await flowEnvironment.CreateCanvasAsync("", width, height);
-                Console.WriteLine(result.Guid);
-            });
+            flowEnvironment.CreateCanvas("", width, height);
         }
 
         /// <summary>
@@ -673,7 +669,7 @@ namespace Serein.Workbench.Services
                 return;
             }
             var model = ((FlowCanvasViewModel)CurrentSelectCanvas.DataContext).Model;
-            _ = flowEnvironment.RemoveCanvasAsync(model.Guid);
+           flowEnvironment.RemoveCanvas(model.Guid);
         }
 
         /// <summary>
@@ -692,7 +688,7 @@ namespace Serein.Workbench.Services
             {
                 return;
             }
-            _ = flowEnvironment.CreateNodeAsync(canvasGuid, nodeType, position, methodDetailsInfo);
+            flowEnvironment.CreateNode(canvasGuid, nodeType, position, methodDetailsInfo);
         }
 
         /// <summary>
@@ -711,7 +707,7 @@ namespace Serein.Workbench.Services
                 return;
             }
 
-            _ = flowEnvironment.RemoveNodeAsync(model.CanvasDetails.Guid, model.Guid);
+           flowEnvironment.RemoveNode(model.CanvasDetails.Guid, model.Guid);
         }
 
         #endregion

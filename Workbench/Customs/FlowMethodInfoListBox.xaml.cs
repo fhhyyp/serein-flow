@@ -40,7 +40,7 @@ namespace Serein.Workbench.Customs
     /// <summary>
     /// FlowMethodInfoListBox.xaml 的交互逻辑
     /// </summary>
-    public partial class FlowMethodInfoListBox :  UserControl,System.ComponentModel.INotifyPropertyChanged
+    public partial class FlowMethodInfoListBox :  UserControl, System.ComponentModel.INotifyPropertyChanged
     {
         private object viewMethodInfo;
         public object ViewMethodInfo

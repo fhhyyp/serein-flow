@@ -21,10 +21,19 @@ namespace Serein.Library
         /// </summary>
         public static readonly ConnectionInvokeType[] ConnectionTypes = new ConnectionInvokeType[]
         {
-             ConnectionInvokeType.Upstream,
+              ConnectionInvokeType.Upstream,
               ConnectionInvokeType.IsSucceed,
               ConnectionInvokeType.IsFail,
               ConnectionInvokeType.IsError,
+        };
+        /// <summary>
+        /// 节点连接关系种类
+        /// </summary>
+        public static readonly ConnectionArgSourceType[] ConnectionArgSourceTypes = new ConnectionArgSourceType[]
+        {
+              ConnectionArgSourceType.GetPreviousNodeData,
+              ConnectionArgSourceType.GetOtherNodeData,
+              ConnectionArgSourceType.GetOtherNodeDataOfInvoke,
         };
     }
 }

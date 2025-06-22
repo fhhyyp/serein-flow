@@ -2,14 +2,14 @@
 using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.Utils;
-using Serein.NodeFlow.Model;
+using Serein.NodeFlow.Model.Node;
 using Serein.NodeFlow.Tool;
 using System;
 using System.Collections.Concurrent;
 using System.Threading.Tasks.Dataflow;
 using System.Xml.Linq;
 
-namespace Serein.NodeFlow
+namespace Serein.NodeFlow.Services
 {
     /// <summary>
     /// 流程任务管理
@@ -201,8 +201,8 @@ namespace Serein.NodeFlow
             var pool = WorkOptions.FlowContextPool;
             var ioc = WorkOptions.Environment.IOC;
 
-            var fit = ioc.Get<FlowInterruptTool>();
-            fit.CancelAllTrigger(); // 取消所有中断
+            // var fit = ioc.Get<FlowInterruptTool>();
+            // fit.CancelAllTrigger(); // 取消所有中断
             foreach (var md in mds) // 结束时
             {
                 if (!env.TryGetDelegateDetails(md.AssemblyName, md.MethodName, out var dd)) // 流程运行初始化

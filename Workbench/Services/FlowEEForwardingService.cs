@@ -27,7 +27,7 @@ namespace Serein.Workbench.Services
         /// </summary>
         private readonly IFlowEnvironment flowEnvironment;
         private readonly IFlowEnvironmentEvent flowEnvironmentEvent;
-        private readonly UIContextOperation uIContextOperation;
+        private readonly UIContextOperation uiContextOperation;
 
         /// <summary>
         /// 转发流程运行环境各个事件的实现类
@@ -41,7 +41,7 @@ namespace Serein.Workbench.Services
         {
             this.flowEnvironment = flowEnvironment;
             this.flowEnvironmentEvent = flowEnvironmentEvent;
-            this.uIContextOperation = uIContextOperation;
+            this.uiContextOperation = uIContextOperation;
             InitFlowEnvironmentEvent();
         }
 
@@ -184,7 +184,7 @@ namespace Serein.Workbench.Services
         /// <param name="value"></param>
         private void FlowEnvironment_OnEnvOutEvent(InfoType type, string value)
         {
-            uIContextOperation.Invoke(() =>
+            uiContextOperation.Invoke(() =>
             {
                 EnvOutput?.Invoke(type, value);
             });
@@ -245,7 +245,10 @@ namespace Serein.Workbench.Services
         /// <exception cref="NotImplementedException"></exception>
         private void FlowEnvironmentEvent_OnCanvasCreate(CanvasCreateEventArgs eventArgs)
         {
-            CanvasCreated?.Invoke(eventArgs);
+            uiContextOperation?.Invoke(() =>
+            {
+                CanvasCreated?.Invoke(eventArgs);
+            });
         }
 
         /// <summary>

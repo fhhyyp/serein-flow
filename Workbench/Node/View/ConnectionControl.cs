@@ -243,11 +243,11 @@ namespace Serein.Workbench.Node.View
             var jctEnd = End.JunctionType.ToConnectyionType();
             if (jct == JunctionOfConnectionType.Invoke)
             {
-                env.RemoveConnectInvokeAsync(canvasGuid, Start.MyNode.Guid, End.MyNode.Guid, InvokeType);
+                env.RemoveInvokeConnect(canvasGuid, Start.MyNode.Guid, End.MyNode.Guid, InvokeType);
             }
             else if (jct == JunctionOfConnectionType.Arg)
             {
-                env.RemoveConnectArgSourceAsync(canvasGuid,Start.MyNode.Guid, End.MyNode.Guid, ArgIndex) ;
+                env.RemoveArgSourceConnect(canvasGuid,Start.MyNode.Guid, End.MyNode.Guid, ArgIndex) ;
             }
         }
 

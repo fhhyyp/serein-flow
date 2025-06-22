@@ -226,7 +226,7 @@ namespace Serein.NodeFlow.Model
                 scriptContext.OnExit();
             };
 
-            var envEvent = (IFlowEnvironmentEvent)context.Env;
+            var envEvent = context.Env.Event;
             envEvent.FlowRunComplete += onFlowStop; // 防止运行后台流程
 
             if (token.IsCancellationRequested) return null;

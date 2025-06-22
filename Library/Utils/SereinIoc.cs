@@ -137,13 +137,13 @@ namespace Serein.Library.Utils
 
         #endregion
 
-        #region 示例的获取
+        #region 示例的创建
         /// <summary>
         /// 用于临时实例的创建，不登记到IOC容器中，依赖项注入失败时也不记录。
         /// </summary>
         /// <param name="type"></param>
         /// <returns></returns>
-        public object CreateTempObject(Type type)
+        public object CreateObject(Type type)
         {
             var ctors = GetConstructor(type); // 获取构造函数
             object instance = null;
@@ -180,10 +180,55 @@ namespace Serein.Library.Utils
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
-        public T CreateTempObject<T>()
+        public T CreateObject<T>()
         {
-            return (T)CreateTempObject(typeof(T));
-        } 
+            return (T)CreateObject(typeof(T));
+        }
+
+
+        /// <summary>
+        /// 给定一个实例，尽可能地在该实例中具有[AutoInjection]特性的属性/字段上，设置为IOC容器中已有的对应类型的对象。
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="instance"></param>
+        /// <returns></returns>
+        public T InjectDependenciesProperty<T>(T instance)
+        {
+            var type = instance.GetType();
+            var properties = type.GetType()
+                                     .GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).ToArray()
+                                     .Where(p => p.CanWrite // 可写属性
+                                              && p.GetCustomAttribute<AutoInjectionAttribute>() != null // 有特性标注需要注入
+                                              && p.GetValue(instance) == null); // 属性为空
+            
+            // 属性注入
+            foreach (var property in properties)
+            {
+                var propertyType = property.PropertyType;
+                if (_dependencies.TryGetValue(propertyType.FullName, out var dependencyInstance))
+                {
+                    property.SetValue(instance, dependencyInstance); // 尝试写入到目标实例的属性中
+                }
+            }
+
+
+            // 字段注入
+            var fields = type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic )
+                             .Where(f => f.GetCustomAttribute<AutoInjectionAttribute>() != null
+                                      && f.GetValue(instance) == null);
+
+            foreach (var field in fields)
+            {
+                var fieldType = field.FieldType;
+                if (_dependencies.TryGetValue(fieldType.FullName, out var dependencyInstance))
+                {
+                    field.SetValue(instance, dependencyInstance);
+                }
+            }
+
+            return instance;
+        }
+
         #endregion
 
         #region 通过名称记录或获取一个实例
@@ -257,56 +302,62 @@ namespace Serein.Library.Utils
             public string Name { get; set; }
             public Type Type { get; set; }
         }
-        private const string FlowBaseClassName = "@LibraryRootNode";
+
+
+        private const string IOC_MAIN = "*Priority Instantiation*";
 
         /// <summary>
-        /// 构建依赖关系树
+        /// <para>遍历所有需要注册的类型，获取到它们所有构造函数，并统计每个构造函数的入参类型，构建依赖关系树</para>
         /// </summary>
-        /// <returns></returns>
+        /// <returns>“ID-PID”关系的树形结构</returns>
         private Dictionary<string, List<string>> BuildDependencyTree()
         {
             var dependencyMap = new Dictionary<string, HashSet<string>>();
-            dependencyMap[FlowBaseClassName] = new HashSet<string>();
+            dependencyMap[IOC_MAIN] = new HashSet<string>(); // 优先实例化
             foreach (var typeMapping in _typeMappings)
             {
-                var constructors = GetConstructor(typeMapping.Value); // 获取构造函数
+                var typeFullName = typeMapping.Key; // 注册的类型 FullName
+                var type = typeMapping.Value; // 对应的Type。如果是以接口形式注册，typeFullName将是接口类的FullName，而type将是接口实现类。
+                var constructors = GetConstructor(type); // 获取构造函数
+
                 foreach (var constructor in constructors)
                 {
-                    if (constructor != null)
+                    if (constructor is null)
                     {
-                        var parameters = constructor.GetParameters()
-                            .Select(p => p.ParameterType)
-                            .ToList();
-                        if (parameters.Count == 0) // 无参的构造函数
+                        continue;
+                    }
+                    var parameters = constructor.GetParameters().Select(p => p.ParameterType);
+                    var ctorCount = constructors.Length;
+                    var ctorParamCount = parameters.Count();
+
+                    // 类型仅有一个构造函数，并且无参，将优先实例化
+                    if (ctorCount == 1 && ctorParamCount == 0)
+                    {
+                        if (!dependencyMap[IOC_MAIN].Contains(type.FullName))
                         {
-                            var type = typeMapping.Value;
-                            if (!dependencyMap[FlowBaseClassName].Contains(type.FullName))
-                            {
-                                dependencyMap[FlowBaseClassName].Add(type.FullName);
-                            }
+                            dependencyMap[IOC_MAIN].Add(type.FullName);
+                        }
+                        continue;
+                    }
+
+                    // 从类型的有参构造函数中提取类型
+                    foreach (var param in parameters)
+                    {
+                        if (!dependencyMap.TryGetValue(param.FullName, out var hashSet))
+                        {
+                            hashSet = new HashSet<string>();
+                            hashSet.Add(typeMapping.Key);
+                            dependencyMap.Add(param.FullName, hashSet);
                         }
                         else
                         {
-                            // 从类型的有参构造函数中提取类型
-                            foreach (var param in parameters)
+                            if (!hashSet.Contains(typeMapping.Key))
                             {
-                                if (!dependencyMap.TryGetValue(param.FullName, out var hashSet))
-                                {
-                                    hashSet = new HashSet<string>();
-                                    hashSet.Add(typeMapping.Key);
-                                    dependencyMap.Add(param.FullName, hashSet);
-                                }
-                                else
-                                {
-                                    if (!hashSet.Contains(typeMapping.Key))
-                                    {
-                                        hashSet.Add(typeMapping.Key);
-                                    }
-                                }
-
+                                hashSet.Add(typeMapping.Key);
                             }
                         }
                     }
+
                 }
 
             }
@@ -315,7 +366,7 @@ namespace Serein.Library.Utils
         }
 
         /// <summary>
-        ///  获取类型的获取所有构造函数
+        ///  获取类型的所有构造函数，根据入参数量，由多到少排列
         /// </summary>
         /// <param name="type"></param>
         /// <returns></returns>
@@ -325,42 +376,46 @@ namespace Serein.Library.Utils
         }
 
         /// <summary>
-        /// 创建示例的生成顺序
+        /// 创建实例的生成顺序
         /// </summary>
-        /// <param name="dependencyMap"></param>
+        /// <param name="dependencyMap">依赖关系树</param>
         /// <returns></returns>
         public List<string> GetCreationOrder(Dictionary<string, List<string>> dependencyMap)
         {
-            var graph = new Dictionary<string, List<string>>();
-            var indegree = new Dictionary<string, int>();
+            var graph = new Dictionary<string, List<string>>(); // 另一种依赖关系树
+            var indegree = new Dictionary<string, int>(); // 表示出现次数
 
             foreach (var entry in dependencyMap)
             {
-                var key = entry.Key;
-                if (!graph.ContainsKey(key))
+
+                // “rootNode”是注册类的类型FullName属性
+                var rootNode = entry.Key; // 根节点
+
+                if (!graph.ContainsKey(rootNode))
                 {
-                    graph[key] = new List<string>();
+                    graph[rootNode] = new List<string>();
                 }
 
-                foreach (var dependent in entry.Value)
+                // “childNode”是注册类构造函数中出现过的参数的类型FullName属性
+                foreach (var childNode in entry.Value)
                 {
-                    if (!graph.ContainsKey(dependent))
+                    if (!graph.ContainsKey(childNode))
                     {
-                        graph[dependent] = new List<string>();
+                        graph[childNode] = new List<string>();
                     }
-                    graph[key].Add(dependent);
+                    graph[rootNode].Add(childNode);
 
                     // 更新入度
-                    if (!indegree.ContainsKey(dependent))
+                    if (!indegree.ContainsKey(childNode))
                     {
-                        indegree[dependent] = 0;
+                        indegree[childNode] = 0;
                     }
-                    indegree[dependent]++;
+                    indegree[childNode]++;
                 }
 
-                if (!indegree.ContainsKey(key))
+                if (!indegree.ContainsKey(rootNode))
                 {
-                    indegree[key] = 0;
+                    indegree[rootNode] = 0;
                 }
             }
 
@@ -386,10 +441,10 @@ namespace Serein.Library.Utils
             if (tmpList.Count > 0)
             {
                 StringBuilder sb = new StringBuilder();
-                sb.Append("以下类型可能产生循环依赖，请避免循环依赖，如果确实需要循环引用，请使用 [AutoInjection] 特性注入属性");
+                sb.Append("以下类型存在循环依赖，请避免循环依赖，如果确实需要循环引用，请使用 [AutoInjection] 特性注入属性");
                 foreach (var kv in tmpList)
                 {
-                    sb.AppendLine($"Class Name : {kv}");
+                    sb.AppendLine($"类名 : {kv}");
                 }
                 SereinEnv.WriteLine(InfoType.ERROR, sb.ToString());
             }
@@ -412,9 +467,9 @@ namespace Serein.Library.Utils
             {
                 return instance;
             }
-            if (_registerCallback.TryGetValue(typeName,out var obj))
+            if (_registerCallback.TryGetValue(typeName,out var getInstance))
             {
-                instance = obj;
+                return getInstance.Invoke();
             }
 
             // 字符串、值类型，抽象类型，暂时不支持自动创建
@@ -427,7 +482,7 @@ namespace Serein.Library.Utils
             {
                 // 没有显示指定构造函数入参，选择参数最多的构造函数
                 //var constructor = GetConstructorWithMostParameters(type);
-                var constructors = GetConstructor(type); // 获取参数最多的构造函数
+                var constructors = GetConstructor(type); // 获取构造函数
 
                 foreach(var constructor in constructors)
                 {
@@ -480,15 +535,16 @@ namespace Serein.Library.Utils
         /// <returns></returns>
         public ISereinIOC Build()
         {
-            var dependencyTree = BuildDependencyTree();
-            var creationOrder = GetCreationOrder(dependencyTree);
+            var dependencyTree = BuildDependencyTree(); // 生成类型依赖关系
+            var creationOrder = GetCreationOrder(dependencyTree); // 生成创建顺序
 
             // 输出创建顺序
-            Debug.WriteLine("创建顺序: " + string.Join(" → ", creationOrder));
+            Debug.WriteLine("创建顺序: " + string.Join($"{Environment.NewLine}↓ {Environment.NewLine}", creationOrder));
 
             // 创建对象
             foreach (var typeName in creationOrder)
             {
+                
                 if (_dependencies.ContainsKey(typeName))
                 {
                     continue;
@@ -496,6 +552,7 @@ namespace Serein.Library.Utils
                 var value = CreateInstance(typeName);
                 if(value is null)
                 {
+                    SereinEnv.WriteLine(InfoType.ERROR, $"IOC容器无法创建对象：{typeName}");
                     continue;
                 }
                 _dependencies[typeName] = value;

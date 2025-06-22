@@ -119,7 +119,7 @@ namespace Serein.NodeFlow.Model
 
         partial void OnIsShareParamChanged(bool value)
         {
-            if (targetNode is null)
+            if (targetNode is null || targetNode.MethodDetails is null)
             {
                 return;
             }
@@ -219,14 +219,13 @@ namespace Serein.NodeFlow.Model
         }
 
 
-        public override void Remove()
+        /*public override void Remove()
         {
             var tmp = this;
             targetNode = null;
             CacheMethodDetails = null;
-
         }
-
+        */
 
 
         /// <summary>

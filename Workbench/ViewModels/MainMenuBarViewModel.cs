@@ -8,7 +8,7 @@ namespace Serein.Workbench.ViewModels
 {
     public class MainMenuBarViewModel : ObservableObject
     {
-        private readonly IFlowEnvironment environment;
+        private readonly IFlowEnvironment flowEnvironment;
         private readonly FlowNodeService flowNodeService;
         private readonly FlowProjectService flowProjectService;
 
@@ -61,12 +61,18 @@ namespace Serein.Workbench.ViewModels
         public ICommand OpenDynamicCompilerCommand { get; private set; }
 
 
+        /// <summary>
+        /// 开启远程服务
+        /// </summary>
+        public ICommand OpenRemoteServerCommand { get; private set; }
 
-        public MainMenuBarViewModel(IFlowEnvironment environment, 
+
+
+        public MainMenuBarViewModel(IFlowEnvironment flowEnvironment,
                                     FlowNodeService flowNodeService,
                                     FlowProjectService flowProjectService)
         {
-            this.environment = environment;
+            this.flowEnvironment = flowEnvironment;
             this.flowNodeService = flowNodeService;
             this.flowProjectService = flowProjectService;
             SaveProjectCommand = new RelayCommand(SaveProject); // 保存项目
@@ -81,29 +87,51 @@ namespace Serein.Workbench.ViewModels
             StopCurrentCanvasFlowCommand = new RelayCommand(StopCurrentCanvasFlow); // 停止当前流程
 
             OpenEnvOutWindowCommand = new RelayCommand(OpenEnvOutWindow); // 打开运行输出窗口
-            OpenDynamicCompilerCommand = new RelayCommand(OpenDynamicCompiler); // 打开动态编译仓库窗口
+            OpenDynamicCompilerCommand = new RelayCommand(OpenDynamicCompiler); // 打开动态编译窗口
+
+            OpenRemoteServerCommand = new RelayCommand(OpenRemoteServer); // 打开动态编译窗口
             this.flowProjectService = flowProjectService;
         }
 
-        private void SaveProject() => environment.SaveProject(); // 保存项目
-        private void LoadLocalProject() {
+        private void SaveProject() => flowEnvironment.SaveProject(); // 保存项目
+        private void LoadLocalProject()
+        {
 
             flowProjectService.SelectProjectFile(); //选择项目
         }
 
 
-        private void LoadRemoteProject() 
-        { 
+        private void LoadRemoteProject()
+        {
         }
         private void CreateFlowCanvas() => flowNodeService.CreateFlowCanvas();
 
         private void RemoteFlowCanvas() => flowNodeService.RemoveFlowCanvas();
 
-        private void StartUIFlow() => environment.StartFlowAsync([.. flowNodeService.FlowCanvass.Select(c => c.Guid)]);
-        private void StartCurrentCanvasFlow() => environment.StartFlowAsync([flowNodeService.CurrentSelectCanvas.Guid]);
+        private void StartUIFlow()
+        {
+            var canvass = flowNodeService.FlowCanvass;
+            if(canvass.Length > 0)
+            {
+                string[] guids = [..canvass.Select(c => c.Guid)];
+                flowEnvironment.StartFlowAsync(guids);
+            }
+
+        }
+        private void StartCurrentCanvasFlow()
+        {
+            var canvas = flowNodeService.CurrentSelectCanvas;
+            if (canvas is null) return;
+            flowEnvironment.StartFlowAsync([canvas.Guid]);
+        }
         private void StopCurrentCanvasFlow() { }
         private void OpenDynamicCompiler() { }
         private void OpenEnvOutWindow() => LogWindow.Instance?.Show();
+
+        private void OpenRemoteServer()
+        {
+            flowEnvironment.StartRemoteServerAsync();
+        }
 
     }
 }

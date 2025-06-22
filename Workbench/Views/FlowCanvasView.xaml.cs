@@ -372,7 +372,7 @@ namespace Serein.Workbench.Views
             if (TryPlaceNodeInRegion(nodeControl, position, out var regionControl)) // 判断添加到区域容器
             {
                 // 通知运行环境调用加载节点子项的方法
-                _ = flowEnvironment.PlaceNodeToContainerAsync(Guid,
+               flowEnvironment.PlaceNodeToContainer(Guid,
                                                   nodeControl.ViewModel.NodeModel.Guid, // 待移动的节点
                                                   regionControl.ViewModel.NodeModel.Guid); // 目标的容器节点
                 return;
@@ -566,7 +566,8 @@ namespace Serein.Workbench.Views
                     // F5 调试当前选定节点
                     var nodeModel = selectNodeControls[0].ViewModel.NodeModel;
                     SereinEnv.WriteLine(InfoType.INFO, $"调试运行当前节点:{nodeModel.Guid}");
-                    _ = nodeModel.StartFlowAsync(new DynamicContext(flowEnvironment), new CancellationToken());
+                    _ = flowEnvironment.StartFlowFromSelectNodeAsync(nodeModel.Guid);
+                    //_ = nodeModel.StartFlowAsync(new DynamicContext(flowEnvironment), new CancellationToken());
                 }
 
             }
@@ -898,7 +899,7 @@ namespace Serein.Workbench.Views
                         {
                             var canvasGuid = this.Guid;
 
-                            await flowEnvironment.ConnectInvokeNodeAsync(
+                             flowEnvironment.ConnectInvokeNode(
                                         canvasGuid,
                                         cd.StartJunction.MyNode.Guid,
                                         cd.CurrentJunction.MyNode.Guid,
@@ -922,7 +923,7 @@ namespace Serein.Workbench.Views
                             }
                             var canvasGuid = this.Guid;
 
-                            await flowEnvironment.ConnectArgSourceNodeAsync(
+                            flowEnvironment.ConnectArgSourceNode(
                                     canvasGuid,
                                     cd.StartJunction.MyNode.Guid,
                                     cd.CurrentJunction.MyNode.Guid,
@@ -1269,7 +1270,7 @@ namespace Serein.Workbench.Views
                         if (!string.IsNullOrEmpty(guid))
                         {
                             var canvasGuid = this.Guid;
-                            flowEnvironment.RemoveNodeAsync(canvasGuid, guid);
+                            flowEnvironment.RemoveNode(canvasGuid, guid);
                         }
                     }
                 }
@@ -1491,10 +1492,10 @@ namespace Serein.Workbench.Views
 
 
 
-            contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("设为起点", (s, e) => flowEnvironment.SetStartNodeAsync(canvasGuid, nodeGuid)));
+            contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("设为起点", (s, e) => flowEnvironment.SetStartNode(canvasGuid, nodeGuid)));
             contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("删除", async (s, e) =>
             {
-                var result = await flowEnvironment.RemoveNodeAsync(canvasGuid, nodeGuid);
+                flowEnvironment.RemoveNode(canvasGuid, nodeGuid);
             }));
 
             #region 右键菜单功能 - 控件对齐

@@ -57,7 +57,7 @@ namespace Serein.NodeFlow.Model
             return;
         }
 
-        /// <summary>
+       /* /// <summary>
         /// 移除该节点
         /// </summary>
         public virtual void Remove()
@@ -101,7 +101,7 @@ namespace Serein.NodeFlow.Model
             this.DisplayName = null;
 
             this.Env = null;
-        }
+        }*/
 
         /// <summary>
         /// 执行节点对应的方法

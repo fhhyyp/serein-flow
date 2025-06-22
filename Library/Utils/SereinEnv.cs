@@ -3,6 +3,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Text;
@@ -122,7 +123,8 @@ namespace Serein.Library
         /// <param name="class">级别</param>
         public static void WriteLine(InfoType type, string message, InfoClass @class = InfoClass.General)
         {
-            SereinEnv.environment.WriteLine(type,message,@class);
+            Debug.WriteLine($"{type} : {message}");
+            SereinEnv.environment?.WriteLine(type,message,@class);
         }
         
         /// <summary>

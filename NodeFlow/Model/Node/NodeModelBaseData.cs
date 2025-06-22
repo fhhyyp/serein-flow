@@ -96,11 +96,19 @@ namespace Serein.NodeFlow.Model
         {
             PreviousNodes = new Dictionary<ConnectionInvokeType, List<IFlowNode>>();
             SuccessorNodes = new Dictionary<ConnectionInvokeType, List<IFlowNode>>();
+            NeedResultNodes = new Dictionary<ConnectionArgSourceType, List<IFlowNode>>();
+
             foreach (ConnectionInvokeType ctType in NodeStaticConfig.ConnectionTypes)
             {
                 PreviousNodes[ctType] = new List<IFlowNode>();
                 SuccessorNodes[ctType] = new List<IFlowNode>();
             }
+            
+            foreach (ConnectionArgSourceType ctType in NodeStaticConfig.ConnectionArgSourceTypes)
+            {
+                NeedResultNodes[ctType] = new List<IFlowNode>();
+            }
+
             ChildrenNode = new List<IFlowNode>();
             DebugSetting = new NodeDebugSetting(this);
             this.Env = environment;
@@ -116,6 +124,11 @@ namespace Serein.NodeFlow.Model
         /// 不同分支的子节点（流程调用）
         /// </summary>
         public Dictionary<ConnectionInvokeType, List<IFlowNode>> SuccessorNodes { get; set; }
+       
+        /// <summary>
+        /// 需要该节点返回值作为入参参数的节点集合
+        /// </summary>
+        public Dictionary<ConnectionArgSourceType, List<IFlowNode>> NeedResultNodes { get;}
 
         /// <summary>
         /// 该节点的容器节点

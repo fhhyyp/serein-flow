@@ -46,7 +46,6 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         private Dictionary<string, IFlowNode> NodeModels { get; } = [];
 
-
         public ISereinIOC IOC => throw new NotImplementedException();
 
         /// <summary>
@@ -73,7 +72,7 @@ namespace Serein.NodeFlow.Env
 
         public IFlowEnvironment CurrentEnv => this;
         public UIContextOperation UIContextOperation { get; }
-        public NodeMVVMManagement NodeMVVMManagement { get; }
+        public NodeMVVMService NodeMVVMManagement { get; }
 
 
         /// <summary>
@@ -658,8 +657,8 @@ namespace Serein.NodeFlow.Env
                 Event.OnNodeConnectChanged(new NodeConnectChangeEventArgs(canvasGuid,
                                                                             fromNodeGuid,
                                                                             toNodeGuid,
-                                                                            JunctionOfConnectionType.Arg,
                                                                             argIndex,
+                                                                            JunctionOfConnectionType.Arg,
                                                                             argSourceType,
                                                                             NodeConnectChangeEventArgs.ConnectChangeType.Create)); // 通知UI
             }
@@ -729,8 +728,8 @@ namespace Serein.NodeFlow.Env
                     Event.OnNodeConnectChanged(new NodeConnectChangeEventArgs(canvasGuid,
                                                                                fromNodeGuid,
                                                                                toNodeGuid,
-                                                                               JunctionOfConnectionType.Arg,
                                                                                argIndex,
+                                                                               JunctionOfConnectionType.Arg,
                                                                                ConnectionArgSourceType.GetPreviousNodeData,
                                                                                NodeConnectChangeEventArgs.ConnectChangeType.Remove)); // 通知UI
                 });
@@ -1283,8 +1282,8 @@ namespace Serein.NodeFlow.Env
                                              canvasGuid,
                                              fromNode.Guid, // 从哪个节点开始
                                              toNode.Guid, // 连接到那个节点
+                                             pd.Index, // 连接线的样式类型
                                              JunctionOfConnectionType.Arg,
-                                             (int)pd.Index, // 连接线的样式类型
                                              pd.ArgDataSourceType,
                                              NodeConnectChangeEventArgs.ConnectChangeType.Create // 是创建连接还是删除连接
                                          ))); // 通知UI 

@@ -2,6 +2,7 @@
 using Serein.Library.Api;
 using Serein.Library.FlowNode;
 using Serein.Library.Utils;
+using Serein.NodeFlow.Services;
 using Serein.NodeFlow.Tool;
 using System.Reflection;
 
@@ -14,15 +15,26 @@ namespace Serein.NodeFlow.Env
     {
         public FlowEnvironment()
         {
-            flowEnvironmentEvent = new FlowEnvironmentEvent();
-            flowEnvironment = new LocalFlowEnvironment(flowEnvironmentEvent);
+            ISereinIOC sereinIOC = new SereinIOC();
+            sereinIOC.Reset();
+            sereinIOC.Register<ISereinIOC>(()=> sereinIOC); // 注册IOC
+            sereinIOC.Register<IFlowEnvironment>(() => this); 
+            sereinIOC.Register<IFlowEnvironmentEvent, FlowEnvironmentEvent>(); 
+            sereinIOC.Register<LocalFlowEnvironment>(); 
+            sereinIOC.Register<FlowModelService>(); 
+            sereinIOC.Register<FlowOperationService>(); 
+            sereinIOC.Register<NodeMVVMService>(); 
+            sereinIOC.Register<FlowLibraryManagement>(); 
+            sereinIOC.Build();
+            this.IOC = sereinIOC;
+
             // 默认使用本地环境
-            currentFlowEnvironment = flowEnvironment;
-            currentFlowEnvironmentEvent = flowEnvironmentEvent;
+            currentFlowEnvironment = sereinIOC.Get<LocalFlowEnvironment>();
+            currentFlowEnvironmentEvent = sereinIOC.Get<IFlowEnvironmentEvent>();
             SereinEnv.SetEnv(currentFlowEnvironment);
         }
 
-        /// <summary>
+       /* /// <summary>
         /// 本地环境
         /// </summary>
         private readonly LocalFlowEnvironment flowEnvironment;
@@ -30,7 +42,7 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// 远程环境
         /// </summary>
-        private RemoteFlowEnvironment remoteFlowEnvironment;
+        private RemoteFlowEnvironment remoteFlowEnvironment;*/
 
         /// <summary>
         /// 本地环境事件
@@ -79,9 +91,10 @@ namespace Serein.NodeFlow.Env
         /// <inheritdoc/>
         public UIContextOperation UIContextOperation => currentFlowEnvironment.UIContextOperation;
         /// <inheritdoc/>
-        public NodeMVVMManagement NodeMVVMManagement => currentFlowEnvironment.NodeMVVMManagement;
+        public NodeMVVMService NodeMVVMManagement => currentFlowEnvironment.NodeMVVMManagement;
+
         /// <inheritdoc/>
-        public ISereinIOC IOC => currentFlowEnvironment.IOC;
+        public ISereinIOC IOC { get; set; }
 
         /// <inheritdoc/>
         public IFlowEnvironmentEvent Event => currentFlowEnvironment.Event;
@@ -239,30 +252,30 @@ namespace Serein.NodeFlow.Env
         }
 
         /// <inheritdoc/>
-        public async Task<FlowCanvasDetailsInfo> CreateCanvasAsync(string canvasName, int width, int height)
+        public void CreateCanvas(string canvasName, int width, int height)
         {
-            return await currentFlowEnvironment.CreateCanvasAsync(canvasName, width, height);
+            currentFlowEnvironment.CreateCanvas(canvasName, width, height);
         }
 
         /// <inheritdoc/>
-        public async Task<bool> RemoveCanvasAsync(string canvasGuid)
+        public void RemoveCanvas(string canvasGuid)
         {
-            return await currentFlowEnvironment.RemoveCanvasAsync(canvasGuid);
+             currentFlowEnvironment.RemoveCanvas(canvasGuid);
         }
 
         /// <inheritdoc/>
-        public async Task<bool> ConnectInvokeNodeAsync(string canvasGuid,
+        public void ConnectInvokeNode(string canvasGuid,
                                                        string fromNodeGuid,
                                                        string toNodeGuid,
                                                        JunctionType fromNodeJunctionType,
                                                        JunctionType toNodeJunctionType,
                                                        ConnectionInvokeType invokeType)
         {
-            return await currentFlowEnvironment.ConnectInvokeNodeAsync(canvasGuid, fromNodeGuid, toNodeGuid, fromNodeJunctionType, toNodeJunctionType, invokeType);
+            currentFlowEnvironment.ConnectInvokeNode(canvasGuid, fromNodeGuid, toNodeGuid, fromNodeJunctionType, toNodeJunctionType, invokeType);
         }
 
         /// <inheritdoc/>
-        public async Task<bool> ConnectArgSourceNodeAsync(string canvasGuid,
+        public void ConnectArgSourceNode(string canvasGuid,
                                                           string fromNodeGuid,
                                                           string toNodeGuid,
                                                           JunctionType fromNodeJunctionType,
@@ -270,7 +283,7 @@ namespace Serein.NodeFlow.Env
                                                           ConnectionArgSourceType argSourceType,
                                                           int argIndex)
         {
-            return await currentFlowEnvironment.ConnectArgSourceNodeAsync(canvasGuid, fromNodeGuid, toNodeGuid, fromNodeJunctionType, toNodeJunctionType, argSourceType, argIndex);
+             currentFlowEnvironment.ConnectArgSourceNode(canvasGuid, fromNodeGuid, toNodeGuid, fromNodeJunctionType, toNodeJunctionType, argSourceType, argIndex);
         }
 
         /// <inheritdoc/>
@@ -281,8 +294,8 @@ namespace Serein.NodeFlow.Env
             if (isConnect)
             {
                 
-                remoteFlowEnvironment ??= new RemoteFlowEnvironment(remoteMsgUtil, this.Event,  this.UIContextOperation);
-                currentFlowEnvironment = remoteFlowEnvironment;
+               /* remoteFlowEnvironment ??= new RemoteFlowEnvironment(remoteMsgUtil, this.Event,  this.UIContextOperation);
+                currentFlowEnvironment = remoteFlowEnvironment;*/
             }
             return (isConnect, remoteMsgUtil);
         }
@@ -296,30 +309,27 @@ namespace Serein.NodeFlow.Env
         }
 
         /// <inheritdoc/>
-        public async Task<NodeInfo> CreateNodeAsync(string canvasGuid, NodeControlType nodeBase, PositionOfUI position, MethodDetailsInfo methodDetailsInfo = null)
+        public void CreateNode(string canvasGuid, NodeControlType nodeBase, PositionOfUI position, MethodDetailsInfo methodDetailsInfo = null)
         {
             SetProjectLoadingFlag(false);
-            var result = await currentFlowEnvironment.CreateNodeAsync(canvasGuid, nodeBase, position, methodDetailsInfo); // 装饰器调用
+            currentFlowEnvironment.CreateNode(canvasGuid, nodeBase, position, methodDetailsInfo); // 装饰器调用
             SetProjectLoadingFlag(true);
-            return result;
         }
 
         /// <inheritdoc/>
-        public async Task<bool> PlaceNodeToContainerAsync(string canvasGuid, string nodeGuid, string containerNodeGuid)
+        public void PlaceNodeToContainer(string canvasGuid, string nodeGuid, string containerNodeGuid)
         {
             SetProjectLoadingFlag(false);
-            var result = await currentFlowEnvironment.PlaceNodeToContainerAsync(canvasGuid, nodeGuid, containerNodeGuid); // 装饰器调用
+             currentFlowEnvironment.PlaceNodeToContainer(canvasGuid, nodeGuid, containerNodeGuid); // 装饰器调用
             SetProjectLoadingFlag(true);
-            return result;
         }
 
         /// <inheritdoc/>
-        public async Task<bool> TakeOutNodeToContainerAsync(string canvasGuid, string nodeGuid)
+        public void TakeOutNodeToContainer(string canvasGuid, string nodeGuid)
         {
             SetProjectLoadingFlag(false);
-            var result = await currentFlowEnvironment.TakeOutNodeToContainerAsync(canvasGuid,nodeGuid); // 装饰器调用
+            currentFlowEnvironment.TakeOutNodeToContainer(canvasGuid,nodeGuid); // 装饰器调用
             SetProjectLoadingFlag(true);
-            return result;
         }
 
         /// <inheritdoc/>
@@ -393,27 +403,27 @@ namespace Serein.NodeFlow.Env
         }
 
         /// <inheritdoc/>
-        public async Task<bool> SetConnectPriorityInvoke(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
+        public void SetConnectPriorityInvoke(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
         {
-            return await currentFlowEnvironment.SetConnectPriorityInvoke(fromNodeGuid, toNodeGuid, connectionType);
+            currentFlowEnvironment.SetConnectPriorityInvoke(fromNodeGuid, toNodeGuid, connectionType);
         }
 
         /// <inheritdoc/>
-        public async Task<bool> RemoveConnectInvokeAsync(string canvasGuid, string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
+        public void RemoveInvokeConnect(string canvasGuid, string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
         {
-            return await currentFlowEnvironment.RemoveConnectInvokeAsync(canvasGuid, fromNodeGuid, toNodeGuid, connectionType);
+           currentFlowEnvironment.RemoveInvokeConnect(canvasGuid, fromNodeGuid, toNodeGuid, connectionType);
         }
 
         /// <inheritdoc/>
-        public async Task<bool> RemoveConnectArgSourceAsync(string canvasGuid, string fromNodeGuid, string toNodeGuid, int argIndex)
+        public void RemoveArgSourceConnect(string canvasGuid, string fromNodeGuid, string toNodeGuid, int argIndex)
         {
-            return await currentFlowEnvironment.RemoveConnectArgSourceAsync(canvasGuid, fromNodeGuid, toNodeGuid, argIndex);
+           currentFlowEnvironment.RemoveArgSourceConnect(canvasGuid, fromNodeGuid, toNodeGuid, argIndex);
         }
 
         /// <inheritdoc/>
-        public async Task<bool> RemoveNodeAsync(string canvasGuid, string nodeGuid)
+        public void RemoveNode(string canvasGuid, string nodeGuid)
         {
-          return await  currentFlowEnvironment.RemoveNodeAsync(canvasGuid, nodeGuid);
+           currentFlowEnvironment.RemoveNode(canvasGuid, nodeGuid);
         }
 
 
@@ -460,9 +470,9 @@ namespace Serein.NodeFlow.Env
         #endregion
 
         /// <inheritdoc/>
-        public async Task<string> SetStartNodeAsync(string canvasGuid, string nodeGuid)
+        public void SetStartNode(string canvasGuid, string nodeGuid)
         {
-            return await currentFlowEnvironment.SetStartNodeAsync(canvasGuid, nodeGuid);
+            currentFlowEnvironment.SetStartNode(canvasGuid, nodeGuid);
         }
 
         /// <inheritdoc/>
@@ -504,6 +514,11 @@ namespace Serein.NodeFlow.Env
         /// <inheritdoc/>
         public void SetUIContextOperation(UIContextOperation uiContextOperation)
         {
+            if(uiContextOperation is null)
+            {
+                return;
+            }
+            IOC.Register<UIContextOperation>(() => uiContextOperation).Build();
             currentFlowEnvironment.SetUIContextOperation(uiContextOperation);
         }
 
@@ -545,9 +560,9 @@ namespace Serein.NodeFlow.Env
         }
 
         /// <inheritdoc/>
-        public async Task<bool> ChangeParameter(string nodeGuid, bool isAdd, int paramIndex)
+        public void ChangeParameter(string nodeGuid, bool isAdd, int paramIndex)
         {
-            return await currentFlowEnvironment.ChangeParameter(nodeGuid, isAdd, paramIndex); 
+            currentFlowEnvironment.ChangeParameter(nodeGuid, isAdd, paramIndex); 
         }
 
         #region 流程依赖类库的接口

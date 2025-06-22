@@ -103,50 +103,100 @@ namespace Serein.Library
         /// 新增可变参数
         /// </summary>
         /// <param name="index"></param>
-        public bool AddParamsArg(int index = 0)
+        public bool AddParamsArg(int index)
         {
-            if (ParamsArgIndex >= 0  // 方法是否包含可变参数
-                && index >= 0  // 如果包含，则判断从哪个参数赋值
-                && index >= ParamsArgIndex // 需要判断是否为可选参数的部分
-                && index < ParameterDetailss.Length) // 防止下标越界
-            {
-                var newPd = ParameterDetailss[index].CloneOfModel(this.NodeModel); // 复制出属于本身节点的参数描述
-                newPd.Index = ParameterDetailss.Length; // 更新索引
-                newPd.IsParams = true;
-                ParameterDetailss = ArrayHelper.AddToArray(ParameterDetailss, newPd); // 新增
-                return true;
-            }
-            else
+            if (ParamsArgIndex < 0  // 方法是否包含可变参数
+                || index < 0  // 如果包含，则判断从哪个参数赋值
+                || index < ParamsArgIndex // 需要判断是否为可选参数的部分
+                || index >= ParameterDetailss.Length) // 防止下标越界
             {
                 return false;
             }
+
+            var newPd = ParameterDetailss[index].CloneOfModel(this.NodeModel); // 复制出属于本身节点的参数描述
+            newPd.Index = ParameterDetailss.Length; // 更新索引
+            newPd.IsParams = true;
+            ParameterDetailss = ArrayHelper.AddToArray(ParameterDetailss, newPd); // 新增
+            return true;
         }
+
+
+        public bool AddParamsArg(ParameterDetails parameterDetails)
+        {
+            if (ParamsArgIndex < 0)  // 方法是否包含可变参数
+            { 
+                return false;
+            }
+            if (parameterDetails is null)
+            {
+                return false;
+            }
+            parameterDetails.Index = ParameterDetailss.Length; // 更新索引
+            parameterDetails.IsParams = true;
+            ParameterDetailss = ArrayHelper.AddToArray(ParameterDetailss, parameterDetails); // 新增
+            return true;
+            
+        }
+
+
         /// <summary>
         /// 移除可变参数
         /// </summary>
         /// <param name="index"></param>
-        public bool RemoveParamsArg(int index = 0)
+        public bool RemoveParamsArg(int index)
         {
-            if (ParamsArgIndex >= 0  // 方法是否包含可变参数
-                && index >= 0  // 如果包含，则判断从哪个参数赋值
-                && index > ParamsArgIndex // 需要判断是否为可选参数的部分，并且不能删除原始的可变参数描述
-                && index < ParameterDetailss.Length) // 防止下标越界
-            {
-                ParameterDetailss[index] = null; // 释放对象引用
 
-                
-
-                var tmp = ArrayHelper.RemoteToArray<ParameterDetails>(ParameterDetailss, index); // 新增;
-                UpdateParamIndex(ref tmp);
-                ParameterDetailss = tmp; // 新增
-                return true;
-            }
-            else
+            if (ParamsArgIndex < 0  // 方法是否包含可变参数
+                || index < 0  // 如果包含，则判断从哪个参数赋值
+                || index <= ParamsArgIndex // 需要判断是否为可选参数的部分，并且不能删除原始的可变参数描述
+                || index >= ParameterDetailss.Length) // 防止下标越界
             {
                 return false;
             }
-            
+
+            ParameterDetailss[index] = null; // 释放对象引用
+            var tmp = ArrayHelper.RemoteToArray<ParameterDetails>(ParameterDetailss, index); // 新增;
+            UpdateParamIndex(ref tmp);
+            ParameterDetailss = tmp; // 新增
+            return true;
         }
+
+        /// <summary>
+        /// 移除可变参数
+        /// </summary>
+        /// <param name="parameterDetails"></param>
+        public bool RemoveParamsArg(ParameterDetails parameterDetails)
+        {
+            if (ParamsArgIndex < 0)  // 方法是否包含可变参数
+            {
+                return false;
+            }
+            if (parameterDetails is null)
+            {
+                return false;
+            }
+            int index = -1;
+            for (int i = 0; i < ParameterDetailss.Length; i++)
+            {
+                var pd = ParameterDetailss[i];
+                if (pd.Equals(parameterDetails))
+                {
+                    index = i;
+                    break;
+                }
+            }
+            if (index == -1)
+            {
+                return false;
+            }
+
+            ParameterDetailss[index] = null; // 释放对象引用
+            var tmp = ArrayHelper.RemoteToArray<ParameterDetails>(ParameterDetailss, index); // 新增;
+            UpdateParamIndex(ref tmp);
+            ParameterDetailss = tmp; // 新增
+            return true;
+        }
+
 
         /// <summary>
         /// 更新参数的索引

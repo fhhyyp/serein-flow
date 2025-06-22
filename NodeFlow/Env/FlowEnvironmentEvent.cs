@@ -26,92 +26,92 @@ namespace Serein.NodeFlow.Env
 
         public void OnDllLoad(LoadDllEventArgs eventArgs)
         {
-            DllLoad.Invoke(eventArgs);
+            DllLoad?.Invoke(eventArgs);
         }
 
         public void OnProjectLoaded(ProjectLoadedEventArgs eventArgs)
         {
-            ProjectLoaded.Invoke(eventArgs);
+            ProjectLoaded?.Invoke(eventArgs);
         }
 
         public void OnProjectSaving(ProjectSavingEventArgs eventArgs)
         {
-            ProjectSaving.Invoke(eventArgs);
+            ProjectSaving?.Invoke(eventArgs);
         }
 
         public void OnNodeConnectChanged(NodeConnectChangeEventArgs eventArgs)
         {
-            NodeConnectChanged.Invoke(eventArgs);
+            NodeConnectChanged?.Invoke(eventArgs);
         }
 
         public void OnCanvasCreated(CanvasCreateEventArgs eventArgs)
         {
-            CanvasCreated.Invoke(eventArgs);
+            CanvasCreated?.Invoke(eventArgs);
         }
 
         public void OnCanvasRemoved(CanvasRemoveEventArgs eventArgs)
         {
-            CanvasRemoved.Invoke(eventArgs);
+            CanvasRemoved?.Invoke(eventArgs);
         }
 
         public void OnNodeCreated(NodeCreateEventArgs eventArgs)
         {
-            NodeCreated.Invoke(eventArgs);
+            NodeCreated?.Invoke(eventArgs);
         }
 
         public void OnNodeRemoved(NodeRemoveEventArgs eventArgs)
         {
-            NodeRemoved.Invoke(eventArgs);
+            NodeRemoved?.Invoke(eventArgs);
         }
 
         public void OnNodePlace(NodePlaceEventArgs eventArgs)
         {
-            NodePlace.Invoke(eventArgs);
+            NodePlace?.Invoke(eventArgs);
         }
 
         public void OnNodeTakeOut(NodeTakeOutEventArgs eventArgs)
         {
-            NodeTakeOut.Invoke(eventArgs);
+            NodeTakeOut?.Invoke(eventArgs);
         }
 
         public void OnStartNodeChanged(StartNodeChangeEventArgs eventArgs)
         {
-            StartNodeChanged.Invoke(eventArgs);
+            StartNodeChanged?.Invoke(eventArgs);
         }
 
         public void OnFlowRunComplete(FlowEventArgs eventArgs)
         {
-            FlowRunComplete.Invoke(eventArgs);
+            FlowRunComplete?.Invoke(eventArgs);
         }
 
         public void OnMonitorObjectChanged(MonitorObjectEventArgs eventArgs)
         {
-            MonitorObjectChanged.Invoke(eventArgs);
+            MonitorObjectChanged?.Invoke(eventArgs);
         }
 
         public void OnNodeInterruptStateChanged(NodeInterruptStateChangeEventArgs eventArgs)
         {
-            NodeInterruptStateChanged.Invoke(eventArgs);
+            NodeInterruptStateChanged?.Invoke(eventArgs);
         }
 
         public void OnInterruptTriggered(InterruptTriggerEventArgs eventArgs)
         {
-            InterruptTriggered.Invoke(eventArgs);
+            InterruptTriggered?.Invoke(eventArgs);
         }
 
         public void OnIOCMembersChanged(IOCMembersChangedEventArgs eventArgs)
         {
-            IOCMembersChanged.Invoke(eventArgs);
+            IOCMembersChanged?.Invoke(eventArgs);
         }
 
         public void OnNodeLocated(NodeLocatedEventArgs eventArgs)
         {
-            NodeLocated.Invoke(eventArgs);
+            NodeLocated?.Invoke(eventArgs);
         }
 
         public void OnEnvOutput(InfoType type, string value)
         {
-            EnvOutput.Invoke(type, value);
+            EnvOutput?.Invoke(type, value);
         }
 
 

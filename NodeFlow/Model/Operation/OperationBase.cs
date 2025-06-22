@@ -1,92 +1,118 @@
-﻿using System;
+﻿using Serein.Library;
+using Serein.Library.Api;
+using Serein.NodeFlow.Services;
+using Serein.NodeFlow.Tool;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Serein.NodeFlow.Model.Operation
 {
+    internal interface IOperation
+    {
+        /// <summary>
+        /// 用于判断是否可以撤销
+        /// </summary>
+        bool IsCanUndo { get; }
+        /// <summary>
+        /// 执行操作前验证数据
+        /// </summary>
+        /// <returns></returns>
+        bool ValidationParameter();
+        /// <summary>
+        /// 执行操作
+        /// </summary>
+        bool Execute();
+        /// <summary>
+        /// 撤销操作
+        /// </summary>
+        bool Undo();   
+    }
 
-    class Test {
+    internal abstract class OperationBase : IOperation
+    {
+        /// <summary>
+        /// 运行环境
+        /// </summary>
+        [AutoInjection]
+        protected IFlowEnvironment flowEnvironment;
 
         /// <summary>
-        /// 撤销栈
+        /// 节点管理服务
         /// </summary>
-        private Stack<IOperation> undoStack = [];
+        [AutoInjection]
+        protected FlowModelService flowModelService;
+
         /// <summary>
-        /// 重做栈
+        /// 流程依赖服务
         /// </summary>
-        private Stack<IOperation> redoStack = [];
+        [AutoInjection]
+        protected FlowLibraryManagement flowLibraryManagement;
+
+        /// <summary>
+        /// 流程事件服务
+        /// </summary>
+        [AutoInjection]
+        protected IFlowEnvironmentEvent flowEnvironmentEvent;
+
+        public abstract string Theme { get;}
+
+        /// <summary>
+        /// 是否支持特效
+        /// </summary>
+        public virtual bool IsCanUndo => true;
 
 
-        /*
-          // 执行新命令时，将命令推入撤销栈，并清空重做栈
-          undoStack.Push(operation); 
-          redoStack.Clear();
-         */
+        /// <summary>
+        /// 验证参数
+        /// </summary>
+        /// <returns></returns>
+        public abstract bool ValidationParameter();
 
+        /// <summary>
+        /// 执行
+        /// </summary>
+        public abstract bool Execute();
 
         /// <summary>
         /// 撤销
         /// </summary>
-        public void Undo()
+        public virtual bool Undo()
         {
-            if (undoStack.Count > 0)
+            if (!IsCanUndo)
             {
-                var command = undoStack.Pop();
-                command.Undo();  // 执行撤销
-                redoStack.Push(command);  // 将撤销的命令推入重做栈
+                Debug.WriteLine($"该操作暂未提供撤销功能[{Theme}]");
+                return false;
             }
+            return true;
         }
 
         /// <summary>
-        /// 重做
+        /// 导出操作信息
         /// </summary>
-        public void Redo()
-        {
-            if (redoStack.Count > 0)
-            {
-                var command = redoStack.Pop();
-                command.Execute(); 
-                undoStack.Push(command);  // 将重做的命令推入撤销栈
-            }
-        }
+        public abstract void ToInfo();
+
+
 
     }
-
 
     internal class OperationInfo
     {
 
     }
 
-    internal abstract class OperationBase : IOperation
-    {
-        /// <summary>
-        /// 操作的主题
-        /// </summary>
-        public required string Theme { get; set; }
 
-        public abstract void Execute();
-        public abstract void Undo();
-        public abstract void ToInfo();
+    class Test {
 
-        protected OperationBase()
-        {
-            
-        }
-        protected OperationBase(OperationInfo info)
-        {
-            
-        }
+       
 
     }
 
-    internal interface IOperation
-    {
-        void Execute();  // 执行操作
-        void Undo();     // 撤销操作
 
-        
-    }
+
+
+    
 }

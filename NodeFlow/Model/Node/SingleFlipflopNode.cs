@@ -3,7 +3,7 @@ using Serein.Library;
 using Serein.Library.Utils;
 using System;
 
-namespace Serein.NodeFlow.Model
+namespace Serein.NodeFlow.Model.Node
 {
     /// <summary>
     /// 触发器节点
@@ -27,9 +27,9 @@ namespace Serein.NodeFlow.Model
             #region 执行前中断
             if (DebugSetting.IsInterrupt) // 执行触发前
             {
-                string guid = this.Guid.ToString();
-                await this.DebugSetting.GetInterruptTask.Invoke();
-                await Console.Out.WriteLineAsync($"[{this.MethodDetails.MethodName}]中断已取消，开始执行后继分支");
+                string guid = Guid.ToString();
+                await DebugSetting.GetInterruptTask.Invoke();
+                await Console.Out.WriteLineAsync($"[{MethodDetails.MethodName}]中断已取消，开始执行后继分支");
             }
             #endregion
 
@@ -61,7 +61,7 @@ namespace Serein.NodeFlow.Model
 
             if (dynamicFlipflopContext.Type == TriggerDescription.Overtime)
             {
-                throw new FlipflopException(base.MethodDetails.MethodName + "触发器超时触发。Guid" + base.Guid);
+                throw new FlipflopException(MethodDetails.MethodName + "触发器超时触发。Guid" + Guid);
             }
             object result = dynamicFlipflopContext.Value;
             var flowReslt = new FlowResult(this, context, result);

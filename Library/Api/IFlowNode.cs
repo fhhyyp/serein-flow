@@ -72,13 +72,18 @@ namespace Serein.Library.Api
         MethodDetails MethodDetails { get; set; }
 
         /// <summary>
-        /// 父节点
+        /// 父节点集合
         /// </summary>
         Dictionary<ConnectionInvokeType, List<IFlowNode>> PreviousNodes { get;}
         /// <summary>
-        /// 子节点
+        /// 子节点集合
         /// </summary>
         Dictionary<ConnectionInvokeType, List<IFlowNode>> SuccessorNodes { get; set; }
+
+        /// <summary>
+        /// 需要该节点返回结果作为入参参数的节点集合
+        /// </summary>
+        Dictionary<ConnectionArgSourceType, List<IFlowNode>> NeedResultNodes { get;  }
 
         /// <summary>
         /// 当该节点放置在某个具有容器行为的节点时，该值指示其容器节点
@@ -94,10 +99,10 @@ namespace Serein.Library.Api
         /// 节点创建时的行为
         /// </summary>
         void OnCreating();
-        /// <summary>
+        /*/// <summary>
         /// 节点移除时的行为
         /// </summary>
-        void Remove();
+        void Remove();*/
 
         /// <summary>
         /// 节点保存时如若需要保存自定义数据，可通过该方法进行控制保存逻辑

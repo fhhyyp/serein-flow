@@ -14,7 +14,7 @@
             <MenuItem Header="项目">
                 <MenuItem Header="保存项目" Command="{Binding SaveProjectCommand}"></MenuItem>
                 <MenuItem Header="加载本地项目"  Command="{Binding LoadLocalProjectCommand}" ></MenuItem>
-                <MenuItem Header="加载远程项目"></MenuItem>
+                <!--<MenuItem Header="加载远程项目"></MenuItem>-->
             </MenuItem>
 
             <MenuItem Header="画布">
@@ -24,19 +24,19 @@
 
             <MenuItem Header="运行">
                 <MenuItem Header="运行（仅当前画布）" Command="{Binding StartCurrentCanvasFlowCommand}"></MenuItem>
-                <MenuItem Header="运行（从选定节点）" ></MenuItem>
+                <!--<MenuItem Header="运行（从选定节点）" ></MenuItem>-->
                 <MenuItem Header="运行（全部画布）" Command="{Binding StartFlowCommand}"></MenuItem>
-                <MenuItem Header="结束流程" ></MenuItem>
+                <!--<MenuItem Header="结束流程" ></MenuItem>-->
             </MenuItem>
             
             <MenuItem Header="视图">
                 <MenuItem Header="输出窗口" Command="{Binding OpenEnvOutWindowCommand}"></MenuItem>
-                <MenuItem Header="定位节点" ></MenuItem>
+                <!--<MenuItem Header="定位节点" ></MenuItem>-->
             </MenuItem>
-            <!--<MenuItem Header="拓展">
-                <MenuItem Header="动态编译" ></MenuItem>
+            <MenuItem Header="拓展">
+                <!--<MenuItem Header="动态编译" ></MenuItem>-->
                 <MenuItem Header="启动远程服务"></MenuItem>
-            </MenuItem>-->
+            </MenuItem>
         </Menu>
 
     </Grid>

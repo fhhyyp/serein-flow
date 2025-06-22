@@ -40,6 +40,12 @@
   <ItemGroup>
     <Compile Remove="ConnectionType.cs" />
     <Compile Remove="DynamicContext.cs" />
+    <Compile Remove="Env\EnvMsgTheme.cs" />
+    <Compile Remove="Env\LocalFlowEnvironment_2.cs" />
+    <Compile Remove="Env\LocalFlowEnvironment_T.cs" />
+    <Compile Remove="Env\MsgControllerOfClient.cs" />
+    <Compile Remove="Env\MsgControllerOfServer.cs" />
+    <Compile Remove="Env\RemoteFlowEnvironment.cs" />
     <Compile Remove="MethodDetails.cs" />
     <Compile Remove="Model\CompositeConditionNode.cs" />
     <Compile Remove="NodeStaticConfig.cs" />

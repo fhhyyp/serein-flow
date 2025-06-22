@@ -45,7 +45,7 @@ namespace Serein.Library
     /// <summary>
     /// 节点 数据、视图、VM 管理
     /// </summary>
-    public class NodeMVVMManagement
+    public class NodeMVVMService
     {
         /// <summary>
         /// 节点对应的控件类型

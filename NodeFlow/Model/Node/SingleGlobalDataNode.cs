@@ -96,7 +96,7 @@ namespace Serein.NodeFlow.Model
         {
             foreach (var nodeModel in ChildrenNode) 
             {
-                await nodeModel.Env.TakeOutNodeToContainerAsync(nodeModel.CanvasDetails.Guid, nodeModel.Guid);
+                nodeModel.Env.TakeOutNodeToContainer(nodeModel.CanvasDetails.Guid, nodeModel.Guid);
             }
             DataNode = null;
         }
@@ -162,7 +162,7 @@ namespace Serein.NodeFlow.Model
             KeyName = nodeInfo.CustomData?.KeyName;
         }
 
-        /// <summary>
+       /* /// <summary>
         /// 需要移除数据节点
         /// </summary>
         public override void Remove()
@@ -172,7 +172,7 @@ namespace Serein.NodeFlow.Model
             }
             // 移除数据节点
             _ = this.Env.RemoveNodeAsync(DataNode.CanvasDetails.Guid, DataNode.Guid);
-        }
+        }*/
 
     }
 }

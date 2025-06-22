@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Serein.NodeFlow.Model
+namespace Serein.NodeFlow.Model.Node
 {
     public class SingleUINode : NodeModelBase
     {
@@ -24,7 +24,7 @@ namespace Serein.NodeFlow.Model
                 var result = await base.ExecutingAsync(context, token);
                 if (result.Value is IEmbeddedContent adapter) 
                 {
-                    this.Adapter = adapter;
+                    Adapter = adapter;
                     context.NextOrientation = ConnectionInvokeType.IsSucceed;
                 }
                 else

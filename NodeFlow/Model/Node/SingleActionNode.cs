@@ -2,7 +2,7 @@
 using Serein.Library;
 using System.Security.AccessControl;
 
-namespace Serein.NodeFlow.Model
+namespace Serein.NodeFlow.Model.Node
 {
     /// <summary>
     /// 单动作节点（用于动作控件)
