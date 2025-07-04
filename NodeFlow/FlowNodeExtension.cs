@@ -1,7 +1,7 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.Utils;
-using Serein.NodeFlow.Model.Node;
+using Serein.NodeFlow.Model;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Reflection;

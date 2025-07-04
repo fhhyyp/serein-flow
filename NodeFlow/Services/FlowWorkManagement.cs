@@ -2,7 +2,7 @@
 using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.Utils;
-using Serein.NodeFlow.Model.Node;
+using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Tool;
 using System;
 using System.Collections.Concurrent;

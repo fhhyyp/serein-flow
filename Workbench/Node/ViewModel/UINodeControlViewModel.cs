@@ -1,7 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using Serein.Library;
 using Serein.Library.Api;
-using Serein.NodeFlow.Model.Node;
+using Serein.NodeFlow.Model;
 using System;
 using System.Collections.Generic;
 using System.Linq;

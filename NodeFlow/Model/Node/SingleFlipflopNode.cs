@@ -3,7 +3,7 @@ using Serein.Library;
 using Serein.Library.Utils;
 using System;
 
-namespace Serein.NodeFlow.Model.Node
+namespace Serein.NodeFlow.Model
 {
     /// <summary>
     /// 触发器节点

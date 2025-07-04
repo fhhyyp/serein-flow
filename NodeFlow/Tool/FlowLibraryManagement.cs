@@ -18,7 +18,7 @@ namespace Serein.NodeFlow.Tool
     /// <summary>
     /// 管理加载在运行环境中的外部程序集
     /// </summary>
-    public class FlowLibraryManagement
+    internal class FlowLibraryManagement
     {
         public FlowLibraryManagement(IFlowEnvironment flowEnvironment)
         {
