@@ -200,25 +200,24 @@ namespace Serein.Library
         /// <param name="context"></param>
         /// <param name="token">流程运行</param>
         /// <returns></returns>
-        public static async Task StartFlowAsync(this IFlowNode nodeModel, IDynamicContext context, CancellationToken token)
+        public static async Task<FlowResult> StartFlowAsync(this IFlowNode nodeModel, IDynamicContext context, CancellationToken token)
         {
             Stack<IFlowNode> stack = new Stack<IFlowNode>();
             HashSet<IFlowNode> processedNodes = new HashSet<IFlowNode>(); // 用于记录已处理上游节点的节点
             stack.Push(nodeModel);
-            while (context.RunState != RunState.Completion  // 没有完成
-                && token.IsCancellationRequested == false // 没有取消
-                && stack.Count > 0) // 循环中直到栈为空才会退出循环
+
+            while (true) 
             {
-#if DEBUG
-                await Task.Delay(1);
-#endif
+                if (token.IsCancellationRequested)
+                {
+                    throw new Exception($"流程执行被取消，未能获取到流程结果。");
+                }
 
                 #region 执行相关
                 // 从栈中弹出一个节点作为当前节点进行处理
                 var currentNode = stack.Pop();
                 context.NextOrientation = ConnectionInvokeType.None; // 重置上下文状态
-
-                FlowResult flowResult;
+                FlowResult flowResult = null;
                 try
                 {
                     flowResult = await currentNode.ExecutingAsync(context, token);
@@ -230,18 +229,15 @@ namespace Serein.Library
                 }
                 catch (Exception ex)
                 {
-                    flowResult = new FlowResult(currentNode,context);
+                    flowResult = new FlowResult(currentNode, context);
                     context.Env.WriteLine(InfoType.ERROR, $"节点[{currentNode.Guid}]异常：" + ex);
                     context.NextOrientation = ConnectionInvokeType.IsError;
                     context.ExceptionOfRuning = ex;
                 }
                 #endregion
 
-                #region 执行完成
-                //var ignodeState =  context.GetIgnodeFlowStateUpload(currentNode);
-                // 更新数据
-                //if(!ignodeState)
-                    context.AddOrUpdate(currentNode, flowResult); // 上下文中更新数据
+                #region 执行完成时更新栈
+                context.AddOrUpdate(currentNode, flowResult); // 上下文中更新数据
                
                 // 首先将指定类别后继分支的所有节点逆序推入栈中
                 var nextNodes = currentNode.SuccessorNodes[context.NextOrientation];
@@ -255,6 +251,7 @@ namespace Serein.Library
                         stack.Push(nextNodes[index]);
                     }
                 }
+
                 // 然后将指上游分支的所有节点逆序推入栈中
                 var upstreamNodes = currentNode.SuccessorNodes[ConnectionInvokeType.Upstream];
                 for (int index = upstreamNodes.Count - 1; index >= 0; index--)
@@ -262,16 +259,39 @@ namespace Serein.Library
                     // 筛选出启用的节点的节点
                     if (upstreamNodes[index].DebugSetting.IsEnable)
                     {
-                        //if (!ignodeState)
-                            context.SetPreviousNode(upstreamNodes[index], currentNode);
+                        context.SetPreviousNode(upstreamNodes[index], currentNode);
                         stack.Push(upstreamNodes[index]);
                     }
                 }
-                //context.RecoverIgnodeFlowStateUpload(currentNode);
                 #endregion
 
+                #region 执行完成后检查
+
+                if (stack.Count == 0)
+                {
+                    return flowResult;  // 说明流程到了终点
+                }
+
+                if (context.RunState == RunState.Completion)
+                {
+                    currentNode.Env.WriteLine(InfoType.INFO, $"流程执行到节点[{currentNode.Guid}]时提前结束，将返回当前执行结果。");
+                    return flowResult; // 流程执行完成，返回结果
+                }
+
+                if (token.IsCancellationRequested)
+                {
+                    throw new Exception($"流程执行到节点[{currentNode.Guid}]时被取消，未能获取到流程结果。");
+                }
+
+
+                #endregion
+#if DEBUG
+                await Task.Delay(1);
+#endif
             }
+
         }
+
 
         /// <summary>
         /// 获取对应的参数数组
@@ -477,6 +497,13 @@ namespace Serein.Library
 
         }
 #endif
+
+
+
+
+
+
+
 
     }
 }

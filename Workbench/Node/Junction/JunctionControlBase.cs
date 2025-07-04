@@ -159,11 +159,11 @@ namespace Serein.Workbench.Node.View
 
         private void AddParamAsync()
         {
-           this.MyNode.Env.ChangeParameter(MyNode.Guid, true, ArgIndex);
+           this.MyNode.Env.FlowEdit.ChangeParameter(MyNode.Guid, true, ArgIndex);
         }
         private void RemoveParamAsync()
         {
-           this.MyNode.Env.ChangeParameter(MyNode.Guid, false, ArgIndex);
+           this.MyNode.Env.FlowEdit.ChangeParameter(MyNode.Guid, false, ArgIndex);
         }
 
     }

@@ -5,7 +5,6 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-using static Microsoft.CodeAnalysis.CSharp.SyntaxTokenParser;
 
 namespace Serein.NodeFlow.Services
 {
@@ -31,32 +30,6 @@ namespace Serein.NodeFlow.Services
 
 
 
-        /*    object result = flowApiService.Invoke("", params);
-    TResult result = flowApiService.Invoke<TResult>("", params);
-    object result = await flowApiService.InvokeAsync("", params);
-    TResult result = await flowApiService.InvokeAsync<TResult>("", params);*/
-
-
-        public object Invoke(string apiName, object[] param)
-        {
-            return null;
-        }
-
-        public TResult Invoke<TResult>(string apiName, object[] param)
-        {
-            return default(TResult);
-        }
-
-        public async Task<object> InvokeAsync(string apiName, object[] param)
-        {
-            return null;
-        }
-
-        public async Task<TResult> InvokeAsync<TResult>(string apiName, object[] param)
-        {
-            return default(TResult);
-
-        }
 
 
     }

@@ -1,0 +1,375 @@
+﻿using Serein.Library;
+using Serein.Library.Api;
+using Serein.Library.Utils;
+using Serein.NodeFlow.Model;
+using Serein.NodeFlow.Services;
+using Serein.NodeFlow.Tool;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using static Microsoft.CodeAnalysis.CSharp.SyntaxTokenParser;
+
+namespace Serein.NodeFlow.Env
+{
+
+    internal class FlowControl : IFlowControl
+    {
+        private readonly IFlowEnvironment flowEnvironment;
+        private readonly IFlowEnvironmentEvent flowEnvironmentEvent;
+        private readonly FlowLibraryService flowLibraryService;
+        private readonly FlowOperationService flowOperationService;
+        private readonly FlowModelService flowModelService;
+        private readonly UIContextOperation UIContextOperation;
+
+        public FlowControl(IFlowEnvironment flowEnvironment,
+                        IFlowEnvironmentEvent flowEnvironmentEvent,
+                        FlowLibraryService flowLibraryService,
+                        FlowOperationService flowOperationService,
+                        FlowModelService flowModelService,
+                        UIContextOperation UIContextOperation)
+        {
+            this.flowEnvironment = flowEnvironment;
+            this.flowEnvironmentEvent = flowEnvironmentEvent;
+            this.flowLibraryService = flowLibraryService;
+            this.flowOperationService = flowOperationService;
+            this.flowModelService = flowModelService;
+            this.UIContextOperation = UIContextOperation;
+            contexts = new ObjectPool<IDynamicContext>(() => new DynamicContext(flowEnvironment));
+        }
+
+        private ObjectPool<IDynamicContext> contexts;
+        private FlowWorkManagement flowWorkManagement;
+        private ISereinIOC sereinIOC;
+
+
+        /// <summary>
+        /// 如果全局触发器还在运行，则为 Running 。
+        /// </summary>
+        private RunState FlipFlopState = RunState.NoStart;
+
+
+        /// <summary>
+        /// 异步运行
+        /// </summary>
+        /// <returns></returns>
+        public async Task<bool> StartFlowAsync(string[] canvasGuids)
+        {
+            #region 校验参数
+            HashSet<string> guids = new HashSet<string>();
+            bool isBreak = false;
+            foreach (var canvasGuid in canvasGuids)
+            {
+                if (guids.Contains(canvasGuid))
+                {
+                    flowEnvironment.WriteLine(InfoType.WARN, $"画布重复，停止运行。{canvasGuid}");
+                    isBreak = true;
+                }
+                else if (!flowModelService.ContainsCanvasModel(canvasGuid))
+                {
+                    SereinEnv.WriteLine(InfoType.WARN, $"画布不存在，停止运行。{canvasGuid}");
+                    isBreak = true;
+                }
+                else if (!flowModelService.IsExsitNodeOnCanvas(canvasGuid))
+                {
+                    SereinEnv.WriteLine(InfoType.WARN, $"画布没有节点，停止运行。{canvasGuid}");
+                    isBreak = true;
+                }
+                else
+                {
+                    guids.Add(canvasGuid);
+                }
+            }
+            if (isBreak)
+            {
+                guids.Clear();
+                return false;
+            }
+            #endregion
+
+
+            #region 初始化每个画布的数据，转换为流程任务
+            Dictionary<string, FlowTask> flowTasks = [];
+            foreach (var guid in guids)
+            {
+                if (!flowModelService.TryGetCanvasModel(guid, out var canvasModel))
+                {
+                    SereinEnv.WriteLine(InfoType.WARN, $"画布不存在，停止运行。{guid}");
+                    return false;
+                }
+                var ft = new FlowTask();
+                ft.GetNodes = () => flowModelService.GetAllNodeModel(guid);
+                if (canvasModel.StartNode?.Guid is null)
+                {
+                    SereinEnv.WriteLine(InfoType.WARN, $"画布不存在起始节点，将停止运行。{guid}");
+                    return false;
+                }
+                ft.GetStartNode = () => canvasModel.StartNode;
+                flowTasks.Add(guid, ft);
+            }
+            #endregion
+
+            sereinIOC.Reset();
+            sereinIOC.Register<IFlowEnvironment>(() => flowEnvironment);
+            sereinIOC.Register<IScriptFlowApi, ScriptFlowApi>(); // 注册脚本接口
+
+            var flowTaskOptions = new FlowWorkOptions
+            {
+                Environment = flowEnvironment, // 流程
+                Flows = flowTasks,
+                FlowContextPool = contexts, // 上下文对象池
+                AutoRegisterTypes = flowLibraryService.GetaAutoRegisterType(), // 需要自动实例化的类型
+                InitMds = flowLibraryService.GetMdsOnFlowStart(NodeType.Init),
+                LoadMds = flowLibraryService.GetMdsOnFlowStart(NodeType.Loading),
+                ExitMds = flowLibraryService.GetMdsOnFlowStart(NodeType.Exit),
+            };
+
+
+
+            flowWorkManagement = new FlowWorkManagement(flowTaskOptions);
+            var cts = new CancellationTokenSource();
+            try
+            {
+                var t = await flowWorkManagement.RunAsync(cts.Token);
+            }
+            catch (Exception ex)
+            {
+                SereinEnv.WriteLine(ex);
+            }
+            finally
+            {
+
+                SereinEnv.WriteLine(InfoType.INFO, $"流程运行完毕{Environment.NewLine}"); ;
+            }
+            flowTaskOptions = null;
+            return true;
+        }
+
+
+        /// <summary>
+        /// 从选定节点开始运行
+        /// </summary>
+        /// <param name="startNodeGuid"></param>
+        /// <returns></returns>
+        public async Task<bool> StartFlowFromSelectNodeAsync(string startNodeGuid)
+        {
+
+            var flowTaskOptions = new FlowWorkOptions
+            {
+                Environment = flowEnvironment, // 流程
+                FlowContextPool = contexts, // 上下文对象池
+            };
+            var flowTaskManagement = new FlowWorkManagement(flowTaskOptions);
+
+            if (true || flowEnvironment.FlowState == RunState.Running || FlipFlopState == RunState.Running)
+            {
+
+                if (!flowModelService.TryGetNodeModel(startNodeGuid, out var nodeModel) || nodeModel is SingleFlipflopNode)
+                {
+                    return false;
+                }
+                await flowTaskManagement.StartFlowInSelectNodeAsync(nodeModel);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        /*/// <summary>
+        /// 单独运行一个节点
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        /// <returns></returns>
+        public async Task<object> InvokeNodeAsync(IDynamicContext context, string nodeGuid)
+        {
+            object result = Unit.Default;
+            if (this.NodeModels.TryGetValue(nodeGuid, out var model))
+            {
+                CancellationTokenSource cts = new CancellationTokenSource();    
+                result =  await model.ExecutingAsync(context, cts.Token);
+                cts?.Cancel();
+            }
+            return result;
+        }*/
+
+        /// <summary>
+        /// 结束流程
+        /// </summary>
+        public Task<bool> ExitFlowAsync()
+        {
+            flowWorkManagement?.Exit();
+            UIContextOperation?.Invoke(() => flowEnvironmentEvent.OnFlowRunComplete(new FlowEventArgs()));
+            sereinIOC.Reset();
+            flowWorkManagement = null;
+            GC.Collect();
+            return Task.FromResult(true);
+        }
+
+        /// <summary>
+        /// 激活全局触发器
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        public void ActivateFlipflopNode(string nodeGuid)
+        {
+            /*if (!TryGetNodeModel(nodeGuid, out var nodeModel))
+            {
+                return;
+            }
+            if (nodeModel is null) return;
+            if (flowTaskManagement is not null && nodeModel is SingleFlipflopNode flipflopNode) // 子节点为触发器
+            {
+                if (FlowState != RunState.Completion
+                    && flipflopNode.NotExitPreviousNode()) // 正在运行，且该触发器没有上游节点
+                {
+                    _ = flowTaskManagement.RunGlobalFlipflopAsync(this, flipflopNode);// 被父节点移除连接关系的子节点若为触发器，且无上级节点，则当前流程正在运行，则加载到运行环境中
+
+                }
+            }*/
+        }
+
+        /// <summary>
+        /// 关闭全局触发器
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        public void TerminateFlipflopNode(string nodeGuid)
+        {
+            /* if (!TryGetNodeModel(nodeGuid, out var nodeModel))
+             {
+                 return;
+             }
+             if (nodeModel is null) return;
+             if (flowTaskManagement is not null && nodeModel is SingleFlipflopNode flipflopNode) // 子节点为触发器
+             {
+                 flowTaskManagement.TerminateGlobalFlipflopRuning(flipflopNode);
+             }*/
+        }
+        /// <inheritdoc/>
+        public void UseExternalIOC(ISereinIOC ioc)
+        {
+            this.sereinIOC = ioc; // 设置IOC容器
+        }
+
+        /// <summary>
+        /// 启动器调用，运行到某个节点时触发了监视对象的更新（对象预览视图将会自动更新）
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        /// <param name="monitorData"></param>
+        /// <param name="sourceType"></param>
+        public void MonitorObjectNotification(string nodeGuid, object monitorData, MonitorObjectEventArgs.ObjSourceType sourceType)
+        {
+            flowEnvironmentEvent.OnMonitorObjectChanged(new MonitorObjectEventArgs(nodeGuid, monitorData, sourceType));
+        }
+
+        /// <summary>
+        /// 启动器调用，节点触发了中断。
+        /// </summary>
+        /// <param name="nodeGuid">节点</param>
+        /// <param name="expression">表达式</param>
+        /// <param name="type">类型，0用户主动的中断，1表达式中断</param>
+        public void TriggerInterrupt(string nodeGuid, string expression, InterruptTriggerEventArgs.InterruptTriggerType type)
+        {
+            flowEnvironmentEvent.OnInterruptTriggered(new InterruptTriggerEventArgs(nodeGuid, expression, type));
+        }
+
+
+
+
+        #region 流程接口调用
+
+
+        /// <summary>
+        /// 调用流程接口，将返回 FlowResult.Value。如果需要 FlowResult 对象，请使用该方法的泛型版本。
+        /// </summary>
+        /// <param name="apiGuid">流程接口节点Guid</param>
+        /// <param name="param">调用时入参参数</param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public async Task<object> ApiInvokeAsync(string apiGuid, object[] param)
+        {
+            if (sereinIOC is null)
+            {
+                sereinIOC = flowEnvironment.IOC;
+            }
+            if (!flowModelService.TryGetNodeModel(apiGuid, out var nodeModel))
+            {
+                throw new ArgumentNullException($"不存在流程接口：{apiGuid}");
+            }
+            if (nodeModel is not SingleFlowCallNode flowCallNode)
+            {
+                throw new ArgumentNullException($"目标节点并非流程接口：{apiGuid}");
+            }
+            var context = contexts.Allocate();
+            CancellationTokenSource cts = new CancellationTokenSource();
+            var flowResult = await flowCallNode.StartFlowAsync(context, cts.Token);
+            return flowResult.Value;
+        }
+
+        /// <summary>
+        /// 调用流程接口，泛型类型为 FlowResult 时，将返回 FlowResult 对象。
+        /// </summary>
+        /// <typeparam name="TResult"></typeparam>
+        /// <param name="apiGuid">流程接口节点Guid</param>
+        /// <param name="param">调用时入参参数</param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public async Task<TResult> ApiInvokeAsync<TResult>(string apiGuid, object[] param)
+        {
+            if (sereinIOC is null)
+            {
+                sereinIOC = flowEnvironment.IOC;
+            }
+            if (!flowModelService.TryGetNodeModel(apiGuid, out var nodeModel))
+            {
+                throw new ArgumentNullException($"不存在流程接口：{apiGuid}");
+            }
+            if (nodeModel is not SingleFlowCallNode flowCallNode)
+            {
+                throw new ArgumentNullException($"目标节点并非流程接口：{apiGuid}");
+            }
+            var context =  contexts.Allocate();
+            CancellationTokenSource cts = new CancellationTokenSource();
+            var flowResult = await flowCallNode.StartFlowAsync(context, cts.Token);
+
+            if (flowResult.Value is TResult result)
+            {
+                return result;
+            }
+            else if (flowResult is FlowResult && flowResult is TResult result2)
+            {
+                return result2;
+            }
+            else
+            {
+                throw new ArgumentNullException($"类型转换失败，流程返回数据与泛型不匹配，当前返回类型为[{flowResult.Value.GetType().FullName}]。");
+            }
+        }
+
+        private bool IsHasSuccessorNodes(IFlowNode nodeModel)
+        {
+            var nextTypes = new[]
+            {
+                ConnectionInvokeType.Upstream,
+                ConnectionInvokeType.IsSucceed,
+                ConnectionInvokeType.IsFail,
+                ConnectionInvokeType.IsError
+            };
+            foreach (var type in nextTypes)
+            {
+                if (nodeModel.SuccessorNodes.TryGetValue(type, out var nextNodes))
+                {
+                    if(nextNodes.Count > 0)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        #endregion
+    }
+}

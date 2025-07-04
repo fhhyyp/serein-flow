@@ -370,7 +370,7 @@ namespace Serein.Workbench.Views
             if (TryPlaceNodeInRegion(nodeControl, position, out var regionControl)) // 判断添加到区域容器
             {
                 // 通知运行环境调用加载节点子项的方法
-               flowEnvironment.PlaceNodeToContainer(Guid,
+               flowEnvironment.FlowEdit.PlaceNodeToContainer(Guid,
                                                   nodeControl.ViewModel.NodeModel.Guid, // 待移动的节点
                                                   regionControl.ViewModel.NodeModel.Guid); // 目标的容器节点
                 return;
@@ -557,14 +557,14 @@ namespace Serein.Workbench.Views
                 if (keyEventService.GetKeyState(Key.LeftCtrl) || keyEventService.GetKeyState(Key.RightCtrl))
                 {
                     // Ctrl + F5 调试当前流程
-                    _ = flowEnvironment.StartFlowAsync([flowNodeService.CurrentSelectCanvas.Guid]);
+                    _ = flowEnvironment.FlowControl.StartFlowAsync([flowNodeService.CurrentSelectCanvas.Guid]);
                 }
                 else if (selectNodeControls.Count == 1 )
                 {
                     // F5 调试当前选定节点
                     var nodeModel = selectNodeControls[0].ViewModel.NodeModel;
                     SereinEnv.WriteLine(InfoType.INFO, $"调试运行当前节点:{nodeModel.Guid}");
-                    _ = flowEnvironment.StartFlowFromSelectNodeAsync(nodeModel.Guid);
+                    _ = flowEnvironment.FlowControl.StartFlowFromSelectNodeAsync(nodeModel.Guid);
                     //_ = nodeModel.StartFlowAsync(new DynamicContext(flowEnvironment), new CancellationToken());
                 }
 
@@ -897,7 +897,7 @@ namespace Serein.Workbench.Views
                         {
                             var canvasGuid = this.Guid;
 
-                             flowEnvironment.ConnectInvokeNode(
+                             flowEnvironment.FlowEdit.ConnectInvokeNode(
                                         canvasGuid,
                                         cd.StartJunction.MyNode.Guid,
                                         cd.CurrentJunction.MyNode.Guid,
@@ -921,7 +921,7 @@ namespace Serein.Workbench.Views
                             }
                             var canvasGuid = this.Guid;
 
-                            flowEnvironment.ConnectArgSourceNode(
+                            flowEnvironment.FlowEdit.ConnectArgSourceNode(
                                     canvasGuid,
                                     cd.StartJunction.MyNode.Guid,
                                     cd.CurrentJunction.MyNode.Guid,
@@ -1268,7 +1268,7 @@ namespace Serein.Workbench.Views
                         if (!string.IsNullOrEmpty(guid))
                         {
                             var canvasGuid = this.Guid;
-                            flowEnvironment.RemoveNode(canvasGuid, guid);
+                            flowEnvironment.FlowEdit.RemoveNode(canvasGuid, guid);
                         }
                     }
                 }
@@ -1464,13 +1464,13 @@ namespace Serein.Workbench.Views
                     {
                         if (menuItem.Header.ToString() == "启动触发器")
                         {
-                            flowEnvironment.ActivateFlipflopNode(nodeGuid);
+                            flowEnvironment.FlowControl.ActivateFlipflopNode(nodeGuid);
 
                             menuItem.Header = "终结触发器";
                         }
                         else
                         {
-                            flowEnvironment.TerminateFlipflopNode(nodeGuid);
+                            flowEnvironment.FlowControl.TerminateFlipflopNode(nodeGuid);
                             menuItem.Header = "启动触发器";
 
                         }
@@ -1490,10 +1490,10 @@ namespace Serein.Workbench.Views
 
 
 
-            contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("设为起点", (s, e) => flowEnvironment.SetStartNode(canvasGuid, nodeGuid)));
+            contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("设为起点", (s, e) => flowEnvironment.FlowEdit.SetStartNode(canvasGuid, nodeGuid)));
             contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("删除", async (s, e) =>
             {
-                flowEnvironment.RemoveNode(canvasGuid, nodeGuid);
+                flowEnvironment.FlowEdit.RemoveNode(canvasGuid, nodeGuid);
             }));
 
             #region 右键菜单功能 - 控件对齐

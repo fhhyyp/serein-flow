@@ -38,17 +38,15 @@ namespace Serein.NodeFlow.Model
     public partial class SingleFlowCallNode : NodeModelBase
     {
         /// <summary>
-        /// 接口节点
+        /// 被调用的节点
         /// </summary>
         private IFlowNode targetNode;
         /// <summary>
         /// 缓存的方法信息
         /// </summary>
         public MethodDetails CacheMethodDetails { get; private set; }
-        /// <summary>
-        /// 接口节点Guid
-        /// </summary>
-        //public string? TargetNodeGuid => targetNode?.Guid;
+
+
 
 
         public SingleFlowCallNode(IFlowEnvironment environment) : base(environment)

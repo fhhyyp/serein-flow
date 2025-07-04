@@ -243,11 +243,11 @@ namespace Serein.Workbench.Node.View
             var jctEnd = End.JunctionType.ToConnectyionType();
             if (jct == JunctionOfConnectionType.Invoke)
             {
-                env.RemoveInvokeConnect(canvasGuid, Start.MyNode.Guid, End.MyNode.Guid, InvokeType);
+                env.FlowEdit.RemoveInvokeConnect(canvasGuid, Start.MyNode.Guid, End.MyNode.Guid, InvokeType);
             }
             else if (jct == JunctionOfConnectionType.Arg)
             {
-                env.RemoveArgSourceConnect(canvasGuid,Start.MyNode.Guid, End.MyNode.Guid, ArgIndex) ;
+                env.FlowEdit.RemoveArgSourceConnect(canvasGuid,Start.MyNode.Guid, End.MyNode.Guid, ArgIndex) ;
             }
         }
 
@@ -259,7 +259,7 @@ namespace Serein.Workbench.Node.View
             var env = Start.MyNode.Env;
             if (Start.JunctionType.ToConnectyionType() == JunctionOfConnectionType.Invoke)
             {
-                env.SetConnectPriorityInvoke(Start.MyNode.Guid, End.MyNode.Guid, InvokeType);
+                env.FlowEdit.SetConnectPriorityInvoke(Start.MyNode.Guid, End.MyNode.Guid, InvokeType);
             }
         }
 

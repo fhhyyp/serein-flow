@@ -115,7 +115,7 @@ namespace Serein.NodeFlow.Model
             // 执行触发检查是否需要中断
             if (DebugSetting.IsInterrupt)
             {
-                context.Env.TriggerInterrupt(Guid, "", InterruptTriggerEventArgs.InterruptTriggerType.Monitor); // 通知运行环境该节点中断了
+                context.Env.FlowControl.TriggerInterrupt(Guid, "", InterruptTriggerEventArgs.InterruptTriggerType.Monitor); // 通知运行环境该节点中断了
                 await DebugSetting.GetInterruptTask.Invoke();
                 SereinEnv.WriteLine(InfoType.INFO, $"[{this.MethodDetails?.MethodName}]中断已取消，开始执行后继分支");
                 if (token.IsCancellationRequested) { return null; }

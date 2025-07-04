@@ -142,7 +142,7 @@ namespace Serein.Workbench.Themes
                         {
                             try
                             {
-                                await flowEnvironment.StartFlowFromSelectNodeAsync(tmpNodeTreeModel.RootNode.Guid);
+                                await flowEnvironment.FlowControl.StartFlowFromSelectNodeAsync(tmpNodeTreeModel.RootNode.Guid);
                             }
                             catch (Exception ex)
                             {
@@ -150,7 +150,7 @@ namespace Serein.Workbench.Themes
                                 return;
                             }
                         }));
-                        contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("定位", (s, e) => flowEnvironment.NodeLocate(tmpNodeTreeModel.RootNode.Guid)));
+                        contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("定位", (s, e) => flowEnvironment.FlowEdit.NodeLocate(tmpNodeTreeModel.RootNode.Guid)));
 
                         treeViewItem.ContextMenu = contextMenu;
                         treeViewItem.Margin = new Thickness(-20, 0, 0, 0);

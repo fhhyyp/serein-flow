@@ -112,7 +112,7 @@ namespace Serein.NodeFlow.Model.Operation
             if(flowNode is null) return false; // 没有创建过节点
             var canvasGuid = flowCanvasDetails.Guid;
             var nodeGuid = flowNode.Guid;
-            flowEnvironment.RemoveNode(canvasGuid, nodeGuid);
+            flowEnvironment.FlowEdit.RemoveNode(canvasGuid, nodeGuid);
             return true;
         }
 

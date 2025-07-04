@@ -32,10 +32,11 @@ namespace Serein.Library
         /// <param name="context"></param>
         public FlowResult(IFlowNode nodeModel, IDynamicContext context, object value)
         {
-            this.NodeGuid = nodeModel.Guid;
+            this.Source = nodeModel;
             this.ContextGuid = context.Guid;
             this.Value = value;
         }
+
         /// <summary>
         /// 空返回值
         /// </summary>
@@ -43,10 +44,11 @@ namespace Serein.Library
         /// <param name="context"></param>
         public FlowResult(IFlowNode nodeModel, IDynamicContext context)
         {
-            this.NodeGuid = nodeModel.Guid;
+            this.Source = nodeModel;
             this.ContextGuid = context.Guid;
             this.Value  = Unit.Default;
         }
+
         /// <summary>
         /// 尝试获取值
         /// </summary>
@@ -74,7 +76,7 @@ namespace Serein.Library
         /// <summary>
         /// 来源节点Guid
         /// </summary>
-        public string NodeGuid { get; }
+        public IFlowNode Source{ get; }
         /// <summary>
         /// 来源上下文Guid
         /// </summary>
@@ -83,6 +85,7 @@ namespace Serein.Library
         /// 数据值
         /// </summary>
         public object Value { get; private set; }
+
         /// <summary>
         /// 生成时间
         /// </summary>

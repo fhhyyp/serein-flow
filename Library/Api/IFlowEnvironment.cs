@@ -748,7 +748,7 @@ namespace Serein.Library.Api
         public void OnEnvOutput(InfoType type, string value);
     }
 
-
+    
 
     /// <summary>
     /// 运行环境
@@ -764,6 +764,15 @@ namespace Serein.Library.Api
         /// </summary>
         ISereinIOC IOC { get; }
 
+        /// <summary>
+        /// 流程编辑接口
+        /// </summary>
+        IFlowEdit FlowEdit { get; }
+
+        /// <summary>
+        /// 流程控制接口
+        /// </summary>
+        IFlowControl FlowControl { get; }
 
         /// <summary>
         /// 流程事件接口
@@ -811,10 +820,6 @@ namespace Serein.Library.Api
         /// </summary>
         UIContextOperation UIContextOperation { get;  }
 
-        /// <summary>
-        /// 节点视图模型管理类
-        /// </summary>
-        NodeMVVMService NodeMVVMManagement { get;  }
         #endregion
 
         #region 基本接口
@@ -826,6 +831,17 @@ namespace Serein.Library.Api
         /// <param name="type">输出类型</param>
         /// <param name="class">输出级别</param>
         void WriteLine(InfoType type, string message, InfoClass @class = InfoClass.Trivial);
+        /// <summary>
+        /// <para>提供设置UI上下文的能力</para>
+        /// <para>提供设置UI上下文的能力，在WinForm/WPF项目中，在UI线程外对UI元素的修改将会导致异常</para>
+        /// <para>需要你提供</para>
+        /// </summary>
+        /// <param name="uiContextOperation"></param>
+        void SetUIContextOperation(UIContextOperation uiContextOperation);
+        #endregion
+
+
+        #region 项目相关操作
 
         /// <summary>
         /// 加载项目文件
@@ -845,14 +861,68 @@ namespace Serein.Library.Api
         /// <returns></returns>
         Task<SereinProjectData> GetProjectInfoAsync();
 
+        #endregion
+
+        #region 获取节点信息，获取方法信息，获取Emit委托
         /// <summary>
-        /// 从节点信息集合批量加载节点控件
+        /// 获取节点信息
         /// </summary>
-        /// <param name="nodeInfos">节点集合信息</param>
+        /// <param name="nodeGuid"></param>
+        /// <param name="nodeModel"></param>
         /// <returns></returns>
-        Task LoadNodeInfosAsync(List<NodeInfo> nodeInfos);
+        bool TryGetNodeModel(string nodeGuid, out IFlowNode nodeModel);
+
+        /// <summary>
+        /// 获取方法描述信息
+        /// </summary>
+        /// <param name="assemblyName">程序集名称</param>
+        /// <param name="methodName">方法描述</param>
+        /// <param name="mdInfo">方法信息</param>
+        /// <returns></returns>
+        bool TryGetMethodDetailsInfo(string assemblyName, string methodName, out MethodDetailsInfo mdInfo);
+
+        /// <summary>
+        /// 获取指定方法的Emit委托
+        /// </summary>
+        /// <param name="assemblyName">程序集名称</param>
+        /// <param name="methodName"></param>
+        /// <param name="del"></param>
+        /// <returns></returns>
+        bool TryGetDelegateDetails(string assemblyName, string methodName, out DelegateDetails del);
+        #endregion
+
+
+        #region 类库依赖相关
+
+        /// <summary>
+        /// 从文件中加载Dll
+        /// </summary>
+        /// <param name="dllPath"></param>
+        void LoadLibrary(string dllPath);
+
+        /// <summary>
+        /// 移除DLL
+        /// </summary>
+        /// <param name="assemblyFullName">程序集的名称</param>
+        bool TryUnloadLibrary(string assemblyFullName);
+
+        /// <summary>
+        /// 运行时加载
+        /// </summary>
+        /// <param name="file">文件名</param>
+        /// <returns></returns>
+        bool LoadNativeLibraryOfRuning(string file);
+
+        /// <summary>
+        /// 运行时加载指定目录下的类库
+        /// </summary>
+        /// <param name="path">目录</param>
+        /// <param name="isRecurrence">是否递归加载</param>
+        void LoadAllNativeLibraryOfRuning(string path, bool isRecurrence = true);
 
         #endregion
+
+
 
         #region 远程相关
         /// <summary>
@@ -895,142 +965,9 @@ namespace Serein.Library.Api
 
         #endregion
 
-        #region 流程节点操作接口
-
-        /// <summary>
-        /// 增加画布
-        /// </summary>
-        /// <param name="canvasName">画布名称</param>
-        /// <param name="width">宽度</param>
-        /// <param name="height">高度</param>
-        /// <returns></returns>
-        void CreateCanvas(string canvasName, int width , int height);
-
-        /// <summary>
-        /// 删除画布
-        /// </summary>
-        /// <param name="canvasGuid">画布Guid</param>
-        /// <returns></returns>
-        void RemoveCanvas(string canvasGuid);
 
 
-
-
-        /// <summary>
-        /// 在两个节点之间创建连接关系
-        /// </summary>
-        /// <param name="canvasGuid">所在画布</param>
-        /// <param name="fromNodeGuid">起始节点Guid</param>
-        /// <param name="toNodeGuid">目标节点Guid</param>
-        /// <param name="fromNodeJunctionType">起始节点控制点</param>
-        /// <param name="toNodeJunctionType">目标节点控制点</param>
-        /// <param name="invokeType">决定了方法执行后的后继行为</param>
-        void ConnectInvokeNode(string canvasGuid, 
-                                          string fromNodeGuid,
-                                          string toNodeGuid,
-                                          JunctionType fromNodeJunctionType,
-                                          JunctionType toNodeJunctionType,
-                                          ConnectionInvokeType invokeType);
-
-        /// <summary>
-        /// 在两个节点之间创建连接关系
-        /// </summary>
-        /// <param name="canvasGuid">所在画布</param>
-        /// <param name="fromNodeGuid">起始节点Guid</param>
-        /// <param name="toNodeGuid">目标节点Guid</param>
-        /// <param name="fromNodeJunctionType">起始节点控制点</param>
-        /// <param name="toNodeJunctionType">目标节点控制点</param>
-        /// <param name="argSourceType">决定了方法参数来源</param>
-        /// <param name="argIndex">设置第几个参数</param>
-        void ConnectArgSourceNode(string canvasGuid, 
-                                             string fromNodeGuid,
-                                             string toNodeGuid,
-                                             JunctionType fromNodeJunctionType,
-                                             JunctionType toNodeJunctionType,
-                                             ConnectionArgSourceType argSourceType,
-                                             int argIndex);
-
-        /// <summary>
-        /// 移除两个节点之间的方法调用关系
-        /// </summary>        
-        /// <param name="canvasGuid">所在画布</param>
-        /// <param name="fromNodeGuid">起始节点</param>
-        /// <param name="toNodeGuid">目标节点</param>
-        /// <param name="connectionType">连接类型</param>
-        void RemoveInvokeConnect(string canvasGuid, string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType);
-
-        /// <summary>
-        /// 移除连接节点之间参数传递的关系
-        /// </summary>
-        /// <param name="canvasGuid">所在画布</param>
-        /// <param name="fromNodeGuid">起始节点Guid</param>
-        /// <param name="toNodeGuid">目标节点Guid</param>
-        /// <param name="argIndex">连接到第几个参数</param>
-        void RemoveArgSourceConnect(string canvasGuid, string fromNodeGuid, string toNodeGuid, int argIndex);
-
-
-        /// <summary>
-        /// 创建节点
-        /// </summary>
-        /// <param name="canvasGuid">所在画布</param>
-        /// <param name="nodeType">控件类型</param>
-        /// <param name="position">节点在画布上的位置（</param>
-        /// <param name="methodDetailsInfo">节点绑定的方法说明</param>
-        void CreateNode(string canvasGuid, NodeControlType nodeType, PositionOfUI position, MethodDetailsInfo methodDetailsInfo = null);
-
-        /// <summary>
-        /// 移除节点
-        /// </summary>
-        /// <param name="canvasGuid">所在画布</param>
-        /// <param name="nodeGuid">待移除的节点Guid</param>
-        void RemoveNode(string canvasGuid, string nodeGuid);
-
-        /// <summary>
-        ///  将节点放置在容器中
-        /// </summary>
-        /// <param name="canvasGuid">所在画布</param>
-        /// <param name="nodeGuid">需要放置的节点Guid</param>
-        /// <param name="containerNodeGuid">存放节点的容器Guid</param>
-        /// <returns></returns>
-        void PlaceNodeToContainer(string canvasGuid, string nodeGuid, string containerNodeGuid);
-
-        /// <summary>
-        ///  将节点放置在容器中
-        /// </summary>
-        /// <param name="canvasGuid">所在画布</param>
-        /// <param name="nodeGuid">需要取出的节点Guid</param>
-        void TakeOutNodeToContainer(string canvasGuid, string nodeGuid);
-
-        /// <summary>
-        /// 设置流程起点节点
-        /// </summary>
-        /// <param name="canvasGuid">所在画布</param>
-        /// <param name="nodeGuid">尝试设置为起始节点的节点Guid</param>
-        /// <returns>被设置为起始节点的Guid</returns>
-        void SetStartNode(string canvasGuid, string nodeGuid);
-
-        /// <summary>
-        /// 设置两个节点某个类型的方法调用关系为优先调用
-        /// </summary>
-        /// <param name="fromNodeGuid">起始节点</param>
-        /// <param name="toNodeGuid">目标节点</param>
-        /// <param name="connectionType">连接关系</param>
-        /// <returns></returns>
-        void SetConnectPriorityInvoke(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType);
-
-
-        /// <summary>
-        /// 改变可选参数的数目
-        /// </summary>
-        /// <param name="nodeGuid">对应的节点Guid</param>
-        /// <param name="isAdd">true，增加参数；false，减少参数</param>
-        /// <param name="paramIndex">以哪个参数为模板进行拷贝，或删去某个参数（该参数必须为可选参数）</param>
-        /// <returns></returns>
-        void ChangeParameter(string nodeGuid, bool isAdd, int paramIndex);
-
-        #endregion
-
-        #region 节点中断、表达式
+        #region 节点中断、表达式（暂时没用）
 #if false
 
         /// <summary>
@@ -1074,137 +1011,8 @@ namespace Serein.Library.Api
 #endif
         #endregion
 
-        #region 流程运行相关
-        /// <summary>
-        /// 获取节点信息
-        /// </summary>
-        /// <param name="nodeGuid"></param>
-        /// <param name="nodeModel"></param>
-        /// <returns></returns>
-        bool TryGetNodeModel(string nodeGuid, out IFlowNode nodeModel);
 
-        /// <summary>
-        /// 获取方法描述信息
-        /// </summary>
-        /// <param name="assemblyName">程序集名称</param>
-        /// <param name="methodName">方法描述</param>
-        /// <param name="mdInfo">方法信息</param>
-        /// <returns></returns>
-        bool TryGetMethodDetailsInfo(string assemblyName, string methodName, out MethodDetailsInfo mdInfo);
-
-        /// <summary>
-        /// 获取指定方法的Emit委托
-        /// </summary>
-        /// <param name="assemblyName">程序集名称</param>
-        /// <param name="methodName"></param>
-        /// <param name="del"></param>
-        /// <returns></returns>
-        bool TryGetDelegateDetails(string assemblyName, string methodName, out DelegateDetails del);
-
-        /// <summary>
-        /// <para>提供设置UI上下文的能力</para>
-        /// <para>提供设置UI上下文的能力，在WinForm/WPF项目中，在UI线程外对UI元素的修改将会导致异常</para>
-        /// <para>需要你提供</para>
-        /// </summary>
-        /// <param name="uiContextOperation"></param>
-        void SetUIContextOperation(UIContextOperation uiContextOperation);
-
-        /// <summary>
-        /// <para>需要你提供一个由你实现的ISereinIOC接口实现类</para>
-        /// <para>当你将流程运行环境集成在你的项目时，并希望流程运行时使用你提供的对象，而非自动创建</para>
-        /// <para>就需要你调用这个方法，用来替换运行环境的IOC容器</para>
-        /// <para>注意，是流程运行时，而非运行环境</para>
-        /// </summary>
-        /// <param name="ioc"></param>
-        void UseExternalIOC(ISereinIOC ioc);
-
-        /// <summary>
-        /// 开始运行流程
-        /// </summary>
-        /// <param name="canvasGuids">需要运行的流程Guid</param>
-        /// <returns></returns>
-        Task<bool> StartFlowAsync(string[] canvasGuids);
-
-        /// <summary>
-        /// 从选定的节点开始运行
-        /// </summary>
-        /// <param name="startNodeGuid"></param>
-        /// <returns></returns>
-        Task<bool> StartFlowFromSelectNodeAsync(string startNodeGuid);
-
-        /// <summary>
-        /// 结束运行
-        /// </summary>
-        Task<bool> ExitFlowAsync();
-
-        /// <summary>
-        /// 激活未启动的全局触发器
-        /// </summary>
-        /// <param name="nodeGuid"></param>
-        void ActivateFlipflopNode(string nodeGuid);
-
-        /// <summary>
-        /// 终结一个全局触发器，在它触发后将不会再次监听消息（表现为已经启动的触发器至少会再次处理一次消息，后面版本再修正这个非预期行为）
-        /// </summary>
-        /// <param name="nodeGuid"></param>
-        void TerminateFlipflopNode(string nodeGuid);
-
-        /// <summary>
-        /// 流程启动器调用，监视数据更新通知
-        /// </summary>
-        /// <param name="nodeGuid">更新了数据的节点Guid</param>
-        /// <param name="monitorData">更新的数据</param>
-        /// <param name="sourceType">更新的数据</param>
-        void MonitorObjectNotification(string nodeGuid, object monitorData, MonitorObjectEventArgs.ObjSourceType sourceType);
-
-        /// <summary>
-        /// 流程启动器调用，节点触发了中断
-        /// </summary>
-        /// <param name="nodeGuid">被中断的节点Guid</param>
-        /// <param name="expression">被触发的表达式</param>
-        /// <param name="type">中断类型。0主动监视，1表达式</param>
-        void TriggerInterrupt(string nodeGuid, string expression, InterruptTriggerEventArgs.InterruptTriggerType type);
-
-        #endregion
-
-        #region 类库依赖相关
-
-        /// <summary>
-        /// 从文件中加载Dll
-        /// </summary>
-        /// <param name="dllPath"></param>
-        void LoadLibrary(string dllPath);
-
-        /// <summary>
-        /// 移除DLL
-        /// </summary>
-        /// <param name="assemblyFullName">程序集的名称</param>
-        bool TryUnloadLibrary(string assemblyFullName);
-
-        /// <summary>
-        /// 运行时加载
-        /// </summary>
-        /// <param name="file">文件名</param>
-        /// <returns></returns>
-        bool LoadNativeLibraryOfRuning(string file);
-
-        /// <summary>
-        /// 运行时加载指定目录下的类库
-        /// </summary>
-        /// <param name="path">目录</param>
-        /// <param name="isRecurrence">是否递归加载</param>
-        void LoadAllNativeLibraryOfRuning(string path, bool isRecurrence = true);
-
-        #endregion
-
-        #region UI视觉
-
-        /// <summary>
-        /// 节点定位
-        /// </summary>
-        /// <param name="nodeGuid"></param>
-        void NodeLocate(string nodeGuid);
-
-        #endregion
     }
+
+
 }

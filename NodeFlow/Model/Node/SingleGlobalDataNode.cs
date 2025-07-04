@@ -96,7 +96,7 @@ namespace Serein.NodeFlow.Model
         {
             foreach (var nodeModel in ChildrenNode) 
             {
-                nodeModel.Env.TakeOutNodeToContainer(nodeModel.CanvasDetails.Guid, nodeModel.Guid);
+                nodeModel.Env.FlowEdit.TakeOutNodeToContainer(nodeModel.CanvasDetails.Guid, nodeModel.Guid);
             }
             DataNode = null;
         }

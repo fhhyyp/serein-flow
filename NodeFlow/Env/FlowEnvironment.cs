@@ -45,6 +45,9 @@ namespace Serein.NodeFlow.Env
     /// </summary>
     public class FlowEnvironment : IFlowEnvironment
     {
+        /// <summary>
+        /// 流程运行环境构造函数
+        /// </summary>
         public FlowEnvironment()
         {
             ISereinIOC ioc = new SereinIOC();
@@ -52,6 +55,8 @@ namespace Serein.NodeFlow.Env
                .Register<ISereinIOC>(()=> ioc) // 注册IOC
                .Register<IFlowEnvironment>(() => this)
                .Register<IFlowEnvironmentEvent, FlowEnvironmentEvent>()
+               .Register<IFlowEdit, FlowEdit>()
+               .Register<IFlowControl, FlowControl>()
                .Register<LocalFlowEnvironment>()
                .Register<FlowModelService>()
                .Register<FlowOperationService>()
@@ -63,7 +68,7 @@ namespace Serein.NodeFlow.Env
             currentFlowEnvironmentEvent = ioc.Get<IFlowEnvironmentEvent>();
             SereinEnv.SetEnv(currentFlowEnvironment);
         }
-
+/*
         /// <summary>
         /// 本地环境事件
         /// </summary>
@@ -73,7 +78,7 @@ namespace Serein.NodeFlow.Env
         /// 远程环境事件
         /// </summary>
         private IFlowEnvironmentEvent remoteFlowEnvironmentEvent;
-
+        */
 
         /// <summary>
         /// 管理当前环境
@@ -86,9 +91,9 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         private IFlowEnvironmentEvent currentFlowEnvironmentEvent;
 
+
+
         private int _loadingProjectFlag = 0; // 使用原子自增代替锁
-
-
         /// <summary>
         /// 传入false时，将停止数据通知。传入true时，
         /// </summary>
@@ -110,8 +115,12 @@ namespace Serein.NodeFlow.Env
         public IFlowEnvironment CurrentEnv => currentFlowEnvironment;
         /// <inheritdoc/>
         public UIContextOperation UIContextOperation => currentFlowEnvironment.UIContextOperation;
+
         /// <inheritdoc/>
-        public NodeMVVMService NodeMVVMManagement => currentFlowEnvironment.NodeMVVMManagement;
+        public IFlowEdit FlowEdit => currentFlowEnvironment.FlowEdit;
+
+        /// <inheritdoc/>
+        public IFlowControl FlowControl => currentFlowEnvironment.FlowControl;
 
         /// <inheritdoc/>
         public ISereinIOC IOC => currentFlowEnvironment.IOC;
@@ -139,171 +148,9 @@ namespace Serein.NodeFlow.Env
         public RunState FlowState { get => currentFlowEnvironment.FlowState; set => currentFlowEnvironment.FlowState = value; }
 
         /// <inheritdoc/>
-        public event LoadDllHandler DllLoad { 
-            add { currentFlowEnvironmentEvent.DllLoad += value; }
-            remove { currentFlowEnvironmentEvent.DllLoad -= value; }
-        }
-
-        /// <inheritdoc/>
-        public event ProjectLoadedHandler ProjectLoaded
-        {
-            add { currentFlowEnvironmentEvent.ProjectLoaded += value; }
-            remove { currentFlowEnvironmentEvent.ProjectLoaded -= value; }
-        }
-
-        /// <inheritdoc/>
-        public event ProjectSavingHandler? ProjectSaving
-        {
-            add { currentFlowEnvironmentEvent.ProjectSaving += value; }
-            remove { currentFlowEnvironmentEvent.ProjectSaving -= value; }
-        }
-
-        /// <inheritdoc/>
-        public event NodeConnectChangeHandler NodeConnectChanged
-        {
-            add { currentFlowEnvironmentEvent.NodeConnectChanged += value; }
-            remove { currentFlowEnvironmentEvent.NodeConnectChanged -= value; }
-        }
-
-        /// <inheritdoc/>
-        public event CanvasCreateHandler CanvasCreated
-        {
-            add { currentFlowEnvironmentEvent.CanvasCreated += value; }
-            remove { currentFlowEnvironmentEvent.CanvasCreated -= value; }
-        }
-
-        /// <inheritdoc/>
-        public event CanvasRemoveHandler CanvasRemoved
-        {
-            add { currentFlowEnvironmentEvent.CanvasRemoved += value; }
-            remove { currentFlowEnvironmentEvent.CanvasRemoved -= value; }
-        }
-
-        /// <inheritdoc/>
-        public event NodeCreateHandler NodeCreated
-        {
-            add { currentFlowEnvironmentEvent.NodeCreated += value; }
-            remove { currentFlowEnvironmentEvent.NodeCreated -= value; }
-        }
-
-        /// <inheritdoc/>
-        public event NodeRemoveHandler NodeRemoved
-        {
-            add { currentFlowEnvironmentEvent.NodeRemoved += value; }
-            remove { currentFlowEnvironmentEvent.NodeRemoved -= value; }
-        }
-
-        /// <inheritdoc/>
-        public event NodePlaceHandler NodePlace
-        {
-            add { currentFlowEnvironmentEvent.NodePlace += value; }
-            remove { currentFlowEnvironmentEvent.NodePlace -= value; }
-        }
-
-        /// <inheritdoc/>
-        public event NodeTakeOutHandler NodeTakeOut
-        {
-            add { currentFlowEnvironmentEvent.NodeTakeOut += value; }
-            remove { currentFlowEnvironmentEvent.NodeTakeOut -= value; }
-        }
-
-        /// <inheritdoc/>
-        public event StartNodeChangeHandler StartNodeChanged
-        {
-            add { currentFlowEnvironmentEvent.StartNodeChanged += value; }
-            remove { currentFlowEnvironmentEvent.StartNodeChanged -= value; }
-        }
-
-        /// <inheritdoc/>
-        public event FlowRunCompleteHandler FlowRunComplete
-        {
-            add { currentFlowEnvironmentEvent.FlowRunComplete += value; }
-            remove { currentFlowEnvironmentEvent.FlowRunComplete -= value; }
-        }
-
-        /// <inheritdoc/>
-        public event MonitorObjectChangeHandler MonitorObjectChanged
-        {
-            add { currentFlowEnvironmentEvent.MonitorObjectChanged += value; }
-            remove { currentFlowEnvironmentEvent.MonitorObjectChanged -= value; }
-        }
-
-        /// <inheritdoc/>
-        public event NodeInterruptStateChangeHandler NodeInterruptStateChanged
-        {
-            add { currentFlowEnvironmentEvent.NodeInterruptStateChanged += value; }
-            remove { currentFlowEnvironmentEvent.NodeInterruptStateChanged -= value; }
-        }
-
-        /// <inheritdoc/>
-        public event ExpInterruptTriggerHandler InterruptTriggered
-        {
-            add { currentFlowEnvironmentEvent.InterruptTriggered += value; }
-            remove { currentFlowEnvironmentEvent.InterruptTriggered -= value; }
-        }
-
-        /// <inheritdoc/>
-        public event IOCMembersChangedHandler IOCMembersChanged
-        {
-            add { currentFlowEnvironmentEvent.IOCMembersChanged += value; }
-            remove { currentFlowEnvironmentEvent.IOCMembersChanged -= value; }
-        }
-
-        /// <inheritdoc/>
-        public event NodeLocatedHandler NodeLocated
-        {
-            add { currentFlowEnvironmentEvent.NodeLocated += value; }
-            remove { currentFlowEnvironmentEvent.NodeLocated -= value; }
-        }
-
-        /// <inheritdoc/>
-        public event EnvOutHandler EnvOutput
-        {
-            add { currentFlowEnvironmentEvent.EnvOutput += value; }
-            remove { currentFlowEnvironmentEvent.EnvOutput -= value; }
-        }
-
-
-
-        /// <inheritdoc/>
         public void ActivateFlipflopNode(string nodeGuid)
         {
-            currentFlowEnvironment.ActivateFlipflopNode(nodeGuid);
-        }
-
-        /// <inheritdoc/>
-        public void CreateCanvas(string canvasName, int width, int height)
-        {
-            currentFlowEnvironment.CreateCanvas(canvasName, width, height);
-        }
-
-        /// <inheritdoc/>
-        public void RemoveCanvas(string canvasGuid)
-        {
-             currentFlowEnvironment.RemoveCanvas(canvasGuid);
-        }
-
-        /// <inheritdoc/>
-        public void ConnectInvokeNode(string canvasGuid,
-                                                       string fromNodeGuid,
-                                                       string toNodeGuid,
-                                                       JunctionType fromNodeJunctionType,
-                                                       JunctionType toNodeJunctionType,
-                                                       ConnectionInvokeType invokeType)
-        {
-            currentFlowEnvironment.ConnectInvokeNode(canvasGuid, fromNodeGuid, toNodeGuid, fromNodeJunctionType, toNodeJunctionType, invokeType);
-        }
-
-        /// <inheritdoc/>
-        public void ConnectArgSourceNode(string canvasGuid,
-                                                          string fromNodeGuid,
-                                                          string toNodeGuid,
-                                                          JunctionType fromNodeJunctionType,
-                                                          JunctionType toNodeJunctionType,
-                                                          ConnectionArgSourceType argSourceType,
-                                                          int argIndex)
-        {
-             currentFlowEnvironment.ConnectArgSourceNode(canvasGuid, fromNodeGuid, toNodeGuid, fromNodeJunctionType, toNodeJunctionType, argSourceType, argIndex);
+            currentFlowEnvironment.FlowControl.ActivateFlipflopNode(nodeGuid);
         }
 
         /// <inheritdoc/>
@@ -321,41 +168,9 @@ namespace Serein.NodeFlow.Env
         }
 
         /// <inheritdoc/>
-        public async Task LoadNodeInfosAsync(List<NodeInfo> nodeInfos)
-        {
-            SetProjectLoadingFlag(false);
-            await currentFlowEnvironment.LoadNodeInfosAsync(nodeInfos); // 装饰器调用
-            SetProjectLoadingFlag(true);
-        }
-
-        /// <inheritdoc/>
-        public void CreateNode(string canvasGuid, NodeControlType nodeBase, PositionOfUI position, MethodDetailsInfo methodDetailsInfo = null)
-        {
-            SetProjectLoadingFlag(false);
-            currentFlowEnvironment.CreateNode(canvasGuid, nodeBase, position, methodDetailsInfo); // 装饰器调用
-            SetProjectLoadingFlag(true);
-        }
-
-        /// <inheritdoc/>
-        public void PlaceNodeToContainer(string canvasGuid, string nodeGuid, string containerNodeGuid)
-        {
-            SetProjectLoadingFlag(false);
-             currentFlowEnvironment.PlaceNodeToContainer(canvasGuid, nodeGuid, containerNodeGuid); // 装饰器调用
-            SetProjectLoadingFlag(true);
-        }
-
-        /// <inheritdoc/>
-        public void TakeOutNodeToContainer(string canvasGuid, string nodeGuid)
-        {
-            SetProjectLoadingFlag(false);
-            currentFlowEnvironment.TakeOutNodeToContainer(canvasGuid,nodeGuid); // 装饰器调用
-            SetProjectLoadingFlag(true);
-        }
-
-        /// <inheritdoc/>
         public async Task<bool> ExitFlowAsync()
         {
-            return await currentFlowEnvironment.ExitFlowAsync();
+            return await currentFlowEnvironment.FlowControl.ExitFlowAsync();
         }
 
         /// <inheritdoc/>
@@ -401,19 +216,7 @@ namespace Serein.NodeFlow.Env
         /// <inheritdoc/>
         public void MonitorObjectNotification(string nodeGuid, object monitorData, MonitorObjectEventArgs.ObjSourceType sourceType)
         {
-            currentFlowEnvironment.MonitorObjectNotification(nodeGuid, monitorData, sourceType);
-        }
-
-        /*/// <inheritdoc/>
-        public void MoveNode(string canvasGuid, string nodeGuid, double x, double y)
-        {
-            currentFlowEnvironment.MoveNode(canvasGuid, nodeGuid, x, y);
-        }
-*/
-        /// <inheritdoc/>
-        public void NodeLocate(string nodeGuid)
-        {
-            currentFlowEnvironment.NodeLocate(nodeGuid);
+            currentFlowEnvironment.FlowControl.MonitorObjectNotification(nodeGuid, monitorData, sourceType);
         }
 
         /// <inheritdoc/>
@@ -421,31 +224,6 @@ namespace Serein.NodeFlow.Env
         {
             return currentFlowEnvironment.TryUnloadLibrary(assemblyName);
         }
-
-        /// <inheritdoc/>
-        public void SetConnectPriorityInvoke(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
-        {
-            currentFlowEnvironment.SetConnectPriorityInvoke(fromNodeGuid, toNodeGuid, connectionType);
-        }
-
-        /// <inheritdoc/>
-        public void RemoveInvokeConnect(string canvasGuid, string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
-        {
-           currentFlowEnvironment.RemoveInvokeConnect(canvasGuid, fromNodeGuid, toNodeGuid, connectionType);
-        }
-
-        /// <inheritdoc/>
-        public void RemoveArgSourceConnect(string canvasGuid, string fromNodeGuid, string toNodeGuid, int argIndex)
-        {
-           currentFlowEnvironment.RemoveArgSourceConnect(canvasGuid, fromNodeGuid, toNodeGuid, argIndex);
-        }
-
-        /// <inheritdoc/>
-        public void RemoveNode(string canvasGuid, string nodeGuid)
-        {
-           currentFlowEnvironment.RemoveNode(canvasGuid, nodeGuid);
-        }
-
 
         /// <summary>
         /// 输出信息
@@ -489,22 +267,17 @@ namespace Serein.NodeFlow.Env
 
         #endregion
 
-        /// <inheritdoc/>
-        public void SetStartNode(string canvasGuid, string nodeGuid)
-        {
-            currentFlowEnvironment.SetStartNode(canvasGuid, nodeGuid);
-        }
 
         /// <inheritdoc/>
         public async Task<bool> StartFlowAsync(string[] canvasGuids)
         {
-            return await currentFlowEnvironment.StartFlowAsync(canvasGuids);
+            return await currentFlowEnvironment.FlowControl.StartFlowAsync(canvasGuids);
         }
 
         /// <inheritdoc/>
         public async Task<bool> StartFlowFromSelectNodeAsync(string startNodeGuid)
         {
-           return await currentFlowEnvironment.StartFlowFromSelectNodeAsync(startNodeGuid);
+           return await currentFlowEnvironment.FlowControl.StartFlowFromSelectNodeAsync(startNodeGuid);
         }
        
         /// <inheritdoc/>
@@ -522,13 +295,13 @@ namespace Serein.NodeFlow.Env
         /// <inheritdoc/>
         public void TerminateFlipflopNode(string nodeGuid)
         {
-            currentFlowEnvironment.TerminateFlipflopNode(nodeGuid);
+            currentFlowEnvironment.FlowControl.TerminateFlipflopNode(nodeGuid);
         }
 
         /// <inheritdoc/>
         public void TriggerInterrupt(string nodeGuid, string expression, InterruptTriggerEventArgs.InterruptTriggerType type)
         {
-            currentFlowEnvironment.TriggerInterrupt(nodeGuid, expression, type);
+            currentFlowEnvironment.FlowControl.TriggerInterrupt(nodeGuid, expression, type);
         }
 
         /// <inheritdoc/>
@@ -545,7 +318,7 @@ namespace Serein.NodeFlow.Env
         /// <inheritdoc/>
         public void UseExternalIOC(ISereinIOC ioc)
         {
-            currentFlowEnvironment.UseExternalIOC(ioc);
+            currentFlowEnvironment.FlowControl.UseExternalIOC(ioc);
         }
 
         /// <inheritdoc/>
@@ -579,11 +352,6 @@ namespace Serein.NodeFlow.Env
             }
         }
 
-        /// <inheritdoc/>
-        public void ChangeParameter(string nodeGuid, bool isAdd, int paramIndex)
-        {
-            currentFlowEnvironment.ChangeParameter(nodeGuid, isAdd, paramIndex); 
-        }
 
         #region 流程依赖类库的接口
 

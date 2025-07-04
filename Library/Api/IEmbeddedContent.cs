@@ -10,7 +10,7 @@ namespace Serein.Library.Api
     /// <summary>
     /// 流程中的控件
     /// </summary>
-    public interface IFlowControl
+    public interface IFlowUIControl
     {
         /// <summary>
         /// 节点执行事件
@@ -33,7 +33,7 @@ namespace Serein.Library.Api
         /// 获取窗体控件
         /// </summary>
         /// <returns></returns>
-        IFlowControl GetFlowControl();
+        IFlowUIControl GetFlowControl();
 
    
     }

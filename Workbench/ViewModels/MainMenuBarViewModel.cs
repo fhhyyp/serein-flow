@@ -114,7 +114,7 @@ namespace Serein.Workbench.ViewModels
             if(canvass.Length > 0)
             {
                 string[] guids = [..canvass.Select(c => c.Guid)];
-                flowEnvironment.StartFlowAsync(guids);
+                flowEnvironment.FlowControl.StartFlowAsync(guids);
             }
 
         }
@@ -122,7 +122,7 @@ namespace Serein.Workbench.ViewModels
         {
             var canvas = flowNodeService.CurrentSelectCanvas;
             if (canvas is null) return;
-            flowEnvironment.StartFlowAsync([canvas.Guid]);
+            flowEnvironment.FlowControl.StartFlowAsync([canvas.Guid]);
         }
         private void StopCurrentCanvasFlow() { }
         private void OpenDynamicCompiler() { }

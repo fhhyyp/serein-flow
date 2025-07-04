@@ -174,15 +174,15 @@ namespace Serein.Workbench.Services
         /// </summary>
         private void InitNodeType()
         {
-           flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.UI, typeof(UINodeControl), typeof(UINodeControlViewModel));
-           flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.Action, typeof(ActionNodeControl), typeof(ActionNodeControlViewModel));
-           flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.Flipflop, typeof(FlipflopNodeControl), typeof(FlipflopNodeControlViewModel));
-           flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.ExpOp, typeof(ExpOpNodeControl), typeof(ExpOpNodeControlViewModel));
-           flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.ExpCondition, typeof(ConditionNodeControl), typeof(ConditionNodeControlViewModel));
-           flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.GlobalData, typeof(GlobalDataControl), typeof(GlobalDataNodeControlViewModel));
-           flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.Script, typeof(ScriptNodeControl), typeof(ScriptNodeControlViewModel));
-           flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.NetScript, typeof(NetScriptNodeControl), typeof(NetScriptNodeControlViewModel));
-           flowEnvironment.NodeMVVMManagement.RegisterUI(NodeControlType.FlowCall, typeof(FlowCallNodeControl), typeof(FlowCallNodeControlViewModel));
+           flowEnvironment.FlowEdit.NodeMVVMManagement.RegisterUI(NodeControlType.UI, typeof(UINodeControl), typeof(UINodeControlViewModel));
+           flowEnvironment.FlowEdit.NodeMVVMManagement.RegisterUI(NodeControlType.Action, typeof(ActionNodeControl), typeof(ActionNodeControlViewModel));
+           flowEnvironment.FlowEdit.NodeMVVMManagement.RegisterUI(NodeControlType.Flipflop, typeof(FlipflopNodeControl), typeof(FlipflopNodeControlViewModel));
+           flowEnvironment.FlowEdit.NodeMVVMManagement.RegisterUI(NodeControlType.ExpOp, typeof(ExpOpNodeControl), typeof(ExpOpNodeControlViewModel));
+           flowEnvironment.FlowEdit.NodeMVVMManagement.RegisterUI(NodeControlType.ExpCondition, typeof(ConditionNodeControl), typeof(ConditionNodeControlViewModel));
+           flowEnvironment.FlowEdit.NodeMVVMManagement.RegisterUI(NodeControlType.GlobalData, typeof(GlobalDataControl), typeof(GlobalDataNodeControlViewModel));
+           flowEnvironment.FlowEdit.NodeMVVMManagement.RegisterUI(NodeControlType.Script, typeof(ScriptNodeControl), typeof(ScriptNodeControlViewModel));
+           flowEnvironment.FlowEdit.NodeMVVMManagement.RegisterUI(NodeControlType.NetScript, typeof(NetScriptNodeControl), typeof(NetScriptNodeControlViewModel));
+           flowEnvironment.FlowEdit.NodeMVVMManagement.RegisterUI(NodeControlType.FlowCall, typeof(FlowCallNodeControl), typeof(FlowCallNodeControlViewModel));
         }
 
         /// <summary>
@@ -319,7 +319,7 @@ namespace Serein.Workbench.Services
                 return;
             }
 
-            if (!flowEnvironment.NodeMVVMManagement.TryGetType(nodeModel.ControlType, out var nodeMVVM))
+            if (!flowEnvironment.FlowEdit.NodeMVVMManagement.TryGetType(nodeModel.ControlType, out var nodeMVVM))
             {
                 SereinEnv.WriteLine(InfoType.INFO, $"无法创建{nodeModel.ControlType}节点，节点类型尚未注册。");
                 return;
@@ -635,7 +635,7 @@ namespace Serein.Workbench.Services
                     node.Position = new PositionOfUI(positionOfUI.X + offsetX, positionOfUI.Y + offsetY);
                 }
 
-                _ = flowEnvironment.LoadNodeInfosAsync(nodes);
+                _ = flowEnvironment.FlowEdit.LoadNodeInfosAsync(nodes);
             }
             catch (Exception ex)
             {
@@ -656,7 +656,7 @@ namespace Serein.Workbench.Services
         {
             int width = 1200;
             int height = 780;
-            flowEnvironment.CreateCanvas("", width, height);
+            flowEnvironment.FlowEdit.CreateCanvas("", width, height);
         }
 
         /// <summary>
@@ -669,7 +669,7 @@ namespace Serein.Workbench.Services
                 return;
             }
             var model = ((FlowCanvasViewModel)CurrentSelectCanvas.DataContext).Model;
-           flowEnvironment.RemoveCanvas(model.Guid);
+           flowEnvironment.FlowEdit.RemoveCanvas(model.Guid);
         }
 
         /// <summary>
@@ -688,7 +688,7 @@ namespace Serein.Workbench.Services
             {
                 return;
             }
-            flowEnvironment.CreateNode(canvasGuid, nodeType, position, methodDetailsInfo);
+            flowEnvironment.FlowEdit.CreateNode(canvasGuid, nodeType, position, methodDetailsInfo);
         }
 
         /// <summary>
@@ -707,7 +707,7 @@ namespace Serein.Workbench.Services
                 return;
             }
 
-           flowEnvironment.RemoveNode(model.CanvasDetails.Guid, model.Guid);
+           flowEnvironment.FlowEdit.RemoveNode(model.CanvasDetails.Guid, model.Guid);
         }
 
         #endregion
