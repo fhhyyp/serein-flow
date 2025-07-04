@@ -9,7 +9,10 @@ using System.Threading.Tasks;
 
 namespace Serein.NodeFlow.Services
 {
-    internal class FlowModelService
+    /// <summary>
+    /// 流程模型服务
+    /// </summary>
+    public class FlowModelService
     {
         private readonly IFlowEnvironment environment;
 
@@ -91,9 +94,24 @@ namespace Serein.NodeFlow.Services
         }
 
         public List<IFlowNode> GetAllNodeModel() => [.. NodeModels.Values];
+        public List<IFlowNode> GetAllNodeModel(string canvasGuid) =>
+            NodeModels.Values.Where(x => x.CanvasDetails.Guid == canvasGuid).ToList();
         public List<FlowCanvasDetails> GetAllCanvasModel() => [.. FlowCanvass.Values];
 
 
+
+        public bool IsExsitCanvas()
+        {
+            return FlowCanvass.Count > 0;
+        }
+        public bool IsExsitNodeOnCanvas(string canvasGuid)
+        {
+            if (!FlowCanvass.TryGetValue(canvasGuid, out var flowCanvasDetails))
+            {
+                return false;
+            }
+            return flowCanvasDetails.Nodes.Count > 0;
+        }
 
     }
 }

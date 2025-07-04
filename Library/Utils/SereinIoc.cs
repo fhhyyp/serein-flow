@@ -549,6 +549,10 @@ namespace Serein.Library.Utils
                 {
                     continue;
                 }
+                if(typeName == IOC_MAIN)
+                {
+                    continue;
+                }
                 var value = CreateInstance(typeName);
                 if(value is null)
                 {
@@ -560,9 +564,7 @@ namespace Serein.Library.Utils
             }
             _typeMappings.Clear();
             return this;
-
         }
-
 
         #endregion
 

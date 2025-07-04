@@ -8,6 +8,38 @@ using System.Reflection;
 
 namespace Serein.NodeFlow.Env
 {
+
+    /*
+     SetExportDirectory(string directory)
+    UseRemoteEdit(string wspath)
+
+
+
+    IFlowEnvironment env = new ();
+    env.LoadProject()
+
+    List<FlowApiInfo> apiInfos = env.GetInterfaceInfo();
+    List<FlowEventInfo> enventInfos = env.GetEventInfo();
+
+
+    flowApiService = env.GetFlowApiService();
+    flowEventService = env.GetFlowEventService();
+
+
+    object result = flowApiService.Invoke("", params);
+    TResult result = flowApiService.Invoke<TResult>("", params);
+    object result = await flowApiService.InvokeAsync("", params);
+    TResult result = await flowApiService.InvokeAsync<TResult>("", params);
+
+    flowEventService.Monitor("", (e) => {
+        object data = e.EventData;
+        Debug.Writeline(e.EventName);
+    });
+    
+    
+     */
+
+
     /// <summary>
     /// 流程运行环境
     /// </summary>
@@ -15,34 +47,22 @@ namespace Serein.NodeFlow.Env
     {
         public FlowEnvironment()
         {
-            ISereinIOC sereinIOC = new SereinIOC();
-            sereinIOC.Reset();
-            sereinIOC.Register<ISereinIOC>(()=> sereinIOC); // 注册IOC
-            sereinIOC.Register<IFlowEnvironment>(() => this); 
-            sereinIOC.Register<IFlowEnvironmentEvent, FlowEnvironmentEvent>(); 
-            sereinIOC.Register<LocalFlowEnvironment>(); 
-            sereinIOC.Register<FlowModelService>(); 
-            sereinIOC.Register<FlowOperationService>(); 
-            sereinIOC.Register<NodeMVVMService>(); 
-            sereinIOC.Register<FlowLibraryManagement>(); 
-            sereinIOC.Build();
-            this.IOC = sereinIOC;
-
+            ISereinIOC ioc = new SereinIOC();
+            ioc.Reset()
+               .Register<ISereinIOC>(()=> ioc) // 注册IOC
+               .Register<IFlowEnvironment>(() => this)
+               .Register<IFlowEnvironmentEvent, FlowEnvironmentEvent>()
+               .Register<LocalFlowEnvironment>()
+               .Register<FlowModelService>()
+               .Register<FlowOperationService>()
+               .Register<NodeMVVMService>()
+               .Register<FlowLibraryService>()
+               .Build();
             // 默认使用本地环境
-            currentFlowEnvironment = sereinIOC.Get<LocalFlowEnvironment>();
-            currentFlowEnvironmentEvent = sereinIOC.Get<IFlowEnvironmentEvent>();
+            currentFlowEnvironment = ioc.Get<LocalFlowEnvironment>();
+            currentFlowEnvironmentEvent = ioc.Get<IFlowEnvironmentEvent>();
             SereinEnv.SetEnv(currentFlowEnvironment);
         }
-
-       /* /// <summary>
-        /// 本地环境
-        /// </summary>
-        private readonly LocalFlowEnvironment flowEnvironment;
-
-        /// <summary>
-        /// 远程环境
-        /// </summary>
-        private RemoteFlowEnvironment remoteFlowEnvironment;*/
 
         /// <summary>
         /// 本地环境事件
@@ -87,14 +107,14 @@ namespace Serein.NodeFlow.Env
         }
 
         /// <inheritdoc/>
-        public IFlowEnvironment CurrentEnv { get => currentFlowEnvironment; }
+        public IFlowEnvironment CurrentEnv => currentFlowEnvironment;
         /// <inheritdoc/>
         public UIContextOperation UIContextOperation => currentFlowEnvironment.UIContextOperation;
         /// <inheritdoc/>
         public NodeMVVMService NodeMVVMManagement => currentFlowEnvironment.NodeMVVMManagement;
 
         /// <inheritdoc/>
-        public ISereinIOC IOC { get; set; }
+        public ISereinIOC IOC => currentFlowEnvironment.IOC;
 
         /// <inheritdoc/>
         public IFlowEnvironmentEvent Event => currentFlowEnvironment.Event;

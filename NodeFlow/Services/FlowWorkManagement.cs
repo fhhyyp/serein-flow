@@ -266,10 +266,9 @@ namespace Serein.NodeFlow.Services
         /// <summary>
         /// 从选定的节点开始运行
         /// </summary>
-        /// <param name="env"></param>
         /// <param name="startNode"></param>
         /// <returns></returns>
-        public async Task StartFlowInSelectNodeAsync(IFlowEnvironment env, IFlowNode  startNode)
+        public async Task StartFlowInSelectNodeAsync(IFlowNode  startNode)
         {
             var pool = WorkOptions.FlowContextPool;
             var context = pool.Allocate();

@@ -15,7 +15,6 @@ namespace Serein.NodeFlow.Model.Operation
     {
         public override string Theme => nameof(CreateNodeOperation);
 
-
         public required string CanvasGuid { get; set; }
         public required NodeControlType NodeControlType { get; set; }
         public required PositionOfUI Position { get; set; }

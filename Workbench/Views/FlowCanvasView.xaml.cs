@@ -342,8 +342,6 @@ namespace Serein.Workbench.Views
         #endregion
 
 
-
-
         #region 接口实现
         private IFlowCanvas Api => this;
 

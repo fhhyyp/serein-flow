@@ -234,7 +234,11 @@ namespace Serein.Workbench.Services
         /// <param name="eventArgs"></param>
         private void FlowEnvironment_NodeConnectChangeEvemt(NodeConnectChangeEventArgs eventArgs)
         {
-            NodeConnectChanged?.Invoke(eventArgs);
+            uiContextOperation.Invoke(() =>
+            {
+                Debug.WriteLine(DateTime.Now, $"Node Connect Changed");
+                NodeConnectChanged?.Invoke(eventArgs);
+            });
         }
 
 
@@ -278,7 +282,11 @@ namespace Serein.Workbench.Services
         /// <exception cref="NotImplementedException"></exception>
         private void FlowEnvironment_NodeCreateEvent(NodeCreateEventArgs eventArgs)
         {
-            NodeCreated?.Invoke(eventArgs);
+            uiContextOperation.Invoke(() =>
+            {
+                Debug.WriteLine(DateTime.Now, $"Create Node {eventArgs.NodeModel.Guid}");
+                NodeCreated?.Invoke(eventArgs);
+            });
         }
 
         /// <summary>

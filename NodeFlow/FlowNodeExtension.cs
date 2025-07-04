@@ -48,8 +48,10 @@ namespace Serein.NodeFlow
                 throw new Exception($"无法创建{nodeControlType}节点，节点类型尚未注册。");
             }
 
+
             // 生成实例
-            var nodeObj = Activator.CreateInstance(nodeMVVM.ModelType, env);
+            //var nodeObj = Activator.CreateInstance(nodeMVVM.ModelType, env);
+            var nodeObj = env.IOC.CreateObject(nodeMVVM.ModelType);
             if (nodeObj is not IFlowNode nodeModel)
             {
                 throw new Exception($"无法创建目标节点类型的实例[{nodeControlType}]");

@@ -50,7 +50,7 @@ namespace Serein.NodeFlow.Model.Operation
         /// 流程依赖服务
         /// </summary>
         [AutoInjection]
-        protected FlowLibraryManagement flowLibraryManagement;
+        protected FlowLibraryService flowLibraryManagement;
 
         /// <summary>
         /// 流程事件服务
