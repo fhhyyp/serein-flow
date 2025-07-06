@@ -51,8 +51,7 @@ namespace Serein.NodeFlow.Env
         public FlowEnvironment()
         {
             ISereinIOC ioc = new SereinIOC();
-            ioc.Reset()
-               .Register<ISereinIOC>(()=> ioc) // 注册IOC
+            ioc.Register<ISereinIOC>(()=> ioc) // 注册IOC
                .Register<IFlowEnvironment>(() => this)
                .Register<IFlowEnvironmentEvent, FlowEnvironmentEvent>()
                .Register<IFlowEdit, FlowEdit>()
@@ -205,11 +204,20 @@ namespace Serein.NodeFlow.Env
         }
 
         /// <inheritdoc/>
-        public void LoadProject(FlowEnvInfo flowEnvInfo, string filePath)
+        public void LoadProject(string filePath)
         {
-            if (flowEnvInfo is null) return;
+            //if (flowEnvInfo is null) return;
             SetProjectLoadingFlag(false);
-            currentFlowEnvironment.LoadProject(flowEnvInfo, filePath);
+            currentFlowEnvironment.LoadProject(filePath);
+            SetProjectLoadingFlag(true);
+        }
+        
+        /// <inheritdoc/>
+        public async Task LoadProjetAsync(string filePath)
+        {
+            //if (flowEnvInfo is null) return;
+            SetProjectLoadingFlag(false);
+            await currentFlowEnvironment.LoadProjetAsync(filePath);
             SetProjectLoadingFlag(true);
         }
 
@@ -307,11 +315,7 @@ namespace Serein.NodeFlow.Env
         /// <inheritdoc/>
         public void SetUIContextOperation(UIContextOperation uiContextOperation)
         {
-            if(uiContextOperation is null)
-            {
-                return;
-            }
-            IOC.Register<UIContextOperation>(() => uiContextOperation).Build();
+            
             currentFlowEnvironment.SetUIContextOperation(uiContextOperation);
         }
 

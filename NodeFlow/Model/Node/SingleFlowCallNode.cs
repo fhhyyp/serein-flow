@@ -208,6 +208,14 @@ namespace Serein.NodeFlow.Model
             {
                 TargetNodeGuid = targetNode.Guid;
                 this.targetNode = targetNode;
+
+                if(this.IsShareParam == false)
+                {
+                    foreach (var item in nodeInfo.ParameterData)
+                    {
+                        
+                    }
+                }
             }
             else
             {
@@ -258,7 +266,7 @@ namespace Serein.NodeFlow.Model
                 // 此处代码与SereinFlow.Library.FlowNode.ParameterDetails
                 // ToMethodArgData()方法中判断流程接口节点分支逻辑耦合
                 // 不要轻易修改
-                context.AddOrUpdate(targetNode, flowData);
+                context.AddOrUpdate(targetNode.Guid, flowData);
                 foreach (ConnectionInvokeType ctType in NodeStaticConfig.ConnectionTypes)
                 {
                     if (this.SuccessorNodes[ctType] == null) continue;
@@ -267,7 +275,7 @@ namespace Serein.NodeFlow.Model
                         if (node.DebugSetting.IsEnable)
                         {
 
-                            context.SetPreviousNode(node, this);
+                            context.SetPreviousNode(node.Guid, this.Guid);
                         }
                     }
                 }

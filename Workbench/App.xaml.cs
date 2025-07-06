@@ -9,9 +9,11 @@ using Serein.Workbench.Services;
 using Serein.Workbench.ViewModels;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Serein.Workbench
 {
@@ -20,7 +22,7 @@ namespace Serein.Workbench
     /// <summary>
     /// Interaction logic for App.xaml
     /// </summary>
-    public partial class App : Application
+    public partial class App : System.Windows.Application
     {
         private static IServiceProvider? ServiceProvider;
 
@@ -28,12 +30,12 @@ namespace Serein.Workbench
         /// UI线程
         /// </summary>
         public static UIContextOperation UIContextOperation => App.GetService<UIContextOperation>() ?? throw new NullReferenceException();
-
+    
         public static T GetService<T>() where T : class
         {
             return ServiceProvider?.GetService<T>() ?? throw new NullReferenceException();
         }
-       
+        
         public App()
         {
             var collection = new ServiceCollection();

@@ -208,14 +208,106 @@ namespace Serein.Library
             return pd;
         }
 
+        public async Task<object> ToMethodArgData(IDynamicContext context)
+        {
+            // 1. 从缓存获取
+            if (context.TryGetParamsTempData(NodeModel.Guid, Index, out var data))
+                return data;
+
+            // 2. 特定快捷类型
+            if (typeof(IFlowEnvironment).IsAssignableFrom(DataType)) return NodeModel.Env;
+            if (typeof(IDynamicContext).IsAssignableFrom(DataType)) return context;
+            if (typeof(IFlowNode).IsAssignableFrom(DataType)) return NodeModel;
+
+            // 3. 显式常量参数
+            if (IsExplicitData && !DataValue.StartsWith("@", StringComparison.OrdinalIgnoreCase))
+                return DataValue.ToConvert(DataType);
+
+           /* // 4. 枚举绑定类型
+            if (ExplicitType is not null && ExplicitType.IsEnum && DataType != ExplicitType)
+            {
+                var resultEnum = Enum.Parse(ExplicitType, DataValue);
+                var boundType = EnumHelper.GetBoundValue(ExplicitType, resultEnum, attr => attr.Value) as Type;
+                if (boundType != null)
+                    return NodeModel.Env.IOC.CreateObject(boundType);
+            }*/
+
+            // 5. 来自其他节点
+            object inputParameter = null;
+            var env = NodeModel.Env;
+
+            if (ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData)
+            {
+                var prevNode = context.GetPreviousNode(NodeModel.Guid);
+                inputParameter = prevNode != null ? context.GetFlowData(prevNode)?.Value : null;
+            }
+            else
+            {
+
+                var prevNodeGuid = context.GetPreviousNode(NodeModel.Guid);
+
+                if (!env.TryGetNodeModel(ArgDataSourceNodeGuid, out var sourceNode))
+                    throw new Exception($"[arg{Index}] 节点[{ArgDataSourceNodeGuid}]不存在");
+
+                if (sourceNode.IsPublic 
+                    && env.TryGetNodeModel(prevNodeGuid, out var prevNode) 
+                    && prevNode.ControlType == NodeControlType.FlowCall
+                    && env.TryGetNodeModel(context.GetPreviousNode(NodeModel.Guid), out var sourceNodeTemp)
+                    )
+                    sourceNode = sourceNodeTemp;
+
+                if (ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
+                    inputParameter = context.GetFlowData(sourceNode.Guid)?.Value;
+                else if (ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke)
+                    inputParameter = (await sourceNode.ExecutingAsync(context, CancellationToken.None)).Value;
+                else
+                    throw new Exception("无效的 ArgDataSourceType");
+            }
+
+            // 6. 表达式处理
+            if (IsExplicitData && DataValue.StartsWith("@", StringComparison.OrdinalIgnoreCase))
+            {
+                var lower = DataValue.ToLowerInvariant();
+                if (lower.StartsWith("@get") || lower.StartsWith("@dtc") || lower.StartsWith("@data"))
+                {
+                    inputParameter = SerinExpressionEvaluator.Evaluate(DataValue, inputParameter, out _);
+                }
+            }
+
+            // 7. 类型转换
+            if (!DataType.IsValueType && inputParameter is null)
+                throw new Exception($"[arg{Index}] 参数不能为null");
+
+            if (DataType == typeof(string))
+                return inputParameter.ToString();
+
+            var actualType = inputParameter.GetType();
+            if (DataType.IsAssignableFrom(actualType))
+                return inputParameter;
+
+            if (DataType.IsSubclassOf(actualType))
+                return ObjectConvertHelper.ConvertParentToChild(inputParameter, DataType);
+
+            throw new Exception($"[arg{Index}] 类型不匹配：目标类型为 {DataType}，实际类型为 {actualType}");
+        }
+
         /// <summary>
         /// 转为方法入参数据
         /// </summary>
         /// <returns></returns>
-        public async ValueTask<object> ToMethodArgData(IDynamicContext context)
+        public async Task<object> ToMethodArgData2(IDynamicContext context)
         {
+
             var nodeModel = NodeModel;
             var env = nodeModel.Env;
+
+            #region 流程运行上下文预设的参数
+            if (context.TryGetParamsTempData(NodeModel.Guid, Index, out var data))
+            {
+                return data;
+            }
+            #endregion
+
             #region 显然的流程基本类型
             // 返回运行环境
             if (typeof(IFlowEnvironment).IsAssignableFrom(DataType))
@@ -236,8 +328,13 @@ namespace Serein.Library
             if (IsExplicitData && !DataValue.StartsWith("@", StringComparison.OrdinalIgnoreCase))
             {
                 return DataValue.ToConvert(DataType); // 并非表达式，同时是显式设置的参数
-            } 
+            }
             #endregion
+
+            
+
+
+
             #region “枚举-类型”转换器
             if (ExplicitType is not null && ExplicitType.IsEnum && DataType != ExplicitType)
             {
@@ -258,7 +355,7 @@ namespace Serein.Library
             
             if (ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData)
             {
-                var previousNode = context.GetPreviousNode(nodeModel);
+                var previousNode = context.GetPreviousNode(nodeModel.Guid);
                 if (previousNode is null)
                 {
                     inputParameter = null;
@@ -281,8 +378,9 @@ namespace Serein.Library
                 // 如果是公开的节点，需要判断上下文调用中是否存在流程接口节点
                 if (argSourceNodeModel.IsPublic)
                 {
-                    var pn = context.GetPreviousNode(NodeModel);
-                    if(pn.ControlType == NodeControlType.FlowCall)
+                    var pnGuid = context.GetPreviousNode(NodeModel.Guid);
+                    var pn = env.TryGetNodeModel(pnGuid, out var tmpNode) ? tmpNode : null;
+                    if (pn.ControlType == NodeControlType.FlowCall)
                     {
                         argSourceNodeModel = pn;
                     }
@@ -290,7 +388,7 @@ namespace Serein.Library
 
                 if (ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
                 {
-                    var flowData = context.GetFlowData(argSourceNodeModel);
+                    var flowData = context.GetFlowData(argSourceNodeModel.Guid);
                     if(flowData is null)
                     {
                         inputParameter = null;

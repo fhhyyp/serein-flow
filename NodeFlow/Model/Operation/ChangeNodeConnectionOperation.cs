@@ -89,7 +89,7 @@ namespace Serein.NodeFlow.Model.Operation
             return true;
         }
 
-        public override bool Execute()
+        public override async Task<bool> ExecuteAsync()
         {
             if (!ValidationParameter()) return false;
             if (!flowModelService.TryGetCanvasModel(CanvasGuid, out  FlowCanvas) // 不存在画布
@@ -132,12 +132,12 @@ namespace Serein.NodeFlow.Model.Operation
             //    flowTaskManagement?.TerminateGlobalFlipflopRuning(flipflopNode); // 假设被连接的是全局触发器，尝试移除
             //}
 
-            var state = (JunctionOfConnectionType, ChangeType) switch
+            var state =  (JunctionOfConnectionType, ChangeType) switch
             {
-                (JunctionOfConnectionType.Invoke, NodeConnectChangeEventArgs.ConnectChangeType.Create) => CreateInvokeConnection(), // 创建节点之间的调用关系
-                (JunctionOfConnectionType.Invoke, NodeConnectChangeEventArgs.ConnectChangeType.Remove) => RemoveInvokeConnection(), // 移除节点之间的调用关系
-                (JunctionOfConnectionType.Arg, NodeConnectChangeEventArgs.ConnectChangeType.Create) => CreateArgConnection(), // 创建节点之间的参数传递关系
-                (JunctionOfConnectionType.Arg, NodeConnectChangeEventArgs.ConnectChangeType.Remove) => RemoveArgConnection(), // 移除节点之间的参数传递关系
+                (JunctionOfConnectionType.Invoke, NodeConnectChangeEventArgs.ConnectChangeType.Create) => await CreateInvokeConnection(), // 创建节点之间的调用关系
+                (JunctionOfConnectionType.Invoke, NodeConnectChangeEventArgs.ConnectChangeType.Remove) => await RemoveInvokeConnection(), // 移除节点之间的调用关系
+                (JunctionOfConnectionType.Arg, NodeConnectChangeEventArgs.ConnectChangeType.Create) => await CreateArgConnection(), // 创建节点之间的参数传递关系
+                (JunctionOfConnectionType.Arg, NodeConnectChangeEventArgs.ConnectChangeType.Remove) => await RemoveArgConnection(), // 移除节点之间的参数传递关系
                 _ => false
             };
             return state;
@@ -151,7 +151,7 @@ namespace Serein.NodeFlow.Model.Operation
         /// <summary>
         /// 创建方法调用关系
         /// </summary>
-        private bool CreateInvokeConnection()
+        private async Task<bool> CreateInvokeConnection()
         {
             IFlowNode fromNode = FromNode ;
             IFlowNode toNode = ToNode;
@@ -224,15 +224,20 @@ namespace Serein.NodeFlow.Model.Operation
                 }
                 fromNode.SuccessorNodes[invokeType].Add(toNode); // 添加到起始节点新类别的子分支
                 toNode.PreviousNodes[invokeType].Add(fromNode); // 添加到目标节点新类别的父分支
-                flowEnvironmentEvent.OnNodeConnectChanged(
-                                 new NodeConnectChangeEventArgs(
-                                      FlowCanvas.Guid,
-                                     fromNode.Guid, // 从哪个节点开始
-                                     toNode.Guid, // 连接到那个节点
-                                     JunctionOfConnectionType.Invoke,
-                                     invokeType, // 连接线的样式类型
-                                     NodeConnectChangeEventArgs.ConnectChangeType.Create // 是创建连接还是删除连接
-                                 ));
+
+                await TriggerEvent(() =>
+                {
+                    flowEnvironmentEvent.OnNodeConnectChanged(
+                               new NodeConnectChangeEventArgs(
+                                    FlowCanvas.Guid,
+                                   fromNode.Guid, // 从哪个节点开始
+                                   toNode.Guid, // 连接到那个节点
+                                   JunctionOfConnectionType.Invoke,
+                                   invokeType, // 连接线的样式类型
+                                   NodeConnectChangeEventArgs.ConnectChangeType.Create // 是创建连接还是删除连接
+                               ));
+                });
+                
                 // Invoke
                 // GetResult
                 return true;
@@ -248,19 +253,22 @@ namespace Serein.NodeFlow.Model.Operation
         /// <summary>
         /// 移除方法调用关系
         /// </summary>
-        private bool RemoveInvokeConnection()
+        private async Task<bool> RemoveInvokeConnection()
         {
             FromNode.SuccessorNodes[ConnectionInvokeType].Remove(ToNode);
             ToNode.PreviousNodes[ConnectionInvokeType].Remove(FromNode);
 
-            flowEnvironmentEvent.OnNodeConnectChanged(
-                   new NodeConnectChangeEventArgs(
-                       FlowCanvas.Guid,
-                       FromNode.Guid,
-                       ToNode.Guid,
-                       JunctionOfConnectionType.Invoke,
-                       ConnectionInvokeType,
-                       NodeConnectChangeEventArgs.ConnectChangeType.Remove));
+            await TriggerEvent(() =>
+            {
+                flowEnvironmentEvent.OnNodeConnectChanged(
+                       new NodeConnectChangeEventArgs(
+                           FlowCanvas.Guid,
+                           FromNode.Guid,
+                           ToNode.Guid,
+                           JunctionOfConnectionType.Invoke,
+                           ConnectionInvokeType,
+                           NodeConnectChangeEventArgs.ConnectChangeType.Remove));
+            });
 
 
             /* if (string.IsNullOrEmpty(ToNode.MethodDetails.ParameterDetailss[ArgIndex].ArgDataSourceNodeGuid))
@@ -289,7 +297,7 @@ namespace Serein.NodeFlow.Model.Operation
         /// 创建参数连接关系
         /// </summary>
         /// <exception cref="Exception"></exception>
-        private bool CreateArgConnection()
+        private async Task<bool> CreateArgConnection()
         {
             IFlowNode fromNodeControl = ToNode;
             IFlowNode toNodeControl = ToNode;
@@ -304,43 +312,27 @@ namespace Serein.NodeFlow.Model.Operation
             if (FromNode.Guid == toNodeArgSourceGuid 
                 && toNodeArgSourceType == ConnectionArgSourceType)
             {
-                SereinEnv.WriteLine(InfoType.INFO, $"节点之间已建立过连接关系，此次操作将不会执行" +
+                SereinEnv.WriteLine(InfoType.INFO, $"节点之间已建立过连接关系" +
                     $"起始节点：{FromNode.Guid}" +
                     $"目标节点：{ToNode.Guid}" +
                     $"参数索引：{ArgIndex}" +
                     $"参数类型：{ConnectionArgSourceType}");
-                /*flowEnvironmentEvent.OnNodeConnectChanged(
-                                 new NodeConnectChangeEventArgs(
-                                     FlowCanvas.Guid,
-                                     FromNode.Guid, // 从哪个节点开始
-                                     ToNode.Guid, // 连接到那个节点
-                                     ArgIndex, // 连接线的样式类型
-                                     JunctionOfConnectionType.Arg,
-                                     ConnectionArgSourceType,
-                                     NodeConnectChangeEventArgs.ConnectChangeType.Create // 是创建连接还是删除连接
-                                 )); // 通知UI */
-                return true;
-            }
-
-            if (!string.IsNullOrEmpty(toNodeArgSourceGuid)) // 更改关系获取
-            {
-                ToNode.MethodDetails.ParameterDetailss[ArgIndex].ArgDataSourceNodeGuid = null;
-                ToNode.MethodDetails.ParameterDetailss[ArgIndex].ArgDataSourceType = ConnectionArgSourceType.GetPreviousNodeData; // 恢复默认值
-                flowEnvironmentEvent.OnNodeConnectChanged(
-                      new NodeConnectChangeEventArgs(
-                          FlowCanvas.Guid,
-                          FromNode.Guid,
-                          ToNode.Guid,
-                          ArgIndex,
-                          JunctionOfConnectionType.Arg,
-                          ConnectionArgSourceType.GetPreviousNodeData,
-                          NodeConnectChangeEventArgs.ConnectChangeType.Remove));
-            }
-
-            ToNode.MethodDetails.ParameterDetailss[ArgIndex].ArgDataSourceNodeGuid = FromNode.Guid; // 设置
-            ToNode.MethodDetails.ParameterDetailss[ArgIndex].ArgDataSourceType = ConnectionArgSourceType;
-
-            flowEnvironmentEvent.OnNodeConnectChanged(
+                await TriggerEvent(() =>
+                {
+                    flowEnvironmentEvent.OnNodeConnectChanged(
+                                new NodeConnectChangeEventArgs(
+                                    FlowCanvas.Guid,
+                                    FromNode.Guid, // 从哪个节点开始
+                                    ToNode.Guid, // 连接到那个节点
+                                    ArgIndex, // 连接线的样式类型
+                                    JunctionOfConnectionType.Arg,
+                                    ConnectionArgSourceType,
+                                    NodeConnectChangeEventArgs.ConnectChangeType.Remove // 是创建连接还是删除连接
+                                )); // 通知UI 
+                });
+                await TriggerEvent(() =>
+                {
+                    flowEnvironmentEvent.OnNodeConnectChanged(
                                 new NodeConnectChangeEventArgs(
                                     FlowCanvas.Guid,
                                     FromNode.Guid, // 从哪个节点开始
@@ -350,6 +342,47 @@ namespace Serein.NodeFlow.Model.Operation
                                     ConnectionArgSourceType,
                                     NodeConnectChangeEventArgs.ConnectChangeType.Create // 是创建连接还是删除连接
                                 )); // 通知UI 
+                });
+              
+                return true;
+            }
+
+            if (!string.IsNullOrEmpty(toNodeArgSourceGuid)) // 更改关系获取
+            {
+                ToNode.MethodDetails.ParameterDetailss[ArgIndex].ArgDataSourceNodeGuid = null;
+                ToNode.MethodDetails.ParameterDetailss[ArgIndex].ArgDataSourceType = ConnectionArgSourceType.GetPreviousNodeData; // 恢复默认值
+
+                await TriggerEvent(() =>
+                {
+                    flowEnvironmentEvent.OnNodeConnectChanged(
+                      new NodeConnectChangeEventArgs(
+                          FlowCanvas.Guid,
+                          FromNode.Guid,
+                          ToNode.Guid,
+                          ArgIndex,
+                          JunctionOfConnectionType.Arg,
+                          ConnectionArgSourceType.GetPreviousNodeData,
+                          NodeConnectChangeEventArgs.ConnectChangeType.Remove));
+                });
+            }
+
+            ToNode.MethodDetails.ParameterDetailss[ArgIndex].ArgDataSourceNodeGuid = FromNode.Guid; // 设置
+            ToNode.MethodDetails.ParameterDetailss[ArgIndex].ArgDataSourceType = ConnectionArgSourceType;
+
+            await TriggerEvent(() =>
+            {
+                flowEnvironmentEvent.OnNodeConnectChanged(
+                                new NodeConnectChangeEventArgs(
+                                    FlowCanvas.Guid,
+                                    FromNode.Guid, // 从哪个节点开始
+                                    ToNode.Guid, // 连接到那个节点
+                                    ArgIndex, // 连接线的样式类型
+                                    JunctionOfConnectionType.Arg,
+                                    ConnectionArgSourceType,
+                                    NodeConnectChangeEventArgs.ConnectChangeType.Create // 是创建连接还是删除连接
+                                )); // 通知UI 
+            });
+          
             return true;
 
         }
@@ -360,14 +393,15 @@ namespace Serein.NodeFlow.Model.Operation
         /// <param name="fromNodeControl"></param>
         /// <param name="toNodeControl"></param>
         /// <param name="index"></param>
-        private bool RemoveArgConnection()
+        private async Task<bool> RemoveArgConnection()
         {
             ToNode.MethodDetails.ParameterDetailss[ArgIndex].ArgDataSourceNodeGuid = null;
             ToNode.MethodDetails.ParameterDetailss[ArgIndex].ArgDataSourceType = ConnectionArgSourceType.GetPreviousNodeData; // 恢复默认值
 
-            if (OperatingSystem.IsWindows())
+
+            await TriggerEvent(() =>
             {
-              flowEnvironmentEvent.OnNodeConnectChanged(
+                flowEnvironmentEvent.OnNodeConnectChanged(
                     new NodeConnectChangeEventArgs(
                         FlowCanvas.Guid,
                         FromNode.Guid,
@@ -376,7 +410,8 @@ namespace Serein.NodeFlow.Model.Operation
                         JunctionOfConnectionType.Arg,
                         ConnectionArgSourceType.GetPreviousNodeData,
                         NodeConnectChangeEventArgs.ConnectChangeType.Remove));
-            }
+            });
+
             return true;
         }
 

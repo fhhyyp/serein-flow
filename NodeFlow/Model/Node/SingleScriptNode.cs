@@ -136,6 +136,8 @@ namespace Serein.NodeFlow.Model
                 this.MethodDetails.ParameterDetailss[i].Name = nodeInfo.ParameterData[i].ArgName;
             }
 
+            ReloadScript();// 加载时重新解析
+            IsScriptChanged = false; // 重置脚本改变标志
 
         }
 
@@ -165,6 +167,8 @@ namespace Serein.NodeFlow.Model
                 var p = new SereinScriptParser(sb.ToString());
                 //var p = new SereinScriptParser(Script);
                 mainNode = p.Parse(); // 开始解析
+               
+
             }
             catch (Exception ex)
             {
@@ -192,9 +196,9 @@ namespace Serein.NodeFlow.Model
         /// <returns></returns>
         public async Task<FlowResult> ExecutingAsync(NodeModelBase flowCallNode,  IDynamicContext context, CancellationToken token)
         {
-            if (token.IsCancellationRequested) return new FlowResult(this, context);
+            if (token.IsCancellationRequested) return new FlowResult(this.Guid, context);
             var @params = await flowCallNode.GetParametersAsync(context, token);
-            if (token.IsCancellationRequested) return new FlowResult(this, context);
+            if (token.IsCancellationRequested) return new FlowResult(this.Guid, context);
 
             //context.AddOrUpdate($"{context.Guid}_{this.Guid}_Params", @params[0]); // 后面再改
 
@@ -204,7 +208,8 @@ namespace Serein.NodeFlow.Model
                     if (IsScriptChanged)
                     {
                         ReloadScript();// 每次都重新解析
-                        IsScriptChanged = false; 
+                        IsScriptChanged = false;
+                        context.Env.WriteLine(InfoType.INFO, $"[{Guid}]脚本解析完成");
                     }
                 }
             }
@@ -233,7 +238,7 @@ namespace Serein.NodeFlow.Model
 
             var result = await ScriptInterpreter.InterpretAsync(scriptContext, mainNode); // 从入口节点执行
             envEvent.FlowRunComplete -= onFlowStop;
-            return new FlowResult(this, context, result);
+            return new FlowResult(this.Guid, context, result);
         }
 
         #region 挂载的方法

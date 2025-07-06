@@ -273,13 +273,10 @@ namespace Serein.NodeFlow.Services
             var pool = WorkOptions.FlowContextPool;
             var context = pool.Allocate();
             var token = WorkOptions.CancellationTokenSource.Token;
-            await startNode.StartFlowAsync(context, token); // 开始运行时从选定节点开始运行
+            var result = await startNode.StartFlowAsync(context, token); // 开始运行时从选定节点开始运行
             context.Reset();
             pool.Free(context);
         }
-
-
-     
 
         /// <summary>
         /// 尝试添加全局触发器
@@ -294,6 +291,7 @@ namespace Serein.NodeFlow.Services
                 await FlipflopExecuteAsync(singleFlipFlopNode, cts.Token);
             }
         }
+
 
         /// <summary>
         /// 尝试移除全局触发器
@@ -344,7 +342,7 @@ namespace Serein.NodeFlow.Services
                 {
                     var context = pool.Allocate(); // 启动全局触发器时新建上下文
                     var newFlowData = await singleFlipFlopNode.ExecutingAsync(context, singleToken); // 获取触发器等待Task
-                    context.AddOrUpdate(singleFlipFlopNode, newFlowData);
+                    context.AddOrUpdate(singleFlipFlopNode.Guid, newFlowData);
                     if (context.NextOrientation == ConnectionInvokeType.None)
                     {
                         continue;
@@ -388,7 +386,7 @@ namespace Serein.NodeFlow.Services
                 {
                     continue;
                 }
-                context.SetPreviousNode(nextNodes[i], singleFlipFlopNode); // 设置调用关系
+                context.SetPreviousNode(nextNodes[i].Guid, singleFlipFlopNode.Guid); // 设置调用关系
 
                 if (nextNodes[i].DebugSetting.IsInterrupt) // 执行触发前检查终端
                 {
@@ -407,7 +405,7 @@ namespace Serein.NodeFlow.Services
                     continue;
                 }
 
-                context.SetPreviousNode(nextNodes[i], singleFlipFlopNode);
+                context.SetPreviousNode(nextNodes[i].Guid, singleFlipFlopNode.Guid);
                 if (nextNodes[i].DebugSetting.IsInterrupt) // 执行触发前
                 {
                     await nextNodes[i].DebugSetting.GetInterruptTask.Invoke();

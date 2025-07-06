@@ -72,7 +72,8 @@ namespace Serein.Library.Utils
                 }
                 catch (Exception ex)
                 {
-                    if(onException != null) onException(ex);
+                    if(onException != null) 
+                        onException(ex);
                     Debug.WriteLine(ex);
                 }
             }, null);

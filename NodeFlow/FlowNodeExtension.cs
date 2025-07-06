@@ -5,6 +5,7 @@ using Serein.NodeFlow.Model;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Reflection;
+using System.Text;
 
 namespace Serein.NodeFlow
 {
@@ -128,6 +129,32 @@ namespace Serein.NodeFlow
         }
 
 
+        /// <summary>
+        ///  添加代码
+        /// </summary>
+        /// <param name="sb">字符串构建器</param>
+        /// <param name="retractCount">缩进次数（4个空格）</param>
+        /// <param name="code">要添加的代码</param>
+        /// <returns>字符串构建器本身</returns>
+        public static StringBuilder AddCode(this StringBuilder sb,
+            int retractCount = 0,
+            string code = null)
+        {
+            if (!string.IsNullOrWhiteSpace(code))
+            {
+                var retract = new string(' ', retractCount * 4);
+                sb.AppendLine(retract + code);
+            }
+            return sb;
+        }
+
+
+
+
+
+
+
+
         ///// <summary>
         ///// 从节点类型枚举中转为对应的 Model 类型
         ///// </summary>
@@ -164,5 +191,7 @@ namespace Serein.NodeFlow
         //    return controlType;
         //}
     }
+
+
 
 }

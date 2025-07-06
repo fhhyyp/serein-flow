@@ -52,30 +52,31 @@ namespace Serein.NodeFlow.Model.Operation
         }
 
 
-        public override bool Execute()
+        public override Task<bool> ExecuteAsync()
         {
-            if (!ValidationParameter()) return false;
+
+            if (!ValidationParameter()) return Task.FromResult(false);
 
             if (IsAdd)
             {
                 if (nodeModel.MethodDetails.AddParamsArg(ParamIndex))
                 {
-                    return true;
+                    return Task.FromResult(true);
                 }
                 else
                 {
-                    return false;
+                    return Task.FromResult(false);
                 }
             }
             else
             {
                 if (nodeModel.MethodDetails.RemoveParamsArg(ParamIndex))
                 {
-                    return true;
+                    return Task.FromResult(true);
                 }
                 else
                 {
-                    return true;
+                    return Task.FromResult(true);
                 }
             }
         }

@@ -61,12 +61,15 @@ namespace Serein.NodeFlow.Model.Operation
             return true;
         }
 
-        public override bool Execute()
+        public override async Task<bool> ExecuteAsync()
         {
             if (!ValidationParameter()) return false;
 
             ContainerNode.TakeOutNode(Node);
-            flowEnvironmentEvent.OnNodeTakeOut(new NodeTakeOutEventArgs(CanvasGuid, NodeGuid)); // 重新放置在画布上
+            await TriggerEvent(() =>
+            {
+                flowEnvironmentEvent.OnNodeTakeOut(new NodeTakeOutEventArgs(CanvasGuid, NodeGuid)); // 重新放置在画布上
+            });
            return true;
         }
 

@@ -46,9 +46,9 @@ namespace Serein.NodeFlow.Model.Operation
         /// <summary>
         /// 成为首项
         /// </summary>
-        public override bool Execute()
+        public override Task<bool> ExecuteAsync()
         {
-            if(!ValidationParameter()) return false;
+            if(!ValidationParameter()) return Task.FromResult(false);
 
             if (FromNode.SuccessorNodes.TryGetValue(ConnectionType, out var nodes))
             {
@@ -60,7 +60,7 @@ namespace Serein.NodeFlow.Model.Operation
                     nodes.Insert(0, ToNode);
                 }
             }
-            return true;
+            return Task.FromResult(true);
         }
 
         /// <summary>

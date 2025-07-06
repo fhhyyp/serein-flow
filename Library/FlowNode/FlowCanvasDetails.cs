@@ -29,14 +29,15 @@ namespace Serein.Library
         /// <summary>
         /// 画布拥有的节点
         /// </summary>
-        [PropertyInfo(IsProtection = true)]
-        private System.Collections.ObjectModel.ObservableCollection<IFlowNode> _nodes = [];
+        [PropertyInfo(IsProtection = false)]
+        private List<IFlowNode> _nodes = [];
+        //private System.Collections.ObjectModel.ObservableCollection<IFlowNode> _nodes = [];
         
         /// <summary>
         /// 画布公开的节点
         /// </summary>
-        [PropertyInfo(IsProtection = true)]
-        private System.Collections.ObjectModel.ObservableCollection<IFlowNode> _publicNodes = [];
+        [PropertyInfo(IsProtection = false)]
+        private List<IFlowNode> _publicNodes = [];
 
         /// <summary>
         /// 标识画布ID

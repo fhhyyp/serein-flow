@@ -30,7 +30,7 @@ namespace Serein.NodeFlow.Model.Operation
             return true;
         }
 
-        public override bool Execute()
+        public override async Task<bool> ExecuteAsync()
         {
             if(!ValidationParameter()) return false;
 
@@ -38,7 +38,11 @@ namespace Serein.NodeFlow.Model.Operation
             cavasnModel.LoadInfo(CanvasInfo);
             flowModelService.AddCanvasModel(cavasnModel);
             this.flowCanvasDetails = cavasnModel; ;
-            flowEnvironmentEvent.OnCanvasCreated(new CanvasCreateEventArgs(cavasnModel));
+
+            await TriggerEvent(() =>
+            {
+                flowEnvironmentEvent.OnCanvasCreated(new CanvasCreateEventArgs(cavasnModel));
+            });
             return true;
         }
 

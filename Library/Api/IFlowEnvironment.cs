@@ -846,9 +846,14 @@ namespace Serein.Library.Api
         /// <summary>
         /// 加载项目文件
         /// </summary>
-        /// <param name="flowEnvInfo">包含项目信息的远程环境</param>
         /// <param name="filePath"></param>
-        void LoadProject(FlowEnvInfo flowEnvInfo, string filePath);
+        void LoadProject(string filePath);
+
+        /// <summary>
+        /// 加载项目文件
+        /// </summary>
+        /// <param name="filePath"></param>
+        Task LoadProjetAsync(string filePath);
 
         /// <summary>
         /// 保存项目

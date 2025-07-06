@@ -114,7 +114,7 @@ namespace Serein.NodeFlow.Model
         {
             if (token.IsCancellationRequested)
             {
-                return new FlowResult(this, context);
+                return new FlowResult(this.Guid, context);
             }
             // 接收上一节点参数or自定义参数内容
             object? parameter;
@@ -128,15 +128,15 @@ namespace Serein.NodeFlow.Model
                 if (hasNode)
                 {
                     context.NextOrientation = ConnectionInvokeType.IsError;
-                    return new FlowResult(this, context);
+                    return new FlowResult(this.Guid, context);
                 }
                 if (hasNode)
                 {
-                    return new FlowResult(this, context);
+                    return new FlowResult(this.Guid, context);
                 }
                 if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
                 {
-                    result = context.GetFlowData(argSourceNode).Value; // 使用自定义节点的参数
+                    result = context.GetFlowData(argSourceNode.Guid).Value; // 使用自定义节点的参数
                 }
                 else if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke)
                 {
@@ -148,7 +148,7 @@ namespace Serein.NodeFlow.Model
                 }
                 else
                 {
-                    result = context.TransmissionData(this).Value;    // 条件节点透传上一节点的数据
+                    result = context.TransmissionData(this.Guid).Value;    // 条件节点透传上一节点的数据
                 }
                 parameter = result;  // 使用上一节点的参数
 
@@ -184,7 +184,7 @@ namespace Serein.NodeFlow.Model
 
             SereinEnv.WriteLine(InfoType.INFO, $"{result} {Expression}  -> " + context.NextOrientation);
             //return result;
-            return new FlowResult(this, context, judgmentResult);
+            return new FlowResult(this.Guid, context, judgmentResult);
         }
 
 

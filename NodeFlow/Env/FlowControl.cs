@@ -10,7 +10,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static Microsoft.CodeAnalysis.CSharp.SyntaxTokenParser;
 
 namespace Serein.NodeFlow.Env
 {
@@ -25,11 +24,11 @@ namespace Serein.NodeFlow.Env
         private readonly UIContextOperation UIContextOperation;
 
         public FlowControl(IFlowEnvironment flowEnvironment,
-                        IFlowEnvironmentEvent flowEnvironmentEvent,
-                        FlowLibraryService flowLibraryService,
-                        FlowOperationService flowOperationService,
-                        FlowModelService flowModelService,
-                        UIContextOperation UIContextOperation)
+                           IFlowEnvironmentEvent flowEnvironmentEvent,
+                           FlowLibraryService flowLibraryService,
+                           FlowOperationService flowOperationService,
+                           FlowModelService flowModelService,
+                           UIContextOperation UIContextOperation)
         {
             this.flowEnvironment = flowEnvironment;
             this.flowEnvironmentEvent = flowEnvironmentEvent;
@@ -285,38 +284,24 @@ namespace Serein.NodeFlow.Env
         /// 调用流程接口，将返回 FlowResult.Value。如果需要 FlowResult 对象，请使用该方法的泛型版本。
         /// </summary>
         /// <param name="apiGuid">流程接口节点Guid</param>
-        /// <param name="param">调用时入参参数</param>
+        /// <param name="dict">调用时入参参数</param>
         /// <returns></returns>
-        /// <exception cref="ArgumentNullException"></exception>
-        public async Task<object> ApiInvokeAsync(string apiGuid, object[] param)
+        public async Task<object> InvokeAsync(string apiGuid, Dictionary<string, object> dict)
         {
-            if (sereinIOC is null)
-            {
-                sereinIOC = flowEnvironment.IOC;
-            }
-            if (!flowModelService.TryGetNodeModel(apiGuid, out var nodeModel))
-            {
-                throw new ArgumentNullException($"不存在流程接口：{apiGuid}");
-            }
-            if (nodeModel is not SingleFlowCallNode flowCallNode)
-            {
-                throw new ArgumentNullException($"目标节点并非流程接口：{apiGuid}");
-            }
-            var context = contexts.Allocate();
-            CancellationTokenSource cts = new CancellationTokenSource();
-            var flowResult = await flowCallNode.StartFlowAsync(context, cts.Token);
-            return flowResult.Value;
+            var result = await InvokeAsync<object>(apiGuid, dict);
+            return result;
         }
+        
 
         /// <summary>
         /// 调用流程接口，泛型类型为 FlowResult 时，将返回 FlowResult 对象。
         /// </summary>
         /// <typeparam name="TResult"></typeparam>
         /// <param name="apiGuid">流程接口节点Guid</param>
-        /// <param name="param">调用时入参参数</param>
+        /// <param name="dict">调用时入参参数</param>
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
-        public async Task<TResult> ApiInvokeAsync<TResult>(string apiGuid, object[] param)
+        public async Task<TResult> InvokeAsync<TResult>(string apiGuid, Dictionary<string, object>  dict)
         {
             if (sereinIOC is null)
             {
@@ -330,10 +315,25 @@ namespace Serein.NodeFlow.Env
             {
                 throw new ArgumentNullException($"目标节点并非流程接口：{apiGuid}");
             }
-            var context =  contexts.Allocate();
+            var pds = flowCallNode.MethodDetails.ParameterDetailss;
+            if (dict.Keys.Count != pds.Length)
+            {
+                throw new ArgumentNullException($"参数数量不一致。传入参数数量：{dict.Keys.Count}。接口入参数量：{pds.Length}。");
+            }
+
+            IDynamicContext context = contexts.Allocate();
+            for (int index = 0; index < pds.Length; index++)
+            {
+                ParameterDetails pd = pds[index];
+                if (dict.TryGetValue(pd.Name, out var value))
+                {
+                    context.SetParamsTempData(flowCallNode.Guid, index, value); // 设置入参参数
+                }
+            }
             CancellationTokenSource cts = new CancellationTokenSource();
             var flowResult = await flowCallNode.StartFlowAsync(context, cts.Token);
-
+            cts?.Cancel();
+            cts?.Dispose();
             if (flowResult.Value is TResult result)
             {
                 return result;

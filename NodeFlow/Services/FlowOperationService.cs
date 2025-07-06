@@ -50,12 +50,12 @@ namespace Serein.NodeFlow.Services
         /// <summary>
         /// 重做
         /// </summary>
-        public void Redo()
+        public async Task Redo()
         {
             if (redoStack.Count > 0)
             {
                 var command = redoStack.Pop();
-                var state =  command.Execute();
+                var state =  await command.ExecuteAsync();
                 if (state)
                 {
                     undoStack.Push(command);  // 将重做的命令推入撤销栈
@@ -64,10 +64,10 @@ namespace Serein.NodeFlow.Services
         }
 
 
-        internal void Execute(IOperation operation)
+        internal async Task Execute(IOperation operation)
         {
             sereinIOC.InjectDependenciesProperty(operation); // 注入所需要的依赖
-            var state =  operation.Execute();
+            var state =  await operation.ExecuteAsync();
             if (state)
             {
                 // 执行后，推入撤销栈，并清空重做栈

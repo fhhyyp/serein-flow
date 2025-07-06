@@ -17,7 +17,7 @@ namespace Serein.NodeFlow.Model
 
         public override async Task<FlowResult> ExecutingAsync(IDynamicContext context, CancellationToken token)
         {
-            if (token.IsCancellationRequested) return new FlowResult(this,context);
+            if (token.IsCancellationRequested) return new FlowResult(this.Guid, context);
             if(Adapter is null)
             {
 
@@ -34,13 +34,13 @@ namespace Serein.NodeFlow.Model
             }
             else
             {
-                var p = context.GetPreviousNode(this);
+                var p = context.GetPreviousNode(this.Guid);
                 var data = context.GetFlowData(p).Value;
                 var iflowContorl = Adapter.GetFlowControl();
                 iflowContorl.OnExecuting(data);
             }
 
-            return new FlowResult(this, context);
+            return new FlowResult(this.Guid, context);
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Serein.Library.Api
 {
@@ -62,6 +63,27 @@ namespace Serein.Library.Api
         /// <param name="expression">被触发的表达式</param>
         /// <param name="type">中断类型。0主动监视，1表达式</param>
         void TriggerInterrupt(string nodeGuid, string expression, InterruptTriggerEventArgs.InterruptTriggerType type);
+
+
+        /// <summary>
+        /// 调用流程接口，将返回 FlowResult.Value。如果需要 FlowResult 对象，请使用该方法的泛型版本。
+        /// </summary>
+        /// <param name="apiGuid">流程接口节点Guid</param>
+        /// <param name="dict">调用时入参参数</param>
+        /// <returns></returns>
+        Task<object> InvokeAsync(string apiGuid, Dictionary<string, object> dict);
+
+
+        
+        /// <summary>
+        /// 调用流程接口，将返回 FlowResult.Value。如果需要 FlowResult 对象，请使用该方法的泛型版本。
+        /// </summary>
+        /// <param name="apiGuid">流程接口节点Guid</param>
+        /// <param name="dict">调用时入参参数</param>
+        /// <returns></returns>
+        Task<TResult> InvokeAsync<TResult>(string apiGuid, Dictionary<string, object> dict);
+
+
     }
 
 

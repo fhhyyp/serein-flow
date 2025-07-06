@@ -15,8 +15,6 @@ namespace Serein.Workbench.Services
     {
         private readonly IFlowEnvironment flowEnvironment;
 
-        public SereinProjectData? FlowProjectData { get; set; }
-        public string FileDataPath { get; set; }
 
         public FlowProjectService(IFlowEnvironment flowEnvironment)
         {
@@ -32,15 +30,13 @@ namespace Serein.Workbench.Services
         {
             if (File.Exists(filePath))
             {
-                string content = System.IO.File.ReadAllText(filePath); // 读取整个文件内容
-                this.FlowProjectData = JsonConvert.DeserializeObject<SereinProjectData>(content);
-                this.FileDataPath = System.IO.Path.GetDirectoryName(filePath)!;   //  filePath;//
+               /*
                 var dir = Path.GetDirectoryName(filePath);
                 var flowEnvInfo = new FlowEnvInfo
                 {
                     Project = FlowProjectData,
-                };
-                flowEnvironment.LoadProject(flowEnvInfo, FileDataPath);
+                };*/
+                flowEnvironment.LoadProject(filePath);
             }
         }
 

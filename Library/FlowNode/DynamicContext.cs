@@ -49,6 +49,26 @@ namespace Serein.Library
         /// <summary>
         /// 每个流程上下文分别存放节点的当前数据
         /// </summary>
+        private readonly ConcurrentDictionary<string, FlowResult> dictNodeFlowData = new ConcurrentDictionary<string, FlowResult>();
+
+        /// <summary>
+        /// 每个流程上下文存储运行时节点的调用关系
+        /// </summary>
+        private readonly ConcurrentDictionary<string, string> dictPreviousNodes = new ConcurrentDictionary<string, string>();
+
+        /// <summary>
+        /// 记录忽略处理的流程
+        /// </summary>
+        private readonly ConcurrentDictionary<string, bool> dictIgnoreNodeFlow = new ConcurrentDictionary<string, bool>();
+
+        /// <summary>
+        /// 记录节点的运行时参数数据
+        /// </summary>
+        private readonly ConcurrentDictionary<string, ConcurrentDictionary<int, object>> dictNodeParams = new ConcurrentDictionary<string, ConcurrentDictionary<int, object>>();
+        /*
+        /// <summary>
+        /// 每个流程上下文分别存放节点的当前数据
+        /// </summary>
         private readonly ConcurrentDictionary<IFlowNode, FlowResult> dictNodeFlowData = new ConcurrentDictionary<IFlowNode, FlowResult>();
 
         /// <summary>
@@ -62,11 +82,69 @@ namespace Serein.Library
         private readonly ConcurrentDictionary<IFlowNode, bool> dictIgnoreNodeFlow = new ConcurrentDictionary<IFlowNode, bool>();
 
         /// <summary>
+        /// 记录节点的运行时参数数据
+        /// </summary>
+        private readonly ConcurrentDictionary<IFlowNode, ConcurrentDictionary<int, object>> dictNodeParams = new ConcurrentDictionary<IFlowNode, ConcurrentDictionary<int, object>>();*/
+
+        /// <summary>
+        /// 设置节点的运行时参数数据
+        /// </summary>
+        /// <param name="nodeModel">节点</param>
+        /// <param name="index">第几个参数</param>
+        /// <param name="data">数据</param>
+        public void SetParamsTempData(string nodeModel, int index, object data)
+        {
+            if(!dictNodeParams.TryGetValue(nodeModel,out var dict))
+            {
+                dict = new ConcurrentDictionary<int, object>();
+                dictNodeParams[nodeModel] = dict;
+            }
+            if (dict.TryGetValue(index, out var oldData))
+            {
+                dict[index] = data; // 更新数据
+            }
+            else
+            {
+                dict.TryAdd(index, data); // 添加新数据
+            }
+        }
+
+        /// <summary>
+        /// 获取节点的运行时参数数据
+        /// </summary>
+        /// <param name="nodeModel">节点</param>
+        /// <param name="index">第几个参数</param>
+        public bool TryGetParamsTempData(string nodeModel, int index, out object  data )
+        {
+            if (dictNodeParams.TryGetValue(nodeModel, out var dict))
+            {
+                if (dict.TryGetValue(index, out  data))
+                {
+                    return true; // 返回数据
+                }
+                else
+                {
+                    //throw new KeyNotFoundException($"节点 {nodeModel.Guid} 的参数索引 {index} 不存在。");
+                    data = null; // 返回空数据
+                    return false; // 返回未找到
+                }
+            }
+            else
+            {
+                //throw new KeyNotFoundException($"节点 {nodeModel.Guid} 的参数数据不存在。");
+                data = null; // 返回空数据
+                return false; // 返回未找到
+            }
+        }
+
+
+
+        /// <summary>
         /// 设置运行时上一节点
         /// </summary>
         /// <param name="currentNodeModel">当前节点</param>
         /// <param name="PreviousNode">上一节点</param>
-        public void SetPreviousNode(IFlowNode currentNodeModel, IFlowNode PreviousNode)
+        public void SetPreviousNode(string currentNodeModel, string PreviousNode)
         {
             dictPreviousNodes.AddOrUpdate(currentNodeModel, (_) => PreviousNode, (o, n) => PreviousNode);
         }
@@ -75,7 +153,7 @@ namespace Serein.Library
         /// 忽略处理该节点流程
         /// </summary>
         /// <param name="node"></param>
-        public void IgnoreFlowHandle(IFlowNode node)
+        public void IgnoreFlowHandle(string node)
         {
             dictIgnoreNodeFlow.AddOrUpdate(node, (o) => true, (o, n) => true); 
         }
@@ -85,7 +163,7 @@ namespace Serein.Library
         /// </summary>
         /// <param name="node"></param>
         /// <returns></returns>
-        public bool GetIgnodeFlowStateUpload(IFlowNode node)
+        public bool GetIgnodeFlowStateUpload(string node)
         {
             return dictIgnoreNodeFlow.TryGetValue(node, out var state) ? state : false;
         }
@@ -94,7 +172,7 @@ namespace Serein.Library
         /// </summary>
         /// <param name="node"></param>
         /// <returns></returns>
-        public void RecoverIgnodeFlowStateUpload(IFlowNode node)
+        public void RecoverIgnodeFlowStateUpload(string node)
         {
             dictIgnoreNodeFlow.AddOrUpdate(node, (o) => false, (o, n) => false);
         }
@@ -105,7 +183,7 @@ namespace Serein.Library
         /// </summary>
         /// <param name="currentNodeModel"></param>
         /// <returns></returns>
-        public IFlowNode GetPreviousNode(IFlowNode currentNodeModel)
+        public string GetPreviousNode(string currentNodeModel)
         {
             if (dictPreviousNodes.TryGetValue(currentNodeModel, out var node))
             {
@@ -122,7 +200,7 @@ namespace Serein.Library
         /// </summary>
         /// <param name="nodeGuid">节点</param>
         /// <returns></returns>
-        public FlowResult GetFlowData(IFlowNode nodeGuid)
+        public FlowResult GetFlowData(string nodeGuid)
         {
             if (dictNodeFlowData.TryGetValue(nodeGuid, out var data))
             {
@@ -139,7 +217,7 @@ namespace Serein.Library
         /// </summary>
         /// <param name="nodeModel">节点</param>
         /// <param name="flowData">新的数据</param>
-        public void AddOrUpdate(IFlowNode nodeModel, FlowResult flowData)
+        public void AddOrUpdate(string nodeModel, FlowResult flowData)
         {
             // this.dictNodeFlowData.TryGetValue(nodeGuid, out var oldFlowData);
             dictNodeFlowData.AddOrUpdate(nodeModel, _ => flowData, (o,n ) => flowData);
@@ -149,7 +227,7 @@ namespace Serein.Library
         /// 上一节点数据透传到下一节点
         /// </summary>
         /// <param name="nodeModel"></param>
-        public FlowResult TransmissionData(IFlowNode nodeModel)
+        public FlowResult TransmissionData(string nodeModel)
         {
             if (dictPreviousNodes.TryGetValue(nodeModel, out var previousNode)) // 首先获取当前节点的上一节点
             {
@@ -159,7 +237,7 @@ namespace Serein.Library
                     //AddOrUpdate(nodeModel.Guid, data); // 然后作为当前节点的数据记录在上下文中
                 }
             }
-            throw new InvalidOperationException($"透传{nodeModel.Guid}节点数据时发生异常：上一节点不存在数据");
+            throw new InvalidOperationException($"透传{nodeModel}节点数据时发生异常：上一节点不存在数据");
         }
 
         /// <summary>
@@ -280,6 +358,7 @@ namespace Serein.Library
 
             list.Clear();
         }
+
         private void Dispose(ref IList<object> list)
         {
             foreach (var nodeObj in list)

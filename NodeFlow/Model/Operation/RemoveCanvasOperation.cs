@@ -31,7 +31,7 @@ namespace Serein.NodeFlow.Model.Operation
             return true;
         }
 
-        public override bool Execute()
+        public override async Task<bool> ExecuteAsync()
         {
             if (!ValidationParameter()) return false;
 
@@ -46,7 +46,11 @@ namespace Serein.NodeFlow.Model.Operation
 
             flowModelService.RemoveCanvasModel(flowCanvasDetails);
             flowCanvasDetailsInfo = flowCanvasDetails.ToInfo();
-            flowEnvironmentEvent.OnCanvasRemoved(new CanvasRemoveEventArgs(flowCanvasDetails.Guid));
+
+            await TriggerEvent(() =>
+            {
+                flowEnvironmentEvent.OnCanvasRemoved(new CanvasRemoveEventArgs(flowCanvasDetails.Guid));
+            });
             return true;
         }
 

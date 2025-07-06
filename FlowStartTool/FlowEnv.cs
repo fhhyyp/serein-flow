@@ -20,7 +20,7 @@ namespace Serein.FlowStartTool
             SynchronizationContext? uiContext = SynchronizationContext.Current; // 在UI线程上获取UI线程上下文信息
             var uIContextOperation = new UIContextOperation(uiContext); // 封装一个调用UI线程的工具类
             flowEnvironment.SetUIContextOperation(uIContextOperation);
-            flowEnvironment.LoadProject(new FlowEnvInfo { Project = flowProjectData }, fileDataPath); // 加载项目
+            flowEnvironment.LoadProject(fileDataPath); // 加载项目
 
             flowEnvironment.Event.EnvOutput += (infoType, value) =>
             {

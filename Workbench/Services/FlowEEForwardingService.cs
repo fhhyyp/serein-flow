@@ -14,6 +14,7 @@ using Serein.Library.Utils;
 using Serein.Workbench.Avalonia.Api;
 using Serein.Workbench.Api;
 using System.Diagnostics;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 
 namespace Serein.Workbench.Services
 {
@@ -184,10 +185,11 @@ namespace Serein.Workbench.Services
         /// <param name="value"></param>
         private void FlowEnvironment_OnEnvOutEvent(InfoType type, string value)
         {
-            uiContextOperation.Invoke(() =>
+
+            System.Windows.Application.Current.Dispatcher.Invoke((Action)(() =>
             {
                 EnvOutput?.Invoke(type, value);
-            });
+            }));
         }
 
         /// <summary>
@@ -197,7 +199,10 @@ namespace Serein.Workbench.Services
         /// <exception cref="NotImplementedException"></exception>
         private void FlowEnvironment_OnProjectSaving(ProjectSavingEventArgs eventArgs)
         {
-            ProjectSaving?.Invoke(eventArgs);
+            System.Windows.Application.Current.Dispatcher.Invoke((Action)(() =>
+            {
+                ProjectSaving?.Invoke(eventArgs);
+            }));
         }
 
         /// <summary>
@@ -206,7 +211,10 @@ namespace Serein.Workbench.Services
         /// <param name="eventArgs"></param>
         private void FlowEnvironment_OnProjectLoaded(ProjectLoadedEventArgs eventArgs)
         {
-            ProjectLoaded?.Invoke(eventArgs);
+           System.Windows.Application.Current.Dispatcher.Invoke((Action)(() =>
+           {
+               ProjectLoaded?.Invoke(eventArgs);
+           }));
         }
 
         /// <summary>
@@ -216,8 +224,11 @@ namespace Serein.Workbench.Services
         /// <exception cref="NotImplementedException"></exception>
         private void FlowEnvironment_OnFlowRunCompleteEvent(FlowEventArgs eventArgs)
         {
-            SereinEnv.WriteLine(InfoType.INFO, "-------运行完成---------\r\n");
-            FlowRunComplete?.Invoke(eventArgs);
+            System.Windows.Application.Current.Dispatcher.Invoke((Action)(() =>
+            {
+                SereinEnv.WriteLine(InfoType.INFO, "-------运行完成---------\r\n");
+                FlowRunComplete?.Invoke(eventArgs);
+            }));
         }
 
         /// <summary>
@@ -225,7 +236,10 @@ namespace Serein.Workbench.Services
         /// </summary>
         private void FlowEnvironment_DllLoadEvent(LoadDllEventArgs eventArgs)
         {
-            DllLoad?.Invoke(eventArgs);
+            System.Windows.Application.Current.Dispatcher.Invoke((Action)(() =>
+            {
+                DllLoad?.Invoke(eventArgs);
+            }));
         }
 
         /// <summary>
@@ -234,11 +248,10 @@ namespace Serein.Workbench.Services
         /// <param name="eventArgs"></param>
         private void FlowEnvironment_NodeConnectChangeEvemt(NodeConnectChangeEventArgs eventArgs)
         {
-            uiContextOperation.Invoke(() =>
+            System.Windows.Application.Current.Dispatcher.Invoke((Action)(() =>
             {
-                Debug.WriteLine(DateTime.Now, $"Node Connect Changed");
                 NodeConnectChanged?.Invoke(eventArgs);
-            });
+            }));
         }
 
 
@@ -249,10 +262,10 @@ namespace Serein.Workbench.Services
         /// <exception cref="NotImplementedException"></exception>
         private void FlowEnvironmentEvent_OnCanvasCreate(CanvasCreateEventArgs eventArgs)
         {
-            uiContextOperation?.Invoke(() =>
+            System.Windows.Application.Current.Dispatcher.Invoke((Action)(() =>
             {
                 CanvasCreated?.Invoke(eventArgs);
-            });
+            }));
         }
 
         /// <summary>
@@ -262,7 +275,10 @@ namespace Serein.Workbench.Services
         /// <exception cref="NotImplementedException"></exception>
         private void FlowEnvironmentEvent_OnCanvasRemove(CanvasRemoveEventArgs eventArgs)
         {
-            CanvasRemoved?.Invoke(eventArgs);
+            System.Windows.Application.Current.Dispatcher.Invoke((Action)(() =>
+            {
+                CanvasRemoved?.Invoke(eventArgs);
+            }));
 
         }
 
@@ -272,7 +288,10 @@ namespace Serein.Workbench.Services
         /// <param name="eventArgs"></param>
         private void FlowEnvironment_NodeRemoveEvent(NodeRemoveEventArgs eventArgs)
         {
-            NodeRemoved?.Invoke(eventArgs);
+            System.Windows.Application.Current.Dispatcher.Invoke((Action)(() =>
+            {
+                NodeRemoved?.Invoke(eventArgs);
+            }));
         }
 
         /// <summary>
@@ -282,11 +301,11 @@ namespace Serein.Workbench.Services
         /// <exception cref="NotImplementedException"></exception>
         private void FlowEnvironment_NodeCreateEvent(NodeCreateEventArgs eventArgs)
         {
-            uiContextOperation.Invoke(() =>
+            System.Windows.Application.Current.Dispatcher.Invoke((Action)(() =>
             {
                 Debug.WriteLine(DateTime.Now, $"Create Node {eventArgs.NodeModel.Guid}");
                 NodeCreated?.Invoke(eventArgs);
-            });
+            }));
         }
 
         /// <summary>
@@ -296,7 +315,10 @@ namespace Serein.Workbench.Services
         /// <exception cref="NotImplementedException"></exception>
         private void FlowEnvironment_OnNodePlaceEvent(NodePlaceEventArgs eventArgs)
         {
-            NodePlace?.Invoke(eventArgs);
+            System.Windows.Application.Current.Dispatcher.Invoke((Action)(() =>
+            {
+                NodePlace?.Invoke(eventArgs);
+            }));
         }
 
         /// <summary>
@@ -305,19 +327,23 @@ namespace Serein.Workbench.Services
         /// <param name="eventArgs"></param>
         private void FlowEnvironment_OnNodeTakeOutEvent(NodeTakeOutEventArgs eventArgs)
         {
-            NodeTakeOut?.Invoke(eventArgs);
-
+            System.Windows.Application.Current.Dispatcher.Invoke((Action)(() =>
+            {
+                NodeTakeOut?.Invoke(eventArgs);
+            }));
         }
 
         /// <summary>
         /// 设置了流程起始控件
         /// </summary>
-        /// <param name="oldNodeGuid"></param>
-        /// <param name="newNodeGuid"></param>
+        /// <param name="eventArgs"></param>
+
         private void FlowEnvironment_StartNodeChangeEvent(StartNodeChangeEventArgs eventArgs)
         {
-
-            StartNodeChanged?.Invoke(eventArgs);
+            System.Windows.Application.Current.Dispatcher.Invoke((Action)(() =>
+            {
+                StartNodeChanged?.Invoke(eventArgs);
+            }));
         }
 
         /// <summary>
@@ -326,7 +352,10 @@ namespace Serein.Workbench.Services
         /// <param name="eventArgs"></param>
         private void FlowEnvironment_OnMonitorObjectChangeEvent(MonitorObjectEventArgs eventArgs)
         {
-            MonitorObjectChanged?.Invoke(eventArgs);
+            System.Windows.Application.Current.Dispatcher.Invoke((Action)(() =>
+            {
+                MonitorObjectChanged?.Invoke(eventArgs);
+            }));
         }
 
         /// <summary>

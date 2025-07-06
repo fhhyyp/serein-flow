@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace Serein.NodeFlow.Services
 {
@@ -112,6 +113,54 @@ namespace Serein.NodeFlow.Services
             }
             return flowCanvasDetails.Nodes.Count > 0;
         }
+
+
+        public void ToCsharpCoreFile()
+        {
+            // TODO: 实现将流程模型转换为C# Core文件的逻辑
+            // 遍历每个画布
+            int canvas_index = 0;
+
+            HashSet<Type> assemblyFlowClasss = new HashSet<Type>(); // 用于创建依赖注入项
+            StringBuilder stringBuilder = new StringBuilder();
+
+            foreach (var canvas in FlowCanvass.Values)
+            {
+                int flowTemplateId = canvas_index++;
+                string flowTemplateClassName = $"FlowTemplate{flowTemplateId}";
+
+                HashSet<Type> flowClasss = new HashSet<Type>();
+
+                // 收集程序集信息
+                foreach (var node in canvas.Nodes)
+                {
+                    var instanceType = node.MethodDetails.ActingInstanceType;
+                    if(instanceType is not null) 
+                    { 
+                        flowClasss.Add(instanceType); 
+                        assemblyFlowClasss.Add(instanceType); 
+                    }
+                }
+
+                // 生成方法信息
+                foreach (var node in canvas.Nodes)
+                {
+                    var instanceType = node.MethodDetails.ActingInstanceType;
+                    var returnType = node.MethodDetails.ReturnType;
+                    var methodName = node.MethodDetails.MethodAnotherName;
+                    
+
+
+                    var instanceTypeFullName = instanceType.FullName;
+                    var returnTypeFullName = returnType == typeof(void) ? "void" : returnType.FullName;
+                    
+                    string methodContext = $"private {returnTypeFullName} NodeMethod_{methodName}({nameof(IDynamicContext)} context)";
+                    SereinEnv.WriteLine(InfoType.INFO, methodContext);
+                }
+            }
+        }
+
+
 
     }
 }

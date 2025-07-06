@@ -50,7 +50,7 @@ namespace Serein.NodeFlow.Model.Operation
             return true;
         }
 
-        public override bool Execute()
+        public override async Task<bool> ExecuteAsync()
         {
             if (!ValidationParameter()) return false;
 
@@ -74,8 +74,10 @@ namespace Serein.NodeFlow.Model.Operation
                             connectionType, // 对应的连接关系
                             NodeConnectChangeEventArgs.ConnectChangeType.Remove); // 移除连线
                     EventArgs.Add(e); // 缓存事件参数
-                    flowEnvironmentEvent.OnNodeConnectChanged(e);
-
+                    await TriggerEvent(() =>
+                    {
+                        flowEnvironmentEvent.OnNodeConnectChanged(e);
+                    });
                 }
             }
 
@@ -102,7 +104,10 @@ namespace Serein.NodeFlow.Model.Operation
                                 connectionType, // 对应的连接关系
                                 NodeConnectChangeEventArgs.ConnectChangeType.Remove); // 移除连线
                         EventArgs.Add(e); // 缓存事件参数
-                        flowEnvironmentEvent.OnNodeConnectChanged(e);
+                        await TriggerEvent(() =>
+                        {
+                            flowEnvironmentEvent.OnNodeConnectChanged(e);
+                        });
                     }
                 }
             }
@@ -136,7 +141,10 @@ namespace Serein.NodeFlow.Model.Operation
                                     connectionType, // 对应的连接关系
                                     NodeConnectChangeEventArgs.ConnectChangeType.Remove); // 移除连线
                         EventArgs.Add(e); // 缓存事件参数
-                        flowEnvironmentEvent.OnNodeConnectChanged(e);
+                        await TriggerEvent(() =>
+                        {
+                            flowEnvironmentEvent.OnNodeConnectChanged(e);
+                        });
                     }
                 }
             }
@@ -153,12 +161,16 @@ namespace Serein.NodeFlow.Model.Operation
             {
                 // 存在UI上下文操作，当前运行环境极有可能运行在有UI线程的平台上
                 // 为了避免直接修改 ObservableCollection 集合导致异常产生，故而使用UI线程上下文操作运行
-                flowEnvironment.UIContextOperation?.Invoke(() =>
+                await TriggerEvent(() =>
                 {
                     flowCanvasDetails?.Nodes.Remove(flowNode);
                 });
             }
-            flowEnvironmentEvent.OnNodeRemoved(new NodeRemoveEventArgs(CanvasGuid, NodeGuid));
+
+            await TriggerEvent(() =>
+            {
+                flowEnvironmentEvent.OnNodeRemoved(new NodeRemoveEventArgs(CanvasGuid, NodeGuid));
+            });
             return true;
         }
 

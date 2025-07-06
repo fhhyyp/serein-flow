@@ -1,4 +1,6 @@
-﻿using Serein.Library;
+﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Newtonsoft.Json;
+using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.FlowNode;
 using Serein.Library.Utils;
@@ -15,6 +17,8 @@ using System.Reactive;
 using System.Reflection;
 using System.Security.AccessControl;
 using System.Text;
+using System.Threading.Tasks;
+using System.Timers;
 using static Serein.Library.Api.IFlowEnvironment;
 
 namespace Serein.NodeFlow.Env
@@ -288,12 +292,75 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// 加载项目文件
         /// </summary>
-        /// <param name="flowEnvInfo">环境信息</param>
         /// <param name="filePath"></param>
-        public void LoadProject(FlowEnvInfo flowEnvInfo, string filePath)
+        public void LoadProject(string filePath)
         {
+            string content = System.IO.File.ReadAllText(filePath); // 读取整个文件内容
+            var FlowProjectData = JsonConvert.DeserializeObject<SereinProjectData>(content);
+            var FileDataPath = System.IO.Path.GetDirectoryName(filePath)!;   //  filePath;//
+
+
+
             this.ProjectFileLocation = filePath;
-            var projectData = flowEnvInfo.Project;
+
+            var projectData = FlowProjectData;
+            // 加载项目配置文件
+            var dllPaths = projectData.Librarys.Select(it => it.FilePath).ToList();
+            List<MethodDetails> methodDetailss = [];
+
+            // 遍历依赖项中的特性注解，生成方法详情
+            foreach (var dllPath in dllPaths)
+            {
+                string cleanedRelativePath = dllPath.TrimStart('.', '\\');
+                var tmpPath = Path.Combine(FileDataPath, cleanedRelativePath);
+                var dllFilePath = Path.GetFullPath(tmpPath);
+                LoadLibrary(dllFilePath);  // 加载项目文件时加载对应的程序集
+            }
+
+
+
+            _ = Task.Run(async () =>
+            {
+                // 加载画布
+                try
+                {
+                    foreach (var canvasInfo in projectData.Canvass)
+                    {
+                        await LoadCanvasAsync(canvasInfo);
+                    }
+                    var nodeInfos = projectData.Nodes.ToList();
+                    await FlowEdit.LoadNodeInfosAsync(nodeInfos); // 加载节点信息
+                                                                  // 加载画布
+                    foreach (var canvasInfo in projectData.Canvass)
+                    {
+                        FlowEdit.SetStartNode(canvasInfo.Guid, canvasInfo.StartNode); // 设置起始节点
+                    }
+
+                    Event.OnProjectLoaded(new ProjectLoadedEventArgs());
+                }
+                catch (Exception ex)
+                {
+
+                    throw;
+                }
+                //
+                //await SetStartNodeAsync("", projectData.StartNode); // 设置起始节点
+            });
+        }
+
+        public async Task LoadProjetAsync(string filePath)
+        {
+            string content =  await System.IO.File.ReadAllTextAsync(filePath); // 读取整个文件内容
+            var FlowProjectData = JsonConvert.DeserializeObject<SereinProjectData>(content);
+            var FileDataPath = System.IO.Path.GetDirectoryName(filePath)!;   //  filePath;//
+            if(FlowProjectData is null)
+            {
+                return;
+            }
+
+            this.ProjectFileLocation = filePath;
+            var projectData = FlowProjectData;
+
             // 加载项目配置文件
             var dllPaths = projectData.Librarys.Select(it => it.FilePath).ToList();
             List<MethodDetails> methodDetailss = [];
@@ -309,23 +376,18 @@ namespace Serein.NodeFlow.Env
 
 
 
-            _ = Task.Run(async () =>
+            // 加载画布
+            foreach (var canvasInfo in projectData.Canvass)
             {
-                // 加载画布
-                foreach (var canvasInfo in projectData.Canvass)
-                {
-                    LoadCanvas(canvasInfo);
-                }
-                await FlowEdit.LoadNodeInfosAsync(projectData.Nodes.ToList()); // 加载节点信息
-
-                // 加载画布
-                foreach (var canvasInfo in projectData.Canvass)
-                {
-                    FlowEdit.SetStartNode(canvasInfo.Guid, canvasInfo.StartNode); // 设置起始节点
-                }
-                //await SetStartNodeAsync("", projectData.StartNode); // 设置起始节点
-            });
-
+                await LoadCanvasAsync(canvasInfo);
+            }
+            await FlowEdit.LoadNodeInfosAsync(projectData.Nodes.ToList()); // 加载节点信息
+            // 加载画布
+            foreach (var canvasInfo in projectData.Canvass)
+            {
+                FlowEdit.SetStartNode(canvasInfo.Guid, canvasInfo.StartNode); // 设置起始节点
+            }
+            Event.OnProjectLoaded(new ProjectLoadedEventArgs());
         }
 
         /// <summary>
@@ -532,15 +594,24 @@ namespace Serein.NodeFlow.Env
         private int _addCanvasCount = 0;
 
 
-        private FlowCanvasDetails LoadCanvas(FlowCanvasDetailsInfo info)
+        private async Task<FlowCanvasDetails> LoadCanvasAsync(FlowCanvasDetailsInfo info)
         {
             var model = new FlowCanvasDetails(this);
             model.LoadInfo(info);
             flowModelService.AddCanvasModel(model);
-            UIContextOperation?.Invoke(() =>
+
+            if(UIContextOperation is null)
             {
                 Event.OnCanvasCreated(new CanvasCreateEventArgs(model));
-            });
+            }
+            else
+            {
+                await UIContextOperation.InvokeAsync(() =>
+                {
+                    Event.OnCanvasCreated(new CanvasCreateEventArgs(model));
+                });
+            }
+
             return model;
         }
 
@@ -585,12 +656,12 @@ namespace Serein.NodeFlow.Env
         /// <param name="uiContextOperation"></param>
         public void SetUIContextOperation(UIContextOperation uiContextOperation)
         {
-            if (uiContextOperation is not null)
+            if (uiContextOperation is null)
             {
-                this.UIContextOperation = uiContextOperation;
-                //PersistennceInstance[typeof(UIContextOperation)] = uiContextOperation; // 缓存封装好的UI线程上下文
+                return;
             }
-
+            this.UIContextOperation = uiContextOperation;
+            IOC.Register<UIContextOperation>(() => uiContextOperation).Build();
 
         }
 

@@ -66,7 +66,7 @@ namespace Serein.NodeFlow.Model.Operation
             return true;
         }
 
-        public override bool Execute()
+        public override async Task<bool> ExecuteAsync()
         {
             if (!ValidationParameter()) return false; // 执行时验证
 
@@ -101,7 +101,11 @@ namespace Serein.NodeFlow.Model.Operation
 
             flowModelService.AddNodeModel(nodeModel);
             this.flowNode = nodeModel;
-            flowEnvironmentEvent.OnNodeCreated(new NodeCreateEventArgs(flowCanvasDetails.Guid, nodeModel, Position));
+
+            await TriggerEvent(() =>
+            {
+                flowEnvironmentEvent.OnNodeCreated(new NodeCreateEventArgs(flowCanvasDetails.Guid, nodeModel, Position));
+            });
             return true;
         }
 

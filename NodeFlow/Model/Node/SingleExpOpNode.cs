@@ -94,7 +94,7 @@ namespace Serein.NodeFlow.Model
 
         public override async Task<FlowResult> ExecutingAsync(IDynamicContext context, CancellationToken token)
         {
-            if(token.IsCancellationRequested) return new FlowResult(this, context);
+            if(token.IsCancellationRequested) return new FlowResult(this.Guid, context);
 
             object? parameter = null;// context.TransmissionData(this); // 表达式节点使用上一节点数据
             var pd = MethodDetails.ParameterDetailss[0];
@@ -103,12 +103,12 @@ namespace Serein.NodeFlow.Model
             if (hasNode)
             {
                 context.NextOrientation = ConnectionInvokeType.IsError;
-                return new FlowResult(this, context);
+                return new FlowResult(this.Guid, context);
             }
             if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
             {
                 // 使用自定义节点的参数
-                parameter = context.GetFlowData(argSourceNode).Value;
+                parameter = context.GetFlowData(argSourceNode.Guid).Value;
             }
             else if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke)
             {
@@ -122,7 +122,7 @@ namespace Serein.NodeFlow.Model
             else
             {
                 // 条件节点透传上一节点的数据
-                parameter = context.TransmissionData(this);
+                parameter = context.TransmissionData(this.Guid);
             }
 
             try
@@ -139,13 +139,13 @@ namespace Serein.NodeFlow.Model
                 }
 
                 context.NextOrientation = ConnectionInvokeType.IsSucceed;
-                return new FlowResult(this,context, result);
+                return new FlowResult(this.Guid, context, result);
             }
             catch (Exception ex)
             {
                 context.NextOrientation = ConnectionInvokeType.IsError;
                 context.ExceptionOfRuning = ex;
-                return new FlowResult(this, context);
+                return new FlowResult(this.Guid, context);
             }
 
         }

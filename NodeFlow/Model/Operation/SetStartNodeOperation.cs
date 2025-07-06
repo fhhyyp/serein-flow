@@ -34,7 +34,7 @@ namespace Serein.NodeFlow.Model.Operation
             }
             return true;
         }
-        public override bool Execute()
+        public override async Task<bool> ExecuteAsync()
         {
             if (!ValidationParameter()) return false;
 
@@ -45,7 +45,11 @@ namespace Serein.NodeFlow.Model.Operation
             }
 
             CanvasModel.StartNode = NewStartNodeModel;
-            flowEnvironmentEvent.OnStartNodeChanged(new StartNodeChangeEventArgs(CanvasModel.Guid, OldStartNodeModel?.Guid, NewStartNodeModel.Guid));
+
+            await TriggerEvent(() =>
+            {
+                flowEnvironmentEvent.OnStartNodeChanged(new StartNodeChangeEventArgs(CanvasModel.Guid, OldStartNodeModel?.Guid, NewStartNodeModel.Guid));
+            });
             return true;
         }
 

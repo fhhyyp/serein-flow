@@ -140,7 +140,7 @@ namespace Serein.NodeFlow.Model
             }
             object[] args = await this.GetParametersAsync(context, token);
             var result = await dd.InvokeAsync(instance, args);
-            var flowReslt = new FlowResult(this, context, result);
+            var flowReslt = new FlowResult(this.Guid, context, result);
             return flowReslt;
 
         }

@@ -37,22 +37,23 @@ namespace Serein.Library.Api
         /// </summary>
         Exception ExceptionOfRuning { get; set; }
 
-  /*      /// <summary>
-        /// 忽略处理该节点流程
-        /// </summary>
-        void IgnoreFlowHandle(NodeModelBase node);
+
         /// <summary>
-        /// 获取此次流程处理状态
+        /// 获取节点的运行时参数数据
         /// </summary>
-        /// <param name="node"></param>
-        /// <returns></returns>
-        bool GetIgnodeFlowStateUpload(NodeModelBase node);
+        /// <param name="nodeModel">节点</param>
+        /// <param name="index">第几个参数</param>
+        /// <param name="data">数据</param>
+        void SetParamsTempData(string nodeModel, int index, object data);
+
         /// <summary>
-        /// 恢复流程处理状态
+        /// 获取节点的运行时参数数据
         /// </summary>
-        /// <param name="node"></param>
-        /// <returns></returns>
-        void RecoverIgnodeFlowStateUpload(NodeModelBase node);*/
+        /// <param name="nodeModel">节点</param>
+        /// <param name="index">第几个参数</param>
+        /// <param name="data">获取到的参数</param>
+        bool TryGetParamsTempData(string nodeModel, int index, out object data);
+
 
 
         /// <summary>
@@ -60,33 +61,33 @@ namespace Serein.Library.Api
         /// </summary>
         /// <param name="currentNodeModel">当前节点</param>
         /// <param name="PreviousNode">运行时上一节点</param>
-        void SetPreviousNode(IFlowNode currentNodeModel, IFlowNode PreviousNode);
+        void SetPreviousNode(string currentNodeModel, string PreviousNode);
 
         /// <summary>
         /// 获取当前节点的运行时上一节点，用以流程中获取数据
         /// </summary>
         /// <param name="currentNodeModel"></param>
         /// <returns></returns>
-        IFlowNode GetPreviousNode(IFlowNode currentNodeModel);
+        string GetPreviousNode(string currentNodeModel);
 
         /// <summary>
         /// 获取节点的数据（当前节点需要获取上一节点数据时，需要从 运行时上一节点 的Guid 通过这个方法进行获取
         /// </summary>
         /// <param name="nodeModel"></param>
         /// <returns></returns>
-        FlowResult GetFlowData(IFlowNode nodeModel);
+        FlowResult GetFlowData(string nodeModel);
         /// <summary>
         /// 上一节点数据透传到下一节点
         /// </summary>
         /// <param name="nodeModel"></param>
-        FlowResult TransmissionData(IFlowNode nodeModel);
+        FlowResult TransmissionData(string nodeModel);
 
         /// <summary>
         /// 添加或更新当前节点的数据
         /// </summary>
         /// <param name="nodeModel"></param>
         /// <param name="flowData"></param>
-        void AddOrUpdate(IFlowNode nodeModel, FlowResult flowData);
+        void AddOrUpdate(string nodeModel, FlowResult flowData);
 
         /// <summary>
         /// 重置流程状态（用于对象池回收）
@@ -97,14 +98,5 @@ namespace Serein.Library.Api
         /// 用以提前结束当前上下文流程的运行
         /// </summary>
         void Exit();
-
-        /*/// <summary>
-        /// 定时循环触发
-        /// </summary>
-        /// <param name="callback"></param>
-        /// <param name="time"></param>
-        /// <param name="count"></param>
-        /// <returns></returns>
-        // Task CreateTimingTask(Action callback, int time = 100, int count = -1);*/
     } 
 }

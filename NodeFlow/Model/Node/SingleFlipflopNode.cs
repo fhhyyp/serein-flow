@@ -64,7 +64,7 @@ namespace Serein.NodeFlow.Model
                 throw new FlipflopException(MethodDetails.MethodName + "触发器超时触发。Guid" + Guid);
             }
             object result = dynamicFlipflopContext.Value;
-            var flowReslt = new FlowResult(this, context, result);
+            var flowReslt = new FlowResult(this.Guid, context, result);
             return flowReslt;
         }
 

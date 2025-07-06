@@ -1,8 +1,11 @@
-﻿using Serein.Library.Api;
+﻿using Microsoft.VisualBasic.FileIO;
+using Serein.Library.Api;
+using Serein.Library.Utils;
 using Serein.NodeFlow.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Mime;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -72,12 +75,16 @@ namespace Serein.NodeFlow.Model.Operation
             return true;
         }
 
-        public override bool Execute()
+        public override async Task<bool> ExecuteAsync()
         {
             if (!ValidationParameter()) return false;
 
             ContainerNode.PlaceNode(Node);
-            flowEnvironmentEvent.OnNodePlace(new NodePlaceEventArgs(CanvasGuid, NodeGuid, ContainerNodeGuid)); // 通知UI更改节点放置位置
+
+            await TriggerEvent(() =>
+            {
+                flowEnvironmentEvent.OnNodePlace(new NodePlaceEventArgs(CanvasGuid, NodeGuid, ContainerNodeGuid)); // 通知UI更改节点放置位置
+            });
             return true;
         }
 

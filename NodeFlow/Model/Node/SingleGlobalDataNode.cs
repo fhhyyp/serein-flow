@@ -110,18 +110,18 @@ namespace Serein.NodeFlow.Model
         /// <returns></returns>
         public override async Task<FlowResult> ExecutingAsync(IDynamicContext context, CancellationToken token)
         {
-            if (token.IsCancellationRequested) return new FlowResult(this, context);
+            if (token.IsCancellationRequested) return new FlowResult(this.Guid, context);
             if (string.IsNullOrEmpty(KeyName))
             {
                 context.NextOrientation = ConnectionInvokeType.IsError;
                 SereinEnv.WriteLine(InfoType.ERROR, $"全局数据的KeyName不能为空[{this.Guid}]");
-                return new FlowResult(this, context);
+                return new FlowResult(this.Guid, context);
             }
             if (DataNode is null)
             {
                 context.NextOrientation = ConnectionInvokeType.IsError;
                 SereinEnv.WriteLine(InfoType.ERROR, $"全局数据节点没有设置数据来源[{this.Guid}]");
-                return new FlowResult(this, context);
+                return new FlowResult(this.Guid, context);
             }
 
             try
@@ -135,7 +135,7 @@ namespace Serein.NodeFlow.Model
             {
                 context.NextOrientation = ConnectionInvokeType.IsError;
                 context.ExceptionOfRuning = ex;
-                return new FlowResult(this, context);
+                return new FlowResult(this.Guid, context);
             }
         }
         

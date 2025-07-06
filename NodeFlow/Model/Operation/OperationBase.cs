@@ -1,5 +1,6 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
+using Serein.Library.Utils;
 using Serein.NodeFlow.Services;
 using Serein.NodeFlow.Tool;
 using System;
@@ -25,7 +26,7 @@ namespace Serein.NodeFlow.Model.Operation
         /// <summary>
         /// 执行操作
         /// </summary>
-        bool Execute();
+        Task<bool> ExecuteAsync();
         /// <summary>
         /// 撤销操作
         /// </summary>
@@ -45,6 +46,12 @@ namespace Serein.NodeFlow.Model.Operation
         /// </summary>
         [AutoInjection]
         protected FlowModelService flowModelService;
+
+        /// <summary>
+        /// 节点管理服务
+        /// </summary>
+        [AutoInjection]
+        protected UIContextOperation uiContextOperation;
 
         /// <summary>
         /// 流程依赖服务
@@ -75,7 +82,7 @@ namespace Serein.NodeFlow.Model.Operation
         /// <summary>
         /// 执行
         /// </summary>
-        public abstract bool Execute();
+        public abstract Task<bool> ExecuteAsync();
 
         /// <summary>
         /// 撤销
@@ -96,6 +103,23 @@ namespace Serein.NodeFlow.Model.Operation
         public abstract void ToInfo();
 
 
+        protected async Task TriggerEvent(Action action)
+        {
+           /* if (OperatingSystem.IsWindows())
+            {
+            }*/
+            if (uiContextOperation is null)
+            {
+                action?.Invoke();
+            }
+            else
+            {
+                await uiContextOperation.InvokeAsync(() =>
+                {
+                    action?.Invoke();
+                });
+            }
+        }
 
     }
 

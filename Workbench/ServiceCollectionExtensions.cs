@@ -63,10 +63,12 @@ namespace Serein.Workbench
                     getSyncContext = () => uiContext;
                 }
             });
-            UIContextOperation? uIContextOperation = null;
-            uIContextOperation = new UIContextOperation(getSyncContext); // 封装一个调用UI线程的工具类
-            var flowEnvironment = new FlowEnvironment();
+            UIContextOperation? uIContextOperation = new (getSyncContext); // 封装一个调用UI线程的工具类
+            IFlowEnvironment flowEnvironment = new FlowEnvironment();
             flowEnvironment.SetUIContextOperation(uIContextOperation);
+
+
+
             collection.AddSingleton<UIContextOperation>(uIContextOperation); // 注册UI线程操作上下文
             collection.AddSingleton<IFlowEnvironment>(flowEnvironment); // 注册运行环境
             collection.AddSingleton<IFlowEnvironmentEvent>(flowEnvironment.Event); // 注册运行环境事件

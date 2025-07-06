@@ -192,7 +192,6 @@ namespace Serein.Library
             }
         }
 
-
         /// <summary>
         /// 开始执行
         /// </summary>
@@ -229,7 +228,7 @@ namespace Serein.Library
                 }
                 catch (Exception ex)
                 {
-                    flowResult = new FlowResult(currentNode, context);
+                    flowResult = new FlowResult(currentNode.Guid, context);
                     context.Env.WriteLine(InfoType.ERROR, $"节点[{currentNode.Guid}]异常：" + ex);
                     context.NextOrientation = ConnectionInvokeType.IsError;
                     context.ExceptionOfRuning = ex;
@@ -237,7 +236,7 @@ namespace Serein.Library
                 #endregion
 
                 #region 执行完成时更新栈
-                context.AddOrUpdate(currentNode, flowResult); // 上下文中更新数据
+                context.AddOrUpdate(currentNode.Guid, flowResult); // 上下文中更新数据
                
                 // 首先将指定类别后继分支的所有节点逆序推入栈中
                 var nextNodes = currentNode.SuccessorNodes[context.NextOrientation];
@@ -247,7 +246,7 @@ namespace Serein.Library
                     if (nextNodes[index].DebugSetting.IsEnable)
                     {
                         //if (!ignodeState)
-                            context.SetPreviousNode(nextNodes[index], currentNode);
+                            context.SetPreviousNode(nextNodes[index].Guid, currentNode.Guid);
                         stack.Push(nextNodes[index]);
                     }
                 }
@@ -259,7 +258,7 @@ namespace Serein.Library
                     // 筛选出启用的节点的节点
                     if (upstreamNodes[index].DebugSetting.IsEnable)
                     {
-                        context.SetPreviousNode(upstreamNodes[index], currentNode);
+                        context.SetPreviousNode(upstreamNodes[index].Guid, currentNode.Guid);
                         stack.Push(upstreamNodes[index]);
                     }
                 }
@@ -289,18 +288,88 @@ namespace Serein.Library
                 await Task.Delay(1);
 #endif
             }
-
         }
+        public static async Task<object[]> GetParametersAsync(this IFlowNode nodeModel, IDynamicContext context, CancellationToken token)
+        {
+            var md = nodeModel.MethodDetails;
+            var pds = md.ParameterDetailss;
+
+            if (pds.Length == 0)
+                return [];
+
+            object[] args;
+            object[] paramsArgs = null; // 改为强类型数组 object[]
+
+            int paramsArgIndex = md.ParamsArgIndex;
+
+            if (paramsArgIndex >= 0)
+            {
+                // 可变参数数量
+                int paramsLength = pds.Length - paramsArgIndex;
+
+                // 用 object[] 表示可变参数数组（如果类型固定也可以用 int[] 等）
+                paramsArgs = new object[paramsLength];
+
+                // 方法参数中占位，最后一项是 object[]
+                args = new object[paramsArgIndex + 1];
+                args[paramsArgIndex] = paramsArgs;
+            }
+            else
+            {
+                args = new object[pds.Length];
+            }
+
+            // 并发处理常规参数
+            Task<object>[] mainArgTasks = new Task<object>[paramsArgIndex >= 0 ? paramsArgIndex : pds.Length];
+
+            for (int i = 0; i < mainArgTasks.Length; i++)
+            {
+                var pd = pds[i];
+                mainArgTasks[i] = pd.ToMethodArgData(context);
+            }
+
+            await Task.WhenAll(mainArgTasks);
+
+            for (int i = 0; i < mainArgTasks.Length; i++)
+            {
+                args[i] = mainArgTasks[i].Result;
+            }
+
+            // 并发处理 params 参数
+            if (paramsArgs != null)
+            {
+                int paramsLength = paramsArgs.Length;
+                Task<object>[] paramTasks = new Task<object>[paramsLength];
+
+                for (int i = 0; i < paramsLength; i++)
+                {
+                    var pd = pds[paramsArgIndex + i];
+                    paramTasks[i] = pd.ToMethodArgData(context);
+                }
+
+                await Task.WhenAll(paramTasks);
+
+                for (int i = 0; i < paramsLength; i++)
+                {
+                    paramsArgs[i] = paramTasks[i].Result;
+                }
+
+                args[args.Length - 1] = paramsArgs;
+            }
+
+            return args;
+        }
+
 
 
         /// <summary>
         /// 获取对应的参数数组
         /// </summary>
-        public static async Task<object[]> GetParametersAsync(this IFlowNode nodeModel, IDynamicContext context, CancellationToken token)
+        public static async Task<object[]> GetParametersAsync2(this IFlowNode nodeModel, IDynamicContext context, CancellationToken token)
         {
             if (nodeModel.MethodDetails.ParameterDetailss.Length == 0)
             {
-                return Array.Empty<object>(); // 无参数
+                return []; // 无参数
             }
             var md = nodeModel.MethodDetails;
             var pds = md.ParameterDetailss;
@@ -345,6 +414,50 @@ namespace Serein.Library
             }
 
             return args;
+        }
+
+
+
+        /// <summary>
+        /// 视为流程接口调用
+        /// </summary>
+        /// <param name="flowCallNode"></param>
+        /// <param name="param"></param>
+        /// <returns></returns>
+        public static async Task<TResult> ApiInvokeAsync<TResult>(this IFlowNode flowCallNode, Dictionary<string,object> param)
+        {
+            var pds = flowCallNode.MethodDetails.ParameterDetailss;
+            if (param.Keys.Count != pds.Length)
+            {
+                throw new ArgumentNullException($"参数数量不一致。传入参数数量：{param.Keys.Count}。接口入参数量：{pds.Length}。");
+            }
+
+            var context = new DynamicContext(flowCallNode.Env);
+            for (int index = 0; index < pds.Length; index++)
+            {
+                ParameterDetails pd = pds[index];
+                if (param.TryGetValue(pd.Name, out var value))
+                {
+                    context.SetParamsTempData(flowCallNode.Guid, index, value); // 设置入参参数
+                }
+            }
+            var cts = new CancellationTokenSource();
+            var flowResult = await flowCallNode.StartFlowAsync(context, cts.Token);
+            cts?.Cancel();
+            cts?.Dispose();
+            context.Exit();
+            if (flowResult.Value is TResult result)
+            {
+                return result;
+            }
+            else if (flowResult is FlowResult && flowResult is TResult result2)
+            {
+                return result2;
+            }
+            else
+            {
+                throw new ArgumentNullException($"类型转换失败，流程返回数据与泛型不匹配，当前返回类型为[{flowResult.Value.GetType().FullName}]。");
+            }
         }
 
         /// <summary>
