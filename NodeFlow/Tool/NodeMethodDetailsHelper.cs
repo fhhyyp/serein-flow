@@ -35,6 +35,7 @@ public static class NodeMethodDetailsHelper
     public static bool TryCreateDetails(Type type, 
                                         MethodInfo methodInfo,  
                                         string assemblyName,
+                                        [MaybeNullWhen(false)]  out MethodInfo outMethodInfo,
                                         [MaybeNullWhen(false)]  out MethodDetails methodDetails,
                                         [MaybeNullWhen(false)]  out DelegateDetails delegateDetails)
     {
@@ -43,6 +44,7 @@ public static class NodeMethodDetailsHelper
         var attribute = methodInfo.GetCustomAttribute<NodeActionAttribute>();
         if(attribute is null || attribute.Scan == false)
         {
+            outMethodInfo = null;
             methodDetails = null;
             delegateDetails = null;
             return false;
@@ -62,17 +64,18 @@ public static class NodeMethodDetailsHelper
         
 
         Type? returnType;
-        bool isTask = IsGenericTask(methodInfo.ReturnType, out var taskResult);
+        bool isAsync = IsGenericTask(methodInfo.ReturnType, out var taskResult);
 
 
         if (attribute.MethodDynamicType == Library.NodeType.UI)
         {
-            if (isTask)
+            if (isAsync)
             {
                 var innerType = methodInfo.ReturnType.GetGenericArguments()[0];
                 if (innerType.IsGenericType && innerType != typeof(IEmbeddedContent))
                 {
                     SereinEnv.WriteLine(InfoType.WARN, $"[{methodName}]跳过创建，因为UI方法的返回值并非IEmbeddedContent，流程工作台将无法正确显示自定义控件界面以及传递数据。");
+                    outMethodInfo = null;
                     methodDetails = null;
                     delegateDetails = null;
                     return false;
@@ -83,6 +86,7 @@ public static class NodeMethodDetailsHelper
                 if (methodInfo.ReturnType != typeof(IEmbeddedContent))
                 {
                     SereinEnv.WriteLine(InfoType.WARN, $"[{methodName}]跳过创建，因为UI方法的返回值并非IEmbeddedContent，流程工作台将无法正确显示自定义控件界面以及传递数据。");
+                    outMethodInfo = null;
                     methodDetails = null;
                     delegateDetails = null;
                     return false;
@@ -106,6 +110,7 @@ public static class NodeMethodDetailsHelper
                 else
                 {
                     SereinEnv.WriteLine(InfoType.WARN, $"[{methodName}]跳过创建，返回类型非预期的Task<IFlipflopContext<TResult>>。");
+                    outMethodInfo = null;
                     methodDetails = null;
                     delegateDetails = null;
                     return false;
@@ -114,13 +119,14 @@ public static class NodeMethodDetailsHelper
             else
             {
                 SereinEnv.WriteLine(InfoType.WARN, $"[{methodName}]跳过创建，因为触发器方法的返回值并非Task<>，将无法等待。");
+                outMethodInfo = null;
                 methodDetails = null;
                 delegateDetails = null;
                 return false;
             }
         }
         
-        else if(isTask)
+        else if(isAsync)
         {
             returnType = taskResult is null ? typeof(Task) : taskResult;
         }
@@ -134,7 +140,7 @@ public static class NodeMethodDetailsHelper
         }
 
         var asyncPrefix = "[异步]"; // IsGenericTask(returnType) ? "[async]" : ;
-        var methodMethodAnotherName = isTask ? asyncPrefix + attribute.AnotherName : attribute.AnotherName;
+        var methodMethodAnotherName = isAsync ? asyncPrefix + attribute.AnotherName : attribute.AnotherName;
 
         bool hasParamsArg = false;
         if (explicitDataOfParameters.Length > 0)
@@ -155,13 +161,14 @@ public static class NodeMethodDetailsHelper
             ReturnType = returnType,
             // 如果存在可变参数，取最后一个元素的下标，否则为-1；
             ParamsArgIndex = hasParamsArg ? explicitDataOfParameters.Length - 1 : -1,
+            IsAsync = isAsync,
         };
 
         //var emitMethodType = EmitHelper.CreateDynamicMethod(methodInfo, out var methodDelegate);// 返回值
 
 
         var dd = new DelegateDetails(methodInfo) ; // 构造委托
-
+        outMethodInfo = methodInfo;
         methodDetails = md;
         delegateDetails = dd;
         return true;

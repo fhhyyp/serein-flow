@@ -142,7 +142,7 @@ namespace Serein.Workbench.Themes
                         {
                             try
                             {
-                                await flowEnvironment.FlowControl.StartFlowFromSelectNodeAsync(tmpNodeTreeModel.RootNode.Guid);
+                                await flowEnvironment.FlowControl.StartFlowAsync<FlowResult>(tmpNodeTreeModel.RootNode.Guid);
                             }
                             catch (Exception ex)
                             {

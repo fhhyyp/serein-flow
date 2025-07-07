@@ -115,9 +115,8 @@ namespace Serein.NodeFlow.Model.Operation
             #endregion
 
             #region 移除参数获取关系
-            // 需要找到有哪些节点的入参参数，被设置为了该节点，然后将其删除
-            // 因为节点自身没有记录哪些节点选取了自己作为参数来源节点，所以需要遍历所有节点
 
+            // 遍历需要该节点返回值的节点，移除与其的连接
             foreach (var item in flowNode.NeedResultNodes)
             {
                 var connectionType = item.Key; // 参数来源连接类型
@@ -128,14 +127,14 @@ namespace Serein.NodeFlow.Model.Operation
                     if (md is null) continue;
                     var pds = md.ParameterDetailss;
                     if (pds is null || pds.Length == 0) continue;
-                    foreach(var parameter in pds)
+                    foreach (var parameter in pds)
                     {
                         if (!parameter.ArgDataSourceNodeGuid.Equals(flowNode.Guid)) continue;
                         // 找到了对应的入参控制点了
                         var e = new NodeConnectChangeEventArgs(
                                     CanvasGuid, // 画布
-                                    flowNode.Guid, // 被移除的节点Guid
-                                    argNode.Guid, // 子节点Guid
+                                    flowNode.Guid, // 数据来源节点（被移除的节点Guid）
+                                    argNode.Guid, // 需要数据的节点
                                     parameter.Index, // 作用在第几个参数上，用于指示移除第几个参数的连线
                                     JunctionOfConnectionType.Arg, // 指示移除的是参数连接线
                                     connectionType, // 对应的连接关系
@@ -148,6 +147,34 @@ namespace Serein.NodeFlow.Model.Operation
                     }
                 }
             }
+
+            // 遍历该节点参数详情，获取来源节点，移除与其的连接
+          
+            if (flowNode.MethodDetails?.ParameterDetailss != null)
+            {
+                var pds = flowNode.MethodDetails.ParameterDetailss;
+                foreach (var pd in pds)
+                {
+                    if(flowModelService.TryGetNodeModel(pd.ArgDataSourceNodeGuid, out var argSourceNode))
+                    {
+                        // 找到了对应的入参控制点了
+                        var e = new NodeConnectChangeEventArgs(
+                                    CanvasGuid, // 画布
+                                    argSourceNode.Guid, // 数据来源节点
+                                    flowNode.Guid, // 需要数据的节点（被移除的节点Guid）
+                                    pd.Index, // 作用在第几个参数上，用于指示移除第几个参数的连线
+                                    JunctionOfConnectionType.Arg, // 指示移除的是参数连接线
+                                    pd.ArgDataSourceType, // 对应的连接关系
+                                    NodeConnectChangeEventArgs.ConnectChangeType.Remove); // 移除连线
+                        EventArgs.Add(e); // 缓存事件参数
+                        await TriggerEvent(() =>
+                        {
+                            flowEnvironmentEvent.OnNodeConnectChanged(e);
+                        });
+                    }
+                }
+            }
+            
             #endregion
 
             flowModelService.RemoveNodeModel(flowNode); // 从记录中移除
@@ -163,7 +190,9 @@ namespace Serein.NodeFlow.Model.Operation
                 // 为了避免直接修改 ObservableCollection 集合导致异常产生，故而使用UI线程上下文操作运行
                 await TriggerEvent(() =>
                 {
-                    flowCanvasDetails?.Nodes.Remove(flowNode);
+                    var lsit = flowCanvasDetails.Nodes.ToList();
+                    lsit.Remove(flowNode);
+                    flowCanvasDetails.Nodes = lsit;
                 });
             }
 

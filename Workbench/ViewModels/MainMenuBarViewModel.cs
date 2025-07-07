@@ -1,7 +1,9 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Serein.Library.Api;
+using Serein.NodeFlow.Services;
 using Serein.Workbench.Services;
+using System.Diagnostics;
 using System.Windows.Input;
 
 namespace Serein.Workbench.ViewModels
@@ -130,6 +132,20 @@ namespace Serein.Workbench.ViewModels
 
         private void OpenRemoteServer()
         {
+            try
+            {
+
+
+                var env = App.GetService<IFlowEnvironment>();
+                var flowModelService = env.IOC.Get<FlowModelService>();
+                var text = flowModelService.ToCsharpCoreFile(); ;
+                Debug.WriteLine(text);
+
+            }
+            catch (Exception ex)
+            {
+
+            }
             flowEnvironment.StartRemoteServerAsync();
         }
 

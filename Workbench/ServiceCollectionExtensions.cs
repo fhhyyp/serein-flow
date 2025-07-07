@@ -74,7 +74,6 @@ namespace Serein.Workbench
             collection.AddSingleton<IFlowEnvironmentEvent>(flowEnvironment.Event); // 注册运行环境事件
 
             #endregion
-
         }
     }
 

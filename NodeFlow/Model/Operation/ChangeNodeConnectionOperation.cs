@@ -298,25 +298,37 @@ namespace Serein.NodeFlow.Model.Operation
         /// </summary>
         /// <exception cref="Exception"></exception>
         private async Task<bool> CreateArgConnection()
-        {
+        {/*
             IFlowNode fromNodeControl = ToNode;
-            IFlowNode toNodeControl = ToNode;
+            IFlowNode toNodeControl = ToNode;*/
             ConnectionArgSourceType type = ConnectionArgSourceType;
             int index = ArgIndex;
 
 
-           
+            /*FromNode.NeedResultNodes[type].Remove(ToNode); // 从起始节点的参数来源中移除目标节点
+            if (FromNode.Guid == ToNode.Guid) // 不能连接到自己
+            {
+                SereinEnv.WriteLine(InfoType.ERROR, $"起始节点与目标节点不能是同一个节点" +
+                    $"{Environment.NewLine}起始节点：{FromNode.Guid}" +
+                    $"{Environment.NewLine}目标节点：{ToNode.Guid}");
+                return false;
+            }*/
             var toNodeArgSourceGuid = ToNode.MethodDetails.ParameterDetailss[ArgIndex].ArgDataSourceNodeGuid; // 目标节点对应参数可能已经有其它连接
             var toNodeArgSourceType = ToNode.MethodDetails.ParameterDetailss[ArgIndex].ArgDataSourceType;
             
             if (FromNode.Guid == toNodeArgSourceGuid 
                 && toNodeArgSourceType == ConnectionArgSourceType)
             {
-                SereinEnv.WriteLine(InfoType.INFO, $"节点之间已建立过连接关系" +
+                if (FromNode.NeedResultNodes[type].Contains(ToNode))
+                {
+                    SereinEnv.WriteLine(InfoType.INFO, $"节点之间已建立过连接关系" +
                     $"起始节点：{FromNode.Guid}" +
                     $"目标节点：{ToNode.Guid}" +
                     $"参数索引：{ArgIndex}" +
                     $"参数类型：{ConnectionArgSourceType}");
+                    return false;
+                }
+                FromNode.NeedResultNodes[type].Add(ToNode);
                 await TriggerEvent(() =>
                 {
                     flowEnvironmentEvent.OnNodeConnectChanged(

@@ -35,7 +35,7 @@
             </MenuItem>
             <MenuItem Header="拓展">
                 <!--<MenuItem Header="动态编译" ></MenuItem>-->
-                <MenuItem Header="启动远程服务"></MenuItem>
+                <MenuItem Header="启动远程服务" Command="{Binding OpenRemoteServerCommand}"></MenuItem>
             </MenuItem>
         </Menu>
 

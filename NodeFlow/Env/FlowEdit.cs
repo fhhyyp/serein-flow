@@ -5,7 +5,6 @@ using Serein.Library.Utils;
 using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Model.Operation;
 using Serein.NodeFlow.Services;
-using Serein.NodeFlow.Tool;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using static Serein.Library.Api.IFlowEnvironment;
@@ -261,7 +260,7 @@ namespace Serein.NodeFlow.Env
                 ChangeType = NodeConnectChangeEventArgs.ConnectChangeType.Create,
                 JunctionOfConnectionType = JunctionOfConnectionType.Arg,
             };
-            flowOperationService.Execute(operation);
+             flowOperationService.Execute(operation);
         }
 
         public void RemoveInvokeConnect(string canvasGuid, string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
@@ -335,6 +334,15 @@ namespace Serein.NodeFlow.Env
 
         public void SetStartNode(string canvasGuid, string nodeGuid)
         {
+
+            IOperation operation = new SetStartNodeOperation
+            {
+                CanvasGuid = canvasGuid,
+                NewNodeGuid = nodeGuid,
+            };
+            _ = flowOperationService.Execute(operation);
+
+            return;
             if (!TryGetCanvasModel(canvasGuid, out var canvasModel) || !TryGetNodeModel(nodeGuid, out var newStartNodeModel))
             {
                 return;

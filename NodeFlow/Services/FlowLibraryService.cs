@@ -13,12 +13,12 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 
-namespace Serein.NodeFlow.Tool
+namespace Serein.NodeFlow.Services
 {
     /// <summary>
     /// 管理加载在运行环境中的外部程序集
     /// </summary>
-    internal class FlowLibraryService
+    public class FlowLibraryService
     {
         public FlowLibraryService(IFlowEnvironment flowEnvironment)
         {
@@ -105,6 +105,32 @@ namespace Serein.NodeFlow.Tool
         }
 
         /// <summary>
+        /// 获取方法描述
+        /// </summary>
+        /// <param name="assemblyName">程序集名称</param>
+        /// <param name="methodName">方法名称</param>
+        /// <param name="md">返回的方法描述</param>
+        /// <returns>是否获取成功</returns>
+        public bool TryGetMethodInfo(string assemblyName, string methodName, [MaybeNullWhen(false)] out MethodInfo methodInfo)
+        {
+            if (string.IsNullOrEmpty(assemblyName) || string.IsNullOrEmpty(methodName))
+            {
+                methodInfo = null;
+                return false;
+            }
+            if (_myFlowLibrarys.TryGetValue(assemblyName, out var flowLibrary)
+                && flowLibrary.MethodInfos.TryGetValue(methodName, out methodInfo))
+            {
+                return true;
+            }
+            else
+            {
+                methodInfo = null;
+                return false;
+            }
+        }
+
+         /// <summary>
         /// 获取方法描述
         /// </summary>
         /// <param name="assemblyName">程序集名称</param>
@@ -238,7 +264,7 @@ namespace Serein.NodeFlow.Tool
         /// <summary>
         /// 基础依赖
         /// </summary>
-        public readonly static string SereinBaseLibrary = $"{nameof(Serein)}.{nameof(Serein.Library)}.dll";
+        public readonly static string SereinBaseLibrary = $"{nameof(Serein)}.{nameof(Library)}.dll";
 
         //private (NodeLibraryInfo, List<MethodDetailsInfo>) LoadDllNodeInfo(Assembly assembly)
         //{
@@ -331,7 +357,7 @@ namespace Serein.NodeFlow.Tool
             string? assemblyPath = _resolver.ResolveAssemblyToPath(assemblyName);
             if (!string.IsNullOrEmpty(assemblyPath))
             {
-                var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(assemblyPath);
+                var assembly = Default.LoadFromAssemblyPath(assemblyPath);
                 //var assembly = LoadFromAssemblyPath(assemblyPath);
                 return assembly;
             }

@@ -266,7 +266,7 @@ namespace Serein.NodeFlow.Model
                 // 此处代码与SereinFlow.Library.FlowNode.ParameterDetails
                 // ToMethodArgData()方法中判断流程接口节点分支逻辑耦合
                 // 不要轻易修改
-                context.AddOrUpdate(targetNode.Guid, flowData);
+                context.AddOrUpdateFlowData(targetNode.Guid, flowData);
                 foreach (ConnectionInvokeType ctType in NodeStaticConfig.ConnectionTypes)
                 {
                     if (this.SuccessorNodes[ctType] == null) continue;

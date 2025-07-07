@@ -14,6 +14,9 @@
     <LangVersion>latest</LangVersion>
     <SatelliteResourceLanguages>no</SatelliteResourceLanguages>
 
+
+    <Optimize>true</Optimize>
+
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <CompilerGeneratedFilesOutputPath>.\obj\g</CompilerGeneratedFilesOutputPath>

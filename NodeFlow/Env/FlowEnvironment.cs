@@ -3,7 +3,6 @@ using Serein.Library.Api;
 using Serein.Library.FlowNode;
 using Serein.Library.Utils;
 using Serein.NodeFlow.Services;
-using Serein.NodeFlow.Tool;
 using System.Reflection;
 
 namespace Serein.NodeFlow.Env
@@ -58,9 +57,9 @@ namespace Serein.NodeFlow.Env
                .Register<IFlowControl, FlowControl>()
                .Register<LocalFlowEnvironment>()
                .Register<FlowModelService>()
+               .Register<FlowLibraryService>()
                .Register<FlowOperationService>()
                .Register<NodeMVVMService>()
-               .Register<FlowLibraryService>()
                .Build();
             // 默认使用本地环境
             currentFlowEnvironment = ioc.Get<LocalFlowEnvironment>();
@@ -283,9 +282,9 @@ namespace Serein.NodeFlow.Env
         }
 
         /// <inheritdoc/>
-        public async Task<bool> StartFlowFromSelectNodeAsync(string startNodeGuid)
+        public async Task<TResult> StartFlowAsync<TResult>(string startNodeGuid)
         {
-           return await currentFlowEnvironment.FlowControl.StartFlowFromSelectNodeAsync(startNodeGuid);
+           return await currentFlowEnvironment.FlowControl.StartFlowAsync<TResult>(startNodeGuid);
         }
        
         /// <inheritdoc/>

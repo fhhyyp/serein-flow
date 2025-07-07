@@ -4,6 +4,7 @@ using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.Utils;
 using Serein.NodeFlow.Env;
+using Serein.NodeFlow.Services;
 using Serein.Workbench.Api;
 using Serein.Workbench.Services;
 using Serein.Workbench.ViewModels;
@@ -54,6 +55,7 @@ namespace Serein.Workbench
         // 这里是测试代码，可以删除
         private async Task LoadLocalProjectAsync()
         {
+
             if (1 == 11)
             {
                 var projectService = App.GetService<FlowProjectService>();

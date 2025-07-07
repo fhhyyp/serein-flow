@@ -268,14 +268,16 @@ namespace Serein.NodeFlow.Services
         /// </summary>
         /// <param name="startNode"></param>
         /// <returns></returns>
-        public async Task StartFlowInSelectNodeAsync(IFlowNode  startNode)
+        public async Task<FlowResult> StartFlowInSelectNodeAsync(IFlowNode startNode)
         {
             var pool = WorkOptions.FlowContextPool;
             var context = pool.Allocate();
             var token = WorkOptions.CancellationTokenSource.Token;
             var result = await startNode.StartFlowAsync(context, token); // 开始运行时从选定节点开始运行
+
             context.Reset();
             pool.Free(context);
+            return result;
         }
 
         /// <summary>
@@ -342,7 +344,7 @@ namespace Serein.NodeFlow.Services
                 {
                     var context = pool.Allocate(); // 启动全局触发器时新建上下文
                     var newFlowData = await singleFlipFlopNode.ExecutingAsync(context, singleToken); // 获取触发器等待Task
-                    context.AddOrUpdate(singleFlipFlopNode.Guid, newFlowData);
+                    context.AddOrUpdateFlowData(singleFlipFlopNode.Guid, newFlowData);
                     if (context.NextOrientation == ConnectionInvokeType.None)
                     {
                         continue;

@@ -29,6 +29,24 @@ namespace Serein.NodeFlow
             return false;
         }
 
+        /// <summary>
+        /// 是否为根节点
+        /// </summary>
+        /// <param name="node"></param>
+        /// <returns></returns>
+        public static bool IsRoot(this IFlowNode node)
+        {
+            var cts = NodeStaticConfig.ConnectionTypes;
+            foreach (var ct in cts)
+            {
+                if (node.PreviousNodes[ct].Count > 0)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
 
         /// <summary>
         /// 创建节点
@@ -89,6 +107,8 @@ namespace Serein.NodeFlow
             };
         }
 
+
+
         /// <summary>
         /// 触发器运行后状态转为对应的后继分支类别
         /// </summary>
@@ -106,6 +126,8 @@ namespace Serein.NodeFlow
                 _ => throw new NotImplementedException("未定义的流程状态")
             };
         }
+
+
 
         /// <summary>
         /// 判断 触发器节点 是否存在上游分支
@@ -136,19 +158,27 @@ namespace Serein.NodeFlow
         /// <param name="retractCount">缩进次数（4个空格）</param>
         /// <param name="code">要添加的代码</param>
         /// <returns>字符串构建器本身</returns>
-        public static StringBuilder AddCode(this StringBuilder sb,
+        public static StringBuilder AppendCode(this StringBuilder sb,
             int retractCount = 0,
-            string code = null)
+            string code = null,
+            bool isWrapping = true)
         {
             if (!string.IsNullOrWhiteSpace(code))
             {
-                var retract = new string(' ', retractCount * 4);
-                sb.AppendLine(retract + code);
+                string retract = new string(' ', retractCount * 4);
+                sb.Append(retract);
+                if (isWrapping)
+                {
+                    sb.AppendLine(code);
+                }
+                else
+                {
+                    sb.Append(code);
+                }
             }
             return sb;
         }
-
-
+       
 
 
 

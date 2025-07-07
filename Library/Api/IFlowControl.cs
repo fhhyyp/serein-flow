@@ -29,7 +29,7 @@ namespace Serein.Library.Api
         /// </summary>
         /// <param name="startNodeGuid"></param>
         /// <returns></returns>
-        Task<bool> StartFlowFromSelectNodeAsync(string startNodeGuid);
+        Task<TResult> StartFlowAsync<TResult>(string startNodeGuid);
 
         /// <summary>
         /// 结束运行

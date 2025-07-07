@@ -38,9 +38,14 @@ namespace Serein.Library
         public ParameterDetailsInfo[] ParameterDetailsInfos { get; set; }
 
         /// <summary>
-        /// 可选参数信息
+        /// 可选参数信息（-1表示不存在）
         /// </summary>
         public int IsParamsArgIndex { get; set; }
+
+        /// <summary>
+        /// 是否为异步方法
+        /// </summary>
+        public bool IsAsync{ get; set; }
 
         /// <summary>
         /// 出参类型

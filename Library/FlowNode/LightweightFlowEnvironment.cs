@@ -1,101 +1,89 @@
-﻿using Microsoft.VisualBasic;
+﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.Extensions.ObjectPool;
+using Microsoft.VisualBasic;
 using Serein.Library.Api;
 using Serein.Library.Utils;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Serein.Library.FlowNode
+namespace Serein.Library
 {
-
-
-    /*public class FlowControl
+/*
+    public class CallNodeLookup : IFlowCallTree
     {
-        private DynamicFlowTemplate dynamicFlowTemplate;
-        private LightweightEnvironment environment;
-        public FlowControl(DynamicFlowTemplate dynamicFlowTemplate,
-                           LightweightEnvironment environment)
+        private static readonly string[] _keys = new[]
         {
-            var callTree = new CallTree()
-            callTree.SetMainNode("node1_guid");
+            "Start",   // 0
+            "Stop",    // 1
+            "Reset",   // 2
+            "Pause",   // 3
+            "Resume",  // 4
+            "Check",   // 5
+            "Init",    // 6
+            "Load",    // 7
+            "Save",    // 8
+            "Clear"    // 9
+        };
 
-            callTree.AddCallNode("node1_guid", (context) => DynamicFlowTemplate.Method(context, ...));
-            callTree.AddCallNode("node2_guid", (context) => DynamicFlowTemplate.Method(context, ...));
-            callTree.AddCallNode("node3_guid", (context) => DynamicFlowTemplate.Method(context, ...));
-            callTree.AddCallNode("node4_guid", (context) => DynamicFlowTemplate.Method(context, ...));
+        private static readonly CallNode[] _values = new CallNode[10];
 
-            callTree["node1_guid"].AddFlowUpstream("node2_guid");
-            callTree["node1_guid"].AddFlowSucceed("node2_guid");
-            callTree["node2_guid"].AddFlowSucceed("node3_guid");
-            callTree["node2_guid"].AddFlowError("node4_guid");
-
-            LightweightEnvironment.LoadProject(callTree);
-        }
-    }*/
-
-
-    /*public class DynamicFlowTemplate
-    {
-        private readonly class1_type class1_instance;
-
-        public DynamicFlowTemplate(class1_type class_instance){
-            this.class1_instance = class1_instance;
-        }
-
-        [Description("node1_guid")]
-        [Description("assembly_name.class_name.method_name")]
-        private [methodReturnType / void] NodeMethod_[method_name](IDynamicContext context, type1 param1, type2 param2)
+        static CallNodeLookup()
         {
-            class1_instance.method(params);
-            context.SetData("node_guid", null);
+            *//*_values[0] = new CallNode("Start");
+            _values[1] = new CallNode("Stop");
+            _values[2] = new CallNode("Reset");
+            _values[3] = new CallNode("Pause");
+            _values[4] = new CallNode("Resume");
+            _values[5] = new CallNode("Check");
+            _values[6] = new CallNode("Init");
+            _values[7] = new CallNode("Load");
+            _values[8] = new CallNode("Save");
+            _values[9] = new CallNode("Clear");*//*
         }
 
-        [Description("node2_guid")]
-        [Description("assembly_name.class_name.method_name")]
-        private [methodReturnType] NodeMethod_[method_name](IDynamicContext context, type1 param1)
+        // 最小冲突哈希函数（简单示例，固定键集有效）
+        private static int PerfectHash(string key)
         {
-            param1 = context.GetData("node1_guid") as type1;
-            var result = class1_instance.method(params, param1);
-            context.SetData("node2_guid", result);
+            return key switch
+            {
+                "Start" => 0,
+                "Stop" => 1,
+                "Reset" => 2,
+                "Pause" => 3,
+                "Resume" => 4,
+                "Check" => 5,
+                "Init" => 6,
+                "Load" => 7,
+                "Save" => 8,
+                "Clear" => 9,
+                _ => -1
+            };
         }
 
-
-        [Description("node3_guid")]
-        public [methodReturnType] FlowCall_[method_name](IDynamicContext context, type1 param1, type2 param2)
+        public CallNode Get(string key)
         {
-            param1 = context.GetData("node3_guid") as type1;
-            var result = class1_instance.method(params, param1);
-            context.SetData("node3_guid", result);
+            int index = PerfectHash(key);
+            if (index >= 0 && _keys[index] == key)
+                return _values[index];
+            return null;
         }
     }
-    */
 
+  
+*/
 
-
-    
-
-
-
-
-
-
-
-    public class CallTree
+    public class FlowCallTree : IFlowCallTree
     {
-        public CallTree(string canvasGuid, string startNodeGuid)
-        {
-            _canvas_guid = canvasGuid;
-            _start_node_guid = startNodeGuid;
-        }
 
+        private readonly SortedDictionary<string, CallNode> _callNodes = new SortedDictionary<string,CallNode>();
+        //private readonly Dictionary<string, CallNode> _callNodes = new Dictionary<string,CallNode>();
 
-        private readonly ConcurrentDictionary<string, CallNode> _callNodes = new ConcurrentDictionary<string,CallNode>();
-        private readonly string _start_node_guid;
-        private readonly string _canvas_guid ;
         public CallNode this[string index]
         {
             get
@@ -106,45 +94,57 @@ namespace Serein.Library.FlowNode
             set
             {
                 // 设置指定索引的值
-                _callNodes.AddOrUpdate(index, value, (key, oldValue) => value);
+                _callNodes.Add(index, value);
             }
         }
 
         public void AddCallNode(string nodeGuid, Action<IDynamicContext> action)
         {
-            var node = new CallNode(this, nodeGuid, action);
+            var node = new CallNode(nodeGuid, action);
             _callNodes[nodeGuid] = node;
         }
         public void AddCallNode(string nodeGuid, Func<IDynamicContext, Task> func)
         {
-            var node = new CallNode(this, nodeGuid, func);
+            var node = new CallNode(nodeGuid, func);
             _callNodes[nodeGuid] = node;
         }
 
+        public CallNode Get(string key)
+        {
+            return _callNodes.TryGetValue(key, out CallNode callNode) ? callNode : null;
+        }
     }
+
+
+
 
 
 
     public class CallNode
     {
 
-        private readonly Func<IDynamicContext, Task> func;
-        private readonly CallTree callTree;
-        private readonly Action<IDynamicContext> action;
+        private Func<IDynamicContext, Task> taskFunc;
+        private Action<IDynamicContext> action;
 
-        public CallNode(CallTree callTree, string nodeGuid, Action<IDynamicContext> action)
-        {
-            this.callTree = callTree;
-            Guid = nodeGuid;
-            this.action = action;
-        }
-
-        public CallNode(CallTree callTree, string nodeGuid, Func<IDynamicContext, Task> func)
+        public CallNode(string nodeGuid)
         {
             Guid = nodeGuid;
-            this.func = func;
             Init();
         }
+        public CallNode(string nodeGuid, Action<IDynamicContext> action)
+        {
+            Guid = nodeGuid;
+            this.action = action;
+            Init();
+        }
+
+        public CallNode(string nodeGuid, Func<IDynamicContext, Task> func)
+        {
+            Guid = nodeGuid;
+            this.taskFunc = func;
+            Init();
+        }
+
 
         private void Init()
         {
@@ -155,6 +155,16 @@ namespace Serein.Library.FlowNode
                 PreviousNodes[ctType] = new List<CallNode>();
                 SuccessorNodes[ctType] = new List<CallNode>();
             }
+        }
+
+        
+        public void SetAction(Action<IDynamicContext> action)
+        {
+            this.action = action;
+        }
+        public void SetAction(Func<IDynamicContext, Task> taskFunc)
+        {
+            this.taskFunc = taskFunc;
         }
 
 
@@ -173,28 +183,30 @@ namespace Serein.Library.FlowNode
         public Dictionary<ConnectionInvokeType, List<CallNode>> SuccessorNodes { get; private set; } 
 
 
-        public CallNode AddChildNodeUpstream(string nodeGuid)
+        public CallNode AddChildNodeUpstream(CallNode callNode)
         {
             var connectionInvokeType = ConnectionInvokeType.Upstream;
-            PreviousNodes[connectionInvokeType].Add(callTree[nodeGuid]);
+            SuccessorNodes[connectionInvokeType].Add(callNode);
             return this;
         }
-        public CallNode AddChildNodeSucceed(string nodeGuid)
+        public CallNode AddChildNodeSucceed(CallNode callNode)
         {
-            var connectionInvokeType = ConnectionInvokeType.IsSucceed;
-            PreviousNodes[connectionInvokeType].Add(callTree[nodeGuid]);
+            var connectionInvokeType = ConnectionInvokeType.IsSucceed; 
+            SuccessorNodes[connectionInvokeType].Add(callNode);
+
             return this;
         }
-        public CallNode AddChildNodeFail(string nodeGuid)
+        public CallNode AddChildNodeFail(CallNode callNode)
         {
-            var connectionInvokeType = ConnectionInvokeType.IsFail;
-            PreviousNodes[connectionInvokeType].Add(callTree[nodeGuid]);
+            var connectionInvokeType = ConnectionInvokeType.IsFail; 
+            SuccessorNodes[connectionInvokeType].Add(callNode);
+
             return this;
         }
-        public CallNode AddChildNodeError(string nodeGuid)
+        public CallNode AddChildNodeError(CallNode callNode)
         {
             var connectionInvokeType = ConnectionInvokeType.IsError;
-            PreviousNodes[connectionInvokeType].Add(callTree[nodeGuid]);
+            SuccessorNodes[connectionInvokeType].Add(callNode);
             return this;
         }
 
@@ -216,15 +228,19 @@ namespace Serein.Library.FlowNode
             {
                 action(context);
             }
-            else if (func is not null)
+            else if (taskFunc is not null)
             {
-                await func(context);
+                await taskFunc(context);
             }
             else
             {
                 throw new InvalidOperationException($"生成了错误的CallNode。【{Guid}】");
             }
         }
+
+        private static readonly DefaultObjectPool<Stack<CallNode>> _stackPool = new DefaultObjectPool<Stack<CallNode>>(new DefaultPooledObjectPolicy<Stack<CallNode>>());
+
+        
 
         /// <summary>
         /// 开始执行
@@ -234,10 +250,8 @@ namespace Serein.Library.FlowNode
         /// <returns></returns>
         public async Task<FlowResult> StartFlowAsync(IDynamicContext context, CancellationToken token)
         {
-            Stack<CallNode> stack = new Stack<CallNode>();
-            HashSet<CallNode> processedNodes = new HashSet<CallNode>(); // 用于记录已处理上游节点的节点
+            var stack = _stackPool.Get();
             stack.Push(this);
-
             while (true)
             {
                 if (token.IsCancellationRequested)
@@ -253,7 +267,6 @@ namespace Serein.Library.FlowNode
                 try
                 {
                     await currentNode.InvokeAsync(context, token);
-
                     if (context.NextOrientation == ConnectionInvokeType.None) // 没有手动设置时，进行自动设置
                     {
                         context.NextOrientation = ConnectionInvokeType.IsSucceed;
@@ -269,7 +282,6 @@ namespace Serein.Library.FlowNode
                 #endregion
 
                 #region 执行完成时更新栈
-                context.AddOrUpdate(currentNode.Guid, flowResult); // 上下文中更新数据
 
                 // 首先将指定类别后继分支的所有节点逆序推入栈中
                 var nextNodes = currentNode.SuccessorNodes[context.NextOrientation];
@@ -293,24 +305,37 @@ namespace Serein.Library.FlowNode
 
                 if (stack.Count == 0)
                 {
+                    _stackPool.Return(stack);
+                    flowResult = context.GetFlowData(currentNode.Guid);
                     return flowResult;  // 说明流程到了终点
                 }
 
                 if (context.RunState == RunState.Completion)
                 {
+
+                    _stackPool.Return(stack);
                     context.Env.WriteLine(InfoType.INFO, $"流程执行到节点[{currentNode.Guid}]时提前结束，将返回当前执行结果。");
+                    flowResult = context.GetFlowData(currentNode.Guid); _stackPool.Return(stack);
                     return flowResult; // 流程执行完成，返回结果
                 }
 
                 if (token.IsCancellationRequested)
                 {
+                    _stackPool.Return(stack);
                     throw new Exception($"流程执行到节点[{currentNode.Guid}]时被取消，未能获取到流程结果。");
                 }
 
 
                 #endregion
             }
+          
         }
+    }
+
+
+    public interface IFlowCallTree
+    {
+        CallNode Get(string key);
     }
 
     /// <summary>
@@ -318,10 +343,13 @@ namespace Serein.Library.FlowNode
     /// </summary>
     public class LightweightFlowControl : IFlowControl
     {
-        private readonly Dictionary<string, CallTree> callTree = new Dictionary<string, CallTree>();
+        private readonly IFlowCallTree flowCallTree;
+        private readonly IFlowEnvironment flowEnvironment;
 
-        public LightweightFlowControl()
+        public LightweightFlowControl(IFlowCallTree flowCallTree, IFlowEnvironment flowEnvironment)
         {
+            this.flowCallTree = flowCallTree;
+            this.flowEnvironment = flowEnvironment;
         }
 
         public Task<object> InvokeAsync(string apiGuid, Dictionary<string, object> dict)
@@ -334,9 +362,41 @@ namespace Serein.Library.FlowNode
             throw new NotImplementedException();
         }
 
-        public Task<bool> StartFlowFromSelectNodeAsync(string startNodeGuid)
+
+        //private readonly DefaultObjectPool<IDynamicContext> _stackPool = new DefaultObjectPool<IDynamicContext>(new DynamicContext(this));
+
+
+        public async Task<TResult> StartFlowAsync<TResult>(string startNodeGuid)
         {
-            throw new NotImplementedException();
+            IDynamicContext context = new DynamicContext(flowEnvironment);
+            CancellationTokenSource cts = new CancellationTokenSource();
+#if DEBUG
+
+            FlowResult flowResult = await BenchmarkHelpers.BenchmarkAsync(async () =>
+            {
+                var node = flowCallTree.Get(startNodeGuid);
+                var flowResult = await node.StartFlowAsync(context, cts.Token);
+                return flowResult;
+            });
+#else
+            var node = flowCallTree.Get(startNodeGuid);
+            FlowResult flowResult = await node.StartFlowAsync(context, cts.Token);
+#endif
+
+            cts?.Cancel();
+            cts?.Dispose();
+            if (flowResult.Value is TResult result)
+            {
+                return result;
+            }
+            else if (flowResult is FlowResult && flowResult is TResult result2)
+            {
+                return result2;
+            }
+            else
+            {
+                throw new ArgumentNullException($"类型转换失败，流程返回数据与泛型不匹配，当前返回类型为[{flowResult.Value.GetType().FullName}]。");
+            }
         }
         public async Task<bool> StartFlowAsync(string[] canvasGuids)
         {
@@ -501,6 +561,14 @@ namespace Serein.Library.FlowNode
     /// </summary>
     public class LightweightFlowEnvironment : IFlowEnvironment
     {
+
+        public LightweightFlowEnvironment(IFlowEnvironmentEvent lightweightFlowEnvironmentEvent)
+        {
+            this.Event = lightweightFlowEnvironmentEvent;
+        }
+
+
+
         public void WriteLine(InfoType type, string message, InfoClass @class = InfoClass.Trivial)
         {
             Console.WriteLine(message);
@@ -513,7 +581,7 @@ namespace Serein.Library.FlowNode
 
         public IFlowControl FlowControl => throw new NotImplementedException();
 
-        public IFlowEnvironmentEvent Event => throw new NotImplementedException();
+        public IFlowEnvironmentEvent Event { get; private set; }
 
         public string EnvName => throw new NotImplementedException();
 

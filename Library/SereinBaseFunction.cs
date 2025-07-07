@@ -15,13 +15,13 @@ namespace Serein.Library
     /// </summary>
 
     [DynamicFlow(Name ="[基础功能]")]
-    public class SereinBaseFunction
+    public static class SereinBaseFunction
     {
         
         
 
         [NodeAction(NodeType.Action, "键值对组装")]
-        private Dictionary<string, object> SereinKvDataCollectionNode(string argName, 
+        public static Dictionary<string, object> SereinKvDataCollectionNode(string argName, 
                                                                       params object[] value)
         {
 
@@ -36,13 +36,13 @@ namespace Serein.Library
         }
 
         [NodeAction(NodeType.Action, "数组组装")]
-        private object[] SereinListDataCollectionNode(params object[] value)
+        public static object[] SereinListDataCollectionNode(params object[] value)
         {
             return value;
         }
 
         [NodeAction(NodeType.Action, "输出")]
-        private object[] SereinConsoleNode(params object[] value)
+        public static object[] SereinConsoleNode(params object[] value)
         {
             foreach (var item in value)
             {
@@ -52,7 +52,7 @@ namespace Serein.Library
         }
 
         [NodeAction(NodeType.Action, "逻辑分支")]
-        private object SereinLogicalBranch([NodeParam(IsExplicit = false)]bool @bool, 
+        public static object SereinLogicalBranch([NodeParam(IsExplicit = false)]bool @bool, 
                                             object t_value,
                                             object f_value)
         {
@@ -60,7 +60,7 @@ namespace Serein.Library
         }
 
         [NodeAction(NodeType.Action, "文本拼接")]
-        private string SereinTextJoin(params object[] value)
+        public static string SereinTextJoin(params object[] value)
         {
             StringBuilder sb = new StringBuilder();
             foreach (var item in value)
@@ -84,7 +84,7 @@ namespace Serein.Library
 
 
         [NodeAction(NodeType.Action, "键值对动态构建对象")]
-        private object SereinKvDataToObject(Dictionary<string, object> dict, 
+        public static object SereinKvDataToObject(Dictionary<string, object> dict, 
                                             string classTypeName = "newClass_dynamic",
                                             bool IsPrint = false)
         {
@@ -105,7 +105,7 @@ namespace Serein.Library
 
 
         [NodeAction(NodeType.Action, "设置/更新全局数据")]
-        private object SereinAddOrUpdateFlowGlobalData(string name, object data)
+        public static object SereinAddOrUpdateFlowGlobalData(string name, object data)
         {
             SereinEnv.AddOrUpdateFlowGlobalData(name, data);
             return data;

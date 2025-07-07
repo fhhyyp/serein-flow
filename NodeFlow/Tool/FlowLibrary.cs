@@ -14,10 +14,18 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Serein.NodeFlow
 {
-    public class LibraryMdDd (MethodDetails methodDetails,DelegateDetails delegateDetails)
+    public class LibraryMdDd
     {
-        public MethodDetails MethodDetails { get;  } = methodDetails;
-        public DelegateDetails DelegateDetails { get; } = delegateDetails;
+        public MethodDetails MethodDetails { get;  }
+        public MethodInfo MethodInfo { get;  }
+        public DelegateDetails DelegateDetails { get; }
+
+        public LibraryMdDd(MethodInfo methodInfo, MethodDetails methodDetails, DelegateDetails delegateDetails)
+        {
+            MethodDetails = methodDetails;
+            MethodInfo = methodInfo;
+            DelegateDetails = delegateDetails;
+        }
     }
 
 
@@ -27,8 +35,6 @@ namespace Serein.NodeFlow
     public class FlowLibrary
     {
         public  Assembly Assembly { get; private set; }
-
-
 
         //private readonly Action actionOfUnloadAssmbly;
         /*, Action actionOfUnloadAssmbly*/
@@ -60,6 +66,7 @@ namespace Serein.NodeFlow
         /// Value ：方法详情
         /// </summary>
         public ConcurrentDictionary<string, MethodDetails> MethodDetailss { get; } = new ConcurrentDictionary<string, MethodDetails>();
+        public ConcurrentDictionary<string, MethodInfo> MethodInfos { get; } = new ConcurrentDictionary<string, MethodInfo>();
 
         /// <summary>
         /// 管理通过Emit动态构建的委托
@@ -112,6 +119,7 @@ namespace Serein.NodeFlow
         public bool LoadAssembly()
         {
             Assembly assembly = this.Assembly;
+
             #region 检查入参
 
             // 加载DLL，创建 MethodDetails、实例作用对象、委托方法
@@ -142,7 +150,7 @@ namespace Serein.NodeFlow
 
 
             #endregion
-
+                
             #region 获取 DynamicFlow 特性的流程控制器，如果没有退出
             // Type   ： 具有 DynamicFlowAttribute 标记的类型
             // string ： 类型元数据 DynamicFlowAttribute 特性中的 Name 属性 （用于生成方法描述时，添加在方法别名中提高可读性）
@@ -183,13 +191,13 @@ namespace Serein.NodeFlow
                 {
                     // 尝试创建
                     if (!NodeMethodDetailsHelper.TryCreateDetails(type, methodInfo, assemblyName,
-                                                                   out var md, out var dd)) // 返回的描述
+                                                                   out var mi, out var md, out var dd)) // 返回的描述
                     {
                         SereinEnv.WriteLine(InfoType.ERROR, $"无法加载方法信息：{assemblyName}-{type}-{methodInfo}");
                         continue;
                     }
                     md.MethodAnotherName = flowName + md.MethodAnotherName; // 方法别名
-                    detailss.Add(new LibraryMdDd(md, dd));
+                    detailss.Add(new LibraryMdDd(mi, md, dd));
                 }
             }
 
@@ -219,6 +227,7 @@ namespace Serein.NodeFlow
             {
                 var key = item.MethodDetails.MethodName;
                 MethodDetailss.TryAdd(key, item.MethodDetails);
+                MethodInfos.TryAdd(key, item.MethodInfo);
                 DelegateDetailss.TryAdd(key, item.DelegateDetails);
             }
 

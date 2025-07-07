@@ -551,7 +551,6 @@ namespace Serein.Workbench.Views
             }
 
 
-
             if (key == Key.F5)
             {
                 if (keyEventService.GetKeyState(Key.LeftCtrl) || keyEventService.GetKeyState(Key.RightCtrl))
@@ -564,7 +563,7 @@ namespace Serein.Workbench.Views
                     // F5 调试当前选定节点
                     var nodeModel = selectNodeControls[0].ViewModel.NodeModel;
                     SereinEnv.WriteLine(InfoType.INFO, $"调试运行当前节点:{nodeModel.Guid}");
-                    _ = flowEnvironment.FlowControl.StartFlowFromSelectNodeAsync(nodeModel.Guid);
+                    _ = flowEnvironment.FlowControl.StartFlowAsync<FlowResult>(nodeModel.Guid);
                     //_ = nodeModel.StartFlowAsync(new DynamicContext(flowEnvironment), new CancellationToken());
                 }
 

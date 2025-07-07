@@ -217,10 +217,21 @@ namespace Serein.Library
         /// </summary>
         /// <param name="nodeModel">节点</param>
         /// <param name="flowData">新的数据</param>
-        public void AddOrUpdate(string nodeModel, FlowResult flowData)
+        public void AddOrUpdateFlowData(string nodeModel, FlowResult flowData)
         {
             // this.dictNodeFlowData.TryGetValue(nodeGuid, out var oldFlowData);
             dictNodeFlowData.AddOrUpdate(nodeModel, _ => flowData, (o,n ) => flowData);
+        }
+
+        /// <summary>
+        /// 添加或更新当前节点的数据
+        /// </summary>
+        /// <param name="nodeModel"></param>
+        /// <param name="data"></param>
+        public void AddOrUpdate(string nodeModel, object data)
+        {
+            var flowData = new FlowResult(nodeModel, this, data);
+            dictNodeFlowData.AddOrUpdate(nodeModel, _ => flowData, (o, n) => flowData);
         }
 
         /// <summary>

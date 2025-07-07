@@ -236,7 +236,7 @@ namespace Serein.Library
                 #endregion
 
                 #region 执行完成时更新栈
-                context.AddOrUpdate(currentNode.Guid, flowResult); // 上下文中更新数据
+                context.AddOrUpdateFlowData(currentNode.Guid, flowResult); // 上下文中更新数据
                
                 // 首先将指定类别后继分支的所有节点逆序推入栈中
                 var nextNodes = currentNode.SuccessorNodes[context.NextOrientation];

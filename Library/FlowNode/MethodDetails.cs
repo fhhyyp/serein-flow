@@ -83,6 +83,12 @@ namespace Serein.Library
         private int _paramsArgIndex = -1;
 
         /// <summary>
+        /// 是否为异步方法（如果为异步方法，则返回值类型为Task或Task&lt;T&gt;）
+        /// </summary>
+        [PropertyInfo]
+        private bool _isAsync = false;
+
+        /// <summary>
         /// 出参类型
         /// </summary>
         [PropertyInfo]
@@ -269,6 +275,7 @@ namespace Serein.Library
                 ParameterDetailsInfos = this.ParameterDetailss?.Select(p => p.ToInfo()).ToArray(),
                 ReturnTypeFullName = this.ReturnType?.FullName,
                 IsParamsArgIndex = this.ParamsArgIndex,
+                IsAsync = this.IsAsync,
             };
         }
 
@@ -291,6 +298,7 @@ namespace Serein.Library
                 MethodLockName = this.MethodLockName,  // 拷贝
                 ParamsArgIndex = this.ParamsArgIndex,  // 拷贝
                 ParameterDetailss = this.ParameterDetailss?.Select(p => p?.CloneOfModel(nodeModel)).ToArray(), // 拷贝属于节点方法的新入参描述
+                IsAsync = this.IsAsync, // 拷贝
             };
 
             return md;

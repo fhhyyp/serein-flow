@@ -3,7 +3,6 @@ using Serein.Library.Api;
 using Serein.Library.Utils;
 using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Services;
-using Serein.NodeFlow.Tool;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -126,7 +125,6 @@ namespace Serein.NodeFlow.Env
             };
 
 
-
             flowWorkManagement = new FlowWorkManagement(flowTaskOptions);
             var cts = new CancellationTokenSource();
             try
@@ -152,7 +150,7 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         /// <param name="startNodeGuid"></param>
         /// <returns></returns>
-        public async Task<bool> StartFlowFromSelectNodeAsync(string startNodeGuid)
+        public async Task<TResult> StartFlowAsync<TResult>(string startNodeGuid)
         {
 
             var flowTaskOptions = new FlowWorkOptions
@@ -162,19 +160,34 @@ namespace Serein.NodeFlow.Env
             };
             var flowTaskManagement = new FlowWorkManagement(flowTaskOptions);
 
-            if (true || flowEnvironment.FlowState == RunState.Running || FlipFlopState == RunState.Running)
+            if (!flowModelService.TryGetNodeModel(startNodeGuid, out var nodeModel) || nodeModel is SingleFlipflopNode)
             {
+                throw new Exception();
+            }
 
-                if (!flowModelService.TryGetNodeModel(startNodeGuid, out var nodeModel) || nodeModel is SingleFlipflopNode)
-                {
-                    return false;
-                }
-                await flowTaskManagement.StartFlowInSelectNodeAsync(nodeModel);
-                return true;
+#if DEBUG
+
+            FlowResult flowResult = await BenchmarkHelpers.BenchmarkAsync(async () =>
+            {
+                var flowResult = await flowTaskManagement.StartFlowInSelectNodeAsync(nodeModel);
+                return flowResult;
+            });
+#else
+            FlowResult flowResult =  await flowTaskManagement.StartFlowInSelectNodeAsync(nodeModel);
+#endif
+
+
+            if (flowResult.Value is TResult result)
+            {
+                return result;
+            }
+            else if (flowResult is FlowResult && flowResult is TResult result2)
+            {
+                return result2;
             }
             else
             {
-                return false;
+                throw new ArgumentNullException($"类型转换失败，流程返回数据与泛型不匹配，当前返回类型为[{flowResult.Value.GetType().FullName}]。");
             }
         }
 
@@ -331,7 +344,17 @@ namespace Serein.NodeFlow.Env
                 }
             }
             CancellationTokenSource cts = new CancellationTokenSource();
+
+#if DEBUG
+
+            FlowResult flowResult = await BenchmarkHelpers.BenchmarkAsync(async () =>
+            {
+                var flowResult = await flowCallNode.StartFlowAsync(context, cts.Token);
+                return flowResult;
+            });
+#else
             var flowResult = await flowCallNode.StartFlowAsync(context, cts.Token);
+#endif
             cts?.Cancel();
             cts?.Dispose();
             if (flowResult.Value is TResult result)

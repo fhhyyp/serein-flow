@@ -31,6 +31,7 @@ namespace Serein.Library.Utils
         /// </summary>
         private readonly ConcurrentDictionary<string, Func<object>> _registerCallback;
 
+
         /// <summary>
         /// 未完成注入的实例集合。
         /// 键：需要的类型名称
@@ -83,7 +84,6 @@ namespace Serein.Library.Utils
         /// 向容器注册类型，并指定其实例成员
         /// </summary>
         /// <typeparam name="T">需要注册的类型</typeparam>
-        /// <param name="getInstance">获取实例的回调函数</param>
         /// <returns></returns>
         public ISereinIOC Register<T>()
         {
@@ -117,6 +117,7 @@ namespace Serein.Library.Utils
         public ISereinIOC Register<TService, TImplementation>(Func<TService> getInstance)
             where TImplementation : TService
         {
+           
             RegisterType(typeof(TService).FullName, typeof(TImplementation), () => getInstance.Invoke());
             return this;
         }
@@ -130,6 +131,7 @@ namespace Serein.Library.Utils
         public ISereinIOC Register<TService, TImplementation>()
             where TImplementation : TService
         {
+            
             RegisterType(typeof(TService).FullName, typeof(TImplementation));
             return this;
         }
@@ -137,7 +139,7 @@ namespace Serein.Library.Utils
 
         #endregion
 
-        #region 示例的创建
+        #region 实例的创建
         /// <summary>
         /// 用于临时实例的创建，不登记到IOC容器中，依赖项注入失败时也不记录。
         /// </summary>
@@ -335,7 +337,8 @@ namespace Serein.Library.Utils
                     {
                         if (!dependencyMap[IOC_MAIN].Contains(type.FullName))
                         {
-                            dependencyMap[IOC_MAIN].Add(type.FullName);
+                            //dependencyMap[IOC_MAIN].Add(type.FullName);
+                            dependencyMap[IOC_MAIN].Add(typeFullName);
                         }
                         continue;
                     }
@@ -459,6 +462,7 @@ namespace Serein.Library.Utils
         /// <returns></returns>
         private object CreateInstance(string typeName)
         {
+
             if (!_typeMappings.TryGetValue(typeName, out var type)) // 获取类型
             {
                 return null;
@@ -535,8 +539,8 @@ namespace Serein.Library.Utils
         /// <returns></returns>
         public ISereinIOC Build()
         {
-            var dependencyTree = BuildDependencyTree(); // 生成类型依赖关系
-            var creationOrder = GetCreationOrder(dependencyTree); // 生成创建顺序
+            Dictionary<string, List<string>> dependencyTree = BuildDependencyTree(); // 生成类型依赖关系
+            List<string> creationOrder = GetCreationOrder(dependencyTree); // 生成创建顺序
 
             // 输出创建顺序
             Debug.WriteLine("创建顺序: " + string.Join($"{Environment.NewLine}↓ {Environment.NewLine}", creationOrder));
@@ -544,7 +548,10 @@ namespace Serein.Library.Utils
             // 创建对象
             foreach (var typeName in creationOrder)
             {
-                
+                if (typeName.Equals("Serein.Library.LightweightFlowEnvironment"))
+                {
+
+                }
                 if (_dependencies.ContainsKey(typeName))
                 {
                     continue;
@@ -554,13 +561,15 @@ namespace Serein.Library.Utils
                     continue;
                 }
                 var value = CreateInstance(typeName);
-                if(value is null)
+
+                if (value is null)
                 {
                     SereinEnv.WriteLine(InfoType.ERROR, $"IOC容器无法创建对象：{typeName}");
                     continue;
                 }
                 _dependencies[typeName] = value;
                 OnIOCMembersChanged?.Invoke(new IOCMembersChangedEventArgs(typeName, value));
+
             }
             _typeMappings.Clear();
             return this;

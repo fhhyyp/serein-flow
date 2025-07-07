@@ -112,6 +112,7 @@ namespace Serein.NodeFlow.Model
         /// <returns>节点传回数据对象</returns>
         public virtual async Task<FlowResult> ExecutingAsync(IDynamicContext context, CancellationToken token)
         {
+            
             // 执行触发检查是否需要中断
             if (DebugSetting.IsInterrupt)
             {
@@ -131,7 +132,6 @@ namespace Serein.NodeFlow.Model
                 
                 throw new Exception($"节点{this.Guid}不存在对应委托");
             }
-
             var instance = Env.IOC.Get(md.ActingInstanceType);
             if (instance is null)
             {

@@ -87,7 +87,15 @@ namespace Serein.Library.Api
         /// </summary>
         /// <param name="nodeModel"></param>
         /// <param name="flowData"></param>
-        void AddOrUpdate(string nodeModel, FlowResult flowData);
+        void AddOrUpdateFlowData(string nodeModel, FlowResult flowData);
+
+        /// <summary>
+        /// 添加或更新当前节点的数据
+        /// </summary>
+        /// <param name="nodeModel"></param>
+        /// <param name="data"></param>
+        void AddOrUpdate(string nodeModel, object data);
+
 
         /// <summary>
         /// 重置流程状态（用于对象池回收）
