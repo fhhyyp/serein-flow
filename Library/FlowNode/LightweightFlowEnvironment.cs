@@ -148,11 +148,11 @@ namespace Serein.Library
 
         private void Init()
         {
-            PreviousNodes = new Dictionary<ConnectionInvokeType, List<CallNode>>();
+            //PreviousNodes = new Dictionary<ConnectionInvokeType, List<CallNode>>();
             SuccessorNodes = new Dictionary<ConnectionInvokeType, List<CallNode>>();
             foreach (ConnectionInvokeType ctType in NodeStaticConfig.ConnectionTypes)
             {
-                PreviousNodes[ctType] = new List<CallNode>();
+                //PreviousNodes[ctType] = new List<CallNode>();
                 SuccessorNodes[ctType] = new List<CallNode>();
             }
         }
@@ -175,23 +175,48 @@ namespace Serein.Library
         /// <summary>
         /// 不同分支的父节点（流程调用）
         /// </summary>
-        public Dictionary<ConnectionInvokeType, List<CallNode>> PreviousNodes { get; private set; } 
+        //public Dictionary<ConnectionInvokeType, List<CallNode>> PreviousNodes { get; private set; } 
 
         /// <summary>
         /// 不同分支的子节点（流程调用）
         /// </summary>
-        public Dictionary<ConnectionInvokeType, List<CallNode>> SuccessorNodes { get; private set; } 
+        public Dictionary<ConnectionInvokeType, List<CallNode>> SuccessorNodes { get; private set; }
+        public CallNode[][] ChildNodes { get; private set; } = new CallNode[][]
+        {
+            new CallNode[32],
+            new CallNode[32],
+            new CallNode[32],
+            new CallNode[32]
+        };
 
+        public int GetCount(ConnectionInvokeType type) 
+        {
+            if (type == ConnectionInvokeType.Upstream) return UpstreamNodeCount;
+            if (type == ConnectionInvokeType.IsSucceed) return IsSuccessorNodeCount;
+            if (type == ConnectionInvokeType.IsFail) return IsFailNodeCount;
+            if (type == ConnectionInvokeType.IsError) return IsErrorNodeCount;
+            return 0;
+        }
+
+        public int UpstreamNodeCount { get; private set; } = 0;
+        public int IsSuccessorNodeCount { get; private set; } = 0;
+        public int IsFailNodeCount { get; private set; } = 0;
+        public int IsErrorNodeCount { get; private set; } = 0;
 
         public CallNode AddChildNodeUpstream(CallNode callNode)
         {
             var connectionInvokeType = ConnectionInvokeType.Upstream;
+            ChildNodes[(int)connectionInvokeType][UpstreamNodeCount++] = callNode;
             SuccessorNodes[connectionInvokeType].Add(callNode);
             return this;
         }
+
         public CallNode AddChildNodeSucceed(CallNode callNode)
         {
-            var connectionInvokeType = ConnectionInvokeType.IsSucceed; 
+            ChildNodes[0][UpstreamNodeCount++] = callNode;
+
+            var connectionInvokeType = ConnectionInvokeType.IsSucceed;
+            ChildNodes[(int)connectionInvokeType][IsSuccessorNodeCount++] = callNode;
             SuccessorNodes[connectionInvokeType].Add(callNode);
 
             return this;
@@ -199,6 +224,7 @@ namespace Serein.Library
         public CallNode AddChildNodeFail(CallNode callNode)
         {
             var connectionInvokeType = ConnectionInvokeType.IsFail; 
+            ChildNodes[(int)connectionInvokeType][IsFailNodeCount++] = callNode;
             SuccessorNodes[connectionInvokeType].Add(callNode);
 
             return this;
@@ -206,6 +232,7 @@ namespace Serein.Library
         public CallNode AddChildNodeError(CallNode callNode)
         {
             var connectionInvokeType = ConnectionInvokeType.IsError;
+            ChildNodes[(int)connectionInvokeType][IsErrorNodeCount++] = callNode;
             SuccessorNodes[connectionInvokeType].Add(callNode);
             return this;
         }
@@ -240,7 +267,6 @@ namespace Serein.Library
 
         private static readonly DefaultObjectPool<Stack<CallNode>> _stackPool = new DefaultObjectPool<Stack<CallNode>>(new DefaultPooledObjectPolicy<Stack<CallNode>>());
 
-        
 
         /// <summary>
         /// 开始执行
@@ -282,7 +308,6 @@ namespace Serein.Library
                 #endregion
 
                 #region 执行完成时更新栈
-
                 // 首先将指定类别后继分支的所有节点逆序推入栈中
                 var nextNodes = currentNode.SuccessorNodes[context.NextOrientation];
                 for (int index = nextNodes.Count - 1; index >= 0; index--)
@@ -345,11 +370,16 @@ namespace Serein.Library
     {
         private readonly IFlowCallTree flowCallTree;
         private readonly IFlowEnvironment flowEnvironment;
+        public static Serein.Library.Utils.ObjectPool<IDynamicContext> FlowContextPool { get; set; }
 
         public LightweightFlowControl(IFlowCallTree flowCallTree, IFlowEnvironment flowEnvironment)
         {
             this.flowCallTree = flowCallTree;
             this.flowEnvironment = flowEnvironment;
+             FlowContextPool = new Utils.ObjectPool<IDynamicContext>(() =>
+             {
+                 return new DynamicContext(flowEnvironment);
+             });
         }
 
         public Task<object> InvokeAsync(string apiGuid, Dictionary<string, object> dict)
@@ -368,11 +398,12 @@ namespace Serein.Library
 
         public async Task<TResult> StartFlowAsync<TResult>(string startNodeGuid)
         {
-            IDynamicContext context = new DynamicContext(flowEnvironment);
+            IDynamicContext context = Serein.Library.LightweightFlowControl.FlowContextPool.Allocate();
             CancellationTokenSource cts = new CancellationTokenSource();
+            FlowResult flowResult;
 #if DEBUG
 
-            FlowResult flowResult = await BenchmarkHelpers.BenchmarkAsync(async () =>
+            flowResult = await BenchmarkHelpers.BenchmarkAsync(async () =>
             {
                 var node = flowCallTree.Get(startNodeGuid);
                 var flowResult = await node.StartFlowAsync(context, cts.Token);
@@ -380,7 +411,19 @@ namespace Serein.Library
             });
 #else
             var node = flowCallTree.Get(startNodeGuid);
-            FlowResult flowResult = await node.StartFlowAsync(context, cts.Token);
+            try
+            {
+                flowResult = await node.StartFlowAsync(context, cts.Token);
+            }
+            catch (global::System.Exception)
+            {
+                throw;
+            }
+            finally
+            {
+                context.Reset();
+                FlowContextPool.Free(context);
+            }
 #endif
 
             cts?.Cancel();

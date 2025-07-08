@@ -96,12 +96,17 @@ namespace Serein.Library
         public static NodeInfo ToInfo(this IFlowNode nodeModel)
         {
             // if (MethodDetails == null) return null;
-            var trueNodes = nodeModel.SuccessorNodes[ConnectionInvokeType.IsSucceed].Select(item => item.Guid); // 真分支
+            /*var trueNodes = nodeModel.SuccessorNodes[ConnectionInvokeType.IsSucceed].Select(item => item.Guid); // 真分支
             var falseNodes = nodeModel.SuccessorNodes[ConnectionInvokeType.IsFail].Select(item => item.Guid);// 假分支
             var errorNodes = nodeModel.SuccessorNodes[ConnectionInvokeType.IsError].Select(item => item.Guid);// 异常分支
-            var upstreamNodes = nodeModel.SuccessorNodes[ConnectionInvokeType.Upstream].Select(item => item.Guid);// 上游分支
+            var upstreamNodes = nodeModel.SuccessorNodes[ConnectionInvokeType.Upstream].Select(item => item.Guid);// 上游分支*/
+
+            var successorNodes = nodeModel.SuccessorNodes.ToDictionary(kv => kv.Key, kv => kv.Value.Select(item => item.Guid).ToArray()); // 后继分支
+            var previousNodes = nodeModel.PreviousNodes.ToDictionary(kv => kv.Key, kv => kv.Value.Select(item => item.Guid).ToArray()); // 后继分支
+
+
             // 生成参数列表
-            ParameterData[] parameterData = nodeModel.SaveParameterInfo();
+            ParameterData[] parameterDatas = nodeModel.SaveParameterInfo();
 
             var nodeInfo = new NodeInfo
             {
@@ -112,17 +117,19 @@ namespace Serein.Library
                 MethodName = nodeModel.MethodDetails?.MethodName,
                 Label = nodeModel.MethodDetails?.MethodAnotherName,
                 Type = nodeModel.ControlType.ToString(), //this.GetType().ToString(),
-                TrueNodes = trueNodes.ToArray(),
+                /*TrueNodes = trueNodes.ToArray(),
                 FalseNodes = falseNodes.ToArray(),
                 UpstreamNodes = upstreamNodes.ToArray(),
-                ParameterData = parameterData.ToArray(),
-                ErrorNodes = errorNodes.ToArray(),
+                ErrorNodes = errorNodes.ToArray(),*/
+                ParameterData = parameterDatas,
                 Position = nodeModel.Position,
                 IsProtectionParameter = nodeModel.DebugSetting.IsProtectionParameter,
                 IsInterrupt = nodeModel.DebugSetting.IsInterrupt,
                 IsEnable = nodeModel.DebugSetting.IsEnable,
                 ParentNodeGuid = nodeModel.ContainerNode?.Guid,
                 ChildNodeGuids = nodeModel.ChildrenNode.Select(item => item.Guid).ToArray(),
+                SuccessorNodes = successorNodes,
+                PreviousNodes = previousNodes,
             };
             nodeInfo.Position.X = Math.Round(nodeInfo.Position.X, 1);
             nodeInfo.Position.Y = Math.Round(nodeInfo.Position.Y, 1);

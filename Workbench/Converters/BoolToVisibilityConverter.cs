@@ -14,7 +14,7 @@ namespace Serein.Workbench.Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            Debug.WriteLine($"targetType:{targetType}       value:{targetType}      parameter:{parameter}");
+            //Debug.WriteLine($"targetType:{targetType}       value:{targetType}      parameter:{parameter}");
             if (value is bool b)
             {
                 return b ? Visibility.Visible : Visibility.Collapsed;

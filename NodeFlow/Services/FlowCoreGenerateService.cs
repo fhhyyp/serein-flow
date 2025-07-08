@@ -627,7 +627,7 @@ namespace Serein.NodeFlow.Services
 
             // 初始化 Get 函数
             var nodeIndexName = "node_index";
-            sb.AppendCode(2, $" [MethodImpl(MethodImplOptions.AggressiveInlining)]"); // 内联优化
+            //sb.AppendCode(2, $" [MethodImpl(MethodImplOptions.AggressiveInlining)]"); // 内联优化
             sb.AppendCode(2, $"public global::Serein.Library.CallNode {nameof(IFlowCallTree.Get)}( global::System.String key)");
             sb.AppendCode(2, $"{{");
             sb.AppendCode(3, $"global::System.Int32 {nodeIndexName};");
@@ -702,7 +702,6 @@ namespace Serein.NodeFlow.Services
             sb.AppendCode(2, $"}}");
 
         }
-
 
         private void GenerateFlowApi_ApiParamClass(StringBuilder sb)
         {
@@ -887,6 +886,7 @@ namespace Serein.NodeFlow.Services
             var contextImpleFullName = $"global::{typeof(DynamicContext).FullName}";
             var tokenSourceFullName = $"global::{typeof(CancellationTokenSource).FullName}";
             var tokenFullName = $"global::{typeof(CancellationToken).FullName}";
+            var flowContextPoolName = $"global::{typeof(LightweightFlowControl).FullName}";
             string flowEnvironment = nameof(flowEnvironment);
             string flowContext = nameof(flowContext);
             string token = nameof(token);
@@ -902,11 +902,22 @@ namespace Serein.NodeFlow.Services
                     var invokeParamSignature = string.Join(", ", ParamInfos.Select(p => p.ParamName));
                     sb.AppendCode(2, $"public async {returnTypeContext} {ApiMethodName}({paramSignature})");
                     sb.AppendCode(2, $"{{");
-                    sb.AppendCode(3, $"{contextApiFullName} {flowContext} = new {contextImpleFullName}({flowEnvironment}); // 创建上下文");
-                    sb.AppendCode(3, $"{tokenSourceFullName} cts = new {tokenSourceFullName}(); // 创建取消令牌");
-                    sb.AppendCode(3, $"await {ApiMethodName}({flowContext}, cts.Token, {invokeParamSignature}); // 调用目标方法");
-                    sb.AppendCode(3, $"{flowContext}.{nameof(IDynamicContext.Reset)}(); ");
-                    sb.AppendCode(3, $"cts.{nameof(CancellationTokenSource.Dispose)}(); ");
+                    sb.AppendCode(3,    $"{contextApiFullName} {flowContext} = {flowContextPoolName}.{nameof(LightweightFlowControl.FlowContextPool)}.{nameof(LightweightFlowControl.FlowContextPool.Allocate)}(); // 从对象池获取一个上下文");
+                    sb.AppendCode(3,    $"{tokenSourceFullName} cts = new {tokenSourceFullName}(); // 创建取消令牌");
+                    sb.AppendCode(3,    $"try");
+                    sb.AppendCode(3,        $"{{");
+                    sb.AppendCode(4,        $"await {ApiMethodName}({flowContext}, cts.Token, {invokeParamSignature}); // 调用目标方法");
+                    sb.AppendCode(3,    $"}}");
+                    sb.AppendCode(3,    $"catch (Exception)");
+                    sb.AppendCode(3,    $"{{");
+                    sb.AppendCode(4,        $"throw;");
+                    sb.AppendCode(3,    $"}}");
+                    sb.AppendCode(3,    $"finally");
+                    sb.AppendCode(3,    $"{{");
+                    sb.AppendCode(4,        $"{flowContext}.{nameof(IDynamicContext.Reset)}(); ");
+                    sb.AppendCode(4,        $"cts.{nameof(CancellationTokenSource.Dispose)}(); ");
+                    sb.AppendCode(4,        $"{flowContextPoolName}.{nameof(LightweightFlowControl.FlowContextPool)}.{nameof(LightweightFlowControl.FlowContextPool.Free)}({flowContext}); // 释放上下文");
+                    sb.AppendCode(3,    $"}}");
                     sb.AppendCode(2, $"}}");
                     return sb.ToString();
                 }
@@ -916,9 +927,20 @@ namespace Serein.NodeFlow.Services
                     var invokeParamSignature = string.Join(", ", ParamInfos.Select(p => p.ParamName));
                     sb.AppendCode(2, $"public async {returnTypeContext} {ApiMethodName}({tokenFullName} {token}, {paramSignature})");
                     sb.AppendCode(2, $"{{");
-                    sb.AppendCode(3, $"{contextApiFullName} {flowContext} = new {contextImpleFullName}({flowEnvironment}); // 创建上下文");
-                    sb.AppendCode(3, $"await {ApiMethodName}({flowContext}, {token}, {invokeParamSignature}); // 调用目标方法");
-                    sb.AppendCode(3, $"{flowContext}.{nameof(IDynamicContext.Reset)}(); ");
+                    sb.AppendCode(3,    $"{contextApiFullName} {flowContext} = {flowContextPoolName}.{nameof(LightweightFlowControl.FlowContextPool)}.{nameof(LightweightFlowControl.FlowContextPool.Allocate)}(); // 从对象池获取一个上下文");
+                    sb.AppendCode(3,    $"try");
+                    sb.AppendCode(3,    $"{{");
+                    sb.AppendCode(4,        $"await {ApiMethodName}({flowContext}, {token}, {invokeParamSignature}); // 调用目标方法");
+                    sb.AppendCode(4,        $"{flowContext}.{nameof(IDynamicContext.Reset)}(); ");
+                    sb.AppendCode(3,    $"}}");
+                    sb.AppendCode(3,    $"catch (Exception)");
+                    sb.AppendCode(3,    $"{{");
+                    sb.AppendCode(4,        $"throw;");
+                    sb.AppendCode(3,    $"}}");
+                    sb.AppendCode(3,    $"finally");
+                    sb.AppendCode(3,    $"{{");
+                    sb.AppendCode(4,        $"{flowContextPoolName}.{nameof(LightweightFlowControl.FlowContextPool)}.{nameof(LightweightFlowControl.FlowContextPool.Free)}({flowContext}); // 释放上下文");
+                    sb.AppendCode(3,    $"}}");
                     sb.AppendCode(2, $"}}");
                     return sb.ToString();
                 }
@@ -930,21 +952,28 @@ namespace Serein.NodeFlow.Services
 
                     sb.AppendCode(2, $"public async {returnTypeContext} {ApiMethodName}({contextApiFullName} {flowContext}, {tokenFullName} token, {paramSignature})");
                     sb.AppendCode(2, $"{{");
-                    sb.AppendCode(3, $"token.ThrowIfCancellationRequested(); // 检查任务是否取消");
-                    // 生成参数类实例化代码
-                    sb.AppendCode(3, $"global::{ParamTypeName} data = new global::{ParamTypeName}");
-                    sb.AppendCode(3, $"{{");
+                    sb.AppendCode(3,    $"token.ThrowIfCancellationRequested(); // 检查任务是否取消");
+                    sb.AppendCode(3,    $"try");
+                    sb.AppendCode(3,    $"{{");
+                    sb.AppendCode(3,        $"global::{ParamTypeName} data = {ObjPoolName}.Get(); // 从对象池获取一个对象");
                     for (int index = 0; index < ParamInfos.Count; index++)
                     {
                         ParamInfo? info = ParamInfos[index];
-                        sb.AppendCode(4, $"{info.ParamName.ToPascalCase()} = {info.ParamName}; // [{index}] {info.Comments}");
+                        sb.AppendCode(4,    $"data.{info.ParamName.ToPascalCase()} = {info.ParamName}; // [{index}] {info.Comments}");
                     }
-                    sb.AppendCode(3, $"}}");
-
-                    sb.AppendCode(3, $"{flowContext}.{nameof(IDynamicContext.AddOrUpdate)}(\"{ApiMethodName}\", data);");
-                    sb.AppendCode(3, $"{flowContext}.{nameof(IDynamicContext.SetPreviousNode)}(\"{NodeModel.Guid}\", \"{ApiMethodName}\");");
-                    sb.AppendCode(3, $"global::{typeof(CallNode).FullName} node = Get(\"{NodeModel.Guid}\");");
-                    sb.AppendCode(3, $"await node.{nameof(CallNode.StartFlowAsync)}({flowContext}, {token}); // 调用目标方法");
+                    sb.AppendCode(3,        $"{flowContext}.{nameof(IDynamicContext.AddOrUpdate)}(\"{ApiMethodName}\", data);");
+                    sb.AppendCode(3,        $"{flowContext}.{nameof(IDynamicContext.SetPreviousNode)}(\"{NodeModel.TargetNode.Guid}\", \"{ApiMethodName}\");");
+                    sb.AppendCode(3,        $"global::{typeof(CallNode).FullName} node = Get(\"{NodeModel.Guid}\");");
+                    sb.AppendCode(3,        $"await node.{nameof(CallNode.StartFlowAsync)}({flowContext}, {token}); // 调用目标方法");
+                    sb.AppendCode(3,    $"}}");
+                    sb.AppendCode(3,    $"catch (Exception)");
+                    sb.AppendCode(3,    $"{{");
+                    sb.AppendCode(4,        $"throw;");
+                    sb.AppendCode(3,    $"}}");
+                    sb.AppendCode(3,    $"finally");
+                    sb.AppendCode(3,    $"{{");
+                    sb.AppendCode(4,        $"{flowContextPoolName}.{nameof(LightweightFlowControl.FlowContextPool)}.{nameof(LightweightFlowControl.FlowContextPool.Free)}({flowContext}); // 释放上下文");
+                    sb.AppendCode(3,    $"}}");
                     sb.AppendCode(2, $"}}");
                     return sb.ToString();
                 }
@@ -954,16 +983,29 @@ namespace Serein.NodeFlow.Services
                 string flowResult = nameof(flowResult);
                 if (type == ParamType.Defute)
                 {
+                    //sb.AppendCode(3, $"{contextApiFullName} {flowContext} = new {contextImpleFullName}({flowEnvironment}); // 创建上下文");
+
                     var paramSignature = string.Join(", ", ParamInfos.Select(p => $"global::{p.Type.FullName} {p.ParamName}"));
                     var invokeParamSignature = string.Join(", ", ParamInfos.Select(p => p.ParamName));
                     sb.AppendCode(2, $"public async {returnTypeContext} {ApiMethodName}({paramSignature})");
                     sb.AppendCode(2, $"{{");
-                    sb.AppendCode(3, $"{contextApiFullName} {flowContext} = new {contextImpleFullName}({flowEnvironment}); // 创建上下文");
-                    sb.AppendCode(3, $"{tokenSourceFullName} cts = new {tokenSourceFullName}(); // 创建取消令牌");
-                    sb.AppendCode(3, $"{ReturnType.FullName} {flowResult} =  await {ApiMethodName}({flowContext}, cts.{nameof(CancellationTokenSource.Token)}, {invokeParamSignature}); // 调用目标方法");
-                    sb.AppendCode(3, $"{flowContext}.{nameof(IDynamicContext.Reset)}(); ");
-                    sb.AppendCode(3, $"cts.{nameof(CancellationTokenSource.Dispose)}(); ");
-                    sb.AppendCode(3, $"return {flowResult};");
+                    sb.AppendCode(3,    $"{contextApiFullName} {flowContext} = {flowContextPoolName}.{nameof(LightweightFlowControl.FlowContextPool)}.{nameof(LightweightFlowControl.FlowContextPool.Allocate)}(); // 从对象池获取一个上下文");
+                    sb.AppendCode(3,    $"{tokenSourceFullName} cts = new {tokenSourceFullName}(); // 创建取消令牌");
+                    sb.AppendCode(3,    $"try");
+                    sb.AppendCode(3,    $"{{");
+                    sb.AppendCode(4,       $"{ReturnType.FullName} {flowResult} =  await {ApiMethodName}({flowContext}, cts.{nameof(CancellationTokenSource.Token)}, {invokeParamSignature}); // 调用目标方法");
+                    sb.AppendCode(4,       $"return {flowResult};");
+                    sb.AppendCode(3,    $"}}");
+                    sb.AppendCode(3,    $"catch (Exception)");
+                    sb.AppendCode(3,    $"{{");
+                    sb.AppendCode(4,       $"throw;");
+                    sb.AppendCode(3,    $"}}");
+                    sb.AppendCode(3,    $"finally");
+                    sb.AppendCode(3,    $"{{");
+                    sb.AppendCode(4,       $"{flowContext}.{nameof(IDynamicContext.Reset)}(); ");
+                    sb.AppendCode(4,       $"cts.{nameof(CancellationTokenSource.Dispose)}(); ");
+                    sb.AppendCode(4,       $"{flowContextPoolName}.{nameof(LightweightFlowControl.FlowContextPool)}.{nameof(LightweightFlowControl.FlowContextPool.Free)}({flowContext}); // 释放上下文");
+                    sb.AppendCode(3,    $"}}");
                     sb.AppendCode(2, $"}}");
                     return sb.ToString();
                 }
@@ -973,52 +1015,50 @@ namespace Serein.NodeFlow.Services
                     var invokeParamSignature = string.Join(", ", ParamInfos.Select(p => p.ParamName));
                     sb.AppendCode(2, $"public async {returnTypeContext} {ApiMethodName}({tokenFullName} {token}, {paramSignature})");
                     sb.AppendCode(2, $"{{");
-                    sb.AppendCode(3, $"{contextApiFullName} {flowContext} = new {contextImpleFullName}({flowEnvironment}); // 创建上下文");
-                    sb.AppendCode(3, $"{ReturnType.FullName} {flowResult} = await {ApiMethodName}({flowContext}, {token}, {invokeParamSignature}); // 调用目标方法");
-                    sb.AppendCode(3, $"{flowContext}.{nameof(IDynamicContext.Reset)}(); ");
-                    sb.AppendCode(3, $"return {flowResult};");
+                    sb.AppendCode(3,    $"{contextApiFullName} {flowContext} = {flowContextPoolName}.{nameof(LightweightFlowControl.FlowContextPool)}.{nameof(LightweightFlowControl.FlowContextPool.Allocate)}(); // 从对象池获取一个上下文");
+                    sb.AppendCode(3,    $"try");
+                    sb.AppendCode(3,    $"{{");
+                    sb.AppendCode(4,       $"{ReturnType.FullName} {flowResult} = await {ApiMethodName}({flowContext}, {token}, {invokeParamSignature}); // 调用目标方法");
+                    sb.AppendCode(4,       $"return {flowResult};");
+                    sb.AppendCode(3,    $"}}");
+                    sb.AppendCode(3,    $"catch (Exception)");
+                    sb.AppendCode(3,    $"{{");
+                    sb.AppendCode(4,       $"throw;");
+                    sb.AppendCode(3,    $"}}");
+                    sb.AppendCode(3,    $"finally");
+                    sb.AppendCode(3,    $"{{");
+                    sb.AppendCode(4,       $"{flowContext}.{nameof(IDynamicContext.Reset)}(); ");
+                    sb.AppendCode(4,       $"{flowContextPoolName}.{nameof(LightweightFlowControl.FlowContextPool)}.{nameof(LightweightFlowControl.FlowContextPool.Free)}({flowContext}); // 释放上下文");
+                    sb.AppendCode(3,    $"}}");
                     sb.AppendCode(2, $"}}");
                     return sb.ToString();
-
                 }
-
-
                 else if (type == ParamType.HasContextAndToken)
                 {
                     var paramSignature = string.Join(", ", ParamInfos.Select(p => $"global::{p.Type.FullName} {p.ParamName}"));
                     var invokeParamSignature = string.Join(", ", ParamInfos.Select(p => p.ParamName));
                     sb.AppendCode(2, $"public async {returnTypeContext} {ApiMethodName}({contextApiFullName} {flowContext}, {tokenFullName} token, {paramSignature})");
                     sb.AppendCode(2, $"{{");
-                    sb.AppendCode(3, $"token.ThrowIfCancellationRequested(); // 检查任务是否取消");
-                    // 生成参数类实例化代码
-                    /*sb.AppendCode(3, $"global::{ParamTypeName} data = new global::{ParamTypeName}");
-                    sb.AppendCode(3, $"{{");
+                    sb.AppendCode(3,    $"token.ThrowIfCancellationRequested(); // 检查任务是否取消");
+                    sb.AppendCode(3,    $"global::{ParamTypeName} data = {ObjPoolName}.Get(); // 从对象池获取一个对象");
                     for (int index = 0; index < ParamInfos.Count; index++)
                     {
                         ParamInfo? info = ParamInfos[index];
-                        sb.AppendCode(4, $"{info.ParamName.ToPascalCase()} = {info.ParamName}; // [{index}] {info.Comments}");
+                        sb.AppendCode(4, $"data.{info.ParamName.ToPascalCase()} = {info.ParamName}; // [{index}] {info.Comments}"); // 进行赋值
                     }
-                    sb.AppendCode(3, $"}}");*/
-                    sb.AppendCode(3, $"global::{ParamTypeName} data = {ObjPoolName}.Get(); // 从对象池获取一个对象");
-                    for (int index = 0; index < ParamInfos.Count; index++)
-                    {
-                        ParamInfo? info = ParamInfos[index];
-                        sb.AppendCode(4, $"data.{info.ParamName.ToPascalCase()} = {info.ParamName}; // [{index}] {info.Comments}");
-                    }
-
-                    sb.AppendCode(3, $"{flowContext}.{nameof(IDynamicContext.AddOrUpdate)}(\"{ApiMethodName}\", data);");
-                    sb.AppendCode(3, $"{flowContext}.{nameof(IDynamicContext.SetPreviousNode)}(\"{NodeModel.Guid}\", \"{ApiMethodName}\");");
-                    sb.AppendCode(3, $"global::{typeof(CallNode).FullName} node = Get(\"{NodeModel.Guid}\");");
-                    sb.AppendCode(3, $"global::{typeof(FlowResult).FullName} {flowResult} = await node.{nameof(CallNode.StartFlowAsync)}({flowContext}, {token}); // 调用目标方法");
-                    sb.AppendCode(3, $"if ({flowResult}.{nameof(FlowResult.Value)} is global::{ReturnType.FullName} result)");
-                    sb.AppendCode(3, $"{{");
-                    sb.AppendCode(4, $"return result;");
-                    sb.AppendCode(3, $"}}");
-                    sb.AppendCode(3, $"else");
-                    sb.AppendCode(3, $"{{");
-                    sb.AppendCode(4, $"throw new ArgumentNullException($\"类型转换失败，{{(flowResult.Value is null ? \"返回数据为 null\" : $\"返回数据与需求类型不匹配，当前返回类型为[{{flowResult.Value.GetType().FullName}}。\")}}\");");
-                    sb.AppendCode(3, $"}}");
-                    sb.AppendCode(3, $"return {flowResult};");
+                    sb.AppendCode(3,    $"{flowContext}.{nameof(IDynamicContext.AddOrUpdate)}(\"{ApiMethodName}\", data);");
+                    sb.AppendCode(3,    $"{flowContext}.{nameof(IDynamicContext.SetPreviousNode)}(\"{NodeModel.Guid}\", \"{ApiMethodName}\");");
+                    sb.AppendCode(3,    $"global::{typeof(CallNode).FullName} node = Get(\"{NodeModel.Guid}\");");
+                    sb.AppendCode(3,    $"global::{typeof(FlowResult).FullName} {flowResult} = await node.{nameof(CallNode.StartFlowAsync)}({flowContext}, {token}); // 调用目标方法");
+                    sb.AppendCode(3,    $"if ({flowResult}.{nameof(FlowResult.Value)} is global::{ReturnType.FullName} result)");
+                    sb.AppendCode(3,    $"{{");
+                    sb.AppendCode(4,        $"return result;");
+                    sb.AppendCode(3,    $"}}");
+                    sb.AppendCode(3,    $"else");
+                    sb.AppendCode(3,    $"{{");
+                    sb.AppendCode(4,        $"throw new ArgumentNullException($\"类型转换失败，{{(flowResult.Value is null ? \"返回数据为 null\" : $\"返回数据与需求类型不匹配，当前返回类型为[{{flowResult.Value.GetType().FullName}}。\")}}\");");
+                    sb.AppendCode(3,    $"}}");
+                    sb.AppendCode(3,    $"return {flowResult};");
                     sb.AppendCode(2, $"}}");
                     return sb.ToString();
                     // throw new ArgumentNullException($"类型转换失败，{(flowResult.Value is null ? "返回数据为 null" : $"返回数据与需求类型不匹配，当前返回类型为[{flowResult.Value.GetType().FullName}。")}");

@@ -15,7 +15,7 @@ namespace Serein.Library.Utils
         /// <summary>
         /// 运行指定异步方法多次并输出耗时的最大、最小和平均值。
         /// </summary>
-        /// <param name="func">需要执行的异步方法</param>
+        /// <param name="action">需要执行的方法</param>
         /// <param name="count">执行次数，默认10000</param>
         public static void Benchmark(Action action, int count = 10000)
         {
@@ -38,6 +38,7 @@ namespace Serein.Library.Utils
             double avg = total / count;
 
             Console.WriteLine($"运行 {count} 次：");
+            Console.WriteLine($"总耗时  :{total} 毫秒：");
             Console.WriteLine($"最大耗时：{max} 毫秒");
             Console.WriteLine($"最小耗时：{min} 毫秒");
             Console.WriteLine($"平均耗时：{avg} 毫秒");

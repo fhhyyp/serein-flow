@@ -163,6 +163,16 @@ namespace Serein.Library
         public string Type { get; set; }
 
         /// <summary>
+        /// 父节点集合
+        /// </summary>
+        public Dictionary<ConnectionInvokeType, string[]> PreviousNodes { get; set; }
+
+        /// <summary>
+        /// 后续节点集合
+        /// </summary>
+        public Dictionary<ConnectionInvokeType, string[]> SuccessorNodes { get; set; }
+
+        /// <summary>
         /// 真分支节点GUID
         /// </summary>
 
@@ -189,7 +199,7 @@ namespace Serein.Library
 
 
         /// <summary>
-        /// 父级节点Guid
+        /// 如果节点放置在了区域控件上，这里会有父级节点Guid
         /// </summary>
         public string ParentNodeGuid{ get; set; }
 

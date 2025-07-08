@@ -504,6 +504,7 @@ namespace Serein.NodeFlow.Env
             #endregion
 
             await Task.Delay(100);
+
             #region 确定节点之间的方法调用关系
             foreach (var nodeInfo in nodeInfos)
             {
@@ -513,14 +514,13 @@ namespace Serein.NodeFlow.Env
                     return;
                 }
                 if (fromNodeModel is null) continue;
-                List<(ConnectionInvokeType connectionType, string[] guids)> allToNodes = [(ConnectionInvokeType.IsSucceed,nodeInfo.TrueNodes),
-                                                                                        (ConnectionInvokeType.IsFail,   nodeInfo.FalseNodes),
-                                                                                        (ConnectionInvokeType.IsError,  nodeInfo.ErrorNodes),
-                                                                                        (ConnectionInvokeType.Upstream, nodeInfo.UpstreamNodes)];
-                foreach ((ConnectionInvokeType connectionType, string[] toNodeGuids) item in allToNodes)
+                foreach (var kvp in nodeInfo.SuccessorNodes)
                 {
+                    var type = kvp.Key;
+                    var nodes = kvp.Value;
+                    if (nodes.Length == 0) continue;
                     // 遍历当前类型分支的节点（确认连接关系）
-                    foreach (var toNodeGuid in item.toNodeGuids)
+                    foreach (var toNodeGuid in nodes)
                     {
                         if (!TryGetNodeModel(toNodeGuid, out var toNodeModel))
                         {
@@ -531,17 +531,76 @@ namespace Serein.NodeFlow.Env
                             // 防御性代码，加载正常保存的项目文件不会进入这里
                             continue;
                         }
-
-                        ConnectInvokeNode(canvasGuid, fromNodeModel.Guid, toNodeModel.Guid, JunctionType.NextStep, JunctionType.Execute, item.connectionType);
+                        if (fromNodeModel.SuccessorNodes[type].Contains(toNodeModel) || toNodeModel.PreviousNodes[type].Contains(fromNodeModel))
+                        {
+                            continue;
+                        }
+                        ConnectInvokeNode(canvasGuid, fromNodeModel.Guid, toNodeModel.Guid, JunctionType.NextStep, JunctionType.Execute, type);
 
                     }
                 }
+            }
+
+            foreach (var nodeInfo in nodeInfos)
+            {
+                var canvasGuid = nodeInfo.CanvasGuid;
+                if (!TryGetNodeModel(nodeInfo.Guid, out var toNodeModel))
+                {
+                    return;
+                }
+                if (toNodeModel is null) continue;
+                foreach (var kvp in nodeInfo.PreviousNodes)
+                {
+                    var type = kvp.Key;
+                    var nodes = kvp.Value;
+                    if (nodes.Length == 0) continue;
+                    // 遍历当前类型分支的节点（确认连接关系）
+                    foreach (var toNodeGuid in nodes)
+                    {
+                        if (!TryGetNodeModel(toNodeGuid, out var fromNodeModel))
+                        {
+                            return;
+                        }
+                        if (toNodeModel is null)
+                        {
+                            // 防御性代码，加载正常保存的项目文件不会进入这里
+                            continue;
+                        }
+                        if (fromNodeModel.SuccessorNodes[type].Contains(toNodeModel) || toNodeModel.PreviousNodes[type].Contains(fromNodeModel))
+                        {
+                            continue;
+                        }
+                        ConnectInvokeNode(canvasGuid, fromNodeModel.Guid, toNodeModel.Guid, JunctionType.NextStep, JunctionType.Execute, type);
+                    }
+                }
+
 
             }
+
             #endregion
 
             #region 确定节点之间的参数调用关系
-            var nodeModels = flowModelService.GetAllNodeModel();
+            foreach (var nodeInfo in nodeInfos)
+            {
+                var pdInfos = nodeInfo.ParameterData;
+                var toNodeGuid = nodeInfo.Guid;
+                for (global::System.Int32 index = 0; index < pdInfos.Length; index++)
+                {
+                    var pdInfo = pdInfos[index];
+                    var fromNodeGuid = pdInfo.SourceNodeGuid;
+                    if (!string.IsNullOrWhiteSpace(fromNodeGuid) && flowModelService.TryGetCanvasModel(fromNodeGuid,out var fromNode))
+                    {
+                        continue;
+                    }
+                    var type = EnumHelper.ConvertEnum<ConnectionArgSourceType>(pdInfo.SourceType);
+                    var canvasGuid = nodeInfo.CanvasGuid;
+                    ConnectArgSourceNode(canvasGuid, fromNodeGuid, toNodeGuid, JunctionType.ReturnData, JunctionType.ArgData, type,index);
+
+                }
+            }
+
+
+           /* var nodeModels = flowModelService.GetAllNodeModel();
             foreach (var toNode in nodeModels)
             {
                 var canvasGuid = toNode.CanvasDetails.Guid;
@@ -555,10 +614,16 @@ namespace Serein.NodeFlow.Env
                     if (!string.IsNullOrEmpty(pd.ArgDataSourceNodeGuid)
                         && TryGetNodeModel(pd.ArgDataSourceNodeGuid, out var fromNode))
                     {
+                        *//*if (fromNode.NeedResultNodes[pd.ArgDataSourceType].Contains(toNode) 
+                            && pd.ArgDataSourceNodeGuid == fromNode.Guid
+                            && )
+                        {
+                            continue;
+                        }*//*
                         ConnectArgSourceNode(canvasGuid, fromNode.Guid, toNode.Guid, JunctionType.ReturnData, JunctionType.ArgData, pd.ArgDataSourceType, pd.Index);
                     }
                 }
-            }
+            }*/
             #endregion
 
            
