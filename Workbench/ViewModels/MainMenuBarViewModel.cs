@@ -137,8 +137,8 @@ namespace Serein.Workbench.ViewModels
 
 
                 var env = App.GetService<IFlowEnvironment>();
-                var flowModelService = env.IOC.Get<FlowModelService>();
-                var text = flowModelService.ToCsharpCoreFile(); ;
+                var service = env.IOC.Get<FlowCoreGenerateService>();
+                var text = service.ToCsharpCoreFile(); ;
                 Debug.WriteLine(text);
 
             }

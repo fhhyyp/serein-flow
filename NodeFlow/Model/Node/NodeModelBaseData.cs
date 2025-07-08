@@ -145,12 +145,14 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         partial void OnIsPublicChanged(bool oldValue, bool newValue)
         {
+            var list = CanvasDetails.PublicNodes.ToList();
             if (newValue)
             {
                 // 公开节点
                 if (!CanvasDetails.PublicNodes.Contains(this))
                 {
-                    CanvasDetails.PublicNodes.Add(this);
+                    list.Add(this);
+                    CanvasDetails.PublicNodes= list;
                 }
             }
             else
@@ -158,7 +160,8 @@ namespace Serein.NodeFlow.Model
                 // 取消公开
                 if (CanvasDetails.PublicNodes.Contains(this))
                 {
-                    CanvasDetails.PublicNodes.Remove(this);
+                    list.Remove(this);
+                    CanvasDetails.PublicNodes = list;
                 }
             }
         }

@@ -7,7 +7,7 @@ using System.Reactive.Subjects;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Serein.NodeFlow
+namespace Serein.NodeFlow.Services
 {
     
 }

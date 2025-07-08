@@ -50,16 +50,17 @@ namespace Serein.NodeFlow.Env
         public FlowEnvironment()
         {
             ISereinIOC ioc = new SereinIOC();
-            ioc.Register<ISereinIOC>(()=> ioc) // 注册IOC
-               .Register<IFlowEnvironment>(() => this)
-               .Register<IFlowEnvironmentEvent, FlowEnvironmentEvent>()
-               .Register<IFlowEdit, FlowEdit>()
-               .Register<IFlowControl, FlowControl>()
-               .Register<LocalFlowEnvironment>()
-               .Register<FlowModelService>()
-               .Register<FlowLibraryService>()
-               .Register<FlowOperationService>()
-               .Register<NodeMVVMService>()
+            ioc.Register<ISereinIOC>(()=> ioc) // IOC容器接口
+               .Register<IFlowEnvironment>(() => this) // 流程环境接口
+               .Register<IFlowEnvironmentEvent, FlowEnvironmentEvent>() // 流程环境事件接口
+               .Register<IFlowEdit, FlowEdit>() // 流程编辑接口
+               .Register<IFlowControl, FlowControl>() // 流程控制接口
+               .Register<LocalFlowEnvironment>() // 本地环境
+               .Register<FlowModelService>() // 节点/画布模型服务
+               .Register<FlowLibraryService>() // 流程库服务
+               .Register<FlowCoreGenerateService>() // 代码生成
+               .Register<FlowOperationService>() // 流程操作
+               .Register<NodeMVVMService>() // 节点MVVM服务
                .Build();
             // 默认使用本地环境
             currentFlowEnvironment = ioc.Get<LocalFlowEnvironment>();

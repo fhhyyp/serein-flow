@@ -77,6 +77,7 @@
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="60" />
@@ -97,14 +98,18 @@
                         <ComboBox DisplayMemberPath="DisplayName"  
                                  Grid.Row="1" Grid.Column="1" 
                                  SelectedItem="{Binding SelectNode}"
-                                 ItemsSource="{Binding SelectCanvas.Model.PublicNodes, Mode=TwoWay}" 
+                                 ItemsSource="{Binding SelectCanvas.Model.PublicNodes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
                                  HorizontalAlignment="Stretch"
                                  HorizontalContentAlignment="Stretch"
                                  IsEnabled="{Binding IsEnabledOnView}"
-                                 Visibility="{Binding SelectCanvas.Model.PublicNodes, Converter={StaticResource CountToVisibilityConverter}}">
+                                 Visibility="{Binding SelectCanvas.Model.PublicNodes, UpdateSourceTrigger=PropertyChanged,Converter={StaticResource CountToVisibilityConverter}}">
                         </ComboBox>
+                        
+                        
+                        <TextBlock Text="接口名称" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" Width="50"/>
+                        <TextBox Text="{Binding FlowCallNode.ApiGlobalName, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Width="{Binding ElementName=MethodDetailsControl,Path=ActualWidth}"/>
 
-                        <themes:MethodDetailsControl Grid.Row="2" Grid.ColumnSpan="2" x:Name="MethodDetailsControl">
+                        <themes:MethodDetailsControl Grid.Row="3" Grid.ColumnSpan="2" x:Name="MethodDetailsControl">
                             <themes:MethodDetailsControl.MethodDetails>
                                 <MultiBinding Converter="{StaticResource MethodDetailsSelector}">
                                     <Binding Path="FlowCallNode.IsShareParam" UpdateSourceTrigger="PropertyChanged"/>

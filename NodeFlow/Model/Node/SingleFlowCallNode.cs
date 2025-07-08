@@ -1,11 +1,13 @@
 ﻿using Newtonsoft.Json.Linq;
 using Serein.Library;
 using Serein.Library.Api;
+using Serein.NodeFlow.Services;
 using Serein.Script;
 using System;
 using System.Collections.Generic;
 using System.Dynamic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -28,6 +30,12 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         [PropertyInfo(IsNotification = true)]
         private bool _isShareParam  ;
+
+        /// <summary>
+        /// 接口全局名称
+        /// </summary>
+        [PropertyInfo(IsNotification = true)]
+        private string _apiGlobalName;
     }
 
 
@@ -40,14 +48,11 @@ namespace Serein.NodeFlow.Model
         /// <summary>
         /// 被调用的节点
         /// </summary>
-        private IFlowNode targetNode;
+        public IFlowNode TargetNode { get; private set; }
         /// <summary>
         /// 缓存的方法信息
         /// </summary>
         public MethodDetails CacheMethodDetails { get; private set; }
-
-
-
 
         public SingleFlowCallNode(IFlowEnvironment environment) : base(environment)
         {
@@ -60,7 +65,7 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         public void ResetTargetNode()
         {
-            if (targetNode is not null)
+            if (TargetNode is not null)
             {
                 // 取消接口
                 TargetNodeGuid = string.Empty;
@@ -82,31 +87,35 @@ namespace Serein.NodeFlow.Model
 
         partial void OnTargetNodeGuidChanged(string value)
         {
-            if (string.IsNullOrEmpty(value) || !Env.TryGetNodeModel(value, out targetNode))
+            if (string.IsNullOrEmpty(value) || !Env.TryGetNodeModel(value, out  var targetNode))
             {
                 // 取消设置接口节点
-                targetNode.PropertyChanged -= TargetNode_PropertyChanged;
+                TargetNode.PropertyChanged -= TargetNode_PropertyChanged;
+                TargetNode = null;
+                this.ApiGlobalName = "";
                 this.MethodDetails = new MethodDetails();
             }
             else
             {
                 //if (this.MethodDetails.ActingInstanceType.FullName.Equals())
-                
-                if(!this.IsShareParam 
+                TargetNode = targetNode;
+                if (!this.IsShareParam 
                     && CacheMethodDetails is not null
-                    && targetNode.MethodDetails is not null
-                    && targetNode.MethodDetails.AssemblyName == CacheMethodDetails.AssemblyName
-                    && targetNode.MethodDetails.MethodName == CacheMethodDetails.MethodName)
+                    && TargetNode.MethodDetails is not null
+                    && TargetNode.MethodDetails.AssemblyName == CacheMethodDetails.AssemblyName
+                    && TargetNode.MethodDetails.MethodName == CacheMethodDetails.MethodName)
                 {
                     this.MethodDetails = CacheMethodDetails;
+                    this.ApiGlobalName = GetApiInvokeName(this);
                 }
                 else
                 {
-                    if (targetNode.MethodDetails is not null)
+                    if (TargetNode.MethodDetails is not null)
                     {
-                        CacheMethodDetails = targetNode.MethodDetails.CloneOfNode(this); // 从目标节点复制一份
-                        targetNode.PropertyChanged += TargetNode_PropertyChanged;
+                        CacheMethodDetails = TargetNode.MethodDetails.CloneOfNode(this); // 从目标节点复制一份
+                        TargetNode.PropertyChanged += TargetNode_PropertyChanged;
                         this.MethodDetails = CacheMethodDetails;
+                        this.ApiGlobalName = GetApiInvokeName(this);
                     }
                
                 }
@@ -117,19 +126,19 @@ namespace Serein.NodeFlow.Model
 
         partial void OnIsShareParamChanged(bool value)
         {
-            if (targetNode is null || targetNode.MethodDetails is null)
+            if (TargetNode is null || TargetNode.MethodDetails is null)
             {
                 return;
             }
             if (value)
             {
-                CacheMethodDetails = targetNode.MethodDetails.CloneOfNode(this);
+                CacheMethodDetails = TargetNode.MethodDetails.CloneOfNode(this);
                 this.MethodDetails = CacheMethodDetails;
             }
             else
             {
 
-                if(targetNode.ControlType == NodeControlType.Script)
+                if(TargetNode.ControlType == NodeControlType.Script)
                 {
                     // 脚本节点入参需不可编辑入参数量、入参名称
                     foreach (var item in CacheMethodDetails.ParameterDetailss)
@@ -152,7 +161,7 @@ namespace Serein.NodeFlow.Model
                 {
                     this.SuccessorNodes[ctType] = [];
                 }
-                targetNode.PropertyChanged -= TargetNode_PropertyChanged;
+                TargetNode.PropertyChanged -= TargetNode_PropertyChanged;
             }
         }
 
@@ -163,7 +172,7 @@ namespace Serein.NodeFlow.Model
         /// <returns></returns>
         private bool UploadTargetNode()
         {
-            if (targetNode is null)
+            if (TargetNode is null)
             {
                 if (string.IsNullOrWhiteSpace(TargetNodeGuid))
                 {
@@ -175,7 +184,7 @@ namespace Serein.NodeFlow.Model
                     return false;
                 }
 
-                this.targetNode = targetNode;
+                this.TargetNode = targetNode;
             }
             return true;
 
@@ -189,11 +198,59 @@ namespace Serein.NodeFlow.Model
         public override NodeInfo SaveCustomData(NodeInfo nodeInfo)
         {
             dynamic data = new ExpandoObject();
-            data.TargetNodeGuid = targetNode?.Guid; // 变量名称
+            data.TargetNodeGuid = TargetNode?.Guid; // 变量名称
             data.IsShareParam = IsShareParam;
+            data.ApiGlobalName = ApiGlobalName;
             nodeInfo.CustomData = data;
             return nodeInfo;
         }
+
+        private static Dictionary<string, int> ApiInvokeNameCache = new Dictionary<string, int>();
+        public static int getApiInvokeNameCount = 0;
+        private static string GetApiInvokeName(SingleFlowCallNode node, string apiName)
+        {
+            if (ApiInvokeNameCache.ContainsKey(apiName))
+            {
+                var count = ApiInvokeNameCache[apiName];
+                count++;
+                ApiInvokeNameCache[apiName] = count;
+                return $"{apiName}{count}";
+            }
+            else
+            {
+                ApiInvokeNameCache[apiName] = 0;
+                return $"{apiName}";
+            }
+        }
+        public static string GetApiInvokeName(SingleFlowCallNode node)
+        {
+            if(node.TargetNode is null)
+            {
+                return GetApiInvokeName(node, "ApiInvoke"); // 如果没有目标节点，则返回默认名称
+            }
+            var md = node.TargetNode.MethodDetails;
+            if (md is null)
+            {
+                var apiName = $"{node.TargetNode.ControlType}";
+                return GetApiInvokeName(node, apiName);
+            }
+            else
+            {
+                FlowLibraryService service = node.Env.IOC.Get<FlowLibraryService>();
+                if (service.TryGetMethodInfo(md.AssemblyName, md.MethodName, out var methodInfo))
+                {
+                    
+                    var apiName = $"{methodInfo.Name}";
+                    return GetApiInvokeName(node, apiName);
+                }
+                else
+                {
+                    var apiName = $"{node.TargetNode.ControlType}";
+                    return GetApiInvokeName(node, apiName);
+                }
+            }
+        }
+
 
         /// <summary>
         /// 加载全局变量的数据
@@ -207,7 +264,7 @@ namespace Serein.NodeFlow.Model
             if (Env.TryGetNodeModel(targetNodeGuid, out var targetNode))
             {
                 TargetNodeGuid = targetNode.Guid;
-                this.targetNode = targetNode;
+                this.TargetNode = targetNode;
 
                 if(this.IsShareParam == false)
                 {
@@ -216,6 +273,8 @@ namespace Serein.NodeFlow.Model
                         
                     }
                 }
+
+                this.ApiGlobalName = nodeInfo.CustomData?.ApiGlobalName ?? GetApiInvokeName(this);
             }
             else
             {
@@ -248,13 +307,13 @@ namespace Serein.NodeFlow.Model
             }
             if (IsShareParam)
             {
-                this.MethodDetails = targetNode.MethodDetails;
+                this.MethodDetails = TargetNode.MethodDetails;
             }
-            this.SuccessorNodes = targetNode.SuccessorNodes;
+            this.SuccessorNodes = TargetNode.SuccessorNodes;
 
-            FlowResult flowData = await (targetNode.ControlType switch
+            FlowResult flowData = await (TargetNode.ControlType switch
             {
-                NodeControlType.Script => ((SingleScriptNode)targetNode).ExecutingAsync(this, context, token),
+                NodeControlType.Script => ((SingleScriptNode)TargetNode).ExecutingAsync(this, context, token),
                 _ => base.ExecutingAsync(context, token)
             });
 
@@ -266,7 +325,7 @@ namespace Serein.NodeFlow.Model
                 // 此处代码与SereinFlow.Library.FlowNode.ParameterDetails
                 // ToMethodArgData()方法中判断流程接口节点分支逻辑耦合
                 // 不要轻易修改
-                context.AddOrUpdateFlowData(targetNode.Guid, flowData);
+                context.AddOrUpdateFlowData(TargetNode.Guid, flowData);
                 foreach (ConnectionInvokeType ctType in NodeStaticConfig.ConnectionTypes)
                 {
                     if (this.SuccessorNodes[ctType] == null) continue;

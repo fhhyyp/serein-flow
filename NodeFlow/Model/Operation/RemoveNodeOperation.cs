@@ -155,6 +155,7 @@ namespace Serein.NodeFlow.Model.Operation
                 var pds = flowNode.MethodDetails.ParameterDetailss;
                 foreach (var pd in pds)
                 {
+                    if (string.IsNullOrWhiteSpace(pd.ArgDataSourceNodeGuid)) continue;
                     if(flowModelService.TryGetNodeModel(pd.ArgDataSourceNodeGuid, out var argSourceNode))
                     {
                         // 找到了对应的入参控制点了

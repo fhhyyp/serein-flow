@@ -28,7 +28,7 @@ namespace Serein.Library
         /// 是否保护参数
         /// </summary>
         [PropertyInfo(IsNotification = true)]
-        private bool _isProtectionParameter;
+        private bool _isProtectionParameter = false;
 
         /// <summary>
         /// 对应的节点

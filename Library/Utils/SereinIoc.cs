@@ -321,7 +321,14 @@ namespace Serein.Library.Utils
                 var typeFullName = typeMapping.Key; // 注册的类型 FullName
                 var type = typeMapping.Value; // 对应的Type。如果是以接口形式注册，typeFullName将是接口类的FullName，而type将是接口实现类。
                 var constructors = GetConstructor(type); // 获取构造函数
-
+                if(constructors .Length == 0)
+                {
+                    if (!dependencyMap[IOC_MAIN].Contains(type.FullName))
+                    {
+                        //dependencyMap[IOC_MAIN].Add(type.FullName);
+                        dependencyMap[IOC_MAIN].Add(typeFullName);
+                    }
+                }
                 foreach (var constructor in constructors)
                 {
                     if (constructor is null)
