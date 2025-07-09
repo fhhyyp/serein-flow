@@ -146,24 +146,28 @@ namespace Serein.NodeFlow.Model
         partial void OnIsPublicChanged(bool oldValue, bool newValue)
         {
             var list = CanvasDetails.PublicNodes.ToList();
-            if (newValue)
+            _ = SereinEnv.TriggerEvent(() =>
             {
-                // 公开节点
-                if (!CanvasDetails.PublicNodes.Contains(this))
+                if (newValue)
                 {
-                    list.Add(this);
-                    CanvasDetails.PublicNodes= list;
+                    // 公开节点
+                    if (!CanvasDetails.PublicNodes.Contains(this))
+                    {
+                        list.Add(this);
+                        CanvasDetails.PublicNodes = list;
+                    }
                 }
-            }
-            else
-            {
-                // 取消公开
-                if (CanvasDetails.PublicNodes.Contains(this))
+                else
                 {
-                    list.Remove(this);
-                    CanvasDetails.PublicNodes = list;
+                    // 取消公开
+                    if (CanvasDetails.PublicNodes.Contains(this))
+                    {
+                        list.Remove(this);
+                        CanvasDetails.PublicNodes = list;
+                    }
                 }
-            }
+            });
+           
         }
 
 

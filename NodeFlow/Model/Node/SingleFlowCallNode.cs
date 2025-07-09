@@ -317,7 +317,8 @@ namespace Serein.NodeFlow.Model
                 _ => base.ExecutingAsync(context, token)
             });
 
-
+            // 对于目标节点的后续节点，如果入参参数来源指定为它（目标节点）时，就需要从上下文中根据它的Guid获取流程数据
+            context.AddOrUpdateFlowData(TargetNode.Guid, flowData); 
             if (IsShareParam)
             {
                 // 设置运行时上一节点
@@ -325,7 +326,6 @@ namespace Serein.NodeFlow.Model
                 // 此处代码与SereinFlow.Library.FlowNode.ParameterDetails
                 // ToMethodArgData()方法中判断流程接口节点分支逻辑耦合
                 // 不要轻易修改
-                context.AddOrUpdateFlowData(TargetNode.Guid, flowData);
                 foreach (ConnectionInvokeType ctType in NodeStaticConfig.ConnectionTypes)
                 {
                     if (this.SuccessorNodes[ctType] == null) continue;

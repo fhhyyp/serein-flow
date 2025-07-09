@@ -102,23 +102,7 @@ namespace Serein.NodeFlow.Model.Operation
         public abstract void ToInfo();
 
 
-        protected async Task TriggerEvent(Action action)
-        {
-           /* if (OperatingSystem.IsWindows())
-            {
-            }*/
-            if (uiContextOperation is null)
-            {
-                action?.Invoke();
-            }
-            else
-            {
-                await uiContextOperation.InvokeAsync(() =>
-                {
-                    action?.Invoke();
-                });
-            }
-        }
+        protected async Task TriggerEvent(Action action) => await SereinEnv.TriggerEvent(action);
 
     }
 

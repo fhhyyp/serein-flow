@@ -1,9 +1,13 @@
 ﻿using Newtonsoft.Json.Linq;
 using System.Runtime.CompilerServices;
 using System.Xml.Linq;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Serein.Script
 {
+    /// <summary>
+    /// Serein脚本词法分析器的Token类型
+    /// </summary>
     internal enum TokenType
     {
         /// <summary>
@@ -19,9 +23,21 @@ namespace Serein.Script
         /// </summary>
         Boolean,
         /// <summary>
-        /// 数值
+        /// int 整数
         /// </summary>
-        Number,
+        NumberInt,
+        /// <summary>
+        /// long 整数
+        /// </summary>
+        NumberLong,
+        /// <summary>
+        /// float 浮点数
+        /// </summary>
+        NumberFloat, 
+        /// <summary>
+        /// double 浮点数
+        /// </summary>
+        NumberDouble,
         /// <summary>
         /// 字符串
         /// </summary>
@@ -91,6 +107,9 @@ namespace Serein.Script
         EOF
     }
 
+    /// <summary>
+    /// Serein脚本词法分析器的Token结构体
+    /// </summary>
     internal ref struct Token
     {
         public TokenType Type { get; }
@@ -108,18 +127,26 @@ namespace Serein.Script
         }
     }
 
+
+    /// <summary>
+    /// Serein脚本词法分析器
+    /// </summary>
     internal ref struct SereinScriptLexer
     {
         private readonly ReadOnlySpan<char> _input;
         private int _index;
         private int _row ;
 
+        private int coreRangeStartIndex = 0;
 
+        /// <summary>
+        /// 关键字，防止声明为变量
+        /// </summary>
         private string[] _keywords = [
             "let",
-            "func",
-            "if",
-            "else",
+            "func", 
+            "if", 
+            "else", 
             "return",
             "while",
             "new",
@@ -136,8 +163,10 @@ namespace Serein.Script
         internal Token PeekToken()
         {
             int currentIndex = _index;  // 保存当前索引
+            var currentRow = _row; // 保存当前行数
             Token nextToken = NextToken();  // 获取下一个 token
             _index = currentIndex;  // 恢复索引到当前位置
+            _row = currentRow; // 恢复到当前行数
             return nextToken;  // 返回下一个 token
         }
 
@@ -156,8 +185,7 @@ namespace Serein.Script
             }
 
             
-
-            if (_index >= _input.Length) return new Token(TokenType.EOF, string.Empty);
+            if (_index >= _input.Length) return new Token(TokenType.EOF, string.Empty); // 程序结束
 
             char currentChar = _input[_index];
 
@@ -230,12 +258,77 @@ namespace Serein.Script
             // 识别数字
             if (char.IsDigit(currentChar))
             {
-                var start = _index;
-                while (_index < _input.Length && char.IsDigit(_input[_index]))
-                    _index++;
-                var value = _input.Slice(start, _index - start).ToString();
-                _index = start; // 回退索引，索引必须只能在 CreateToken 方法内更新
-                return CreateToken(TokenType.Number, value);
+                #region 数值分析
+                if (char.IsDigit(currentChar))
+                {
+                    var start = _index;
+                    bool hasDot = false;
+                    bool hasSuffix = false;
+
+                    while (_index < _input.Length)
+                    {
+                        var ch = _input[_index];
+
+                        if (char.IsDigit(ch))
+                        {
+                            _index++;
+                        }
+                        else if (ch == '.' && !hasDot)
+                        {
+                            hasDot = true;
+                            _index++;
+                        }
+                        else if (ch is 'f' or 'F' or 'd' or 'D' or 'l' or 'L')
+                        {
+                            hasSuffix = true;
+                            _index++;
+                            break; // 后缀后应结束
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+
+                    var raw = _input.Slice(start, _index - start).ToString();
+                    _index = start; // 回退索引，仅 CreateToken 负责推进
+
+                    TokenType type;
+
+                    // 判断类型
+                    if (hasDot)
+                    {
+                        if (raw.EndsWith("f", StringComparison.OrdinalIgnoreCase))
+                            type = TokenType.NumberFloat;
+                        else if (raw.EndsWith("d", StringComparison.OrdinalIgnoreCase))
+                            type = TokenType.NumberDouble;
+                        else
+                            type = TokenType.NumberDouble; // 默认小数为 double
+                    }
+                    else
+                    {
+                        if (raw.EndsWith("l", StringComparison.OrdinalIgnoreCase))
+                            type = TokenType.NumberLong;
+                        else
+                        {
+                            // 自动根据位数判断 int 或 long
+                            if (long.TryParse(raw, out var val))
+                            {
+                                if (val >= int.MinValue && val <= int.MaxValue)
+                                    type = TokenType.NumberInt;
+                                else
+                                    type = TokenType.NumberLong;
+                            }
+                            else
+                            {
+                                type = TokenType.NumberLong; // 超出 long 会出错，默认成 long
+                            }
+                        }
+                    }
+
+                    return CreateToken(type, raw);
+                } 
+                #endregion
             }
 
             // 识别标识符（变量名、关键字）
@@ -303,6 +396,12 @@ namespace Serein.Script
             throw new Exception("Unexpected character: " + currentChar);
         }
 
+        /// <summary>
+        /// 创建一个新的Token实例
+        /// </summary>
+        /// <param name="tokenType"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
         private Token CreateToken(TokenType tokenType, string value)
         {
             var code = GetLine(_row).ToString();
@@ -314,6 +413,7 @@ namespace Serein.Script
                 Code = code,
             };
             _index += value.Length;
+
             return token;
         }
 
@@ -396,6 +496,16 @@ namespace Serein.Script
         }
 
 
+        public int GetIndex()
+        {
+            return _index;
+        }
+        public string GetCoreContent(int index)
+        {
+            ReadOnlySpan<char> text = _input;
+            var content = text.Slice(index, _index - index);  // 返回从start到当前位置的行文本
+            return content.ToString();
+        }
         
     }
     

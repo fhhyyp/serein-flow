@@ -1,5 +1,6 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
+using Serein.Workbench.Api;
 using Serein.Workbench.Extension;
 using Serein.Workbench.Tool;
 using System;
@@ -142,7 +143,7 @@ namespace Serein.Workbench.Node.View
         /// <summary>
         /// 连接线
         /// </summary>
-        private ConnectionLineShape BezierLine;
+        public ConnectionLineShape BezierLine { get;private set; }
 
 
 
@@ -225,17 +226,39 @@ namespace Serein.Workbench.Node.View
         private void ConfigureLineContextMenu()
         {
             var contextMenu = new ContextMenu();
-            contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("删除连线", (s, e) => Remote()));
+            contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("移除该连接关系", (s, e) => Remove()));
             contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("于父节点调用顺序中置顶", (s, e) => Topping()));
             BezierLine.ContextMenu = contextMenu;
         }
 
-       
+        /// <summary>
+        /// 从画布删除
+        /// </summary>
+        public void RemoveOnCanvas()
+        {
+            Canvas.Children.Remove(BezierLine);
+        }
+
         /// <summary>
         /// 删除该连线
         /// </summary>
-        public void Remote()
+        public void Remove()
         {
+            /*string startGuid = Start.MyNode.Guid;
+            string endGuid = End.MyNode.Guid;
+            if (flowEventSerice is null) flowEventSerice = App.GetService<IFlowEEForwardingService>();
+            NodeConnectChangeHandler handler = null;
+            handler = (e) =>
+            {
+                if(e.ConnectionInvokeType == InvokeType && e.ChangeType == NodeConnectChangeEventArgs.ConnectChangeType.Remove)
+                {
+
+                }
+                flowEventSerice.NodeConnectChanged -= handler;
+            };
+            flowEventSerice.NodeConnectChanged += handler;*/
+
+            //
             Canvas.Children.Remove(BezierLine);
             var env = Start.MyNode.Env;
             var canvasGuid = Start.MyNode.CanvasDetails.Guid;
@@ -247,7 +270,7 @@ namespace Serein.Workbench.Node.View
             }
             else if (jct == JunctionOfConnectionType.Arg)
             {
-                env.FlowEdit.RemoveArgSourceConnect(canvasGuid,Start.MyNode.Guid, End.MyNode.Guid, ArgIndex) ;
+                env.FlowEdit.RemoveArgSourceConnect(canvasGuid, Start.MyNode.Guid, End.MyNode.Guid, ArgIndex);
             }
         }
 

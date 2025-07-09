@@ -158,13 +158,14 @@ namespace Serein.NodeFlow.Model
                     varNames.Add(pd.Name);
                 }
 
-                StringBuilder sb  = new StringBuilder();
+                var sb  = new StringBuilder();
                 foreach (var pd in MethodDetails.ParameterDetailss)
                 {
                     sb.AppendLine($"let {pd.Name};"); // 提前声明这些变量
                 }
                 sb.Append(Script);
-                var p = new SereinScriptParser(sb.ToString());
+                var script = sb.ToString();
+                var p = new SereinScriptParser(script);
                 //var p = new SereinScriptParser(Script);
                 mainNode = p.Parse(); // 开始解析
                

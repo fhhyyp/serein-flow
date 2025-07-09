@@ -65,6 +65,7 @@ public static class NodeMethodDetailsHelper
 
         Type? returnType;
         bool isAsync = IsGenericTask(methodInfo.ReturnType, out var taskResult);
+        bool isStatic = methodInfo.IsStatic;
 
 
         if (attribute.MethodDynamicType == Library.NodeType.UI)
@@ -162,6 +163,7 @@ public static class NodeMethodDetailsHelper
             // 如果存在可变参数，取最后一个元素的下标，否则为-1；
             ParamsArgIndex = hasParamsArg ? explicitDataOfParameters.Length - 1 : -1,
             IsAsync = isAsync,
+            IsStatic = isStatic,
         };
 
         //var emitMethodType = EmitHelper.CreateDynamicMethod(methodInfo, out var methodDelegate);// 返回值

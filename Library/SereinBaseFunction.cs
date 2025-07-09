@@ -13,18 +13,17 @@ namespace Serein.Library
     /// <summary>
     /// 基础功能
     /// </summary>
-
     [DynamicFlow(Name ="[基础功能]")]
     public static class SereinBaseFunction
     {
         
-        
+        [NodeAction(NodeType.Action, "对象透传")]
+        public static object SereinTransmissionObject(object value) => value;
 
         [NodeAction(NodeType.Action, "键值对组装")]
-        public static Dictionary<string, object> SereinKvDataCollectionNode(string argName, 
+        public static Dictionary<string, object> SereinKvDataCollection(string argName, 
                                                                       params object[] value)
         {
-
             var names = argName.Split(';');
             var count = Math.Min(value.Length, names.Length);
             var dict = new Dictionary<string, object>();
@@ -36,13 +35,13 @@ namespace Serein.Library
         }
 
         [NodeAction(NodeType.Action, "数组组装")]
-        public static object[] SereinListDataCollectionNode(params object[] value)
+        public static object[] SereinListDataCollection(params object[] value)
         {
             return value;
         }
 
         [NodeAction(NodeType.Action, "输出")]
-        public static object[] SereinConsoleNode(params object[] value)
+        public static object[] SereinConsole(params object[] value)
         {
             foreach (var item in value)
             {
@@ -104,7 +103,7 @@ namespace Serein.Library
         }
 
 
-        [NodeAction(NodeType.Action, "设置/更新全局数据")]
+        [NodeAction(NodeType.Action, "设置或更新全局数据")]
         public static object SereinAddOrUpdateFlowGlobalData(string name, object data)
         {
             SereinEnv.AddOrUpdateFlowGlobalData(name, data);

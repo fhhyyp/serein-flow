@@ -5,6 +5,8 @@ using Serein.NodeFlow.Model;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reactive;
+using System.Security.AccessControl;
 using System.Text;
 using System.Threading.Tasks;
 using static Serein.Library.Api.NodeConnectChangeEventArgs;
@@ -163,10 +165,50 @@ namespace Serein.NodeFlow.Model.Operation
                 return false;
             }
 
-
             var isOverwriting = false;
             ConnectionInvokeType overwritingCt = ConnectionInvokeType.None;
             var isPass = false;
+
+            #region 类型检查
+            bool checkTypeState = true;
+            List<ParameterDetails> toPds = new List<ParameterDetails>();
+            if (ToNode.MethodDetails.ParameterDetailss.Length > 0)
+            {
+                var fromNoeReturnType = fromNode.MethodDetails.ReturnType;
+                if (fromNoeReturnType != null
+                    && fromNoeReturnType != typeof(object)
+                    && fromNoeReturnType != typeof(void)
+                    && fromNoeReturnType != typeof(Unit))
+                {
+                    var toNodePds = toNode.MethodDetails.ParameterDetailss;
+                    foreach (ParameterDetails toNodePd in toNodePds)
+                    {
+                        if (string.IsNullOrWhiteSpace(toNodePd.ArgDataSourceNodeGuid)  // 入参没有设置数据来源节点
+                            && toNodePd.DataType.IsAssignableFrom(fromNoeReturnType)) // 返回值与目标入参相同（或可转换为目标入参）
+                        {
+                            
+                            toPds.Add(toNodePd);
+                        }
+                    }
+                    if (toPds.Count == 0)
+                    {
+                        var any = toNodePds.Any(pd => pd.ArgDataSourceNodeGuid == fromNode.Guid);  // 判断目标节点是否已有该节点的连接
+                        checkTypeState = any; 
+                    }
+                    else
+                    {
+                        checkTypeState = true; // 类型检查初步通过
+                    }
+                }
+            }
+            if (!checkTypeState) // 类型检查不通过
+            {
+                SereinEnv.WriteLine(InfoType.ERROR, "创建失败，目标节点没有合适的入参接收返回值");
+                return false;
+            }
+            #endregion
+
+
 
             #region 检查是否存在对应的连接
             foreach (ConnectionInvokeType ctType in NodeStaticConfig.ConnectionTypes)
@@ -237,7 +279,27 @@ namespace Serein.NodeFlow.Model.Operation
                                    NodeConnectChangeEventArgs.ConnectChangeType.Create // 是创建连接还是删除连接
                                ));
                 });
-                
+
+
+               /* foreach (var toPd in toPds)
+                {
+                    string canvasGuid = CanvasGuid;
+                    string fromNodeGuid = fromNode.Guid;
+                    string toNodeGuid = toNode.Guid;
+                    JunctionType fromNodeJunctionType = JunctionType.ReturnData;
+                    JunctionType toNodeJunctionType = JunctionType.ArgData;
+                    ConnectionArgSourceType argSourceType = ConnectionArgSourceType.GetOtherNodeData;
+                    int argIndex = toPd.Index;
+                    // 调用创建连线接口
+                    flowEnvironment.FlowEdit.ConnectArgSourceNode(canvasGuid,
+                                                                  fromNodeGuid,
+                                                                  toNodeGuid,
+                                                                  fromNodeJunctionType,
+                                                                  toNodeJunctionType,
+                                                                  argSourceType,
+                                                                  argIndex);
+                }*/
+
                 // Invoke
                 // GetResult
                 return true;
@@ -407,7 +469,9 @@ namespace Serein.NodeFlow.Model.Operation
         /// <param name="index"></param>
         private async Task<bool> RemoveArgConnection()
         {
-            ToNode.MethodDetails.ParameterDetailss[ArgIndex].ArgDataSourceNodeGuid = null;
+            var type = ToNode.MethodDetails.ParameterDetailss[ArgIndex].ArgDataSourceType;
+            FromNode.NeedResultNodes[type].Remove(ToNode);
+            ToNode.MethodDetails.ParameterDetailss[ArgIndex].ArgDataSourceNodeGuid = string.Empty;
             ToNode.MethodDetails.ParameterDetailss[ArgIndex].ArgDataSourceType = ConnectionArgSourceType.GetPreviousNodeData; // 恢复默认值
 
 

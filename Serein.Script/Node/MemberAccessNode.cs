@@ -11,7 +11,14 @@ namespace Serein.Script.Node
     /// </summary>
     public class MemberAccessNode : ASTNode
     {
+        /// <summary>
+        /// 对象token
+        /// </summary>
         public ASTNode Object { get; }
+
+        /// <summary>
+        /// 成员名称
+        /// </summary>
         public string MemberName { get; }
 
         public MemberAccessNode(ASTNode obj, string memberName)

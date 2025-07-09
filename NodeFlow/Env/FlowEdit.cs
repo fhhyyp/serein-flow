@@ -272,6 +272,7 @@ namespace Serein.NodeFlow.Env
                 ToNodeGuid = toNodeGuid,
                 ConnectionInvokeType = connectionType,
                 ChangeType = NodeConnectChangeEventArgs.ConnectChangeType.Remove,
+                JunctionOfConnectionType = JunctionOfConnectionType.Invoke,
             };
             flowOperationService.Execute(operation);
         }
@@ -284,7 +285,8 @@ namespace Serein.NodeFlow.Env
                 FromNodeGuid = fromNodeGuid,
                 ToNodeGuid = toNodeGuid,
                 ArgIndex = argIndex,
-                ChangeType = NodeConnectChangeEventArgs.ConnectChangeType.Remove
+                ChangeType = NodeConnectChangeEventArgs.ConnectChangeType.Remove,
+                JunctionOfConnectionType = JunctionOfConnectionType.Arg,
             };
             flowOperationService.Execute(operation);
         }
@@ -354,7 +356,8 @@ namespace Serein.NodeFlow.Env
             }*/
             canvasModel.StartNode = newStartNodeModel;
             //newStartNode.IsStart = true;
-            _ = TriggerEvent(() =>
+            
+            _ = SereinEnv.TriggerEvent(() =>
                 flowEnvironmentEvent.OnStartNodeChanged(
                     new StartNodeChangeEventArgs(canvasGuid, oldNodeGuid, newStartNodeModel.Guid)
                 ));
@@ -651,20 +654,7 @@ namespace Serein.NodeFlow.Env
 
 
 
-        private async Task TriggerEvent(Action action)
-        {
-            if(UIContextOperation is null)
-            {
-                action?.Invoke();
-            }
-            else
-            {
-                await UIContextOperation.InvokeAsync(() =>
-                {
-                    action?.Invoke();
-                });
-            }
-        }
+        private async Task TriggerEvent(Action action) => await SereinEnv.TriggerEvent(action);
     }
 
 

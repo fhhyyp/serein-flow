@@ -251,7 +251,7 @@ namespace Serein.Library.NodeGenerator
                 sb.AppendLine("            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));                 ");
                 sb.AppendLine("        }                                                                                                                    ");
 
-                sb.AppendLine("         protected void OnPropertyChanged(string propertyName) =>                                                              ");
+                sb.AppendLine("         public void OnPropertyChanged(string propertyName) =>                                                              ");
                 sb.AppendLine("                   PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));                         ");
                 sb.AppendLine("                                                                                                                             ");
                 sb.AppendLine("                                                                                                                           ");

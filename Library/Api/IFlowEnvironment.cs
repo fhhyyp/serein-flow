@@ -288,11 +288,11 @@ namespace Serein.Library.Api
         /// <summary>
         /// 连接类型
         /// </summary>
-        public ConnectionInvokeType ConnectionInvokeType { get;}
+        public ConnectionInvokeType ConnectionInvokeType { get; } = ConnectionInvokeType.None;
         /// <summary>
         /// 表示此次需要在两个节点之间创建连接关系，或是移除连接关系
         /// </summary>
-        public ConnectChangeType ChangeType { get;}
+        public ConnectChangeType ChangeType { get;} 
         /// <summary>
         /// 指示需要创建什么类型的连接线
         /// </summary>
@@ -300,7 +300,7 @@ namespace Serein.Library.Api
         /// <summary>
         /// 节点对应的方法入参所需参数来源
         /// </summary>
-        public ConnectionArgSourceType ConnectionArgSourceType { get;} 
+        public ConnectionArgSourceType ConnectionArgSourceType { get;}  
         /// <summary>
         /// 第几个参数
         /// </summary>

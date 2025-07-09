@@ -30,6 +30,9 @@ namespace Serein.Script
     /// </summary>
     public interface IScriptInvokeContext
     {
+        /// <summary>
+        /// 脚本运行的流程上下文，包含了流程上下文和变量等信息
+        /// </summary>
         IDynamicContext FlowContext { get; }
 
         /// <summary>
@@ -64,7 +67,6 @@ namespace Serein.Script
         void OnExit();
     }
 
-
     public class ScriptInvokeContext : IScriptInvokeContext
     {
         public ScriptInvokeContext(IDynamicContext dynamicContext)
@@ -78,7 +80,10 @@ namespace Serein.Script
         /// 定义的变量
         /// </summary>
         private Dictionary<string, object> _variables = new Dictionary<string, object>();
-        
+
+        /// <summary>
+        /// 取消令牌源，用于控制脚本的执行
+        /// </summary>
         private CancellationTokenSource _tokenSource = new CancellationTokenSource();
 
         /// <summary>
@@ -109,8 +114,6 @@ namespace Serein.Script
         }
 
         
-
-
         void IScriptInvokeContext.OnExit()
         {
             // 清理脚本中加载的非托管资源
@@ -134,7 +137,9 @@ namespace Serein.Script
 
     }
 
-
+    /// <summary>
+    /// 脚本解释器，负责解析和执行 Serein 脚本
+    /// </summary>
     public class SereinScriptInterpreter
     {
         
@@ -220,23 +225,34 @@ namespace Serein.Script
         private async Task<object?> ExecutionProgramNodeAsync(IScriptInvokeContext context, ProgramNode programNode) 
         {
             // 加载变量
-            
-
-            // 遍历 ProgramNode 中的所有语句并执行它们
-            foreach (var statement in programNode.Statements)
+            ASTNode statement = null;
+            try
             {
-                // 直接退出
-                if (statement is ReturnNode returnNode) // 遇到 Return 语句 提前退出
-                {
-                    return await EvaluateAsync(context, statement);
-                }
-                else
-                {
-                    await InterpretAsync(context, statement);
-                }
-            }
 
-            return null;
+                // 遍历 ProgramNode 中的所有语句并执行它们
+                for (int index = 0; index < programNode.Statements.Count; index++)
+                {
+                    statement = programNode.Statements[index];
+                    // 直接退出
+                    if (statement is ReturnNode returnNode) // 遇到 Return 语句 提前退出
+                    {
+                        return await EvaluateAsync(context, statement);
+                    }
+                    else
+                    {
+                        await InterpretAsync(context, statement);
+                    }
+                }
+                return null;
+            }
+            catch (Exception ex )
+            {
+                if(statement is not null)
+                {
+                    SereinEnv.WriteLine(InfoType.ERROR, $"脚本异常发生在[行{statement.Row}]：{ex.Message}{Environment.NewLine}\t{statement.Code}");
+                }
+                throw;
+            }
         }
 
         /// <summary>
@@ -385,6 +401,13 @@ namespace Serein.Script
         }
 
 
+        /// <summary>
+        /// 解释操作
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="node"></param>
+        /// <returns></returns>
+        /// <exception cref="SereinSciptException"></exception>
         public async Task<object?> InterpretAsync(IScriptInvokeContext context, ASTNode node)
         {
             if(node == null)
@@ -407,10 +430,10 @@ namespace Serein.Script
                 case MemberAssignmentNode memberAssignmentNode: // 设置对象属性
                     await SetMemberValue(context, memberAssignmentNode);
                     break;
-                case MemberFunctionCallNode memberFunctionCallNode:
+                case MemberFunctionCallNode memberFunctionCallNode: // 对象方法调用
                     return await CallMemberFunction(context, memberFunctionCallNode);
                 case IfNode ifNode: // 执行 if...else... 语句块
-                    await ExecutionIfNodeAsync(context, ifNode);
+                    await ExecutionIfNodeAsync(context, ifNode); 
                     break;
                 case WhileNode whileNode: // 循环语句块
                     await ExectutionWhileNodeAsync(context, whileNode);
@@ -425,7 +448,13 @@ namespace Serein.Script
             return null;
         }
 
-        
+        /// <summary>
+        /// 评估
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="node"></param>
+        /// <returns></returns>
+        /// <exception cref="SereinSciptException"></exception>
         private async Task<object?> EvaluateAsync(IScriptInvokeContext context, ASTNode node)
         {
             if(node == null)
@@ -438,8 +467,14 @@ namespace Serein.Script
                     return null;
                 case BooleanNode booleanNode:
                     return booleanNode.Value; // 返回数值
-                case NumberNode numberNode:
-                    return numberNode.Value; // 返回数值
+                case NumberIntNode numberNode:
+                    return numberNode.Value; // 返回 int 整型数
+                case NumberLongNode numberNode:
+                    return numberNode.Value; // 返回 long 整型数
+                case NumberFloatNode numberNode:
+                    return numberNode.Value; // 返回 float 浮点型
+                case NumberDoubleNode numberNode:
+                    return numberNode.Value; // 返回 double 浮点型
                 case StringNode stringNode:
                     return stringNode.Value; // 返回字符串值
                 case CharNode charNode:
@@ -451,17 +486,11 @@ namespace Serein.Script
                 case BinaryOperationNode binOpNode:
                     // 递归计算二元操作
                     var left = await EvaluateAsync(context, binOpNode.Left);
-                    //if (left == null )
-                    //{
-                    //    throw new SereinSciptException(binOpNode.Left, $"左值尝试使用 null");
-                    //}
+                    //if (left == null ) throw new SereinSciptException(binOpNode.Left, $"左值尝试使用 null");
                     var right = await EvaluateAsync(context, binOpNode.Right);
-                    //if (right == null)
-                    //{
-                    //    throw new SereinSciptException(binOpNode.Right, "右值尝试使用计算 null");
-                    //}
+                    //if (right == null) throw new SereinSciptException(binOpNode.Right, "右值尝试使用计算 null");
                     return EvaluateBinaryOperation(left, binOpNode.Operator, right);
-                case ObjectInstantiationNode objectInstantiationNode:
+                case ObjectInstantiationNode objectInstantiationNode:  // 对象实例化
                     if (_classDefinition.TryGetValue(objectInstantiationNode.TypeName,out var type ))
                     {
                         object?[] args = new object[objectInstantiationNode.Arguments.Count];
@@ -493,6 +522,8 @@ namespace Serein.Script
                     return await GetCollectionValue(context, collectionIndexNode);
                 case ReturnNode returnNode: // 返回内容
                     return await EvaluateAsync(context, returnNode.Value); // 直接返回响应的内容
+                //case ObjectInstantiationNode  objectInstantiationNode: // 返回内容
+
                 default:
                     throw new SereinSciptException(node, $"解释器 EvaluateAsync() 未实现{node}节点行为");
             }
@@ -500,8 +531,7 @@ namespace Serein.Script
 
         private object EvaluateBinaryOperation(object left, string op, object right)
         {
-          
-
+            return BinaryOperationEvaluator.EvaluateValue(left, op, right);
 
             // 根据运算符执行不同的运算
             switch (op)

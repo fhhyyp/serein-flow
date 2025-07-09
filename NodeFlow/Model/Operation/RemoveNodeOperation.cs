@@ -9,6 +9,7 @@ using System.Linq;
 using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace Serein.NodeFlow.Model.Operation
 {
@@ -58,13 +59,17 @@ namespace Serein.NodeFlow.Model.Operation
             // 还需要记录移除的事件参数，用以撤销恢复
 
             #region 移除方法调用关系
-            foreach (var item in flowNode.PreviousNodes)
+
+            // 检查该节点的前继节点，然后从这些前继节点中移除与该节点的连接关系
+            var previousNodes = flowNode.PreviousNodes.Where(kvp => kvp.Value.Count > 0).ToDictionary();
+            foreach (var item in previousNodes)
             {
 
                 var connectionType = item.Key; // 连接类型
-                var previousNodes = item.Value;  // 对应类型的父节点集合
-                foreach (IFlowNode previousNode in previousNodes)
+                var nodes = item.Value.ToArray();  // 对应类型的父节点集合
+                foreach (IFlowNode previousNode in nodes)
                 {
+                    flowNode.PreviousNodes[connectionType].Remove(previousNode);
                     previousNode.SuccessorNodes[connectionType].Remove(flowNode);
                     var e = new NodeConnectChangeEventArgs(
                             CanvasGuid, // 画布
@@ -74,13 +79,11 @@ namespace Serein.NodeFlow.Model.Operation
                             connectionType, // 对应的连接关系
                             NodeConnectChangeEventArgs.ConnectChangeType.Remove); // 移除连线
                     EventArgs.Add(e); // 缓存事件参数
-                    await TriggerEvent(() =>
-                    {
-                        flowEnvironmentEvent.OnNodeConnectChanged(e);
-                    });
                 }
             }
 
+            // 检查该节点的后续节点，然后从这些后续节点中移除与该节点的连接关系
+            var successorNodes = flowNode.SuccessorNodes.Where(kvp => kvp.Value.Count > 0).ToDictionary();
             if (flowNode.ControlType == NodeControlType.FlowCall)
             {
                 // 根据流程接口节点目前的设计，暂未支持能连接下一个节点
@@ -88,14 +91,15 @@ namespace Serein.NodeFlow.Model.Operation
             else
             {
                 // 遍历所有后继节点，从那些后继节点中的前置节点集合中移除该节点
-                foreach (var item in flowNode.SuccessorNodes)
+                foreach (var item in successorNodes)
                 {
 
                     var connectionType = item.Key; // 方法调用连接类型
-                    var successorNodes = item.Value;  // 对应类型的父节点集合
-                    foreach (IFlowNode successorNode in successorNodes)
+                    var nodes = item.Value.ToArray();  // 对应类型的父节点集合
+                    foreach (IFlowNode successorNode in nodes)
                     {
-                        successorNode.SuccessorNodes[connectionType].Remove(flowNode);
+                        successorNode.PreviousNodes[connectionType].Remove(flowNode);
+                        flowNode.SuccessorNodes[connectionType].Remove(successorNode);
                         var e = new NodeConnectChangeEventArgs(
                                 CanvasGuid, // 画布
                                 flowNode.Guid, // 被移除的节点Guid
@@ -104,10 +108,7 @@ namespace Serein.NodeFlow.Model.Operation
                                 connectionType, // 对应的连接关系
                                 NodeConnectChangeEventArgs.ConnectChangeType.Remove); // 移除连线
                         EventArgs.Add(e); // 缓存事件参数
-                        await TriggerEvent(() =>
-                        {
-                            flowEnvironmentEvent.OnNodeConnectChanged(e);
-                        });
+                        
                     }
                 }
             }
@@ -120,7 +121,7 @@ namespace Serein.NodeFlow.Model.Operation
             foreach (var item in flowNode.NeedResultNodes)
             {
                 var connectionType = item.Key; // 参数来源连接类型
-                var argNodes = item.Value;  // 对应类型的入参需求节点集合
+                var argNodes = item.Value.ToArray();  // 对应类型的入参需求节点集合
                 foreach (var argNode in argNodes)
                 {
                     var md = argNode.MethodDetails;
@@ -140,10 +141,6 @@ namespace Serein.NodeFlow.Model.Operation
                                     connectionType, // 对应的连接关系
                                     NodeConnectChangeEventArgs.ConnectChangeType.Remove); // 移除连线
                         EventArgs.Add(e); // 缓存事件参数
-                        await TriggerEvent(() =>
-                        {
-                            flowEnvironmentEvent.OnNodeConnectChanged(e);
-                        });
                     }
                 }
             }
@@ -152,7 +149,7 @@ namespace Serein.NodeFlow.Model.Operation
           
             if (flowNode.MethodDetails?.ParameterDetailss != null)
             {
-                var pds = flowNode.MethodDetails.ParameterDetailss;
+                var pds = flowNode.MethodDetails.ParameterDetailss.ToArray();
                 foreach (var pd in pds)
                 {
                     if (string.IsNullOrWhiteSpace(pd.ArgDataSourceNodeGuid)) continue;
@@ -168,10 +165,6 @@ namespace Serein.NodeFlow.Model.Operation
                                     pd.ArgDataSourceType, // 对应的连接关系
                                     NodeConnectChangeEventArgs.ConnectChangeType.Remove); // 移除连线
                         EventArgs.Add(e); // 缓存事件参数
-                        await TriggerEvent(() =>
-                        {
-                            flowEnvironmentEvent.OnNodeConnectChanged(e);
-                        });
                     }
                 }
             }
@@ -179,28 +172,55 @@ namespace Serein.NodeFlow.Model.Operation
             #endregion
 
             flowModelService.RemoveNodeModel(flowNode); // 从记录中移除
-            //flowNode.Remove(); // 调用节点的移除方法
+                                                        //flowNode.Remove(); // 调用节点的移除方法
 
-            if(flowEnvironment.UIContextOperation is null) 
+
+            // 存在UI上下文操作，当前运行环境极有可能运行在有UI线程的平台上
+            // 为了避免直接修改 ObservableCollection 集合导致异常产生，故而使用UI线程上下文操作运行
+            NodeConnectChangeEventArgs[] es = EventArgs.ToArray();
+            await TriggerEvent(() =>
+            {
+
+                /*flowCanvasDetails.Nodes.Remove(flowNode);
+                flowCanvasDetails.OnPropertyChanged(nameof(FlowCanvasDetails.Nodes));
+                if (flowNode.IsPublic)
+                {
+                    flowCanvasDetails.PublicNodes.Remove(flowNode); 
+                    flowCanvasDetails.OnPropertyChanged(nameof(FlowCanvasDetails.PublicNodes));
+                }*/
+
+                // 手动赋值刷新UI显示
+                var lsit = flowCanvasDetails.Nodes.ToList();
+                lsit.Remove(flowNode);
+                flowCanvasDetails.Nodes = lsit;
+                if (flowNode.IsPublic)
+                {
+                    var publicNodes = flowCanvasDetails.PublicNodes.ToList();
+                    publicNodes.Remove(flowNode);
+                    flowCanvasDetails.PublicNodes = publicNodes;
+                }
+
+                foreach (var e in es)
+                {
+                    flowEnvironmentEvent.OnNodeConnectChanged(e); // 触发事件
+                }
+                flowEnvironmentEvent.OnNodeRemoved(new NodeRemoveEventArgs(CanvasGuid, NodeGuid));
+            });
+
+            /*if (flowEnvironment.UIContextOperation is null) 
             {
                 flowCanvasDetails?.Nodes.Remove(flowNode);
             }
             else
             {
-                // 存在UI上下文操作，当前运行环境极有可能运行在有UI线程的平台上
-                // 为了避免直接修改 ObservableCollection 集合导致异常产生，故而使用UI线程上下文操作运行
-                await TriggerEvent(() =>
-                {
-                    var lsit = flowCanvasDetails.Nodes.ToList();
-                    lsit.Remove(flowNode);
-                    flowCanvasDetails.Nodes = lsit;
-                });
-            }
+               
+               
+            }*/
 
-            await TriggerEvent(() =>
+           /* await TriggerEvent(() =>
             {
-                flowEnvironmentEvent.OnNodeRemoved(new NodeRemoveEventArgs(CanvasGuid, NodeGuid));
-            });
+                
+            });*/
             return true;
         }
 

@@ -132,18 +132,30 @@ namespace Serein.NodeFlow.Model
                 
                 throw new Exception($"节点{this.Guid}不存在对应委托");
             }
-            var instance = Env.IOC.Get(md.ActingInstanceType);
-            if (instance is null)
+            if (md.IsStatic)
             {
-                Env.IOC.Register(md.ActingInstanceType).Build();
-                instance = Env.IOC.Get(md.ActingInstanceType);
+                object[] args = await this.GetParametersAsync(context, token);
+                var result = await dd.InvokeAsync(null, args);
+                var flowReslt = new FlowResult(this.Guid, context, result);
+                return flowReslt;
             }
-            object[] args = await this.GetParametersAsync(context, token);
-            var result = await dd.InvokeAsync(instance, args);
-            var flowReslt = new FlowResult(this.Guid, context, result);
-            return flowReslt;
+            else
+            {
+                var instance = Env.IOC.Get(md.ActingInstanceType);
+                if (instance is null)
+                {
+                    Env.IOC.Register(md.ActingInstanceType).Build();
+                    instance = Env.IOC.Get(md.ActingInstanceType);
+                }
+                object[] args = await this.GetParametersAsync(context, token);
+                var result = await dd.InvokeAsync(instance, args);
+                var flowReslt = new FlowResult(this.Guid, context, result);
+                return flowReslt;
+            }
+            
 
         }
+
 
     }
 

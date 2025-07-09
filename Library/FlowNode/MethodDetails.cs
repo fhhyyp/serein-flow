@@ -106,6 +106,11 @@ namespace Serein.Library
         public bool HasParamsArg => _paramsArgIndex >= 0;
 
         /// <summary>
+        /// 是否为静态方法
+        /// </summary>
+        public bool IsStatic { get;  set; }
+
+        /// <summary>
         /// 新增可变参数
         /// </summary>
         /// <param name="index"></param>
@@ -119,10 +124,13 @@ namespace Serein.Library
                 return false;
             }
 
+
             var newPd = ParameterDetailss[index].CloneOfModel(this.NodeModel); // 复制出属于本身节点的参数描述
             newPd.Index = ParameterDetailss.Length; // 更新索引
             newPd.IsParams = true;
             ParameterDetailss = ArrayHelper.AddToArray(ParameterDetailss, newPd); // 新增
+            
+
             return true;
         }
 
@@ -140,6 +148,7 @@ namespace Serein.Library
             parameterDetails.Index = ParameterDetailss.Length; // 更新索引
             parameterDetails.IsParams = true;
             ParameterDetailss = ArrayHelper.AddToArray(ParameterDetailss, parameterDetails); // 新增
+
             return true;
             
         }
@@ -299,6 +308,7 @@ namespace Serein.Library
                 ParamsArgIndex = this.ParamsArgIndex,  // 拷贝
                 ParameterDetailss = this.ParameterDetailss?.Select(p => p?.CloneOfModel(nodeModel)).ToArray(), // 拷贝属于节点方法的新入参描述
                 IsAsync = this.IsAsync, // 拷贝
+                IsStatic = this.IsStatic, // 拷贝
             };
 
             return md;

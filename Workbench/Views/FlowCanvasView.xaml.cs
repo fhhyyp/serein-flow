@@ -42,6 +42,7 @@ using Clipboard = System.Windows.Clipboard;
 using TextDataFormat = System.Windows.TextDataFormat;
 using System.Windows.Media.Animation;
 using Serein.NodeFlow.Model;
+using Serein.NodeFlow.Services;
 
 namespace Serein.Workbench.Views
 {
@@ -151,6 +152,7 @@ namespace Serein.Workbench.Views
 
 
         }
+
         /// <summary>
         /// 设置绑定
         /// </summary>
@@ -175,7 +177,50 @@ namespace Serein.Workbench.Views
         private void InitEvent()
         {
             keyEventService.OnKeyDown += KeyEventService_OnKeyDown;
+            //flowNodeService.OnRemoveConnectionLine += FlowNodeService_OnRemoveConnectionLine;
             flowEEForwardingService.NodeLocated += FlowEEForwardingService_OnNodeLocated;
+        }
+
+        private void FlowNodeService_OnRemoveConnectionLine(NodeConnectChangeEventArgs e)
+        {
+            if(e.ChangeType == NodeConnectChangeEventArgs.ConnectChangeType.Create || e.CanvasGuid != this.Guid)
+            {
+                return;
+            }
+
+            var connectionControl = Connections.FirstOrDefault(c =>
+            {
+                if (c.Start.MyNode.Guid != e.FromNodeGuid
+                || c.End.MyNode.Guid != e.ToNodeGuid)
+                {
+                    return false; // 不是当前连接
+                }
+                var jct1 = c.Start.JunctionType.ToConnectyionType();
+                var jct2 = c.End.JunctionType.ToConnectyionType();
+                if (e.JunctionOfConnectionType == JunctionOfConnectionType.Invoke)
+                {
+                    if (jct1 == JunctionOfConnectionType.Invoke 
+                        && jct2 == JunctionOfConnectionType.Invoke)
+                    {
+                        return true; // 是当前连接
+                    }
+                }
+                else
+                {
+                    if (c.ArgIndex == e.ArgIndex 
+                        && jct1 == JunctionOfConnectionType.Arg
+                        && jct2 == JunctionOfConnectionType.Arg)
+                    {
+                        return true; // 是当前连接
+                    }
+                }
+                return true;
+            });
+            if(connectionControl is null)
+            {
+                return;
+            }
+            connectionControl.RemoveOnCanvas(); // 移除连接线
         }
 
         /// <summary>
@@ -224,6 +269,7 @@ namespace Serein.Workbench.Views
             nodeControl.RenderTransform = translateTransform;
             ElasticAnimation(nodeControl, translateTransform, 6, 0.5, 0.5);
         }
+
         /// <summary>
         /// 控件抖动
         /// 来源：https://www.cnblogs.com/RedSky/p/17705411.html
@@ -257,7 +303,6 @@ namespace Serein.Workbench.Views
             };
         }
 
-
         /// <summary>
         /// 加载完成后刷新显示
         /// </summary>
@@ -266,8 +311,6 @@ namespace Serein.Workbench.Views
         {
             RefreshAllLine();
         }
-
-     
 
         /// <summary>
         /// 当前画布创建了节点
@@ -1490,9 +1533,9 @@ namespace Serein.Workbench.Views
 
 
             contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("设为起点", (s, e) => flowEnvironment.FlowEdit.SetStartNode(canvasGuid, nodeGuid)));
-            contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("删除", async (s, e) =>
+            contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("删除",  (s, e) =>
             {
-                flowEnvironment.FlowEdit.RemoveNode(canvasGuid, nodeGuid);
+                flowNodeService.RemoteNode(nodeControl);
             }));
 
             #region 右键菜单功能 - 控件对齐

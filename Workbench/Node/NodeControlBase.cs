@@ -101,7 +101,7 @@ namespace Serein.Workbench.Node.View
         public void RemoveConnection(ConnectionControl connection)
         {
             connectionControls.Remove(connection);
-            connection.Remote();
+            connection.Remove(); // 主动删除连接
         }
 
         /// <summary>
@@ -111,7 +111,7 @@ namespace Serein.Workbench.Node.View
         {
             foreach (var connection in this.connectionControls)
             {
-                connection.Remote(); 
+                connection.Remove();  // 主动删除连接
             }
         }
 

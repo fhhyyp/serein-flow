@@ -50,6 +50,11 @@ namespace Serein.Workbench.Services
         /// </summary>
         public Action<MethodDetailsInfo> OnViewMethodDetailsInfoChanged { get; set; }
 
+        /// <summary>
+        /// FlowCanvasView 监听，需要移除连接线（控件）
+        /// </summary>
+        public Action<NodeConnectChangeEventArgs> OnRemoveConnectionLine { get; set; }
+
         #endregion
 
         #region 创建节点相关的属性
@@ -244,8 +249,11 @@ namespace Serein.Workbench.Services
                 _ => null
             };
 
+            /*if(e.ChangeType == NodeConnectChangeEventArgs.ConnectChangeType.Remove)
+            {
+                OnRemoveConnectionLine.Invoke(e);  // 删除连线
+            }*/
             action?.Invoke();
-          
             return;
 
         }
@@ -406,7 +414,6 @@ namespace Serein.Workbench.Services
             Canvass.Add(model.Guid, canvasView);
             OnCreateFlowCanvasView.Invoke(canvasView); // 传递给订阅者
         }
-
 
 
         #endregion

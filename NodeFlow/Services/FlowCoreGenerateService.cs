@@ -255,7 +255,7 @@ namespace Serein.NodeFlow.Services
                             }
                             else if (pd.DataType.IsAssignableFrom(otherNodeReturnType))
                             {
-                                sb_invoke_login.AppendCode(3, $"{valueType} value{index} = {flowContext}.{nameof(IDynamicContext.GetFlowData)}(\"{pd.ArgDataSourceNodeGuid}\").Value; // 获取指定节点的数据");
+                                sb_invoke_login.AppendCode(3, $"{valueType} value{index} = ({valueType}){flowContext}.{nameof(IDynamicContext.GetFlowData)}(\"{pd.ArgDataSourceNodeGuid}\").Value; // 获取指定节点的数据");
                             }
                             else
                             {
@@ -1058,7 +1058,7 @@ namespace Serein.NodeFlow.Services
                     sb.AppendCode(3,    $"{{");
                     sb.AppendCode(4,        $"throw new ArgumentNullException($\"类型转换失败，{{(flowResult.Value is null ? \"返回数据为 null\" : $\"返回数据与需求类型不匹配，当前返回类型为[{{flowResult.Value.GetType().FullName}}。\")}}\");");
                     sb.AppendCode(3,    $"}}");
-                    sb.AppendCode(3,    $"return {flowResult};");
+                    //sb.AppendCode(3,    $"return {flowResult};");
                     sb.AppendCode(2, $"}}");
                     return sb.ToString();
                     // throw new ArgumentNullException($"类型转换失败，{(flowResult.Value is null ? "返回数据为 null" : $"返回数据与需求类型不匹配，当前返回类型为[{flowResult.Value.GetType().FullName}。")}");

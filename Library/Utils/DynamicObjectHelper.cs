@@ -16,6 +16,20 @@ namespace Serein.Library.Utils
         // 类型缓存，键为类型的唯一名称（可以根据实际需求调整生成方式）
         static Dictionary<string, Type> typeCache = new Dictionary<string, Type>();
 
+        /// <summary>
+        /// 获取运行时创建过的类型
+        /// </summary>
+        /// <param name="className"></param>
+        /// <returns></returns>
+        public static Type GetCacheType(string className)
+        {
+            if(typeCache.TryGetValue(className, out var type))
+            {
+                return type;
+            }
+            return null;
+        }
+
         public static object Resolve(IDictionary<string, object> properties, string typeName)
         {
             var obj = CreateObjectWithProperties(properties, typeName);

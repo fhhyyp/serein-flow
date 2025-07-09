@@ -69,12 +69,12 @@ namespace Serein.Library.Api
         /// <param name="argSourceType">决定了方法参数来源</param>
         /// <param name="argIndex">设置第几个参数</param>
         void ConnectArgSourceNode(string canvasGuid,
-                                             string fromNodeGuid,
-                                             string toNodeGuid,
-                                             JunctionType fromNodeJunctionType,
-                                             JunctionType toNodeJunctionType,
-                                             ConnectionArgSourceType argSourceType,
-                                             int argIndex);
+                                  string fromNodeGuid,
+                                  string toNodeGuid,
+                                  JunctionType fromNodeJunctionType,
+                                  JunctionType toNodeJunctionType,
+                                  ConnectionArgSourceType argSourceType,
+                                  int argIndex);
 
         /// <summary>
         /// 移除两个节点之间的方法调用关系

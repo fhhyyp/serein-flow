@@ -101,8 +101,6 @@ namespace Serein.Library
         #endregion
 
 
-
-
         /// <summary>
         /// 设置运行流程
         /// </summary>
@@ -138,8 +136,35 @@ namespace Serein.Library
         }
 
 
-        
 
+        /// <summary>
+        /// 尝试在UI线程上触发事件
+        /// </summary>
+        /// <param name="action"></param>
+        /// <returns></returns>
+        public async static Task TriggerEvent(Action action)
+        {
+            if (environment is null)
+            {
+                action?.Invoke();
+            }
+            else
+            {
+                var uco = environment.UIContextOperation;
+                if (uco is null)
+                {
+                    action?.Invoke();
+                }
+                else
+                {
+                    await uco.InvokeAsync(() =>
+                    {
+                        action?.Invoke();
+                    });
+                }
+            }
+           
+        }
 
     }
 

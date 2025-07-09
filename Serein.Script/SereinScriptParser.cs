@@ -5,9 +5,14 @@ using Serein.Script.Node;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Text;
 
 namespace Serein.Script
 {
+
+    /// <summary>
+    /// SereinScriptParser 用于解析 Serein 脚本语言的语法。
+    /// </summary>
     public ref struct SereinScriptParser
     {
         private SereinScriptLexer _lexer;
@@ -20,6 +25,11 @@ namespace Serein.Script
             _currentToken = _lexer.NextToken();
         }
 
+
+        /// <summary>
+        /// 解析脚本并返回 AST（抽象语法树）根节点。
+        /// </summary>
+        /// <returns></returns>
         public ASTNode Parse()
         {
             return Program();
@@ -29,40 +39,67 @@ namespace Serein.Script
 
         private List<ASTNode> Statements {  get; } = new List<ASTNode>();
 
+        /// <summary>
+        /// 解析整个程序，直到遇到文件结尾（EOF）为止。
+        /// </summary>
+        /// <returns></returns>
         private ASTNode Program()
         {
             Statements.Clear();
             while (_currentToken.Type != TokenType.EOF)
             {
                 
-                var astNode = Statement();
+                var astNode = Statement(); // 解析单个语句
                 if (astNode == null)
                 {
                     continue;
                 }
-                Statements.Add(astNode);
-
-                //if (astNode is ClassTypeDefinitionNode)
-                //{
-                //    statements = [astNode, ..statements]; // 类型定义置顶
-                //}
-                //else
-                //{
-                //    statements.Add(astNode);
-                //}
-
+                Statements.Add(astNode); // 将解析得到的 AST 节点添加到语句列表中
             }
-            return new ProgramNode(Statements).SetTokenInfo(_currentToken);
+            var programNode = new ProgramNode(Statements);
+            programNode.SetTokenInfo(_currentToken); // 程序节点，包含所有解析的语句列表
+
+            SereinScriptTypeAnalysis typeAnalysis = new SereinScriptTypeAnalysis(programNode);
+            return programNode;
+
+            /*if (astNode is ClassTypeDefinitionNode)
+            {
+                statements = [astNode, ..statements]; // 类型定义置顶
+            }
+            else
+            {
+                statements.Add(astNode);
+            }*/
         }
 
+        /// <summary>
+        /// 解析单个语句。
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         private ASTNode Statement()
         {
+
+            // 处理其他语句（如表达式语句等）
+            while (_currentToken.Type == TokenType.Semicolon)
+            {
+                _currentToken = _lexer.NextToken();
+            }
+            if(_currentToken.Type == TokenType.EOF)
+            {
+                return null;
+            }
+            
+
             if (_currentToken.Type == TokenType.Keyword && _currentToken.Value == "let")
             {
+                // 处理 let 变量赋值语句
                 return ParseLetAssignment();
             }
             if (_currentToken.Type == TokenType.Keyword && _currentToken.Value == "class")
             {
+                
+                // 加载类定义
                 return ParseClassDefinition(); // 加载类，如果已经加载过，则忽略
             }
             if (_currentToken.Type == TokenType.Keyword && _currentToken.Value == "new")
@@ -70,39 +107,44 @@ namespace Serein.Script
                 var _peekToken = _lexer.PeekToken();
                 if (_peekToken.Type == TokenType.Keyword && _peekToken.Value == "class")
                 {
+                    // 重新加载类定义
                     return ParseClassDefinition(); // 重新加载类
                 }
             }
 
             if (_currentToken.Type == TokenType.Keyword && _currentToken.Value == "if")
             {
+                // 处理 if 语句
                 return ParseIf();
             }
             if (_currentToken.Type == TokenType.Keyword && _currentToken.Value == "while")
             {
+                // 处理 while 循环语句
                 return ParseWhile();
             }
             if (_currentToken.Type == TokenType.Keyword && _currentToken.Value == "return")
             {
+                // 处理 return 语句
                 return ParseReturn();
             }
             if (_currentToken.Type == TokenType.Identifier)
             {
+                // 处理标识符，可能是函数调用、变量赋值或对象成员访问等行为
                 return ParseIdentifier();
             }
             if (_currentToken.Type == TokenType.Null)
             {
+                // 处理 null 语句
                 return Expression();
             }
 
-
-
-            // 处理其他语句（如表达式语句等）
-            if (_currentToken.Type == TokenType.Semicolon)
+            /*if (_currentToken.Type == TokenType.Semicolon)
             {
                 _currentToken = _lexer.NextToken();
                 return null; // 表示空语句
-            }
+            }*/
+
+
 
             throw new Exception("Unexpected statement: " + _currentToken.Value.ToString());
         }
@@ -126,12 +168,13 @@ namespace Serein.Script
             else if (_tempToken.Type == TokenType.Dot)
             {
                 // 对象成员的获取
-                return ParseMemberAccessOrAssignment();
+                return ParseMemberAccessOrAssignment(); 
             }
             else if (_tempToken.Type == TokenType.SquareBracketsLeft)
             {
                 // 数组 index; 字典 key obj.Member[xxx];
                 return ParseCollectionIndex();
+                
             }
             else
             {
@@ -197,7 +240,6 @@ namespace Serein.Script
             }
             
             
-
             throw new Exception($"Expected '{_currentToken.Value}' after variable name");
 
         }
@@ -209,33 +251,55 @@ namespace Serein.Script
         /// <exception cref="Exception"></exception>
         private ASTNode ParseLetAssignment()
         {
+            
             _currentToken = _lexer.NextToken(); // Consume "let"
             string variable = _currentToken.Value.ToString(); // 变量名称
             _currentToken = _lexer.NextToken(); // Consume identifier
             ASTNode value;
+            AssignmentNode assignmentNode;
             if (_currentToken.Type == TokenType.Semicolon)
             {
                 // 定义一个变量，初始值为 null
                 value = new NullNode();
+                assignmentNode = new AssignmentNode(variable, value); // 生成node
+                assignmentNode.SetTokenInfo(_currentToken); // 设置token信息
             }
             else
             {
+                // 如果定义了变量，后面紧跟着操作符，且操作符不是“=”话视为异常
+                // let value = obj; 
                 if (_currentToken.Type != TokenType.Operator || _currentToken.Value != "=")
                     throw new Exception("Expected '=' after variable name");
-                _currentToken = _lexer.NextToken();
-                value = Expression();
-                _currentToken = _lexer.NextToken(); // Consume semicolon
-               
+                _currentToken = _lexer.NextToken(); // 消耗操作符（“=”）
+                var nodeToken = _currentToken;
+                value = Expression(); // 解析获取赋值表达式
+                assignmentNode = new AssignmentNode(variable, value); // 生成node
+                assignmentNode.SetTokenInfo(nodeToken); // 设置token信息
+                _currentToken = _lexer.NextToken(); // 消耗分号
             }
-            return new AssignmentNode(variable, value).SetTokenInfo(_currentToken);
+            return assignmentNode;
 
 
 
         }
 
+        /// <summary>
+        /// 解析类定义
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         private ASTNode ParseClassDefinition()
         {
-            bool isOverlay = false;
+            var sb = new StringBuilder(); // 收集代码信息
+            /*
+             * 有两种定义类型的方式：
+             *   1. class MyClass{}
+             *   2. new class MyClass{} 
+             * 解析执行时，第二种方式定义的类，会顶掉其他地方创建的“MyClass”同名类型；
+             */
+            var coreStartRangeIndex =  _lexer.GetIndex() - "class".Length; // 从“class”开始锚定代码范围
+            bool isOverlay = false; // 指示是否覆盖缓存中创建过的同名其它类型
+            
             if (_currentToken.Value == "new")
             {
                 isOverlay = true; // 重新加载类
@@ -248,15 +312,19 @@ namespace Serein.Script
                 throw new Exception("Expected '{' after class definition");
             var classFields = new Dictionary<string, Type>();
             _currentToken = _lexer.NextToken();  // 消耗括号
+
             while (_currentToken.Type != TokenType.BraceRight)
             {
-                var fieldType = _currentToken.Value.ToString().ToTypeOfString(); // 获取定义的类名
-                _currentToken = _lexer.NextToken(); 
+                // 获取类字段定义
+                var fieldType = _currentToken.Value.ToString().ToTypeOfString(); // 获取字段的类型
+                _currentToken = _lexer.NextToken();  // 消耗类型
                 var fieldName = _currentToken.Value.ToString(); // 获取定义的类名
-                _currentToken = _lexer.NextToken(); 
-                classFields.Add(fieldName,fieldType);
-                if (_currentToken.Type == TokenType.Semicolon && _lexer.PeekToken().Type == TokenType.BraceRight)
+                _currentToken = _lexer.NextToken();  // 消耗字段名称
+                classFields.Add(fieldName,fieldType); // 添加字段
+                if (_currentToken.Type == TokenType.Semicolon 
+                    && _lexer.PeekToken().Type == TokenType.BraceRight)
                 {
+                    // 如果遇到分号、大括号，退出字段定义。
                     break;
                 }
                 else
@@ -265,37 +333,50 @@ namespace Serein.Script
                 }
 
             }
-
-            _currentToken = _lexer.NextToken();
-            _currentToken = _lexer.NextToken();
-            return new ClassTypeDefinitionNode(classFields, className, isOverlay).SetTokenInfo(_currentToken);
+            _currentToken = _lexer.NextToken(); // 消耗类型定义 } 括号
+            var typeDefinitionCode = _lexer.GetCoreContent(coreStartRangeIndex); // 收集类型定义的代码。（在Statement方法中开始收集的）
+            var node = new ClassTypeDefinitionNode(classFields, className, isOverlay);
+            _currentToken.Code = typeDefinitionCode;
+            node.SetTokenInfo(_currentToken);
+            // _currentToken = _lexer.NextToken();
+            _currentToken = _lexer.NextToken(); 
+            return node;
         }
 
+        /// <summary>
+        /// 解析对象实例化行为
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public ASTNode ParseObjectInstantiation()
         {
-            _currentToken = _lexer.NextToken(); // Consume "new"
-            string typeName = _currentToken.Value.ToString(); // Get type name
+            _currentToken = _lexer.NextToken(); // 消耗 new 关键字
+            string typeName = _currentToken.Value.ToString(); // 获取类型名称
             _currentToken = _lexer.NextToken();
             if (_currentToken.Type != TokenType.ParenthesisLeft)
                 throw new Exception("Expected '(' after function name");
 
-            _currentToken = _lexer.NextToken(); // consume "("
+            _currentToken = _lexer.NextToken(); // 消耗 "("
 
             var arguments = new List<ASTNode>();
             while (_currentToken.Type != TokenType.ParenthesisRight)
             {
-                arguments.Add(Expression());
+                arguments.Add(Expression()); // 获取参数表达式
                 if (_currentToken.Type == TokenType.Comma)
                 {
                     _currentToken = _lexer.NextToken(); // consume ","
                 }
             }
 
-            _currentToken = _lexer.NextToken(); // consume ")"
+            _currentToken = _lexer.NextToken(); // 消耗 ")"
             return new ObjectInstantiationNode(typeName, arguments).SetTokenInfo(_currentToken);
         }
 
-
+        /// <summary>
+        /// 解析集合索引行为（数组或字典）
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public ASTNode ParseCollectionIndex()
         {
             var identifierNode = new IdentifierNode(_currentToken.Value.ToString()).SetTokenInfo(_currentToken);
@@ -375,10 +456,15 @@ namespace Serein.Script
         }
 
 
-
+        /// <summary>
+        /// 解析成员函数调用行为
+        /// </summary>
+        /// <param name="targetNode"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         private ASTNode ParseMemberFunctionCall(ASTNode targetNode)
         {
-            string functionName = _currentToken.Value.ToString();
+            string functionName = _currentToken.Value.ToString(); // 函数名称
             _currentToken = _lexer.NextToken(); // consume identifier
 
             if (_currentToken.Type != TokenType.ParenthesisLeft)
@@ -389,9 +475,10 @@ namespace Serein.Script
             var arguments = new List<ASTNode>();
             while (_currentToken.Type != TokenType.ParenthesisRight)
             {
+                // 获取参数表达式
                 var arg = Expression();
                 _currentToken = _lexer.NextToken(); // consume arg
-                arguments.Add(arg);
+                arguments.Add(arg);  // 添加到参数列表
                 if (_currentToken.Type == TokenType.Comma)
                 {
                     _currentToken = _lexer.NextToken(); // consume ","
@@ -408,10 +495,15 @@ namespace Serein.Script
         }
 
 
+        /// <summary>
+        /// 解析函数调用行为
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         private ASTNode ParseFunctionCall()
         {
             string functionName = _currentToken.Value.ToString();
-            _currentToken = _lexer.NextToken(); // consume identifier
+            _currentToken = _lexer.NextToken();  // consume identifier
 
             if (_currentToken.Type != TokenType.ParenthesisLeft)
                 throw new Exception("Expected '(' after function name");
@@ -422,7 +514,7 @@ namespace Serein.Script
             bool isBreak = false;
             while (_currentToken.Type != TokenType.ParenthesisRight)
             {
-                var arg = Expression();
+                var arg = Expression(); // 获取参数表达式
                 _currentToken = _lexer.NextToken(); // consume arg
                 arguments.Add(arg);
                 if (_currentToken.Type == TokenType.Comma)
@@ -456,18 +548,28 @@ namespace Serein.Script
 
         }
 
+        /// <summary>
+        /// 解析 return 语句。
+        /// </summary>
+        /// <returns></returns>
         public ASTNode ParseReturn()
         {
             _currentToken = _lexer.NextToken();
             if(_currentToken.Type == TokenType.Semicolon)
             {
-                return new ReturnNode().SetTokenInfo(_currentToken);
+                return new ReturnNode().SetTokenInfo(_currentToken); // 返回空的 ReturnNode
             }
-            var resultValue = Expression();
-            _currentToken = _lexer.NextToken();
-            return new ReturnNode(resultValue).SetTokenInfo(_currentToken);
+            var resultValue = Expression(); // 获取返回值表达式
+            _currentToken = _lexer.NextToken(); 
+            return new ReturnNode(resultValue).SetTokenInfo(_currentToken); 
         }
 
+
+        /// <summary>
+        /// 解析 if 语句。
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         private ASTNode ParseIf()
         {
             _currentToken = _lexer.NextToken(); // Consume "if"
@@ -487,10 +589,10 @@ namespace Serein.Script
             List<ASTNode> falseBranch = new List<ASTNode>();
             while (_currentToken.Type != TokenType.BraceRight && _currentToken.Type != TokenType.EOF)
             {
-                var astNode = Statement();
+                var astNode = Statement(); // 解析 if 分支中的语句
                 if (astNode != null)
                 {
-                    trueBranch.Add(astNode);
+                    trueBranch.Add(astNode); // 将 if 分支的语句添加到 trueBranch 中
                 }
             }
             // 确保匹配右大括号 }
@@ -505,10 +607,10 @@ namespace Serein.Script
                 _currentToken = _lexer.NextToken(); // Consume "{"
                 while (_currentToken.Type != TokenType.BraceRight && _currentToken.Type != TokenType.EOF)
                 {
-                    var astNode = Statement();
+                    var astNode = Statement(); // 解析 else 分支中的语句
                     if (astNode != null)
                     {
-                        falseBranch.Add(astNode);
+                        falseBranch.Add(astNode); // 将 else 分支的语句添加到 falseBranch 中
                     }
                 }
                 // 确保匹配右大括号 }
@@ -523,6 +625,10 @@ namespace Serein.Script
             return new IfNode(condition, trueBranch, falseBranch).SetTokenInfo(_currentToken);
         }
 
+        /// <summary>
+        /// 解析 while 循环语句。
+        /// </summary>
+        /// <returns></returns>
         private ASTNode ParseWhile()
         {
             _currentToken = _lexer.NextToken(); // Consume "while"
@@ -533,13 +639,16 @@ namespace Serein.Script
             List<ASTNode> body = new List<ASTNode>();
             while (_currentToken.Type != TokenType.BraceRight)
             {
-                body.Add(Statement());
+                body.Add(Statement()); // 解析循环体中的语句
             }
             _currentToken = _lexer.NextToken(); // Consume "}"
             return new WhileNode(condition, body).SetTokenInfo(_currentToken);
         }
 
-
+        /// <summary>
+        /// 解析表达式。
+        /// </summary>
+        /// <returns></returns>
         private ASTNode Expression()
         {
             ASTNode left = Term();
@@ -555,6 +664,11 @@ namespace Serein.Script
           return left;
         }
 
+
+        /// <summary>
+        /// 解析项（Term），用于处理加减乘除等运算符。
+        /// </summary>
+        /// <returns></returns>
         private ASTNode Term()
         {
             ASTNode left = Factor();
@@ -571,6 +685,11 @@ namespace Serein.Script
             return left;
         }
 
+        /// <summary>
+        /// 解析因子（Factor），用于处理基本的字面量、标识符、括号表达式等。
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         private ASTNode Factor()
         {
             #region 返回字面量
@@ -588,8 +707,9 @@ namespace Serein.Script
             if (_currentToken.Type == TokenType.String)
             {
                 var text = _currentToken.Value;
+                var node = new StringNode(text).SetTokenInfo(_currentToken); 
                 _currentToken = _lexer.NextToken();  // 消耗字符串
-                return new StringNode(text).SetTokenInfo(_currentToken);
+                return node;
             }
             if (_currentToken.Type == TokenType.Char)
             {
@@ -599,6 +719,7 @@ namespace Serein.Script
             }
             if( _currentToken.Type == TokenType.InterpolatedString)
             {
+                // 暂未实现插值字符串
                 // 可能是插值字符串；
                 // let context = $"a{A}b{B}c";
                 // let context = "a" + A + "b" + B + c;
@@ -607,11 +728,32 @@ namespace Serein.Script
                 }
             }
 
-            if (_currentToken.Type == TokenType.Number)
+            if (_currentToken.Type == TokenType.NumberInt)
             {
                 var value = int.Parse(_currentToken.Value);
+                _currentToken = _lexer.NextToken();  // 消耗 int 整型
+                return new NumberIntNode(value).SetTokenInfo(_currentToken);
+            }
+
+            if (_currentToken.Type == TokenType.NumberLong)
+            {
+                var value = long.Parse(_currentToken.Value);
+                _currentToken = _lexer.NextToken();  // 消耗 
+                return new NumberLongNode(value).SetTokenInfo(_currentToken);
+            }
+
+            if (_currentToken.Type == TokenType.NumberFloat)
+            {
+                var value = float.Parse(_currentToken.Value);
                 _currentToken = _lexer.NextToken();  // 消耗数字
-                return new NumberNode(value).SetTokenInfo(_currentToken);
+                return new NumberFloatNode(value).SetTokenInfo(_currentToken);
+            }
+
+            if (_currentToken.Type == TokenType.NumberDouble)
+            {
+                var value = float.Parse(_currentToken.Value);
+                _currentToken = _lexer.NextToken();  // 消耗数字
+                return new NumberDoubleNode(value).SetTokenInfo(_currentToken);
             }
             #endregion
 
@@ -629,6 +771,7 @@ namespace Serein.Script
             // 创建对象
             if (_currentToken.Type == TokenType.Keyword && _currentToken.Value == "new")
             {
+                // 可能是对象实例化
                 return ParseObjectInstantiation();
             }
 
@@ -640,13 +783,15 @@ namespace Serein.Script
                 // 该标识符是方法调用
                 if (_identifierPeekToken.Type == TokenType.ParenthesisLeft)
                 {
+                    // 可能是函数调用
                     return ParseFunctionCall();
                 }
 
                 // 需要从该标识符调用另一个标识符
                 if (_identifierPeekToken.Type == TokenType.Dot)
                 {
-                    return ParseMemberAccessOrAssignment();
+                    // 可能是成员访问或成员赋值
+                    return ParseMemberAccessOrAssignment(); // 二元操作中获取对象成员
                 }
 
 
