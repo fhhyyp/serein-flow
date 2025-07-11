@@ -12,8 +12,19 @@ namespace Serein.Script.Node
 
     public class BinaryOperationNode : ASTNode
     {
+        /// <summary>
+        /// 左元
+        /// </summary>
         public ASTNode Left { get; }
+
+        /// <summary>
+        /// 操作符（布尔运算符 > 比较运算符 > 加减乘除 ）
+        /// </summary>
         public string Operator { get; }
+
+        /// <summary>
+        /// 右元
+        /// </summary>
         public ASTNode Right { get; }
 
         public BinaryOperationNode(ASTNode left, string op, ASTNode right)

@@ -11,6 +11,9 @@ namespace Serein.Script.Node
     /// </summary>
     public class ProgramNode : ASTNode
     {
+        /// <summary>
+        /// 程序可执行的语句
+        /// </summary>
         public List<ASTNode> Statements { get; }
 
         public ProgramNode(List<ASTNode> statements)

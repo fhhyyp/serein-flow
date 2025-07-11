@@ -15,13 +15,14 @@ namespace Serein.Script.Node
         /// <summary>
         /// 变量名称
         /// </summary>
-        public string Variable { get; }
+        //public string Variable { get; }
+        public ASTNode Target { get; }
         /// <summary>
         /// 对应的节点
         /// </summary>
         public ASTNode Value { get; }
 
-        public AssignmentNode(string variable, ASTNode value) => (Variable, Value) = (variable, value);
+        public AssignmentNode(ASTNode targetObject, ASTNode value) => (Target, Value) = (targetObject, value);
     }
 
 

@@ -35,7 +35,7 @@ namespace Serein.NodeFlow.Model
         public override bool IsBase => true;
 
         private IScriptFlowApi ScriptFlowApi;
-        private ASTNode mainNode;
+        private ProgramNode programNode;
         private SereinScriptInterpreter ScriptInterpreter;
         private bool IsScriptChanged = false;
 
@@ -167,8 +167,10 @@ namespace Serein.NodeFlow.Model
                 var script = sb.ToString();
                 var p = new SereinScriptParser(script);
                 //var p = new SereinScriptParser(Script);
-                mainNode = p.Parse(); // 开始解析
-               
+                programNode = p.Parse(); // 开始解析
+                var typeAnalysis = new SereinScriptTypeAnalysis();
+                ScriptInterpreter.SetTypeAnalysis(typeAnalysis);
+                typeAnalysis.AnalysisProgramNode(programNode);
 
             }
             catch (Exception ex)
@@ -185,7 +187,8 @@ namespace Serein.NodeFlow.Model
         /// <returns></returns>
         public override async Task<FlowResult> ExecutingAsync(IDynamicContext context, CancellationToken token)
         {
-            return await ExecutingAsync(this, context, token);
+            var result = await ExecutingAsync(this, context, token);
+            return result;
         }
 
         /// <summary>
@@ -237,7 +240,8 @@ namespace Serein.NodeFlow.Model
 
             if (token.IsCancellationRequested) return null;
 
-            var result = await ScriptInterpreter.InterpretAsync(scriptContext, mainNode); // 从入口节点执行
+
+            var result = await ScriptInterpreter.InterpretAsync(scriptContext, programNode); // 从入口节点执行
             envEvent.FlowRunComplete -= onFlowStop;
             return new FlowResult(this.Guid, context, result);
         }
@@ -253,6 +257,10 @@ namespace Serein.NodeFlow.Model
         {
             public static DateTime GetNow() => DateTime.Now;
 
+            public static int Add(int Left, int Right)
+            {
+                return Left + Right;
+            }
 
             #region 常用的类型转换
             public static bool BoolOf(object value)

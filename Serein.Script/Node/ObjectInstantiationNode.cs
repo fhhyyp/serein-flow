@@ -11,7 +11,14 @@ namespace Serein.Script.Node
     /// </summary>
     public class ObjectInstantiationNode : ASTNode
     {
+        /// <summary>
+        /// 类型名称
+        /// </summary>
         public string TypeName { get; }
+
+        /// <summary>
+        /// 构造方法的参数来源
+        /// </summary>
         public List<ASTNode> Arguments { get; }
         public ObjectInstantiationNode(string typeName, List<ASTNode> arguments)
         {

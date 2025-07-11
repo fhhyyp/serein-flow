@@ -11,8 +11,17 @@ namespace Serein.Script.Node
     /// </summary>
     public class ClassTypeDefinitionNode : ASTNode
     {
+        [Obsolete("此属性已经过时，可能在下一个版本中移除", false)] 
         public bool IsOverlay { get; set; }
+
+        /// <summary>
+        /// 类名称
+        /// </summary>
         public string ClassName { get; }
+
+        /// <summary>
+        /// 字段名称及字段类型
+        /// </summary>
         public Dictionary<string, Type> Fields { get; }
 
         public ClassTypeDefinitionNode(Dictionary<string, Type> fields, string className, bool isOverlay)

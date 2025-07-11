@@ -87,8 +87,10 @@ namespace Serein.Script
 
         public static Type EvaluateType(Type leftType, string op, Type rightType)
         {
+            
             if (leftType == null || rightType == null)
                 throw new ArgumentNullException("操作数类型不能为 null");
+
 
             // 字符串拼接
             if (op == "+" && (leftType == typeof(string) || rightType == typeof(string)))

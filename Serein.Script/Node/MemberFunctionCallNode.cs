@@ -12,17 +12,17 @@ namespace Serein.Script.Node
     public class MemberFunctionCallNode : ASTNode
     {
         /// <summary>
-        /// 需要被调用的对象
+        /// 对象来源
         /// </summary>
         public ASTNode Object { get; }
 
         /// <summary>
-        /// 被调用的方法名称
+        /// 对象中要调用的方法的名称
         /// </summary>
         public string FunctionName { get; }
 
         /// <summary>
-        /// 方法参数
+        /// 方法参数来源
         /// </summary>
         public List<ASTNode> Arguments { get; }
 

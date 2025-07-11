@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json.Linq;
+using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Xml.Linq;
 using static System.Net.Mime.MediaTypeNames;
@@ -137,8 +138,6 @@ namespace Serein.Script
         private int _index;
         private int _row ;
 
-        private int coreRangeStartIndex = 0;
-
         /// <summary>
         /// 关键字，防止声明为变量
         /// </summary>
@@ -160,14 +159,29 @@ namespace Serein.Script
         }
 
 
-        internal Token PeekToken()
+        internal Token PeekToken(int count = 1)
         {
+            if (count < 0) throw new Exception() ;
             int currentIndex = _index;  // 保存当前索引
             var currentRow = _row; // 保存当前行数
-            Token nextToken = NextToken();  // 获取下一个 token
+            Token nextToken = new Token(); ;
+            for (var i = 0; i < count; i++)
+            {
+                nextToken = NextToken();  // 获取下一个 token
+            }
             _index = currentIndex;  // 恢复索引到当前位置
             _row = currentRow; // 恢复到当前行数
             return nextToken;  // 返回下一个 token
+        }
+
+        /// <summary>
+        /// 根据 token 重置Lexer
+        /// </summary>
+        /// <param name="token"></param>
+        public void SetToken(Token token)
+        {
+            this._row = token.Row;
+            this._index = token.StartIndex;
         }
 
         internal Token NextToken()
@@ -194,6 +208,7 @@ namespace Serein.Script
             {
                 return ReadString();
             }
+            
 
             if (currentChar == '\'')
             {

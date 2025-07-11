@@ -14,7 +14,17 @@ namespace Serein.Library.Utils
     public class DynamicObjectHelper
     {
         // 类型缓存，键为类型的唯一名称（可以根据实际需求调整生成方式）
-        static Dictionary<string, Type> typeCache = new Dictionary<string, Type>();
+        private static Dictionary<string, Type> typeCache = new Dictionary<string, Type>();
+        private static readonly AssemblyBuilder AssemblyBuilder;
+        private static readonly ModuleBuilder ModuleBuilder;
+
+        static DynamicObjectHelper() // 静态构造函数
+        {
+            var assemblyName = new AssemblyName("DynamicAssembly");
+            AssemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
+            ModuleBuilder = AssemblyBuilder.DefineDynamicModule("MainModule");
+        }
+
 
         /// <summary>
         /// 获取运行时创建过的类型
@@ -82,6 +92,8 @@ namespace Serein.Library.Utils
             }
         }
 
+
+
         /// <summary>
         /// 创建具有属性的类型
         /// </summary>
@@ -99,12 +111,12 @@ namespace Serein.Library.Utils
             }
 
             // 定义动态程序集和模块
-            var assemblyName = new AssemblyName("DynamicAssembly");
+            /*var assemblyName = new AssemblyName("DynamicAssembly");
             var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
-            var moduleBuilder = assemblyBuilder.DefineDynamicModule("MainModule");
-
+            var moduleBuilder = AssemblyBuilder.DefineDynamicModule("MainModule");
+            */
             // 定义动态类型
-            var typeBuilder = moduleBuilder.DefineType(typeName, TypeAttributes.Public);
+            var typeBuilder = ModuleBuilder.DefineType(typeName, TypeAttributes.Public);
 
             // 为每个属性名和值添加相应的属性到动态类型中
             foreach (var kvp in properties)

@@ -11,6 +11,9 @@ namespace Serein.Script.Node
     /// </summary>
     public class IdentifierNode : ASTNode
     {
+        /// <summary>
+        /// 定义的名称
+        /// </summary>
         public string Name { get; }
         public IdentifierNode(string name) => Name = name;
     }

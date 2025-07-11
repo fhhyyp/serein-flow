@@ -12,12 +12,12 @@ namespace Serein.Script.Node
     public class MemberAccessNode : ASTNode
     {
         /// <summary>
-        /// 对象token
+        /// 对象来源
         /// </summary>
         public ASTNode Object { get; }
 
         /// <summary>
-        /// 成员名称
+        /// 对象中要获取的成员的名称
         /// </summary>
         public string MemberName { get; }
 

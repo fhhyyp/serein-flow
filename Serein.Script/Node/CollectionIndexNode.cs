@@ -11,12 +11,19 @@ namespace Serein.Script.Node
     /// </summary>
     public class CollectionIndexNode : ASTNode
     {
-        public ASTNode TargetValue { get; }
-        public ASTNode IndexValue { get; }
-        public CollectionIndexNode(ASTNode collectionValue,ASTNode indexValue)
+        /// <summary>
+        /// 集合来源
+        /// </summary>
+        public ASTNode Collection { get; }
+
+        /// <summary>
+        /// 索引来源
+        /// </summary>
+        public ASTNode Index { get; }
+        public CollectionIndexNode(ASTNode TargetValue,ASTNode indexValue)
         {
-            this.TargetValue = collectionValue;
-            this.IndexValue = indexValue;
+            this.Collection = TargetValue;
+            this.Index = indexValue;
         }
     }
 }

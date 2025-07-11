@@ -1,6 +1,5 @@
 ﻿using Newtonsoft.Json.Linq;
 using Serein.Library;
-using Serein.Library.Api;
 using Serein.Library.Utils;
 using Serein.Script.Node;
 using System.ComponentModel.Design;
@@ -11,131 +10,6 @@ using System.Xml.Linq;
 
 namespace Serein.Script
 {
-    public sealed class SereinSciptException : Exception
-    {
-        //public ASTNode Node { get; }
-        public override string Message { get; }
-
-        public SereinSciptException(ASTNode node,    string message)
-        {
-            //this.Node = node;
-            Message = $"异常信息 : {message} ，代码在第{node.Row}行: {node.Code.Trim()}";
-        }
-    }
-
-
-
-    /// <summary>
-    /// 脚本运行上下文
-    /// </summary>
-    public interface IScriptInvokeContext
-    {
-        /// <summary>
-        /// 脚本运行的流程上下文，包含了流程上下文和变量等信息
-        /// </summary>
-        IDynamicContext FlowContext { get; }
-
-        /// <summary>
-        /// 是否该退出了
-        /// </summary>
-        bool IsReturn { get; }
-
-        /// <summary>
-        /// 是否严格检查 Null 值 （禁止使用 Null）
-        /// </summary>
-        bool IsCheckNullValue { get; set; }
-
-        /// <summary>
-        /// 获取变量的值
-        /// </summary>
-        /// <param name="varName"></param>
-        /// <returns></returns>
-        object GetVarValue(string varName);
-
-        /// <summary>
-        /// 设置变量的值
-        /// </summary>
-        /// <param name="varName"></param>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        bool SetVarValue(string varName, object value);
-
-        /// <summary>
-        /// 结束调用
-        /// </summary>
-        /// <returns></returns>
-        void OnExit();
-    }
-
-    public class ScriptInvokeContext : IScriptInvokeContext
-    {
-        public ScriptInvokeContext(IDynamicContext dynamicContext)
-        {
-            FlowContext = dynamicContext;
-        }
-
-        public IDynamicContext FlowContext{ get; }
-
-        /// <summary>
-        /// 定义的变量
-        /// </summary>
-        private Dictionary<string, object> _variables = new Dictionary<string, object>();
-
-        /// <summary>
-        /// 取消令牌源，用于控制脚本的执行
-        /// </summary>
-        private CancellationTokenSource _tokenSource = new CancellationTokenSource();
-
-        /// <summary>
-        /// 是否该退出了
-        /// </summary>
-        public bool IsReturn => _tokenSource.IsCancellationRequested;
-
-        /// <summary>
-        /// 是否严格检查 Null 值 （禁止使用 Null）
-        /// </summary>
-        public bool IsCheckNullValue { get; set; }
-
-
-        object IScriptInvokeContext.GetVarValue(string varName)
-        {
-            _variables.TryGetValue(varName, out var value);
-            return value;
-        }
-
-
-        bool IScriptInvokeContext.SetVarValue(string varName, object? value)
-        {
-            if (!_variables.TryAdd(varName, value))
-            {
-                _variables[varName] = value;
-            }
-            return true;
-        }
-
-        
-        void IScriptInvokeContext.OnExit()
-        {
-            // 清理脚本中加载的非托管资源
-            foreach (var nodeObj in _variables.Values)
-            {
-                if (nodeObj is not null)
-                {
-                    if (typeof(IDisposable).IsAssignableFrom(nodeObj?.GetType()) && nodeObj is IDisposable disposable)
-                    {
-                        disposable?.Dispose();
-                    }
-                }
-                else
-                {
-
-                }
-            }
-            _tokenSource.Cancel();
-            _variables.Clear();
-        }
-
-    }
 
     /// <summary>
     /// 脚本解释器，负责解析和执行 Serein 脚本
@@ -147,6 +21,9 @@ namespace Serein.Script
         /// 挂载的函数
         /// </summary>
         private static Dictionary<string, DelegateDetails> _functionTable = new Dictionary<string, DelegateDetails>();
+        private static Dictionary<string, MethodInfo> _functionInfoTable = new Dictionary<string, MethodInfo>();
+
+        public static Dictionary<string, MethodInfo> FunctionInfoTable { get { return _functionInfoTable; } }
 
         /// <summary>
         /// 挂载的函数调用的对象（用于函数需要实例才能调用的场景）
@@ -158,6 +35,12 @@ namespace Serein.Script
         /// </summary>
         private Dictionary<string, Type> _classDefinition = new Dictionary<string, Type>();
 
+
+        /// <summary>
+        /// 类型分析器
+        /// </summary>
+        private SereinScriptTypeAnalysis typeAnalysis;
+
         /// <summary>
         /// 挂载静态函数
         /// </summary>
@@ -166,6 +49,7 @@ namespace Serein.Script
         public static void AddStaticFunction(string functionName, MethodInfo methodInfo)
         {
             _functionTable[functionName] = new DelegateDetails(methodInfo);
+            _functionInfoTable[functionName] = methodInfo;
         }
 
 
@@ -216,19 +100,26 @@ namespace Serein.Script
             }
         }
 
+        /// <summary>
+        /// 设置类型分析器
+        /// </summary>
+        /// <param name="typeAnalysis"></param>
+        public void SetTypeAnalysis(SereinScriptTypeAnalysis typeAnalysis)
+        {
+            this.typeAnalysis = typeAnalysis;
+        }
 
         /// <summary>
         /// 入口节点
         /// </summary>
         /// <param name="programNode"></param>
         /// <returns></returns>
-        private async Task<object?> ExecutionProgramNodeAsync(IScriptInvokeContext context, ProgramNode programNode) 
+        private async Task<object?> ExecutionProgramNodeAsync(IScriptInvokeContext context,ProgramNode programNode) 
         {
             // 加载变量
             ASTNode statement = null;
             try
             {
-
                 // 遍历 ProgramNode 中的所有语句并执行它们
                 for (int index = 0; index < programNode.Statements.Count; index++)
                 {
@@ -240,7 +131,11 @@ namespace Serein.Script
                     }
                     else
                     {
-                        await InterpretAsync(context, statement);
+                        var result = await InterpretAsync(context, statement);
+                        if (context.IsNeedReturn)
+                        {
+                            return result;
+                        }
                     }
                 }
                 return null;
@@ -268,10 +163,10 @@ namespace Serein.Script
                 return;
             }
 
-            var isOverlay = true; // classTypeDefinitionNode.IsOverlay;
+            //var isOverlay = true; // classTypeDefinitionNode.IsOverlay;
 
-            var type = DynamicObjectHelper.CreateTypeWithProperties(classTypeDefinitionNode.Fields, classTypeDefinitionNode.ClassName, isOverlay); // 覆盖
-            classTypeDefinitionNode.IsOverlay = false; // 已经加载过，则不再覆盖
+            var type = DynamicObjectHelper.CreateTypeWithProperties(classTypeDefinitionNode.Fields, classTypeDefinitionNode.ClassName); // 覆盖
+            //classTypeDefinitionNode.IsOverlay = false; // 已经加载过，则不再覆盖
             _classDefinition[classTypeDefinitionNode.ClassName] = type; // 定义对象
         }
 
@@ -281,7 +176,7 @@ namespace Serein.Script
         /// <param name="ifNode"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        private async Task ExecutionIfNodeAsync(IScriptInvokeContext context, IfNode ifNode)
+        private async Task<object?> ExecutionIfNodeAsync(IScriptInvokeContext context, IfNode ifNode)
         {
             var result = await EvaluateAsync(context, ifNode.Condition) ?? throw new SereinSciptException(ifNode, $"条件语句返回了 null");
 
@@ -290,20 +185,30 @@ namespace Serein.Script
                 throw new SereinSciptException(ifNode, "条件语句返回值不为 bool 类型");
             }
 
-            if (condition)
+            var branchNodes = condition ? ifNode.TrueBranch : ifNode.FalseBranch;
+            if(branchNodes is null || branchNodes.Count < 1)
             {
-                foreach (var trueNode in ifNode.TrueBranch)
-                {
-                    await InterpretAsync(context, trueNode);
-                }
+                return null;
             }
             else
             {
-                foreach (var falseNode in ifNode.FalseBranch)
+                
+                foreach (var branchNode in branchNodes)
                 {
-                    await InterpretAsync(context,falseNode);
+                    if (branchNode is ReturnNode) // 遇到 Return 语句 提前退出
+                    {
+                        var reulst = await EvaluateAsync(context, branchNode);
+                        context.IsNeedReturn = true;
+                        return reulst;
+                    }
+                    else
+                    {
+                        await InterpretAsync(context, branchNode);
+                    }
                 }
+                return null;
             }
+            
         }
 
         /// <summary>
@@ -312,14 +217,14 @@ namespace Serein.Script
         /// <param name="whileNode"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        private async Task ExectutionWhileNodeAsync(IScriptInvokeContext context, WhileNode whileNode)
+        private async Task<object?> ExectutionWhileNodeAsync(IScriptInvokeContext context, WhileNode whileNode)
         {
 
             while (true)
             {
                 if (context.IsReturn) // 停止流程
-                { 
-                    return;
+                {
+                    throw new SereinSciptException(whileNode, $"while循环已由外部主动停止");
                 }
                 var result = await EvaluateAsync(context, whileNode.Condition) ?? throw new SereinSciptException(whileNode, $"条件语句返回了 null");
                 if (result is not bool condition)
@@ -330,11 +235,22 @@ namespace Serein.Script
                 {
                     break;
                 }
-                foreach(var node in whileNode.Body)
+                foreach(var branchNode in whileNode.Body)
                 {
-                    await InterpretAsync(context, node);
+                    if (branchNode is ReturnNode) // 遇到 Return 语句 提前退出
+                    {
+                        var reulst = await EvaluateAsync(context, branchNode);
+                        context.IsNeedReturn = true;
+                        return reulst;
+                    }
+                    else
+                    {
+                        await InterpretAsync(context, branchNode);
+                    }
+                    //await InterpretAsync(context, node);
                 }
             }
+            return null;
         }
 
         /// <summary>
@@ -344,13 +260,28 @@ namespace Serein.Script
         /// <returns></returns>
         private async Task ExecutionAssignmentNodeAsync(IScriptInvokeContext context, AssignmentNode assignmentNode)
         {
-            var tmp = await EvaluateAsync(context, assignmentNode.Value);
-            if(tmp is not null)
+            if(assignmentNode.Target is IdentifierNode identifierNode)
             {
-                context.SetVarValue(assignmentNode.Variable, tmp);
+                var value = await EvaluateAsync(context, assignmentNode.Value);
+                if (value is not null)
+                {
+                    context.SetVarValue(identifierNode.Name, value);
+                }
+            }
+            else
+            {
 
             }
+            /*var targetObject = await EvaluateAsync(context, assignmentNode.TargetNode);
+            var value = await EvaluateAsync(context, assignmentNode.Value);
+            if(value is not null)
+            {
+                context.SetVarValue(targetObject, value);
+            }*/
         }
+
+        
+
         private async Task<object> InterpretFunctionCallAsync(IScriptInvokeContext context, FunctionCallNode functionCallNode)
         {
             if (functionCallNode.FunctionName.Equals("GetFlowContext", StringComparison.OrdinalIgnoreCase))
@@ -427,16 +358,18 @@ namespace Serein.Script
                 case AssignmentNode assignment: // 出现在 = 右侧的表达式
                     await ExecutionAssignmentNodeAsync(context, assignment);
                     break;
+                case ObjectMemberExpressionNode objectMemberExpressionNode:
+                    break;
                 case MemberAssignmentNode memberAssignmentNode: // 设置对象属性
                     await SetMemberValue(context, memberAssignmentNode);
                     break;
                 case MemberFunctionCallNode memberFunctionCallNode: // 对象方法调用
                     return await CallMemberFunction(context, memberFunctionCallNode);
                 case IfNode ifNode: // 执行 if...else... 语句块
-                    await ExecutionIfNodeAsync(context, ifNode); 
+                    return await ExecutionIfNodeAsync(context, ifNode); 
                     break;
                 case WhileNode whileNode: // 循环语句块
-                    await ExectutionWhileNodeAsync(context, whileNode);
+                    return await ExectutionWhileNodeAsync(context, whileNode);
                     break;
                 case FunctionCallNode functionCallNode: // 方法调用节点
                     return await InterpretFunctionCallAsync(context, functionCallNode);
@@ -517,13 +450,13 @@ namespace Serein.Script
                 case MemberFunctionCallNode memberFunctionCallNode: // 对象方法调用
                     return await CallMemberFunction(context, memberFunctionCallNode);
                 case MemberAccessNode memberAccessNode: // 对象成员访问
-                    return await GetValue(context, memberAccessNode);
+                    return await GetMemberValue(context, memberAccessNode);
                 case CollectionIndexNode collectionIndexNode:
                     return await GetCollectionValue(context, collectionIndexNode);
                 case ReturnNode returnNode: // 返回内容
                     return await EvaluateAsync(context, returnNode.Value); // 直接返回响应的内容
-                //case ObjectInstantiationNode  objectInstantiationNode: // 返回内容
-
+                case ObjectMemberExpressionNode objectMemberExpressionNode: // 对象链式表达式
+                    return await EvaluateAsync(context, objectMemberExpressionNode.Value);
                 default:
                     throw new SereinSciptException(node, $"解释器 EvaluateAsync() 未实现{node}节点行为");
             }
@@ -611,8 +544,24 @@ namespace Serein.Script
             }
             else
             {
-               var convertedValue = Convert.ChangeType(value, lastProperty.PropertyType);
-               lastProperty.SetValue(target, convertedValue);
+                if(value is null)
+                {
+                    lastProperty.SetValue(target, null);
+                    return;
+                }
+                var valueTtpe = value.GetType();
+                if (lastProperty.PropertyType.IsAssignableFrom(valueTtpe))
+                {
+                    lastProperty.SetValue(target, value);
+                }
+                else if (lastProperty.PropertyType.FullName == valueTtpe.FullName)
+                {
+                    lastProperty.SetValue(target, value);
+                }
+                else {
+                    throw new SereinSciptException(memberAssignmentNode, $"对象成员赋值时类型异常：\"{memberAssignmentNode.MemberName}\"");
+                }
+               //var convertedValue = Convert.ChangeType(value, );
             }
         }
 
@@ -622,7 +571,7 @@ namespace Serein.Script
         /// <param name="memberAccessNode"></param>
         /// <returns></returns>
         /// <exception cref="SereinSciptException"></exception>
-        public async Task<object?> GetValue(IScriptInvokeContext context, MemberAccessNode memberAccessNode)
+        public async Task<object?> GetMemberValue(IScriptInvokeContext context, MemberAccessNode memberAccessNode)
         {
             var target = await EvaluateAsync(context, memberAccessNode.Object);
             var lastMember = memberAccessNode.MemberName;
@@ -654,7 +603,7 @@ namespace Serein.Script
         /// <exception cref="SereinSciptException"></exception>
         public async Task<object?> GetCollectionValue(IScriptInvokeContext context, CollectionIndexNode collectionIndexNode)
         {
-            var target = await EvaluateAsync(context, collectionIndexNode.TargetValue); // 获取对象
+            var target = await EvaluateAsync(context, collectionIndexNode.Collection); // 获取对象
             if (target is null)
             {
                 throw new ArgumentNullException($"解析{collectionIndexNode}节点时，TargetValue返回空。");
@@ -669,7 +618,7 @@ namespace Serein.Script
                 var method = targetType.GetMethod("get_Item", BindingFlags.Public | BindingFlags.Instance);
                 if (method is not null)
                 {
-                    var key = await EvaluateAsync(context, collectionIndexNode.IndexValue); // 获取索引值;
+                    var key = await EvaluateAsync(context, collectionIndexNode.Index); // 获取索引值;
                     var result = method.Invoke(target, new object[] { key });
                     return result;
                 }
@@ -678,7 +627,7 @@ namespace Serein.Script
             #region 处理集合对象
             else
             {
-                var indexValue = await EvaluateAsync(context, collectionIndexNode.IndexValue); // 获取索引值
+                var indexValue = await EvaluateAsync(context, collectionIndexNode.Index); // 获取索引值
                 object? result;
                 if (indexValue is int index)
                 {
@@ -702,6 +651,10 @@ namespace Serein.Script
                         result = list[index];
                         return result;
                     }
+                    else if (target is string chars)
+                    {
+                        return chars[index];
+                    }
                     else
                     {
                         throw new ArgumentException($"解析{collectionIndexNode}节点时，左值并非有效集合。");
@@ -717,30 +670,58 @@ namespace Serein.Script
         /// <summary>
         /// 缓存method委托
         /// </summary>
-        private Dictionary<string, DelegateDetails> MethodToDelegateCaches { get; } = new Dictionary<string, DelegateDetails>();
+        private Dictionary<long, DelegateDetails> MethodToDelegateCaches { get; } = new Dictionary<long, DelegateDetails>();
 
         public async Task<object?> CallMemberFunction(IScriptInvokeContext context, MemberFunctionCallNode memberFunctionCallNode)
         {
             var target = await EvaluateAsync(context, memberFunctionCallNode.Object);
             var lastMember = memberFunctionCallNode.FunctionName;
+            if(lastMember == "ToUpper")
+            {
 
-            var methodInfo = target?.GetType().GetMethod(lastMember) ?? throw new SereinSciptException(memberFunctionCallNode, $"对象没有方法\"{memberFunctionCallNode.FunctionName}\"");
-            if(!MethodToDelegateCaches.TryGetValue(methodInfo.Name, out DelegateDetails? delegateDetails))
+            }
+            MethodInfo? methodInfo = null;
+            if (memberFunctionCallNode.Arguments.Count == 0)
+            {
+                
+                // 查询无参方法
+                methodInfo = target?.GetType().GetMethod(lastMember, []) ?? throw new SereinSciptException(memberFunctionCallNode, $"对象没有方法\"{memberFunctionCallNode.FunctionName}\"");
+            }
+            else
+            {
+                // 获取参数列表的类型
+                methodInfo = target?.GetType().GetMethod(lastMember) ?? throw new SereinSciptException(memberFunctionCallNode, $"对象没有方法\"{memberFunctionCallNode.FunctionName}\"");
+
+            }
+
+            /*Type[] paramTypes = new
+            {
+
+            }*/
+
+            if (!MethodToDelegateCaches.TryGetValue(methodInfo.MetadataToken, out DelegateDetails? delegateDetails))
             {
                 delegateDetails = new DelegateDetails(methodInfo);
-                MethodToDelegateCaches[methodInfo.Name] = delegateDetails;
+                MethodToDelegateCaches[methodInfo.MetadataToken] = delegateDetails;
             }
 
-
-
-            var arguments = new object?[memberFunctionCallNode.Arguments.Count];
-            for (int i = 0; i < memberFunctionCallNode.Arguments.Count; i++)
+            if(memberFunctionCallNode.Arguments.Count == 0)
             {
-                ASTNode? arg = memberFunctionCallNode.Arguments[i];
-                arguments[i] = await EvaluateAsync(context, arg);  // 评估每个参数
+                var reuslt = await delegateDetails.InvokeAsync(target, []);
+                return reuslt;
+            }
+            else
+            {
+                var arguments = new object?[memberFunctionCallNode.Arguments.Count];
+                for (int i = 0; i < memberFunctionCallNode.Arguments.Count; i++)
+                {
+                    ASTNode? arg = memberFunctionCallNode.Arguments[i];
+                    arguments[i] = await EvaluateAsync(context, arg);  // 评估每个参数
+                }
+                var reuslt = await delegateDetails.InvokeAsync(target, arguments);
+                return reuslt;
             }
 
-            return await delegateDetails.InvokeAsync(target, arguments);
         }
 
 

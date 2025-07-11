@@ -12,11 +12,12 @@ namespace Serein.Script.Node
     public class MemberAssignmentNode : ASTNode
     {
         /// <summary>
-        /// 作用的对象
+        /// 对象来源
         /// </summary>
         public ASTNode Object { get; }
+
         /// <summary>
-        /// 被赋值的成员（属性/字段）名称
+        /// 对象中要赋值的成员的名称
         /// </summary>
         public string MemberName { get; }
         /// <summary>

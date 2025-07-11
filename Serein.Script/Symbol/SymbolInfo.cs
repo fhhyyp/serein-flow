@@ -17,7 +17,7 @@ namespace Serein.Script.Symbol
     /// <summary>
     /// 符号信息
     /// </summary>
-    internal class SymbolInfo
+    public class SymbolInfo
     {
         /// <summary>
         /// 符号名称
