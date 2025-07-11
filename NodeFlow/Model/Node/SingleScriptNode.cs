@@ -12,7 +12,6 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Serein.NodeFlow.Model
 {
@@ -52,7 +51,7 @@ namespace Serein.NodeFlow.Model
         static SingleScriptNode()
         {
             // 挂载静态方法
-            var tempMethods = typeof(BaseFunc).GetMethods().Where(method =>
+            var tempMethods = typeof(ScriptBaseFunc).GetMethods().Where(method =>
                     !(method.Name.Equals("GetHashCode")
                     || method.Name.Equals("Equals")
                     || method.Name.Equals("ToString")
@@ -253,7 +252,7 @@ namespace Serein.NodeFlow.Model
             return ScriptFlowApi;
         }
 
-        private static class BaseFunc
+        private static class ScriptBaseFunc
         {
             public static DateTime GetNow() => DateTime.Now;
 
@@ -263,15 +262,27 @@ namespace Serein.NodeFlow.Model
             }
 
             #region 常用的类型转换
-            public static bool BoolOf(object value)
+            public static bool @bool(object value)
             {
                 return ConvertHelper.ValueParse<bool>(value);
             }
-            public static int IntOf(object value)
+            public static decimal @decimal(object value)
+            {
+                return ConvertHelper.ValueParse<decimal>(value);
+            }
+            public static float @float(object value)
+            {
+                return ConvertHelper.ValueParse<float>(value);
+            }
+            public static double @double(object value)
+            {
+                return ConvertHelper.ValueParse<double>(value);
+            }
+            public static int @int(object value)
             {
                 return ConvertHelper.ValueParse<int>(value);
             }
-            public static int LongOf(object value)
+            public static int @long(object value)
             {
                 return ConvertHelper.ValueParse<int>(value);
             }
@@ -279,32 +290,43 @@ namespace Serein.NodeFlow.Model
 
             #endregion
 
-            public static Type TypeOf(object type)
+            public static int len(object target)
+            {
+                // 获取数组或集合对象
+                // 访问数组或集合中的指定索引
+                if (target is Array array)
+                {
+                    return array.Length;
+                }
+                else if (target is string chars)
+                {
+                    return chars.Length;
+                }
+                else if (target is IDictionary<object, object> dict)
+                {
+                    return dict.Count;
+                }
+                else if (target is IList<object> list)
+                {
+                    return list.Count;
+                }
+                else
+                {
+                    throw new ArgumentException($"并非有效集合");
+                }
+            }
+            
+            public static Type type(object type)
             {
                 return type.GetType();
             }
 
-            public static void Print(object value)
+            public static void log(object value)
             {
                 SereinEnv.WriteLine(InfoType.INFO, value?.ToString());
             }
 
-            #region 数据转换
-            public static int ToInt(object value)
-            {
-                return int.Parse(value.ToString());
-            }
-            public static double ToDouble(object value)
-            {
-                return double.Parse(value.ToString());
-            }
-            public static bool ToBool(object value)
-            {
-                return bool.Parse(value.ToString());
-            }
-            #endregion
-
-            public static async Task Delay(object value)
+            public static async Task sleep(object value)
             {
                 if (value is int @int)
                 {

@@ -19,6 +19,11 @@ namespace Serein.Script
     /// </summary>
     public class SereinScriptTypeAnalysis
     {
+       
+        /// <summary>
+        /// 符号表
+        /// </summary>
+        public Dictionary<ASTNode, Type> NodeSymbolInfos { get; } = new Dictionary<ASTNode, Type>();
 
         public SereinScriptTypeAnalysis()
         {
@@ -33,6 +38,8 @@ namespace Serein.Script
                 var node = astNode.Statements[i];
                 Analysis(node);
             }
+
+
             var returnNodes = astNode.Statements.Where(node => node is ReturnNode).ToArray();
             if (returnNodes.Length == 0)
             {
@@ -48,27 +55,23 @@ namespace Serein.Script
             {
 
             }
-
         }
-       
-        /// <summary>
-        /// 符号表
-        /// </summary>
-        public Dictionary<ASTNode, Type> NodeSymbolInfos { get; } = new Dictionary<ASTNode, Type>();
+
+
 
         /// <summary>
-        /// 类型分析、校验
+        /// 类型分析
         /// </summary>
         /// <param name="node"></param>
         /// <exception cref="NotImplementedException"></exception>
-        private void Analysis(ASTNode node)
+        private void Analysis1(ASTNode node)
         {
             switch (node)
             {
                 case ProgramNode programNode: // 程序开始节点
                     break;
                 case ReturnNode returnNode: // 程序退出节点
-                    Evaluate(returnNode); // 解析变量定义的类型
+                    Analysis(returnNode); // 解析变量定义的类型
                     break;
                 case NullNode nullNode: // null
                 case CharNode charNode: // char字面量
@@ -78,102 +81,80 @@ namespace Serein.Script
                 case NumberLongNode numberLongNode: // long整型数值字面量
                 case NumberFloatNode numberFloatNode: // float浮点数值字面量
                 case NumberDoubleNode numberDoubleNode: // double浮点数值字面量
-                    Evaluate(node);
+                    Analysis(node);
                     break;
                 case IdentifierNode identifierNode: // 变量定义
                     void AnalysisIdentifierNode(IdentifierNode identifierNode)
                     {
-                        Evaluate(identifierNode); // 解析变量定义的类型
+                        Analysis(identifierNode); // 解析变量定义的类型
                     }
                     AnalysisIdentifierNode(identifierNode);
                     break;
                 case IfNode ifNode: // if语句结构
                     void AnalysisIfNode(IfNode ifNode)
                     {
-                        Evaluate(ifNode);
-                        var conditionType = NodeSymbolInfos[ifNode.Condition]; // 获取条件部分的返回类型
-                        if (conditionType != typeof(bool?) && conditionType != typeof(bool))
-                        {
-                            throw new NotImplementedException("if...else...条件返回值不为布尔类型变量");
-                        }
+                        Analysis(ifNode);
+                       
                     }
                     AnalysisIfNode(ifNode);
                     break;
                 case WhileNode whileNode: // while语句结构
                     void AnalysisWhileNode(WhileNode whileNode)
                     {
-                        Evaluate(whileNode);
-                        var conditionType = NodeSymbolInfos[whileNode.Condition]; // 获取条件部分的返回类型
-                        if (conditionType != typeof(bool?) && conditionType != typeof(bool))
-                        {
-                            throw new NotImplementedException("if...else...条件返回值不为布尔类型变量");
-                        }
+                        Analysis(whileNode);
                     }
                     AnalysisWhileNode(whileNode);
                     break;                
                 case AssignmentNode assignmentNode: // 对象赋值语句（let x;默认赋值null。默认类型object）
                     void AnalysisAssignmentNode(AssignmentNode assignmentNode)
                     {
-                        Evaluate(assignmentNode);
+                        Analysis(assignmentNode);
                     }
                     AnalysisAssignmentNode(assignmentNode);
                     break;                
                 case BinaryOperationNode binaryOperationNode: // 二元运算操作
                     void AnalysisBinaryOperationNode(BinaryOperationNode binaryOperationNode)
                     {
-                        Evaluate(binaryOperationNode);
+                        Analysis(binaryOperationNode);
                     }
                     AnalysisBinaryOperationNode(binaryOperationNode);
                     break;                
                 case CollectionIndexNode collectionIndexNode: // 集合类型操作
                     void AnalysisCollectionIndexNode(CollectionIndexNode collectionIndexNode)
                     {
-                        Evaluate(collectionIndexNode);
-                        /*Analysis(collectionIndexNode.Collection); // 分析集合类型（变量，对象成员）
-                        Analysis(collectionIndexNode.Index); // 分析索引类型
-
-                        var collectionType = NodeSymbolInfos[collectionIndexNode.Collection];
-                        var indexExprType = NodeSymbolInfos[collectionIndexNode.Index];
-
-                        if (!TryGetIndexerType(collectionType, out var expectedIndexType, out var resultType))
-                            throw new Exception($"类型 {collectionType} 不支持索引操作");
-
-                        if (!expectedIndexType.IsAssignableFrom(indexExprType))
-                            throw new Exception($"索引类型不匹配：需要 {expectedIndexType}，实际为 {indexExprType}");
-                        NodeSymbolInfos[collectionIndexNode] = resultType;*/
+                        Analysis(collectionIndexNode);
                     }
                     AnalysisCollectionIndexNode(collectionIndexNode);
                     break;                
                 case ClassTypeDefinitionNode classTypeDefinitionNode: // 类型定义
-                    Evaluate(classTypeDefinitionNode);
+                    Analysis(classTypeDefinitionNode);
                     break;
                 case ObjectInstantiationNode objectInstantiationNode: // 类型实例化
-                    Evaluate(objectInstantiationNode);
+                    Analysis(objectInstantiationNode);
                     break;
                 case ObjectMemberExpressionNode objectMemberExpressionNode: // 类型表达式（链式调用）
-                    Evaluate(objectMemberExpressionNode);
+                    Analysis(objectMemberExpressionNode);
                     break;
                 case MemberAccessNode memberAccessNode: // 对象成员访问
-                    Evaluate(memberAccessNode);
+                    Analysis(memberAccessNode);
                     break;                
                 case MemberAssignmentNode memberAssignmentNode: // 对象成员赋值
                     void AnalysisMemberAssignmentNode(MemberAssignmentNode memberAssignmentNode)
                     {
-                        Evaluate(memberAssignmentNode);
+                        Analysis(memberAssignmentNode);
                     }
                     AnalysisMemberAssignmentNode(memberAssignmentNode);
                     break;                
                 case MemberFunctionCallNode memberFunctionCallNode: // 对象方法调用
-                    Evaluate(memberFunctionCallNode);
+                    Analysis(memberFunctionCallNode);
                     break;
                 case FunctionCallNode functionCallNode: // 外部挂载的函数调用
-                    Evaluate(functionCallNode);
+                    Analysis(functionCallNode);
                     break;
                 default: // 未定义的节点类型
                     break;
             }
         }
-
 
         /// <summary>
         /// 类型获取
@@ -182,7 +163,7 @@ namespace Serein.Script
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
         /// <exception cref="NotImplementedException"></exception>
-        private Type Evaluate(ASTNode node)
+        private Type Analysis(ASTNode node)
         {
             switch (node)
             {
@@ -190,14 +171,14 @@ namespace Serein.Script
                     NodeSymbolInfos[programNode] = typeof(void);
                     return typeof(void);
                 case ReturnNode returnNode: // 程序退出节点
-                    Type EvaluateReturnNode(ReturnNode returnNode)
+                    Type AnalysisReturnNode(ReturnNode returnNode)
                     {
-                        var resultType = Evaluate(returnNode.Value);
+                        var resultType = Analysis(returnNode.Value);
                         NodeSymbolInfos[returnNode.Value] = resultType;
                         NodeSymbolInfos[returnNode] = resultType;
                         return resultType;
                     }
-                    return EvaluateReturnNode(returnNode);
+                    return AnalysisReturnNode(returnNode);
                 case NullNode nullNode: // null
                     NodeSymbolInfos[nullNode] = typeof(object);
                     return typeof(object);
@@ -223,29 +204,29 @@ namespace Serein.Script
                     NodeSymbolInfos[numberDoubleNode] = typeof(double);
                     return typeof(double);
                 case IdentifierNode identifierNode: // 变量定义
-                    Type EvaluateIdentifierNode(IdentifierNode identifierNode)
+                    Type AnalysisIdentifierNode(IdentifierNode identifierNode)
                     {
                         var cacheNode = NodeSymbolInfos.Keys.FirstOrDefault(n => n is IdentifierNode idNode && idNode.Name == identifierNode.Name);
                         Type type = cacheNode is null ? typeof(object) : NodeSymbolInfos[cacheNode]; 
                         NodeSymbolInfos[identifierNode] = type;
                         return type;
                     }
-                    return EvaluateIdentifierNode(identifierNode);
+                    return AnalysisIdentifierNode(identifierNode);
                 case IfNode ifNode: // if语句结构
-                    Type EvaluateIfNode(IfNode ifNode)
+                    Type AnalysisIfNode(IfNode ifNode)
                     {
-                        var conditionType = Evaluate(ifNode.Condition); // 获取条件语句部分的返回类型
+                        var conditionType = Analysis(ifNode.Condition); // 获取条件语句部分的返回类型
                         NodeSymbolInfos[ifNode.Condition] = conditionType;
                         if (conditionType == typeof(bool?) || conditionType == typeof(bool))
                         {
                             foreach (var item in ifNode.TrueBranch)
                             {
-                                var itemType = Evaluate(item); // 解析真分支的语句块
+                                var itemType = Analysis(item); // 解析真分支的语句块
                                 NodeSymbolInfos[item] = itemType;
                             }
                             foreach (var item in ifNode.FalseBranch)
                             {
-                                var itemType = Evaluate(item); // 解析假分支的语句块
+                                var itemType = Analysis(item); // 解析假分支的语句块
                                 NodeSymbolInfos[item] = itemType;
                             }
                             NodeSymbolInfos[ifNode] = typeof(void);
@@ -256,17 +237,17 @@ namespace Serein.Script
                             throw new NotImplementedException("if...else...条件返回值不为布尔类型变量");
                         }
                     }
-                    return EvaluateIfNode(ifNode);
+                    return AnalysisIfNode(ifNode);
                 case WhileNode whileNode: // while语句结构
-                    Type EvaluateWhileNode(WhileNode whileNode)
+                    Type AnalysisWhileNode(WhileNode whileNode)
                     {
-                        var conditionType = Evaluate(whileNode.Condition); // 获取条件语句部分的返回类型
+                        var conditionType = Analysis(whileNode.Condition); // 获取条件语句部分的返回类型
                         NodeSymbolInfos[whileNode.Condition] = conditionType;
                         if (conditionType == typeof(bool?) || conditionType == typeof(bool))
                         {
                             foreach (var item in whileNode.Body)
                             {
-                                var itemType = Evaluate(item); // 解析真分支的语句块
+                                var itemType = Analysis(item); // 解析真分支的语句块
                                 NodeSymbolInfos[item] = itemType;
                             }
                             NodeSymbolInfos[whileNode] = typeof(void);  // while流程不产生类型
@@ -277,13 +258,13 @@ namespace Serein.Script
                             throw new NotImplementedException("if...else...条件返回值不为布尔类型变量");
                         }
                     }
-                    return EvaluateWhileNode(whileNode);
+                    return AnalysisWhileNode(whileNode);
                 case AssignmentNode assignmentNode:
                     // 对象赋值语句（let x;默认赋值null。默认类型object）
-                    Type EvaluateAssignmentNode(AssignmentNode assignmentNode)
+                    Type AnalysisAssignmentNode(AssignmentNode assignmentNode)
                     {
-                        var targetType = Evaluate(assignmentNode.Target);
-                        var valueType = Evaluate (assignmentNode.Value);
+                        var targetType = Analysis(assignmentNode.Target);
+                        var valueType = Analysis (assignmentNode.Value);
                         if (!targetType.IsAssignableFrom(valueType))
                             throw new Exception($"索引类型不匹配：需要 {targetType}，实际为 {valueType}");
                         NodeSymbolInfos[assignmentNode.Value] = valueType;
@@ -291,12 +272,12 @@ namespace Serein.Script
                         NodeSymbolInfos[assignmentNode] = typeof(void); // 赋值语句不产生类型
                         return targetType;
                     }
-                    return EvaluateAssignmentNode(assignmentNode);
+                    return AnalysisAssignmentNode(assignmentNode);
                 case BinaryOperationNode binaryOperationNode: // 二元运算操作
-                    Type EvaluateBinaryOperationNode(BinaryOperationNode binaryOperationNode)
+                    Type AnalysisBinaryOperationNode(BinaryOperationNode binaryOperationNode)
                     {
-                        var leftType = Evaluate(binaryOperationNode.Left); // 递归判断左值类型
-                        var rightType = Evaluate(binaryOperationNode.Right); // 递归判断右值类型
+                        var leftType = Analysis(binaryOperationNode.Left); // 递归判断左值类型
+                        var rightType = Analysis(binaryOperationNode.Right); // 递归判断右值类型
                         var op = binaryOperationNode.Operator;
                         var resultType = BinaryOperationEvaluator.EvaluateType(leftType, op, rightType);
                         NodeSymbolInfos[binaryOperationNode.Left] = leftType;
@@ -304,12 +285,12 @@ namespace Serein.Script
                         NodeSymbolInfos[binaryOperationNode] = resultType; 
                         return resultType;
                     }
-                    return EvaluateBinaryOperationNode(binaryOperationNode);
+                    return AnalysisBinaryOperationNode(binaryOperationNode);
                 case CollectionIndexNode collectionIndexNode: // 集合类型操作，获取集合操作后返回的类型
-                    Type EvaluateCollectionIndexNode(CollectionIndexNode collectionIndexNode)
+                    Type AnalysisCollectionIndexNode(CollectionIndexNode collectionIndexNode)
                     {
-                        var collectionType = Evaluate(collectionIndexNode.Collection); // 分析集合类型（变量，对象成员）
-                        var indexExprType  = Evaluate(collectionIndexNode.Index); // 分析索引类型
+                        var collectionType = Analysis(collectionIndexNode.Collection); // 分析集合类型（变量，对象成员）
+                        var indexExprType  = Analysis(collectionIndexNode.Index); // 分析索引类型
                         if (!TryGetIndexerType(collectionType, out var expectedIndexType, out var resultType))
                             throw new Exception($"类型 {collectionType} 不支持索引操作");
 
@@ -320,9 +301,9 @@ namespace Serein.Script
                         NodeSymbolInfos[collectionIndexNode] = resultType;
                         return resultType; 
                     }
-                    return EvaluateCollectionIndexNode(collectionIndexNode);
+                    return AnalysisCollectionIndexNode(collectionIndexNode);
                 case ClassTypeDefinitionNode classTypeDefinitionNode: // 类型定义
-                    Type EvaluateClassTypeDefinitionNode(ClassTypeDefinitionNode classTypeDefinitionNode)
+                    Type AnalysisClassTypeDefinitionNode(ClassTypeDefinitionNode classTypeDefinitionNode)
                     {
                         var classType = DynamicObjectHelper.GetCacheType(classTypeDefinitionNode.ClassName);
                         if (classType is null)
@@ -330,9 +311,9 @@ namespace Serein.Script
                         NodeSymbolInfos[classTypeDefinitionNode] = classType;
                         return classType;
                     }
-                    return EvaluateClassTypeDefinitionNode(classTypeDefinitionNode);
+                    return AnalysisClassTypeDefinitionNode(classTypeDefinitionNode);
                 case ObjectInstantiationNode objectInstantiationNode: // 类型实例化
-                    Type EvaluateObjectInstantiationNode(ObjectInstantiationNode objectInstantiationNode)
+                    Type AnalysisObjectInstantiationNode(ObjectInstantiationNode objectInstantiationNode)
                     {
                         Type? resultType = null;
                         try
@@ -349,23 +330,23 @@ namespace Serein.Script
                         NodeSymbolInfos[objectInstantiationNode] = resultType;
                         return resultType;
                     }
-                    return EvaluateObjectInstantiationNode(objectInstantiationNode);
+                    return AnalysisObjectInstantiationNode(objectInstantiationNode);
                 case ObjectMemberExpressionNode objectMemberExpressionNode: // 类型表达式（链式调用）
-                    Type EvaluateObjectMemberExpressionNode(ObjectMemberExpressionNode objectMemberExpressionNode)
+                    Type AnalysisObjectMemberExpressionNode(ObjectMemberExpressionNode objectMemberExpressionNode)
                     {
                         // 1. 对象成员获取 MemberAccessNode
                         // 2. 对象方法调用 MemberFunctionCallNode
                         // 3. 对象集合成员获取 CollectionIndexNode
-                        Type? resultType = Evaluate(objectMemberExpressionNode.Value);
+                        Type? resultType = Analysis(objectMemberExpressionNode.Value);
                         NodeSymbolInfos[objectMemberExpressionNode.Value] = resultType;
                         NodeSymbolInfos[objectMemberExpressionNode] = resultType;
                         return resultType;
                     }
-                    return EvaluateObjectMemberExpressionNode(objectMemberExpressionNode);
+                    return AnalysisObjectMemberExpressionNode(objectMemberExpressionNode);
                 case MemberAccessNode memberAccessNode: // 对象成员访问
-                    Type EvaluateMemberAccessNode(MemberAccessNode memberAccessNode)
+                    Type AnalysisMemberAccessNode(MemberAccessNode memberAccessNode)
                     {
-                        var objectType = Evaluate(memberAccessNode.Object);
+                        var objectType = Analysis(memberAccessNode.Object);
                         var property = objectType.GetProperty(memberAccessNode.MemberName);
                         if (property is null)
                             throw new Exception($"类型 {objectType} 没有成员 {memberAccessNode.MemberName}");
@@ -373,16 +354,16 @@ namespace Serein.Script
                         NodeSymbolInfos[memberAccessNode] = property.PropertyType;
                         return property.PropertyType;
                     }
-                    return EvaluateMemberAccessNode(memberAccessNode);
+                    return AnalysisMemberAccessNode(memberAccessNode);
                 case MemberAssignmentNode memberAssignmentNode: // 对象成员赋值
-                    Type EvaluateMemberAssignmentNode(MemberAssignmentNode memberAssignmentNode)
+                    Type AnalysisMemberAssignmentNode(MemberAssignmentNode memberAssignmentNode)
                     {
-                        var objectType = Evaluate(memberAssignmentNode.Object);
+                        var objectType = Analysis(memberAssignmentNode.Object);
                         var property = objectType.GetProperty(memberAssignmentNode.MemberName);
                         if(property is null)
                             throw new Exception($"类型异常：类型 {objectType} 没有成员 {memberAssignmentNode.MemberName}");
                         var propertyType = property.PropertyType;
-                        var valueType = Evaluate(memberAssignmentNode.Value);
+                        var valueType = Analysis(memberAssignmentNode.Value);
                         if (!propertyType.IsAssignableFrom(valueType))
                             throw new Exception($"类型异常：赋值需要 {propertyType}，实际为 {valueType}");
                         NodeSymbolInfos[memberAssignmentNode.Object] = propertyType;
@@ -390,12 +371,12 @@ namespace Serein.Script
                         NodeSymbolInfos[memberAssignmentNode] = typeof(void);
                         return typeof(void);  // 对象成员赋值语句不产生类型
                     }
-                    return EvaluateMemberAssignmentNode(memberAssignmentNode);
+                    return AnalysisMemberAssignmentNode(memberAssignmentNode);
                 case MemberFunctionCallNode memberFunctionCallNode: // 对象方法调用
-                    Type EvaluateMemberFunctionCallNode(MemberFunctionCallNode memberFunctionCallNode)
+                    Type AnalysisMemberFunctionCallNode(MemberFunctionCallNode memberFunctionCallNode)
                     {
-                        var objectType = Evaluate(memberFunctionCallNode.Object);
-                        var types = memberFunctionCallNode.Arguments.Select(arg => Evaluate(arg)).ToArray();
+                        var objectType = Analysis(memberFunctionCallNode.Object);
+                        var types = memberFunctionCallNode.Arguments.Select(arg => Analysis(arg)).ToArray();
                         var methodInfo = objectType.GetMethod(memberFunctionCallNode.FunctionName, types);
                         if (methodInfo is null)
                             throw new Exception($"类型 {objectType} 没有方法 {memberFunctionCallNode.FunctionName}");
@@ -409,15 +390,15 @@ namespace Serein.Script
                         NodeSymbolInfos[memberFunctionCallNode] = methodInfo.ReturnType;
                         return methodInfo.ReturnType;
                     }
-                    return EvaluateMemberFunctionCallNode(memberFunctionCallNode);
+                    return AnalysisMemberFunctionCallNode(memberFunctionCallNode);
                 case FunctionCallNode functionCallNode: // 外部挂载的函数调用
-                    Type EvaluateFunctionCallNode(FunctionCallNode functionCallNode)
+                    Type AnalysisFunctionCallNode(FunctionCallNode functionCallNode)
                     {
                         if(!SereinScriptInterpreter.FunctionInfoTable.TryGetValue(functionCallNode.FunctionName, out var methodInfo))
                         {
                             throw new Exception($"脚本没有挂载方法 {functionCallNode.FunctionName}");
                         }
-                        var types = functionCallNode.Arguments.Select(arg => Evaluate(arg)).ToArray();
+                        var types = functionCallNode.Arguments.Select(arg => Analysis(arg)).ToArray();
                         for (int index = 0; index < functionCallNode.Arguments.Count; index++)
                         {
                             ASTNode argNode = functionCallNode.Arguments[index];
@@ -427,20 +408,12 @@ namespace Serein.Script
                         NodeSymbolInfos[functionCallNode] = methodInfo.ReturnType;
                         return methodInfo.ReturnType;
                     }
-                    return EvaluateFunctionCallNode(functionCallNode);
+                    return AnalysisFunctionCallNode(functionCallNode);
                 default: // 未定义的节点类型
                     break;
             }
             throw new NotImplementedException();
         }
-
-
-
-
-
-
-
-
 
 
         private void Analysis2(ASTNode node)
@@ -565,209 +538,6 @@ namespace Serein.Script
             return false;
         }
 
-
-
-
-
-
-
-
-
-        #region 初始化符号表
-        /// <summary>
-        /// 符号表
-        /// </summary>
-        public Dictionary<string, SymbolInfo> SymbolInfos { get; } = new Dictionary<string, SymbolInfo>();
-
-
-       /* public SereinScriptTypeAnalysis(ProgramNode programNode)
-        {
-            SymbolInfos.Clear(); // 清空符号表
-
-            // 初始化符号表
-            foreach (ASTNode astNode in programNode.Statements)
-            {
-                var type = Trace(astNode);
-                if (type is null) continue;
-                var info = Analyse(astNode, type);
-                if (info != null)
-                {
-                    SymbolInfos[info.Name] = info;
-                }
-            }
-
-            // 类型分析
-            foreach (ASTNode astNode in programNode.Statements)
-            {
-            }
-        }
-*/
-
-        private Type? GetTypeOnMemberFunctionCallNode(ASTNode objectNode)
-        {
-            Type objectType = null;
-            if (objectNode is IdentifierNode identifierNode)
-            {
-                if (SymbolInfos.TryGetValue(identifierNode.Name, out var symbolInfo))
-                {
-                    objectType = symbolInfo.Type;
-                }
-            }
-            return objectType;
-        }
-
-        private Type? GetMethodReturnType(Type type, string methodName)
-        {
-            if (type is null) return null;
-            var methodInfos = type.GetMethods();
-            var methodInfo = methodInfos.FirstOrDefault(md => md.Name == methodName);
-            var returnType = methodInfo?.ReturnType;
-            return returnType;
-        }
-
-
-        /// <summary>
-        /// 追踪类型
-        /// </summary>
-        /// <param name="node"></param>
-        /// <returns></returns>
-        private Type Trace(ASTNode node)
-        {
-            if (node == null)
-            {
-                return null;
-            }
-            switch (node)
-            {
-                case NullNode nullNode: // 返回null
-                    return typeof(object);
-                case BooleanNode booleanNode: // 返回布尔
-                    return typeof(bool);
-                case NumberIntNode numberNode: // 数值
-                    return typeof(int);
-                case StringNode stringNode: // 字符串
-                    return typeof(string);
-                case CharNode charNode: // char
-                    return typeof(char);
-                case IdentifierNode identifierNode: // 定义变量
-                    if(SymbolInfos.TryGetValue(identifierNode.Name, out var varSymbolInfo))
-                    {
-                        return varSymbolInfo.Type; // 返回定义的类型
-                    }
-                    return typeof(object); // 默认为 object
-                case AssignmentNode assignmentNode: // 赋值行为
-                    var targetType = Trace(assignmentNode.Target);
-                    var valueType = Trace(assignmentNode.Value);
-                    if (targetType.IsAssignableFrom(valueType))
-                    {
-                        if(assignmentNode.Target is IdentifierNode identifierNode
-                            && !SymbolInfos.ContainsKey(identifierNode.Name))
-                        {
-                            return valueType;
-                        }
-                        return targetType;
-                    }
-                    else
-                    {
-                        throw new Exception("无法转换类型");
-                    }
-                case BinaryOperationNode binOpNode: // 递归计算二元操作
-                    var leftType = Trace(binOpNode.Left);
-                    var op = binOpNode.Operator;
-                    var rightType = Trace(binOpNode.Right);
-                    var resultType = BinaryOperationEvaluator.EvaluateType(leftType, op, rightType);
-                    return resultType;
-                case ClassTypeDefinitionNode classTypeDefinitionNode:
-                    var definitionType = DynamicObjectHelper.CreateTypeWithProperties(classTypeDefinitionNode.Fields, classTypeDefinitionNode.ClassName);
-                    return definitionType;
-                case ObjectInstantiationNode objectInstantiationNode: // 创建对象
-                    var typeName = objectInstantiationNode.TypeName;
-                    var objectType = Type.GetType(typeName);
-                    objectType ??= DynamicObjectHelper.GetCacheType(typeName);
-                    return objectType;
-                case FunctionCallNode callNode: // 调用方法
-                    return null;
-                case MemberAssignmentNode memberAssignmentNode:
-                    var leftValueType = Trace(memberAssignmentNode.Object);
-                    var propertyType = leftValueType.GetProperty(memberAssignmentNode.MemberName)?.PropertyType;
-                    var rightValueType = Trace(memberAssignmentNode.Value);
-                    if (propertyType is not null && !propertyType.IsAssignableFrom(rightValueType))
-                    {
-                        throw new Exception("无法转换类型");
-                    }
-                    break;
-                case MemberFunctionCallNode memberFunctionCallNode: // 对象方法调用
-                    var objectNode = memberFunctionCallNode.Object;
-                    var objType = GetTypeOnMemberFunctionCallNode(objectNode);
-                    var methodName = memberFunctionCallNode.FunctionName;
-                    return GetMethodReturnType(objType, methodName);
-                case MemberAccessNode memberAccessNode: // 对象成员访问
-                    var memberType = memberAccessNode.MemberName;
-                    return null;
-                case CollectionIndexNode collectionIndexNode:
-                case ReturnNode returnNode: // 返回内容
-
-                default:
-                    break;
-                    //throw new SereinSciptException(node, $"解释器 EvaluateAsync() 未实现{node}节点行为");
-            }
-
-            return null;
-        }
-
-
-
-        private SymbolInfo Analyse(ASTNode node, Type type)
-        {
-            if (node == null)
-            {
-                return null;
-            }
-            switch (node)
-            {
-                case IdentifierNode identifierNode: // 定义变量
-                    return new SymbolInfo
-                    {
-                        Name = identifierNode.Name,
-                        Node = node,
-                        Type = type,
-                    };
-                case AssignmentNode assignmentNode: // 赋值行为
-                    if(assignmentNode.Target is IdentifierNode identifierNode1)
-                    {
-                        return new SymbolInfo
-                        {
-                            Name = identifierNode1.Name,
-                            Node = node,
-                            Type = type,
-                        };
-                    }
-                    break;
-                    
-                case BinaryOperationNode binOpNode: // 递归计算二元操作
-                    break;
-                //case ClassTypeDefinitionNode classTypeDefinitionNode
-                case ObjectInstantiationNode objectInstantiationNode: // 创建对象
-                    break;
-                case FunctionCallNode callNode: // 调用方法
-                    break;
-                case MemberFunctionCallNode memberFunctionCallNode: // 对象方法调用
-                    break;
-                case MemberAccessNode memberAccessNode: // 对象成员访问
-                    break;
-                case CollectionIndexNode collectionIndexNode:
-                    break;
-                case ReturnNode returnNode: // 返回内容
-                    break;
-                default:
-                    break;
-                    //throw new SereinSciptException(node, $"解释器 EvaluateAsync() 未实现{node}节点行为");
-            }
-
-            return null;
-        }
-
-        #endregion
 
        
     }

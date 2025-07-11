@@ -182,7 +182,7 @@ namespace Serein.Script
                     }
                     else // if (tempToken2.Type == TokenType.SquareBracketsRight)
                     {
-                        int_type = 1; // 变量数组赋值
+                        int_type = 1; // 变量赋值
                         break;
                     }
                 }
@@ -195,6 +195,12 @@ namespace Serein.Script
                         break;
                     }
                 }
+                if(tempToken.Type == TokenType.ParenthesisLeft) // 本地函数调用
+                {
+                    int_type = 4; // 本地方法调用
+                    break;
+                }
+                
             }
             if(int_type == 1) // 赋值 MemberAssignmentNode
             {
@@ -204,6 +210,9 @@ namespace Serein.Script
                 if(peekToken.Type == TokenType.Operator && peekToken.Value == "=")
                 {
                     // 变量赋值
+                    _currentToken = _lexer.NextToken(); // 消耗 变量名
+                    _currentToken = _lexer.NextToken(); // 消耗 “=”
+
                     var valueNode = BooleanExpression();
                     var assignmentNode = new AssignmentNode(objectNode, valueNode).SetTokenInfo(_currentToken);
                     return assignmentNode;
@@ -286,6 +295,16 @@ namespace Serein.Script
             else if (int_type == 2) // 方法调用
             {
                 var taretNode = "";
+            } 
+            else if (int_type == 3) // 方法调用
+            {
+                var taretNode = "";
+            } 
+            else if (int_type == 4) // 方法调用
+            {
+                // 可能是挂载函数调用
+                var functionCallNode = ParseFunctionCall();
+                return functionCallNode;
             }
             else 
             {
@@ -957,52 +976,6 @@ namespace Serein.Script
             _currentToken = _lexer.NextToken(); // Consume "}"
             return new WhileNode(condition, body).SetTokenInfo(_currentToken);
         }
-
-        /* /// <summary>
-         /// 解析表达式。
-         /// </summary>
-         /// <returns></returns>
-         private ASTNode Expression()
-         {
-             ASTNode left = Term();
-             while (_currentToken.Type == TokenType.Operator && (
-                 _currentToken.Value == "+" || _currentToken.Value == "-"))
-             {
-                 string op = _currentToken.Value.ToString();
-                 _currentToken = _lexer.NextToken();
-                 ASTNode right = Term();
-                 left = new BinaryOperationNode(left, op, right).SetTokenInfo(_currentToken);
-             }
-             while (_currentToken.Type == TokenType.Operator && (_currentToken.Value == "*" || _currentToken.Value == "/"))
-             {
-                 string op = _currentToken.Value.ToString();
-                 _currentToken = _lexer.NextToken();
-                 ASTNode right = Term();
-                 left = new BinaryOperationNode(left, op, right).SetTokenInfo(_currentToken);
-             }
-           return left;
-         }
-
-
-         /// <summary>
-         /// 解析项（Term），比较运算符
-         /// </summary>
-         /// <returns></returns>
-         private ASTNode Term()
-         {
-             ASTNode left = Factor();
-             while (_currentToken.Type == TokenType.Operator &&
-                 (_currentToken.Value == "<" || _currentToken.Value == ">" ||
-                 _currentToken.Value == "<=" || _currentToken.Value == ">=" ||
-                 _currentToken.Value == "==" || _currentToken.Value == "!="))
-             {
-                 string op = _currentToken.Value.ToString();
-                 _currentToken = _lexer.NextToken();
-                 ASTNode right = Factor();
-                 left = new BinaryOperationNode(left, op, right).SetTokenInfo(_currentToken);
-             }
-             return left;
-         }*/
 
         /// <summary>
         /// 顶层布尔表达式
