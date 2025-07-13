@@ -83,22 +83,32 @@ namespace Serein.Workbench.Node.ViewModel
 
         }
 
-
+        /// <summary>
+        /// 选择画布发生改变
+        /// </summary>
+        /// <param name="value"></param>
         partial void OnSelectCanvasChanged(FlowCanvasViewModel value)
         {
-            FlowCallNode.ResetTargetNode();
+            FlowCallNode.ResetTargetNode();  // 改变画布直接重置
         }
 
+        /// <summary>
+        /// 选择的节点发生改变
+        /// </summary>
+        /// <param name="value"></param>
         partial void OnSelectNodeChanged(IFlowNode value)
         {
             if(value is null)
             {
-                FlowCallNode.ResetTargetNode();
+                FlowCallNode.ResetTargetNode(); // 如果是不选择了，则重置一下
                 return;
             }
-            FlowCallNode.SetTargetNode(value.Guid);
+            FlowCallNode.SetTargetNode(value.Guid); // 重新设置目标节点
         }
 
+        /// <summary>
+        /// 刷新可选画布
+        /// </summary>
         private void RershCanvass()
         {
             var canvass = flowNodeService.FlowCanvass.Select(f => (FlowCanvasViewModel)f.DataContext).ToArray(); // .Where(f => f.Model.PublicNodes.Count > 0)

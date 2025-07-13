@@ -2,7 +2,7 @@
 using Serein.Library.Api;
 using Serein.Library.Utils;
 using Serein.Script;
-using Serein.Script.Node;
+using Serein.Script.Node.FlowControl;
 using System;
 using System.Collections.Generic;
 using System.Dynamic;
@@ -35,7 +35,7 @@ namespace Serein.NodeFlow.Model
 
         private IScriptFlowApi ScriptFlowApi;
         private ProgramNode programNode;
-        private SereinScriptInterpreter ScriptInterpreter;
+        private readonly SereinScriptInterpreter scriptInterpreter;
         private bool IsScriptChanged = false;
 
         /// <summary>
@@ -45,7 +45,7 @@ namespace Serein.NodeFlow.Model
         public SingleScriptNode(IFlowEnvironment environment):base(environment) 
         {
             ScriptFlowApi = new ScriptFlowApi(environment, this);
-            ScriptInterpreter = new SereinScriptInterpreter();
+            scriptInterpreter = new SereinScriptInterpreter();
         }
 
         static SingleScriptNode()
@@ -79,11 +79,11 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         public override void OnCreating()
         {
-            MethodInfo? method = this.GetType().GetMethod(nameof(GetFlowApi));
+           /* MethodInfo? method = this.GetType().GetMethod(nameof(GetFlowApi));
             if (method != null)
             {
                 ScriptInterpreter.AddFunction(nameof(GetFlowApi), method, () => this); // 挂载获取流程接口
-            }
+            }*/
 
             var md = MethodDetails;
             var pd = md.ParameterDetailss ??= new ParameterDetails[1];
@@ -103,8 +103,8 @@ namespace Serein.NodeFlow.Model
                 Items = null,
                 IsParams = true,
                 //Description = "脚本节点入参"
-
             };
+            md.ReturnType = typeof(object); // 默认返回 object
 
         }
 
@@ -157,19 +157,24 @@ namespace Serein.NodeFlow.Model
                     varNames.Add(pd.Name);
                 }
 
-                var sb  = new StringBuilder();
+                /*var sb  = new StringBuilder();
                 foreach (var pd in MethodDetails.ParameterDetailss)
                 {
                     sb.AppendLine($"let {pd.Name};"); // 提前声明这些变量
                 }
                 sb.Append(Script);
-                var script = sb.ToString();
-                var p = new SereinScriptParser(script);
-                //var p = new SereinScriptParser(Script);
-                programNode = p.Parse(); // 开始解析
-                var typeAnalysis = new SereinScriptTypeAnalysis();
-                ScriptInterpreter.SetTypeAnalysis(typeAnalysis);
-                typeAnalysis.AnalysisProgramNode(programNode);
+                var script = sb.ToString();*/
+                var parser = new SereinScriptParser(); // 准备解析器
+                var typeAnalysis = new SereinScriptTypeAnalysis(); // 准备分析器
+                programNode = parser.Parse(Script); // 开始解析获取程序主节点
+
+                var dict = MethodDetails.ParameterDetailss.ToDictionary(pd => pd.Name, pd => pd.DataType);
+                typeAnalysis.NodeSymbolInfos.Clear(); // 清空符号表
+                typeAnalysis.LoadSymbol(dict); // 提前加载脚本节点定义的符号
+                typeAnalysis.AnalysisProgramNode(programNode); // 分析节点类型
+                var returnType =  typeAnalysis.NodeSymbolInfos[programNode]; // 获取返回类型
+                MethodDetails.ReturnType = returnType;
+                //scriptInterpreter.SetTypeAnalysis(typeAnalysis); // 设置类型分析器
 
             }
             catch (Exception ex)
@@ -240,17 +245,17 @@ namespace Serein.NodeFlow.Model
             if (token.IsCancellationRequested) return null;
 
 
-            var result = await ScriptInterpreter.InterpretAsync(scriptContext, programNode); // 从入口节点执行
+            var result = await scriptInterpreter.InterpretAsync(scriptContext, programNode); // 从入口节点执行
             envEvent.FlowRunComplete -= onFlowStop;
             return new FlowResult(this.Guid, context, result);
         }
 
         #region 挂载的方法
 
-        public IScriptFlowApi GetFlowApi()
+        /*public IScriptFlowApi GetFlowApi()
         {
             return ScriptFlowApi;
-        }
+        }*/
 
         private static class ScriptBaseFunc
         {

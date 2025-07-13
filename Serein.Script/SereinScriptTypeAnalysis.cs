@@ -1,6 +1,7 @@
 ﻿using Serein.Library;
 using Serein.Library.Utils;
 using Serein.Script.Node;
+using Serein.Script.Node.FlowControl;
 using Serein.Script.Symbol;
 using System;
 using System.Collections.Generic;
@@ -30,9 +31,21 @@ namespace Serein.Script
 
         }
 
+        public void LoadSymbol(Dictionary<string,Type> identifierNodes)
+        {
+            foreach(var kvp in identifierNodes)
+            {
+                var name = kvp.Key;
+                var type = kvp.Value;
+                var identifierNode = new IdentifierNode(name);
+                NodeSymbolInfos[identifierNode] = type;
+            }
+        }
+
+
         public void AnalysisProgramNode(ProgramNode astNode)
         {
-            NodeSymbolInfos.Clear();
+            //NodeSymbolInfos.Clear();
             for (int i = 0; i < astNode.Statements.Count; i++)
             {
                 var node = astNode.Statements[i];
@@ -58,103 +71,6 @@ namespace Serein.Script
         }
 
 
-
-        /// <summary>
-        /// 类型分析
-        /// </summary>
-        /// <param name="node"></param>
-        /// <exception cref="NotImplementedException"></exception>
-        private void Analysis1(ASTNode node)
-        {
-            switch (node)
-            {
-                case ProgramNode programNode: // 程序开始节点
-                    break;
-                case ReturnNode returnNode: // 程序退出节点
-                    Analysis(returnNode); // 解析变量定义的类型
-                    break;
-                case NullNode nullNode: // null
-                case CharNode charNode: // char字面量
-                case StringNode stringNode: // 字符串字面量
-                case BooleanNode booleanNode: // 布尔值字面量
-                case NumberIntNode numberIntNode: // int整型数值字面量
-                case NumberLongNode numberLongNode: // long整型数值字面量
-                case NumberFloatNode numberFloatNode: // float浮点数值字面量
-                case NumberDoubleNode numberDoubleNode: // double浮点数值字面量
-                    Analysis(node);
-                    break;
-                case IdentifierNode identifierNode: // 变量定义
-                    void AnalysisIdentifierNode(IdentifierNode identifierNode)
-                    {
-                        Analysis(identifierNode); // 解析变量定义的类型
-                    }
-                    AnalysisIdentifierNode(identifierNode);
-                    break;
-                case IfNode ifNode: // if语句结构
-                    void AnalysisIfNode(IfNode ifNode)
-                    {
-                        Analysis(ifNode);
-                       
-                    }
-                    AnalysisIfNode(ifNode);
-                    break;
-                case WhileNode whileNode: // while语句结构
-                    void AnalysisWhileNode(WhileNode whileNode)
-                    {
-                        Analysis(whileNode);
-                    }
-                    AnalysisWhileNode(whileNode);
-                    break;                
-                case AssignmentNode assignmentNode: // 对象赋值语句（let x;默认赋值null。默认类型object）
-                    void AnalysisAssignmentNode(AssignmentNode assignmentNode)
-                    {
-                        Analysis(assignmentNode);
-                    }
-                    AnalysisAssignmentNode(assignmentNode);
-                    break;                
-                case BinaryOperationNode binaryOperationNode: // 二元运算操作
-                    void AnalysisBinaryOperationNode(BinaryOperationNode binaryOperationNode)
-                    {
-                        Analysis(binaryOperationNode);
-                    }
-                    AnalysisBinaryOperationNode(binaryOperationNode);
-                    break;                
-                case CollectionIndexNode collectionIndexNode: // 集合类型操作
-                    void AnalysisCollectionIndexNode(CollectionIndexNode collectionIndexNode)
-                    {
-                        Analysis(collectionIndexNode);
-                    }
-                    AnalysisCollectionIndexNode(collectionIndexNode);
-                    break;                
-                case ClassTypeDefinitionNode classTypeDefinitionNode: // 类型定义
-                    Analysis(classTypeDefinitionNode);
-                    break;
-                case ObjectInstantiationNode objectInstantiationNode: // 类型实例化
-                    Analysis(objectInstantiationNode);
-                    break;
-                case ObjectMemberExpressionNode objectMemberExpressionNode: // 类型表达式（链式调用）
-                    Analysis(objectMemberExpressionNode);
-                    break;
-                case MemberAccessNode memberAccessNode: // 对象成员访问
-                    Analysis(memberAccessNode);
-                    break;                
-                case MemberAssignmentNode memberAssignmentNode: // 对象成员赋值
-                    void AnalysisMemberAssignmentNode(MemberAssignmentNode memberAssignmentNode)
-                    {
-                        Analysis(memberAssignmentNode);
-                    }
-                    AnalysisMemberAssignmentNode(memberAssignmentNode);
-                    break;                
-                case MemberFunctionCallNode memberFunctionCallNode: // 对象方法调用
-                    Analysis(memberFunctionCallNode);
-                    break;
-                case FunctionCallNode functionCallNode: // 外部挂载的函数调用
-                    Analysis(functionCallNode);
-                    break;
-                default: // 未定义的节点类型
-                    break;
-            }
-        }
 
         /// <summary>
         /// 类型获取
@@ -302,6 +218,20 @@ namespace Serein.Script
                         return resultType; 
                     }
                     return AnalysisCollectionIndexNode(collectionIndexNode);
+                case CollectionAssignmentNode collectionAssignmentNode: // 集合赋值操作
+                    Type AnalysisCollectionAssignmentNode(CollectionAssignmentNode collectionAssignmentNode)
+                    {
+                        var resultType = Analysis(collectionAssignmentNode.Collection); // 分析集合返回返回类型
+                        var valueType = Analysis(collectionAssignmentNode.Value); // 分析赋值的类型
+                        if (!resultType.IsAssignableFrom(valueType))
+                            throw new Exception($"类型 {resultType} 不支持索引操作");
+
+                        NodeSymbolInfos[collectionAssignmentNode.Collection] = resultType;
+                        NodeSymbolInfos[collectionAssignmentNode.Value] = valueType;
+                        NodeSymbolInfos[collectionAssignmentNode] = typeof(void); // 赋值语句不产生类型
+                        return typeof(void);
+                    }
+                    return AnalysisCollectionAssignmentNode(collectionAssignmentNode);
                 case ClassTypeDefinitionNode classTypeDefinitionNode: // 类型定义
                     Type AnalysisClassTypeDefinitionNode(ClassTypeDefinitionNode classTypeDefinitionNode)
                     {
@@ -331,18 +261,18 @@ namespace Serein.Script
                         return resultType;
                     }
                     return AnalysisObjectInstantiationNode(objectInstantiationNode);
-                case ObjectMemberExpressionNode objectMemberExpressionNode: // 类型表达式（链式调用）
-                    Type AnalysisObjectMemberExpressionNode(ObjectMemberExpressionNode objectMemberExpressionNode)
+                case ExpressionNode expressionNode: // 类型表达式（链式调用）
+                    Type AnalysisObjectMemberExpressionNode(ExpressionNode expressionNode)
                     {
                         // 1. 对象成员获取 MemberAccessNode
                         // 2. 对象方法调用 MemberFunctionCallNode
                         // 3. 对象集合成员获取 CollectionIndexNode
-                        Type? resultType = Analysis(objectMemberExpressionNode.Value);
-                        NodeSymbolInfos[objectMemberExpressionNode.Value] = resultType;
-                        NodeSymbolInfos[objectMemberExpressionNode] = resultType;
+                        Type? resultType = Analysis(expressionNode.Value);
+                        NodeSymbolInfos[expressionNode.Value] = resultType;
+                        NodeSymbolInfos[expressionNode] = resultType;
                         return resultType;
                     }
-                    return AnalysisObjectMemberExpressionNode(objectMemberExpressionNode);
+                    return AnalysisObjectMemberExpressionNode(expressionNode);
                 case MemberAccessNode memberAccessNode: // 对象成员访问
                     Type AnalysisMemberAccessNode(MemberAccessNode memberAccessNode)
                     {
@@ -416,6 +346,106 @@ namespace Serein.Script
         }
 
 
+
+
+        /// <summary>
+        /// 类型分析
+        /// </summary>
+        /// <param name="node"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        private void Analysis1(ASTNode node)
+        {
+            switch (node)
+            {
+                case ProgramNode programNode: // 程序开始节点
+                    break;
+                case ReturnNode returnNode: // 程序退出节点
+                    Analysis(returnNode); // 解析变量定义的类型
+                    break;
+                case NullNode nullNode: // null
+                case CharNode charNode: // char字面量
+                case StringNode stringNode: // 字符串字面量
+                case BooleanNode booleanNode: // 布尔值字面量
+                case NumberIntNode numberIntNode: // int整型数值字面量
+                case NumberLongNode numberLongNode: // long整型数值字面量
+                case NumberFloatNode numberFloatNode: // float浮点数值字面量
+                case NumberDoubleNode numberDoubleNode: // double浮点数值字面量
+                    Analysis(node);
+                    break;
+                case IdentifierNode identifierNode: // 变量定义
+                    void AnalysisIdentifierNode(IdentifierNode identifierNode)
+                    {
+                        Analysis(identifierNode); // 解析变量定义的类型
+                    }
+                    AnalysisIdentifierNode(identifierNode);
+                    break;
+                case IfNode ifNode: // if语句结构
+                    void AnalysisIfNode(IfNode ifNode)
+                    {
+                        Analysis(ifNode);
+
+                    }
+                    AnalysisIfNode(ifNode);
+                    break;
+                case WhileNode whileNode: // while语句结构
+                    void AnalysisWhileNode(WhileNode whileNode)
+                    {
+                        Analysis(whileNode);
+                    }
+                    AnalysisWhileNode(whileNode);
+                    break;
+                case AssignmentNode assignmentNode: // 对象赋值语句（let x;默认赋值null。默认类型object）
+                    void AnalysisAssignmentNode(AssignmentNode assignmentNode)
+                    {
+                        Analysis(assignmentNode);
+                    }
+                    AnalysisAssignmentNode(assignmentNode);
+                    break;
+                case BinaryOperationNode binaryOperationNode: // 二元运算操作
+                    void AnalysisBinaryOperationNode(BinaryOperationNode binaryOperationNode)
+                    {
+                        Analysis(binaryOperationNode);
+                    }
+                    AnalysisBinaryOperationNode(binaryOperationNode);
+                    break;
+                case CollectionIndexNode collectionIndexNode: // 集合类型操作
+                    void AnalysisCollectionIndexNode(CollectionIndexNode collectionIndexNode)
+                    {
+                        Analysis(collectionIndexNode);
+                    }
+                    AnalysisCollectionIndexNode(collectionIndexNode);
+                    break;
+                case ClassTypeDefinitionNode classTypeDefinitionNode: // 类型定义
+                    Analysis(classTypeDefinitionNode);
+                    break;
+                case ObjectInstantiationNode objectInstantiationNode: // 类型实例化
+                    Analysis(objectInstantiationNode);
+                    break;
+                case ExpressionNode expressionNode: // 类型表达式（链式调用）
+                    Analysis(expressionNode.Value);
+                    break;
+                case MemberAccessNode memberAccessNode: // 对象成员访问
+                    Analysis(memberAccessNode);
+                    break;
+                case MemberAssignmentNode memberAssignmentNode: // 对象成员赋值
+                    void AnalysisMemberAssignmentNode(MemberAssignmentNode memberAssignmentNode)
+                    {
+                        Analysis(memberAssignmentNode);
+                    }
+                    AnalysisMemberAssignmentNode(memberAssignmentNode);
+                    break;
+                case MemberFunctionCallNode memberFunctionCallNode: // 对象方法调用
+                    Analysis(memberFunctionCallNode);
+                    break;
+                case FunctionCallNode functionCallNode: // 外部挂载的函数调用
+                    Analysis(functionCallNode);
+                    break;
+                default: // 未定义的节点类型
+                    break;
+            }
+        }
+
+
         private void Analysis2(ASTNode node)
         {
             switch (node)
@@ -450,13 +480,15 @@ namespace Serein.Script
                     break;
                 case BinaryOperationNode binaryOperationNode: // 二元运算操作
                     break;
+                case CollectionAssignmentNode collectionAssignmentNode:
+                    break;
                 case CollectionIndexNode collectionIndexNode: // 集合类型操作
                     break;
                 case ClassTypeDefinitionNode classTypeDefinitionNode: // 类型定义
                     break;
                 case ObjectInstantiationNode objectInstantiationNode: // 类型实例化
                     break;
-                case ObjectMemberExpressionNode objectMemberExpressionNode: // 类型表达式（链式调用）
+                case ExpressionNode expressionNode: // 类型表达式（链式调用）
                     break;
                 case MemberAccessNode memberAccessNode: // 对象成员访问
                     break;
@@ -470,6 +502,9 @@ namespace Serein.Script
                     break;
             }
         }
+
+
+
 
 
         /// <summary>

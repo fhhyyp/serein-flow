@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Serein.Script.Node
+namespace Serein.Script.Node.FlowControl
 {
     /// <summary>
     /// 程序入口

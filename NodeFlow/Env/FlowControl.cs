@@ -48,11 +48,7 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         private RunState FlipFlopState = RunState.NoStart;
 
-
-        /// <summary>
-        /// 异步运行
-        /// </summary>
-        /// <returns></returns>
+        /// <inheritdoc/>
         public async Task<bool> StartFlowAsync(string[] canvasGuids)
         {
             #region 校验参数
@@ -144,12 +140,7 @@ namespace Serein.NodeFlow.Env
             return true;
         }
 
-
-        /// <summary>
-        /// 从选定节点开始运行
-        /// </summary>
-        /// <param name="startNodeGuid"></param>
-        /// <returns></returns>
+        /// <inheritdoc/>
         public async Task<TResult> StartFlowAsync<TResult>(string startNodeGuid)
         {
 
@@ -207,10 +198,7 @@ namespace Serein.NodeFlow.Env
             }
             return result;
         }*/
-
-        /// <summary>
-        /// 结束流程
-        /// </summary>
+        /// <inheritdoc/>
         public Task<bool> ExitFlowAsync()
         {
             flowWorkManagement?.Exit();
@@ -220,11 +208,7 @@ namespace Serein.NodeFlow.Env
             GC.Collect();
             return Task.FromResult(true);
         }
-
-        /// <summary>
-        /// 激活全局触发器
-        /// </summary>
-        /// <param name="nodeGuid"></param>
+        /// <inheritdoc/>
         public void ActivateFlipflopNode(string nodeGuid)
         {
             /*if (!TryGetNodeModel(nodeGuid, out var nodeModel))
@@ -242,11 +226,7 @@ namespace Serein.NodeFlow.Env
                 }
             }*/
         }
-
-        /// <summary>
-        /// 关闭全局触发器
-        /// </summary>
-        /// <param name="nodeGuid"></param>
+        /// <inheritdoc/>
         public void TerminateFlipflopNode(string nodeGuid)
         {
             /* if (!TryGetNodeModel(nodeGuid, out var nodeModel))
@@ -264,24 +244,12 @@ namespace Serein.NodeFlow.Env
         {
             this.sereinIOC = ioc; // 设置IOC容器
         }
-
-        /// <summary>
-        /// 启动器调用，运行到某个节点时触发了监视对象的更新（对象预览视图将会自动更新）
-        /// </summary>
-        /// <param name="nodeGuid"></param>
-        /// <param name="monitorData"></param>
-        /// <param name="sourceType"></param>
+        /// <inheritdoc/>
         public void MonitorObjectNotification(string nodeGuid, object monitorData, MonitorObjectEventArgs.ObjSourceType sourceType)
         {
             flowEnvironmentEvent.OnMonitorObjectChanged(new MonitorObjectEventArgs(nodeGuid, monitorData, sourceType));
         }
-
-        /// <summary>
-        /// 启动器调用，节点触发了中断。
-        /// </summary>
-        /// <param name="nodeGuid">节点</param>
-        /// <param name="expression">表达式</param>
-        /// <param name="type">类型，0用户主动的中断，1表达式中断</param>
+        /// <inheritdoc/>
         public void TriggerInterrupt(string nodeGuid, string expression, InterruptTriggerEventArgs.InterruptTriggerType type)
         {
             flowEnvironmentEvent.OnInterruptTriggered(new InterruptTriggerEventArgs(nodeGuid, expression, type));
@@ -292,28 +260,14 @@ namespace Serein.NodeFlow.Env
 
         #region 流程接口调用
 
-
-        /// <summary>
-        /// 调用流程接口，将返回 FlowResult.Value。如果需要 FlowResult 对象，请使用该方法的泛型版本。
-        /// </summary>
-        /// <param name="apiGuid">流程接口节点Guid</param>
-        /// <param name="dict">调用时入参参数</param>
-        /// <returns></returns>
+        /// <inheritdoc/>
         public async Task<object> InvokeAsync(string apiGuid, Dictionary<string, object> dict)
         {
             var result = await InvokeAsync<object>(apiGuid, dict);
             return result;
         }
-        
 
-        /// <summary>
-        /// 调用流程接口，泛型类型为 FlowResult 时，将返回 FlowResult 对象。
-        /// </summary>
-        /// <typeparam name="TResult"></typeparam>
-        /// <param name="apiGuid">流程接口节点Guid</param>
-        /// <param name="dict">调用时入参参数</param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentNullException"></exception>
+        /// <inheritdoc/>
         public async Task<TResult> InvokeAsync<TResult>(string apiGuid, Dictionary<string, object>  dict)
         {
             if (sereinIOC is null)

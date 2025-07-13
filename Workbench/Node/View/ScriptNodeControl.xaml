@@ -29,11 +29,11 @@
                 <ColumnDefinition Width="auto"/>
             </Grid.ColumnDefinitions>
 
-            <local:ExecuteJunctionControl  Grid.Column="0"  MyNode="{Binding NodeModel}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
+            <local:ExecuteJunctionControl  Grid.Column="0"  NodeViewModel="{Binding}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
             <Border Grid.Column="1" BorderThickness="1" HorizontalAlignment="Stretch">
                 <TextBlock Text="{Binding NodeModel.DisplayName, Mode=TwoWay}"  HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
-            <local:NextStepJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}"  x:Name="NextStepJunctionControl" HorizontalAlignment="Right" Grid.RowSpan="2"/>
+            <local:NextStepJunctionControl Grid.Column="2"  NodeViewModel="{Binding}"  x:Name="NextStepJunctionControl" HorizontalAlignment="Right" Grid.RowSpan="2"/>
 
         </Grid>
 
@@ -54,9 +54,8 @@
 
                 <Button Content="加载" Margin="3,0,1,0" Command="{Binding CommandLoadScript}" Height="17.2"></Button>
                 <Button Content="执行" Margin="3,0,1,0" Command="{Binding CommandExecuting}" Height="17.2"></Button>
-                <!--<Button Content="刷新 " Command="{Binding CommandCopyDataExp}" Height="17.2" Margin="2,0,0,0"></Button>-->
             </StackPanel>
-            <themes:MethodDetailsControl Grid.Row="1"  x:Name="MethodDetailsControl" MethodDetails="{Binding NodeModel.MethodDetails}"/>
+            <themes:MethodDetailsControl Grid.Row="1"  x:Name="MethodDetailsControl" MethodDetails="{Binding NodeModel.MethodDetails}" NodeViewModel="{Binding}"/>
             <TextBox Grid.Row="2" MinHeight="20" MinWidth="100" MaxWidth="270" TextWrapping="Wrap" AcceptsReturn="True"  IsEnabled="{Binding IsEnabledOnView}" Text="{Binding Script}"></TextBox>
             <Grid Grid.Row="3"  >
                 <Grid.ColumnDefinitions>
@@ -68,11 +67,11 @@
                     <TextBlock Text="result ->"  HorizontalAlignment="Center"  VerticalAlignment="Center" />
                 </Border>
                 <Border Grid.Column="1"  BorderThickness="1">
-                    <TextBlock Text="{Binding NodeModel.MethodDetails.ReturnType.FullName, Mode=OneTime}"  TextTrimming="CharacterEllipsis" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding NodeModel.MethodDetails.ReturnType}"  TextTrimming="CharacterEllipsis" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                 </Border>
 
                 <Border Grid.Column="2"  BorderThickness="1">
-                    <local:ResultJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}" x:Name="ResultJunctionControl" HorizontalAlignment="Right"/>
+                    <local:ResultJunctionControl Grid.Column="2"  NodeViewModel="{Binding}" x:Name="ResultJunctionControl" HorizontalAlignment="Right"/>
                 </Border>
 
 

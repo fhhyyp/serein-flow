@@ -85,43 +85,47 @@ namespace Serein.NodeFlow.Model
             TargetNodeGuid = nodeGuid;
         }
 
+
+        /// <summary>
+        /// 目标节点发生改变
+        /// </summary>
+        /// <param name="value"></param>
         partial void OnTargetNodeGuidChanged(string value)
         {
             if (string.IsNullOrEmpty(value) || !Env.TryGetNodeModel(value, out  var targetNode))
             {
                 // 取消设置接口节点
-                TargetNode.PropertyChanged -= TargetNode_PropertyChanged;
+                TargetNode.PropertyChanged -= TargetNode_PropertyChanged;  // 不再监听目标属通知
                 TargetNode = null;
                 this.ApiGlobalName = "";
                 this.MethodDetails = new MethodDetails();
             }
             else
             {
-                //if (this.MethodDetails.ActingInstanceType.FullName.Equals())
                 TargetNode = targetNode;
-                if (!this.IsShareParam 
-                    && CacheMethodDetails is not null
-                    && TargetNode.MethodDetails is not null
-                    && TargetNode.MethodDetails.AssemblyName == CacheMethodDetails.AssemblyName
-                    && TargetNode.MethodDetails.MethodName == CacheMethodDetails.MethodName)
+                if (!this.IsShareParam  // 不共享参数 
+                    && TargetNode.MethodDetails is not null // 目标节点有方法描述
+                     && CacheMethodDetails is not null // 存在缓存
+                    && TargetNode.MethodDetails.AssemblyName == CacheMethodDetails.AssemblyName   // 与缓存中一致
+                    && TargetNode.MethodDetails.MethodName == CacheMethodDetails.MethodName) // 与缓存中一致
                 {
-                    this.MethodDetails = CacheMethodDetails;
-                    this.ApiGlobalName = GetApiInvokeName(this);
+                    this.MethodDetails = CacheMethodDetails; // 直接使用缓存
+                    this.ApiGlobalName = GetApiInvokeName(this); // 生成新的接口名称
                 }
                 else
                 {
-                    if (TargetNode.MethodDetails is not null)
+                    if (TargetNode.MethodDetails is not null) // // 目标节点有方法描述
                     {
-                        CacheMethodDetails = TargetNode.MethodDetails.CloneOfNode(this); // 从目标节点复制一份
-                        TargetNode.PropertyChanged += TargetNode_PropertyChanged;
-                        this.MethodDetails = CacheMethodDetails;
-                        this.ApiGlobalName = GetApiInvokeName(this);
+                        CacheMethodDetails = TargetNode.MethodDetails.CloneOfNode(this); // 从目标节点复制一份到缓存中
+                        TargetNode.PropertyChanged += TargetNode_PropertyChanged; // 监听目标属性通知（“IsPublic”属性）
+                        this.MethodDetails = CacheMethodDetails; // 设置流程接口节点的方法描述为目标节点的方法描述（共享参数更改）
+                        this.ApiGlobalName = GetApiInvokeName(this); // 生成新的接口名称
                     }
                
                 }
                 
             }
-            OnPropertyChanged(nameof(MethodDetails));
+            OnPropertyChanged(nameof(MethodDetails)); // 通知控件，MethodDetails属性发生改变
         }
 
         partial void OnIsShareParamChanged(bool value)
@@ -132,6 +136,7 @@ namespace Serein.NodeFlow.Model
             }
             if (value)
             {
+                // 不再与目标节点共享参数，而是拷贝新的实体，缓存起来，自己单独使用
                 CacheMethodDetails = TargetNode.MethodDetails.CloneOfNode(this);
                 this.MethodDetails = CacheMethodDetails;
             }
@@ -140,13 +145,18 @@ namespace Serein.NodeFlow.Model
 
                 if(TargetNode.ControlType == NodeControlType.Script)
                 {
-                    // 脚本节点入参需不可编辑入参数量、入参名称
+                    // 限制脚本节点对于入参数量、入参名称的修改
                     foreach (var item in CacheMethodDetails.ParameterDetailss)
                     {
                         item.IsParams = false;
                     }
                 }
-                this.MethodDetails = CacheMethodDetails;
+                // 与目标节点共享参数
+                if(CacheMethodDetails is null)
+                {
+                    CacheMethodDetails = TargetNode.MethodDetails; // 防御性代码，几乎不可能触发
+                }
+                this.MethodDetails = CacheMethodDetails; 
             }
 
             OnPropertyChanged(nameof(MethodDetails));

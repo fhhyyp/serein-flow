@@ -190,8 +190,8 @@ namespace Serein.Workbench.Views
 
             var connectionControl = Connections.FirstOrDefault(c =>
             {
-                if (c.Start.MyNode.Guid != e.FromNodeGuid
-                || c.End.MyNode.Guid != e.ToNodeGuid)
+                if (c.Start.NodeGuid != e.FromNodeGuid
+                || c.End.NodeGuid != e.ToNodeGuid)
                 {
                     return false; // 不是当前连接
                 }
@@ -312,33 +312,6 @@ namespace Serein.Workbench.Views
             RefreshAllLine();
         }
 
-        /// <summary>
-        /// 当前画布创建了节点
-        /// </summary>
-        /// <param name="nodeControl"></param>
-       /* private void OnCreateNode(NodeControlBase nodeControl)
-        {
-            if (!nodeControl.FlowCanvas.Guid.Equals(Guid)) // 防止事件传播到其它画布
-            {
-                return;
-            }
-            var p = nodeControl.ViewModel.NodeModel.Position;
-            PositionOfUI position = new PositionOfUI(p.X, p.Y);
-            if (TryPlaceNodeInRegion(nodeControl, position, out var regionControl)) // 判断添加到区域容器
-            {
-                // 通知运行环境调用加载节点子项的方法
-                _ = flowEnvironment.PlaceNodeToContainerAsync(Guid,
-                                                  nodeControl.ViewModel.NodeModel.Guid, // 待移动的节点
-                                                  regionControl.ViewModel.NodeModel.Guid); // 目标的容器节点
-            }
-            else
-            {
-                // 并非添加在容器中，直接放置节点
-                Api.Add(nodeControl); // 添加到对应的画布上
-
-            }
-
-        }*/
 
         /// <summary>
         ///  尝试判断是否为区域，如果是，将节点放置在区域中
@@ -388,15 +361,11 @@ namespace Serein.Workbench.Views
         #region 接口实现
         private IFlowCanvas Api => this;
 
-        public string Guid
-        {
-            get
-            {
-                return ViewModel.Model.Guid;
-            }
-        }
+        /// <inheritdoc/>
+        public string Guid => ViewModel.Model.Guid;
 
-        public string Name => ViewModel.Model.Name;
+        /// <inheritdoc/>
+        public new string Name => ViewModel.Model.Name;
         FlowCanvasDetails IFlowCanvas.Model => ViewModel.Model;
         void IFlowCanvas.Remove(NodeControlBase nodeControl)
         {
@@ -559,8 +528,8 @@ namespace Serein.Workbench.Views
             JunctionControlBase endJunction = IToJunction.ExecuteJunction;
 
             var removeConnections = Connections.Where(c =>
-                                               c.Start.MyNode.Guid == startJunction.MyNode.Guid
-                                            && c.End.MyNode.Guid == endJunction.MyNode.Guid
+                                               c.Start.NodeGuid == startJunction.NodeGuid
+                                            && c.End.NodeGuid == endJunction.NodeGuid
                                             && (c.Start.JunctionType.ToConnectyionType() == JunctionOfConnectionType.Arg
                                             || c.End.JunctionType.ToConnectyionType() == JunctionOfConnectionType.Arg))
                                             .ToList();
@@ -941,8 +910,8 @@ namespace Serein.Workbench.Views
 
                              flowEnvironment.FlowEdit.ConnectInvokeNode(
                                         canvasGuid,
-                                        cd.StartJunction.MyNode.Guid,
-                                        cd.CurrentJunction.MyNode.Guid,
+                                        cd.StartJunction.NodeGuid,
+                                        cd.CurrentJunction.NodeGuid,
                                         cd.StartJunction.JunctionType,
                                         cd.CurrentJunction.JunctionType,
                                         cd.ConnectionInvokeType);
@@ -952,23 +921,31 @@ namespace Serein.Workbench.Views
                         #region 参数来源关系创建
                         else if (cd.Type == JunctionOfConnectionType.Arg)
                         {
+                            var canvasGuid = this.Guid;
                             var argIndex = 0;
+                            var startNodeGuid = "";
+                            var toNodeGuid = "";
                             if (cd.StartJunction is ArgJunctionControl argJunction1)
                             {
+                                startNodeGuid = cd.CurrentJunction.NodeGuid;
                                 argIndex = argJunction1.ArgIndex;
+                                toNodeGuid = argJunction1.NodeGuid;
                             }
                             else if (cd.CurrentJunction is ArgJunctionControl argJunction2)
                             {
+                                startNodeGuid = cd.StartJunction.NodeGuid;
+                                startNodeGuid = cd.StartJunction.NodeGuid;
                                 argIndex = argJunction2.ArgIndex;
+                                toNodeGuid = argJunction2.NodeGuid;
                             }
-                            var canvasGuid = this.Guid;
+
 
                             flowEnvironment.FlowEdit.ConnectArgSourceNode(
                                     canvasGuid,
-                                    cd.StartJunction.MyNode.Guid,
-                                    cd.CurrentJunction.MyNode.Guid,
-                                    cd.StartJunction.JunctionType,
-                                    cd.CurrentJunction.JunctionType,
+                                    startNodeGuid,
+                                    toNodeGuid,
+                                    JunctionType.ReturnData,
+                                    JunctionType.ArgData,
                                     cd.ConnectionArgSourceType,
                                     argIndex);
                         }
@@ -1335,7 +1312,7 @@ namespace Serein.Workbench.Views
             nodeControl.MouseLeftButtonDown += Block_MouseLeftButtonDown;
             nodeControl.MouseMove += Block_MouseMove;
             nodeControl.MouseLeftButtonUp += Block_MouseLeftButtonUp;
-
+            
 
 
         }
@@ -1367,11 +1344,18 @@ namespace Serein.Workbench.Views
             if (IsSelectControl)
                 return;
 
+            if(sender is not NodeControlBase nodeControlMain)
+            {
+                return;
+            }
+
+            flowNodeService.CurrentSelectNodeControl = nodeControlMain;
+
             if (IsControlDragging && !flowNodeService.ConnectingData.IsCreateing) // 如果正在拖动控件
             {
                 Point currentPosition = e.GetPosition(FlowChartCanvas); // 获取当前鼠标位置 
 
-                if (selectNodeControls.Count > 0 && sender is NodeControlBase nodeControlMain && selectNodeControls.Contains(nodeControlMain))
+                if (selectNodeControls.Count > 0 && selectNodeControls.Contains(nodeControlMain))
                 {
                     // 进行批量移动
                     // 获取旧位置
@@ -1419,28 +1403,24 @@ namespace Serein.Workbench.Views
                 }
                 else
                 {   // 单个节点移动
-                    if (sender is not NodeControlBase nodeControl)
-                    {
-                        return;
-                    }
                     double deltaX = currentPosition.X - startControlDragPoint.X; // 计算X轴方向的偏移量
                     double deltaY = currentPosition.Y - startControlDragPoint.Y; // 计算Y轴方向的偏移量
-                    double newLeft = Canvas.GetLeft(nodeControl) + deltaX; // 新的左边距
-                    double newTop = Canvas.GetTop(nodeControl) + deltaY; // 新的上边距
+                    double newLeft = Canvas.GetLeft(nodeControlMain) + deltaX; // 新的左边距
+                    double newTop = Canvas.GetTop(nodeControlMain) + deltaY; // 新的上边距
 
                     // 如果被移动的控件接触到画布边缘，则限制移动范围
-                    var canvasModel = nodeControl.FlowCanvas.Model;
-                    var canvasWidth = canvasModel.Width - nodeControl.ActualWidth - 10;
-                    var canvasHeight= canvasModel.Height - nodeControl.ActualHeight - 10;
+                    var canvasModel = nodeControlMain.FlowCanvas.Model;
+                    var canvasWidth = canvasModel.Width - nodeControlMain.ActualWidth - 10;
+                    var canvasHeight= canvasModel.Height - nodeControlMain.ActualHeight - 10;
                     newLeft = newLeft < 5 ? 5 : newLeft > canvasWidth ? canvasWidth : newLeft;
                     newTop = newTop < 5 ? 5 : newTop > canvasHeight ? canvasHeight : newTop;
 
-                    var node = nodeControl.ViewModel.NodeModel;
+                    var node = nodeControlMain.ViewModel.NodeModel;
                     node.Position.X = newLeft;
                     node.Position.Y = newTop;
 
                     //this.flowEnvironment.MoveNode(Guid, nodeControl.ViewModel.NodeModel.Guid, newLeft, newTop); // 移动节点
-                    nodeControl.UpdateLocationConnections();
+                    nodeControlMain.UpdateLocationConnections();
                 }
                 startControlDragPoint = currentPosition; // 更新起始点位置
             }

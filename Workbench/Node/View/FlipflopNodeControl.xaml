@@ -43,16 +43,16 @@
                     <ColumnDefinition Width="auto"/>
                 </Grid.ColumnDefinitions>
 
-                <local:ExecuteJunctionControl  Grid.Column="0"  MyNode="{Binding NodeModel}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
+                <local:ExecuteJunctionControl  Grid.Column="0"  NodeViewModel="{Binding}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
                 <StackPanel Grid.Column="1" Grid.RowSpan="2" >
                     <TextBlock   Text="{Binding NodeModel.DisplayName, Mode=TwoWay}" HorizontalAlignment="Center"/>
                 </StackPanel>
-                <local:NextStepJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}"  x:Name="NextStepJunctionControl" HorizontalAlignment="Right" Grid.RowSpan="2"/>
+                <local:NextStepJunctionControl Grid.Column="2"  NodeViewModel="{Binding}"  x:Name="NextStepJunctionControl" HorizontalAlignment="Right" Grid.RowSpan="2"/>
 
             </Grid>
             
             <!--方法描述-->
-            <themes:MethodDetailsControl x:Name="MethodDetailsControl" Grid.Row="1" MethodDetails="{Binding NodeModel.MethodDetails}" />
+            <themes:MethodDetailsControl x:Name="MethodDetailsControl" Grid.Row="1" MethodDetails="{Binding NodeModel.MethodDetails}" NodeViewModel="{Binding}"/>
 
             <Border Grid.Row="2" x:Name="ParameterProtectionMask" Background="#40508D" Opacity="0.5" BorderBrush="#0A4651" BorderThickness="0" 
                 Visibility="{Binding NodeModel.DebugSetting.IsProtectionParameter, Converter={StaticResource InvertedBoolConverter},ConverterParameter=Normal}" />
@@ -74,7 +74,7 @@
                 </Border>
 
                 <Border Grid.Column="2"  BorderThickness="1">
-                    <local:ResultJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}" x:Name="ResultJunctionControl" HorizontalAlignment="Right"/>
+                    <local:ResultJunctionControl Grid.Column="2"  NodeViewModel="{Binding}" x:Name="ResultJunctionControl" HorizontalAlignment="Right"/>
                 </Border>
             </Grid>
 

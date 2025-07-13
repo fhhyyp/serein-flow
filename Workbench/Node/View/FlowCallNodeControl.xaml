@@ -64,7 +64,7 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <local:ExecuteJunctionControl  Grid.Column="0"  MyNode="{Binding NodeModel}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
+                        <local:ExecuteJunctionControl  Grid.Column="0"  NodeViewModel="{Binding}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
                         <StackPanel Grid.Column="1" Grid.RowSpan="2" Orientation="Horizontal">
                             
                             <TextBlock  Text="{Binding NodeModel.DisplayName, Mode=TwoWay}" HorizontalAlignment="Center"/>
@@ -109,7 +109,7 @@
                         <TextBlock Text="接口名称" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" Width="50"/>
                         <TextBox Text="{Binding FlowCallNode.ApiGlobalName, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Width="{Binding ElementName=MethodDetailsControl,Path=ActualWidth}"/>
 
-                        <themes:MethodDetailsControl Grid.Row="3" Grid.ColumnSpan="2" x:Name="MethodDetailsControl">
+                        <themes:MethodDetailsControl Grid.Row="3" Grid.ColumnSpan="2" x:Name="MethodDetailsControl" NodeViewModel="{Binding}">
                             <themes:MethodDetailsControl.MethodDetails>
                                 <MultiBinding Converter="{StaticResource MethodDetailsSelector}">
                                     <Binding Path="FlowCallNode.IsShareParam" UpdateSourceTrigger="PropertyChanged"/>

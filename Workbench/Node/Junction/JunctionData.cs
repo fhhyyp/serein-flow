@@ -86,7 +86,7 @@ namespace Serein.Workbench.Node.View
                 }
 
 
-                if (!StartJunction.MyNode.Equals(CurrentJunction.MyNode)
+                if (!StartJunction.NodeGuid.Equals(CurrentJunction.NodeGuid)
                     && StartJunction.JunctionType.IsCanConnection(CurrentJunction.JunctionType))
                 {
                     return true;
@@ -139,23 +139,5 @@ namespace Serein.Workbench.Node.View
 
     }
 
-    public static class GlobalJunctionData1
-    {
-        //private static ConnectingData? myGlobalData;
-        //private static object _lockObj = new object();
-
-        /// <summary>
-        /// 创建节点之间控制点的连接行为
-        /// </summary>
-        public static ConnectingData MyGlobalConnectingData { get; } = new ConnectingData();
-
-        /// <summary>
-        /// 删除连接视觉效果
-        /// </summary>
-        public static void OK()
-        {
-            MyGlobalConnectingData.Reset();
-        }
-    }
     #endregion
 }

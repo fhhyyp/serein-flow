@@ -201,7 +201,7 @@ namespace Serein.NodeFlow.Env
         private int _add_canvas_count = 1;
 
 
-
+        /// <inheritdoc/>
         public void CreateCanvas(string canvasName, int width, int height)
         {
             IOperation operation = new CreateCanvasOperation
@@ -219,7 +219,7 @@ namespace Serein.NodeFlow.Env
 
             flowOperationService.Execute(operation);
         }
-
+        /// <inheritdoc/>
         public void RemoveCanvas(string canvasGuid)
         {
             IOperation operation = new RemoveCanvasOperation
@@ -228,7 +228,7 @@ namespace Serein.NodeFlow.Env
             };
             flowOperationService.Execute(operation);
         }
-
+        /// <inheritdoc/>
         public void ConnectInvokeNode(string canvasGuid, string fromNodeGuid, string toNodeGuid, JunctionType fromNodeJunctionType, JunctionType toNodeJunctionType, ConnectionInvokeType invokeType)
         {
             IOperation operation = new ChangeNodeConnectionOperation
@@ -245,7 +245,7 @@ namespace Serein.NodeFlow.Env
 
             flowOperationService.Execute(operation);
         }
-
+        /// <inheritdoc/>
         public void ConnectArgSourceNode(string canvasGuid, string fromNodeGuid, string toNodeGuid, JunctionType fromNodeJunctionType, JunctionType toNodeJunctionType, ConnectionArgSourceType argSourceType, int argIndex)
         {
             IOperation operation = new ChangeNodeConnectionOperation
@@ -262,7 +262,7 @@ namespace Serein.NodeFlow.Env
             };
              flowOperationService.Execute(operation);
         }
-
+        /// <inheritdoc/>
         public void RemoveInvokeConnect(string canvasGuid, string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
         {
             IOperation operation = new ChangeNodeConnectionOperation
@@ -276,7 +276,7 @@ namespace Serein.NodeFlow.Env
             };
             flowOperationService.Execute(operation);
         }
-
+        /// <inheritdoc/>
         public void RemoveArgSourceConnect(string canvasGuid, string fromNodeGuid, string toNodeGuid, int argIndex)
         {
             IOperation operation = new ChangeNodeConnectionOperation
@@ -290,7 +290,7 @@ namespace Serein.NodeFlow.Env
             };
             flowOperationService.Execute(operation);
         }
-
+        /// <inheritdoc/>
         public void CreateNode(string canvasGuid, NodeControlType nodeType, PositionOfUI position, MethodDetailsInfo methodDetailsInfo = null)
         {
             IOperation operation = new CreateNodeOperation
@@ -302,7 +302,7 @@ namespace Serein.NodeFlow.Env
             };
             flowOperationService.Execute(operation);
         }
-
+        /// <inheritdoc/>
         public void RemoveNode(string canvasGuid, string nodeGuid)
         {
             IOperation operation = new RemoveNodeOperation
@@ -312,7 +312,7 @@ namespace Serein.NodeFlow.Env
             };
             flowOperationService.Execute(operation);
         }
-
+        /// <inheritdoc/>
         public void PlaceNodeToContainer(string canvasGuid, string nodeGuid, string containerNodeGuid)
         {
             IOperation operation = new ContainerPlaceNodeOperation
@@ -323,7 +323,7 @@ namespace Serein.NodeFlow.Env
             };
             flowOperationService.Execute(operation);
         }
-
+        /// <inheritdoc/>
         public void TakeOutNodeToContainer(string canvasGuid, string nodeGuid)
         {
             IOperation operation = new ContainerTakeOutNodeOperation
@@ -333,7 +333,7 @@ namespace Serein.NodeFlow.Env
             };
             flowOperationService.Execute(operation);
         }
-
+        /// <inheritdoc/>
         public void SetStartNode(string canvasGuid, string nodeGuid)
         {
 
@@ -363,7 +363,7 @@ namespace Serein.NodeFlow.Env
                 ));
             return;
         }
-
+        /// <inheritdoc/>
         public void SetConnectPriorityInvoke(string fromNodeGuid, string toNodeGuid, ConnectionInvokeType connectionType)
         {
 
@@ -377,7 +377,7 @@ namespace Serein.NodeFlow.Env
             };
             flowOperationService.Execute(operation);
         }
-
+        /// <inheritdoc/>
         public void ChangeParameter(string nodeGuid, bool isAdd, int paramIndex)
         {
             IOperation operation = new ChangeParameterOperation
@@ -389,12 +389,7 @@ namespace Serein.NodeFlow.Env
             flowOperationService.Execute(operation);
         }
 
-        /// <summary>
-        /// 从节点信息集合批量加载节点控件
-        /// </summary>
-        /// <param name="List<NodeInfo>">节点信息</param>
-        /// <returns></returns>
-        /// 
+        /// <inheritdoc/>
         public async Task LoadNodeInfosAsync(List<NodeInfo> nodeInfos)
         {
             #region 从NodeInfo创建NodeModel
@@ -635,11 +630,7 @@ namespace Serein.NodeFlow.Env
 
 
         #region 视觉效果
-
-        /// <summary>
-        /// 定位节点
-        /// </summary>
-        /// <param name="nodeGuid"></param>
+        /// <inheritdoc/>
         public void NodeLocate(string nodeGuid)
         {
             if (OperatingSystem.IsWindows())

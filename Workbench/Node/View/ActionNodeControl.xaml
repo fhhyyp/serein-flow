@@ -62,15 +62,15 @@
                             <ColumnDefinition Width="auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <local:ExecuteJunctionControl  Grid.Column="0"  MyNode="{Binding NodeModel}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
+                        <local:ExecuteJunctionControl  Grid.Column="0"  NodeViewModel="{Binding}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
                         <StackPanel Grid.Column="1" Grid.RowSpan="2" >
                             <TextBlock Text="{Binding NodeModel.DisplayName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center"/>
                         </StackPanel>
-                        <local:NextStepJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}"  x:Name="NextStepJunctionControl" HorizontalAlignment="Right" Grid.RowSpan="2"/>
+                        <local:NextStepJunctionControl Grid.Column="2"  NodeViewModel="{Binding}"  x:Name="NextStepJunctionControl" HorizontalAlignment="Right" Grid.RowSpan="2"/>
 
                     </Grid>
                     
-                    <themes:MethodDetailsControl Grid.Row="2"  x:Name="MethodDetailsControl" MethodDetails="{Binding NodeModel.MethodDetails}"/>
+                    <themes:MethodDetailsControl Grid.Row="2"  x:Name="MethodDetailsControl" MethodDetails="{Binding NodeModel.MethodDetails}" NodeViewModel="{Binding}"/>
                     
                     <Border Grid.Row="2" x:Name="ParameterProtectionMask" Background="#40508D" Opacity="0.5" BorderThickness="0" 
                         Visibility="{Binding NodeModel.DebugSetting.IsProtectionParameter, Mode=TwoWay, 
@@ -90,7 +90,7 @@
                         </Border>
 
                         <Border Grid.Column="2"  BorderThickness="1">
-                            <local:ResultJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}" x:Name="ResultJunctionControl" HorizontalAlignment="Right"/>
+                            <local:ResultJunctionControl Grid.Column="2"  NodeViewModel="{Binding}" x:Name="ResultJunctionControl" HorizontalAlignment="Right"/>
                         </Border>
                     </Grid>
 

@@ -175,6 +175,15 @@ namespace Serein.Script
         }
 
         /// <summary>
+        /// 重置Lexer
+        /// </summary>
+        public void Reset()
+        {
+            this._row = 0;
+            this._index = 0;
+        }
+
+        /// <summary>
         /// 根据 token 重置Lexer
         /// </summary>
         /// <param name="token"></param>
@@ -183,6 +192,7 @@ namespace Serein.Script
             this._row = token.Row;
             this._index = token.StartIndex;
         }
+
 
         internal Token NextToken()
         {

@@ -25,7 +25,7 @@
                 <ColumnDefinition Width="auto"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-            <local:ExecuteJunctionControl  Grid.Column="0"  MyNode="{Binding NodeModel}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
+            <local:ExecuteJunctionControl  Grid.Column="0"  NodeViewModel="{Binding}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
             <Border Grid.Column="1" BorderThickness="1" HorizontalAlignment="Stretch">
                 <TextBlock Text="{Binding NodeModel.DisplayName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center"/>
             </Border>

@@ -345,10 +345,6 @@ namespace Serein.Workbench.Services
             }
             #endregion
 
-            //if (nodeModel.ControlType == NodeControlType.FlowCall)
-            //{
-            //    Console.WriteLine("test");
-            //}
 
             #region 创建控件
 

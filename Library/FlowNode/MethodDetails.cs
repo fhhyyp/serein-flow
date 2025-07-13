@@ -292,7 +292,7 @@ namespace Serein.Library
         /// 从DLL拖动出来时，从元数据拷贝新的实例，作为属于节点独享的方法描述
         /// </summary>
         /// <returns></returns>
-        public MethodDetails CloneOfNode( IFlowNode nodeModel)
+        public MethodDetails CloneOfNode(IFlowNode nodeModel)
         {
             // this => 是元数据
             var md = new MethodDetails(nodeModel) // 创建新节点时拷贝实例

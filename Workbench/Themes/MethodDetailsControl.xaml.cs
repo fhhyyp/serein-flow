@@ -1,5 +1,7 @@
 ﻿using Serein.Library;
 using Serein.Workbench.Node;
+using Serein.Workbench.Node.View;
+using Serein.Workbench.Node.ViewModel;
 using System.Collections;
 using System.Globalization;
 using System.Windows;
@@ -98,8 +100,20 @@ namespace Serein.Workbench.Themes
             set { SetValue(MethodDetailsProperty, value); }
         }
 
+
         public static readonly DependencyProperty MethodDetailsProperty = DependencyProperty.Register(nameof(MethodDetails), typeof(MethodDetails),
            typeof(MethodDetailsControl), new PropertyMetadata(null, new PropertyChangedCallback(OnPropertyChange)));
+
+        public NodeControlViewModelBase NodeViewModel
+        {
+            get { return (NodeControlViewModelBase)GetValue(NodeViewModelProperty); }
+            set { SetValue(NodeViewModelProperty, value); }
+        }
+
+        public static readonly DependencyProperty NodeViewModelProperty = DependencyProperty.Register(nameof(NodeViewModel), typeof(NodeControlViewModelBase),
+              typeof(MethodDetailsControl), new PropertyMetadata(null, new PropertyChangedCallback(OnPropertyChange)));
+
+
 
         #endregion
 

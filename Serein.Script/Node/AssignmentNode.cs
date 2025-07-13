@@ -22,7 +22,7 @@ namespace Serein.Script.Node
         /// </summary>
         public ASTNode Value { get; }
 
-        public AssignmentNode(ASTNode targetObject, ASTNode value) => (Target, Value) = (targetObject, value);
+        public AssignmentNode(ASTNode target, ASTNode value) => (Target, Value) = (target, value);
     }
 
 

@@ -20,10 +20,33 @@ namespace Serein.Script.Node
         /// 索引来源
         /// </summary>
         public ASTNode Index { get; }
-        public CollectionIndexNode(ASTNode TargetValue,ASTNode indexValue)
+
+        public CollectionIndexNode(ASTNode Collection, ASTNode indexValue)
         {
-            this.Collection = TargetValue;
+            this.Collection = Collection;
             this.Index = indexValue;
+        }
+    }
+
+    /// <summary>
+    /// 集合赋值节点
+    /// </summary>
+    public class CollectionAssignmentNode : ASTNode
+    {
+        /// <summary>
+        /// 集合来源
+        /// </summary>
+        public CollectionIndexNode Collection { get; }
+
+        /// <summary>
+        /// 索引来源
+        /// </summary>
+        public ASTNode Value { get; }
+
+        public CollectionAssignmentNode(CollectionIndexNode collection, ASTNode value)
+        {
+            this.Collection = collection;
+            this.Value = value;
         }
     }
 }

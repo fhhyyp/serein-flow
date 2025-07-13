@@ -2,10 +2,12 @@
 using Serein.Library;
 using Serein.Library.Utils;
 using Serein.Script.Node;
+using Serein.Script.Node.FlowControl;
 using System.ComponentModel.Design;
 using System.Reflection;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using System.Xml.Linq;
 
 namespace Serein.Script
@@ -358,7 +360,10 @@ namespace Serein.Script
                 case AssignmentNode assignment: // 出现在 = 右侧的表达式
                     await ExecutionAssignmentNodeAsync(context, assignment);
                     break;
-                case ObjectMemberExpressionNode objectMemberExpressionNode:
+                case CollectionAssignmentNode collectionAssignmentNode:
+                    await SetCollectionValue(context,collectionAssignmentNode);
+                    break;
+                case ExpressionNode objectMemberExpressionNode:
                     break;
                 case MemberAssignmentNode memberAssignmentNode: // 设置对象属性
                     await SetMemberValue(context, memberAssignmentNode);
@@ -455,8 +460,8 @@ namespace Serein.Script
                     return await GetCollectionValue(context, collectionIndexNode);
                 case ReturnNode returnNode: // 返回内容
                     return await EvaluateAsync(context, returnNode.Value); // 直接返回响应的内容
-                case ObjectMemberExpressionNode objectMemberExpressionNode: // 对象链式表达式
-                    return await EvaluateAsync(context, objectMemberExpressionNode.Value);
+                case ExpressionNode expressionNode: // 表达式
+                    return await EvaluateAsync(context, expressionNode.Value);
                 default:
                     throw new SereinSciptException(node, $"解释器 EvaluateAsync() 未实现{node}节点行为");
             }
@@ -664,6 +669,79 @@ namespace Serein.Script
             #endregion
 
             throw new ArgumentException($"解析{collectionIndexNode}节点时，左值并非有效集合。");
+
+        }
+        
+        /// <summary>
+        /// 设置集合中的成员
+        /// </summary>
+        /// <param name="memberAccessNode"></param>
+        /// <returns></returns>
+        /// <exception cref="SereinSciptException"></exception>
+        public async Task SetCollectionValue(IScriptInvokeContext context, CollectionAssignmentNode collectionAssignmentNode)
+        {
+            var collectionValue = await EvaluateAsync(context, collectionAssignmentNode.Collection.Collection);
+            var indexValue = await EvaluateAsync(context, collectionAssignmentNode.Collection.Index);
+
+            if (collectionValue is null)
+            {
+                throw new ArgumentNullException($"解析{collectionAssignmentNode}节点时，集合返回空。");
+            } 
+            if (indexValue is null)
+            {
+                throw new ArgumentNullException($"解析{collectionAssignmentNode}节点时，索引返回空。");
+            }
+            
+            // 解析数组/集合名与索引部分
+            var targetType = collectionValue.GetType(); // 目标对象的类型
+            #region 处理键值对
+            if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
+            {
+                // 目标是键值对
+                var method = targetType.GetMethod("set_Item", BindingFlags.Public | BindingFlags.Instance);
+                if (method is not null)
+                {
+                    var valueValue = await EvaluateAsync(context, collectionAssignmentNode.Value);
+                    method.Invoke(collectionValue, [indexValue, valueValue]);
+                }
+            }
+            #endregion
+            #region 处理集合对象
+            else
+            {
+                if (indexValue is int index)
+                {
+                    // 获取数组或集合对象
+                    // 访问数组或集合中的指定索引
+                    if (collectionValue is Array array)
+                    {
+                        if (index < 0 || index >= array.Length)
+                        {
+                            throw new ArgumentException($"解析{collectionValue}节点时，数组下标越界。");
+                        }
+                        var valueValue = await EvaluateAsync(context, collectionAssignmentNode.Value);
+                        array.SetValue(valueValue, index);
+                        return;
+                    }
+                    else if (collectionValue is IList<object> list)
+                    {
+                        if (index < 0 || index >= list.Count)
+                        {
+                            throw new ArgumentException($"解析{collectionValue}节点时，数组下标越界。");
+                        }
+                        var valueValue = await EvaluateAsync(context, collectionAssignmentNode.Value);
+                        list[index] = valueValue;
+                        return;
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"解析{collectionValue}节点时，左值并非有效集合。");
+                    }
+                }
+            }
+            #endregion
+
+            throw new ArgumentException($"解析{collectionValue}节点时，左值并非有效集合。");
 
         }
 

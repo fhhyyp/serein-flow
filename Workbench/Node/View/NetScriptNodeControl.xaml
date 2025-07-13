@@ -30,11 +30,11 @@
                 <ColumnDefinition Width="auto"/>
             </Grid.ColumnDefinitions>
 
-            <local:ExecuteJunctionControl  Grid.Column="0"  MyNode="{Binding NodeModel}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
+            <local:ExecuteJunctionControl  Grid.Column="0" NodeViewModel="{Binding}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
             <Border Grid.Column="1" BorderThickness="1" HorizontalAlignment="Stretch">
                 <TextBlock Text="C#脚本节点" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
-            <local:NextStepJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}"  x:Name="NextStepJunctionControl" HorizontalAlignment="Right" Grid.RowSpan="2"/>
+            <local:NextStepJunctionControl Grid.Column="2"  NodeViewModel="{Binding}"  x:Name="NextStepJunctionControl" HorizontalAlignment="Right" Grid.RowSpan="2"/>
 
         </Grid>
 

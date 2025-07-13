@@ -18,10 +18,10 @@ namespace Serein.Workbench.Node.View
         {
             DataContext = viewModel;
             InitializeComponent();
-            if(ExecuteJunctionControl.MyNode != null)
+            /*if(ExecuteJunctionControl.MyNode != null)
             {
                 ExecuteJunctionControl.MyNode.Guid = viewModel.NodeModel.Guid;
-            }
+            }*/
         }
 
         /// <summary>

@@ -17,6 +17,8 @@ using Serein.Workbench.Tool;
 using System.ComponentModel;
 using System.Diagnostics;
 using Serein.Library.Api;
+using Serein.Workbench.Node.ViewModel;
+using Serein.Workbench.Themes;
 
 namespace Serein.Workbench.Node.View
 {
@@ -39,6 +41,7 @@ namespace Serein.Workbench.Node.View
             return pen;
         }
     }
+
     
     /// <summary>
     /// 入参控件
@@ -135,7 +138,6 @@ namespace Serein.Workbench.Node.View
                     {
                         AddOrRemoveParamsAction = RemoveParamAsync;
                         this.Dispatcher.Invoke(InvalidateVisual);// 触发一次重绘
-                       
                     }
                 });
             }
@@ -157,11 +159,11 @@ namespace Serein.Workbench.Node.View
 
 
 
-        private void AddParamAsync()
+        private void AddParamAsync() // 以当前选定入参连接器增加新的入参
         {
            this.MyNode.Env.FlowEdit.ChangeParameter(MyNode.Guid, true, ArgIndex);
         }
-        private void RemoveParamAsync()
+        private void RemoveParamAsync() // 移除当前选定的入参连接器
         {
            this.MyNode.Env.FlowEdit.ChangeParameter(MyNode.Guid, false, ArgIndex);
         }
@@ -194,18 +196,41 @@ namespace Serein.Workbench.Node.View
 
 
         #region 控件属性，所在的节点
-        public static readonly DependencyProperty NodeProperty =
+       /* public static readonly DependencyProperty NodeProperty =
             DependencyProperty.Register(nameof(MyNode), typeof(IFlowNode), typeof(JunctionControlBase), new PropertyMetadata(default(IFlowNode)));
-        //public NodeModelBase NodeModel;
 
-        /// <summary>
-        /// 所在的节点
-        /// </summary>
         public IFlowNode MyNode
         {
             get { return (IFlowNode)GetValue(NodeProperty); }
             set { SetValue(NodeProperty, value); }
         }
+*/
+
+        /// <summary>
+        /// 对应的节点Control View Model
+        /// </summary>
+        public NodeControlViewModelBase NodeViewModel
+        {
+            get { return (NodeControlViewModelBase)GetValue(NodeViewModelProperty); }
+            set { SetValue(NodeViewModelProperty, value); }
+        }
+
+        public static readonly DependencyProperty NodeViewModelProperty =
+            DependencyProperty.Register(nameof(NodeViewModel), typeof(NodeControlViewModelBase), typeof(JunctionControlBase), new PropertyMetadata(default(IFlowNode)));
+
+
+        /// <summary>
+        /// 对应的节点Guid
+        /// </summary>
+        public string NodeGuid
+        {
+            get
+            {
+                return NodeViewModel?.NodeModel.Guid ?? string.Empty;
+            }
+        }
+
+
         #endregion
 
         #region 控件属性，连接器类型
@@ -253,13 +278,8 @@ namespace Serein.Workbench.Node.View
             {
                 if(_isMouseOver != value)
                 {
-                    if(flowNodeService is not null)
-                    {
-
-                        flowNodeService.ConnectingData.CurrentJunction = this;
-                    }
+                   
                     _isMouseOver = value;
-                    InvalidateVisual();
                 }
                
             }
@@ -326,7 +346,11 @@ namespace Serein.Workbench.Node.View
 
             //if (IsMouseOver) return;
             IsMouseOver = true;
-            
+
+            flowNodeService.ConnectingData.CurrentJunction = this;
+            InvalidateVisual();
+
+            //Debug.WriteLine(NodeGuid);
             //this.InvalidateVisual();
         }
 
@@ -339,7 +363,8 @@ namespace Serein.Workbench.Node.View
         {
             IsMouseOver = false;
             e.Handled = true;
-
+            flowNodeService.ConnectingData.CurrentJunction = this;
+            InvalidateVisual();
         }
 
 

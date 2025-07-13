@@ -3,6 +3,7 @@ using Serein.Library.Api;
 using Serein.Workbench.Api;
 using Serein.Workbench.Extension;
 using Serein.Workbench.Tool;
+using Serein.Workbench.ViewModels;
 using System;
 using System.Net;
 using System.Windows;
@@ -260,17 +261,17 @@ namespace Serein.Workbench.Node.View
 
             //
             Canvas.Children.Remove(BezierLine);
-            var env = Start.MyNode.Env;
-            var canvasGuid = Start.MyNode.CanvasDetails.Guid;
+            var env = App.GetService<IFlowEnvironment>();
+            var canvasGuid = ((FlowCanvasViewModel)(Canvas.DataContext)).Model.Guid;
             var jct = Start.JunctionType.ToConnectyionType();
             var jctEnd = End.JunctionType.ToConnectyionType();
             if (jct == JunctionOfConnectionType.Invoke)
             {
-                env.FlowEdit.RemoveInvokeConnect(canvasGuid, Start.MyNode.Guid, End.MyNode.Guid, InvokeType);
+                env.FlowEdit.RemoveInvokeConnect(canvasGuid, Start.NodeGuid, End.NodeGuid, InvokeType);
             }
             else if (jct == JunctionOfConnectionType.Arg)
             {
-                env.FlowEdit.RemoveArgSourceConnect(canvasGuid, Start.MyNode.Guid, End.MyNode.Guid, ArgIndex);
+                env.FlowEdit.RemoveArgSourceConnect(canvasGuid, Start.NodeGuid, End.NodeGuid, ArgIndex);
             }
         }
 
@@ -279,10 +280,10 @@ namespace Serein.Workbench.Node.View
         /// </summary>
         public void Topping()
         {
-            var env = Start.MyNode.Env;
+            var env = App.GetService<IFlowEnvironment>();
             if (Start.JunctionType.ToConnectyionType() == JunctionOfConnectionType.Invoke)
             {
-                env.FlowEdit.SetConnectPriorityInvoke(Start.MyNode.Guid, End.MyNode.Guid, InvokeType);
+                env.FlowEdit.SetConnectPriorityInvoke(Start.NodeGuid, End.NodeGuid, InvokeType);
             }
         }
 

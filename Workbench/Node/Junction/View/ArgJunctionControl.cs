@@ -15,7 +15,7 @@ namespace Serein.Workbench.Node.View
 
         #region 控件属性，对应的参数
         public static readonly DependencyProperty ArgIndexProperty =
-            DependencyProperty.Register("ArgIndex", typeof(int), typeof(ArgJunctionControl), new PropertyMetadata(default(int)));
+            DependencyProperty.Register(nameof(ArgIndex), typeof(int), typeof(ArgJunctionControl), new PropertyMetadata(default(int)));
 
         /// <summary>
         /// 所在的节点

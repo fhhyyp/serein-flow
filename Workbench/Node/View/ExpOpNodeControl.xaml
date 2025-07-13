@@ -25,11 +25,11 @@
                 <ColumnDefinition Width="auto"/>
             </Grid.ColumnDefinitions>
 
-            <local:ExecuteJunctionControl  Grid.Column="0"  MyNode="{Binding NodeModel}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
+            <local:ExecuteJunctionControl  Grid.Column="0" NodeViewModel="{Binding}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
             <Border Grid.Column="1" BorderThickness="1" HorizontalAlignment="Stretch">
                 <TextBlock Text="{Binding NodeModel.DisplayName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center"/>
             </Border>
-            <local:NextStepJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}"  x:Name="NextStepJunctionControl" HorizontalAlignment="Right" Grid.RowSpan="2"/>
+            <local:NextStepJunctionControl Grid.Column="2"  NodeViewModel="{Binding}"  x:Name="NextStepJunctionControl" HorizontalAlignment="Right" Grid.RowSpan="2"/>
 
         </Grid>
         <Grid Grid.Row="1" Background="#FEFAF4">
@@ -38,9 +38,9 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="auto"/>
             </Grid.ColumnDefinitions>
-            <local:ArgJunctionControl  Grid.Column="0" x:Name="ArgJunctionControl" ArgIndex="0" MyNode="{Binding NodeModel}" />
+            <local:ArgJunctionControl  Grid.Column="0" x:Name="ArgJunctionControl" ArgIndex="0" NodeViewModel="{Binding}" />
             <TextBox Grid.Column="1" IsEnabled="{Binding IsEnabledOnView}" Text="{Binding NodeModel.Expression, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Stretch"></TextBox>
-            <local:ResultJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}" x:Name="ResultJunctionControl" HorizontalAlignment="Right"/>
+            <local:ResultJunctionControl Grid.Column="2" NodeViewModel="{Binding}" x:Name="ResultJunctionControl" HorizontalAlignment="Right"/>
         </Grid>
 
     </Grid>

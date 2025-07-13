@@ -37,11 +37,11 @@
                 <ColumnDefinition Width="auto"/>
             </Grid.ColumnDefinitions>
 
-            <local:ExecuteJunctionControl  Grid.Column="0"  MyNode="{Binding NodeModel}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
+            <local:ExecuteJunctionControl  Grid.Column="0"  NodeViewModel="{Binding}" x:Name="ExecuteJunctionControl" HorizontalAlignment="Left" Grid.RowSpan="2"/>
             <Border Grid.Column="1" BorderThickness="1" HorizontalAlignment="Stretch">
                 <TextBlock Text="{Binding NodeModel.DisplayName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center"/>
             </Border>
-            <local:NextStepJunctionControl Grid.Column="2"  MyNode="{Binding NodeModel}"  x:Name="NextStepJunctionControl" HorizontalAlignment="Right" Grid.RowSpan="2"/>
+            <local:NextStepJunctionControl Grid.Column="2"  NodeViewModel="{Binding}"  x:Name="NextStepJunctionControl" HorizontalAlignment="Right" Grid.RowSpan="2"/>
 
         </Grid>
 
@@ -55,7 +55,7 @@
                 <ColumnDefinition Width="20"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-            <local:ArgJunctionControl  Grid.Column="0" x:Name="ArgJunctionControl" ArgIndex="0" MyNode="{Binding NodeModel}" />
+            <local:ArgJunctionControl  Grid.Column="0" x:Name="ArgJunctionControl" ArgIndex="0" NodeViewModel="{Binding}" />
             <CheckBox  Grid.Column="1" IsChecked="{Binding NodeModel.IsExplicitData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"/>  <!--Converter={StaticResource BoolToVis}-->
             <TextBox Grid.Column="2" MinWidth="50" Text="{Binding NodeModel.ExplicitData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
                      HorizontalAlignment="Stretch"
@@ -94,7 +94,7 @@
                 <TextBox IsEnabled="{Binding IsEnabledOnView}"  Grid.Column="0" Background="#FEFAF4" MinWidth="100" Text="{Binding NodeModel.Expression, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  
     HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
 
-                <local:ResultJunctionControl Grid.Column="1"  MyNode="{Binding NodeModel}" x:Name="ResultJunctionControl" HorizontalAlignment="Right"/>
+                <local:ResultJunctionControl Grid.Column="1"  NodeViewModel="{Binding}" x:Name="ResultJunctionControl" HorizontalAlignment="Right"/>
             </Grid>
             
         </Grid>
