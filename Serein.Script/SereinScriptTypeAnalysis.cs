@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reactive;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -26,11 +27,6 @@ namespace Serein.Script
         /// </summary>
         public Dictionary<ASTNode, Type> NodeSymbolInfos { get; } = new Dictionary<ASTNode, Type>();
 
-        public SereinScriptTypeAnalysis()
-        {
-
-        }
-
         public void LoadSymbol(Dictionary<string,Type> identifierNodes)
         {
             foreach(var kvp in identifierNodes)
@@ -43,7 +39,7 @@ namespace Serein.Script
         }
 
 
-        public void AnalysisProgramNode(ProgramNode astNode)
+        public void Analysis(ProgramNode astNode)
         {
             //NodeSymbolInfos.Clear();
             for (int i = 0; i < astNode.Statements.Count; i++)
@@ -52,8 +48,8 @@ namespace Serein.Script
                 Analysis(node);
             }
 
-
-            var returnNodes = astNode.Statements.Where(node => node is ReturnNode).ToArray();
+            
+            var returnNodes = NodeSymbolInfos.Keys.Where(node => node is ReturnNode).ToArray();
             if (returnNodes.Length == 0)
             {
                 NodeSymbolInfos[astNode] = typeof(void); // 程序无返回值
@@ -66,7 +62,15 @@ namespace Serein.Script
             }
             else
             {
-
+                var firstReturnType = NodeSymbolInfos[returnNodes[0]]; // 第一个返回值
+                foreach(var item in returnNodes)
+                {
+                    if(NodeSymbolInfos[item] != firstReturnType)
+                    {
+                        throw new Exception("类型检查异常，存在不同分支返回值类型不一致");
+                    }
+                }
+                NodeSymbolInfos[astNode] = NodeSymbolInfos[returnNodes[0]]; // 确定的返回值
             }
         }
 
@@ -235,32 +239,61 @@ namespace Serein.Script
                 case ClassTypeDefinitionNode classTypeDefinitionNode: // 类型定义
                     Type AnalysisClassTypeDefinitionNode(ClassTypeDefinitionNode classTypeDefinitionNode)
                     {
-                        var classType = DynamicObjectHelper.GetCacheType(classTypeDefinitionNode.ClassName);
-                        if (classType is null)
-                            classType = DynamicObjectHelper.CreateTypeWithProperties(classTypeDefinitionNode.Fields, classTypeDefinitionNode.ClassName);
+
+                        var classType = Analysis(classTypeDefinitionNode.ClassType); // 查询类型
+                        NodeSymbolInfos[classTypeDefinitionNode] = classType;
+
+                        foreach (var kvp in classTypeDefinitionNode.Propertys)
+                        {
+                            TypeNode propertyNode = kvp.Value;
+                            var propertyType = Analysis(propertyNode); // 查询属性类型
+                            NodeSymbolInfos[propertyNode] = propertyType;
+                        }
+
                         NodeSymbolInfos[classTypeDefinitionNode] = classType;
                         return classType;
                     }
                     return AnalysisClassTypeDefinitionNode(classTypeDefinitionNode);
+                case TypeNode typeNode:
+                    Type AnalysisTypeNode(TypeNode typeNode)
+                    {
+                        // 类型搜寻优先级： 挂载类型 > 脚本中定义类型 > C#类型
+                        Type resultType = GetTypeOfString(typeNode.TypeName); // 从自定义类型查询类型
+                        NodeSymbolInfos[typeNode] = resultType;
+                        return resultType;
+                    }
+                    return AnalysisTypeNode(typeNode);
                 case ObjectInstantiationNode objectInstantiationNode: // 类型实例化
                     Type AnalysisObjectInstantiationNode(ObjectInstantiationNode objectInstantiationNode)
                     {
-                        Type? resultType = null;
-                        try
+                        Type resultType = Analysis(objectInstantiationNode.Type);
+                        foreach(var item in objectInstantiationNode.CtorAssignments)
                         {
-                            resultType = Type.GetType(objectInstantiationNode.TypeName); // 从命名空间查询类型
-                        }
-                        finally
-                        {
-                            if (resultType is null)
-                            {
-                                resultType = DynamicObjectHelper.GetCacheType(objectInstantiationNode.TypeName); // 从自定义类型查询类型
-                            }
+                            Analysis(item);
                         }
                         NodeSymbolInfos[objectInstantiationNode] = resultType;
                         return resultType;
                     }
                     return AnalysisObjectInstantiationNode(objectInstantiationNode);
+                case CtorAssignmentNode ctorAssignmentNode: // 构造器赋值
+                    Type AnalysisCtorAssignmentNode(CtorAssignmentNode ctorAssignmentNode)
+                    {
+                        Type classType = Analysis(ctorAssignmentNode.Class);
+                        Type valueType = Analysis(ctorAssignmentNode.Value);
+                        //ctorAssignmentNode.MemberName
+                        var property = classType.GetProperty(ctorAssignmentNode.MemberName);
+                        if (property is null)
+                            throw new Exception($"类型 {classType} 没有成员 {ctorAssignmentNode.MemberName}");
+                        var propertyType = property.PropertyType;
+                        if (!propertyType.IsAssignableFrom(valueType))
+                            throw new Exception($"类型异常：构造器赋值需要 {propertyType}，实际为 {valueType}"); 
+
+                        NodeSymbolInfos[ctorAssignmentNode.Class] = classType;
+                        NodeSymbolInfos[ctorAssignmentNode.Value] = valueType;
+                        NodeSymbolInfos[ctorAssignmentNode] = propertyType; 
+                        return valueType;
+                    }
+                    return AnalysisCtorAssignmentNode(ctorAssignmentNode);
                 case ExpressionNode expressionNode: // 类型表达式（链式调用）
                     Type AnalysisObjectMemberExpressionNode(ExpressionNode expressionNode)
                     {
@@ -289,16 +322,33 @@ namespace Serein.Script
                     Type AnalysisMemberAssignmentNode(MemberAssignmentNode memberAssignmentNode)
                     {
                         var objectType = Analysis(memberAssignmentNode.Object);
-                        var property = objectType.GetProperty(memberAssignmentNode.MemberName);
-                        if(property is null)
-                            throw new Exception($"类型异常：类型 {objectType} 没有成员 {memberAssignmentNode.MemberName}");
-                        var propertyType = property.PropertyType;
-                        var valueType = Analysis(memberAssignmentNode.Value);
-                        if (!propertyType.IsAssignableFrom(valueType))
-                            throw new Exception($"类型异常：赋值需要 {propertyType}，实际为 {valueType}");
-                        NodeSymbolInfos[memberAssignmentNode.Object] = propertyType;
-                        NodeSymbolInfos[memberAssignmentNode.Value] = valueType;
-                        NodeSymbolInfos[memberAssignmentNode] = typeof(void);
+                        if(objectType == typeof(object))
+                        {
+                            /*var property = objectType.GetProperty(memberAssignmentNode.MemberName);
+                            if (property is null)
+                                throw new Exception($"类型异常：类型 {objectType} 没有成员 {memberAssignmentNode.MemberName}");
+                            var propertyType = property.PropertyType;
+                            var valueType = Analysis(memberAssignmentNode.Value);
+                            if (!propertyType.IsAssignableFrom(valueType))
+                                throw new Exception($"类型异常：赋值需要 {propertyType}，实际为 {valueType}");*/
+                            NodeSymbolInfos[memberAssignmentNode.Object] = typeof(object);
+                            NodeSymbolInfos[memberAssignmentNode.Value] = typeof(object);
+                            NodeSymbolInfos[memberAssignmentNode] = typeof(void);
+                        }
+                        else
+                        {
+                            var property = objectType.GetProperty(memberAssignmentNode.MemberName);
+                            if (property is null)
+                                throw new Exception($"类型异常：类型 {objectType} 没有成员 {memberAssignmentNode.MemberName}");
+                            var propertyType = property.PropertyType;
+                            var valueType = Analysis(memberAssignmentNode.Value);
+                            if (!propertyType.IsAssignableFrom(valueType))
+                                throw new Exception($"类型异常：赋值需要 {propertyType}，实际为 {valueType}");
+                            NodeSymbolInfos[memberAssignmentNode.Object] = propertyType;
+                            NodeSymbolInfos[memberAssignmentNode.Value] = valueType;
+                            NodeSymbolInfos[memberAssignmentNode] = typeof(void);
+                        }
+                        
                         return typeof(void);  // 对象成员赋值语句不产生类型
                     }
                     return AnalysisMemberAssignmentNode(memberAssignmentNode);
@@ -319,12 +369,14 @@ namespace Serein.Script
                         NodeSymbolInfos[memberFunctionCallNode.Object] = objectType;
                         NodeSymbolInfos[memberFunctionCallNode] = methodInfo.ReturnType;
                         return methodInfo.ReturnType;
+
+
                     }
                     return AnalysisMemberFunctionCallNode(memberFunctionCallNode);
                 case FunctionCallNode functionCallNode: // 外部挂载的函数调用
                     Type AnalysisFunctionCallNode(FunctionCallNode functionCallNode)
                     {
-                        if(!SereinScriptInterpreter.FunctionInfoTable.TryGetValue(functionCallNode.FunctionName, out var methodInfo))
+                        if(!SereinScript.FunctionInfos.TryGetValue(functionCallNode.FunctionName, out var methodInfo))
                         {
                             throw new Exception($"脚本没有挂载方法 {functionCallNode.FunctionName}");
                         }
@@ -486,6 +538,8 @@ namespace Serein.Script
                     break;
                 case ClassTypeDefinitionNode classTypeDefinitionNode: // 类型定义
                     break;
+                case TypeNode typeNode: // 类型
+                    break;
                 case ObjectInstantiationNode objectInstantiationNode: // 类型实例化
                     break;
                 case ExpressionNode expressionNode: // 类型表达式（链式调用）
@@ -503,6 +557,29 @@ namespace Serein.Script
             }
         }
 
+
+        public static Type GetTypeOfString(string typeName)
+        {
+            Type? resultType = null;
+            resultType = DynamicObjectHelper.GetCacheType(typeName); // 从自定义类型查询类型
+            if (resultType != null)
+            {
+                return resultType;
+            }
+            try
+            {
+                resultType = Type.GetType(typeName); // 从命名空间查询类型
+                if (resultType != null)
+                {
+                    return resultType;
+                }
+                throw new InvalidOperationException($"无法匹配类型 {typeName}");
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+        }
 
 
 

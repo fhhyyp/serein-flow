@@ -126,6 +126,11 @@ namespace Serein.Script
             Type = type;
             Value = value;
         }
+
+        public override string ToString()
+        {
+            return $"token in {Row} row, type is \"{Type}\", value is \"{Value}\".";
+        }
     }
 
 

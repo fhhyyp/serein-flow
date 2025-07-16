@@ -43,6 +43,7 @@ namespace Serein.Workbench.Node.View
             DataContext = viewModel;
             viewModel.NodeModel.DisplayName = "[脚本节点]"; 
             InitializeComponent();
+            codeEditor.Text = viewModel.Script ?? string.Empty; // 更新代码编辑器内容
         }
 
 
@@ -94,6 +95,11 @@ namespace Serein.Workbench.Node.View
                 return argDataJunction = controls.ToArray();
             }
             return [];
+        }
+
+        private void codeEditor_TextChanged(object sender, EventArgs e)
+        {
+            viewModel.Script = codeEditor.Text; 
         }
 
 

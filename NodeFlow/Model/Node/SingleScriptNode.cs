@@ -33,19 +33,20 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         public override bool IsBase => true;
 
-        private IScriptFlowApi ScriptFlowApi;
-        private ProgramNode programNode;
-        private readonly SereinScriptInterpreter scriptInterpreter;
         private bool IsScriptChanged = false;
+
+        /// <summary>
+        /// 脚本解释器
+        /// </summary>
+        private readonly SereinScript sereinScript;
 
         /// <summary>
         /// 构建流程脚本节点
         /// </summary>
         /// <param name="environment"></param>
-        public SingleScriptNode(IFlowEnvironment environment):base(environment) 
+        public SingleScriptNode(IFlowEnvironment environment) : base(environment)
         {
-            ScriptFlowApi = new ScriptFlowApi(environment, this);
-            scriptInterpreter = new SereinScriptInterpreter();
+            sereinScript = new SereinScript();
         }
 
         static SingleScriptNode()
@@ -60,7 +61,7 @@ namespace Serein.NodeFlow.Model
             // 加载基础方法
             foreach ((string name, MethodInfo method) item in tempMethods)
             {
-                SereinScriptInterpreter.AddStaticFunction(item.name, item.method);
+                SereinScript.AddStaticFunction(item.name, item.method);
             }
         }
 
@@ -157,24 +158,10 @@ namespace Serein.NodeFlow.Model
                     varNames.Add(pd.Name);
                 }
 
-                /*var sb  = new StringBuilder();
-                foreach (var pd in MethodDetails.ParameterDetailss)
-                {
-                    sb.AppendLine($"let {pd.Name};"); // 提前声明这些变量
-                }
-                sb.Append(Script);
-                var script = sb.ToString();*/
-                var parser = new SereinScriptParser(); // 准备解析器
-                var typeAnalysis = new SereinScriptTypeAnalysis(); // 准备分析器
-                programNode = parser.Parse(Script); // 开始解析获取程序主节点
+                Dictionary<string, Type> dict = MethodDetails.ParameterDetailss.ToDictionary(pd => pd.Name, pd => pd.DataType); // 准备预定义类型
 
-                var dict = MethodDetails.ParameterDetailss.ToDictionary(pd => pd.Name, pd => pd.DataType);
-                typeAnalysis.NodeSymbolInfos.Clear(); // 清空符号表
-                typeAnalysis.LoadSymbol(dict); // 提前加载脚本节点定义的符号
-                typeAnalysis.AnalysisProgramNode(programNode); // 分析节点类型
-                var returnType =  typeAnalysis.NodeSymbolInfos[programNode]; // 获取返回类型
+                var returnType = sereinScript.ParserScript(dict, Script);  // 开始解析获取程序主节点
                 MethodDetails.ReturnType = returnType;
-                //scriptInterpreter.SetTypeAnalysis(typeAnalysis); // 设置类型分析器
 
             }
             catch (Exception ex)
@@ -244,8 +231,7 @@ namespace Serein.NodeFlow.Model
 
             if (token.IsCancellationRequested) return null;
 
-
-            var result = await scriptInterpreter.InterpretAsync(scriptContext, programNode); // 从入口节点执行
+            var result = await sereinScript.InterpreterAsync(scriptContext); // 从入口节点执行
             envEvent.FlowRunComplete -= onFlowStop;
             return new FlowResult(this.Guid, context, result);
         }
@@ -259,12 +245,7 @@ namespace Serein.NodeFlow.Model
 
         private static class ScriptBaseFunc
         {
-            public static DateTime GetNow() => DateTime.Now;
-
-            public static int Add(int Left, int Right)
-            {
-                return Left + Right;
-            }
+            public static DateTime now() => DateTime.Now;
 
             #region 常用的类型转换
             public static bool @bool(object value)
@@ -321,6 +302,21 @@ namespace Serein.NodeFlow.Model
                 }
             }
             
+            public static void regType(Type type, string name = "")
+            {
+                SereinScript.AddClassType(type, name);
+            }
+
+            public static string str(object obj)
+            {
+                return obj?.ToString() ?? string.Empty;
+            }
+
+            public static object obj(Type type)
+            {
+                return Activator.CreateInstance(type);
+            }
+
             public static Type type(object type)
             {
                 return type.GetType();

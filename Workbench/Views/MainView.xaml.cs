@@ -25,6 +25,9 @@ namespace Serein.Workbench.Views
         {
             this.DataContext = App.GetService<Locator>().MainViewModel;
             InitializeComponent();
+
+            Window window = new System.Windows.Window();
+            window.Show();
         }
     }
 }

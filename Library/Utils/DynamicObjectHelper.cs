@@ -5,6 +5,7 @@ using System.Reflection.Emit;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using System.ComponentModel;
 
 namespace Serein.Library.Utils
 {
@@ -188,8 +189,142 @@ namespace Serein.Library.Utils
             return dynamicType;
         }
 
+        /// <summary>
+        /// 创建继承通知接口、具有属性的类型
+        /// </summary>
+        /// <param name="properties"></param>
+        /// <param name="typeName"></param>
+        /// <param name="isOverlay"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
+        public static Type CreateTypeWithINotifyPropertyChanged(IDictionary<string, Type> properties, string typeName, bool isOverlay = false)
+        {
+            if (typeCache.ContainsKey(typeName) && !isOverlay)
+                return typeCache[typeName];
 
+            var typeBuilder = ModuleBuilder.DefineType(typeName, TypeAttributes.Public | TypeAttributes.Class);
+            typeBuilder.AddInterfaceImplementation(typeof(INotifyPropertyChanged));
 
+            // 添加 PropertyChanged 字段
+            var eventHandlerType = typeof(PropertyChangedEventHandler);
+            var propertyChangedField = typeBuilder.DefineField("PropertyChanged", eventHandlerType, FieldAttributes.Private);
+
+            // 添加 PropertyChanged 事件
+            var eventBuilder = typeBuilder.DefineEvent("PropertyChanged", EventAttributes.None, eventHandlerType);
+
+            // add_PropertyChanged
+            var addMethod = typeBuilder.DefineMethod("add_PropertyChanged", MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.Virtual | MethodAttributes.HideBySig, null, new[] { eventHandlerType });
+            {
+
+                var il = addMethod.GetILGenerator();
+                var combine = typeof(Delegate).GetMethod("Combine", new[] { typeof(Delegate), typeof(Delegate) });
+
+                // this.PropertyChanged = (PropertyChangedEventHandler)Delegate.Combine(this.PropertyChanged, value);
+                il.Emit(OpCodes.Ldarg_0);                                // 加载 this（当前实例）到栈
+                il.Emit(OpCodes.Ldarg_0);                                // 再次加载 this，用于访问字段
+                il.Emit(OpCodes.Ldfld, propertyChangedField);            // 加载 this.PropertyChanged 字段值
+                il.Emit(OpCodes.Ldarg_1);                                // 加载方法参数 value（订阅者委托）
+                il.Emit(OpCodes.Call, combine);                          // 调用 Delegate.Combine(a, b)
+                il.Emit(OpCodes.Castclass, eventHandlerType);            // 强转回 PropertyChangedEventHandler 类型
+                il.Emit(OpCodes.Stfld, propertyChangedField);            // 赋值给 this.PropertyChanged
+                il.Emit(OpCodes.Ret);                                    // return
+            }
+
+            // remove_PropertyChanged
+            var removeMethod = typeBuilder.DefineMethod("remove_PropertyChanged", MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.Virtual | MethodAttributes.HideBySig, null, new[] { eventHandlerType });
+            {
+                var il = removeMethod.GetILGenerator();
+                var remove = typeof(Delegate).GetMethod("Remove", new[] { typeof(Delegate), typeof(Delegate) });
+
+                // this.PropertyChanged = (PropertyChangedEventHandler)Delegate.Remove(this.PropertyChanged, value);
+                il.Emit(OpCodes.Ldarg_0);                                // 加载 this
+                il.Emit(OpCodes.Ldarg_0);                                // 再次加载 this
+                il.Emit(OpCodes.Ldfld, propertyChangedField);            // 加载字段 this.PropertyChanged
+                il.Emit(OpCodes.Ldarg_1);                                // 加载 value（要移除的委托）
+                il.Emit(OpCodes.Call, remove);                           // 调用 Delegate.Remove(a, b)
+                il.Emit(OpCodes.Castclass, eventHandlerType);            // 转换为 PropertyChangedEventHandler
+                il.Emit(OpCodes.Stfld, propertyChangedField);            // 设置 this.PropertyChanged = 结果
+                il.Emit(OpCodes.Ret);                                    // return
+            }
+
+            eventBuilder.SetAddOnMethod(addMethod);
+            eventBuilder.SetRemoveOnMethod(removeMethod);
+
+            // 定义 OnPropertyChanged 方法
+            var onPropertyChangedMethod = typeBuilder.DefineMethod(
+                "OnPropertyChanged",
+                MethodAttributes.Private,
+                null,
+                new[] { typeof(string) });
+
+            {
+                var il = onPropertyChangedMethod.GetILGenerator();
+                var label = il.DefineLabel();
+
+                // if (PropertyChanged == null) return;
+                il.Emit(OpCodes.Ldarg_0);                                // 加载 this
+                il.Emit(OpCodes.Ldfld, propertyChangedField);            // 加载 this.PropertyChanged
+                il.Emit(OpCodes.Brfalse_S, label);                       // 如果为空（null），跳转到 label，跳过通知调用
+
+                // PropertyChanged.Invoke(this, new PropertyChangedEventArgs(propertyName));
+                il.Emit(OpCodes.Ldarg_0);                                // 加载 this（委托调用目标）
+                il.Emit(OpCodes.Ldfld, propertyChangedField);            // 加载 PropertyChanged 委托
+                il.Emit(OpCodes.Ldarg_0);                                // 加载 this 作为 sender 参数
+                il.Emit(OpCodes.Ldarg_1);                                // 加载 propertyName 参数（string）
+                il.Emit(OpCodes.Newobj, typeof(PropertyChangedEventArgs).GetConstructor(new[] { typeof(string) })); // 构造 new PropertyChangedEventArgs(propertyName)
+                il.Emit(OpCodes.Callvirt, typeof(PropertyChangedEventHandler).GetMethod("Invoke")); // 调用委托 Invoke(sender, args)
+                il.MarkLabel(label);                                     // 跳转目标（如果委托为 null 则跳转至此）
+                il.Emit(OpCodes.Ret);                                    // return
+            }
+
+            // 为每个属性生成字段 + get/set + OnPropertyChanged 调用
+            foreach (var kv in properties)
+            {
+                string propName = kv.Key;
+                Type propType = kv.Value ?? typeof(object);
+
+                var fieldBuilder = typeBuilder.DefineField("_" + propName, propType, FieldAttributes.Private);
+
+                var propertyBuilder = typeBuilder.DefineProperty(propName, PropertyAttributes.HasDefault, propType, null);
+
+                var getter = typeBuilder.DefineMethod("get_" + propName,
+                    MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig,
+                    propType, Type.EmptyTypes);
+
+                {
+                    // get_PropertyName()
+                    var il = getter.GetILGenerator();
+                    il.Emit(OpCodes.Ldarg_0);                                // 加载 this
+                    il.Emit(OpCodes.Ldfld, fieldBuilder);                    // 读取私有字段 _PropertyName
+                    il.Emit(OpCodes.Ret);                                    // 返回字段值
+                }
+
+                var setter = typeBuilder.DefineMethod("set_" + propName,
+                    MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig,
+                    null, new[] { propType });
+
+                {
+                    // set_PropertyName(value)
+                    var il = setter.GetILGenerator();
+                    il.Emit(OpCodes.Ldarg_0);                                // 加载 this
+                    il.Emit(OpCodes.Ldarg_1);                                // 加载 value 参数
+                    il.Emit(OpCodes.Stfld, fieldBuilder);                    // 设置字段 _PropertyName = value
+
+                    il.Emit(OpCodes.Ldarg_0);                                // 加载 this
+                    il.Emit(OpCodes.Ldstr, propName);                        // 加载属性名字符串作为通知参数
+                    il.Emit(OpCodes.Call, onPropertyChangedMethod);          // 调用 OnPropertyChanged(propName)
+
+                    il.Emit(OpCodes.Ret);                                    // return
+                }
+
+                propertyBuilder.SetGetMethod(getter);
+                propertyBuilder.SetSetMethod(setter);
+            }
+
+            var dynamicType = typeBuilder.CreateType();
+            typeCache[typeName] = dynamicType;
+            return dynamicType;
+        }
         #region 动态创建对象并赋值
 
         // 方法 1: 创建动态类型及其对象实例

@@ -12,18 +12,30 @@ namespace Serein.Script.Node
     public class ObjectInstantiationNode : ASTNode
     {
         /// <summary>
-        /// 类型名称
+        /// 类型来源
         /// </summary>
-        public string TypeName { get; }
+        public TypeNode Type { get; }
 
         /// <summary>
         /// 构造方法的参数来源
         /// </summary>
         public List<ASTNode> Arguments { get; }
-        public ObjectInstantiationNode(string typeName, List<ASTNode> arguments)
+
+        /// <summary>
+        /// 构造器赋值
+        /// </summary>
+        public List<CtorAssignmentNode> CtorAssignments { get; private set; } = [];
+
+        public ObjectInstantiationNode(TypeNode type, List<ASTNode> arguments)
         {
-            this.TypeName = typeName;
+            this.Type = type;
             this.Arguments = arguments;
+        }
+
+        public ObjectInstantiationNode SetCtorAssignments(List<CtorAssignmentNode> ctorAssignments)
+        {
+            CtorAssignments = ctorAssignments;
+            return this;
         }
     }
 

@@ -8,6 +8,7 @@ using Serein.NodeFlow.Services;
 using Serein.Workbench.Api;
 using Serein.Workbench.Services;
 using Serein.Workbench.ViewModels;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -55,6 +56,23 @@ namespace Serein.Workbench
         // 这里是测试代码，可以删除
         private async Task LoadLocalProjectAsync()
         {
+            var properties = new Dictionary<string, Type>
+            {
+                { "Id", typeof(int) },
+                { "Name", typeof(string) },
+                { "CreateTime", typeof(DateTime) }
+            };
+
+            var type = DynamicObjectHelper.CreateTypeWithINotifyPropertyChanged(properties, "MyDynamicClass");
+            dynamic? obj = Activator.CreateInstance(type);
+            if(obj is null) return;
+            if (obj is INotifyPropertyChanged npc)
+            {
+                npc.PropertyChanged += (s, e) => Debug.WriteLine($"属性改变: {e.PropertyName}");
+            }
+            obj.Name = "下北泽";
+            obj.Id = 114514;
+
 
             if (1 == 11)
             {

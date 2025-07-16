@@ -6,6 +6,7 @@
                        xmlns:local="clr-namespace:Serein.Workbench.Node.View"  
                        xmlns:vm="clr-namespace:Serein.Workbench.Node.ViewModel"
                        xmlns:themes="clr-namespace:Serein.Workbench.Themes"
+                       xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
                        d:DataContext="{d:DesignInstance vm:ScriptNodeControlViewModel}"
                        mc:Ignorable="d"
                        MinWidth="50">
@@ -56,7 +57,17 @@
                 <Button Content="执行" Margin="3,0,1,0" Command="{Binding CommandExecuting}" Height="17.2"></Button>
             </StackPanel>
             <themes:MethodDetailsControl Grid.Row="1"  x:Name="MethodDetailsControl" MethodDetails="{Binding NodeModel.MethodDetails}" NodeViewModel="{Binding}"/>
-            <TextBox Grid.Row="2" MinHeight="20" MinWidth="100" MaxWidth="270" TextWrapping="Wrap" AcceptsReturn="True"  IsEnabled="{Binding IsEnabledOnView}" Text="{Binding Script}"></TextBox>
+            <!--<TextBox Grid.Row="2" MinHeight="20" MinWidth="100"  TextWrapping="Wrap" AcceptsReturn="True"  IsEnabled="{Binding IsEnabledOnView}" Text="{Binding Script}"></TextBox>-->
+            
+            <avalonEdit:TextEditor Grid.Row="2" 
+                      x:Name="codeEditor"
+                      FontFamily="Consolas"
+                      FontSize="12"
+                      SyntaxHighlighting="C#"
+                      TextChanged="codeEditor_TextChanged"
+                      ShowLineNumbers="True"
+                      Margin="10"/>
+            
             <Grid Grid.Row="3"  >
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="50"/>

@@ -18,98 +18,15 @@ namespace Serein.Script
     /// </summary>
     public class SereinScriptInterpreter
     {
-        
-        /// <summary>
-        /// 挂载的函数
-        /// </summary>
-        private static Dictionary<string, DelegateDetails> _functionTable = new Dictionary<string, DelegateDetails>();
-        private static Dictionary<string, MethodInfo> _functionInfoTable = new Dictionary<string, MethodInfo>();
+        private readonly Dictionary<ASTNode, Type> symbolInfos;
 
-        public static Dictionary<string, MethodInfo> FunctionInfoTable { get { return _functionInfoTable; } }
-
-        /// <summary>
-        /// 挂载的函数调用的对象（用于函数需要实例才能调用的场景）
-        /// </summary>
-        private Dictionary<string, Func<object>> _callFuncOfGetObjects = new Dictionary<string, Func<object>>();
-
-        /// <summary>
-        /// 定义的类型
-        /// </summary>
-        private Dictionary<string, Type> _classDefinition = new Dictionary<string, Type>();
-
-
-        /// <summary>
-        /// 类型分析器
-        /// </summary>
-        private SereinScriptTypeAnalysis typeAnalysis;
-
-        /// <summary>
-        /// 挂载静态函数
-        /// </summary>
-        /// <param name="functionName"></param>
-        /// <param name="methodInfo"></param>
-        public static void AddStaticFunction(string functionName, MethodInfo methodInfo)
+        public SereinScriptInterpreter(Dictionary<ASTNode, Type> symbolInfos)
         {
-            _functionTable[functionName] = new DelegateDetails(methodInfo);
-            _functionInfoTable[functionName] = methodInfo;
+            this.symbolInfos = symbolInfos;
         }
 
+ 
 
-        /// <summary>
-        /// 挂载函数
-        /// </summary>
-        /// <param name="functionName">函数名称</param>
-        /// <param name="methodInfo">方法信息</param>
-        public void AddFunction(string functionName, MethodInfo methodInfo, Func<object>? callObj = null)
-        {
-            //if (!_functionTable.ContainsKey(functionName))
-            //{
-            //    _functionTable[functionName] = new DelegateDetails(methodInfo);
-            //}
-            if(!methodInfo.IsStatic && callObj is null)
-            {
-                SereinEnv.WriteLine(InfoType.WARN, "函数挂载失败：试图挂载非静态的函数，但没有传入相应的获取实例的方法。");
-                return;
-            }
-
-            
-            if(!methodInfo.IsStatic && callObj is not null && !_callFuncOfGetObjects.ContainsKey(functionName))
-            { 
-                // 静态函数不需要
-                _callFuncOfGetObjects.Add(functionName, callObj);
-            }
-            if (!_functionTable.ContainsKey(functionName))
-            {
-                _functionTable[functionName] = new DelegateDetails(methodInfo);
-            }
-            //_functionTable[functionName] = new DelegateDetails(methodInfo);
-        }
-
-        /// <summary>
-        /// 挂载类型
-        /// </summary>
-        /// <param name="typeName">函数名称</param>
-        /// <param name="type">方法信息</param>
-        public void AddClassType(Type type , string typeName = "")
-        {
-            if (string.IsNullOrEmpty(typeName))
-            {
-                typeName = type.Name;
-            }
-            if (!_classDefinition.ContainsKey(typeName))
-            {
-                _classDefinition[typeName] = type;
-            }
-        }
-
-        /// <summary>
-        /// 设置类型分析器
-        /// </summary>
-        /// <param name="typeAnalysis"></param>
-        public void SetTypeAnalysis(SereinScriptTypeAnalysis typeAnalysis)
-        {
-            this.typeAnalysis = typeAnalysis;
-        }
 
         /// <summary>
         /// 入口节点
@@ -159,17 +76,19 @@ namespace Serein.Script
         /// <returns></returns>
         private void ExecutionClassTypeDefinitionNode(ClassTypeDefinitionNode classTypeDefinitionNode)
         {
-            if (_classDefinition.ContainsKey(classTypeDefinitionNode.ClassName) && !classTypeDefinitionNode.IsOverlay)
+            var className = classTypeDefinitionNode.ClassType.TypeName;
+            if (SereinScript.MountType.ContainsKey(className) && !classTypeDefinitionNode.IsOverlay)
             {
                 //SereinEnv.WriteLine(InfoType.WARN, $"异常信息 : 类型重复定义，代码在第{classTypeDefinitionNode.Row}行: {classTypeDefinitionNode.Code.Trim()}");
                 return;
             }
-
-            //var isOverlay = true; // classTypeDefinitionNode.IsOverlay;
-
-            var type = DynamicObjectHelper.CreateTypeWithProperties(classTypeDefinitionNode.Fields, classTypeDefinitionNode.ClassName); // 覆盖
-            //classTypeDefinitionNode.IsOverlay = false; // 已经加载过，则不再覆盖
-            _classDefinition[classTypeDefinitionNode.ClassName] = type; // 定义对象
+            if(DynamicObjectHelper.GetCacheType(className) == null)
+            {
+                var propertyTypes = classTypeDefinitionNode.Propertys.ToDictionary(p => p.Key, p => symbolInfos[p.Value]);
+                var type = DynamicObjectHelper.CreateTypeWithProperties(propertyTypes, className); // 覆盖
+                SereinScript.MountType[className] = type; // 定义对象
+            }
+            
         }
 
         /// <summary>
@@ -305,11 +224,11 @@ namespace Serein.Script
 
 
             // 查找并执行对应的函数
-            if (_functionTable.TryGetValue(funcName, out DelegateDetails? function))
+            if (SereinScript.FunctionDelegates .TryGetValue(funcName, out DelegateDetails? function))
             {
                 if (!function.EmitMethodInfo.IsStatic)
                 {
-                    if(_callFuncOfGetObjects.TryGetValue(funcName, out var action))
+                    if(SereinScript.DelegateInstances.TryGetValue(funcName, out var action))
                     {
                         instance = action.Invoke();// 非静态的方法需要获取相应的实例
 
@@ -429,27 +348,34 @@ namespace Serein.Script
                     //if (right == null) throw new SereinSciptException(binOpNode.Right, "右值尝试使用计算 null");
                     return EvaluateBinaryOperation(left, binOpNode.Operator, right);
                 case ObjectInstantiationNode objectInstantiationNode:  // 对象实例化
-                    if (_classDefinition.TryGetValue(objectInstantiationNode.TypeName,out var type ))
+                    if (!SereinScript.MountType.TryGetValue(objectInstantiationNode.Type.TypeName, out var type))
                     {
-                        object?[] args = new object[objectInstantiationNode.Arguments.Count];
-                        for (int i = 0; i < objectInstantiationNode.Arguments.Count; i++)
+                        type = symbolInfos[objectInstantiationNode.Type];
+                        if (type is null)
                         {
-                            var argNode = objectInstantiationNode.Arguments[i];
-                            args[i] = await EvaluateAsync(context, argNode);
+                            throw new SereinSciptException(objectInstantiationNode, $"使用了未定义的类型\"{objectInstantiationNode.Type.TypeName}\"");
                         }
-                        var obj = Activator.CreateInstance(type,args: args);// 创建对象
-                        if (obj == null)
-                        {
-                            throw new SereinSciptException(objectInstantiationNode, $"类型创建失败\"{objectInstantiationNode.TypeName}\"");
-                        }
-                        return obj;
                     }
-                    else
+                    object?[] args = new object[objectInstantiationNode.Arguments.Count];
+                    for (int i = 0; i < objectInstantiationNode.Arguments.Count; i++)
                     {
-                        
-                        throw new SereinSciptException(objectInstantiationNode, $"使用了未定义的类型\"{objectInstantiationNode.TypeName}\"");
+                        var argNode = objectInstantiationNode.Arguments[i];
+                        args[i] = await EvaluateAsync(context, argNode);
+                    }
+                    var obj = Activator.CreateInstance(type, args: args);// 创建对象
+                    if (obj == null)
+                    {
+                        throw new SereinSciptException(objectInstantiationNode, $"类型创建失败\"{objectInstantiationNode.Type.TypeName}\"");
+                    }
+                    for (int i = 0; i < objectInstantiationNode.CtorAssignments.Count; i++)
+                    {
+                        var ctorAssignmentNode = objectInstantiationNode.CtorAssignments[i];
+                        var propertyName = ctorAssignmentNode.MemberName;
+                        var value = await EvaluateAsync(context, ctorAssignmentNode.Value);
+                        SetPropertyValue(obj, propertyName, value);
+                    }
 
-                    }
+                    return obj;
                 case FunctionCallNode callNode: // 调用方法
                     return await InterpretFunctionCallAsync(context, callNode); // 调用方法返回函数的返回值
                 case MemberFunctionCallNode memberFunctionCallNode: // 对象方法调用
@@ -567,6 +493,48 @@ namespace Serein.Script
                     throw new SereinSciptException(memberAssignmentNode, $"对象成员赋值时类型异常：\"{memberAssignmentNode.MemberName}\"");
                 }
                //var convertedValue = Convert.ChangeType(value, );
+            }
+        }
+
+        public void SetPropertyValue(object target, string memberName, object? value)
+        {
+            var targetType = target?.GetType();
+            if (targetType is null) return;
+            var propertyInfo = targetType.GetProperty(memberName);
+            if (propertyInfo is null)
+            {
+                var fieldInfo = target?.GetType().GetRuntimeField(memberName);
+                if (fieldInfo is null)
+                {
+                    throw new Exception($"类型 {targetType} 对象没有成员\"{memberName}\"");
+                }
+                else
+                {
+                    var convertedValue = Convert.ChangeType(value, fieldInfo.FieldType);
+                    fieldInfo.SetValue(target, convertedValue);
+                }
+            }
+            else
+            {
+                if (value is null)
+                {
+                    propertyInfo.SetValue(target, null);
+                    return;
+                }
+                var valueTtpe = value.GetType();
+                if (propertyInfo.PropertyType.IsAssignableFrom(valueTtpe))
+                {
+                    propertyInfo.SetValue(target, value);
+                }
+                else if (propertyInfo.PropertyType.FullName == valueTtpe.FullName)
+                {
+                    propertyInfo.SetValue(target, value);
+                }
+                else
+                {
+                    throw new Exception($"类型 {targetType} 对象成员\"{memberName}\" 赋值时异常");
+                }
+                //var convertedValue = Convert.ChangeType(value, );
             }
         }
 
