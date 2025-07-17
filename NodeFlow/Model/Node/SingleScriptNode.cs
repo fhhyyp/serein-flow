@@ -80,23 +80,17 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         public override void OnCreating()
         {
-           /* MethodInfo? method = this.GetType().GetMethod(nameof(GetFlowApi));
-            if (method != null)
-            {
-                ScriptInterpreter.AddFunction(nameof(GetFlowApi), method, () => this); // 挂载获取流程接口
-            }*/
-
             var md = MethodDetails;
             var pd = md.ParameterDetailss ??= new ParameterDetails[1];
             md.ParamsArgIndex = 0;
             pd[0] =  new ParameterDetails
             {
                 Index = 0,
-                Name = "object",
+                Name = "string",
                 IsExplicitData = true,
                 DataValue = string.Empty,
-                DataType = typeof(object),
-                ExplicitType = typeof(object),
+                DataType = typeof(string),
+                ExplicitType = typeof(string),
                 ArgDataSourceNodeGuid = string.Empty,
                 ArgDataSourceType = ConnectionArgSourceType.GetPreviousNodeData,
                 NodeModel = this,
@@ -105,7 +99,7 @@ namespace Serein.NodeFlow.Model
                 IsParams = true,
                 //Description = "脚本节点入参"
             };
-            md.ReturnType = typeof(object); // 默认返回 object
+            md.ReturnType = typeof(void); // 默认无返回
 
         }
 
@@ -136,7 +130,7 @@ namespace Serein.NodeFlow.Model
                 this.MethodDetails.ParameterDetailss[i].Name = nodeInfo.ParameterData[i].ArgName;
             }
 
-            ReloadScript();// 加载时重新解析
+            //ReloadScript();// 加载时重新解析
             IsScriptChanged = false; // 重置脚本改变标志
 
         }
@@ -144,7 +138,7 @@ namespace Serein.NodeFlow.Model
         /// <summary>
         /// 重新加载脚本代码
         /// </summary>
-        public void ReloadScript()
+        public bool ReloadScript()
         {
             try
             {
@@ -158,16 +152,30 @@ namespace Serein.NodeFlow.Model
                     varNames.Add(pd.Name);
                 }
 
-                Dictionary<string, Type> dict = MethodDetails.ParameterDetailss.ToDictionary(pd => pd.Name, pd => pd.DataType); // 准备预定义类型
 
-                var returnType = sereinScript.ParserScript(dict, Script);  // 开始解析获取程序主节点
+                var argTypes = MethodDetails.ParameterDetailss
+                                       .Select(pd =>
+                                       {
+                                           if (Env.TryGetNodeModel(pd.ArgDataSourceNodeGuid, out var node) &&
+                                               node.MethodDetails?.ReturnType is not null)
+                                           {
+                                               pd.DataType = node.MethodDetails.ReturnType;
+                                               return (pd.Name, node.MethodDetails.ReturnType);
+                                           }
+                                           return default;
+                                       })
+                                       .Where(x => x != default)
+                                       .ToDictionary(x => x.Name, x => x.ReturnType); // 准备预定义类型
+
+
+                var returnType = sereinScript.ParserScript(Script, argTypes);  // 开始解析获取程序主节点
                 MethodDetails.ReturnType = returnType;
-
+                return true;
             }
             catch (Exception ex)
             {
-                SereinEnv.WriteLine(InfoType.ERROR, ex.ToString());
-                
+                SereinEnv.WriteLine(ex);
+                return false; // 解析失败
             }
         }
 
@@ -202,7 +210,7 @@ namespace Serein.NodeFlow.Model
                 lock (@params) {
                     if (IsScriptChanged)
                     {
-                        ReloadScript();// 每次都重新解析
+                        ReloadScript();// 执行时检查是否需要重新解析
                         IsScriptChanged = false;
                         context.Env.WriteLine(InfoType.INFO, $"[{Guid}]脚本解析完成");
                     }

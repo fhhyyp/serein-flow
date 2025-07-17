@@ -481,7 +481,7 @@ namespace Serein.NodeFlow.Env
             }
             catch (Exception ex)
             {
-                SereinEnv.WriteLine(InfoType.ERROR, $"无法加载DLL文件：{ex}");
+                SereinEnv.WriteLine(InfoType.ERROR, $"无法加载DLL文件：{ex.Message}");
             }
         }
 
@@ -501,7 +501,7 @@ namespace Serein.NodeFlow.Env
             }
             catch (Exception ex)
             {
-                SereinEnv.WriteLine(InfoType.ERROR, $"无法加载DLL文件：{ex}");
+                SereinEnv.WriteLine(InfoType.ERROR, $"无法加载DLL文件：{ex.Message}");
             }
 
         }

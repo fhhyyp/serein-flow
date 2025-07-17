@@ -37,13 +37,13 @@ namespace Serein.Workbench.Node.ViewModel
                 }
                 catch (Exception ex)
                 {
-                    SereinEnv.WriteLine(InfoType.ERROR, ex.ToString());
+                    SereinEnv.WriteLine(ex);
                 }
             });
 
             CommandLoadScript = new RelayCommand( o =>
             {
-                NodeModel.ReloadScript();
+                NodeModel.ReloadScript(); // 工作台重新加载脚本
             });
         }
 

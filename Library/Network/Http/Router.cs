@@ -248,7 +248,7 @@ namespace Serein.Library.Web
                     catch (Exception ex1)
                     {
 
-                        SereinEnv.WriteLine(InfoType.ERROR, ex1.ToString());
+                        SereinEnv.WriteLine(ex1);
                     }
                 }
 

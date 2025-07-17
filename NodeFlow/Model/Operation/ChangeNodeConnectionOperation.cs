@@ -378,7 +378,7 @@ namespace Serein.NodeFlow.Model.Operation
 
             if (FromNode.MethodDetails.ReturnType == typeof(void))
             {
-                SereinEnv.WriteLine(InfoType.WARN, $"连接失败，节点参数入参不允许接收 void 返回值");
+                SereinEnv.WriteLine(InfoType.WARN, $"连接失败，节点参数入参不允许接收 void 返回值。起始节点[{FromNode.Guid}]，目标节点[{FromNode.Guid}]。");
                 return false;
             }
 
@@ -388,7 +388,7 @@ namespace Serein.NodeFlow.Model.Operation
 
             if (false && string.IsNullOrWhiteSpace(toNodeArgSourceGuid) && flowModelService.ContainsNodeModel(toNodeArgSourceGuid))
             {
-                SereinEnv.WriteLine(InfoType.WARN, $"连接失败，节点参数入参不允许接收多个节点返回值");
+                SereinEnv.WriteLine(InfoType.WARN, $"连接失败，节点参数入参不允许接收多个节点返回值。起始节点[{FromNode.Guid}]，目标节点[{FromNode.Guid}]。");
                 return false;
             }
 

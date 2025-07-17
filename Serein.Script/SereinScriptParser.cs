@@ -623,7 +623,13 @@ namespace Serein.Script
                     NextToken(); // 消耗 ")"
                     break;
                 }
+                else if (peekToken.Type == TokenType.BraceLeft)
+                {
+                    NextToken(); // 消耗 类型名称
+                    break;
+                }
             }
+
             TypeNode typeNode = new TypeNode(typeName);
             typeNode.SetTokenInfo(typeToken);
             ObjectInstantiationNode objectInstantiationNode = new ObjectInstantiationNode(typeNode, ctorArguments);

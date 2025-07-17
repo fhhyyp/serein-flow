@@ -393,8 +393,8 @@ namespace Serein.NodeFlow.Env
         public async Task LoadNodeInfosAsync(List<NodeInfo> nodeInfos)
         {
             #region 从NodeInfo创建NodeModel
-            // 流程接口节点最后才创建
-
+           
+            // 加载节点，与画布Model进行绑定
             async Task AddNodeAsync(NodeInfo nodeInfo, IFlowNode nodeModel)
             {
                 if (!TryGetCanvasModel(nodeInfo.CanvasGuid, out var canvasModel))
@@ -403,6 +403,8 @@ namespace Serein.NodeFlow.Env
                 }
                 else
                 {
+                    
+
                     // 节点与画布互相绑定
                     // 需要在UI线程上进行添加，否则会报 “不支持从调度程序线程以外的线程对其 SourceCollection 进行的更改”异常
                     nodeModel.CanvasDetails = canvasModel;
@@ -431,7 +433,6 @@ namespace Serein.NodeFlow.Env
 
                 }
 
-               
             }
 
 
@@ -467,6 +468,53 @@ namespace Serein.NodeFlow.Env
                     SereinEnv.WriteLine(InfoType.WARN, $"节点创建失败。{Environment.NewLine}{nodeInfo}");
                 }
             }
+            #endregion
+
+            #region 脚本节点初始化
+            HashSet<string> nodeIds = new HashSet<string>();
+            void ReloadScript(SingleScriptNode scriptNode)
+            {
+                if (nodeIds.Contains(scriptNode.Guid))
+                {
+                    nodeIds.Add(scriptNode.Guid);
+                    return;
+                }
+
+                var pds = scriptNode.MethodDetails?.ParameterDetailss;
+                if (pds is null || pds.Length == 0)
+                {
+                    nodeIds.Add(scriptNode.Guid);
+                    return;
+                }
+
+                foreach (var pd in pds)
+                {
+                    //if (pd.ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData) continue;
+                    var argSourceNodeGuid = pd.ArgDataSourceNodeGuid;
+                    if (!string.IsNullOrWhiteSpace(argSourceNodeGuid)
+                        && flowModelService.TryGetNodeModel(argSourceNodeGuid, out var flowNode) && flowNode is SingleScriptNode argSourceNode)
+                    {
+                        ReloadScript(argSourceNode);
+                    }
+                }
+
+                scriptNode.ReloadScript(); // 如果是流程接口节点，则需要重新加载脚本
+                nodeIds.Add(scriptNode.Guid);
+            }
+
+            var scriptNodes = nodeInfos.Where(info => info.Type == nameof(NodeControlType.Script))
+                                       .Select(info => flowModelService.TryGetNodeModel(info.Guid, out var node) ? node : null)
+                                       .OfType<SingleScriptNode>()
+                                       .ToList();
+
+
+
+            foreach (SingleScriptNode scriptNode in scriptNodes)
+            {
+                ReloadScript(scriptNode);
+            }
+
+
             #endregion
 
             #region 重新放置节点

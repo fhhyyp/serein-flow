@@ -40,7 +40,7 @@ namespace Serein.Workbench.ViewModels
             }
             catch (Exception ex)
             {
-                flowEnvironment.WriteLine(Library.InfoType.ERROR, ex.ToString());
+                SereinEnv.WriteLine(ex);
                 return;
             }
         }

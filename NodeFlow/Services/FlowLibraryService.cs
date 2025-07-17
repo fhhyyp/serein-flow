@@ -93,7 +93,7 @@ namespace Serein.NodeFlow.Services
                 }
                 catch (Exception ex)
                 {
-                    SereinEnv.WriteLine(InfoType.ERROR, $"尝试卸载程序集[{assemblyName}]发生错误：{ex}");
+                    SereinEnv.WriteLine(InfoType.ERROR, $"尝试卸载程序集[{assemblyName}]发生错误：{ex.Message}");
                     return false;
                 }
 

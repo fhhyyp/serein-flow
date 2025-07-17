@@ -804,7 +804,7 @@ namespace Serein.Workbench.Views
             }
             catch (Exception ex)
             {
-                SereinEnv.WriteLine(InfoType.ERROR, ex.ToString());
+                SereinEnv.WriteLine(ex);
             }
         }
 
@@ -1578,7 +1578,7 @@ namespace Serein.Workbench.Views
             }
             catch (Exception ex)
             {
-                SereinEnv.WriteLine(InfoType.ERROR, ex.ToString());
+                SereinEnv.WriteLine(ex);
             }
         }
         #endregion

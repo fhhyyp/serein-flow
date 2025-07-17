@@ -21,12 +21,18 @@ namespace Serein.Script
 
         private ProgramNode? programNode;
 
-        public Type ParserScript(Dictionary<string, Type> argTypes, string script)
+        /// <summary>
+        /// 解析脚本
+        /// </summary>
+        /// <param name="script">脚本</param>
+        /// <param name="argTypes">挂载的变量</param>
+        /// <returns></returns>
+        public Type ParserScript(string script, Dictionary<string, Type>? argTypes = null)
         {
             SereinScriptParser parser = new SereinScriptParser();
             var programNode =  parser.Parse(script);
             TypeAnalysis.NodeSymbolInfos.Clear(); // 清空符号表
-            TypeAnalysis.LoadSymbol(argTypes); // 提前加载脚本节点定义的符号
+            if(argTypes is not null) TypeAnalysis.LoadSymbol(argTypes); // 提前加载脚本节点定义的符号
             TypeAnalysis.Analysis(programNode); // 分析节点类型
             var returnType = TypeAnalysis.NodeSymbolInfos[programNode]; // 获取返回类型
             this.programNode = programNode;

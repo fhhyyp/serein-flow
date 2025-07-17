@@ -135,7 +135,7 @@ namespace Serein.Library.Web
             }
             catch (Exception ex)
             {
-                SereinEnv.WriteLine(InfoType.ERROR, ex.ToString());
+                SereinEnv.WriteLine(ex);
             }
         }
 
