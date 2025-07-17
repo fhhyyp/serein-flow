@@ -668,7 +668,7 @@ namespace Serein.Script
                     }
                     else
                     {
-                        throw new Exception("类型构造器词法分析异常");
+                        throw new Exception($"类型构造器词法分析异常。{_currentToken.ToString()}");
                     }
                 }
                 NextToken(); // 消耗 "}"
@@ -951,6 +951,10 @@ namespace Serein.Script
                 {
                     var peekToken = _currentToken; // _lexer.PeekToken(); // 获取下一个token开始判断
                     source = nodes[^1]; // 重定向节点
+                    if(source.StartIndex == 501)
+                    {
+
+                    }
                     if (peekToken.Type == TokenType.Dot) // 从对象获取
                     {
                         /*
@@ -962,6 +966,7 @@ namespace Serein.Script
                         var peekToken3 = _lexer.PeekToken();
                         ASTNode tempNode = peekToken3.Type switch
                         {
+                            TokenType.Comma => ParseMemberAccessNode(source), // 获取对象中的成员 source.Value...
                             TokenType.Operator => ParseMemberAccessNode(source), // 获取对象中的成员 source.Value...
                             TokenType.Dot => ParseMemberAccessNode(source), // 获取对象中的成员 source.Value...
                             TokenType.Semicolon => ParseMemberAccessNode(source), // 获取对象中的成员 source.Value...

@@ -273,7 +273,6 @@ namespace Serein.NodeFlow.Model
                 return ConvertHelper.ValueParse<int>(value);
             }
             
-
             #endregion
 
             public static int len(object target)
@@ -315,6 +314,11 @@ namespace Serein.NodeFlow.Model
             public static object obj(Type type)
             {
                 return Activator.CreateInstance(type);
+            }
+
+            public static object global(string name)
+            {
+                return SereinEnv.GetFlowGlobalData(name);
             }
 
             public static Type type(object type)

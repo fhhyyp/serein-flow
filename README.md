@@ -60,29 +60,22 @@ https://space.bilibili.com/33526379
   * 描述：有时我们需要定义一个临时的类对象，但又不想在代码中写死属性，又或者某些流程操作中，因为业务场景需要布置大量的逻辑判断，导致流程图变得极为臃肿不堪入目，于是引入了脚本节点。脚本节点动态能力强，不同于表达式使用递归下降，而是基于AST抽象语法树调用相应的C#代码，性能至少差强人意。
   * 使用方式：
   ```
-  // 定义一个类
+  // 入参是一个对象，入参每次是 info ，有 Var 、 Data属性。
   class Info{
     string PlcName;
     string Content;
     string LogType;
     DateTime LogTime;
   }
-
-   // 获取必要的参数
-  let flow = GetFlowApi(); // 脚本默认挂载的方法，获取脚本流程的API
-  let context = GetFlowContext(); // 脚本解释器内置的方法，用以获取当前流程上下文
   
-  let plc = flow.GetGlobalData("JC-PLC"); // 流程API对应的方法，获取全局数据
-  let arg = flow.GetArgData(context, 0); // 从当前流程上下文获取第一个入参
-  //let arg = flow.GetFlowData(context); // 从当前流程上下文获取运行时上一个节点的返回对象
-  let varInfo = arg.Var; // 获取入参对象的Var属性
-  let data = arg.Data; // 获取入参对象的Data属性
-
-  let log = new Info(); // 创建一个类
-  log.Content =  plc + " " + varInfo + " - 状态 Value  : " + data;
-  log.PlcName = plc.Name;
-  log.LogType = "info";
-  log.LogTime = GetNow(); // 脚本默认挂载的方法，获取当前时间
+  plc = global("JC-PLC"); // 获取全局数据节点中的数据
+  
+  log = new Info() { // 创建一个类
+    Content =  plc + " " + info.Var + " - 状态 Value  : " + info.Data,
+    PlcName = plc.Name,
+    LogType = "info",
+    LogTime = now(), // 脚本默认挂载的方法，获取当前时间
+  };
   return log; // 返回对象
   ```
 * **GlobalData - 全局数据节点**
@@ -96,8 +89,7 @@ https://space.bilibili.com/33526379
        ~~~
     2. Script代码：
        ~~~~
-       let flow = GetFlowApi(); // 获取流程API
-       let data = flow.GetGlobalData("KeyName"); // 获取全局数据
+       data = global("YOUR-NAME"); // 获取全局数据节点中的数据
        ~~~~
     3. C# 代码中（不建议）：
        ~~~
@@ -157,27 +149,27 @@ https://space.bilibili.com/33526379
     * < type> ：指定需要转换为某个类型，可不选。
     * [value] ： 条件值
     * 使用示例：
-~~~
-场景1：上一个节点传入了该对象（伪代码）：
-class Data
-{
-    string Name; // 性能
-    string Age; // 年龄，外部传入了文本类型
-    string IdentityCardNumber; // 身份证号
+    ~~~
+    场景1：上一个节点传入了该对象（伪代码）：
+    class Data
+    {
+        string Name; // 性能
+        string Age; // 年龄，外部传入了文本类型
+        string IdentityCardNumber; // 身份证号
 
-}
-需求：需要判断年龄是否在某个区间，例如需要大于18岁，小于35岁。
-条件表达式：.Age<int> in 18-35
+    }
+    需求：需要判断年龄是否在某个区间，例如需要大于18岁，小于35岁。
+    条件表达式：.Age<int> in 18-35
 
   
 
-需求：需要判断是否是北京身份证（开头为”1100”）。
-条件表达式：.IdentityCardNumber sw 1100
-另一种方法：
-      入参使用表达式：@Get .IdentityCardNumber
-     条件表达式：sw 1100
+    需求：需要判断是否是北京身份证（开头为”1100”）。
+    条件表达式：.IdentityCardNumber sw 1100
+    另一种方法：
+          入参使用表达式：@Get .IdentityCardNumber
+         条件表达式：sw 1100
 
-~~~
+    ~~~
 ## 3. 从DLL生成控件的枚举值：
 * **Action - 动作**
   * 入参：自定义。如果入参类型为IDynamicContext，会传入当前的上下文；如果入参类型为IFlowNode，会传入节点对应的实体Model。如果不显式指定参数来源，参数会尝试获取运行时上一节点返回值，并根据当前入参类型尝试进行类型转换。
@@ -204,46 +196,46 @@ class Data
   * 描述：将类库中的WPF UserControl嵌入并显示在一个节点上，显示在工作台UI中。例如在视觉处理流程中，需要即时的显示图片。
   * 关于 IEmbeddedContent 接口
     * IEmbeddedContent 需要由你实现，框架并不负责
-```
-	  [DynamicFlow("[界面显示]")]
-	  internal class FlowControl
-	  {
-		  [NodeAction(NodeType.UI)]
-		  public async Task<IEmbeddedContent> CreateImageControl(DynamicContext context)
-		  {
-			  WpfUserControlAdapter adapter = null;
-			  // 其实你也可以直接创建实例
-			  // 但如果你的实例化操作涉及到了对UI元素修改，还是建议像这里一样使用异步方法
-			  await context.Env.UIContextOperation.InvokeAsync(() =>
-			  {
-				  var userControl = new UserControl();
-				  adapter = new WpfUserControlAdapter(userControl, userControl);
-			  });
-			  return adapter;
-		  }
-	  }
-	public class WpfUserControlAdapter : IEmbeddedContent
-	{
-		private readonly UserControl userControl;
-		private readonly IFlowControl flowControl;
+    ```
+	        [DynamicFlow("[界面显示]")]
+	        internal class FlowControl
+	        {
+		        [NodeAction(NodeType.UI)]
+		        public async Task<IEmbeddedContent> CreateImageControl(DynamicContext context)
+		        {
+			        WpfUserControlAdapter adapter = null;
+			        // 其实你也可以直接创建实例
+			        // 但如果你的实例化操作涉及到了对UI元素修改，还是建议像这里一样使用异步方法
+			        await context.Env.UIContextOperation.InvokeAsync(() =>
+			        {
+				        var userControl = new UserControl();
+				        adapter = new WpfUserControlAdapter(userControl, userControl);
+			        });
+			        return adapter;
+		        }
+	        }
+	    public class WpfUserControlAdapter : IEmbeddedContent
+	    {
+		    private readonly UserControl userControl;
+		    private readonly IFlowControl flowControl;
 
-		public WpfUserControlAdapter(UserControl userControl, IFlowControl flowControl)
-		{
-			this.userControl = userControl;
-			this.flowControl= flowControl;
-		}
+		    public WpfUserControlAdapter(UserControl userControl, IFlowControl flowControl)
+		    {
+			    this.userControl = userControl;
+			    this.flowControl= flowControl;
+		    }
 
-		public IFlowControl GetFlowControl()
-		{
-			return flowControl;
-		}
+		    public IFlowControl GetFlowControl()
+		    {
+			    return flowControl;
+		    }
 
-		public object GetUserControl()
-		{
-			return userControl;
-		}
-	}
-```
+		    public object GetUserControl()
+		    {
+			    return userControl;
+		    }
+	    }
+    ```
   
 ## 演示：
     ![image1](https://github.com/fhhyyp/serein-flow/blob/cc5f8255135b96c6bb3669bc4aa8d8167a71c262/Image/%E6%BC%94%E7%A4%BA%20-%201.png)
