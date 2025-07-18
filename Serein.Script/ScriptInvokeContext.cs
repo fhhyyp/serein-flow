@@ -4,9 +4,20 @@ namespace Serein.Script
 {
     public class ScriptInvokeContext : IScriptInvokeContext
     {
+        /// <summary>
+        /// 脚本使用流程上下文
+        /// </summary>
+        /// <param name="dynamicContext"></param>
         public ScriptInvokeContext(IDynamicContext dynamicContext)
         {
             FlowContext = dynamicContext;
+        }
+        
+        /// <summary>
+        /// 不使用流程上下文
+        /// </summary>
+        public ScriptInvokeContext()
+        {
         }
 
         public IDynamicContext FlowContext{ get; }

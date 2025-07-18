@@ -1,4 +1,5 @@
 ﻿using Serein.Library;
+using Serein.Library.Api;
 using Serein.Script.Node;
 using Serein.Script.Node.FlowControl;
 using System;
@@ -15,6 +16,9 @@ namespace Serein.Script
 
     public class SereinScript
     {
+
+      
+
         /// <summary>
         /// 类型分析
         /// </summary>
@@ -23,6 +27,21 @@ namespace Serein.Script
 
 
         private ProgramNode? programNode;
+
+
+        public static Task<object?> ExecuteAsync(string script, Dictionary<string, Type>? argTypes = null)
+        {
+            SereinScriptParser parser = new SereinScriptParser();
+            SereinScriptTypeAnalysis analysis = new SereinScriptTypeAnalysis();
+            var programNode = parser.Parse(script);
+            analysis.NodeSymbolInfos.Clear(); // 清空符号表
+            if (argTypes is not null) analysis.LoadSymbol(argTypes); // 提前加载脚本节点定义的符号
+            analysis.Analysis(programNode); // 分析节点类型
+            SereinScriptInterpreter Interpreter = new SereinScriptInterpreter(analysis.NodeSymbolInfos);
+            IScriptInvokeContext context = new ScriptInvokeContext();
+            var task =  Interpreter.InterpreterAsync(context, programNode);
+            return task; // 脚本返回类型
+        }
 
         /// <summary>
         /// 解析脚本

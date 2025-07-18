@@ -295,7 +295,7 @@ namespace Serein.Script
                     async Task<object?> InterpreterFunctionCallNodeAsync(IScriptInvokeContext context, FunctionCallNode functionCallNode)
                     {
                         // 获取流程上下文
-                        if (functionCallNode.FunctionName.Equals("getFlowApi", StringComparison.OrdinalIgnoreCase))
+                        if (context.FlowContext != null && functionCallNode.FunctionName.Equals("getFlowApi", StringComparison.OrdinalIgnoreCase))
                         {
                             return context.FlowContext;
                         }

@@ -5,6 +5,7 @@ using Serein.Library.Api;
 using Serein.Library.Utils;
 using Serein.NodeFlow.Env;
 using Serein.NodeFlow.Services;
+using Serein.Script;
 using Serein.Workbench.Api;
 using Serein.Workbench.Services;
 using Serein.Workbench.ViewModels;
@@ -56,22 +57,31 @@ namespace Serein.Workbench
         // 这里是测试代码，可以删除
         private async Task LoadLocalProjectAsync()
         {
-            var properties = new Dictionary<string, Type>
-            {
-                { "Id", typeof(int) },
-                { "Name", typeof(string) },
-                { "CreateTime", typeof(DateTime) }
-            };
+            var script = """
+            x = 114514;
+            x = (x * 100000000000) + x;
+            value = "调用";
+            value =  value + "委托";
+            return value + x;
+            """;
+            var result = await SereinScript.ExecuteAsync(script);
 
-            var type = DynamicObjectHelper.CreateTypeWithINotifyPropertyChanged(properties, "MyDynamicClass");
-            dynamic? obj = Activator.CreateInstance(type);
-            if(obj is null) return;
-            if (obj is INotifyPropertyChanged npc)
-            {
-                npc.PropertyChanged += (s, e) => Debug.WriteLine($"属性改变: {e.PropertyName}");
-            }
-            obj.Name = "下北泽";
-            obj.Id = 114514;
+            /* var properties = new Dictionary<string, Type>
+             {
+                 { "Id", typeof(int) },
+                 { "Name", typeof(string) },
+                 { "CreateTime", typeof(DateTime) }
+             };
+
+             var type = DynamicObjectHelper.CreateTypeWithINotifyPropertyChanged(properties, "MyDynamicClass");
+             dynamic? obj = Activator.CreateInstance(type);
+             if(obj is null) return;
+             if (obj is INotifyPropertyChanged npc)
+             {
+                 npc.PropertyChanged += (s, e) => Debug.WriteLine($"属性改变: {e.PropertyName}");
+             }
+             obj.Name = "下北泽";
+             obj.Id = 114514;*/
 
 
             if (1 == 11)
