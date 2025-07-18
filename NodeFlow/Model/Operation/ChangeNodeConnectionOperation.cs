@@ -172,6 +172,11 @@ namespace Serein.NodeFlow.Model.Operation
             #region 类型检查
             bool checkTypeState = true;
             List<ParameterDetails> toPds = new List<ParameterDetails>();
+            if(ToNode.MethodDetails.ParameterDetailss is null)
+            {
+                SereinEnv.WriteLine(InfoType.WARN, "目标节点没有入参参数，无法进行连接");
+                return false;
+            }
             if (ToNode.MethodDetails.ParameterDetailss.Length > 0)
             {
                 var fromNoeReturnType = fromNode.MethodDetails.ReturnType;
@@ -460,16 +465,17 @@ namespace Serein.NodeFlow.Model.Operation
                           NodeConnectChangeEventArgs.ConnectChangeType.Remove));
                 });
             }
-
-            ToNode.MethodDetails.ParameterDetailss[ArgIndex].ArgDataSourceNodeGuid = FromNode.Guid; 
-            ToNode.MethodDetails.ParameterDetailss[ArgIndex].ArgDataSourceType = ConnectionArgSourceType;
+            var toNodePd = ToNode.MethodDetails.ParameterDetailss[ArgIndex];
+            toNodePd.ArgDataSourceNodeGuid = FromNode.Guid;
+            toNodePd.ArgDataSourceType = ConnectionArgSourceType;
             FromNode.NeedResultNodes[type].Add(ToNode);
-
+            toNodePd.IsExplicitData = false;
             if (ToNode.ControlType == NodeControlType.Script)
             {
                 // 脚本节点入参确定/改变来源时，更改对应的入参数据类型
-                ToNode.MethodDetails.ParameterDetailss[ArgIndex].DataType = FromNode.MethodDetails.ReturnType;
+                toNodePd.DataType = FromNode.MethodDetails.ReturnType;
             }
+
 
             await TriggerEvent(() =>
             {

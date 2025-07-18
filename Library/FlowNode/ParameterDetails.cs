@@ -35,8 +35,8 @@ namespace Serein.Library
 
         /// <summary>
         /// <para>是否为显式参数（固定值/表达式）</para>
-        /// <para>如果为 true ，则使用UI输入的文本值作为入参数据（过程中会尽可能转为类型需要的数据）。</para>
-        /// <para>如果为 false ，则根据 ArgDataSourceType 调用相应节点的GetFlowData()方法，获取返回的数据作为入参数据。</para>
+        /// <para>如果为 true ，则使用UI输入的文本值作为入参数据。</para>
+        /// <para>如果为 false ，则在当前流程上下文中，根据 ArgDataSourceNodeGuid 查找到对应节点，并根据 ArgDataSourceNodeGuid 判断如何获取其返回的数据，以此作为入参数据。</para>
         /// </summary>
         [PropertyInfo(IsNotification = true)] 
         private bool _isExplicitData ;
@@ -50,6 +50,7 @@ namespace Serein.Library
         /// <summary>
         /// 方法入参若无相关转换器特性标注，则无需关注该变量。该变量用于需要用到枚举BinValue转换器时，指示相应的入参变量需要转为的类型。
         /// </summary>
+        [Obsolete("转换器特性将在下一个大版本中移除")]
         [PropertyInfo]
         private Type _explicitType ;
 
