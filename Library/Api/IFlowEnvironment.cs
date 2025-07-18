@@ -759,8 +759,7 @@ namespace Serein.Library.Api
 
 
         /// <summary>
-        /// <para>单例模式IOC容器，内部维护了一个实例字典，默认使用类型的FullName作为Key，如果以“接口-实现类”的方式注册，那么将使用接口类型的FullName作为Key。</para>
-        /// <para>当某个类型注册绑定成功后，将不会因为其它地方尝试注册相同类型的行为导致类型被重新创建。</para>
+        /// <para>运行环境使用的IOC，默认情况下无需对其进行调用</para>
         /// </summary>
         ISereinIOC IOC { get; }
 

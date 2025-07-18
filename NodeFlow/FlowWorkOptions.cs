@@ -34,6 +34,10 @@ namespace Serein.NodeFlow
     public class FlowWorkOptions()
     {
         /// <summary>
+        /// 流程IOC容器
+        /// </summary>
+        public ISereinIOC FlowIOC { get; set; } 
+        /// <summary>
         /// 流程运行环境
         /// </summary>
         public IFlowEnvironment Environment { get; set; }// = environment;
@@ -46,7 +50,7 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 上下文线程池
         /// </summary>
-        public Serein.Library.Utils.ObjectPool<IDynamicContext> FlowContextPool { get; set; }
+        public Serein.Library.Utils.ObjectPool<IDynamicContext> FlowContextPool { get;  set; } 
 
         /// <summary>
         /// 每个画布需要启用的节点

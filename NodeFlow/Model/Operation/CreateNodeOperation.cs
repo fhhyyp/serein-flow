@@ -69,11 +69,11 @@ namespace Serein.NodeFlow.Model.Operation
         public override async Task<bool> ExecuteAsync()
         {
             if (!ValidationParameter()) return false; // 执行时验证
-
+            
             IFlowNode? nodeModel;
             if (IsBaseNode)
             {
-                nodeModel = FlowNodeExtension.CreateNode(flowEnvironment, NodeControlType); // 加载基础节点
+                nodeModel = FlowNodeExtension.CreateNode(flowEnvironment.IOC, NodeControlType); // 加载基础节点
             }
             else
             {
@@ -89,7 +89,7 @@ namespace Serein.NodeFlow.Model.Operation
                     return false;
                     //throw new InvalidOperationException($"无法创建节点，因为没有找到{MethodDetailsInfo.AssemblyName}.{MethodDetailsInfo.MethodName}方法，请检查是否已加载对应程序集");
                 }
-                nodeModel = FlowNodeExtension.CreateNode(flowEnvironment, NodeControlType, methodDetails); // 一般的加载节点方法
+                nodeModel = FlowNodeExtension.CreateNode(flowEnvironment.IOC, NodeControlType, methodDetails); // 一般的加载节点方法
             }
 
             nodeModel.Guid ??= Guid.NewGuid().ToString();

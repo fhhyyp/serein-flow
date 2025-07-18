@@ -10,6 +10,9 @@ using System.Threading.Tasks;
 
 namespace Serein.Script
 {
+    
+
+
     public class SereinScript
     {
         /// <summary>
@@ -47,7 +50,7 @@ namespace Serein.Script
             }
             Dictionary<ASTNode, Type> symbolInfos = TypeAnalysis.NodeSymbolInfos.ToDictionary();
             SereinScriptInterpreter Interpreter = new SereinScriptInterpreter(symbolInfos);
-            return await Interpreter.InterpretAsync(context, programNode);
+            return await Interpreter.InterpreterAsync(context, programNode);
         }
 
 

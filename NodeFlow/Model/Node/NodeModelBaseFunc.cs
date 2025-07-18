@@ -141,11 +141,11 @@ namespace Serein.NodeFlow.Model
             }
             else
             {
-                var instance = Env.IOC.Get(md.ActingInstanceType);
+                var instance = Env.FlowControl.IOC.Get(md.ActingInstanceType);
                 if (instance is null)
                 {
-                    Env.IOC.Register(md.ActingInstanceType).Build();
-                    instance = Env.IOC.Get(md.ActingInstanceType);
+                    Env.FlowControl.IOC.Register(md.ActingInstanceType).Build();
+                    instance = Env.FlowControl.IOC.Get(md.ActingInstanceType);
                 }
                 object[] args = await this.GetParametersAsync(context, token);
                 var result = await dd.InvokeAsync(instance, args);

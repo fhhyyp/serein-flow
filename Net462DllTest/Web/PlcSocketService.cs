@@ -33,23 +33,25 @@ namespace Net462DllTest.Web
         [NodeAction(NodeType.Init)]
         public void Init(IDynamicContext context)
         {
-            context.Env.IOC.Register<WebSocketServer>();
-            context.Env.IOC.Register<WebSocketClient>();
+            var ioc = context.Env.FlowControl.IOC;
+            ioc.Register<WebSocketServer>();
+            ioc.Register<WebSocketClient>();
 
-            context.Env.IOC.Register<IRouter, Router>();
-            context.Env.IOC.Register<WebApiServer>();
+            ioc.Register<IRouter, Router>();
+            ioc.Register<WebApiServer>();
         }
 
         [NodeAction(NodeType.Loading)] // Loading 初始化完成已注入依赖项，可以开始逻辑上的操作
         public void Loading(IDynamicContext context)
         {
+            var ioc = context.Env.FlowControl.IOC;
             // 注册控制器
-            context.Env.IOC.Run<IRouter, WebApiServer>((router, apiServer) => {
+            ioc.Run<IRouter, WebApiServer>((router, apiServer) => {
                 router.AddHandle(typeof(FlowController));
                 apiServer.Start("http://*:8089/"); // 开启 Web Api 服务
             });
 
-            context.Env.IOC.Run<WebSocketServer>(async (socketServer) => {
+            ioc.Run<WebSocketServer>(async (socketServer) => {
                 socketServer.MsgHandleHelper.AddModule(this, (ex, recover) =>
                 {
                     recover(new
@@ -61,7 +63,7 @@ namespace Net462DllTest.Web
                 });
                 await socketServer.StartAsync("http://localhost:5005/"); // 开启 Web Socket 监听
             });
-            context.Env.IOC.Run<WebSocketClient>(async client => {
+            ioc.Run<WebSocketClient>(async client => {
                 await client.ConnectAsync("ws://localhost:5005/"); // 连接到服务器
             });
         }
@@ -69,12 +71,13 @@ namespace Net462DllTest.Web
         [NodeAction(NodeType.Exit)] // 流程结束时自动执行
         public void Exit(IDynamicContext context)
         {
-            context.Env.IOC.Run<WebApiServer>((apiServer) =>
+            var ioc = context.Env.FlowControl.IOC;
+            ioc.Run<WebApiServer>((apiServer) =>
             {
                 apiServer?.Stop(); // 关闭 Web 服务
 
             });
-            context.Env.IOC.Run<WebSocketServer>((socketServer) =>
+            ioc.Run<WebSocketServer>((socketServer) =>
             {
                 socketServer.MsgHandleHelper.RemoveModule(this);
                 socketServer?.Stop(); // 关闭 Web 服务

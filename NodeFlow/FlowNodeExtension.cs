@@ -1,6 +1,7 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.Utils;
+using Serein.NodeFlow.Env;
 using Serein.NodeFlow.Model;
 using System.Collections.Concurrent;
 using System.ComponentModel;
@@ -51,18 +52,17 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 创建节点
         /// </summary>
-        /// <param name="env">运行环境</param>
+        /// <param name="envIOC">运行环境使用的IOC</param>
         /// <param name="nodeControlType">节点类型</param>
         /// <param name="methodDetails">方法描述</param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public static IFlowNode CreateNode(IFlowEnvironment env, NodeControlType nodeControlType,
-            MethodDetails? methodDetails = null)
+        public static IFlowNode CreateNode(ISereinIOC envIOC, NodeControlType nodeControlType,  MethodDetails? methodDetails = null)
         {
 
             // 尝试获取需要创建的节点类型
-
-            if (!env.FlowEdit.NodeMVVMManagement.TryGetType(nodeControlType, out var nodeMVVM) || nodeMVVM.ModelType == null)
+            var flowEdit = envIOC.Get<IFlowEdit>();
+            if (!flowEdit.NodeMVVMManagement.TryGetType(nodeControlType, out var nodeMVVM) || nodeMVVM.ModelType == null)
             {
                 throw new Exception($"无法创建{nodeControlType}节点，节点类型尚未注册。");
             }
@@ -70,7 +70,7 @@ namespace Serein.NodeFlow
 
             // 生成实例
             //var nodeObj = Activator.CreateInstance(nodeMVVM.ModelType, env);
-            var nodeObj = env.IOC.CreateObject(nodeMVVM.ModelType);
+            var nodeObj = envIOC.CreateObject(nodeMVVM.ModelType);
             if (nodeObj is not IFlowNode nodeModel)
             {
                 throw new Exception($"无法创建目标节点类型的实例[{nodeControlType}]");

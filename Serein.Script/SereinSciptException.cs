@@ -13,4 +13,5 @@ namespace Serein.Script
             Message = $"异常信息 : {message} ，代码在第{node.Row}行: {node.Code.Trim()}";
         }
     }
+
 }

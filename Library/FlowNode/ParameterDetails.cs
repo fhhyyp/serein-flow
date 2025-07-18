@@ -335,7 +335,7 @@ namespace Serein.Library
 
 
 
-            #region “枚举-类型”转换器
+            /*#region “枚举-类型”转换器
             if (ExplicitType is not null && ExplicitType.IsEnum && DataType != ExplicitType)
             {
                 var resultEnum = Enum.Parse(ExplicitType, DataValue);
@@ -347,7 +347,7 @@ namespace Serein.Library
                     return value;
                 }
             } 
-            #endregion
+            #endregion*/
 
             // 需要获取预入参数据
             object inputParameter;

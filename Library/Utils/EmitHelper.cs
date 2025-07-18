@@ -17,15 +17,26 @@ namespace Serein.Library.Utils
 
         public class EmitMethodInfo
         {
+            /// <summary>
+            /// 方法声明类型
+            /// </summary>
             public Type DeclaringType {  get; set; }
+
+            /// <summary>
+            /// 方法类型
+            /// </summary>
+            public EmitMethodType EmitMethodType   { get; set; }
+
             /// <summary>
             /// 是异步方法
             /// </summary>
-            public bool IsTask { get; set; }
+            public bool IsAsync { get; set; }
             /// <summary>
             /// 是静态的
             /// </summary>
             public bool IsStatic { get; set; }
+
+            
         }
 
         public enum EmitMethodType
@@ -41,16 +52,7 @@ namespace Serein.Library.Utils
             /// <summary>
             /// 有返回值的异步方法
             /// </summary>
-            HasResultTask,
-
-            /// <summary>
-            /// 普通的方法。如果方法返回void时，将会返回null。
-            /// </summary>
-            StaticFunc,
-            /// <summary>
-            /// 无返回值的异步方法
-            /// </summary>
-            StaticTask,
+            TaskHasResult,
         }
 
         public static bool IsGenericTask(Type returnType, out Type taskResult)
@@ -179,26 +181,31 @@ namespace Serein.Library.Utils
             }
             // 处理返回值，如果没有返回值，则返回null
             il.Emit(OpCodes.Ret); // 返回
+            EmitMethodType emitMethodType;
             if (IsTask)
             {
                 if (IsTaskGenerics)
                 {
+                    emitMethodType = EmitMethodType.TaskHasResult;
                     @delegate = dynamicMethod.CreateDelegate(typeof(Func<object, object[], Task<object>>));
                 }
                 else
                 {
+                    emitMethodType = EmitMethodType.Task;
                     @delegate = dynamicMethod.CreateDelegate(typeof(Func<object, object[], Task>));
                 }
             }
             else
             {
+                emitMethodType = EmitMethodType.Func;
                 @delegate = dynamicMethod.CreateDelegate(typeof(Func<object, object[], object>));
 
             }
             return new EmitMethodInfo
             {
+                EmitMethodType = emitMethodType,
                 DeclaringType = methodInfo.DeclaringType,
-                IsTask = IsTask,
+                IsAsync = IsTask,
                 IsStatic = isStatic
             };
         }

@@ -14,7 +14,7 @@ namespace Serein.Script
         /// <summary>
         /// 定义的变量
         /// </summary>
-        private Dictionary<string, object> _variables = new Dictionary<string, object>();
+        private Dictionary<string, object?> _variables = new Dictionary<string, object?>();
 
         /// <summary>
         /// 取消令牌源，用于控制脚本的执行

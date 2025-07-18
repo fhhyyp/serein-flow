@@ -3,6 +3,7 @@ using Serein.Library.Api;
 using Serein.Library.Utils;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -77,7 +78,8 @@ namespace Serein.Library
 
         partial void OnIsInterruptChanged(bool oldValue, bool newValue)
         {
-            if (newValue && _getInterruptTask is null)
+            Debug.WriteLine($" {nameof(NodeDebugSetting)}.{nameof(NodeDebugSetting.OnIsInterruptChanged)} 暂未实现，需要重新设计中断逻辑");
+            /*if (newValue && _getInterruptTask is null)
             {
                 // 设置获取中断的委托
                 _getInterruptTask = () => NodeModel.Env.IOC.Get<FlowInterruptTool>().WaitTriggerAsync(NodeModel.Guid);
@@ -97,7 +99,7 @@ namespace Serein.Library
                     _getInterruptTask = null;
                 }
 
-            }
+            }*/
         }
 
 

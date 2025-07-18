@@ -17,9 +17,10 @@ namespace Serein.Library.Api
         string Guid {get; }
 
         /// <summary>
-        /// 运行环境，包含IOC容器。
+        /// 运行环境
         /// </summary>
         IFlowEnvironment Env { get; }
+
 
         /// <summary>
         /// 是否正在运行

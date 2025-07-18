@@ -128,6 +128,7 @@ namespace Serein.Library.Utils
             total += ms;
 
             Console.WriteLine($"运行1次耗时 :{total} 毫秒：");
+            Debug.WriteLine($"运行1次耗时 :{total} 毫秒：");
             return result;
         }
     }

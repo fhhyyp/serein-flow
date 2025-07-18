@@ -39,11 +39,11 @@ namespace Serein.NodeFlow.Model
                 throw new Exception("不存在对应委托");
             }
 
-            var instance = context.Env.IOC.Get(md.ActingInstanceType);
+            var instance = Env.FlowControl.IOC.Get(md.ActingInstanceType);
             if (instance is null)
             {
-                Env.IOC.Register(md.ActingInstanceType).Build();
-                instance = Env.IOC.Get(md.ActingInstanceType);
+                Env.FlowControl.IOC.Register(md.ActingInstanceType).Build();
+                instance = Env.FlowControl.IOC.Get(md.ActingInstanceType);
             }
             await dd.InvokeAsync(instance, [context]);
             var args = await this.GetParametersAsync(context, token);

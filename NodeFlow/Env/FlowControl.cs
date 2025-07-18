@@ -35,18 +35,43 @@ namespace Serein.NodeFlow.Env
             this.flowOperationService = flowOperationService;
             this.flowModelService = flowModelService;
             this.UIContextOperation = UIContextOperation;
+
             contexts = new ObjectPool<IDynamicContext>(() => new DynamicContext(flowEnvironment));
         }
 
         private ObjectPool<IDynamicContext> contexts;
         private FlowWorkManagement flowWorkManagement;
-        private ISereinIOC sereinIOC;
-
-
+        private ISereinIOC externalIOC;
+        private Action<ISereinIOC> setDefultMemberOnReset;
+        private bool IsUseExternalIOC = false;
+        private object lockObj = new object();
         /// <summary>
         /// 如果全局触发器还在运行，则为 Running 。
         /// </summary>
         private RunState FlipFlopState = RunState.NoStart;
+
+        /// <summary>
+        /// 运行时的IOC容器
+        /// </summary>
+        public ISereinIOC IOC
+        {
+            get
+            {
+                lock (lockObj)
+                {
+                    if (externalIOC is null) externalIOC = new SereinIOC();
+                    return externalIOC;
+                }
+
+            }
+            private set
+            {
+                lock (lockObj) 
+                {
+                    externalIOC = value;
+                }
+            }
+        }
 
         /// <inheritdoc/>
         public async Task<bool> StartFlowAsync(string[] canvasGuids)
@@ -104,13 +129,14 @@ namespace Serein.NodeFlow.Env
                 flowTasks.Add(guid, ft);
             }
             #endregion
-
-            sereinIOC.Reset();
-            sereinIOC.Register<IFlowEnvironment>(() => flowEnvironment);
-            sereinIOC.Register<IScriptFlowApi, ScriptFlowApi>(); // 注册脚本接口
+            IOC.Reset();
+            setDefultMemberOnReset?.Invoke(IOC);
+            IOC.Register<IFlowEnvironment>(() => flowEnvironment);
+            //externalIOC.Register<IScriptFlowApi, ScriptFlowApi>(); // 注册脚本接口
 
             var flowTaskOptions = new FlowWorkOptions
             {
+                FlowIOC = IOC,
                 Environment = flowEnvironment, // 流程
                 Flows = flowTasks,
                 FlowContextPool = contexts, // 上下文对象池
@@ -143,9 +169,9 @@ namespace Serein.NodeFlow.Env
         /// <inheritdoc/>
         public async Task<TResult> StartFlowAsync<TResult>(string startNodeGuid)
         {
-
             var flowTaskOptions = new FlowWorkOptions
             {
+                FlowIOC = IOC,
                 Environment = flowEnvironment, // 流程
                 FlowContextPool = contexts, // 上下文对象池
             };
@@ -203,7 +229,7 @@ namespace Serein.NodeFlow.Env
         {
             flowWorkManagement?.Exit();
             UIContextOperation?.Invoke(() => flowEnvironmentEvent.OnFlowRunComplete(new FlowEventArgs()));
-            sereinIOC.Reset();
+            IOC.Reset();
             flowWorkManagement = null;
             GC.Collect();
             return Task.FromResult(true);
@@ -240,9 +266,11 @@ namespace Serein.NodeFlow.Env
              }*/
         }
         /// <inheritdoc/>
-        public void UseExternalIOC(ISereinIOC ioc)
+        public void UseExternalIOC(ISereinIOC ioc, Action<ISereinIOC> setDefultMemberOnReset = null)
         {
-            this.sereinIOC = ioc; // 设置IOC容器
+            IOC = ioc; // 设置IOC容器
+            this.setDefultMemberOnReset = setDefultMemberOnReset;
+            IsUseExternalIOC = true;
         }
         /// <inheritdoc/>
         public void MonitorObjectNotification(string nodeGuid, object monitorData, MonitorObjectEventArgs.ObjSourceType sourceType)
@@ -270,10 +298,6 @@ namespace Serein.NodeFlow.Env
         /// <inheritdoc/>
         public async Task<TResult> InvokeAsync<TResult>(string apiGuid, Dictionary<string, object>  dict)
         {
-            if (sereinIOC is null)
-            {
-                sereinIOC = flowEnvironment.IOC;
-            }
             if (!flowModelService.TryGetNodeModel(apiGuid, out var nodeModel))
             {
                 throw new ArgumentNullException($"不存在流程接口：{apiGuid}");

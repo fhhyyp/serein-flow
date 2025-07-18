@@ -13,7 +13,7 @@ namespace Serein.Script
         IDynamicContext FlowContext { get; }
 
         /// <summary>
-        /// 是否该退出了（由外部发出停止信号）
+        /// 是否该退出了（由 TokenSource 控制，用于响应外部发出停止信号）
         /// </summary>
         bool IsReturn { get; }
 
@@ -40,7 +40,7 @@ namespace Serein.Script
         /// <param name="varName"></param>
         /// <param name="value"></param>
         /// <returns></returns>
-        bool SetVarValue(string varName, object value);
+        bool SetVarValue(string varName, object? value);
 
         /// <summary>
         /// 结束调用

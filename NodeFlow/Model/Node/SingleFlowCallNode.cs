@@ -246,6 +246,10 @@ namespace Serein.NodeFlow.Model
             }
             else
             {
+                /*var tempName = node.MethodDetails.MethodName;
+                var index = node.MethodDetails.MethodName.IndexOf('(');
+                var methodName = tempName[..(index - 1)];
+                return GetApiInvokeName(node, methodName);*/
                 FlowLibraryService service = node.Env.IOC.Get<FlowLibraryService>();
                 if (service.TryGetMethodInfo(md.AssemblyName, md.MethodName, out var methodInfo))
                 {

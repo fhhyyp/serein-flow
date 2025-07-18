@@ -161,7 +161,7 @@ namespace Serein.NodeFlow.Env
             }
             #endregion
 
-            nodeModel = FlowNodeExtension.CreateNode(flowEnvironment, controlType, methodDetails); // 加载项目时创建节点
+            nodeModel = FlowNodeExtension.CreateNode(flowEnvironment.IOC, controlType, methodDetails); // 加载项目时创建节点
             if (nodeModel is null)
             {
                 nodeInfo.Guid = string.Empty;

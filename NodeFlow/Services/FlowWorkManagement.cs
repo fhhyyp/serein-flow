@@ -113,8 +113,9 @@ namespace Serein.NodeFlow.Services
         private bool RegisterAllType(List<IFlowNode> nodes)
         {
             var env = WorkOptions.Environment;
+            var ioc = WorkOptions.FlowIOC;
 
-            
+
 
             var nodeMds = nodes.Select(item => item.MethodDetails).ToList(); // 获取环境中所有节点的方法信息 
             var allMds = new List<MethodDetails>();
@@ -127,7 +128,7 @@ namespace Serein.NodeFlow.Services
             {
                 if (md.ActingInstanceType != null)
                 {
-                    env.IOC.Register(md.ActingInstanceType);
+                    ioc.Register(md.ActingInstanceType);
                 }
                 else
                 {
@@ -135,10 +136,10 @@ namespace Serein.NodeFlow.Services
                     isSuccessful = false ;
                 }
             }
-            env.IOC.Build(); // 绑定初始化时注册的类型
+            ioc.Build(); // 绑定初始化时注册的类型
             foreach (var md in allMds)
             {
-                var instance = env.IOC.Get(md.ActingInstanceType);
+                var instance = ioc.Get(md.ActingInstanceType);
                 if (instance is null)
                 {
                     SereinEnv.WriteLine(InfoType.ERROR, $"{md.MethodName} - 无法获取类型[{md.ActingInstanceType}]的实例");
@@ -154,7 +155,7 @@ namespace Serein.NodeFlow.Services
             var env = WorkOptions.Environment;
             var initMds = WorkOptions.InitMds;
             var pool = WorkOptions.FlowContextPool;
-            var ioc = WorkOptions.Environment.IOC;
+            var ioc = WorkOptions.FlowIOC;
             foreach (var md in initMds) // 初始化
             {
                 if (!env.TryGetDelegateDetails(md.AssemblyName, md.MethodName, out var dd)) // 流程运行初始化
@@ -167,7 +168,7 @@ namespace Serein.NodeFlow.Services
                 context.Reset();
                 pool.Free(context);
             }
-            env.IOC.Build(); // 绑定初始化时注册的类型
+            ioc.Build(); // 绑定初始化时注册的类型
             var isSuccessful = true;
             return isSuccessful;
         }
@@ -176,7 +177,7 @@ namespace Serein.NodeFlow.Services
             var env = WorkOptions.Environment;
             var loadMds = WorkOptions.LoadMds;
             var pool = WorkOptions.FlowContextPool;
-            var ioc = WorkOptions.Environment.IOC;
+            var ioc = WorkOptions.FlowIOC;
             foreach (var md in loadMds) // 加载时
             {
                 if (!env.TryGetDelegateDetails(md.AssemblyName, md.MethodName, out var dd)) // 流程运行初始化
@@ -189,7 +190,7 @@ namespace Serein.NodeFlow.Services
                 context.Reset();
                 pool.Free(context);
             }
-            env.IOC.Build(); // 绑定初始化时注册的类型
+            ioc.Build(); // 绑定初始化时注册的类型
             var isSuccessful = true;
             return isSuccessful;
 
@@ -199,7 +200,7 @@ namespace Serein.NodeFlow.Services
             var env = WorkOptions.Environment;
             var mds = WorkOptions.ExitMds;
             var pool = WorkOptions.FlowContextPool;
-            var ioc = WorkOptions.Environment.IOC;
+            var ioc = WorkOptions.FlowIOC;
 
             // var fit = ioc.Get<FlowInterruptTool>();
             // fit.CancelAllTrigger(); // 取消所有中断

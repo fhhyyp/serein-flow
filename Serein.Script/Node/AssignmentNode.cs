@@ -8,17 +8,16 @@ namespace Serein.Script.Node
 {
 
     /// <summary>
-    /// 赋值节点
+    /// 变量赋值节点
     /// </summary>
     public class AssignmentNode : ASTNode
     {
         /// <summary>
         /// 变量名称
         /// </summary>
-        //public string Variable { get; }
         public ASTNode Target { get; }
         /// <summary>
-        /// 对应的节点
+        /// 值来源
         /// </summary>
         public ASTNode Value { get; }
 

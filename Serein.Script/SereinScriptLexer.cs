@@ -198,7 +198,6 @@ namespace Serein.Script
             this._index = token.StartIndex;
         }
 
-
         internal Token NextToken()
         {
             
@@ -524,7 +523,6 @@ namespace Serein.Script
             // 如果没有找到指定行，返回空的Span
             return ReadOnlySpan<char>.Empty;
         }
-
 
         public int GetIndex()
         {

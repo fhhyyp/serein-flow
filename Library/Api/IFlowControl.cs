@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Serein.Library.Api
@@ -8,6 +9,13 @@ namespace Serein.Library.Api
     /// </summary>
     public interface IFlowControl
     {
+
+        /// <summary>
+        /// <para>单例模式IOC容器，内部维护了一个实例字典，默认使用类型的FullName作为Key，如果以“接口-实现类”的方式注册，那么将使用接口类型的FullName作为Key。</para>
+        /// <para>当某个类型注册绑定成功后，将不会因为其它地方尝试注册相同类型的行为导致类型被重新创建。</para>
+        /// </summary>
+        ISereinIOC IOC { get; }
+
         /// <summary>
         /// <para>需要你提供一个由你实现的ISereinIOC接口实现类</para>
         /// <para>当你将流程运行环境集成在你的项目时，并希望流程运行时使用你提供的对象，而非自动创建</para>
@@ -15,7 +23,8 @@ namespace Serein.Library.Api
         /// <para>注意，是流程运行时，而非运行环境</para>
         /// </summary>
         /// <param name="ioc"></param>
-        void UseExternalIOC(ISereinIOC ioc);
+        /// <param name="setDefultMemberOnReset">用于每次启动时，重置IOC后默认注册某些类型</param>
+        void UseExternalIOC(ISereinIOC ioc, Action<ISereinIOC> setDefultMemberOnReset = null);
 
         /// <summary>
         /// 开始运行流程

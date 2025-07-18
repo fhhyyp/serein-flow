@@ -72,26 +72,12 @@
     <Compile Include="Enums\PlcVarName.cs" />
     <Compile Include="LogicControl\PlcLogicControl.cs" />
     <Compile Include="LogicControl\ParkingLogicControl.cs" />
-    <Compile Include="LogicControl\ViewLogicControl.cs" />
     <Compile Include="Enums\FromValue.cs" />
     <Compile Include="Signal\CommandSignal.cs" />
     <Compile Include="Signal\PLCVarSignal.cs" />
     <Compile Include="Trigger\ViewManagement.cs" />
     <Compile Include="Utils\GSModel.cs" />
     <Compile Include="Utils\RelayCommand.cs" />
-    <Compile Include="ViewModel\FromWorkBenchViewModel.cs" />
-    <Compile Include="View\FromWorkBenchView.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="View\FromWorkBenchView.Designer.cs">
-      <DependentUpon>FromWorkBenchView.cs</DependentUpon>
-    </Compile>
-    <Compile Include="View\TestFormView.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="View\TestFormView.Designer.cs">
-      <DependentUpon>TestFormView.cs</DependentUpon>
-    </Compile>
     <Compile Include="Web\FlowController.cs" />
     <Compile Include="Web\PlcSocketService.cs" />
   </ItemGroup>
@@ -100,14 +86,6 @@
       <Project>{5e19d0f2-913a-4d1c-a6f8-1e1227baa0e3}</Project>
       <Name>Serein.Library</Name>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="View\FromWorkBenchView.resx">
-      <DependentUpon>FromWorkBenchView.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="View\TestFormView.resx">
-      <DependentUpon>TestFormView.cs</DependentUpon>
-    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Properties\" />

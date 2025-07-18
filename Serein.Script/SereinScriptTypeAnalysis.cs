@@ -75,7 +75,6 @@ namespace Serein.Script
         }
 
 
-
         /// <summary>
         /// 类型获取
         /// </summary>
@@ -541,6 +540,8 @@ namespace Serein.Script
                 case TypeNode typeNode: // 类型
                     break;
                 case ObjectInstantiationNode objectInstantiationNode: // 类型实例化
+                    break;
+                case CtorAssignmentNode ctorAssignmentNode:
                     break;
                 case ExpressionNode expressionNode: // 类型表达式（链式调用）
                     break;

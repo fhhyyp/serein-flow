@@ -372,6 +372,8 @@ namespace Serein.Library
         private readonly IFlowEnvironment flowEnvironment;
         public static Serein.Library.Utils.ObjectPool<IDynamicContext> FlowContextPool { get; set; }
 
+        public ISereinIOC IOC => throw new NotImplementedException();
+
         public LightweightFlowControl(IFlowCallTree flowCallTree, IFlowEnvironment flowEnvironment)
         {
             this.flowCallTree = flowCallTree;
@@ -478,7 +480,12 @@ namespace Serein.Library
         public void UseExternalIOC(ISereinIOC ioc)
         {
             throw new NotImplementedException();
-        } 
+        }
+
+        public void UseExternalIOC(ISereinIOC ioc, Action<ISereinIOC> setDefultMemberOnReset = null)
+        {
+            throw new NotImplementedException();
+        }
         #endregion
     }
 

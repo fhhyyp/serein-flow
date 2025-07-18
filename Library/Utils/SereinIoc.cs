@@ -12,7 +12,7 @@ namespace Serein.Library.Utils
 {
 
     /// <summary>
-    /// 一个轻量级的IOC容器
+    /// 一个轻量级的单例IOC容器
     /// </summary>
     public class SereinIOC : ISereinIOC
     {
@@ -45,7 +45,7 @@ namespace Serein.Library.Utils
         public event IOCMembersChangedHandler OnIOCMembersChanged;
 
         /// <summary>
-        /// 一个轻量级的IOC容器
+        /// 一个轻量级的D单例IOC容器
         /// </summary>
         public SereinIOC()
         {
