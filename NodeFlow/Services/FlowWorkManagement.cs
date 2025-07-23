@@ -378,7 +378,7 @@ namespace Serein.NodeFlow.Services
         /// <param name="pool"></param>
         /// <param name="context"></param>
         /// <returns></returns>
-        private static async Task? CallSubsequentNode(SingleFlipflopNode singleFlipFlopNode, CancellationToken singleToken, ObjectPool<IDynamicContext> pool, IDynamicContext context)
+        private static async Task? CallSubsequentNode(SingleFlipflopNode singleFlipFlopNode, CancellationToken singleToken, ObjectPool<IFlowContext> pool, IFlowContext context)
         {
             var flowState = context.NextOrientation; // 记录一下流程状态
             var nextNodes = singleFlipFlopNode.SuccessorNodes[ConnectionInvokeType.Upstream]; // 优先调用上游分支

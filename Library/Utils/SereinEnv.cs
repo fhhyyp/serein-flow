@@ -33,7 +33,7 @@ namespace Serein.Library
             SereinEnv.EnvGlobalData.AddOrUpdate(name, data, (k, o) => data);
         }
 
-        /// <summary>
+        /*/// <summary>
         /// 更改某个数据的名称
         /// </summary>
         /// <param name="oldName">旧名称</param>
@@ -56,7 +56,7 @@ namespace Serein.Library
             {
                 return false;
             }
-        }
+        }*/
 
         /// <summary>
         /// 获取全局数据

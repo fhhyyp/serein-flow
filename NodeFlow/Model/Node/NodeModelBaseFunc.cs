@@ -110,7 +110,7 @@ namespace Serein.NodeFlow.Model
         /// <param name="token"></param>
         /// <param name="args">自定义参数</param>
         /// <returns>节点传回数据对象</returns>
-        public virtual async Task<FlowResult> ExecutingAsync(IDynamicContext context, CancellationToken token)
+        public virtual async Task<FlowResult> ExecutingAsync(IFlowContext context, CancellationToken token)
         {
             
             // 执行触发检查是否需要中断

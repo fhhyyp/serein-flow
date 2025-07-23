@@ -123,6 +123,6 @@ namespace Serein.Library.Api
         /// <param name="context"></param>
         /// <param name="token"></param>
         /// <returns></returns>
-        Task<FlowResult> ExecutingAsync(IDynamicContext context, CancellationToken token);
+        Task<FlowResult> ExecutingAsync(IFlowContext context, CancellationToken token);
     }
 }

@@ -179,7 +179,7 @@ namespace Serein.Library.Utils
             {
                 if (data == null)
                 {
-                    return Activator.CreateInstance(type);
+                    return null;
                 }
                 else
                 {
@@ -308,7 +308,7 @@ namespace Serein.Library.Utils
         }
         public static object ToValueData(this string valueStr, Type type)
         {
-            if (string.IsNullOrEmpty(valueStr))
+            if (string.IsNullOrWhiteSpace(valueStr))
             {
                 return Activator.CreateInstance(type); 
             }

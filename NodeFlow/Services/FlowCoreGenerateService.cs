@@ -132,7 +132,7 @@ namespace Serein.NodeFlow.Services
         /// <exception cref="Exception"></exception>
         private void GenerateMethod(StringBuilder sb_main, IFlowNode flowNode)
         {
-            string? dynamicContextTypeName = typeof(IDynamicContext).FullName;
+            string? dynamicContextTypeName = typeof(IFlowContext).FullName;
             string? flowContext = nameof(flowContext);
 
             if (flowNode.ControlType == NodeControlType.Action && flowNode is SingleActionNode actionNode)
@@ -241,7 +241,7 @@ namespace Serein.NodeFlow.Services
                         var previousNode = $"previousNode{index}";
                         var valueType = pd.IsParams ? $"global::{pd.DataType.FullName}" : $"global::{paramtTypeFullName}";
                         sb_invoke_login.AppendCode(3, $"global::System.String {previousNode} = {flowContext}.GetPreviousNode(\"{actionNode.Guid}\");"); // 获取运行时上一节点Guid
-                        sb_invoke_login.AppendCode(3, $"{valueType} value{index} = {previousNode} == null ? default : ({valueType}){flowContext}.{nameof(IDynamicContext.GetFlowData)}({previousNode}).Value; // 获取运行时上一节点的数据");
+                        sb_invoke_login.AppendCode(3, $"{valueType} value{index} = {previousNode} == null ? default : ({valueType}){flowContext}.{nameof(IFlowContext.GetFlowData)}({previousNode}).Value; // 获取运行时上一节点的数据");
                     }
                     else if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
                     {
@@ -251,11 +251,11 @@ namespace Serein.NodeFlow.Services
                             var otherNodeReturnType = otherNode.MethodDetails.ReturnType;
                             if (otherNodeReturnType == typeof(object))
                             {
-                                sb_invoke_login.AppendCode(3, $"{valueType} value{index} = ({valueType}){flowContext}.{nameof(IDynamicContext.GetFlowData)}(\"{pd.ArgDataSourceNodeGuid}\").Value; // 获取指定节点的数据");
+                                sb_invoke_login.AppendCode(3, $"{valueType} value{index} = ({valueType}){flowContext}.{nameof(IFlowContext.GetFlowData)}(\"{pd.ArgDataSourceNodeGuid}\").Value; // 获取指定节点的数据");
                             }
                             else if (pd.DataType.IsAssignableFrom(otherNodeReturnType))
                             {
-                                sb_invoke_login.AppendCode(3, $"{valueType} value{index} = ({valueType}){flowContext}.{nameof(IDynamicContext.GetFlowData)}(\"{pd.ArgDataSourceNodeGuid}\").Value; // 获取指定节点的数据");
+                                sb_invoke_login.AppendCode(3, $"{valueType} value{index} = ({valueType}){flowContext}.{nameof(IFlowContext.GetFlowData)}(\"{pd.ArgDataSourceNodeGuid}\").Value; // 获取指定节点的数据");
                             }
                             else
                             {
@@ -277,7 +277,7 @@ namespace Serein.NodeFlow.Services
                             var valueType = pd.IsParams ? $"global::{pd.DataType.FullName}" : $"global::{otherNode.MethodDetails.ReturnType.FullName}";
                             if (otherNodeReturnType == typeof(object))
                             {
-                                sb_invoke_login.AppendCode(3, $"{valueType} value{index} = ({valueType}){flowContext}.{nameof(IDynamicContext.GetFlowData)}(\"{pd.ArgDataSourceNodeGuid}\").Value; // 获取指定节点的数据");
+                                sb_invoke_login.AppendCode(3, $"{valueType} value{index} = ({valueType}){flowContext}.{nameof(IFlowContext.GetFlowData)}(\"{pd.ArgDataSourceNodeGuid}\").Value; // 获取指定节点的数据");
                             }
                             else if (pd.DataType.IsAssignableFrom(otherNodeReturnType))
                             {
@@ -329,7 +329,7 @@ namespace Serein.NodeFlow.Services
                 }
                 sb_invoke_login.AppendCode(0, $"); // 调用方法 {md.MethodAnotherName}");
 
-                sb_invoke_login.AppendCode(3, $"{flowContext}.{nameof(IDynamicContext.AddOrUpdate)}(\"{actionNode.Guid}\", result);", false); // 更新数据
+                sb_invoke_login.AppendCode(3, $"{flowContext}.{nameof(IFlowContext.AddOrUpdate)}(\"{actionNode.Guid}\", result);", false); // 更新数据
                 //sb_invoke_login.AppendCode(3, $"return result;", false);
             }
             #endregion
@@ -422,7 +422,7 @@ namespace Serein.NodeFlow.Services
                 // 如果目标方法是异步的，则自动 await 进行等待
                 sb_invoke_login.AppendCode(4, $"var {resultName} = {(md.IsAsync ? $"await" : string.Empty)} {invokeFunctionContext}({invokeParamContext});");
 
-                sb_invoke_login.AppendCode(4, $"{flowContext}.{nameof(IDynamicContext.AddOrUpdate)}(\"{flowCallNode.TargetNode.Guid}\", {resultName});"); // 更新数据
+                sb_invoke_login.AppendCode(4, $"{flowContext}.{nameof(IFlowContext.AddOrUpdate)}(\"{flowCallNode.TargetNode.Guid}\", {resultName});"); // 更新数据
                 sb_invoke_login.AppendCode(4, $"{flowApiMethodInfo.ObjPoolName}.Return({apiData});"); // 归还到对象池
                 //sb_invoke_login.AppendCode(3, $"return result;", false);
             }
@@ -865,7 +865,7 @@ namespace Serein.NodeFlow.Services
         public string ToInterfaceMethodSignature(ParamType type)
         {
             var taskTypeFullName = $"global::System.Threading.Tasks.Task";
-            var contextFullName = $"global::{typeof(IDynamicContext).FullName}";
+            var contextFullName = $"global::{typeof(IFlowContext).FullName}";
             var tokenFullName = $"global::{typeof(CancellationToken).FullName}";
             var returnContext = IsVoid ? taskTypeFullName : $"{taskTypeFullName}<{ReturnType.FullName}>";
             if (type == ParamType.Defute)
@@ -895,8 +895,8 @@ namespace Serein.NodeFlow.Services
         public string ToImpleMethodSignature(ParamType type)
         {
             var taskTypeFullName = $"global::System.Threading.Tasks.Task";
-            var contextApiFullName = $"global::{typeof(IDynamicContext).FullName}";
-            var contextImpleFullName = $"global::{typeof(DynamicContext).FullName}";
+            var contextApiFullName = $"global::{typeof(IFlowContext).FullName}";
+            var contextImpleFullName = $"global::{typeof(FlowContext).FullName}";
             var tokenSourceFullName = $"global::{typeof(CancellationTokenSource).FullName}";
             var tokenFullName = $"global::{typeof(CancellationToken).FullName}";
             var flowContextPoolName = $"global::{typeof(LightweightFlowControl).FullName}";
@@ -927,7 +927,7 @@ namespace Serein.NodeFlow.Services
                     sb.AppendCode(3,    $"}}");
                     sb.AppendCode(3,    $"finally");
                     sb.AppendCode(3,    $"{{");
-                    sb.AppendCode(4,        $"{flowContext}.{nameof(IDynamicContext.Reset)}(); ");
+                    sb.AppendCode(4,        $"{flowContext}.{nameof(IFlowContext.Reset)}(); ");
                     sb.AppendCode(4,        $"cts.{nameof(CancellationTokenSource.Dispose)}(); ");
                     sb.AppendCode(4,        $"{flowContextPoolName}.{nameof(LightweightFlowControl.FlowContextPool)}.{nameof(LightweightFlowControl.FlowContextPool.Free)}({flowContext}); // 释放上下文");
                     sb.AppendCode(3,    $"}}");
@@ -944,7 +944,7 @@ namespace Serein.NodeFlow.Services
                     sb.AppendCode(3,    $"try");
                     sb.AppendCode(3,    $"{{");
                     sb.AppendCode(4,        $"await {ApiMethodName}({flowContext}, {token}, {invokeParamSignature}); // 调用目标方法");
-                    sb.AppendCode(4,        $"{flowContext}.{nameof(IDynamicContext.Reset)}(); ");
+                    sb.AppendCode(4,        $"{flowContext}.{nameof(IFlowContext.Reset)}(); ");
                     sb.AppendCode(3,    $"}}");
                     sb.AppendCode(3,    $"catch (Exception)");
                     sb.AppendCode(3,    $"{{");
@@ -974,8 +974,8 @@ namespace Serein.NodeFlow.Services
                         ParamInfo? info = ParamInfos[index];
                         sb.AppendCode(4,    $"data.{info.ParamName.ToPascalCase()} = {info.ParamName}; // [{index}] {info.Comments}");
                     }
-                    sb.AppendCode(3,        $"{flowContext}.{nameof(IDynamicContext.AddOrUpdate)}(\"{ApiMethodName}\", data);");
-                    sb.AppendCode(3,        $"{flowContext}.{nameof(IDynamicContext.SetPreviousNode)}(\"{NodeModel.TargetNode.Guid}\", \"{ApiMethodName}\");");
+                    sb.AppendCode(3,        $"{flowContext}.{nameof(IFlowContext.AddOrUpdate)}(\"{ApiMethodName}\", data);");
+                    sb.AppendCode(3,        $"{flowContext}.{nameof(IFlowContext.SetPreviousNode)}(\"{NodeModel.TargetNode.Guid}\", \"{ApiMethodName}\");");
                     sb.AppendCode(3,        $"global::{typeof(CallNode).FullName} node = Get(\"{NodeModel.Guid}\");");
                     sb.AppendCode(3,        $"await node.{nameof(CallNode.StartFlowAsync)}({flowContext}, {token}); // 调用目标方法");
                     sb.AppendCode(3,    $"}}");
@@ -1015,7 +1015,7 @@ namespace Serein.NodeFlow.Services
                     sb.AppendCode(3,    $"}}");
                     sb.AppendCode(3,    $"finally");
                     sb.AppendCode(3,    $"{{");
-                    sb.AppendCode(4,       $"{flowContext}.{nameof(IDynamicContext.Reset)}(); ");
+                    sb.AppendCode(4,       $"{flowContext}.{nameof(IFlowContext.Reset)}(); ");
                     sb.AppendCode(4,       $"cts.{nameof(CancellationTokenSource.Dispose)}(); ");
                     sb.AppendCode(4,       $"{flowContextPoolName}.{nameof(LightweightFlowControl.FlowContextPool)}.{nameof(LightweightFlowControl.FlowContextPool.Free)}({flowContext}); // 释放上下文");
                     sb.AppendCode(3,    $"}}");
@@ -1040,7 +1040,7 @@ namespace Serein.NodeFlow.Services
                     sb.AppendCode(3,    $"}}");
                     sb.AppendCode(3,    $"finally");
                     sb.AppendCode(3,    $"{{");
-                    sb.AppendCode(4,       $"{flowContext}.{nameof(IDynamicContext.Reset)}(); ");
+                    sb.AppendCode(4,       $"{flowContext}.{nameof(IFlowContext.Reset)}(); ");
                     sb.AppendCode(4,       $"{flowContextPoolName}.{nameof(LightweightFlowControl.FlowContextPool)}.{nameof(LightweightFlowControl.FlowContextPool.Free)}({flowContext}); // 释放上下文");
                     sb.AppendCode(3,    $"}}");
                     sb.AppendCode(2, $"}}");
@@ -1059,8 +1059,8 @@ namespace Serein.NodeFlow.Services
                         ParamInfo? info = ParamInfos[index];
                         sb.AppendCode(4, $"data.{info.ParamName.ToPascalCase()} = {info.ParamName}; // [{index}] {info.Comments}"); // 进行赋值
                     }
-                    sb.AppendCode(3,    $"{flowContext}.{nameof(IDynamicContext.AddOrUpdate)}(\"{ApiMethodName}\", data);");
-                    sb.AppendCode(3,    $"{flowContext}.{nameof(IDynamicContext.SetPreviousNode)}(\"{NodeModel.Guid}\", \"{ApiMethodName}\");");
+                    sb.AppendCode(3,    $"{flowContext}.{nameof(IFlowContext.AddOrUpdate)}(\"{ApiMethodName}\", data);");
+                    sb.AppendCode(3,    $"{flowContext}.{nameof(IFlowContext.SetPreviousNode)}(\"{NodeModel.Guid}\", \"{ApiMethodName}\");");
                     sb.AppendCode(3,    $"global::{typeof(CallNode).FullName} node = Get(\"{NodeModel.Guid}\");");
                     sb.AppendCode(3,    $"global::{typeof(FlowResult).FullName} {flowResult} = await node.{nameof(CallNode.StartFlowAsync)}({flowContext}, {token}); // 调用目标方法");
                     sb.AppendCode(3,    $"if ({flowResult}.{nameof(FlowResult.Value)} is global::{ReturnType.FullName} result)");

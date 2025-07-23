@@ -36,10 +36,10 @@ namespace Serein.NodeFlow.Env
             this.flowModelService = flowModelService;
             this.UIContextOperation = UIContextOperation;
 
-            contexts = new ObjectPool<IDynamicContext>(() => new DynamicContext(flowEnvironment));
+            contexts = new ObjectPool<IFlowContext>(() => new FlowContext(flowEnvironment));
         }
 
-        private ObjectPool<IDynamicContext> contexts;
+        private ObjectPool<IFlowContext> contexts;
         private FlowWorkManagement flowWorkManagement;
         private ISereinIOC externalIOC;
         private Action<ISereinIOC> setDefultMemberOnReset;
@@ -312,7 +312,7 @@ namespace Serein.NodeFlow.Env
                 throw new ArgumentNullException($"参数数量不一致。传入参数数量：{dict.Keys.Count}。接口入参数量：{pds.Length}。");
             }
 
-            IDynamicContext context = contexts.Allocate();
+            IFlowContext context = contexts.Allocate();
             for (int index = 0; index < pds.Length; index++)
             {
                 ParameterDetails pd = pds[index];

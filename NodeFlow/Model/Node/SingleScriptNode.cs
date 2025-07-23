@@ -195,7 +195,7 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        public override async Task<FlowResult> ExecutingAsync(IDynamicContext context, CancellationToken token)
+        public override async Task<FlowResult> ExecutingAsync(IFlowContext context, CancellationToken token)
         {
             var result = await ExecutingAsync(this, context, token);
             return result;
@@ -208,7 +208,7 @@ namespace Serein.NodeFlow.Model
         /// <param name="context"></param>
         /// <param name="token"></param>
         /// <returns></returns>
-        public async Task<FlowResult> ExecutingAsync(NodeModelBase flowCallNode,  IDynamicContext context, CancellationToken token)
+        public async Task<FlowResult> ExecutingAsync(NodeModelBase flowCallNode,  IFlowContext context, CancellationToken token)
         {
             if (token.IsCancellationRequested) return new FlowResult(this.Guid, context);
             var @params = await flowCallNode.GetParametersAsync(context, token);

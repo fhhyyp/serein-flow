@@ -18,6 +18,7 @@ namespace Serein.Library.Utils
             return await Task.WhenAll(source.Select(async s => await method(s)));
         }
 
+
         public static async Task<IEnumerable<TResult>> SelectAsync<TSource, TResult>(this IEnumerable<TSource> source, 
                                                                                           Func<TSource, Task<TResult>> method,
                                                                                           int concurrency = int.MaxValue)

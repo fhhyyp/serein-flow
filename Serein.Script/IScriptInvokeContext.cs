@@ -10,7 +10,7 @@ namespace Serein.Script
         /// <summary>
         /// 脚本运行的流程上下文，包含了流程上下文和变量等信息
         /// </summary>
-        IDynamicContext FlowContext { get; }
+        IFlowContext FlowContext { get; }
 
         /// <summary>
         /// 是否该退出了（由 TokenSource 控制，用于响应外部发出停止信号）

@@ -23,7 +23,10 @@ namespace Serein.Library.Utils
     {
         // 使用并发字典管理每个信号对应的广播列表
         private readonly ConcurrentDictionary<TSignal, Subject<TriggerResult<object>>> _subscribers = new ConcurrentDictionary<TSignal, Subject<TriggerResult<object>>>();
-        private readonly TriggerResultPool<object> _triggerResultPool = new TriggerResultPool<object>();
+        private readonly ObjectPool<TriggerResult<object>> _triggerResultPool = new ObjectPool<TriggerResult<object>>(() => new TriggerResult<object>());
+
+        
+
         /// <summary>
         /// 获取或创建指定信号的 Subject（消息广播者）
         /// </summary>
@@ -66,7 +69,7 @@ namespace Serein.Library.Utils
             {
                 if (!cts.Token.IsCancellationRequested)
                 {
-                    var outResult = _triggerResultPool.Get();
+                    var outResult = _triggerResultPool.Allocate();
                     outResult.Type = TriggerDescription.Overtime;
                     subject.OnNext(outResult);
                     subject.OnCompleted();
@@ -96,7 +99,7 @@ namespace Serein.Library.Utils
             var result2 = result.Value is TResult data
                 ? new TriggerResult<TResult> { Value = data, Type = TriggerDescription.External }
                 : new TriggerResult<TResult> { Type = TriggerDescription.TypeInconsistency };
-            _triggerResultPool.Return(result); // 将结果归还池中
+            _triggerResultPool.Free(result); // 将结果归还池中
             return result2;
         }
 
@@ -112,7 +115,7 @@ namespace Serein.Library.Utils
         {
             if (_subscribers.TryGetValue(signal, out var subject))
             {
-                var result = _triggerResultPool.Get();
+                var result = _triggerResultPool.Allocate();
                 result.Type = TriggerDescription.External;
                 result.Value = value;
                 subject.OnNext(result); // 广播给所有订阅者

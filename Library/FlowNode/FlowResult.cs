@@ -30,7 +30,7 @@ namespace Serein.Library
         /// </summary>
         /// <param name="nodeGuid"></param>
         /// <param name="context"></param>
-        public FlowResult(string nodeGuid, IDynamicContext context, object value)
+        public FlowResult(string nodeGuid, IFlowContext context, object value)
         {
             this.SourceNodeGuid = nodeGuid;
             this.ContextGuid = context.Guid;
@@ -42,7 +42,7 @@ namespace Serein.Library
         /// </summary>
         /// <param name="nodeGuid"></param>
         /// <param name="context"></param>
-        public FlowResult(string nodeGuid, IDynamicContext context)
+        public FlowResult(string nodeGuid, IFlowContext context)
         {
             this.SourceNodeGuid = nodeGuid;
             this.ContextGuid = context.Guid;

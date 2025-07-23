@@ -206,7 +206,7 @@ namespace Serein.Library
         /// <param name="context"></param>
         /// <param name="token">流程运行</param>
         /// <returns></returns>
-        public static async Task<FlowResult> StartFlowAsync(this IFlowNode nodeModel, IDynamicContext context, CancellationToken token)
+        public static async Task<FlowResult> StartFlowAsync(this IFlowNode nodeModel, IFlowContext context, CancellationToken token)
         {
             Stack<IFlowNode> stack = new Stack<IFlowNode>();
             HashSet<IFlowNode> processedNodes = new HashSet<IFlowNode>(); // 用于记录已处理上游节点的节点
@@ -296,7 +296,7 @@ namespace Serein.Library
 #endif
             }
         }
-        public static async Task<object[]> GetParametersAsync(this IFlowNode nodeModel, IDynamicContext context, CancellationToken token)
+        public static async Task<object[]> GetParametersAsync(this IFlowNode nodeModel, IFlowContext context, CancellationToken token)
         {
             var md = nodeModel.MethodDetails;
             var pds = md.ParameterDetailss;
@@ -372,7 +372,7 @@ namespace Serein.Library
         /// <summary>
         /// 获取对应的参数数组
         /// </summary>
-        public static async Task<object[]> GetParametersAsync2(this IFlowNode nodeModel, IDynamicContext context, CancellationToken token)
+        public static async Task<object[]> GetParametersAsync2(this IFlowNode nodeModel, IFlowContext context, CancellationToken token)
         {
             if (nodeModel.MethodDetails.ParameterDetailss.Length == 0)
             {
@@ -439,7 +439,7 @@ namespace Serein.Library
                 throw new ArgumentNullException($"参数数量不一致。传入参数数量：{param.Keys.Count}。接口入参数量：{pds.Length}。");
             }
 
-            var context = new DynamicContext(flowCallNode.Env);
+            var context = new FlowContext(flowCallNode.Env);
             for (int index = 0; index < pds.Length; index++)
             {
                 ParameterDetails pd = pds[index];

@@ -22,7 +22,7 @@ namespace Serein.Library.Utils
         /// <param name="parent">父类对象</param>
         /// <param name="childType">子类类型</param>
         /// <returns></returns>
-        public static object ConvertParentToChild(object parent,Type childType)
+        public static object ConvertParentToChild(object parent, Type childType)
         {
             var child = Activator.CreateInstance(childType);
             var parentType = parent.GetType();

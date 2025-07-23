@@ -31,7 +31,7 @@ namespace Net462DllTest.Web
 
         #region 初始化、初始化完成以及退出的事件
         [NodeAction(NodeType.Init)]
-        public void Init(IDynamicContext context)
+        public void Init(IFlowContext context)
         {
             var ioc = context.Env.FlowControl.IOC;
             ioc.Register<WebSocketServer>();
@@ -42,7 +42,7 @@ namespace Net462DllTest.Web
         }
 
         [NodeAction(NodeType.Loading)] // Loading 初始化完成已注入依赖项，可以开始逻辑上的操作
-        public void Loading(IDynamicContext context)
+        public void Loading(IFlowContext context)
         {
             var ioc = context.Env.FlowControl.IOC;
             // 注册控制器
@@ -69,7 +69,7 @@ namespace Net462DllTest.Web
         }
 
         [NodeAction(NodeType.Exit)] // 流程结束时自动执行
-        public void Exit(IDynamicContext context)
+        public void Exit(IFlowContext context)
         {
             var ioc = context.Env.FlowControl.IOC;
             ioc.Run<WebApiServer>((apiServer) =>

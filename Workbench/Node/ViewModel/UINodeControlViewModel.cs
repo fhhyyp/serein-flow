@@ -32,7 +32,7 @@ namespace Serein.Workbench.Node.ViewModel
         {
             Task.Factory.StartNew(async () =>
             {
-                var context = new DynamicContext(NodeModel.Env);
+                var context = new FlowContext(NodeModel.Env);
                 var cts = new CancellationTokenSource();    
                 var result = await NodeModel.ExecutingAsync(context, cts.Token);
                 cts?.Dispose();
@@ -52,7 +52,7 @@ namespace Serein.Workbench.Node.ViewModel
         {
             Task.Factory.StartNew(async () =>
             {
-                var context = new DynamicContext(NodeModel.Env);
+                var context = new FlowContext(NodeModel.Env);
                 var cts = new CancellationTokenSource();
                 var result = await NodeModel.ExecutingAsync(context, cts.Token);
                 cts?.Dispose();

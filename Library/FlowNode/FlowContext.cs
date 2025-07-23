@@ -10,21 +10,21 @@ namespace Serein.Library
     /// <summary>
     /// 动态流程上下文
     /// </summary>
-    public class DynamicContext : IDynamicContext
+    public class FlowContext : IFlowContext
     {
         /// <summary>
         /// 动态流程上下文
         /// </summary>
         /// <param name="flowEnvironment">脚本运行时的IOC</param>
         /// <param name="ioc">脚本运行时使用的IOC容器</param>
-        public DynamicContext(IFlowEnvironment flowEnvironment)
+        public FlowContext(IFlowEnvironment flowEnvironment)
         {
             Env = flowEnvironment;
             RunState = RunState.Running;
         }
 
         private string _guid = global::System.Guid.NewGuid().ToString();
-        string IDynamicContext.Guid => _guid;
+        string IFlowContext.Guid => _guid;
 
         /// <summary>
         /// 运行环境

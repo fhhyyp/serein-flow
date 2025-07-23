@@ -98,12 +98,12 @@ namespace Serein.Library
             }
         }
 
-        public void AddCallNode(string nodeGuid, Action<IDynamicContext> action)
+        public void AddCallNode(string nodeGuid, Action<IFlowContext> action)
         {
             var node = new CallNode(nodeGuid, action);
             _callNodes[nodeGuid] = node;
         }
-        public void AddCallNode(string nodeGuid, Func<IDynamicContext, Task> func)
+        public void AddCallNode(string nodeGuid, Func<IFlowContext, Task> func)
         {
             var node = new CallNode(nodeGuid, func);
             _callNodes[nodeGuid] = node;
@@ -123,22 +123,22 @@ namespace Serein.Library
     public class CallNode
     {
 
-        private Func<IDynamicContext, Task> taskFunc;
-        private Action<IDynamicContext> action;
+        private Func<IFlowContext, Task> taskFunc;
+        private Action<IFlowContext> action;
 
         public CallNode(string nodeGuid)
         {
             Guid = nodeGuid;
             Init();
         }
-        public CallNode(string nodeGuid, Action<IDynamicContext> action)
+        public CallNode(string nodeGuid, Action<IFlowContext> action)
         {
             Guid = nodeGuid;
             this.action = action;
             Init();
         }
 
-        public CallNode(string nodeGuid, Func<IDynamicContext, Task> func)
+        public CallNode(string nodeGuid, Func<IFlowContext, Task> func)
         {
             Guid = nodeGuid;
             this.taskFunc = func;
@@ -158,11 +158,11 @@ namespace Serein.Library
         }
 
         
-        public void SetAction(Action<IDynamicContext> action)
+        public void SetAction(Action<IFlowContext> action)
         {
             this.action = action;
         }
-        public void SetAction(Func<IDynamicContext, Task> taskFunc)
+        public void SetAction(Func<IFlowContext, Task> taskFunc)
         {
             this.taskFunc = taskFunc;
         }
@@ -245,7 +245,7 @@ namespace Serein.Library
         /// <param name="token"></param>
         /// <returns></returns>
         /// <exception cref="InvalidOperationException"></exception>
-        public async Task InvokeAsync(IDynamicContext context, CancellationToken token)
+        public async Task InvokeAsync(IFlowContext context, CancellationToken token)
         {
             if (token.IsCancellationRequested)
             {
@@ -274,7 +274,7 @@ namespace Serein.Library
         /// <param name="context"></param>
         /// <param name="token">流程运行</param>
         /// <returns></returns>
-        public async Task<FlowResult> StartFlowAsync(IDynamicContext context, CancellationToken token)
+        public async Task<FlowResult> StartFlowAsync(IFlowContext context, CancellationToken token)
         {
             var stack = _stackPool.Get();
             stack.Push(this);
@@ -370,7 +370,7 @@ namespace Serein.Library
     {
         private readonly IFlowCallTree flowCallTree;
         private readonly IFlowEnvironment flowEnvironment;
-        public static Serein.Library.Utils.ObjectPool<IDynamicContext> FlowContextPool { get; set; }
+        public static Serein.Library.Utils.ObjectPool<IFlowContext> FlowContextPool { get; set; }
 
         public ISereinIOC IOC => throw new NotImplementedException();
 
@@ -378,9 +378,9 @@ namespace Serein.Library
         {
             this.flowCallTree = flowCallTree;
             this.flowEnvironment = flowEnvironment;
-             FlowContextPool = new Utils.ObjectPool<IDynamicContext>(() =>
+             FlowContextPool = new Utils.ObjectPool<IFlowContext>(() =>
              {
-                 return new DynamicContext(flowEnvironment);
+                 return new FlowContext(flowEnvironment);
              });
         }
 
@@ -400,7 +400,7 @@ namespace Serein.Library
 
         public async Task<TResult> StartFlowAsync<TResult>(string startNodeGuid)
         {
-            IDynamicContext context = Serein.Library.LightweightFlowControl.FlowContextPool.Allocate();
+            IFlowContext context = Serein.Library.LightweightFlowControl.FlowContextPool.Allocate();
             CancellationTokenSource cts = new CancellationTokenSource();
             FlowResult flowResult;
 #if DEBUG

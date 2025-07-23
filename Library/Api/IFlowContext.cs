@@ -9,7 +9,7 @@ namespace Serein.Library.Api
     /// <summary>
     /// 流程上下文，包含运行环境接口，可以通过注册环境事件或调用环境接口，实现在流程运行时更改流程行为。
     /// </summary>
-    public interface IDynamicContext
+    public interface IFlowContext
     {
         /// <summary>
         /// 标识流程

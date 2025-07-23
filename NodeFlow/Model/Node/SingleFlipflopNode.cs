@@ -22,7 +22,7 @@ namespace Serein.NodeFlow.Model
         /// <param name="context"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public override async Task<FlowResult> ExecutingAsync(IDynamicContext context, CancellationToken token)
+        public override async Task<FlowResult> ExecutingAsync(IFlowContext context, CancellationToken token)
         {
             #region 执行前中断
             if (DebugSetting.IsInterrupt) // 执行触发前

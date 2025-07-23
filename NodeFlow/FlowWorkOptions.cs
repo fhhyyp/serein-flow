@@ -50,7 +50,7 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 上下文线程池
         /// </summary>
-        public Serein.Library.Utils.ObjectPool<IDynamicContext> FlowContextPool { get;  set; } 
+        public Serein.Library.Utils.ObjectPool<IFlowContext> FlowContextPool { get;  set; } 
 
         /// <summary>
         /// 每个画布需要启用的节点

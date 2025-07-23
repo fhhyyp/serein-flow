@@ -27,14 +27,14 @@ namespace Net462DllTest.LogicControl
 
         #region 初始化
         [NodeAction(NodeType.Loading)] // Loading 初始化完成已注入依赖项，可以开始逻辑上的操作
-        public void Loading(IDynamicContext context)
+        public void Loading(IFlowContext context)
         {
            
 
         }
 
         [NodeAction(NodeType.Exit)] // 流程结束时自动执行
-        public void Exit(IDynamicContext context)
+        public void Exit(IFlowContext context)
         {
             MyPlc.Close();
             MyPlc.CancelAllTrigger();

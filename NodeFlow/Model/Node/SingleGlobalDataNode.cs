@@ -108,7 +108,7 @@ namespace Serein.NodeFlow.Model
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        public override async Task<FlowResult> ExecutingAsync(IDynamicContext context, CancellationToken token)
+        public override async Task<FlowResult> ExecutingAsync(IFlowContext context, CancellationToken token)
         {
             if (token.IsCancellationRequested) return new FlowResult(this.Guid, context);
             if (string.IsNullOrEmpty(KeyName))

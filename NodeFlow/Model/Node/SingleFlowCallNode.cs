@@ -313,7 +313,7 @@ namespace Serein.NodeFlow.Model
         /// <param name="context"></param>
         /// <param name="token"></param>
         /// <returns></returns>
-        public override async Task<FlowResult> ExecutingAsync(IDynamicContext context, CancellationToken token)
+        public override async Task<FlowResult> ExecutingAsync(IFlowContext context, CancellationToken token)
         {
             if (!UploadTargetNode())
             {

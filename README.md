@@ -15,14 +15,14 @@ https://space.bilibili.com/33526379
 * 动作节点 - Action
 * 触发器节点 - Flipflop
 * UI节点 - UI
-# 关于 IDynamicContext 说明（重要）
- * 基本说明：IDynamicContext 是节点之间传递数据的接口、载体，其实例由 FlowEnvironment 运行环境自动实现，内部提供全局单例的环境接口，用以注册、获取实例（单例模式），一般情况下，你无须关注 FlowEnvironment 对外暴露的属性方法。
+# 关于 IFlowContext 说明（重要）
+ * 基本说明：IFlowContext 是节点之间传递数据的接口、载体，其实例由 FlowEnvironment 运行环境自动实现，内部提供全局单例的环境接口，用以注册、获取实例（单例模式），一般情况下，你无须关注 FlowEnvironment 对外暴露的属性方法。
  * 重要概念：
    * 每个节点其实对应类库中的某一个方法，这些方法组合起来，加上预先设置的逻辑分支，就是一个完整的节点流。在这个节点流当中，从第一个节点开始、直到所有可达的节点，都会通过同一个流程上下文传递、共享数据。为了符合多线程操作的理念，每个运行起来的节点流之间，流程数据并不互通，从根本隔绝了“脏数据”的产生。
  * 一些重要的属性：
     * RunState - 流程状态：
       * 简述：枚举，标识流程运行的状态（初始化，运行中，运行完成）
-      * 场景：类库代码中创建了运行时间较长的异步任务、或开辟了另一个线程进行循环操作时，可以在方法入参定义一个 IDynamicContext 类型入参，然后在代码中使用形成闭包，以及时判断流程是否已经结束。另外的，如果想监听项目停止运行，可以订阅 context.Env.OnFlowRunComplete 事件。
+      * 场景：类库代码中创建了运行时间较长的异步任务、或开辟了另一个线程进行循环操作时，可以在方法入参定义一个 IFlowContext 类型入参，然后在代码中使用形成闭包，以及时判断流程是否已经结束。另外的，如果想监听项目停止运行，可以订阅 context.Env.OnFlowRunComplete 事件。
     * NextOrientation - 即将进入的分支：
       * 简述：流程分支枚举， Upstream（上游分支）、IsSucceed（真分支）、IsFail（假分支），IsError（异常分支）。
       * 场景：允许你在类库代码中操作该属性，手动控制当前节点运行完成后，下一个会执行哪一个类别的节点。
@@ -32,15 +32,15 @@ https://space.bilibili.com/33526379
 # 关于 DynamicNodeType 枚举的补充说明。
 ## 1. 不生成节点控件的枚举值：
 * **Init - 初始化方法**
-  * 入参：**IDynamicContext**（有且只有一个参数）。
+  * 入参：**IFlowContext**（有且只有一个参数）。
   * 返回值：自定义，但不会处理返回值，支持异步等待。
   * 描述：在运行时首先被调用。语义类似于构造方法。建议在Init方法内初始化类、注册类等一切需要在构造函数中执行的方法。
 * **Loading - 加载方法**
-  * 入参：**IDynamicContext**（有且只有一个参数）。
+  * 入参：**IFlowContext**（有且只有一个参数）。
   * 返回值：自定义，但不会处理返回值，支持异步等待。
   * 描述：当所有Dll的Init方法调用完成后，首先调用、也才会调用DLL的Loading方法。建议在Loading方法内进行业务上的初始化（例如启动Web，启动第三方服务）。
 * **Exit - 结束方法**
-  * 入参：**IDynamicContext**（有且只有一个参数）。
+  * 入参：**IFlowContext**（有且只有一个参数）。
   * 返回值：自定义，但不会处理返回值，支持异步等待。
   * 描述：当结束/手动结束运行时，会调用所有Dll的Exit方法。使用场景类似于：终止内部的其它线程，通知其它进程关闭，例如停止第三方服务。
 ## 2. 基础节点
@@ -172,14 +172,14 @@ https://space.bilibili.com/33526379
     ~~~
 ## 3. 从DLL生成控件的枚举值：
 * **Action - 动作**
-  * 入参：自定义。如果入参类型为IDynamicContext，会传入当前的上下文；如果入参类型为IFlowNode，会传入节点对应的实体Model。如果不显式指定参数来源，参数会尝试获取运行时上一节点返回值，并根据当前入参类型尝试进行类型转换。
+  * 入参：自定义。如果入参类型为IFlowContext，会传入当前的上下文；如果入参类型为IFlowNode，会传入节点对应的实体Model。如果不显式指定参数来源，参数会尝试获取运行时上一节点返回值，并根据当前入参类型尝试进行类型转换。
   * 返回值：自定义，支持异步等待。
   * 描述：同步执行对应的方法。
 * **Flipflop - 触发器**
   * 全局触发器
     * 入参：依照Action节点。
     * 返回值：Task`<IFlipflopContext<TResult>>`
-    * 描述：运行开始时，所有无上级节点的触发器节点（在当前分支中作为起始节点），分别建立新的线程运行，然后异步等待触发（如果有）。这种触发器拥有独自的IDynamicContext上下文（共用同一个Ioc），执行完成之后，会重新从分支起点的触发器开始等待。
+    * 描述：运行开始时，所有无上级节点的触发器节点（在当前分支中作为起始节点），分别建立新的线程运行，然后异步等待触发（如果有）。这种触发器拥有独自的IFlowContext上下文（共用同一个Ioc），执行完成之后，会重新从分支起点的触发器开始等待。
   * 分支中的触发器
     * 入参：依照Action节点。
     * 返回值：Task`<IFlipflopContext<TResult>>`
@@ -201,7 +201,7 @@ https://space.bilibili.com/33526379
 	        internal class FlowControl
 	        {
 		        [NodeAction(NodeType.UI)]
-		        public async Task<IEmbeddedContent> CreateImageControl(DynamicContext context)
+		        public async Task<IEmbeddedContent> CreateImageControl(FlowContext context)
 		        {
 			        WpfUserControlAdapter adapter = null;
 			        // 其实你也可以直接创建实例

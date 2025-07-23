@@ -209,7 +209,7 @@ namespace Serein.Library
             return pd;
         }
 
-        public async Task<object> ToMethodArgData(IDynamicContext context)
+        public async Task<object> ToMethodArgData(IFlowContext context)
         {
             // 1. 从缓存获取
             if (context.TryGetParamsTempData(NodeModel.Guid, Index, out var data))
@@ -217,7 +217,7 @@ namespace Serein.Library
 
             // 2. 特定快捷类型
             if (typeof(IFlowEnvironment).IsAssignableFrom(DataType)) return NodeModel.Env;
-            if (typeof(IDynamicContext).IsAssignableFrom(DataType)) return context;
+            if (typeof(IFlowContext).IsAssignableFrom(DataType)) return context;
             if (typeof(IFlowNode).IsAssignableFrom(DataType)) return NodeModel;
 
             // 3. 显式常量参数
@@ -296,7 +296,7 @@ namespace Serein.Library
         /// 转为方法入参数据
         /// </summary>
         /// <returns></returns>
-        public async Task<object> ToMethodArgData2(IDynamicContext context)
+        public async Task<object> ToMethodArgData2(IFlowContext context)
         {
 
             var nodeModel = NodeModel;
@@ -316,7 +316,7 @@ namespace Serein.Library
                 return env;
             }
             // 返回流程上下文
-            if (typeof(IDynamicContext).IsAssignableFrom(DataType))
+            if (typeof(IFlowContext).IsAssignableFrom(DataType))
             {
                 return context;
             }

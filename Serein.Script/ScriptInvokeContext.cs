@@ -7,10 +7,10 @@ namespace Serein.Script
         /// <summary>
         /// 脚本使用流程上下文
         /// </summary>
-        /// <param name="dynamicContext"></param>
-        public ScriptInvokeContext(IDynamicContext dynamicContext)
+        /// <param name="flowContext"></param>
+        public ScriptInvokeContext(IFlowContext flowContext)
         {
-            FlowContext = dynamicContext;
+            FlowContext = flowContext;
         }
         
         /// <summary>
@@ -20,7 +20,7 @@ namespace Serein.Script
         {
         }
 
-        public IDynamicContext FlowContext{ get; }
+        public IFlowContext FlowContext{ get; }
 
         /// <summary>
         /// 定义的变量

@@ -9,8 +9,6 @@ using System.Threading.Tasks;
 namespace Serein.Library.Utils
 {
 
-
-
     public class ChannelFlowTrigger<TSignal> : IFlowTrigger<TSignal>
     {
         // 使用并发字典管理每个枚举信号对应的 Channel

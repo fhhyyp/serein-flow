@@ -12,7 +12,7 @@ namespace Serein.Library.Api
     /// </summary>
     public interface IDynamicFlowNode
     {
-        Task<FlowResult> ExecutingAsync(IDynamicContext context, CancellationToken token);
+        Task<FlowResult> ExecutingAsync(IFlowContext context, CancellationToken token);
     }
 
 }

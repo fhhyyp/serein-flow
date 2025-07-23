@@ -28,7 +28,7 @@ namespace Serein.Library.Utils
                 // 时间戳
                 long timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-                // 机器标识（可以替换成更加独特的标识，如机器的MAC地址等）
+                // 机器标识
                 string machineId = GetMachineId();
 
                 // 进程ID
@@ -53,7 +53,6 @@ namespace Serein.Library.Utils
         private static string GetMachineId()
         {
             // 这里使用 GUID 模拟机器标识
-            // 可以替换为更具体的机器信息
             return Guid.NewGuid().ToString("N");
         }
     }
