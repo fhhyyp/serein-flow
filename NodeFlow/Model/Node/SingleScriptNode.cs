@@ -1,10 +1,10 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
-using Serein.Library.Utils;
 using Serein.Script;
 using Serein.Script.Node.FlowControl;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Dynamic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -52,7 +52,8 @@ namespace Serein.NodeFlow.Model
         static SingleScriptNode()
         {
             // 挂载静态方法
-            var tempMethods = typeof(ScriptBaseFunc).GetMethods().Where(method =>
+            var tempMethods = typeof(Serein.Library.ScriptBaseFunc).GetMethods().Where(method =>
+                    method.IsStatic && 
                     !(method.Name.Equals("GetHashCode")
                     || method.Name.Equals("Equals")
                     || method.Name.Equals("ToString")
@@ -86,7 +87,7 @@ namespace Serein.NodeFlow.Model
             pd[0] =  new ParameterDetails
             {
                 Index = 0,
-                Name = "string",
+                Name = "arg",
                 IsExplicitData = true,
                 DataValue = string.Empty,
                 DataType = typeof(string),
@@ -156,25 +157,35 @@ namespace Serein.NodeFlow.Model
                 var argTypes = MethodDetails.ParameterDetailss
                                        .Select(pd =>
                                        {
+                                           if(pd.ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData)
+                                           {
+                                               var Type = pd.DataType;
+                                               return (pd.Name, Type);
+                                           }
                                            if (Env.TryGetNodeModel(pd.ArgDataSourceNodeGuid, out var node) &&
                                                node.MethodDetails?.ReturnType is not null)
                                            {
                                                pd.DataType = node.MethodDetails.ReturnType;
-                                               return (pd.Name, node.MethodDetails.ReturnType);
+                                               var Type = node.MethodDetails.ReturnType;
+                                               return (pd.Name, Type);
                                            }
                                            return default;
                                        })
                                        .Where(x => x != default)
-                                       .ToDictionary(x => x.Name, x => x.ReturnType); // 准备预定义类型
+                                       .ToDictionary(x => x.Name, x => x.Type); // 准备预定义类型
 
 
                 var returnType = sereinScript.ParserScript(Script, argTypes);  // 开始解析获取程序主节点
+                
                 MethodDetails.ReturnType = returnType;
+
+                var code = sereinScript.ConvertCSharpCode("Test", argTypes);
+                Debug.WriteLine(code);
                 return true;
             }
             catch (Exception ex)
             {
-                SereinEnv.WriteLine(ex);
+                SereinEnv.WriteLine(InfoType.WARN, ex.Message);
                 return false; // 解析失败
             }
         }
@@ -244,116 +255,5 @@ namespace Serein.NodeFlow.Model
             return new FlowResult(this.Guid, context, result);
         }
 
-        #region 挂载的方法
-
-        /*public IScriptFlowApi GetFlowApi()
-        {
-            return ScriptFlowApi;
-        }*/
-
-        private static class ScriptBaseFunc
-        {
-            public static DateTime now() => DateTime.Now;
-
-            #region 常用的类型转换
-            public static bool @bool(object value)
-            {
-                return ConvertHelper.ValueParse<bool>(value);
-            }
-            public static decimal @decimal(object value)
-            {
-                return ConvertHelper.ValueParse<decimal>(value);
-            }
-            public static float @float(object value)
-            {
-                return ConvertHelper.ValueParse<float>(value);
-            }
-            public static double @double(object value)
-            {
-                return ConvertHelper.ValueParse<double>(value);
-            }
-            public static int @int(object value)
-            {
-                return ConvertHelper.ValueParse<int>(value);
-            }
-            public static int @long(object value)
-            {
-                return ConvertHelper.ValueParse<int>(value);
-            }
-            
-            #endregion
-
-            public static int len(object target)
-            {
-                // 获取数组或集合对象
-                // 访问数组或集合中的指定索引
-                if (target is Array array)
-                {
-                    return array.Length;
-                }
-                else if (target is string chars)
-                {
-                    return chars.Length;
-                }
-                else if (target is IDictionary<object, object> dict)
-                {
-                    return dict.Count;
-                }
-                else if (target is IList<object> list)
-                {
-                    return list.Count;
-                }
-                else
-                {
-                    throw new ArgumentException($"并非有效集合");
-                }
-            }
-            
-            public static void regType(Type type, string name = "")
-            {
-                SereinScript.AddClassType(type, name);
-            }
-
-            public static string str(object obj)
-            {
-                return obj?.ToString() ?? string.Empty;
-            }
-
-            public static object obj(Type type)
-            {
-                return Activator.CreateInstance(type);
-            }
-
-            public static object global(string name)
-            {
-                return SereinEnv.GetFlowGlobalData(name);
-            }
-
-            public static Type type(object type)
-            {
-                return type.GetType();
-            }
-
-            public static void log(object value)
-            {
-                SereinEnv.WriteLine(InfoType.INFO, value?.ToString());
-            }
-
-            public static async Task sleep(object value)
-            {
-                if (value is int @int)
-                {
-                    Console.WriteLine($"等待{@int}ms");
-                    await Task.Delay(@int);
-                }
-                else if (value is TimeSpan timeSpan)
-                {
-                    Console.WriteLine($"等待{timeSpan}");
-                    await Task.Delay(timeSpan);
-                }
-
-            }
-        } 
-        #endregion
     }
 }

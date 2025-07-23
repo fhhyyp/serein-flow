@@ -20,6 +20,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="Node\ExpressionNode.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Library\Serein.Library.csproj" />
   </ItemGroup>
 

@@ -1,13 +1,12 @@
-﻿using Net462DllTest.View;
-using Serein.Library;
+﻿using Serein.Library;
 
 namespace Net462DllTest.Signal
 {
-    public enum FromValue
+    /*public enum FromValue
     {
         [BindValue(typeof(FromWorkBenchView))]
         FromWorkBenchView,
         [BindValue(typeof(TestFormView))]
         TestFormView,
-    }
+    }*/
 }

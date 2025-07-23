@@ -39,7 +39,7 @@ namespace Serein.Script.Node
         public CollectionIndexNode Collection { get; }
 
         /// <summary>
-        /// 索引来源
+        /// 赋值值来源
         /// </summary>
         public ASTNode Value { get; }
 

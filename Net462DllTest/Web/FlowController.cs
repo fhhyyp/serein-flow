@@ -9,7 +9,7 @@ using System;
 
 namespace Net462DllTest.Web
 {
-    [AutoHosting]
+    [WebApiController]
     public class FlowController : ControllerBase
     {
         private readonly SiemensPlcDevice plcDevice;

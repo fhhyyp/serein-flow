@@ -92,7 +92,7 @@ namespace Serein.Library.Web
         {
             if (!controllerType.IsClass || controllerType.IsAbstract) return; // 如果不是类或者是抽象类，则直接返回
 
-            var autoHostingAttribute = controllerType.GetCustomAttribute<AutoHostingAttribute>();
+            var autoHostingAttribute = controllerType.GetCustomAttribute<WebApiControllerAttribute>();
             var methods = controllerType.GetMethods().Where(m => m.GetCustomAttribute<WebApiAttribute>() != null).ToArray();
 
             
@@ -264,7 +264,7 @@ namespace Serein.Library.Web
         /// <param name="controllerType">控制器类型</param>
         /// <param name="method">方法信息</param>
         /// <returns>方法对应的urk</returns>
-        private string AddRoutesUrl(AutoHostingAttribute autoHostingAttribute, WebApiAttribute webAttribute, Type controllerType, MethodInfo method)
+        private string AddRoutesUrl(WebApiControllerAttribute autoHostingAttribute, WebApiAttribute webAttribute, Type controllerType, MethodInfo method)
         {
             string controllerName;
             if (string.IsNullOrWhiteSpace(autoHostingAttribute.Url))

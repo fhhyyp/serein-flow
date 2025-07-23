@@ -130,7 +130,7 @@ namespace Serein.Library.Network
                 }
                 else if (jsonObject != null && PostArgTypes[i] == PostArgType.IsBobyData)
                 {
-                    args[i] = jsonObject;
+                    args[i] = jsonObject.ToObject(type);
                 }
                 else if (jsonObject != null)
                 {

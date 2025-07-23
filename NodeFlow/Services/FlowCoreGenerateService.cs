@@ -651,6 +651,10 @@ namespace Serein.NodeFlow.Services
 
 
         private Dictionary<SingleFlowCallNode, FlowApiMethodInfo> flowApiMethodInfos = [];
+        /// <summary>
+        /// 生成流程接口方法信息
+        /// </summary>
+        /// <param name="flowCallNodes"></param>
         private void GenerateFlowApi_InitFlowApiMethodInfos(SingleFlowCallNode[] flowCallNodes)
         {
 
@@ -667,6 +671,11 @@ namespace Serein.NodeFlow.Services
                 }
             }
         }
+
+        /// <summary>
+        /// 生成流程接口模板类
+        /// </summary>
+        /// <param name="sb"></param>
         private void GenerateFlowApi_InterfaceAndImpleClass(StringBuilder sb)
         {
             /*
@@ -703,6 +712,10 @@ namespace Serein.NodeFlow.Services
 
         }
 
+        /// <summary>
+        /// 生成流程接口参数
+        /// </summary>
+        /// <param name="sb"></param>
         private void GenerateFlowApi_ApiParamClass(StringBuilder sb)
         {
             var infos = flowApiMethodInfos.Values.ToArray();

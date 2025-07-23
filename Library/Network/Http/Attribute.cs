@@ -36,10 +36,10 @@ namespace Serein.Library.Web
     /// <summary>
     /// 标记该类为 Web Api 处理类
     /// </summary>
-    public class AutoHostingAttribute : Attribute
+    public class WebApiControllerAttribute : Attribute
     {
         public string Url { get; }
-        public AutoHostingAttribute(string url = "")
+        public WebApiControllerAttribute(string url = "")
         {
             this.Url = url;
         }

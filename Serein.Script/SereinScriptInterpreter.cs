@@ -42,13 +42,6 @@ namespace Serein.Script
             return result; // 返回最后一个节点的结果
         }
 
-        /*
-                async Task<object?> InterpreterAsync(IScriptInvokeContext context, ProgramNode node)
-                {
-                    return null;
-                }
-                return await InterpreterAsync(context, node); 
-        */
         private async Task<object?> InterpretAsync(IScriptInvokeContext context, ASTNode node)
         {
             switch (node)
@@ -243,8 +236,8 @@ namespace Serein.Script
                     return await InterpreterObjectInstantiationNodeAsync(context, objectInstantiationNode);
                 case CtorAssignmentNode ctorAssignmentNode:
                     return default;
-                case ExpressionNode expressionNode: // 类型表达式（链式调用）
-                    return await InterpretAsync(context, expressionNode.Value); // 直接计算表达式的值
+                /*case ExpressionNode expressionNode: // 类型表达式（链式调用）
+                    return await InterpretAsync(context, expressionNode.Value); // 直接计算表达式的值*/
                 case MemberAccessNode memberAccessNode: // 对象成员访问
                     async Task<object?> InterpreterMemberAccessNodeAsync(IScriptInvokeContext context, MemberAccessNode memberAccessNode)
                     {
@@ -319,7 +312,7 @@ namespace Serein.Script
                         if (!SereinScript.FunctionDelegates.TryGetValue(funcName, out DelegateDetails? function))
                             throw new SereinSciptException(functionCallNode, $"没有挂载方法\"{functionCallNode.FunctionName}\""); 
 
-                        if (!function.EmitMethodInfo.IsStatic)
+                       /* if (!function.EmitMethodInfo.IsStatic)
                         {
                             if (!SereinScript.DelegateInstances.TryGetValue(funcName, out var action))
                             {
@@ -331,7 +324,7 @@ namespace Serein.Script
                             {
                                 throw new SereinSciptException(functionCallNode, $"函数 {funcName} 尝试获取实例时返回了 null ");
                             }
-                        }
+                        }*/
 
                         var result = await function.InvokeAsync(instance, arguments);
                         return result;

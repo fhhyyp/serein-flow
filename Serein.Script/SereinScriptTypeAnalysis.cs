@@ -5,6 +5,7 @@ using Serein.Script.Node.FlowControl;
 using Serein.Script.Symbol;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reactive;
 using System.Reflection;
@@ -26,6 +27,17 @@ namespace Serein.Script
         /// 符号表
         /// </summary>
         public Dictionary<ASTNode, Type> NodeSymbolInfos { get; } = new Dictionary<ASTNode, Type>();
+
+        /// <summary>
+        /// 记录方法节点是否需要进行异步调用
+        /// </summary>
+        public Dictionary<ASTNode, bool> AsyncMethods { get; } = new Dictionary<ASTNode, bool>();
+
+        public void Reset()
+        {
+            NodeSymbolInfos.Clear(); // 清空符号表
+            AsyncMethods.Clear(); 
+        }
 
         public void LoadSymbol(Dictionary<string,Type> identifierNodes)
         {
@@ -74,6 +86,7 @@ namespace Serein.Script
             }
         }
 
+       
 
         /// <summary>
         /// 类型获取
@@ -293,7 +306,7 @@ namespace Serein.Script
                         return valueType;
                     }
                     return AnalysisCtorAssignmentNode(ctorAssignmentNode);
-                case ExpressionNode expressionNode: // 类型表达式（链式调用）
+                /*case ExpressionNode expressionNode: // 类型表达式（链式调用）
                     Type AnalysisObjectMemberExpressionNode(ExpressionNode expressionNode)
                     {
                         // 1. 对象成员获取 MemberAccessNode
@@ -304,7 +317,7 @@ namespace Serein.Script
                         NodeSymbolInfos[expressionNode] = resultType;
                         return resultType;
                     }
-                    return AnalysisObjectMemberExpressionNode(expressionNode);
+                    return AnalysisObjectMemberExpressionNode(expressionNode);*/
                 case MemberAccessNode memberAccessNode: // 对象成员访问
                     Type AnalysisMemberAccessNode(MemberAccessNode memberAccessNode)
                     {
@@ -365,9 +378,12 @@ namespace Serein.Script
                             Type argType = types[index];
                             NodeSymbolInfos[argNode] = argType;
                         }
+                        var isAsync = IsGenericTask(methodInfo.ReturnType, out var taskResult);
+                        var methodReturnType = isAsync ? taskResult : methodInfo.ReturnType;
+                        AsyncMethods[memberFunctionCallNode] = isAsync;
                         NodeSymbolInfos[memberFunctionCallNode.Object] = objectType;
-                        NodeSymbolInfos[memberFunctionCallNode] = methodInfo.ReturnType;
-                        return methodInfo.ReturnType;
+                        NodeSymbolInfos[memberFunctionCallNode] = methodReturnType;
+                        return methodReturnType;
 
 
                     }
@@ -386,8 +402,11 @@ namespace Serein.Script
                             Type argType = types[index];
                             NodeSymbolInfos[argNode] = argType;
                         }
-                        NodeSymbolInfos[functionCallNode] = methodInfo.ReturnType;
-                        return methodInfo.ReturnType;
+                        var isAsync = IsGenericTask(methodInfo.ReturnType, out var taskResult);
+                        var methodReturnType = isAsync  ? taskResult : methodInfo.ReturnType;
+                        AsyncMethods[functionCallNode] = isAsync;
+                        NodeSymbolInfos[functionCallNode] = methodReturnType;
+                        return methodReturnType;
                     }
                     return AnalysisFunctionCallNode(functionCallNode);
                 default: // 未定义的节点类型
@@ -395,7 +414,6 @@ namespace Serein.Script
             }
             throw new NotImplementedException();
         }
-
 
 
 
@@ -472,9 +490,9 @@ namespace Serein.Script
                 case ObjectInstantiationNode objectInstantiationNode: // 类型实例化
                     Analysis(objectInstantiationNode);
                     break;
-                case ExpressionNode expressionNode: // 类型表达式（链式调用）
+               /* case ExpressionNode expressionNode: // 类型表达式（链式调用）
                     Analysis(expressionNode.Value);
-                    break;
+                    break;*/
                 case MemberAccessNode memberAccessNode: // 对象成员访问
                     Analysis(memberAccessNode);
                     break;
@@ -497,7 +515,7 @@ namespace Serein.Script
         }
 
 
-        private void Analysis2(ASTNode node)
+        private void ToILCompiler(ASTNode node)
         {
             switch (node)
             {
@@ -541,9 +559,7 @@ namespace Serein.Script
                     break;
                 case ObjectInstantiationNode objectInstantiationNode: // 类型实例化
                     break;
-                case CtorAssignmentNode ctorAssignmentNode:
-                    break;
-                case ExpressionNode expressionNode: // 类型表达式（链式调用）
+                case CtorAssignmentNode ctorAssignmentNode: // 构造器赋值
                     break;
                 case MemberAccessNode memberAccessNode: // 对象成员访问
                     break;
@@ -582,8 +598,28 @@ namespace Serein.Script
             }
         }
 
+        private static bool IsGenericTask(Type returnType, out Type taskResult)
+        {
+            // 判断是否为 Task 类型或泛型 Task<T>
+            if (returnType == typeof(Task))
+            {
+                taskResult = typeof(void);
+                return true;
+            }
+            else if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
+            {
+                // 获取泛型参数类型
+                Type genericArgument = returnType.GetGenericArguments()[0];
+                taskResult = genericArgument;
+                return true;
+            }
+            else
+            {
+                taskResult = null;
+                return false;
 
-
+            }
+        }
 
         /// <summary>
         /// 获取某个集合类型支持的索引参数类型

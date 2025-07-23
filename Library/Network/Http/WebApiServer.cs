@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net;
 using System.Threading.Tasks;
 
@@ -47,8 +48,15 @@ namespace Serein.Library.Web
                 {
                     while (listener.IsListening)
                     {
-                        var context = await listener.GetContextAsync(); // 获取请求上下文
-                        ProcessRequestAsync(context); // 处理请求
+                        try
+                        {
+                            var context = await listener.GetContextAsync(); // 获取请求上下文
+                            await ProcessRequestAsync(context); // 处理请求
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine(ex.Message);
+                        }
                     }
                 });
             }
@@ -84,7 +92,7 @@ namespace Serein.Library.Web
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        private async void ProcessRequestAsync(HttpListenerContext context)
+        private async Task ProcessRequestAsync(HttpListenerContext context)
         {
             // 添加CORS头部
             context.Response.Headers.Add("Access-Control-Allow-Origin", "*");

@@ -1,4 +1,5 @@
-﻿using Serein.Library;
+﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Serein.Library;
 using Serein.Library.Api;
 using Serein.Script.Node;
 using Serein.Script.Node.FlowControl;
@@ -22,7 +23,7 @@ namespace Serein.Script
         /// <summary>
         /// 类型分析
         /// </summary>
-        public SereinScriptTypeAnalysis TypeAnalysis { get; set; } = new SereinScriptTypeAnalysis();
+        public SereinScriptTypeAnalysis TypeAnalysis { get;  } = new SereinScriptTypeAnalysis();
 
 
 
@@ -34,7 +35,7 @@ namespace Serein.Script
             SereinScriptParser parser = new SereinScriptParser();
             SereinScriptTypeAnalysis analysis = new SereinScriptTypeAnalysis();
             var programNode = parser.Parse(script);
-            analysis.NodeSymbolInfos.Clear(); // 清空符号表
+            analysis.Reset();
             if (argTypes is not null) analysis.LoadSymbol(argTypes); // 提前加载脚本节点定义的符号
             analysis.Analysis(programNode); // 分析节点类型
             SereinScriptInterpreter Interpreter = new SereinScriptInterpreter(analysis.NodeSymbolInfos);
@@ -61,6 +62,14 @@ namespace Serein.Script
             return returnType; // 脚本返回类型
         }
 
+
+
+        /// <summary>
+        /// 执行脚本
+        /// </summary>
+        /// <param name="context"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public async Task<object?> InterpreterAsync(IScriptInvokeContext context)
         {
             if(programNode is null)
@@ -73,6 +82,35 @@ namespace Serein.Script
         }
 
 
+        /// <summary>
+        /// 转换为c#代码
+        /// </summary>
+        /// <param name="script">脚本</param>
+        /// <param name="argTypes">挂载的变量</param>
+        /// <returns></returns>
+        public string ConvertCSharpCode(string mehtodName, Dictionary<string, Type>? argTypes = null)
+        {
+            if (string.IsNullOrWhiteSpace(mehtodName)) return string.Empty;
+            if (programNode is null) return string.Empty;
+            SereinScriptToCsharpScript tool = new SereinScriptToCsharpScript(TypeAnalysis);
+            return tool.CompileToCSharp(mehtodName, programNode, argTypes);
+        }
+
+
+
+        /// <summary>
+        /// 编译为 IL 代码
+        /// </summary>
+        /// <param name="script">脚本</param>
+        /// <param name="argTypes">挂载的变量</param>
+        /// <returns></returns>
+        [Obsolete("因为暂未想到如何支持异步方法，所以暂时废弃生成", true)]
+        private Delegate CompilerIL(string dynamicMethodName, ProgramNode programNode, Dictionary<string, Type>? argTypes = null)
+        {
+            SereinScriptILCompiler compiler = new SereinScriptILCompiler(TypeAnalysis.NodeSymbolInfos);
+            var @delegate = compiler.Compiler(dynamicMethodName, programNode, argTypes); // 编译脚本
+            return @delegate;
+        }
 
 
 
@@ -96,10 +134,10 @@ namespace Serein.Script
         /// <summary>
         /// 挂载的函数调用的对象（用于解决函数需要实例才能调用的场景）
         /// </summary>
-        public static Dictionary<string, Func<object>> DelegateInstances = new Dictionary<string, Func<object>>();
+        // public static Dictionary<string, Func<object>> DelegateInstances = new Dictionary<string, Func<object>>();
 
         /// <summary>
-        /// 挂载静态函数
+        /// 挂载函数
         /// </summary>
         /// <param name="functionName"></param>
         /// <param name="methodInfo"></param>
@@ -115,7 +153,7 @@ namespace Serein.Script
         /// </summary>
         /// <param name="functionName">函数名称</param>
         /// <param name="methodInfo">方法信息</param>
-        public static void AddFunction(string functionName, MethodInfo methodInfo, Func<object>? callObj = null)
+        /*public static void AddFunction(string functionName, MethodInfo methodInfo, Func<object>? callObj = null)
         {
             if (!methodInfo.IsStatic && callObj is null)
             {
@@ -132,7 +170,7 @@ namespace Serein.Script
             {
                 FunctionDelegates[functionName] = new DelegateDetails(methodInfo);
             }
-        }
+        }*/
 
         /// <summary>
         /// 挂载类型
