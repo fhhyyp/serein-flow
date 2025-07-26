@@ -1391,8 +1391,8 @@ namespace Serein.NodeFlow.Services
                         sb.AppendCode(3, $"{{");
                         sb.AppendCode(4, $"return null;");
                         sb.AppendCode(3, $"}}");
+                        sb.AppendCode(3, $"else", isWrapping :false);
                     }
-                   
                     sb.AppendCode(3,    $"if ({flowResult}.{nameof(FlowResult.Value)} is global::{ReturnType.FullName} result)");
                     sb.AppendCode(3,    $"{{");
                     sb.AppendCode(4,        $"return result;");
