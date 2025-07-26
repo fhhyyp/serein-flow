@@ -18,8 +18,12 @@ namespace Serein.Script
     /// <summary>
     /// 将 Serein 脚本转换为 C# 脚本的类
     /// </summary>
-    internal class SereinScriptToCsharpScript
+    public class SereinScriptToCsharpScript
     {
+        public const string ClassName = nameof(SereinScriptToCsharpScript);
+
+        public SereinScriptMethodInfo sereinScriptMethodInfo ;
+
         /// <summary>
         /// 符号表
         /// </summary>
@@ -62,19 +66,35 @@ namespace Serein.Script
 
         private List<Action<StringBuilder>> _classDefinitions = new List<Action<StringBuilder>>();
 
-        public string CompileToCSharp(string mehtodName, ProgramNode programNode, Dictionary<string, Type>? param)
+        public SereinScriptMethodInfo CompileToCSharp(string mehtodName, ProgramNode programNode, Dictionary<string, Type>? param)
         {
             _codeBuilder.Clear();
+            sereinScriptMethodInfo = new SereinScriptMethodInfo()
+            {
+                ClassName = ClassName,
+                ParamInfos = new List<SereinScriptMethodInfo.SereinScriptParamInfo>(),
+                MethodName = mehtodName,
+            };
             var sb = _codeBuilder;
             var methodResultType = _symbolInfos[programNode];
             if(methodResultType == typeof(void))
             {
                 methodResultType = typeof(object);
             }
-            var taskFullName = typeof(Task).FullName; 
-            var returnContent = _isTaskMain ? $"global::{taskFullName}<global::{methodResultType.FullName}>" : $"global::{methodResultType.FullName}";
+            var taskFullName = typeof(Task).FullName;
+            string? returnContent;
+            if (_isTaskMain)
+            {
+                returnContent = $"global::{taskFullName}<global::{methodResultType.FullName}>";
+                sereinScriptMethodInfo.IsAsync = true;
+            }
+            else
+            {
+                returnContent = $"global::{methodResultType.FullName}";
+                sereinScriptMethodInfo.IsAsync = false;
+            }
 
-            AppendLine("public class SereinScriptToCsharp");
+            AppendLine($"public partial class {ClassName}");
             AppendLine( "{");
             Indent();
             if(param is null || param.Count == 0)
@@ -92,10 +112,13 @@ namespace Serein.Script
                 ConvertCode(stmt); // 递归遍历
                 Append(";");
             }
-            if(!_symbolInfos.Keys.Any(node => node is ReturnNode))
+
+            if (_symbolInfos[programNode] == typeof(void))
             {
+                AppendLine("");
                 AppendLine("return null;");
             }
+
             Unindent();
             AppendLine("}");
             Unindent();
@@ -105,16 +128,24 @@ namespace Serein.Script
             {
                 cd.Invoke(sb);
             }
-
-            return sb.ToString();
+            sereinScriptMethodInfo.CsharpCode = sb.ToString();
+            sereinScriptMethodInfo.ReturnType = methodResultType;
+            return sereinScriptMethodInfo;
         }
 
         private string GetMethodParamster(Dictionary<string, Type> param)
         {
             var values = param.Select(kvp =>
             {
-                _local[kvp.Key] = kvp.Value;
-                return $"global::{kvp.Value.FullName} {kvp.Key}";
+                var paramName = kvp.Key;
+                var type = kvp.Value;
+                _local[paramName] = type;
+                sereinScriptMethodInfo.ParamInfos.Add(new SereinScriptMethodInfo.SereinScriptParamInfo
+                {
+                    ParameterType = type,
+                    ParamName = paramName,
+                });
+                return $"global::{type.FullName} {paramName}";
             });
             return string.Join(',', values);
         }

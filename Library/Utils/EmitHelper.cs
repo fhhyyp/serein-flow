@@ -210,7 +210,310 @@ namespace Serein.Library.Utils
             };
         }
 
-        
-    }
 
+
+        /// <summary>
+        /// 创建字段 Getter 委托：Func&lt;object, object&gt;
+        /// </summary>
+        public static Func<object, object> CreateFieldGetter(FieldInfo fieldInfo)
+        {
+            if (fieldInfo == null)
+                throw new ArgumentNullException(nameof(fieldInfo));
+
+            var method = new DynamicMethod(
+                fieldInfo.Name + "_Get",
+                typeof(object),
+                new[] { typeof(object) },
+                fieldInfo.DeclaringType,
+                true);
+
+            ILGenerator il = method.GetILGenerator();
+
+            if (!fieldInfo.IsStatic)
+            {
+                // 加载实例
+                il.Emit(OpCodes.Ldarg_0);
+                il.Emit(OpCodes.Castclass, fieldInfo.DeclaringType);
+                il.Emit(OpCodes.Ldfld, fieldInfo);
+            }
+            else
+            {
+                il.Emit(OpCodes.Ldsfld, fieldInfo);
+            }
+
+            // 如果是值类型，装箱
+            if (fieldInfo.FieldType.IsValueType)
+                il.Emit(OpCodes.Box, fieldInfo.FieldType);
+
+            il.Emit(OpCodes.Ret);
+
+            return (Func<object, object>)method.CreateDelegate(typeof(Func<object, object>));
+        }
+
+        /// <summary>
+        /// 创建字段 Setter 委托：Action&lt;object, object&gt;
+        /// </summary>
+        public static Action<object, object> CreateFieldSetter(FieldInfo fieldInfo)
+        {
+            if (fieldInfo == null)
+                throw new ArgumentNullException(nameof(fieldInfo));
+            if (fieldInfo.IsInitOnly)
+                throw new InvalidOperationException($"字段 {fieldInfo.Name} 是只读字段，无法设置值。");
+
+            var method = new DynamicMethod(
+                fieldInfo.Name + "_Set",
+                null,
+                new[] { typeof(object), typeof(object) },
+                fieldInfo.DeclaringType,
+                true);
+
+            ILGenerator il = method.GetILGenerator();
+
+            if (!fieldInfo.IsStatic)
+            {
+                il.Emit(OpCodes.Ldarg_0);
+                il.Emit(OpCodes.Castclass, fieldInfo.DeclaringType);
+            }
+
+            // 加载值
+            il.Emit(OpCodes.Ldarg_1);
+            if (fieldInfo.FieldType.IsValueType)
+                il.Emit(OpCodes.Unbox_Any, fieldInfo.FieldType);
+            else
+                il.Emit(OpCodes.Castclass, fieldInfo.FieldType);
+
+            if (fieldInfo.IsStatic)
+                il.Emit(OpCodes.Stsfld, fieldInfo);
+            else
+                il.Emit(OpCodes.Stfld, fieldInfo);
+
+            il.Emit(OpCodes.Ret);
+
+            return (Action<object, object>)method.CreateDelegate(typeof(Action<object, object>));
+        }
+
+        /// <summary>
+        /// 创建属性 Getter 委托：Func&lt;object, object&gt;
+        /// </summary>
+        public static Func<object, object> CreatePropertyGetter(PropertyInfo propertyInfo)
+        {
+            if (propertyInfo == null)
+                throw new ArgumentNullException(nameof(propertyInfo));
+            var getMethod = propertyInfo.GetGetMethod(true);
+            if (getMethod == null)
+                throw new InvalidOperationException($"属性 {propertyInfo.Name} 没有可用的 Getter。");
+
+            var method = new DynamicMethod(
+                propertyInfo.Name + "_Get",
+                typeof(object),
+                new[] { typeof(object) },
+                propertyInfo.DeclaringType,
+                true);
+
+            ILGenerator il = method.GetILGenerator();
+
+            if (!getMethod.IsStatic)
+            {
+                il.Emit(OpCodes.Ldarg_0);
+                il.Emit(OpCodes.Castclass, propertyInfo.DeclaringType);
+                il.EmitCall(OpCodes.Callvirt, getMethod, null);
+            }
+            else
+            {
+                il.EmitCall(OpCodes.Call, getMethod, null);
+            }
+
+            // 装箱
+            if (propertyInfo.PropertyType.IsValueType)
+                il.Emit(OpCodes.Box, propertyInfo.PropertyType);
+
+            il.Emit(OpCodes.Ret);
+
+            return (Func<object, object>)method.CreateDelegate(typeof(Func<object, object>));
+        }
+
+        /// <summary>
+        /// 创建属性 Setter 委托：Action&lt;object, object&gt;
+        /// </summary>
+        public static Action<object, object> CreatePropertySetter(PropertyInfo propertyInfo)
+        {
+            if (propertyInfo == null)
+                throw new ArgumentNullException(nameof(propertyInfo));
+            var setMethod = propertyInfo.GetSetMethod(true);
+            if (setMethod == null)
+                throw new InvalidOperationException($"属性 {propertyInfo.Name} 没有可用的 Setter。");
+
+            var method = new DynamicMethod(
+                propertyInfo.Name + "_Set",
+                null,
+                new[] { typeof(object), typeof(object) },
+                propertyInfo.DeclaringType,
+                true);
+
+            ILGenerator il = method.GetILGenerator();
+
+            if (!setMethod.IsStatic)
+            {
+                il.Emit(OpCodes.Ldarg_0);
+                il.Emit(OpCodes.Castclass, propertyInfo.DeclaringType);
+            }
+
+            // 加载值
+            il.Emit(OpCodes.Ldarg_1);
+            if (propertyInfo.PropertyType.IsValueType)
+                il.Emit(OpCodes.Unbox_Any, propertyInfo.PropertyType);
+            else
+                il.Emit(OpCodes.Castclass, propertyInfo.PropertyType);
+
+            if (setMethod.IsStatic)
+                il.EmitCall(OpCodes.Call, setMethod, null);
+            else
+                il.EmitCall(OpCodes.Callvirt, setMethod, null);
+
+            il.Emit(OpCodes.Ret);
+
+            return (Action<object, object>)method.CreateDelegate(typeof(Action<object, object>));
+        }
+
+
+        /// <summary>
+        /// 创建集合赋值委托：Action&lt;object, object, object&gt;
+        /// </summary>
+        /// <param name="collectionType"></param>
+        /// <returns></returns>
+        /// <exception cref="NotSupportedException"></exception>
+        public static Action<object, object, object> CreateCollectionSetter(Type collectionType)
+        {
+            DynamicMethod dm = new DynamicMethod(
+                "SetCollectionValue",
+                null,
+                new[] { typeof(object), typeof(object), typeof(object) },
+                typeof(EmitHelper).Module,
+                true);
+
+            ILGenerator il = dm.GetILGenerator();
+
+            if (collectionType.IsArray)
+            {
+                // (object array, object index, object value) => ((T[])array)[(int)index] = (T)value;
+                var elementType = collectionType.GetElementType()!;
+                il.Emit(OpCodes.Ldarg_0);
+                il.Emit(OpCodes.Castclass, collectionType); // 转为真实数组类型
+
+                il.Emit(OpCodes.Ldarg_1);
+                il.Emit(OpCodes.Unbox_Any, typeof(int));    // index
+
+                il.Emit(OpCodes.Ldarg_2);
+                if (elementType.IsValueType)
+                    il.Emit(OpCodes.Unbox_Any, elementType);
+                else
+                    il.Emit(OpCodes.Castclass, elementType);
+
+                il.Emit(OpCodes.Stelem, elementType); // 设置数组元素
+                il.Emit(OpCodes.Ret);
+            }
+            else
+            {
+                // 尝试获取 set_Item 方法
+                MethodInfo? setItem = collectionType.GetMethod("set_Item", BindingFlags.Instance | BindingFlags.Public);
+                if (setItem == null)
+                    throw new NotSupportedException($"类型 {collectionType} 不支持 set_Item。");
+
+                var parameters = setItem.GetParameters();
+                var indexType = parameters[0].ParameterType;
+                var valueType = parameters[1].ParameterType;
+
+                // (object collection, object index, object value) => ((CollectionType)collection)[(IndexType)index] = (ValueType)value;
+                il.Emit(OpCodes.Ldarg_0);
+                il.Emit(OpCodes.Castclass, collectionType);
+
+                il.Emit(OpCodes.Ldarg_1);
+                if (indexType.IsValueType)
+                    il.Emit(OpCodes.Unbox_Any, indexType);
+                else
+                    il.Emit(OpCodes.Castclass, indexType);
+
+                il.Emit(OpCodes.Ldarg_2);
+                if (valueType.IsValueType)
+                    il.Emit(OpCodes.Unbox_Any, valueType);
+                else
+                    il.Emit(OpCodes.Castclass, valueType);
+
+                il.Emit(OpCodes.Callvirt, setItem);
+                il.Emit(OpCodes.Ret);
+            }
+
+            return (Action<object, object, object>)dm.CreateDelegate(typeof(Action<object, object, object>));
+        }
+
+
+
+        /// <summary>
+        /// 创建集合获取委托：Func&lt;object, object, object&gt;
+        /// </summary>
+        /// <param name="collectionType"></param>
+        /// <returns></returns>
+        /// <exception cref="NotSupportedException"></exception>
+        public static Func<object, object, object> CreateCollectionGetter(Type collectionType)
+        {
+            DynamicMethod dm = new DynamicMethod(
+                "GetCollectionValue",
+                typeof(object),
+                new[] { typeof(object), typeof(object) },
+                typeof(EmitHelper).Module,
+                true);
+
+            ILGenerator il = dm.GetILGenerator();
+
+            if (collectionType.IsArray)
+            {
+                // (object array, object index) => ((T[])array)[(int)index]
+                var elementType = collectionType.GetElementType()!;
+                il.Emit(OpCodes.Ldarg_0);
+                il.Emit(OpCodes.Castclass, collectionType); // 转为真实数组类型
+
+                il.Emit(OpCodes.Ldarg_1);
+                il.Emit(OpCodes.Unbox_Any, typeof(int));    // index
+
+                il.Emit(OpCodes.Ldelem, elementType);       // 取值
+
+                if (elementType.IsValueType)
+                    il.Emit(OpCodes.Box, elementType);      // 装箱
+
+                il.Emit(OpCodes.Ret);
+            }
+            else
+            {
+                // 调用 get_Item 方法
+                MethodInfo? getItem = collectionType.GetMethod("get_Item", BindingFlags.Instance | BindingFlags.Public);
+                if (getItem == null)
+                    throw new NotSupportedException($"类型 {collectionType} 不支持 get_Item。");
+
+                var parameters = getItem.GetParameters();
+                var indexType = parameters[0].ParameterType;
+                var returnType = getItem.ReturnType;
+
+                il.Emit(OpCodes.Ldarg_0);
+                il.Emit(OpCodes.Castclass, collectionType);
+
+                il.Emit(OpCodes.Ldarg_1);
+                if (indexType.IsValueType)
+                    il.Emit(OpCodes.Unbox_Any, indexType);
+                else
+                    il.Emit(OpCodes.Castclass, indexType);
+
+                il.Emit(OpCodes.Callvirt, getItem);
+
+                if (returnType.IsValueType)
+                    il.Emit(OpCodes.Box, returnType);
+
+                il.Emit(OpCodes.Ret);
+            }
+
+            return (Func<object, object, object>)dm.CreateDelegate(typeof(Func<object, object, object>));
+        }
+
+    }
 }
+
+

@@ -1,8 +1,10 @@
-﻿using Serein.Library;
+﻿using Newtonsoft.Json.Linq;
+using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.Utils;
 using Serein.NodeFlow.Env;
 using Serein.NodeFlow.Model;
+using Serein.Script;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,6 +12,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace Serein.NodeFlow.Services
 {
@@ -46,8 +49,11 @@ namespace Serein.NodeFlow.Services
                 }
 
             }
-            var flowCallNode = flowModelService.GetAllNodeModel().Where(n => n.ControlType == NodeControlType.FlowCall).Select(n => (SingleFlowCallNode)n).ToArray();
-            GenerateFlowApi_InitFlowApiMethodInfos(flowCallNode);
+            var scriptNodes = flowModelService.GetAllNodeModel().Where(n => n.ControlType == NodeControlType.Script).OfType<SingleScriptNode>().ToArray();
+            GenerateScript_InitSereinScriptMethodInfos(scriptNodes); // 初始化脚本方法
+
+            var flowCallNode = flowModelService.GetAllNodeModel().Where(n => n.ControlType == NodeControlType.FlowCall).OfType<SingleFlowCallNode>().ToArray();
+            GenerateFlowApi_InitFlowApiMethodInfos(flowCallNode); // 初始化流程接口信息
             GenerateFlowApi_InterfaceAndImpleClass(stringBuilder); // 生成接口类
             GenerateFlowApi_ApiParamClass(stringBuilder); // 生成接口参数类
             string flowTemplateClassName = $"FlowTemplate"; // 类名
@@ -66,15 +72,23 @@ namespace Serein.NodeFlow.Services
             }
 
             // 生成实现流程接口的实现方法
-            var infos = flowApiMethodInfos.Values.ToArray();
-            foreach (var info in infos)
+            var flowApiInfos = flowApiMethodInfos.Values.ToArray();
+            foreach (var info in flowApiInfos)
             {
                 stringBuilder.AppendCode(2, info.ToObjPoolSignature());
                 stringBuilder.AppendCode(2, info.ToImpleMethodSignature(FlowApiMethodInfo.ParamType.Defute));
                 stringBuilder.AppendCode(2, info.ToImpleMethodSignature(FlowApiMethodInfo.ParamType.HasToken));
                 stringBuilder.AppendCode(2, info.ToImpleMethodSignature(FlowApiMethodInfo.ParamType.HasContextAndToken));
             }
+
             stringBuilder.AppendCode(0, $"}}");
+
+            // 载入脚本节点转换的C#代码
+            var scriptInfos = scriptMethodInfos.Values.ToArray();
+            foreach (var info in scriptInfos)
+            {
+                stringBuilder.AppendCode(2, info.CsharpCode);
+            }
 
             return stringBuilder.ToString();
         }
@@ -132,18 +146,19 @@ namespace Serein.NodeFlow.Services
         /// <exception cref="Exception"></exception>
         private void GenerateMethod(StringBuilder sb_main, IFlowNode flowNode)
         {
-            string? dynamicContextTypeName = typeof(IFlowContext).FullName;
+            string? flowContextTypeName = typeof(IFlowContext).FullName;
             string? flowContext = nameof(flowContext);
 
             if (flowNode.ControlType == NodeControlType.Action && flowNode is SingleActionNode actionNode)
             {
-                CreateMethodCore_Action(sb_main, actionNode, dynamicContextTypeName, flowContext);
+                CreateMethodCore_Action(sb_main, actionNode, flowContextTypeName, flowContext);
             }
             else if (flowNode.ControlType == NodeControlType.Flipflop)
             {
             }
-            else if (flowNode.ControlType == NodeControlType.Script)
+            else if (flowNode.ControlType == NodeControlType.Script && flowNode is SingleScriptNode singleScriptNode)
             {
+                CreateMethodCore_Script(sb_main, singleScriptNode, flowContextTypeName, flowContext);
             }
             else if (flowNode.ControlType == NodeControlType.UI)
             {
@@ -157,7 +172,7 @@ namespace Serein.NodeFlow.Services
             }
             else if (flowNode.ControlType == NodeControlType.FlowCall && flowNode is SingleFlowCallNode flowCallNode)
             {
-                CreateMethodCore_FlowCall(sb_main, flowCallNode, dynamicContextTypeName, flowContext);
+                CreateMethodCore_FlowCall(sb_main, flowCallNode, flowContextTypeName, flowContext);
             }
 
             return;
@@ -169,10 +184,10 @@ namespace Serein.NodeFlow.Services
         /// </summary>
         /// <param name="sb_main"></param>
         /// <param name="actionNode"></param>
-        /// <param name="dynamicContextTypeName"></param>
+        /// <param name="flowContextTypeName"></param>
         /// <param name="flowContext"></param>
         /// <exception cref="Exception"></exception>
-        private void CreateMethodCore_Action(StringBuilder sb_main, SingleActionNode actionNode, string? dynamicContextTypeName, string flowContext)
+        private void CreateMethodCore_Action(StringBuilder sb_main, SingleActionNode actionNode, string? flowContextTypeName, string flowContext)
         {
             if (!flowLibraryService.TryGetMethodInfo(actionNode.MethodDetails.AssemblyName,
                                                                                 actionNode.MethodDetails.MethodName,
@@ -339,7 +354,7 @@ namespace Serein.NodeFlow.Services
             var resultTypeName = actionNode.MethodDetails.IsAsync ? "async Task" : "void";
 
             sb_main.AppendCode(2, $"[Description(\"{instanceTypeFullName}.{methodInfo.Name}\")]");
-            sb_main.AppendCode(2, $"private {resultTypeName} {actionNode.ToNodeMethodName()}(global::{dynamicContextTypeName} {flowContext})");
+            sb_main.AppendCode(2, $"private {resultTypeName} {actionNode.ToNodeMethodName()}(global::{flowContextTypeName} {flowContext})");
             sb_main.AppendCode(2, $"{{");
             sb_main.AppendCode(0, sb_invoke_login.ToString());
             sb_main.AppendCode(2, $"}}"); // 方法结束
@@ -352,102 +367,371 @@ namespace Serein.NodeFlow.Services
         /// </summary>
         /// <param name="sb_main"></param>
         /// <param name="flowCallNode"></param>
-        /// <param name="dynamicContextTypeName"></param>
+        /// <param name="flowContextTypeName"></param>
         /// <param name="flowContext"></param>
         /// <exception cref="Exception"></exception>
-        private void CreateMethodCore_FlowCall(StringBuilder sb_main, SingleFlowCallNode flowCallNode, string? dynamicContextTypeName, string flowContext)
+        private void CreateMethodCore_FlowCall(StringBuilder sb_main, SingleFlowCallNode flowCallNode, string? flowContextTypeName, string flowContext)
         {
             if (!flowApiMethodInfos.TryGetValue(flowCallNode, out var flowApiMethodInfo))
             {
                 return;
             }
-            if (!flowLibraryService.TryGetMethodInfo(flowCallNode.MethodDetails.AssemblyName,
-                                                                                flowCallNode.MethodDetails.MethodName,
-                                                                                out var methodInfo) || methodInfo is null)
+
+            if(flowCallNode.TargetNode is SingleScriptNode singleScriptNode)
+            {
+                if (!scriptMethodInfos.TryGetValue(singleScriptNode, out var scriptMethodInfo))
+                {
+                    return;
+                }
+
+                var instanceType = flowCallNode.MethodDetails.ActingInstanceType;
+                var returnType = singleScriptNode.MethodDetails.ReturnType;
+
+                //var instanceName = instanceType.ToCamelCase();// $"instance_{instanceType.Name}";
+
+                //var instanceTypeFullName = instanceType.FullName;
+                var returnTypeFullName = returnType == typeof(void) ? "void" : returnType.FullName;
+
+                #region 方法内部逻辑
+                StringBuilder sb_invoke_login = new StringBuilder();
+
+                if (flowCallNode.MethodDetails is null) return;
+                //var param = methodInfo.GetParameters();
+                var md = flowCallNode.MethodDetails;
+                var pds = flowCallNode.MethodDetails.ParameterDetailss;
+                //if (param is null) return;
+                if (pds is null) return;
+
+                /* for (int index = 0; index < pds.Length; index++)
+                 {
+                     ParameterDetails? pd = pds[index];
+                     ParameterInfo parameterInfo = param[index];
+                     var paramtTypeFullName = parameterInfo.ParameterType.FullName;
+                 }*/
+
+                var flowDataName = $"flowData{flowApiMethodInfo.ApiMethodName}";
+                var apiData = $"apiData{flowApiMethodInfo.ApiMethodName}";
+                sb_invoke_login.AppendCode(3, $"global::{typeof(object).FullName} {flowDataName} = {flowContext}.GetFlowData(\"{flowApiMethodInfo.ApiMethodName}\").Value;");
+                sb_invoke_login.AppendCode(3, $"if({flowDataName} is {flowApiMethodInfo.ParamTypeName} {apiData})");
+                sb_invoke_login.AppendCode(3, $"{{");
+                foreach (var info in flowApiMethodInfo.ParamInfos)
+                {
+                    sb_invoke_login.AppendCode(4, $"global::{info.Type.FullName} {info.ParamName} = {apiData}.{info.ParamName.ToPascalCase()}; ");
+                }
+                var invokeParamContext = string.Join(", ", flowApiMethodInfo.ParamInfos.Select(x => x.ParamName));
+                if (flowApiMethodInfo.IsVoid)
+                {
+                    // 调用无返回值方法
+                    var invokeFunctionContext = $"{scriptMethodInfo.ClassName}.{scriptMethodInfo.MethodName}";
+                    // 如果目标方法是异步的，则自动 await 进行等待
+                    sb_invoke_login.AppendCode(4, $"{(md.IsAsync ? $"await" : string.Empty)} {invokeFunctionContext}({invokeParamContext});");
+                }
+                else
+                {
+                    // 调用有返回值方法
+                    var resultName = $"result{flowApiMethodInfo.ApiMethodName}";
+                    var invokeFunctionContext = $"{scriptMethodInfo.ClassName}.{scriptMethodInfo.MethodName}";
+                    // 如果目标方法是异步的，则自动 await 进行等待
+                    sb_invoke_login.AppendCode(4, $"var {resultName} = {(md.IsAsync ? $"await" : string.Empty)} {invokeFunctionContext}({invokeParamContext});");
+
+                    sb_invoke_login.AppendCode(4, $"{flowContext}.{nameof(IFlowContext.AddOrUpdate)}(\"{flowCallNode.TargetNode.Guid}\", {resultName});"); // 更新数据
+                    sb_invoke_login.AppendCode(4, $"{flowApiMethodInfo.ObjPoolName}.Return({apiData});"); // 归还到对象池
+                                                                                                          //sb_invoke_login.AppendCode(3, $"return result;", false);
+                }
+                sb_invoke_login.AppendCode(3, $"}}");
+                sb_invoke_login.AppendCode(3, $"else");
+                sb_invoke_login.AppendCode(3, $"{{");
+                sb_invoke_login.AppendCode(4, $"throw new Exception(\"接口参数类型异常\");");
+                sb_invoke_login.AppendCode(3, $"}}");
+
+
+
+
+                #endregion
+
+
+                var resultTypeName = flowCallNode.MethodDetails.IsAsync ? "async Task" : "void";
+
+                sb_main.AppendCode(2, $"[Description(\"脚本节点接口\")]");
+                sb_main.AppendCode(2, $"private {resultTypeName} {flowCallNode.ToNodeMethodName()}(global::{flowContextTypeName} {flowContext})");
+                sb_main.AppendCode(2, $"{{");
+                sb_main.AppendCode(0, sb_invoke_login.ToString());
+                sb_main.AppendCode(2, $"}} "); // 方法结束
+
+                sb_main.AppendLine(); // 方法结束
+            }
+            else
+            {
+                if (!flowLibraryService.TryGetMethodInfo(flowCallNode.MethodDetails.AssemblyName,
+                                                     flowCallNode.MethodDetails.MethodName,
+                                                     out var methodInfo) || methodInfo is null)
+                {
+                    return;
+                }
+
+                var isRootNode = flowCallNode.IsRoot();
+
+                var instanceType = flowCallNode.MethodDetails.ActingInstanceType;
+                var returnType = methodInfo.ReturnType;
+
+                var instanceName = instanceType.ToCamelCase();// $"instance_{instanceType.Name}";
+
+                var instanceTypeFullName = instanceType.FullName;
+                var returnTypeFullName = returnType == typeof(void) ? "void" : returnType.FullName;
+
+                #region 方法内部逻辑
+                StringBuilder sb_invoke_login = new StringBuilder();
+
+                if (flowCallNode.MethodDetails is null) return;
+                //var param = methodInfo.GetParameters();
+                var md = flowCallNode.MethodDetails;
+                var pds = flowCallNode.MethodDetails.ParameterDetailss;
+                //if (param is null) return;
+                if (pds is null) return;
+
+                /* for (int index = 0; index < pds.Length; index++)
+                 {
+                     ParameterDetails? pd = pds[index];
+                     ParameterInfo parameterInfo = param[index];
+                     var paramtTypeFullName = parameterInfo.ParameterType.FullName;
+                 }*/
+
+                var flowDataName = $"flowData{flowApiMethodInfo.ApiMethodName}";
+                var apiData = $"apiData{flowApiMethodInfo.ApiMethodName}";
+                sb_invoke_login.AppendCode(3, $"global::{typeof(object).FullName} {flowDataName} = {flowContext}.GetFlowData(\"{flowApiMethodInfo.ApiMethodName}\").Value;");
+                sb_invoke_login.AppendCode(3, $"if({flowDataName} is {flowApiMethodInfo.ParamTypeName} {apiData})");
+                sb_invoke_login.AppendCode(3, $"{{");
+                foreach (var info in flowApiMethodInfo.ParamInfos)
+                {
+                    sb_invoke_login.AppendCode(4, $"global::{info.Type.FullName} {info.ParamName} = {apiData}.{info.ParamName.ToPascalCase()}; ");
+                }
+                var invokeParamContext = string.Join(", ", flowApiMethodInfo.ParamInfos.Select(x => x.ParamName));
+                if (flowApiMethodInfo.IsVoid)
+                {
+                    // 调用无返回值方法
+                    // 如果目标方法是静态的，则以“命名空间.类.方法”形式调用，否则以“实例.方法”形式调用
+                    var invokeFunctionContext = methodInfo.IsStatic ? $"global::{instanceType}.{methodInfo.Name}" : $"{instanceName}.{methodInfo.Name}";
+                    // 如果目标方法是异步的，则自动 await 进行等待
+                    sb_invoke_login.AppendCode(4, $"{(md.IsAsync ? $"await" : string.Empty)} {invokeFunctionContext}({invokeParamContext});");
+                }
+                else
+                {
+                    // 调用有返回值方法
+                    var resultName = $"result{flowApiMethodInfo.ApiMethodName}";
+                    // 如果目标方法是静态的，则以“命名空间.类.方法”形式调用，否则以“实例.方法”形式调用
+                    var invokeFunctionContext = methodInfo.IsStatic ? $"global::{instanceType}.{methodInfo.Name}" : $"{instanceName}.{methodInfo.Name}";
+                    // 如果目标方法是异步的，则自动 await 进行等待
+                    sb_invoke_login.AppendCode(4, $"var {resultName} = {(md.IsAsync ? $"await" : string.Empty)} {invokeFunctionContext}({invokeParamContext});");
+
+                    sb_invoke_login.AppendCode(4, $"{flowContext}.{nameof(IFlowContext.AddOrUpdate)}(\"{flowCallNode.TargetNode.Guid}\", {resultName});"); // 更新数据
+                    sb_invoke_login.AppendCode(4, $"{flowApiMethodInfo.ObjPoolName}.Return({apiData});"); // 归还到对象池
+                                                                                                          //sb_invoke_login.AppendCode(3, $"return result;", false);
+                }
+                sb_invoke_login.AppendCode(3, $"}}");
+                sb_invoke_login.AppendCode(3, $"else");
+                sb_invoke_login.AppendCode(3, $"{{");
+                sb_invoke_login.AppendCode(4, $"throw new Exception(\"接口参数类型异常\");");
+                sb_invoke_login.AppendCode(3, $"}}");
+
+
+
+
+                #endregion
+
+
+                var resultTypeName = flowCallNode.MethodDetails.IsAsync ? "async Task" : "void";
+
+                sb_main.AppendCode(2, $"[Description(\"{instanceTypeFullName}.{methodInfo.Name}\")]");
+                sb_main.AppendCode(2, $"private {resultTypeName} {flowCallNode.ToNodeMethodName()}(global::{flowContextTypeName} {flowContext})");
+                sb_main.AppendCode(2, $"{{");
+                sb_main.AppendCode(0, sb_invoke_login.ToString());
+                sb_main.AppendCode(2, $"}} "); // 方法结束
+
+                sb_main.AppendLine(); // 方法结束
+            }
+           
+
+        }
+
+       
+        /// <summary>
+        /// 生成[Script]节点的方法调用
+        /// </summary>
+        /// <param name="sb_main"></param>
+        /// <param name="singleScriptNode"></param>
+        /// <param name="flowContextTypeName"></param>
+        /// <param name="flowContext"></param>
+        private void CreateMethodCore_Script(StringBuilder sb_main, SingleScriptNode singleScriptNode, string? flowContextTypeName, string flowContext)
+        {
+           
+
+            if (!scriptMethodInfos.TryGetValue(singleScriptNode, out var scriptMethodInfo))
             {
                 return;
             }
 
-            var isRootNode = flowCallNode.IsRoot();
+            var isRootNode = singleScriptNode.IsRoot();
 
-            var instanceType = flowCallNode.MethodDetails.ActingInstanceType;
-            var returnType = methodInfo.ReturnType;
 
-            var instanceName = instanceType.ToCamelCase();// $"instance_{instanceType.Name}";
-
-            var instanceTypeFullName = instanceType.FullName;
+            var returnType = scriptMethodInfo.ReturnType;
             var returnTypeFullName = returnType == typeof(void) ? "void" : returnType.FullName;
 
             #region 方法内部逻辑
             StringBuilder sb_invoke_login = new StringBuilder();
-
-            if (flowCallNode.MethodDetails is null) return;
-            var param = methodInfo.GetParameters();
-            var md = flowCallNode.MethodDetails;
-            var pds = flowCallNode.MethodDetails.ParameterDetailss;
+            if (singleScriptNode.MethodDetails is null) return;
+            var param = scriptMethodInfo.ParamInfos;
+            var md = singleScriptNode.MethodDetails;
+            var pds = singleScriptNode.MethodDetails.ParameterDetailss;
             if (param is null) return;
             if (pds is null) return;
 
+            bool isGetPreviousNode = false;
             for (int index = 0; index < pds.Length; index++)
             {
                 ParameterDetails? pd = pds[index];
-                ParameterInfo parameterInfo = param[index];
+                SereinScriptMethodInfo.SereinScriptParamInfo parameterInfo = param[index];
                 var paramtTypeFullName = parameterInfo.ParameterType.FullName;
+
+                if (pd.IsExplicitData)
+                {
+                    // 只能是 数值、 文本、枚举， 才能作为显式参数
+                    if (parameterInfo.ParameterType.IsValueType)
+                    {
+                        if (parameterInfo.ParameterType.IsEnum)
+                        {
+                            sb_invoke_login.AppendCode(3, $"global::{paramtTypeFullName} value{index} = global::{paramtTypeFullName}.{pd.DataValue}; // 获取当前节点的上一节点数据");
+                        }
+                        else
+                        {
+                            var value = pd.DataValue.ToConvert(parameterInfo.ParameterType);
+                            sb_invoke_login.AppendCode(3, $"global::{paramtTypeFullName} value{index} = (global::{paramtTypeFullName}){value}; // 获取当前节点的上一节点数据");
+
+                        }
+                    }
+                    else if (parameterInfo.ParameterType == typeof(string))
+                    {
+                        sb_invoke_login.AppendCode(3, $"global::{paramtTypeFullName} value{index} = \"{pd.DataValue}\"; // 获取当前节点的上一节点数据");
+                    }
+                    else
+                    {
+                        // 处理表达式
+                    }
+
+                }
+                else
+                {
+                    #region 非显式设置的参数以正常方式获取
+                    if (pd.ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData)
+                    {
+                        var previousNode = $"previousNode{index}";
+                        var valueType = pd.IsParams ? $"global::{pd.DataType.FullName}" : $"global::{paramtTypeFullName}";
+                        sb_invoke_login.AppendCode(3, $"global::System.String {previousNode} = {flowContext}.GetPreviousNode(\"{singleScriptNode.Guid}\");"); // 获取运行时上一节点Guid
+                        sb_invoke_login.AppendCode(3, $"{valueType} value{index} = {previousNode} == null ? default : ({valueType}){flowContext}.{nameof(IFlowContext.GetFlowData)}({previousNode}).Value; // 获取运行时上一节点的数据");
+                    }
+                    else if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
+                    {
+                        if (flowModelService.TryGetNodeModel(pd.ArgDataSourceNodeGuid, out var otherNode))
+                        {
+                            var valueType = pd.IsParams ? $"global::{pd.DataType.FullName}" : $"global::{paramtTypeFullName}";
+                            var otherNodeReturnType = otherNode.MethodDetails.ReturnType;
+                            if (otherNodeReturnType == typeof(object))
+                            {
+                                sb_invoke_login.AppendCode(3, $"{valueType} value{index} = ({valueType}){flowContext}.{nameof(IFlowContext.GetFlowData)}(\"{pd.ArgDataSourceNodeGuid}\").Value; // 获取指定节点的数据");
+                            }
+                            else if (pd.DataType.IsAssignableFrom(otherNodeReturnType))
+                            {
+                                sb_invoke_login.AppendCode(3, $"{valueType} value{index} = ({valueType}){flowContext}.{nameof(IFlowContext.GetFlowData)}(\"{pd.ArgDataSourceNodeGuid}\").Value; // 获取指定节点的数据");
+                            }
+                            else
+                            {
+                                // 获取的数据无法转换为目标方法入参类型
+                                throw new Exception("获取的数据无法转换为目标方法入参类型");
+                            }
+                        }
+                        else
+                        {
+                            // 指定了Guid，但项目中不存在对应的节点，需要抛出异常
+                            throw new Exception("指定了Guid，但项目中不存在对应的节点");
+                        }
+                    }
+                    else if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke)
+                    {
+                        if (flowModelService.TryGetNodeModel(pd.ArgDataSourceNodeGuid, out var otherNode)) // 获取指定节点
+                        {
+                            var otherNodeReturnType = otherNode.MethodDetails.ReturnType;
+                            var valueType = pd.IsParams ? $"global::{pd.DataType.FullName}" : $"global::{otherNode.MethodDetails.ReturnType.FullName}";
+                            if (otherNodeReturnType == typeof(object))
+                            {
+                                sb_invoke_login.AppendCode(3, $"{valueType} value{index} = ({valueType}){flowContext}.{nameof(IFlowContext.GetFlowData)}(\"{pd.ArgDataSourceNodeGuid}\").Value; // 获取指定节点的数据");
+                            }
+                            else if (pd.DataType.IsAssignableFrom(otherNodeReturnType))
+                            {
+                                sb_invoke_login.AppendCode(3, $"{valueType} value{index} = {otherNode.ToNodeMethodName()}({flowContext}); // 获取指定节点的数据");
+                            }
+                            else
+                            {
+                                // 获取的数据无法转换为目标方法入参类型
+                                throw new Exception("获取的数据无法转换为目标方法入参类型");
+                            }
+
+                        }
+                        else
+                        {
+                            // 指定了Guid，但项目中不存在对应的节点，需要抛出异常
+                            throw new Exception("指定了Guid，但项目中不存在对应的节点");
+                        }
+                    }
+                    #endregion
+
+                }
             }
 
-            var flowDataName = $"flowData{flowApiMethodInfo.ApiMethodName}";
-            var apiData = $"apiData{flowApiMethodInfo.ApiMethodName}";
-            sb_invoke_login.AppendCode(3, $"global::{typeof(object).FullName} {flowDataName} = {flowContext}.GetFlowData(\"{flowApiMethodInfo.ApiMethodName}\").Value;");
-            sb_invoke_login.AppendCode(3, $"if({flowDataName} is {flowApiMethodInfo.ParamTypeName} {apiData})");
-            sb_invoke_login.AppendCode(3, $"{{");
-            foreach (var info in flowApiMethodInfo.ParamInfos)
-            {
-                sb_invoke_login.AppendCode(4, $"global::{info.Type.FullName} {info.ParamName} = {apiData}.{info.ParamName.ToPascalCase()}; ");
-            }
-            var invokeParamContext = string.Join(", ", flowApiMethodInfo.ParamInfos.Select(x => x.ParamName));
-            if (flowApiMethodInfo.IsVoid)
+            if (scriptMethodInfo.ReturnType == typeof(void))
             {
                 // 调用无返回值方法
                 // 如果目标方法是静态的，则以“命名空间.类.方法”形式调用，否则以“实例.方法”形式调用
-                var invokeFunctionContext = methodInfo.IsStatic ? $"global::{instanceType}.{methodInfo.Name}" : $"{instanceName}.{methodInfo.Name}";
+                var invokeFunctionContext = $"{scriptMethodInfo.ClassName}.{scriptMethodInfo.MethodName}";
                 // 如果目标方法是异步的，则自动 await 进行等待
-                sb_invoke_login.AppendCode(4, $"{(md.IsAsync ? $"await" : string.Empty)} {invokeFunctionContext}({invokeParamContext});");
+                invokeFunctionContext = md.IsAsync ? $"await {invokeFunctionContext}" : invokeFunctionContext;
+                sb_invoke_login.AppendCode(3, $"global::{invokeFunctionContext}(", false);
+                for (int index = 0; index < pds.Length; index++)
+                {
+                    sb_invoke_login.Append($"{(index == 0 ? "" : ",")}value{index}");
+                }
+                sb_invoke_login.AppendCode(0, $"); // 调用生成的C#代码");
             }
             else
             {
                 // 调用有返回值方法
-                var resultName = $"result{flowApiMethodInfo.ApiMethodName}";
                 // 如果目标方法是静态的，则以“命名空间.类.方法”形式调用，否则以“实例.方法”形式调用
-                var invokeFunctionContext = methodInfo.IsStatic ? $"global::{instanceType}.{methodInfo.Name}" : $"{instanceName}.{methodInfo.Name}";
+                var invokeFunctionContext = $"{scriptMethodInfo.ClassName}.{scriptMethodInfo.MethodName}";
                 // 如果目标方法是异步的，则自动 await 进行等待
-                sb_invoke_login.AppendCode(4, $"var {resultName} = {(md.IsAsync ? $"await" : string.Empty)} {invokeFunctionContext}({invokeParamContext});");
+                invokeFunctionContext = md.IsAsync ? $"await {invokeFunctionContext}" : invokeFunctionContext;
+                sb_invoke_login.AppendCode(3, $"var result = {invokeFunctionContext}(", false);
+                for (int index = 0; index < pds.Length; index++)
+                {
+                    sb_invoke_login.Append($"{(index == 0 ? "" : ",")}value{index}");
+                }
+                sb_invoke_login.AppendCode(0, $"); // 调用生成的C#代码");
 
-                sb_invoke_login.AppendCode(4, $"{flowContext}.{nameof(IFlowContext.AddOrUpdate)}(\"{flowCallNode.TargetNode.Guid}\", {resultName});"); // 更新数据
-                sb_invoke_login.AppendCode(4, $"{flowApiMethodInfo.ObjPoolName}.Return({apiData});"); // 归还到对象池
+                sb_invoke_login.AppendCode(3, $"{flowContext}.{nameof(IFlowContext.AddOrUpdate)}(\"{singleScriptNode.Guid}\", result);", false); // 更新数据
                 //sb_invoke_login.AppendCode(3, $"return result;", false);
             }
-            sb_invoke_login.AppendCode(3, $"}}");
-            sb_invoke_login.AppendCode(3, $"else");
-            sb_invoke_login.AppendCode(3, $"{{");
-            sb_invoke_login.AppendCode(4, $"throw new Exception(\"接口参数类型异常\");");
-            sb_invoke_login.AppendCode(3, $"}}");
-
-
-
-
             #endregion
 
             // global::{returnTypeFullName}
 
-            var resultTypeName = flowCallNode.MethodDetails.IsAsync ? "async Task" : "void";
+            var resultTypeName = singleScriptNode.MethodDetails.IsAsync ? "async Task" : "void";
 
-            sb_main.AppendCode(2, $"[Description(\"{instanceTypeFullName}.{methodInfo.Name}\")]");
-            sb_main.AppendCode(2, $"private {resultTypeName} {flowCallNode.ToNodeMethodName()}(global::{dynamicContextTypeName} {flowContext})");
+            sb_main.AppendCode(2, $"[Description(\"脚本节点\")]");
+            sb_main.AppendCode(2, $"private {resultTypeName} {singleScriptNode.ToNodeMethodName()}(global::{flowContextTypeName} {flowContext})");
             sb_main.AppendCode(2, $"{{");
             sb_main.AppendCode(0, sb_invoke_login.ToString());
-            sb_main.AppendCode(2, $"}} "); // 方法结束
-
+            sb_main.AppendCode(2, $"}}"); // 方法结束
             sb_main.AppendLine(); // 方法结束
+
+
+
 
         }
 
@@ -478,7 +762,10 @@ namespace Serein.NodeFlow.Services
             foreach (var node in flowNodes)
             {
                 var nodeMethod = node.ToNodeMethodName(); // 节点对应的方法名称
-                if (node.ControlType == NodeControlType.Action || node.ControlType == NodeControlType.FlowCall)
+                if (node.ControlType == NodeControlType.Action 
+                    || node.ControlType == NodeControlType.FlowCall
+                    || node.ControlType == NodeControlType.Script
+                    )
                 {
                     sb.AppendCode(3, $"Get(\"{node.Guid}\").SetAction({nodeMethod});");
                 }
@@ -649,6 +936,38 @@ namespace Serein.NodeFlow.Services
             sb.AppendCode(2, $"}}");
         }
 
+        #region 脚本节点的代码生成
+        private Dictionary<SingleScriptNode, SereinScriptMethodInfo> scriptMethodInfos = [];
+        private void GenerateScript_InitSereinScriptMethodInfos(SingleScriptNode[] flowCallNodes)
+        {
+            bool isError = false;   
+            foreach(var node in flowCallNodes)
+            {
+                var methodName = node.ToNodeMethodName();
+                var info = node.ToCsharpMethodInfo(methodName);
+                if(info is null)
+                {
+                    isError = true;
+                    SereinEnv.WriteLine(InfoType.WARN, $"脚本节点[{node.Guid}]无法生成代码信息");
+                }
+                else
+                {
+                    scriptMethodInfos[node] = info;
+                }
+
+            }
+            if (isError)
+            {
+
+            }
+        }
+        #endregion
+
+        #region 流程接口节点的代码生成
+
+        /// <summary>
+        /// 流程接口节点与对应的流程方法信息
+        /// </summary>
 
         private Dictionary<SingleFlowCallNode, FlowApiMethodInfo> flowApiMethodInfos = [];
         /// <summary>
@@ -667,7 +986,7 @@ namespace Serein.NodeFlow.Services
                 var info = flowCallNode.ToFlowApiMethodInfo();
                 if (info is not null)
                 {
-                    flowApiMethodInfos.TryAdd(flowCallNode, info);
+                    flowApiMethodInfos[flowCallNode] = info;
                 }
             }
         }
@@ -725,6 +1044,7 @@ namespace Serein.NodeFlow.Services
             }
         }
 
+        #endregion
 
         #region 辅助代码生成的方法
 
@@ -783,7 +1103,9 @@ namespace Serein.NodeFlow.Services
 
 
 
-
+    /// <summary>
+    /// 指示流程接口方法需要生成什么代码
+    /// </summary>
     internal class FlowApiMethodInfo
     {
         public FlowApiMethodInfo(SingleFlowCallNode singleFlowCallNode)
@@ -1063,6 +1385,14 @@ namespace Serein.NodeFlow.Services
                     sb.AppendCode(3,    $"{flowContext}.{nameof(IFlowContext.SetPreviousNode)}(\"{NodeModel.Guid}\", \"{ApiMethodName}\");");
                     sb.AppendCode(3,    $"global::{typeof(CallNode).FullName} node = Get(\"{NodeModel.Guid}\");");
                     sb.AppendCode(3,    $"global::{typeof(FlowResult).FullName} {flowResult} = await node.{nameof(CallNode.StartFlowAsync)}({flowContext}, {token}); // 调用目标方法");
+                    if(ReturnType == typeof(object))
+                    {
+                        sb.AppendCode(3, $"if ({flowResult}.{nameof(FlowResult.Value)} is null)");
+                        sb.AppendCode(3, $"{{");
+                        sb.AppendCode(4, $"return null;");
+                        sb.AppendCode(3, $"}}");
+                    }
+                   
                     sb.AppendCode(3,    $"if ({flowResult}.{nameof(FlowResult.Value)} is global::{ReturnType.FullName} result)");
                     sb.AppendCode(3,    $"{{");
                     sb.AppendCode(4,        $"return result;");
@@ -1126,6 +1456,8 @@ namespace Serein.NodeFlow.Services
             flowApiMethodInfo.ParamInfos = list;
             return flowApiMethodInfo;
         }
+
+        
 
 
 

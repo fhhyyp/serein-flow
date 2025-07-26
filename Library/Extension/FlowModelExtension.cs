@@ -342,7 +342,7 @@ namespace Serein.Library
                 args[i] = mainArgTasks[i].Result;
             }
 
-            // 并发处理 params 参数
+            // 并发处理 params 类型的入参参数
             if (paramsArgs != null)
             {
                 int paramsLength = paramsArgs.Length;

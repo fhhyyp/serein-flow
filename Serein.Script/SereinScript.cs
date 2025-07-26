@@ -12,8 +12,6 @@ using System.Threading.Tasks;
 
 namespace Serein.Script
 {
-    
-
 
     public class SereinScript
     {
@@ -83,15 +81,15 @@ namespace Serein.Script
 
 
         /// <summary>
-        /// 转换为c#代码
+        /// 转换为 C# 代码，并且附带方法信息
         /// </summary>
         /// <param name="script">脚本</param>
         /// <param name="argTypes">挂载的变量</param>
         /// <returns></returns>
-        public string ConvertCSharpCode(string mehtodName, Dictionary<string, Type>? argTypes = null)
+        public SereinScriptMethodInfo? ConvertCSharpCode(string mehtodName, Dictionary<string, Type>? argTypes = null)
         {
-            if (string.IsNullOrWhiteSpace(mehtodName)) return string.Empty;
-            if (programNode is null) return string.Empty;
+            if (string.IsNullOrWhiteSpace(mehtodName)) return null;
+            if (programNode is null) return null;
             SereinScriptToCsharpScript tool = new SereinScriptToCsharpScript(TypeAnalysis);
             return tool.CompileToCSharp(mehtodName, programNode, argTypes);
         }

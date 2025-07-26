@@ -35,7 +35,7 @@ namespace Serein.Library
 
         /// <summary>
         /// <para>是否为显式参数（固定值/表达式）</para>
-        /// <para>如果为 true ，则使用UI输入的文本值作为入参数据。</para>
+        /// <para>如果为 true ，则使用输入的文本值作为入参数据。</para>
         /// <para>如果为 false ，则在当前流程上下文中，根据 ArgDataSourceNodeGuid 查找到对应节点，并根据 ArgDataSourceNodeGuid 判断如何获取其返回的数据，以此作为入参数据。</para>
         /// </summary>
         [PropertyInfo(IsNotification = true)] 
@@ -224,23 +224,14 @@ namespace Serein.Library
             if (IsExplicitData && !DataValue.StartsWith("@", StringComparison.OrdinalIgnoreCase))
                 return DataValue.ToConvert(DataType);
 
-           /* // 4. 枚举绑定类型
-            if (ExplicitType is not null && ExplicitType.IsEnum && DataType != ExplicitType)
-            {
-                var resultEnum = Enum.Parse(ExplicitType, DataValue);
-                var boundType = EnumHelper.GetBoundValue(ExplicitType, resultEnum, attr => attr.Value) as Type;
-                if (boundType != null)
-                    return NodeModel.Env.IOC.CreateObject(boundType);
-            }*/
-
-            // 5. 来自其他节点
+            // 4. 来自其他节点
             object inputParameter = null;
             var env = NodeModel.Env;
 
             if (ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData)
             {
-                var prevNode = context.GetPreviousNode(NodeModel.Guid);
-                inputParameter = prevNode != null ? context.GetFlowData(prevNode)?.Value : null;
+                var prevNodeGuid = context.GetPreviousNode(NodeModel.Guid);
+                inputParameter = prevNodeGuid != null ? context.GetFlowData(prevNodeGuid)?.Value : null;
             }
             else
             {
@@ -250,7 +241,7 @@ namespace Serein.Library
                 if (!env.TryGetNodeModel(ArgDataSourceNodeGuid, out var sourceNode))
                     throw new Exception($"[arg{Index}] 节点[{ArgDataSourceNodeGuid}]不存在");
 
-                if (sourceNode.IsPublic 
+                if (sourceNode.IsPublic // 如果运行上一节点是[FlowCall]节点（则从该节点获取入参）
                     && env.TryGetNodeModel(prevNodeGuid, out var prevNode) 
                     && prevNode.ControlType == NodeControlType.FlowCall
                     && env.TryGetNodeModel(context.GetPreviousNode(NodeModel.Guid), out var sourceNodeTemp)
@@ -259,13 +250,13 @@ namespace Serein.Library
 
                 if (ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
                     inputParameter = context.GetFlowData(sourceNode.Guid)?.Value;
-                else if (ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke)
+                else if (ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke) // 立刻执行目标节点获取参数
                     inputParameter = (await sourceNode.ExecutingAsync(context, CancellationToken.None)).Value;
                 else
                     throw new Exception("无效的 ArgDataSourceType");
             }
 
-            // 6. 表达式处理
+            // 5. 表达式处理
             if (IsExplicitData && DataValue.StartsWith("@", StringComparison.OrdinalIgnoreCase))
             {
                 var lower = DataValue.ToLowerInvariant();
@@ -275,7 +266,7 @@ namespace Serein.Library
                 }
             }
 
-            // 7. 类型转换
+            // 6. 类型转换
             if (!DataType.IsValueType && inputParameter is null)
                 throw new Exception($"[arg{Index}] 参数不能为null");
 

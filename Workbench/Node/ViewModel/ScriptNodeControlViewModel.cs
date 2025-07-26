@@ -3,6 +3,7 @@ using Serein.Library.Utils;
 using Serein.NodeFlow.Model;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -45,6 +46,14 @@ namespace Serein.Workbench.Node.ViewModel
             {
                 NodeModel.ReloadScript(); // 工作台重新加载脚本
             });
+
+            CommandGenerateCode =  new RelayCommand(o =>
+            {
+                var info = NodeModel.ToCsharpMethodInfo($"Test_{nodeModel.Guid.Replace("-","_")}"); // 工作台重新加载脚本
+                if (info is null) return;
+                SereinEnv.WriteLine(InfoType.INFO, $"{info.ClassName}.{info.MethodName}({string.Join(",", info.ParamInfos.Select(i => $"global::{i.ParameterType.FullName} {i.ParamName}"))})");
+                SereinEnv.WriteLine(InfoType.INFO, info.CsharpCode);
+            });
         }
 
 
@@ -57,6 +66,11 @@ namespace Serein.Workbench.Node.ViewModel
         /// 尝试执行
         /// </summary>
         public ICommand CommandExecuting { get; }
+
+        /// <summary>
+        /// 生成c#代码
+        /// </summary>
+        public ICommand CommandGenerateCode { get; }
 
 
 

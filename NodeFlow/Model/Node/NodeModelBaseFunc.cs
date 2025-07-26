@@ -57,51 +57,6 @@ namespace Serein.NodeFlow.Model
             return;
         }
 
-       /* /// <summary>
-        /// 移除该节点
-        /// </summary>
-        public virtual void Remove()
-        {
-            if (this.DebugSetting.CancelInterrupt != null)
-            {
-                this.DebugSetting.CancelInterrupt?.Invoke();
-            }
-
-            if (this.IsPublic)
-            {
-                this.CanvasDetails.PublicNodes.Remove(this);
-            }
-
-            this.DebugSetting.NodeModel = null;
-            this.DebugSetting = null;
-            if(this.MethodDetails is not null)
-            {
-                if (this.MethodDetails.ParameterDetailss != null)
-                {
-                    foreach (var pd in this.MethodDetails.ParameterDetailss)
-                    {
-                        pd.DataValue = null;
-                        pd.Items = null;
-                        pd.NodeModel = null;
-                        pd.ExplicitType = null;
-                        pd.DataType = null;
-                        pd.Name = null;
-                        pd.ArgDataSourceNodeGuid = null;
-                        pd.InputType = ParameterValueInputType.Input;
-                    }
-                }
-                this.MethodDetails.ParameterDetailss = null;
-                this.MethodDetails.NodeModel = null;
-                this.MethodDetails.ReturnType = null;
-                this.MethodDetails.ActingInstanceType = null;
-                this.MethodDetails = null;
-            }
-           
-            this.Position = null;
-            this.DisplayName = null;
-
-            this.Env = null;
-        }*/
 
         /// <summary>
         /// 执行节点对应的方法
@@ -122,16 +77,16 @@ namespace Serein.NodeFlow.Model
                 if (token.IsCancellationRequested) { return null; }
             }
 
-            MethodDetails md = MethodDetails;
+            MethodDetails? md = MethodDetails;
             if (md is null)
             {
-                throw new Exception($"节点{this.Guid}不存在方法信息，请检查是否需要重写节点的ExecutingAsync");
+                throw new Exception($"节点{Guid}不存在方法信息，请检查是否需要重写节点的ExecutingAsync");
             }
             if (!context.Env.TryGetDelegateDetails(md.AssemblyName, md.MethodName, out var dd))  // 流程运行到某个节点
             {
-                
                 throw new Exception($"节点{this.Guid}不存在对应委托");
             }
+
             if (md.IsStatic)
             {
                 object[] args = await this.GetParametersAsync(context, token);

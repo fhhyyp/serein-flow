@@ -23,7 +23,9 @@ namespace Serein.Script
         /// <summary>
         /// 缓存对象方法调用节点
         /// </summary>
-        private Dictionary<MemberFunctionCallNode, DelegateDetails> MethodNodeDelegateCaches { get; } = new Dictionary<MemberFunctionCallNode, DelegateDetails>();
+        //private Dictionary<MemberFunctionCallNode, DelegateDetails> MethodNodeDelegateCaches { get; } = new Dictionary<MemberFunctionCallNode, DelegateDetails>();
+        private static Dictionary<ASTNode, DelegateDetails> ASTDelegateDetails { get; } = new Dictionary<ASTNode, DelegateDetails>();
+
 
         public SereinScriptInterpreter(Dictionary<ASTNode, Type> symbolInfos)
         {
@@ -79,8 +81,8 @@ namespace Serein.Script
                 case IfNode ifNode: // if语句结构
                     async Task<object?> InterpreterIfNodeAsync(IScriptInvokeContext context, IfNode ifNode)
                     {
-                        var result = await InterpretAsync(context, ifNode.Condition) ?? throw new SereinSciptException(ifNode, $"条件语句返回了 null");
-                        if (result is not bool condition) throw new SereinSciptException(ifNode, "条件语句返回值不为 bool 类型");
+                        var result = await InterpretAsync(context, ifNode.Condition) ?? throw new SereinSciptParserException(ifNode, $"条件语句返回了 null");
+                        if (result is not bool condition) throw new SereinSciptParserException(ifNode, "条件语句返回值不为 bool 类型");
                         var branchNodes = condition ? ifNode.TrueBranch : ifNode.FalseBranch;
                         if (branchNodes.Count  == 0) return default;
                         object? data = default;
@@ -103,8 +105,8 @@ namespace Serein.Script
                         object? data = default;
                         while (true)
                         {
-                            var result = await InterpretAsync(context, whileNode.Condition) ?? throw new SereinSciptException(whileNode, $"循环节点条件返回了 null");
-                            if (result is not bool condition) throw new SereinSciptException(whileNode, "循环节点条件返回值不为 bool 类型");
+                            var result = await InterpretAsync(context, whileNode.Condition) ?? throw new SereinSciptParserException(whileNode, $"循环节点条件返回了 null");
+                            if (result is not bool condition) throw new SereinSciptParserException(whileNode, "循环节点条件返回值不为 bool 类型");
                             if (!condition) break;
                             if (whileNode.Body.Count == 0) break;
                             foreach (var node in whileNode.Body)
@@ -137,9 +139,9 @@ namespace Serein.Script
                     {
                         // 递归计算二元操作
                         var left = await InterpretAsync(context, binaryOperationNode.Left);
-                        if (left == null ) throw new SereinSciptException(binaryOperationNode.Left, $"左值尝试使用 null");
+                        if (left == null ) throw new SereinSciptParserException(binaryOperationNode.Left, $"左值尝试使用 null");
                         var right = await InterpretAsync(context, binaryOperationNode.Right);
-                        if (right == null) throw new SereinSciptException(binaryOperationNode.Right, "右值尝试使用计算 null");
+                        if (right == null) throw new SereinSciptParserException(binaryOperationNode.Right, "右值尝试使用计算 null");
                         var op = binaryOperationNode.Operator;
                         var result = BinaryOperationEvaluator.EvaluateValue(left, op, right);
                         return result;
@@ -159,7 +161,7 @@ namespace Serein.Script
                             throw new ArgumentNullException($"解析{collectionAssignmentNode}节点时，索引返回空。");
                         }
                         var valueValue = await InterpretAsync(context, collectionAssignmentNode.Value);
-                        SetCollectionValue(collectionValue, indexValue, valueValue);
+                        await SetCollectionValueAsync(collectionAssignmentNode, collectionValue, indexValue, valueValue);
                     }
                     await InterpreterCollectionAssignmentNodeAsync(context, collectionAssignmentNode);
                     return default; 
@@ -176,7 +178,7 @@ namespace Serein.Script
                         {
                             throw new ArgumentNullException($"解析{collectionIndexNode}节点时，索引返回空。");
                         }
-                        var result = GetCollectionValue(collectionValue, indexValue);
+                        var result = await GetCollectionValueAsync(collectionIndexNode, collectionValue, indexValue);
                         return result;
                     }
                     return await InterpreterCollectionIndexNodeAsync(context, collectionIndexNode);
@@ -208,7 +210,7 @@ namespace Serein.Script
                             type = symbolInfos[objectInstantiationNode.Type];
                             if (type is null)
                             {
-                                throw new SereinSciptException(objectInstantiationNode, $"使用了未定义的类型\"{objectInstantiationNode.Type.TypeName}\"");
+                                throw new SereinSciptParserException(objectInstantiationNode, $"使用了未定义的类型\"{objectInstantiationNode.Type.TypeName}\"");
                             }
                         }
 
@@ -221,7 +223,7 @@ namespace Serein.Script
                         var obj = Activator.CreateInstance(type, args: args);// 创建对象
                         if (obj is null)
                         {
-                            throw new SereinSciptException(objectInstantiationNode, $"类型创建失败\"{objectInstantiationNode.Type.TypeName}\"");
+                            throw new SereinSciptParserException(objectInstantiationNode, $"类型创建失败\"{objectInstantiationNode.Type.TypeName}\"");
                         }
 
                         for (int i = 0; i < objectInstantiationNode.CtorAssignments.Count; i++)
@@ -229,7 +231,7 @@ namespace Serein.Script
                             var ctorAssignmentNode = objectInstantiationNode.CtorAssignments[i];
                             var propertyName = ctorAssignmentNode.MemberName;
                             var value = await InterpretAsync(context, ctorAssignmentNode.Value);
-                            SetPropertyValue(obj, propertyName, value);
+                            await SetPropertyValueAsync(ctorAssignmentNode, obj, propertyName, value);
                         }
                         return obj;
                     }
@@ -243,8 +245,8 @@ namespace Serein.Script
                     {
                         var target = await InterpretAsync(context, memberAccessNode.Object);
                         var memberName = memberAccessNode.MemberName;
-                        if(target is null) throw new SereinSciptException(memberAccessNode, $"无法获取成员，对象为 null \"{memberAccessNode.Object.Code}\"");
-                        var value = GetPropertyValue(target, memberName);
+                        if(target is null) throw new SereinSciptParserException(memberAccessNode, $"无法获取成员，对象为 null \"{memberAccessNode.Object.Code}\"");
+                        var value = await GetPropertyValueAsync(memberAccessNode, target, memberName);
                         return value;
                     }
                     return await InterpreterMemberAccessNodeAsync(context, memberAccessNode);
@@ -254,8 +256,8 @@ namespace Serein.Script
                         var target = await InterpretAsync(context, memberAssignmentNode.Object);
                         var memberName = memberAssignmentNode.MemberName;
                         var value = await InterpretAsync(context, memberAssignmentNode.Value);
-                        if (target is null) throw new SereinSciptException(memberAssignmentNode, $"无法设置成员，对象为 null \"{memberAssignmentNode.Object.Code}\"");
-                        SetPropertyValue(target, memberName, value);
+                        if (target is null) throw new SereinSciptParserException(memberAssignmentNode, $"无法设置成员，对象为 null \"{memberAssignmentNode.Object.Code}\"");
+                        await SetPropertyValueAsync(memberAssignmentNode, target, memberName, value);
                         return value;
                     }
                     return await InterpreterMemberAssignmentNodeAsync(context, memberAssignmentNode);
@@ -263,13 +265,13 @@ namespace Serein.Script
                     async Task<object?> InterpreterMemberFunctionCallNodeAsync(IScriptInvokeContext context, MemberFunctionCallNode memberFunctionCallNode)
                     {
                         var target = await InterpretAsync(context, memberFunctionCallNode.Object);
-                        if (!MethodNodeDelegateCaches.TryGetValue(memberFunctionCallNode, out DelegateDetails? delegateDetails))
+                        if (!ASTDelegateDetails.TryGetValue(memberFunctionCallNode, out DelegateDetails? delegateDetails))
                         {
                             var methodName = memberFunctionCallNode.FunctionName;
                             var methodInfo = memberFunctionCallNode.Arguments.Count == 0 ? target?.GetType().GetMethod(methodName, []) : target?.GetType().GetMethod(methodName);// 获取参数列表的类型
-                            if (methodInfo is null) throw new SereinSciptException(memberFunctionCallNode, $"对象没有方法\"{memberFunctionCallNode.FunctionName}\"");
+                            if (methodInfo is null) throw new SereinSciptParserException(memberFunctionCallNode, $"对象没有方法\"{memberFunctionCallNode.FunctionName}\"");
                             delegateDetails = new DelegateDetails(methodInfo);
-                            MethodNodeDelegateCaches[memberFunctionCallNode] = delegateDetails;
+                            ASTDelegateDetails[memberFunctionCallNode] = delegateDetails;
                         } // 查询是否有缓存
 
 
@@ -310,7 +312,7 @@ namespace Serein.Script
 
                         // 查找并执行对应的函数
                         if (!SereinScript.FunctionDelegates.TryGetValue(funcName, out DelegateDetails? function))
-                            throw new SereinSciptException(functionCallNode, $"没有挂载方法\"{functionCallNode.FunctionName}\""); 
+                            throw new SereinSciptParserException(functionCallNode, $"没有挂载方法\"{functionCallNode.FunctionName}\""); 
 
                        /* if (!function.EmitMethodInfo.IsStatic)
                         {
@@ -336,34 +338,50 @@ namespace Serein.Script
         }
 
 
+        
         /// <summary>
         /// 设置对象成员
         /// </summary>
+        /// <param name="node">节点，用于缓存委托避免重复反射</param>
         /// <param name="target">对象</param>
         /// <param name="memberName">属性名称</param>
         /// <param name="value">属性值</param>
         /// <exception cref="Exception"></exception>
-        private void SetPropertyValue(object target, string memberName, object? value)
+        private async Task SetPropertyValueAsync(ASTNode node, object target, string memberName, object? value)
         {
+            if(ASTDelegateDetails.TryGetValue(node ,out DelegateDetails? delegateDetails))
+            {
+                await delegateDetails.InvokeAsync(target, [value]);
+                return;
+            }
+
             var targetType = target?.GetType();
             if (targetType is null) return;
             var propertyInfo = targetType.GetProperty(memberName);
             if (propertyInfo is null)
             {
-                var fieldInfo = target?.GetType().GetRuntimeField(memberName);
+                FieldInfo? fieldInfo = target?.GetType().GetRuntimeField(memberName);
                 if (fieldInfo is null)
                 {
                     throw new Exception($"类型 {targetType} 对象没有成员\"{memberName}\"");
                 }
                 else
                 {
-                    var convertedValue = Convert.ChangeType(value, fieldInfo.FieldType);
-                    fieldInfo.SetValue(target, convertedValue);
+                    delegateDetails = new DelegateDetails(fieldInfo, DelegateDetails.GSType.Set);
+                    ASTDelegateDetails[node] = delegateDetails; // 缓存委托
+                    await delegateDetails.InvokeAsync(target, [value]);
+
+                    //var convertedValue = Convert.ChangeType(value, fieldInfo.FieldType);
+                    //fieldInfo.SetValue(target, convertedValue);
                 }
             }
             else
             {
-                if (value is null)
+                delegateDetails = new DelegateDetails(propertyInfo, DelegateDetails.GSType.Set);
+                ASTDelegateDetails[node] = delegateDetails; // 缓存委托
+                await delegateDetails.InvokeAsync(target, [value]);
+
+                /*if (value is null)
                 {
                     propertyInfo.SetValue(target, null);
                     return;
@@ -380,19 +398,27 @@ namespace Serein.Script
                 else
                 {
                     throw new Exception($"类型 {targetType} 对象成员\"{memberName}\" 赋值时异常");
-                }
+                }*/
             }
         }
 
         /// <summary>
         /// 从对象获取值
         /// </summary>
+        /// <param name="node">节点，用于缓存委托避免重复反射</param>
         /// <param name="target">对象</param>
         /// <param name="memberName">成员名称</param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        private object? GetPropertyValue(object target, string memberName)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private async Task<object?> GetPropertyValueAsync(ASTNode node, object target, string memberName)
         {
+            if (ASTDelegateDetails.TryGetValue(node, out DelegateDetails? delegateDetails))
+            {
+                var result = await delegateDetails.InvokeAsync(target, []);
+                return result;
+            }
+
             var targetType = target?.GetType();
             if (targetType is null) return null;
             var propertyInfo = targetType.GetProperty(memberName);
@@ -405,35 +431,63 @@ namespace Serein.Script
                 }
                 else
                 {
-                   return fieldInfo.GetValue(target);
+                    delegateDetails = new DelegateDetails(propertyInfo, DelegateDetails.GSType.Get);
+                    ASTDelegateDetails[node] = delegateDetails; // 缓存委托
+                    var result = await delegateDetails.InvokeAsync(target, []);
+                    return result;
+
+                    //return fieldInfo.GetValue(target);
                 }
             }
             else
             {
-                return propertyInfo.GetValue(target);
+                delegateDetails = new DelegateDetails(propertyInfo, DelegateDetails.GSType.Get);
+                ASTDelegateDetails[node] = delegateDetails; // 缓存委托
+                var result = await delegateDetails.InvokeAsync(target, []);
+                return result;
+                //return propertyInfo.GetValue(target);
             }
         }
+
 
         /// <summary>
         /// 设置集合成员
         /// </summary>
+        /// <param name="node">节点，用于缓存委托避免重复反射</param>
         /// <param name="collectionValue"></param>
         /// <param name="indexValue"></param>
         /// <param name="valueValue"></param>
         /// <returns></returns>
-        /// <exception cref="ArgumentException"></exception>
-        private void SetCollectionValue(object collectionValue, object indexValue, object valueValue)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private async Task SetCollectionValueAsync(ASTNode node, object collectionValue, object indexValue, object valueValue)
         {
+            if (ASTDelegateDetails.TryGetValue(node, out DelegateDetails? delegateDetails))
+            {
+                await delegateDetails.InvokeAsync(collectionValue, [indexValue, valueValue]);
+                return;
+            }
+            else
+            {
+                var collectionType = collectionValue.GetType(); // 目标对象的类型
+                delegateDetails = new DelegateDetails(collectionType,  DelegateDetails.EmitType.CollectionSetter);
+                ASTDelegateDetails[node] = delegateDetails; // 缓存委托
+                await delegateDetails.InvokeAsync(collectionValue, [indexValue, valueValue]);
+                return;
+            }
+
+#if false
+
             // 解析数组/集合名与索引部分
             var targetType = collectionValue.GetType(); // 目标对象的类型
             #region 处理键值对
             if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
             {
                 // 目标是键值对
-                var method = targetType.GetMethod("set_Item", BindingFlags.Public | BindingFlags.Instance);
-                if (method is not null)
+                var methodInfo = targetType.GetMethod("set_Item", BindingFlags.Public | BindingFlags.Instance);
+                if (methodInfo is not null)
                 {
-                    method.Invoke(collectionValue, [indexValue, valueValue]);
+
+                    methodInfo.Invoke(collectionValue, [indexValue, valueValue]);
                 }
             }
             #endregion
@@ -465,18 +519,40 @@ namespace Serein.Script
                 }
             }
             #endregion
-            throw new ArgumentException($"解析异常， {collectionValue} 并非有效集合。");
+            throw new ArgumentException($"解析异常， {collectionValue} 并非有效集合。"); 
+#endif
         }
 
         /// <summary>
         /// 获取集合中的成员
         /// </summary>
+        /// <param name="node">节点，用于缓存委托避免重复反射</param>
         /// <param name="collectionValue"></param>
         /// <param name="indexValue"></param>
         /// <returns></returns>
-        /// <exception cref="ArgumentException"></exception>
-        private object? GetCollectionValue(object collectionValue, object indexValue)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private async Task<object?> GetCollectionValueAsync(ASTNode node, object collectionValue, object indexValue)
         {
+            if (ASTDelegateDetails.TryGetValue(node, out DelegateDetails? delegateDetails))
+            {
+                var result = await delegateDetails.InvokeAsync(collectionValue, [indexValue]);
+                return result;
+            }
+            else
+            {
+                // 针对 string 特化
+                if(collectionValue is string chars && indexValue is int index)
+                {
+                    return chars[index];
+                }
+                var collectionType = collectionValue.GetType(); // 目标对象的类型
+                delegateDetails = new DelegateDetails(collectionType, DelegateDetails.EmitType.CollectionGetter);
+                ASTDelegateDetails[node] = delegateDetails; // 缓存委托
+                var result =  await delegateDetails.InvokeAsync(collectionValue, [indexValue]);
+                return result;
+            }
+
+#if false
             // 解析数组/集合名与索引部分
             var targetType = collectionValue.GetType(); // 目标对象的类型
             #region 处理键值对
@@ -504,7 +580,7 @@ namespace Serein.Script
                         {
                             throw new ArgumentException($"解析{collectionValue}节点时，数组下标越界。");
                         }
-                        
+
                         return array.GetValue(index);
                     }
                     else if (collectionValue is IList<object> list)
@@ -519,7 +595,8 @@ namespace Serein.Script
             }
             #endregion
 
-            throw new ArgumentException($"解析{collectionValue}节点时，左值并非有效集合。");
+            throw new ArgumentException($"解析{collectionValue}节点时，左值并非有效集合。"); 
+#endif
         }
 
 

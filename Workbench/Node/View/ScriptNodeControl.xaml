@@ -55,6 +55,7 @@
 
                 <Button Content="加载" Margin="3,0,1,0" Command="{Binding CommandLoadScript}" Height="17.2"></Button>
                 <Button Content="执行" Margin="3,0,1,0" Command="{Binding CommandExecuting}" Height="17.2"></Button>
+                <Button Content="c#代码" Margin="3,0,1,0" Command="{Binding CommandGenerateCode}" Height="17.2"></Button>
             </StackPanel>
             <themes:MethodDetailsControl Grid.Row="1"  x:Name="MethodDetailsControl" MethodDetails="{Binding NodeModel.MethodDetails}" NodeViewModel="{Binding}"/>
             <!--<TextBox Grid.Row="2" MinHeight="20" MinWidth="100"  TextWrapping="Wrap" AcceptsReturn="True"  IsEnabled="{Binding IsEnabledOnView}" Text="{Binding Script}"></TextBox>-->

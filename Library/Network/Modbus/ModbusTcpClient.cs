@@ -4,19 +4,21 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
-using System.Text;
-using System.Threading.Channels;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
-using System.ComponentModel.DataAnnotations;
+
 
 namespace Serein.Library.Network.Modbus
 {
     /// <summary>
     /// Modbus TCP 客户端
     /// </summary>
-    public class ModbusTcpClient : IDisposable
+    public class ModbusTcpClient : IModbusClient
     {
+        public Action<byte[]> OnTx { get; set; }
+        public Action<byte[]> OnRx { get; set; }
+
         /// <summary>
         /// 消息通道
         /// </summary>
@@ -264,10 +266,15 @@ namespace Serein.Library.Network.Modbus
         /// <returns></returns>
         private async Task ProcessQueueAsync()
         {
-            var request = await _channel.Reader.ReadAsync();
-            byte[] packet = BuildPacket(request.TransactionId, 0x01, (byte)request.FunctionCode, request.PDU);
-            await _stream.WriteAsync(packet, 0, packet.Length);
-            await _stream.FlushAsync();
+            while (_tcpClient.Connected)
+            {
+                var request = await _channel.Reader.ReadAsync();
+                byte[] packet = BuildPacket(request.TransactionId, 0x01, (byte)request.FunctionCode, request.PDU);
+                OnTx?.Invoke(packet); // 触发发送日志
+                await _stream.WriteAsync(packet, 0, packet.Length);
+                await _stream.FlushAsync();
+            }
+
         }
 
         /// <summary>
@@ -275,6 +282,8 @@ namespace Serein.Library.Network.Modbus
         /// </summary>
         /// <param name="functionCode">功能码</param>
         /// <param name="pdu">内容</param>
+        /// <param name="timeout">超时时间</param>
+        /// <param name="maxRetries">最大重发次数</param>
         /// <returns></returns>
         /// <exception cref="TimeoutException"></exception>
         public Task<byte[]> SendAsync(ModbusFunctionCode functionCode, byte[] pdu)
@@ -305,12 +314,8 @@ namespace Serein.Library.Network.Modbus
             var buffer = new byte[1024];
             while (true)
             {
-#if NET462
                 int len = await _stream.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
-#else
-                int len = await _stream.ReadAsync(buffer.AsMemory(0, buffer.Length)).ConfigureAwait(false); 
-#endif
-               
+                //int len = await _stream.ReadAsync(buffer.AsMemory(0, buffer.Length)).ConfigureAwait(false);
                 if (len == 0) return; // 连接关闭
 
                 if (len < 6)
@@ -318,6 +323,7 @@ namespace Serein.Library.Network.Modbus
                     Console.WriteLine("接收到的数据长度不足");
                     return;
                 }
+
 
 
                 ushort protocolId = BinaryPrimitives.ReadUInt16BigEndian(buffer.AsSpan(2, 2));
@@ -339,7 +345,22 @@ namespace Serein.Library.Network.Modbus
                 if (_pendingRequests.TryRemove(transactionId, out var tcs))
                 {
                     var responsePdu = new ReadOnlySpan<byte>(buffer, 6, dataLength).ToArray();
-                    tcs.SetResult(responsePdu); // 如需 byte[] 则 ToArray
+                    if (OnRx is not null)
+                    {
+                        var packet = new ReadOnlySpan<byte>(buffer, 0, 6 + dataLength).ToArray();
+                        OnRx?.Invoke(packet); // 触发接收日志
+                    }
+
+                    // 检查是否异常响应
+                    if ((responsePdu[1] & 0x80) != 0)
+                    {
+                        byte exceptionCode = responsePdu[2];
+                        tcs.SetException(new ModbusException(responsePdu[1], exceptionCode));
+                    }
+                    else
+                    {
+                        tcs.SetResult(responsePdu);
+                    }
                 }
                 else
                 {
@@ -400,4 +421,6 @@ namespace Serein.Library.Network.Modbus
             _tcpClient?.Close();
         }
     }
+
+
 }

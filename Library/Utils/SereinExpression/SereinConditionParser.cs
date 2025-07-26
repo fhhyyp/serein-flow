@@ -36,6 +36,16 @@ namespace Serein.Library.Utils.SereinExpression
             }
         }
 
+        /// <summary>
+        /// 连接字符串数组的指定部分
+        /// </summary>
+        /// <param name="parts"></param>
+        /// <param name="startIndex"></param>
+        /// <param name="count"></param>
+        /// <param name="separator"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static string JoinStrings(string[] parts, int startIndex, int count, char separator)
         {
             if (parts == null)
@@ -51,14 +61,21 @@ namespace Serein.Library.Utils.SereinExpression
             // 使用 string.Join 连接
             return string.Join(separator.ToString(), subArray);
         }
-
-
-
     }
 
-
+    /// <summary>
+    /// 条件解析器（生成IL进行判断）
+    /// 格式： data.[propertyName] [operator] [value]
+    /// </summary>
     public class SereinConditionParser
     {
+        /// <summary>
+        /// 条件表达式
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="data"></param>
+        /// <param name="expression"></param>
+        /// <returns></returns>
         public static bool To<T>(T data, string expression)
         {
             try
@@ -67,8 +84,8 @@ namespace Serein.Library.Utils.SereinExpression
                 {
                     return false;
                 }
-                var parse = ConditionParse(data, expression);
-                var result = parse.Evaluate(data);
+                var parse = ConditionParse(data, expression); // 解析条件
+                var result = parse.Evaluate(data); // 执行判断
                 return result;
 
             }
@@ -79,15 +96,23 @@ namespace Serein.Library.Utils.SereinExpression
             }
         }
 
-        public static SereinConditionResolver ConditionParse(object data, string expression)
+        /// <summary>
+        /// 解析条件
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="expression"></param>
+        /// <returns></returns>
+        private static SereinConditionResolver ConditionParse(object data, string expression)
         {
+            //ReadOnlySpan<char> expSpan = expression.AsSpan();
+
             if (expression[0] == '.') // 表达式前缀属于从上一个节点数据对象获取成员值
             {
-                return ParseObjectExpression(data, expression);
+                return ParseObjectExpression(data, expression); // 对象表达式解析
             }
             else
             {
-                return ParseSimpleExpression(data, expression);
+                return ParseSimpleExpression(data, expression); // 简单表达式解析
             }
 
 
@@ -115,6 +140,7 @@ namespace Serein.Library.Utils.SereinExpression
             return null;
 
         }
+
         /// <summary>
         /// 获取对象指定名称的成员
         /// </summary>
@@ -505,42 +531,7 @@ namespace Serein.Library.Utils.SereinExpression
 
             }
         } 
-        //public static T ValueParse<T>(object value) where T : struct, IComparable<T>
-        //{
-        //    return (T)ValueParse(typeof(T), value);
-        //}
-
-        //public static object ValueParse(Type type, object value)
-        //{
-
-        //    string? valueStr = value.ToString();
-        //    if (string.IsNullOrEmpty(valueStr))
-        //    {
-        //        throw new ArgumentException("value is null"); 
-        //    }
-        //    object result = type switch
-        //    {
-        //        Type t when t.IsEnum => Enum.Parse(type, valueStr),
-        //        Type t when t == typeof(bool) => bool.Parse(valueStr),
-        //        Type t when t == typeof(float) => float.Parse(valueStr, CultureInfo.InvariantCulture),
-        //        Type t when t == typeof(decimal) => decimal.Parse(valueStr, CultureInfo.InvariantCulture),
-        //        Type t when t == typeof(double) => double.Parse(valueStr, CultureInfo.InvariantCulture),
-        //        Type t when t == typeof(sbyte) => sbyte.Parse(valueStr, CultureInfo.InvariantCulture),
-        //        Type t when t == typeof(byte) => byte.Parse(valueStr, CultureInfo.InvariantCulture),
-        //        Type t when t == typeof(short) => short.Parse(valueStr, CultureInfo.InvariantCulture),
-        //        Type t when t == typeof(ushort) => ushort.Parse(valueStr, CultureInfo.InvariantCulture),
-        //        Type t when t == typeof(int) => int.Parse(valueStr, CultureInfo.InvariantCulture),
-        //        Type t when t == typeof(uint) => uint.Parse(valueStr, CultureInfo.InvariantCulture),
-        //        Type t when t == typeof(long) => long.Parse(valueStr, CultureInfo.InvariantCulture),
-        //        Type t when t == typeof(ulong) => ulong.Parse(valueStr, CultureInfo.InvariantCulture),
-        //        Type t when t == typeof(nint) => nint.Parse(valueStr, CultureInfo.InvariantCulture),
-        //        Type t when t == typeof(nuint) => nuint.Parse(valueStr, CultureInfo.InvariantCulture),
-        //        _ => throw new ArgumentException("非预期值类型")
-        //    };
-        //    return result;
-        //}
-
-
+       
 
         /// <summary>
         /// 数值操作类型
@@ -648,3 +639,41 @@ namespace Serein.Library.Utils.SereinExpression
 
     }
 }
+
+
+
+//public static T ValueParse<T>(object value) where T : struct, IComparable<T>
+//{
+//    return (T)ValueParse(typeof(T), value);
+//}
+
+//public static object ValueParse(Type type, object value)
+//{
+
+//    string? valueStr = value.ToString();
+//    if (string.IsNullOrEmpty(valueStr))
+//    {
+//        throw new ArgumentException("value is null"); 
+//    }
+//    object result = type switch
+//    {
+//        Type t when t.IsEnum => Enum.Parse(type, valueStr),
+//        Type t when t == typeof(bool) => bool.Parse(valueStr),
+//        Type t when t == typeof(float) => float.Parse(valueStr, CultureInfo.InvariantCulture),
+//        Type t when t == typeof(decimal) => decimal.Parse(valueStr, CultureInfo.InvariantCulture),
+//        Type t when t == typeof(double) => double.Parse(valueStr, CultureInfo.InvariantCulture),
+//        Type t when t == typeof(sbyte) => sbyte.Parse(valueStr, CultureInfo.InvariantCulture),
+//        Type t when t == typeof(byte) => byte.Parse(valueStr, CultureInfo.InvariantCulture),
+//        Type t when t == typeof(short) => short.Parse(valueStr, CultureInfo.InvariantCulture),
+//        Type t when t == typeof(ushort) => ushort.Parse(valueStr, CultureInfo.InvariantCulture),
+//        Type t when t == typeof(int) => int.Parse(valueStr, CultureInfo.InvariantCulture),
+//        Type t when t == typeof(uint) => uint.Parse(valueStr, CultureInfo.InvariantCulture),
+//        Type t when t == typeof(long) => long.Parse(valueStr, CultureInfo.InvariantCulture),
+//        Type t when t == typeof(ulong) => ulong.Parse(valueStr, CultureInfo.InvariantCulture),
+//        Type t when t == typeof(nint) => nint.Parse(valueStr, CultureInfo.InvariantCulture),
+//        Type t when t == typeof(nuint) => nuint.Parse(valueStr, CultureInfo.InvariantCulture),
+//        _ => throw new ArgumentException("非预期值类型")
+//    };
+//    return result;
+//}
+

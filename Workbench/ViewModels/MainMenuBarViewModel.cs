@@ -144,7 +144,7 @@ namespace Serein.Workbench.ViewModels
             }
             catch (Exception ex)
             {
-
+                Debug.WriteLine(ex.Message);
             }
             flowEnvironment.StartRemoteServerAsync();
         }

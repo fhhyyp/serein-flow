@@ -105,7 +105,7 @@ namespace Serein.NodeFlow.Model
         }
 
         /// <summary>
-        /// 导出脚本代码
+        /// 保存项目时保存脚本代码
         /// </summary>
         /// <param name="nodeInfo"></param>
         /// <returns></returns>
@@ -143,6 +143,61 @@ namespace Serein.NodeFlow.Model
         {
             try
             {
+                HashSet<string> varNames = new HashSet<string>();
+                foreach (var pd in MethodDetails.ParameterDetailss)
+                {
+                    if (varNames.Contains(pd.Name))
+                    {
+                        throw new Exception($"脚本节点重复的变量名称：{pd.Name} - {Guid}");
+                    }
+                    varNames.Add(pd.Name);
+                }
+
+                var argTypes = MethodDetails.ParameterDetailss
+                                       .Select(pd =>
+                                       {
+                                           if (pd.ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData)
+                                           {
+                                               var Type = pd.DataType;
+                                               return (pd.Name, Type);
+                                           }
+                                           if (Env.TryGetNodeModel(pd.ArgDataSourceNodeGuid, out var node) &&
+                                               node.MethodDetails?.ReturnType is not null)
+                                           {
+                                               pd.DataType = node.MethodDetails.ReturnType;
+                                               var Type = node.MethodDetails.ReturnType;
+                                               return (pd.Name, Type);
+                                           }
+                                           return default;
+                                       })
+                                       .Where(x => x != default)
+                                       .ToDictionary(x => x.Name, x => x.Type); // 准备预定义类型
+
+
+                var returnType = sereinScript.ParserScript(Script, argTypes);  // 开始解析获取程序主节点
+                MethodDetails.ReturnType = returnType;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                SereinEnv.WriteLine(InfoType.WARN, ex.Message);
+                return false; // 解析失败
+            }
+        }
+        
+        /// <summary>
+        /// 转换为 C# 代码，并且附带方法信息
+        /// </summary>
+        public SereinScriptMethodInfo? ToCsharpMethodInfo(string methodName)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(methodName))
+                {
+                    var tmp = Guid.Replace("-", "");
+                     methodName = $"FlowMethod_{tmp}";
+                }
+
                 HashSet<string> varNames = new HashSet<string>();   
                 foreach (var pd in MethodDetails.ParameterDetailss) 
                 { 
@@ -152,7 +207,6 @@ namespace Serein.NodeFlow.Model
                     }
                     varNames.Add(pd.Name);
                 }
-
 
                 var argTypes = MethodDetails.ParameterDetailss
                                        .Select(pd =>
@@ -176,17 +230,14 @@ namespace Serein.NodeFlow.Model
 
 
                 var returnType = sereinScript.ParserScript(Script, argTypes);  // 开始解析获取程序主节点
-                
                 MethodDetails.ReturnType = returnType;
-
-                var code = sereinScript.ConvertCSharpCode("Test", argTypes);
-                Debug.WriteLine(code);
-                return true;
+                var scriptMethodInfo =   sereinScript.ConvertCSharpCode(methodName, argTypes);
+                return scriptMethodInfo;
             }
             catch (Exception ex)
             {
                 SereinEnv.WriteLine(InfoType.WARN, ex.Message);
-                return false; // 解析失败
+                return null; // 解析失败
             }
         }
 
@@ -212,11 +263,10 @@ namespace Serein.NodeFlow.Model
         {
             if (token.IsCancellationRequested) return new FlowResult(this.Guid, context);
             var @params = await flowCallNode.GetParametersAsync(context, token);
-            if (token.IsCancellationRequested) return new FlowResult(this.Guid, context);
-
+            //if (token.IsCancellationRequested) return new FlowResult(this.Guid, context);
             //context.AddOrUpdate($"{context.Guid}_{this.Guid}_Params", @params[0]); // 后面再改
 
-            if (IsScriptChanged)
+           /* if (IsScriptChanged)
             {
                 lock (@params) {
                     if (IsScriptChanged)
@@ -226,7 +276,7 @@ namespace Serein.NodeFlow.Model
                         context.Env.WriteLine(InfoType.INFO, $"[{Guid}]脚本解析完成");
                     }
                 }
-            }
+            }*/
 
             IScriptInvokeContext scriptContext = new ScriptInvokeContext(context);
 
@@ -248,7 +298,7 @@ namespace Serein.NodeFlow.Model
             var envEvent = context.Env.Event;
             envEvent.FlowRunComplete += onFlowStop; // 防止运行后台流程
 
-            if (token.IsCancellationRequested) return null;
+            if (token.IsCancellationRequested) return new FlowResult(this.Guid, context);
 
             var result = await sereinScript.InterpreterAsync(scriptContext); // 从入口节点执行
             envEvent.FlowRunComplete -= onFlowStop;
