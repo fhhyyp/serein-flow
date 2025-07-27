@@ -35,7 +35,8 @@
             </MenuItem>
             <MenuItem Header="拓展">
                 <!--<MenuItem Header="动态编译" ></MenuItem>-->
-                <MenuItem Header="启动远程服务" Command="{Binding OpenRemoteServerCommand}"></MenuItem>
+                <!--<MenuItem Header="流程图转C#代码" Command="{Binding OpenRemoteServerCommand}"></MenuItem>-->
+                <MenuItem Header="流程图转C#代码" Command="{Binding ConvertCodeCommand}"></MenuItem>
             </MenuItem>
         </Menu>
 

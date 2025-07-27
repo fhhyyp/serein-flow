@@ -66,7 +66,7 @@ namespace Serein.Workbench.ViewModels
         /// <summary>
         /// 开启远程服务
         /// </summary>
-        public ICommand OpenRemoteServerCommand { get; private set; }
+        public ICommand ConvertCodeCommand { get; private set; }
 
 
 
@@ -91,7 +91,7 @@ namespace Serein.Workbench.ViewModels
             OpenEnvOutWindowCommand = new RelayCommand(OpenEnvOutWindow); // 打开运行输出窗口
             OpenDynamicCompilerCommand = new RelayCommand(OpenDynamicCompiler); // 打开动态编译窗口
 
-            OpenRemoteServerCommand = new RelayCommand(OpenRemoteServer); // 打开动态编译窗口
+            ConvertCodeCommand = new RelayCommand(ConvertCode); // 流程图转c#代码
             this.flowProjectService = flowProjectService;
         }
 
@@ -130,15 +130,13 @@ namespace Serein.Workbench.ViewModels
         private void OpenDynamicCompiler() { }
         private void OpenEnvOutWindow() => LogWindow.Instance?.Show();
 
-        private void OpenRemoteServer()
+        private void ConvertCode()
         {
             try
             {
-
-
                 var env = App.GetService<IFlowEnvironment>();
                 var service = env.IOC.Get<FlowCoreGenerateService>();
-                var text = service.ToCsharpCoreFile(); ;
+                var text = service.ToCsharpCoreFile(); 
                 Debug.WriteLine(text);
 
             }
@@ -146,7 +144,6 @@ namespace Serein.Workbench.ViewModels
             {
                 Debug.WriteLine(ex.Message);
             }
-            //flowEnvironment.StartRemoteServerAsync();
         }
 
     }

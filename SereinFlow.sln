@@ -14,8 +14,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Library", "Library\Serein.Library.csproj", "{5E19D0F2-913A-4D1C-A6F8-1E1227BAA0E3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Net462DllTest", "Net462DllTest\Net462DllTest.csproj", "{E40EE629-1A38-4011-88E3-9AD036869987}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.FlowStartTool", "FlowStartTool\Serein.FlowStartTool.csproj", "{38D0FA92-5139-4616-A41E-8186AA4C1532}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Library.NodeGenerator", "Serein.Library.MyGenerator\Serein.Library.NodeGenerator.csproj", "{5F7DE0B2-A5D3-492D-AC6C-F0C39EBEF365}"
@@ -52,10 +50,6 @@ Global
 		{5E19D0F2-913A-4D1C-A6F8-1E1227BAA0E3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5E19D0F2-913A-4D1C-A6F8-1E1227BAA0E3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5E19D0F2-913A-4D1C-A6F8-1E1227BAA0E3}.Release|Any CPU.Build.0 = Release|Any CPU
-		{E40EE629-1A38-4011-88E3-9AD036869987}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{E40EE629-1A38-4011-88E3-9AD036869987}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E40EE629-1A38-4011-88E3-9AD036869987}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{E40EE629-1A38-4011-88E3-9AD036869987}.Release|Any CPU.Build.0 = Release|Any CPU
 		{38D0FA92-5139-4616-A41E-8186AA4C1532}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{38D0FA92-5139-4616-A41E-8186AA4C1532}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{38D0FA92-5139-4616-A41E-8186AA4C1532}.Release|Any CPU.ActiveCfg = Release|Any CPU

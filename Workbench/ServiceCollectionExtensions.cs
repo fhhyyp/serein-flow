@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Serein.Extend.NewtonsoftJson;
 using Serein.Library.Api;
 using Serein.Library.Utils;
 using Serein.NodeFlow.Env;
@@ -54,6 +55,7 @@ namespace Serein.Workbench
         public static void AddFlowServices(this IServiceCollection collection)
         {
             #region 创建实例
+            JsonHelper.UseJsonProvider(new NewtonsoftJsonProvider());
             Func<SynchronizationContext>? getSyncContext = null;
             Dispatcher.CurrentDispatcher.Invoke(() =>
             {

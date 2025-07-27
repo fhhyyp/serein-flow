@@ -18,7 +18,7 @@ namespace Serein.Library.Utils
         /// 使用第三方包进行解析
         /// </summary>
         /// <param name="jsonPortal"></param>
-        public static void UseJsonLibrary(IJsonProvider jsonPortal)
+        public static void UseJsonProvider(IJsonProvider jsonPortal)
         {
             JsonHelper.provider = jsonPortal;
         }
