@@ -1,11 +1,10 @@
-﻿using Serein.Library.Utils;
-using System;
+﻿using Serein.Library;
+using Serein.Proto.WebSocket.Attributes;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Reflection;
 
-namespace Serein.Library.Network.WebSocketCommunication.Handle
+namespace Serein.Proto.WebSocket.Handle
 {
     /// <summary>
     /// 适用于Json数据格式的WebSocket消息处理类
@@ -69,9 +68,10 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// </summary>
         /// <param name="socketControlBase"></param>
         /// <param name="onExceptionTracking"></param>
-        public void AddModule(ISocketHandleModule socketControlBase, Action<Exception, Action<object>> onExceptionTracking)
+        public void AddModule<T>(Func<ISocketHandleModule> instanceFactory, Action<Exception, Action<object>> onExceptionTracking)
+            where T : ISocketHandleModule
         {
-            var type = socketControlBase.GetType();
+            var type = typeof(T);
             var moduleAttribute = type.GetCustomAttribute<AutoSocketModuleAttribute>();
             if (moduleAttribute is null)
             {
@@ -81,11 +81,13 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
             var themeKey = moduleAttribute.ThemeKey;
             var dataKey = moduleAttribute.DataKey;
             var msgIdKey = moduleAttribute.MsgIdKey;
+            var isResponseUseReturn = moduleAttribute.IsResponseUseReturn;
             var moduleConfig = new WebSocketHandleModuleConfig()
             {
                 ThemeJsonKey = themeKey,
                 DataJsonKey = dataKey,
                 MsgIdJsonKey = msgIdKey,
+                IsResponseUseReturn = isResponseUseReturn,
             };
 
             var handleModule = AddMyHandleModule(moduleConfig);
@@ -130,10 +132,11 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                         var parameterInfos = methodInfo.GetParameters();
                         
                         config.DelegateDetails = new DelegateDetails(methodInfo); // 对应theme的emit构造委托调用工具类
-                        config.Instance = socketControlBase; // 调用emit委托时的实例
+                        config.InstanceFactory = instanceFactory; // 调用emit委托时的实例
                         config.OnExceptionTracking = onExceptionTracking; // 异常追踪
                         config.ParameterType = parameterInfos.Select(t => t.ParameterType).ToArray(); // 入参参数类型
                         config.ParameterName = parameterInfos.Select(t => t.Name).ToArray(); // 入参参数名称
+                        config.UseRequest = parameterInfos.Select(p => p.GetCustomAttribute<UseRequestAttribute>() != null).ToArray(); // 是否使用整体data数据
                         config.UseData = parameterInfos.Select(p => p.GetCustomAttribute<UseDataAttribute>() != null).ToArray(); // 是否使用整体data数据
                         config.UseMsgId = parameterInfos.Select(p => p.GetCustomAttribute<UseMsgIdAttribute>() != null).ToArray(); // 是否使用消息ID
 #if NET5_0_OR_GREATER

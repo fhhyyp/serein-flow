@@ -929,7 +929,7 @@ namespace Serein.Library.Api
 
 
         #region 远程相关
-        /// <summary>
+        /*/// <summary>
         /// 启动远程服务
         /// </summary>
         Task StartRemoteServerAsync(int port = 7525);
@@ -957,7 +957,7 @@ namespace Serein.Library.Api
         /// 退出远程环境
         /// </summary>
         void ExitRemoteEnv();
-
+        */
         /// <summary>
         /// （用于远程）通知节点属性变更
         /// </summary>

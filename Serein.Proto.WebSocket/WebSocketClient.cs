@@ -1,16 +1,13 @@
-﻿using Serein.Library.Network.WebSocketCommunication.Handle;
+﻿using Serein.Library.Utils;
+using Serein.Proto.WebSocket.Handle;
 using System;
 using System.Diagnostics;
-using System.IO.Compression;
-using System.IO;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using static System.Net.Mime.MediaTypeNames;
-using Newtonsoft.Json.Linq;
 
-namespace Serein.Library.Network.WebSocketCommunication
+namespace Serein.Proto.WebSocket
 {
 
     /// <summary>
@@ -60,7 +57,7 @@ namespace Serein.Library.Network.WebSocketCommunication
         /// <returns></returns>
         public async Task SendAsync(string message)
         {
-            await SocketExtension.SendAsync(this._client, message); // 回复客户端
+            await SocketExtension.SendAsync(_client, message); // 回复客户端
         }
 
         /// <summary>
@@ -120,7 +117,7 @@ namespace Serein.Library.Network.WebSocketCommunication
         }
 
 
-        public async Task HandleMsgAsync(WebSocket webSocket, MsgHandleUtil msgQueueUtil)
+        public async Task HandleMsgAsync(System.Net.WebSockets.WebSocket webSocket, MsgHandleUtil msgQueueUtil)
         {
             async Task sendasync(string text)
             {
@@ -130,7 +127,7 @@ namespace Serein.Library.Network.WebSocketCommunication
             {
                 var message = await msgQueueUtil.WaitMsgAsync();  // 有消息时通知
                 var context = new WebSocketMsgContext(sendasync);
-                context.JsonObject = JObject.Parse(message);
+                context.MsgRequest = JsonHelper.Parse(message);
                 MsgHandleHelper.Handle(context); // 处理消息
 
                 //using (var context = new WebSocketMsgContext(sendasync))

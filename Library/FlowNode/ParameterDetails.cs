@@ -222,7 +222,7 @@ namespace Serein.Library
 
             // 3. 显式常量参数
             if (IsExplicitData && !DataValue.StartsWith("@", StringComparison.OrdinalIgnoreCase))
-                return DataValue.ToConvert(DataType);
+                return DataValue.ToConvertValueType(DataType);
 
             // 4. 来自其他节点
             object inputParameter = null;
@@ -319,7 +319,7 @@ namespace Serein.Library
             // 显式设置的参数
             if (IsExplicitData && !DataValue.StartsWith("@", StringComparison.OrdinalIgnoreCase))
             {
-                return DataValue.ToConvert(DataType); // 并非表达式，同时是显式设置的参数
+                return DataValue.ToConvertValueType(DataType); // 并非表达式，同时是显式设置的参数
             }
             #endregion
 

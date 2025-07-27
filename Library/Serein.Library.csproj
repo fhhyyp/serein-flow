@@ -24,13 +24,13 @@
 
   <ItemGroup>
     <Compile Remove="Http\**" />
-    <Compile Remove="Network\Socket\**" />
+    <Compile Remove="Network\**" />
     <Compile Remove="Utils\SerinExpression\**" />
     <EmbeddedResource Remove="Http\**" />
-    <EmbeddedResource Remove="Network\Socket\**" />
+    <EmbeddedResource Remove="Network\**" />
     <EmbeddedResource Remove="Utils\SerinExpression\**" />
     <None Remove="Http\**" />
-    <None Remove="Network\Socket\**" />
+    <None Remove="Network\**" />
     <None Remove="Utils\SerinExpression\**" />
   </ItemGroup>
 
@@ -40,6 +40,7 @@
     <Compile Remove="FlowNode\NodeModelBaseFunc.cs" />
     <Compile Remove="FlowNode\ScriptFlowApi.cs" />
     <Compile Remove="Utils\NativeDllHelper.cs" />
+    <Compile Remove="Utils\RemoteMsgUtil.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -47,10 +48,10 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.13.0" />
     <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="9.0.0" />
     <PackageReference Include="System.IO.Ports" Version="9.0.7" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="System.Reactive" Version="6.0.1" />
     <PackageReference Include="System.Threading.Channels" Version="8.0.0" />
     <PackageReference Include="System.ValueTuple" Version="4.3.0" />
+    <!--<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />-->
   </ItemGroup>
 
   <ItemGroup>

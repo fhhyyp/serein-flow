@@ -1,5 +1,7 @@
-﻿using Newtonsoft.Json.Linq;
-using Serein.Library.Network.WebSocketCommunication.Handle;
+﻿using Serein.Library;
+using Serein.Library.Api;
+using Serein.Library.Utils;
+using Serein.Proto.WebSocket.Handle;
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -9,7 +11,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Serein.Library.Network.WebSocketCommunication
+namespace Serein.Proto.WebSocket
 {
     /// <summary>
     /// WebSocket JSON 消息授权管理
@@ -21,9 +23,9 @@ namespace Serein.Library.Network.WebSocketCommunication
         /// </summary>
         public WebSocketAuthorizedHelper(string addresPort,string token, Func<dynamic, Task<bool>> inspectionAuthorizedFunc)
         {
-            this.AddresPort = addresPort;
-            this.TokenKey = token;
-            this.InspectionAuthorizedFunc = inspectionAuthorizedFunc;
+            AddresPort = addresPort;
+            TokenKey = token;
+            InspectionAuthorizedFunc = inspectionAuthorizedFunc;
         }
 
         /// <summary>
@@ -52,7 +54,7 @@ namespace Serein.Library.Network.WebSocketCommunication
         {
             await semaphoreSlim.WaitAsync(1);
             bool isAuthorized = false;
-            JObject json = JObject.Parse(message);
+            IJsonToken json = JsonHelper.Parse(message);
             if(json.TryGetValue(TokenKey,out var token))
             {
                 // 交给之前定义的授权方法进行判断
@@ -86,9 +88,9 @@ namespace Serein.Library.Network.WebSocketCommunication
         /// </summary>
         public WebSocketServer()
         {
-            this.AuthorizedClients = new ConcurrentDictionary<string, WebSocketAuthorizedHelper>();
-            this.InspectionAuthorizedFunc = (tokenObj) => Task.FromResult(true);
-            this.IsCheckToken = false;
+            AuthorizedClients = new ConcurrentDictionary<string, WebSocketAuthorizedHelper>();
+            InspectionAuthorizedFunc = (tokenObj) => Task.FromResult(true);
+            IsCheckToken = false;
         }
 
         /// <summary>
@@ -98,10 +100,10 @@ namespace Serein.Library.Network.WebSocketCommunication
         /// <param name="inspectionAuthorizedFunc">验证token的方法</param>
         public WebSocketServer(string tokenKey, Func<dynamic, Task<bool>> inspectionAuthorizedFunc)
         {
-            this.TokenKey = tokenKey;
-            this.AuthorizedClients = new ConcurrentDictionary<string, WebSocketAuthorizedHelper>();
-            this.InspectionAuthorizedFunc = inspectionAuthorizedFunc;
-            this.IsCheckToken = true;
+            TokenKey = tokenKey;
+            AuthorizedClients = new ConcurrentDictionary<string, WebSocketAuthorizedHelper>();
+            InspectionAuthorizedFunc = inspectionAuthorizedFunc;
+            IsCheckToken = true;
         }
 
         /// <summary>
@@ -171,7 +173,7 @@ namespace Serein.Library.Network.WebSocketCommunication
             listener?.Stop();
         }
 
-        private async Task HandleWebSocketAsync(WebSocket webSocket, WebSocketAuthorizedHelper authorizedHelper)
+        private async Task HandleWebSocketAsync(System.Net.WebSockets.WebSocket webSocket, WebSocketAuthorizedHelper authorizedHelper)
         {
             // 需要授权，却没有成功创建授权类，关闭连接
             if (IsCheckToken && authorizedHelper is null)
@@ -230,7 +232,7 @@ namespace Serein.Library.Network.WebSocketCommunication
         }
 
 
-        public async Task HandleMsgAsync(WebSocket webSocket,
+        public async Task HandleMsgAsync(System.Net.WebSockets.WebSocket webSocket,
                                          MsgHandleUtil msgQueueUtil, 
                                          WebSocketAuthorizedHelper authorizedHelper)
         {
@@ -255,7 +257,7 @@ namespace Serein.Library.Network.WebSocketCommunication
                     }
                 }
                 var context = new WebSocketMsgContext(sendasync);
-                context.JsonObject = JObject.Parse(message);
+                context.MsgRequest = JsonHelper.Parse(message);
                 MsgHandleHelper.Handle(context); // 处理消息
 
                 //using (var context = new WebSocketMsgContext(sendasync))

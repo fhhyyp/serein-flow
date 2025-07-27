@@ -1,14 +1,8 @@
-﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.Extensions.ObjectPool;
-using Microsoft.VisualBasic;
+﻿using Microsoft.Extensions.ObjectPool;
 using Serein.Library.Api;
 using Serein.Library.Utils;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
-using System.Reflection.Emit;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -648,10 +642,10 @@ namespace Serein.Library
 
         public UIContextOperation UIContextOperation => throw new NotImplementedException();
 
-        public Task<(bool, RemoteMsgUtil)> ConnectRemoteEnv(string addres, int port, string token)
+       /* public Task<(bool, RemoteMsgUtil)> ConnectRemoteEnv(string addres, int port, string token)
         {
             throw new NotImplementedException();
-        }
+        }*/
 
         public void ExitRemoteEnv()
         {

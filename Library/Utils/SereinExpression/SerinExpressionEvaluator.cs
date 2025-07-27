@@ -276,7 +276,7 @@ namespace Serein.Library.Utils.SereinExpression
 
                 if (hasType)
                 {
-                    target = target.ToConvert(type);
+                    target = target.ToConvertValueType(type);
                 }
 
 
@@ -437,7 +437,7 @@ namespace Serein.Library.Utils.SereinExpression
             int endIndex = expression.IndexOf('>');
             if(endIndex == expression.Length -1)
             {
-                return value.ToConvert(type);
+                return value.ToConvertValueType(type);
             }
             else
             {

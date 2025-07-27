@@ -1,12 +1,11 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+﻿using Serein.Library;
 using Serein.Library.Utils;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace Serein.Library.Network.WebSocketCommunication.Handle
+namespace Serein.Proto.WebSocket.Handle
 {
 
     /// <summary>
@@ -19,7 +18,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// </summary>
         public WebSocketHandleModule(WebSocketHandleModuleConfig config)
         {
-           this.moduleConfig = config;
+           moduleConfig = config;
         }
 
         /// <summary>
@@ -64,10 +63,8 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
             foreach (var kv in MyHandleConfigs.ToArray())
             {
                 var config = kv.Value;
-                if (config.Instance.HandleGuid.Equals(socketControlBase.HandleGuid))
-                {
-                    MyHandleConfigs.TryRemove(kv.Key, out _);
-                }
+                MyHandleConfigs.TryRemove(kv.Key, out _);
+                
             }
             return MyHandleConfigs.Count == 0;
         }
@@ -88,7 +85,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// </summary>
         public async Task HandleAsync(WebSocketMsgContext context)
         {
-            var jsonObject = context.JsonObject; // 获取到消息
+            var jsonObject = context.MsgRequest; // 获取到消息
             string theme = jsonObject.GetValue(moduleConfig.ThemeJsonKey)?.ToString();
             if (!MyHandleConfigs.TryGetValue(theme, out var handldConfig))
             {
@@ -106,11 +103,11 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
 
             try
             {
-                var dataObj = jsonObject.GetValue(moduleConfig.DataJsonKey)?.ToObject<JObject>();
+                var dataObj = jsonObject.GetValue(moduleConfig.DataJsonKey);
                 context.MsgData = dataObj; // 添加消息
-                if (WebSocketHandleModule.TryGetParameters(handldConfig, context, out var args))
+                if (TryGetParameters(handldConfig, context, out var args))
                 {
-                    var result =  await WebSocketHandleModule.HandleAsync(handldConfig, args);
+                    var result =  await HandleAsync(handldConfig, args);
                     if (handldConfig.IsReturnValue)
                     {
                         await context.RepliedAsync(moduleConfig, context, result);
@@ -136,7 +133,8 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// <returns></returns>
         public static async Task<object> HandleAsync(HandleConfiguration config, object[] args)
         {
-            var result = await config.DelegateDetails.InvokeAsync(config.Instance, args);
+            var instance = config.InstanceFactory.Invoke();
+            var result = await config.DelegateDetails.InvokeAsync(instance, args);
             return result;
         }
 
@@ -155,12 +153,19 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
 
             for (int i = 0; i < config.ParameterType.Length; i++)
             {
+
                 var type = config.ParameterType[i]; // 入参变量类型
                 var argName = config.ParameterName[i]; // 入参参数名称
                 #region 传递消息ID
                 if (config.UseMsgId[i])
                 {
                     args[i] = context.MsgId;
+                }
+                #endregion
+                #region DATA JSON数据
+                else if (config.UseRequest[i])
+                {
+                    args[i] = context.MsgRequest.ToObject(type);
                 }
                 #endregion
                 #region DATA JSON数据
@@ -222,7 +227,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                     {
                         args[i] = new Func<object, Task>(async data =>
                         {
-                            var jsonText = JsonConvert.SerializeObject(data);
+                            var jsonText = JsonHelper.Serialize(data);
                             await context.SendAsync(jsonText);
                         });
                     }
@@ -237,7 +242,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                     {
                         args[i] = new Action<object>(async data =>
                         {
-                            var jsonText = JsonConvert.SerializeObject(data);
+                            var jsonText = JsonHelper.Serialize(data);
                             await context.SendAsync(jsonText);
                         });
                     }
@@ -245,7 +250,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                     {
                         args[i] = new Action<string>(async data =>
                         {
-                            var jsonText = JsonConvert.SerializeObject(data);
+                            var jsonText = JsonHelper.Serialize(data);
                             await context.SendAsync(jsonText);
                         });
                     }

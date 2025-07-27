@@ -146,7 +146,7 @@ namespace Serein.Workbench.ViewModels
             {
                 Debug.WriteLine(ex.Message);
             }
-            flowEnvironment.StartRemoteServerAsync();
+            //flowEnvironment.StartRemoteServerAsync();
         }
 
     }

@@ -1,22 +1,5 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using Serein.Library;
+﻿using Serein.Library;
 using Serein.Library.Api;
-using Serein.Library.Utils;
-using Serein.Library.Utils.SereinExpression;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.ComponentModel.Design;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Net.Http.Headers;
-using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Xml.Linq;
 
 namespace Serein.NodeFlow.Model
 {
@@ -29,7 +12,7 @@ namespace Serein.NodeFlow.Model
     /// <summary>
     /// 节点基类
     /// </summary>
-    public abstract partial class NodeModelBase : IDynamicFlowNode
+    public abstract partial class NodeModelBase : ISereinFlow
     {
         /// <summary>
         /// 实体节点创建完成后调用的方法，调用时间早于 LoadInfo() 方法

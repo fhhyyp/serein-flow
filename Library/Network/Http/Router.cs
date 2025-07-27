@@ -1,8 +1,5 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using Serein.Library.Api;
+﻿using Serein.Library.Api;
 using Serein.Library.Network;
-using Serein.Library.Utils;
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
@@ -47,7 +44,7 @@ namespace Serein.Library.Web
     public class Router : IRouter
     {
         private readonly ISereinIOC SereinIOC; // 用于存储路由信息
-
+        private readonly IJsonPortal jsonPortal; // JSON门户
 
         /// <summary>
         /// 控制器实例对象的类型，每次调用都会重新实例化，[Url - ControllerType]
@@ -109,7 +106,7 @@ namespace Serein.Library.Web
                 SereinEnv.WriteLine(InfoType.INFO, url);
                 var apiType = routeAttribute.ApiType.ToString();
 
-                var config = new ApiHandleConfig(method);
+                var config = new ApiHandleConfig(jsonPortal, method);
                 if(!HandleModels.TryGetValue(apiType, out var configs))
                 {
                     configs = new ConcurrentDictionary<string, ApiHandleConfig>();

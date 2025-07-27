@@ -14,7 +14,7 @@ namespace Serein.Library.Api
     /// <summary>
     /// 流程节点
     /// </summary>
-    public interface IFlowNode : INotifyPropertyChanged, IDynamicFlowNode
+    public interface IFlowNode : INotifyPropertyChanged, ISereinFlow
     {
         /// <summary>
         /// 节点持有的运行环境

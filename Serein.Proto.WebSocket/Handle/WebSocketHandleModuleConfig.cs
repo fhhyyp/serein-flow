@@ -1,4 +1,4 @@
-﻿namespace Serein.Library.Network.WebSocketCommunication.Handle
+﻿namespace Serein.Proto.WebSocket.Handle
 {
     /// <summary>
     /// 远程环境配置
@@ -17,6 +17,10 @@
         /// 有关数据的 Json Key
         /// </summary>
         public string DataJsonKey { get; set; }
+        /// <summary>
+        /// 使用怎么样的数据
+        /// </summary>
+        public bool IsResponseUseReturn { get; set; }
     }
 
 }

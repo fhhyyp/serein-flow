@@ -1,10 +1,4 @@
-﻿using Newtonsoft.Json.Linq;
-using System.Net.Http.Headers;
-using System.Runtime.CompilerServices;
-using System.Xml.Linq;
-using static System.Net.Mime.MediaTypeNames;
-
-namespace Serein.Script
+﻿namespace Serein.Script
 {
     /// <summary>
     /// Serein脚本词法分析器的Token类型

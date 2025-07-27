@@ -152,7 +152,7 @@ namespace Serein.NodeFlow.Env
             currentFlowEnvironment.FlowControl.ActivateFlipflopNode(nodeGuid);
         }
 
-        /// <inheritdoc/>
+       /* /// <inheritdoc/>
         public async Task<(bool, RemoteMsgUtil)> ConnectRemoteEnv(string addres, int port, string token)
         {
             // 连接成功，切换远程环境
@@ -160,11 +160,11 @@ namespace Serein.NodeFlow.Env
             if (isConnect)
             {
                 
-               /* remoteFlowEnvironment ??= new RemoteFlowEnvironment(remoteMsgUtil, this.Event,  this.UIContextOperation);
-                currentFlowEnvironment = remoteFlowEnvironment;*/
+               *//* remoteFlowEnvironment ??= new RemoteFlowEnvironment(remoteMsgUtil, this.Event,  this.UIContextOperation);
+                currentFlowEnvironment = remoteFlowEnvironment;*//*
             }
             return (isConnect, remoteMsgUtil);
-        }
+        }*/
 
         /// <inheritdoc/>
         public async Task<bool> ExitFlowAsync()
@@ -172,7 +172,7 @@ namespace Serein.NodeFlow.Env
             return await currentFlowEnvironment.FlowControl.ExitFlowAsync();
         }
 
-        /// <inheritdoc/>
+       /* /// <inheritdoc/>
         public void ExitRemoteEnv()
         {
             currentFlowEnvironment.ExitRemoteEnv();
@@ -183,7 +183,7 @@ namespace Serein.NodeFlow.Env
         public async Task<FlowEnvInfo> GetEnvInfoAsync()
         {
             return await currentFlowEnvironment.GetEnvInfoAsync();
-        }
+        }*/
 
         /// <inheritdoc/>
         public async Task<SereinProjectData> GetProjectInfoAsync()
@@ -288,7 +288,7 @@ namespace Serein.NodeFlow.Env
            return await currentFlowEnvironment.FlowControl.StartFlowAsync<TResult>(startNodeGuid);
         }
        
-        /// <inheritdoc/>
+       /* /// <inheritdoc/>
         public async Task StartRemoteServerAsync(int port = 7525)
         {
             await currentFlowEnvironment.StartRemoteServerAsync(port);
@@ -298,7 +298,7 @@ namespace Serein.NodeFlow.Env
         public void StopRemoteServer()
         {
             currentFlowEnvironment.StopRemoteServer();
-        }
+        }*/
 
         /// <inheritdoc/>
         public void TerminateFlipflopNode(string nodeGuid)

@@ -1,25 +1,10 @@
-﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Newtonsoft.Json;
-using Serein.Library;
+﻿using Serein.Library;
 using Serein.Library.Api;
-using Serein.Library.FlowNode;
 using Serein.Library.Utils;
 using Serein.Library.Utils.SereinExpression;
 using Serein.NodeFlow.Services;
 using Serein.NodeFlow.Tool;
-using Serein.Script.Node;
-using System;
-using System.Collections.Specialized;
-using System.Diagnostics;
-using System.Net.Http.Headers;
-using System.Net.Mime;
-using System.Reactive;
-using System.Reflection;
-using System.Security.AccessControl;
 using System.Text;
-using System.Threading.Tasks;
-using System.Timers;
-using static Serein.Library.Api.IFlowEnvironment;
 
 namespace Serein.NodeFlow.Env
 {
@@ -296,7 +281,7 @@ namespace Serein.NodeFlow.Env
         public void LoadProject(string filePath)
         {
             string content = System.IO.File.ReadAllText(filePath); // 读取整个文件内容
-            var FlowProjectData = JsonConvert.DeserializeObject<SereinProjectData>(content);
+            var FlowProjectData = JsonHelper.Deserialize<SereinProjectData>(content);
             var FileDataPath = System.IO.Path.GetDirectoryName(filePath)!;   //  filePath;//
 
 
@@ -351,7 +336,7 @@ namespace Serein.NodeFlow.Env
         public async Task LoadProjetAsync(string filePath)
         {
             string content =  await System.IO.File.ReadAllTextAsync(filePath); // 读取整个文件内容
-            var FlowProjectData = JsonConvert.DeserializeObject<SereinProjectData>(content);
+            var FlowProjectData = JsonHelper.Deserialize<SereinProjectData>(content);
             var FileDataPath = System.IO.Path.GetDirectoryName(filePath)!;   //  filePath;//
             if(FlowProjectData is null)
             {
@@ -396,9 +381,10 @@ namespace Serein.NodeFlow.Env
         /// <param name="addres">远程环境地址</param>
         /// <param name="port">远程环境端口</param>
         /// <param name="token">密码</param>
-        public async Task<(bool, RemoteMsgUtil)> ConnectRemoteEnv(string addres, int port, string token)
+        /*public async Task<(bool, RemoteMsgUtil)> ConnectRemoteEnv(string addres, int port, string token)
         {
-            if (IsControlRemoteEnv)
+            throw new NotImplementedException("远程环境未实现的方法 ConnectRemoteEnv");
+            *//*if (IsControlRemoteEnv)
             {
                 await Console.Out.WriteLineAsync($"当前已经连接远程环境");
                 return (false, null);
@@ -410,9 +396,9 @@ namespace Serein.NodeFlow.Env
                 Addres = addres,
                 Port = port,
                 Token = token,
-                /*ThemeJsonKey = LocalFlowEnvironment.ThemeKey,
+                *//*ThemeJsonKey = LocalFlowEnvironment.ThemeKey,
                 MsgIdJsonKey = LocalFlowEnvironment.MsgIdKey,
-                DataJsonKey = LocalFlowEnvironment.DataKey,*/
+                DataJsonKey = LocalFlowEnvironment.DataKey,*//*
             };
             var remoteMsgUtil = new RemoteMsgUtil(controlConfiguration);
             var result = await remoteMsgUtil.ConnectAsync();
@@ -423,8 +409,8 @@ namespace Serein.NodeFlow.Env
             }
             await Console.Out.WriteLineAsync("连接成功，开始验证Token");
             IsControlRemoteEnv = true;
-            return (true, remoteMsgUtil);
-        }
+            return (true, remoteMsgUtil);*//*
+        }*/
 
         /// <summary>
         /// 退出远程环境

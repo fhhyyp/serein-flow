@@ -1,11 +1,5 @@
-﻿using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Globalization;
-using System.Linq;
-using System.Net.Http.Headers;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Serein.Library.Utils
 {
@@ -118,37 +112,7 @@ namespace Serein.Library.Utils
 
 
 
-        /// <summary>
-        /// 对象转JSON文本
-        /// </summary>
-        /// <param name="obj"></param>
-        /// <returns></returns>
-        public static string ToJsonText(this object obj)
-        {
-            var jsonText = JsonConvert.SerializeObject(obj, Formatting.Indented);
-            return jsonText;
-        }
-
-        /// <summary>
-        /// JSON文本转对象
-        /// </summary>
-        /// <typeparam name="T">转换类型</typeparam>
-        /// <param name="json">JSON文本</param>
-        /// <returns></returns>
-        public static T ToJsonObject<T>(this string json)
-        {
-            try
-            {
-                return JsonConvert.DeserializeObject<T>(json);
-            }
-            catch (Exception)
-            {
-                return default(T);
-            }
-        }
-
-
-
+      
         /// <summary>
         /// 对象转换为对应类型
         /// </summary>
@@ -162,18 +126,18 @@ namespace Serein.Library.Utils
             {
                 return default;
             }
-            return (TResult)data.ToConvert(type);
+            return (TResult)data.ToConvertValueType(type);
 
         }
 
 
         /// <summary>
-        /// 对象转换（好像没啥用）
+        /// 对象转换
         /// </summary>
         /// <param name="data"></param>
         /// <param name="type"></param>
         /// <returns></returns>
-        public static object ToConvert(this object data, Type type)
+        public static object ToConvertValueType(this object data, Type type)
         {
             if (type.IsValueType)
             {

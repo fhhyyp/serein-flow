@@ -10,9 +10,9 @@ namespace Serein.Library.Api
     /// <summary>
     /// 空接口
     /// </summary>
-    public interface IDynamicFlowNode
+    public interface ISereinFlow
     {
-        Task<FlowResult> ExecutingAsync(IFlowContext context, CancellationToken token);
+
     }
 
 }

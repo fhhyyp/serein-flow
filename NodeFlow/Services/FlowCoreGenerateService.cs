@@ -1,18 +1,11 @@
-﻿using Newtonsoft.Json.Linq;
-using Serein.Library;
+﻿using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.Utils;
-using Serein.NodeFlow.Env;
 using Serein.NodeFlow.Model;
 using Serein.Script;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Linq;
 
 namespace Serein.NodeFlow.Services
 {
@@ -233,7 +226,7 @@ namespace Serein.NodeFlow.Services
                         }
                         else
                         {
-                            var value = pd.DataValue.ToConvert(parameterInfo.ParameterType);
+                            var value = pd.DataValue.ToConvertValueType(parameterInfo.ParameterType);
                             sb_invoke_login.AppendCode(3, $"global::{paramtTypeFullName} value{index} = (global::{paramtTypeFullName}){value}; // 获取当前节点的上一节点数据");
 
                         }
@@ -603,7 +596,7 @@ namespace Serein.NodeFlow.Services
                         }
                         else
                         {
-                            var value = pd.DataValue.ToConvert(parameterInfo.ParameterType);
+                            var value = pd.DataValue.ToConvertValueType(parameterInfo.ParameterType);
                             sb_invoke_login.AppendCode(3, $"global::{paramtTypeFullName} value{index} = (global::{paramtTypeFullName}){value}; // 获取当前节点的上一节点数据");
 
                         }

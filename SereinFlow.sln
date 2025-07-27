@@ -28,6 +28,12 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Workbench.Avalonia.D
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Serein.CollaborationSync", "Serein.CollaborationSync\Serein.CollaborationSync.csproj", "{913AAB34-7383-4F9D-A7DF-A5E6191DDB3D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Serein.Extend.NewtonsoftJson", "Serein.Extend.NewtonsoftJson\Serein.Extend.NewtonsoftJson.csproj", "{1961CF3C-29FC-4850-91DE-1DD571D9514D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Serein.Proto.WebSocket", "Serein.Proto.WebSocket\Serein.Proto.WebSocket.csproj", "{CF98EBDA-A2E1-08D1-3FED-B8F3F61293FC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Serein.Proto.Modbus", "Serein.Proto.Modbus\Serein.Proto.Modbus.csproj", "{EF9E51C0-CDDB-4B02-A304-87FFC31E61E0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -74,6 +80,18 @@ Global
 		{913AAB34-7383-4F9D-A7DF-A5E6191DDB3D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{913AAB34-7383-4F9D-A7DF-A5E6191DDB3D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{913AAB34-7383-4F9D-A7DF-A5E6191DDB3D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1961CF3C-29FC-4850-91DE-1DD571D9514D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1961CF3C-29FC-4850-91DE-1DD571D9514D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1961CF3C-29FC-4850-91DE-1DD571D9514D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1961CF3C-29FC-4850-91DE-1DD571D9514D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CF98EBDA-A2E1-08D1-3FED-B8F3F61293FC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CF98EBDA-A2E1-08D1-3FED-B8F3F61293FC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CF98EBDA-A2E1-08D1-3FED-B8F3F61293FC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CF98EBDA-A2E1-08D1-3FED-B8F3F61293FC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EF9E51C0-CDDB-4B02-A304-87FFC31E61E0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EF9E51C0-CDDB-4B02-A304-87FFC31E61E0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EF9E51C0-CDDB-4B02-A304-87FFC31E61E0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EF9E51C0-CDDB-4B02-A304-87FFC31E61E0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

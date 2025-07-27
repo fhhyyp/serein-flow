@@ -9,7 +9,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
-namespace Serein.Library.Network.WebSocketCommunication
+namespace Serein.Proto.WebSocket
 {
     /// <summary>
     /// 消息处理工具
@@ -84,7 +84,7 @@ namespace Serein.Library.Network.WebSocketCommunication
         /// <param name="webSocket"></param>
         /// <param name="message"></param>
         /// <returns></returns>
-        public static async Task SendAsync(WebSocket webSocket, string message)
+        public static async Task SendAsync(System.Net.WebSockets.WebSocket webSocket, string message)
         {
             var buffer = Encoding.UTF8.GetBytes(message);
             await webSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);

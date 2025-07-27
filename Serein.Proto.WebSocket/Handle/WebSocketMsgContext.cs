@@ -1,30 +1,31 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Serein.Library.Api;
+using Serein.Library.Utils;
 using System;
 using System.Threading.Tasks;
 
-namespace Serein.Library.Network.WebSocketCommunication.Handle
+namespace Serein.Proto.WebSocket.Handle
 {
 
     /// <summary>
     /// 消息处理上下文
     /// </summary>
-    public class WebSocketMsgContext /*: IDisposable*/
+    public class WebSocketMsgContext : IDisposable
     {
         public WebSocketMsgContext(Func<string, Task> sendAsync)
         {
-            this._sendAsync = sendAsync;
+            _sendAsync = sendAsync;
         }
-
 
         public void Dispose()
         {
-            JsonObject = null;
+            MsgRequest = null;
             MsgTheme = null;
             MsgId = null;
             MsgData = null;
             MsgData = null;
             _sendAsync = null;
         }
+
         /// <summary>
         /// 标记是否已经处理，如果是，则提前退出
         /// </summary>
@@ -35,12 +36,13 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                     _handle = value;
                 }
             } }
+
         public bool _handle = false;
 
         /// <summary>
-        /// 消息本体（JObject）
+        /// 消息本体（IJsonToken）
         /// </summary>
-        public JObject JsonObject { get; set; }
+        public IJsonToken MsgRequest { get; set; }
 
         /// <summary>
         /// 此次消息请求的主题
@@ -55,7 +57,7 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
         /// <summary>
         /// 此次消息的数据
         /// </summary>
-        public JObject MsgData { get; set; }
+        public IJsonToken MsgData { get; set; }
 
 
         private Func<string, Task> _sendAsync;
@@ -82,38 +84,29 @@ namespace Serein.Library.Network.WebSocketCommunication.Handle
                                     WebSocketMsgContext context,
                                     object data)
         {
-            JObject jsonData;
-
-            if (data is null)
+            if (moduleConfig.IsResponseUseReturn)
             {
-                jsonData = new JObject()
-                {
-                    [moduleConfig.MsgIdJsonKey] = context.MsgId,
-                    [moduleConfig.ThemeJsonKey] = context.MsgTheme,
-                };
+                var responseContent = JsonHelper.Serialize(data);
+                await SendAsync(responseContent);
             }
             else
             {
-                JToken dataToken;
-                if (data is System.Collections.IEnumerable || data is Array)
-                {
-                    dataToken = JArray.FromObject(data);
-                }
-                else
-                {
-                    dataToken = JObject.FromObject(data);
-                }
 
-                jsonData = new JObject()
+                IJsonToken jsonData;
+
+                jsonData = JsonHelper.Object(obj =>
                 {
-                    [moduleConfig.MsgIdJsonKey] = context.MsgId,
-                    [moduleConfig.ThemeJsonKey] = context.MsgTheme,
-                    [moduleConfig.DataJsonKey] = dataToken
-                };
+                    obj[moduleConfig.MsgIdJsonKey] = context.MsgId;
+                    obj[moduleConfig.ThemeJsonKey] = context.MsgTheme;
+                    obj[moduleConfig.DataJsonKey] = data is null ? null
+                                                                 : JsonHelper.FromObject(data);
+                });
+
+                var msg = jsonData.ToString();
+                //Console.WriteLine($"[{msgId}] => {theme}");
+                await SendAsync(msg);
             }
-            var msg = jsonData.ToString();
-            //Console.WriteLine($"[{msgId}] => {theme}");
-            await SendAsync(msg);
+
         }
 
         

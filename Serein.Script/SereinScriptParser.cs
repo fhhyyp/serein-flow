@@ -1,15 +1,6 @@
-﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Newtonsoft.Json.Linq;
-using Serein.Library;
-using Serein.Library.Utils;
+﻿using Serein.Library.Utils;
 using Serein.Script.Node;
 using Serein.Script.Node.FlowControl;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Reflection;
-using System.Text;
-using System.Xml.Linq;
 
 namespace Serein.Script
 {

@@ -12,6 +12,9 @@ using System.Xml.Linq;
 
 namespace Serein.Library
 {
+    /// <summary>
+    /// 全局运行环境
+    /// </summary>
     public static class SereinEnv
     {
         private static IFlowEnvironment environment;

@@ -1,11 +1,6 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using Serein.Library.Network.WebSocketCommunication;
+﻿using Serein.Library.Network.WebSocketCommunication;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Serein.Library.Utils

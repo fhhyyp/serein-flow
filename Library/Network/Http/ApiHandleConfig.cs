@@ -1,12 +1,11 @@
-﻿using Newtonsoft.Json.Linq;
-using Newtonsoft.Json;
+﻿using Serein.Library.Api;
+using Serein.Library.Utils;
+using Serein.Library.Web;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Threading.Tasks;
-using Serein.Library.Web;
 
 namespace Serein.Library.Network
 {
@@ -15,6 +14,7 @@ namespace Serein.Library.Network
     /// </summary>
     public class ApiHandleConfig
     {
+        private readonly IJsonPortal jsonPortal;
         private readonly DelegateDetails delegateDetails;
 
         /// <summary>
@@ -39,8 +39,9 @@ namespace Serein.Library.Network
         /// <summary>
         /// 添加处理配置
         /// </summary>
+        /// <param name="jsonPortal"></param>
         /// <param name="methodInfo"></param>
-        public ApiHandleConfig(MethodInfo methodInfo)
+        public ApiHandleConfig(IJsonPortal jsonPortal, MethodInfo methodInfo)
         {
             delegateDetails = new DelegateDetails(methodInfo);
             var parameterInfos = methodInfo.GetParameters();
@@ -92,7 +93,7 @@ namespace Serein.Library.Network
                     }
                     else // if (type.IsValueType)
                     {
-                        args[i] = JsonConvert.DeserializeObject(argValue, type);
+                        args[i] = jsonPortal.Deserialize(argValue, type); // JsonConvert.DeserializeObject(argValue, type);
                     }
                 }
                 else
@@ -103,7 +104,7 @@ namespace Serein.Library.Network
             return args;
         }
 
-        public object[] GetArgsOfPost(Dictionary<string, string> routeData, JObject jsonObject)
+        public object[] GetArgsOfPost(Dictionary<string, string> routeData, IJsonToken jsonObject)
         {
             object[] args = new object[ParameterType.Length];
             for (int i = 0; i < ParameterType.Length; i++)
@@ -120,7 +121,7 @@ namespace Serein.Library.Network
                         }
                         else // if (type.IsValueType)
                         {
-                            args[i] = JsonConvert.DeserializeObject(argValue, type);
+                            args[i] = jsonPortal.Deserialize(argValue, type);
                         }
                     }
                     else
@@ -134,16 +135,15 @@ namespace Serein.Library.Network
                 }
                 else if (jsonObject != null)
                 {
-                    var jsonValue = jsonObject.GetValue(argName);
-                    if (jsonValue is null)
+                    if(jsonObject.TryGetProperty(argName, out var jsonToken))
                     {
-                        // 值类型返回默认值，引用类型返回null
-                        args[i] = type.IsValueType ? Activator.CreateInstance(type) : null;
+                        args[i] = jsonToken.ToObject(type);
                     }
                     else
                     {
-                        args[i] = jsonValue.ToObject(type);
+                        args[i] = type.IsValueType ? Activator.CreateInstance(type) : null;
                     }
+                    
                 }
             }
             return args;

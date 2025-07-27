@@ -80,7 +80,7 @@ namespace Serein.NodeFlow.Model
     }
 
 
-    public abstract partial class NodeModelBase : IDynamicFlowNode
+    public abstract partial class NodeModelBase : ISereinFlow
     {
         /// <summary>
         /// 是否为基础节点
