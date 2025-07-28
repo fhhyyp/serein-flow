@@ -177,13 +177,12 @@ https://space.bilibili.com/33526379
         string IdentityCardNumber; // 身份证号
 
     }
-    需求：需要判断年龄是否在某个区间，例如需要大于18岁，小于35岁。
-    条件表达式：.Age<int> in 18-35
+    需求：需要判断年龄是否在某个区间，例如需要大于18岁，小于35岁。注意，这里的“data”是入参数据的默认名称。意味着假如你需要在表达式里使用入参数据时，就可以使用“data”。
+    条件表达式：.Age > 18 && data.Age < 35
 
   
-
-    需求：需要判断是否是北京身份证（开头为”1100”）。
-    条件表达式：.IdentityCardNumber sw 1100
+    需求：需要判断是否是北京身份证（开头为”1100”），可以使用string类型中的StartsWith方法，这里的匹配的是StartsWith(String)重载。
+    条件表达式：.IdentityCardNumber.StartsWith("1100") 
     另一种方法：
           入参使用表达式：@Get .IdentityCardNumber
          条件表达式：sw 1100
