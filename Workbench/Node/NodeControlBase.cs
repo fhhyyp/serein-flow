@@ -1,14 +1,10 @@
-﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Serein.Library;
-using Serein.Library.Api;
+﻿using Serein.Library;
 using Serein.Workbench.Api;
 using Serein.Workbench.Node.ViewModel;
 using Serein.Workbench.Themes;
-using Serein.Workbench.Views;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
-using System.Windows.Input;
 using System.Windows.Media;
 
 namespace Serein.Workbench.Node.View

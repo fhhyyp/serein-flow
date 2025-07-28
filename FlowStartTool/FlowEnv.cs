@@ -27,7 +27,7 @@ namespace Serein.FlowStartTool
                 Console.WriteLine($"{DateTime.Now} [{infoType}] : {value}{Environment.NewLine}");
             };
 
-            await flowEnvironment.StartRemoteServerAsync(7525); // 启动 web socket 监听远程请求
+            //await flowEnvironment.StartRemoteServerAsync(7525); // 启动 web socket 监听远程请求
             IsRuning = false;
         }
 

@@ -42,18 +42,18 @@ namespace Serein.NodeFlow.Model.Operation
         {
             if (!flowModelService.ContainsCanvasModel(CanvasGuid))
             {
-                flowEnvironment.WriteLine(Library.InfoType.INFO, $"节点取出失败，目标画布不存在[{NodeGuid}]");
+                flowEnvironment.WriteLine(Serein.Library.InfoType.WARN, $"节点取出失败，目标画布不存在[{NodeGuid}]");
                 return false;
             }
             // 获取目标节点与容器节点
             if (!flowModelService.TryGetNodeModel(NodeGuid, out var nodeModel))
             {
-                flowEnvironment.WriteLine(Library.InfoType.INFO, $"节点取出失败，目标节点不存在[{NodeGuid}]");
+                flowEnvironment.WriteLine(Serein.Library.InfoType.WARN, $"节点取出失败，目标节点不存在[{NodeGuid}]");
                 return false;
             }
             if (nodeModel.ContainerNode is not INodeContainer containerNode)
             {
-                flowEnvironment.WriteLine(Library.InfoType.INFO, $"节点取出失败，节点并非容器节点[{nodeModel.Guid}]");
+                flowEnvironment.WriteLine(Serein.Library.InfoType.WARN, $"节点取出失败，节点并非容器节点[{nodeModel.Guid}]");
                 return false;
             }
             Node = nodeModel;

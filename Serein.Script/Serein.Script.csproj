@@ -5,6 +5,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <BaseOutputPath>..\.\.Output</BaseOutputPath>
+
+    <Title>基于AST实现的脚本语言</Title>
+    <Version>1.0.0</Version>
+    <Description>使用了Emit构造委托缓存调用，性能客观。提供了类型推导、转换C#代码功能。用于流程图中脚本处理，也可在其他地方进行使用。</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/fhhyyp/serein-flow</RepositoryUrl>
+    <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,7 +27,16 @@
     <None Remove="TestExpression\**" />
     <None Remove="Tool\**" />
   </ItemGroup>
-
+  <ItemGroup>
+    <None Include="..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
   <ItemGroup>
     <Compile Remove="Node\ExpressionNode.cs" />
   </ItemGroup>

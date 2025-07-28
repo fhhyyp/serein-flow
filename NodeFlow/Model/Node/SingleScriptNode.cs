@@ -231,7 +231,7 @@ namespace Serein.NodeFlow.Model
 
                 var returnType = sereinScript.ParserScript(Script, argTypes);  // 开始解析获取程序主节点
                 MethodDetails.ReturnType = returnType;
-                var scriptMethodInfo =   sereinScript.ConvertCSharpCode(methodName, argTypes);
+                var scriptMethodInfo =  sereinScript.ConvertCSharpCode(methodName, argTypes);
                 return scriptMethodInfo;
             }
             catch (Exception ex)

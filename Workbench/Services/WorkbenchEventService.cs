@@ -181,7 +181,7 @@ namespace Serein.Workbench.Services
             SereinEnv.WriteLine(InfoType.INFO, "项目文件保存路径：" + savePath);
             for (int index = 0; index < project.Librarys.Length; index++)
             {
-                NodeLibraryInfo? library = project.Librarys[index];
+                FlowLibraryInfo? library = project.Librarys[index];
                 string sourceFilePath = new Uri(library.FilePath).LocalPath; // 源文件夹
                 string targetDir = System.IO.Path.Combine(librarySavePath, library.AssemblyName); // 目标文件夹
                 if (!Path.Exists(targetDir))

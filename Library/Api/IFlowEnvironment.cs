@@ -179,19 +179,14 @@ namespace Serein.Library.Api
     /// </summary>
     public class LoadDllEventArgs : FlowEventArgs
     {
-        public LoadDllEventArgs(NodeLibraryInfo nodeLibraryInfo, List<MethodDetailsInfo> MethodDetailss)
+        public LoadDllEventArgs(FlowLibraryInfo nodeLibraryInfo)
         {
             this.NodeLibraryInfo = nodeLibraryInfo;
-            this.MethodDetailss = MethodDetailss;
         }
         /// <summary>
         /// 已加载了的程序集
         /// </summary>
-        public NodeLibraryInfo NodeLibraryInfo { get;}
-        /// <summary>
-        /// dll文件中有效的流程方法描述
-        /// </summary>
-        public List<MethodDetailsInfo> MethodDetailss { get;}
+        public FlowLibraryInfo NodeLibraryInfo { get;}
     }
 
     /// <summary>
@@ -791,7 +786,7 @@ namespace Serein.Library.Api
         /// <summary>
         /// 是否全局中断
         /// </summary>
-        bool IsGlobalInterrupt { get; }
+        bool _IsGlobalInterrupt { get; }
 
         /// <summary>
         /// <para>表示是否正在控制远程</para>

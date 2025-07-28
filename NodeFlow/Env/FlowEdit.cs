@@ -208,7 +208,7 @@ namespace Serein.NodeFlow.Env
             {
                 CanvasInfo = new FlowCanvasDetailsInfo
                 {
-                    Name = $"Canvas {_add_canvas_count++}",
+                    Name = string.IsNullOrWhiteSpace(canvasName) ? $"Canvas {_add_canvas_count++}" : canvasName,
                     Width = width,
                     Height = height,
                     Guid = Guid.NewGuid().ToString(),

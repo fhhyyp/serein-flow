@@ -2,13 +2,14 @@
 using Serein.Library.Api;
 using Serein.Library.FlowNode;
 using Serein.Library.Utils;
+using Serein.NodeFlow.Model.Library;
+using Serein.NodeFlow.Tool;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.Loader;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -28,53 +29,94 @@ namespace Serein.NodeFlow.Services
         private readonly IFlowEnvironment flowEnvironment;
 
         /// <summary>
-        /// 缓存所有加载了的程序集
+        /// 缓存流程依赖
         /// </summary>
-        private readonly ConcurrentDictionary<string, FlowLibrary> _myFlowLibrarys = new ConcurrentDictionary<string, FlowLibrary>();
+        private readonly ConcurrentDictionary<string, FlowLibraryCache> _flowLibraryCaches = new ConcurrentDictionary<string, FlowLibraryCache>();
+
+
+        private readonly ConcurrentDictionary<string, FlowLibraryAssemblyContext> _flowLibraryAssemblyContexts 
+            = new ConcurrentDictionary<string, FlowLibraryAssemblyContext>();
+
 
         /// <summary>
-        /// 加载类库
+        ///  每个类库下面至少需要有“Serein.Library.dll”类库依赖
         /// </summary>
         /// <param name="libraryfilePath"></param>
         /// <returns></returns>
-        public (NodeLibraryInfo, List<MethodDetailsInfo>) LoadLibraryOfPath(string libraryfilePath)
+        private bool CheckBaseLibrary(string libraryfilePath, out string baseLibraryPath)
         {
-
             var dir = Path.GetDirectoryName(libraryfilePath); // 获取目录路径
-            var sereinFlowBaseLibraryPath = Path.Combine(dir, SereinBaseLibrary);// 每个类库下面至少需要有“Serein.Library.dll”类库依赖
+            var sereinFlowBaseLibraryPath = Path.Combine(dir, SereinBaseLibrary);
             if (!Path.Exists(sereinFlowBaseLibraryPath))
             {
-                throw new Exception($"从文件加载DLL失败，目标文件夹不存在{SereinBaseLibrary}文件" );
+                baseLibraryPath = string.Empty;
+                return false;
             }
-
-            var flowAlc = new FlowLibraryAssemblyContext(sereinFlowBaseLibraryPath, Path.GetFileName(libraryfilePath));
-            var assembly = flowAlc.LoadFromAssemblyPath(libraryfilePath); // 加载指定路径的程序集
-
-            var flowLibrary = new FlowLibrary(assembly);
-            try
-            {
-                var reulst = LoadFlowLibrary(flowLibrary);
-                return reulst;
-            }
-            catch (Exception)
-            {
-                flowAlc?.Unload(); // 卸载程序集
-                flowAlc = null;
-                GC.Collect(); // 强制触发GC确保卸载成功
-                GC.WaitForPendingFinalizers();
-                throw;
-            }
+            baseLibraryPath = sereinFlowBaseLibraryPath;
+            return true;
         }
 
         /// <summary>
-        /// 加载类库
+        /// 加载基础依赖
         /// </summary>
-        /// <param name="flowLibrary"></param>
-        /// <returns></returns>
-        public (NodeLibraryInfo, List<MethodDetailsInfo>) LoadLibraryOfPath(FlowLibrary flowLibrary)
+        public FlowLibraryInfo LoadBaseLibrary()
         {
-            return LoadFlowLibrary(flowLibrary);
+            Assembly baseAssmbly = typeof(FlowBaseLibrary).Assembly;
+            var flowLibrary = new FlowLibraryCache(baseAssmbly);
+            flowLibrary.LoadFlowMethod();
+            var assemblyName = baseAssmbly.GetName().Name;
+            if (string.IsNullOrEmpty(assemblyName))
+            {
+                throw new Exception($"程序集\"{baseAssmbly}\"返回 Name 为 null");
+            }
+            _flowLibraryCaches.TryAdd(assemblyName, flowLibrary);
+            return flowLibrary.ToInfo();
         }
+
+        /// <summary>
+        /// 加载流程依赖
+        /// </summary>
+        /// <param name="libraryfilePath"></param>
+        /// <exception cref="Exception"></exception>
+        public FlowLibraryInfo? LoadFlowLibrary(string libraryfilePath)
+        {
+            if (!CheckBaseLibrary(libraryfilePath, out var baseLibraryPath))
+            {
+                throw new Exception($"从文件加载DLL失败，目标文件夹不存在{SereinBaseLibrary}文件");
+            }
+            FlowLibraryAssemblyContext flowAlc = new FlowLibraryAssemblyContext(baseLibraryPath, Path.GetFileName(libraryfilePath));
+            var flowAssembly = flowAlc.LoadFromAssemblyPath(libraryfilePath);
+            if(flowAssembly is null)
+            {
+                throw new Exception($"从文件加载DLL失败，FlowLibraryAssemblyContext 加载的程序集为 null \"{libraryfilePath}\"");
+            }
+
+            var flowLibrary = new FlowLibraryCache(flowAssembly);
+            var isSuccess = flowLibrary.LoadFlowMethod();
+            if (!isSuccess)
+            {
+                flowAlc?.Unload(); // 卸载程序集
+                GC.Collect(); // 强制触发GC确保卸载成功
+                GC.WaitForPendingFinalizers();
+                return null;
+            }
+            else
+            {
+                var assemblyName = flowAssembly.GetName().Name;
+                if (string.IsNullOrEmpty(assemblyName))
+                {
+                    flowLibrary.Unload();
+                    flowAlc?.Unload(); // 卸载程序集
+                    GC.Collect(); // 强制触发GC确保卸载成功
+                    GC.WaitForPendingFinalizers();
+                    return null;
+                    throw new Exception($"程序集\"{flowAssembly}\"返回 Name 为 null");
+                }
+                _flowLibraryCaches.TryAdd(assemblyName, flowLibrary);
+                return flowLibrary.ToInfo();
+            }
+        }
+
 
         /// <summary>
         /// 卸载类库
@@ -83,11 +125,11 @@ namespace Serein.NodeFlow.Services
         /// <returns></returns>
         public bool UnloadLibrary(string assemblyName)
         {
-            if (_myFlowLibrarys.Remove(assemblyName, out var flowLibrary))
+            if (_flowLibraryCaches.Remove(assemblyName, out var flowLibrary))
             {
                 try
                 {
-                    flowLibrary.Upload(); // 尝试卸载
+                    flowLibrary.Unload(); // 尝试卸载
                     flowLibrary = null;
                     return true;
                 }
@@ -104,6 +146,8 @@ namespace Serein.NodeFlow.Services
             }
         }
 
+        #region 获取流程依赖的相关方法
+
         /// <summary>
         /// 获取方法描述
         /// </summary>
@@ -118,7 +162,7 @@ namespace Serein.NodeFlow.Services
                 methodInfo = null;
                 return false;
             }
-            if (_myFlowLibrarys.TryGetValue(assemblyName, out var flowLibrary)
+            if (_flowLibraryCaches.TryGetValue(assemblyName, out var flowLibrary)
                 && flowLibrary.MethodInfos.TryGetValue(methodName, out methodInfo))
             {
                 return true;
@@ -130,7 +174,7 @@ namespace Serein.NodeFlow.Services
             }
         }
 
-         /// <summary>
+        /// <summary>
         /// 获取方法描述
         /// </summary>
         /// <param name="assemblyName">程序集名称</param>
@@ -139,7 +183,7 @@ namespace Serein.NodeFlow.Services
         /// <returns>是否获取成功</returns>
         public bool TryGetMethodDetails(string assemblyName, string methodName, [MaybeNullWhen(false)] out MethodDetails md)
         {
-            if (_myFlowLibrarys.TryGetValue(assemblyName, out var flowLibrary)
+            if (_flowLibraryCaches.TryGetValue(assemblyName, out var flowLibrary)
                 && flowLibrary.MethodDetailss.TryGetValue(methodName, out md))
             {
                 return true;
@@ -160,7 +204,7 @@ namespace Serein.NodeFlow.Services
         /// <returns>是否获取成功</returns>
         public bool TryGetDelegateDetails(string assemblyName, string methodName, [MaybeNullWhen(false)] out DelegateDetails dd)
         {
-            if (_myFlowLibrarys.TryGetValue(assemblyName, out var flowLibrary)
+            if (_flowLibraryCaches.TryGetValue(assemblyName, out var flowLibrary)
                && flowLibrary.DelegateDetailss.TryGetValue(methodName, out dd))
             {
                 return true;
@@ -182,7 +226,7 @@ namespace Serein.NodeFlow.Services
         {
             List<MethodDetails> mds = [];
 
-            foreach (var library in _myFlowLibrarys.Values)
+            foreach (var library in _flowLibraryCaches.Values)
             {
                 var t_mds = library.MethodDetailss.Values.Where(it => it.MethodDynamicType == nodeType).ToList();
                 mds.AddRange(t_mds);
@@ -197,7 +241,7 @@ namespace Serein.NodeFlow.Services
         public Dictionary<RegisterSequence, List<Type>> GetaAutoRegisterType()
         {
             Dictionary<RegisterSequence, List<Type>> rsTypes = new Dictionary<RegisterSequence, List<Type>>();
-            foreach (var library in _myFlowLibrarys.Values)
+            foreach (var library in _flowLibraryCaches.Values)
             {
                 foreach (var kv in library.RegisterTypes)
                 {
@@ -220,28 +264,26 @@ namespace Serein.NodeFlow.Services
         /// <returns></returns>
         public List<MethodDetails> GetLibraryMdsOfAssmbly(string assemblyName)
         {
-            if (_myFlowLibrarys.TryGetValue(assemblyName, out var flowLibrary))
+            if (_flowLibraryCaches.TryGetValue(assemblyName, out var flowLibrary))
             {
                 return flowLibrary.MethodDetailss.Values.ToList();
             }
             return [];
         }
 
-
-
         /// <summary>
-        /// 获取所有方法信息，用于保存项目时调用
+        /// 获取流程方法信息，用于保存项目时调用
         /// </summary>
         /// <returns></returns>
-        public List<LibraryMds> GetAllLibraryMds()
+        public List<FlowLibraryInfo> GetAllLibraryMds()
         {
-            List<LibraryMds> mds = new List<LibraryMds>();
-            foreach (FlowLibrary library in _myFlowLibrarys.Values)
+            List<FlowLibraryInfo> mds = new List<FlowLibraryInfo>();
+            foreach (FlowLibraryCache library in _flowLibraryCaches.Values)
             {
-                var tmp = new LibraryMds
+                var tmp = new FlowLibraryInfo
                 {
                     AssemblyName = library.FullName,
-                    Mds = library.MethodDetailss.Values.Select(md => md.ToInfo()).ToArray()
+                    MethodInfos = library.MethodDetailss.Values.Select(md => md.ToInfo()).ToList()
                 };
                 mds.Add(tmp);
             }
@@ -253,11 +295,11 @@ namespace Serein.NodeFlow.Services
         /// 序列化当前项目的依赖信息、节点信息，用于远程登录的场景，需要将依赖信息从本地（受控端）发送到远程（主控端）
         /// </summary>
         /// <returns></returns>
-        public List<NodeLibraryInfo> GetAllLibraryInfo()
+        public List<FlowLibraryInfo> GetAllLibraryInfo()
         {
-            return _myFlowLibrarys.Values.Select(library => library.ToInfo()).ToList();
+            return _flowLibraryCaches.Values.Select(library => library.ToInfo()).ToList();
         }
-
+        #endregion
 
         #region 功能性方法
 
@@ -266,132 +308,7 @@ namespace Serein.NodeFlow.Services
         /// </summary>
         public readonly static string SereinBaseLibrary = $"{nameof(Serein)}.{nameof(Library)}.dll";
 
-        //private (NodeLibraryInfo, List<MethodDetailsInfo>) LoadDllNodeInfo(Assembly assembly)
-        //{
-            
-        //    if (assembly.FullName?.ToString().Equals(typeof(IFlowEnvironment).Assembly.FullName?.ToString()) == true)
-        //    {
-
-        //        // 加载基础依赖
-        //        return LoadAssembly(typeof(IFlowEnvironment).Assembly);
-        //    }
-        //    else
-        //    {
-        //        try
-        //        {
-        //            var assembly_result = LoadAssembly(assembly);
-        //            return assembly_result;
-        //        }
-        //        catch (Exception)
-        //        {
-        //            return (null,[]);
-        //        }
-                
-        //    }
-
-        //}
-
-
-
-        private (NodeLibraryInfo, List<MethodDetailsInfo>) LoadFlowLibrary(FlowLibrary flowLibrary)
-        {
-            var assembly = flowLibrary.Assembly;
-            if (assembly.FullName?.ToString().Equals(typeof(IFlowEnvironment).Assembly.FullName?.ToString()) == true)
-            {
-                // 加载基础依赖
-                flowLibrary = new FlowLibrary(typeof(IFlowEnvironment).Assembly);
-            }
-
-            var assmblyName = assembly.GetName().Name;
-           if (!string.IsNullOrEmpty(assmblyName) && _myFlowLibrarys.ContainsKey(assmblyName))
-           {
-               throw new Exception($"程序集[{assembly.GetName().FullName}]已经加载过!");
-           }
-
-            var loadResult = flowLibrary.LoadAssembly(); // 加载程序集
-            if (loadResult)
-            {
-                var assemblyName = assembly.GetName().Name;
-                if (string.IsNullOrEmpty(assemblyName))
-                {
-                    throw new Exception($"程序集[{assembly.GetName().FullName}]加载失败，没有程序集名称");
-                }
-                _myFlowLibrarys.TryAdd(assemblyName, flowLibrary);
-
-                List<MethodDetailsInfo> mdInfos = flowLibrary.MethodDetailss.Values.Select(md => md.ToInfo()).ToList();
-                mdInfos.Sort((a, b) => string.Compare(a.MethodName, b.MethodName, StringComparison.OrdinalIgnoreCase));
-
-                (NodeLibraryInfo, List<MethodDetailsInfo>) result = (flowLibrary.ToInfo(), mdInfos);
-                return result;
-            }
-            else
-            {
-                throw new Exception($"程序集[{assembly.GetName().FullName}]加载失败");
-            }
-        }
-
-
 
         #endregion
     }
-
-    /// <summary>
-    /// 流程依赖加载
-    /// </summary>
-    public class FlowLibraryAssemblyContext : AssemblyLoadContext
-    {
-        private readonly AssemblyDependencyResolver _resolver;
-
-        /// <summary>
-        ///  创建新的加载上下文
-        /// </summary>
-        /// <param name="sereinFlowLibraryPath">类库路径</param>
-        /// <param name="name"></param>
-        public FlowLibraryAssemblyContext(string sereinFlowLibraryPath, string name) : base(name, isCollectible: true)
-        {
-            _resolver = new AssemblyDependencyResolver(sereinFlowLibraryPath);
-        }
-
-        protected override Assembly? Load(AssemblyName assemblyName)
-        {
-            string? assemblyPath = _resolver.ResolveAssemblyToPath(assemblyName);
-            if (!string.IsNullOrEmpty(assemblyPath))
-            {
-                var assembly = Default.LoadFromAssemblyPath(assemblyPath);
-                //var assembly = LoadFromAssemblyPath(assemblyPath);
-                return assembly;
-            }
-            else
-            {
-                return Default.Assemblies.FirstOrDefault(x => x.FullName == assemblyName.FullName);
-            }
-
-            // return null;
-
-            // 构建依赖项的路径
-            //string assemblyPath = Path.Combine(AppContext.BaseDirectory, assemblyName.Name + ".dll");
-            //if (File.Exists(assemblyPath))
-            //{
-            //    return LoadFromAssemblyPath(assemblyPath);
-            //}
-            //assemblyPath = Path.Combine(filePath, assemblyName.Name + ".dll");
-            //if (File.Exists(assemblyPath))
-            //{
-            //    return LoadFromAssemblyPath(assemblyPath);
-            //}
-
-            //return null; // 如果没有找到，返回 null
-        }
-    }
-    //public static class PluginAssemblyContextExtensions
-    //{
-
-    //    public static Assembly FromAssemblyPath(this AssemblyLoadContext context, string path)
-    //    {
-
-    //        return context.LoadFromAssemblyPath(path);
-
-    //    }
-
-    //}
 }

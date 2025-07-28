@@ -1,14 +1,6 @@
-﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Serein.Library;
-using Serein.NodeFlow;
-using Serein.NodeFlow.Model;
+﻿using Serein.NodeFlow.Model;
+using Serein.NodeFlow.Model.Library;
 using Serein.Workbench.Themes;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Documents;
 using System.Windows.Input;
 
 namespace Serein.Workbench.Node.ViewModel
@@ -71,9 +63,9 @@ public class FlowLibrary
             });
         }
 
-        private static void OnCompileComplete(FlowLibrary flowLibrary)
+        private static void OnCompileComplete(FlowLibraryCache flowLibrary)
         {
-            var loadResult = flowLibrary.LoadAssembly(); // 动态编译完成后加载程序集
+            var loadResult = flowLibrary.LoadFlowMethod(); // 动态编译完成后加载程序集
             if (!loadResult)
             {
                 return ;

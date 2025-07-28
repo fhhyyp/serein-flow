@@ -631,7 +631,7 @@ namespace Serein.Library
 
         public string ProjectFileLocation => throw new NotImplementedException();
 
-        public bool IsGlobalInterrupt => throw new NotImplementedException();
+        public bool _IsGlobalInterrupt => throw new NotImplementedException();
 
         public bool IsControlRemoteEnv => throw new NotImplementedException();
 

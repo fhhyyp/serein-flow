@@ -14,18 +14,21 @@ namespace Serein.Library
     /// 基础功能
     /// </summary>
     [DynamicFlow(Name ="[基础功能]")]
-    public static class SereinBaseFunction
+    public static class FlowBaseLibrary
     {
         
         [NodeAction(NodeType.Action, "对象透传")]
-        public static object SereinTransmissionObject(object value) => value;
+        public static object TransmissionObject(object value) => value;
 
         [NodeAction(NodeType.Action, "键值对组装")]
-        public static Dictionary<string, object> SereinKvDataCollection(string argName, 
-                                                                      params object[] value)
+        public static Dictionary<string, object> DictSet(string argNames, params object[] value)
         {
-            var names = argName.Split(';');
-            var count = Math.Min(value.Length, names.Length);
+            var names = argNames.Split(';');
+            if(value.Length != names.Length)
+            {
+                throw new ArgumentException("参数名称数量与入参数量不一致");
+            }
+            var count = value.Length;
             var dict = new Dictionary<string, object>();
             for (int i = 0; i < count; i++)
             {
@@ -35,13 +38,13 @@ namespace Serein.Library
         }
 
         [NodeAction(NodeType.Action, "数组组装")]
-        public static object[] SereinListDataCollection(params object[] value)
+        public static object[] ArraySet(params object[] value)
         {
             return value;
         }
 
         [NodeAction(NodeType.Action, "输出")]
-        public static object[] SereinConsole(params object[] value)
+        public static object[] Console(params object[] value)
         {
             foreach (var item in value)
             {
@@ -51,7 +54,7 @@ namespace Serein.Library
         }
 
         [NodeAction(NodeType.Action, "逻辑分支")]
-        public static object SereinLogicalBranch([NodeParam(IsExplicit = false)]bool @bool, 
+        public static object LogicalBranch([NodeParam(IsExplicit = false)]bool @bool, 
                                             object t_value,
                                             object f_value)
         {
@@ -59,7 +62,7 @@ namespace Serein.Library
         }
 
         [NodeAction(NodeType.Action, "文本拼接")]
-        public static string SereinTextJoin(params object[] value)
+        public static string TextJoin(params object[] value)
         {
             StringBuilder sb = new StringBuilder();
             foreach (var item in value)
@@ -83,19 +86,19 @@ namespace Serein.Library
 
 
         [NodeAction(NodeType.Action, "键值对动态构建对象")]
-        public static object SereinKvDataToObject(Dictionary<string, object> dict, 
+        public static object CreateDynamicObjectOfDict(Dictionary<string, object> dict, 
                                             string classTypeName = "newClass_dynamic",
                                             bool IsPrint = false)
         {
             if (!DynamicObjectHelper.TryResolve(dict, classTypeName, out var result))
             {
-                Console.WriteLine("赋值过程中有错误，请检查属性名和类型！");
+                System.Console.WriteLine("赋值过程中有错误，请检查属性名和类型！");
             }
             else
             {
                 if (IsPrint)
                 {
-                    Console.WriteLine("创建完成，正在打印结果");
+                    System.Console.WriteLine("创建完成，正在打印结果");
                     DynamicObjectHelper.PrintObjectProperties(result);
                 }
             }
@@ -104,7 +107,7 @@ namespace Serein.Library
 
 
         [NodeAction(NodeType.Action, "设置或更新全局数据")]
-        public static object SereinAddOrUpdateFlowGlobalData(string name, object data)
+        public static object AddOrUpdateFlowGlobalData(string name, object data)
         {
             SereinEnv.AddOrUpdateFlowGlobalData(name, data);
             return data;

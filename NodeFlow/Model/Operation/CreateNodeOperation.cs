@@ -97,7 +97,7 @@ namespace Serein.NodeFlow.Model.Operation
 
             // 节点与画布互相绑定
             nodeModel.CanvasDetails = flowCanvasDetails;
-            flowCanvasDetails.Nodes.Add(nodeModel); 
+            flowCanvasDetails.Nodes = [..flowCanvasDetails.Nodes, nodeModel]; 
 
             flowModelService.AddNodeModel(nodeModel);
             this.flowNode = nodeModel;

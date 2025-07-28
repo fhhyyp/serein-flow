@@ -5,6 +5,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
+    <BaseOutputPath>..\.\.Output</BaseOutputPath>
+
+    <Title>基于Json数据载体的WebSocket交互工具包</Title>
+    <Version>1.0.0</Version>
+    <Description>基于Json数据载体的WebSocket交互工具包</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    
   </PropertyGroup>
 
   <ItemGroup>

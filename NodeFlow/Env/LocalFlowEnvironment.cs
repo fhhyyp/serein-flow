@@ -2,6 +2,7 @@
 using Serein.Library.Api;
 using Serein.Library.Utils;
 using Serein.Library.Utils.SereinExpression;
+using Serein.NodeFlow.Model.Library;
 using Serein.NodeFlow.Services;
 using Serein.NodeFlow.Tool;
 using System.Text;
@@ -38,13 +39,13 @@ namespace Serein.NodeFlow.Env
             Event = flowEnvironmentEvent;
             NodeMVVMManagement = nodeMVVMService;
             FlowEdit = flowEdit;
-            FlowLibraryService = flowLibraryManagement;
             IOC = sereinIOC;
-            this.flowModelService = flowModelService;
             FlowControl = flowControl;
-            this.flowOperationService = flowOperationService;
-            this.IsGlobalInterrupt = false;
-            this.flowEnvIOC = sereinIOC;
+            _flowLibraryService = flowLibraryManagement;
+            _flowModelService = flowModelService;
+            _flowOperationService = flowOperationService;
+            _IsGlobalInterrupt = false;
+            _flowEnvIOC = sereinIOC;
         }
 
 
@@ -146,7 +147,7 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// 是否全局中断
         /// </summary>
-        public bool IsGlobalInterrupt { get; set; }
+        public bool _IsGlobalInterrupt { get; set; }
 
         /// <summary>
         /// <para>单例模式IOC容器，内部维护了一个实例字典，默认使用类型的FullName作为Key，如果以“接口-实现类”的方式注册，那么将使用接口类型的FullName作为Key。</para>
@@ -185,22 +186,22 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// local环境的IOC容器，主要用于注册本地环境的服务
         /// </summary>
-        private ISereinIOC flowEnvIOC;
+        private ISereinIOC _flowEnvIOC;
 
         /// <summary>
         /// 通过程序集名称管理动态加载的程序集，用于节点创建提供方法描述，流程运行时提供Emit委托
         /// </summary>
-        private readonly FlowLibraryService FlowLibraryService;
+        private readonly FlowLibraryService _flowLibraryService;
 
         /// <summary>
         /// 流程节点操作服务
         /// </summary>
-        private readonly FlowOperationService flowOperationService;
+        private readonly FlowOperationService _flowOperationService;
 
         /// <summary>
         /// 流程画布、节点实体管理服务
         /// </summary>
-        private readonly FlowModelService flowModelService;
+        private readonly FlowModelService _flowModelService;
 
         /* /// <summary>
          /// 环境加载的节点集合
@@ -253,7 +254,7 @@ namespace Serein.NodeFlow.Env
         public async Task<FlowEnvInfo> GetEnvInfoAsync()
         {
             // 获取所有的程序集对应的方法信息（程序集相关的数据）
-            var libraryMdss = this.FlowLibraryService.GetAllLibraryMds().ToArray();
+            var libraryMdss = this._flowLibraryService.GetAllLibraryMds().ToArray();
             // 获取当前项目的信息（节点相关的数据）
             var project = await GetProjectInfoAsync(); // 远程连接获取远程环境项目信息
             SereinEnv.WriteLine(InfoType.INFO, "已将当前环境信息发送到远程客户端");
@@ -328,8 +329,6 @@ namespace Serein.NodeFlow.Env
 
                     throw;
                 }
-                //
-                //await SetStartNodeAsync("", projectData.StartNode); // 设置起始节点
             });
         }
 
@@ -428,9 +427,9 @@ namespace Serein.NodeFlow.Env
         {
             var projectData = new SereinProjectData()
             {
-                Librarys = this.FlowLibraryService.GetAllLibraryInfo().ToArray(),
-                Nodes = flowModelService.GetAllNodeModel().Select(node => node.ToInfo()).Where(info => info is not null).ToArray(),
-                Canvass = flowModelService.GetAllCanvasModel().Select(canvas => canvas.ToInfo()).ToArray(),
+                Librarys = this._flowLibraryService.GetAllLibraryInfo().ToArray(),
+                Nodes = _flowModelService.GetAllNodeModel().Select(node => node.ToInfo()).Where(info => info is not null).ToArray(),
+                Canvass = _flowModelService.GetAllCanvasModel().Select(canvas => canvas.ToInfo()).ToArray(),
                 //StartNode = NodeModels.Values.FirstOrDefault(it => it.IsStart)?.Guid,
             };
 
@@ -445,24 +444,12 @@ namespace Serein.NodeFlow.Env
         /// <returns></returns> 
         public void LoadLibrary(string dllPath)
         {
-
             try
             {
-                #region 检查是否已经加载本地依赖
-                var thisAssembly = typeof(IFlowEnvironment).Assembly;
-                var thisAssemblyName = thisAssembly.GetName().Name;
-                if (!string.IsNullOrEmpty(thisAssemblyName) && FlowLibraryService.GetLibraryMdsOfAssmbly(thisAssemblyName).Count == 0)
+                var libraryInfo = _flowLibraryService.LoadFlowLibrary(dllPath);
+                if (libraryInfo is not null && libraryInfo.MethodInfos.Count > 0)
                 {
-                    var tmp = FlowLibraryService.LoadLibraryOfPath(thisAssembly.Location);
-                    UIContextOperation?.Invoke(() => Event.OnDllLoad(new LoadDllEventArgs(tmp.Item1, tmp.Item2))); // 通知UI创建dll面板显示
-                }
-
-                #endregion
-
-                (var libraryInfo, var mdInfos) = FlowLibraryService.LoadLibraryOfPath(dllPath);
-                if (mdInfos.Count > 0)
-                {
-                    UIContextOperation?.Invoke(() => Event.OnDllLoad(new LoadDllEventArgs(libraryInfo, mdInfos))); // 通知UI创建dll面板显示
+                    UIContextOperation?.Invoke(() => Event.OnDllLoad(new LoadDllEventArgs(libraryInfo))); // 通知UI创建dll面板显示
                 }
             }
             catch (Exception ex)
@@ -471,15 +458,15 @@ namespace Serein.NodeFlow.Env
             }
         }
 
-        /// <summary>
+       /* /// <summary>
         /// 加载本地程序集
         /// </summary>
         /// <param name="flowLibrary"></param>
-        public void LoadLibrary(FlowLibrary flowLibrary)
+        public void LoadLibrary(FlowLibraryCache flowLibrary)
         {
             try
             {
-                (var libraryInfo, var mdInfos) = FlowLibraryService.LoadLibraryOfPath(flowLibrary);
+                libraryInfo  = FlowLibraryService.LoadFlowLibrary(flowLibrary);
                 if (mdInfos.Count > 0)
                 {
                     UIContextOperation?.Invoke(() => Event.OnDllLoad(new LoadDllEventArgs(libraryInfo, mdInfos))); // 通知UI创建dll面板显示
@@ -490,7 +477,7 @@ namespace Serein.NodeFlow.Env
                 SereinEnv.WriteLine(InfoType.ERROR, $"无法加载DLL文件：{ex.Message}");
             }
 
-        }
+        }*/
 
 
         /// <summary>
@@ -501,10 +488,10 @@ namespace Serein.NodeFlow.Env
         public bool TryUnloadLibrary(string assemblyName)
         {
             // 获取与此程序集相关的节点
-            var groupedNodes = flowModelService.GetAllNodeModel().Where(node => !string.IsNullOrWhiteSpace(node.MethodDetails.AssemblyName) && node.MethodDetails.AssemblyName.Equals(assemblyName)).ToArray();
+            var groupedNodes = _flowModelService.GetAllNodeModel().Where(node => !string.IsNullOrWhiteSpace(node.MethodDetails.AssemblyName) && node.MethodDetails.AssemblyName.Equals(assemblyName)).ToArray();
             if (groupedNodes.Length == 0)
             {
-                var isPass = FlowLibraryService.UnloadLibrary(assemblyName);
+                var isPass = _flowLibraryService.UnloadLibrary(assemblyName);
                 return isPass;
             }
             else
@@ -584,7 +571,7 @@ namespace Serein.NodeFlow.Env
         {
             var model = new FlowCanvasDetails(this);
             model.LoadInfo(info);
-            flowModelService.AddCanvasModel(model);
+            _flowModelService.AddCanvasModel(model);
 
             if(UIContextOperation is null)
             {
@@ -608,7 +595,7 @@ namespace Serein.NodeFlow.Env
 
         public bool TryGetMethodDetailsInfo(string assemblyName, string methodName, out MethodDetailsInfo? mdInfo)
         {
-            var isPass = FlowLibraryService.TryGetMethodDetails(assemblyName, methodName, out var md);
+            var isPass = _flowLibraryService.TryGetMethodDetails(assemblyName, methodName, out var md);
             if (!isPass || md is null)
             {
                 mdInfo = null;
@@ -633,7 +620,7 @@ namespace Serein.NodeFlow.Env
         /// <returns></returns>
         public bool TryGetDelegateDetails(string assemblyName, string methodName, out DelegateDetails? delegateDetails)
         {
-            return FlowLibraryService.TryGetDelegateDetails(assemblyName, methodName, out delegateDetails);
+            return _flowLibraryService.TryGetDelegateDetails(assemblyName, methodName, out delegateDetails);
         }
 
         /// <summary>
@@ -648,7 +635,7 @@ namespace Serein.NodeFlow.Env
             }
             this.UIContextOperation = uiContextOperation;
             IOC.Register<UIContextOperation>(() => uiContextOperation).Build();
-
+            OnUIContextOperationSet();
         }
 
       
@@ -713,9 +700,6 @@ namespace Serein.NodeFlow.Env
 
         }
 
-
-   
-
         /// <summary>
         /// 从Guid获取画布
         /// </summary>
@@ -729,7 +713,7 @@ namespace Serein.NodeFlow.Env
                 canvasDetails = null;
                 return false;
             }
-            return flowModelService.TryGetCanvasModel(nodeGuid, out canvasDetails);
+            return _flowModelService.TryGetCanvasModel(nodeGuid, out canvasDetails);
 
         }
 
@@ -746,7 +730,7 @@ namespace Serein.NodeFlow.Env
                 nodeModel = null;
                 return false;
             }
-            return flowModelService.TryGetNodeModel(nodeGuid, out nodeModel);
+            return _flowModelService.TryGetNodeModel(nodeGuid, out nodeModel);
 
         }
 
@@ -777,6 +761,20 @@ namespace Serein.NodeFlow.Env
 
         #endregion
 
+        /// <summary>
+        /// 设置了 UIContextOperation 需要立刻执行的方法，用于加载基础库，创建第一个画布。
+        /// </summary>
+        private void OnUIContextOperationSet()
+        {
+            var baseLibrary = _flowLibraryService.LoadBaseLibrary();
+            if (baseLibrary is not null && baseLibrary.MethodInfos.Count > 0)
+            {
+                UIContextOperation?.Invoke(() => Event.OnDllLoad(new LoadDllEventArgs(baseLibrary))); // 通知UI创建dll面板显示
+            }
+
+            // 创建第一个画布
+            FlowEdit.CreateCanvas("Default", 1920, 1080);
+        }
     }
 
 

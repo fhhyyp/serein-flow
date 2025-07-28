@@ -1,14 +1,7 @@
-﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Serein.Library;
-using Serein.Library.Api;
+﻿using Serein.Library;
 using Serein.Script.Node;
 using Serein.Script.Node.FlowControl;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Serein.Script
 {

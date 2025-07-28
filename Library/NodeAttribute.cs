@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text.RegularExpressions;
 
 namespace Serein.Library
 {
@@ -85,9 +86,9 @@ namespace Serein.Library
     public sealed class NodeActionAttribute : Attribute
     {
         public NodeActionAttribute(NodeType methodDynamicType,
-                                       string methodTips = "",
-                                       bool scan = true,
-                                       string lockName = "")
+                                   string methodTips = "",
+                                   bool scan = true,
+                                   string lockName = "")
         {
             Scan = scan;
             MethodDynamicType = methodDynamicType;
@@ -110,6 +111,10 @@ namespace Serein.Library
         /// 暂无意义
         /// </summary>
         public string LockName;
+        /// <summary>
+        /// 分组名称,暂无意义
+        /// </summary>
+        public string GroupName;
     }
 
 

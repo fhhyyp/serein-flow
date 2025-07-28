@@ -10,10 +10,10 @@ namespace Serein.Proto.Modbus
         /// 创建 Modbus 客户端实例
         /// </summary>
         /// <param name="connectionString">
-        /// 连接字符串格式：
-        /// TCP示例："tcp:192.168.1.100:502"
-        /// UCP示例："ucp:192.168.1.100:502"
-        /// RTU示例："rtu:COM3:9600:1" （格式：rtu:串口名:波特率:从站地址）
+        /// <para>连接字符串格式： </para>
+        /// <para>TCP示例："tcp:192.168.1.100:502" </para>
+        /// <para>UCP示例："ucp:192.168.1.100:502" </para>
+        /// <para>RTU示例："rtu:COM3:9600:1" （格式：rtu:串口名:波特率:从站地址） </para>
         /// </param>
         public static IModbusClient Create(string connectionString)
         {

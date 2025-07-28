@@ -12,52 +12,52 @@ using System.Reflection;
 using System.Text;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
-namespace Serein.NodeFlow
+namespace Serein.NodeFlow.Model.Library
 {
-    public class LibraryMdDd
-    {
-        public MethodDetails MethodDetails { get;  }
-        public MethodInfo MethodInfo { get;  }
-        public DelegateDetails DelegateDetails { get; }
-
-        public LibraryMdDd(MethodInfo methodInfo, MethodDetails methodDetails, DelegateDetails delegateDetails)
-        {
-            MethodDetails = methodDetails;
-            MethodInfo = methodInfo;
-            DelegateDetails = delegateDetails;
-        }
-    }
 
 
     /// <summary>
     /// 加载在流程中的程序集依赖
     /// </summary>
-    public class FlowLibrary
+    public class FlowLibraryCache
     {
-        public  Assembly Assembly { get; private set; }
-
-        //private readonly Action actionOfUnloadAssmbly;
-        /*, Action actionOfUnloadAssmbly*/
-        //this.actionOfUnloadAssmbly = actionOfUnloadAssmbly;
-
-        public FlowLibrary(Assembly assembly)
+        /// <summary>
+        /// 通过程序集创建一个流程库实例
+        /// </summary>
+        /// <param name="assembly"></param>
+        public FlowLibraryCache(Assembly assembly)
         {
-            this.Assembly = assembly;
-            this.FullName  = Path.GetFileName(Assembly.Location);
-
-            this.FilePath = Assembly.Location;
+            Assembly = assembly;
+            FullName = Path.GetFileName(Assembly.Location);
+            FilePath = Assembly.Location;
         }
 
-        public FlowLibrary(Assembly assembly,
+        /// <summary>
+        /// 通过动态程序集和文件路径创建一个流程库实例
+        /// </summary>
+        /// <param name="dynamicAssembly"></param>
+        /// <param name="filePath"></param>
+        public FlowLibraryCache(Assembly dynamicAssembly,
                           string filePath)
         {
-            this.Assembly = assembly;
-            this.FullName = Path.GetFileName(filePath); ;
-            this.FilePath = filePath;
+            Assembly = dynamicAssembly;
+            FullName = Path.GetFileName(filePath); ;
+            FilePath = filePath;
         }
 
+        /// <summary>
+        /// 程序集本身
+        /// </summary>
+        public Assembly Assembly { get; private set; }
+
+        /// <summary>
+        /// 程序集全名
+        /// </summary>
         public string FullName { get; private set; }
 
+        /// <summary>
+        /// 程序集文件路径
+        /// </summary>
         public string FilePath { get; private set; }
 
         /// <summary>
@@ -65,60 +65,33 @@ namespace Serein.NodeFlow
         /// Key   ： 方法名称
         /// Value ：方法详情
         /// </summary>
-        public ConcurrentDictionary<string, MethodDetails> MethodDetailss { get; } = new ConcurrentDictionary<string, MethodDetails>();
-        public ConcurrentDictionary<string, MethodInfo> MethodInfos { get; } = new ConcurrentDictionary<string, MethodInfo>();
+        public Dictionary<string, MethodDetails> MethodDetailss { get; } = new Dictionary<string, MethodDetails>();
 
         /// <summary>
-        /// 管理通过Emit动态构建的委托
-        /// Key   ：方法名称
-        /// Value ：方法详情
+        /// 加载程序集时创建的方法信息
         /// </summary>
-        public ConcurrentDictionary<string, DelegateDetails> DelegateDetailss { get; } = new ConcurrentDictionary<string, DelegateDetails>();
+        public Dictionary<string, MethodInfo> MethodInfos { get; } = new Dictionary<string, MethodInfo>();
 
         /// <summary>
-        /// 记录不同的注册时机需要自动创建全局唯一实例的类型信息
+        /// <para>缓存节点方法通Emit委托</para>
+        /// <para>Key   ：方法名称</para>
+        /// <para>Value ：方法详情</para>
         /// </summary>
-        public ConcurrentDictionary<RegisterSequence, List<Type>> RegisterTypes { get; } = new ConcurrentDictionary<RegisterSequence, List<Type>>();
-
+        public Dictionary<string, DelegateDetails> DelegateDetailss { get; } = new Dictionary<string, DelegateDetails>();
 
         /// <summary>
-        /// 卸载当前程序集以及附带的所有信息
+        /// 用于流程启动时,在不同阶段(Init_Loading_Loaded)需要创建实例的类型信息
         /// </summary>
-        public void Upload()
-        {
-            DelegateDetailss.Clear();
-            RegisterTypes.Clear();
-            MethodDetailss.Clear();
-            //actionOfUnloadAssmbly?.Invoke();
-            
-        }
-
-        /// <summary>
-        /// 转为依赖信息
-        /// </summary>
-        /// <returns></returns>
-        public NodeLibraryInfo ToInfo()
-        {
-            var assemblyName = Assembly.GetName().Name;    
-            return new NodeLibraryInfo
-            {
-                AssemblyName = assemblyName,
-                FileName = this.FullName,
-                FilePath = this.FilePath,
-            };
-
-            
-        }
+        public Dictionary<RegisterSequence, List<Type>> RegisterTypes { get; } = new Dictionary<RegisterSequence, List<Type>>();
 
 
         /// <summary>
         /// 动态加载程序集
         /// </summary>
-        /// <param name="assembly">程序集本身</param>
         /// <returns></returns>
-        public bool LoadAssembly()
+        public bool LoadFlowMethod()
         {
-            Assembly assembly = this.Assembly;
+            Assembly assembly = Assembly;
 
             #region 检查入参
 
@@ -132,7 +105,7 @@ namespace Serein.NodeFlow
             try
             {
                 types = assembly.GetTypes().ToList(); // 获取程序集中的所有类型
-                if (types.Count < 0) // 防止动态程序集中没有类型信息？
+                if (types.Count <= 0) 
                 {
                     return false;
                 }
@@ -143,7 +116,7 @@ namespace Serein.NodeFlow
                 var loaderExceptions = ex.LoaderExceptions;
                 foreach (var loaderException in loaderExceptions)
                 {
-                    SereinEnv.WriteLine(InfoType.ERROR, loaderException?.Message);
+                    SereinEnv.WriteLine(InfoType.ERROR, "加载失败 : " + loaderException?.Message);
                 }
                 return false;
             }
@@ -160,8 +133,7 @@ namespace Serein.NodeFlow
             // Type   ： 具有 DynamicFlowAttribute 标记的类型
             // string ： 类型元数据 DynamicFlowAttribute 特性中的 Name 属性
 
-            types = types.Where(type => type.GetCustomAttribute<DynamicFlowAttribute>() is DynamicFlowAttribute dynamicFlowAttribute
-            && dynamicFlowAttribute.Scan).ToList();
+            types = types.Where(type => type.GetCustomAttribute<DynamicFlowAttribute>() is DynamicFlowAttribute df && df.Scan).ToList();
 
             foreach (var type in types)
             {
@@ -208,20 +180,16 @@ namespace Serein.NodeFlow
             {
                 return false;
             }
-            // 简单排序一下
-            //detailss = detailss.OrderBy(k => k.MethodDetails.MethodName,).ToList();
 
-           
-            
+            // 简单排序一下
             detailss.Sort((a, b) => string.Compare(a.MethodDetails.MethodName, b.MethodDetails.MethodName, StringComparison.OrdinalIgnoreCase));
+
             foreach (var item in detailss)
             {
-                SereinEnv.WriteLine(InfoType.INFO, "loading method : " + item.MethodDetails.MethodName);
+                SereinEnv.WriteLine(InfoType.INFO, "加载方法 : " + item.MethodDetails.MethodName);
 
             }
-
-            //detailss.Sort((a, b) => string.Compare());
-
+            
             #region 加载成功，缓存所有方法、委托的信息
             foreach (var item in detailss)
             {
@@ -250,6 +218,36 @@ namespace Serein.NodeFlow
             #endregion
 
             return true;
+        }
+
+
+        /// <summary>
+        /// 卸载当前程序集以及附带的所有信息
+        /// </summary>
+        public void Unload()
+        {
+            DelegateDetailss.Clear();
+            MethodInfos.Clear();
+            RegisterTypes.Clear();
+            MethodDetailss.Clear();
+        }
+
+        /// <summary>
+        /// 转为依赖信息
+        /// </summary>
+        /// <returns></returns>
+        public FlowLibraryInfo ToInfo()
+        {
+            var assemblyName = Assembly.GetName().Name;
+            var mdInfos = MethodDetailss.Values.Select(x => x.ToInfo()).ToList();
+            mdInfos.Sort((a, b) => string.Compare(a.MethodName, b.MethodName, StringComparison.OrdinalIgnoreCase));
+            return new FlowLibraryInfo
+            {
+                AssemblyName = assemblyName,
+                FileName = FullName,
+                FilePath = FilePath,
+                MethodInfos = mdInfos.ToList(),
+            };
         }
 
 

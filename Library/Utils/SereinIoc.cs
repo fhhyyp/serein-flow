@@ -1,5 +1,4 @@
-﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Serein.Library.Api;
+﻿using Serein.Library.Api;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;

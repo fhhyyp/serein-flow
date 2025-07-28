@@ -5,6 +5,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
+    <BaseOutputPath>..\.\.Output</BaseOutputPath>
+
+    <Title>全异步Modbus协议客户端工具包</Title>
+    <Version>1.0.0</Version>
+    <Description>提供TCP、UDP、RTU三种方式客户端；创建方式：IModbusClient client = ModbusClientFactory.Create...;</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+
   </PropertyGroup>
 
   <ItemGroup>

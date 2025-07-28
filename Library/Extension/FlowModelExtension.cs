@@ -1,13 +1,10 @@
-﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Serein.Library.Api;
+﻿using Serein.Library.Api;
 using Serein.Library.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 
 namespace Serein.Library
 {

@@ -135,7 +135,7 @@ namespace Serein.NodeFlow.Env
         public string ProjectFileLocation => currentFlowEnvironment.EnvName;
 
         /// <inheritdoc/>
-        public bool IsGlobalInterrupt => currentFlowEnvironment.IsGlobalInterrupt;
+        public bool _IsGlobalInterrupt => currentFlowEnvironment._IsGlobalInterrupt;
 
         /// <inheritdoc/>
         public bool IsControlRemoteEnv => currentFlowEnvironment.IsControlRemoteEnv;

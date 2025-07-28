@@ -97,9 +97,9 @@ namespace Serein.NodeFlow
         /// </summary>
         /// <param name="libraryInfo"></param>
         /// <returns></returns>
-        public static NodeLibraryInfo ToLibrary(this NodeLibraryInfo libraryInfo)
+        public static FlowLibraryInfo ToLibrary(this FlowLibraryInfo libraryInfo)
         {
-            return new NodeLibraryInfo
+            return new FlowLibraryInfo
             {
                 AssemblyName = libraryInfo.AssemblyName,
                 FileName = libraryInfo.FileName,

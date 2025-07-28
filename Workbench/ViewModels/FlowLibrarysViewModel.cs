@@ -19,13 +19,13 @@ namespace Serein.Workbench.ViewModels
         private readonly IFlowEEForwardingService flowEEForwardingService;
         private readonly IFlowEnvironment flowEnvironment;
         [ObservableProperty]
-        private ObservableCollection<FlowLibraryInfo> flowLibraryInfos; 
+        private ObservableCollection<Models.FlowLibraryInfo> flowLibraryInfos; 
 
         public FlowLibrarysViewModel(IFlowEEForwardingService flowEEForwardingService,IFlowEnvironment flowEnvironment)
         {
             this.flowEEForwardingService = flowEEForwardingService;
             this.flowEnvironment = flowEnvironment;
-            FlowLibraryInfos = new ObservableCollection<FlowLibraryInfo>();
+            FlowLibraryInfos = new ObservableCollection<Models.FlowLibraryInfo>();
             flowEEForwardingService.DllLoad += FlowEEForwardingService_OnDllLoad;
         }
         /// <summary>
@@ -48,15 +48,15 @@ namespace Serein.Workbench.ViewModels
         private void FlowEEForwardingService_OnDllLoad(Library.Api.LoadDllEventArgs eventArgs)
         {
             if (!eventArgs.IsSucceed) return;
-            List<MethodDetailsInfo> mds = eventArgs.MethodDetailss;
-            NodeLibraryInfo libraryInfo = eventArgs.NodeLibraryInfo;
+            List<MethodDetailsInfo> mds = eventArgs.NodeLibraryInfo.MethodInfos.ToList() ;
+            Library.FlowLibraryInfo libraryInfo = eventArgs.NodeLibraryInfo;
 
             var methodInfo = new ObservableCollection<MethodDetailsInfo>();
             foreach (var md in mds) 
             {
                 methodInfo.Add(md);
             }
-            var flInfo = new FlowLibraryInfo
+            var flInfo = new Models.FlowLibraryInfo
             {
                 LibraryName = libraryInfo.AssemblyName,
                 FilePath = libraryInfo.FilePath,

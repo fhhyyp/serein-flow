@@ -12,13 +12,12 @@ namespace Serein.Library
         /// <summary>
         /// 环境方法信息
         /// </summary>
-        public LibraryMds[] LibraryMds { get; set; }
+        public FlowLibraryInfo[] LibraryMds { get; set; }
         /// <summary>
         /// 项目信息
         /// </summary>
         public SereinProjectData Project { get; set; }
 
-        // IOC节点对象信息
     }
 
 
@@ -26,16 +25,27 @@ namespace Serein.Library
     /// <summary>
     /// 程序集相关的方法信息
     /// </summary>
-    public class LibraryMds
+    public class FlowLibraryInfo
     {
         /// <summary>
         /// 程序集名称
         /// </summary>
         public string AssemblyName { get; set; }
+
+        /// <summary>
+        /// 文件名
+        /// </summary>
+        public string FileName { get; set; }
+
+        /// <summary>
+        /// 路径
+        /// </summary>
+        public string FilePath { get; set; }
+
         /// <summary>
         /// 相关的方法详情
         /// </summary>
-        public MethodDetailsInfo[] Mds { get; set; }
+        public List<MethodDetailsInfo> MethodInfos { get; set; }
 
     }
 
@@ -57,7 +67,7 @@ namespace Serein.Library
         /// 依赖的DLL
         /// </summary>
 
-        public NodeLibraryInfo[] Librarys { get; set; }
+        public FlowLibraryInfo[] Librarys { get; set; }
 
         /// <summary>
         /// 画布集合
@@ -89,29 +99,16 @@ namespace Serein.Library
     }
 
 
-   
+/*   
     /// <summary>
     /// 项目依赖的程序集，项目文件相关
     /// </summary>
     /// <summary>
-    public class NodeLibraryInfo
+    public class FlowLibraryInfo
     {
-        /// <summary>
-        /// 文件名
-        /// </summary>
-        public string FileName { get; set; }
 
-        /// <summary>
-        /// 路径
-        /// </summary>
-        public string FilePath { get; set; }
-
-        /// <summary>
-        /// 所属的程序集名称
-        /// </summary>
-        public string AssemblyName { get; set; }
     }
-
+*/
    
     /// <summary>
     /// 节点信息，项目文件相关

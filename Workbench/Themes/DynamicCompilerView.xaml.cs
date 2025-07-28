@@ -1,5 +1,5 @@
 ﻿using Microsoft.Win32;
-using Serein.NodeFlow;
+using Serein.NodeFlow.Model.Library;
 using Serein.NodeFlow.Tool;
 using System;
 using System.Collections.Generic;
@@ -34,7 +34,7 @@ namespace Serein.Workbench.Themes
         /// <summary>
         /// 编译成功回调
         /// </summary>
-        public Action<FlowLibrary> OnCompileComplete { get; set; }
+        public Action<FlowLibraryCache> OnCompileComplete { get; set; }
         public DynamicCompilerView()
         {
             InitializeComponent();
@@ -132,7 +132,7 @@ namespace Serein.Workbench.Themes
                 var path = textboxAssemblyName.Text;
                 Assembly assembly = _compiler.Compile(code, path);
 
-                FlowLibrary flowLibrary = new FlowLibrary(assembly, path);
+                FlowLibraryCache flowLibrary = new FlowLibraryCache(assembly, path);
 
                 if (assembly != null)
                 {
