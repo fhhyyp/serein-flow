@@ -200,16 +200,16 @@ namespace Serein.NodeFlow.Model
                 var dataType = data is null ? typeof(object) : data.GetType();
                 if (expression[0..4].Equals("@get", StringComparison.CurrentCultureIgnoreCase))
                 {
-                    expression = expression[4..];
+                    getValueExpression = expression[4..];
                     // 表达式默认包含 “.”
-                    expression = $"return {dataName}{expression};";
+                    getValueExpression = $"return {dataName}{expression};";
                 }
                 else
                 {
                     // 表达式默认包含 “.”
-                    expression = $"return {expression};";
+                    getValueExpression = $"return {getValueExpression};";
                 }
-                var resultType = getValueScript.ParserScript(expression, new Dictionary<string, Type>
+                var resultType = getValueScript.ParserScript(getValueExpression, new Dictionary<string, Type>
                 {
                     { dataName, dataType},
                 });
@@ -239,18 +239,18 @@ namespace Serein.NodeFlow.Model
                 conditionExpression = expression;
                 conditionScript = new SereinScript();
                 var dataType = data is null ?  typeof(object) : data.GetType();
-                expression = expression.Trim();
+                conditionExpression = expression.Trim();
                 if (expression[0] == '.')
                 {
                     // 对象取值
-                    expression = $"return {dataName}{expression};";
+                    conditionExpression = $"return {dataName}{expression};";
                 }
                 else
                 {
                     // 直接表达式
-                    expression = $"return {dataName}{expression};";
+                    conditionExpression = $"return {dataName}.{expression};";
                 }
-                _ = conditionScript.ParserScript(expression, new Dictionary<string, Type>
+                var resultType = conditionScript.ParserScript(conditionExpression, new Dictionary<string, Type>
                 {
                     { dataName, dataType},
                 });

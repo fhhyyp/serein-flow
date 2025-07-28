@@ -261,7 +261,12 @@ namespace Serein.Script
                         if (!ASTDelegateDetails.TryGetValue(memberFunctionCallNode, out DelegateDetails? delegateDetails))
                         {
                             var methodName = memberFunctionCallNode.FunctionName;
-                            var methodInfo = memberFunctionCallNode.Arguments.Count == 0 ? target?.GetType().GetMethod(methodName, []) : target?.GetType().GetMethod(methodName);// 获取参数列表的类型
+                            var argTypes = (memberFunctionCallNode.Arguments.Count == 0) switch
+                            {
+                                true => [],
+                                false =>  memberFunctionCallNode.Arguments.Select(arg => symbolInfos[arg]).ToArray()
+                            };
+                            var methodInfo = target?.GetType().GetMethod(methodName, argTypes); // 获取参数列表的类型
                             if (methodInfo is null) throw new SereinSciptParserException(memberFunctionCallNode, $"对象没有方法\"{memberFunctionCallNode.FunctionName}\"");
                             delegateDetails = new DelegateDetails(methodInfo);
                             ASTDelegateDetails[memberFunctionCallNode] = delegateDetails;
@@ -468,52 +473,6 @@ namespace Serein.Script
                 return;
             }
 
-#if false
-
-            // 解析数组/集合名与索引部分
-            var targetType = collectionValue.GetType(); // 目标对象的类型
-            #region 处理键值对
-            if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
-            {
-                // 目标是键值对
-                var methodInfo = targetType.GetMethod("set_Item", BindingFlags.Public | BindingFlags.Instance);
-                if (methodInfo is not null)
-                {
-
-                    methodInfo.Invoke(collectionValue, [indexValue, valueValue]);
-                }
-            }
-            #endregion
-            #region 处理集合对象
-            else
-            {
-                if (indexValue is int index)
-                {
-                    // 获取数组或集合对象
-                    // 访问数组或集合中的指定索引
-                    if (collectionValue is Array array)
-                    {
-                        if (index < 0 || index >= array.Length)
-                        {
-                            throw new ArgumentException($"解析{collectionValue}节点时，数组下标越界。");
-                        }
-                        array.SetValue(valueValue, index);
-                        return;
-                    }
-                    else if (collectionValue is IList<object> list)
-                    {
-                        if (index < 0 || index >= list.Count)
-                        {
-                            throw new ArgumentException($"解析{collectionValue}节点时，数组下标越界。");
-                        }
-                        list[index] = valueValue;
-                        return;
-                    }
-                }
-            }
-            #endregion
-            throw new ArgumentException($"解析异常， {collectionValue} 并非有效集合。"); 
-#endif
         }
 
         /// <summary>
@@ -545,51 +504,6 @@ namespace Serein.Script
                 return result;
             }
 
-#if false
-            // 解析数组/集合名与索引部分
-            var targetType = collectionValue.GetType(); // 目标对象的类型
-            #region 处理键值对
-            if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
-            {
-                // 目标是键值对
-                var method = targetType.GetMethod("get_Item", BindingFlags.Public | BindingFlags.Instance);
-                if (method is not null)
-                {
-                    var value = method.Invoke(collectionValue, [indexValue]);
-                    return value;
-                }
-            }
-            #endregion
-            #region 处理集合对象
-            else
-            {
-                if (indexValue is int index)
-                {
-                    // 获取数组或集合对象
-                    // 访问数组或集合中的指定索引
-                    if (collectionValue is Array array)
-                    {
-                        if (index < 0 || index >= array.Length)
-                        {
-                            throw new ArgumentException($"解析{collectionValue}节点时，数组下标越界。");
-                        }
-
-                        return array.GetValue(index);
-                    }
-                    else if (collectionValue is IList<object> list)
-                    {
-                        if (index < 0 || index >= list.Count)
-                        {
-                            throw new ArgumentException($"解析{collectionValue}节点时，数组下标越界。");
-                        }
-                        return list[index];
-                    }
-                }
-            }
-            #endregion
-
-            throw new ArgumentException($"解析{collectionValue}节点时，左值并非有效集合。"); 
-#endif
         }
 
 
