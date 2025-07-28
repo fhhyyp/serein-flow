@@ -185,12 +185,11 @@ namespace Serein.NodeFlow.Env
 #if DEBUG
 
             FlowResult flowResult = await BenchmarkHelpers.BenchmarkAsync(async () =>
-            {
-                var flowResult = await flowTaskManagement.StartFlowInSelectNodeAsync(nodeModel);
-                return flowResult;
-            });
+            await flowTaskManagement.StartFlowInSelectNodeAsync(nodeModel));
 #else
-            FlowResult flowResult =  await flowTaskManagement.StartFlowInSelectNodeAsync(nodeModel);
+            //FlowResult flowResult =  await flowTaskManagement.StartFlowInSelectNodeAsync(nodeModel);
+            FlowResult flowResult = await BenchmarkHelpers.BenchmarkAsync(async () => await flowTaskManagement.StartFlowInSelectNodeAsync(nodeModel));
+
 #endif
 
 

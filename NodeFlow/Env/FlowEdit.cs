@@ -412,9 +412,7 @@ namespace Serein.NodeFlow.Env
                     {
                         try
                         {
-                            var nodes = canvasModel.Nodes.ToList();
-                            nodes.Add(nodeModel);
-                            canvasModel.Nodes = nodes;
+                            canvasModel.Nodes = [.. canvasModel.Nodes, nodeModel];
                         }
                         catch (Exception ex)
                         {

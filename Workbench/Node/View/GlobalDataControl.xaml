@@ -57,7 +57,7 @@
                 <TextBox IsEnabled="{Binding IsEnabledOnView}" MinWidth="50" Margin="2" Text="{Binding NodeModel.KeyName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
       HorizontalAlignment="Stretch" VerticalAlignment="Center">
                 </TextBox>
-                <Button Content="EXP" Command="{Binding CommandCopyDataExp}" Height="17.2"></Button>
+                <!--<Button Content="EXP" Command="{Binding CommandCopyDataExp}" Height="17.2"></Button>-->
                 <!--<Button Content="刷新 " Command="{Binding CommandCopyDataExp}" Height="17.2" Margin="2,0,0,0"></Button>-->
             </StackPanel>
             

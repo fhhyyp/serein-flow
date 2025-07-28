@@ -14,7 +14,7 @@
                 <!--<nodeView:NetScriptNodeControl x:Name="NetScriptNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>-->
                 <nodeView:FlowCallNodeControl  MaxWidth="110" MaxHeight="160" x:Name="FlowCallNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                 <nodeView:ScriptNodeControl    MaxWidth="110" MaxHeight="160" x:Name="ScriptNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
-                <!--<nodeView:GlobalDataControl    MaxWidth="110" MaxHeight="160" x:Name="GlobalDataControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>-->
+                <nodeView:GlobalDataControl    MaxWidth="110" MaxHeight="160" x:Name="GlobalDataControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>
                 <!--<nodeView:ExpOpNodeControl     MaxWidth="110" MaxHeight="160" x:Name="ExpOpNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>-->
                 <!--<nodeView:ConditionNodeControl MaxWidth="110" MaxHeight="160"  x:Name="ConditionNodeControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>-->
                 <!--<nodeView:ConditionRegionControl  x:Name="ConditionRegionControl" Margin="10" AllowDrop="True" PreviewMouseMove="BaseNodeControl_PreviewMouseMove"/>-->

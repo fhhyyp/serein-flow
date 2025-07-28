@@ -78,21 +78,29 @@ namespace Serein.NodeFlow.Model.Operation
         public override async Task<bool> ExecuteAsync()
         {
             if (!ValidationParameter()) return false;
-
-            ContainerNode.PlaceNode(Node);
-
-            await TriggerEvent(() =>
+            var isSuccess  = ContainerNode.PlaceNode(Node);
+            if(isSuccess is true)
             {
-                flowEnvironmentEvent.OnNodePlace(new NodePlaceEventArgs(CanvasGuid, NodeGuid, ContainerNodeGuid)); // 通知UI更改节点放置位置
-            });
-            return true;
+                await TriggerEvent(() =>
+                {
+                    flowEnvironmentEvent.OnNodePlace(new NodePlaceEventArgs(CanvasGuid, NodeGuid, ContainerNodeGuid)); // 通知UI更改节点放置位置
+                });
+            }
+            return isSuccess;
         }
 
         public override bool Undo()
         {
-            ContainerNode.TakeOutNode(Node);
-            flowEnvironmentEvent.OnNodeTakeOut(new NodeTakeOutEventArgs(CanvasGuid, NodeGuid)); // 重新放置在画布上
-            return true;
+            var isSuccess = ContainerNode.TakeOutNode(Node);
+            if (isSuccess is true)
+            {
+                _ = TriggerEvent(() =>
+                {
+                    // 取出节点，重新放置在画布上
+                    flowEnvironmentEvent.OnNodeTakeOut(new NodeTakeOutEventArgs(CanvasGuid, ContainerNode.Guid, NodeGuid));
+                });
+            }
+            return isSuccess;
         }
 
 

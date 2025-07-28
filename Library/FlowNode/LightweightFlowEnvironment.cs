@@ -398,7 +398,6 @@ namespace Serein.Library
             CancellationTokenSource cts = new CancellationTokenSource();
             FlowResult flowResult;
 #if DEBUG
-
             flowResult = await BenchmarkHelpers.BenchmarkAsync(async () =>
             {
                 var node = flowCallTree.Get(startNodeGuid);

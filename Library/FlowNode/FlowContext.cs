@@ -1,8 +1,13 @@
-﻿using Serein.Library.Api;
+﻿using Microsoft.VisualBasic;
+using Serein.Library.Api;
 using Serein.Library.Utils;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Reactive.Concurrency;
+using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 
 namespace Serein.Library
 {
@@ -24,6 +29,11 @@ namespace Serein.Library
         }
 
         private string _guid = global::System.Guid.NewGuid().ToString();
+
+        /// <summary>
+        /// 是否记录流程调用信息
+        /// </summary>
+        public bool IsRecordInvokeInfo { get; set; } = true;
         string IFlowContext.Guid => _guid;
 
         /// <summary>
@@ -35,7 +45,6 @@ namespace Serein.Library
         /// 运行状态
         /// </summary>
         public RunState RunState { get; set; } = RunState.NoStart;
-
 
         /// <summary>
         /// 当前节点执行完成后，设置该属性，让运行环境判断接下来要执行哪个分支的节点。
@@ -66,27 +75,43 @@ namespace Serein.Library
         /// 记录节点的运行时参数数据
         /// </summary>
         private readonly ConcurrentDictionary<string, ConcurrentDictionary<int, object>> dictNodeParams = new ConcurrentDictionary<string, ConcurrentDictionary<int, object>>();
-        /*
-        /// <summary>
-        /// 每个流程上下文分别存放节点的当前数据
-        /// </summary>
-        private readonly ConcurrentDictionary<IFlowNode, FlowResult> dictNodeFlowData = new ConcurrentDictionary<IFlowNode, FlowResult>();
+
+
+    
 
         /// <summary>
-        /// 每个流程上下文存储运行时节点的调用关系
+        /// 记录流程调用信息
         /// </summary>
-        private readonly ConcurrentDictionary<IFlowNode, IFlowNode> dictPreviousNodes = new ConcurrentDictionary<IFlowNode, IFlowNode>();
+        //private Dictionary<long, IFlowNode> flowInvokeNodes = new Dictionary<long, IFlowNode>();
+        private Dictionary<long, FlowInvokeInfo> flowInvokeInfos = new Dictionary<long, FlowInvokeInfo>();
+        private static long _idCounter = 0;
 
         /// <summary>
-        /// 记录忽略处理的流程
+        /// 在执行方法之前，获取新的调用信息
         /// </summary>
-        private readonly ConcurrentDictionary<IFlowNode, bool> dictIgnoreNodeFlow = new ConcurrentDictionary<IFlowNode, bool>();
+        /// <param name="previousNode">上一个节点</param>
+        /// <param name="theNode">执行节点</param>
+        public FlowInvokeInfo NewInvokeInfo(IFlowNode previousNode, IFlowNode theNode,  FlowInvokeInfo.InvokeType invokeType)
+        {
+            //Interlocked
+            var id = Interlocked.Increment(ref _idCounter);
 
-        /// <summary>
-        /// 记录节点的运行时参数数据
-        /// </summary>
-        private readonly ConcurrentDictionary<IFlowNode, ConcurrentDictionary<int, object>> dictNodeParams = new ConcurrentDictionary<IFlowNode, ConcurrentDictionary<int, object>>();*/
+            FlowInvokeInfo flowInvokeInfo = new FlowInvokeInfo
+            {
+                ContextGuid = this._guid,
+                Id = id,
+                PreviousNodeGuid = previousNode?.Guid,
+                Method = theNode.MethodDetails?.MethodName,
+                NodeGuid = theNode.Guid,
+                Type = invokeType,
+                State = FlowInvokeInfo.RunState.None,
+            };
+            flowInvokeInfos.Add(id, flowInvokeInfo);
+            return flowInvokeInfo;
+        }
 
+        public List<FlowInvokeInfo> GetAllInvokeInfos() => [.. flowInvokeInfos.Values];
+     
         /// <summary>
         /// 设置节点的运行时参数数据
         /// </summary>
@@ -138,8 +163,6 @@ namespace Serein.Library
             }
         }
 
-
-
         /// <summary>
         /// 设置运行时上一节点
         /// </summary>
@@ -177,7 +200,6 @@ namespace Serein.Library
         {
             dictIgnoreNodeFlow.AddOrUpdate(node, (o) => false, (o, n) => false);
         }
-
 
         /// <summary>
         /// 获取当前节点的运行时上一节点
@@ -253,66 +275,37 @@ namespace Serein.Library
         }
 
         /// <summary>
+        /// 开始
+        /// </summary>
+       
+        /// <summary>
         /// 重置
         /// </summary>
         public void Reset()
         {
-            //foreach (var nodeObj in dictNodeFlowData.Values)
-            //{
-            //    if (nodeObj is null)
-            //    {
-
-            //    }
-            //    else 
-            //    {
-            //        if (typeof(IDisposable).IsAssignableFrom(nodeObj?.GetType()) && nodeObj is IDisposable disposable)
-            //        {
-            //            disposable?.Dispose();
-            //        }
-            //    }
-            //}
-            //if (Tag != null && typeof(IDisposable).IsAssignableFrom(Tag?.GetType()) && Tag is IDisposable tagDisposable)
-            //{
-            //    tagDisposable?.Dispose();
-            //}
             this.dictNodeFlowData?.Clear();
             ExceptionOfRuning = null;
             NextOrientation = ConnectionInvokeType.None;
             RunState = RunState.Running;
+            flowInvokeInfos.Clear();
             _guid = global::System.Guid.NewGuid().ToString();
         }
-
 
         /// <summary>
         /// 结束当前流程上下文
         /// </summary>
         public void Exit()
         {
-            //foreach (var nodeObj in dictNodeFlowData.Values)
-            //{
-            //    if (nodeObj is null)
-            //    {
-                    
-            //    }
-            //    else 
-            //    {
-            //        if (typeof(IDisposable).IsAssignableFrom(nodeObj?.GetType()) && nodeObj is IDisposable disposable)
-            //        {
-            //            disposable?.Dispose();
-            //        }
-            //    }
-            //}
-            //if (Tag != null && typeof(IDisposable).IsAssignableFrom(Tag?.GetType()) && Tag is IDisposable tagDisposable)
-            //{
-            //    tagDisposable?.Dispose();
-            //}
             this.dictNodeFlowData?.Clear();
             ExceptionOfRuning = null;
             NextOrientation = ConnectionInvokeType.None;
             RunState = RunState.Completion;
-            _guid = global::System.Guid.NewGuid().ToString();
         }
 
+        /// <summary>
+        /// 释放当前上下文中的所有资源
+        /// </summary>
+        /// <param name="keyValuePairs"></param>
         private void Dispose(ref IDictionary<string, object>  keyValuePairs)
         {
             foreach (var nodeObj in keyValuePairs.Values)
@@ -370,7 +363,6 @@ namespace Serein.Library
 
             list.Clear();
         }
-
         private void Dispose(ref IList<object> list)
         {
             foreach (var nodeObj in list)

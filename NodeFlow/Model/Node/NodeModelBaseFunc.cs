@@ -40,7 +40,6 @@ namespace Serein.NodeFlow.Model
             return;
         }
 
-
         /// <summary>
         /// 执行节点对应的方法
         /// </summary>
@@ -50,7 +49,6 @@ namespace Serein.NodeFlow.Model
         /// <returns>节点传回数据对象</returns>
         public virtual async Task<FlowResult> ExecutingAsync(IFlowContext context, CancellationToken token)
         {
-            
             // 执行触发检查是否需要中断
             if (DebugSetting.IsInterrupt)
             {

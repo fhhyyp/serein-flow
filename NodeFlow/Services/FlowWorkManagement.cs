@@ -6,6 +6,9 @@ using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Tool;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks.Dataflow;
 using System.Xml.Linq;
 
@@ -20,7 +23,6 @@ namespace Serein.NodeFlow.Services
         /// 触发器对应的Cts
         /// </summary>
         private ConcurrentDictionary<SingleFlipflopNode, CancellationTokenSource> dictGlobalFlipflop = [];
-
 
         /// <summary>
         /// 结束运行时需要执行的方法
@@ -271,13 +273,65 @@ namespace Serein.NodeFlow.Services
         /// <returns></returns>
         public async Task<FlowResult> StartFlowInSelectNodeAsync(IFlowNode startNode)
         {
-            var pool = WorkOptions.FlowContextPool;
-            var context = pool.Allocate();
-            var token = WorkOptions.CancellationTokenSource.Token;
-            var result = await startNode.StartFlowAsync(context, token); // 开始运行时从选定节点开始运行
+            var sw = Stopwatch.StartNew();
+            var checkpoints = new Dictionary<string, TimeSpan>();
 
+            var pool = WorkOptions.FlowContextPool;
+            var token = WorkOptions.CancellationTokenSource.Token;
+            var context = pool.Allocate();
+            checkpoints["准备Context"] = sw.Elapsed;
+
+            var result = await startNode.StartFlowAsync(context, token); // 开始运行时从选定节点开始运行
+            checkpoints["执行流程"] = sw.Elapsed;
+
+
+            if (context.IsRecordInvokeInfo)
+            {
+                var invokeInfos = context.GetAllInvokeInfos();
+                 _ = Task.Delay(100).ContinueWith(async (task) =>
+                {
+                    await task;
+                    if(invokeInfos.Count < 255)
+                    {
+                        foreach (var info in invokeInfos)
+                        {
+                            SereinEnv.WriteLine(InfoType.INFO, info.ToString());
+                        }
+                    }
+                    else
+                    {
+                        double total = 0;
+                        for (int i = 0; i < invokeInfos.Count; i++)
+                        {
+                            total += invokeInfos[i].TS.TotalSeconds;
+                        }
+                        SereinEnv.WriteLine(InfoType.INFO, $"运行次数：{invokeInfos.Count}");
+                        SereinEnv.WriteLine(InfoType.INFO, $"平均耗时：{total / invokeInfos.Count}");
+                        SereinEnv.WriteLine(InfoType.INFO, $"总耗时：{total}");
+                    }
+                   
+
+                });
+               
+               
+            }
+           
             context.Reset();
+            checkpoints["重置流程"] = sw.Elapsed;
+
             pool.Free(context);
+            checkpoints["释放Context"] = sw.Elapsed;
+
+            _ = Task.Run(() =>
+            {
+                var last = TimeSpan.Zero;
+                foreach (var kv in checkpoints)
+                {
+                    SereinEnv.WriteLine(InfoType.INFO, $"{kv.Key} 耗时: {(kv.Value - last).TotalMilliseconds} ms");
+                    last = kv.Value;
+                }
+            });
+
             return result;
         }
 
@@ -294,7 +348,6 @@ namespace Serein.NodeFlow.Services
                 await FlipflopExecuteAsync(singleFlipFlopNode, cts.Token);
             }
         }
-
 
         /// <summary>
         /// 尝试移除全局触发器

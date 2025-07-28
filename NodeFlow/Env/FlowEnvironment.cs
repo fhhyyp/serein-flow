@@ -146,11 +146,11 @@ namespace Serein.NodeFlow.Env
         /// <inheritdoc/>
         public RunState FlowState { get => currentFlowEnvironment.FlowState; set => currentFlowEnvironment.FlowState = value; }
 
-        /// <inheritdoc/>
+       /* /// <inheritdoc/>
         public void ActivateFlipflopNode(string nodeGuid)
         {
             currentFlowEnvironment.FlowControl.ActivateFlipflopNode(nodeGuid);
-        }
+        }*/
 
        /* /// <inheritdoc/>
         public async Task<(bool, RemoteMsgUtil)> ConnectRemoteEnv(string addres, int port, string token)
@@ -167,10 +167,10 @@ namespace Serein.NodeFlow.Env
         }*/
 
         /// <inheritdoc/>
-        public async Task<bool> ExitFlowAsync()
+       /* public async Task<bool> ExitFlowAsync()
         {
             return await currentFlowEnvironment.FlowControl.ExitFlowAsync();
-        }
+        }*/
 
        /* /// <inheritdoc/>
         public void ExitRemoteEnv()
@@ -221,11 +221,11 @@ namespace Serein.NodeFlow.Env
             SetProjectLoadingFlag(true);
         }
 
-        /// <inheritdoc/>
+       /* /// <inheritdoc/>
         public void MonitorObjectNotification(string nodeGuid, object monitorData, MonitorObjectEventArgs.ObjSourceType sourceType)
         {
             currentFlowEnvironment.FlowControl.MonitorObjectNotification(nodeGuid, monitorData, sourceType);
-        }
+        }*/
 
         /// <inheritdoc/>
         public bool TryUnloadLibrary(string assemblyName)
@@ -274,7 +274,7 @@ namespace Serein.NodeFlow.Env
 #endif
 
         #endregion
-
+/*
 
         /// <inheritdoc/>
         public async Task<bool> StartFlowAsync(string[] canvasGuids)
@@ -286,7 +286,7 @@ namespace Serein.NodeFlow.Env
         public async Task<TResult> StartFlowAsync<TResult>(string startNodeGuid)
         {
            return await currentFlowEnvironment.FlowControl.StartFlowAsync<TResult>(startNodeGuid);
-        }
+        }*/
        
        /* /// <inheritdoc/>
         public async Task StartRemoteServerAsync(int port = 7525)
@@ -299,7 +299,7 @@ namespace Serein.NodeFlow.Env
         {
             currentFlowEnvironment.StopRemoteServer();
         }*/
-
+/*
         /// <inheritdoc/>
         public void TerminateFlipflopNode(string nodeGuid)
         {
@@ -310,7 +310,7 @@ namespace Serein.NodeFlow.Env
         public void TriggerInterrupt(string nodeGuid, string expression, InterruptTriggerEventArgs.InterruptTriggerType type)
         {
             currentFlowEnvironment.FlowControl.TriggerInterrupt(nodeGuid, expression, type);
-        }
+        }*/
 
         /// <inheritdoc/>
         public void SetUIContextOperation(UIContextOperation uiContextOperation)
@@ -318,12 +318,12 @@ namespace Serein.NodeFlow.Env
             
             currentFlowEnvironment.SetUIContextOperation(uiContextOperation);
         }
-
+/*
         /// <inheritdoc/>
         public void UseExternalIOC(ISereinIOC ioc)
         {
             currentFlowEnvironment.FlowControl.UseExternalIOC(ioc);
-        }
+        }*/
 
         /// <inheritdoc/>
         public bool TryGetNodeModel(string nodeGuid, out IFlowNode nodeModel)

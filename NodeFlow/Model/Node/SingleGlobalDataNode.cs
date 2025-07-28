@@ -25,6 +25,8 @@ namespace Serein.NodeFlow.Model
     /// </summary>
     public partial class SingleGlobalDataNode : NodeModelBase, INodeContainer
     {
+        string INodeContainer.Guid => this.Guid; 
+
         /// <summary>
         /// 全局数据节点是基础节点
         /// </summary>
@@ -58,12 +60,13 @@ namespace Serein.NodeFlow.Model
                 DataNode = nodeModel;
                 return true;
             }
-            else
+            else if (DataNode.Guid != nodeModel.Guid)
             {
-                // 全局数据节点只有一个子控件
+                Env.FlowEdit.TakeOutNodeToContainer(DataNode.CanvasDetails.Guid, DataNode.Guid);
+                Env.FlowEdit.PlaceNodeToContainer(this.CanvasDetails.Guid, nodeModel.Guid, this.Guid);
                 return false;
             }
-
+            return false;
             
         }
 

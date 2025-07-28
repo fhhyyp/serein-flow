@@ -261,11 +261,15 @@ namespace Serein.Workbench.Services
         private void FlowEEForwardingService_OnNodeTakeOut(NodeTakeOutEventArgs eventArgs)
         {
             string nodeGuid = eventArgs.NodeGuid;
-            if (!TryGetControl(nodeGuid, out var nodeControl))
+            string containerNodeGuid = eventArgs.ContainerNodeGuid;
+            if (!TryGetControl(containerNodeGuid, out var containerNodeControl) || !TryGetControl(nodeGuid, out var nodeControl))
             {
                 return;
             }
             nodeControl.TakeOutContainer(); // 从容器节点中取出
+            (double x, double y) = (Canvas.GetLeft(containerNodeControl), Canvas.GetRight(containerNodeControl));
+            Canvas.SetLeft(nodeControl, x + 400);
+            Canvas.SetRight(nodeControl, y +  200);
         }
 
         private void FlowEEForwardingService_OnNodePlace(NodePlaceEventArgs eventArgs)

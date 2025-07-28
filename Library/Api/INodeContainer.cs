@@ -11,6 +11,8 @@ namespace Serein.Library.Api
     /// </summary>
     public interface INodeContainer
     {
+
+        string Guid { get; }
         /// <summary>
         /// 放置一个节点
         /// </summary>

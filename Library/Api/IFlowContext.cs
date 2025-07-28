@@ -2,6 +2,9 @@
 using Serein.Library.Utils;
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
+using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Serein.Library.Api
@@ -11,6 +14,12 @@ namespace Serein.Library.Api
     /// </summary>
     public interface IFlowContext
     {
+        /// <summary>
+        /// 是否记录流程信息
+        /// </summary>
+        bool IsRecordInvokeInfo { get; set; }
+
+
         /// <summary>
         /// 标识流程
         /// </summary>
@@ -37,6 +46,19 @@ namespace Serein.Library.Api
         /// 运行时异常信息
         /// </summary>
         Exception ExceptionOfRuning { get; set; }
+
+
+        /// <summary>
+        /// 获取当前流程上下文的所有节点调用信息，包含每个节点的执行时间、调用类型、执行状态等。
+        /// </summary>
+        /// <returns></returns>
+        List<FlowInvokeInfo> GetAllInvokeInfos();
+
+    
+        /// <summary>
+        /// 新增当前流程上下文的节点调用信息。
+        /// </summary>
+        FlowInvokeInfo NewInvokeInfo(IFlowNode previousNode, IFlowNode theNode, FlowInvokeInfo.InvokeType invokeType);
 
 
         /// <summary>
@@ -107,5 +129,176 @@ namespace Serein.Library.Api
         /// 用以提前结束当前上下文流程的运行
         /// </summary>
         void Exit();
-    } 
+    }
+
+   
+    /// <summary>
+    /// 流程调用信息，记录每个节点的调用信息，包括执行时间、调用类型、执行状态等。
+    /// </summary>
+    public sealed class FlowInvokeInfo
+    {
+        /// <summary>
+        /// 调用类型枚举，指示节点的调用方式。
+        /// </summary>
+        public enum InvokeType 
+        {
+            /// <summary>
+            /// 初始化。
+            /// </summary>
+            None = -1,
+            /// <summary>
+            /// 上游分支调用，指向上游流程的节点。
+            /// </summary>
+            Upstream = 0,
+            /// <summary>
+            /// 真分支调用，指示节点执行成功后的分支。
+            /// </summary>
+            IsSucceed = 1,
+            /// <summary>
+            /// 假分支调用，指示节点执行失败后的分支。
+            /// </summary>
+            IsFail = 2,
+            /// <summary>
+            /// 异常发生分支调用，指示节点执行过程中发生异常后的分支。
+            /// </summary>
+            IsError = 3,
+            /// <summary>
+            /// 参数来源调用，标明此次调用出自其它节点需要参数时的执行。
+            /// </summary>
+            ArgSource = 4,
+        }
+
+        /// <summary>
+        /// 运行状态枚举，指示节点的执行结果。
+        /// </summary>
+        public enum RunState
+        {
+            /// <summary>
+            /// 初始化
+            /// </summary>
+            None = -1,
+            /// <summary>
+            /// 正在运行，指示节点正在执行中。
+            /// </summary>
+            Running = 0,
+            /// <summary>
+            /// 执行成功，指示节点执行完成且结果正常。
+            /// </summary>
+            Succeed = 1,
+            /// <summary>
+            /// 执行失败，指示节点执行完成但结果异常或不符合预期。
+            /// </summary>
+            Failed = 2,
+            /// <summary>
+            /// 执行异常，指示节点在执行过程中发生了未处理的异常。
+            /// </summary>
+            Error = 3,
+        }
+
+        /// <summary>
+        /// 流程上下文标识符，唯一标识一个流程上下文
+        /// </summary>
+        public string ContextGuid { get;  set; }
+
+        /// <summary>
+        /// 节点执行信息标识符，唯一标识一个节点执行信息
+        /// </summary>
+        public long Id { get; set; }
+
+        /// <summary>
+        /// 上一节点的唯一标识符，指向流程图中的上一个节点
+        /// </summary>
+        public string PreviousNodeGuid { get; set; }
+
+        /// <summary>
+        /// 节点唯一标识符，指向流程图中的节点
+        /// </summary>
+        public string NodeGuid { get; set; }
+
+        /// <summary>
+        /// 执行时间，记录节点执行的时间戳
+        /// </summary>
+        public DateTime StateTime { get; } = DateTime.Now;
+
+        /// <summary>
+        /// 节点调用类型，指示节点的调用方式
+        /// </summary>
+        public InvokeType Type { get; set; }
+
+
+
+        /// <summary>
+        /// 节点方法名称，指示节点执行的方法
+        /// </summary>
+        public string Method { get; set; }
+
+        /// <summary>
+        /// 节点执行状态，指示节点的执行结果
+        /// </summary>
+        public RunState State { get; set; }
+
+        /// <summary>
+        /// 耗时，记录节点执行的耗时（单位：毫秒）
+        /// </summary>
+        public TimeSpan TS { get; private set; } = TimeSpan.Zero;
+
+        /// <summary>
+        /// 节点参数，存储节点执行时的参数信息
+        /// </summary>
+        public string[] Parameters { get; private set; }
+
+        /// <summary>
+        /// 节点执行结果，存储节点执行后的结果信息
+        /// </summary>
+        public string Result { get; private set; }
+
+        public void UploadState(RunState runState)
+        {
+            State = runState;
+            TS = DateTime.Now - StateTime;
+        }
+        public void UploadResultValue(object value = null)
+        {
+            if(value is null)
+            {
+                Result = string.Empty;
+            }
+            else
+            {
+                Result = value.ToString();
+            }
+        }
+        public void UploadParameters(object[] values = null)
+        {
+            if (values is null)
+            {
+                Parameters = [];
+
+            }
+            else
+            {
+                Parameters = values.Select(v => v.ToString()).ToArray();
+            }
+        }
+
+        public override string ToString()
+        {
+            return $"[{State}]{TS.TotalSeconds:0.000}ms : {Result}";
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
 }
+
+

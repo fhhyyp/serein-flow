@@ -122,7 +122,7 @@ namespace Serein.Workbench.Views
         private readonly TranslateTransform translateTransform;
         #endregion
 
-        #region 初始化
+        #region 初始化画布与相关事件
 
         public FlowCanvasView(FlowCanvasDetails model)
         {
@@ -173,11 +173,9 @@ namespace Serein.Workbench.Views
 
         }
 
-
         private void InitEvent()
         {
             keyEventService.OnKeyDown += KeyEventService_OnKeyDown;
-            //flowNodeService.OnRemoveConnectionLine += FlowNodeService_OnRemoveConnectionLine;
             flowEEForwardingService.NodeLocated += FlowEEForwardingService_OnNodeLocated;
         }
 
@@ -357,8 +355,7 @@ namespace Serein.Workbench.Views
         } 
         #endregion
 
-
-        #region 接口实现
+        #region 画布节点操作接口实现
         private IFlowCanvas Api => this;
 
         /// <inheritdoc/>
@@ -568,14 +565,20 @@ namespace Serein.Workbench.Views
                 if (keyEventService.GetKeyState(Key.LeftCtrl) || keyEventService.GetKeyState(Key.RightCtrl))
                 {
                     // Ctrl + F5 调试当前流程
-                    _ = flowEnvironment.FlowControl.StartFlowAsync([flowNodeService.CurrentSelectCanvas.Guid]);
+                    Task.Run(() =>
+                    {
+                        flowEnvironment.FlowControl.StartFlowAsync([flowNodeService.CurrentSelectCanvas.Guid]);
+                    });
                 }
                 else if (selectNodeControls.Count == 1 )
                 {
                     // F5 调试当前选定节点
                     var nodeModel = selectNodeControls[0].ViewModel.NodeModel;
                     SereinEnv.WriteLine(InfoType.INFO, $"调试运行当前节点:{nodeModel.Guid}");
-                    _ = flowEnvironment.FlowControl.StartFlowAsync<FlowResult>(nodeModel.Guid);
+                    Task.Run(() =>
+                    {
+                        flowEnvironment.FlowControl.StartFlowAsync<FlowResult>(nodeModel.Guid);
+                    });
                     //_ = nodeModel.StartFlowAsync(new DynamicContext(flowEnvironment), new CancellationToken());
                 }
 

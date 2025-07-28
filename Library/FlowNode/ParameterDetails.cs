@@ -249,11 +249,31 @@ namespace Serein.Library
                     sourceNode = sourceNodeTemp;
 
                 if (ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
+                {
+
                     inputParameter = context.GetFlowData(sourceNode.Guid)?.Value;
+                }
                 else if (ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke) // 立刻执行目标节点获取参数
-                    inputParameter = (await sourceNode.ExecutingAsync(context, CancellationToken.None)).Value;
+                {
+                    if (context.IsRecordInvokeInfo)
+                    {
+                        var invokeInfo = context.NewInvokeInfo(NodeModel, sourceNode, FlowInvokeInfo.InvokeType.ArgSource);
+                        var result = await sourceNode.ExecutingAsync(context, CancellationToken.None);
+                        inputParameter = result.Value;
+                        invokeInfo.UploadResultValue(result.Value);
+                        invokeInfo.UploadState(FlowInvokeInfo.RunState.Succeed);
+                    }
+                    else
+                    {
+                        var result = await sourceNode.ExecutingAsync(context, CancellationToken.None);
+                        inputParameter = result.Value;
+                    }
+                }
                 else
+                {
+
                     throw new Exception("无效的 ArgDataSourceType");
+                }
             }
 
             // 5. 表达式处理

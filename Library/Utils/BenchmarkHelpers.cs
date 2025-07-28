@@ -37,11 +37,11 @@ namespace Serein.Library.Utils
 
             double avg = total / count;
 
-            Console.WriteLine($"运行 {count} 次：");
-            Console.WriteLine($"总耗时  :{total} 毫秒：");
-            Console.WriteLine($"最大耗时：{max} 毫秒");
-            Console.WriteLine($"最小耗时：{min} 毫秒");
-            Console.WriteLine($"平均耗时：{avg} 毫秒");
+           SereinEnv.WriteLine(InfoType.INFO, $"运行 {count} 次：");
+           SereinEnv.WriteLine(InfoType.INFO, $"总耗时  :{total} 毫秒：");
+           SereinEnv.WriteLine(InfoType.INFO, $"最大耗时：{max} 毫秒");
+           SereinEnv.WriteLine(InfoType.INFO, $"最小耗时：{min} 毫秒");
+           SereinEnv.WriteLine(InfoType.INFO, $"平均耗时：{avg} 毫秒");
         }
 
         /// <summary>
@@ -68,11 +68,11 @@ namespace Serein.Library.Utils
             }
 
             double avg = total / count;
-            Console.WriteLine($"运行 {count} 次：");
-            Console.WriteLine($"总耗时  :{total} 毫秒：");
-            Console.WriteLine($"最大耗时：{max} 毫秒");
-            Console.WriteLine($"最小耗时：{min} 毫秒");
-            Console.WriteLine($"平均耗时：{avg} 毫秒");
+            SereinEnv.WriteLine(InfoType.INFO, $"运行 {count} 次：");
+            SereinEnv.WriteLine(InfoType.INFO, $"总耗时  :{total} 毫秒：");
+            SereinEnv.WriteLine(InfoType.INFO, $"最大耗时：{max} 毫秒");
+            SereinEnv.WriteLine(InfoType.INFO, $"最小耗时：{min} 毫秒");
+            SereinEnv.WriteLine(InfoType.INFO, $"平均耗时：{avg} 毫秒");
         }
 
         /// <summary>
@@ -100,11 +100,11 @@ namespace Serein.Library.Utils
             }
 
             double avg = total / count;
-            Console.WriteLine($"运行 {count} 次：");
-            Console.WriteLine($"总耗时  :{total} 毫秒：");
-            Console.WriteLine($"最大耗时：{max} 毫秒");
-            Console.WriteLine($"最小耗时：{min} 毫秒");
-            Console.WriteLine($"平均耗时：{avg} 毫秒");
+            SereinEnv.WriteLine(InfoType.INFO, $"运行 {count} 次：");
+            SereinEnv.WriteLine(InfoType.INFO, $"总耗时  :{total} 毫秒：");
+            SereinEnv.WriteLine(InfoType.INFO, $"最大耗时：{max} 毫秒");
+            SereinEnv.WriteLine(InfoType.INFO, $"最小耗时：{min} 毫秒");
+            SereinEnv.WriteLine(InfoType.INFO, $"平均耗时：{avg} 毫秒");
             return result;
         } 
         
@@ -127,8 +127,8 @@ namespace Serein.Library.Utils
             if (ms < min) min = ms;
             total += ms;
 
-            Console.WriteLine($"运行1次耗时 :{total} 毫秒：");
-            Debug.WriteLine($"运行1次耗时 :{total} 毫秒：");
+            var tips = $"运行耗时 :{total} 毫秒：";
+            SereinEnv.WriteLine(InfoType.INFO, tips);
             return result;
         }
     }

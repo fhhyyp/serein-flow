@@ -58,7 +58,7 @@ namespace Serein.Workbench.Node.View
             var result = nodeContainerControl.PlaceNode(this);
             if (!result) // 检查是否放置成功，如果不成功，需要重新添加回来
             {
-                FlowCanvas.Add(this); // 从画布上移除
+                FlowCanvas.Add(this); 
 
             }
         }

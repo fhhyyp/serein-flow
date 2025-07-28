@@ -10,6 +10,8 @@ namespace Serein.Workbench.Node.View
     /// </summary>
     public partial class GlobalDataControl : NodeControlBase, INodeJunction, INodeContainerControl
     {
+        private readonly GlobalDataNodeControlViewModel viewModel;
+
         public GlobalDataControl() : base()
         {
             // 窗体初始化需要
@@ -26,6 +28,7 @@ namespace Serein.Workbench.Node.View
             DataContext = viewModel;
             viewModel.NodeModel.DisplayName = "[全局数据]";
             InitializeComponent();
+            this.viewModel = viewModel;
         }
 
 
@@ -56,6 +59,7 @@ namespace Serein.Workbench.Node.View
             {
                 return false;
             }
+            //viewModel.NodeModel is SingleGlobalDataNode
             GlobalDataPanel.Children.Add(nodeControl);
             return true;
         }

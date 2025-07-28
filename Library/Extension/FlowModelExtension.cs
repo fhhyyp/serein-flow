@@ -208,7 +208,9 @@ namespace Serein.Library
             Stack<IFlowNode> stack = new Stack<IFlowNode>();
             HashSet<IFlowNode> processedNodes = new HashSet<IFlowNode>(); // 用于记录已处理上游节点的节点
             stack.Push(nodeModel);
-
+#nullable enable
+            IFlowNode? previousNode = null;
+            IFlowNode? currentNode = null;
             while (true) 
             {
                 if (token.IsCancellationRequested)
@@ -218,9 +220,30 @@ namespace Serein.Library
 
                 #region 执行相关
                 // 从栈中弹出一个节点作为当前节点进行处理
-                var currentNode = stack.Pop();
+                previousNode = currentNode;
+                currentNode = stack.Pop();
+               
+               
+
+                #region 新增调用信息
+                FlowInvokeInfo? invokeInfo = null;
+                var isRecordInvokeInfo = context.IsRecordInvokeInfo;
+                if (!isRecordInvokeInfo) goto Label_NotRecordInvoke;
+
+                FlowInvokeInfo.InvokeType invokeType = context.NextOrientation switch
+                {
+                    ConnectionInvokeType.IsSucceed => FlowInvokeInfo.InvokeType.IsSucceed,
+                    ConnectionInvokeType.IsFail => FlowInvokeInfo.InvokeType.IsFail,
+                    ConnectionInvokeType.IsError => FlowInvokeInfo.InvokeType.IsError,
+                    ConnectionInvokeType.Upstream => FlowInvokeInfo.InvokeType.Upstream,
+                    _ => FlowInvokeInfo.InvokeType.None
+                };
+                invokeInfo = context.NewInvokeInfo(previousNode, currentNode, invokeType);
+                #endregion
+
+Label_NotRecordInvoke:
                 context.NextOrientation = ConnectionInvokeType.None; // 重置上下文状态
-                FlowResult flowResult = null;
+                FlowResult flowResult = null; 
                 try
                 {
                     flowResult = await currentNode.ExecutingAsync(context, token);
@@ -237,6 +260,22 @@ namespace Serein.Library
                     context.NextOrientation = ConnectionInvokeType.IsError;
                     context.ExceptionOfRuning = ex;
                 }
+                #endregion
+
+                #region 更新调用信息
+                var state = context.NextOrientation switch
+                {
+                    ConnectionInvokeType.IsFail => FlowInvokeInfo.RunState.Failed,
+                    ConnectionInvokeType.IsError => FlowInvokeInfo.RunState.Error,
+                    _ => FlowInvokeInfo.RunState.Succeed
+                };
+                if (isRecordInvokeInfo)
+                {
+                    invokeInfo.UploadState(state);
+                    invokeInfo.UploadResultValue(flowResult.Value);
+                }
+                
+
                 #endregion
 
                 #region 执行完成时更新栈
@@ -289,10 +328,18 @@ namespace Serein.Library
 
                 #endregion
 #if DEBUG
-                await Task.Delay(1);
+                //await Task.Delay(1);
 #endif
             }
         }
+
+        /// <summary>
+        /// 获取所有参数
+        /// </summary>
+        /// <param name="nodeModel"></param>
+        /// <param name="context"></param>
+        /// <param name="token"></param>
+        /// <returns></returns>
         public static async Task<object[]> GetParametersAsync(this IFlowNode nodeModel, IFlowContext context, CancellationToken token)
         {
             var md = nodeModel.MethodDetails;
@@ -437,6 +484,7 @@ namespace Serein.Library
             }
 
             var context = new FlowContext(flowCallNode.Env);
+            
             for (int index = 0; index < pds.Length; index++)
             {
                 ParameterDetails pd = pds[index];

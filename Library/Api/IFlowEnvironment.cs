@@ -414,10 +414,11 @@ namespace Serein.Library.Api
     /// </summary>
     public class NodeTakeOutEventArgs : FlowEventArgs
     {
-        public NodeTakeOutEventArgs(string canvasGuid, string nodeGuid)
+        public NodeTakeOutEventArgs(string canvasGuid, string containerNodeGuid, string nodeGuid)
         {
             CanvasGuid = canvasGuid;
             NodeGuid = nodeGuid;
+            ContainerNodeGuid = containerNodeGuid;
         }
 
         public string CanvasGuid { get; }
@@ -426,6 +427,11 @@ namespace Serein.Library.Api
         /// 需要取出的节点Guid
         /// </summary>
         public string NodeGuid { get; private set; }
+
+        /// <summary>
+        /// 容器节点Guid
+        /// </summary>
+        public string ContainerNodeGuid { get; private set; }
     }
 
 
