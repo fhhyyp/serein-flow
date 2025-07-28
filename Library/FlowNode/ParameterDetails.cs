@@ -1,9 +1,6 @@
 ﻿using Serein.Library.Api;
 using Serein.Library.Utils;
-using Serein.Library.Utils.SereinExpression;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -119,10 +116,6 @@ namespace Serein.Library
     public partial class ParameterDetails
     {
          
-        
-
-        
-
 
         /// <summary>
         /// 用于创建元数据
@@ -276,17 +269,8 @@ namespace Serein.Library
                 }
             }
 
-            // 5. 表达式处理
-            if (IsExplicitData && DataValue.StartsWith("@", StringComparison.OrdinalIgnoreCase))
-            {
-                var lower = DataValue.ToLowerInvariant();
-                if (lower.StartsWith("@get") || lower.StartsWith("@dtc") || lower.StartsWith("@data"))
-                {
-                    inputParameter = SerinExpressionEvaluator.Evaluate(DataValue, inputParameter, out _);
-                }
-            }
 
-            // 6. 类型转换
+            // 5. 类型转换
             if (!DataType.IsValueType && inputParameter is null)
                 throw new Exception($"[arg{Index}] 参数不能为null");
 
@@ -303,7 +287,10 @@ namespace Serein.Library
             throw new Exception($"[arg{Index}] 类型不匹配：目标类型为 {DataType}，实际类型为 {actualType}");
         }
 
-        /// <summary>
+
+
+
+       /* /// <summary>
         /// 转为方法入参数据
         /// </summary>
         /// <returns></returns>
@@ -347,7 +334,7 @@ namespace Serein.Library
 
 
 
-            /*#region “枚举-类型”转换器
+            *//*#region “枚举-类型”转换器
             if (ExplicitType is not null && ExplicitType.IsEnum && DataType != ExplicitType)
             {
                 var resultEnum = Enum.Parse(ExplicitType, DataValue);
@@ -359,7 +346,7 @@ namespace Serein.Library
                     return value;
                 }
             } 
-            #endregion*/
+            #endregion*//*
 
             // 需要获取预入参数据
             object inputParameter;
@@ -473,7 +460,7 @@ namespace Serein.Library
 
             throw new Exception($"[arg{Index}][{Name}][{DataType}]入参类型不符合，当前预入参类型为{inputParameterType}");
         }
-
+*/
         public override string ToString()
         {
             return $"[{this.Index}] {(string.IsNullOrWhiteSpace(this.Description) ? string.Empty : $"({this.Description})")}{this.Name} : {this.DataType?.FullName}";

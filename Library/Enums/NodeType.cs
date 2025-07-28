@@ -50,15 +50,14 @@ namespace Serein.Library
         Flipflop,
         /// <summary>
         /// <para>动作节点，可以异步等待</para>
-        /// <para>如果不显式的设置入参数据（例如文本、@Get取值表达式），就会默认使用该节点的运行时上一个节点的数据。</para>
-        /// <para>假如上一节点是某个对象，但入参需要的是对象中某个属性/字段，则建议使用取值表达式、表达式节点获取所需要的数据。</para>
+        /// <para>如果不显式的设置入参数据，就会默认使用该节点的运行时上一个节点的数据。</para>
+        /// <para>假如上一节点是某个对象，但入参需要的是对象中某个属性/字段，则建议使用表达式节点获取所需要的数据。</para>
         /// <para>关于@Get取值表达式的使用方法：</para>
         ///  <para>public class UserInfo                                                         </para>
         ///  <para>{                                                                             </para>
-        ///  <para>    public string Name; // 取值表达式：@Get .Name                       </para>
-        ///  <para>    public string[] PhoneNums; // 获取第1项的取值表达式：@Get .PhoneNums[0]   </para>
+        ///  <para>    public string Name;   // 取值表达式：@Get .Name                           </para>
+        ///  <para>    public string[] PhoneNums; // 取值表达式：@Get .PhoneNums                 </para>
         ///  <para> }                                                                            </para>
-        /// <para>取值表达式可以符合直觉的如此获取实例成员：@Get .Data.Array[2].Data......</para>
         /// <para>格式说明：@Get大小写不敏感，然后空一格，需要标记“.”，然后才是获取成员名称（成员名称大小写敏感）。</para>
         /// </summary>
         Action,

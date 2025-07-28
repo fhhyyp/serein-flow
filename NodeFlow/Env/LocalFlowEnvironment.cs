@@ -1,8 +1,6 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.Utils;
-using Serein.Library.Utils.SereinExpression;
-using Serein.NodeFlow.Model.Library;
 using Serein.NodeFlow.Services;
 using Serein.NodeFlow.Tool;
 using System.Text;
@@ -667,7 +665,7 @@ namespace Serein.NodeFlow.Env
             // "NodeModel.Path"
             if (TryGetNodeModel(nodeGuid, out var nodeModel))
             {
-                SerinExpressionEvaluator.Evaluate($"@Set .{path} = {value}", nodeModel, out _); // 更改对应的数据
+                //SerinExpressionEvaluator.Evaluate($"@Set .{path} = {value}", nodeModel, out _); // 更改对应的数据
             }
 
 

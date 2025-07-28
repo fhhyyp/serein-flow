@@ -42,12 +42,15 @@
   <ItemGroup>
     <Compile Remove="Http\**" />
     <Compile Remove="Network\**" />
+    <Compile Remove="Utils\SereinExpression\**" />
     <Compile Remove="Utils\SerinExpression\**" />
     <EmbeddedResource Remove="Http\**" />
     <EmbeddedResource Remove="Network\**" />
+    <EmbeddedResource Remove="Utils\SereinExpression\**" />
     <EmbeddedResource Remove="Utils\SerinExpression\**" />
     <None Remove="Http\**" />
     <None Remove="Network\**" />
+    <None Remove="Utils\SereinExpression\**" />
     <None Remove="Utils\SerinExpression\**" />
   </ItemGroup>
 

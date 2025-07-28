@@ -63,6 +63,7 @@ namespace Serein.Library.Utils.SereinExpression
     /// <summary>
     /// 条件解析器（生成IL进行判断）
     /// 格式： data.[propertyName] [operator] [value]
+    /// 返回值：boolea 
     /// </summary>
     public class SereinConditionParser
     {
@@ -112,11 +113,6 @@ namespace Serein.Library.Utils.SereinExpression
                 return ParseSimpleExpression(data, expression); // 简单表达式解析
             }
 
-
-            //bool ContainsArithmeticOperators(string expression)
-            //{
-            //    return expression.Contains('+') || expression.Contains('-') || expression.Contains('*') || expression.Contains('/');
-            //}
 
         }
 

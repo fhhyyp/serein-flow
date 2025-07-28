@@ -2,7 +2,7 @@
 
 namespace Serein.Script
 {
-    public class ScriptInvokeContext : IScriptInvokeContext
+    public sealed class ScriptInvokeContext : IScriptInvokeContext
     {
         /// <summary>
         /// 脚本使用流程上下文

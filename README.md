@@ -108,17 +108,12 @@ https://space.bilibili.com/33526379
   * 其它获取到全局数据的方式：
     1. 表达式 ：
        ~~~
-       @Get #KeyName# // 使用##符号表达全局数据KeyName的标识符
+       @Get global("DataName") // 使用global表达全局数据 DataName 的标识符
        ~~~
     2. Script代码：
        ~~~~
-       data = global("YOUR-NAME"); // 获取全局数据节点中的数据
+       data = global("DataName"); // 获取全局数据节点中 DataName 的数据
        ~~~~
-    3. C# 代码中（不建议）：
-       ~~~
-       SereinEnv.GetFlowGlobalData("KeyName"); // 获取全局数据
-       SereinEnv.AddOrUpdateFlowGlobalData("KeyName", obj); // 设置/更新全局数据，不建议
-       ~~~
 ## 3. 从DLL生成控件的枚举值：
 * **Action - 动作**
   * 入参：自定义。如果入参类型为IFlowContext，会传入当前的上下文；如果入参类型为IFlowNode，会传入节点对应的实体Model。如果不显式指定参数来源，参数会尝试获取运行时上一节点返回值，并根据当前入参类型尝试进行类型转换。

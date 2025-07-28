@@ -1,9 +1,6 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
-using Serein.Library.Utils;
-using Serein.Library.Utils.SereinExpression;
-using System;
-using System.ComponentModel;
+using Serein.Script;
 using System.Dynamic;
 using System.Linq.Expressions;
 
@@ -125,44 +122,41 @@ namespace Serein.NodeFlow.Model
                 // 使用自动取参
                 var pd = MethodDetails.ParameterDetailss[INDEX_EXPRESSION];
                 var hasNode = context.Env.TryGetNodeModel(pd.ArgDataSourceNodeGuid, out var argSourceNode);
-                if (hasNode)
+                if (!hasNode)
                 {
-                    context.NextOrientation = ConnectionInvokeType.IsError;
-                    return new FlowResult(this.Guid, context);
-                }
-                if (hasNode)
-                {
-                    return new FlowResult(this.Guid, context);
-                }
-                if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
-                {
-                    result = context.GetFlowData(argSourceNode.Guid).Value; // 使用自定义节点的参数
-                }
-                else if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke)
-                {
-                    CancellationTokenSource cts = new CancellationTokenSource();
-                    var nodeResult = await argSourceNode.ExecutingAsync(context, cts.Token);
-                    result = nodeResult.Value;
-                    cts?.Cancel();
-                    cts?.Dispose();
+                    /*context.NextOrientation = ConnectionInvokeType.IsError;
+                    return new FlowResult(this.Guid, context);*/
+                    parameter = null;
                 }
                 else
                 {
-                    result = context.TransmissionData(this.Guid).Value;    // 条件节点透传上一节点的数据
+                    if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
+                    {
+                        result = context.GetFlowData(argSourceNode.Guid).Value; // 使用自定义节点的参数
+                    }
+                    else if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke)
+                    {
+                        CancellationTokenSource cts = new CancellationTokenSource();
+                        var nodeResult = await argSourceNode.ExecutingAsync(context, cts.Token);
+                        result = nodeResult.Value;
+                        cts?.Cancel();
+                        cts?.Dispose();
+                    }
+                    else
+                    {
+                        result = context.TransmissionData(this.Guid).Value;    // 条件节点透传上一节点的数据
+                    }
+                    parameter = result;  // 使用上一节点的参数
                 }
-                parameter = result;  // 使用上一节点的参数
+                
 
             }
             else
             {
                 var exp = ExplicitData?.ToString();
-                if (!string.IsNullOrEmpty(exp) && exp.StartsWith('@'))
+                if (!string.IsNullOrWhiteSpace(exp) && exp.StartsWith("@Get", StringComparison.OrdinalIgnoreCase))
                 {
-                    parameter = result; // 表达式获取上一节点数据
-                    if (parameter is not null)
-                    {
-                        parameter = SerinExpressionEvaluator.Evaluate(exp, parameter, out _);
-                    }
+                    parameter = GetValueExpressionAsync(context, result, exp);
                 }
                 else
                 {
@@ -173,7 +167,8 @@ namespace Serein.NodeFlow.Model
             bool judgmentResult = false;
             try
             {
-                judgmentResult = SereinConditionParser.To(parameter, Expression);
+                judgmentResult = await ConditionExpressionAsync(context, parameter, Expression);
+                //judgmentResult = SereinConditionParser.To(parameter, Expression);
                 context.NextOrientation = judgmentResult ? ConnectionInvokeType.IsSucceed : ConnectionInvokeType.IsFail;
             }
             catch (Exception ex)
@@ -185,6 +180,95 @@ namespace Serein.NodeFlow.Model
             SereinEnv.WriteLine(InfoType.INFO, $"{result} {Expression}  -> " + context.NextOrientation);
             //return result;
             return new FlowResult(this.Guid, context, judgmentResult);
+        }
+
+
+
+
+        /// <summary>
+        /// 解析取值表达式
+        /// </summary>
+        private SereinScript getValueScript;
+        private string getValueExpression;
+        private async Task<object?> GetValueExpressionAsync(IFlowContext flowContext, object? data, string expression)
+        {
+            var dataName = nameof(data);
+            if (!expression.Equals(getValueExpression))
+            {
+                getValueExpression = expression;
+                getValueScript = new SereinScript();
+                var dataType = data is null ? typeof(object) : data.GetType();
+                if (expression[0..4].Equals("@get", StringComparison.CurrentCultureIgnoreCase))
+                {
+                    expression = expression[4..];
+                    // 表达式默认包含 “.”
+                    expression = $"return {dataName}{expression};";
+                }
+                else
+                {
+                    // 表达式默认包含 “.”
+                    expression = $"return {expression};";
+                }
+                var resultType = getValueScript.ParserScript(expression, new Dictionary<string, Type>
+                {
+                    { dataName, dataType},
+                });
+
+            }
+
+            IScriptInvokeContext scriptContext = new ScriptInvokeContext(flowContext);
+            scriptContext.SetVarValue(dataName, data);
+
+            var result = await getValueScript.InterpreterAsync(scriptContext);
+            return result;
+        }
+
+
+
+        /// <summary>
+        /// 解析条件
+        /// </summary>
+        private SereinScript conditionScript;
+        private string conditionExpression;
+
+        private async Task<bool> ConditionExpressionAsync(IFlowContext flowContext, object? data, string expression)
+        {
+            var dataName = nameof(data);
+            if (!expression.Equals(conditionExpression))
+            {
+                conditionExpression = expression;
+                conditionScript = new SereinScript();
+                var dataType = data is null ?  typeof(object) : data.GetType();
+                expression = expression.Trim();
+                if (expression[0] == '.')
+                {
+                    // 对象取值
+                    expression = $"return {dataName}{expression};";
+                }
+                else
+                {
+                    // 直接表达式
+                    expression = $"return {dataName}{expression};";
+                }
+                _ = conditionScript.ParserScript(expression, new Dictionary<string, Type>
+                {
+                    { dataName, dataType},
+                });
+            }
+
+            IScriptInvokeContext scriptContext = new ScriptInvokeContext(flowContext);
+            scriptContext.SetVarValue(dataName, data);
+
+            var result = await conditionScript.InterpreterAsync(scriptContext);
+            if(result is bool @bool) 
+            {
+                return @bool;
+            }
+            else
+            {
+                flowContext.NextOrientation = ConnectionInvokeType.IsError;
+                return false;
+            }
         }
 
 

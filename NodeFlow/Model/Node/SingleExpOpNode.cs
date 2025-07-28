@@ -1,6 +1,6 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
-using Serein.Library.Utils.SereinExpression;
+using Serein.Script;
 using System.Dynamic;
 
 namespace Serein.NodeFlow.Model
@@ -96,44 +96,40 @@ namespace Serein.NodeFlow.Model
             var pd = MethodDetails.ParameterDetailss[0];
 
             var hasNode = context.Env.TryGetNodeModel(pd.ArgDataSourceNodeGuid, out var argSourceNode);
-            if (hasNode)
+            if (!hasNode)
             {
-                context.NextOrientation = ConnectionInvokeType.IsError;
-                return new FlowResult(this.Guid, context);
+                /*context.NextOrientation = ConnectionInvokeType.IsError;
+                return new FlowResult(this.Guid, context);*/
+                parameter = null;
             }
-            if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
+            else
             {
-                // 使用自定义节点的参数
-                parameter = context.GetFlowData(argSourceNode.Guid).Value;
+                if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
+                {
+                    // 使用自定义节点的参数
+                    parameter = context.GetFlowData(argSourceNode.Guid).Value;
+                }
+                else if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke)
+                {
+                    // 立刻调用目标节点，然后使用其返回值
+                    var cts = new CancellationTokenSource();
+                    var result = await argSourceNode.ExecutingAsync(context, cts.Token);
+                    cts?.Cancel();
+                    cts?.Dispose();
+                    parameter = result.Value;
+                }
             }
-            else if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke)
-            {
-                // 立刻调用目标节点，然后使用其返回值
-                var cts = new   CancellationTokenSource();
-                var result = await argSourceNode.ExecutingAsync(context, cts.Token);
-                cts?.Cancel();
-                cts?.Dispose();
-                parameter = result.Value;
-            }
+           
+            /*
             else
             {
                 // 条件节点透传上一节点的数据
                 parameter = context.TransmissionData(this.Guid);
             }
-
+*/
             try
             {
-                var newData = SerinExpressionEvaluator.Evaluate(Expression, parameter, out bool isChange);
-                object? result = null;
-                if (isChange)
-                {
-                    result = newData;
-                }
-                else
-                {
-                    result = parameter;
-                }
-
+                var result = await GetValueExpressionAsync(context, parameter, Expression);
                 context.NextOrientation = ConnectionInvokeType.IsSucceed;
                 return new FlowResult(this.Guid, context, result);
             }
@@ -144,6 +140,46 @@ namespace Serein.NodeFlow.Model
                 return new FlowResult(this.Guid, context);
             }
 
+        }
+
+
+
+        /// <summary>
+        /// 解析取值表达式
+        /// </summary>
+        private SereinScript getValueScript;
+        private string getValueExpression;
+        private async Task<object?> GetValueExpressionAsync(IFlowContext flowContext, object? data, string expression)
+        {
+            var dataName = nameof(data);
+            if (!expression.Equals(getValueExpression))
+            {
+                getValueExpression = expression;
+                getValueScript  = new SereinScript();
+                var dataType = data is null ? typeof(object) : data.GetType();
+                if (expression[0..4].Equals("@get", StringComparison.CurrentCultureIgnoreCase))
+                {
+                    expression = expression[4..];
+                    // 表达式默认包含 “.”
+                    expression = $"return {dataName}{expression};";
+                }
+                else
+                {
+                    // 表达式默认包含 “.”
+                    expression = $"return {expression};";
+                }
+                var resultType = getValueScript .ParserScript(expression, new Dictionary<string, Type>
+                {
+                    { dataName, dataType},
+                });
+
+            }
+
+            IScriptInvokeContext scriptContext = new ScriptInvokeContext(flowContext);
+            scriptContext.SetVarValue(dataName, data);
+
+            var result = await getValueScript .InterpreterAsync(scriptContext);
+            return result;
         }
 
     }
