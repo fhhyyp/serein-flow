@@ -146,9 +146,17 @@ namespace Serein.Library.NodeGenerator
                     var attributeInfo = fieldKV.Value; // 缓存的特性信息
 
                     var isProtection = attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsProtection), value => bool.Parse(value)); // 是否为保护字段
+                    var isVerify = attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsVerify), value => bool.Parse(value)); // 是否为保护字段
+
                     //sb.AppendLine(leadingTrivia);
                     sb.AppendLine($"        partial void On{propertyName}Changed({fieldType} oldValue, {fieldType} newValue);");
                     sb.AppendLine($"        partial void On{propertyName}Changed({fieldType} value);");
+
+                    if (isVerify)
+                    {
+                        sb.AppendLine($"        partial void BeforeThe{propertyName}(ref bool __isAllow, {fieldType} newValue);");
+                    }
+
                     if (isProtection)
                     {
                         sb.AppendLine($"        private bool __{propertyName}ProtectionField = false;");
@@ -164,7 +172,12 @@ namespace Serein.Library.NodeGenerator
                     sb.AppendLine( "            set");
                     sb.AppendLine( "            {");
                     //sb.AppendLine($"                if ({fieldName} {(isProtection ? "== default" : "!= value")})"); // 非保护的Setter
-
+                    if (isVerify)
+                    {
+                        sb.AppendLine($"                bool __isAllow = true;");
+                        sb.AppendLine($"                BeforeThe{propertyName}(ref __isAllow, value);");
+                        sb.AppendLine($"                if(!__isAllow) return; // 修改验证失败");
+                    }
                     sb.AppendLine($"                var __oldValue = {fieldName};");
                     if (isProtection)
                     {

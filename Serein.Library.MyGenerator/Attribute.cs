@@ -69,6 +69,14 @@ namespace Serein.Library
         /// 是否禁止参数进行修改（初始化后不能再通过 Setter 修改）
         /// </summary>
         public bool IsProtection = false;
+
+        /// <summary>
+        /// 是否需要验证参数
+        /// </summary>
+        public bool IsVerify = false;
+
+
+
 /*
         /// <summary>
         /// 自定义代码（属性变更前）

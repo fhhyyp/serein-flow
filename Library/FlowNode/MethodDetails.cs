@@ -72,7 +72,6 @@ namespace Serein.Library
         /// </summary>
         [PropertyInfo]
         private ParameterDetails[] _parameterDetailss;
-        //private List<ParameterDetails> _parameterDetailss;
 
         /// <summary>
         /// <para>描述该方法是否存在可选参数</para>

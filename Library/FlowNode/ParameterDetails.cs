@@ -36,7 +36,7 @@ namespace Serein.Library
         /// <para>如果为 true ，则使用输入的文本值作为入参数据。</para>
         /// <para>如果为 false ，则在当前流程上下文中，根据 ArgDataSourceNodeGuid 查找到对应节点，并根据 ArgDataSourceNodeGuid 判断如何获取其返回的数据，以此作为入参数据。</para>
         /// </summary>
-        [PropertyInfo(IsNotification = true)] 
+        [PropertyInfo(IsNotification = true, IsVerify =  true)] 
         private bool _isExplicitData ;
 
         ///// <summary>
@@ -160,17 +160,17 @@ namespace Serein.Library
             ExplicitType = Type.GetType(info.ExplicitTypeFullName);
             InputType = info.InputType.ConvertEnum<ParameterValueInputType>();
             Items = info.Items;
-            IsParams = info.IsParams;
+            IsParams = info.IsParams;        
         }
 
-
-        partial void OnIsExplicitDataChanged(bool oldValue, bool newValue)
+        partial void BeforeTheIsExplicitData(ref bool __isAllow, bool newValue)
         {
             if(DataType == typeof(IFlowContext))
             {
-
+                __isAllow = false;
             }
         }
+
 
         /// <summary>
         /// 转为描述

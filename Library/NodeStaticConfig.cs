@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 
 namespace Serein.Library
 {
+    /// <summary>
+    /// 节点静态配置类
+    /// </summary>
     public static class NodeStaticConfig
     {
         /// <summary>
