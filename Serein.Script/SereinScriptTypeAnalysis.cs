@@ -198,7 +198,7 @@ namespace Serein.Script
                         var targetType = Analysis(assignmentNode.Target);
                         var valueType = Analysis (assignmentNode.Value);
                         if (!targetType.IsAssignableFrom(valueType))
-                            throw new Exception($"索引类型不匹配：需要 {targetType}，实际为 {valueType}");
+                            throw new Exception($"赋值类型不匹配：需要 {targetType}，实际为 {valueType}");
                         NodeSymbolInfos[assignmentNode.Value] = valueType;
                         NodeSymbolInfos[assignmentNode.Target] = valueType;
                         NodeSymbolInfos[assignmentNode] = typeof(void); // 赋值语句不产生类型

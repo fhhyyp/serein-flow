@@ -4,7 +4,7 @@ using Serein.Script;
 using System.Dynamic;
 using System.Linq.Expressions;
 
-namespace Serein.NodeFlow.Model
+namespace Serein.NodeFlow.Model.Nodes
 {
     /// <summary>
     /// 条件节点（用于条件控件）
@@ -177,7 +177,7 @@ namespace Serein.NodeFlow.Model
                 context.ExceptionOfRuning = ex;
             }
 
-            SereinEnv.WriteLine(InfoType.INFO, $"{result} {Expression}  -> " + context.NextOrientation);
+            SereinEnv.WriteLine(InfoType.INFO, $"{Expression}  -> " + context.NextOrientation);
             //return result;
             return new FlowResult(this.Guid, context, judgmentResult);
         }
@@ -236,19 +236,18 @@ namespace Serein.NodeFlow.Model
             var dataName = nameof(data);
             if (!expression.Equals(conditionExpression))
             {
-                conditionExpression = expression;
+                conditionExpression = expression.Trim();
                 conditionScript = new SereinScript();
                 var dataType = data is null ?  typeof(object) : data.GetType();
-                conditionExpression = expression.Trim();
                 if (expression[0] == '.')
                 {
                     // 对象取值
-                    conditionExpression = $"return {dataName}{expression};";
+                    conditionExpression = $"return {dataName}{conditionExpression};";
                 }
                 else
                 {
                     // 直接表达式
-                    conditionExpression = $"return {dataName}.{expression};";
+                    conditionExpression = $"return {dataName}.{conditionExpression};";
                 }
                 var resultType = conditionScript.ParserScript(conditionExpression, new Dictionary<string, Type>
                 {

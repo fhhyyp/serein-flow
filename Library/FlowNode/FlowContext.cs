@@ -174,34 +174,6 @@ namespace Serein.Library
         }
 
         /// <summary>
-        /// 忽略处理该节点流程
-        /// </summary>
-        /// <param name="node"></param>
-        public void IgnoreFlowHandle(string node)
-        {
-            dictIgnoreNodeFlow.AddOrUpdate(node, (o) => true, (o, n) => true); 
-        }
-
-        /// <summary>
-        /// 获取此次流程处理状态
-        /// </summary>
-        /// <param name="node"></param>
-        /// <returns></returns>
-        public bool GetIgnodeFlowStateUpload(string node)
-        {
-            return dictIgnoreNodeFlow.TryGetValue(node, out var state) ? state : false;
-        }
-        /// <summary>
-        /// 恢复流程处理状态
-        /// </summary>
-        /// <param name="node"></param>
-        /// <returns></returns>
-        public void RecoverIgnodeFlowStateUpload(string node)
-        {
-            dictIgnoreNodeFlow.AddOrUpdate(node, (o) => false, (o, n) => false);
-        }
-
-        /// <summary>
         /// 获取当前节点的运行时上一节点
         /// </summary>
         /// <param name="currentNodeModel"></param>
@@ -242,7 +214,6 @@ namespace Serein.Library
         /// <param name="flowData">新的数据</param>
         public void AddOrUpdateFlowData(string nodeModel, FlowResult flowData)
         {
-            // this.dictNodeFlowData.TryGetValue(nodeGuid, out var oldFlowData);
             dictNodeFlowData.AddOrUpdate(nodeModel, _ => flowData, (o,n ) => flowData);
         }
 
@@ -274,10 +245,6 @@ namespace Serein.Library
             throw new InvalidOperationException($"透传{nodeModel}节点数据时发生异常：上一节点不存在数据");
         }
 
-        /// <summary>
-        /// 开始
-        /// </summary>
-       
         /// <summary>
         /// 重置
         /// </summary>

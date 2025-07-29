@@ -42,7 +42,8 @@ namespace Serein.Library.Utils
 
         public ObjectPool(Factory factory)
             : this(factory, Environment.ProcessorCount * 2)
-        { }
+        {
+        }
 
         public ObjectPool(Factory factory, int size)
         {

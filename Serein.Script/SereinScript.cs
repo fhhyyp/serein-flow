@@ -8,9 +8,6 @@ namespace Serein.Script
 
     public class SereinScript
     {
-
-      
-
         /// <summary>
         /// 类型分析
         /// </summary>

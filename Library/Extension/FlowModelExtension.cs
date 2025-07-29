@@ -2,6 +2,7 @@
 using Serein.Library.Utils;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -196,6 +197,10 @@ namespace Serein.Library
             }
         }
 
+        private static ObjectPool<Stack<IFlowNode>> flowStackPool = new ObjectPool<Stack<IFlowNode>>(()=> new Stack<IFlowNode>());
+        //private static ObjectPool<HashSet<IFlowNode>> processedNodesPool = new ObjectPool<HashSet<IFlowNode>>(()=> new HashSet<IFlowNode>());
+        private static ObjectPool<HashSet<IFlowNode>> checkpoints = new ObjectPool<HashSet<IFlowNode>>(()=> new HashSet<IFlowNode>());
+
         /// <summary>
         /// 开始执行
         /// </summary>
@@ -203,133 +208,186 @@ namespace Serein.Library
         /// <param name="context"></param>
         /// <param name="token">流程运行</param>
         /// <returns></returns>
+#nullable enable
         public static async Task<FlowResult> StartFlowAsync(this IFlowNode nodeModel, IFlowContext context, CancellationToken token)
         {
-            Stack<IFlowNode> stack = new Stack<IFlowNode>();
-            HashSet<IFlowNode> processedNodes = new HashSet<IFlowNode>(); // 用于记录已处理上游节点的节点
-            stack.Push(nodeModel);
-#nullable enable
+            Stack<IFlowNode> flowStack = flowStackPool.Allocate() ;
+            //HashSet<IFlowNode> processedNodes = processedNodesPool.Allocate() ; // 用于记录已处理上游节点的节点
+
+            flowStack.Push(nodeModel);
             IFlowNode? previousNode = null;
             IFlowNode? currentNode = null;
-            while (true) 
+            try
             {
-                if (token.IsCancellationRequested)
-                {
-                    throw new Exception($"流程执行被取消，未能获取到流程结果。");
-                }
-
-                #region 执行相关
-                // 从栈中弹出一个节点作为当前节点进行处理
-                previousNode = currentNode;
-                currentNode = stack.Pop();
-               
-               
-
-                #region 新增调用信息
-                FlowInvokeInfo? invokeInfo = null;
-                var isRecordInvokeInfo = context.IsRecordInvokeInfo;
-                if (!isRecordInvokeInfo) goto Label_NotRecordInvoke;
-
-                FlowInvokeInfo.InvokeType invokeType = context.NextOrientation switch
-                {
-                    ConnectionInvokeType.IsSucceed => FlowInvokeInfo.InvokeType.IsSucceed,
-                    ConnectionInvokeType.IsFail => FlowInvokeInfo.InvokeType.IsFail,
-                    ConnectionInvokeType.IsError => FlowInvokeInfo.InvokeType.IsError,
-                    ConnectionInvokeType.Upstream => FlowInvokeInfo.InvokeType.Upstream,
-                    _ => FlowInvokeInfo.InvokeType.None
-                };
-                invokeInfo = context.NewInvokeInfo(previousNode, currentNode, invokeType);
-                #endregion
-
-Label_NotRecordInvoke:
-                context.NextOrientation = ConnectionInvokeType.None; // 重置上下文状态
-                FlowResult flowResult = null; 
-                try
-                {
-                    flowResult = await currentNode.ExecutingAsync(context, token);
-
-                    if (context.NextOrientation == ConnectionInvokeType.None) // 没有手动设置时，进行自动设置
-                    {
-                        context.NextOrientation = ConnectionInvokeType.IsSucceed;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    flowResult = new FlowResult(currentNode.Guid, context);
-                    context.Env.WriteLine(InfoType.ERROR, $"节点[{currentNode.Guid}]异常：" + ex);
-                    context.NextOrientation = ConnectionInvokeType.IsError;
-                    context.ExceptionOfRuning = ex;
-                }
-                #endregion
-
-                #region 更新调用信息
-                var state = context.NextOrientation switch
-                {
-                    ConnectionInvokeType.IsFail => FlowInvokeInfo.RunState.Failed,
-                    ConnectionInvokeType.IsError => FlowInvokeInfo.RunState.Error,
-                    _ => FlowInvokeInfo.RunState.Succeed
-                };
-                if (isRecordInvokeInfo)
-                {
-                    invokeInfo.UploadState(state);
-                    invokeInfo.UploadResultValue(flowResult.Value);
-                }
-                
-
-                #endregion
-
-                #region 执行完成时更新栈
-                context.AddOrUpdateFlowData(currentNode.Guid, flowResult); // 上下文中更新数据
-               
-                // 首先将指定类别后继分支的所有节点逆序推入栈中
-                var nextNodes = currentNode.SuccessorNodes[context.NextOrientation];
-                for (int index = nextNodes.Count - 1; index >= 0; index--)
-                {
-                    // 筛选出启用的节点的节点
-                    if (nextNodes[index].DebugSetting.IsEnable)
-                    {
-                        //if (!ignodeState)
-                            context.SetPreviousNode(nextNodes[index].Guid, currentNode.Guid);
-                        stack.Push(nextNodes[index]);
-                    }
-                }
-
-                // 然后将指上游分支的所有节点逆序推入栈中
-                var upstreamNodes = currentNode.SuccessorNodes[ConnectionInvokeType.Upstream];
-                for (int index = upstreamNodes.Count - 1; index >= 0; index--)
-                {
-                    // 筛选出启用的节点的节点
-                    if (upstreamNodes[index].DebugSetting.IsEnable)
-                    {
-                        context.SetPreviousNode(upstreamNodes[index].Guid, currentNode.Guid);
-                        stack.Push(upstreamNodes[index]);
-                    }
-                }
-                #endregion
-
-                #region 执行完成后检查
-
-                if (stack.Count == 0)
-                {
-                    return flowResult;  // 说明流程到了终点
-                }
-
-                if (context.RunState == RunState.Completion)
-                {
-                    currentNode.Env.WriteLine(InfoType.INFO, $"流程执行到节点[{currentNode.Guid}]时提前结束，将返回当前执行结果。");
-                    return flowResult; // 流程执行完成，返回结果
-                }
-
-                if (token.IsCancellationRequested)
-                {
-                    throw new Exception($"流程执行到节点[{currentNode.Guid}]时被取消，未能获取到流程结果。");
-                }
-
-
-                #endregion
 #if DEBUG
-                //await Task.Delay(1);
+
+                /*
+                    var sw = Stopwatch.StartNew();
+                    var checkpoints = new Dictionary<string, TimeSpan>();
+                    checkpoints["创建调用信息"] = sw.Elapsed;
+                    var last = TimeSpan.Zero;
+                    foreach (var kv in checkpoints)
+                    {
+                        SereinEnv.WriteLine(InfoType.INFO, $"{kv.Key} 耗时: {(kv.Value - last).TotalMilliseconds} ms");
+                        last = kv.Value;
+                    }
+                */
+                var sw = Stopwatch.StartNew();
+                var checkpoints = new Dictionary<string, TimeSpan>();
 #endif
+                while (true)
+                {
+#if DEBUG
+                    sw.Restart();
+                    var last = TimeSpan.Zero;
+                    checkpoints.Clear();
+#endif
+
+                    #region 执行相关
+                    // 从栈中弹出一个节点作为当前节点进行处理
+                    previousNode = currentNode;
+                    currentNode = flowStack.Pop();
+
+                    #region 新增调用信息
+                    FlowInvokeInfo? invokeInfo = null;
+                    var isRecordInvokeInfo = context.IsRecordInvokeInfo;
+                    if (!isRecordInvokeInfo) goto Label_NotRecordInvoke;
+
+                    FlowInvokeInfo.InvokeType invokeType = context.NextOrientation switch
+                    {
+                        ConnectionInvokeType.IsSucceed => FlowInvokeInfo.InvokeType.IsSucceed,
+                        ConnectionInvokeType.IsFail => FlowInvokeInfo.InvokeType.IsFail,
+                        ConnectionInvokeType.IsError => FlowInvokeInfo.InvokeType.IsError,
+                        ConnectionInvokeType.Upstream => FlowInvokeInfo.InvokeType.Upstream,
+                        _ => FlowInvokeInfo.InvokeType.None
+                    };
+                    invokeInfo = context.NewInvokeInfo(previousNode, currentNode, invokeType);
+                    #endregion
+#if DEBUG
+                    checkpoints[$"[{currentNode.Guid}]\t创建调用信息"] = sw.Elapsed;
+#endif
+
+                Label_NotRecordInvoke:
+                    context.NextOrientation = ConnectionInvokeType.IsSucceed; // 默认执行成功
+                    FlowResult? flowResult = null;
+                    try
+                    {
+                        flowResult = await currentNode.ExecutingAsync(context, token);
+                    }
+                    catch (Exception ex)
+                    {
+                        flowResult = new FlowResult(currentNode.Guid, context);
+                        context.Env.WriteLine(InfoType.ERROR, $"节点[{currentNode.Guid}]异常：" + ex);
+                        context.NextOrientation = ConnectionInvokeType.IsError;
+                        context.ExceptionOfRuning = ex;
+                    }
+#if DEBUG
+                    finally
+                    {
+                        checkpoints[$"[{currentNode.Guid}]\t方法调用"] = sw.Elapsed;
+                    }
+#endif
+                    #endregion
+
+                    #region 更新调用信息
+                    var state = context.NextOrientation switch
+                    {
+                        ConnectionInvokeType.IsFail => FlowInvokeInfo.RunState.Failed,
+                        ConnectionInvokeType.IsError => FlowInvokeInfo.RunState.Error,
+                        _ => FlowInvokeInfo.RunState.Succeed
+                    };
+                    if (isRecordInvokeInfo)
+                    {
+                        invokeInfo.UploadState(state);
+                        invokeInfo.UploadResultValue(flowResult.Value);
+                    }
+
+                    #endregion
+
+#if DEBUG
+                    checkpoints[$"[{currentNode.Guid}]\t更新调用信息"] = sw.Elapsed;
+#endif
+
+                    #region 执行完成时更新栈
+                    context.AddOrUpdateFlowData(currentNode.Guid, flowResult); // 上下文中更新数据
+#if DEBUG
+                    checkpoints["[{currentNode.Guid}]\t执行完成时更新栈"] = sw.Elapsed;
+#endif
+
+                    // 首先将指定类别后继分支的所有节点逆序推入栈中
+                    var nextNodes = currentNode.SuccessorNodes[context.NextOrientation];
+                    for (int index = nextNodes.Count - 1; index >= 0; index--)
+                    {
+                        // 筛选出启用的节点的节点
+                        if (nextNodes[index].DebugSetting.IsEnable)
+                        {
+                            var node = nextNodes[index];
+                            context.SetPreviousNode(node.Guid, currentNode.Guid);
+                            flowStack.Push(node);
+                        }
+                    }
+
+#if DEBUG
+                    checkpoints[$"[{currentNode.Guid}]\t后继分支推入栈中"] = sw.Elapsed;
+#endif
+
+                    // 然后将指上游分支的所有节点逆序推入栈中
+                    var upstreamNodes = currentNode.SuccessorNodes[ConnectionInvokeType.Upstream];
+                    for (int index = upstreamNodes.Count - 1; index >= 0; index--)
+                    {
+                        // 筛选出启用的节点的节点
+                        if (upstreamNodes[index].DebugSetting.IsEnable)
+                        {
+                            var node = upstreamNodes[index];
+                            context.SetPreviousNode(node.Guid, currentNode.Guid);
+                            flowStack.Push(node);
+                        }
+                    }
+
+#if DEBUG
+                    checkpoints[$"[{currentNode.Guid}]\t上游分支推入栈中"] = sw.Elapsed;
+#endif
+                    #endregion
+
+
+#if DEBUG
+                    foreach (var kv in checkpoints)
+                    {
+                        SereinEnv.WriteLine(InfoType.INFO, $"{kv.Key} 耗时: {(kv.Value - last).TotalMilliseconds} ms");
+                        last = kv.Value;
+                    }
+                    SereinEnv.WriteLine(InfoType.INFO, $"------");
+
+#endif
+
+                    #region 执行完成后检查
+                    if (flowStack.Count == 0)
+                    {
+                        return flowResult;  // 说明流程到了终点
+                    }
+
+                    if (context.RunState == RunState.Completion)
+                    {
+                        currentNode.Env.WriteLine(InfoType.INFO, $"流程执行到节点[{currentNode.Guid}]时提前结束，将返回当前执行结果。");
+                        return flowResult; // 流程执行完成，返回结果
+                    }
+
+                    if (token.IsCancellationRequested)
+                    {
+                        throw new Exception($"流程执行到节点[{currentNode.Guid}]时被取消，未能获取到流程结果。");
+                    }
+
+
+                    #endregion
+#if DEBUG
+                    //await Task.Delay(1);
+#endif
+                }
+            }
+            finally
+            {
+                 flowStackPool.Free(flowStack);
+                //processedNodesPool.Free(processedNodes);
             }
         }
 

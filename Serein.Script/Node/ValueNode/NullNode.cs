@@ -11,5 +11,9 @@ namespace Serein.Script.Node
     /// </summary>
     public class NullNode : ASTNode
     {
+        public override string ToString()
+        {
+            return $"Null";
+        }
     }
 }

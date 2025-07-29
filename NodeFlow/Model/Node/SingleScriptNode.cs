@@ -13,7 +13,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 
-namespace Serein.NodeFlow.Model
+namespace Serein.NodeFlow.Model.Nodes
 {
     
     [NodeProperty(ValuePath = NodeValuePath.Node)]
@@ -263,20 +263,6 @@ namespace Serein.NodeFlow.Model
         {
             if (token.IsCancellationRequested) return new FlowResult(this.Guid, context);
             var @params = await flowCallNode.GetParametersAsync(context, token);
-            //if (token.IsCancellationRequested) return new FlowResult(this.Guid, context);
-            //context.AddOrUpdate($"{context.Guid}_{this.Guid}_Params", @params[0]); // 后面再改
-
-           /* if (IsScriptChanged)
-            {
-                lock (@params) {
-                    if (IsScriptChanged)
-                    {
-                        ReloadScript();// 执行时检查是否需要重新解析
-                        IsScriptChanged = false;
-                        context.Env.WriteLine(InfoType.INFO, $"[{Guid}]脚本解析完成");
-                    }
-                }
-            }*/
 
             IScriptInvokeContext scriptContext = new ScriptInvokeContext(context);
 

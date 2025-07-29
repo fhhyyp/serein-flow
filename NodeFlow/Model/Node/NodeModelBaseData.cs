@@ -7,7 +7,7 @@ using System.ComponentModel;
 using System.Net.Mime;
 using System.Threading;
 
-namespace Serein.NodeFlow.Model
+namespace Serein.NodeFlow.Model.Nodes
 {
 
 

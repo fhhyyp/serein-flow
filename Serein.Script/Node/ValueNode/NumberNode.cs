@@ -13,6 +13,11 @@ namespace Serein.Script.Node
     {
         public T Value { get; }
         public NumberNode(T value) => Value = value;
+
+        public override string ToString()
+        {
+            return $"{Value}";
+        }
     }
 
 

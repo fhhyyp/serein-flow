@@ -1,4 +1,5 @@
-﻿using Serein.Script.Node;
+﻿using Serein.Library.Utils;
+using Serein.Script.Node;
 using Serein.Script.Node.FlowControl;
 using System.Text;
 
@@ -88,20 +89,38 @@ namespace Serein.Script
             Indent();
             if(param is null || param.Count == 0)
             {
+                // 生成方法签名
                 AppendLine($"public static {returnContent} {mehtodName}()");
             }
             else
             {
+                // 生成方法签名
                 AppendLine($"public static {returnContent} {mehtodName}({GetMethodParamster(param)})");
             }
             AppendLine( "{");
             Indent();
-            foreach (var stmt in programNode.Statements)
+            // 生成变量节点
+            var idfNodesTemp = _symbolInfos.Keys.Where(key => key is IdentifierNode)
+                                            .OfType<IdentifierNode>().ToList() ;
+            var idfNodes = (param is null) switch
             {
-                ConvertCode(stmt); // 递归遍历
+                true => idfNodesTemp.DistinctBy(n => n.Name).ToList(),
+                false => idfNodesTemp.DistinctBy(n => n.Name).DistinctByCondition(n => !param.ContainsKey(n.Name) ).ToList(),
+            };
+            foreach (var idf in idfNodes)
+            {
+                var varName = idf.Name;
+                var varType = _symbolInfos[idf];
+                AppendLine($"global::{varType.FullName} {varName} = default; // 变量");
+            }
+            AppendLine("");
+
+            // 递归遍历节点生成代码
+            foreach (var stmt in programNode.Statements) 
+            {
+                ConvertCode(stmt);
                 Append(";");
             }
-
             if (_symbolInfos[programNode] == typeof(void))
             {
                 AppendLine("");
@@ -192,8 +211,8 @@ namespace Serein.Script
                     void ConvertCodeOfIdentifierNode(IdentifierNode identifierNode)
                     {
                         var varName = identifierNode.Name;
-
-                        if(_local.TryGetValue(varName, out var type))
+                        Append(varName);
+                        /*if (_local.TryGetValue(varName, out var type))
                         {
                             // 定义过，需要使用变量
                             Append(varName);
@@ -211,7 +230,7 @@ namespace Serein.Script
                             {
                                 throw new Exception($"加载符号表时，无法匹配 IdentifierNode 节点的类型。 name ： {varName}");
                             }
-                        }
+                        }*/
                     }
                     ConvertCodeOfIdentifierNode(identifierNode);
                     break;
@@ -227,7 +246,6 @@ namespace Serein.Script
                         foreach(var item in ifNOde.TrueBranch)
                         {
                             ConvertCode(item);
-                            //Append(";");
                             AppendLine(string.Empty);
                         }  
                         Unindent();
@@ -235,10 +253,9 @@ namespace Serein.Script
                         AppendLine("else");
                         AppendLine("{");
                         Indent();
-                        foreach (var item in ifNOde.TrueBranch)
+                        foreach (var item in ifNOde.FalseBranch)
                         {
                             ConvertCode(item);
-                            //Append(";");
                             AppendLine(string.Empty);
                         }
                         Unindent();

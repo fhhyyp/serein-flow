@@ -172,40 +172,58 @@ namespace Serein.NodeFlow.Model.Operation
             #region 类型检查
             bool checkTypeState = true;
             List<ParameterDetails> toPds = new List<ParameterDetails>();
-            if(ToNode.MethodDetails.ParameterDetailss is null)
+
+            if (FromNode.ContainerNode is not null)
             {
-                SereinEnv.WriteLine(InfoType.WARN, "目标节点没有入参参数，无法进行连接");
+                SereinEnv.WriteLine(InfoType.WARN, "连接失败，起始节点处于容器中");
                 return false;
             }
-            if (ToNode.MethodDetails.ParameterDetailss.Length > 0)
+
+            if (ToNode.ContainerNode is not null)
             {
-                var fromNoeReturnType = fromNode.MethodDetails.ReturnType;
-                if (fromNoeReturnType != null
-                    && fromNoeReturnType != typeof(object)
-                    && fromNoeReturnType != typeof(void)
-                    && fromNoeReturnType != typeof(Unit))
+                SereinEnv.WriteLine(InfoType.WARN, "连接失败，目标节点处于容器中");
+                return false;
+            }
+
+            if (ToNode.ControlType != NodeControlType.GlobalData)
+            {
+                
+                if (ToNode.MethodDetails.ParameterDetailss is null)
                 {
-                    var toNodePds = toNode.MethodDetails.ParameterDetailss;
-                    foreach (ParameterDetails toNodePd in toNodePds)
+                    SereinEnv.WriteLine(InfoType.WARN, "连接失败，目标节点没有入参参数。");
+                    return false;
+                }
+                if (ToNode.MethodDetails.ParameterDetailss.Length > 0)
+                {
+                    var fromNoeReturnType = fromNode.MethodDetails.ReturnType;
+                    if (fromNoeReturnType != null
+                        && fromNoeReturnType != typeof(object)
+                        && fromNoeReturnType != typeof(void)
+                        && fromNoeReturnType != typeof(Unit))
                     {
-                        if (string.IsNullOrWhiteSpace(toNodePd.ArgDataSourceNodeGuid)  // 入参没有设置数据来源节点
-                            && toNodePd.DataType.IsAssignableFrom(fromNoeReturnType)) // 返回值与目标入参相同（或可转换为目标入参）
+                        var toNodePds = toNode.MethodDetails.ParameterDetailss;
+                        foreach (ParameterDetails toNodePd in toNodePds)
                         {
-                            
-                            toPds.Add(toNodePd);
+                            if (string.IsNullOrWhiteSpace(toNodePd.ArgDataSourceNodeGuid)  // 入参没有设置数据来源节点
+                                && toNodePd.DataType.IsAssignableFrom(fromNoeReturnType)) // 返回值与目标入参相同（或可转换为目标入参）
+                            {
+
+                                toPds.Add(toNodePd);
+                            }
                         }
-                    }
-                    if (toPds.Count == 0)
-                    {
-                        var any = toNodePds.Any(pd => pd.ArgDataSourceNodeGuid == fromNode.Guid);  // 判断目标节点是否已有该节点的连接
-                        checkTypeState = any; 
-                    }
-                    else
-                    {
-                        checkTypeState = true; // 类型检查初步通过
+                        if (toPds.Count == 0)
+                        {
+                            var any = toNodePds.Any(pd => pd.ArgDataSourceNodeGuid == fromNode.Guid);  // 判断目标节点是否已有该节点的连接
+                            checkTypeState = any;
+                        }
+                        else
+                        {
+                            checkTypeState = true; // 类型检查初步通过
+                        }
                     }
                 }
             }
+           
             if (!checkTypeState) // 类型检查不通过
             {
                 SereinEnv.WriteLine(InfoType.ERROR, "创建失败，目标节点没有合适的入参接收返回值");
@@ -396,7 +414,11 @@ namespace Serein.NodeFlow.Model.Operation
                 SereinEnv.WriteLine(InfoType.WARN, $"连接失败，节点参数入参不允许接收多个节点返回值。起始节点[{FromNode.Guid}]，目标节点[{FromNode.Guid}]。");
                 return false;
             }
-
+            if (FromNode.ContainerNode is not null)
+            {
+                SereinEnv.WriteLine(InfoType.WARN, "连接失败，参数来源节点处于容器中");
+                return false;
+            }
 
             // 判断是否建立过连接关系
             if (FromNode.Guid == toNodeArgSourceGuid   && toNodeArgSourceType == ConnectionArgSourceType)

@@ -31,5 +31,10 @@ namespace Serein.Script.Node
             MemberName = memberName;
             Value = value;
         }
+
+        public override string ToString()
+        {
+            return $"{Object}.{MemberName} = {Value}";
+        }
     }
 }

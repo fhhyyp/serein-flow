@@ -1,6 +1,7 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
 using Serein.NodeFlow.Model;
+using Serein.NodeFlow.Model.Nodes;
 using Serein.Workbench.Node.ViewModel;
 using System.Windows;
 using System.Windows.Controls;

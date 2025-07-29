@@ -32,5 +32,12 @@ namespace Serein.Script.Node
             FunctionName = functionName;
             Arguments = arguments;
         }
+
+
+        public override string ToString()
+        {
+            var p = string.Join(",", Arguments.Select(p => $"{p}"));
+            return $"{Object}.{FunctionName}({p})";
+        }
     }
 }

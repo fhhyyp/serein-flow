@@ -16,5 +16,11 @@ namespace Serein.Script.Node
         /// </summary>
         public string Name { get; }
         public IdentifierNode(string name) => Name = name;
+
+
+        public override string ToString()
+        {
+            return $"let {Name}";
+        }
     }
 }

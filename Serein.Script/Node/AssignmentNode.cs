@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace Serein.Script.Node
 {
@@ -22,6 +23,13 @@ namespace Serein.Script.Node
         public ASTNode Value { get; }
 
         public AssignmentNode(ASTNode target, ASTNode value) => (Target, Value) = (target, value);
+
+        public override string ToString()
+        {
+            return $"{Target} = {Value}";
+        }
+
+
     }
 
 

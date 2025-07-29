@@ -1,6 +1,7 @@
 ﻿using Serein.Library;
 using Serein.Library.Utils;
 using Serein.NodeFlow.Model;
+using Serein.NodeFlow.Model.Nodes;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;

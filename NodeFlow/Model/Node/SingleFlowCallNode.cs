@@ -4,7 +4,7 @@ using Serein.NodeFlow.Services;
 using System.Dynamic;
 using System.Reflection;
 
-namespace Serein.NodeFlow.Model
+namespace Serein.NodeFlow.Model.Nodes
 {
 
     [NodeProperty(ValuePath = NodeValuePath.Node)]

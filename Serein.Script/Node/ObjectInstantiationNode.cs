@@ -37,6 +37,13 @@ namespace Serein.Script.Node
             CtorAssignments = ctorAssignments;
             return this;
         }
+
+        public override string ToString()
+        {
+            var arg = string.Join(",", Arguments.Select(p => $"{p}"));
+            var ctor_arg = string.Join(",", CtorAssignments.Select(p => $"{p}"));
+            return $"new {Type}({arg}){ctor_arg}";
+        }
     }
 
 }

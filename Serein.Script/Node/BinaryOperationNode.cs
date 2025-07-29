@@ -33,5 +33,10 @@ namespace Serein.Script.Node
             Operator = op;
             Right = right;
         }
+
+        public override string ToString()
+        {
+            return $"({Left} {Operator} {Right})";
+        }
     }
 }

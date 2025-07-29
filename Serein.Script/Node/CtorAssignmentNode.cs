@@ -41,6 +41,9 @@ namespace Serein.Script.Node
             Value = value;
         }
 
-
+        public override string ToString()
+        {
+            return $"ctor {Class}.{MemberName} = {Value}";
+        }
     }
 }

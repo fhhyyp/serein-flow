@@ -3,7 +3,7 @@ using Serein.Library.Api;
 using Serein.Script;
 using System.Dynamic;
 
-namespace Serein.NodeFlow.Model
+namespace Serein.NodeFlow.Model.Nodes
 {
     /// <summary>
     /// Expression Operation - 表达式操作

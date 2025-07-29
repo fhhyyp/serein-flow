@@ -26,6 +26,12 @@ namespace Serein.Script.Node
             this.Collection = Collection;
             this.Index = indexValue;
         }
+
+
+        public override string ToString()
+        {
+            return $"{Collection}[{Index}]";
+        }
     }
 
     /// <summary>
@@ -47,6 +53,11 @@ namespace Serein.Script.Node
         {
             this.Collection = collection;
             this.Value = value;
+        }
+
+        public override string ToString()
+        {
+            return $"{Collection} = {Value}";
         }
     }
 }

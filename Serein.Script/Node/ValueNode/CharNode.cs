@@ -13,5 +13,9 @@ namespace Serein.Script.Node
         {
             Value = char.Parse(value);
         }
+        public override string ToString()
+        {
+            return $"'{Value}'";
+        }
     }
 }

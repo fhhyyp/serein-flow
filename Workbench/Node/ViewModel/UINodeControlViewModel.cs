@@ -2,6 +2,7 @@
 using Serein.Library;
 using Serein.Library.Api;
 using Serein.NodeFlow.Model;
+using Serein.NodeFlow.Model.Nodes;
 using System;
 using System.Collections.Generic;
 using System.Linq;

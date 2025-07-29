@@ -3,13 +3,14 @@ using Serein.Library;
 using Serein.Library.Utils;
 using System;
 
-namespace Serein.NodeFlow.Model
+namespace Serein.NodeFlow.Model.Nodes
 {
     /// <summary>
     /// 触发器节点
     /// </summary>
     public class SingleFlipflopNode : NodeModelBase
     {
+
         public SingleFlipflopNode(IFlowEnvironment environment) : base(environment)
         {
 

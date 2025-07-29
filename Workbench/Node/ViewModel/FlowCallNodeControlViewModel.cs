@@ -2,6 +2,7 @@
 using Serein.Library;
 using Serein.Library.Api;
 using Serein.NodeFlow.Model;
+using Serein.NodeFlow.Model.Nodes;
 using Serein.Workbench.Api;
 using Serein.Workbench.Services;
 using Serein.Workbench.ViewModels;

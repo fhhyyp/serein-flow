@@ -55,6 +55,11 @@ namespace Serein.Script.Node
             }
             Value = output.ToString();
         }
+
+        public override string ToString()
+        {
+            return $"\"{Value}\"";
+        }
     }
 
 

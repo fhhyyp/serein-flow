@@ -1,5 +1,6 @@
 ﻿using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Model.Library;
+using Serein.NodeFlow.Model.Nodes;
 using Serein.Workbench.Themes;
 using System.Windows.Input;
 
@@ -61,6 +62,7 @@ public class FlowLibrary
                 //    nodeModel.Env.WriteLine(InfoType.ERROR, ex.ToString());
                 //}
             });
+            NodeModel1 = nodeModel;
         }
 
         private static void OnCompileComplete(FlowLibraryCache flowLibrary)
@@ -84,7 +86,6 @@ public class FlowLibrary
         /// 打开编辑窗口
         /// </summary>
         public ICommand CommandOpenScriptEdit { get; }
-
-
+        public NodeModelBase NodeModel1 { get; }
     }
 }

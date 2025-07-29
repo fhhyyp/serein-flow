@@ -3,6 +3,7 @@ using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.Utils;
 using Serein.NodeFlow.Model;
+using Serein.NodeFlow.Model.Nodes;
 using Serein.NodeFlow.Model.Operation;
 using Serein.NodeFlow.Services;
 using System.Diagnostics;

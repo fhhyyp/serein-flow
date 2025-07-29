@@ -30,7 +30,11 @@ namespace Serein.Script.Node
             this.ClassType = className;
         }
 
-
+        public override string ToString()
+        {
+            var p = string.Join(",", Propertys.Select(p => $"{p.Value}"));
+            return $"{ClassType}({p})";
+        }
 
 
         /* /// <summary>

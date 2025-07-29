@@ -1,7 +1,7 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
 
-namespace Serein.NodeFlow.Model
+namespace Serein.NodeFlow.Model.Nodes
 {
 
     

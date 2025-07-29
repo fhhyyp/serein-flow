@@ -26,5 +26,10 @@ namespace Serein.Script.Node
             Object = obj;
             MemberName = memberName;
         }
+
+        public override string ToString()
+        {
+            return $"{Object}.{MemberName}";
+        }
     }
 }

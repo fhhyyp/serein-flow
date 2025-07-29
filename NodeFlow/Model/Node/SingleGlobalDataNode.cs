@@ -2,7 +2,7 @@
 using Serein.Library.Api;
 using System.Dynamic;
 
-namespace Serein.NodeFlow.Model
+namespace Serein.NodeFlow.Model.Nodes
 {
 
     
@@ -13,7 +13,7 @@ namespace Serein.NodeFlow.Model
     public partial class SingleGlobalDataNode : NodeModelBase
     {
         /// <summary>
-        /// 表达式
+        /// 全局数据的Key名称
         /// </summary>
         [PropertyInfo(IsNotification = true)] 
         private string _keyName;
@@ -43,7 +43,7 @@ namespace Serein.NodeFlow.Model
         /// <summary>
         /// 数据来源的节点
         /// </summary>
-        private IFlowNode? DataNode;
+        public IFlowNode? DataNode { get; private set; } = null;
 
         /// <summary>
         /// 有节点被放置
@@ -52,12 +52,27 @@ namespace Serein.NodeFlow.Model
         /// <returns></returns>
         public bool PlaceNode(IFlowNode nodeModel)
         {
+            if(nodeModel.ControlType  is not (NodeControlType.Action or NodeControlType.Script))
+            {
+                SereinEnv.WriteLine(InfoType.INFO, "放置在全局数据必须是有返回值的[Action]节点，[Script]节点。");
+                return false;
+            }
+            if (nodeModel.MethodDetails?.ReturnType is null 
+                || nodeModel.MethodDetails.ReturnType == typeof(void))
+            {
+                SereinEnv.WriteLine(InfoType.INFO, "放置在全局数据必须是有返回值的[Action]节点，[Script]节点。");
+                return false;
+            }
+
             if(DataNode is null)
             {
                 // 放置节点
                 nodeModel.ContainerNode = this;  
                 ChildrenNode.Add(nodeModel);
                 DataNode = nodeModel;
+
+                MethodDetails.IsAsync = nodeModel.MethodDetails.IsAsync;
+                MethodDetails.ReturnType = nodeModel.MethodDetails.ReturnType;
                 return true;
             }
             else if (DataNode.Guid != nodeModel.Guid)

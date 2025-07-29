@@ -18,5 +18,9 @@ namespace Serein.Script.Node
             TypeName = typeName;
         }
 
+        public override string ToString()
+        {
+            return $"[type]{TypeName}";
+        }
     }
 }

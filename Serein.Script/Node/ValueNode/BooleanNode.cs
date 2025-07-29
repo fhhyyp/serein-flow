@@ -13,5 +13,10 @@ namespace Serein.Script.Node
     {
         public bool Value { get; }
         public BooleanNode(bool value) => Value = value;
+
+        public override string ToString()
+        {
+            return $"{Value}";
+        }
     }
 }

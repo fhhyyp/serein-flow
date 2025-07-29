@@ -1,4 +1,5 @@
 ﻿using Serein.NodeFlow.Model;
+using Serein.NodeFlow.Model.Nodes;
 using System.Windows;
 using System.Windows.Input;
 

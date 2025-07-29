@@ -3,6 +3,7 @@ using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.Utils;
 using Serein.NodeFlow.Model;
+using Serein.NodeFlow.Model.Nodes;
 using Serein.NodeFlow.Tool;
 using System;
 using System.Collections.Concurrent;
@@ -285,7 +286,7 @@ namespace Serein.NodeFlow.Services
             checkpoints["执行流程"] = sw.Elapsed;
 
 
-            if (context.IsRecordInvokeInfo)
+            if (context.IsRecordInvokeInfo && false)
             {
                 var invokeInfos = context.GetAllInvokeInfos();
                  _ = Task.Delay(100).ContinueWith(async (task) =>
@@ -309,9 +310,7 @@ namespace Serein.NodeFlow.Services
                         SereinEnv.WriteLine(InfoType.INFO, $"平均耗时：{total / invokeInfos.Count}");
                         SereinEnv.WriteLine(InfoType.INFO, $"总耗时：{total}");
                     }
-                   
-
-                });
+                 });
                
                
             }
@@ -324,6 +323,7 @@ namespace Serein.NodeFlow.Services
 
             _ = Task.Run(() =>
             {
+                //var checkpoints = new Dictionary<string, TimeSpan>();
                 var last = TimeSpan.Zero;
                 foreach (var kv in checkpoints)
                 {

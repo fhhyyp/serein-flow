@@ -151,14 +151,21 @@ namespace Serein.Library
             }
         }
 
-        
+        private enum ActionType
+        {
+            Action,
+            Task,
+        }
+        private ActionType actionType = ActionType.Action;
         public void SetAction(Action<IFlowContext> action)
         {
             this.action = action;
+            actionType = ActionType.Action;
         }
         public void SetAction(Func<IFlowContext, Task> taskFunc)
         {
             this.taskFunc = taskFunc;
+            actionType = ActionType.Task;
         }
 
 
@@ -177,12 +184,14 @@ namespace Serein.Library
         public Dictionary<ConnectionInvokeType, List<CallNode>> SuccessorNodes { get; private set; }
         public CallNode[][] ChildNodes { get; private set; } = new CallNode[][]
         {
-            new CallNode[32],
-            new CallNode[32],
-            new CallNode[32],
-            new CallNode[32]
+            new CallNode[MaxChildNodeCount],
+            new CallNode[MaxChildNodeCount],
+            new CallNode[MaxChildNodeCount],
+            new CallNode[MaxChildNodeCount]
         };
+        private const int MaxChildNodeCount = 16; // 每个分支最多支持16个子节点
 
+       
         public int GetCount(ConnectionInvokeType type) 
         {
             if (type == ConnectionInvokeType.Upstream) return UpstreamNodeCount;
@@ -245,13 +254,13 @@ namespace Serein.Library
             {
                 return;
             }
-            if (action is not null)
+            if (actionType == ActionType.Action)
             {
-                action(context);
+                action.Invoke(context);
             }
-            else if (taskFunc is not null)
+            else if (actionType == ActionType.Task)
             {
-                await taskFunc(context);
+                await taskFunc.Invoke(context);
             }
             else
             {
@@ -286,11 +295,8 @@ namespace Serein.Library
                 FlowResult flowResult = null;
                 try
                 {
+                    context.NextOrientation = ConnectionInvokeType.IsSucceed; // 默认执行成功
                     await currentNode.InvokeAsync(context, token);
-                    if (context.NextOrientation == ConnectionInvokeType.None) // 没有手动设置时，进行自动设置
-                    {
-                        context.NextOrientation = ConnectionInvokeType.IsSucceed;
-                    }
                 }
                 catch (Exception ex)
                 {
@@ -306,17 +312,18 @@ namespace Serein.Library
                 var nextNodes = currentNode.SuccessorNodes[context.NextOrientation];
                 for (int index = nextNodes.Count - 1; index >= 0; index--)
                 {
-                    //if (!ignodeState)
-                    context.SetPreviousNode(nextNodes[index].Guid, currentNode.Guid);
-                    stack.Push(nextNodes[index]);
+                    var node = nextNodes[index];
+                    context.SetPreviousNode(node.Guid, currentNode.Guid);
+                    stack.Push(node);
                 }
 
                 // 然后将指上游分支的所有节点逆序推入栈中
                 var upstreamNodes = currentNode.SuccessorNodes[ConnectionInvokeType.Upstream];
                 for (int index = upstreamNodes.Count - 1; index >= 0; index--)
                 {
-                    context.SetPreviousNode(upstreamNodes[index].Guid, currentNode.Guid);
-                    stack.Push(upstreamNodes[index]);
+                    var node = upstreamNodes[index];
+                    context.SetPreviousNode(node.Guid, currentNode.Guid);
+                    stack.Push(node);
                 }
                 #endregion
 
@@ -334,7 +341,7 @@ namespace Serein.Library
 
                     _stackPool.Return(stack);
                     context.Env.WriteLine(InfoType.INFO, $"流程执行到节点[{currentNode.Guid}]时提前结束，将返回当前执行结果。");
-                    flowResult = context.GetFlowData(currentNode.Guid); _stackPool.Return(stack);
+                    flowResult = context.GetFlowData(currentNode.Guid);
                     return flowResult; // 流程执行完成，返回结果
                 }
 
