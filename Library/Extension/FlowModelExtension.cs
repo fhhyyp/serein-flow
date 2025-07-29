@@ -197,9 +197,8 @@ namespace Serein.Library
             }
         }
 
-        private static ObjectPool<Stack<IFlowNode>> flowStackPool = new ObjectPool<Stack<IFlowNode>>(()=> new Stack<IFlowNode>());
-        //private static ObjectPool<HashSet<IFlowNode>> processedNodesPool = new ObjectPool<HashSet<IFlowNode>>(()=> new HashSet<IFlowNode>());
-        private static ObjectPool<HashSet<IFlowNode>> checkpoints = new ObjectPool<HashSet<IFlowNode>>(()=> new HashSet<IFlowNode>());
+        private readonly static ObjectPool<Stack<IFlowNode>> flowStackPool = new ObjectPool<Stack<IFlowNode>>(()=> new Stack<IFlowNode>());
+        private readonly static ObjectPool<HashSet<IFlowNode>> checkpoints = new ObjectPool<HashSet<IFlowNode>>(()=> new HashSet<IFlowNode>());
 
         /// <summary>
         /// 开始执行

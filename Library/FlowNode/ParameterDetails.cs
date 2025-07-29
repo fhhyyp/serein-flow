@@ -1,6 +1,7 @@
 ﻿using Serein.Library.Api;
 using Serein.Library.Utils;
 using System;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -145,6 +146,8 @@ namespace Serein.Library
             this.Name = pdInfo.ArgName;
         }
 
+
+
         /// <summary>
         /// 通过参数信息加载实体，用于加载项目文件、远程连接的场景
         /// </summary>
@@ -158,6 +161,15 @@ namespace Serein.Library
             InputType = info.InputType.ConvertEnum<ParameterValueInputType>();
             Items = info.Items;
             IsParams = info.IsParams;
+        }
+
+
+        partial void OnIsExplicitDataChanged(bool oldValue, bool newValue)
+        {
+            if(DataType == typeof(IFlowContext))
+            {
+
+            }
         }
 
         /// <summary>
@@ -209,9 +221,9 @@ namespace Serein.Library
                 return data;
 
             // 2. 特定快捷类型
-            if (typeof(IFlowEnvironment).IsAssignableFrom(DataType)) return NodeModel.Env;
             if (typeof(IFlowContext).IsAssignableFrom(DataType)) return context;
-            if (typeof(IFlowNode).IsAssignableFrom(DataType)) return NodeModel;
+            //if (typeof(IFlowEnvironment).IsAssignableFrom(DataType)) return NodeModel.Env;
+            //if (typeof(IFlowNode).IsAssignableFrom(DataType)) return NodeModel;
 
             // 3. 显式常量参数
             if (IsExplicitData && !DataValue.StartsWith("@", StringComparison.OrdinalIgnoreCase))
@@ -224,7 +236,15 @@ namespace Serein.Library
             if (ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData)
             {
                 var prevNodeGuid = context.GetPreviousNode(NodeModel.Guid);
-                inputParameter = prevNodeGuid != null ? context.GetFlowData(prevNodeGuid)?.Value : null;
+                if(prevNodeGuid is null)
+                {
+                    inputParameter = null;
+                }
+                else
+                {
+                    var prevNodeData = context.GetFlowData(prevNodeGuid);
+                    inputParameter = prevNodeData.Value;
+                }
             }
             else
             {

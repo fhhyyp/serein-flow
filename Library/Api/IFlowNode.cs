@@ -99,10 +99,6 @@ namespace Serein.Library.Api
         /// 节点创建时的行为
         /// </summary>
         void OnCreating();
-        /*/// <summary>
-        /// 节点移除时的行为
-        /// </summary>
-        void Remove();*/
 
         /// <summary>
         /// 节点保存时如若需要保存自定义数据，可通过该方法进行控制保存逻辑

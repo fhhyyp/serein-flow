@@ -14,7 +14,6 @@ using System.Threading;
 namespace Serein.Library.NodeGenerator
 {
 
-
     /// <summary>
     /// 一个增量源生成器，用于为带有自定义 MyClassAttribute 特性的类中的字段生成带有自定义 set 行为的属性。
     /// </summary>
@@ -33,7 +32,7 @@ namespace Serein.Library.NodeGenerator
             /*
             CreateSyntaxProvider : 第一个参数用于筛选特定语法节点，第二个参数则用于转换筛选出来的节点。 
             SemanticModel : 通过 语义模型 (SemanticModel) 来解析代码中的符号信息，获取类、方法、属性等更具体的类型和特性信息。例如某个特性属于哪个类型。
-            AddSource : 生成器的最终目标是生成代码。使用 AddSource 将生成的代码以字符串形式注入到编译过程当中。通常会通过字符串拼接或 StringBuilder 来构建生成的 C# 代码。
+            AddSource : 生成器的最终目标是生成代码。使用 AddSource 将生成的代码以字符串形式注入到编译过程当中。
              */
             // 通过 SyntaxProvider 查找所有带有任意特性修饰的类声明语法节点
             var classDeclarations = context.SyntaxProvider
@@ -87,19 +86,6 @@ namespace Serein.Library.NodeGenerator
                 }
             });
         }
-        private int myProperty;
-
-        public int MyProperty { get => myProperty; set 
-        {
-            if(myProperty == null)
-            {
-
-                myProperty = value;
-            }
-        } }
-
-
-
 
         /// <summary>
         /// 为给定的类生成带有自定义 set 行为的属性。
@@ -163,6 +149,11 @@ namespace Serein.Library.NodeGenerator
                     //sb.AppendLine(leadingTrivia);
                     sb.AppendLine($"        partial void On{propertyName}Changed({fieldType} oldValue, {fieldType} newValue);");
                     sb.AppendLine($"        partial void On{propertyName}Changed({fieldType} value);");
+                    if (isProtection)
+                    {
+                        sb.AppendLine($"        private bool __{propertyName}ProtectionField = false;");
+                    }
+
                     sb.AppendLine();
                     // 生成 getter / setter
                     sb.AppendLine($"        /// <inheritdoc cref=\"{fieldName}\"/>");
@@ -172,10 +163,22 @@ namespace Serein.Library.NodeGenerator
                     sb.AppendLine($"            get => {fieldName};"); // getter方法
                     sb.AppendLine( "            set");
                     sb.AppendLine( "            {");
-                    sb.AppendLine($"                if ({fieldName} {(isProtection ? "== default" : "!= value")})"); // 非保护的Setter
-                    sb.AppendLine( "                {");
-                    sb.AppendLine($"                    var __oldValue = {fieldName};");
-                    sb.AppendLine($"                    SetProperty<{fieldType}>(ref {fieldName}, value); // 通知UI属性发生改变了");
+                    //sb.AppendLine($"                if ({fieldName} {(isProtection ? "== default" : "!= value")})"); // 非保护的Setter
+
+                    sb.AppendLine($"                var __oldValue = {fieldName};");
+                    if (isProtection)
+                    {
+                        sb.AppendLine($"                if (!__{propertyName}ProtectionField && SetProperty<{fieldType}>(ref {fieldName}, value))"); // 非保护的Setter
+                        sb.AppendLine($"                {{");
+                        sb.AppendLine($"                    __{propertyName}ProtectionField = true;");
+                    }
+                    else
+                    {
+                        sb.AppendLine($"                if (SetProperty<{fieldType}>(ref {fieldName}, value))"); // 非保护的Setter
+                        sb.AppendLine($"                {{");
+                    }
+
+                    //sb.AppendLine($"                    SetProperty<{fieldType}>(ref {fieldName}, value); ");
                     sb.AppendLine($"                    On{propertyName}Changed(value);");
                     sb.AppendLine($"                    On{propertyName}Changed(__oldValue, value);");
                     if (attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsPrint), value => bool.Parse(value))) 
@@ -240,21 +243,22 @@ namespace Serein.Library.NodeGenerator
                 sb.AppendLine("        /// </summary>"); 
                 sb.AppendLine("        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;");
 
-                sb.AppendLine("        protected void SetProperty<T>(ref T storage, T value, [System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)                 ");
+                sb.AppendLine("        protected bool SetProperty<T>(ref T storage, T value, [System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)                 ");
                 sb.AppendLine("        {                                                                                                                    ");
-                sb.AppendLine("            //if (Equals(storage, value))                                                                                      ");
-                sb.AppendLine("            //{                                                                                                                ");
-                sb.AppendLine("            //    return;                                                                                                      ");
-                sb.AppendLine("            //}                                                                                                                ");
+                sb.AppendLine("            if (Equals(storage, value))                                                                                      ");
+                sb.AppendLine("            {                                                                                                                ");
+                sb.AppendLine("                return false;                                                                                                ");
+                sb.AppendLine("            }                                                                                                                ");
                 sb.AppendLine("                                                                                                                             ");
                 sb.AppendLine("            storage = value;                                                                                                 ");
                 sb.AppendLine("            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));                 ");
+                sb.AppendLine("            return true;                                                                                                     ");
                 sb.AppendLine("        }                                                                                                                    ");
 
-                sb.AppendLine("         public void OnPropertyChanged(string propertyName) =>                                                              ");
-                sb.AppendLine("                   PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));                         ");
+                sb.AppendLine("         public void OnPropertyChanged(string propertyName) =>                                                               ");
+                sb.AppendLine("                   PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));          ");
                 sb.AppendLine("                                                                                                                             ");
-                sb.AppendLine("                                                                                                                           ");
+                sb.AppendLine("                                                                                                                             ");
                 sb.AppendLine("                                                                                                                             ");
 
                 // 生成变量修改

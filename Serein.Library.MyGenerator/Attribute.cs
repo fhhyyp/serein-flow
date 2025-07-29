@@ -69,16 +69,18 @@ namespace Serein.Library
         /// 是否禁止参数进行修改（初始化后不能再通过 Setter 修改）
         /// </summary>
         public bool IsProtection = false;
-
+/*
         /// <summary>
         /// 自定义代码（属性变更前）
         /// </summary>
+        [Obsolete("此属性已经过时，可能在下一个版本中移除", false)]
         public string CustomCodeAtStart = null;
 
         /// <summary>
         /// 自定义代码（属性变更后）
         /// </summary>
-        public string CustomCodeAtEnd = null;
+        [Obsolete("此属性已经过时，可能在下一个版本中移除", false)]
+        public string CustomCodeAtEnd = null;*/
 
     }
 

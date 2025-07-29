@@ -154,13 +154,13 @@ namespace Serein.Library
         {
             if (emitType == EmitType.CollectionSetter)
             {
-                emitType = EmitType.CollectionSetter;
+                this.emitType = EmitType.CollectionSetter;
                 collectionSetter = EmitHelper.CreateCollectionSetter(type);
 
             }
             else if (emitType == EmitType.CollectionGetter)
             {
-                emitType = EmitType.CollectionGetter;
+                this.emitType = EmitType.CollectionGetter;
                 collectionGetter = EmitHelper.CreateCollectionGetter(type);
             }
             else
