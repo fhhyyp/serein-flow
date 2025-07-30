@@ -14,7 +14,7 @@ namespace Serein.Script.Node.FlowControl
         /// <summary>
         /// 返回值来源
         /// </summary>
-        public ASTNode Value { get; }
+        public ASTNode? Value { get; }
 
         public ReturnNode(ASTNode returnNode)
         {

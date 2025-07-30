@@ -21,6 +21,10 @@ namespace Serein.Workbench.Views
     public partial class FlowWorkbenchView : Window
     {
         private FlowWorkbenchViewModel ViewModel => ViewModel as FlowWorkbenchViewModel;
+
+        /// <summary>
+        /// FlowWorkbenchView 的交互逻辑
+        /// </summary>
         public FlowWorkbenchView()
         {
             this.DataContext = App.GetService<Locator>().FlowWorkbenchViewModel;
@@ -49,6 +53,10 @@ namespace Serein.Workbench.Views
             System.Windows.Application.Current.Shutdown();
         }
 
+        /// <summary>
+        /// 处理鼠标按下事件，确保点击空白区域时清除焦点
+        /// </summary>
+        /// <param name="e"></param>
         protected override void OnPreviewMouseDown(MouseButtonEventArgs e)
         {
             // 获取当前的焦点控件

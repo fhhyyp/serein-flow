@@ -103,8 +103,7 @@ namespace Serein.NodeFlow.Tool
         /// <summary>
         /// 加载Windows类库
         /// </summary>
-        /// <param name="path"></param>
-        /// <param name="isRecurrence">是否递归加载</param>
+        /// <param name="file"></param>
         private static bool LoadWindowsLibrarie(string file)
         {
             IntPtr hModule = IntPtr.Zero;

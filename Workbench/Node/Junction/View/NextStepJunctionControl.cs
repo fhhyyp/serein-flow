@@ -6,7 +6,7 @@ using Serein.Library;
 namespace Serein.Workbench.Node.View
 {
 
-    public class NextStepJunctionControl : JunctionControlBase
+    internal class NextStepJunctionControl : JunctionControlBase
     {
         //public override JunctionType JunctionType { get; } = JunctionType.NextStep;
         public NextStepJunctionControl()

@@ -21,7 +21,6 @@ namespace Serein.Library
         /// 动态流程上下文
         /// </summary>
         /// <param name="flowEnvironment">脚本运行时的IOC</param>
-        /// <param name="ioc">脚本运行时使用的IOC容器</param>
         public FlowContext(IFlowEnvironment flowEnvironment)
         {
             Env = flowEnvironment;
@@ -110,6 +109,10 @@ namespace Serein.Library
             return flowInvokeInfo;
         }
 
+        /// <summary>
+        /// 获取当前流程上下文的所有节点调用信息，包含每个节点的执行时间、调用类型、执行状态等。
+        /// </summary>
+        /// <returns></returns>
         public List<FlowInvokeInfo> GetAllInvokeInfos() => [.. flowInvokeInfos.Values];
      
         /// <summary>

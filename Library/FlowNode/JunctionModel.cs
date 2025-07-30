@@ -33,6 +33,11 @@ namespace Serein.Library.FlowNode
     /// </summary>
     public class JunctionModel
     {
+        /// <summary>
+        /// 连接点模型构造函数
+        /// </summary>
+        /// <param name="NodeModel"></param>
+        /// <param name="JunctionType"></param>
         public JunctionModel(IFlowNode NodeModel, JunctionType JunctionType)
         {
             Guid = System.Guid.NewGuid().ToString();

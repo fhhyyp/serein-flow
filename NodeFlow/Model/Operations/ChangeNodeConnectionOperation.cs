@@ -11,7 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using static Serein.Library.Api.NodeConnectChangeEventArgs;
 
-namespace Serein.NodeFlow.Model.Operation
+namespace Serein.NodeFlow.Model.Operations
 {
     /// <summary>
     /// 节点连接状态发生改变
@@ -45,6 +45,7 @@ namespace Serein.NodeFlow.Model.Operation
         /// </summary>
         public JunctionType ToNodeJunctionType { get; set; }
 
+        /// <summary>
         /// 连接类型
         /// </summary>
         public ConnectionInvokeType ConnectionInvokeType { get; set; }
@@ -69,9 +70,9 @@ namespace Serein.NodeFlow.Model.Operation
         public override bool IsCanUndo => false;
 
         #region 私有参数
-        private FlowCanvasDetails FlowCanvas;
-        private IFlowNode FromNode;
-        private IFlowNode ToNode;
+        private FlowCanvasDetails? FlowCanvas;
+        private IFlowNode? FromNode;
+        private IFlowNode? ToNode;
         #endregion
 
         public override bool ValidationParameter()
@@ -155,7 +156,10 @@ namespace Serein.NodeFlow.Model.Operation
         /// </summary>
         private async Task<bool> CreateInvokeConnection()
         {
-            IFlowNode fromNode = FromNode ;
+            ArgumentNullException.ThrowIfNull(FlowCanvas);
+            ArgumentNullException.ThrowIfNull(FromNode);
+            ArgumentNullException.ThrowIfNull(ToNode);
+            IFlowNode fromNode = FromNode;
             IFlowNode toNode = ToNode;
             ConnectionInvokeType invokeType = ConnectionInvokeType;
             if (fromNode.ControlType == NodeControlType.FlowCall)
@@ -340,6 +344,10 @@ namespace Serein.NodeFlow.Model.Operation
         /// </summary>
         private async Task<bool> RemoveInvokeConnection()
         {
+            ArgumentNullException.ThrowIfNull(FlowCanvas);
+            ArgumentNullException.ThrowIfNull(FromNode);
+            ArgumentNullException.ThrowIfNull(ToNode);
+
             FromNode.SuccessorNodes[ConnectionInvokeType].Remove(ToNode);
             ToNode.PreviousNodes[ConnectionInvokeType].Remove(FromNode);
 
@@ -383,7 +391,12 @@ namespace Serein.NodeFlow.Model.Operation
         /// </summary>
         /// <exception cref="Exception"></exception>
         private async Task<bool> CreateArgConnection()
-        {/*
+        {
+            ArgumentNullException.ThrowIfNull(FlowCanvas);
+            ArgumentNullException.ThrowIfNull(FromNode);
+            ArgumentNullException.ThrowIfNull(ToNode);
+
+            /*
             IFlowNode fromNodeControl = ToNode;
             IFlowNode toNodeControl = ToNode;*/
             ConnectionArgSourceType type = ConnectionArgSourceType;
@@ -520,11 +533,12 @@ namespace Serein.NodeFlow.Model.Operation
         /// <summary>
         /// 移除参数连接关系
         /// </summary>
-        /// <param name="fromNodeControl"></param>
-        /// <param name="toNodeControl"></param>
-        /// <param name="index"></param>
         private async Task<bool> RemoveArgConnection()
         {
+            ArgumentNullException.ThrowIfNull(FlowCanvas);
+            ArgumentNullException.ThrowIfNull(FromNode);
+            ArgumentNullException.ThrowIfNull(ToNode);
+
             if (ToNode.MethodDetails.ParameterDetailss is null) return false;
             var type = ToNode.MethodDetails.ParameterDetailss[ArgIndex].ArgDataSourceType;
             FromNode.NeedResultNodes[type].Remove(ToNode);

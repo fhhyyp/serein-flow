@@ -21,15 +21,15 @@
         /// <summary>
         /// 业务标识
         /// </summary>
-        public string ThemeKey;
+        public string ThemeKey = string.Empty;
         /// <summary>
         /// 数据标识
         /// </summary>
-        public string DataKey;
+        public string DataKey = string.Empty;
         /// <summary>
         /// ID标识
         /// </summary>
-        public string MsgIdKey;
+        public string MsgIdKey = string.Empty;
 
         /// <summary>
         /// 指示应答数据回复方法返回值

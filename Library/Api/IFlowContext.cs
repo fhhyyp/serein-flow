@@ -252,11 +252,20 @@ namespace Serein.Library.Api
         /// </summary>
         public string Result { get; private set; }
 
+        /// <summary>
+        /// 上传当前节点的执行状态和结果信息。
+        /// </summary>
+        /// <param name="runState"></param>
         public void UploadState(RunState runState)
         {
             State = runState;
             TS = DateTime.Now - StateTime;
         }
+
+        /// <summary>
+        /// 上传当前节点的执行结果值。
+        /// </summary>
+        /// <param name="value"></param>
         public void UploadResultValue(object value = null)
         {
             if(value is null)
@@ -269,6 +278,11 @@ namespace Serein.Library.Api
                 Result = $"{type.FullName}::{value}";
             }
         }
+
+        /// <summary>
+        /// 上传当前节点的执行参数信息。
+        /// </summary>
+        /// <param name="values"></param>
         public void UploadParameters(object[] values = null)
         {
             if (values is null)
@@ -282,6 +296,10 @@ namespace Serein.Library.Api
             }
         }
 
+        /// <summary>
+        /// 返回当前节点的执行信息字符串，包含状态、耗时和结果。
+        /// </summary>
+        /// <returns></returns>
         public override string ToString()
         {
             return $"[{State}]{TS.TotalSeconds:0.000}ms : {Result}";

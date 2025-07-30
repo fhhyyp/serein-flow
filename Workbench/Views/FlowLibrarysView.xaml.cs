@@ -23,6 +23,10 @@ namespace Serein.Workbench.Views
     public partial class FlowLibrarysView : UserControl
     {
         private FlowLibrarysViewModel ViewModel => DataContext as FlowLibrarysViewModel ?? throw new ArgumentNullException();
+
+        /// <summary>
+        /// FlowLibrarysView 构造函数
+        /// </summary>
         public FlowLibrarysView()
         {
             this.DataContext = App.GetService<Locator>().FlowLibrarysViewModel;

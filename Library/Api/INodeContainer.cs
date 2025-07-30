@@ -11,7 +11,9 @@ namespace Serein.Library.Api
     /// </summary>
     public interface INodeContainer
     {
-
+        /// <summary>
+        /// 容器节点的Guid，与 IFlowNode.Guid 相同
+        /// </summary>
         string Guid { get; }
         /// <summary>
         /// 放置一个节点

@@ -1,5 +1,5 @@
 ﻿using Serein.Library.Api;
-using Serein.NodeFlow.Model.Operation;
+using Serein.NodeFlow.Model.Operations;
 using System;
 using System.Collections.Generic;
 using System.Linq;

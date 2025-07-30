@@ -22,6 +22,10 @@ namespace Serein.Workbench.Views
     public partial class ViewNodeInfoView : UserControl
     {
         private readonly ViewNodeInfoViewModel ViewModel;
+
+        /// <summary>
+        /// ViewNodeInfoView 的交互逻辑
+        /// </summary>
         public ViewNodeInfoView()
         {
 

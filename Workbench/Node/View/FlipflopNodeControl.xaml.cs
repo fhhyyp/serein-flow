@@ -9,6 +9,10 @@ namespace Serein.Workbench.Node.View
     /// </summary>
     public partial class FlipflopNodeControl : NodeControlBase, INodeJunction
     {
+        /// <summary>
+        /// 构造函数
+        /// </summary>
+        /// <param name="viewModel"></param>
         public FlipflopNodeControl(FlipflopNodeControlViewModel viewModel) : base(viewModel)
         {
             DataContext = viewModel;

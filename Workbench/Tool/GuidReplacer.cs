@@ -11,15 +11,20 @@ namespace Serein.Workbench.Tool
     /// </summary>
     public class GuidReplacer
     {
+
         private class TrieNode
         {
             public Dictionary<char, TrieNode> Children = new();
-            public string Replacement; // 替换后的值
+            public string Replacement = string.Empty; // 替换后的值
         }
 
         private readonly TrieNode _root = new();
 
-        // 构建字典树
+        /// <summary>
+        /// 构建字典树
+        /// </summary>
+        /// <param name="guid"></param>
+        /// <param name="replacement"></param>
         public void AddReplacement(string guid, string replacement)
         {
             var current = _root;
@@ -34,7 +39,11 @@ namespace Serein.Workbench.Tool
             current.Replacement = replacement;
         }
 
-        // 替换逻辑
+        /// <summary>
+        /// 替换逻辑
+        /// </summary>
+        /// <param name="input"></param>
+        /// <returns></returns>
         public string Replace(string input)
         {
             var result = new StringBuilder();

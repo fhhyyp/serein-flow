@@ -21,6 +21,9 @@ namespace Serein.Workbench.Views
     /// </summary>
     public partial class MainView : UserControl
     {
+        /// <summary>
+        /// MainView 的构造函数
+        /// </summary>
         public MainView()
         {
             this.DataContext = App.GetService<Locator>().MainViewModel;

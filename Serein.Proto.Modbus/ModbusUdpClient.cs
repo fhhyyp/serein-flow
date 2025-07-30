@@ -24,7 +24,9 @@ namespace Serein.Proto.Modbus
         private readonly ConcurrentDictionary<ushort, TaskCompletionSource<byte[]>> _pendingRequests = new();
         private int _transactionId = 0;
 
+#pragma warning disable CS8618 // 在退出构造函数时，不可为 null 的字段必须包含非 null 值。请考虑添加 "required" 修饰符或声明为可为 null。
         public ModbusUdpClient(string host, int port = 502)
+#pragma warning restore CS8618 // 在退出构造函数时，不可为 null 的字段必须包含非 null 值。请考虑添加 "required" 修饰符或声明为可为 null。
         {
             _remoteEndPoint = new IPEndPoint(IPAddress.Parse(host), port);
             _udpClient = new UdpClient();
@@ -153,11 +155,20 @@ namespace Serein.Proto.Modbus
             return tcs.Task;
         }
 
+        /// <summary>
+        /// 处理发送队列的异步方法
+        /// </summary>
+        /// <returns></returns>
         private async Task ProcessQueueAsync()
         {
             while (true)
             {
                 var request = await _channel.Reader.ReadAsync();
+                if(request.PDU is null)
+                {
+                    request.Completion?.TrySetCanceled();
+                    continue;
+                }
                 byte[] packet = BuildPacket(request.TransactionId, 0x01, (byte)request.FunctionCode, request.PDU);
                 OnTx?.Invoke(packet);
                 await _udpClient.SendAsync(packet, packet.Length);

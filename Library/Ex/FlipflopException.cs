@@ -8,6 +8,9 @@ namespace Serein.Library
     /// </summary>
     public class FlipflopException: Exception
     {
+        /// <summary>
+        /// 触发器取消类型
+        /// </summary>
         public enum CancelClass
         {
             /// <summary>
@@ -27,6 +30,13 @@ namespace Serein.Library
         /// 取消类型
         /// </summary>
         public CancelClass Type { get; }
+
+        /// <summary>
+        /// 触发器异常构造函数
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="isCancel"></param>
+        /// <param name="clsss"></param>
         public FlipflopException(string message, bool isCancel = true,CancelClass clsss = CancelClass.CancelBranch) :base(message) 
         {
             IsCancel = isCancel;

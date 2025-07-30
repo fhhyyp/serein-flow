@@ -9,7 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Serein.NodeFlow.Model.Operation
+namespace Serein.NodeFlow.Model.Operations
 {
     internal class CreateNodeOperation : OperationBase
     {

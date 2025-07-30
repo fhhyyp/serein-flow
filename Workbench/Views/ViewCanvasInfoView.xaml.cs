@@ -26,6 +26,10 @@ namespace Serein.Workbench.Views
     {
         private readonly ViewCanvasInfoViewModel ViewModel;
         private readonly ViewNodeInfoViewModel NodeInfoViewModel;
+
+        /// <summary>
+        /// 画布信息查看视图
+        /// </summary>
         public ViewCanvasInfoView()
         {
             this.ViewModel = App.GetService<ViewCanvasInfoViewModel>();

@@ -20,7 +20,7 @@ namespace Serein.Workbench.ViewModels
     /// <summary>
     /// 流程编辑数据视图
     /// </summary>
-    public partial class FlowEditViewModel : ObservableObject
+    internal partial class FlowEditViewModel : ObservableObject
     {
         /// <summary>
         /// 画布集合

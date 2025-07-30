@@ -4,24 +4,25 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 
-
 namespace Serein.Library.NodeGenerator
 {
 
     /// <summary>
-    /// 一个增量源生成器，用于为带有自定义 MyClassAttribute 特性的类中的字段生成带有自定义 set 行为的属性。
+    /// 增量源生成器
     /// </summary>
     [Generator]
-    public class MyPropertyGenerator : IIncrementalGenerator
+    public class FlowDataPropertyGenerator : IIncrementalGenerator
     {
-        internal static NodePropertyAttribute NodeProperty = new NodePropertyAttribute();
-        internal static PropertyInfoAttribute PropertyInfo = new PropertyInfoAttribute();
+        internal static FlowDataPropertyAttribute FlowDataProperty = new FlowDataPropertyAttribute();
+        internal static DataInfoAttribute DataInfo = new DataInfoAttribute();
 
         /// <summary>
         /// 初始化生成器，定义需要执行的生成逻辑。
@@ -29,12 +30,16 @@ namespace Serein.Library.NodeGenerator
         /// <param name="context">增量生成器的上下文，用于注册生成逻辑。</param>
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
+
             /*
+             *   //Debugger.Launch();
             CreateSyntaxProvider : 第一个参数用于筛选特定语法节点，第二个参数则用于转换筛选出来的节点。 
             SemanticModel : 通过 语义模型 (SemanticModel) 来解析代码中的符号信息，获取类、方法、属性等更具体的类型和特性信息。例如某个特性属于哪个类型。
             AddSource : 生成器的最终目标是生成代码。使用 AddSource 将生成的代码以字符串形式注入到编译过程当中。
              */
             // 通过 SyntaxProvider 查找所有带有任意特性修饰的类声明语法节点
+
+
             var classDeclarations = context.SyntaxProvider
                 .CreateSyntaxProvider(
                     // 定义要查找的语法节点类型，这里我们只关心类声明 (ClassDeclarationSyntax) 并且它们有至少一个特性 (Attribute)
@@ -50,7 +55,7 @@ namespace Serein.Library.NodeGenerator
                         // 检查类的特性列表，看看是否存在 MyClassAttribute
                         if (classDeclaration.AttributeLists
                             .SelectMany(attrList => attrList.Attributes)
-                            .Any(attr => semanticModel.GetSymbolInfo(attr).Symbol?.ContainingType.Name == nameof(NodePropertyAttribute)))
+                            .Any(attr => semanticModel.GetSymbolInfo(attr).Symbol?.ContainingType.Name == nameof(FlowDataPropertyAttribute)))
                         {
                             var classSymbol = semanticModel.GetDeclaredSymbol(classDeclaration); // 获取类的符号
                             var classInfo = classSymbol.BuildCacheOfClass();
@@ -77,7 +82,7 @@ namespace Serein.Library.NodeGenerator
                     // 获取类的命名空间和类名
                     var namespaceName = GetNamespace(classSyntax);
                     var className = classSyntax.Identifier.Text;
-
+                    Debug.WriteLine($"Generator Class Name : {className}");
                     // 生成属性代码
                     var generatedCode = GenerateProperties(classSyntax, result.classInfo, namespaceName, className);
 
@@ -93,6 +98,7 @@ namespace Serein.Library.NodeGenerator
         /// </summary>
         /// <param name="classSyntax">类的语法树节点。</param>
         /// <param name="namespaceName">类所在的命名空间。</param>
+        /// <param name="classInfo">。</param>
         /// <param name="className">类的名称。</param>
         /// <returns>生成的 C# 属性代码。</returns>
         private string GenerateProperties(ClassDeclarationSyntax classSyntax, 
@@ -144,9 +150,8 @@ namespace Serein.Library.NodeGenerator
                     var fieldType = field.Declaration.Type.ToString(); // 获取字段类型
                     var propertyName = field.ToPropertyName(); // 转为合适的属性名称
                     var attributeInfo = fieldKV.Value; // 缓存的特性信息
-
-                    var isProtection = attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsProtection), value => bool.Parse(value)); // 是否为保护字段
-                    var isVerify = attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsVerify), value => bool.Parse(value)); // 是否为保护字段
+                    var isProtection = attributeInfo.Search(nameof(DataInfo), nameof(DataInfo.IsProtection), value => bool.Parse(value)); // 是否为保护字段
+                    var isVerify = attributeInfo.Search(nameof(DataInfo), nameof(DataInfo.IsVerify), value => bool.Parse(value)); // 是否为保护字段
 
                     //sb.AppendLine(leadingTrivia);
                     sb.AppendLine($"        partial void On{propertyName}Changed({fieldType} oldValue, {fieldType} newValue);");
@@ -194,7 +199,7 @@ namespace Serein.Library.NodeGenerator
                     //sb.AppendLine($"                    SetProperty<{fieldType}>(ref {fieldName}, value); ");
                     sb.AppendLine($"                    On{propertyName}Changed(value);");
                     sb.AppendLine($"                    On{propertyName}Changed(__oldValue, value);");
-                    if (attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsPrint), value => bool.Parse(value))) 
+                    if (attributeInfo.Search(nameof(DataInfo), nameof(DataInfo.IsPrint), value => bool.Parse(value))) 
                     {
                         sb.AddCode(5, $"Console.WriteLine({fieldName});");
                     } // 是否打印
@@ -206,7 +211,7 @@ namespace Serein.Library.NodeGenerator
                     // NodeValuePath.Method  ： 节点 → 方法描述 
                     // NodeValuePath.Parameter  ： 节点 → 方法描述 → 参数描述
 
-                    if (attributeInfo.Search(nameof(PropertyInfo), nameof(PropertyInfo.IsNotification), value => bool.Parse(value))) // 是否通知
+                    if (attributeInfo.Search(nameof(DataInfo), nameof(DataInfo.IsNotification), value => bool.Parse(value))) // 是否通知
                     {
 
                         if (classInfo.ExitsPath(nameof(NodeValuePath.Node))) // 节点 or 自定义节点
@@ -250,33 +255,46 @@ namespace Serein.Library.NodeGenerator
                 }
 
 
-                sb.AppendLine("        /// <summary>"); 
-                sb.AppendLine("        /// 略"); 
-                sb.AppendLine("        /// <para>此事件为自动生成</para>"); 
-                sb.AppendLine("        /// </summary>"); 
-                sb.AppendLine("        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;");
+                var isNodeImp = false;
 
-                sb.AppendLine("        protected bool SetProperty<T>(ref T storage, T value, [System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)                 ");
-                sb.AppendLine("        {                                                                                                                    ");
-                sb.AppendLine("            if (Equals(storage, value))                                                                                      ");
-                sb.AppendLine("            {                                                                                                                ");
-                sb.AppendLine("                return false;                                                                                                ");
-                sb.AppendLine("            }                                                                                                                ");
-                sb.AppendLine("                                                                                                                             ");
-                sb.AppendLine("            storage = value;                                                                                                 ");
-                sb.AppendLine("            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));                 ");
-                sb.AppendLine("            return true;                                                                                                     ");
-                sb.AppendLine("        }                                                                                                                    ");
+                if (classInfo.TryGetValue(nameof(FlowDataPropertyAttribute), out var values) 
+                    && values.TryGetValue(nameof(FlowDataPropertyAttribute.IsNodeImp), out object data)
+                    && bool.TryParse(data.ToString(), out var isNodeImpTemp)
+                    && isNodeImpTemp)
+                {
+                    isNodeImp = true;
+                }
 
-                sb.AppendLine("         public void OnPropertyChanged(string propertyName) =>                                                               ");
-                sb.AppendLine("                   PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));          ");
-                sb.AppendLine("                                                                                                                             ");
-                sb.AppendLine("                                                                                                                             ");
-                sb.AppendLine("                                                                                                                             ");
+                if (!isNodeImp)
+                {
+                    sb.AppendLine("        /// <summary>");
+                    sb.AppendLine("        /// 略");
+                    sb.AppendLine("        /// <para>此事件为自动生成</para>");
+                    sb.AppendLine("        /// </summary>");
+                    sb.AppendLine("        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;");
 
-                // 生成变量修改
+                    sb.AppendLine("        protected bool SetProperty<T>(ref T storage, T value, [System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)                 ");
+                    sb.AppendLine("        {                                                                                                                    ");
+                    sb.AppendLine("            if (Equals(storage, value))                                                                                      ");
+                    sb.AppendLine("            {                                                                                                                ");
+                    sb.AppendLine("                return false;                                                                                                ");
+                    sb.AppendLine("            }                                                                                                                ");
+                    sb.AppendLine("                                                                                                                             ");
+                    sb.AppendLine("            storage = value;                                                                                                 ");
+                    sb.AppendLine("            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));                 ");
+                    sb.AppendLine("            return true;                                                                                                     ");
+                    sb.AppendLine("        }                                                                                                                    ");
+
+                    sb.AppendLine("         public void OnPropertyChanged(string propertyName) =>                                                               ");
+                    sb.AppendLine("                   PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));          ");
+                    sb.AppendLine("                                                                                                                             ");
+                    sb.AppendLine("                                                                                                                             ");
+                    sb.AppendLine("                                                                                                                             ");
+
+                }
 
 
+               
 
                 //sb.AppendLine("        /// <summary>                                                                                                        ");
                 //sb.AppendLine("        /// 略                                                                                                               ");
@@ -302,38 +320,6 @@ namespace Serein.Library.NodeGenerator
         }
 
 
-
-        /*private void ModifyValue(string path, string value)
-       {
-           if (string.IsNullOrWhiteSpace(path))
-           {
-               return;
-           }
-           else if (path.Equals(nameof(MaxChildrenCount), StringComparison.OrdinalIgnoreCase))
-           {
-               if (typeof(int) == typeof(string))
-               {
-                   this.MaxChildrenCount = value;
-               }
-               else
-               {
-                   this.MaxChildrenCount = ConvertHelper.ValueParse<int>(value);
-               }
-           }
-           else if (path.Equals(nameof(Guid), StringComparison.OrdinalIgnoreCase))
-           {
-               if (typeof(string) == typeof(string))
-               {
-                   this.Guid = value;
-               }
-               else
-               {
-                   this.Guid = ConvertHelper.ValueParse<string>(value);
-               }
-           }
-       }*/
-
-
         /// <summary>
         /// 获取类所在的命名空间。
         /// </summary>
@@ -347,21 +333,16 @@ namespace Serein.Library.NodeGenerator
         }
 
 
-        
-        private void SetterIsProtection()
-        {
-
-        }
-         private void SetterNotIsProtection()
-        {
-
-        }
+       
 
 
 
 
     }
 
+    /// <summary>
+    /// 扩展方法，用于处理 XML 文档注释中的 summary 标签
+    /// </summary>
     public static class DocumentationCommentExtensions
     {
 
@@ -431,10 +412,18 @@ namespace Serein.Library.NodeGenerator
         }
     }
 
-    
+
+    /// <summary>
+    /// MyAttributeResolver
+    /// </summary>
 
     public static class MyAttributeResolver
     {
+        /// <summary>
+        /// 构建类的特性缓存信息
+        /// </summary>
+        /// <param name="classSymbol"></param>
+        /// <returns></returns>
         public static Dictionary<string, Dictionary<string, object>> BuildCacheOfClass(this INamedTypeSymbol classSymbol)
         {
             Dictionary<string, Dictionary<string, object>> attributesOfClass = new Dictionary<string, Dictionary<string, object>>();
@@ -452,10 +441,19 @@ namespace Serein.Library.NodeGenerator
                 {
                     var key = cata.Key;
                     var value = cata.Value.Value;
-                    if (nameof(NodePropertyAttribute).Equals(attributeName))
+                    if (nameof(FlowDataPropertyAttribute).Equals(attributeName))
                     {
-                        string literal = Enum.GetName(typeof(NodeValuePath), cata.Value.Value);
-                        attributeInfo.Add(key, literal);
+                        if(cata.Key == nameof(FlowDataPropertyAttribute.ValuePath))
+                        {
+                            string literal = Enum.GetName(typeof(NodeValuePath), cata.Value.Value);
+                            attributeInfo.Add(key, literal);
+                        }
+                        else if (cata.Key == nameof(FlowDataPropertyAttribute.IsNodeImp))
+                        {
+                            string literal = cata.Value.Value.ToString();
+                            attributeInfo.Add(key, literal);
+                        }
+                        
                     }
                     else
                     {
@@ -463,8 +461,8 @@ namespace Serein.Library.NodeGenerator
                     }
 
 
-                    //Console.WriteLine("key:" + cata.Key);// 类特性的属性名
-                    //Console.WriteLine("value:" + cata.Value.Value); // 类特性的属性值
+                    Debug.WriteLine("key   : " + cata.Key);// 类特性的属性名
+                    Debug.WriteLine("value : " + cata.Value.Value); // 类特性的属性值
                 }
             }
             return attributesOfClass;
@@ -632,15 +630,21 @@ namespace Serein.Library.NodeGenerator
         }
 
 
+        /// <summary>
+        /// 检查类信息中是否存在指定的路径
+        /// </summary>
+        /// <param name="classInfo"></param>
+        /// <param name="valuePath"></param>
+        /// <returns></returns>
         public static bool ExitsPath(this Dictionary<string, Dictionary<string, object>> classInfo, string valuePath)
         {
            
-           if (!classInfo.TryGetValue(nameof(NodePropertyAttribute), out var keyValuePairs))
+           if (!classInfo.TryGetValue(nameof(FlowDataPropertyAttribute), out var keyValuePairs))
             {
                 return false;
             }
 
-            if (!keyValuePairs.TryGetValue(nameof(MyPropertyGenerator.NodeProperty.ValuePath), out var value))
+            if (!keyValuePairs.TryGetValue(nameof(FlowDataPropertyGenerator.FlowDataProperty.ValuePath), out var value))
             {
                 return false;
             }

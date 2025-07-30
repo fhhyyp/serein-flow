@@ -14,7 +14,7 @@ namespace Serein.FlowStartTool
     {
         public readonly IFlowEnvironment flowEnvironment = new FlowEnvironment();
         public bool IsRuning;
-        public async Task StartFlow(SereinProjectData flowProjectData, string fileDataPath)
+        public  void StartFlow(SereinProjectData flowProjectData, string fileDataPath)
         {
             IsRuning = true;
             SynchronizationContext? uiContext = SynchronizationContext.Current; // 在UI线程上获取UI线程上下文信息

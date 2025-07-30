@@ -57,9 +57,18 @@ namespace Serein.Library
             CollectionSetter
         }
 
+        /// <summary>
+        /// 表示方法的类型
+        /// </summary>
         public enum GSType 
-        { 
+        {
+            /// <summary>
+            /// 获取值
+            /// </summary>
             Get,
+            /// <summary>
+            /// 设置值
+            /// </summary>
             Set,
         }
 
@@ -149,7 +158,7 @@ namespace Serein.Library
         /// 目前提供了创建集合取值/赋值委托
         /// </summary>
         /// <param name="type">类型信息</param>
-        /// <param name="gsType">操作类型</param>
+        /// <param name="emitType">操作类型</param>
         public DelegateDetails(Type type, EmitType emitType) 
         {
             if (emitType == EmitType.CollectionSetter)

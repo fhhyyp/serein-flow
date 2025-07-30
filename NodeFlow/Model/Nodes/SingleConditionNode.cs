@@ -9,25 +9,25 @@ namespace Serein.NodeFlow.Model.Nodes
     /// <summary>
     /// 条件节点（用于条件控件）
     /// </summary>
-    [NodeProperty(ValuePath = NodeValuePath.Node)]
+    [FlowDataProperty(ValuePath = NodeValuePath.Node, IsNodeImp = true)]
     public partial class SingleConditionNode : NodeModelBase
     {
         /// <summary>
         /// 是否为自定义参数
         /// </summary>
-        [PropertyInfo(IsNotification = true)]
+        [DataInfo(IsNotification = true)]
         private bool _isExplicitData;
 
         /// <summary>
         /// 自定义参数值
         /// </summary>
-        [PropertyInfo(IsNotification = true)]
+        [DataInfo(IsNotification = true)]
         private string? _explicitData;
 
         /// <summary>
         /// 条件表达式
         /// </summary>
-        [PropertyInfo(IsNotification = true)]
+        [DataInfo(IsNotification = true)]
         private string _expression;
 
     }
@@ -44,7 +44,10 @@ namespace Serein.NodeFlow.Model.Nodes
         /// </summary>
         private const int INDEX_EXPRESSION = 0;
 
-
+        /// <summary>
+        /// 条件节点构造函数
+        /// </summary>
+        /// <param name="environment"></param>
         public SingleConditionNode(IFlowEnvironment environment):base(environment)
         {
             this.IsExplicitData = false;
@@ -52,6 +55,9 @@ namespace Serein.NodeFlow.Model.Nodes
             this.Expression = "PASS";
         }
 
+        /// <summary>
+        /// 创建节点时调用的方法
+        /// </summary>
         public override void OnCreating()
         {
             // 这里的这个参数是为了方便使用入参控制点，参数无意义
@@ -106,6 +112,7 @@ namespace Serein.NodeFlow.Model.Nodes
         /// 重写节点的方法执行
         /// </summary>
         /// <param name="context"></param>
+        /// <param name="token"></param>
         /// <returns></returns>
         public override async Task<FlowResult> ExecutingAsync(IFlowContext context, CancellationToken token)
         {

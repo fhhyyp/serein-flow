@@ -143,7 +143,7 @@ namespace Serein.NodeFlow.Model.Library
             // 从 scanTypes.Type 创建的方法信息
             // Md : 方法描述
             // Dd ：方法对应的Emit委托
-            List<LibraryMdDd> detailss = new List<LibraryMdDd>();
+            List<LibraryMthodInfo> detailss = new List<LibraryMthodInfo>();
 
             // 遍历扫描的类型
             foreach ((var type, var flowName) in scanTypes)
@@ -159,7 +159,7 @@ namespace Serein.NodeFlow.Model.Library
                         continue;
                     }
                     md.MethodAnotherName = flowName + md.MethodAnotherName; // 方法别名
-                    detailss.Add(new LibraryMdDd(mi, md, dd));
+                    detailss.Add(new LibraryMthodInfo(mi, md, dd));
                 }
             }
 

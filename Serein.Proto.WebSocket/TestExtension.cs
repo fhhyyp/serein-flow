@@ -42,7 +42,7 @@ namespace Serein.Proto.WebSocket
             {
                 return await _msgChannel.Reader.ReadAsync();
             }
-            return null; // 若通道关闭，则返回null
+            return string.Empty; // 若通道关闭，则返回null
         }
 
         /// <summary>

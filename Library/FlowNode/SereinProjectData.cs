@@ -270,7 +270,7 @@ namespace Serein.Library
     /// <summary>
     /// 节点于画布中的位置（通用类）
     /// </summary>
-    [NodeProperty]
+    [FlowDataProperty]
     public partial class PositionOfUI
     {
         /// <summary>
@@ -285,13 +285,13 @@ namespace Serein.Library
         /// <summary>
         /// 指示控件在画布的横向向方向上的位置
         /// </summary>
-        [PropertyInfo]
+        [DataInfo]
         private double _x = 0;
 
         /// <summary>
         /// 指示控件在画布的纵向方向上的位置
         /// </summary>
-        [PropertyInfo]
+        [DataInfo]
         private double _y = 0;
     }
 

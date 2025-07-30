@@ -54,11 +54,12 @@ namespace Serein.NodeFlow.Env
 
 
 
-        private FlowWorkManagement flowWorkManagement;
-        private ISereinIOC externalIOC;
-        private Action<ISereinIOC> setDefultMemberOnReset;
+        private FlowWorkManagement? flowWorkManagement;
+        private ISereinIOC? externalIOC;
+        private Action<ISereinIOC>? setDefultMemberOnReset;
         private bool IsUseExternalIOC = false;
-        private object lockObj = new object();
+        private readonly object lockObj = new object();
+
         /// <summary>
         /// 如果全局触发器还在运行，则为 Running 。
         /// </summary>
@@ -313,7 +314,7 @@ namespace Serein.NodeFlow.Env
              }*/
         }
         /// <inheritdoc/>
-        public void UseExternalIOC(ISereinIOC ioc, Action<ISereinIOC> setDefultMemberOnReset = null)
+        public void UseExternalIOC(ISereinIOC ioc, Action<ISereinIOC>? setDefultMemberOnReset = null)
         {
             IOC = ioc; // 设置IOC容器
             this.setDefultMemberOnReset = setDefultMemberOnReset;

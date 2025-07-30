@@ -5,6 +5,7 @@ using Serein.NodeFlow.Model.Nodes;
 using Serein.NodeFlow.Services;
 using Serein.NodeFlow.Tool;
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace Serein.NodeFlow.Env
@@ -64,7 +65,7 @@ namespace Serein.NodeFlow.Env
         /// 打开远程管理
         /// </summary>
         /// <param name="port"></param>
-        public async Task StartRemoteServerAsync(int port = 7525)
+        public void StartRemoteServerAsync(int port = 7525)
         {
             /*if (clientMsgManage is null)
             {
@@ -116,7 +117,7 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// UI线程操作类
         /// </summary>
-        public UIContextOperation UIContextOperation { get; private set; }
+        public UIContextOperation? UIContextOperation { get; private set; }
 
         /// <summary>
         /// 节点MVVM管理服务
@@ -174,14 +175,9 @@ namespace Serein.NodeFlow.Env
         #region 私有变量
 
         /// <summary>
-        /// 装饰器运行环境类
-        /// </summary>
-        private readonly IFlowEnvironment mainFlowEnvironment;
-
-        /// <summary>
         /// 流程运行时的IOC容器
         /// </summary>
-        private ISereinIOC flowRunIOC;
+        private ISereinIOC? flowRunIOC;
 
         /// <summary>
         /// local环境的IOC容器，主要用于注册本地环境的服务
@@ -203,28 +199,7 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         private readonly FlowModelService _flowModelService;
 
-        /* /// <summary>
-         /// 环境加载的节点集合
-         /// Node Guid - Node Model
-         /// </summary>
-         private Dictionary<string, IFlowNode> NodeModels { get; } = [];
 
-         /// <summary>
-         /// 运行环境加载的画布集合
-         /// </summary>
-         private Dictionary<string, FlowCanvasDetails> FlowCanvass { get; } = [];
-
-         /// <summary>
-         /// 存放触发器节点（运行时全部调用）
-         /// </summary>
-         private List<SingleFlipflopNode> FlipflopNodes { get; } = [];
- */
-
-
-        /// <summary>
-        /// 流程任务管理
-        /// </summary>
-        private FlowWorkManagement? flowTaskManagement;
 
         #endregion
 
@@ -247,34 +222,15 @@ namespace Serein.NodeFlow.Env
         }
 
 
-        /// <summary>
-        /// 获取当前环境信息（远程连接）
-        /// </summary>
-        /// <returns></returns>
-        public async Task<FlowEnvInfo> GetEnvInfoAsync()
-        {
-            // 获取所有的程序集对应的方法信息（程序集相关的数据）
-            var libraryMdss = this._flowLibraryService.GetAllLibraryMds().ToArray();
-            // 获取当前项目的信息（节点相关的数据）
-            var project = await GetProjectInfoAsync(); // 远程连接获取远程环境项目信息
-            SereinEnv.WriteLine(InfoType.INFO, "已将当前环境信息发送到远程客户端");
-            return new FlowEnvInfo
-            {
-                Project = project, // 项目信息
-                LibraryMds = libraryMdss, // 环境方法
-            };
-        }
-
 
         /// <summary>
         /// 保存项目
         /// </summary>
         public void SaveProject()
         {
+            var project = GetProjectInfoAsync();
             Task.Run(async () =>
             {
-                var project = await GetProjectInfoAsync();
-
                 await SereinEnv.TriggerEvent(() =>
                 {
                     Event.OnProjectSaving(new ProjectSavingEventArgs(project));
@@ -316,27 +272,19 @@ namespace Serein.NodeFlow.Env
             _ = Task.Run(async () =>
             {
                 // 加载画布
-                try
+                foreach (var canvasInfo in projectData.Canvass)
                 {
-                    foreach (var canvasInfo in projectData.Canvass)
-                    {
-                        await LoadCanvasAsync(canvasInfo);
-                    }
-                    var nodeInfos = projectData.Nodes.ToList();
-                    await FlowEdit.LoadNodeInfosAsync(nodeInfos); // 加载节点信息
-                                                                  // 加载画布
-                    foreach (var canvasInfo in projectData.Canvass)
-                    {
-                        FlowEdit.SetStartNode(canvasInfo.Guid, canvasInfo.StartNode); // 设置起始节点
-                    }
-
-                    Event.OnProjectLoaded(new ProjectLoadedEventArgs());
+                    await LoadCanvasAsync(canvasInfo);
                 }
-                catch (Exception ex)
+                var nodeInfos = projectData.Nodes.ToList();
+                await FlowEdit.LoadNodeInfosAsync(nodeInfos); // 加载节点信息
+                                                              // 加载画布
+                foreach (var canvasInfo in projectData.Canvass)
                 {
-
-                    throw;
+                    FlowEdit.SetStartNode(canvasInfo.Guid, canvasInfo.StartNode); // 设置起始节点
                 }
+
+                Event.OnProjectLoaded(new ProjectLoadedEventArgs());
             });
         }
 
@@ -383,55 +331,10 @@ namespace Serein.NodeFlow.Env
         }
 
         /// <summary>
-        /// 加载远程环境
-        /// </summary>
-        /// <param name="addres">远程环境地址</param>
-        /// <param name="port">远程环境端口</param>
-        /// <param name="token">密码</param>
-        /*public async Task<(bool, RemoteMsgUtil)> ConnectRemoteEnv(string addres, int port, string token)
-        {
-            throw new NotImplementedException("远程环境未实现的方法 ConnectRemoteEnv");
-            *//*if (IsControlRemoteEnv)
-            {
-                await Console.Out.WriteLineAsync($"当前已经连接远程环境");
-                return (false, null);
-            }
-            // 没有连接远程环境，可以重新连接
-
-            var controlConfiguration = new RemoteMsgUtil.ControlConfiguration
-            {
-                Addres = addres,
-                Port = port,
-                Token = token,
-                *//*ThemeJsonKey = LocalFlowEnvironment.ThemeKey,
-                MsgIdJsonKey = LocalFlowEnvironment.MsgIdKey,
-                DataJsonKey = LocalFlowEnvironment.DataKey,*//*
-            };
-            var remoteMsgUtil = new RemoteMsgUtil(controlConfiguration);
-            var result = await remoteMsgUtil.ConnectAsync();
-            if (!result)
-            {
-                await Console.Out.WriteLineAsync("连接失败，请检查地址与端口是否正确");
-                return (false, null);
-            }
-            await Console.Out.WriteLineAsync("连接成功，开始验证Token");
-            IsControlRemoteEnv = true;
-            return (true, remoteMsgUtil);*//*
-        }*/
-
-        /// <summary>
-        /// 退出远程环境
-        /// </summary>
-        public void ExitRemoteEnv()
-        {
-            IsControlRemoteEnv = false;
-        }
-
-        /// <summary>
         /// 序列化当前项目的依赖信息、节点信息
         /// </summary>
         /// <returns></returns>
-        public async Task<SereinProjectData> GetProjectInfoAsync()
+        public SereinProjectData GetProjectInfoAsync()
         {
             var projectData = new SereinProjectData()
             {
@@ -465,28 +368,6 @@ namespace Serein.NodeFlow.Env
                 SereinEnv.WriteLine(InfoType.ERROR, $"无法加载DLL文件：{ex.Message}");
             }
         }
-
-       /* /// <summary>
-        /// 加载本地程序集
-        /// </summary>
-        /// <param name="flowLibrary"></param>
-        public void LoadLibrary(FlowLibraryCache flowLibrary)
-        {
-            try
-            {
-                libraryInfo  = FlowLibraryService.LoadFlowLibrary(flowLibrary);
-                if (mdInfos.Count > 0)
-                {
-                    UIContextOperation?.Invoke(() => Event.OnDllLoad(new LoadDllEventArgs(libraryInfo, mdInfos))); // 通知UI创建dll面板显示
-                }
-            }
-            catch (Exception ex)
-            {
-                SereinEnv.WriteLine(InfoType.ERROR, $"无法加载DLL文件：{ex.Message}");
-            }
-
-        }*/
-
 
         /// <summary>
         /// 移除DLL
@@ -572,9 +453,6 @@ namespace Serein.NodeFlow.Env
             //}
         }
 
-        private int _addCanvasCount = 0;
-
-
         private async Task<FlowCanvasDetails> LoadCanvasAsync(FlowCanvasDetailsInfo info)
         {
             var model = new FlowCanvasDetails(this);
@@ -623,6 +501,7 @@ namespace Serein.NodeFlow.Env
         /// <para>异步方法：Func&lt;object,object[],Task&gt;</para>
         /// <para>异步有返回值方法：Func&lt;object,object[],Task&lt;object&gt;&gt;</para>
         /// </summary>
+        /// <param name="assemblyName"></param>
         /// <param name="methodName"></param>
         /// <param name="delegateDetails"></param>
         /// <returns></returns>
@@ -711,10 +590,11 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// 从Guid获取画布
         /// </summary>
-        /// <param name="nodeGuid">节点Guid</param>
-        /// <returns>节点Model</returns>
+        /// <param name="nodeGuid">画布Guid</param>
+        /// <param name="canvasDetails">画布实体</param>
+        /// <returns>是否获取成功</returns>
         /// <exception cref="ArgumentNullException">无法获取节点、Guid/节点为null时报错</exception>
-        public bool TryGetCanvasModel(string nodeGuid, out FlowCanvasDetails canvasDetails)
+        public bool TryGetCanvasModel(string nodeGuid,[NotNullWhen(true)] out FlowCanvasDetails? canvasDetails)
         {
             if (string.IsNullOrEmpty(nodeGuid))
             {
@@ -729,9 +609,10 @@ namespace Serein.NodeFlow.Env
         /// 从Guid获取节点
         /// </summary>
         /// <param name="nodeGuid">节点Guid</param>
+        /// <param name="nodeModel">节点Guid</param>
         /// <returns>节点Model</returns>
         /// <exception cref="ArgumentNullException">无法获取节点、Guid/节点为null时报错</exception>
-        public bool TryGetNodeModel(string nodeGuid, out IFlowNode nodeModel)
+        public bool TryGetNodeModel(string nodeGuid, [NotNullWhen(true)] out IFlowNode? nodeModel)
         {
             if (string.IsNullOrEmpty(nodeGuid))
             {

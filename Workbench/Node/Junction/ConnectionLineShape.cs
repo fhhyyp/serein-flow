@@ -35,7 +35,7 @@ namespace Serein.Workbench.Node.View
     /// </summary>
     public class ConnectionLineShape : Shape
     {
-        private readonly double strokeThickness;
+        //private readonly double strokeThickness;
 
         private readonly LineType lineType;
 
@@ -47,6 +47,7 @@ namespace Serein.Workbench.Node.View
         /// <param name="end">结束坐标</param>
         /// <param name="brush">颜色</param>
         /// <param name="isDotted">是否为虚线</param>
+        /// <param name="isTop">元素是否在画布上置顶</param>
         public ConnectionLineShape(LineType lineType,
                                    Point start,
                                    Point end,
@@ -58,7 +59,7 @@ namespace Serein.Workbench.Node.View
             this.brush = brush;
             startPoint = start;
             endPoint = end;
-            this.strokeThickness = 4;
+            //this.strokeThickness = 4;
             InitElementPoint(isDotted, isTop);
 
             _ = Task.Run(async () =>
@@ -72,6 +73,11 @@ namespace Serein.Workbench.Node.View
         }
 
 
+        /// <summary>
+        /// 初始化连接线元素点
+        /// </summary>
+        /// <param name="isDotted"></param>
+        /// <param name="isTop"></param>
         public void InitElementPoint(bool isDotted , bool isTop = false)
         {
             hitVisiblePen = new Pen(Brushes.Transparent, 1.0); // 初始化碰撞检测线
@@ -148,8 +154,8 @@ namespace Serein.Workbench.Node.View
         #region 重绘
 
         private readonly StreamGeometry streamGeometry = new StreamGeometry();
-        private Point rightCenterOfStartLocation;  // 目标节点选择左侧边缘中心
-        private Point leftCenterOfEndLocation;  // 起始节点选择右侧边缘中心 
+        //private Point rightCenterOfStartLocation;  // 目标节点选择左侧边缘中心
+        //private Point leftCenterOfEndLocation;  // 起始节点选择右侧边缘中心 
         private Pen hitVisiblePen;  // 初始化碰撞检测线
         private Pen visualPen; // 默认可视化Pen
         private Point startPoint; // 连接线的起始节点
@@ -158,8 +164,16 @@ namespace Serein.Workbench.Node.View
         private double opacity; // 透明度
 
         double linkSize;  // 根据缩放比例调整线条粗细
+
+        /// <summary>
+        /// 定义几何形状
+        /// </summary>
         protected override Geometry DefiningGeometry => streamGeometry;
-        
+
+        /// <summary>
+        /// 更新线条颜色
+        /// </summary>
+        /// <param name="brush"></param>
         public void UpdateLineColor(Brush brush)
         {
             visualPen = new Pen(brush, 3.0); // 默认可视化Pen

@@ -24,7 +24,10 @@ namespace Serein.Proto.Modbus
 
         private readonly CancellationTokenSource _cts = new();
 
+
+#pragma warning disable CS8618 // 在退出构造函数时，不可为 null 的字段必须包含非 null 值。请考虑添加 "required" 修饰符或声明为可为 null。
         public ModbusRtuClient(string portName, int baudRate = 9600, Parity parity = Parity.None, int dataBits = 8, StopBits stopBits = StopBits.One, byte slaveId = 1)
+#pragma warning restore CS8618 // 在退出构造函数时，不可为 null 的字段必须包含非 null 值。请考虑添加 "required" 修饰符或声明为可为 null。
         {
             _slaveId = slaveId;
             _serialPort = new SerialPort(portName, baudRate, parity, dataBits, stopBits)

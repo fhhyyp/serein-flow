@@ -23,6 +23,9 @@ namespace Serein.Workbench.Views
     /// </summary>
     public partial class BaseNodesView : UserControl
     {
+        /// <summary>
+        /// 基础节点视图构造函数
+        /// </summary>
         public BaseNodesView()
         {
             this.DataContext = App.GetService<Locator>().BaseNodesViewModel;

@@ -158,10 +158,11 @@ namespace Serein.NodeFlow
         /// <param name="sb">字符串构建器</param>
         /// <param name="retractCount">缩进次数（4个空格）</param>
         /// <param name="code">要添加的代码</param>
+        /// <param name="isWrapping">是否换行</param>
         /// <returns>字符串构建器本身</returns>
         public static StringBuilder AppendCode(this StringBuilder sb,
             int retractCount = 0,
-            string code = null,
+            string? code = null,
             bool isWrapping = true)
         {
             if (!string.IsNullOrWhiteSpace(code))

@@ -18,11 +18,11 @@ using System.Xml.Linq;
 namespace Serein.NodeFlow.Model.Nodes
 {
     
-    [NodeProperty(ValuePath = NodeValuePath.Node)]
+    [FlowDataProperty(ValuePath = NodeValuePath.Node,  IsNodeImp = true)]
     public partial class SingleScriptNode : NodeModelBase
     {
-        [PropertyInfo(IsNotification = true)]
-        private string _script;
+        [DataInfo(IsNotification = true)]
+        private string _script = string.Empty;
     }
 
     /// <summary>
@@ -293,6 +293,7 @@ namespace Serein.NodeFlow.Model.Nodes
         /// 执行脚本
         /// </summary>
         /// <param name="context"></param>
+        /// <param name="token"></param>
         /// <returns></returns>
         public override async Task<FlowResult> ExecutingAsync(IFlowContext context, CancellationToken token)
         {

@@ -10,7 +10,7 @@ using System.Diagnostics;
 
 namespace Serein.Workbench.Converters
 {
-    public class BoolToVisibilityConverter : IValueConverter
+    internal class BoolToVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {

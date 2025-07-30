@@ -10,10 +10,10 @@ namespace Serein.Workbench.Avalonia.Api
   
 
 
-    /// <summary>
+ /*   /// <summary>
     /// 约束一个节点应该有哪些控制点
     /// </summary>
-    /*public interface INodeJunction
+    public interface INodeJunction
     {
         /// <summary>
         /// 方法执行入口控制点

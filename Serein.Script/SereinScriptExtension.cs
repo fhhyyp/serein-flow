@@ -16,7 +16,7 @@ namespace Serein.Script
       /// <returns>字符串构建器本身</returns>
         public static StringBuilder AppendCode(this StringBuilder sb,
             int retractCount = 0,
-            string code = null,
+            string? code = null,
             bool isWrapping = true)
         {
             if (!string.IsNullOrWhiteSpace(code))

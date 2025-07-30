@@ -8,7 +8,7 @@ namespace Serein.Library
     /// <summary>
     /// 节点调试设置，用于中断节点的运行
     /// </summary>
-    [NodeProperty(ValuePath = NodeValuePath.DebugSetting)]
+    [FlowDataProperty(ValuePath = NodeValuePath.DebugSetting)]
     public partial class NodeDebugSetting
     {
         /// <summary>
@@ -24,25 +24,25 @@ namespace Serein.Library
         /// <summary>
         /// 是否保护参数
         /// </summary>
-        [PropertyInfo(IsNotification = true)]
+        [DataInfo(IsNotification = true)]
         private bool _isProtectionParameter = false;
 
         /// <summary>
         /// 对应的节点
         /// </summary>
-        [PropertyInfo(IsProtection = true)]
+        [DataInfo(IsProtection = true)]
         private IFlowNode _nodeModel;
 
         /// <summary>
         /// 是否使能
         /// </summary>
-        [PropertyInfo(IsNotification = true)]
+        [DataInfo(IsNotification = true)]
         private bool _isEnable = true;
 
         /// <summary>
         ///  是否中断节点。
         /// </summary>
-        [PropertyInfo(IsNotification = true)]
+        [DataInfo(IsNotification = true)]
         private bool _isInterrupt = false;
 
     }

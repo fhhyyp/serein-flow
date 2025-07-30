@@ -14,6 +14,10 @@ namespace Serein.Workbench.Node.View
     public partial class FlowCallNodeControl : NodeControlBase, INodeJunction
     {
         private new FlowCallNodeControlViewModel ViewModel { get; set; }
+
+        /// <summary>
+        /// 流程接口节点控件构造函数
+        /// </summary>
         public FlowCallNodeControl()
         {
             var env = App.GetService<IFlowEnvironment>();
@@ -23,6 +27,11 @@ namespace Serein.Workbench.Node.View
             base.ViewModel.NodeModel.DisplayName = "[流程接口]";
             InitializeComponent();
         }
+
+        /// <summary>
+        /// 流程接口节点控件构造函数，传入ViewModel
+        /// </summary>
+        /// <param name="viewModel"></param>
         public FlowCallNodeControl(FlowCallNodeControlViewModel viewModel) : base(viewModel)
         {
             DataContext = viewModel;

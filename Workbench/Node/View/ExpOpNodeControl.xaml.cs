@@ -10,6 +10,9 @@ namespace Serein.Workbench.Node.View
     /// </summary>
     public partial class ExpOpNodeControl : NodeControlBase, INodeJunction
     {
+        /// <summary>
+        /// 表达式操作节点控件
+        /// </summary>
         public ExpOpNodeControl() : base()
         {
             // 窗体初始化需要
@@ -20,6 +23,11 @@ namespace Serein.Workbench.Node.View
             DataContext = ViewModel;
             InitializeComponent();
         }
+
+        /// <summary>
+        /// 表达式操作节点控件构造函数，使用指定的 ViewModel 初始化
+        /// </summary>
+        /// <param name="viewModel"></param>
         public ExpOpNodeControl(ExpOpNodeControlViewModel viewModel) :base(viewModel)
         {
             DataContext = viewModel;

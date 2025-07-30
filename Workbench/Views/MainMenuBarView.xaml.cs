@@ -21,6 +21,9 @@ namespace Serein.Workbench.Views
     /// </summary>
     public partial class MainMenuBarView : UserControl
     {
+        /// <summary>
+        /// MainMenuBarView 的构造函数
+        /// </summary>
         public MainMenuBarView()
         {
             this.DataContext = App.GetService<Locator>().MainMenuBarViewModel;

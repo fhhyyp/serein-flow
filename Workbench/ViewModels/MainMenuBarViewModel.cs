@@ -8,7 +8,7 @@ using System.Windows.Input;
 
 namespace Serein.Workbench.ViewModels
 {
-    public class MainMenuBarViewModel : ObservableObject
+    internal class MainMenuBarViewModel : ObservableObject
     {
         private readonly IFlowEnvironment flowEnvironment;
         private readonly FlowNodeService flowNodeService;

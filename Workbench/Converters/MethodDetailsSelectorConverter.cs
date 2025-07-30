@@ -8,7 +8,7 @@ using System.Windows.Data;
 
 namespace Serein.Workbench.Converters
 {
-    public class MethodDetailsSelectorConverter : IMultiValueConverter
+    internal class MethodDetailsSelectorConverter : IMultiValueConverter
     {
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {

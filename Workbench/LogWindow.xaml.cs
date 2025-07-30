@@ -1,16 +1,13 @@
-﻿using System.Windows;
+﻿using System;
+using System.IO;
+using System.Text;
+using System.Threading.Tasks;
+using System.Timers;
+using System.Windows;
+using Timer = System.Timers.Timer;
 
 namespace Serein.Workbench
 {
-    /// <summary>
-    /// DebugWindow.xaml 的交互逻辑
-    /// </summary>
-    using System;
-    using System.IO;
-    using System.Text;
-    using System.Threading.Tasks;
-    using System.Timers;
-    using System.Windows;
 
     /// <summary>
     /// LogWindow.xaml 的交互逻辑
@@ -18,6 +15,10 @@ namespace Serein.Workbench
     public partial class LogWindow : Window
     {
         private static LogWindow instance = new LogWindow();
+
+        /// <summary>
+        /// 获取日志窗口的单例实例
+        /// </summary>
         public static LogWindow Instance => instance;
 
 
@@ -29,6 +30,9 @@ namespace Serein.Workbench
         private int flushThreshold = 5; // 设置日志刷新阈值
         private const int maxFlushSize = 1000; // 每次最大刷新字符数
 
+        /// <summary>
+        /// 日志窗口构造函数，初始化组件和定时器
+        /// </summary>
         public LogWindow()
         {
             InitializeComponent();

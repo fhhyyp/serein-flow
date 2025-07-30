@@ -50,6 +50,10 @@ namespace Serein.Workbench.Node.ViewModel
         private readonly FlowNodeService flowNodeService;
         private readonly IFlowEEForwardingService flowEEForwardingService;
 
+        /// <summary>
+        /// 流程接口节点构造函数
+        /// </summary>
+        /// <param name="node"></param>
         public FlowCallNodeControlViewModel(SingleFlowCallNode node) : base(node)
         {
             this.FlowCallNode = node;

@@ -58,7 +58,6 @@ namespace Serein.Workbench.Node.View
         JunctionControlBase INodeJunction.ReturnDataJunction => throw new Exception();
 
 
-        public JunctionControlBase[] ArgDataJunction => [];
-
+        JunctionControlBase[] INodeJunction.ArgDataJunction => [];
     }
 }

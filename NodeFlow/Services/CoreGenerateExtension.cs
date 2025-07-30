@@ -77,6 +77,7 @@ namespace Serein.NodeFlow.Services
         /// 生成完全的xml注释
         /// </summary>
         /// <param name="context"></param>
+        /// <param name="retractCount"></param>
         /// <returns></returns>
         public static string ToXmlComments(this string context, int retractCount = 0)
         {

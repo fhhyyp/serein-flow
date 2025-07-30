@@ -669,6 +669,12 @@ namespace Serein.Library.Utils
 
         #region 运行
 
+        /// <summary>
+        /// 运行一个方法，方法的参数类型由IOC容器提供
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="action"></param>
+        /// <returns></returns>
         public ISereinIOC Run<T>(Action<T> action)
         {
             var service = Get<T>();
@@ -676,6 +682,13 @@ namespace Serein.Library.Utils
             return this;
         }
 
+        /// <summary>
+        /// 运行一个方法，方法的参数类型由IOC容器提供
+        /// </summary>
+        /// <typeparam name="T1"></typeparam>
+        /// <typeparam name="T2"></typeparam>
+        /// <param name="action"></param>
+        /// <returns></returns>
         public ISereinIOC Run<T1, T2>(Action<T1, T2> action)
         {
             var service1 = Get<T1>();
@@ -685,6 +698,14 @@ namespace Serein.Library.Utils
             return this;
         }
 
+        /// <summary>
+        /// 运行一个方法，方法的参数类型由IOC容器提供
+        /// </summary>
+        /// <typeparam name="T1"></typeparam>
+        /// <typeparam name="T2"></typeparam>
+        /// <typeparam name="T3"></typeparam>
+        /// <param name="action"></param>
+        /// <returns></returns>
         public ISereinIOC Run<T1, T2, T3>(Action<T1, T2, T3> action)
         {
             var service1 = Get<T1>();
@@ -694,6 +715,15 @@ namespace Serein.Library.Utils
             return this;
         }
 
+        /// <summary>
+        ///  运行一个方法，方法的参数类型由IOC容器提供
+        /// </summary>
+        /// <typeparam name="T1"></typeparam>
+        /// <typeparam name="T2"></typeparam>
+        /// <typeparam name="T3"></typeparam>
+        /// <typeparam name="T4"></typeparam>
+        /// <param name="action"></param>
+        /// <returns></returns>
         public ISereinIOC Run<T1, T2, T3, T4>(Action<T1, T2, T3, T4> action)  
         {
             var service1 = Get<T1>();

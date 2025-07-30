@@ -10,7 +10,10 @@ namespace Serein.NodeFlow.Model.Nodes
     /// </summary>
     public class SingleFlipflopNode : NodeModelBase
     {
-
+        /// <summary>
+        /// 构造一个新的单触发器节点实例。
+        /// </summary>
+        /// <param name="environment"></param>
         public SingleFlipflopNode(IFlowEnvironment environment) : base(environment)
         {
 
@@ -21,6 +24,7 @@ namespace Serein.NodeFlow.Model.Nodes
         /// 执行触发器进行等待触发
         /// </summary>
         /// <param name="context"></param>
+        /// <param name="token"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
         public override async Task<FlowResult> ExecutingAsync(IFlowContext context, CancellationToken token)

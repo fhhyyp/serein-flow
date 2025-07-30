@@ -8,7 +8,7 @@ namespace Serein.Workbench.Converters
     /// <summary>
     /// 根据控件类型切换颜色
     /// </summary>
-    public class TypeToColorConverter : IValueConverter
+    internal class TypeToColorConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {

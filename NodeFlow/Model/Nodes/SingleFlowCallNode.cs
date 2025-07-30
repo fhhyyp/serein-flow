@@ -7,26 +7,26 @@ using System.Reflection;
 namespace Serein.NodeFlow.Model.Nodes
 {
 
-    [NodeProperty(ValuePath = NodeValuePath.Node)]
+    [FlowDataProperty(ValuePath = NodeValuePath.Node, IsNodeImp = true)]
     public partial class SingleFlowCallNode
     {
         /// <summary>
         /// 目标公开节点
         /// </summary>
-        [PropertyInfo(IsNotification = true)]
-        private string targetNodeGuid;
+        [DataInfo(IsNotification = true)]
+        private string targetNodeGuid = string.Empty;
 
         /// <summary>
         /// 使用目标节点的参数（如果为true，则使用目标节点的入参，如果为false，则使用节点自定义入参）
         /// </summary>
-        [PropertyInfo(IsNotification = true)]
-        private bool _isShareParam  ;
+        [DataInfo(IsNotification = true)]
+        private bool _isShareParam ;
 
         /// <summary>
         /// 接口全局名称
         /// </summary>
-        [PropertyInfo(IsNotification = true)]
-        private string _apiGlobalName;
+        [DataInfo(IsNotification = true)]
+        private string _apiGlobalName = string.Empty;
     }
 
 
@@ -45,6 +45,10 @@ namespace Serein.NodeFlow.Model.Nodes
         /// </summary>
         public MethodDetails CacheMethodDetails { get; private set; }
 
+        /// <summary>
+        /// 流程接口节点
+        /// </summary>
+        /// <param name="environment"></param>
         public SingleFlowCallNode(IFlowEnvironment environment) : base(environment)
         {
 
@@ -207,7 +211,7 @@ namespace Serein.NodeFlow.Model.Nodes
         }
 
         private static Dictionary<string, int> ApiInvokeNameCache = new Dictionary<string, int>();
-        public static int getApiInvokeNameCount = 0;
+        private static int getApiInvokeNameCount = 0;
         private static string GetApiInvokeName(SingleFlowCallNode node, string apiName)
         {
             if (ApiInvokeNameCache.ContainsKey(apiName))
@@ -223,6 +227,12 @@ namespace Serein.NodeFlow.Model.Nodes
                 return $"{apiName}";
             }
         }
+
+        /// <summary>
+        /// 获取流程接口节点的名称
+        /// </summary>
+        /// <param name="node"></param>
+        /// <returns></returns>
         public static string GetApiInvokeName(SingleFlowCallNode node)
         {
             if(node.TargetNode is null)

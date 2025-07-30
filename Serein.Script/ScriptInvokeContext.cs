@@ -20,7 +20,9 @@ namespace Serein.Script
         {
         }
 
-        public IFlowContext FlowContext{ get; }
+#pragma warning disable CS8766 // 返回类型中引用类型的为 Null 性与隐式实现的成员不匹配(可能是由于为 Null 性特性)。
+        public IFlowContext? FlowContext{ get; }
+#pragma warning restore CS8766 // 返回类型中引用类型的为 Null 性与隐式实现的成员不匹配(可能是由于为 Null 性特性)。
 
         /// <summary>
         /// 定义的变量
@@ -48,13 +50,24 @@ namespace Serein.Script
         public bool IsNeedReturn { get; set; }
 
 
-        object IScriptInvokeContext.GetVarValue(string varName)
+        /// <summary>
+        /// 获取变量的值
+        /// </summary>
+        /// <param name="varName"></param>
+        /// <returns></returns>
+        object? IScriptInvokeContext.GetVarValue(string varName)
         {
             _variables.TryGetValue(varName, out var value);
             return value;
         }
 
 
+        /// <summary>
+        /// 设置变量的值
+        /// </summary>
+        /// <param name="varName"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
         bool IScriptInvokeContext.SetVarValue(string varName, object? value)
         {
             if (!_variables.TryAdd(varName, value))

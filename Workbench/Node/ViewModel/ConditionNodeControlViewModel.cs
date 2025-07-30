@@ -10,7 +10,7 @@ namespace Serein.Workbench.Node.ViewModel
     public class ConditionNodeControlViewModel : NodeControlViewModelBase
     {
         
-        public new SingleConditionNode NodeModel { get; }
+        private new SingleConditionNode NodeModel { get; }
 
         /// <summary>
         /// 是否为自定义参数

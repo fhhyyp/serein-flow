@@ -12,6 +12,9 @@ namespace Serein.NodeFlow.Tool
     {
         private readonly HashSet<MetadataReference> _references = new HashSet<MetadataReference>();
 
+        /// <summary>
+        /// 构造一个新的动态编译器实例。
+        /// </summary>
         public DynamicCompiler()
         {
             // 默认添加当前 AppDomain 加载的所有程序集
@@ -110,10 +113,6 @@ namespace Serein.NodeFlow.Tool
 
         }
 
-        public void Save()
-        {
-            
-        }
 
 
 

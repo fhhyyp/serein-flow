@@ -9,6 +9,9 @@ using static Serein.Workbench.Themes.TypeViewerWindow;
 namespace Serein.Workbench.Themes
 {
 
+    /// <summary>
+    /// FlowDataDetails 类用于存储对象的详细信息，包括名称、类型、数据类型、数据值和数据路径等。
+    /// </summary>
     public class FlowDataDetails
     {
         /// <summary>
@@ -83,11 +86,12 @@ namespace Serein.Workbench.Themes
 
         // 用于存储当前展开的节点路径
         private HashSet<string> expandedNodePaths = new HashSet<string>();
-        
+
 
         /// <summary>
         /// 加载对象信息，展示其成员
         /// </summary>
+        /// <param name="key">与对象关联的Key,用于管理对象</param>
         /// <param name="obj">要展示的对象</param>
         public void LoadObjectInformation(string key, object obj)
         {
@@ -113,7 +117,7 @@ namespace Serein.Workbench.Themes
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void UpMonitorExpressionButton_Click(object sender, RoutedEventArgs e)
+        private void UpMonitorExpressionButton_Click(object sender, RoutedEventArgs e)
         {
             //if (FlowEnvironment is not null && await FlowEnvironment.AddInterruptExpressionAsync(monitorKey, MonitorExpression)) // 对象预览器尝试添加中断表达式
             //{
@@ -441,6 +445,7 @@ namespace Serein.Workbench.Themes
         /// </summary>
         /// <param name="obj"></param>
         /// <param name="property"></param>
+        /// <param name="value"></param>
         /// <returns></returns>
         private string GetPropertyValue(object obj, PropertyInfo property,out object? value)
         { 
@@ -469,6 +474,7 @@ namespace Serein.Workbench.Themes
         /// </summary>
         /// <param name="obj"></param>
         /// <param name="field"></param>
+        /// <param name="value"></param>
         /// <returns></returns>
         private string GetFieldValue(object obj, FieldInfo field, out object? value)
         {
@@ -486,6 +492,7 @@ namespace Serein.Workbench.Themes
 
     }
 }
+#if false
 
 
 /// <summary>
@@ -651,3 +658,5 @@ namespace Serein.Workbench.Themes
 
 //}
 
+
+#endif

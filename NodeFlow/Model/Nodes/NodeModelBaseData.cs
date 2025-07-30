@@ -13,49 +13,49 @@ namespace Serein.NodeFlow.Model.Nodes
     /// <summary>
     /// 节点基类（数据）
     /// </summary>
-    [NodeProperty(ValuePath = NodeValuePath.Node)]
+    [FlowDataProperty(ValuePath = NodeValuePath.Node)]
     public abstract partial class NodeModelBase : IFlowNode
     {
         /// <summary>
         /// 节点运行环境
         /// </summary>
-        [PropertyInfo(IsProtection = true)]
+        [DataInfo(IsProtection = true)]
         private IFlowEnvironment _env;
 
         /// <summary>
         /// 标识节点对象全局唯一
         /// </summary>
-        [PropertyInfo(IsProtection = true)]
+        [DataInfo(IsProtection = true)]
         private string _guid;
 
         /// <summary>
         /// 描述节点对应的控件类型
         /// </summary>
-        [PropertyInfo(IsProtection = true)]
+        [DataInfo(IsProtection = true)]
         private NodeControlType _controlType;
 
         /// <summary>
         /// 所属画布
         /// </summary>
-        [PropertyInfo(IsProtection = true)]
+        [DataInfo(IsProtection = true)]
         private FlowCanvasDetails _canvasDetails ;
 
         /// <summary>
         /// 在画布中的位置
         /// </summary>
-        [PropertyInfo(IsProtection = true)] 
+        [DataInfo(IsProtection = true)] 
         private PositionOfUI _position ;
 
         /// <summary>
         /// 显示名称
         /// </summary>
-        [PropertyInfo]
+        [DataInfo]
         private string _displayName;
 
         /// <summary>
         /// 是否公开
         /// </summary>
-        [PropertyInfo(IsNotification = true)]
+        [DataInfo(IsNotification = true)]
         private bool _isPublic;
 
        /* /// <summary>
@@ -67,13 +67,13 @@ namespace Serein.NodeFlow.Model.Nodes
         /// <summary>
         /// 附加的调试功能
         /// </summary>
-        [PropertyInfo(IsProtection = true)] 
+        [DataInfo(IsProtection = true)] 
         private NodeDebugSetting _debugSetting ;
 
         /// <summary>
         /// 方法描述。包含参数信息。不包含Method与委托，如若需要调用对应的方法，需要通过MethodName从环境中获取委托进行调用。
         /// </summary>
-        [PropertyInfo] 
+        [DataInfo] 
         private MethodDetails _methodDetails ;
     }
 
@@ -90,6 +90,10 @@ namespace Serein.NodeFlow.Model.Nodes
         /// </summary>
         public virtual int MaxChildrenCount { get; } = 0;
 
+        /// <summary>
+        /// 创建一个节点模型的基类实例
+        /// </summary>
+        /// <param name="environment"></param>
         public NodeModelBase(IFlowEnvironment environment)
         {
             PreviousNodes = new Dictionary<ConnectionInvokeType, List<IFlowNode>>();

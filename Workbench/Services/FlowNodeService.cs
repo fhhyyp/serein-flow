@@ -18,7 +18,7 @@ namespace Serein.Workbench.Services
     /// <summary>
     /// 流程节点管理
     /// </summary>
-    public class FlowNodeService 
+    internal class FlowNodeService 
     {
 
 
@@ -120,7 +120,7 @@ namespace Serein.Workbench.Services
         /// <summary>
         /// 连接数据
         /// </summary>
-        public ConnectingData ConnectingData { get; } = new ConnectingData();
+        internal ConnectingData ConnectingData { get; } = new ConnectingData();
 
         #endregion
 
@@ -471,12 +471,12 @@ namespace Serein.Workbench.Services
             return NodeControls.TryGetValue(nodeGuid, out nodeControl);
         }
 
-        
+
         /// <summary>
         /// 从Guid获取画布视图
         /// </summary>
         /// <param name="nodeGuid"></param>
-        /// <param name="nodeControl"></param>
+        /// <param name="flowCanvas"></param>
         /// <returns></returns>
         private bool TryGetCanvas(string nodeGuid, out FlowCanvasView flowCanvas)
         {
@@ -643,8 +643,7 @@ namespace Serein.Workbench.Services
             }
             catch (Exception ex)
             {
-
-                //SereinEnv.WriteLine(InfoType.ERROR, $"粘贴节点时发生异常：{ex}");
+                SereinEnv.WriteLine(InfoType.ERROR, $"粘贴节点时发生异常：{ex}");
             }
             // SereinEnv.WriteLine(InfoType.INFO, $"剪贴板文本内容: {clipboardText}");
         }

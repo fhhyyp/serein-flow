@@ -14,6 +14,10 @@ namespace Serein.Workbench.Node.View
     /// </summary>
     public partial class ActionNodeControl : NodeControlBase, INodeJunction
     {
+        /// <summary>
+        /// 构造函数，传入ViewModel
+        /// </summary>
+        /// <param name="viewModel"></param>
         public ActionNodeControl(ActionNodeControlViewModel viewModel) : base(viewModel) 
         {
             DataContext = viewModel;

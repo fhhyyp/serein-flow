@@ -47,7 +47,6 @@ namespace Serein.NodeFlow.Model.Nodes
         /// </summary>
         /// <param name="context">流程上下文</param>
         /// <param name="token"></param>
-        /// <param name="args">自定义参数</param>
         /// <returns>节点传回数据对象</returns>
         public virtual async Task<FlowResult> ExecutingAsync(IFlowContext context, CancellationToken token)
         {

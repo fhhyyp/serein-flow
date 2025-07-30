@@ -9,8 +9,14 @@ using System.Windows;
 
 namespace Serein.Workbench.Themes
 {
+    /// <summary>
+    /// BindableRichTextBox 是一个可绑定的 RichTextBox 控件，允许将 FlowDocument 对象绑定到其 Document 属性。
+    /// </summary>
     public partial class BindableRichTextBox : RichTextBox
     {
+        /// <summary>
+        /// BindableRichTextBox 的依赖属性，允许绑定 FlowDocument 对象到 RichTextBox 的 Document 属性。
+        /// </summary>
         public new FlowDocument Document
         {
             get { return (FlowDocument)GetValue(DocumentProperty); }

@@ -31,7 +31,9 @@ namespace Serein.Workbench.Views
     /// </summary>
     public partial class FlowEditView : UserControl
     {
-        
+        /// <summary>
+        /// 流程编辑视图构造函数
+        /// </summary>
         public FlowEditView()
         {
             this.DataContext = App.GetService<Locator>().FlowEditViewModel;

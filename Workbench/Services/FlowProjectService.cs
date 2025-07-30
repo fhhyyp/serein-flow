@@ -11,35 +11,46 @@ using System.Threading.Tasks;
 
 namespace Serein.Workbench.Services
 {
+    /// <summary>
+    /// 流程项目服务
+    /// </summary>
     public class FlowProjectService
     {
         private readonly IFlowEnvironment flowEnvironment;
 
 
+        /// <summary>
+        /// 流程项目服务
+        /// </summary>
+        /// <param name="flowEnvironment"></param>
         public FlowProjectService(IFlowEnvironment flowEnvironment)
         {
             this.flowEnvironment = flowEnvironment;
         }
 
+        /// <summary>
+        /// 启动流程项目管理服务器
+        /// </summary>
         public void StartProjectManagementServer()
         {
             // CollabrationSideManagement
         }
 
+        /// <summary>
+        /// 加载本地流程项目到当前环境中
+        /// </summary>
+        /// <param name="filePath"></param>
         public void LoadLocalProject(string filePath)
         {
             if (File.Exists(filePath))
             {
-               /*
-                var dir = Path.GetDirectoryName(filePath);
-                var flowEnvInfo = new FlowEnvInfo
-                {
-                    Project = FlowProjectData,
-                };*/
                 flowEnvironment.LoadProject(filePath);
             }
         }
 
+        /// <summary>
+        /// 选择本地流程项目文件并加载到当前环境中
+        /// </summary>
         public void SelectProjectFile()
         {
             System.Windows.Forms.OpenFileDialog openFileDialog = new System.Windows.Forms.OpenFileDialog();

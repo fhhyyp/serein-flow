@@ -157,7 +157,9 @@ namespace Serein.Workbench.Themes
         /// <summary>
         /// 设置子项节点的事件
         /// </summary>
+        /// <param name="memberNode"></param>
         /// <param name="member"></param>
+        /// <param name="contextMenu"></param>
         /// <returns></returns>
         private bool ConfigureTreeItemMenu(TreeViewItem memberNode, MemberInfo member,out ContextMenu? contextMenu)
         {

@@ -20,6 +20,11 @@ namespace Serein.NodeFlow.Services
         private readonly FlowModelService flowModelService;
         private readonly FlowLibraryService flowLibraryService;
 
+        /// <summary>
+        /// 流程代码生成服务
+        /// </summary>
+        /// <param name="flowModelService"></param>
+        /// <param name="flowLibraryService"></param>
         public FlowCoreGenerateService(FlowModelService flowModelService ,FlowLibraryService flowLibraryService )
         {
             this.flowModelService = flowModelService;
@@ -429,7 +434,6 @@ namespace Serein.NodeFlow.Services
             if (param is null) return;
             if (pds is null) return;
 
-            bool isGetPreviousNode = false;
             for (int index = 0; index < pds.Length; index++)
             {
                 ParameterDetails? pd = pds[index];
@@ -798,7 +802,6 @@ namespace Serein.NodeFlow.Services
             if (param is null) return;
             if (pds is null) return;
 
-            bool isGetPreviousNode = false;
             for (int index = 0; index < pds.Length; index++)
             {
                 ParameterDetails? pd = pds[index];
@@ -998,17 +1001,18 @@ namespace Serein.NodeFlow.Services
             sb.AppendCode(1, $"}}");
         }
 
-        public class SereinGlobalDataInfo
+      
+        private class SereinGlobalDataInfo
         {
             /// <summary>
             /// 全局数据节点
             /// </summary>
-            public SingleGlobalDataNode Node { get; set; }
+            public required SingleGlobalDataNode Node { get; set; }
 
             /// <summary>
             /// 全局数据的来源节点
             /// </summary>
-            public IFlowNode DataSourceNode { get; set; }
+            public required IFlowNode DataSourceNode { get; set; }
 
             /// <summary>
             /// 全局数据的键名

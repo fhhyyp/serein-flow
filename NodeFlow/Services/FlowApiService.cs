@@ -11,7 +11,7 @@ namespace Serein.NodeFlow.Services
     /// <summary>
     /// 流程API服务，用于外部调用流程接口
     /// </summary>
-    public class FlowApiService
+    internal class FlowApiService
     {
         private readonly IFlowEnvironment flowEnvironment;
         private readonly FlowModelService flowModelService;

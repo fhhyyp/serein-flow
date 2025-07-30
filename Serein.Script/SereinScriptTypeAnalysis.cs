@@ -378,7 +378,7 @@ namespace Serein.Script
                             Type argType = types[index];
                             NodeSymbolInfos[argNode] = argType;
                         }
-                        var isAsync = IsGenericTask(methodInfo.ReturnType, out var taskResult);
+                        var isAsync = EmitHelper.IsGenericTask(methodInfo.ReturnType, out var taskResult);
                         var methodReturnType = isAsync ? taskResult : methodInfo.ReturnType;
                         AsyncMethods[memberFunctionCallNode] = isAsync;
                         NodeSymbolInfos[memberFunctionCallNode.Object] = objectType;
@@ -402,7 +402,7 @@ namespace Serein.Script
                             Type argType = types[index];
                             NodeSymbolInfos[argNode] = argType;
                         }
-                        var isAsync = IsGenericTask(methodInfo.ReturnType, out var taskResult);
+                        var isAsync = EmitHelper.IsGenericTask(methodInfo.ReturnType, out var taskResult);
                         var methodReturnType = isAsync  ? taskResult : methodInfo.ReturnType;
                         AsyncMethods[functionCallNode] = isAsync;
                         NodeSymbolInfos[functionCallNode] = methodReturnType;
@@ -583,43 +583,15 @@ namespace Serein.Script
             {
                 return resultType;
             }
-            try
+            resultType = Type.GetType(typeName); // 从命名空间查询类型
+            if (resultType != null)
             {
-                resultType = Type.GetType(typeName); // 从命名空间查询类型
-                if (resultType != null)
-                {
-                    return resultType;
-                }
-                throw new InvalidOperationException($"无法匹配类型 {typeName}");
+                return resultType;
             }
-            catch (Exception ex)
-            {
-                throw;
-            }
+            throw new InvalidOperationException($"无法匹配类型 {typeName}");
         }
 
-        private static bool IsGenericTask(Type returnType, out Type taskResult)
-        {
-            // 判断是否为 Task 类型或泛型 Task<T>
-            if (returnType == typeof(Task))
-            {
-                taskResult = typeof(void);
-                return true;
-            }
-            else if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
-            {
-                // 获取泛型参数类型
-                Type genericArgument = returnType.GetGenericArguments()[0];
-                taskResult = genericArgument;
-                return true;
-            }
-            else
-            {
-                taskResult = null;
-                return false;
-
-            }
-        }
+        
 
         /// <summary>
         /// 获取某个集合类型支持的索引参数类型

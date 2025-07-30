@@ -270,6 +270,14 @@ namespace Serein.Library.Utils
 
             return (T)result;
         }
+
+        /// <summary>
+        /// 将字符串转换为指定类型的值对象。
+        /// </summary>
+        /// <param name="valueStr"></param>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
         public static object ToValueData(this string valueStr, Type type)
         {
             if (string.IsNullOrWhiteSpace(valueStr))

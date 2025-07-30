@@ -32,7 +32,7 @@ namespace Serein.Script
         /// </summary>
         /// <param name="varName"></param>
         /// <returns></returns>
-        object GetVarValue(string varName);
+        object? GetVarValue(string varName);
 
         /// <summary>
         /// 设置变量的值

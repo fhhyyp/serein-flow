@@ -42,7 +42,9 @@ namespace Serein.Proto.Modbus
         /// </summary>
         private int _transactionId = 0;
 
+#pragma warning disable CS8618 // 在退出构造函数时，不可为 null 的字段必须包含非 null 值。请考虑添加 "required" 修饰符或声明为可为 null。
         public ModbusTcpClient(string host, int port = 502)
+#pragma warning restore CS8618 // 在退出构造函数时，不可为 null 的字段必须包含非 null 值。请考虑添加 "required" 修饰符或声明为可为 null。
         {
             _tcpClient = new TcpClient();
             _tcpClient.Connect(host, port);
@@ -271,6 +273,11 @@ namespace Serein.Proto.Modbus
             while (_tcpClient.Connected)
             {
                 var request = await _channel.Reader.ReadAsync();
+                if (request.PDU is null)
+                {
+                    request.Completion?.TrySetCanceled();
+                    continue;
+                }
                 byte[] packet = BuildPacket(request.TransactionId, 0x01, (byte)request.FunctionCode, request.PDU);
                 OnTx?.Invoke(packet); // 触发发送日志
                 await _stream.WriteAsync(packet, 0, packet.Length);

@@ -1,5 +1,6 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
+using Serein.Library.Utils;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
@@ -7,6 +8,9 @@ using System.Reflection;
 
 namespace Serein.NodeFlow.Tool;
 
+/// <summary>
+/// 节点方法描述帮助类
+/// </summary>
 public static class NodeMethodDetailsHelper
 {
 
@@ -25,15 +29,16 @@ public static class NodeMethodDetailsHelper
     /// <param name="type">方法所属的类型</param>
     /// <param name="methodInfo">方法信息</param>
     /// <param name="assemblyName">方法所属的程序集名称</param>
+    /// <param name="outMethodInfo">传出的方法信息</param>
     /// <param name="methodDetails">创建的方法描述，用来生成节点信息</param>
     /// <param name="delegateDetails">方法对应的Emit动态委托</param>
     /// <returns>指示是否创建成功</returns>
     public static bool TryCreateDetails(Type type, 
                                         MethodInfo methodInfo,  
                                         string assemblyName,
-                                        [MaybeNullWhen(false)]  out MethodInfo outMethodInfo,
-                                        [MaybeNullWhen(false)]  out MethodDetails methodDetails,
-                                        [MaybeNullWhen(false)]  out DelegateDetails delegateDetails)
+                                        [NotNullWhen(true)] out MethodInfo? outMethodInfo,
+                                        [NotNullWhen(true)] out MethodDetails? methodDetails,
+                                        [NotNullWhen(true)] out DelegateDetails? delegateDetails)
     {
         
 
@@ -60,7 +65,7 @@ public static class NodeMethodDetailsHelper
         
 
         Type? returnType;
-        bool isAsync = IsGenericTask(methodInfo.ReturnType, out var taskResult);
+        bool isAsync = EmitHelper.IsGenericTask(methodInfo.ReturnType, out var taskResult);
         bool isStatic = methodInfo.IsStatic;
 
 
@@ -172,6 +177,12 @@ public static class NodeMethodDetailsHelper
         return true;
 
     }
+
+    /// <summary>
+    /// 获取方法签名
+    /// </summary>
+    /// <param name="method"></param>
+    /// <returns></returns>
     public static string GetMethodSignature(MethodInfo method)
     {
         if (method == null) return string.Empty;
@@ -184,28 +195,8 @@ public static class NodeMethodDetailsHelper
         return $"{methodName}({parameters})";
         //return $"{methodName}({parameters}) : {returnType}";
     }
-    public static bool IsGenericTask(Type returnType, out Type? taskResult)
-    {
-        // 判断是否为 Task 类型或泛型 Task<T>
-        if (returnType == typeof(Task))
-        {
-            taskResult = null;
-            return true;
-        }
-        else if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
-        {
-            // 获取泛型参数类型
-            Type genericArgument = returnType.GetGenericArguments()[0];
-             taskResult = genericArgument;
-            return true;
-        }
-        else
-        {
-            taskResult = null;
-            return false;
-
-        }
-    }
+   
+    
 
 
     private static ConcurrentDictionary<string, (object, MethodInfo)> ConvertorInstance =[];
@@ -231,6 +222,7 @@ public static class NodeMethodDetailsHelper
             }
             #endregion
             #region 存在自定义的转换器
+#if false
             else if (it.GetCustomAttribute<BindConvertorAttribute>() is BindConvertorAttribute attribute2 && attribute2 is not null)
             {
                 paremType = attribute2.EnumType;
@@ -262,6 +254,8 @@ public static class NodeMethodDetailsHelper
 
                 return ed;
             }
+
+#endif
             #endregion
             #region 常规方法的获取参数
             else

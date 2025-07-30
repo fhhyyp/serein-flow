@@ -7,11 +7,20 @@ using System.Reflection.Emit;
 namespace Serein.NodeFlow.Tool
 {
 
+    /// <summary>
+    /// 动态创建对象的帮助类，支持根据属性字典创建对象并设置属性值。
+    /// </summary>
     public class ObjDynamicCreateHelper
     {
         // 类型缓存，键为类型的唯一名称（可以根据实际需求调整生成方式）
         static Dictionary<string, Type> typeCache = new Dictionary<string, Type>();
 
+        /// <summary>
+        /// 根据属性字典和类型名称创建对象实例，并设置属性值。
+        /// </summary>
+        /// <param name="properties"></param>
+        /// <param name="typeName"></param>
+        /// <returns></returns>
         public static object Resolve(Dictionary<string, object> properties, string typeName)
         {
             var obj = CreateObjectWithProperties(properties, typeName);

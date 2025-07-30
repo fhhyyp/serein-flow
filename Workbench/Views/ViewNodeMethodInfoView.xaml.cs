@@ -23,6 +23,9 @@ namespace Serein.Workbench.Views
     {
         private readonly ViewNodeMethodInfoViewModel ViewModel;
 
+        /// <summary>
+        /// ViewNodeMethodInfoView 的交互逻辑
+        /// </summary>
         public ViewNodeMethodInfoView()
         {
             ViewModel = App.GetService<Locator>().ViewNodeMethodInfoViewModel;

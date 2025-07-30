@@ -9,6 +9,13 @@ namespace Serein.Library
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
     public sealed class NodeActionAttribute : Attribute
     {
+        /// <summary>
+        /// 节点行为特性构造函数
+        /// </summary>
+        /// <param name="methodDynamicType"></param>
+        /// <param name="methodTips"></param>
+        /// <param name="scan"></param>
+        /// <param name="lockName"></param>
         public NodeActionAttribute(NodeType methodDynamicType,
                                    string methodTips = "",
                                    bool scan = true,

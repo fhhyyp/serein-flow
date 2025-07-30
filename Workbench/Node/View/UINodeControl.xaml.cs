@@ -30,25 +30,23 @@ namespace Serein.Workbench.Node.View
             InitializeComponent();
         }
 
-        public UINodeControl(UINodeControlViewModel viewModel) : base(viewModel)
+        internal UINodeControl(UINodeControlViewModel viewModel) : base(viewModel)
         {
             ViewModel = viewModel;
             DataContext = viewModel;
             ViewModel.NodeModel.DisplayName = "[流程UI]";
             InitializeComponent();
-
-
         }
 
 
 
-        public JunctionControlBase ExecuteJunction => this.ExecuteJunctionControl;
+       JunctionControlBase INodeJunction.ExecuteJunction => this.ExecuteJunctionControl;
 
-        public JunctionControlBase NextStepJunction => throw new NotImplementedException();
+       JunctionControlBase INodeJunction.NextStepJunction => throw new NotImplementedException();
 
-        public JunctionControlBase[] ArgDataJunction => throw new NotImplementedException();
+       JunctionControlBase[] INodeJunction.ArgDataJunction => throw new NotImplementedException();
 
-        public JunctionControlBase ReturnDataJunction => throw new NotImplementedException();
+       JunctionControlBase INodeJunction.ReturnDataJunction => throw new NotImplementedException();
 
 
         private void NodeControlBase_Loaded(object sender, RoutedEventArgs e)

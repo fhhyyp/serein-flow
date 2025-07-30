@@ -10,12 +10,12 @@
         /// <summary>
         /// PDU (Protocol Data Unit) 数据，不包括从站地址和CRC
         /// </summary>
-        public byte[] PDU { get; set; }
+        public byte[]? PDU { get; set; }
 
         /// <summary>
         /// 异步任务完成源，用于等待响应
         /// </summary>
-        public TaskCompletionSource<byte[]> Completion { get; set; }
+        public TaskCompletionSource<byte[]>? Completion { get; set; }
     }
 
 }

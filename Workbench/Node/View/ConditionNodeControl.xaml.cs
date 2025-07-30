@@ -10,6 +10,9 @@ namespace Serein.Workbench.Node.View
     /// </summary>
     public partial class ConditionNodeControl : NodeControlBase, INodeJunction
     {
+        /// <summary>
+        /// 条件节点控件（用于条件控件）
+        /// </summary>
         public ConditionNodeControl() : base()
         {
 
@@ -21,6 +24,11 @@ namespace Serein.Workbench.Node.View
             base.ViewModel.NodeModel.DisplayName = "[条件节点]";
             InitializeComponent();
         }
+
+        /// <summary>
+        /// 条件节点控件（用于条件控件）
+        /// </summary>
+        /// <param name="viewModel"></param>
 
         public ConditionNodeControl(ConditionNodeControlViewModel viewModel):base(viewModel)
         {

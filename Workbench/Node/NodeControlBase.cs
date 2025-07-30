@@ -13,7 +13,7 @@ namespace Serein.Workbench.Node.View
     /// <summary>
     /// 节点控件基类（控件）
     /// </summary>
-    public abstract class NodeControlBase : UserControl //, IDynamicFlowNode
+    public abstract class NodeControlBase : UserControl 
     {
         /// <summary>
         /// 节点所在的画布（以后需要将画布封装出来，实现多画布的功能）
@@ -34,12 +34,18 @@ namespace Serein.Workbench.Node.View
 
         public NodeControlViewModelBase ViewModel { get; set; }
 
-
+        /// <summary>
+        /// 节点控件基类，所有节点控件都需要继承这个类
+        /// </summary>
         protected NodeControlBase()
         {
             this.Background = Brushes.Transparent;
         }
 
+        /// <summary>
+        /// 节点控件基类，所有节点控件都需要继承这个类
+        /// </summary>
+        /// <param name="viewModelBase"></param>
         protected NodeControlBase(NodeControlViewModelBase viewModelBase)
         {
             ViewModel = viewModelBase;
@@ -85,7 +91,7 @@ namespace Serein.Workbench.Node.View
         /// 添加与该节点有关的连接后，记录下来
         /// </summary>
         /// <param name="connection"></param>
-        public void AddCnnection(ConnectionControl connection)
+        internal void AddCnnection(ConnectionControl connection)
         {
             connectionControls.Add(connection);
         }
@@ -94,7 +100,7 @@ namespace Serein.Workbench.Node.View
         /// 删除了连接之后，还需要从节点中的记录移除
         /// </summary>
         /// <param name="connection"></param>
-        public void RemoveConnection(ConnectionControl connection)
+        internal void RemoveConnection(ConnectionControl connection)
         {
             connectionControls.Remove(connection);
             connection.Remove(); // 主动删除连接
@@ -163,7 +169,7 @@ namespace Serein.Workbench.Node.View
             return null;
         }
 
-        protected static JunctionControlBase[] GetArgJunction(NodeControlBase nodeControl, MethodDetailsControl methodDetailsControl)
+        internal static JunctionControlBase[] GetArgJunction(NodeControlBase nodeControl, MethodDetailsControl methodDetailsControl)
         {
             // 获取 MethodDetailsControl 实例
             try

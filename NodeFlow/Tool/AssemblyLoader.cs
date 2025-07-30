@@ -17,11 +17,22 @@ namespace Serein.NodeFlow.Tool
         private AssemblyLoadContext context;
         private Dictionary<string, Type> dicTypes = new Dictionary<string, Type>();
 
+        /// <summary>
+        /// 程序集加载器构造函数
+        /// </summary>
+        /// <param name="basePath"></param>
         public AssemblyLoader(string basePath)
         {
             _basePath = basePath;
         }
 
+
+        /// <summary>
+        /// 加载指定的类型
+        /// </summary>
+        /// <param name="dllFileName"></param>
+        /// <param name="typeName"></param>
+        /// <returns></returns>
         public Type Load(string dllFileName, string typeName)
         {
             context = new AssemblyLoadContext(dllFileName);

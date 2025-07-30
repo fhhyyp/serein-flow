@@ -26,9 +26,11 @@ namespace Serein.Workbench.Node.View
     public partial class ScriptNodeControl : NodeControlBase , INodeJunction
     {
         private ScriptNodeControlViewModel viewModel => (ScriptNodeControlViewModel)ViewModel;
-        private DispatcherTimer _debounceTimer; // 用于延迟更新
         private bool _isUpdating = false;    // 防止重复更新
 
+        /// <summary>
+        /// BaseNodesView.xaml 准备节点预览入口
+        /// </summary>
         public ScriptNodeControl()
         {
 
@@ -39,6 +41,11 @@ namespace Serein.Workbench.Node.View
             viewModel.NodeModel.DisplayName = "[脚本节点]";
             InitializeComponent();
         }
+
+        /// <summary>
+        /// 流程运行环境创建节点入口
+        /// </summary>
+        /// <param name="viewModel"></param>
         public ScriptNodeControl(ScriptNodeControlViewModel viewModel) : base(viewModel)
         {
             DataContext = viewModel;

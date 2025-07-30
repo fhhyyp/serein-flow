@@ -14,7 +14,7 @@ namespace Serein.Library
     /// <summary>
     /// 节点入参参数详情
     /// </summary>
-    [NodeProperty(ValuePath = NodeValuePath.Parameter)]
+    [FlowDataProperty(ValuePath = NodeValuePath.Parameter)]
     public partial class ParameterDetails
     {
         // private readonly IFlowEnvironment env;
@@ -22,13 +22,13 @@ namespace Serein.Library
         /// <summary>
         /// 所在的节点
         /// </summary>
-        [PropertyInfo(IsProtection = true)]
+        [DataInfo(IsProtection = true)]
         private IFlowNode _nodeModel;
 
         /// <summary>
         /// 参数索引
         /// </summary>
-        [PropertyInfo] 
+        [DataInfo] 
         private int _index;
 
         /// <summary>
@@ -36,7 +36,7 @@ namespace Serein.Library
         /// <para>如果为 true ，则使用输入的文本值作为入参数据。</para>
         /// <para>如果为 false ，则在当前流程上下文中，根据 ArgDataSourceNodeGuid 查找到对应节点，并根据 ArgDataSourceNodeGuid 判断如何获取其返回的数据，以此作为入参数据。</para>
         /// </summary>
-        [PropertyInfo(IsNotification = true, IsVerify =  true)] 
+        [DataInfo(IsNotification = true, IsVerify =  true)] 
         private bool _isExplicitData ;
 
         ///// <summary>
@@ -49,7 +49,7 @@ namespace Serein.Library
         /// 方法入参若无相关转换器特性标注，则无需关注该变量。该变量用于需要用到枚举BinValue转换器时，指示相应的入参变量需要转为的类型。
         /// </summary>
         [Obsolete("转换器特性将在下一个大版本中移除")]
-        [PropertyInfo]
+        [DataInfo]
         private Type _explicitType ;
 
         /// <summary>
@@ -58,56 +58,56 @@ namespace Serein.Library
         /// <para>Bool   : 布尔类型</para>
         /// <para>Value  ：除以上类型之外的任意参数</para>
         /// </summary>
-        [PropertyInfo] 
+        [DataInfo] 
         private ParameterValueInputType _inputType ;
 
         /// <summary>
         /// 入参数据来源。默认使用上一节点作为入参数据。
         /// </summary>
-        [PropertyInfo(IsNotification = true)]
+        [DataInfo(IsNotification = true)]
         private ConnectionArgSourceType _argDataSourceType = ConnectionArgSourceType.GetPreviousNodeData;
 
         /// <summary>
         /// 当 ArgDataSourceType 不为 GetPreviousNodeData 时（从运行时上一节点获取数据）。
         /// 则通过当前上下文，获取该Guid对应的数据作为预处理的入参参数。
         /// </summary>
-        [PropertyInfo]
+        [DataInfo]
         private string _argDataSourceNodeGuid;
 
         /// <summary>
         /// 方法入参需要的类型。
         /// </summary>
-        [PropertyInfo] 
+        [DataInfo] 
         private Type _dataType ;
 
         /// <summary>
         /// 方法入参参数名称
         /// </summary>
-        [PropertyInfo(IsNotification = true)] 
+        [DataInfo(IsNotification = true)] 
         private string _name ;
 
         /// <summary>
         /// 入参注释
         /// </summary>
-        [PropertyInfo]
+        [DataInfo]
         private string _description;
 
         /// <summary>
         /// 自定义的方法入参数据
         /// </summary>
-        [PropertyInfo(IsNotification = true)] // IsPrint = true
+        [DataInfo(IsNotification = true)] // IsPrint = true
         private string _dataValue;
 
         /// <summary>
         /// 只有当 InputType 为 Select 时，才会需要该成员。
         /// </summary>
-        [PropertyInfo(IsNotification = true)] 
+        [DataInfo(IsNotification = true)] 
         private string[] _items ;
 
         /// <summary>
         /// 指示该属性是可变参数的其中一员（可变参数为数组类型）
         /// </summary>
-        [PropertyInfo]
+        [DataInfo]
         private bool _isParams;
     }
 
@@ -134,6 +134,11 @@ namespace Serein.Library
             this.NodeModel = nodeModel;
         }
 
+        /// <summary>
+        /// 通过参数数据加载实体，用于加载项目文件、远程连接的场景
+        /// </summary>
+        /// <param name="pdInfo"></param>
+        /// <param name="argIndex"></param>
         public ParameterDetails(ParameterData pdInfo, int argIndex)
         {
             this.Index = argIndex;
@@ -163,6 +168,7 @@ namespace Serein.Library
             IsParams = info.IsParams;        
         }
 
+        
         partial void BeforeTheIsExplicitData(ref bool __isAllow, bool newValue)
         {
             if(DataType == typeof(IFlowContext))
@@ -214,6 +220,12 @@ namespace Serein.Library
             return pd;
         }
 
+        /// <summary>
+        /// 转为方法入参数据
+        /// </summary>
+        /// <param name="context"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task<object> ToMethodArgData(IFlowContext context)
         {
             // 1. 从缓存获取
@@ -310,177 +322,181 @@ namespace Serein.Library
 
 
 
-       /* /// <summary>
-        /// 转为方法入参数据
+        /* /// <summary>
+         /// 转为方法入参数据
+         /// </summary>
+         /// <returns></returns>
+         public async Task<object> ToMethodArgData2(IFlowContext context)
+         {
+
+             var nodeModel = NodeModel;
+             var env = nodeModel.Env;
+
+             #region 流程运行上下文预设的参数
+             if (context.TryGetParamsTempData(NodeModel.Guid, Index, out var data))
+             {
+                 return data;
+             }
+             #endregion
+
+             #region 显然的流程基本类型
+             // 返回运行环境
+             if (typeof(IFlowEnvironment).IsAssignableFrom(DataType))
+             {
+                 return env;
+             }
+             // 返回流程上下文
+             if (typeof(IFlowContext).IsAssignableFrom(DataType))
+             {
+                 return context;
+             }
+             // 返回流程上下文
+             if (typeof(IFlowNode).IsAssignableFrom(DataType))
+             {
+                 return NodeModel;
+             }
+             // 显式设置的参数
+             if (IsExplicitData && !DataValue.StartsWith("@", StringComparison.OrdinalIgnoreCase))
+             {
+                 return DataValue.ToConvertValueType(DataType); // 并非表达式，同时是显式设置的参数
+             }
+             #endregion
+
+
+
+
+
+             *//*#region “枚举-类型”转换器
+             if (ExplicitType is not null && ExplicitType.IsEnum && DataType != ExplicitType)
+             {
+                 var resultEnum = Enum.Parse(ExplicitType, DataValue);
+                 // 获取绑定的类型
+                 var type = EnumHelper.GetBoundValue(ExplicitType, resultEnum, attr => attr.Value);
+                 if (type is Type enumBindType && !(enumBindType is null))
+                 {
+                     var value = nodeModel.Env.IOC.CreateObject(enumBindType);
+                     return value;
+                 }
+             } 
+             #endregion*//*
+
+             // 需要获取预入参数据
+             object inputParameter;
+             #region （默认的）从运行时上游节点获取其返回值
+
+             if (ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData)
+             {
+                 var previousNode = context.GetPreviousNode(nodeModel.Guid);
+                 if (previousNode is null)
+                 {
+                     inputParameter = null;
+                 }
+                 else
+                 {
+                     var flowData = context.GetFlowData(previousNode);
+                     inputParameter = flowData.Value; // 当前传递的数据
+                 }
+             }
+             else
+             {
+
+
+                 if(!env.TryGetNodeModel(ArgDataSourceNodeGuid, out var argSourceNodeModel))
+                 {
+                     throw new Exception($"[arg{Index}][{Name}][{DataType}]需要节点[{ArgDataSourceNodeGuid}]的参数，但节点不存在");
+                 }
+
+                 // 如果是公开的节点，需要判断上下文调用中是否存在流程接口节点
+                 if (argSourceNodeModel.IsPublic)
+                 {
+                     var pnGuid = context.GetPreviousNode(NodeModel.Guid);
+                     var pn = env.TryGetNodeModel(pnGuid, out var tmpNode) ? tmpNode : null;
+                     if (pn.ControlType == NodeControlType.FlowCall)
+                     {
+                         argSourceNodeModel = pn;
+                     }
+                 }
+
+                 if (ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
+                 {
+                     var flowData = context.GetFlowData(argSourceNodeModel.Guid);
+                     if(flowData is null)
+                     {
+                         inputParameter = null;
+                     }
+                     else
+                     {
+
+                         inputParameter = flowData.Value;
+                     }
+                 }
+                 else if (ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke)
+                 {
+                     // 立刻调用对应节点获取数据。
+                     var cts = new CancellationTokenSource();
+                     var result = await argSourceNodeModel.ExecutingAsync(context, cts.Token);
+                     cts?.Cancel();
+                     cts?.Dispose();
+                     inputParameter = result.Value;
+                 }
+                 else
+                 {
+                     throw new Exception("节点执行方法获取入参参数时，ConnectionArgSourceType枚举是意外的枚举值");
+                 }
+             }
+             #endregion
+             #region 判断是否执行表达式
+             if (IsExplicitData)
+             {
+                 // @Get 表达式 （从上一节点获取对象）
+                 if (DataValue.StartsWith("@get", StringComparison.OrdinalIgnoreCase))
+                 {
+                     inputParameter = SerinExpressionEvaluator.Evaluate(DataValue, inputParameter, out _);
+                 }
+
+                 // @DTC 表达式 （Data type conversion）
+                 else if (DataValue.StartsWith("@dtc", StringComparison.OrdinalIgnoreCase))
+                 {
+                     inputParameter = SerinExpressionEvaluator.Evaluate(DataValue, inputParameter, out _);
+                 }
+
+                 // @Data 表达式 （获取全局数据）
+                 else if (DataValue.StartsWith("@data", StringComparison.OrdinalIgnoreCase))
+                 {
+                     inputParameter = SerinExpressionEvaluator.Evaluate(DataValue, inputParameter, out _);
+                 }
+
+             }
+
+             #endregion
+
+             // 对引用类型检查 null
+             if (!DataType.IsValueType && inputParameter is null)
+             {
+                 throw new Exception($"[arg{Index}][{Name}][{DataType}]参数不能为null");
+             }
+             if (DataType == typeof(string)) // 转为字符串
+             {
+                 return inputParameter.ToString();
+             }
+             var inputParameterType = inputParameter.GetType();
+             if (DataType.IsSubclassOf(inputParameterType)) // 入参类型 是 预入参数据类型 的 子类/实现类 
+             {
+                 // 方法入参中，父类不能隐式转为子类，这里需要进行强制转换
+                 return ObjectConvertHelper.ConvertParentToChild(inputParameter, DataType);
+             }
+             if (DataType.IsAssignableFrom(inputParameterType))  // 入参类型 是 预入参数据类型 的 父类/接口
+             {
+                 return inputParameter;
+             }
+
+             throw new Exception($"[arg{Index}][{Name}][{DataType}]入参类型不符合，当前预入参类型为{inputParameterType}");
+         }
+ */
+        /// <summary>
+        /// 转为字符串描述
         /// </summary>
         /// <returns></returns>
-        public async Task<object> ToMethodArgData2(IFlowContext context)
-        {
-
-            var nodeModel = NodeModel;
-            var env = nodeModel.Env;
-
-            #region 流程运行上下文预设的参数
-            if (context.TryGetParamsTempData(NodeModel.Guid, Index, out var data))
-            {
-                return data;
-            }
-            #endregion
-
-            #region 显然的流程基本类型
-            // 返回运行环境
-            if (typeof(IFlowEnvironment).IsAssignableFrom(DataType))
-            {
-                return env;
-            }
-            // 返回流程上下文
-            if (typeof(IFlowContext).IsAssignableFrom(DataType))
-            {
-                return context;
-            }
-            // 返回流程上下文
-            if (typeof(IFlowNode).IsAssignableFrom(DataType))
-            {
-                return NodeModel;
-            }
-            // 显式设置的参数
-            if (IsExplicitData && !DataValue.StartsWith("@", StringComparison.OrdinalIgnoreCase))
-            {
-                return DataValue.ToConvertValueType(DataType); // 并非表达式，同时是显式设置的参数
-            }
-            #endregion
-
-            
-
-
-
-            *//*#region “枚举-类型”转换器
-            if (ExplicitType is not null && ExplicitType.IsEnum && DataType != ExplicitType)
-            {
-                var resultEnum = Enum.Parse(ExplicitType, DataValue);
-                // 获取绑定的类型
-                var type = EnumHelper.GetBoundValue(ExplicitType, resultEnum, attr => attr.Value);
-                if (type is Type enumBindType && !(enumBindType is null))
-                {
-                    var value = nodeModel.Env.IOC.CreateObject(enumBindType);
-                    return value;
-                }
-            } 
-            #endregion*//*
-
-            // 需要获取预入参数据
-            object inputParameter;
-            #region （默认的）从运行时上游节点获取其返回值
-            
-            if (ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData)
-            {
-                var previousNode = context.GetPreviousNode(nodeModel.Guid);
-                if (previousNode is null)
-                {
-                    inputParameter = null;
-                }
-                else
-                {
-                    var flowData = context.GetFlowData(previousNode);
-                    inputParameter = flowData.Value; // 当前传递的数据
-                }
-            }
-            else
-            {
-               
-
-                if(!env.TryGetNodeModel(ArgDataSourceNodeGuid, out var argSourceNodeModel))
-                {
-                    throw new Exception($"[arg{Index}][{Name}][{DataType}]需要节点[{ArgDataSourceNodeGuid}]的参数，但节点不存在");
-                }
-                
-                // 如果是公开的节点，需要判断上下文调用中是否存在流程接口节点
-                if (argSourceNodeModel.IsPublic)
-                {
-                    var pnGuid = context.GetPreviousNode(NodeModel.Guid);
-                    var pn = env.TryGetNodeModel(pnGuid, out var tmpNode) ? tmpNode : null;
-                    if (pn.ControlType == NodeControlType.FlowCall)
-                    {
-                        argSourceNodeModel = pn;
-                    }
-                }
-
-                if (ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
-                {
-                    var flowData = context.GetFlowData(argSourceNodeModel.Guid);
-                    if(flowData is null)
-                    {
-                        inputParameter = null;
-                    }
-                    else
-                    {
-
-                        inputParameter = flowData.Value;
-                    }
-                }
-                else if (ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeDataOfInvoke)
-                {
-                    // 立刻调用对应节点获取数据。
-                    var cts = new CancellationTokenSource();
-                    var result = await argSourceNodeModel.ExecutingAsync(context, cts.Token);
-                    cts?.Cancel();
-                    cts?.Dispose();
-                    inputParameter = result.Value;
-                }
-                else
-                {
-                    throw new Exception("节点执行方法获取入参参数时，ConnectionArgSourceType枚举是意外的枚举值");
-                }
-            }
-            #endregion
-            #region 判断是否执行表达式
-            if (IsExplicitData)
-            {
-                // @Get 表达式 （从上一节点获取对象）
-                if (DataValue.StartsWith("@get", StringComparison.OrdinalIgnoreCase))
-                {
-                    inputParameter = SerinExpressionEvaluator.Evaluate(DataValue, inputParameter, out _);
-                }
-
-                // @DTC 表达式 （Data type conversion）
-                else if (DataValue.StartsWith("@dtc", StringComparison.OrdinalIgnoreCase))
-                {
-                    inputParameter = SerinExpressionEvaluator.Evaluate(DataValue, inputParameter, out _);
-                }
-
-                // @Data 表达式 （获取全局数据）
-                else if (DataValue.StartsWith("@data", StringComparison.OrdinalIgnoreCase))
-                {
-                    inputParameter = SerinExpressionEvaluator.Evaluate(DataValue, inputParameter, out _);
-                }
-
-            }
-
-            #endregion
-
-            // 对引用类型检查 null
-            if (!DataType.IsValueType && inputParameter is null)
-            {
-                throw new Exception($"[arg{Index}][{Name}][{DataType}]参数不能为null");
-            }
-            if (DataType == typeof(string)) // 转为字符串
-            {
-                return inputParameter.ToString();
-            }
-            var inputParameterType = inputParameter.GetType();
-            if (DataType.IsSubclassOf(inputParameterType)) // 入参类型 是 预入参数据类型 的 子类/实现类 
-            {
-                // 方法入参中，父类不能隐式转为子类，这里需要进行强制转换
-                return ObjectConvertHelper.ConvertParentToChild(inputParameter, DataType);
-            }
-            if (DataType.IsAssignableFrom(inputParameterType))  // 入参类型 是 预入参数据类型 的 父类/接口
-            {
-                return inputParameter;
-            }
-
-            throw new Exception($"[arg{Index}][{Name}][{DataType}]入参类型不符合，当前预入参类型为{inputParameterType}");
-        }
-*/
         public override string ToString()
         {
             return $"[{this.Index}] {(string.IsNullOrWhiteSpace(this.Description) ? string.Empty : $"({this.Description})")}{this.Name} : {this.DataType?.FullName}";

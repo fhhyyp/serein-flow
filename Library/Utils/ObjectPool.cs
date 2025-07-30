@@ -28,23 +28,39 @@ namespace Serein.Library.Utils
             internal T Value;
         }
 
-        // 不使用System。Func{T}，因为. net 2.0没有该类型。
+        /// <summary>
+        /// 不使用System。Func{T}，因为. net 2.0没有该类型。
+        /// </summary>
+        /// <returns></returns>
         public delegate T Factory();
 
-        // 池对象的存储。第一个项存储在专用字段中，因为我们希望能够满足来自它的大多数请求。
+        /// <summary>
+        ///  池对象的存储。第一个项存储在专用字段中，因为我们希望能够满足来自它的大多数请求。
+        /// </summary>
         private T _firstItem;
 
         private readonly Element[] _items;
 
-        // 工厂在池的生命周期内被存储。只有当池需要扩展时，我们才调用它。
-        // 与“new T（）”相比，Func为实现者提供了更多的灵活性，并且比“new T（）”更快。
+        /// <summary>
+        /// 工厂在池的生命周期内被存储。只有当池需要扩展时，我们才调用它。
+        /// 与“new T（）”相比，Func为实现者提供了更多的灵活性，并且比“new T（）”更快。
+        /// </summary>
         private readonly Factory _factory;
 
+        /// <summary>
+        /// 创建一个新的对象池实例，使用指定的工厂函数和默认大小（处理器核心数的两倍）。
+        /// </summary>
+        /// <param name="factory"></param>
         public ObjectPool(Factory factory)
             : this(factory, Environment.ProcessorCount * 2)
         {
         }
 
+        /// <summary>
+        /// 创建一个新的对象池实例，使用指定的工厂函数和指定的大小。
+        /// </summary>
+        /// <param name="factory"></param>
+        /// <param name="size"></param>
         public ObjectPool(Factory factory, int size)
         {
             Debug.Assert(size >= 1);
@@ -52,6 +68,10 @@ namespace Serein.Library.Utils
             _items = new Element[size - 1];
         }
 
+        /// <summary>
+        /// 创建一个新的实例。
+        /// </summary>
+        /// <returns></returns>
         private T CreateInstance()
         {
             T inst = _factory();
@@ -82,6 +102,10 @@ namespace Serein.Library.Utils
             return inst;
         }
 
+        /// <summary>
+        /// 慢速分配方法，当第一个元素不可用时调用。
+        /// </summary>
+        /// <returns></returns>
         private T AllocateSlow()
         {
             Element[] items = _items;

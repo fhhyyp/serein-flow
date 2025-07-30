@@ -13,9 +13,13 @@ using System.Windows.Input;
 
 namespace Serein.Workbench.Node.ViewModel
 {
+    /// <summary>
+    /// 脚本节点控制视图模型
+    /// </summary>
     public class ScriptNodeControlViewModel : NodeControlViewModelBase
     {
-        private SingleScriptNode NodeModel => (SingleScriptNode)base.NodeModel;
+
+        private new SingleScriptNode NodeModel => (SingleScriptNode)base.NodeModel;
 
         public string? Script
         {

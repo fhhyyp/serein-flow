@@ -14,7 +14,7 @@ namespace Serein.Workbench.Node.View
 {
 
     #region Model，不科学的全局变量
-    public class MyLine
+    internal class MyLine
     {
         public MyLine(Canvas canvas, ConnectionLineShape line)
         {
@@ -32,7 +32,7 @@ namespace Serein.Workbench.Node.View
         }
     }
 
-    public class ConnectingData
+    internal class ConnectingData
     {
 
         /// <summary>
@@ -42,11 +42,11 @@ namespace Serein.Workbench.Node.View
         /// <summary>
         /// 起始控制点
         /// </summary>
-        public JunctionControlBase StartJunction { get; set; }
+        public JunctionControlBase? StartJunction { get; set; }
         /// <summary>
         /// 当前的控制点
         /// </summary>
-        public JunctionControlBase CurrentJunction { get; set; }
+        public JunctionControlBase? CurrentJunction { get; set; }
         /// <summary>
         /// 开始坐标
         /// </summary>
@@ -54,7 +54,7 @@ namespace Serein.Workbench.Node.View
         /// <summary>
         /// 线条样式
         /// </summary>
-        public MyLine MyLine { get; set; }
+        public MyLine? MyLine { get; set; }
 
         /// <summary>
         /// 线条类别（方法调用）
@@ -68,7 +68,7 @@ namespace Serein.Workbench.Node.View
         /// <summary>
         /// 判断当前连接类型
         /// </summary>
-        public JunctionOfConnectionType Type => StartJunction.JunctionType.ToConnectyionType();
+        public JunctionOfConnectionType Type =>  StartJunction?.JunctionType.ToConnectyionType() ?? JunctionOfConnectionType.None;
 
 
         /// <summary>
@@ -113,11 +113,11 @@ namespace Serein.Workbench.Node.View
             if (StartJunction.JunctionType == Library.JunctionType.Execute 
                 || StartJunction.JunctionType == Library.JunctionType.ArgData)
             {
-                MyLine.Line.UpdateStartPoints(point);
+                MyLine?.Line.UpdateStartPoints(point);
             }
             else
             {
-                MyLine.Line.UpdateEndPoints(point);
+                MyLine?.Line.UpdateEndPoints(point);
 
             }
         }

@@ -5,6 +5,9 @@ using System.Threading.Tasks;
 
 namespace Serein.Library
 {
+    /// <summary>
+    /// FlipflopFunc 类提供了与 Flipflop 相关的功能方法。
+    /// </summary>
     public static class FlipflopFunc
     {
         /// <summary>
@@ -72,15 +75,34 @@ namespace Serein.Library
     /// </summary>
     public class FlipflopContext<TResult> : IFlipflopContext<TResult>
     {
+        /// <summary>
+        /// 触发器完成的状态（根据业务场景手动设置）
+        /// </summary>
         public FlipflopStateType State { get; set; }
+        /// <summary>
+        /// 触发类型
+        /// </summary>
 
         public TriggerDescription Type { get; set; }
+        /// <summary>
+        /// 触发时传递的数据
+        /// </summary>
         public TResult Value { get; set; }
 
+        /// <summary>
+        /// 触发器上下文构造函数
+        /// </summary>
+        /// <param name="ffState"></param>
         public FlipflopContext(FlipflopStateType ffState)
         {
             State = ffState;
         }
+
+        /// <summary>
+        /// 触发器上下文构造函数，传入状态和数据值
+        /// </summary>
+        /// <param name="ffState"></param>
+        /// <param name="value"></param>
         public FlipflopContext(FlipflopStateType ffState, TResult value)
         {
             State = ffState;

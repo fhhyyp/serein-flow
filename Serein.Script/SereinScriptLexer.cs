@@ -286,7 +286,7 @@
                 {
                     var start = _index;
                     bool hasDot = false;
-                    bool hasSuffix = false;
+                    //bool hasSuffix = false;
 
                     while (_index < _input.Length)
                     {
@@ -303,7 +303,7 @@
                         }
                         else if (ch is 'f' or 'F' or 'd' or 'D' or 'l' or 'L')
                         {
-                            hasSuffix = true;
+                            //hasSuffix = true;
                             _index++;
                             break; // 后缀后应结束
                         }

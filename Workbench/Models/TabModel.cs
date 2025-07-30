@@ -15,30 +15,13 @@ using System.Xml.Linq;
 
 namespace Serein.Workbench.Models
 {
+    /// <summary>
+    /// FlowEditorTabModel 类表示一个流程编辑器的标签模型。
+    /// </summary>
     public partial class FlowEditorTabModel : ObservableObject
     {
-        /// <summary>
-        /// tab 名称
-        /// </summary>
-       /* public string Name
-        {
-            get
-            {
-
-                var vm = (FlowCanvasViewModel)Content.DataContext;
-                return vm.Model.Name ?? "null";
-            }
-            set
-            {
-                var vm = (FlowCanvasViewModel)Content.DataContext;
-                vm.Model.Name = value;
-                OnPropertyChanged(nameof(Name));
-            }
-        }
-*/
-
         [ObservableProperty]
-        private FlowCanvasDetails _model;
+        private FlowCanvasDetails? _model;
 
 
         /// <summary>
@@ -57,8 +40,12 @@ namespace Serein.Workbench.Models
         /// tab对应的控件
         /// </summary>
         [ObservableProperty]
-        private FlowCanvasView content;
+        private FlowCanvasView? content;
 
+        /// <summary>
+        /// FlowEditorTabModel 构造函数
+        /// </summary>
+        /// <param name="content"></param>
 
         public FlowEditorTabModel(FlowCanvasView content)
         {

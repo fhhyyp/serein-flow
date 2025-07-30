@@ -140,7 +140,6 @@ namespace Serein.NodeFlow.Model.Nodes
         /// 从节点信息加载节点
         /// </summary>
         /// <param name="nodeModel"></param>
-        /// <param name="canvas"></param>
         /// <param name="nodeInfo"></param>
         /// <returns></returns>
         public static void LoadInfo(this IFlowNode nodeModel, NodeInfo nodeInfo)
@@ -241,97 +240,6 @@ namespace Serein.NodeFlow.Model.Nodes
             {
                 throw new ArgumentNullException($"类型转换失败，流程返回数据与泛型不匹配，当前返回类型为[{flowResult.Value.GetType().FullName}]。");
             }
-        }
-
-        /// <summary>
-        /// 检查监视表达式是否生效
-        /// </summary>
-        /// <param name="nodeModel">节点Moel</param>
-        /// <param name="context">上下文</param>
-        /// <param name="newData">新的数据</param>
-        /// <returns></returns>
-        /*public static async Task CheckExpInterrupt(this NodeModelBase nodeModel, IDynamicContext context,  object newData = null)
-        {
-            string guid = nodeModel.Guid;
-            context.AddOrUpdate(guid, newData); // 上下文中更新数据
-            if (newData is null)
-            {
-            }
-            else
-            {
-                await nodeModel.MonitorObjExpInterrupt(context, newData, 0); // 首先监视对象
-                await nodeModel.MonitorObjExpInterrupt(context, newData, 1); // 然后监视节点
-                //nodeModel.FlowData = newData; // 替换数据
-            }
-        }*/
-
-        /// <summary>
-        /// 监视对象表达式中断
-        /// </summary>
-        /// <param name="nodeModel"></param>
-        /// <param name="context"></param>
-        /// <param name="data"></param>
-        /// <param name="monitorType"></param>
-        /// <returns></returns>
-        /*private static async Task MonitorObjExpInterrupt(this NodeModelBase nodeModel, IDynamicContext context, object data, int monitorType)
-        {
-            MonitorObjectEventArgs.ObjSourceType sourceType;
-            string key;
-            if (monitorType == 0)
-            {
-                key = data?.GetType()?.FullName;
-                sourceType = MonitorObjectEventArgs.ObjSourceType.IOCObj;
-            }
-            else
-            {
-                key = nodeModel.Guid;
-                sourceType = MonitorObjectEventArgs.ObjSourceType.IOCObj;
-            }
-            if (string.IsNullOrEmpty(key))
-            {
-                return;
-            }
-            //(var isMonitor, var exps) = await context.Env.CheckObjMonitorStateAsync(key);
-            //if (isMonitor) // 如果新的数据处于查看状态，通知UI进行更新？交给运行环境判断？
-            //{
-            //    context.Env.MonitorObjectNotification(nodeModel.Guid, data, sourceType); // 对象处于监视状态，通知UI更新数据显示
-            //    if (exps.Length > 0)
-            //    {
-            //        // 表达式环境下判断是否需要执行中断
-            //        bool isExpInterrupt = false;
-            //        string exp = "";
-            //        // 判断执行监视表达式，直到为 true 时退出
-            //        for (int i = 0; i < exps.Length && !isExpInterrupt; i++)
-            //        {
-            //            exp = exps[i];
-            //            if (string.IsNullOrEmpty(exp)) continue;
-            //            // isExpInterrupt = SereinConditionParser.To(data, exp);
-            //        }
-
-            //        if (isExpInterrupt) // 触发中断
-            //        {
-            //            nodeModel.DebugSetting.IsInterrupt = true;
-            //            if (await context.Env.SetNodeInterruptAsync(nodeModel.Guid,true))
-            //            {
-            //                context.Env.TriggerInterrupt(nodeModel.Guid, exp, InterruptTriggerEventArgs.InterruptTriggerType.Exp);
-            //                var cancelType = await nodeModel.DebugSetting.GetInterruptTask();
-            //                await Console.Out.WriteLineAsync($"[{data}]中断已{cancelType}，开始执行后继分支");
-            //                nodeModel.DebugSetting.IsInterrupt = false;
-            //            }
-            //        }
-            //    }
-
-            //}
-        }*/
-
-
-        /// <summary>
-        /// 不再中断
-        /// </summary>
-        public static void CancelInterrupt(IFlowNode nodeModel)
-        {
-            nodeModel.DebugSetting.IsInterrupt = false;
-            nodeModel.DebugSetting.CancelInterrupt?.Invoke();
         }
 
 #if DEBUG

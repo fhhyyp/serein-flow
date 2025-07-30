@@ -9,6 +9,10 @@ namespace Serein.NodeFlow.Model.Nodes
     /// </summary>
     public class SingleActionNode : NodeModelBase
     {
+        /// <summary>
+        /// 构造一个新的单动作节点实例。
+        /// </summary>
+        /// <param name="environment"></param>
         public SingleActionNode(IFlowEnvironment environment):base(environment)
         {
             

@@ -12,9 +12,13 @@ using System.Windows.Controls;
 
 namespace Serein.Workbench.Node.ViewModel
 {
+    /// <summary>
+    /// UI节点控制器视图模型
+    /// </summary>
+
     public partial class UINodeControlViewModel : NodeControlViewModelBase
     {
-        private SingleUINode NodeModel => (SingleUINode)base.NodeModel;
+        private new SingleUINode NodeModel => (SingleUINode)base.NodeModel;
         //public IEmbeddedContent Adapter => NodeModel.Adapter;
 
         /// <summary>

@@ -74,10 +74,6 @@ namespace Serein.Workbench.Views
         /// </summary>
         private bool IsSelectControl;
         /// <summary>
-        /// 标记是否正在进行连接操作
-        /// </summary>
-        //private bool IsConnecting;
-        /// <summary>
         /// 标记是否正在拖动控件
         /// </summary>
         private bool IsControlDragging;
@@ -124,6 +120,10 @@ namespace Serein.Workbench.Views
 
         #region 初始化画布与相关事件
 
+        /// <summary>
+        /// FlowCanvasView 构造函数
+        /// </summary>
+        /// <param name="model"></param>
         public FlowCanvasView(FlowCanvasDetails model)
         {
             var vm = App.GetService<Locator>().FlowCanvasViewModel;
@@ -615,7 +615,7 @@ namespace Serein.Workbench.Views
             if (key == Key.V && (keyEventService.GetKeyState(Key.LeftCtrl) || keyEventService.GetKeyState(Key.RightCtrl))) 
             {
                 string clipboardText = Clipboard.GetText(TextDataFormat.Text); // 获取复制的文本
-                string nodesText = "";
+                string? nodesText = "";
                 try
                 {
                     var jobject = JObject.Parse(clipboardText);
@@ -623,6 +623,7 @@ namespace Serein.Workbench.Views
                 }
                 catch (Exception ex)
                 {
+                    SereinEnv.WriteLine(InfoType.ERROR, $"粘贴节点信息失败: {ex.Message}");
                     return;
                 }
                 
@@ -878,7 +879,7 @@ namespace Serein.Workbench.Views
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void FlowChartCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        private void FlowChartCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
             if (IsSelectControl)
             {
@@ -895,7 +896,7 @@ namespace Serein.Workbench.Views
 
             // 创建连线
             var cd = flowNodeService.ConnectingData;
-            if (cd.IsCreateing)
+            if (cd.IsCreateing && cd.CurrentJunction is not null)
             {
                 if (cd.IsCanConnected)
                 {
@@ -1593,6 +1594,12 @@ namespace Serein.Workbench.Views
 
         #region Plan A 群组对齐
 
+        /// <summary>
+        /// 对齐选中的控件，支持多种对齐方式。
+        /// </summary>
+        /// <param name="selectNodeControls"></param>
+        /// <param name="proximityThreshold"></param>
+        /// <param name="spacing"></param>
         public void AlignControlsWithGrouping(List<NodeControlBase> selectNodeControls, double proximityThreshold = 50, double spacing = 10)
         {
             if (selectNodeControls is null || selectNodeControls.Count < 2)
@@ -1673,6 +1680,11 @@ namespace Serein.Workbench.Views
         #endregion
 
         #region Plan B 规划对齐
+        /// <summary>
+        /// 使用动态规划对齐选中的控件，确保控件之间有间距，并且不重叠。
+        /// </summary>
+        /// <param name="selectNodeControls"></param>
+        /// <param name="spacing"></param>
         public void AlignControlsWithDynamicProgramming(List<NodeControlBase> selectNodeControls, double spacing = 10)
         {
             if (selectNodeControls is null || selectNodeControls.Count < 2)
@@ -1751,6 +1763,10 @@ namespace Serein.Workbench.Views
 
         #endregion
 
+
+        /// <summary>
+        /// 对齐模式枚举
+        /// </summary>
         public enum AlignMode
         {
             /// <summary>
@@ -1780,7 +1796,13 @@ namespace Serein.Workbench.Views
             Grouping,
         }
 
-
+        /// <summary>
+        /// 对齐控件，支持多种对齐方式。
+        /// </summary>
+        /// <param name="selectNodeControls"></param>
+        /// <param name="alignMode"></param>
+        /// <param name="proximityThreshold"></param>
+        /// <param name="spacing"></param>
         public void AlignControlsWithGrouping(List<NodeControlBase> selectNodeControls, AlignMode alignMode, double proximityThreshold = 50, double spacing = 10)
         {
             if (selectNodeControls is null || selectNodeControls.Count < 2)

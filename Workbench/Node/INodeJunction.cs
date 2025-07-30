@@ -14,7 +14,7 @@ namespace Serein.Workbench.Node
     /// <summary>
     /// 约束一个节点应该有哪些控制点
     /// </summary>
-    public interface INodeJunction
+    internal interface INodeJunction
     {
         /// <summary>
         /// 方法执行入口控制点

@@ -46,7 +46,7 @@ namespace Serein.Workbench.Node.View
     /// <summary>
     /// 入参控件
     /// </summary>
-    public class ParamsArgControl: Shape
+    internal class ParamsArgControl: Shape
     {
         public ParamsArgControl()
         {
@@ -172,7 +172,7 @@ namespace Serein.Workbench.Node.View
 
 
 
-    public abstract class JunctionControlBase : Shape 
+    internal abstract class JunctionControlBase : Shape 
     {
         private readonly FlowNodeService flowNodeService;
         protected JunctionControlBase()
@@ -262,16 +262,12 @@ namespace Serein.Workbench.Node.View
 
 
 
-        /// <summary>
-        /// 禁止连接
-        /// </summary>
-        private bool IsConnectionDisable;
 
         /// <summary>
         /// 处理鼠标悬停状态
         /// </summary>
         private bool _isMouseOver;
-        public bool IsMouseOver
+        public new bool IsMouseOver
         {
             get => _isMouseOver;
             set

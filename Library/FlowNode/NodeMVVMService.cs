@@ -36,6 +36,11 @@ namespace Serein.Library
         /// </summary>
         public Type ViewModelType {  get; set; }
 
+        /// <summary>
+        /// 节点类型信息字符串表示
+        /// </summary>
+        /// <returns></returns>
+
         public override string ToString()
         {
             return $"$[{NodeType}]类型信息 : ModelType->{ModelType};ControlType->{ControlType};ViewModelType->{ViewModelType}";

@@ -10,6 +10,11 @@ namespace Serein.Library
     [AttributeUsage(AttributeTargets.Class)]
     public sealed class DynamicFlowAttribute : Attribute
     {
+        /// <summary>
+        /// 动态流程特性构造函数
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="scan"></param>
         public DynamicFlowAttribute(string name = "",bool scan = true)
         {
             Name = name;

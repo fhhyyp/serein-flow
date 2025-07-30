@@ -17,27 +17,21 @@ namespace Serein.Workbench.Node.ViewModel
         ///// </summary>
         public IFlowNode NodeModel { get; }
 
+        /// <summary>
+        /// 节点控制器的基类
+        /// </summary>
+        /// <param name="nodeModel"></param>
         public NodeControlViewModelBase(IFlowNode nodeModel)
         {
             NodeModel = nodeModel;
 
         }
 
-
-
         /// <summary>
         /// 工作台预览基本节点时，避免其中的文本框响应拖拽事件导致卡死
         /// </summary>
         [ObservableProperty]
         private bool isEnabledOnView = true;
-
-
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-        protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
 
 
     }

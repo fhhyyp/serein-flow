@@ -3,6 +3,7 @@ using Serein.Script.Node;
 using Serein.Script.Node.FlowControl;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -15,15 +16,32 @@ using System.Xml.Linq;
 namespace Serein.Script
 {
 
-/*
-    暂未想到如何编译出具备 await / async 功能的IL代码，暂时放弃
- */
+    /*
+        暂未想到如何编译出具备 await / async 功能的IL代码，暂时放弃
+     */
 
+
+    /// <summary>
+    /// IL 代码生成结果
+    /// </summary>
     internal record ILResult
     {
-        public Type ReturnType { get; set; }
+        /// <summary>
+        /// 返回类型
+        /// </summary>
+        public Type? ReturnType { get; set; }
+
+        /// <summary>
+        /// 临时变量，可用于缓存值，避免重复计算
+        /// </summary>
         public LocalBuilder? TempVar { get; set; } // 可用于缓存
+
+        /// <summary>
+        /// 发射 IL 代码的委托，接受 ILGenerator 参数
+        /// </summary>
+#pragma warning disable CS8618 // 在退出构造函数时，不可为 null 的字段必须包含非 null 值。请考虑添加 "required" 修饰符或声明为可为 null。
         public Action<ILGenerator> Emit { get; set; } // 用于推入值的代码
+#pragma warning restore CS8618 // 在退出构造函数时，不可为 null 的字段必须包含非 null 值。请考虑添加 "required" 修饰符或声明为可为 null。
     }
 
 
@@ -62,6 +80,7 @@ namespace Serein.Script
         /// </summary>
         Dictionary<ASTNode, ILResult> _ilResults = new Dictionary<ASTNode, ILResult>();
 
+
         private Label _methodExit;
 
         public SereinScriptILCompiler(Dictionary<ASTNode, Type> symbolInfos)
@@ -72,7 +91,7 @@ namespace Serein.Script
         /// <summary>
         /// 是否调用了异步方法
         /// </summary>
-        private bool _isUseAwait = false;
+        //private bool _isUseAwait = false;
 
         private Dictionary<string, int> _parameterIndexes = new Dictionary<string, int>();
 
@@ -1065,12 +1084,12 @@ namespace Serein.Script
             // 如果方法签名需要返回值，这里可放置默认 return 语句或用局部变量存储返回值
         }*/
 
-        private static bool IsGenericTask(Type returnType, out Type taskResult)
+        private static bool IsGenericTask(Type returnType,[NotNullWhen(true)] out Type? taskResult)
         {
             // 判断是否为 Task 类型或泛型 Task<T>
             if (returnType == typeof(Task))
             {
-                taskResult = null;
+                taskResult = typeof(void);
                 return true;
             }
             else if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))

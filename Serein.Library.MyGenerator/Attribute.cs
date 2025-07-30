@@ -40,20 +40,25 @@ namespace Serein.Library
     /// 标识一个类中的某些字段需要生成相应代码
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, Inherited = true)]
-    public sealed class NodePropertyAttribute : Attribute
+    public sealed class FlowDataPropertyAttribute : Attribute
     {
         /// <summary>
         /// <para>属性路径</para>
         /// <para>CustomNode : 自定义节点</para>
         /// </summary>
         public NodeValuePath ValuePath = NodeValuePath.None;
+
+        /// <summary>
+        /// 表示该类是否为节点实现类
+        /// </summary>
+        public bool IsNodeImp = false;
     }
 
     /// <summary>
     /// 自动生成环境的属性
     /// </summary>
     [AttributeUsage(AttributeTargets.Field, Inherited = true)]
-    public sealed class PropertyInfoAttribute : Attribute
+    public sealed class DataInfoAttribute : Attribute
     {
         /// <summary>
         /// 是否通知远程环境（如果在远程环境下）

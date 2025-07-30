@@ -34,12 +34,12 @@ namespace Serein.Workbench
         /// </summary>
         public static UIContextOperation UIContextOperation => App.GetService<UIContextOperation>() ?? throw new NullReferenceException();
     
-        public static T GetService<T>() where T : class
+        internal static T GetService<T>() where T : class
         {
             return ServiceProvider?.GetService<T>() ?? throw new NullReferenceException();
         }
-        
-        public App()
+
+        internal App()
         {
             var collection = new ServiceCollection();
             collection.AddWorkbenchServices();
@@ -84,20 +84,19 @@ namespace Serein.Workbench
              obj.Id = 114514;*/
 
 
-            if (1 == 11)
-            {
+#if false
                 var projectService = App.GetService<FlowProjectService>();
                 await Task.Delay(500);
                 string filePath;
                 filePath = @"F:\TempFile\flow\temp2\project.dnf";
                 projectService.LoadLocalProject(filePath);
-            }
+#endif
 
         }
 #endif
 
 
-        private async void Application_Startup(object sender, StartupEventArgs e)
+        private void Application_Startup(object sender, StartupEventArgs e)
         {
            var projectService = App.GetService<FlowProjectService>();
             if (e.Args.Length == 1)

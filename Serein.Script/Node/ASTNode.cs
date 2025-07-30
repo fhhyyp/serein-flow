@@ -8,7 +8,7 @@ namespace Serein.Script.Node
 {
     public abstract class ASTNode
     {
-        public string Code { get; private set; }
+        public string Code { get; private set; } = string.Empty;
         public int Row { get; private set; }
         public int StartIndex { get; private set; }
         public int Length { get; private set; }

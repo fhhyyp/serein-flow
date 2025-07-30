@@ -5,9 +5,12 @@ using System.Windows.Input;
 
 namespace Serein.Workbench.Node.ViewModel
 {
+    /// <summary>
+    /// 全局数据节点控制视图模型
+    /// </summary>
     public class GlobalDataNodeControlViewModel : NodeControlViewModelBase
     {
-        private SingleGlobalDataNode NodeModel => (SingleGlobalDataNode)base.NodeModel;
+        private new SingleGlobalDataNode NodeModel => (SingleGlobalDataNode)base.NodeModel;
 
         /// <summary>
         /// 复制全局数据表达式
@@ -19,7 +22,10 @@ namespace Serein.Workbench.Node.ViewModel
         /// </summary>
         public ICommand CommandRefreshData { get; }
 
-
+        /// <summary>
+        /// 全局数据节点控制视图模型构造函数
+        /// </summary>
+        /// <param name="node"></param>
         public GlobalDataNodeControlViewModel(SingleGlobalDataNode node) : base(node)
         {
             CommandCopyDataExp = new RelayCommand( o =>

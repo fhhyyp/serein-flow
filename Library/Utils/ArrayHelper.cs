@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace Serein.Library.Utils
 {
+    /// <summary>
+    /// 数组操作的工具类
+    /// </summary>
     public class ArrayHelper
     {
 

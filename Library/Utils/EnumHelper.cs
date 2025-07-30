@@ -59,6 +59,13 @@ namespace Serein.Library.Utils
             return attribute != null ? (TResult)valueSelector(attribute) : default;
         }
 
+        /// <summary>
+        /// 从枚举值的 BindValueAttribute 特性中 获取绑定的参数（用于绑定了某些内容的枚举值）
+        /// </summary>
+        /// <param name="enumType"></param>
+        /// <param name="enumValue"></param>
+        /// <param name="valueSelector"></param>
+        /// <returns></returns>
         public static object GetBoundValue(Type enumType,object enumValue, Func<BindValueAttribute, object> valueSelector)
         {
             var fieldInfo = enumType.GetField(enumValue.ToString());

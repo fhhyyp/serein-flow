@@ -6,7 +6,7 @@ using Serein.Library;
 
 namespace Serein.Workbench.Node.View
 {
-    public class ExecuteJunctionControl : JunctionControlBase
+    internal class ExecuteJunctionControl : JunctionControlBase
     {
         public ExecuteJunctionControl()
         {

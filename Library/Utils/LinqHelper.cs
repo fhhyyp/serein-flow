@@ -32,6 +32,14 @@ namespace Serein.Library.Utils
             }
         }
 
+        /// <summary>
+        /// 异步选择器，返回一个新的集合，其中每个元素都是通过异步方法转换的结果。
+        /// </summary>
+        /// <typeparam name="TSource"></typeparam>
+        /// <typeparam name="TResult"></typeparam>
+        /// <param name="source"></param>
+        /// <param name="method"></param>
+        /// <returns></returns>
         public static async Task<IEnumerable<TResult>> SelectAsync<TSource, TResult>(this IEnumerable<TSource> source,
                                                                                           Func<TSource, Task<TResult>> method)
         {
@@ -39,6 +47,15 @@ namespace Serein.Library.Utils
         }
 
 
+        /// <summary>
+        /// 异步选择器，返回一个新的集合，其中每个元素都是通过异步方法转换的结果。
+        /// </summary>
+        /// <typeparam name="TSource"></typeparam>
+        /// <typeparam name="TResult"></typeparam>
+        /// <param name="source"></param>
+        /// <param name="method"></param>
+        /// <param name="concurrency"></param>
+        /// <returns></returns>
         public static async Task<IEnumerable<TResult>> SelectAsync<TSource, TResult>(this IEnumerable<TSource> source, 
                                                                                           Func<TSource, Task<TResult>> method,
                                                                                           int concurrency = int.MaxValue)

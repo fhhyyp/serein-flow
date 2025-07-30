@@ -1,12 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Threading.Tasks;
-using Serein.Library;
 
 namespace Serein.Library.Api
 {
@@ -72,11 +67,11 @@ namespace Serein.Library.Api
         MethodDetails MethodDetails { get; set; }
 
         /// <summary>
-        /// 父节点集合
+        /// 前继节点集合
         /// </summary>
         Dictionary<ConnectionInvokeType, List<IFlowNode>> PreviousNodes { get;}
         /// <summary>
-        /// 子节点集合
+        /// 后继节点集合
         /// </summary>
         Dictionary<ConnectionInvokeType, List<IFlowNode>> SuccessorNodes { get; set; }
 

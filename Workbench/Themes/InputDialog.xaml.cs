@@ -19,8 +19,14 @@ namespace Serein.Workbench.Themes
     /// </summary>
     public partial class InputDialog : Window
     {
+        /// <summary>
+        /// 输入对话框的输入值
+        /// </summary>
         public string InputValue { get; private set; }
 
+        /// <summary>
+        /// 初始化输入对话框的新实例
+        /// </summary>
         public InputDialog()
         {
             InitializeComponent();

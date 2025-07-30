@@ -20,20 +20,7 @@ namespace Serein.Library.Api
         /// </summary>
         IFlowNode NodeModel { get; }
 
-        /// <summary>
-        /// 根据索引从入参数据获取数据 
-        /// </summary>
-        /// <param name="context"></param>
-        /// <param name="index"></param>
-        /// <returns></returns>
-        //object GetArgData(IDynamicContext context, int index);
-        /// <summary>
-        /// 获取流程当前传递的数据
-        /// </summary>
-        /// <param name="context"></param>
-        /// <returns></returns>
-        /// FlowResult GetFlowData(IDynamicContext context);
-
+       
         /// <summary>
         /// 获取全局数据
         /// </summary>

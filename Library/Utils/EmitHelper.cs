@@ -9,12 +9,15 @@ using System.Threading.Tasks;
 
 namespace Serein.Library.Utils
 {
+
     /// <summary>
     /// Emit创建委托工具类
     /// </summary>
     public class EmitHelper
     {
-
+        /// <summary>
+        /// 动态方法信息
+        /// </summary>
         public class EmitMethodInfo
         {
             /// <summary>
@@ -39,6 +42,9 @@ namespace Serein.Library.Utils
             
         }
 
+        /// <summary>
+        /// 方法类型枚举
+        /// </summary>
         public enum EmitMethodType
         {
             /// <summary>
@@ -55,12 +61,19 @@ namespace Serein.Library.Utils
             TaskHasResult,
         }
 
-        public static bool IsGenericTask(Type returnType, out Type taskResult)
+        /// <summary>
+        /// 判断一个类型是否为泛型 Task&lt;T&gt; 或 Task，并返回泛型参数类型（如果有的话）
+        /// </summary>
+        /// <param name="returnType"></param>
+        /// <param name="taskResult"></param>
+        /// <returns></returns>
+#nullable enable
+        public static bool IsGenericTask(Type returnType, out Type? taskResult)
         {
             // 判断是否为 Task 类型或泛型 Task<T>
             if (returnType == typeof(Task))
             {
-                taskResult = null;
+                taskResult = typeof(void);
                 return true;
             }
             else if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
@@ -78,7 +91,6 @@ namespace Serein.Library.Utils
             }
         }
 
-
         /// <summary>
         /// 根据方法信息创建动态调用的委托，返回方法类型，以及传出一个委托
         /// </summary>
@@ -87,6 +99,10 @@ namespace Serein.Library.Utils
         /// <returns></returns>
         public static EmitMethodInfo CreateDynamicMethod(MethodInfo methodInfo,out Delegate @delegate)
         {
+            if (methodInfo.DeclaringType == null)
+            {
+                throw new ArgumentNullException(nameof(methodInfo.DeclaringType));
+            }
             EmitMethodInfo emitMethodInfo = new EmitMethodInfo();
             bool IsTask = IsGenericTask(methodInfo.ReturnType, out var taskGenericsType);
             bool IsTaskGenerics = taskGenericsType != null;
@@ -219,6 +235,10 @@ namespace Serein.Library.Utils
         {
             if (fieldInfo == null)
                 throw new ArgumentNullException(nameof(fieldInfo));
+            
+            if (fieldInfo.DeclaringType == null)
+                throw new ArgumentNullException(nameof(fieldInfo.DeclaringType));
+
 
             var method = new DynamicMethod(
                 fieldInfo.Name + "_Get",
@@ -257,6 +277,8 @@ namespace Serein.Library.Utils
         {
             if (fieldInfo == null)
                 throw new ArgumentNullException(nameof(fieldInfo));
+            if (fieldInfo.DeclaringType == null)
+                throw new ArgumentNullException(nameof(fieldInfo.DeclaringType));
             if (fieldInfo.IsInitOnly)
                 throw new InvalidOperationException($"字段 {fieldInfo.Name} 是只读字段，无法设置值。");
 
@@ -299,6 +321,8 @@ namespace Serein.Library.Utils
         {
             if (propertyInfo == null)
                 throw new ArgumentNullException(nameof(propertyInfo));
+            if (propertyInfo.DeclaringType == null)
+                throw new ArgumentNullException(nameof(propertyInfo.DeclaringType));
             var getMethod = propertyInfo.GetGetMethod(true);
             if (getMethod == null)
                 throw new InvalidOperationException($"属性 {propertyInfo.Name} 没有可用的 Getter。");
@@ -339,6 +363,9 @@ namespace Serein.Library.Utils
         {
             if (propertyInfo == null)
                 throw new ArgumentNullException(nameof(propertyInfo));
+            if (propertyInfo.DeclaringType == null)
+                throw new ArgumentNullException(nameof(propertyInfo.DeclaringType));
+
             var setMethod = propertyInfo.GetSetMethod(true);
             if (setMethod == null)
                 throw new InvalidOperationException($"属性 {propertyInfo.Name} 没有可用的 Setter。");

@@ -170,7 +170,6 @@ namespace Serein.NodeFlow.Env
             return (isConnect, remoteMsgUtil);
         }*/
 
-        /// <inheritdoc/>
        /* public async Task<bool> ExitFlowAsync()
         {
             return await currentFlowEnvironment.FlowControl.ExitFlowAsync();
@@ -190,9 +189,9 @@ namespace Serein.NodeFlow.Env
         }*/
 
         /// <inheritdoc/>
-        public async Task<SereinProjectData> GetProjectInfoAsync()
+        public SereinProjectData GetProjectInfoAsync()
         {
-            return await currentFlowEnvironment.GetProjectInfoAsync();
+            return  currentFlowEnvironment.GetProjectInfoAsync();
         }
 
         /// <inheritdoc/>

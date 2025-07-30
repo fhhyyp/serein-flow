@@ -9,8 +9,16 @@ namespace Serein.Library
     [AttributeUsage(AttributeTargets.Parameter)]
     public class EnumTypeConvertorAttribute : Attribute
     {
+        /// <summary>
+        /// 枚举类型
+        /// </summary>
         public Type EnumType { get; }
 
+        /// <summary>
+        /// 枚举类型转换器特性构造函数
+        /// </summary>
+        /// <param name="enum"></param>
+        /// <exception cref="ArgumentException"></exception>
         public EnumTypeConvertorAttribute(Type @enum)
         {
             if (@enum.IsEnum)

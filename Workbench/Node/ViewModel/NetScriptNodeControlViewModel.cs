@@ -6,9 +6,12 @@ using System.Windows.Input;
 
 namespace Serein.Workbench.Node.ViewModel
 {
+    /// <summary>
+    /// 动态脚本节点控制视图模型
+    /// </summary>
     public class NetScriptNodeControlViewModel : NodeControlViewModelBase
     {
-        private SingleNetScriptNode NodeModel => (SingleNetScriptNode)base.NodeModel;
+        private new SingleNetScriptNode NodeModel => (SingleNetScriptNode)base.NodeModel;
 
         public string Tips
         {
@@ -45,22 +48,12 @@ public class FlowLibrary
     }
 }";
 
-            CommandOpenScriptEdit = new RelayCommand(async o =>
+            CommandOpenScriptEdit = new RelayCommand(o =>
             {
                 DynamicCompilerView dynamicCompilerView = new DynamicCompilerView();
                 dynamicCompilerView.ScriptCode = this.Script ;
                 dynamicCompilerView.OnCompileComplete = OnCompileComplete;
                 dynamicCompilerView.ShowDialog();
-                
-                //try
-                //{
-                //    var result = await NodeModel.ExecutingAsync(new Library.DynamicContext(nodeModel.Env));
-                //    nodeModel.Env.WriteLine(InfoType.INFO, result?.ToString());
-                //}
-                //catch (Exception ex)
-                //{
-                //    nodeModel.Env.WriteLine(InfoType.ERROR, ex.ToString());
-                //}
             });
             NodeModel1 = nodeModel;
         }
@@ -86,6 +79,10 @@ public class FlowLibrary
         /// 打开编辑窗口
         /// </summary>
         public ICommand CommandOpenScriptEdit { get; }
+
+        /// <summary>
+        /// 节点模型
+        /// </summary>
         public NodeModelBase NodeModel1 { get; }
     }
 }

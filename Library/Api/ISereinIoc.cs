@@ -108,8 +108,32 @@ namespace Serein.Library.Api
         /// <param name="action"></param>
         /// <returns></returns>
         ISereinIOC Run<T>(Action<T> action);
+        /// <summary>
+        /// 从容器中获取数个类型的实例进行运行
+        /// </summary>
+        /// <typeparam name="T1"></typeparam>
+        /// <typeparam name="T2"></typeparam>
+        /// <param name="action"></param>
+        /// <returns></returns>
         ISereinIOC Run<T1, T2>(Action<T1, T2> action);
+        /// <summary>
+        /// 从容器中获取数个类型的实例进行运行
+        /// </summary>
+        /// <typeparam name="T1"></typeparam>
+        /// <typeparam name="T2"></typeparam>
+        /// <typeparam name="T3"></typeparam>
+        /// <param name="action"></param>
+        /// <returns></returns>
         ISereinIOC Run<T1, T2, T3>(Action<T1, T2, T3> action);
+        /// <summary>
+        /// 从容器中获取数个类型的实例进行运行
+        /// </summary>
+        /// <typeparam name="T1"></typeparam>
+        /// <typeparam name="T2"></typeparam>
+        /// <typeparam name="T3"></typeparam>
+        /// <typeparam name="T4"></typeparam>
+        /// <param name="action"></param>
+        /// <returns></returns>
         ISereinIOC Run<T1, T2, T3, T4>(Action<T1, T2, T3, T4> action);
 
     }

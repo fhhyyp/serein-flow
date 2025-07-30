@@ -42,8 +42,12 @@ namespace Serein.Workbench.Customs
     /// </summary>
     public partial class FlowMethodInfoListBox :  UserControl, System.ComponentModel.INotifyPropertyChanged
     {
-        private object viewMethodInfo;
-        public object ViewMethodInfo
+        private object? viewMethodInfo;
+
+        /// <summary>
+        /// 当前选中的方法信息
+        /// </summary>
+        public object? ViewMethodInfo
         {
             get => viewMethodInfo;
             set
@@ -56,27 +60,44 @@ namespace Serein.Workbench.Customs
             }
         }
 
-        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;                  
+        /// <summary>
+        /// 属性改变事件，用于通知绑定的UI更新
+        /// </summary>
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
 
+        /// <summary>
+        /// FlowMethodInfoListBox 的构造函数
+        /// </summary>
         public FlowMethodInfoListBox()
         {
             InitializeComponent();
         }
 
-
+        /// <summary>
+        /// 依赖属性，用于绑定方法信息列表
+        /// </summary>
         public static readonly DependencyProperty ItemsSourceProperty =
           DependencyProperty.Register(nameof(ItemsSource), typeof(IEnumerable), typeof(FlowMethodInfoListBox), new PropertyMetadata(null));
 
+        /// <summary>
+        /// 获取或设置方法信息列表
+        /// </summary>
         public IEnumerable ItemsSource
         {
             get => (IEnumerable)GetValue(ItemsSourceProperty);
             set => SetValue(ItemsSourceProperty, value);
         }
 
-        public static readonly DependencyProperty BackgroundProperty =
+        /// <summary>
+        /// 依赖属性，用于设置背景颜色
+        /// </summary>
+        public new static readonly DependencyProperty BackgroundProperty =
             DependencyProperty.Register(nameof(Background), typeof(Brush), typeof(FlowMethodInfoListBox), new PropertyMetadata(Brushes.Transparent));
 
-        public Brush Background
+        /// <summary>
+        /// 获取或设置背景颜色
+        /// </summary>
+        public new Brush Background
         {
             get => (Brush)GetValue(BackgroundProperty);
             set => SetValue(BackgroundProperty, value);

@@ -10,10 +10,17 @@ using System.Windows;
 
 namespace Serein.Workbench.ViewModels
 {
+    /// <summary>
+    /// 主视图模型
+    /// </summary>
     public class MainViewModel : ObservableObject
     {
         private readonly IKeyEventService keyEventService;
 
+        /// <summary>
+        /// 主视图模型构造函数
+        /// </summary>
+        /// <param name="keyEventService"></param>
         public MainViewModel(IKeyEventService keyEventService)
         {
             

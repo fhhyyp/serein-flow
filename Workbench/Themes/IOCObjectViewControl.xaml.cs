@@ -26,6 +26,9 @@ namespace Serein.Workbench.Themes
     {
         public Action<string,object> SelectObj { get; set; }
 
+        /// <summary>
+        /// IOC对象视图控件
+        /// </summary>
         public IOCObjectViewControl()
         {
             InitializeComponent();
@@ -89,6 +92,9 @@ namespace Serein.Workbench.Themes
             }
         }
 
+        /// <summary>
+        /// 清空所有实例显示
+        /// </summary>
         public void ClearObjItem()
         {
             DependenciesListBox.Dispatcher.Invoke(() =>
@@ -108,6 +114,10 @@ namespace Serein.Workbench.Themes
             }
         }
 
+        /// <summary>
+        /// 移除一个实例的显示
+        /// </summary>
+        /// <param name="key"></param>
         public void RemoveDependenciesInstance(string key)
         {
             object? itemControl = null;

@@ -18,7 +18,9 @@ namespace Serein.Workbench.Node.View
 {
     #region 连接点相关代码
 
-
+    /// <summary>
+    /// 连接点类型
+    /// </summary>
 
     public class ConnectionModelBase
     {
@@ -48,8 +50,14 @@ namespace Serein.Workbench.Node.View
     }
 
 
+    /// <summary>
+    /// 连接点类型
+    /// </summary>
     public interface IJunctionNode
     {
+        /// <summary>
+        /// 连接点所属Guid
+        /// </summary>
         string BoundNodeGuid { get; }
     }
 
@@ -73,26 +81,26 @@ namespace Serein.Workbench.Node.View
     }
 
 
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -104,7 +112,7 @@ namespace Serein.Workbench.Node.View
     /// <summary>
     /// 连接控件，表示控件的连接关系
     /// </summary>
-    public class ConnectionControl
+    internal class ConnectionControl
     {
         /// <summary>
         /// 所在的画布
@@ -155,7 +163,9 @@ namespace Serein.Workbench.Node.View
         /// </summary>
         /// <param name="Canvas"></param>
         /// <param name="invokeType"></param>
-        public ConnectionControl(Canvas Canvas,
+        /// <param name="Start"></param>
+        /// <param name="End"></param>
+        internal ConnectionControl(Canvas Canvas,
                                 ConnectionInvokeType invokeType,
                                 JunctionControlBase Start,
                                 JunctionControlBase End)
@@ -169,10 +179,15 @@ namespace Serein.Workbench.Node.View
         }
 
         /// <summary>
-        /// 关于入参
+        ///  关于入参
         /// </summary>
+        /// <param name="LineType"></param>
         /// <param name="Canvas"></param>
-        /// <param name="Type"></param>
+        /// <param name="argIndex"></param>
+        /// <param name="argSourceType"></param>
+        /// <param name="Start"></param>
+        /// <param name="End"></param>
+        /// <param name="nodeJunction"></param>
         public ConnectionControl(LineType LineType,
                                 Canvas Canvas,
                                 int argIndex,

@@ -33,7 +33,11 @@ namespace Serein.NodeFlow.Tool
         /// </summary>
         public override Encoding Encoding => Encoding.UTF8;
 
-      
+
+        /// <summary>
+        /// 重写Write方法，处理单个字符的写入
+        /// </summary>
+        /// <param name="value"></param>
         public override void Write(char value)
         {
             stringWriter.Write(value);
@@ -43,6 +47,10 @@ namespace Serein.NodeFlow.Tool
             }
         }
 
+        /// <summary>
+        /// 重写Write方法，处理字符串的写入
+        /// </summary>
+        /// <param name="value"></param>
         public override void Write(string? value)
         {
             if (string.IsNullOrWhiteSpace(value)) return;
@@ -53,6 +61,10 @@ namespace Serein.NodeFlow.Tool
             }
         }
 
+        /// <summary>
+        /// 重写WriteLine方法，处理字符串的换行写入
+        /// </summary>
+        /// <param name="value"></param>
         public override void WriteLine(string? value)
         {
             if (string.IsNullOrWhiteSpace(value)) return;

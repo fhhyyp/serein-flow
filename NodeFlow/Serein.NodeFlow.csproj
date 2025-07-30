@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>1.2.2</Version>
+    <Version>1.2.3</Version>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -54,6 +54,7 @@
     <Compile Remove="Tool\ExpressionHelper.cs" />
     <Compile Remove="Tool\FlowLibraryAssemblyContext2.cs" />
     <Compile Remove="Tool\NodeModelBaseFunc.cs" />
+    <Compile Remove="Tool\ObjDynamicCreateHelper.cs" />
     <Compile Remove="Tool\TcsSignal.cs" />
     <Compile Remove="Tool\ToCSharpCodeHelper.cs" />
   </ItemGroup>

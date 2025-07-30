@@ -10,7 +10,16 @@ using static System.Windows.Forms.AxHost;
 
 namespace Serein.Workbench.Services
 {
+    /// <summary>
+    /// 全局按键事件委托
+    /// </summary>
+    /// <param name="key"></param>
     public delegate void KeyDownEventHandler(Key key);
+
+    /// <summary>
+    /// 全局按键抬起事件委托
+    /// </summary>
+    /// <param name="key"></param>
     public delegate void KeyUpEventHandler(Key key);
 
     /// <summary>
@@ -18,7 +27,14 @@ namespace Serein.Workbench.Services
     /// </summary>
     public interface IKeyEventService
     {
+        /// <summary>
+        /// 按键按下事件
+        /// </summary>
         event KeyDownEventHandler OnKeyDown;
+
+        /// <summary>
+        /// 按键抬起事件
+        /// </summary>
         event KeyUpEventHandler OnKeyUp;
 
         /// <summary>
@@ -56,6 +72,9 @@ namespace Serein.Workbench.Services
         /// </summary>
         public event KeyUpEventHandler OnKeyUp;
 
+        /// <summary>
+        /// 全局按键事件服务构造函数
+        /// </summary>
         public KeyEventService()
         {
             var arr = Enum.GetValues<Key>();
@@ -66,6 +85,12 @@ namespace Serein.Workbench.Services
         }
 
         private readonly bool[] KeysState;
+
+        /// <summary>
+        /// 获取某个按键的状态
+        /// </summary>
+        /// <param name="key"></param>
+        /// <returns></returns>
         public bool GetKeyState(Key key)
         {
             return KeysState[(int)key];
@@ -73,7 +98,10 @@ namespace Serein.Workbench.Services
 
 
 
-
+        /// <summary>
+        /// 按键按下事件
+        /// </summary>
+        /// <param name="key"></param>
         public void KeyDown(Key key)
         {
             KeysState[(int)key] = true;
@@ -81,6 +109,10 @@ namespace Serein.Workbench.Services
             //Debug.WriteLine($"按键按下事件：{key}");
         }
 
+        /// <summary>
+        /// 按键抬起事件
+        /// </summary>
+        /// <param name="key"></param>
         public void KeyUp(Key key)
         {
             KeysState[(int)key] = false;

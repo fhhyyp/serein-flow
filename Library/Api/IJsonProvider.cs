@@ -118,14 +118,14 @@ namespace Serein.Library.Api
         /// </summary>
         /// <param name="values"></param>
         /// <returns></returns>
-        IJsonToken CreateObject(IDictionary<string, object> values = null);
+        IJsonToken CreateObject(IDictionary<string, object>? values = null);
 
         /// <summary>
         /// 创建数组
         /// </summary>
         /// <param name="values"></param>
         /// <returns></returns>
-        IJsonToken CreateArray(IEnumerable<object> values = null);
+        IJsonToken CreateArray(IEnumerable<object>? values = null);
 
         /// <summary>
         /// 将对象转换为JSON Token，自动转换为 JObject/JArray。

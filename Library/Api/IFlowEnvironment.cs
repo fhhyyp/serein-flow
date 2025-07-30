@@ -153,6 +153,9 @@ namespace Serein.Library.Api
     /// </summary>
     public class ProjectLoadedEventArgs : FlowEventArgs
     {
+        /// <summary>
+        /// 项目加载完成事件参数
+        /// </summary>
         public ProjectLoadedEventArgs()
         {
         }
@@ -163,6 +166,10 @@ namespace Serein.Library.Api
     /// </summary>
     public class ProjectSavingEventArgs : FlowEventArgs
     {
+        /// <summary>
+        /// 项目保存事件参数
+        /// </summary>
+        /// <param name="projectData"></param>
         public ProjectSavingEventArgs(SereinProjectData projectData)
         {
             ProjectData = projectData;
@@ -179,6 +186,10 @@ namespace Serein.Library.Api
     /// </summary>
     public class LoadDllEventArgs : FlowEventArgs
     {
+        /// <summary>
+        /// 加载了DLL外部依赖事件参数
+        /// </summary>
+        /// <param name="nodeLibraryInfo"></param>
         public LoadDllEventArgs(FlowLibraryInfo nodeLibraryInfo)
         {
             this.NodeLibraryInfo = nodeLibraryInfo;
@@ -194,6 +205,9 @@ namespace Serein.Library.Api
     /// </summary>
     public class RemoteDllEventArgs : FlowEventArgs
     {
+        /// <summary>
+        /// 移除了DLL外部依赖事件参数
+        /// </summary>
         public RemoteDllEventArgs()
         {
         }
@@ -270,6 +284,9 @@ namespace Serein.Library.Api
 
         }
 
+        /// <summary>
+        /// 连接关系所在的画布Guid
+        /// </summary>
         public string CanvasGuid { get; }
 
         /// <summary>
@@ -309,11 +326,18 @@ namespace Serein.Library.Api
     /// </summary>
     public class CanvasCreateEventArgs : FlowEventArgs
     {
+        /// <summary>
+        /// 画布添加事件参数
+        /// </summary>
+        /// <param name="model"></param>
         public CanvasCreateEventArgs(FlowCanvasDetails model)
         {
             Model = model;
         }
 
+        /// <summary>
+        /// 画布
+        /// </summary>
         public FlowCanvasDetails Model { get; }
     }
 
@@ -322,11 +346,18 @@ namespace Serein.Library.Api
     /// </summary>
     public class CanvasRemoveEventArgs : FlowEventArgs
     {
+        /// <summary>
+        /// 画布移除事件参数
+        /// </summary>
+        /// <param name="canvasGuid"></param>
         public CanvasRemoveEventArgs(string canvasGuid)
         {
             CanvasGuid = canvasGuid;
         }
 
+        /// <summary>
+        /// 所处画布Guid
+        /// </summary>
         public string CanvasGuid { get; }
     }
 
@@ -360,10 +391,6 @@ namespace Serein.Library.Api
         /// 在UI上的位置
         /// </summary>
         public PositionOfUI Position { get; private set; }
-        /// <summary>
-        /// 容器
-        /// </summary>
-        //public string RegeionGuid { get; private set; }
     }
 
     /// <summary>
@@ -371,12 +398,20 @@ namespace Serein.Library.Api
     /// </summary>
     public class NodeRemoveEventArgs : FlowEventArgs
     {
+        /// <summary>
+        /// 被移除节点事件参数
+        /// </summary>
+        /// <param name="canvasGuid"></param>
+        /// <param name="nodeGuid"></param>
         public NodeRemoveEventArgs(string canvasGuid, string nodeGuid)
         {
             CanvasGuid = canvasGuid;
             this.NodeGuid = nodeGuid;
         }
 
+        /// <summary>
+        /// 被移除节点所在的画布Guid
+        /// </summary>
         public string CanvasGuid { get; }
 
         /// <summary>
@@ -390,6 +425,12 @@ namespace Serein.Library.Api
     /// </summary>
     public class NodePlaceEventArgs : FlowEventArgs 
     {
+        /// <summary>
+        /// 节点放置事件参数
+        /// </summary>
+        /// <param name="canvasGuid"></param>
+        /// <param name="nodeGuid"></param>
+        /// <param name="containerNodeGuid"></param>
         public NodePlaceEventArgs(string canvasGuid, string nodeGuid, string containerNodeGuid)
         {
             CanvasGuid = canvasGuid;
@@ -397,6 +438,9 @@ namespace Serein.Library.Api
             ContainerNodeGuid = containerNodeGuid;
         }
 
+        /// <summary>
+        /// 画布Guid
+        /// </summary>
         public string CanvasGuid { get; }
 
         /// <summary>
@@ -414,6 +458,12 @@ namespace Serein.Library.Api
     /// </summary>
     public class NodeTakeOutEventArgs : FlowEventArgs
     {
+        /// <summary>
+        /// 节点取出事件参数
+        /// </summary>
+        /// <param name="canvasGuid"></param>
+        /// <param name="containerNodeGuid"></param>
+        /// <param name="nodeGuid"></param>
         public NodeTakeOutEventArgs(string canvasGuid, string containerNodeGuid, string nodeGuid)
         {
             CanvasGuid = canvasGuid;
@@ -421,6 +471,9 @@ namespace Serein.Library.Api
             ContainerNodeGuid = containerNodeGuid;
         }
 
+        /// <summary>
+        /// 所在画布Guid
+        /// </summary>
         public string CanvasGuid { get; }
 
         /// <summary>
@@ -438,9 +491,17 @@ namespace Serein.Library.Api
 
 
 
-
+    /// <summary>
+    /// 起始节点发生了变化
+    /// </summary>
     public class StartNodeChangeEventArgs : FlowEventArgs
     {
+        /// <summary>
+        /// 起始节点发生了变化事件参数
+        /// </summary>
+        /// <param name="canvasGuid"></param>
+        /// <param name="oldNodeGuid"></param>
+        /// <param name="newNodeGuid"></param>
         public StartNodeChangeEventArgs(string canvasGuid, string oldNodeGuid, string newNodeGuid)
         {
             CanvasGuid = canvasGuid;
@@ -448,6 +509,9 @@ namespace Serein.Library.Api
             this.NewNodeGuid = newNodeGuid; ;
         }
 
+        /// <summary>
+        /// 所在画布Guid
+        /// </summary>
         public string CanvasGuid { get; }
 
         /// <summary>
@@ -515,6 +579,11 @@ namespace Serein.Library.Api
     /// </summary>
     public class NodeInterruptStateChangeEventArgs : FlowEventArgs
     {
+        /// <summary>
+        /// 节点中断状态改变事件参数
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        /// <param name="isInterrupt"></param>
         public NodeInterruptStateChangeEventArgs(string nodeGuid,bool isInterrupt)
         {
             NodeGuid = nodeGuid;
@@ -526,14 +595,19 @@ namespace Serein.Library.Api
         /// 中断的节点Guid
         /// </summary>
         public string NodeGuid { get;}
+        /// <summary>
+        /// 是否中断
+        /// </summary>
         public bool IsInterrupt { get;}
-        // public InterruptClass Class { get;}
     }
     /// <summary>
     /// 节点触发了中断事件参数
     /// </summary>
     public class InterruptTriggerEventArgs : FlowEventArgs
     {
+        /// <summary>
+        /// 中断触发类型
+        /// </summary>
         public enum InterruptTriggerType
         {
             /// <summary>
@@ -550,6 +624,12 @@ namespace Serein.Library.Api
             Obj,
         }
 
+        /// <summary>
+        /// 中断触发事件参数
+        /// </summary>
+        /// <param name="nodeGuid"></param>
+        /// <param name="expression"></param>
+        /// <param name="type"></param>
         public InterruptTriggerEventArgs(string nodeGuid, string expression, InterruptTriggerType type)
         {
             this.NodeGuid = nodeGuid;
@@ -561,7 +641,13 @@ namespace Serein.Library.Api
         /// 中断的节点Guid
         /// </summary>
         public string NodeGuid { get;}
+        /// <summary>
+        /// 被触发的表达式
+        /// </summary>
         public string Expression { get;}
+        /// <summary>
+        /// 中断触发类型
+        /// </summary>
         public InterruptTriggerType Type { get;}
     }
 
@@ -572,6 +658,9 @@ namespace Serein.Library.Api
     /// </summary>
     public class IOCMembersChangedEventArgs : FlowEventArgs
     {
+        /// <summary>
+        /// IOC成员发生改变的事件类型
+        /// </summary>
         public enum EventType
         {
             /// <summary>
@@ -583,12 +672,23 @@ namespace Serein.Library.Api
             /// </summary>
             Completeuild,
         }
+        /// <summary>
+        /// IOC成员发生改变事件参数
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="instance"></param>
         public IOCMembersChangedEventArgs(string key, object instance)
         {
             this.Key = key;
             this.Instance = instance;
         }
+        /// <summary>
+        /// IOC成员发生改变事件参数
+        /// </summary>
         public string Key { get; private set; }
+        /// <summary>
+        /// IOC成员发生改变事件参数
+        /// </summary>
         public object Instance { get; private set; }
     }
 
@@ -597,37 +697,19 @@ namespace Serein.Library.Api
     /// </summary>
     public class NodeLocatedEventArgs : FlowEventArgs
     {
+        /// <summary>
+        /// 节点需要定位事件参数
+        /// </summary>
+        /// <param name="nodeGuid"></param>
         public NodeLocatedEventArgs(string nodeGuid)
         {
             NodeGuid = nodeGuid;
         }
+        /// <summary>
+        /// 节点需要定位事件参数
+        /// </summary>
         public string NodeGuid { get; private set; }
     }
-
-/*    /// <summary>
-    /// 节点移动了
-    /// </summary>
-     public class NodeMovedEventArgs : FlowEventArgs
-        {
-            public NodeMovedEventArgs(string nodeGuid, double x, double y)
-            {
-                this.NodeGuid = nodeGuid;
-                this.X = x;
-                this.Y = y;
-            }
-            /// <summary>
-            /// 节点唯一标识
-            /// </summary>
-            public string NodeGuid { get; private set; }
-            /// <summary>
-            /// 画布上的x坐标
-            /// </summary>
-            public double X { get; private set; }
-            /// <summary>
-            /// 画布上的y坐标
-            /// </summary>
-            public double Y { get; private set; }
-        }*/
 
 
     #endregion
@@ -729,23 +811,113 @@ namespace Serein.Library.Api
         /// </summary>
         event EnvOutHandler EnvOutput;
 
+        /// <summary>
+        /// 加载了DLL外部依赖事件
+        /// </summary>
+        /// <param name="eventArgs"></param>
         public void OnDllLoad(LoadDllEventArgs eventArgs);
+
+        /// <summary>
+        /// 项目加载完成事件
+        /// </summary>
+        /// <param name="eventArgs"></param>
         public void OnProjectLoaded(ProjectLoadedEventArgs eventArgs);
+
+        /// <summary>
+        /// 项目准备保存事件
+        /// </summary>
+        /// <param name="eventArgs"></param>
         public void OnProjectSaving(ProjectSavingEventArgs eventArgs);
+
+        /// <summary>
+        /// 节点连接关系发生改变事件
+        /// </summary>
+        /// <param name="eventArgs"></param>
         public void OnNodeConnectChanged(NodeConnectChangeEventArgs eventArgs);
+
+        /// <summary>
+        /// 画布创建事件
+        /// </summary>
+        /// <param name="eventArgs"></param>
         public void OnCanvasCreated(CanvasCreateEventArgs eventArgs);
+
+        /// <summary>
+        /// 画布移除事件
+        /// </summary>
+        /// <param name="eventArgs"></param>
         public void OnCanvasRemoved(CanvasRemoveEventArgs eventArgs);
+
+        /// <summary>
+        /// 节点创建事件
+        /// </summary>
+        /// <param name="eventArgs"></param>
         public void OnNodeCreated(NodeCreateEventArgs eventArgs);
+
+        /// <summary>
+        /// 节点移除事件
+        /// </summary>
+        /// <param name="eventArgs"></param>
         public void OnNodeRemoved(NodeRemoveEventArgs eventArgs);
+
+        /// <summary>
+        /// 节点放置事件
+        /// </summary>
+        /// <param name="eventArgs"></param>
         public void OnNodePlace(NodePlaceEventArgs eventArgs);
+
+        /// <summary>
+        /// 节点取出事件
+        /// </summary>
+        /// <param name="eventArgs"></param>
         public void OnNodeTakeOut(NodeTakeOutEventArgs eventArgs);
+
+        /// <summary>
+        /// 起始节点发生了变化事件
+        /// </summary>
+        /// <param name="eventArgs"></param>
         public void OnStartNodeChanged(StartNodeChangeEventArgs eventArgs);
+
+        /// <summary>
+        /// 流程运行完成事件
+        /// </summary>
+        /// <param name="eventArgs"></param>
         public void OnFlowRunComplete(FlowEventArgs eventArgs);
+
+        /// <summary>
+        /// 被监视的对象发生了改变事件
+        /// </summary>
+        /// <param name="eventArgs"></param>
         public void OnMonitorObjectChanged(MonitorObjectEventArgs eventArgs);
+
+        /// <summary>
+        /// 节点中断状态发生了改变事件（开启了中断/取消了中断）
+        /// </summary>
+        /// <param name="eventArgs"></param>
         public void OnNodeInterruptStateChanged(NodeInterruptStateChangeEventArgs eventArgs);
+
+        /// <summary>
+        /// 触发了中断事件
+        /// </summary>
+        /// <param name="eventArgs"></param>
         public void OnInterruptTriggered(InterruptTriggerEventArgs eventArgs);
+
+        /// <summary>
+        /// IOC容器成员发生了改变事件
+        /// </summary>
+        /// <param name="eventArgs"></param>
         public void OnIOCMembersChanged(IOCMembersChangedEventArgs eventArgs);
+
+        /// <summary>
+        /// 节点需要定位事件
+        /// </summary>
+        /// <param name="eventArgs"></param>
         public void OnNodeLocated(NodeLocatedEventArgs eventArgs);
+
+        /// <summary>
+        /// 环境输出信息事件
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="value"></param>
         public void OnEnvOutput(InfoType type, string value);
     }
 
@@ -864,7 +1036,7 @@ namespace Serein.Library.Api
         /// 获取当前项目信息
         /// </summary>
         /// <returns></returns>
-        Task<SereinProjectData> GetProjectInfoAsync();
+        SereinProjectData GetProjectInfoAsync();
 
         #endregion
 

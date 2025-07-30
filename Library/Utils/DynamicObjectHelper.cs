@@ -41,21 +41,40 @@ namespace Serein.Library.Utils
             return null;
         }
 
+        /// <summary>
+        /// 解析字典属性并创建对象实例
+        /// </summary>
+        /// <param name="properties"></param>
+        /// <param name="typeName"></param>
+        /// <returns></returns>
+
         public static object Resolve(IDictionary<string, object> properties, string typeName)
         {
             var obj = CreateObjectWithProperties(properties, typeName);
             //SetPropertyValues(obj, properties);
             return obj;
         }
+
+        /// <summary>
+        /// 尝试解析字典属性并创建对象实例
+        /// </summary>
+        /// <param name="properties"></param>
+        /// <param name="typeName"></param>
+        /// <param name="result"></param>
+        /// <returns></returns>
         public static bool TryResolve(IDictionary<string, object> properties, string typeName, out object result)
         {
             result = CreateObjectWithProperties(properties, typeName);
             bool success = SetPropertyValuesWithValidation(result, properties);
             return success;
-            // 打印赋值结果
 
         }
-        // 递归方法：打印对象属性及类型
+
+        /// <summary>
+        /// 打印对象属性及类型
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <param name="indent"></param>
         public static void PrintObjectProperties(object obj, string indent = "")
         {
             var objType = obj.GetType();
@@ -327,7 +346,12 @@ namespace Serein.Library.Utils
         }
         #region 动态创建对象并赋值
 
-        // 方法 1: 创建动态类型及其对象实例
+        /// <summary>
+        ///  创建动态类型及其对象实例
+        /// </summary>
+        /// <param name="properties"></param>
+        /// <param name="typeName"></param>
+        /// <returns></returns>
         public static object CreateObjectWithProperties(IDictionary<string, object> properties, string typeName)
         {
             // 如果类型已经缓存，直接返回缓存的类型
@@ -410,8 +434,12 @@ namespace Serein.Library.Utils
             return Activator.CreateInstance(dynamicType);
         }
 
-        // 方法 2: 递归设置对象的属性值
-        public static void SetPropertyValues(object obj, Dictionary<string, object> properties)
+        /// <summary>
+        ///  递归设置对象的属性值
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <param name="properties"></param>
+        private static void SetPropertyValues(object obj, Dictionary<string, object> properties)
         {
             var objType = obj.GetType();
 
@@ -439,8 +467,13 @@ namespace Serein.Library.Utils
                 }
             }
         }
-        // 方法 2: 递归设置对象的属性值（带验证）
 
+        /// <summary>
+        /// 递归设置对象的属性值（带验证）
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <param name="properties"></param>
+        /// <returns></returns>
         public static bool SetPropertyValuesWithValidation(object obj, IDictionary<string, object> properties)
         {
             var objType = obj.GetType();

@@ -5,7 +5,7 @@ using Serein.Library;
 
 namespace Serein.Workbench.Node.View
 {
-    public class ArgJunctionControl : JunctionControlBase
+    internal class ArgJunctionControl : JunctionControlBase
     {
         public ArgJunctionControl()
         {

@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <Title>SereinFow</Title>
-    <Version>1.2.2</Version>
+    <Version>1.2.3</Version>
     <Description>动态节点流、可视化编辑的基本依赖，支持导入C# DLL生成自定义节点，提供二次开发支持，适合用于可视化编程和流程设计</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/fhhyyp/serein-flow</RepositoryUrl>
@@ -61,18 +61,13 @@
     <Compile Remove="FlowNode\NodeModelBaseFunc.cs" />
     <Compile Remove="FlowNode\ScriptFlowApi.cs" />
     <Compile Remove="Utils\NativeDllHelper.cs" />
-    <Compile Remove="Utils\RemoteMsgUtil.cs" />
+    <Compile Remove="Utils\RemoteMsgUtil.cs" /> 
   </ItemGroup>
 
   <ItemGroup>
-
-   
-    <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="9.0.0" />
-    <PackageReference Include="System.IO.Ports" Version="9.0.7" />
     <PackageReference Include="System.Reactive" Version="6.0.1" />
     <PackageReference Include="System.Threading.Channels" Version="8.0.0" />
     <PackageReference Include="System.ValueTuple" Version="4.3.0" />
-    <!--<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />-->
   </ItemGroup>
 
   <ItemGroup>
@@ -87,6 +82,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!--<ProjectReference Include="..\Serein.Library.MyGenerator\Serein.Library.NodeGenerator.csproj " OutputItemType="Analyzer" />-->
+    <!--  ReferenceOutputAssembly="false" -->
     <ProjectReference Include="..\Serein.Library.MyGenerator\Serein.Library.NodeGenerator.csproj " OutputItemType="Analyzer" />
   </ItemGroup>
 

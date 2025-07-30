@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Serein.Library": {
+      "commandName": "Project",
+      "remoteDebugEnabled": false
+    }
+  }
+}

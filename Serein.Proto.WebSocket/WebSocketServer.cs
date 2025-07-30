@@ -52,13 +52,17 @@ namespace Serein.Proto.WebSocket
         /// <param name="message"></param>
         public async Task<bool> HandleAuthorized(string message)
         {
+            if (InspectionAuthorizedFunc is null)
+            {
+                return false; // 如果没有授权方法，则默认解决
+            }
             await semaphoreSlim.WaitAsync(1);
             bool isAuthorized = false;
             IJsonToken json = JsonHelper.Parse(message);
             if(json.TryGetValue(TokenKey,out var token))
             {
                 // 交给之前定义的授权方法进行判断
-                isAuthorized = await InspectionAuthorizedFunc?.Invoke(token);
+                isAuthorized = await InspectionAuthorizedFunc.Invoke(token);
             }
             else
             {
@@ -81,7 +85,7 @@ namespace Serein.Proto.WebSocket
         /// </summary>
         public WebSocketMsgHandleHelper MsgHandleHelper { get; } = new WebSocketMsgHandleHelper();
 
-        private HttpListener listener;
+        private HttpListener? listener;
 
         /// <summary>
         /// 创建无须授权验证的WebSocket服务端
@@ -110,9 +114,11 @@ namespace Serein.Proto.WebSocket
         /// 授权
         /// </summary>
         public ConcurrentDictionary<string, WebSocketAuthorizedHelper> AuthorizedClients;
-        private readonly string TokenKey;
+        private readonly string TokenKey = string.Empty;
         private readonly Func<dynamic, Task<bool>> InspectionAuthorizedFunc;
         private bool IsCheckToken = false;
+
+
         /// <summary>
         /// 进行监听服务
         /// </summary>
@@ -138,13 +144,14 @@ namespace Serein.Proto.WebSocket
                 try
                 {
                     var context = await listener.GetContextAsync();
-                    string clientPoint = context.Request.RemoteEndPoint?.ToString();
+                    string clientPoint = context.Request.RemoteEndPoint.ToString();
 
                     await Console.Out.WriteLineAsync($"新的连接加入：{clientPoint}");
 
                     if (context.Request.IsWebSocketRequest)
                     {
-                        WebSocketAuthorizedHelper authorizedHelper = null;
+#error "需要重写 WebSocket 服务"
+                        WebSocketAuthorizedHelper? authorizedHelper = null;
                         if (IsCheckToken)
                         {
                             if (AuthorizedClients.TryAdd(clientPoint, new WebSocketAuthorizedHelper(clientPoint, TokenKey, InspectionAuthorizedFunc)))
@@ -154,7 +161,7 @@ namespace Serein.Proto.WebSocket
                         }
 
                         var webSocketContext = await context.AcceptWebSocketAsync(null); //新连接
-                         _ = HandleWebSocketAsync(webSocketContext.WebSocket, authorizedHelper); // 处理消息
+                         _ = HandleWebSocketAsync(webSocketContext.WebSocket, authorizedHelper!); // 处理消息
                     }
                 }
                 catch (Exception ex)

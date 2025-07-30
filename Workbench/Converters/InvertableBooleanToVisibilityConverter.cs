@@ -13,7 +13,7 @@ namespace Serein.Workbench.Converters
     /// 根据bool类型控制可见性
     /// </summary>
     [ValueConversion(typeof(bool), typeof(Visibility))]
-    public class InvertableBooleanToVisibilityConverter : IValueConverter
+    internal class InvertableBooleanToVisibilityConverter : IValueConverter
     {
         enum Parameters
         {

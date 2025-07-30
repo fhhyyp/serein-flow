@@ -16,10 +16,17 @@ namespace Serein.Library
     [AttributeUsage(AttributeTargets.Class)]
     public sealed class AutoRegisterAttribute : Attribute
     {
+        /// <summary>
+        /// 自动注册特性
+        /// </summary>
+        /// <param name="Class"></param>
         public AutoRegisterAttribute(RegisterSequence Class = RegisterSequence.FlowInit)
         {
             this.Class = Class;
         }
+        /// <summary>
+        /// 注册顺序
+        /// </summary>
         public RegisterSequence Class ;
     }
 

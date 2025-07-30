@@ -17,11 +17,10 @@ namespace Serein.Proto.WebSocket.Handle
         public ConcurrentDictionary<(string, string), WebSocketHandleModule> MyHandleModuleDict
             = new ConcurrentDictionary<(string, string), WebSocketHandleModule>();
 
-        private Action<Exception, Action<object>> _onExceptionTracking;
         /// <summary>
         /// 异常跟踪
         /// </summary>
-        public event Action<Exception, Action<object>> OnExceptionTracking;
+        public Action<Exception, Action<object>>? OnExceptionTracking;
 
         /// <summary>
         /// 添加消息处理与异常处理
@@ -92,12 +91,12 @@ namespace Serein.Proto.WebSocket.Handle
 
             var handleModule = AddMyHandleModule(moduleConfig);
             var configs = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-                .Select<MethodInfo, WebSocketHandleConfiguration>(methodInfo =>
+                .Select<MethodInfo, WebSocketHandleConfiguration?>(methodInfo =>
                 {
                     var methodsAttribute = methodInfo.GetCustomAttribute<AutoSocketHandleAttribute>();
                     if (methodsAttribute is null)
                     {
-                        return null;
+                        return default;
                     }
                     else
                     {
@@ -135,7 +134,7 @@ namespace Serein.Proto.WebSocket.Handle
                         config.InstanceFactory = instanceFactory; // 调用emit委托时的实例
                         config.OnExceptionTracking = onExceptionTracking; // 异常追踪
                         config.ParameterType = parameterInfos.Select(t => t.ParameterType).ToArray(); // 入参参数类型
-                        config.ParameterName = parameterInfos.Select(t => t.Name).ToArray(); // 入参参数名称
+                        config.ParameterName = parameterInfos.Select(t => $"{t.Name}").ToArray(); // 入参参数名称
                         config.UseRequest = parameterInfos.Select(p => p.GetCustomAttribute<UseRequestAttribute>() != null).ToArray(); // 是否使用整体data数据
                         config.UseData = parameterInfos.Select(p => p.GetCustomAttribute<UseDataAttribute>() != null).ToArray(); // 是否使用整体data数据
                         config.UseMsgId = parameterInfos.Select(p => p.GetCustomAttribute<UseMsgIdAttribute>() != null).ToArray(); // 是否使用消息ID
@@ -179,7 +178,7 @@ namespace Serein.Proto.WebSocket.Handle
             SereinEnv.WriteLine(InfoType.INFO, $"theme key, data key : {themeKey}, {dataKey}");
             foreach (var config in configs)
             {
-                SereinEnv.WriteLine(InfoType.INFO, $"theme value  : {config.ThemeValue} ");
+                SereinEnv.WriteLine(InfoType.INFO, $"theme value  : {config!.ThemeValue} ");
                 var result = handleModule.AddHandleConfigs(config);
             }
 

@@ -7,7 +7,7 @@ namespace Serein.Library
 
     /// <summary>
     /// 表示了两个节点之间的连接关系,同时表示节点运行完成后，所会执行的下一个节点类型。
-    /// </summary
+    /// </summary>
     public enum ConnectionInvokeType
     {
         /// <summary>

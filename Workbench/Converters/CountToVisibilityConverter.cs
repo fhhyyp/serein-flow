@@ -10,7 +10,7 @@ using System.Windows;
 
 namespace Serein.Workbench.Converters
 {
-    public class CountToVisibilityConverter : IValueConverter
+    internal class CountToVisibilityConverter : IValueConverter
     {
         public bool Inverse { get; set; } = false; // 可选：反转逻辑
 

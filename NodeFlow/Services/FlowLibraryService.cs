@@ -14,6 +14,10 @@ namespace Serein.NodeFlow.Services
     /// </summary>
     public class FlowLibraryService
     {
+        /// <summary>
+        /// 构造函数，初始化流程依赖
+        /// </summary>
+        /// <param name="flowEnvironment"></param>
         public FlowLibraryService(IFlowEnvironment flowEnvironment)
         {
             this.flowEnvironment = flowEnvironment;
@@ -35,10 +39,12 @@ namespace Serein.NodeFlow.Services
         ///  每个类库下面至少需要有“Serein.Library.dll”类库依赖
         /// </summary>
         /// <param name="libraryfilePath"></param>
+        /// <param name="baseLibraryPath"></param>
         /// <returns></returns>
         private bool CheckBaseLibrary(string libraryfilePath, out string baseLibraryPath)
         {
             var dir = Path.GetDirectoryName(libraryfilePath); // 获取目录路径
+            ArgumentNullException.ThrowIfNullOrWhiteSpace(dir);
             var sereinFlowBaseLibraryPath = Path.Combine(dir, SereinBaseLibrary);
             if (!Path.Exists(sereinFlowBaseLibraryPath))
             {
@@ -146,7 +152,7 @@ namespace Serein.NodeFlow.Services
         /// </summary>
         /// <param name="assemblyName">程序集名称</param>
         /// <param name="methodName">方法名称</param>
-        /// <param name="md">返回的方法描述</param>
+        /// <param name="methodInfo">返回的方法描述</param>
         /// <returns>是否获取成功</returns>
         public bool TryGetMethodInfo(string assemblyName, string methodName, [MaybeNullWhen(false)] out MethodInfo methodInfo)
         {

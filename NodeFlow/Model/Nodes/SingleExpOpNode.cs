@@ -8,19 +8,21 @@ namespace Serein.NodeFlow.Model.Nodes
     /// <summary>
     /// Expression Operation - 表达式操作
     /// </summary>
-    [NodeProperty(ValuePath = NodeValuePath.Node)]
+    [FlowDataProperty(ValuePath = NodeValuePath.Node, IsNodeImp = true)]
     public partial class SingleExpOpNode : NodeModelBase
     {
         /// <summary>
         /// 表达式
         /// </summary>
-        [PropertyInfo(IsNotification = true)]
+        [DataInfo(IsNotification = true)]
         private string _expression;
 
     }
 
 
-
+    /// <summary>
+    /// 表达式节点模型基类
+    /// </summary>
     public partial class SingleExpOpNode : NodeModelBase
     {
         /// <summary>
@@ -33,6 +35,10 @@ namespace Serein.NodeFlow.Model.Nodes
         /// </summary>
         private const int INDEX_EXPRESSION = 0;
 
+        /// <summary>
+        /// 表达式节点构造函数
+        /// </summary>
+        /// <param name="environment"></param>
         public SingleExpOpNode(IFlowEnvironment environment) : base(environment)
         {
 
@@ -87,7 +93,12 @@ namespace Serein.NodeFlow.Model.Nodes
             this.Expression = nodeInfo.CustomData?.Expression ?? "";
         }
 
-
+        /// <summary>
+        /// 执行节点操作
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="token"></param>
+        /// <returns></returns>
         public override async Task<FlowResult> ExecutingAsync(IFlowContext context, CancellationToken token)
         {
             if(token.IsCancellationRequested) return FlowResult.Fail(this.Guid, context, "流程已通过token取消");

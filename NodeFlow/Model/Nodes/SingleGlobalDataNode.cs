@@ -9,13 +9,13 @@ namespace Serein.NodeFlow.Model.Nodes
     /// <summary>
     /// Expression Operation - 表达式操作
     /// </summary>
-    [NodeProperty(ValuePath = NodeValuePath.Node)]
+    [FlowDataProperty(ValuePath = NodeValuePath.Node, IsNodeImp = true)]
     public partial class SingleGlobalDataNode : NodeModelBase
     {
         /// <summary>
         /// 全局数据的Key名称
         /// </summary>
-        [PropertyInfo(IsNotification = true)] 
+        [DataInfo(IsNotification = true)] 
         private string _keyName;
 
     }
@@ -36,6 +36,10 @@ namespace Serein.NodeFlow.Model.Nodes
         /// </summary>
         public override int MaxChildrenCount => 1;
 
+        /// <summary>
+        /// 全局数据节点，允许放置一个数据源节点，通常是[Action]或[Script]节点，用于获取全局数据。
+        /// </summary>
+        /// <param name="environment"></param>
         public SingleGlobalDataNode(IFlowEnvironment environment) : base(environment)
         {
         }
@@ -85,7 +89,11 @@ namespace Serein.NodeFlow.Model.Nodes
             
         }
 
-
+        /// <summary>
+        /// 从容器中取出节点
+        /// </summary>
+        /// <param name="nodeModel"></param>
+        /// <returns></returns>
         public bool TakeOutNode(IFlowNode nodeModel)
         {
             if (ChildrenNode.Contains(nodeModel))
@@ -102,7 +110,10 @@ namespace Serein.NodeFlow.Model.Nodes
             
         }
 
-        public async void TakeOutAll()
+        /// <summary>
+        /// 从容器中取出所有节点
+        /// </summary>
+        public void TakeOutAll()
         {
             foreach (var nodeModel in ChildrenNode) 
             {
@@ -111,12 +122,13 @@ namespace Serein.NodeFlow.Model.Nodes
             DataNode = null;
         }
 
-      
+
 
         /// <summary>
         /// 设置全局数据
         /// </summary>
         /// <param name="context"></param>
+        /// <param name="token"></param>
         /// <returns></returns>
         public override async Task<FlowResult> ExecutingAsync(IFlowContext context, CancellationToken token)
         {

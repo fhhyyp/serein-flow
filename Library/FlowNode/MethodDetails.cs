@@ -12,7 +12,7 @@ namespace Serein.Library
     /// <summary>
     /// 每个节点有独自的MethodDetails实例
     /// </summary>
-    [NodeProperty(ValuePath = NodeValuePath.Method)]
+    [FlowDataProperty(ValuePath = NodeValuePath.Method)]
     public partial class MethodDetails
     {
         // private readonly IFlowEnvironment env;
@@ -20,57 +20,51 @@ namespace Serein.Library
         /// <summary>
         /// 对应的节点
         /// </summary>
-        [PropertyInfo(IsProtection = true)]
+        [DataInfo(IsProtection = true)]
         private IFlowNode _nodeModel;
 
         /// <summary>
         /// 对应的程序集
         /// </summary>
-        [PropertyInfo]
+        [DataInfo]
         private string _assemblyName;
 
 
         /// <summary>
         /// 调用节点方法时需要的实例（多个相同的节点将拥有相同的类型）
         /// </summary>
-        [PropertyInfo]
+        [DataInfo]
         private Type _actingInstanceType;
-
-        /// <summary>
-        /// 作用实例（多个相同的节点将会共享同一个实例）
-        /// </summary>
-        // [PropertyInfo]
-        // private object _actingInstance;
 
         /// <summary>
         /// 方法名称
         /// </summary>
-        [PropertyInfo]
+        [DataInfo]
         private string _methodName;
 
         /// <summary>
         /// 节点类型
         /// </summary>
-        [PropertyInfo]
+        [DataInfo]
         private NodeType _methodDynamicType;
 
         /// <summary>
         /// 锁名称（暂未实现）
         /// </summary>
-        [PropertyInfo]
+        [DataInfo]
         private string _methodLockName;
 
 
         /// <summary>
         /// 方法别名
         /// </summary>
-        [PropertyInfo]
+        [DataInfo]
         private string _methodAnotherName;
 
         /// <summary>
         /// 参数描述
         /// </summary>
-        [PropertyInfo]
+        [DataInfo]
         private ParameterDetails[] _parameterDetailss;
 
         /// <summary>
@@ -78,19 +72,19 @@ namespace Serein.Library
         /// <para>-1表示不存在</para>
         /// <para>0表示第一个参数是可选参数</para>
         /// </summary>
-        [PropertyInfo] 
+        [DataInfo] 
         private int _paramsArgIndex = -1;
 
         /// <summary>
         /// 是否为异步方法（如果为异步方法，则返回值类型为Task或Task&lt;T&gt;）
         /// </summary>
-        [PropertyInfo]
+        [DataInfo]
         private bool _isAsync = false;
 
         /// <summary>
         /// 出参类型
         /// </summary>
-        [PropertyInfo]
+        [DataInfo]
         private Type _returnType;
     }
 
@@ -133,7 +127,11 @@ namespace Serein.Library
             return true;
         }
 
-
+        /// <summary>
+        /// 新增可变参数
+        /// </summary>
+        /// <param name="parameterDetails"></param>
+        /// <returns></returns>
         public bool AddParamsArg(ParameterDetails parameterDetails)
         {
             if (ParamsArgIndex < 0)  // 方法是否包含可变参数
@@ -313,6 +311,10 @@ namespace Serein.Library
             return md;
         }
 
+        /// <summary>
+        /// 将方法信息转换为字符串，方便调试和查看
+        /// </summary>
+        /// <returns></returns>
         public override string ToString()
         {
             if (string.IsNullOrEmpty(this.MethodName))

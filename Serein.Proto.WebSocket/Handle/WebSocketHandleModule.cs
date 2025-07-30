@@ -86,32 +86,61 @@ namespace Serein.Proto.WebSocket.Handle
         public async Task HandleAsync(WebSocketMsgContext context)
         {
             var jsonObject = context.MsgRequest; // 获取到消息
-            string theme = jsonObject.GetValue(moduleConfig.ThemeJsonKey)?.ToString();
-            if (!MyHandleConfigs.TryGetValue(theme, out var handldConfig))
+
+            if (jsonObject is null)
             {
+                // SereinEnv.WriteLine(InfoType.WARN, "没有获取到消息");
+                return; // 没有获取到消息
+            }
+
+            // 验证主题
+            if (!jsonObject.TryGetValue(moduleConfig.ThemeJsonKey, out var themeToken)
+                || themeToken.ToString() is not string theme
+                || !MyHandleConfigs.TryGetValue(theme, out var handldConfig))
+            {
+                // SereinEnv.WriteLine(InfoType.WARN, $"{theme} 主题不存在");
+                return; 
+            }
+
+            // 验证消息ID
+            if (!jsonObject.TryGetValue(moduleConfig.MsgIdJsonKey, out var msgIdToken)
+                || msgIdToken.ToString() is not string msgId)
+            {
+                // SereinEnv.WriteLine(InfoType.WARN, $"[{msgId}]{theme} 没有消息Id");
+                return; 
+            }
+
+            // 验证消息ID是否重复
+            if (!_myMsgIdHash.Add(msgId))
+            {
+                // SereinEnv.WriteLine(InfoType.WARN, $"[{msgId}]{theme} 消息重复");
+                return; // 消息重复
+            }
+
+            // 验证数据
+            if (!jsonObject.TryGetValue(moduleConfig.DataJsonKey, out var dataToken))
+            {
+                // SereinEnv.WriteLine(InfoType.WARN, $"[{msgId}]{theme} 消息重复");
                 return; // 没有主题
             }
-            context.MsgTheme = theme; // 添加主题
-            string msgId = jsonObject.GetValue(moduleConfig.MsgIdJsonKey)?.ToString();
-            if (_myMsgIdHash.Contains(msgId))
-            {
-                SereinEnv.WriteLine(InfoType.WARN, $"[{msgId}]{theme} 消息重复");
-                return;
-            }
-            context.MsgId = msgId; // 添加 ID
-            _myMsgIdHash.Add(msgId);
 
+            context.MsgTheme = theme; // 添加主题
+            context.MsgId = msgId; // 添加 ID
+            context.MsgData = dataToken; // 添加消息
+            context.MsgRequest = jsonObject; // 添加原始消息
             try
             {
-                var dataObj = jsonObject.GetValue(moduleConfig.DataJsonKey);
-                context.MsgData = dataObj; // 添加消息
                 if (TryGetParameters(handldConfig, context, out var args))
                 {
-                    var result =  await HandleAsync(handldConfig, args);
+                    var result = await HandleAsync(handldConfig, args);
                     if (handldConfig.IsReturnValue)
                     {
                         await context.RepliedAsync(moduleConfig, context, result);
                     }
+                }
+                else
+                {
+                    SereinEnv.WriteLine(InfoType.WARN, $"[{msgId}]{theme} 参数获取失败");
                 }
             }
             catch (Exception ex)
@@ -131,9 +160,13 @@ namespace Serein.Proto.WebSocket.Handle
         /// <param name="config"></param>
         /// <param name="args"></param>
         /// <returns></returns>
-        public static async Task<object> HandleAsync(HandleConfiguration config, object[] args)
+        public static async Task<object> HandleAsync(HandleConfiguration config, object?[] args)
         {
-            var instance = config.InstanceFactory.Invoke();
+            if (config.DelegateDetails is null)
+            {
+                throw new InvalidOperationException("DelegateDetails 为 null, 无法进行调用.");
+            }
+            var instance = config.InstanceFactory?.Invoke();
             var result = await config.DelegateDetails.InvokeAsync(instance, args);
             return result;
         }
@@ -146,7 +179,7 @@ namespace Serein.Proto.WebSocket.Handle
         /// <param name="context">处理上下文</param>
         /// <param name="args">返回的入参参数</param>
         /// <returns></returns>
-        internal static bool TryGetParameters(HandleConfiguration config, WebSocketMsgContext context, out object[] args)
+        internal static bool TryGetParameters(HandleConfiguration config, WebSocketMsgContext context, out object?[] args)
         {
             args = new object[config.ParameterType.Length];
             bool isCanInvoke = true; ; // 表示是否可以调用方法
@@ -165,20 +198,20 @@ namespace Serein.Proto.WebSocket.Handle
                 #region DATA JSON数据
                 else if (config.UseRequest[i])
                 {
-                    args[i] = context.MsgRequest.ToObject(type);
+                    args[i] = context.MsgRequest?.ToObject(type);
                 }
                 #endregion
                 #region DATA JSON数据
                 else if (config.UseData[i])
                 {
-                    args[i] = context.MsgData.ToObject(type);
+                    args[i] = context.MsgData?.ToObject(type);
                 }
                 #endregion
                 #region 值类型参数
                 else if (type.IsValueType)
                 {
-                    var jsonValue = context.MsgData.GetValue(argName);
-                    if (!(jsonValue is null))
+                    var jsonValue = context.MsgData?.GetValue(argName);
+                    if (jsonValue is not null)
                     {
                         args[i] = jsonValue.ToObject(type);
                     }
@@ -200,14 +233,14 @@ namespace Serein.Proto.WebSocket.Handle
                 #region 引用类型参数
                 else if (type.IsClass)
                 {
-                    var jsonValue = context.MsgData.GetValue(argName);
+                    var jsonValue = context.MsgData?.GetValue(argName);
                     if (!(jsonValue is null))
                     {
                         args[i] = jsonValue.ToObject(type);
                     }
                     else
                     {
-                        if (config.ArgNotNull && !config.IsCheckArgNotNull[i])
+                        if (!config.ArgNotNull && !config.IsCheckArgNotNull[i])
                         {
 
                             args[i] = null; // 引用类型返回null

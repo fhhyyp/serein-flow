@@ -146,7 +146,7 @@ namespace Serein.Library.Utils
             var parameter = Expression.Parameter(typeof(object), "instance");
             var methodCall = Expression.Call(Expression.Convert(parameter, type), methodInfo);
 
-            if (IsGenericTask(methodInfo.ReturnType, out var taskResult))
+            if (EmitHelper.IsGenericTask(methodInfo.ReturnType, out var taskResult))
             {
                 if (taskResult is null)
                 {
@@ -278,7 +278,7 @@ namespace Serein.Library.Utils
                 convertedArgs
             );
 
-            if (IsGenericTask(methodInfo.ReturnType, out var taskResult))
+            if (EmitHelper.IsGenericTask(methodInfo.ReturnType, out var taskResult))
             {
                 if (taskResult is null)
                 {
@@ -305,7 +305,7 @@ namespace Serein.Library.Utils
 
 
         /// <summary>
-        /// 表达式树构建无参数，有返回值(Task<object>)的方法（触发器）
+        /// 表达式树构建无参数，有返回值(Task&lt;object&gt;)的方法（触发器）
         /// </summary>
         public static Delegate MethodCallerAsync(Type type, MethodInfo methodInfo)
         {
@@ -314,7 +314,7 @@ namespace Serein.Library.Utils
         }
 
         /// <summary>
-        /// 表达式树构建无参数，有返回值(Task<object>)的方法（触发器）
+        /// 表达式树构建无参数，有返回值(Task&lt;object&gt;)的方法（触发器）
         /// </summary>
         /// <param name="type"></param>
         /// <param name="methodInfo"></param>
@@ -332,7 +332,7 @@ namespace Serein.Library.Utils
 
 
         /// <summary>
-        /// 表达式树构建多个参数，有返回值(Task-object)的方法（触发器）
+        /// 表达式树构建多个参数，有返回值(Task&lt;object&gt;)的方法（触发器）
         /// </summary>
         public static Delegate MethodCallerAsync(Type type, MethodInfo method, params Type[] parameterTypes)
         {
@@ -342,7 +342,7 @@ namespace Serein.Library.Utils
         }
 
         /// <summary>
-        /// 表达式树构建多个参数，有返回值(Task<object>)的方法（触发器）
+        /// 表达式树构建多个参数，有返回值(Task&lt;object&gt;)的方法（触发器）
         /// </summary>
         private static Delegate CreateMethodCallerDelegateAsync(Type type, MethodInfo methodInfo, Type[] parameterTypes)
         {
@@ -384,31 +384,12 @@ namespace Serein.Library.Utils
 
 
 
-
-
-        public static bool IsGenericTask(Type returnType, out Type taskResult)
-        {
-            // 判断是否为 Task 类型或泛型 Task<T>
-            if (returnType == typeof(Task))
-            {
-                taskResult = null;
-                return true;
-            }
-            else if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
-            {
-                // 获取泛型参数类型
-                Type genericArgument = returnType.GetGenericArguments()[0];
-                taskResult = genericArgument;
-                return true;
-            }
-            else
-            {
-                taskResult = null;
-                return false;
-
-            }
-        }
-
+        /// <summary>
+        /// / 自动创建一个委托，根据方法信息和类型
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="methodInfo"></param>
+        /// <returns></returns>
         public static Delegate AutoCreate(Type type, MethodInfo methodInfo)
         {
             Type returnType = methodInfo.ReturnType;

@@ -141,13 +141,30 @@ namespace Serein.Library.Utils
     {
         private readonly Action<T> _onNext;
 
+        /// <summary>
+        /// 构造函数，接受一个 Action 作为回调
+        /// </summary>
+        /// <param name="onNext"></param>
         public Observer(Action<T> onNext)
         {
             _onNext = onNext;
         }
 
+        /// <summary>
+        /// 通知订阅者已完成或发生错误
+        /// </summary>
         public void OnCompleted() { }
+
+        /// <summary>
+        /// 通知订阅者发生错误
+        /// </summary>
+        /// <param name="error"></param>
         public void OnError(Exception error) { }
+
+        /// <summary>
+        /// 通知订阅者有新数据到来
+        /// </summary>
+        /// <param name="value"></param>
         public void OnNext(T value)
         {
             _onNext?.Invoke(value);

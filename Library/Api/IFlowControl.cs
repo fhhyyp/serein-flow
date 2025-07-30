@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 
 namespace Serein.Library.Api
 {
+#nullable enable
     /// <summary>
     /// 流程运行接口
     /// </summary>
@@ -24,7 +25,7 @@ namespace Serein.Library.Api
         /// </summary>
         /// <param name="ioc"></param>
         /// <param name="setDefultMemberOnReset">用于每次启动时，重置IOC后默认注册某些类型</param>
-        void UseExternalIOC(ISereinIOC ioc, Action<ISereinIOC> setDefultMemberOnReset = null);
+        void UseExternalIOC(ISereinIOC ioc, Action<ISereinIOC>? setDefultMemberOnReset = null);
 
         /// <summary>
         /// 开始运行流程

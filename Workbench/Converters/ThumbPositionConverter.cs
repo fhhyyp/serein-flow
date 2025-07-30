@@ -5,7 +5,7 @@ namespace Serein.Workbench.Converters
     /// <summary>
     /// 画布拉动范围距离计算器
     /// </summary>
-    public class RightThumbPositionConverter : IValueConverter
+    internal class RightThumbPositionConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
@@ -22,7 +22,7 @@ namespace Serein.Workbench.Converters
     /// <summary>
     /// 画布拉动范围距离计算器
     /// </summary>
-    public class BottomThumbPositionConverter : IValueConverter
+    internal class BottomThumbPositionConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
@@ -39,7 +39,7 @@ namespace Serein.Workbench.Converters
     /// <summary>
     /// 画布拉动范围距离计算器
     /// </summary>
-    public class VerticalCenterThumbPositionConverter : IValueConverter
+    internal class VerticalCenterThumbPositionConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
@@ -56,7 +56,7 @@ namespace Serein.Workbench.Converters
     /// <summary>
     /// 画布拉动范围距离计算器
     /// </summary>
-    public class HorizontalCenterThumbPositionConverter : IValueConverter
+    internal class HorizontalCenterThumbPositionConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {

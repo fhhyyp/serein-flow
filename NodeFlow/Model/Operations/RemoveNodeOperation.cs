@@ -2,7 +2,7 @@
 using Serein.Library.Api;
 using System.Reflection.Metadata;
 
-namespace Serein.NodeFlow.Model.Operation
+namespace Serein.NodeFlow.Model.Operations
 {
     internal class RemoveNodeOperation : OperationBase
     {
@@ -15,6 +15,7 @@ namespace Serein.NodeFlow.Model.Operation
         /// 节点所在画布
         /// </summary>
         private FlowCanvasDetails flowCanvasDetails;
+
         /// <summary>
         /// 被删除的节点
         /// </summary>
@@ -46,8 +47,18 @@ namespace Serein.NodeFlow.Model.Operation
         {
             if (!ValidationParameter()) return false;
 
-            // 需要移除对应的方法调用、以及参数获取调用
+            // 需要移除对应的方法调用、参数获取调用以及子节点信息
             // 还需要记录移除的事件参数，用以撤销恢复
+
+            if (flowNode.ChildrenNode.Count > 0)
+            {
+                // 如果该节点存在子节点，则删除所有子节点
+                foreach(var child in flowNode.ChildrenNode)
+                {
+                    flowEnvironment.FlowEdit.RemoveNode(CanvasGuid, child.Guid);
+                }
+            }
+
 
             #region 移除方法调用关系
 
