@@ -7,6 +7,7 @@ using Serein.NodeFlow.Services;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -38,9 +39,21 @@ namespace Serein.NodeFlow.Env
             this.UIContextOperation = UIContextOperation;
 
             contexts = new ObjectPool<IFlowContext>(() => new FlowContext(flowEnvironment));
+            flowTaskOptions = new FlowWorkOptions
+            {
+                FlowIOC = IOC,
+                Environment = flowEnvironment, // 流程
+                FlowContextPool = contexts, // 上下文对象池
+            };
+            flowTaskManagementPool = new ObjectPool<FlowWorkManagement>(()=> new FlowWorkManagement(flowTaskOptions));
         }
 
         private ObjectPool<IFlowContext> contexts;
+        private ObjectPool<FlowWorkManagement> flowTaskManagementPool;
+        private FlowWorkOptions flowTaskOptions;
+
+
+
         private FlowWorkManagement flowWorkManagement;
         private ISereinIOC externalIOC;
         private Action<ISereinIOC> setDefultMemberOnReset;
@@ -170,30 +183,64 @@ namespace Serein.NodeFlow.Env
         /// <inheritdoc/>
         public async Task<TResult> StartFlowAsync<TResult>(string startNodeGuid)
         {
-            var flowTaskOptions = new FlowWorkOptions
-            {
-                FlowIOC = IOC,
-                Environment = flowEnvironment, // 流程
-                FlowContextPool = contexts, // 上下文对象池
-            };
-            var flowTaskManagement = new FlowWorkManagement(flowTaskOptions);
 
-            if (!flowModelService.TryGetNodeModel(startNodeGuid, out var nodeModel) || nodeModel is SingleFlipflopNode)
+            var sw = Stopwatch.StartNew();
+            var checkpoints = new Dictionary<string, TimeSpan>();
+           
+            var flowTaskManagement = flowTaskManagementPool.Allocate();
+
+            if (!flowModelService.TryGetNodeModel(startNodeGuid, out IFlowNode? nodeModel))
             {
-                throw new Exception();
+                throw new Exception($"节点不存在【{startNodeGuid}】");
+            }
+            if(nodeModel is SingleFlipflopNode)
+            {
+                throw new Exception("不能从[Flipflop]节点开始");
             }
 
-#if DEBUG
 
-            FlowResult flowResult = await BenchmarkHelpers.BenchmarkAsync(async () =>
-            await flowTaskManagement.StartFlowInSelectNodeAsync(nodeModel));
-#else
-            //FlowResult flowResult =  await flowTaskManagement.StartFlowInSelectNodeAsync(nodeModel);
-            FlowResult flowResult = await BenchmarkHelpers.BenchmarkAsync(async () => await flowTaskManagement.StartFlowInSelectNodeAsync(nodeModel));
+            var flowContextPool = flowTaskManagement.WorkOptions.FlowContextPool;
+            var context = flowContextPool.Allocate();
+            checkpoints["准备调用环境"] = sw.Elapsed;
+            var flowResult =  await nodeModel.StartFlowAsync(context, flowTaskManagement.WorkOptions.CancellationTokenSource.Token); // 开始运行时从选定节点开始运行
+            checkpoints["调用节点流程"] = sw.Elapsed;
 
-#endif
-
-
+            var last = TimeSpan.Zero;
+            foreach (var kv in checkpoints)
+            {
+                SereinEnv.WriteLine(InfoType.INFO, $"{kv.Key} 耗时: {(kv.Value - last).TotalMilliseconds} ms");
+                last = kv.Value;
+            }
+            //await BenchmarkHelpers.BenchmarkAsync(flowTaskManagement.StartFlowInSelectNodeAsync(nodeModel));
+            if (context.IsRecordInvokeInfo)
+            {
+                var invokeInfos = context.GetAllInvokeInfos();
+                _ = Task.Delay(100).ContinueWith(async (task) =>
+                {
+                    await task;
+                    if (invokeInfos.Count < 255)
+                    {
+                        foreach (var info in invokeInfos)
+                        {
+                            SereinEnv.WriteLine(InfoType.INFO, info.ToString());
+                        }
+                    }
+                    else
+                    {
+                        double total = 0;
+                        for (int i = 0; i < invokeInfos.Count; i++)
+                        {
+                            total += invokeInfos[i].TS.TotalSeconds;
+                        }
+                        SereinEnv.WriteLine(InfoType.INFO, $"运行次数：{invokeInfos.Count}");
+                        SereinEnv.WriteLine(InfoType.INFO, $"平均耗时：{total / invokeInfos.Count}");
+                        SereinEnv.WriteLine(InfoType.INFO, $"总耗时：{total}");
+                    }
+                });
+            }
+            context.Reset();
+            flowContextPool.Free(context);
+            flowTaskManagementPool.Free(flowTaskManagement);
             if (flowResult.Value is TResult result)
             {
                 return result;

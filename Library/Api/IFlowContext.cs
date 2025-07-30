@@ -265,7 +265,8 @@ namespace Serein.Library.Api
             }
             else
             {
-                Result = value.ToString();
+                var type = value.GetType();
+                Result = $"{type.FullName}::{value}";
             }
         }
         public void UploadParameters(object[] values = null)

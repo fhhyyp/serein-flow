@@ -17,7 +17,7 @@ namespace Serein.NodeFlow.Model.Nodes
 
         public override async Task<FlowResult> ExecutingAsync(IFlowContext context, CancellationToken token)
         {
-            if (token.IsCancellationRequested) return new FlowResult(this.Guid, context);
+            if (token.IsCancellationRequested) return FlowResult.Fail(this.Guid, context, "流程已通过token取消");
             if(Adapter is null)
             {
 
@@ -40,7 +40,7 @@ namespace Serein.NodeFlow.Model.Nodes
                 iflowContorl.OnExecuting(data);
             }
 
-            return new FlowResult(this.Guid, context);
+            return FlowResult.OK(this.Guid, context, null);
         }
     }
 }

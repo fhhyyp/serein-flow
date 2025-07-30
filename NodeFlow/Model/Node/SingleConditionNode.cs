@@ -111,7 +111,7 @@ namespace Serein.NodeFlow.Model.Nodes
         {
             if (token.IsCancellationRequested)
             {
-                return new FlowResult(this.Guid, context);
+                return FlowResult.Fail(this.Guid, context, "流程已通过token取消");
             }
             // 接收上一节点参数or自定义参数内容
             object? parameter;
@@ -179,7 +179,7 @@ namespace Serein.NodeFlow.Model.Nodes
 
             SereinEnv.WriteLine(InfoType.INFO, $"{Expression}  -> " + context.NextOrientation);
             //return result;
-            return new FlowResult(this.Guid, context, judgmentResult);
+            return FlowResult.OK(this.Guid, context, parameter);
         }
 
 

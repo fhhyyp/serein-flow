@@ -1,8 +1,10 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.Utils;
+using Serein.NodeFlow.Model.Nodes;
 using Serein.NodeFlow.Services;
 using Serein.NodeFlow.Tool;
+using System;
 using System.Text;
 
 namespace Serein.NodeFlow.Env
@@ -269,8 +271,16 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         public void SaveProject()
         {
-            var project = GetProjectInfoAsync().GetAwaiter().GetResult();
-            Event.OnProjectSaving(new ProjectSavingEventArgs(project));
+            Task.Run(async () =>
+            {
+                var project = await GetProjectInfoAsync();
+
+                await SereinEnv.TriggerEvent(() =>
+                {
+                    Event.OnProjectSaving(new ProjectSavingEventArgs(project));
+                });
+            });
+           
         }
 
         /// <summary>

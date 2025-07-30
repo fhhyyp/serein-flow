@@ -300,7 +300,7 @@ namespace Serein.Library
                 }
                 catch (Exception ex)
                 {
-                    flowResult = new FlowResult(currentNode.Guid, context);
+                    flowResult = FlowResult.Fail(currentNode.Guid, context, ex.Message);
                     context.Env.WriteLine(InfoType.ERROR, $"节点[{currentNode}]异常：" + ex);
                     context.NextOrientation = ConnectionInvokeType.IsError;
                     context.ExceptionOfRuning = ex;

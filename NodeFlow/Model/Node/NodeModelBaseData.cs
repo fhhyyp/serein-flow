@@ -10,8 +10,6 @@ using System.Threading;
 namespace Serein.NodeFlow.Model.Nodes
 {
 
-
-
     /// <summary>
     /// 节点基类（数据）
     /// </summary>

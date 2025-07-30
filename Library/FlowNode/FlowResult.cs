@@ -31,23 +31,35 @@ namespace Serein.Library
         /// </summary>
         /// <param name="nodeGuid"></param>
         /// <param name="context"></param>
-        public FlowResult(string nodeGuid, IFlowContext context, object value)
+        public static FlowResult OK(string nodeGuid, IFlowContext context, object value)
         {
-            this.SourceNodeGuid = nodeGuid;
-            this.ContextGuid = context.Guid;
-            this.Value = value;
+            FlowResult flowResult = new FlowResult
+            {
+                SourceNodeGuid = nodeGuid,
+                ContextGuid = context.Guid,
+                Value = value,
+                IsSuccess = true,
+            };
+            return flowResult;
         }
 
         /// <summary>
-        /// 空返回值
+        /// 失败
         /// </summary>
         /// <param name="nodeGuid"></param>
         /// <param name="context"></param>
-        public FlowResult(string nodeGuid, IFlowContext context)
+        /// <param name="message"></param>
+        public static FlowResult Fail(string nodeGuid, IFlowContext context, string message)
         {
-            this.SourceNodeGuid = nodeGuid;
-            this.ContextGuid = context.Guid;
-            this.Value  = Unit.Default;
+            FlowResult flowResult = new FlowResult
+            {
+                SourceNodeGuid = nodeGuid,
+                ContextGuid = context.Guid,
+                Value = Unit.Default,
+                IsSuccess = true,
+                Message = message,
+            };
+            return flowResult;
         }
 
         /// <summary>
@@ -72,16 +84,26 @@ namespace Serein.Library
             return false;
         }
 
+        /// <summary>
+        /// 指示是否成功
+        /// </summary>
+        public bool IsSuccess { get; set; }
 
+        /// <summary>
+        /// 执行结果消息（提示异常）
+        /// </summary>
+        public string Message { get; set; } = string.Empty;
 
         /// <summary>
         /// 来源节点Guid
         /// </summary>
-        public string SourceNodeGuid{ get; }
+        public string SourceNodeGuid{ get; private set; }
+
         /// <summary>
         /// 来源上下文Guid
         /// </summary>
-        public string ContextGuid { get; } 
+        public string ContextGuid { get; private set; } 
+
         /// <summary>
         /// 数据值
         /// </summary>

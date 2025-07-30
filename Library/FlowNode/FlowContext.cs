@@ -224,7 +224,7 @@ namespace Serein.Library
         /// <param name="data"></param>
         public void AddOrUpdate(string nodeModel, object data)
         {
-            var flowData = new FlowResult(nodeModel, this, data);
+            var flowData = FlowResult.OK(nodeModel, this,  data);
             dictNodeFlowData.AddOrUpdate(nodeModel, _ => flowData, (o, n) => flowData);
         }
 

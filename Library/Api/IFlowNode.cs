@@ -120,5 +120,13 @@ namespace Serein.Library.Api
         /// <param name="token"></param>
         /// <returns></returns>
         Task<FlowResult> ExecutingAsync(IFlowContext context, CancellationToken token);
+
+        /// <summary>
+        /// 以该节点开始执行流程，通常用于流程的入口节点。
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="token"></param>
+        /// <returns></returns>
+        Task<FlowResult> StartFlowAsync(IFlowContext context, CancellationToken token);
     }
 }

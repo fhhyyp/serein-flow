@@ -120,32 +120,28 @@ namespace Serein.NodeFlow.Model.Nodes
         /// <returns></returns>
         public override async Task<FlowResult> ExecutingAsync(IFlowContext context, CancellationToken token)
         {
-            if (token.IsCancellationRequested) return new FlowResult(this.Guid, context);
+            if (token.IsCancellationRequested) return FlowResult.Fail(this.Guid, context, "流程已通过token取消");
             if (string.IsNullOrEmpty(KeyName))
             {
                 context.NextOrientation = ConnectionInvokeType.IsError;
-                SereinEnv.WriteLine(InfoType.ERROR, $"全局数据的KeyName不能为空[{this.Guid}]");
-                return new FlowResult(this.Guid, context);
+                return FlowResult.Fail(this.Guid, context, $"全局数据的KeyName不能为空[{this.Guid}]");
             }
             if (DataNode is null)
             {
                 context.NextOrientation = ConnectionInvokeType.IsError;
-                SereinEnv.WriteLine(InfoType.ERROR, $"全局数据节点没有设置数据来源[{this.Guid}]");
-                return new FlowResult(this.Guid, context);
+                return FlowResult.Fail(this.Guid, context, $"全局数据节点没有设置数据来源[{this.Guid}]");
             }
 
-            try
+
+            var result = await DataNode.ExecutingAsync(context, token);
+            if (result.IsSuccess)
             {
-               
-                var result = await DataNode.ExecutingAsync(context, token);
                 SereinEnv.AddOrUpdateFlowGlobalData(KeyName, result.Value);
                 return result;
             }
-            catch (Exception ex)
+            else
             {
-                context.NextOrientation = ConnectionInvokeType.IsError;
-                context.ExceptionOfRuning = ex;
-                return new FlowResult(this.Guid, context);
+                return FlowResult.Fail(this.Guid, context, $"全局数据节点[{this.Guid}]执行失败，原因：{result.Message}。");
             }
         }
         

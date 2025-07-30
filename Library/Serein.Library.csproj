@@ -55,6 +55,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="Extension\FlowModelExtension.cs" />
     <Compile Remove="FlowNode\Attribute.cs" />
     <Compile Remove="FlowNode\NodeModelBaseData.cs" />
     <Compile Remove="FlowNode\NodeModelBaseFunc.cs" />

@@ -274,47 +274,18 @@ namespace Serein.NodeFlow.Services
         /// <returns></returns>
         public async Task<FlowResult> StartFlowInSelectNodeAsync(IFlowNode startNode)
         {
+            var pool = WorkOptions.FlowContextPool;
+
             var sw = Stopwatch.StartNew();
             var checkpoints = new Dictionary<string, TimeSpan>();
 
-            var pool = WorkOptions.FlowContextPool;
-            var token = WorkOptions.CancellationTokenSource.Token;
+           
             var context = pool.Allocate();
             checkpoints["准备Context"] = sw.Elapsed;
 
-            var result = await startNode.StartFlowAsync(context, token); // 开始运行时从选定节点开始运行
+            var result = await startNode.StartFlowAsync(context, WorkOptions.CancellationTokenSource.Token); // 开始运行时从选定节点开始运行
             checkpoints["执行流程"] = sw.Elapsed;
 
-
-            if (context.IsRecordInvokeInfo && false)
-            {
-                var invokeInfos = context.GetAllInvokeInfos();
-                 _ = Task.Delay(100).ContinueWith(async (task) =>
-                {
-                    await task;
-                    if(invokeInfos.Count < 255)
-                    {
-                        foreach (var info in invokeInfos)
-                        {
-                            SereinEnv.WriteLine(InfoType.INFO, info.ToString());
-                        }
-                    }
-                    else
-                    {
-                        double total = 0;
-                        for (int i = 0; i < invokeInfos.Count; i++)
-                        {
-                            total += invokeInfos[i].TS.TotalSeconds;
-                        }
-                        SereinEnv.WriteLine(InfoType.INFO, $"运行次数：{invokeInfos.Count}");
-                        SereinEnv.WriteLine(InfoType.INFO, $"平均耗时：{total / invokeInfos.Count}");
-                        SereinEnv.WriteLine(InfoType.INFO, $"总耗时：{total}");
-                    }
-                 });
-               
-               
-            }
-           
             context.Reset();
             checkpoints["重置流程"] = sw.Elapsed;
 

@@ -90,7 +90,7 @@ namespace Serein.NodeFlow.Model.Nodes
 
         public override async Task<FlowResult> ExecutingAsync(IFlowContext context, CancellationToken token)
         {
-            if(token.IsCancellationRequested) return new FlowResult(this.Guid, context);
+            if(token.IsCancellationRequested) return FlowResult.Fail(this.Guid, context, "流程已通过token取消");
 
             object? parameter = null;// context.TransmissionData(this); // 表达式节点使用上一节点数据
             var pd = MethodDetails.ParameterDetailss[0];
@@ -131,13 +131,13 @@ namespace Serein.NodeFlow.Model.Nodes
             {
                 var result = await GetValueExpressionAsync(context, parameter, Expression);
                 context.NextOrientation = ConnectionInvokeType.IsSucceed;
-                return new FlowResult(this.Guid, context, result);
+                return FlowResult.OK(this.Guid, context, result);
             }
             catch (Exception ex)
             {
                 context.NextOrientation = ConnectionInvokeType.IsError;
                 context.ExceptionOfRuning = ex;
-                return new FlowResult(this.Guid, context);
+                return FlowResult.Fail(this.Guid, context, ex.Message);
             }
 
         }

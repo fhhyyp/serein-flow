@@ -1,5 +1,6 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
+using Serein.Library.Utils;
 using Serein.Script;
 using Serein.Script.Node.FlowControl;
 using System;
@@ -8,6 +9,7 @@ using System.Diagnostics;
 using System.Dynamic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reactive;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
@@ -105,17 +107,37 @@ namespace Serein.NodeFlow.Model.Nodes
         }
 
         /// <summary>
-        /// 保存项目时保存脚本代码
+        /// 保存项目时保存脚本代码、方法入参类型、返回值类型
         /// </summary>
         /// <param name="nodeInfo"></param>
         /// <returns></returns>
         public override NodeInfo SaveCustomData(NodeInfo nodeInfo)
         {
+            var paramsTypeName = MethodDetails.ParameterDetailss.Select(pd =>
+            {
+                return new ScriptArgInfo
+                {
+                    Index = pd.Index,
+                    ArgName = pd.Name,
+                    ArgType = pd.DataType.FullName,
+                };
+            }).ToArray();
+
             dynamic data = new ExpandoObject();
             data.Script = Script ?? "";
+            data.ParamsTypeName = paramsTypeName;
+            data.ReturnTypeName = MethodDetails.ReturnType;
             nodeInfo.CustomData = data;
             return nodeInfo;
         }
+
+        private class ScriptArgInfo
+        { 
+            public int Index { get; set; }
+            public string? ArgName { get; set; }
+            public string? ArgType { get; set; }
+        }
+
 
         /// <summary>
         /// 加载自定义数据
@@ -124,17 +146,43 @@ namespace Serein.NodeFlow.Model.Nodes
         public override void LoadCustomData(NodeInfo nodeInfo)
         {
             this.Script = nodeInfo.CustomData?.Script ?? "";
+            
 
+            var paramCount = Math.Min(MethodDetails.ParameterDetailss.Length, nodeInfo.ParameterData.Length);
             // 更新变量名
-            for (int i = 0; i < Math.Min(this.MethodDetails.ParameterDetailss.Length, nodeInfo.ParameterData.Length); i++)
+            for (int i = 0; i < paramCount; i++)
             {
-                this.MethodDetails.ParameterDetailss[i].Name = nodeInfo.ParameterData[i].ArgName;
+                var pd = MethodDetails.ParameterDetailss[i];
+                pd.Name = nodeInfo.ParameterData[i].ArgName;
+            }
+
+            try
+            {
+                string paramsTypeNameJson = nodeInfo.CustomData?.ParamsTypeName.ToString() ?? "[]";
+                ScriptArgInfo[] array = JsonHelper.Deserialize<ScriptArgInfo[]>(paramsTypeNameJson);
+
+                string returnTypeName = nodeInfo.CustomData?.ReturnTypeName ?? typeof(object);
+                Type?[] argType = array.Select(item => string.IsNullOrWhiteSpace(item.ArgType) ? null : Type.GetType(item.ArgType) ?? typeof(Unit)).ToArray();
+                Type? resType = Type.GetType(returnTypeName);
+                for (int i = 0; i < paramCount; i++)
+                {
+                    var pd = MethodDetails.ParameterDetailss[i];
+                    pd.DataType = argType[i];
+                }
+                MethodDetails.ReturnType = resType;
+            }
+            catch (Exception ex)
+            {
+                SereinEnv.WriteLine(InfoType.ERROR ,$"加载脚本自定义数据类型信息时发生异常：{ex.Message}");
             }
 
             //ReloadScript();// 加载时重新解析
             IsScriptChanged = false; // 重置脚本改变标志
-
         }
+
+
+
+
 
         /// <summary>
         /// 重新加载脚本代码
@@ -261,7 +309,7 @@ namespace Serein.NodeFlow.Model.Nodes
         /// <returns></returns>
         public async Task<FlowResult> ExecutingAsync(NodeModelBase flowCallNode,  IFlowContext context, CancellationToken token)
         {
-            if (token.IsCancellationRequested) return new FlowResult(this.Guid, context);
+            if (token.IsCancellationRequested) return FlowResult.Fail(this.Guid, context, "流程已通过token取消");
             var @params = await flowCallNode.GetParametersAsync(context, token);
 
             IScriptInvokeContext scriptContext = new ScriptInvokeContext(context);
@@ -284,11 +332,11 @@ namespace Serein.NodeFlow.Model.Nodes
             var envEvent = context.Env.Event;
             envEvent.FlowRunComplete += onFlowStop; // 防止运行后台流程
 
-            if (token.IsCancellationRequested) return new FlowResult(this.Guid, context);
+            if (token.IsCancellationRequested) return FlowResult.Fail(this.Guid, context, "流程已通过token取消");
 
             var result = await sereinScript.InterpreterAsync(scriptContext); // 从入口节点执行
             envEvent.FlowRunComplete -= onFlowStop;
-            return new FlowResult(this.Guid, context, result);
+            return FlowResult.OK(this.Guid, context, result);
         }
 
     }

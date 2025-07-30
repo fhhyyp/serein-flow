@@ -290,7 +290,7 @@ namespace Serein.NodeFlow.Services
         /// <returns></returns>
         public List<FlowLibraryInfo> GetAllLibraryInfo()
         {
-            return _flowLibraryCaches.Values.Select(library => library.ToInfo()).ToList();
+            return _flowLibraryCaches.Values.Where(lib => lib.FullName != "Serein.Library.dll").Select(library => library.ToInfo()).ToList();
         }
         #endregion
 

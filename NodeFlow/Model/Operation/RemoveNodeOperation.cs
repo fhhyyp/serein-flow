@@ -1,5 +1,6 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
+using System.Reflection.Metadata;
 
 namespace Serein.NodeFlow.Model.Operation
 {
@@ -121,6 +122,8 @@ namespace Serein.NodeFlow.Model.Operation
                     foreach (var parameter in pds)
                     {
                         if (!parameter.ArgDataSourceNodeGuid.Equals(flowNode.Guid)) continue;
+                        parameter.ArgDataSourceNodeGuid = string.Empty;
+                        parameter.ArgDataSourceType = ConnectionArgSourceType.GetPreviousNodeData;
                         // 找到了对应的入参控制点了
                         var e = new NodeConnectChangeEventArgs(
                                     CanvasGuid, // 画布
@@ -145,6 +148,8 @@ namespace Serein.NodeFlow.Model.Operation
                     if (string.IsNullOrWhiteSpace(pd.ArgDataSourceNodeGuid)) continue;
                     if(flowModelService.TryGetNodeModel(pd.ArgDataSourceNodeGuid, out var argSourceNode))
                     {
+                        pd.ArgDataSourceNodeGuid = string.Empty;
+                        pd.ArgDataSourceType = ConnectionArgSourceType.GetPreviousNodeData;
                         // 找到了对应的入参控制点了
                         var e = new NodeConnectChangeEventArgs(
                                     CanvasGuid, // 画布

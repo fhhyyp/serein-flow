@@ -185,7 +185,7 @@ namespace Serein.NodeFlow.Model.Operation
                 return false;
             }
 
-            if (ToNode.ControlType != NodeControlType.GlobalData)
+            if (ToNode.ControlType is not (NodeControlType.GlobalData or NodeControlType.ExpCondition or NodeControlType.ExpOp))
             {
                 
                 if (ToNode.MethodDetails.ParameterDetailss is null)
@@ -226,7 +226,7 @@ namespace Serein.NodeFlow.Model.Operation
            
             if (!checkTypeState) // 类型检查不通过
             {
-                SereinEnv.WriteLine(InfoType.ERROR, "创建失败，目标节点没有合适的入参接收返回值");
+                SereinEnv.WriteLine(InfoType.ERROR, "连接失败，目标节点没有合适的入参接收返回值");
                 return false;
             }
             #endregion

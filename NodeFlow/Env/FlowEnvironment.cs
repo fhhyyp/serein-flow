@@ -1,4 +1,5 @@
-﻿using Serein.Library;
+﻿using Serein.Extend.NewtonsoftJson;
+using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.FlowNode;
 using Serein.Library.Utils;
@@ -62,6 +63,9 @@ namespace Serein.NodeFlow.Env
                .Register<FlowOperationService>() // 流程操作
                .Register<NodeMVVMService>() // 节点MVVM服务
                .Build();
+
+            // 设置JSON解析器
+            JsonHelper.UseJsonProvider(new NewtonsoftJsonProvider());
             // 默认使用本地环境
             currentFlowEnvironment = ioc.Get<LocalFlowEnvironment>();
             currentFlowEnvironmentEvent = ioc.Get<IFlowEnvironmentEvent>();
