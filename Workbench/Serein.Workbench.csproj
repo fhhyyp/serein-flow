@@ -32,6 +32,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="Converters\TypeToColorConverter.cs" />
     <Compile Remove="MainWindow.xaml.cs" />
     <Compile Remove="MainWindowViewModel.cs" />
     <Compile Remove="Node\FlipflopRegionControl.xaml.cs" />

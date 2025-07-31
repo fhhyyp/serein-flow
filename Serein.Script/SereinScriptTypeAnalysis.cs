@@ -248,6 +248,43 @@ namespace Serein.Script
                         return typeof(void);
                     }
                     return AnalysisCollectionAssignmentNode(collectionAssignmentNode);
+                case ArrayDefintionNode arrayDefintionNode:
+                    Type AnalysisArrayDefintionNode(ArrayDefintionNode arrayDefintionNode)
+                    {
+                        var elements = arrayDefintionNode.Elements;
+                        if (elements.Count == 0)
+                        {
+                            return typeof(object[]);
+                        }
+
+                        Type[] types = new Type[elements.Count];
+                        for (int i = 0; i < elements.Count; i++)
+                        {
+                            ASTNode? element = elements[i];
+                            var elementType  = Analysis(element); // 分析元素类型
+                            types[i] = elementType; 
+                            NodeSymbolInfos[element] = elementType; // 添加到符号表
+                        }
+
+
+                        // 所有类型一致
+                        if (types.All(t => t == types[0]))
+                        {
+                            var arrType = types[0].MakeArrayType();
+                            NodeSymbolInfos[arrayDefintionNode] = arrType; // 添加到符号表
+                            return arrType;
+                        }
+                        else
+                        {
+                            // 尝试找公共基类
+                            Type? commonType = TypeHelper.FindCommonBaseType(types) ?? typeof(object);
+                            var arrType = commonType.MakeArrayType();
+                            NodeSymbolInfos[arrayDefintionNode] = arrType; // 添加到符号表
+                            return arrType;
+                        }
+                            
+                    }
+                    return AnalysisArrayDefintionNode(arrayDefintionNode);
                 case ClassTypeDefinitionNode classTypeDefinitionNode: // 类型定义
                     Type AnalysisClassTypeDefinitionNode(ClassTypeDefinitionNode classTypeDefinitionNode)
                     {
@@ -412,7 +449,7 @@ namespace Serein.Script
                 default: // 未定义的节点类型
                     break;
             }
-            throw new NotImplementedException();
+            throw new NotImplementedException($"类型分析遇到未定义的节点 \"{node.GetType()}\", {node}");
         }
 
 
@@ -422,7 +459,7 @@ namespace Serein.Script
         /// </summary>
         /// <param name="node"></param>
         /// <exception cref="NotImplementedException"></exception>
-        private void Analysis1(ASTNode node)
+        private void Analysis11111111111(ASTNode node)
         {
             switch (node)
             {

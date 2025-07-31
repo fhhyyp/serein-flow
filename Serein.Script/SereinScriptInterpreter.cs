@@ -175,6 +175,39 @@ namespace Serein.Script
                         return result;
                     }
                     return await InterpreterCollectionIndexNodeAsync(context, collectionIndexNode);
+                case ArrayDefintionNode arrayDefintionNode:
+                    async Task<Array> InterpreterArrayDefintionNodeAsync(ArrayDefintionNode arrayDefintionNode)
+                    {
+                        var elementNodes = arrayDefintionNode.Elements;
+                        var elementCount = elementNodes.Count;
+                        if(elementCount == 0)
+                        {
+                            return Array.Empty<object>();
+                        }
+                        /*var arrayType = symbolInfos[arrayDefintionNode]; // 从 symbolInfos 中获取数组类型（ T[]）
+                        var eleType = arrayType.MakeArrayType();*/
+                        /*if (!ASTDelegateDetails.TryGetValue(arrayDefintionNode, out DelegateDetails? delegateDetails))
+                        {
+                            delegateDetails = new DelegateDetails(symbolInfos[elementNodes[0]], DelegateDetails.EmitType.ArrayCreate);
+                            ASTDelegateDetails[arrayDefintionNode] = delegateDetails;
+                        }*/
+                        //var arrobj = await delegateDetails.InvokeAsync(null, [elementCount]);
+
+                        var elementType1 = symbolInfos[elementNodes[0]];
+                        var array = Array.CreateInstance(elementType1, elementCount);
+                        for (int i = 0; i < elementNodes.Count; i++)
+                        {
+                            var elementNode = elementNodes[i];
+                            var elementType = symbolInfos[elementNode];
+                            var value = await InterpretAsync(context, elementNode);
+                            var c = Convert.ChangeType(value, elementType);
+                            array.SetValue(c, i);
+                            //array[i] = value;
+                        }
+                        return array;
+
+                    }
+                    return await InterpreterArrayDefintionNodeAsync(arrayDefintionNode);
                 case ClassTypeDefinitionNode classTypeDefinitionNode: // 类型定义
                     void InterpreterClassTypeDefinitionNode(IScriptInvokeContext context, ClassTypeDefinitionNode classTypeDefinitionNode)
                     {

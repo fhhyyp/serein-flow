@@ -123,7 +123,7 @@
 
         public override string ToString()
         {
-            return $"token in {Row} row, type is \"{Type}\", value is \"{Value}\".";
+            return $"token in {Row} row, type is \"{Type}\", value is \"{Value}\"";
         }
     }
 

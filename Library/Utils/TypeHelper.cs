@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 
 namespace Serein.Library.Utils
@@ -173,8 +174,52 @@ namespace Serein.Library.Utils
         }
 
 
+        /// <summary>
+        /// 发掘类型中的基类
+        /// </summary>
+        /// <param name="types"></param>
+        /// <returns></returns>
+        public static Type? FindCommonBaseType(Type[] types)
+        {
+            if (types.Length == 0)
+                return null;
 
-      
-       
+            Type? baseType = types[0];
+
+            foreach (var type in types.Skip(1))
+            {
+                baseType = FindCommonBaseType(baseType, type);
+                if (baseType == typeof(object))
+                    break;
+            }
+
+            return baseType;
+        }
+
+        /// <summary>
+        /// 查找父类
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <returns></returns>
+        private static Type FindCommonBaseType(Type a, Type b)
+        {
+            // 如果相等，直接返回
+            if (a == b) return a;
+
+            // 向上查找父类链，找第一个 b.IsAssignableFrom(base)
+            var current = a;
+            while (current != null && current != typeof(object))
+            {
+                if (current.IsAssignableFrom(b))
+                    return current;
+
+                current = current.BaseType!;
+            }
+
+            return typeof(object);
+        }
+
+
     }
 }

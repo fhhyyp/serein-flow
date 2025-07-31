@@ -1,10 +1,6 @@
 ﻿using Serein.Library.Utils;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading.Tasks;
 using static Serein.Library.Utils.EmitHelper;
 
@@ -54,7 +50,11 @@ namespace Serein.Library
             /// <summary>
             /// 集合赋值
             /// </summary>
-            CollectionSetter
+            CollectionSetter,
+            /// <summary>
+            /// 数组创建
+            /// </summary>
+            ArrayCreate,
         }
 
         /// <summary>
@@ -172,6 +172,12 @@ namespace Serein.Library
                 this.emitType = EmitType.CollectionGetter;
                 collectionGetter = EmitHelper.CreateCollectionGetter(type);
             }
+            else if (emitType == EmitType.ArrayCreate)
+            {
+                Func<int, object> func = EmitHelper.CreateArrayFactory(type);
+                this.arrayCreatefunc = func;
+                this.emitType = EmitType.ArrayCreate;
+            }
             else
             {
                 throw new NotSupportedException("错误的构建类型");
@@ -179,8 +185,8 @@ namespace Serein.Library
             
         }
 
+      
 
-        
 
 
         private Func<object,object, object> collectionGetter= null;
@@ -194,6 +200,8 @@ namespace Serein.Library
         private Func<object, object[], Task<object>> methodHasResultTask = null;
         private Func<object, object[], Task> methodTask = null;
         private Func<object, object[], object> methodInvoke = null;
+
+        private Func<int, object> arrayCreatefunc = null;
 
         
         /*/// <summary>
@@ -260,10 +268,17 @@ namespace Serein.Library
                 collectionSetter(instance, args[0], args[1]);
                 return null;
             }
-            else
+            else if(emitType == EmitType.ArrayCreate)
             {
-                throw new NotSupportedException("当前委托类型不支持 InvokeAsync 方法。请使用其他方法调用。");
+                if(args[0] is int count)
+                {
+                    return arrayCreatefunc(count);
+                }
+
+                
             }
+            throw new NotSupportedException("当前委托类型不支持 InvokeAsync 方法。请使用其他方法调用。");
+
         }
 
         private async Task<object> MethodInvoke(object instance, object[] args)

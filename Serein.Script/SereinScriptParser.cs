@@ -117,18 +117,19 @@ namespace Serein.Script
                     }
                 }
                 #endregion
-                #region 生成 ASTNode
+
+                #region 生成赋值语句/一般语句的ASTNode
                 if (isAssignment)
                 {
                     // 以赋值语句的形式进行处理
-                    var assignmentNode = ParseAssignmentNode();
+                    var assignmentNode = ParseAssignmentNode(); // 解析复制表达式
                     NextToken();// 消耗 ";"
                     return assignmentNode;
                 }
                 else
                 {
                     // 以一般语句的形式进行处理，可当作表达式进行解析
-                    var targetNode = ParserExpression(); // 解析表达式
+                    var targetNode = ParserExpression(); 
                     NextToken();// 消耗 ";"
                     return targetNode;
                 } 
@@ -176,8 +177,8 @@ namespace Serein.Script
         /// <returns></returns>
         public ASTNode ParseAssignmentNode()
         {
-            /*
-             赋值语句：
+            /* 解析赋值语句
+              赋值语句：
                  目标对象       表达式获取
                  Target() | = | Expression()            |
                           | = | variable;               | (变量）
@@ -186,6 +187,7 @@ namespace Serein.Script
                           | = | array[...];             | array为之前的上下文中出现过的变量。
                           | = | array[...].Value...;    | array为之前的上下文中出现过的变量。调用表达式包含对象成员数组、方法
                           | = | new Class(...);         | 实例化类型，包含构造函数
+                          | = | [v1, v2, v3];           | 定义数组
 
                  补充：Target() 可能的成员
                     1. variable
@@ -199,11 +201,12 @@ namespace Serein.Script
                 如果是 "[" ，代表需要获取数组索引
                 如果是 "=" ，代表是变量赋值，退出循环
              */
-            /*
-                  1. 获取成员      => PeekToken.Type = TokenType.Dot
-                  2. 获取集合      => PeekToken.Type = TokenType.SquareBracketsLeft
-                  3. 调用成员方法  => PeekToken.Type = TokenType.ParenthesisLeft
-                 */
+            /* 获取成员的方式有三种：
+             *    1. 获取成员      => PeekToken.Type = TokenType.Dot
+             *    2. 获取集合      => PeekToken.Type = TokenType.SquareBracketsLeft
+             *    3. 调用成员方法  => PeekToken.Type = TokenType.ParenthesisLeft
+             *    
+             * */
             //if (JudgmentOperator(_currentToken, "=")) break; // 退出
             //var tempPeekToken = _lexer.PeekToken();
             var backupToken = _currentToken;
@@ -211,14 +214,14 @@ namespace Serein.Script
             
             List<ASTNode> nodes = [targetNode];
             ASTNode? source;
-           var peekToken2 = _lexer.PeekToken(); // 消耗 第一个标识符
-            if (JudgmentOperator(peekToken2, "="))
+           var peekNextToken = _lexer.PeekToken(); // 预览下个标识符
+            if (JudgmentOperator(peekNextToken, "="))
             {
                 NextToken();
             }
             else 
             { 
-                if (peekToken2.Type == TokenType.ParenthesisLeft)
+                if (peekNextToken.Type == TokenType.ParenthesisLeft)
                 {
                     // 解析调用挂载方法
                     // ... = variable()()();
@@ -230,7 +233,7 @@ namespace Serein.Script
                     }
                     targetNode = functionCallNode;
                 }
-                else if (peekToken2.Type == TokenType.SquareBracketsLeft)
+                else if (peekNextToken.Type == TokenType.SquareBracketsLeft)
                 {
                     // 解析集合获取
                     var collectionIndexNode = ParseCollectionIndexNode(targetNode);
@@ -240,7 +243,7 @@ namespace Serein.Script
                     }
                     targetNode = collectionIndexNode;
                 }
-                else if (peekToken2.Type == TokenType.Dot)
+                else if (peekNextToken.Type == TokenType.Dot)
                 {
                     NextToken();
                 }
@@ -254,10 +257,11 @@ namespace Serein.Script
                     source = nodes[^1]; // 重定向节点
                     if (peekToken.Type == TokenType.Dot) // 从对象获取
                     {
-                        /*
-                          1. 获取成员      => PeekToken.Type = TokenType.Dot
-                          2. 获取集合      => PeekToken.Type = TokenType.SquareBracketsLeft
-                          3. 调用成员方法  => PeekToken.Type = TokenType.ParenthesisLeft
+                        /* 
+                         * 获取成员的方式有三种：
+                         *     1. 获取成员      => PeekToken.Type = TokenType.Dot
+                         *     2. 获取集合      => PeekToken.Type = TokenType.SquareBracketsLeft
+                         *     3. 调用成员方法  => PeekToken.Type = TokenType.ParenthesisLeft
                          */
                         NextToken(); // 消耗 "." 并获取下一个成员。
                         var peekToken3 = _lexer.PeekToken();
@@ -292,21 +296,7 @@ namespace Serein.Script
                         nodes.Add(collectionIndexNode);
                         continue; // 结束当前轮次的token判断
                     }
-                    /*else if (peekToken.Type == TokenType.Semicolon)
-                    {
-                        break;
-                    }
-                    else
-                    {
-                        if (peekToken.Type == TokenType.ParenthesisRight // 可能解析完了方法参数
-                            || peekToken.Type == TokenType.Comma // 可能解析完了方法参数
-                            || peekToken.Type == TokenType.ParenthesisRight) // 可能解析完了下标索引
-                        {
-                            return source;
-                        }
-                        // 应该是异常，如果是其它符号，说明词法解析不符合预期
-                        throw new Exception($"在 Expression().Factor() 遇到意外的 TokenType ,{_currentToken.Type} {_currentToken.Value} ");
-                    }*/
+                    
                 }
             }
             targetNode = nodes[^1];
@@ -437,14 +427,16 @@ namespace Serein.Script
         }
 
         /// <summary>
-        /// （不处理分号，逗号，右括号）用于解析(...)中的参数部分。终止条件是 "," 参数分隔符 和 ")" 方法入参终止符
+        /// （不处理分号，逗号，右括号）用于解析(...) / [...] 中的参数部分。终止条件是 "," 参数分隔符 、")" 方法入参终止符、"]" 数组定义终止符
         /// </summary>
         /// <returns></returns>
         public ASTNode ParserArgNode()
         {
             ASTNode node = ParserExpression(); // 解析参数
             // ParserExpression 会完全解析当前表达式，自动移动到下一个Token，所以需要在这里判断是否符合期望的TokenType
-            if(_currentToken.Type == TokenType.Comma || _currentToken.Type == TokenType.ParenthesisRight)
+            if(_currentToken.Type == TokenType.Comma 
+                || _currentToken.Type == TokenType.ParenthesisRight
+                || _currentToken.Type == TokenType.SquareBracketsRight)
             {
                 return node;
             }
@@ -1015,6 +1007,24 @@ namespace Serein.Script
                     throw new Exception($"解析嵌套表达式时遇到非预期的符号 \"{_currentToken.Type}\"，预期符号为\")\"。");
                 NextToken();  // 消耗 ")"
                 return expNode;
+            }
+            else if (_currentToken.Type == TokenType.SquareBracketsLeft)
+            {
+                NextToken();   // 消耗 "["
+                List<ASTNode> elements = [];
+                while (_currentToken.Type != TokenType.SquareBracketsRight) // 遇到 "]" 时结束
+                {
+                    var element = ParserArgNode();
+                    elements.Add(element);
+                    if (_currentToken.Type == TokenType.Comma)
+                    {
+                        NextToken(); // 消耗参数分隔符 "," 
+                    }
+                }
+                NextToken();  // 消耗 "]"
+
+                ArrayDefintionNode arrayDefintionNode = new ArrayDefintionNode(elements);
+                return arrayDefintionNode.SetTokenInfo(_currentToken);
             }
             else if(_currentToken.Type == TokenType.Keyword && _currentToken.Value == "new") // 创建对象
             {

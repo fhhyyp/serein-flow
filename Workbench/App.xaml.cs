@@ -47,54 +47,7 @@ namespace Serein.Workbench
             collection.AddViewModelServices();
             var services = collection.BuildServiceProvider(); // 绑定并返回获取实例的服务接口
             App.ServiceProvider = services;
-#if DEBUG
-            _ = this.LoadLocalProjectAsync();
-#endif
         }
-
-#if DEBUG
-
-        // 这里是测试代码，可以删除
-        private async Task LoadLocalProjectAsync()
-        {
-            var script = """
-            x = 114514;
-            x = (x * 100000000000) + x;
-            value = "调用";
-            value =  value + "委托";
-            return value + x;
-            """;
-            var result = await SereinScript.ExecuteAsync(script);
-
-            /* var properties = new Dictionary<string, Type>
-             {
-                 { "Id", typeof(int) },
-                 { "Name", typeof(string) },
-                 { "CreateTime", typeof(DateTime) }
-             };
-
-             var type = DynamicObjectHelper.CreateTypeWithINotifyPropertyChanged(properties, "MyDynamicClass");
-             dynamic? obj = Activator.CreateInstance(type);
-             if(obj is null) return;
-             if (obj is INotifyPropertyChanged npc)
-             {
-                 npc.PropertyChanged += (s, e) => Debug.WriteLine($"属性改变: {e.PropertyName}");
-             }
-             obj.Name = "下北泽";
-             obj.Id = 114514;*/
-
-
-#if false
-                var projectService = App.GetService<FlowProjectService>();
-                await Task.Delay(500);
-                string filePath;
-                filePath = @"F:\TempFile\flow\temp2\project.dnf";
-                projectService.LoadLocalProject(filePath);
-#endif
-
-        }
-#endif
-
 
         private void Application_Startup(object sender, StartupEventArgs e)
         {

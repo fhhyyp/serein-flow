@@ -226,10 +226,8 @@ namespace Serein.Library.Utils
             };
         }
 
-
-
         /// <summary>
-        /// 创建字段 Getter 委托：Func&lt;object, object&gt;
+        /// 构建字段 Getter 委托：Func&lt;object, object&gt;
         /// </summary>
         public static Func<object, object> CreateFieldGetter(FieldInfo fieldInfo)
         {
@@ -271,7 +269,7 @@ namespace Serein.Library.Utils
         }
 
         /// <summary>
-        /// 创建字段 Setter 委托：Action&lt;object, object&gt;
+        /// 构建字段 Setter 委托：Action&lt;object, object&gt;
         /// </summary>
         public static Action<object, object> CreateFieldSetter(FieldInfo fieldInfo)
         {
@@ -315,7 +313,7 @@ namespace Serein.Library.Utils
         }
 
         /// <summary>
-        /// 创建属性 Getter 委托：Func&lt;object, object&gt;
+        /// 构建属性 Getter 委托：Func&lt;object, object&gt;
         /// </summary>
         public static Func<object, object> CreatePropertyGetter(PropertyInfo propertyInfo)
         {
@@ -357,7 +355,7 @@ namespace Serein.Library.Utils
         }
 
         /// <summary>
-        /// 创建属性 Setter 委托：Action&lt;object, object&gt;
+        /// 构建属性 Setter 委托：Action&lt;object, object&gt;
         /// </summary>
         public static Action<object, object> CreatePropertySetter(PropertyInfo propertyInfo)
         {
@@ -402,9 +400,40 @@ namespace Serein.Library.Utils
             return (Action<object, object>)method.CreateDelegate(typeof(Action<object, object>));
         }
 
+        /// <summary>
+        /// 构建数组创建委托：Func&lt;int, object[]&gt;
+        /// </summary>
+        /// <param name="elementType"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+
+        public static Func<int, object> CreateArrayFactory(Type elementType)
+        {
+            if (elementType == null) throw new ArgumentNullException(nameof(elementType));
+
+            var arrayType = elementType.MakeArrayType();
+
+            var dm = new DynamicMethod(
+                $"NewArray_{elementType.Name}",
+                typeof(object), // 返回 object
+                new[] { typeof(int) }, // 参数：length
+                typeof(EmitHelper).Module,
+                true);
+
+            var il = dm.GetILGenerator();
+
+
+            il.Emit(OpCodes.Ldarg_0);             // length
+            il.Emit(OpCodes.Newarr, elementType); // new T[length]
+            il.Emit(OpCodes.Ret);                 // 返回 T[]
+
+            return (Func<int, object>)dm.CreateDelegate(typeof(Func<int, object>));
+        }
+
+
 
         /// <summary>
-        /// 创建集合赋值委托：Action&lt;object, object, object&gt;
+        /// 构建集合赋值委托：Action&lt;object, object, object&gt;
         /// </summary>
         /// <param name="collectionType"></param>
         /// <returns></returns>
@@ -474,9 +503,8 @@ namespace Serein.Library.Utils
         }
 
 
-
         /// <summary>
-        /// 创建集合获取委托：Func&lt;object, object, object&gt;
+        /// 构建集合获取委托：Func&lt;object, object, object&gt;
         /// </summary>
         /// <param name="collectionType"></param>
         /// <returns></returns>
