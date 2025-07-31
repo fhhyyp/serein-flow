@@ -27,13 +27,15 @@ namespace Serein.Library
             RunState = RunState.Running;
         }
 
-        private string _guid = global::System.Guid.NewGuid().ToString();
-
         /// <summary>
         /// 是否记录流程调用信息
         /// </summary>
         public bool IsRecordInvokeInfo { get; set; } = true;
-        string IFlowContext.Guid => _guid;
+
+        /// <summary>
+        /// 标识流程的Guid
+        /// </summary>
+        public string Guid { get; private set;  } = global::System.Guid.NewGuid().ToString();
 
         /// <summary>
         /// 运行环境
@@ -97,7 +99,7 @@ namespace Serein.Library
 
             FlowInvokeInfo flowInvokeInfo = new FlowInvokeInfo
             {
-                ContextGuid = this._guid,
+                ContextGuid = this.Guid,
                 Id = id,
                 PreviousNodeGuid = previousNode?.Guid,
                 Method = theNode.MethodDetails?.MethodName,
@@ -258,7 +260,7 @@ namespace Serein.Library
             NextOrientation = ConnectionInvokeType.None;
             RunState = RunState.Running;
             flowInvokeInfos.Clear();
-            _guid = global::System.Guid.NewGuid().ToString();
+            Guid = global::System.Guid.NewGuid().ToString();
         }
 
         /// <summary>

@@ -49,6 +49,7 @@ namespace Serein.NodeFlow.Model.Nodes
         public SingleScriptNode(IFlowEnvironment environment) : base(environment)
         {
             sereinScript = new SereinScript();
+
         }
 
         static SingleScriptNode()
@@ -78,9 +79,9 @@ namespace Serein.NodeFlow.Model.Nodes
             IsScriptChanged = true;
         }
 
-        /// <summary>
-        /// 节点创建时
-        /// </summary>
+         /// <summary>
+         /// 节点创建时
+         /// </summary>
         public override void OnCreating()
         {
             var md = MethodDetails;
@@ -104,6 +105,38 @@ namespace Serein.NodeFlow.Model.Nodes
             };
             md.ReturnType = typeof(void); // 默认无返回
 
+        }
+
+        /// <summary>
+        /// 更新节点返回类型
+        /// </summary>
+        /// <param name="newType"></param>
+        private void UploadNodeReturnType(Type newType)
+        {
+            MethodDetails.ReturnType = newType;
+
+
+            foreach (var ct in NodeStaticConfig.ConnectionArgSourceTypes)
+            {
+                var newResultNodes = NeedResultNodes[ct].ToArray();
+                foreach (var node in newResultNodes)
+                {
+                    if(node is SingleScriptNode scriptNode)
+                    {
+                        var pds = scriptNode.MethodDetails.ParameterDetailss;
+                        foreach (var pd in pds)
+                        {
+                            if (pd.ArgDataSourceType == ct &&
+                                pd.ArgDataSourceNodeGuid == this.Guid)
+                            {
+                                pd.DataType = newType; // 更新参数类型
+                            }
+                        }
+                        //scriptNode.ReloadScript(); // 重新加载目标脚本节点
+                    }
+                    
+                }
+            }
         }
 
         /// <summary>
@@ -181,58 +214,77 @@ namespace Serein.NodeFlow.Model.Nodes
         }
 
 
-
-
-
+        private object reloadLockObj = new object(); 
         /// <summary>
         /// 重新加载脚本代码
         /// </summary>
         public bool ReloadScript()
         {
-            try
+            lock (reloadLockObj)
             {
-                HashSet<string> varNames = new HashSet<string>();
-                foreach (var pd in MethodDetails.ParameterDetailss)
+                if (!CheckRepeatParamter()) 
+                    return false;
+                var argTypes = GetParamterTypeInfo();
+                try
                 {
-                    if (varNames.Contains(pd.Name))
-                    {
-                        throw new Exception($"脚本节点重复的变量名称：{pd.Name} - {Guid}");
-                    }
-                    varNames.Add(pd.Name);
+                    var returnType = sereinScript.ParserScript(Script, argTypes);  // 开始解析获取程序主节点
+                    UploadNodeReturnType(returnType);
                 }
-
-                var argTypes = MethodDetails.ParameterDetailss
-                                       .Select(pd =>
-                                       {
-                                           if (pd.ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData)
-                                           {
-                                               var Type = pd.DataType;
-                                               return (pd.Name, Type);
-                                           }
-                                           if (Env.TryGetNodeModel(pd.ArgDataSourceNodeGuid, out var node) &&
-                                               node.MethodDetails?.ReturnType is not null)
-                                           {
-                                               pd.DataType = node.MethodDetails.ReturnType;
-                                               var Type = node.MethodDetails.ReturnType;
-                                               return (pd.Name, Type);
-                                           }
-                                           return default;
-                                       })
-                                       .Where(x => x != default)
-                                       .ToDictionary(x => x.Name, x => x.Type); // 准备预定义类型
-
-
-                var returnType = sereinScript.ParserScript(Script, argTypes);  // 开始解析获取程序主节点
-                MethodDetails.ReturnType = returnType;
+                catch (Exception ex)
+                {
+                    SereinEnv.WriteLine(InfoType.WARN, ex.Message);
+                    return false; // 解析失败
+                }
                 return true;
             }
-            catch (Exception ex)
-            {
-                SereinEnv.WriteLine(InfoType.WARN, ex.Message);
-                return false; // 解析失败
-            }
         }
-        
+
+        /// <summary>
+        /// 检查脚本参数是否有重复的名称
+        /// </summary>
+        /// <returns></returns>
+        private bool CheckRepeatParamter()
+        {
+            bool isSueccess = true;
+            HashSet<string> varNames = new HashSet<string>();
+            foreach (var pd in MethodDetails.ParameterDetailss)
+            {
+                if (varNames.Contains(pd.Name))
+                {
+                    SereinEnv.WriteLine(InfoType.ERROR, $"脚本节点重复的变量名称：{pd.Name} - {Guid}");
+
+                    isSueccess = false;
+                }
+                varNames.Add(pd.Name);
+            }
+            return isSueccess;
+        }
+
+        /// <summary>
+        /// 获取参数类型信息
+        /// </summary>
+        /// <returns></returns>
+        private Dictionary<string, Type> GetParamterTypeInfo()
+        {
+            Dictionary<string, Type> argTypes = [];
+            var pds = MethodDetails.ParameterDetailss.ToArray();
+            foreach (var pd in pds)
+            {
+                if (pd.ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData)
+                {
+                    argTypes[pd.Name] = pd.DataType;
+                }
+                if (Env.TryGetNodeModel(pd.ArgDataSourceNodeGuid, out var node) &&
+                    node.MethodDetails?.ReturnType is not null)
+                {
+                    pd.DataType = node.MethodDetails.ReturnType;
+                    var Type = node.MethodDetails.ReturnType;
+                    argTypes[pd.Name] = Type;
+                }
+            }
+            return argTypes;
+        }
+
         /// <summary>
         /// 转换为 C# 代码，并且附带方法信息
         /// </summary>
@@ -246,39 +298,11 @@ namespace Serein.NodeFlow.Model.Nodes
                      methodName = $"FlowMethod_{tmp}";
                 }
 
-                HashSet<string> varNames = new HashSet<string>();   
-                foreach (var pd in MethodDetails.ParameterDetailss) 
-                { 
-                    if (varNames.Contains(pd.Name))
-                    {
-                        throw new Exception($"脚本节点重复的变量名称：{pd.Name} - {Guid}");
-                    }
-                    varNames.Add(pd.Name);
-                }
-
-                var argTypes = MethodDetails.ParameterDetailss
-                                       .Select(pd =>
-                                       {
-                                           if(pd.ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData)
-                                           {
-                                               var Type = pd.DataType;
-                                               return (pd.Name, Type);
-                                           }
-                                           if (Env.TryGetNodeModel(pd.ArgDataSourceNodeGuid, out var node) &&
-                                               node.MethodDetails?.ReturnType is not null)
-                                           {
-                                               pd.DataType = node.MethodDetails.ReturnType;
-                                               var Type = node.MethodDetails.ReturnType;
-                                               return (pd.Name, Type);
-                                           }
-                                           return default;
-                                       })
-                                       .Where(x => x != default)
-                                       .ToDictionary(x => x.Name, x => x.Type); // 准备预定义类型
-
-
+                if (!CheckRepeatParamter())
+                        throw new Exception($"脚本节点入参重复");
+                var argTypes = GetParamterTypeInfo();
                 var returnType = sereinScript.ParserScript(Script, argTypes);  // 开始解析获取程序主节点
-                MethodDetails.ReturnType = returnType;
+                UploadNodeReturnType(returnType);
                 var scriptMethodInfo =  sereinScript.ConvertCSharpCode(methodName, argTypes);
                 return scriptMethodInfo;
             }
@@ -297,6 +321,13 @@ namespace Serein.NodeFlow.Model.Nodes
         /// <returns></returns>
         public override async Task<FlowResult> ExecutingAsync(IFlowContext context, CancellationToken token)
         {
+            if (IsScriptChanged)
+            {
+                if (!ReloadScript())
+                {
+                    return FlowResult.Fail(this.Guid, context, "脚本解析失败，请检查脚本代码");
+                }
+            }
             var result = await ExecutingAsync(this, context, token);
             return result;
         }
@@ -311,6 +342,14 @@ namespace Serein.NodeFlow.Model.Nodes
         public async Task<FlowResult> ExecutingAsync(NodeModelBase flowCallNode,  IFlowContext context, CancellationToken token)
         {
             if (token.IsCancellationRequested) return FlowResult.Fail(this.Guid, context, "流程已通过token取消");
+            if (IsScriptChanged)
+            {
+                if (!ReloadScript())
+                {
+                    return FlowResult.Fail(this.Guid, context, "脚本解析失败，请检查脚本代码");
+                }
+            }
+
             var @params = await flowCallNode.GetParametersAsync(context, token);
 
             IScriptInvokeContext scriptContext = new ScriptInvokeContext(context);

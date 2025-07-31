@@ -1087,7 +1087,7 @@ namespace Serein.Script
             }
             else if (_currentToken.Type == TokenType.NumberDouble)
             {
-                var value = float.Parse(_currentToken.Value);
+                var value = double.Parse(_currentToken.Value);
                 NextToken();  // 消耗 double 浮点数
                 return new NumberDoubleNode(value).SetTokenInfo(factorToken);
             }

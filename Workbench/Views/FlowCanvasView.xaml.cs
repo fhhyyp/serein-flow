@@ -1281,7 +1281,7 @@ namespace Serein.Workbench.Views
         private ContextMenu ConfiguerSelectionRectangle()
         {
             var contextMenu = new ContextMenu();
-            contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("删除", (s, e) =>
+            /*contextMenu.Items.Add(WpfFuncTool.CreateMenuItem("删除", (s, e) =>
             {
                 if (selectNodeControls.Count > 0)
                 {
@@ -1296,7 +1296,7 @@ namespace Serein.Workbench.Views
                     }
                 }
                 SelectionRectangle.Visibility = Visibility.Collapsed;
-            }));
+            }));*/
             return contextMenu;
             // nodeControl.ContextMenu = contextMenu;
         }

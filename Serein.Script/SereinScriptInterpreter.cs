@@ -321,11 +321,11 @@ namespace Serein.Script
                     async Task<object?> InterpreterFunctionCallNodeAsync(IScriptInvokeContext context, FunctionCallNode functionCallNode)
                     {
                         // 获取流程上下文
-                        if (context.FlowContext != null && functionCallNode.FunctionName.Equals("getFlowApi", StringComparison.OrdinalIgnoreCase))
+                        if (context.FlowContext != null && functionCallNode.FunctionName.Equals("getFlowContext", StringComparison.OrdinalIgnoreCase))
                         {
                             return context.FlowContext;
                         }
-                        else if (functionCallNode.FunctionName.Equals("getScriptApi", StringComparison.OrdinalIgnoreCase))
+                        else if (functionCallNode.FunctionName.Equals("getScriptContext", StringComparison.OrdinalIgnoreCase))
                         {
                             return context;
                         }

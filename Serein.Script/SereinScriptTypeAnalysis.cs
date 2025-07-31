@@ -1,4 +1,5 @@
 ﻿using Serein.Library;
+using Serein.Library.Api;
 using Serein.Library.Utils;
 using Serein.Script.Node;
 using Serein.Script.Node.FlowControl;
@@ -105,10 +106,20 @@ namespace Serein.Script
                 case ReturnNode returnNode: // 程序退出节点
                     Type AnalysisReturnNode(ReturnNode returnNode)
                     {
-                        var resultType = Analysis(returnNode.Value);
-                        NodeSymbolInfos[returnNode.Value] = resultType;
-                        NodeSymbolInfos[returnNode] = resultType;
-                        return resultType;
+                        if(returnNode.Value is null)
+                        {
+                            var resultType = typeof(void);
+                            NodeSymbolInfos[returnNode] = resultType;
+                            return resultType;
+                        }
+                        else
+                        {
+                            var resultType = Analysis(returnNode.Value);
+                            NodeSymbolInfos[returnNode.Value] = resultType;
+                            NodeSymbolInfos[returnNode] = resultType;
+                            return resultType;
+                        }
+                        
                     }
                     return AnalysisReturnNode(returnNode);
                 case NullNode nullNode: // null
@@ -406,9 +417,25 @@ namespace Serein.Script
                     {
                         var objectType = Analysis(memberFunctionCallNode.Object);
                         var types = memberFunctionCallNode.Arguments.Select(arg => Analysis(arg)).ToArray();
+
+                        
                         var methodInfo = objectType.GetMethod(memberFunctionCallNode.FunctionName, types);
                         if (methodInfo is null)
-                            throw new Exception($"类型 {objectType} 没有方法 {memberFunctionCallNode.FunctionName}");
+                        {
+                            var t = objectType.GetMethods().Where(m => m.Name.Equals(memberFunctionCallNode.FunctionName)).ToArray();
+                            if(t.Length > 0)
+                            {
+                                var content = string.Join($";{Environment.NewLine}", t.Select(m => m.ToString()));
+                                throw new Exception($"类型 {objectType} 没有指定的重载方法 " +
+                                    $"{memberFunctionCallNode.FunctionName}({string.Join(",", types.Select(t => t.Name))})，" +
+                                    $"但存在其它重载方法：{content}");
+                            }
+                            else
+                            {
+                                throw new Exception($"类型 {objectType} 没有方法 {memberFunctionCallNode.FunctionName}");
+                            }
+                        }
+                            
                         for (int index = 0; index < memberFunctionCallNode.Arguments.Count; index++)
                         {
                             ASTNode argNode = memberFunctionCallNode.Arguments[index];
@@ -428,7 +455,17 @@ namespace Serein.Script
                 case FunctionCallNode functionCallNode: // 外部挂载的函数调用
                     Type AnalysisFunctionCallNode(FunctionCallNode functionCallNode)
                     {
-                        if(!SereinScript.FunctionInfos.TryGetValue(functionCallNode.FunctionName, out var methodInfo))
+                        // 获取流程上下文
+                        if (functionCallNode.FunctionName.Equals("getFlowContext", StringComparison.OrdinalIgnoreCase))
+                        {
+                            return typeof(IFlowContext);
+                        }
+                        else if (functionCallNode.FunctionName.Equals("getScriptContext", StringComparison.OrdinalIgnoreCase))
+                        {
+                            return typeof(IScriptInvokeContext);
+                        }
+
+                        if (!SereinScript.FunctionInfos.TryGetValue(functionCallNode.FunctionName, out var methodInfo))
                         {
                             throw new Exception($"脚本没有挂载方法 {functionCallNode.FunctionName}");
                         }

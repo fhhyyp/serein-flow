@@ -12,7 +12,7 @@ namespace Serein.Script
     {
         public const string ClassName = nameof(SereinScriptToCsharpScript);
 
-        public SereinScriptMethodInfo sereinScriptMethodInfo ;
+        public SereinScriptMethodInfo sereinScriptMethodInfo;
 
         /// <summary>
         /// 符号表
@@ -51,6 +51,13 @@ namespace Serein.Script
             _codeBuilder.Append(code);
         }
 
+        private void CompleteCurrentStatement()
+        {
+            _codeBuilder.Append($";{Environment.NewLine}");
+
+        }
+        private string Tab =>  new string (' ', _indentLevel* 4);
+
         private void Indent() => _indentLevel++;
         private void Unindent() => _indentLevel--;
 
@@ -67,7 +74,7 @@ namespace Serein.Script
             };
             var sb = _codeBuilder;
             var methodResultType = _symbolInfos[programNode];
-            if(methodResultType == typeof(void))
+            if (methodResultType == typeof(void))
             {
                 methodResultType = typeof(object);
             }
@@ -85,9 +92,9 @@ namespace Serein.Script
             }
 
             AppendLine($"public partial class {ClassName}");
-            AppendLine( "{");
+            AppendLine("{");
             Indent();
-            if(param is null || param.Count == 0)
+            if (param is null || param.Count == 0)
             {
                 // 生成方法签名
                 AppendLine($"public static {returnContent} {mehtodName}()");
@@ -97,15 +104,15 @@ namespace Serein.Script
                 // 生成方法签名
                 AppendLine($"public static {returnContent} {mehtodName}({GetMethodParamster(param)})");
             }
-            AppendLine( "{");
+            AppendLine("{");
             Indent();
             // 生成变量节点
             var idfNodesTemp = _symbolInfos.Keys.Where(key => key is IdentifierNode)
-                                            .OfType<IdentifierNode>().ToList() ;
+                                            .OfType<IdentifierNode>().ToList();
             var idfNodes = (param is null) switch
             {
                 true => idfNodesTemp.DistinctBy(n => n.Name).ToList(),
-                false => idfNodesTemp.DistinctBy(n => n.Name).DistinctByCondition(n => !param.ContainsKey(n.Name) ).ToList(),
+                false => idfNodesTemp.DistinctBy(n => n.Name).DistinctByCondition(n => !param.ContainsKey(n.Name)).ToList(),
             };
             foreach (var idf in idfNodes)
             {
@@ -116,10 +123,13 @@ namespace Serein.Script
             AppendLine("");
 
             // 递归遍历节点生成代码
-            foreach (var stmt in programNode.Statements) 
+            foreach (var stmt in programNode.Statements)
             {
                 ConvertCode(stmt);
-                Append(";");
+                if (stmt is not (IfNode or WhileNode))
+                {
+                    CompleteCurrentStatement();
+                }
             }
             if (_symbolInfos[programNode] == typeof(void))
             {
@@ -158,7 +168,7 @@ namespace Serein.Script
             return string.Join(',', values);
         }
 
-        private void ConvertCode( ASTNode node)
+        private void ConvertCode(ASTNode node)
         {
             switch (node)
             {
@@ -167,16 +177,16 @@ namespace Serein.Script
                 case ReturnNode returnNode: // 程序退出节点
                     void ConvertCodeOfReturnNode(ReturnNode returnNode)
                     {
+                        
+                        Append(Tab);
                         if (returnNode.Value is not null)
                         {
                             Append($"return ");
                             ConvertCode(returnNode.Value);
-                            Append(";");
-                            AppendLine(string.Empty);
                         }
                         else
                         {
-                            AppendLine("return defult;");
+                            AppendLine("return defult");
                         }
                     }
                     ConvertCodeOfReturnNode(returnNode);
@@ -205,49 +215,30 @@ namespace Serein.Script
                     break;
                 case NumberDoubleNode numberDoubleNode: // double浮点数值字面量
                     Append($"{numberDoubleNode.Value}d");
-                    break; 
+                    break;
                 #endregion
                 case IdentifierNode identifierNode: // 变量定义
                     void ConvertCodeOfIdentifierNode(IdentifierNode identifierNode)
                     {
                         var varName = identifierNode.Name;
                         Append(varName);
-                        /*if (_local.TryGetValue(varName, out var type))
-                        {
-                            // 定义过，需要使用变量
-                            Append(varName);
-                        }
-                        else
-                        {
-                            if (_symbolInfos.TryGetValue(identifierNode, out type))
-                            {
-                                // 不存在，定义变量
-                                Append($"global::{type.FullName} {varName}");
-                                _local[varName] = type;
-                                //Append(varName);
-                            }
-                            else
-                            {
-                                throw new Exception($"加载符号表时，无法匹配 IdentifierNode 节点的类型。 name ： {varName}");
-                            }
-                        }*/
                     }
                     ConvertCodeOfIdentifierNode(identifierNode);
                     break;
                 case IfNode ifNode: // if语句结构
                     void ConvertCodeOfIfNode(IfNode ifNOde)
                     {
-                        AppendLine("");
-                        Append($"if(");
+                        
+                        Append($"{Tab}if(");
                         ConvertCode(ifNOde.Condition); // 解析条件
-                        Append($" == true)");
+                        Append($" == true){Environment.NewLine}");
                         AppendLine("{");
                         Indent();
-                        foreach(var item in ifNOde.TrueBranch)
+                        foreach (var item in ifNOde.TrueBranch)
                         {
                             ConvertCode(item);
-                            AppendLine(string.Empty);
-                        }  
+                            CompleteCurrentStatement();
+                        }
                         Unindent();
                         AppendLine("}");
                         AppendLine("else");
@@ -256,7 +247,7 @@ namespace Serein.Script
                         foreach (var item in ifNOde.FalseBranch)
                         {
                             ConvertCode(item);
-                            AppendLine(string.Empty);
+                            CompleteCurrentStatement();
                         }
                         Unindent();
                         AppendLine("}");
@@ -275,8 +266,7 @@ namespace Serein.Script
                         foreach (var item in whileNode.Body)
                         {
                             ConvertCode(item);
-                            Append(";");
-                            AppendLine(string.Empty);
+                            CompleteCurrentStatement();
                         }
                         Unindent();
                         AppendLine("}");
@@ -286,6 +276,8 @@ namespace Serein.Script
                 case AssignmentNode assignmentNode: // 变量赋值语句
                     void ConvertCodeOfAssignmentNode(AssignmentNode assignmentNode)
                     {
+                        
+                        Append(Tab);
                         ConvertCode(assignmentNode.Target);
                         Append(" = ");
                         if (assignmentNode.Value is null)
@@ -296,19 +288,17 @@ namespace Serein.Script
                         {
                             ConvertCode(assignmentNode.Value);
                         }
-                        Append(";");
-                        AppendLine(string.Empty);
                     }
                     ConvertCodeOfAssignmentNode(assignmentNode);
                     break;
                 case BinaryOperationNode binaryOperationNode: // 二元运算操作
                     void ConvertCodeOfBinaryOperationNode(BinaryOperationNode binaryOperationNode)
                     {
-                        Append("("); 
+                        Append("(");
                         ConvertCode(binaryOperationNode.Left); // 左操作数
                         Append(binaryOperationNode.Operator); // 操作符
                         ConvertCode(binaryOperationNode.Right); // 左操作数
-                        Append(")"); 
+                        Append(")");
                     }
                     ConvertCodeOfBinaryOperationNode(binaryOperationNode);
                     break;
@@ -318,7 +308,6 @@ namespace Serein.Script
                         ConvertCode(collectionAssignmentNode.Collection);
                         Append(" = ");
                         ConvertCode(collectionAssignmentNode.Value);
-                        Append(";");
                         AppendLine(string.Empty);
                     }
                     ConvertCodeOfCollectionAssignmentNode(collectionAssignmentNode);
@@ -332,6 +321,25 @@ namespace Serein.Script
                         Append("]");
                     }
                     ConvertCodeOfCollectionIndexNode(collectionIndexNode);
+                    break;
+                case ArrayDefintionNode arrayDefintionNode:
+                    void ConvertCodeOfArrayDefintionNode(ArrayDefintionNode arrayDefintionNode)
+                    {
+                        var arrType = this._symbolInfos[arrayDefintionNode];
+                        var tab = new string(' ', (_indentLevel + 1) * 4);
+                        Append($"new global::{arrType.FullName}{{{Environment.NewLine}");
+                        for (int index = 0; index < arrayDefintionNode.Elements.Count; index++)
+                        {
+                            ASTNode? e = arrayDefintionNode.Elements[index];
+                            Append(tab + "    ");
+                            ConvertCode(e);
+                            if (index < arrayDefintionNode.Elements.Count - 1)
+                                Append($", {Environment.NewLine}");
+
+                        }
+                        Append($"{Environment.NewLine}{tab}}}");
+                    }
+                    ConvertCodeOfArrayDefintionNode(arrayDefintionNode);
                     break;
                 case ClassTypeDefinitionNode classTypeDefinitionNode: // 类型定义
                     void ConvertCodeOfClassTypeDefinitionNode(ClassTypeDefinitionNode classTypeDefinitionNode)
@@ -409,7 +417,7 @@ namespace Serein.Script
                         ConvertCode(memberAccessNode.Object);
                         Append($".{memberAccessNode.MemberName}");
                     }
-                    ConvertCodeOfMemberAccessNode(memberAccessNode); 
+                    ConvertCodeOfMemberAccessNode(memberAccessNode);
                     break;
                 case MemberAssignmentNode memberAssignmentNode: // 对象成员赋值
                     void ConvertCodeOfMemberAssignmentNode(MemberAssignmentNode memberAssignmentNode)
@@ -417,10 +425,8 @@ namespace Serein.Script
                         ConvertCode(memberAssignmentNode.Object);
                         Append($".{memberAssignmentNode.MemberName} = ");
                         ConvertCode(memberAssignmentNode.Value);
-                        Append($";");
-                        AppendLine(string.Empty);
                     }
-                    ConvertCodeOfMemberAssignmentNode(memberAssignmentNode); 
+                    ConvertCodeOfMemberAssignmentNode(memberAssignmentNode);
                     break;
                 case MemberFunctionCallNode memberFunctionCallNode: // 对象方法调用
                     void ConvertCodeOfMemberFunctionCallNode(MemberFunctionCallNode memberFunctionCallNode)
@@ -450,7 +456,7 @@ namespace Serein.Script
 
 
                     }
-                    ConvertCodeOfMemberFunctionCallNode(memberFunctionCallNode); 
+                    ConvertCodeOfMemberFunctionCallNode(memberFunctionCallNode);
                     break;
                 case FunctionCallNode functionCallNode: // 外部挂载的函数调用
                     void ConvertCodeOfFunctionCallNode(FunctionCallNode functionCallNode)
@@ -462,13 +468,13 @@ namespace Serein.Script
                         }
                         var funcName = functionCallNode.FunctionName switch
                         {
-                            "int"      =>  "@int"       ,
-                            "bool"     =>  "@bool"      ,
-                            "double"   =>  "@double"    ,
-                            "long"     =>  "@long"      ,
-                            "decimal"  =>  "@decimal"   ,
-                            "float"    =>  "@float"     ,
-                            "byte"     =>  "@byte"      ,
+                            "int" => "@int",
+                            "bool" => "@bool",
+                            "double" => "@double",
+                            "long" => "@long",
+                            "decimal" => "@decimal",
+                            "float" => "@float",
+                            "byte" => "@byte",
 
                             _ => functionCallNode.FunctionName,
                         };
@@ -494,6 +500,9 @@ namespace Serein.Script
                     break;
             }
         }
+
+
+        
 
     }
 

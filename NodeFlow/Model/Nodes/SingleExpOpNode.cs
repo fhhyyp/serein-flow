@@ -69,6 +69,7 @@ namespace Serein.NodeFlow.Model.Nodes
 
             };
             this.MethodDetails.ParameterDetailss = [.. pd];
+            this.MethodDetails.ReturnType = typeof(object);
         }
 
         /// <summary>
@@ -103,14 +104,12 @@ namespace Serein.NodeFlow.Model.Nodes
         {
             if(token.IsCancellationRequested) return FlowResult.Fail(this.Guid, context, "流程已通过token取消");
 
-            object? parameter = null;// context.TransmissionData(this); // 表达式节点使用上一节点数据
+            object? parameter = null;// 表达式节点使用上一节点数据
             var pd = MethodDetails.ParameterDetailss[0];
 
             var hasNode = context.Env.TryGetNodeModel(pd.ArgDataSourceNodeGuid, out var argSourceNode);
             if (!hasNode)
             {
-                /*context.NextOrientation = ConnectionInvokeType.IsError;
-                return new FlowResult(this.Guid, context);*/
                 parameter = null;
             }
             else
@@ -130,14 +129,6 @@ namespace Serein.NodeFlow.Model.Nodes
                     parameter = result.Value;
                 }
             }
-           
-            /*
-            else
-            {
-                // 条件节点透传上一节点的数据
-                parameter = context.TransmissionData(this.Guid);
-            }
-*/
             try
             {
                 var result = await GetValueExpressionAsync(context, parameter, Expression);
@@ -179,17 +170,18 @@ namespace Serein.NodeFlow.Model.Nodes
                     // 表达式默认包含 “.”
                     expression = $"return {expression};";
                 }
-                var resultType = getValueScript .ParserScript(expression, new Dictionary<string, Type>
+                var resultType = getValueScript.ParserScript(expression, new Dictionary<string, Type>
                 {
                     { dataName, dataType},
                 });
+
 
             }
 
             IScriptInvokeContext scriptContext = new ScriptInvokeContext(flowContext);
             scriptContext.SetVarValue(dataName, data);
 
-            var result = await getValueScript .InterpreterAsync(scriptContext);
+            var result = await getValueScript.InterpreterAsync(scriptContext);
             return result;
         }
 

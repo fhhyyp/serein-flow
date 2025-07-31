@@ -27,23 +27,23 @@ namespace Serein.Script.Node
     public class NumberIntNode(int vlaue) : NumberNode<int>(vlaue)
     {
     }
-    
+
     /// <summary>
-    /// int 整数型字面量
+    /// long 整数型字面量
     /// </summary>
     public class NumberLongNode(long vlaue) : NumberNode<long>(vlaue)
     {
     }
-    
+
     /// <summary>
-    /// int 整数型字面量
+    /// float 字面量
     /// </summary>
     public class NumberFloatNode(float vlaue) : NumberNode<float>(vlaue)
     {
     }
-    
+
     /// <summary>
-    /// int 整数型字面量
+    /// double 字面量
     /// </summary>
     public class NumberDoubleNode(double vlaue) : NumberNode<double>(vlaue)
     {

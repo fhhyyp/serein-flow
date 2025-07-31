@@ -189,6 +189,7 @@ namespace Serein.NodeFlow.Model.Operations
                 return false;
             }
 
+
             if (ToNode.ControlType is not (NodeControlType.GlobalData or NodeControlType.ExpCondition or NodeControlType.ExpOp))
             {
                 
@@ -199,6 +200,7 @@ namespace Serein.NodeFlow.Model.Operations
                 }
                 if (ToNode.MethodDetails.ParameterDetailss.Length > 0)
                 {
+                   
                     var fromNoeReturnType = fromNode.MethodDetails.ReturnType;
                     if (fromNoeReturnType != null
                         && fromNoeReturnType != typeof(object)
@@ -206,24 +208,33 @@ namespace Serein.NodeFlow.Model.Operations
                         && fromNoeReturnType != typeof(Unit))
                     {
                         var toNodePds = toNode.MethodDetails.ParameterDetailss;
-                        foreach (ParameterDetails toNodePd in toNodePds)
+                        if (toNodePds.Any(pd=>pd.IsExplicitData))
                         {
-                            if (string.IsNullOrWhiteSpace(toNodePd.ArgDataSourceNodeGuid)  // 入参没有设置数据来源节点
-                                && toNodePd.DataType.IsAssignableFrom(fromNoeReturnType)) // 返回值与目标入参相同（或可转换为目标入参）
-                            {
-
-                                toPds.Add(toNodePd);
-                            }
-                        }
-                        if (toPds.Count == 0)
-                        {
-                            var any = toNodePds.Any(pd => pd.ArgDataSourceNodeGuid == fromNode.Guid);  // 判断目标节点是否已有该节点的连接
-                            checkTypeState = any;
+                            checkTypeState = true; // 目标节点使用了显式的入参，无需关心参数是否匹配
                         }
                         else
                         {
-                            checkTypeState = true; // 类型检查初步通过
+                            foreach (ParameterDetails toNodePd in toNodePds)
+                            {
+                                if (string.IsNullOrWhiteSpace(toNodePd.ArgDataSourceNodeGuid)  // 入参没有设置数据来源节点
+                                    && toNodePd.DataType.IsAssignableFrom(fromNoeReturnType)) // 返回值与目标入参相同（或可转换为目标入参）
+                                {
+
+                                    toPds.Add(toNodePd);
+                                }
+                            }
+                            if (toPds.Count == 0)
+                            {
+
+                                var any = toNodePds.Any(pd => pd.ArgDataSourceNodeGuid == fromNode.Guid);  // 判断目标节点是否已有该节点的连接
+                                checkTypeState = any;
+                            }
+                            else
+                            {
+                                checkTypeState = true; // 类型检查初步通过
+                            }
                         }
+                       
                     }
                 }
             }
