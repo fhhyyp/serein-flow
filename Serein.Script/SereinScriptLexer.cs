@@ -214,6 +214,14 @@
             // 识别字符串字面量
             if (currentChar == '"')
             {
+                if (_input[_index + 1] == '"'
+                     && _input[_index + 2] == '"')
+                {
+                    var value = _input.Slice(_index, 4).ToString();
+
+                    // 原始字符串
+                    return ReadRawString();
+                }
                 return ReadString();
             }
             
@@ -438,6 +446,28 @@
             _index += value.Length;
 
             return token;
+        }
+
+        private Token ReadRawString()
+        {
+            // skip opening triple quotes
+            _index += 3;
+
+            var start = _index;
+            while (_index + 2 < _input.Length)
+            {
+                if (_input[_index] == '"' && _input[_index + 1] == '"' && _input[_index + 2] == '"')
+                {
+                    var value = _input.Slice(start, _index - start).ToString();
+                    _index += 3; // skip closing """
+                    return CreateToken(TokenType.String, value);
+                }
+
+                _index++;
+            }
+
+            throw new Exception("Unterminated raw string literal");
+
         }
 
 

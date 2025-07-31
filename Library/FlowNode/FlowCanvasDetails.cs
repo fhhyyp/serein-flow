@@ -98,7 +98,7 @@ namespace Serein.Library
         /// 起始节点
         /// </summary>
         [DataInfo]
-        private IFlowNode _startNode;
+        private IFlowNode? _startNode;
 
     }
 

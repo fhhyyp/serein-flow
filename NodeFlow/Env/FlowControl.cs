@@ -1,9 +1,11 @@
-﻿using Serein.Library;
+﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.Utils;
 using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Model.Nodes;
 using Serein.NodeFlow.Services;
+using Serein.NodeFlow.Tool;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -52,9 +54,8 @@ namespace Serein.NodeFlow.Env
         private ObjectPool<FlowWorkManagement> flowTaskManagementPool;
         private FlowWorkOptions flowTaskOptions;
 
+       
 
-
-        private FlowWorkManagement? flowWorkManagement;
         private ISereinIOC? externalIOC;
         private Action<ISereinIOC>? setDefultMemberOnReset;
         private bool IsUseExternalIOC = false;
@@ -88,9 +89,28 @@ namespace Serein.NodeFlow.Env
             }
         }
 
+        private readonly List<FlowWorkManagement> flowWorkManagements = [];
+        private FlowWorkManagement GetFWM()
+        {
+            var fwm = flowTaskManagementPool.Allocate();
+            flowWorkManagements.Add(fwm);
+            return fwm;
+        }
+        private void ReturnFWM(FlowWorkManagement fwm)
+        {
+            if (flowWorkManagements.Contains(fwm))
+            {
+                flowWorkManagements.Remove(fwm);
+            }
+            fwm.Exit();
+            flowTaskManagementPool.Free(fwm);
+        }
+
+
         /// <inheritdoc/>
         public async Task<bool> StartFlowAsync(string[] canvasGuids)
         {
+            
             #region 校验参数
             HashSet<string> guids = new HashSet<string>();
             bool isBreak = false;
@@ -123,47 +143,49 @@ namespace Serein.NodeFlow.Env
             }
             #endregion
 
+           
+            // 初始化每个画布的数据，转换为流程任务
+            var flowTasks = guids.Select(guid =>
+                              {
+                                  if (!flowModelService.TryGetCanvasModel(guid, out var canvasModel))
+                                  {
+                                      SereinEnv.WriteLine(InfoType.WARN, $"画布不存在，将不会运行。{guid}");
+                                      return default;
+                                  }
+                                  if (canvasModel.StartNode is null)
+                                  {
+                                      SereinEnv.WriteLine(InfoType.WARN, $"画布不存在起始节点，将不会运行。{guid}");
+                                      return default;
+                                  }
+                                  return canvasModel;
+                              })
+                                 .Where(canvasModel => canvasModel != default && canvasModel.StartNode != null)
+                                 .OfType<FlowCanvasDetails>()
+                                 .ToDictionary(key => key.Guid,
+                                               value => new FlowTask
+                                                   {
+                                                       GetStartNode = () => value.StartNode!,
+                                                       GetNodes = () => flowModelService.GetAllNodeModel(value.Guid),
+                                                       IsWaitStartFlow = false
+                                                   });
 
-            #region 初始化每个画布的数据，转换为流程任务
-            Dictionary<string, FlowTask> flowTasks = [];
-            foreach (var guid in guids)
+
+            if(flowTasks.Values.Count == 0)
             {
-                if (!flowModelService.TryGetCanvasModel(guid, out var canvasModel))
-                {
-                    SereinEnv.WriteLine(InfoType.WARN, $"画布不存在，停止运行。{guid}");
-                    return false;
-                }
-                var ft = new FlowTask();
-                ft.GetNodes = () => flowModelService.GetAllNodeModel(guid);
-                if (canvasModel.StartNode?.Guid is null)
-                {
-                    SereinEnv.WriteLine(InfoType.WARN, $"画布不存在起始节点，将停止运行。{guid}");
-                    return false;
-                }
-                ft.GetStartNode = () => canvasModel.StartNode;
-                flowTasks.Add(guid, ft);
+                return false; 
             }
-            #endregion
-            IOC.Reset();
+
+            // 初始化IOC
             setDefultMemberOnReset?.Invoke(IOC);
+            IOC.Reset();
             IOC.Register<IFlowEnvironment>(() => flowEnvironment);
-            //externalIOC.Register<IScriptFlowApi, ScriptFlowApi>(); // 注册脚本接口
-
-            var flowTaskOptions = new FlowWorkOptions
-            {
-                FlowIOC = IOC,
-                Environment = flowEnvironment, // 流程
-                Flows = flowTasks,
-                FlowContextPool = contexts, // 上下文对象池
-                AutoRegisterTypes = flowLibraryService.GetaAutoRegisterType(), // 需要自动实例化的类型
-                InitMds = flowLibraryService.GetMdsOnFlowStart(NodeType.Init),
-                LoadMds = flowLibraryService.GetMdsOnFlowStart(NodeType.Loading),
-                ExitMds = flowLibraryService.GetMdsOnFlowStart(NodeType.Exit),
-            };
-
-
-            flowWorkManagement = new FlowWorkManagement(flowTaskOptions);
-            var cts = new CancellationTokenSource();
+            var flowWorkManagement = GetFWM();
+            flowWorkManagement.WorkOptions.Flows = flowTasks;
+            flowWorkManagement.WorkOptions.AutoRegisterTypes = flowLibraryService.GetaAutoRegisterType(); // 需要自动实例化的类型
+            flowWorkManagement.WorkOptions.InitMds = flowLibraryService.GetMdsOnFlowStart(NodeType.Init);
+            flowWorkManagement.WorkOptions.LoadMds = flowLibraryService.GetMdsOnFlowStart(NodeType.Loading);
+            flowWorkManagement.WorkOptions.ExitMds = flowLibraryService.GetMdsOnFlowStart(NodeType.Exit);
+            using var cts = new CancellationTokenSource();
             try
             {
                 var t = await flowWorkManagement.RunAsync(cts.Token);
@@ -174,22 +196,18 @@ namespace Serein.NodeFlow.Env
             }
             finally
             {
-
                 SereinEnv.WriteLine(InfoType.INFO, $"流程运行完毕{Environment.NewLine}"); ;
             }
-            flowTaskOptions = null;
+            ReturnFWM(flowWorkManagement);
             return true;
         }
 
         /// <inheritdoc/>
         public async Task<TResult> StartFlowAsync<TResult>(string startNodeGuid)
         {
-
             var sw = Stopwatch.StartNew();
             var checkpoints = new Dictionary<string, TimeSpan>();
-           
-            var flowTaskManagement = flowTaskManagementPool.Allocate();
-
+            var flowWorkManagement = GetFWM();
             if (!flowModelService.TryGetNodeModel(startNodeGuid, out IFlowNode? nodeModel))
             {
                 throw new Exception($"节点不存在【{startNodeGuid}】");
@@ -200,10 +218,10 @@ namespace Serein.NodeFlow.Env
             }
 
 
-            var flowContextPool = flowTaskManagement.WorkOptions.FlowContextPool;
+            var flowContextPool = flowWorkManagement.WorkOptions.FlowContextPool;
             var context = flowContextPool.Allocate();
             checkpoints["准备调用环境"] = sw.Elapsed;
-            var flowResult =  await nodeModel.StartFlowAsync(context, flowTaskManagement.WorkOptions.CancellationTokenSource.Token); // 开始运行时从选定节点开始运行
+            var flowResult =  await nodeModel.StartFlowAsync(context, flowWorkManagement.WorkOptions.CancellationTokenSource.Token); // 开始运行时从选定节点开始运行
             checkpoints["调用节点流程"] = sw.Elapsed;
 
             var last = TimeSpan.Zero;
@@ -241,7 +259,7 @@ namespace Serein.NodeFlow.Env
             }
             context.Reset();
             flowContextPool.Free(context);
-            flowTaskManagementPool.Free(flowTaskManagement);
+            ReturnFWM(flowWorkManagement); // 释放流程任务管理器
             if (flowResult.Value is TResult result)
             {
                 return result;
@@ -256,32 +274,24 @@ namespace Serein.NodeFlow.Env
             }
         }
 
-        /*/// <summary>
-        /// 单独运行一个节点
-        /// </summary>
-        /// <param name="nodeGuid"></param>
-        /// <returns></returns>
-        public async Task<object> InvokeNodeAsync(IDynamicContext context, string nodeGuid)
-        {
-            object result = Unit.Default;
-            if (this.NodeModels.TryGetValue(nodeGuid, out var model))
-            {
-                CancellationTokenSource cts = new CancellationTokenSource();    
-                result =  await model.ExecutingAsync(context, cts.Token);
-                cts?.Cancel();
-            }
-            return result;
-        }*/
+
         /// <inheritdoc/>
         public Task<bool> ExitFlowAsync()
         {
-            flowWorkManagement?.Exit();
+            foreach(var flowWorkManagement in flowWorkManagements)
+            {
+                flowWorkManagement.Exit();
+            }
             UIContextOperation?.Invoke(() => flowEnvironmentEvent.OnFlowRunComplete(new FlowEventArgs()));
             IOC.Reset();
-            flowWorkManagement = null;
             GC.Collect();
             return Task.FromResult(true);
         }
+
+
+
+
+
         /// <inheritdoc/>
         public void ActivateFlipflopNode(string nodeGuid)
         {
@@ -313,6 +323,7 @@ namespace Serein.NodeFlow.Env
                  flowTaskManagement.TerminateGlobalFlipflopRuning(flipflopNode);
              }*/
         }
+
         /// <inheritdoc/>
         public void UseExternalIOC(ISereinIOC ioc, Action<ISereinIOC>? setDefultMemberOnReset = null)
         {
@@ -320,11 +331,13 @@ namespace Serein.NodeFlow.Env
             this.setDefultMemberOnReset = setDefultMemberOnReset;
             IsUseExternalIOC = true;
         }
+
         /// <inheritdoc/>
         public void MonitorObjectNotification(string nodeGuid, object monitorData, MonitorObjectEventArgs.ObjSourceType sourceType)
         {
             flowEnvironmentEvent.OnMonitorObjectChanged(new MonitorObjectEventArgs(nodeGuid, monitorData, sourceType));
         }
+
         /// <inheritdoc/>
         public void TriggerInterrupt(string nodeGuid, string expression, InterruptTriggerEventArgs.InterruptTriggerType type)
         {

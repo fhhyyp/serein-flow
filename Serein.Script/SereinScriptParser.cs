@@ -1,6 +1,7 @@
 ﻿using Serein.Library.Utils;
 using Serein.Script.Node;
 using Serein.Script.Node.FlowControl;
+using System.Collections;
 
 namespace Serein.Script
 {
@@ -255,6 +256,7 @@ namespace Serein.Script
                     if (JudgmentOperator(_currentToken, "=")) break; // 退出
                     var peekToken = _currentToken; // _lexer.PeekToken(); // 获取下一个token开始判断
                     source = nodes[^1]; // 重定向节点
+                    if (peekToken.Type == TokenType.Identifier) throw new Exception($"无法从对象获取成员，当前Token类型为 {peekToken.Type}。");
                     if (peekToken.Type == TokenType.Dot) // 从对象获取
                     {
                         /* 
@@ -352,26 +354,50 @@ namespace Serein.Script
         public CollectionIndexNode ParseCollectionIndexNode(ASTNode sourceNode)
         {
             var collectionToken = _currentToken;
-            string collectionName = _currentToken.Value; // 集合名称
-            NextToken(TokenType.SquareBracketsLeft); // 消耗集合名称
-            NextToken(); // 消耗 "[" 集合标识符的左中括号
-            ASTNode indexNode = ParserExpression(); // 解析获取索引Node
-            NextToken(); // 消耗 "]" 集合标识符的右中括号
-            
-            if(sourceNode is IdentifierNode)
+            if(_currentToken.Type == TokenType.SquareBracketsLeft)
             {
-                var collectionIndexNode = new CollectionIndexNode(sourceNode, indexNode);
-                collectionIndexNode.SetTokenInfo(collectionToken); // 表示获取集合第几个索引
-                return collectionIndexNode;
+                // 集合中获取集合
+                NextToken(); // 消耗 "[" 集合标识符的左中括号
+                ASTNode indexNode = ParserExpression(); // 解析获取索引Node
+                NextToken(); // 消耗 "]" 集合标识符的右中括号
+
+                if (sourceNode is IdentifierNode)
+                {
+                    var collectionIndexNode = new CollectionIndexNode(sourceNode, indexNode);
+                    collectionIndexNode.SetTokenInfo(collectionToken); // 表示获取集合第几个索引
+                    return collectionIndexNode;
+                }
+                else
+                {
+                    var collectionIndexNode = new CollectionIndexNode(sourceNode, indexNode);
+                    collectionIndexNode.SetTokenInfo(collectionToken); // 表示获取集合第几个索引
+                    return collectionIndexNode;
+                }
             }
             else
             {
-               
-                var memberAccessNode = new MemberAccessNode(sourceNode, collectionName).SetTokenInfo(_currentToken);  // 表示集合从上一轮获取到的成员获取
-                var collectionIndexNode = new CollectionIndexNode(memberAccessNode, indexNode);
-                collectionIndexNode.SetTokenInfo(collectionToken); // 表示获取集合第几个索引
-                return collectionIndexNode;
+                string collectionName = _currentToken.Value; // 集合名称
+                NextToken(TokenType.SquareBracketsLeft); // 消耗集合名称
+                NextToken(); // 消耗 "[" 集合标识符的左中括号
+                ASTNode indexNode = ParserExpression(); // 解析获取索引Node
+                NextToken(); // 消耗 "]" 集合标识符的右中括号
+
+                if (sourceNode is IdentifierNode)
+                {
+                    var collectionIndexNode = new CollectionIndexNode(sourceNode, indexNode);
+                    collectionIndexNode.SetTokenInfo(collectionToken); // 表示获取集合第几个索引
+                    return collectionIndexNode;
+                }
+                else
+                {
+
+                    var memberAccessNode = new MemberAccessNode(sourceNode, collectionName).SetTokenInfo(_currentToken);  // 表示集合从上一轮获取到的成员获取
+                    var collectionIndexNode = new CollectionIndexNode(memberAccessNode, indexNode);
+                    collectionIndexNode.SetTokenInfo(collectionToken); // 表示获取集合第几个索引
+                    return collectionIndexNode;
+                }
             }
+            
             
         }
 
@@ -939,10 +965,6 @@ namespace Serein.Script
                 {
                     var peekToken = _currentToken; // _lexer.PeekToken(); // 获取下一个token开始判断
                     source = nodes[^1]; // 重定向节点
-                    if(source.StartIndex == 501)
-                    {
-
-                    }
                     if (peekToken.Type == TokenType.Dot) // 从对象获取
                     {
                         /*

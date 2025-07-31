@@ -109,7 +109,7 @@ namespace Serein.Workbench.Node.ViewModel
                 FlowCallNode.ResetTargetNode(); // 如果是不选择了，则重置一下
                 return;
             }
-            UploadNode.Invoke(value);
+            UploadNode?.Invoke(value);
             FlowCallNode.SetTargetNode(value.Guid); // 重新设置目标节点
         }
 

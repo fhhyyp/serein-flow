@@ -59,7 +59,7 @@ namespace Serein.NodeFlow.Model.Nodes
                 if (token.IsCancellationRequested) { return null; }
             }
 
-            MethodDetails? md = MethodDetails;
+            MethodDetails md = MethodDetails;
             if (md is null)
             {
                 throw new Exception($"节点{Guid}不存在方法信息，请检查是否需要重写节点的ExecutingAsync");
@@ -71,7 +71,7 @@ namespace Serein.NodeFlow.Model.Nodes
 
             if (md.IsStatic)
             {
-                object[] args = await this.GetParametersAsync(context, token);
+                object[] args = md.ParameterDetailss.Length == 0 ? [] : await this.GetParametersAsync(context, token);
                 var result = await dd.InvokeAsync(null, args);
                 var flowReslt =  FlowResult.OK(this.Guid, context, result);
                 return flowReslt;

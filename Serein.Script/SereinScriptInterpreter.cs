@@ -516,7 +516,7 @@ namespace Serein.Script
         /// <param name="indexValue"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private async Task<object?> GetCollectionValueAsync(ASTNode node, object collectionValue, object indexValue)
+        private async Task<object?> GetCollectionValueAsync(CollectionIndexNode node, object collectionValue, object indexValue)
         {
             if (ASTDelegateDetails.TryGetValue(node, out DelegateDetails? delegateDetails))
             {
@@ -530,8 +530,9 @@ namespace Serein.Script
                 {
                     return chars[index];
                 }
+                var itemType = symbolInfos[node.Index];
                 var collectionType = collectionValue.GetType(); // 目标对象的类型
-                delegateDetails = new DelegateDetails(collectionType, DelegateDetails.EmitType.CollectionGetter);
+                delegateDetails = new DelegateDetails(collectionType, DelegateDetails.EmitType.CollectionGetter, itemType);
                 ASTDelegateDetails[node] = delegateDetails; // 缓存委托
                 var result =  await delegateDetails.InvokeAsync(collectionValue, [indexValue]);
                 return result;

@@ -37,15 +37,13 @@ namespace Serein.Library
         UI,
 
         /// <summary>
-        /// <para>触发器节点，必须为标记在可异步等待的方法，建议与继承了 FlowTriggerk&lt;TEnum&gt; 的实例对象搭配使用</para>
+        /// <para>触发器节点，必须为标记在可异步等待的方法</para>
         /// <para>方法返回值必须为Task&lt;IFlipflopContext&lt;TResult&gt;&gt;，若为其它返回值，将不会创建节点。</para>
         /// <para>触发器根据在分支中的位置，分为两种类型：流程分支中的触发器、全局触发器</para>
         /// <para>一般的触发器：存在于分支某处，也可能是分支的终点，但一定不是流程的起点与分支的起点。</para>
         /// <para>一般的触发器行为：在当前分支中执行一次之后不再执行，一般用于等待某个操作的响应。</para>
-        /// <para>一般的触发器入参：如果使用了 FlowTriggerk&lt;TEnum&gt; ，就会至少有一个枚举类型的参数，参数类型与 TEnum 泛型一致。</para>
         /// <para>全局触发器：没有上游分支、同时并非流程的起始节点。</para>
         /// <para>全局触发器行为：全局触发器会循环执行，直到流程结束。</para>
-        /// <para>一般的触发器入参：如果使用了 FlowTriggerk&lt;TEnum&gt; ，就会至少有一个枚举类型的参数，参数类型与 TEnum 泛型一致。</para>
         /// </summary>
         Flipflop,
         /// <summary>

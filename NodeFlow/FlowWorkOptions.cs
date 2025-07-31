@@ -12,7 +12,7 @@ namespace Serein.NodeFlow
         /// <summary>
         /// 是否异步启动流程
         /// </summary>
-        public bool IsTaskAsync { get; set; }
+        public bool IsWaitStartFlow { get; set; } = true;
 
         /// <summary>
         /// 流程起始节点
@@ -28,7 +28,7 @@ namespace Serein.NodeFlow
     /// <summary>
     /// 节点任务执行依赖
     /// </summary>
-    public class FlowWorkOptions()
+    public sealed class FlowWorkOptions()
     {
         /// <summary>
         /// 流程IOC容器

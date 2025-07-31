@@ -159,7 +159,7 @@ namespace Serein.Library
         /// </summary>
         /// <param name="type">类型信息</param>
         /// <param name="emitType">操作类型</param>
-        public DelegateDetails(Type type, EmitType emitType) 
+        public DelegateDetails(Type type, EmitType emitType, Type? itemType = null) 
         {
             if (emitType == EmitType.CollectionSetter)
             {
@@ -170,7 +170,7 @@ namespace Serein.Library
             else if (emitType == EmitType.CollectionGetter)
             {
                 this.emitType = EmitType.CollectionGetter;
-                collectionGetter = EmitHelper.CreateCollectionGetter(type);
+                collectionGetter = EmitHelper.CreateCollectionGetter(type, itemType);
             }
             else if (emitType == EmitType.ArrayCreate)
             {

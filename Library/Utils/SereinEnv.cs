@@ -135,7 +135,7 @@ namespace Serein.Library
         /// <param name="class"></param>
         public static void WriteLine(Exception ex, InfoClass @class = InfoClass.General)
         {
-            if(@class == InfoClass.Trivial)
+            if(@class == InfoClass.Debug)
             {
 
                 SereinEnv.environment.WriteLine(InfoType.ERROR, ex.ToString(), @class);

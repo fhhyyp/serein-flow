@@ -95,19 +95,18 @@ namespace Serein.Extend.NewtonsoftJson
 
         public IJsonToken Parse(string json)
         {
-            var token = JToken.Parse(json);
-            return new NewtonsoftJsonToken(token);
+            return NewtonsoftJsonTokenFactory.Parse(json);
         }
 
         /// <summary>
-        /// 创建一个新的JSON对象。
+        /// 创建一个新的JSON数组对象。
         /// </summary>
         /// <param name="values"></param>
         /// <returns></returns>
         public IJsonToken CreateObject(IDictionary<string, object>? values = null)
         {
             var jobj = values != null ? JObject.FromObject(values) : new JObject();
-            return new NewtonsoftJsonToken(jobj);
+            return new NewtonsoftJsonObjectToken(jobj);
         }
 
         /// <summary>
@@ -119,7 +118,7 @@ namespace Serein.Extend.NewtonsoftJson
         public IJsonToken CreateArray(IEnumerable<object>? values = null)
         {
             var jarr = values != null ? JArray.FromObject(values) : new JArray();
-            return new NewtonsoftJsonToken(jarr);
+            return new NewtonsoftJsonArrayToken(jarr);
         }
 
         /// <summary>
@@ -129,8 +128,8 @@ namespace Serein.Extend.NewtonsoftJson
         /// <returns></returns>
         public IJsonToken FromObject(object obj)
         {
-            var token = JToken.FromObject(obj);
-            return new NewtonsoftJsonToken(token);
+            var token = JObject.FromObject(obj);
+            return new NewtonsoftJsonObjectToken(token);
         }
     }
 }

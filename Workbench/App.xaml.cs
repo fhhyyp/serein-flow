@@ -51,7 +51,20 @@ namespace Serein.Workbench
 
         private void Application_Startup(object sender, StartupEventArgs e)
         {
-           var projectService = App.GetService<FlowProjectService>();
+#if DEBUG && true
+
+            try
+            {
+                var t = JsonHelper.Parse(TestJson.json);
+                var iss = t["PreviousNodes"]["IsSucceed"][0];
+            }
+            catch (Exception ex)
+            {
+
+            }
+#endif
+
+            var projectService = App.GetService<FlowProjectService>();
             if (e.Args.Length == 1)
             {
                 string filePath = e.Args[0];

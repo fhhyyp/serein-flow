@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -9,8 +10,22 @@ namespace Serein.Library.Api
     /// <summary>
     /// JSON数据交互的Token接口，允许使用不同的JSON库进行数据处理。
     /// </summary>
-    public interface IJsonToken
+    public interface IJsonToken 
     {
+        /// <summary>
+        /// 获取 Token
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        IJsonToken this[object name] { get; }
+
+       /* /// <summary>
+        /// 获取 Token 数组的元素，允许通过索引访问数组中的元素。
+        /// </summary>
+        /// <param name="index"></param>
+        /// <returns></returns>
+        IJsonToken this[int index] { get; }*/
+
         /// <summary>
         /// 获取指定名称的属性，如果存在则返回true，并通过out参数返回对应的IJsonToken对象。
         /// </summary>
@@ -83,6 +98,7 @@ namespace Serein.Library.Api
     /// </summary>
     public interface IJsonProvider
     {
+        
         /// <summary>
         /// JSON文本转为指定类型
         /// </summary>

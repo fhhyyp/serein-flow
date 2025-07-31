@@ -1,6 +1,7 @@
 ﻿using Serein.Library.Api;
 using Serein.Library.Utils;
 using System;
+using System.Net;
 using System.Threading.Tasks;
 
 namespace Serein.Library
@@ -82,32 +83,91 @@ namespace Serein.Library
         /// <summary>
         /// 触发类型
         /// </summary>
-
         public TriggerDescription Type { get; set; }
         /// <summary>
         /// 触发时传递的数据
         /// </summary>
         public TResult Value { get; set; }
 
-        /// <summary>
-        /// 触发器上下文构造函数
-        /// </summary>
-        /// <param name="ffState"></param>
-        public FlipflopContext(FlipflopStateType ffState)
+        public FlipflopContext()
         {
-            State = ffState;
+            
         }
 
         /// <summary>
-        /// 触发器上下文构造函数，传入状态和数据值
+        /// 成功触发器上下文，表示触发器执行成功并返回结果
         /// </summary>
-        /// <param name="ffState"></param>
-        /// <param name="value"></param>
-        public FlipflopContext(FlipflopStateType ffState, TResult value)
+        /// <typeparam name="TResult"></typeparam>
+        /// <param name="result"></param>
+        /// <returns></returns>
+        public static FlipflopContext<TResult> Ok<TResult>(TResult result)
         {
-            State = ffState;
-            Value = value;
+            return new FlipflopContext<TResult>()
+            {
+                State = FlipflopStateType.Succeed,
+                Type = TriggerDescription.External,
+                Value = result,
+            };
         }
+
+        /// <summary>
+        /// 表示触发器执行失败
+        /// </summary>
+        /// <returns></returns>
+        public static FlipflopContext<TResult> Fail()
+        {
+            return new FlipflopContext<TResult>()
+            {
+                State = FlipflopStateType.Fail,
+                Type = TriggerDescription.External,
+                Value = default,
+            };
+        }
+
+        /// <summary>
+        /// 表示触发器执行过程中发生了错误
+        /// </summary>
+        /// <returns></returns>
+        public static FlipflopContext<TResult> Error()
+        {
+            return new FlipflopContext<TResult>()
+            {
+                State = FlipflopStateType.Error,
+                Type = TriggerDescription.External,
+                Value = default,
+            };
+        }
+
+        /// <summary>
+        /// 取消触发器上下文，表示触发器被外部取消
+        /// </summary>
+        /// <returns></returns>
+        public static FlipflopContext<TResult> Cancel()
+        {
+            return new FlipflopContext<TResult>()
+            {
+                State = FlipflopStateType.Cancel,
+                Type = TriggerDescription.External,
+                Value = default,
+            };
+        }
+
+        /// <summary>
+        /// 超时触发器上下文，表示触发器在指定时间内未完成
+        /// </summary>
+        /// <param name="state"></param>
+        /// <returns></returns>
+        public static FlipflopContext<TResult> Overtime(FlipflopStateType state = FlipflopStateType.Fail)
+        {
+            return new FlipflopContext<TResult>()
+            {
+                State = state,
+                Type = TriggerDescription.Overtime,
+                Value = default,
+            };
+        }
+
+
 
 
     }

@@ -1,4 +1,5 @@
 ﻿using Serein.Library;
+using Serein.Library.Api;
 using Serein.Library.Utils;
 using System;
 using System.Collections.Generic;
@@ -134,6 +135,28 @@ namespace Serein.Library
             return obj?.ToString() ?? string.Empty;
         }
 
+
+        #region JSON挂载方法
+
+        /// <summary>
+        /// 转为JSON对象
+        /// </summary>
+        /// <param name="content"></param>
+        /// <returns></returns>
+        public static IJsonToken json(string content)
+        {
+            return JsonHelper.Parse(content);
+        }
+
+
+
+  
+
+
+
+        #endregion
+
+
         /// <summary>
         /// 获取全局数据
         /// </summary>
@@ -153,11 +176,11 @@ namespace Serein.Library
         {
             return type.GetType();
         }
+
         /// <summary>
-        /// 记录日志信息
+        /// 输出内容
         /// </summary>
         /// <param name="value"></param>
-
         public static void log(object value)
         {
             SereinEnv.WriteLine(InfoType.INFO, value?.ToString());
@@ -168,18 +191,9 @@ namespace Serein.Library
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
-        public static async Task sleep(object value)
+        public static async Task sleep(int value)
         {
-            if (value is int @int)
-            {
-                Console.WriteLine($"等待{@int}ms");
-                await Task.Delay(@int);
-            }
-            else if (value is TimeSpan timeSpan)
-            {
-                Console.WriteLine($"等待{timeSpan}");
-                await Task.Delay(timeSpan);
-            }
+            await Task.Delay(value);
 
         }
     }

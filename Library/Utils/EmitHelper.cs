@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reactive;
@@ -504,58 +505,97 @@ namespace Serein.Library.Utils
 
 
         /// <summary>
-        /// 构建集合获取委托：Func&lt;object, object, object&gt;
+        /// 构建集合取值委托：(object collection, object index) => object value
+        /// 支持数组、泛型集合、IDictionary 等类型
         /// </summary>
-        /// <param name="collectionType"></param>
-        /// <returns></returns>
-        /// <exception cref="NotSupportedException"></exception>
-        public static Func<object, object, object> CreateCollectionGetter(Type collectionType)
+        public static Func<object, object, object> CreateCollectionGetter(Type collectionType, Type? itemType = null)
         {
             DynamicMethod dm = new DynamicMethod(
                 "GetCollectionValue",
                 typeof(object),
                 new[] { typeof(object), typeof(object) },
                 typeof(EmitHelper).Module,
-                true);
+                skipVisibility: true);
 
             ILGenerator il = dm.GetILGenerator();
 
+            // 数组类型处理
             if (collectionType.IsArray)
             {
-                // (object array, object index) => ((T[])array)[(int)index]
                 var elementType = collectionType.GetElementType()!;
                 il.Emit(OpCodes.Ldarg_0);
                 il.Emit(OpCodes.Castclass, collectionType); // 转为真实数组类型
-
                 il.Emit(OpCodes.Ldarg_1);
-                il.Emit(OpCodes.Unbox_Any, typeof(int));    // index
-
+                il.Emit(OpCodes.Unbox_Any, typeof(int));    // 转为int索引
                 il.Emit(OpCodes.Ldelem, elementType);       // 取值
-
                 if (elementType.IsValueType)
                     il.Emit(OpCodes.Box, elementType);      // 装箱
-
                 il.Emit(OpCodes.Ret);
             }
-            else
+            // 非泛型 IDictionary 类型（如 Hashtable、JObject）
+            else if (IsGenericDictionaryType(collectionType, out var keyType, out var valueType))
             {
-                // 调用 get_Item 方法
-                MethodInfo? getItem = collectionType.GetMethod("get_Item", BindingFlags.Instance | BindingFlags.Public);
+                var getItem = collectionType.GetMethod("get_Item", new[] { keyType });
                 if (getItem == null)
-                    throw new NotSupportedException($"类型 {collectionType} 不支持 get_Item。");
+                    throw new NotSupportedException($"{collectionType} 未实现 get_Item({keyType})");
 
-                var parameters = getItem.GetParameters();
-                var indexType = parameters[0].ParameterType;
                 var returnType = getItem.ReturnType;
 
                 il.Emit(OpCodes.Ldarg_0);
                 il.Emit(OpCodes.Castclass, collectionType);
 
                 il.Emit(OpCodes.Ldarg_1);
-                if (indexType.IsValueType)
-                    il.Emit(OpCodes.Unbox_Any, indexType);
+                if (keyType.IsValueType)
+                    il.Emit(OpCodes.Unbox_Any, keyType);
                 else
-                    il.Emit(OpCodes.Castclass, indexType);
+                    il.Emit(OpCodes.Castclass, keyType);
+
+                il.Emit(OpCodes.Callvirt, getItem);
+
+                if (returnType.IsValueType)
+                    il.Emit(OpCodes.Box, returnType);
+
+                il.Emit(OpCodes.Ret);
+            }
+
+            // 实现 get_Item 方法的类型（如 List<T>, Dictionary<TKey, TValue> 等）
+            else
+            {
+                /*var methodInfos = collectionType.GetMethods(BindingFlags.Instance | BindingFlags.Public);
+                MethodInfo? getItem;
+
+                if (methodInfos.Length > 1)
+                {
+                    getItem = methodInfos.Where(m => m.Name.Equals("get_Item")).Where(m =>
+                    {
+                        var ps = m.GetParameters().ToArray();
+                        if (ps.Length > 1) return false;
+                        if (ps[0].ParameterType == typeof(object)) return false;
+                        return true;
+                    }).FirstOrDefault();
+                }
+                else
+                {
+                    //getItem = collectionType.GetMethod("get_Item", BindingFlags.Instance | BindingFlags.Public);
+                    getItem = methodInfos.First(m => m.Name.Equals("get_Item"));
+                }
+                */
+                //  GetMethod(name, bindingAttr, binder: null, types, modifiers: null);
+                MethodInfo? getItem = collectionType.GetMethod("get_Item", bindingAttr: BindingFlags.Instance | BindingFlags.Public, binder: null, types: [itemType], modifiers: null);
+                if (getItem == null)
+                    throw new NotSupportedException($"类型 {collectionType} 不支持 get_Item。");
+
+                var indexParamType = getItem.GetParameters()[0].ParameterType;
+                var returnType = getItem.ReturnType;
+
+                il.Emit(OpCodes.Ldarg_0);
+                il.Emit(OpCodes.Castclass, collectionType);
+                il.Emit(OpCodes.Ldarg_1);
+
+                if (indexParamType.IsValueType)
+                    il.Emit(OpCodes.Unbox_Any, indexParamType);
+                else
+                    il.Emit(OpCodes.Castclass, indexParamType);
 
                 il.Emit(OpCodes.Callvirt, getItem);
 
@@ -568,6 +608,29 @@ namespace Serein.Library.Utils
             return (Func<object, object, object>)dm.CreateDelegate(typeof(Func<object, object, object>));
         }
 
+
+
+        private static bool IsGenericDictionaryType(Type type, out Type keyType, out Type valueType)
+        {
+            keyType = null!;
+            valueType = null!;
+
+            var dictInterface = type
+                .GetInterfaces()
+                .FirstOrDefault(t =>
+                    t.IsGenericType &&
+                    t.GetGenericTypeDefinition() == typeof(IDictionary<,>));
+
+            if (dictInterface != null)
+            {
+                var args = dictInterface.GetGenericArguments();
+                keyType = args[0];
+                valueType = args[1];
+                return true;
+            }
+
+            return false;
+        }
     }
 }
 

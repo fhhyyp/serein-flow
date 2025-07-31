@@ -1002,7 +1002,7 @@ namespace Serein.Library.Api
         /// <param name="message">消息</param>
         /// <param name="type">输出类型</param>
         /// <param name="class">输出级别</param>
-        void WriteLine(InfoType type, string message, InfoClass @class = InfoClass.Trivial);
+        void WriteLine(InfoType type, string message, InfoClass @class = InfoClass.Debug);
         /// <summary>
         /// <para>提供设置UI上下文的能力</para>
         /// <para>提供设置UI上下文的能力，在WinForm/WPF项目中，在UI线程外对UI元素的修改将会导致异常</para>

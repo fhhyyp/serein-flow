@@ -25,7 +25,16 @@ namespace Serein.Library.Utils
         /// <returns>对应的 Channel</returns>
         private Channel<TriggerResult<object>> GetOrCreateChannel(TSignal signal)
         {
-            return _channels.GetOrAdd(signal, _ => Channel.CreateUnbounded<TriggerResult<object>>());
+            if(_channels.TryGetValue(signal, out var channel))
+            {
+                return channel;
+            }
+            else
+            {
+                channel = Channel.CreateUnbounded<TriggerResult<object>>();
+                _channels.AddOrUpdate(signal, _ => channel, (s, r) => channel = r);
+                return channel;
+            }
         }
 
         /// <summary>

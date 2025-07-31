@@ -30,7 +30,6 @@ namespace Serein.Library.NodeGenerator
         /// <param name="context">增量生成器的上下文，用于注册生成逻辑。</param>
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
-
             /*
              *   //Debugger.Launch();
             CreateSyntaxProvider : 第一个参数用于筛选特定语法节点，第二个参数则用于转换筛选出来的节点。 

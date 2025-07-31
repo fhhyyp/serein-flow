@@ -15,7 +15,6 @@ namespace Serein.Library
     {
 
         private readonly SortedDictionary<string, CallNode> _callNodes = new SortedDictionary<string,CallNode>();
-        //private readonly Dictionary<string, CallNode> _callNodes = new Dictionary<string,CallNode>();
 
         /// <summary>
         /// 索引器，允许通过字符串索引访问CallNode
@@ -700,7 +699,7 @@ namespace Serein.Library
         }
         /// <inheritdoc/>
 
-        public void WriteLine(InfoType type, string message, InfoClass @class = InfoClass.Trivial)
+        public void WriteLine(InfoType type, string message, InfoClass @class = InfoClass.Debug)
         {
             Console.WriteLine(message);
         }

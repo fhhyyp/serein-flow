@@ -5,10 +5,22 @@ using System;
 
 namespace Serein.NodeFlow.Model.Nodes
 {
+    [FlowDataProperty(ValuePath = NodeValuePath.Node, IsNodeImp = true)]
+    public partial class SingleFlipflopNode
+    {
+        /// <summary>
+        /// <para>是否等待后继节点（仅对于全局触发器）</para>
+        /// <para>如果为 true，则在触发器获取结果后，等待后继节点执行完成，才会调用触发器</para>
+        /// <para>如果为 false，则触发器获取到结果后，将使用 _ = Task.Run(...) 再次调用触发器</para>
+        /// </summary>
+
+        private bool _isWaitSuccessorNodes = true;
+    }
+
     /// <summary>
     /// 触发器节点
     /// </summary>
-    public class SingleFlipflopNode : NodeModelBase
+    public partial class SingleFlipflopNode : NodeModelBase
     {
         /// <summary>
         /// 构造一个新的单触发器节点实例。
@@ -29,46 +41,52 @@ namespace Serein.NodeFlow.Model.Nodes
         /// <exception cref="Exception"></exception>
         public override async Task<FlowResult> ExecutingAsync(IFlowContext context, CancellationToken token)
         {
+            if (token.IsCancellationRequested)
+            {
+                return FlowResult.Fail(Guid, context, "流程操作已取消");
+            }
+
             #region 执行前中断
             if (DebugSetting.IsInterrupt) // 执行触发前
             {
-                string guid = Guid.ToString();
+                SereinEnv.WriteLine(InfoType.INFO, $"[{MethodDetails.MethodName}]进入中断");
                 await DebugSetting.GetInterruptTask.Invoke();
-                await Console.Out.WriteLineAsync($"[{MethodDetails.MethodName}]中断已取消，开始执行后继分支");
+                SereinEnv.WriteLine(InfoType.INFO, $"[{MethodDetails.MethodName}]中断已取消，开始执行后继分支");
             }
             #endregion
 
             MethodDetails md = MethodDetails;
             if (!context.Env.TryGetDelegateDetails(md.AssemblyName, md.MethodName, out var dd)) // 流程运行到某个节点
             {
-                throw new Exception("不存在对应委托");
+                context.Exit();
+                context.ExceptionOfRuning = new FlipflopException($"无法获取到委托 {md.MethodName} 的详细信息。请检查流程配置。");
+                return FlowResult.Fail(Guid, context, "不存在对应委托");
             }
 
-            var instance = Env.FlowControl.IOC.Get(md.ActingInstanceType);
+
+            var ioc = Env.FlowControl.IOC;
+            var instance = ioc.Get(md.ActingInstanceType);
             if (instance is null)
             {
-                Env.FlowControl.IOC.Register(md.ActingInstanceType).Build();
-                instance = Env.FlowControl.IOC.Get(md.ActingInstanceType);
+                ioc.Register(md.ActingInstanceType).Build();
+                instance = ioc.Get(md.ActingInstanceType);
             }
-            await dd.InvokeAsync(instance, [context]);
-            var args = await this.GetParametersAsync(context, token);
+
+            var args = MethodDetails.ParameterDetailss.Length == 0 ? [] : await this.GetParametersAsync(context, token);
+
             // 因为这里会返回不确定的泛型 IFlipflopContext<TRsult>
             // 而我们只需要获取到 State 和 Value（返回的数据）
             // 所以使用 dynamic 类型接收
-            if (token.IsCancellationRequested)
-            {
-                return null;
-            }
-            dynamic dynamicFlipflopContext = await dd.InvokeAsync(instance, args);
-            FlipflopStateType flipflopStateType = dynamicFlipflopContext.State;
+            dynamic flipflopContext = await dd.InvokeAsync(instance, args);
+            FlipflopStateType flipflopStateType = flipflopContext.State;
             context.NextOrientation = flipflopStateType.ToContentType();
 
 
-            if (dynamicFlipflopContext.Type == TriggerDescription.Overtime)
+            if (flipflopContext.Type == TriggerDescription.Overtime)
             {
                 throw new FlipflopException(MethodDetails.MethodName + "触发器超时触发。Guid" + Guid);
             }
-            object result = dynamicFlipflopContext.Value;
+            object result = flipflopContext.Value;
             var flowReslt = FlowResult.OK(this.Guid, context, result);
             return flowReslt;
         }

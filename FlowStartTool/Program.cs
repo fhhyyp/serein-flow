@@ -72,7 +72,7 @@ namespace Serein.FlowStartTool
             #endregion
 
             #region 加载项目
-            _ = Task.Run(async () => await flowEnv.StartFlow(flowProjectData, fileDataPath));
+            _ = Task.Run( () =>  flowEnv.StartFlow(flowProjectData, fileDataPath));
             while (flowEnv.IsRuning)
             {
                 Console.ReadKey();

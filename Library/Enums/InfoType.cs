@@ -12,9 +12,9 @@ namespace Serein.Library
     public enum InfoClass
     {
         /// <summary>
-        /// 琐碎的
+        /// 调试
         /// </summary>
-        Trivial,
+        Debug,
         /// <summary>
         /// 一般的
         /// </summary>

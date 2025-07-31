@@ -674,7 +674,7 @@ namespace Serein.Script
         /// <param name="indexType">索引</param>
         /// <param name="resultType">获取到的类型</param>
         /// <returns></returns>
-        public static bool TryGetIndexerType(Type collectionType, out Type indexType, out Type resultType)
+        public static bool TryGetIndexerType(Type collectionType,  out Type indexType, out Type resultType)
         {
             indexType = null!;
             resultType = null!;
@@ -724,6 +724,7 @@ namespace Serein.Script
 
             if (indexer != null)
             {
+                var @params = indexer.GetIndexParameters();
                 var param = indexer.GetIndexParameters()[0];
                 indexType = param.ParameterType;
                 resultType = indexer.PropertyType;

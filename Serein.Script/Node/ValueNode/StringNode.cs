@@ -42,6 +42,10 @@ namespace Serein.Script.Node
                         case '\\':  // 字面量反斜杠
                             output.Append('\\');
                             i++;  // 跳过第二个 '\\'
+                            break; 
+                        case '"':  // 字符串反斜杠
+                            output.Append('"');
+                            i++;  // 跳过第二个 '"'
                             break;
                         default:
                             output.Append(input[i]);  // 不是转义符，保留反斜杠

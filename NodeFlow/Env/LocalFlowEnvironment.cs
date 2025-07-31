@@ -127,7 +127,7 @@ namespace Serein.NodeFlow.Env
         /// <summary>
         /// 信息输出等级
         /// </summary>
-        public InfoClass InfoClass { get; set; } = InfoClass.Trivial;
+        public InfoClass InfoClass { get; set; } = InfoClass.Debug;
 
         /// <summary>
         /// 如果没有全局触发器，且没有循环分支，流程执行完成后自动为 Completion 。
@@ -211,7 +211,7 @@ namespace Serein.NodeFlow.Env
         /// <param name="message">日志内容</param>
         /// <param name="type">日志类别</param>
         /// <param name="class">日志级别</param>
-        public void WriteLine(InfoType type, string message, InfoClass @class = InfoClass.Trivial)
+        public void WriteLine(InfoType type, string message, InfoClass @class = InfoClass.General)
         {
             if (@class >= this.InfoClass)
             {

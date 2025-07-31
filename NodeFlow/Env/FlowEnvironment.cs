@@ -242,7 +242,7 @@ namespace Serein.NodeFlow.Env
         /// <param name="message">日志内容</param>
         /// <param name="type">日志类别</param>
         /// <param name="class">日志级别</param>
-        public void WriteLine(InfoType type, string message, InfoClass @class = InfoClass.Trivial)
+        public void WriteLine(InfoType type, string message, InfoClass @class = InfoClass.General)
         {
             currentFlowEnvironment.WriteLine(type,  message,  @class);
         }
