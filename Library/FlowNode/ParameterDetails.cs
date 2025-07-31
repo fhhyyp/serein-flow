@@ -499,7 +499,7 @@ namespace Serein.Library
         /// <returns></returns>
         public override string ToString()
         {
-            return $"[{this.Index}] {(string.IsNullOrWhiteSpace(this.Description) ? string.Empty : $"({this.Description})")}{this.Name} : {this.DataType?.FullName}";
+            return $"[{this.Index}] {(string.IsNullOrWhiteSpace(this.Description) ? string.Empty : $"({this.Description})")}{this.Name} : {this.DataType?.GetFriendlyName()}";
         }
     }
 

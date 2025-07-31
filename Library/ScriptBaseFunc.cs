@@ -27,7 +27,7 @@ namespace Serein.Library
         /// <returns></returns>
         public static bool @bool(object value)
         {
-            return ConvertHelper.ValueParse<bool>(value);
+            return ObjectConvertHelper.ValueParse<bool>(value);
         }
 
         /// <summary>
@@ -37,7 +37,7 @@ namespace Serein.Library
         /// <returns></returns>
         public static byte @byte(object value)
         {
-            return ConvertHelper.ValueParse<byte>(value);
+            return ObjectConvertHelper.ValueParse<byte>(value);
         }
 
         /// <summary>
@@ -47,7 +47,7 @@ namespace Serein.Library
         /// <returns></returns>
         public static decimal @decimal(object value)
         {
-            return ConvertHelper.ValueParse<decimal>(value);
+            return ObjectConvertHelper.ValueParse<decimal>(value);
         }
 
         /// <summary>
@@ -57,7 +57,7 @@ namespace Serein.Library
         /// <returns></returns>
         public static float @float(object value)
         {
-            return ConvertHelper.ValueParse<float>(value);
+            return ObjectConvertHelper.ValueParse<float>(value);
         }
 
         /// <summary>
@@ -67,7 +67,7 @@ namespace Serein.Library
         /// <returns></returns>
         public static double @double(object value)
         {
-            return ConvertHelper.ValueParse<double>(value);
+            return ObjectConvertHelper.ValueParse<double>(value);
         }
 
         /// <summary>
@@ -77,7 +77,7 @@ namespace Serein.Library
         /// <returns></returns>
         public static int @int(object value)
         {
-            return ConvertHelper.ValueParse<int>(value);
+            return ObjectConvertHelper.ValueParse<int>(value);
         }
 
         /// <summary>
@@ -87,7 +87,7 @@ namespace Serein.Library
         /// <returns></returns>
         public static int @long(object value)
         {
-            return ConvertHelper.ValueParse<int>(value);
+            return ObjectConvertHelper.ValueParse<int>(value);
         }
 
         #endregion

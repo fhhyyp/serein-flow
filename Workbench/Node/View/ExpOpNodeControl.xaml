@@ -7,7 +7,7 @@
                         xmlns:vm="clr-namespace:Serein.Workbench.Node.ViewModel"
                         d:DataContext="{d:DesignInstance vm:ExpOpNodeControlViewModel}"
                        mc:Ignorable="d"
-                       MaxWidth="300">
+                       MaxWidth="500">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>

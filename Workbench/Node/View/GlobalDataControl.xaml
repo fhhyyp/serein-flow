@@ -4,10 +4,10 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Serein.Workbench.Node.View"  
-                       xmlns:vm="clr-namespace:Serein.Workbench.Node.ViewModel"
-                       d:DataContext="{d:DesignInstance vm:GlobalDataNodeControlViewModel}"
-                       mc:Ignorable="d"
-                       MaxWidth="300">
+             xmlns:vm="clr-namespace:Serein.Workbench.Node.ViewModel"
+             d:DataContext="{d:DesignInstance vm:GlobalDataNodeControlViewModel}"
+             mc:Ignorable="d"
+             MaxWidth="500">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
     </UserControl.Resources>

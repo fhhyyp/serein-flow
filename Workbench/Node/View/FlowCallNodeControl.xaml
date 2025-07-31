@@ -9,7 +9,6 @@
                         xmlns:themes="clr-namespace:Serein.Workbench.Themes"
                         mc:Ignorable="d" 
                         MaxWidth="300"
-                        
                         d:DataContext="{d:DesignInstance vm:FlowCallNodeControlViewModel}">
 
     <UserControl.Resources>

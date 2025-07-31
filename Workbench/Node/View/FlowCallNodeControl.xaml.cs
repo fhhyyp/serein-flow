@@ -38,14 +38,20 @@ namespace Serein.Workbench.Node.View
             ViewModel = viewModel;
             viewModel.NodeModel.DisplayName = "[流程接口]";
             InitializeComponent();
-            ViewModel.UploadMethodDetailsControl = UploadMethodDetailsControl;
+            ViewModel.UploadNode = UploadMethodDetailsControl;
 
         }
 
-        private void UploadMethodDetailsControl(MethodDetails methodDetails)
+        private void UploadMethodDetailsControl(IFlowNode? flowNode)
         {
-            //MethodDetailsControl.MethodDetails = methodDetails;
-
+            if(flowNode is null)
+            {
+                this.MaxWidth = 300;
+            }
+            else
+            {
+                this.MaxWidth = 300;
+            }
         }
 
         /// <summary>

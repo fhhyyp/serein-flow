@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace Serein.Library.Utils
 {
@@ -80,5 +82,259 @@ namespace Serein.Library.Utils
         }
 
 
+
+        /// <summary>
+        /// 对象转换为对应类型
+        /// </summary>
+        /// <typeparam name="TResult"></typeparam>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        public static TResult ToConvert<TResult>(this object data)
+        {
+            var type = typeof(TResult);
+            if (data is null && type.IsValueType)
+            {
+                return default;
+            }
+            return (TResult)data.ToConvertValueType(type);
+
+        }
+
+
+        /// <summary>
+        /// 对象转换
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        public static object ToConvertValueType(this object data, Type type)
+        {
+            if (type.IsValueType)
+            {
+                if (data == null)
+                {
+                    return null;
+                }
+                else
+                {
+                    return ObjectConvertHelper.ValueParse(type, data);
+                }
+            }
+            return data;
+
+        }
+
+
+
+        /// <summary>
+        /// 文本
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public static T ValueParse<T>(object value) where T : struct, IComparable<T>
+        {
+            if (value is T data)
+            {
+                return data;
+            }
+            string valueStr = value.ToString();
+            return valueStr.ToValueData<T>();
+        }
+
+        /// <summary>
+        /// 文本转换数值
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public static object ValueParse(Type type, object value)
+        {
+            string valueStr = value.ToString();
+            return valueStr.ToValueData(type);
+
+        }
+
+        /// <summary>
+        ///  文本转换值对象
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="valueStr"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
+        public static T ToValueData<T>(this string valueStr) where T : struct, IComparable<T>
+        {
+            if (string.IsNullOrEmpty(valueStr))
+            {
+                throw new NullReferenceException();
+                //return default(T);
+            }
+            var type = typeof(T);
+            object result;
+            if (type.IsEnum)
+            {
+                result = Enum.Parse(type, valueStr);
+            }
+            else if (type == typeof(bool))
+            {
+                result = bool.Parse(valueStr);
+            }
+            else if (type == typeof(float))
+            {
+                result = float.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+            else if (type == typeof(decimal))
+            {
+                result = decimal.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+            else if (type == typeof(double))
+            {
+                result = double.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+            else if (type == typeof(sbyte))
+            {
+                result = sbyte.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+            else if (type == typeof(byte))
+            {
+                result = byte.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+            else if (type == typeof(short))
+            {
+                result = short.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+            else if (type == typeof(ushort))
+            {
+                result = ushort.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+            else if (type == typeof(int))
+            {
+                result = int.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+            else if (type == typeof(uint))
+            {
+                result = uint.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+            else if (type == typeof(long))
+            {
+                result = long.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+            else if (type == typeof(ulong))
+            {
+                result = ulong.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+#if NET6_0 || NET7_0 || NET8_0
+            else if (type == typeof(nint))
+            {
+                result = nint.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+            else if (type == typeof(nuint))
+            {
+                result = nuint.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+#endif
+            else
+            {
+                throw new ArgumentException("非预期值类型");
+            }
+
+            return (T)result;
+        }
+
+        /// <summary>
+        /// 将字符串转换为指定类型的值对象。
+        /// </summary>
+        /// <param name="valueStr"></param>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
+        public static object ToValueData(this string valueStr, Type type)
+        {
+            if (string.IsNullOrWhiteSpace(valueStr))
+            {
+                return Activator.CreateInstance(type);
+            }
+            object result;
+            if (type.IsEnum)
+            {
+                result = Enum.Parse(type, valueStr);
+            }
+            else if (type == typeof(bool))
+            {
+                result = bool.Parse(valueStr);
+            }
+            else if (type == typeof(float))
+            {
+                result = float.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+            else if (type == typeof(decimal))
+            {
+                result = decimal.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+            else if (type == typeof(double))
+            {
+                result = double.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+            else if (type == typeof(sbyte))
+            {
+                result = sbyte.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+            else if (type == typeof(byte))
+            {
+                result = byte.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+            else if (type == typeof(short))
+            {
+                result = short.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+            else if (type == typeof(ushort))
+            {
+                result = ushort.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+            else if (type == typeof(int))
+            {
+                result = int.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+            else if (type == typeof(uint))
+            {
+                result = uint.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+            else if (type == typeof(long))
+            {
+                result = long.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+            else if (type == typeof(ulong))
+            {
+                result = ulong.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+#if NET6_0 || NET7_0 || NET8_0
+            else if (type == typeof(nint))
+            {
+                result = nint.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+            else if (type == typeof(nuint))
+            {
+                result = nuint.Parse(valueStr, CultureInfo.InvariantCulture);
+            }
+#endif
+            else if (type == typeof(DateTime))
+            {
+                if (valueStr.Equals("now"))
+                {
+                    return DateTime.Now;
+                }
+                else if (valueStr.Equals("utcnow"))
+                {
+                    return DateTime.UtcNow;
+                }
+                return DateTime.Parse(valueStr);
+            }
+            else
+            {
+                throw new ArgumentException("非预期值类型");
+            }
+
+            return result;
+        }
     }
 }

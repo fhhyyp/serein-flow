@@ -8,9 +8,12 @@ using System.Windows.Data;
 
 namespace Serein.Workbench.Converters
 {
+    /// <summary>
+    /// 选择方法详情的转换器
+    /// </summary>
     internal class MethodDetailsSelectorConverter : IMultiValueConverter
     {
-        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        public object Convert(object[] values, Type targetType,  object parameter, CultureInfo culture)
         {
             bool isShareParam = (bool)values[0];
             var nodeDetails = values[1];

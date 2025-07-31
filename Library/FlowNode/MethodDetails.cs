@@ -342,7 +342,7 @@ namespace Serein.Library
             }
             sb.AppendLine();
             sb.AppendLine($"返回值信息：");
-            sb.AppendLine($"\t{this.ReturnType?.FullName}");
+            sb.AppendLine($"\t{this.ReturnType?.GetFriendlyName()}");
             return sb.ToString();
         }
 

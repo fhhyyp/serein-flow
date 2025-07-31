@@ -9,7 +9,7 @@
                        xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
                        d:DataContext="{d:DesignInstance vm:ScriptNodeControlViewModel}"
                        mc:Ignorable="d"
-                       MinWidth="50">
+                       MaxWidth="500">
 
     <Grid Background="#FEFAF4">
 
@@ -79,7 +79,7 @@
                     <TextBlock Text="result ->"  HorizontalAlignment="Center"  VerticalAlignment="Center" />
                 </Border>
                 <Border Grid.Column="1"  BorderThickness="1">
-                    <TextBlock Text="{Binding NodeModel.MethodDetails.ReturnType}"  TextTrimming="CharacterEllipsis" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding NodeModel.MethodDetails.ReturnType, Converter={StaticResource TypeNameDisplaynConverter}}"  TextTrimming="CharacterEllipsis" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                 </Border>
 
                 <Border Grid.Column="2"  BorderThickness="1">

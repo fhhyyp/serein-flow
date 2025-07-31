@@ -10,9 +10,15 @@ using System.Windows;
 
 namespace Serein.Workbench.Converters
 {
+    /// <summary>
+    /// 将集合的元素数量转换为可见性。
+    /// </summary>
     internal class CountToVisibilityConverter : IValueConverter
     {
-        public bool Inverse { get; set; } = false; // 可选：反转逻辑
+        /// <summary>
+        /// 可选：是否反转逻辑。
+        /// </summary>
+        public bool Inverse { get; set; } = false; 
 
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {

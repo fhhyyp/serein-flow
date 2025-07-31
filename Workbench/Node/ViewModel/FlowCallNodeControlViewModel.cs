@@ -23,7 +23,7 @@ namespace Serein.Workbench.Node.ViewModel
         /// <summary>
         /// 刷新方法控件
         /// </summary>
-        public Action<MethodDetails> UploadMethodDetailsControl;
+        public Action<IFlowNode?> UploadNode;
 
 
         [ObservableProperty]
@@ -105,9 +105,11 @@ namespace Serein.Workbench.Node.ViewModel
         {
             if(value is null)
             {
+                UploadNode?.Invoke(null);
                 FlowCallNode.ResetTargetNode(); // 如果是不选择了，则重置一下
                 return;
             }
+            UploadNode.Invoke(value);
             FlowCallNode.SetTargetNode(value.Guid); // 重新设置目标节点
         }
 

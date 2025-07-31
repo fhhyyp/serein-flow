@@ -8,7 +8,7 @@
              xmlns:themes="clr-namespace:Serein.Workbench.Themes"
              d:DataContext="{d:DesignInstance vm:ConditionNodeControlViewModel}"
                        mc:Ignorable="d"
-                       MaxWidth="300">
+                       MaxWidth="500">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />

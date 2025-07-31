@@ -10,7 +10,7 @@
                        d:DataContext="{d:DesignInstance vm:NetScriptNodeControlViewModel}"
                        
                        mc:Ignorable="d"
-                       MinWidth="50">
+                       MaxWidth="500">
     <Grid Background="#FEFAF4">
 
         <Grid.RowDefinitions>
