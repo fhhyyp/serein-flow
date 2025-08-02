@@ -51,7 +51,7 @@ namespace Serein.Workbench
 
         private void Application_Startup(object sender, StartupEventArgs e)
         {
-#if DEBUG && true
+#if DEBUG && false
 
             try
             {

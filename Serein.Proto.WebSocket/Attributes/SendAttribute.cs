@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 namespace Serein.Proto.WebSocket.Attributes
 {
     /// <summary>
-    /// 指示使用 WebSocket 中请求的整体数据
+    /// 指示需要发送消息的处理方法
     /// </summary>
-    public sealed class UseRequestAttribute : Attribute
+    public sealed class SendAttribute : Attribute
     {
     }
 }

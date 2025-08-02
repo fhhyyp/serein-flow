@@ -1,28 +1,15 @@
-﻿using Serein.Library.Utils;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.WebSockets;
-using System.Text;
-using System.Threading;
-using System.Threading.Channels;
-using System.Threading.Tasks;
+﻿using System.Threading.Channels;
 
 namespace Serein.Proto.WebSocket
 {
     /// <summary>
     /// 消息处理工具
     /// </summary>
-    public class MsgHandleUtil
+    public class WebSocketMessageTransmissionTool
     {
         private readonly Channel<string> _msgChannel;
 
-        /// <summary>
-        /// 初始化优先容器
-        /// </summary>
-        /// <param name="capacity"></param>
-        public MsgHandleUtil(int capacity = 100)
+        public WebSocketMessageTransmissionTool(int capacity = 100)
         {
             _msgChannel = Channel.CreateBounded<string>(new BoundedChannelOptions(capacity)
             {
@@ -70,24 +57,6 @@ namespace Serein.Proto.WebSocket
         public void CloseChannel()
         {
             _msgChannel.Writer.Complete();
-        }
-    }
-
-
-
-
-    public class SocketExtension
-    {
-        /// <summary>
-        /// 发送消息
-        /// </summary>
-        /// <param name="webSocket"></param>
-        /// <param name="message"></param>
-        /// <returns></returns>
-        public static async Task SendAsync(System.Net.WebSockets.WebSocket webSocket, string message)
-        {
-            var buffer = Encoding.UTF8.GetBytes(message);
-            await webSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
         }
     }
 }

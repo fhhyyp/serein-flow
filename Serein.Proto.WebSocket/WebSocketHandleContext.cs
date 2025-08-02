@@ -1,21 +1,29 @@
 ﻿using Serein.Library.Api;
 using Serein.Library.Utils;
+using Serein.Proto.WebSocket.Handle;
 using System;
 using System.Threading.Tasks;
 
-namespace Serein.Proto.WebSocket.Handle
+namespace Serein.Proto.WebSocket
 {
 
     /// <summary>
     /// 消息处理上下文
     /// </summary>
-    public class WebSocketMsgContext : IDisposable
+    public class WebSocketHandleContext : IDisposable
     {
-        public WebSocketMsgContext(Func<string, Task> sendAsync)
+        /// <summary>
+        /// 构造函数，传入发送消息的异步方法
+        /// </summary>
+        /// <param name="sendAsync"></param>
+        public WebSocketHandleContext(Func<string, Task> sendAsync)
         {
             _sendAsync = sendAsync;
         }
 
+        /// <summary>
+        /// 释放资源，清理消息上下文
+        /// </summary>
         public void Dispose()
         {
             MsgRequest = null;
@@ -23,7 +31,6 @@ namespace Serein.Proto.WebSocket.Handle
             MsgId =  string.Empty; 
             MsgData = null;
             MsgData = null;
-            _sendAsync = null;
         }
 
         /// <summary>
@@ -37,7 +44,8 @@ namespace Serein.Proto.WebSocket.Handle
                 }
             } }
 
-        public bool _handle = false;
+        private bool _handle = false;
+
 
         /// <summary>
         /// 消息本体（IJsonToken）
@@ -59,8 +67,16 @@ namespace Serein.Proto.WebSocket.Handle
         /// </summary>
         public IJsonToken? MsgData { get; set; }
 
+        /// <summary>
+        /// 异常外部感知使能
+        /// </summary>
+        public Func<Exception, Func<object, Task>, Task> OnExceptionTrackingAsync { get; set; }
 
-        private Func<string, Task>? _sendAsync;
+        /// <summary>
+        /// 发送消息
+        /// </summary>
+
+        private Func<string, Task> _sendAsync;
 
         /// <summary>
         /// 发送消息
@@ -69,48 +85,40 @@ namespace Serein.Proto.WebSocket.Handle
         /// <returns></returns>
         public async Task SendAsync(string msg)
         {
-            if (_sendAsync is null) return;
             await _sendAsync.Invoke(msg);
         }
 
-
         /// <summary>
-        /// 返回消息
+        /// 触发异常追踪
         /// </summary>
-        /// <param name="moduleConfig"></param>
-        /// <param name="context"></param>
-        /// <param name="data"></param>
-        /// <returns></returns>
-        public async Task RepliedAsync(WebSocketHandleModuleConfig moduleConfig,
-                                    WebSocketMsgContext context,
-                                    object data)
+        public void TriggerExceptionTracking(string exMessage)
         {
-            if (moduleConfig.IsResponseUseReturn)
+            var ex = new Exception(exMessage);
+            Func<object, Task> func = async (data) =>
             {
-                var responseContent = JsonHelper.Serialize(data);
-                await SendAsync(responseContent);
-            }
-            else
+                var msg = JsonHelper.Serialize(data);
+                await _sendAsync.Invoke(msg);
+
+            };
+            OnExceptionTrackingAsync.Invoke(ex, func);
+        }
+        
+        /// <summary>
+        /// 触发异常追踪
+        /// </summary>
+        public void TriggerExceptionTracking(Exception ex)
+        {
+            Func<object, Task> func = async (data) =>
             {
+                var msg = JsonHelper.Serialize(data);
+                await _sendAsync.Invoke(msg);
 
-                IJsonToken jsonData;
-
-                jsonData = JsonHelper.Object(obj =>
-                {
-                    obj[moduleConfig.MsgIdJsonKey] = context.MsgId;
-                    obj[moduleConfig.ThemeJsonKey] = context.MsgTheme;
-                    obj[moduleConfig.DataJsonKey] = data is null ? null
-                                                                 : JsonHelper.FromObject(data);
-                });
-
-                var msg = jsonData.ToString();
-                //Console.WriteLine($"[{msgId}] => {theme}");
-                await SendAsync(msg);
-            }
-
+            };
+            OnExceptionTrackingAsync.Invoke(ex, func);
         }
 
-        
+
+
     }
 
 }

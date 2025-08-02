@@ -56,7 +56,6 @@ namespace Serein.Library.Utils
         public static IJsonToken Parse(string json)
         {
             return provider.Parse(json);
-
         }
 
         /// <summary>

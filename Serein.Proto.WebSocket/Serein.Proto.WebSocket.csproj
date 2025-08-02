@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net462</TargetFrameworks>
+    <TargetFrameworks>net8.0;</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
@@ -17,7 +17,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Handle\WebSocketMsgHandleHelper.cs" />
+    <Compile Remove="WebSocketClient.cs" />
+    <Compile Remove="WebSocketServer.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Library\Serein.Library.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Models\" />
   </ItemGroup>
   
 </Project>

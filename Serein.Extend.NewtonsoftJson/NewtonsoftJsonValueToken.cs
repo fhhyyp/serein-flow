@@ -6,11 +6,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static Serein.Library.Api.IJsonToken;
 
 namespace Serein.Extend.NewtonsoftJson
 {
     public sealed class NewtonsoftJsonValueToken : IJsonToken
     {
+        public TokenType Type => TokenType.Value;
+
         private readonly JToken _token;
 
         public NewtonsoftJsonValueToken(JToken token)

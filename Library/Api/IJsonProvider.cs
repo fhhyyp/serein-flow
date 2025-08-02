@@ -7,11 +7,36 @@ using System.Threading.Tasks;
 
 namespace Serein.Library.Api
 {
+    
+
     /// <summary>
     /// JSON数据交互的Token接口，允许使用不同的JSON库进行数据处理。
     /// </summary>
     public interface IJsonToken 
     {
+        /// <summary>
+        /// 获取当前Token的类型，可能是值、对象或数组。
+        /// </summary>
+        TokenType Type { get; }
+
+        /// <summary>
+        /// 获取当前Token的类型，可能是值、对象或数组。
+        /// </summary>
+        public enum TokenType
+        {
+            /// <summary>
+            /// 表示一个值类型的Token，例如字符串、数字或布尔值。
+            /// </summary>
+            Value,
+            /// <summary>
+            /// 表示一个对象类型的Token，通常是一个键值对集合。
+            /// </summary>
+            Object,
+            /// <summary>
+            /// 表示一个数组类型的Token，通常是一个元素列表。
+            /// </summary>
+            Array,
+        }
         /// <summary>
         /// 获取 Token
         /// </summary>
@@ -19,12 +44,6 @@ namespace Serein.Library.Api
         /// <returns></returns>
         IJsonToken this[object name] { get; }
 
-       /* /// <summary>
-        /// 获取 Token 数组的元素，允许通过索引访问数组中的元素。
-        /// </summary>
-        /// <param name="index"></param>
-        /// <returns></returns>
-        IJsonToken this[int index] { get; }*/
 
         /// <summary>
         /// 获取指定名称的属性，如果存在则返回true，并通过out参数返回对应的IJsonToken对象。

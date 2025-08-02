@@ -1,6 +1,6 @@
 ﻿namespace Serein.Proto.WebSocket.Handle
 {
-    internal class WebSocketHandleConfiguration : HandleConfiguration
+    public class WebSocketMethodConfig : MethodInvokeConfiguration
     {
         /// <summary>
         /// 主题

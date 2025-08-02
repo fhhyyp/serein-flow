@@ -1,8 +1,8 @@
 ﻿namespace Serein.Proto.WebSocket.Attributes
 {
     /// <summary>
-    /// <para>标记该类是处理模板，需要获取WebSocketServer/WebSocketClient了实例后，使用(Server/Client).MsgHandleHelper.AddModule()进行添加。</para>
-    /// <para>处理模板需要继承 ISocketHandleModule 接口，否则WebSocket接受到数据时，将无法进行调用相应的处理模板。</para> 
+    /// <para>标记该类是处理模板</para>
+    /// <para>处理模板需要继承 ISocketHandleModule 接口，否则接受到 WebSocket 数据时，将无法进行调用相应的处理模板。</para> 
     /// <para>使用方式：</para>
     /// <para>[AutoSocketModule(ThemeKey = "theme", DataKey = "data")]</para>
     /// <para>public class PlcSocketService : ISocketHandleModule</para>
@@ -16,7 +16,7 @@
     /// <para></para>
     /// </summary>
     [AttributeUsage(AttributeTargets.Class)]
-    public sealed class AutoSocketModuleAttribute : Attribute
+    public sealed class WebSocketModuleAttribute : Attribute
     {
         /// <summary>
         /// 业务标识

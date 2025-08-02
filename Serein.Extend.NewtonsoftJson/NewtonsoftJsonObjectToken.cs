@@ -5,6 +5,7 @@ using Serein.Library.Utils;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using static Serein.Library.Api.IJsonToken;
 
 namespace Serein.Extend.NewtonsoftJson
 {
@@ -13,6 +14,8 @@ namespace Serein.Extend.NewtonsoftJson
     /// </summary>
     public sealed class NewtonsoftJsonObjectToken : IJsonToken, IDictionary<string, IJsonToken>
     {
+        public TokenType Type => TokenType.Object;
+
         private readonly JObject _object;
         public NewtonsoftJsonObjectToken(JObject obj) => _object = obj;
 

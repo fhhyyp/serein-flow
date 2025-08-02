@@ -145,13 +145,12 @@ namespace Serein.Library
         /// <returns></returns>
         public static IJsonToken json(string content)
         {
+            /*if (string.IsNullOrWhiteSpace(content))
+            {
+                return JsonHelper.Object(dict => { }) ;
+            }*/
             return JsonHelper.Parse(content);
         }
-
-
-
-  
-
 
 
         #endregion

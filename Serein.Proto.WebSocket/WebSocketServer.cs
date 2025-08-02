@@ -189,7 +189,7 @@ namespace Serein.Proto.WebSocket
                 return;
             }
 
-            var msgQueueUtil = new MsgHandleUtil();
+            var msgQueueUtil = new WebSocketMessageTransmissionTool();
             _ = Task.Run(async () =>
             {
                 await HandleMsgAsync(webSocket,msgQueueUtil, authorizedHelper);
@@ -240,7 +240,7 @@ namespace Serein.Proto.WebSocket
 
 
         public async Task HandleMsgAsync(System.Net.WebSockets.WebSocket webSocket,
-                                         MsgHandleUtil msgQueueUtil, 
+                                         WebSocketMessageTransmissionTool msgQueueUtil, 
                                          WebSocketAuthorizedHelper authorizedHelper)
         {
             async Task sendasync(string text)
@@ -265,7 +265,7 @@ namespace Serein.Proto.WebSocket
                 }
                 var context = new WebSocketMsgContext(sendasync);
                 context.MsgRequest = JsonHelper.Parse(message);
-                MsgHandleHelper.Handle(context); // 处理消息
+                MsgHandleHelper.HandleAsync(context); // 处理消息
 
                 //using (var context = new WebSocketMsgContext(sendasync))
                 //{

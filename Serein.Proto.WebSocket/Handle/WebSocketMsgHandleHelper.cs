@@ -3,6 +3,7 @@ using Serein.Proto.WebSocket.Attributes;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Serein.Proto.WebSocket.Handle
 {
@@ -27,7 +28,7 @@ namespace Serein.Proto.WebSocket.Handle
         /// </summary>
         /// <param name="moduleConfig">模块配置</param>
         /// <returns></returns>
-        private WebSocketHandleModule AddMyHandleModule(WebSocketHandleModuleConfig moduleConfig)
+        private WebSocketHandleModule AddMsgHandleModule(WebSocketHandleModuleConfig moduleConfig)
         {
             var key = (moduleConfig.ThemeJsonKey, moduleConfig.DataJsonKey);
             if (!MyHandleModuleDict.TryGetValue(key, out var myHandleModule))
@@ -45,7 +46,7 @@ namespace Serein.Proto.WebSocket.Handle
         public void RemoveModule(ISocketHandleModule socketControlBase)
         {
             var type = socketControlBase.GetType();
-            var moduleAttribute = type.GetCustomAttribute<AutoSocketModuleAttribute>();
+            var moduleAttribute = type.GetCustomAttribute<WebSocketModuleAttribute>();
             if (moduleAttribute is null)
             {
                 return;
@@ -71,7 +72,7 @@ namespace Serein.Proto.WebSocket.Handle
             where T : ISocketHandleModule
         {
             var type = typeof(T);
-            var moduleAttribute = type.GetCustomAttribute<AutoSocketModuleAttribute>();
+            var moduleAttribute = type.GetCustomAttribute<WebSocketModuleAttribute>();
             if (moduleAttribute is null)
             {
                 return;
@@ -89,11 +90,11 @@ namespace Serein.Proto.WebSocket.Handle
                 IsResponseUseReturn = isResponseUseReturn,
             };
 
-            var handleModule = AddMyHandleModule(moduleConfig);
+            var handleModule = AddMsgHandleModule(moduleConfig);
             var configs = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-                .Select<MethodInfo, WebSocketHandleConfiguration?>(methodInfo =>
+                .Select<MethodInfo, WebSocketMethodHandleConfig?>(methodInfo =>
                 {
-                    var methodsAttribute = methodInfo.GetCustomAttribute<AutoSocketHandleAttribute>();
+                    var methodsAttribute = methodInfo.GetCustomAttribute<WsMethodAttribute>();
                     if (methodsAttribute is null)
                     {
                         return default;
@@ -105,8 +106,7 @@ namespace Serein.Proto.WebSocket.Handle
                             methodsAttribute.ThemeValue = methodInfo.Name;
                         }
 
-                        #region 生成处理配置
-                        var config = new WebSocketHandleConfiguration();
+                        var config = new WebSocketMethodHandleConfig();
 
                         config.ThemeValue = methodsAttribute.ThemeValue;
                         config.ArgNotNull = methodsAttribute.ArgNotNull;
@@ -142,24 +142,7 @@ namespace Serein.Proto.WebSocket.Handle
                         config.IsCheckArgNotNull = parameterInfos.Select(p => p.GetCustomAttribute<NotNullAttribute>() != null).ToArray(); // 是否检查null
 #endif
 
-                        if (config.IsCheckArgNotNull is null)
-                        {
-                            config.IsCheckArgNotNull = parameterInfos.Select(p => p.GetCustomAttribute<NeedfulAttribute>() != null).ToArray(); // 是否检查null
-                        }
-                        else
-                        {
-                            // 兼容两种非空特性的写法
-                            var argNotNull = parameterInfos.Select(p => p.GetCustomAttribute<NeedfulAttribute>() != null).ToArray(); // 是否检查null
-                            for (int i = 0; i < config.IsCheckArgNotNull.Length; i++)
-                            {
-                                if (!config.IsCheckArgNotNull[i] && argNotNull[i])
-                                {
-                                    config.IsCheckArgNotNull[i] = true;
-                                }
-                            }
-                        } 
-                        #endregion
-
+                        
 
                         var value = methodsAttribute.ThemeValue;
 
@@ -189,7 +172,7 @@ namespace Serein.Proto.WebSocket.Handle
         /// </summary>
         /// <param name="context">此次请求的上下文</param>
         /// <returns></returns>
-        public void Handle(WebSocketMsgContext context)
+        public async Task HandleAsync(WebSocketMsgContext context)
         {
             foreach (var module in MyHandleModuleDict.Values)
             {
@@ -197,7 +180,7 @@ namespace Serein.Proto.WebSocket.Handle
                 {
                     return;
                 }
-               _ = module.HandleAsync(context);
+                await module.HandleAsync(context);
             }
 
 

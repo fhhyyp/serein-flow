@@ -6,6 +6,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using NetWebSocket = System.Net.WebSockets.WebSocket;
 
 namespace Serein.Proto.WebSocket
 {
@@ -50,6 +51,7 @@ namespace Serein.Proto.WebSocket
             }
         }
 
+
         /// <summary>
         /// 发送消息
         /// </summary>
@@ -67,7 +69,7 @@ namespace Serein.Proto.WebSocket
         private async Task ReceiveAsync()
         {
 
-            var msgQueueUtil = new MsgHandleUtil();
+            var msgQueueUtil = new WebSocketMessageTransmissionTool();
             _ = Task.Run(async () =>
             {
                 await HandleMsgAsync(_client, msgQueueUtil);
@@ -100,12 +102,6 @@ namespace Serein.Proto.WebSocket
                     {
                         await _client.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
                     }
-                    //else
-                    //{
-                    //    var completeMessage = receivedMessage.ToString();
-                    //    MsgHandleHelper.HandleMsg(SendAsync, completeMessage); // 处理消息，如果方法入参是需要发送消息委托时，将 SendAsync 作为委托参数提供
-                    //    //Debug.WriteLine($"Received: {completeMessage}");
-                    //}
                     
                     
                 }
@@ -116,8 +112,13 @@ namespace Serein.Proto.WebSocket
             }
         }
 
-
-        public async Task HandleMsgAsync(System.Net.WebSockets.WebSocket webSocket, MsgHandleUtil msgQueueUtil)
+        /// <summary>
+        /// 处理消息
+        /// </summary>
+        /// <param name="webSocket"></param>
+        /// <param name="msgQueueUtil"></param>
+        /// <returns></returns>
+        public async Task HandleMsgAsync(NetWebSocket webSocket, WebSocketMessageTransmissionTool msgQueueUtil)
         {
             async Task sendasync(string text)
             {
@@ -128,87 +129,8 @@ namespace Serein.Proto.WebSocket
                 var message = await msgQueueUtil.WaitMsgAsync();  // 有消息时通知
                 var context = new WebSocketMsgContext(sendasync);
                 context.MsgRequest = JsonHelper.Parse(message);
-                MsgHandleHelper.Handle(context); // 处理消息
-
-                //using (var context = new WebSocketMsgContext(sendasync))
-                //{
-                //    context.JsonObject = JObject.Parse(message);
-                //    await MsgHandleHelper.HandleAsync(context); // 处理消息
-                //}
-
-                //_ = Task.Run(() => {
-                //    JObject json = JObject.Parse(message);
-                //    WebSocketMsgContext context = new WebSocketMsgContext(async (text) =>
-                //    {
-                //        await SocketExtension.SendAsync(webSocket, text); // 回复客户端，处理方法中入参如果需要发送消息委托，则将该回调方法作为委托参数传入
-                //    });
-                //    context.JsonObject = json;
-                //    await MsgHandleHelper.HandleAsync(context); // 处理消息
-                //});
-
+                MsgHandleHelper.HandleAsync(context); // 处理消息
             }
-
-
-            /* #region 消息处理
-            private readonly string ThemeField;
-            private readonly ConcurrentDictionary<string, HandldConfig> ThemeConfigs = new ConcurrentDictionary<string, HandldConfig>();
-
-            public async Task HandleSocketMsg(string jsonStr)
-            {
-                JObject json;
-                try
-                {
-                    json = JObject.Parse(jsonStr);
-                }
-                catch (Exception ex)
-                {
-                    await SendAsync(_client, ex.Message);
-                    return;
-                }
-                // 获取到消息
-                string themeName = json[ThemeField]?.ToString();
-                if (!ThemeConfigs.TryGetValue(themeName, out var handldConfig))
-                {
-                    return;
-                }
-
-                object dataValue;
-                if (string.IsNullOrEmpty(handldConfig.DataField))
-                {
-                    dataValue = json.ToObject(handldConfig.DataType);
-                }
-                else
-                {
-                    dataValue = json[handldConfig.DataField].ToObject(handldConfig.DataType);
-                }
-                await handldConfig.Invoke(dataValue, SendAsync);
-            }
-
-            public void AddConfig(string themeName, Type dataType, MsgHandler msgHandler)
-            {
-                if (!ThemeConfigs.TryGetValue(themeName, out var handldConfig))
-                {
-                    handldConfig = new HandldConfig
-                    {
-                        DataField = themeName,
-                        DataType = dataType
-                    };
-                    ThemeConfigs.TryAdd(themeName, handldConfig);
-                }
-                handldConfig.HandldAsync += msgHandler;
-            }
-            public void RemoteConfig(string themeName, MsgHandler msgHandler)
-            {
-                if (ThemeConfigs.TryGetValue(themeName, out var handldConfig))
-                {
-                    handldConfig.HandldAsync -= msgHandler;
-                    if (!handldConfig.HasSubscribers)
-                    {
-                        ThemeConfigs.TryRemove(themeName, out _);
-                    }
-                }
-            }
-            #endregion*/
         }
     }
 }

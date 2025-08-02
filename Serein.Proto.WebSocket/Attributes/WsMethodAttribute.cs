@@ -16,7 +16,7 @@
     /// <para>Func&lt;dynamic,Task&gt; : 会自动将对象解析为Json字符串，异步发送文本内容。</para>
     /// </summary>
     [AttributeUsage(AttributeTargets.Method)]
-    public sealed class AutoSocketHandleAttribute : Attribute
+    public sealed class WsMethodAttribute : Attribute
     {
         /// <summary>
         /// 描述Json业务字段，如果不设置，将默认使用方法名称。
@@ -32,12 +32,6 @@
         /// <para>会进行异步等待，当Task结束后，自动获取TResult进行发送（请避免Task&lt;Task&lt;TResult&gt;&gt;诸如此类的Task泛型嵌套）</para>
         /// </summary>
         public bool IsReturnValue = true;
-        /// <summary>
-        /// <para>表示该方法所有入参不能为空（所需的参数在请求Json的Data不存在）</para>
-        /// <para>若有一个参数无法从data获取，则不会进行调用该方法</para>
-        /// <para>如果设置该属性为 false ，但某些入参不能为空，而不希望在代码中进行检查，请为入参添加[NotNull]/[Needful]特性</para>
-        /// </summary>
-        public bool ArgNotNull = true;
     }
 
 

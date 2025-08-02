@@ -1,10 +1,7 @@
-﻿using System;
-
-namespace Serein.Proto.WebSocket
+﻿namespace Serein.Proto.WebSocket
 {
     public interface ISocketHandleModule
     {
     }
-
 
 }
