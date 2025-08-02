@@ -149,6 +149,14 @@ namespace Serein.Library.Api
         IJsonToken Parse(string json);
 
         /// <summary>
+        /// 尝试解析JSON文本为IJsonToken对象，如果成功则返回true，并通过out参数返回解析后的对象。
+        /// </summary>
+        /// <param name="json"></param>
+        /// <param name="jsonToken"></param>
+        /// <returns></returns>
+        bool TryParse(string json, out IJsonToken jsonToken);
+
+        /// <summary>
         /// 创建对象
         /// </summary>
         /// <param name="values"></param>

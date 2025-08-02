@@ -3,6 +3,7 @@ using Serein.Library.Utils;
 using Serein.Proto.WebSocket.Handle;
 using System;
 using System.Threading.Tasks;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Serein.Proto.WebSocket
 {
@@ -27,8 +28,8 @@ namespace Serein.Proto.WebSocket
         public void Dispose()
         {
             MsgRequest = null;
-            MsgTheme = string.Empty; 
-            MsgId =  string.Empty; 
+            /*MsgTheme = string.Empty; 
+            MsgId =  string.Empty; */
             MsgData = null;
             MsgData = null;
         }
@@ -46,21 +47,15 @@ namespace Serein.Proto.WebSocket
 
         private bool _handle = false;
 
+        /// <summary>
+        /// WebSocket 模块配置
+        /// </summary>
+        public ModuleConfig Model { get; set; } 
 
         /// <summary>
         /// 消息本体（IJsonToken）
         /// </summary>
         public IJsonToken? MsgRequest { get; set; }
-
-        /// <summary>
-        /// 此次消息请求的主题
-        /// </summary>
-        public string MsgTheme { get; set; } = string.Empty;
-
-        /// <summary>
-        /// 此次消息附带的ID
-        /// </summary>
-        public string MsgId { get; set; } = string.Empty;
 
         /// <summary>
         /// 此次消息的数据
@@ -70,7 +65,23 @@ namespace Serein.Proto.WebSocket
         /// <summary>
         /// 异常外部感知使能
         /// </summary>
-        public Func<Exception, Func<object, Task>, Task> OnExceptionTrackingAsync { get; set; }
+        public Action<Exception>? OnExceptionTracking { get; set; }
+
+        /// <summary>
+        /// 处理回复消息的函数
+        /// </summary>
+        public Func<WebSocketHandleContext, object, object> OnReplyMakeData { get; set; }
+        public Action<string>? OnReply { get; set; }
+
+        /// <summary>
+        /// 是否发生错误
+        /// </summary>
+        public bool IsError { get; set; }
+
+        /// <summary>
+        /// 错误消息
+        /// </summary>
+        public string ErrorMessage { get; set; }
 
         /// <summary>
         /// 发送消息
@@ -93,28 +104,28 @@ namespace Serein.Proto.WebSocket
         /// </summary>
         public void TriggerExceptionTracking(string exMessage)
         {
-            var ex = new Exception(exMessage);
-            Func<object, Task> func = async (data) =>
-            {
-                var msg = JsonHelper.Serialize(data);
-                await _sendAsync.Invoke(msg);
-
-            };
-            OnExceptionTrackingAsync.Invoke(ex, func);
+            var ex = new SereinWebSocketHandleException(exMessage);
+            TriggerExceptionTracking(ex); 
         }
-        
+
         /// <summary>
         /// 触发异常追踪
         /// </summary>
         public void TriggerExceptionTracking(Exception ex)
         {
-            Func<object, Task> func = async (data) =>
+            IsError = true;
+            var msgId = Model.MsgId;
+            var theme = Model.Theme;
+            ErrorMessage = $"请求[{msgId}]主题[{theme}]异常 ：{ex.Message}"; 
+            OnExceptionTracking?.Invoke(ex);
+            var error = OnReplyMakeData?.Invoke(this, ex.Message); // 触发回复消息
+            _ = SendAsync(JsonHelper.Serialize(error)).ContinueWith((t) =>
             {
-                var msg = JsonHelper.Serialize(data);
-                await _sendAsync.Invoke(msg);
-
-            };
-            OnExceptionTrackingAsync.Invoke(ex, func);
+                if (t.IsFaulted)
+                {
+                    Console.WriteLine($"发送错误消息失败: {t.Exception?.Message}");
+                }
+            }); // 发送错误消息
         }
 
 

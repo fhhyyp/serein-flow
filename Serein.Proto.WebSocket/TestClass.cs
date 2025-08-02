@@ -26,12 +26,8 @@ namespace Serein.Proto.WebSocket
             SereinWebSocketService sereinWebSocketService = new SereinWebSocketService();
             sereinWebSocketService.AddHandleModule<ClassA>();
             sereinWebSocketService.AddHandleModule<ClassB>(() => new ClassB());
-            sereinWebSocketService.TrackUnhandledExceptions(OnExceptionTrackingAsync);
         }
 
-        private static async Task OnExceptionTrackingAsync(Exception ex, Func<object, Task> SendAsync)
-        {
-           await SendAsync("");
-        }
+       
     }
 }

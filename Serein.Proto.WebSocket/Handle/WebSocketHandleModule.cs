@@ -91,79 +91,81 @@ namespace Serein.Proto.WebSocket.Handle
         public async Task HandleAsync(WebSocketHandleContext context)
         {
             var jsonObject = context.MsgRequest; // 获取到消息
+            context.Model = new ModuleConfig(); // 设置当前模块配置
+            context.Model.IsResponseUseReturn = _moduleConfig.IsResponseUseReturn;
 
             if (jsonObject is null)
             {
                 context.TriggerExceptionTracking($"请求没有获取到消息");
                 return; // 没有获取到消息
             }
+
+            if (!jsonObject.TryGetValue(_moduleConfig.MsgIdJsonKey, out var msgIdToken) || msgIdToken.IsNull)
+            {
+                context.TriggerExceptionTracking($"消息Id从JSON键[{_moduleConfig.MsgIdJsonKey}]提取失败");
+                return; // 没有获取到消息
+            }
+            if (msgIdToken.Type != IJsonToken.TokenType.Value)
+            {
+                context.TriggerExceptionTracking($"请求消息Id[{_moduleConfig.ThemeJsonKey}]需要值类型，当前类型为[{msgIdToken.Type}]");
+                return; // 没有获取到消息
+            }
+            var msgId = msgIdToken.ToString(); // 获取Id
+            context.Model.MsgId = msgId;
+            // 验证消息ID是否重复
+            if (!_myMsgIdHash.Add(msgId))
+            {
+                context.TriggerExceptionTracking($"消息Id[{msgId}]重复发送");
+                return; // 消息重复
+            }
+            
+            
+           
             if(!jsonObject.TryGetValue(_moduleConfig.ThemeJsonKey, out var themeToken) || themeToken.IsNull)
             {
-                context.TriggerExceptionTracking($"请求没有获取到主题\"{_moduleConfig.ThemeJsonKey}\"");
+                context.TriggerExceptionTracking($"主题从JSON键[{_moduleConfig.ThemeJsonKey}]提取失败");
                 return; // 没有获取到消息
             }
             if(themeToken.Type != IJsonToken.TokenType.Value)
             {
-                context.TriggerExceptionTracking($"请求主题需要值类型 \"{_moduleConfig.ThemeJsonKey}\"");
+                context.TriggerExceptionTracking($"请求主题[{_moduleConfig.ThemeJsonKey}]需要值类型，当前类型为[{themeToken.Type}]");
                 return; // 没有获取到消息
             }
 
             var theme = themeToken.ToString(); // 获取主题
+            context.Model.Theme = theme;
             // 验证主题
             if (!_methodInvokeConfigs.TryGetValue(theme, out var handldConfig))
             {
-                context.TriggerExceptionTracking($"{_moduleConfig.ThemeJsonKey} 主题不存在");
+                context.TriggerExceptionTracking($"不存在这样的主题");
                 return; 
             }
 
 
-            if (!jsonObject.TryGetValue(_moduleConfig.MsgIdJsonKey, out var msgIdToken) || themeToken.IsNull)
-            {
-                context.TriggerExceptionTracking($"主题 {theme} 没有消息Id");
-                return; // 没有获取到消息
-            }
-            if (themeToken.Type != IJsonToken.TokenType.Value)
-            {
-                context.TriggerExceptionTracking($"请求消息Id需要值类型 \"{_moduleConfig.ThemeJsonKey}\"");
-                return; // 没有获取到消息
-            }
-
-            var msgId = msgIdToken.ToString(); // 获取主题
-            // 验证消息ID是否重复
-            if (!_myMsgIdHash.Add(msgId))
-            {
-                context.TriggerExceptionTracking($"主题 {theme} 消息Id {msgId} 消息重复");
-                return; // 消息重复
-            }
 
             // 验证数据
             if (!jsonObject.TryGetValue(_moduleConfig.DataJsonKey, out var dataToken))
             {
-                context.TriggerExceptionTracking($"主题 {theme} 消息Id {msgId} 数据提取失败，当前指定键\"{_moduleConfig.DataJsonKey}\"");
+                context.TriggerExceptionTracking($"数据从JSON键[{_moduleConfig.DataJsonKey}]提取失败");
                 return; // 没有主题
             }
             if(dataToken.Type != IJsonToken.TokenType.Object)
             {
-                context.TriggerExceptionTracking($"主题 {theme} 消息Id {msgId} 数据需要 JSON Object");
+                context.TriggerExceptionTracking($"数据需要 JSON Object，当前类型为[{dataToken.Type}]");
+                return;
             }
 
-            context.MsgTheme = theme; // 添加主题
-            context.MsgId = msgId; // 添加 ID
             context.MsgData = dataToken; // 添加消息
             context.MsgRequest = jsonObject; // 添加原始消息
             try
             {
                 if (TryGetParameters(handldConfig, context, out var args))
                 {
-                    var result = await HandleAsync(handldConfig, args);
+                    var result = await InvokeAsync(handldConfig, args);
                     if (handldConfig.IsReturnValue)
                     {
-                        await RepliedAsync(_moduleConfig, context, result);
+                         await RepliedAsync(_moduleConfig, context, result);
                     }
-                }
-                else
-                {
-                    context.TriggerExceptionTracking($"主题 {theme} 消息Id {msgId} 参数获取失败");
                 }
             }
             catch (Exception ex)
@@ -184,7 +186,7 @@ namespace Serein.Proto.WebSocket.Handle
         /// <param name="config"></param>
         /// <param name="args"></param>
         /// <returns></returns>
-        public static async Task<object> HandleAsync(MethodInvokeConfiguration config, object?[] args)
+        public static async Task<object> InvokeAsync(MethodInvokeConfiguration config, object?[] args)
         {
             if (config.DelegateDetails is null)
             {
@@ -206,8 +208,8 @@ namespace Serein.Proto.WebSocket.Handle
         internal static bool TryGetParameters(MethodInvokeConfiguration config, WebSocketHandleContext context, out object?[] args)
         {
             args = new object[config.ParameterType.Length];
-            var theme = context.MsgTheme;
-            var msgId = context.MsgId;
+            var theme = context.Model.Theme;
+            var msgId = context.Model.MsgId;
             List<string> exTips = [$"主题 {theme} 消息Id {msgId}"];
             bool isCanInvoke = true; ; // 表示是否可以调用方法
             for (int i = 0; i < config.ParameterType.Length; i++)
@@ -217,7 +219,7 @@ namespace Serein.Proto.WebSocket.Handle
                 #region 传递消息ID
                 if (config.UseMsgId[i])
                 {
-                    args[i] = context.MsgId;
+                    args[i] = msgId;
                 }
                 #endregion
                 #region DATA JSON数据
@@ -329,25 +331,40 @@ namespace Serein.Proto.WebSocket.Handle
                                        WebSocketHandleContext context,
                                        object data)
         {
-            if (moduleConfig.IsResponseUseReturn)
+            if (context.OnExceptionTracking is null)
             {
-                var responseContent = JsonHelper.Serialize(data);
-                await context.SendAsync(responseContent);
+                context.TriggerExceptionTracking(new NullReferenceException($"没有定义处理回复消息 OnExceptionTracking 回调函数"));
+                return;
             }
-            else
+            // 返回结果
+            var responseData = context.OnReplyMakeData(context, data);
+            if (responseData is null)
             {
-
-                IJsonToken jsonData;
-                jsonData = JsonHelper.Object(obj =>
-                {
-                    obj[moduleConfig.MsgIdJsonKey] = context.MsgId;
-                    obj[moduleConfig.ThemeJsonKey] = context.MsgTheme;
-                    obj[moduleConfig.DataJsonKey] = data is null ? null : JsonHelper.FromObject(data);
-                });
-
-                var msg = jsonData.ToString();
-                await context.SendAsync(msg);
+                context.TriggerExceptionTracking(new ArgumentNullException($"处理回调函数 OnReplyMakeData 返回 null"));
+                return;
             }
+            var responseContent = JsonHelper.Serialize(responseData);
+            await context.SendAsync(responseContent);
+
+            /* if (moduleConfig.IsResponseUseReturn)
+             {
+                 var responseContent = JsonHelper.Serialize(data);
+                 await context.SendAsync(responseContent);
+             }
+             else
+             {
+
+                 IJsonToken jsonData;
+                 jsonData = JsonHelper.Object(obj =>
+                 {
+                     obj[moduleConfig.MsgIdJsonKey] = context.MsgId;
+                     obj[moduleConfig.ThemeJsonKey] = context.MsgTheme;
+                     obj[moduleConfig.DataJsonKey] = data is null ? null : JsonHelper.FromObject(data);
+                 });
+
+                 var msg = jsonData.ToString();
+                 await context.SendAsync(msg);
+             }*/
         }
     }
 

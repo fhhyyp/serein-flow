@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Serein.Proto.WebSocket.Handle;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -34,9 +35,9 @@ namespace Serein.Proto.WebSocket
         /// <summary>
         /// 跟踪未处理的异常
         /// </summary>
-        /// <param name="onExceptionTrackingAsync"></param>
+        /// <param name="onExceptionTracking"></param>
         /// <returns></returns>
-        ISereinWebSocketService TrackUnhandledExceptions(Func<Exception, Func<object, Task>, Task> onExceptionTrackingAsync);
+        ISereinWebSocketService TrackUnhandledExceptions(Action<Exception> onExceptionTracking);
 
         /// <summary>
         /// 添加新的 WebSocket 连接进行处理消息
@@ -51,5 +52,16 @@ namespace Serein.Proto.WebSocket
         /// <returns></returns>
         Task PushDataAsync(object latestData);
 
+        /// <summary>
+        /// 设置回调函数，用于处理外部请求时的回复消息
+        /// </summary>
+        /// <param name="func"></param>
+        void OnReplyMakeData(Func<WebSocketHandleContext, object, object> func);
+
+        /// <summary>
+        /// 设置回调函数，回复外部请求时，记录消息内容
+        /// </summary>
+        /// <param name="onReply"></param>
+        void OnReply(Action<string> onReply);
     }
 }

@@ -26,4 +26,11 @@
         public bool IsResponseUseReturn { get; set; }
     }
 
+    public class ModuleConfig()
+    {
+        public string MsgId { get; set; } = string.Empty;
+        public string Theme { get; set; } = string.Empty;
+        public bool IsResponseUseReturn { get; set; } = false;
+    }
+
 }

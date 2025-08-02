@@ -59,6 +59,19 @@ namespace Serein.Library.Utils
         }
 
         /// <summary>
+        /// 尝试解析Json文本为IJsonToken对象
+        /// </summary>
+        /// <param name="json"></param>
+        /// <param name="jsonToken"></param>
+        /// <returns></returns>
+        public static bool TryParse(string json, out IJsonToken jsonToken)
+        {
+            return provider.TryParse(json, out jsonToken);
+        }
+
+
+
+        /// <summary>
         /// 将对象序列化为Json文本
         /// </summary>
         /// <param name="obj"></param>

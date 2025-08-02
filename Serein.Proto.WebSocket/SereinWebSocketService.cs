@@ -32,7 +32,11 @@ namespace Serein.Proto.WebSocket
         /// 追踪未处理的异常
         /// </summary>
 
-        private Func<Exception, Func<object, Task>, Task> _onExceptionTrackingAsync;
+        private Action<Exception>? _onExceptionTracking;
+        private Action<string>? _onReply;
+        private Func<WebSocketHandleContext, object, object> _onReplyMakeData;
+
+
         /// <summary>
         /// 维护所有 WebSocket 连接
         /// </summary>
@@ -45,15 +49,15 @@ namespace Serein.Proto.WebSocket
 
         public int ConcetionCount => _sockets.Count;
 
+        /// <summary>
+        /// SereinWebSocketService 构造函数，初始化 WebSocket 模块字典和连接列表
+        /// </summary>
         public SereinWebSocketService()
         {
             _socketModules = new ConcurrentDictionary<(string, string), WebSocketHandleModule>();
             _sockets = new List<NetWebSocket>();
             _lock = new object();
         }
-
-
-        
 
 
         #region 添加处理模块
@@ -247,14 +251,12 @@ namespace Serein.Proto.WebSocket
         /// 跟踪未处理的异常
         /// </summary>
         /// <returns></returns>
-        public ISereinWebSocketService TrackUnhandledExceptions(Func<Exception, Func<object, Task>, Task> onExceptionTrackingAsync)
+        public ISereinWebSocketService TrackUnhandledExceptions(Action<Exception> onExceptionTracking)
         {
-            _onExceptionTrackingAsync = onExceptionTrackingAsync;
+            _onExceptionTracking = onExceptionTracking;
             return this;
         }
 
-
-        
         /// <summary>
         /// 传入新的 WebSocket 连接，开始进行处理
         /// </summary>
@@ -280,6 +282,7 @@ namespace Serein.Proto.WebSocket
 
             try
             {
+               
                 while (socket.State == WebSocketState.Open)
                 {
                     var result = await socket.ReceiveAsync(buffer: new ArraySegment<byte>(buffer), CancellationToken.None);
@@ -332,16 +335,23 @@ namespace Serein.Proto.WebSocket
             while (webSocket.State == WebSocketState.Open)
             {
                 var message = await tranTool.WaitMsgAsync();  // 有消息时通知
+                if (!JsonHelper.TryParse(message, out var jsonReques))
+                {
+                    Console.WriteLine($"WebSocket 消息解析失败: {message}");
+                    continue;
+                }
                 var context = new WebSocketHandleContext(sendasync);
-                context.MsgRequest = JsonHelper.Parse(message);
-                context.OnExceptionTrackingAsync = _onExceptionTrackingAsync;
+                context.MsgRequest = jsonReques;
+                context.OnExceptionTracking = _onExceptionTracking;
+                context.OnReplyMakeData = _onReplyMakeData;
+                context.OnReply = _onReply;
                 await HandleAsync(context); // 处理消息
             }
 
         }
 
         /// <summary>
-        /// 异步消息
+        /// 异步处理消息
         /// </summary>
         /// <param name="context">此次请求的上下文</param>
         /// <returns></returns>
@@ -394,6 +404,24 @@ namespace Serein.Proto.WebSocket
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// 设置回调函数，用于处理外部请求时的回复消息
+        /// </summary>
+        /// <param name="func"></param>
+        public void OnReplyMakeData(Func<WebSocketHandleContext, object, object> func)
+        {
+            _onReplyMakeData = func;
+        }
+        /// <summary>
+        /// 设置回调函数，回复外部请求时，记录消息内容
+        /// </summary>
+        /// <param name="onReply"></param>
+
+        public void OnReply(Action<string> onReply)
+        {
+            _onReply = onReply;
         }
     }
 

@@ -2,11 +2,12 @@
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
 using Serein.Library.Api;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Serein.Extend.NewtonsoftJson
 {
 
-    public enum JsonType
+    public enum ProviderType
     {
         Default = 0,
         Web = 1,
@@ -30,11 +31,11 @@ namespace Serein.Extend.NewtonsoftJson
         /// 基于Newtonsoft.Json的JSON门户实现
         /// </summary>
         /// <param name="jsonType"></param>
-        public NewtonsoftJsonProvider(JsonType jsonType)
+        public NewtonsoftJsonProvider(ProviderType jsonType)
         {
             settings = jsonType switch
             {
-                JsonType.Web => new JsonSerializerSettings
+                ProviderType.Web => new JsonSerializerSettings
                 {
                     ContractResolver = new CamelCasePropertyNamesContractResolver(), // 控制首字母小写
                     NullValueHandling = NullValueHandling.Ignore                     // 可选：忽略 null
@@ -96,6 +97,26 @@ namespace Serein.Extend.NewtonsoftJson
         public IJsonToken Parse(string json)
         {
             return NewtonsoftJsonTokenFactory.Parse(json);
+        }
+
+        /// <summary>
+        /// 尝试解析JSON文本为IJsonToken对象，如果成功则返回true，并通过out参数返回解析后的对象。
+        /// </summary>
+        /// <param name="json"></param>
+        /// <param name="jsonToken"></param>
+        /// <returns></returns>
+        public bool TryParse(string json, [NotNullWhen(true)] out IJsonToken? jsonToken)
+        { 
+            try
+            {
+                jsonToken = NewtonsoftJsonTokenFactory.Parse(json);
+                return true;
+            }
+            catch (Exception)
+            {
+                jsonToken = null!;
+                return false;
+            }
         }
 
         /// <summary>
