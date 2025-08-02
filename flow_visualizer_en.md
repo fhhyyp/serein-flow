@@ -150,8 +150,7 @@ return log;
 
 #### 🔁 `Flipflop` (Trigger Node)
 
-- Can be triggered by external events or timeouts
-- Supports state returns (Success, Failure, Cancelled) and trigger source type
+- Can be triggered by external events or timeouts, need result is not null
 
 #### 🧠 `ExpOp` (Expression Node)
 
