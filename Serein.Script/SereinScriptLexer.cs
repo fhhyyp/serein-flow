@@ -1,4 +1,7 @@
-﻿namespace Serein.Script
+﻿using System.Data.Common;
+using System.Numerics;
+
+namespace Serein.Script
 {
     /// <summary>
     /// Serein脚本词法分析器的Token类型
@@ -37,6 +40,10 @@
         /// 字符串
         /// </summary>
         String,
+        /// <summary>
+        /// 原始字符串（多行字符串）
+        /// </summary>
+        RawString,
         /// <summary>
         /// Char字符
         /// </summary>
@@ -217,7 +224,7 @@
                 if (_input[_index + 1] == '"'
                      && _input[_index + 2] == '"')
                 {
-                    var value = _input.Slice(_index, 4).ToString();
+                    //var value = _input.Slice(_index, 4).ToString();
 
                     // 原始字符串
                     return ReadRawString();
@@ -450,26 +457,37 @@
 
         private Token ReadRawString()
         {
-            // skip opening triple quotes
-            _index += 3;
-
-            var start = _index;
-            while (_index + 2 < _input.Length)
+            int startLine = _row;
+            _index += 3; // 跳过开头 """
+            int index = _index;
+            var contentStart = index;
+            while (index + 2 < _input.Length)
             {
-                if (_input[_index] == '"' && _input[_index + 1] == '"' && _input[_index + 2] == '"')
+                char current = _input[index];
+
+                // 行号处理
+                if (current == '\n')
                 {
-                    var value = _input.Slice(start, _index - start).ToString();
-                    _index += 3; // skip closing """
-                    return CreateToken(TokenType.String, value);
+                    _row++;
                 }
 
-                _index++;
+                // 检查是否是结束符 """
+                if (_input[index] != '"' || _input[index + 1] != '"' || _input[index + 2] != '"')
+                {
+                    index++;
+                }
+                else
+                {
+                    var value = _input.Slice(contentStart, index - contentStart).ToString();
+                    _index += 3;
+                    // 构建带行号信息的 Token（假设 Token 有 StartLine 属性）
+                    return CreateToken(TokenType.RawString, value);
+                }
+
             }
 
-            throw new Exception("Unterminated raw string literal");
-
+            throw new Exception($"Unterminated raw string literal starting at line {startLine}");
         }
-
 
         /// <summary>
         /// 读取硬编码的文本

@@ -6,16 +6,7 @@ using System.Threading.Tasks;
 
 namespace Serein.Script.Node
 {
-    internal class CharNode : ASTNode
+    internal class CharNode(char value) : ValueNode<char>(value)
     {
-        public char Value { get; }
-        public CharNode(string value)
-        {
-            Value = char.Parse(value);
-        }
-        public override string ToString()
-        {
-            return $"'{Value}'";
-        }
     }
 }

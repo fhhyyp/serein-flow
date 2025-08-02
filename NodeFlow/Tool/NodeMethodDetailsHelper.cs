@@ -103,20 +103,34 @@ public static class NodeMethodDetailsHelper
             if (methodInfo.ReturnType.IsGenericType && methodInfo.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
             {
                 // 获取 Task<> 的泛型参数类型
-                var innerType = methodInfo.ReturnType.GetGenericArguments()[0];
-                if (innerType.IsGenericType && innerType.GetGenericTypeDefinition() == typeof(IFlipflopContext<>))
+                var innerTypes = methodInfo.ReturnType.GetGenericArguments();
+                if(innerTypes.Length == 1)
                 {
-                    var flipflopType = innerType.GetGenericArguments()[0];
-                    returnType = flipflopType;
+                    var innerType = innerTypes[0];
+                    returnType = innerType;
                 }
                 else
                 {
-                    SereinEnv.WriteLine(InfoType.WARN, $"[{methodName}]跳过创建，返回类型非预期的Task<IFlipflopContext<TResult>>。");
+                    SereinEnv.WriteLine(InfoType.WARN, $"[{methodName}]跳过创建，返回类型非预期的Task<TResult>。");
                     outMethodInfo = null;
                     methodDetails = null;
                     delegateDetails = null;
                     return false;
                 }
+                //var innerType = methodInfo.ReturnType.GetGenericArguments()[0];
+                //if (innerType.IsGenericType && innerType.GetGenericTypeDefinition() == typeof(IFlipflopContext<>))
+                //{
+                //    var flipflopType = innerType.GetGenericArguments()[0];
+                //    returnType = flipflopType;
+                //}
+                //else
+                //{
+                //    SereinEnv.WriteLine(InfoType.WARN, $"[{methodName}]跳过创建，返回类型非预期的Task<IFlipflopContext<TResult>>。");
+                //    outMethodInfo = null;
+                //    methodDetails = null;
+                //    delegateDetails = null;
+                //    return false;
+                //}
             }
             else
             {

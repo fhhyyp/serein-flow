@@ -143,13 +143,27 @@ namespace Serein.Library
         /// </summary>
         /// <param name="content"></param>
         /// <returns></returns>
-        public static IJsonToken json(string content)
+        public static IJsonToken jsonObj(string content)
         {
             /*if (string.IsNullOrWhiteSpace(content))
             {
                 return JsonHelper.Object(dict => { }) ;
             }*/
             return JsonHelper.Parse(content);
+        }
+
+        /// <summary>
+        /// 转为JSON字符串
+        /// </summary>
+        /// <param name="content"></param>
+        /// <returns></returns>
+        public static string jsonStr(object data)
+        {
+            if (data is null)
+            {
+                return "{}";
+            }
+            return JsonHelper.Serialize(data);
         }
 
 

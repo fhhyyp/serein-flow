@@ -167,7 +167,7 @@ namespace Serein.Script
             });
             return string.Join(',', values);
         }
-
+        
         private void ConvertCode(ASTNode node)
         {
             switch (node)
@@ -197,6 +197,12 @@ namespace Serein.Script
                     break;
                 case CharNode charNode: // char字面量
                     Append($"'{charNode.Value}'");
+                    break;
+                case RawStringNode rawStringNode: // 原始字符串
+                    AppendLine("");
+                    Append("\"\"\"");
+                    Append(rawStringNode.Value);
+                    Append("\"\"\"");
                     break;
                 case StringNode stringNode: // 字符串字面量
                     Append($"\"{stringNode.Value}\"");
@@ -502,9 +508,9 @@ namespace Serein.Script
         }
 
 
-        
-
     }
 
 
 }
+
+

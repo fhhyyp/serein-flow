@@ -72,23 +72,12 @@ namespace Serein.NodeFlow.Model.Nodes
                 instance = ioc.Get(md.ActingInstanceType);
             }
 
-            var args = MethodDetails.ParameterDetailss.Length == 0 ? [] : await this.GetParametersAsync(context, token);
+            var args = MethodDetails.ParameterDetailss.Length == 0 ? [] 
+                       : await this.GetParametersAsync(context, token);
 
-            // 因为这里会返回不确定的泛型 IFlipflopContext<TRsult>
-            // 而我们只需要获取到 State 和 Value（返回的数据）
-            // 所以使用 dynamic 类型接收
-            dynamic flipflopContext = await dd.InvokeAsync(instance, args);
-            FlipflopStateType flipflopStateType = flipflopContext.State;
-            context.NextOrientation = flipflopStateType.ToContentType();
-
-
-            if (flipflopContext.Type == TriggerDescription.Overtime)
-            {
-                throw new FlipflopException(MethodDetails.MethodName + "触发器超时触发。Guid" + Guid);
-            }
-            object result = flipflopContext.Value;
-            var flowReslt = FlowResult.OK(this.Guid, context, result);
-            return flowReslt;
+            var result = await dd.InvokeAsync(instance, args);
+            var flowResult = FlowResult.OK(this.Guid, context, result);
+            return flowResult;
         }
 
     }

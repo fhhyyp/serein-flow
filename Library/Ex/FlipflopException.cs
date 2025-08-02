@@ -37,7 +37,7 @@ namespace Serein.Library
         /// <param name="message"></param>
         /// <param name="isCancel"></param>
         /// <param name="clsss"></param>
-        public FlipflopException(string message, bool isCancel = true,CancelClass clsss = CancelClass.CancelBranch) :base(message) 
+        public FlipflopException(string message, bool isCancel = true, CancelClass clsss = CancelClass.CancelBranch) :base(message) 
         {
             IsCancel = isCancel;
             Type = clsss;

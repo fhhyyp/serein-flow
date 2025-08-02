@@ -112,9 +112,9 @@ namespace Serein.Script
                         isAssignment = true;
                         break;
                     }
-                    if(peekCount > 19999)
+                    if(peekCount > 3999)
                     {
-                        throw new Exception("解析异常，peek次数过多，请减少脚本代码");
+                        throw new Exception("解析异常，peek次数过多，可能是解析器出了bug");
                     }
                 }
                 #endregion
@@ -122,16 +122,19 @@ namespace Serein.Script
                 #region 生成赋值语句/一般语句的ASTNode
                 if (isAssignment)
                 {
+                   
                     // 以赋值语句的形式进行处理
                     var assignmentNode = ParseAssignmentNode(); // 解析复制表达式
-                    NextToken();// 消耗 ";"
+                    //if(_currentToken.Type == TokenType.Semicolon)
+                        NextToken();// 消耗 ";"
                     return assignmentNode;
                 }
                 else
                 {
                     // 以一般语句的形式进行处理，可当作表达式进行解析
-                    var targetNode = ParserExpression(); 
-                    NextToken();// 消耗 ";"
+                    var targetNode = ParserExpression();
+                    //if (_currentToken.Type == TokenType.Semicolon) 
+                        NextToken();// 消耗 ";"
                     return targetNode;
                 } 
                 #endregion
@@ -308,6 +311,7 @@ namespace Serein.Script
             }
             else
             {
+                var c = _currentToken;
                 // 反转赋值。
                 NextToken(); // 消耗 "=" 并获取赋值语句的右值表达式。
                 ASTNode valueNode = ParserExpression();
@@ -515,6 +519,13 @@ namespace Serein.Script
                         fieldTypeName = $"{fieldTypeName}.{_currentToken.Value}"; // 向后扩充
                         continue;
                     }
+                    else if (peekToken.Type == TokenType.SquareBracketsLeft)
+                    {
+                        NextToken(); // 消耗数组类型定义的 "["
+                        NextToken(); // 消耗数组类型定义的 "]"
+                        fieldTypeName += "[]";
+                        continue;
+                    }
                     else if (peekToken.Type == TokenType.Identifier)   
                     {
                         // 尝试解析变量名称
@@ -677,7 +688,7 @@ namespace Serein.Script
                         }
                         else if (_currentToken.Type == TokenType.BraceRight)
                         {
-                            break;
+                            continue;
                         }
                     }
                     else
@@ -1009,6 +1020,7 @@ namespace Serein.Script
                         if(peekToken.Type == TokenType.ParenthesisRight // 可能解析完了方法参数
                             || peekToken.Type == TokenType.Comma // 可能解析完了方法参数
                             || peekToken.Type == TokenType.Operator // 可能解析完了方法参数
+                            || peekToken.Type == TokenType.BraceRight // 可能解析完了方法参数
                             || peekToken.Type == TokenType.ParenthesisRight) // 可能解析完了下标索引
                         {
                             return source;
@@ -1065,6 +1077,13 @@ namespace Serein.Script
                 NextToken();   // 消耗布尔量
                 return new BooleanNode(value).SetTokenInfo(factorToken);
             }
+            else if (_currentToken.Type == TokenType.RawString)
+            {
+                var value = _currentToken.Value;
+                NextToken();  // 消耗字符串
+                var node = new RawStringNode(value).SetTokenInfo(factorToken);
+                return node;
+            }
             else if (_currentToken.Type == TokenType.String)
             {
                 var value = _currentToken.Value;
@@ -1076,7 +1095,8 @@ namespace Serein.Script
             {
                 var value = _currentToken.Value;
                 NextToken(); ;  // 消耗Char
-                return new CharNode(value).SetTokenInfo(factorToken);
+                var @char = char.Parse(value);
+                return new CharNode(@char).SetTokenInfo(factorToken);
             }
             else if (_currentToken.Type == TokenType.InterpolatedString)
             {
@@ -1185,5 +1205,7 @@ namespace Serein.Script
         #endregion
 
     }
+
+
 
 }

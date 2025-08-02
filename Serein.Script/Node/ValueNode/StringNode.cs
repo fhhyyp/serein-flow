@@ -9,11 +9,9 @@ namespace Serein.Script.Node
     /// <summary>
     /// 字符串字面量节点
     /// </summary>
-    public class StringNode : ASTNode
+    public class StringNode : ValueNode<string>
     {
-        public string Value { get; }
-
-        public StringNode(string input)
+        public StringNode(string input) : base()
         {
             // 使用 StringBuilder 来构建输出
             StringBuilder output = new StringBuilder(input.Length);
@@ -58,11 +56,6 @@ namespace Serein.Script.Node
                 }
             }
             Value = output.ToString();
-        }
-
-        public override string ToString()
-        {
-            return $"\"{Value}\"";
         }
     }
 

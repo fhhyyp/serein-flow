@@ -48,8 +48,6 @@ namespace Serein.NodeFlow.Env
         private readonly FlowLibraryService flowLibraryManagement;
         private readonly FlowOperationService flowOperationService;
         private readonly FlowModelService flowModelService;
-        //private readonly NodeMVVMService nodeMVVMService;
-
 
         /// <summary>
         /// 注册基本节点类型
@@ -633,33 +631,31 @@ namespace Serein.NodeFlow.Env
             }
 
 
-           /* var nodeModels = flowModelService.GetAllNodeModel();
-            foreach (var toNode in nodeModels)
-            {
-                var canvasGuid = toNode.CanvasDetails.Guid;
-                if (toNode.MethodDetails.ParameterDetailss == null)
-                {
-                    continue;
-                }
-                for (var i = 0; i < toNode.MethodDetails.ParameterDetailss.Length; i++)
-                {
-                    var pd = toNode.MethodDetails.ParameterDetailss[i];
-                    if (!string.IsNullOrEmpty(pd.ArgDataSourceNodeGuid)
-                        && TryGetNodeModel(pd.ArgDataSourceNodeGuid, out var fromNode))
-                    {
-                        *//*if (fromNode.NeedResultNodes[pd.ArgDataSourceType].Contains(toNode) 
-                            && pd.ArgDataSourceNodeGuid == fromNode.Guid
-                            && )
-                        {
-                            continue;
-                        }*//*
-                        ConnectArgSourceNode(canvasGuid, fromNode.Guid, toNode.Guid, JunctionType.ReturnData, JunctionType.ArgData, pd.ArgDataSourceType, pd.Index);
-                    }
-                }
-            }*/
+            /* var nodeModels = flowModelService.GetAllNodeModel();
+             foreach (var toNode in nodeModels)
+             {
+                 var canvasGuid = toNode.CanvasDetails.Guid;
+                 if (toNode.MethodDetails.ParameterDetailss == null)
+                 {
+                     continue;
+                 }
+                 for (var i = 0; i < toNode.MethodDetails.ParameterDetailss.Length; i++)
+                 {
+                     var pd = toNode.MethodDetails.ParameterDetailss[i];
+                     if (!string.IsNullOrEmpty(pd.ArgDataSourceNodeGuid)
+                         && TryGetNodeModel(pd.ArgDataSourceNodeGuid, out var fromNode))
+                     {
+                         *//*if (fromNode.NeedResultNodes[pd.ArgDataSourceType].Contains(toNode) 
+                             && pd.ArgDataSourceNodeGuid == fromNode.Guid
+                             && )
+                         {
+                             continue;
+                         }*//*
+                         ConnectArgSourceNode(canvasGuid, fromNode.Guid, toNode.Guid, JunctionType.ReturnData, JunctionType.ArgData, pd.ArgDataSourceType, pd.Index);
+                     }
+                 }
+             }*/
             #endregion
-
-           
         }
         #endregion
 

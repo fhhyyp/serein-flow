@@ -56,6 +56,8 @@ namespace Serein.Script
                     return null; // 返回 null
                 case CharNode charNode: // char字面量
                     return charNode.Value; // 返回字符值
+                case RawStringNode rawStringNode:
+                    return rawStringNode.Value; // 返回原始字符串值
                 case StringNode stringNode: // 字符串字面量
                     return stringNode.Value; // 返回字符串值
                 case BooleanNode booleanNode: // 布尔值字面量

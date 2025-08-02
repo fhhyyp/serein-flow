@@ -110,7 +110,7 @@ namespace Serein.NodeFlow
 
 
 
-        /// <summary>
+        /*/// <summary>
         /// 触发器运行后状态转为对应的后继分支类别
         /// </summary>
         /// <param name="flowStateType"></param>
@@ -126,7 +126,7 @@ namespace Serein.NodeFlow
                 FlipflopStateType.Cancel => ConnectionInvokeType.None,
                 _ => throw new NotImplementedException("未定义的流程状态")
             };
-        }
+        }*/
 
 
 

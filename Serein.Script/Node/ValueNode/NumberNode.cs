@@ -9,15 +9,9 @@ namespace Serein.Script.Node
     /// <summary>
     /// 数值型节点
     /// </summary>
-    public abstract class NumberNode<T> : ASTNode where T : struct, IComparable<T>
+    public abstract class NumberNode<T> : ValueNode<T> where T : struct, IComparable<T>
     {
-        public T Value { get; }
         public NumberNode(T value) => Value = value;
-
-        public override string ToString()
-        {
-            return $"{Value}";
-        }
     }
 
 

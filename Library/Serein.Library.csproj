@@ -55,11 +55,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="Api\IFlipflopContext.cs" />
+    <Compile Remove="Enums\FlipflopStateType.cs" />
     <Compile Remove="Extension\FlowModelExtension.cs" />
     <Compile Remove="FlowNode\Attribute.cs" />
+    <Compile Remove="FlowNode\FlipflopContext.cs" />
     <Compile Remove="FlowNode\NodeModelBaseData.cs" />
     <Compile Remove="FlowNode\NodeModelBaseFunc.cs" />
     <Compile Remove="FlowNode\ScriptFlowApi.cs" />
+    <Compile Remove="Utils\ExpressionHelper.cs" />
     <Compile Remove="Utils\NativeDllHelper.cs" />
     <Compile Remove="Utils\RemoteMsgUtil.cs" /> 
   </ItemGroup>

@@ -128,6 +128,9 @@ namespace Serein.Script
                 case CharNode charNode: // char字面量
                     NodeSymbolInfos[charNode] = typeof(char);
                     return typeof(char);
+                case RawStringNode rawStringNode: // 原始字符串字面量（多行字符串）
+                    NodeSymbolInfos[rawStringNode] = typeof(string);
+                    return typeof(string);
                 case StringNode stringNode: // 字符串字面量
                     NodeSymbolInfos[stringNode] = typeof(string);
                     return typeof(string);
@@ -507,6 +510,7 @@ namespace Serein.Script
                     break;
                 case NullNode nullNode: // null
                 case CharNode charNode: // char字面量
+                case RawStringNode rawStringNode:
                 case StringNode stringNode: // 字符串字面量
                 case BooleanNode booleanNode: // 布尔值字面量
                 case NumberIntNode numberIntNode: // int整型数值字面量
@@ -557,6 +561,20 @@ namespace Serein.Script
                         Analysis(collectionIndexNode);
                     }
                     AnalysisCollectionIndexNode(collectionIndexNode);
+                    break;
+                case CollectionAssignmentNode collectionAssignmentNode: // 集合赋值操作
+                    void AnalysisCollectionAssignmentNode(CollectionAssignmentNode collectionAssignmentNode)
+                    {
+                        Analysis(collectionAssignmentNode);
+                    }
+                    AnalysisCollectionAssignmentNode(collectionAssignmentNode);
+                    break;
+                case ArrayDefintionNode arrayDefintionNode:
+                    void AnalysisArrayDefintionNode(ArrayDefintionNode arrayDefintionNode)
+                    {
+                        Analysis(arrayDefintionNode);
+                    }
+                    AnalysisArrayDefintionNode(arrayDefintionNode);
                     break;
                 case ClassTypeDefinitionNode classTypeDefinitionNode: // 类型定义
                     Analysis(classTypeDefinitionNode);

@@ -409,16 +409,6 @@ namespace Serein.NodeFlow.Services
                         continue;
                     }
                     await CallSuccessorNodesAsync(flipflopNode, token, pool, context);
-                    /*if (flipflopNode.IsWaitSuccessorNodes)
-                    {
-                        _ = Task.Run(async () => await CallSuccessorNodesAsync(flipflopNode, token, pool, context));
-                    }
-                    else
-                    {
-                       await CallSuccessorNodesAsync(flipflopNode, token, pool, context);
-                    }*/
-                   
-
                 }
                 catch (FlipflopException ex) 
                 {

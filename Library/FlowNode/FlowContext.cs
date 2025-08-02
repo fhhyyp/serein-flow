@@ -28,6 +28,14 @@ namespace Serein.Library
         }
 
         /// <summary>
+        /// <para>用于同一个流程上下文中共享、存储任意数据</para>
+        /// <para>流程完毕时，如果存储的对象实现了 IDisposable 接口，将会自动调用</para>
+        /// <para>谨慎使用，注意数据的生命周期和内存管理</para>
+        /// </summary>
+        public object? Tag { get; set; }
+
+
+        /// <summary>
         /// 是否记录流程调用信息
         /// </summary>
         public bool IsRecordInvokeInfo { get; set; } = true;
@@ -78,7 +86,6 @@ namespace Serein.Library
         private readonly ConcurrentDictionary<string, ConcurrentDictionary<int, object>> dictNodeParams = new ConcurrentDictionary<string, ConcurrentDictionary<int, object>>();
 
 
-    
 
         /// <summary>
         /// 记录流程调用信息
@@ -255,11 +262,15 @@ namespace Serein.Library
         /// </summary>
         public void Reset()
         {
+            if(Tag is IDisposable disposable)
+            {
+                disposable.Dispose(); // 释放 Tag 中的资源
+            }
             this.dictNodeFlowData?.Clear();
             ExceptionOfRuning = null;
+            flowInvokeInfos.Clear();
             NextOrientation = ConnectionInvokeType.None;
             RunState = RunState.Running;
-            flowInvokeInfos.Clear();
             Guid = global::System.Guid.NewGuid().ToString();
         }
 

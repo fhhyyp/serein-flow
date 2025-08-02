@@ -1012,7 +1012,6 @@ namespace Serein.Library.Api
         void SetUIContextOperation(UIContextOperation uiContextOperation);
         #endregion
 
-
         #region 项目相关操作
 
         /// <summary>
@@ -1068,7 +1067,6 @@ namespace Serein.Library.Api
         bool TryGetDelegateDetails(string assemblyName, string methodName, out DelegateDetails del);
         #endregion
 
-
         #region 类库依赖相关
 
         /// <summary>
@@ -1098,8 +1096,6 @@ namespace Serein.Library.Api
         void LoadAllNativeLibraryOfRuning(string path, bool isRecurrence = true);
 
         #endregion
-
-
 
         #region 远程相关
         /*/// <summary>
@@ -1141,8 +1137,6 @@ namespace Serein.Library.Api
         Task NotificationNodeValueChangeAsync(string nodeGuid, string path, object value);
 
         #endregion
-
-
 
         #region 节点中断、表达式（暂时没用）
 #if false

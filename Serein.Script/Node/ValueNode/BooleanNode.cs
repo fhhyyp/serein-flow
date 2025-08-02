@@ -9,14 +9,7 @@ namespace Serein.Script.Node
     /// <summary>
     /// 布尔字面量
     /// </summary>
-    public class BooleanNode : ASTNode
+    public class BooleanNode(bool value) : ValueNode<bool>(value)
     {
-        public bool Value { get; }
-        public BooleanNode(bool value) => Value = value;
-
-        public override string ToString()
-        {
-            return $"{Value}";
-        }
     }
 }

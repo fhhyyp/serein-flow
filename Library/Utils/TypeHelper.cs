@@ -70,7 +70,6 @@ namespace Serein.Library.Utils
         };
 
 
-
         /// <summary>
         /// 字面量转为对应类型
         /// </summary>
@@ -84,11 +83,13 @@ namespace Serein.Library.Utils
                 return Type.GetType(valueStr);
             }
 
+            #region 常见值类型
 
             if (valueStr.Equals("bool", StringComparison.OrdinalIgnoreCase))
             {
                 return typeof(bool);
             }
+
             #region 整数型
             else if (valueStr.Equals("sbyte", StringComparison.OrdinalIgnoreCase)
                     || valueStr.Equals(nameof(SByte), StringComparison.OrdinalIgnoreCase))
@@ -165,6 +166,170 @@ namespace Serein.Library.Utils
             {
                 return typeof(String);
             }
+            #endregion
+
+
+            #endregion
+
+            #region Array数组类型
+            if (valueStr.Equals("bool" + "[]", StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(bool[]);
+            }
+            #region 整数型
+            else if (valueStr.Equals("sbyte" + "[]", StringComparison.OrdinalIgnoreCase)
+                    || valueStr.Equals(nameof(SByte) + "[]", StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(SByte[]);
+            }
+            else if (valueStr.Equals("short" + "[]", StringComparison.OrdinalIgnoreCase)
+                || valueStr.Equals(nameof(Int16) + "[]", StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(Int16[]);
+            }
+            else if (valueStr.Equals("int" + "[]", StringComparison.OrdinalIgnoreCase)
+                || valueStr.Equals(nameof(Int32) + "[]", StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(Int32[]);
+            }
+            else if (valueStr.Equals("long" + "[]", StringComparison.OrdinalIgnoreCase)
+                || valueStr.Equals(nameof(Int64) + "[]", StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(Int64[]);
+            }
+
+            else if (valueStr.Equals("byte" + "[]", StringComparison.OrdinalIgnoreCase)
+                || valueStr.Equals(nameof(Byte) + "[]", StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(Byte[]);
+            }
+            else if (valueStr.Equals("ushort" + "[]", StringComparison.OrdinalIgnoreCase)
+                || valueStr.Equals(nameof(UInt16) + "[]", StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(UInt16[]);
+            }
+            else if (valueStr.Equals("uint" + "[]", StringComparison.OrdinalIgnoreCase)
+                || valueStr.Equals(nameof(UInt32) + "[]", StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(UInt32[]);
+            }
+            else if (valueStr.Equals("ulong" + "[]", StringComparison.OrdinalIgnoreCase)
+                || valueStr.Equals(nameof(UInt64) + "[]", StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(UInt64[]);
+            }
+            #endregion
+
+            #region 浮点型
+            else if (valueStr.Equals("float" + "[]", StringComparison.OrdinalIgnoreCase)
+                        || valueStr.Equals(nameof(Single) + "[]", StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(Single[]);
+            }
+            else if (valueStr.Equals("double" + "[]", StringComparison.OrdinalIgnoreCase)
+                || valueStr.Equals(nameof(Double) + "[]", StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(Double[]);
+            }
+            #endregion
+
+            #region 小数型
+
+            else if (valueStr.Equals("decimal" + "[]", StringComparison.OrdinalIgnoreCase)
+                    || valueStr.Equals(nameof(Decimal) + "[]", StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(Decimal[]);
+            }
+            #endregion
+
+            #region 其他常见的类型
+            else if (valueStr.Equals(nameof(String) + "[]", StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(String[]);
+            }
+            #endregion
+            #endregion
+
+            #region List<> 数组类型
+            if (valueStr.Equals("list<bool>", StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(List<bool>);
+            }
+
+            #region 整数型
+            else if (valueStr.Equals("list<sbyte>", StringComparison.OrdinalIgnoreCase)
+                    || valueStr.Equals(nameof(List<SByte>), StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(List<SByte>);
+            }
+            else if (valueStr.Equals("list<short>", StringComparison.OrdinalIgnoreCase)
+                || valueStr.Equals(nameof(List<Int16>), StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(List<Int16>);
+            }
+            else if (valueStr.Equals("list<int>", StringComparison.OrdinalIgnoreCase)
+                || valueStr.Equals(nameof(List<Int32>), StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(List<Int32>);
+            }
+            else if (valueStr.Equals("list<long>", StringComparison.OrdinalIgnoreCase)
+                || valueStr.Equals(nameof(List<Int64>), StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(List<Int64>);
+            }
+
+            else if (valueStr.Equals("list<byte>", StringComparison.OrdinalIgnoreCase)
+                || valueStr.Equals(nameof(List<Byte>), StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(List<Byte>);
+            }
+            else if (valueStr.Equals("list<ushort>", StringComparison.OrdinalIgnoreCase)
+                || valueStr.Equals(nameof(List<UInt16>), StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(List<UInt16>);
+            }
+            else if (valueStr.Equals("list<uint>", StringComparison.OrdinalIgnoreCase)
+                || valueStr.Equals(nameof(List<UInt32>), StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(List<UInt32>);
+            }
+            else if (valueStr.Equals("list<ulong>", StringComparison.OrdinalIgnoreCase)
+                || valueStr.Equals(nameof(List<UInt64>), StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(List<UInt64>);
+            }
+            #endregion
+
+            #region 浮点型
+            else if (valueStr.Equals("list<float>", StringComparison.OrdinalIgnoreCase)
+                        || valueStr.Equals(nameof(List<Single>), StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(List<Single>);
+            }
+            else if (valueStr.Equals("list<double>", StringComparison.OrdinalIgnoreCase)
+                || valueStr.Equals(nameof(List<Double>), StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(List<Double>);
+            }
+            #endregion
+
+            #region 小数型
+
+            else if (valueStr.Equals("list<decimal>", StringComparison.OrdinalIgnoreCase)
+                    || valueStr.Equals(nameof(List<Decimal>), StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(List<Decimal>);
+            }
+            #endregion
+
+            #region 其他常见的类型
+            
+            else if (valueStr.Equals(nameof(List<String>), StringComparison.OrdinalIgnoreCase))
+            {
+                return typeof(List<String>);
+            }
+            #endregion
+
             #endregion
 
             else

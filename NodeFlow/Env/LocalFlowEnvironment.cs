@@ -339,9 +339,14 @@ namespace Serein.NodeFlow.Env
             var projectData = new SereinProjectData()
             {
                 Librarys = this._flowLibraryService.GetAllLibraryInfo().ToArray(),
-                Nodes = _flowModelService.GetAllNodeModel().Select(node => node.ToInfo()).Where(info => info is not null).ToArray(),
-                Canvass = _flowModelService.GetAllCanvasModel().Select(canvas => canvas.ToInfo()).ToArray(),
-                //StartNode = NodeModels.Values.FirstOrDefault(it => it.IsStart)?.Guid,
+                Nodes = _flowModelService.GetAllNodeModel()
+                                         .Select(node => node.ToInfo())
+                                         .Where(info => info is not null)
+                                         .ToArray(),
+                Canvass = _flowModelService.GetAllCanvasModel()
+                                           .Where(canvas => canvas.Nodes.Count != 0 && !"Default".Equals(canvas.Name))
+                                           .Select(canvas => canvas.ToInfo())
+                                           .ToArray(),
             };
 
             return projectData;

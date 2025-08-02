@@ -15,10 +15,12 @@ namespace Serein.Library.Api
         /// 触发器完成的状态（根据业务场景手动设置）
         /// </summary>
         FlipflopStateType State { get; set; }
+
         /// <summary>
         /// 触发类型
         /// </summary>
         TriggerDescription Type { get; set; }
+
         /// <summary>
         /// 触发时传递的数据
         /// </summary>

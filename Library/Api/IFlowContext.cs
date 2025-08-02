@@ -15,15 +15,21 @@ namespace Serein.Library.Api
     public interface IFlowContext
     {
         /// <summary>
+        /// 标识流程
+        /// </summary>
+        string Guid {get; }
+
+        /// <summary>
         /// 是否记录流程信息
         /// </summary>
         bool IsRecordInvokeInfo { get; set; }
 
-
         /// <summary>
-        /// 标识流程
+        /// <para>用于同一个流程上下文中共享、存储任意数据</para>
+        /// <para>流程完毕时，如果存储的对象实现了 IDisposable 接口，将会自动调用</para>
+        /// <para>谨慎使用，注意数据的生命周期和内存管理</para>
         /// </summary>
-        string Guid {get; }
+        object? Tag { get; set; }
 
         /// <summary>
         /// 运行环境
