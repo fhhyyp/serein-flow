@@ -224,7 +224,8 @@ namespace Serein.Script
                         var sp = value.Split(Environment.NewLine);
                         if(sp.Length == 1)
                         {
-                            Append($"\"{value}\"");
+                            var content = EscapeForCSharpString(value);
+                            Append($"\"{content}\"");
                         }
                         else
                         {

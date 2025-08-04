@@ -5,6 +5,8 @@ using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Model.Infos;
 using Serein.NodeFlow.Model.Nodes;
 using Serein.Script;
+using Serein.Script.Node;
+using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
@@ -227,7 +229,9 @@ namespace Serein.NodeFlow.Services
                     || node.ControlType == NodeControlType.Script
                     )
                 {
-                    sb.AppendCode(3, $"Get(\"{node.Guid}\").SetAction({nodeMethod});");
+                    var md = node.MethodDetails;
+                    var methodTips = string.IsNullOrWhiteSpace(md.MethodAnotherName) ? md.MethodName : md.MethodAnotherName;
+                    sb.AppendCode(3, $"Get(\"{node.Guid}\").SetAction({nodeMethod}); // [{node.ControlType}] {methodTips}");
                 }
                 else
                 {
@@ -438,7 +442,7 @@ namespace Serein.NodeFlow.Services
             {
                 ParameterDetails? pd = pds[index];
                 ParameterInfo parameterInfo = param[index];
-                var paramtTypeFullName = parameterInfo.ParameterType.FullName;
+                var paramtTypeFullName = parameterInfo.ParameterType.GetFriendlyName();
 
                 if (pd.IsExplicitData)
                 {
@@ -458,7 +462,8 @@ namespace Serein.NodeFlow.Services
                     }
                     else if (parameterInfo.ParameterType == typeof(string))
                     {
-                        sb_invoke_login.AppendCode(3, $"global::{paramtTypeFullName} value{index} = \"{pd.DataValue}\"; // 获取当前节点的上一节点数据");
+                        var dataString = EscapeForCSharpString(pd.DataValue);
+                        sb_invoke_login.AppendCode(3, $"global::{paramtTypeFullName} value{index} = \"{dataString}\"; // 获取当前节点的上一节点数据");
                     }
                     else
                     {
@@ -472,7 +477,7 @@ namespace Serein.NodeFlow.Services
                     if (pd.ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData)
                     {
                         var previousNode = $"previousNode{index}";
-                        var valueType = pd.IsParams ? $"global::{pd.DataType.FullName}" : $"global::{paramtTypeFullName}";
+                        var valueType = pd.IsParams ? $"global::{pd.DataType.GetFriendlyName()}" : $"global::{paramtTypeFullName}";
                         sb_invoke_login.AppendCode(3, $"global::System.String {previousNode} = {flowContext}.GetPreviousNode(\"{actionNode.Guid}\");"); // 获取运行时上一节点Guid
                         sb_invoke_login.AppendCode(3, $"{valueType} value{index} = {previousNode} == null ? default : ({valueType}){flowContext}.{nameof(IFlowContext.GetFlowData)}({previousNode}).Value; // 获取运行时上一节点的数据");
                     }
@@ -514,7 +519,12 @@ namespace Serein.NodeFlow.Services
                             }
                             else if (pd.DataType.IsAssignableFrom(otherNodeReturnType))
                             {
-                                sb_invoke_login.AppendCode(3, $"{valueType} value{index} = {otherNode.ToNodeMethodName()}({flowContext}); // 获取指定节点的数据");
+                                if (typeof(Task).IsAssignableFrom(otherNode.MethodDetails.ReturnType))
+                                {
+                                    sb_invoke_login.Append("await ");
+                                }
+                                sb_invoke_login.AppendCode(3, $"{otherNode.ToNodeMethodName()}({flowContext}); // 需要立即调用指定方法");
+                                sb_invoke_login.AppendCode(3, $"{valueType} value{index} = ({valueType}){flowContext}.{nameof(IFlowContext.GetFlowData)}(\"{pd.ArgDataSourceNodeGuid}\").Value; // 获取指定节点的数据");
                             }
                             else
                             {
@@ -534,14 +544,18 @@ namespace Serein.NodeFlow.Services
                 }
             }
 
-            if (methodInfo.ReturnType == typeof(void))
+            if (methodInfo.ReturnType == typeof(void) || methodInfo.ReturnType == typeof(Task))
             {
+                if (methodInfo.IsStatic)
+                {
+
+                }
                 // 调用无返回值方法
                 // 如果目标方法是静态的，则以“命名空间.类.方法”形式调用，否则以“实例.方法”形式调用
-                var invokeFunctionContext = methodInfo.IsStatic ? $"global::{instanceType}.{methodInfo.Name}" : $"{instanceName}.{methodInfo.Name}";
+                var invokeFunctionContext = methodInfo.IsStatic ? $"{instanceType}.{methodInfo.Name}" : $"{instanceName}.{methodInfo.Name}";
                 // 如果目标方法是异步的，则自动 await 进行等待
                 invokeFunctionContext = md.IsAsync ? $"await {invokeFunctionContext}" : invokeFunctionContext;
-                sb_invoke_login.AppendCode(3, $"global::{invokeFunctionContext}(", false);
+                sb_invoke_login.AppendCode(3, $"{invokeFunctionContext}(", false);
                 for (int index = 0; index < pds.Length; index++)
                 {
                     sb_invoke_login.Append($"{(index == 0 ? "" : ",")}value{index}");
@@ -826,7 +840,8 @@ namespace Serein.NodeFlow.Services
                     }
                     else if (parameterInfo.ParameterType == typeof(string))
                     {
-                        sb_invoke_login.AppendCode(3, $"global::{paramtTypeFullName} value{index} = \"{pd.DataValue}\"; // 获取当前节点的上一节点数据");
+                        var dataString = EscapeForCSharpString(pd.DataValue);
+                        sb_invoke_login.AppendCode(3, $"global::{paramtTypeFullName} value{index} = \"{dataString}\"; // 获取当前节点的上一节点数据");
                     }
                     else
                     {
@@ -840,7 +855,7 @@ namespace Serein.NodeFlow.Services
                     if (pd.ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData)
                     {
                         var previousNode = $"previousNode{index}";
-                        var valueType = pd.IsParams ? $"global::{pd.DataType.FullName}" : $"global::{paramtTypeFullName}";
+                        var valueType = pd.IsParams ? $"global::{pd.DataType.GetFriendlyName()}" : $"global::{paramtTypeFullName}";
                         sb_invoke_login.AppendCode(3, $"global::System.String {previousNode} = {flowContext}.GetPreviousNode(\"{singleScriptNode.Guid}\");"); // 获取运行时上一节点Guid
                         sb_invoke_login.AppendCode(3, $"{valueType} value{index} = {previousNode} == null ? default : ({valueType}){flowContext}.{nameof(IFlowContext.GetFlowData)}({previousNode}).Value; // 获取运行时上一节点的数据");
                     }
@@ -882,7 +897,12 @@ namespace Serein.NodeFlow.Services
                             }
                             else if (pd.DataType.IsAssignableFrom(otherNodeReturnType))
                             {
-                                sb_invoke_login.AppendCode(3, $"{valueType} value{index} = {otherNode.ToNodeMethodName()}({flowContext}); // 获取指定节点的数据");
+                                if (typeof(Task).IsAssignableFrom(otherNode.MethodDetails.ReturnType))
+                                {
+                                    sb_invoke_login.Append("await ");
+                                }
+                                sb_invoke_login.AppendCode(3, $"{otherNode.ToNodeMethodName()}({flowContext}); // 需要立即调用指定方法");
+                                sb_invoke_login.AppendCode(3, $"{valueType} value{index} = ({valueType}){flowContext}.{nameof(IFlowContext.GetFlowData)}(\"{pd.ArgDataSourceNodeGuid}\").Value; // 获取指定节点的数据");
                             }
                             else
                             {
@@ -952,6 +972,7 @@ namespace Serein.NodeFlow.Services
         }
 
         #endregion
+
         #region 全局节点的代码生成
 
         private Dictionary<SingleGlobalDataNode, SereinGlobalDataInfo> globalDataInfos = [];
@@ -1027,11 +1048,11 @@ namespace Serein.NodeFlow.Services
 
         #endregion
 
-
         #region 脚本节点的代码生成
         private Dictionary<SingleScriptNode, SereinScriptMethodInfo> scriptMethodInfos = [];
         private void GenerateScript_InitSereinScriptMethodInfos(SingleScriptNode[] flowCallNodes)
         {
+            scriptMethodInfos.Clear();
             bool isError = false;   
             foreach(var node in flowCallNodes)
             {
@@ -1069,7 +1090,7 @@ namespace Serein.NodeFlow.Services
         /// <param name="flowCallNodes"></param>
         private void GenerateFlowApi_InitFlowApiMethodInfos(SingleFlowCallNode[] flowCallNodes)
         {
-
+            flowApiMethodInfos.Clear(); 
             flowCallNodes = flowCallNodes.Where(node => !string.IsNullOrWhiteSpace(node.TargetNodeGuid)
                                                              && !flowModelService.ContainsCanvasModel(node.TargetNodeGuid))
                                          .ToArray(); // 筛选流程接口节点，只生成有效的
@@ -1179,6 +1200,21 @@ namespace Serein.NodeFlow.Services
             }
         }
 
+        
+        private static string EscapeForCSharpString(string input)
+        {
+            return input
+                .Replace("\\", "\\\\")
+                .Replace("\"", "\\\"")
+                .Replace("\0", "\\0")
+                .Replace("\a", "\\a")
+                .Replace("\b", "\\b")
+                .Replace("\f", "\\f")
+                .Replace("\n", "\\n")
+                .Replace("\r", "\\r")
+                .Replace("\t", "\\t")
+                .Replace("\v", "\\v");
+        }
 
         #endregion
 
