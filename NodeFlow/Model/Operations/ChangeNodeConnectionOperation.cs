@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reactive;
+using System.Reflection;
 using System.Security.AccessControl;
 using System.Text;
 using System.Threading.Tasks;
@@ -429,6 +430,11 @@ namespace Serein.NodeFlow.Model.Operations
                 return false;
             }
 
+            if (typeof(IFlowContext).IsAssignableFrom(ToNode.MethodDetails.ParameterDetailss[ArgIndex].DataType))
+            {
+                SereinEnv.WriteLine(InfoType.WARN, $"连接失败， IFlowContext 流程上下文由运行环境自动注入，作为节点入参时不允许外部给定。起始节点[{FromNode.Guid}]，目标节点[{FromNode.Guid}]。");
+                return false;
+            }
 
             var toNodeArgSourceGuid = ToNode.MethodDetails.ParameterDetailss[ArgIndex].ArgDataSourceNodeGuid; // 目标节点对应参数可能已经有其它连接
             var toNodeArgSourceType = ToNode.MethodDetails.ParameterDetailss[ArgIndex].ArgDataSourceType;

@@ -168,12 +168,54 @@ namespace Serein.Library
             IsParams = info.IsParams;        
         }
 
-        
+        /// <summary>
+        /// 禁止将 IFlowContext 类型显式入参设置为 true
+        /// </summary>
+        /// <param name="__isAllow"></param>
+        /// <param name="newValue"></param>
         partial void BeforeTheIsExplicitData(ref bool __isAllow, bool newValue)
         {
-            if(DataType == typeof(IFlowContext))
+            if(DataType == typeof(IFlowContext) && newValue == true)
             {
                 __isAllow = false;
+            }
+        }
+
+        /// <summary>
+        /// 脚本节点的类型缓存。
+        /// </summary>
+        private Type? cacheType;
+        private bool cacheIsExplicit;
+
+        /// <summary>
+        /// 脚本节点的名称变更为流程上下文时，调整 DataType 和 IsExplicitData 的值。
+        /// </summary>
+        /// <param name="oldValue"></param>
+        /// <param name="newValue"></param>
+        partial void OnNameChanged(string oldValue, string newValue)
+        {
+            if (NodeModel is null) 
+                return;
+            if (NodeModel.ControlType == NodeControlType.Script)
+            {
+                var isIgnore = StringComparison.OrdinalIgnoreCase;
+                if ("context".Equals(newValue, isIgnore) ||
+                    "flowcontext".Equals(newValue, isIgnore) ||
+                    "flow_context".Equals(newValue, isIgnore))
+                {
+                    cacheType = DataType;
+                    cacheIsExplicit = IsExplicitData;
+                    DataType = typeof(IFlowContext);
+                    IsExplicitData = false;
+                }
+                else 
+                {
+                    if (cacheType is not null)
+                    {
+                        DataType = cacheType;
+                        IsExplicitData = cacheIsExplicit;
+                    }
+                }
             }
         }
 

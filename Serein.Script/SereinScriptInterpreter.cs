@@ -13,10 +13,10 @@ namespace Serein.Script
     public class SereinScriptInterpreter
     {
         private readonly Dictionary<ASTNode, Type> symbolInfos;
+
         /// <summary>
         /// 缓存对象方法调用节点
         /// </summary>
-        //private Dictionary<MemberFunctionCallNode, DelegateDetails> MethodNodeDelegateCaches { get; } = new Dictionary<MemberFunctionCallNode, DelegateDetails>();
         private static Dictionary<ASTNode, DelegateDetails> ASTDelegateDetails { get; } = new Dictionary<ASTNode, DelegateDetails>();
 
 
@@ -322,15 +322,6 @@ namespace Serein.Script
                 case FunctionCallNode functionCallNode: // 外部挂载的函数调用
                     async Task<object?> InterpreterFunctionCallNodeAsync(IScriptInvokeContext context, FunctionCallNode functionCallNode)
                     {
-                        // 获取流程上下文
-                        if (context.FlowContext != null && functionCallNode.FunctionName.Equals("getFlowContext", StringComparison.OrdinalIgnoreCase))
-                        {
-                            return context.FlowContext;
-                        }
-                        else if (functionCallNode.FunctionName.Equals("getScriptContext", StringComparison.OrdinalIgnoreCase))
-                        {
-                            return context;
-                        }
 
                         // 获取参数
                         var arguments = functionCallNode.Arguments.Count == 0 ? [] :

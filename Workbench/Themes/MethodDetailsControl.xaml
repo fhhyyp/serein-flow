@@ -52,7 +52,7 @@
                                     <CheckBox  Grid.Column="1" IsChecked="{Binding IsExplicitData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="2,0,2,0" VerticalContentAlignment="Center"/>
 
                                     <!--参数类型提示-->
-                                    <TextBlock Grid.Column="2"  Text="{Binding DataType, Converter={StaticResource TypeNameDisplaynConverter}}"  Margin="2,0,2,0" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2"  Text="{Binding DataType, Mode=OneWay, Converter={StaticResource TypeNameDisplaynConverter}}"  Margin="2,0,2,0" VerticalAlignment="Center"/>
                                     
                                     
                                     <!--入参参数名称-->
@@ -73,7 +73,7 @@
                                                         <Setter Property="ContentTemplate">
                                                             <Setter.Value>
                                                                 <DataTemplate>
-                                                                    <TextBox MinWidth="50" Text="{Binding Name, Mode=TwoWay}"/>
+                                                                    <TextBox MinWidth="50" Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                                                 </DataTemplate>
                                                             </Setter.Value>
                                                         </Setter>

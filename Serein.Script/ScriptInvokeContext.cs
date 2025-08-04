@@ -5,24 +5,11 @@ namespace Serein.Script
     public sealed class ScriptInvokeContext : IScriptInvokeContext
     {
         /// <summary>
-        /// 脚本使用流程上下文
-        /// </summary>
-        /// <param name="flowContext"></param>
-        public ScriptInvokeContext(IFlowContext flowContext)
-        {
-            FlowContext = flowContext;
-        }
-        
-        /// <summary>
         /// 不使用流程上下文
         /// </summary>
         public ScriptInvokeContext()
         {
         }
-
-#pragma warning disable CS8766 // 返回类型中引用类型的为 Null 性与隐式实现的成员不匹配(可能是由于为 Null 性特性)。
-        public IFlowContext? FlowContext{ get; }
-#pragma warning restore CS8766 // 返回类型中引用类型的为 Null 性与隐式实现的成员不匹配(可能是由于为 Null 性特性)。
 
         /// <summary>
         /// 定义的变量

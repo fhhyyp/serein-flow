@@ -178,7 +178,7 @@ namespace Serein.NodeFlow.Model.Nodes
 
             }
 
-            IScriptInvokeContext scriptContext = new ScriptInvokeContext(flowContext);
+            IScriptInvokeContext scriptContext = new ScriptInvokeContext();
             scriptContext.SetVarValue(dataName, data);
 
             var result = await getValueScript.InterpreterAsync(scriptContext);

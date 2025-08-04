@@ -1,6 +1,7 @@
 ﻿using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.Utils;
+using Serein.NodeFlow.Services;
 using Serein.Script;
 using Serein.Script.Node.FlowControl;
 using System;
@@ -49,7 +50,6 @@ namespace Serein.NodeFlow.Model.Nodes
         public SingleScriptNode(IFlowEnvironment environment) : base(environment)
         {
             sereinScript = new SereinScript();
-
         }
 
         static SingleScriptNode()
@@ -195,7 +195,11 @@ namespace Serein.NodeFlow.Model.Nodes
                 ScriptArgInfo[] array = JsonHelper.Deserialize<ScriptArgInfo[]>(paramsTypeNameJson);
 
                 string returnTypeName = nodeInfo.CustomData?.ReturnTypeName ?? typeof(object);
-                Type?[] argType = array.Select(item => string.IsNullOrWhiteSpace(item.ArgType) ? null : Type.GetType(item.ArgType) ?? typeof(Unit)).ToArray();
+                
+                var flowLibService = Env.IOC.Get<FlowLibraryService>();
+
+                Type?[] argType = array.Select(item => string.IsNullOrWhiteSpace(item.ArgType) ? null : flowLibService.GetType(item.ArgType) ?? typeof(Unit)).ToArray();
+
                 Type? resType = Type.GetType(returnTypeName);
                 for (int i = 0; i < paramCount; i++)
                 {
@@ -352,7 +356,7 @@ namespace Serein.NodeFlow.Model.Nodes
 
             var @params = await flowCallNode.GetParametersAsync(context, token);
 
-            IScriptInvokeContext scriptContext = new ScriptInvokeContext(context);
+            IScriptInvokeContext scriptContext = new ScriptInvokeContext();
 
             if (@params[0] is object[] agrDatas)
             {

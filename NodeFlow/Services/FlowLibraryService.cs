@@ -148,6 +148,46 @@ namespace Serein.NodeFlow.Services
         #region 获取流程依赖的相关方法
 
         /// <summary>
+        /// 搜索类型
+        /// </summary>
+        /// <param name="fullName"></param>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        public bool TryGetType(string fullName,[NotNullWhen(true)] out Type? type)
+        {
+            var assemblys = _flowLibraryCaches.Values.Select(key => key.Assembly).ToArray();
+            foreach(var assembly in assemblys)
+            {
+                type = assembly.GetType(fullName);
+                if(type is not null)
+                {
+                    return true;
+                }
+            }
+            type = null;
+            return false;
+        }
+        /// <summary>
+        /// 搜索类型
+        /// </summary>
+        /// <param name="fullName"></param>
+        /// <returns></returns>
+        public Type? GetType(string fullName)
+        {
+            var assemblys = _flowLibraryCaches.Values.Select(key => key.Assembly).ToArray();
+            Type? type;
+            foreach (var assembly in assemblys)
+            {
+                type = assembly.GetType(fullName);
+                if(type is not null)
+                {
+                    return type;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
         /// 获取方法描述
         /// </summary>
         /// <param name="assemblyName">程序集名称</param>
