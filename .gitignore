@@ -26,3 +26,4 @@ WorkBench.Remote
 Serein.FlowStartTool
 Serein.CloudWorkbench
 Serein.CollaborationSync
+/Workbench/Tool/IEventBus.cs
