@@ -111,6 +111,7 @@ namespace Serein.Library
         /// C#脚本节点
         /// </summary>
         [Description("base")] 
+        [Obsolete("目前没有支持C#转流程节点的计划")]
         NetScript,
 
         /// <summary>

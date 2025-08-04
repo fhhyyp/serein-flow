@@ -5,6 +5,7 @@ using Serein.Library.Utils;
 using Serein.NodeFlow.Model.Infos;
 using Serein.NodeFlow.Model.Nodes;
 using Serein.Script;
+using System;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -182,6 +183,10 @@ namespace Serein.NodeFlow.Services
             {
                 CreateMethodCore_Script(sb_main, singleScriptNode, flowContextTypeName, flowContext);
             }
+            else if (flowNode.ControlType == NodeControlType.GlobalData && flowNode is SingleGlobalDataNode globalDataNode)
+            {
+                CreateMethodCore_GlobalData(sb_main, globalDataNode, flowContextTypeName, flowContext);
+            }
             else if (flowNode.ControlType == NodeControlType.UI)
             {
             }
@@ -232,6 +237,7 @@ namespace Serein.NodeFlow.Services
                     || node.ControlType == NodeControlType.Flipflop
                     || node.ControlType == NodeControlType.FlowCall
                     || node.ControlType == NodeControlType.Script
+                    || node.ControlType == NodeControlType.GlobalData
                     )
                 {
                     var md = node.MethodDetails;
@@ -505,8 +511,8 @@ public async global::System.Threading.Tasks.Task InitAndStartAsync(global::Syste
             for (int index = 0; index < pds.Length; index++)
             {
                 ParameterDetails? pd = pds[index];
-                ParameterInfo parameterInfo = param[index];
-                var paramtTypeFullName = parameterInfo.ParameterType.GetFriendlyName();
+                ParameterInfo parameterInfo = pd.IsParams ? param[md.ParamsArgIndex] : param[index];
+                var paramtTypeFullName = pd.IsParams ? parameterInfo.ParameterType.GetElementType().GetFriendlyName() : parameterInfo.ParameterType.GetFriendlyName();
 
                 if (pd.IsExplicitData)
                 {
@@ -524,16 +530,12 @@ public async global::System.Threading.Tasks.Task InitAndStartAsync(global::Syste
 
                         }
                     }
-                    else if (parameterInfo.ParameterType == typeof(string))
+                    else /*if (parameterInfo.ParameterType == typeof(string))*/
                     {
                         var dataString = EscapeForCSharpString(pd.DataValue);
                         sb_invoke_login.AppendCode(3, $"global::{paramtTypeFullName} value{index} = \"{dataString}\"; // 获取当前节点的上一节点数据");
                     }
-                    else
-                    {
-                        // 处理表达式
-                    }
-
+                    
                 }
                 else
                 {
@@ -691,27 +693,15 @@ public async global::System.Threading.Tasks.Task InitAndStartAsync(global::Syste
                 var instanceType = flowCallNode.MethodDetails.ActingInstanceType;
                 var returnType = singleScriptNode.MethodDetails.ReturnType;
 
-                //var instanceName = instanceType.ToCamelCase();// $"instance_{instanceType.Name}";
-
-                //var instanceTypeFullName = instanceType.FullName;
                 var returnTypeFullName = returnType == typeof(void) ? "void" : returnType.FullName;
 
                 #region 方法内部逻辑
                 StringBuilder sb_invoke_login = new StringBuilder();
 
                 if (flowCallNode.MethodDetails is null) return;
-                //var param = methodInfo.GetParameters();
                 var md = flowCallNode.MethodDetails;
                 var pds = flowCallNode.MethodDetails.ParameterDetailss;
-                //if (param is null) return;
                 if (pds is null) return;
-
-                /* for (int index = 0; index < pds.Length; index++)
-                 {
-                     ParameterDetails? pd = pds[index];
-                     ParameterInfo parameterInfo = param[index];
-                     var paramtTypeFullName = parameterInfo.ParameterType.FullName;
-                 }*/
 
                 var flowDataName = $"flowData{flowApiMethodInfo.ApiMethodName}";
                 var apiData = $"apiData{flowApiMethodInfo.ApiMethodName}";
@@ -866,7 +856,6 @@ public async global::System.Threading.Tasks.Task InitAndStartAsync(global::Syste
         /// <param name="flowContext"></param>
         private void CreateMethodCore_Script(StringBuilder sb_main, SingleScriptNode singleScriptNode, string? flowContextTypeName, string flowContext)
         {
-
 
             if (!_scriptMethodInfos.TryGetValue(singleScriptNode, out var scriptMethodInfo))
             {
@@ -1055,6 +1044,50 @@ public async global::System.Threading.Tasks.Task InitAndStartAsync(global::Syste
 
         }
 
+        /// <summary>
+        /// 生成[GlobalData]节点的方法调用
+        /// </summary>
+        /// <param name="sb_main"></param>
+        /// <param name="globalDataNode"></param>
+        /// <param name="flowContextTypeName"></param>
+        /// <param name="flowContext"></param>
+        private void CreateMethodCore_GlobalData(StringBuilder sb_main, SingleGlobalDataNode globalDataNode, string? flowContextTypeName, string flowContext)
+        {
+            if (!_globalDataInfos.TryGetValue(globalDataNode, out var globalDataInfo))
+            {
+                return;
+            }
+
+            var dataSourceNode = globalDataInfo.DataSourceNode;
+            var returnType = dataSourceNode.MethodDetails.ReturnType;
+            
+            var keyName = globalDataInfo.KeyName;
+
+            sb_main.AppendCode(2, $"[Description(\"全局数据\")]");
+            sb_main.AppendCode(2, $"private void {globalDataNode.ToNodeMethodName()}(global::{flowContextTypeName} {flowContext})");
+            sb_main.AppendCode(2, $"{{");
+
+            if (typeof(Task).IsAssignableFrom(returnType))
+            {
+                sb_main.AppendCode(3, $"await {dataSourceNode.ToNodeMethodName()}({flowContext}); // 需要立即调用指定方法");
+            }
+            else
+            {
+                sb_main.AppendCode(3, $"{dataSourceNode.ToNodeMethodName()}({flowContext}); // 需要立即调用指定方法");
+            }
+            var returnTypeFullName = $"global::{returnType.GetFriendlyName()}";
+            string data = nameof(data);
+            sb_main.AppendCode(3, $"{returnTypeFullName} {data} = ({returnTypeFullName}){flowContext}.{nameof(IFlowContext.GetFlowData)}(\"{dataSourceNode.Guid}\").Value; // 获取指定节点的数据");
+            sb_main.AppendCode(3, $"global::{typeof(SereinEnv).FullName}.{nameof(SereinEnv.AddOrUpdateFlowGlobalData)}(\"{keyName}\", {data}); // 设置全局数据");
+            sb_main.AppendCode(3, $"{flowContext}.{nameof(IFlowContext.AddOrUpdate)}(\"{globalDataNode.Guid}\", {data});  // 更新全局数据节点的数据");
+            sb_main.AppendCode(3, $"{flowContext}.{nameof(IFlowContext.AddOrUpdate)}(\"{dataSourceNode.Guid}\", {data}); // 更新全局数据节点数据来源节点的数据"); 
+            sb_main.AppendCode(2, $"}}"); // 方法结束
+            sb_main.AppendLine(); // 方法结束
+
+        }
+
+
+
         #endregion
 
         #region 全局触发器与分支触发器生成
@@ -1136,7 +1169,7 @@ public async global::System.Threading.Tasks.Task InitAndStartAsync(global::Syste
             {
                 var xmlDescription = $"{$"全局数据，来源于[{info.Node.MethodDetails?.MethodName}]{info.Node.Guid}".ToXmlComments(2)}";
                 sb.AppendCode(2, xmlDescription);
-                sb.AppendCode(2, $"public global::{info.DataType.FullName} {info.KeyName}  {{ get; set; }};");
+                sb.AppendCode(2, $"public global::{info.DataType.FullName} {info.KeyName}  {{ get; set; }}");
             }
             sb.AppendLine();
             sb.AppendCode(1, $"}}");
