@@ -8,7 +8,7 @@
     <BaseOutputPath>..\.\.Output</BaseOutputPath>
 
     <Title>为 SereinFlow 提供的 JSON 扩展</Title>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <Description>通过 NewtonsoftJson 实现JSON门户扩展，用于解决 Serein.Proto.* 项目下需要 JSON 序列化与反序列化的场景</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>

@@ -49,6 +49,7 @@
     <Compile Remove="Themes\ConnectionControl.xaml.cs" />
     <Compile Remove="Themes\ExplicitDataControl.xaml.cs" />
     <Compile Remove="Themes\ObjectViewerControl1.xaml.cs" />
+    <Compile Remove="Tool\IEventBus.cs" />
   </ItemGroup>
 
   <ItemGroup>

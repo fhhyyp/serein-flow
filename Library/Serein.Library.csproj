@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <Title>SereinFow</Title>
-    <Version>1.2.3</Version>
+    <Version>1.2.4</Version>
     <Description>动态节点流、可视化编辑的基本依赖，支持导入C# DLL生成自定义节点，提供二次开发支持，适合用于可视化编程和流程设计</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/fhhyyp/serein-flow</RepositoryUrl>

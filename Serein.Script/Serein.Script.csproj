@@ -7,7 +7,7 @@
     <BaseOutputPath>..\.\.Output</BaseOutputPath>
 
     <Title>基于AST实现的脚本语言</Title>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <Description>使用了Emit构造委托缓存调用，性能客观。提供了类型推导、转换C#代码功能。用于流程图中脚本处理，也可在其他地方进行使用。</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

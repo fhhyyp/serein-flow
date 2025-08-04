@@ -82,12 +82,12 @@ namespace Serein.Script
             string? returnContent;
             if (_isTaskMain)
             {
-                returnContent = $"global::{taskFullName}<global::{methodResultType.FullName}>";
+                returnContent = $"global::{taskFullName}<global::{methodResultType.GetFriendlyName()}>";
                 sereinScriptMethodInfo.IsAsync = true;
             }
             else
             {
-                returnContent = $"global::{methodResultType.FullName}";
+                returnContent = $"global::{methodResultType.GetFriendlyName()}";
                 sereinScriptMethodInfo.IsAsync = false;
             }
 
@@ -118,7 +118,7 @@ namespace Serein.Script
             {
                 var varName = idf.Name;
                 var varType = _symbolInfos[idf];
-                AppendLine($"global::{varType.FullName} {varName} = default; // 变量");
+                AppendLine($"global::{varType.GetFriendlyName()} {varName} = default; // 变量");
             }
             AppendLine("");
 
@@ -163,7 +163,7 @@ namespace Serein.Script
                     ParameterType = type,
                     ParamName = paramName,
                 });
-                return $"global::{type.FullName} {paramName}";
+                return $"global::{type.GetFriendlyName()} {paramName}";
             });
             return string.Join(',', values);
         }
@@ -177,7 +177,6 @@ namespace Serein.Script
                 case ReturnNode returnNode: // 程序退出节点
                     void ConvertCodeOfReturnNode(ReturnNode returnNode)
                     {
-                        
                         Append(Tab);
                         if (returnNode.Value is not null)
                         {
@@ -205,7 +204,50 @@ namespace Serein.Script
                     Append("\"\"\"");
                     break;
                 case StringNode stringNode: // 字符串字面量
-                    Append($"\"{stringNode.Value}\"");
+                    void ConvertCodeOfStringNode(StringNode stringNode)
+                    {
+                        static string EscapeForCSharpString(string input)
+                        {
+                            return input
+                                .Replace("\\", "\\\\")
+                                .Replace("\"", "\\\"")
+                                .Replace("\0", "\\0")
+                                .Replace("\a", "\\a")
+                                .Replace("\b", "\\b")
+                                .Replace("\f", "\\f")
+                                .Replace("\n", "\\n")
+                                .Replace("\r", "\\r")
+                                .Replace("\t", "\\t")
+                                .Replace("\v", "\\v");
+                        }
+                        var value = stringNode.Value;
+                        var sp = value.Split(Environment.NewLine);
+                        if(sp.Length == 1)
+                        {
+                            Append($"\"{value}\"");
+                        }
+                        else
+                        {
+                            Append($"\"");
+                            foreach (var s in sp)
+                            {
+                                var content = EscapeForCSharpString(s);
+                                if(OperatingSystem.IsWindows())
+                                {
+                                    Append($"\\r\\n{content}");
+                                }
+                                else if (OperatingSystem.IsLinux())
+                                {
+                                    Append($"\\n{content}");
+                                }
+                               
+                            }
+                            Append($"\"");
+                        }
+                        
+
+                    }
+                    ConvertCodeOfStringNode(stringNode);
                     break;
                 case BooleanNode booleanNode: // 布尔值字面量
                     Append($"{(booleanNode.Value ? "true" : "false")}");
@@ -333,7 +375,7 @@ namespace Serein.Script
                     {
                         var arrType = this._symbolInfos[arrayDefintionNode];
                         var tab = new string(' ', (_indentLevel + 1) * 4);
-                        Append($"new global::{arrType.FullName}{{{Environment.NewLine}");
+                        Append($"new global::{arrType.GetFriendlyName()}{{{Environment.NewLine}");
                         for (int index = 0; index < arrayDefintionNode.Elements.Count; index++)
                         {
                             ASTNode? e = arrayDefintionNode.Elements[index];
@@ -360,7 +402,7 @@ namespace Serein.Script
                             {
                                 var propertyName = property.Key;
                                 var propertyType = _symbolInfos[property.Value];
-                                AppendLine($"public global::{propertyType.FullName} {propertyName} {{ get; set; }}");
+                                AppendLine($"public global::{propertyType.GetFriendlyName()} {propertyName} {{ get; set; }}");
                             }
                             Unindent();
                             AppendLine("}");
@@ -507,7 +549,7 @@ namespace Serein.Script
             }
         }
 
-
+        
     }
 
 

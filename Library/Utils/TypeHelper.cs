@@ -12,8 +12,13 @@ namespace Serein.Library.Utils
     public static class TypeHelper
     {
 
-
-        public static string GetFriendlyName(this Type type,bool isFullName = true)
+        /// <summary>
+        /// 对于泛型类型以友好格式显示其文本值
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="isFullName"></param>
+        /// <returns></returns>
+        public static string GetFriendlyName(this Type type, bool isFullName = true)
         {
             if (type.IsGenericType)
             {
@@ -45,11 +50,20 @@ namespace Serein.Library.Utils
             }
             else
             {
-                return TypeMap.TryGetValue(type, out var alias) ? alias : isFullName ? type.FullName : type.Name; ;
+               
+                if (isFullName)
+                {
+                    return type.FullName;
+                }
+                else
+                {
+                    return type.Name;
+                }
+                //return TypeMap.TryGetValue(type, out var alias) ? alias : isFullName ? type.FullName : type.Name; ;
             }
         }
 
-        private static readonly Dictionary<Type, string> TypeMap = new Dictionary<Type, string>
+        /*private static readonly Dictionary<Type, string> TypeMap = new Dictionary<Type, string>
         {
             [typeof(int)] = "int",
             [typeof(string)] = "string",
@@ -67,7 +81,7 @@ namespace Serein.Library.Utils
             [typeof(ulong)] = "ulong",
             [typeof(ushort)] = "ushort",
             [typeof(sbyte)] = "sbyte",
-        };
+        };*/
 
 
         /// <summary>
