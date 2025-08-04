@@ -40,6 +40,13 @@ namespace Serein.Library.Api
         /// <param name="startNodeGuid"></param>
         /// <returns></returns>
         Task<TResult> StartFlowAsync<TResult>(string startNodeGuid);
+        
+        /// <summary>
+        /// 从选定的节点开始运行
+        /// </summary>
+        /// <param name="startNodeGuid"></param>
+        /// <returns></returns>
+        Task StartFlowAsync(string startNodeGuid);
 
         /// <summary>
         /// 结束运行

@@ -230,17 +230,26 @@ namespace Serein.Script
                         else
                         {
                             Append($"\"");
-                            foreach (var s in sp)
+                            for (int index = 0; index < sp.Length; index++)
                             {
+                                string? s = sp[index];
                                 var content = EscapeForCSharpString(s);
-                                if(OperatingSystem.IsWindows())
+                                if(index == 0)
                                 {
-                                    Append($"\\r\\n{content}");
+                                    Append(content);
                                 }
-                                else if (OperatingSystem.IsLinux())
+                                else 
                                 {
-                                    Append($"\\n{content}");
+                                    if (OperatingSystem.IsWindows())
+                                    {
+                                        Append($"\\r\\n{content}");
+                                    }
+                                    else if (OperatingSystem.IsLinux())
+                                    {
+                                        Append($"\\n{content}");
+                                    }
                                 }
+                               
                                
                             }
                             Append($"\"");

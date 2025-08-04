@@ -59,6 +59,7 @@
     <Compile Remove="Enums\FlipflopStateType.cs" />
     <Compile Remove="Extension\FlowModelExtension.cs" />
     <Compile Remove="FlowNode\Attribute.cs" />
+    <Compile Remove="FlowNode\Env\FlowCallTree.cs" />
     <Compile Remove="FlowNode\FlipflopContext.cs" />
     <Compile Remove="FlowNode\NodeModelBaseData.cs" />
     <Compile Remove="FlowNode\NodeModelBaseFunc.cs" />

@@ -1,15 +1,12 @@
-﻿using Serein.Library;
+﻿using Microsoft.CodeAnalysis;
+using Serein.Library;
 using Serein.Library.Api;
 using Serein.Library.Utils;
-using Serein.NodeFlow.Model;
 using Serein.NodeFlow.Model.Infos;
 using Serein.NodeFlow.Model.Nodes;
 using Serein.Script;
-using Serein.Script.Node;
-using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Security.Cryptography;
 using System.Text;
 
 namespace Serein.NodeFlow.Services
@@ -45,6 +42,7 @@ namespace Serein.NodeFlow.Services
 
             
             var flowNodes = flowModelService.GetAllNodeModel().ToArray();
+            var flowCanvass = flowModelService.GetAllCanvasModel().ToArray();
             // 收集程序集信息
             foreach (var node in flowNodes)
             {
@@ -53,9 +51,7 @@ namespace Serein.NodeFlow.Services
                 {
                     assemblyFlowClasss.Add(instanceType);
                 }
-
             }
-
 
             var scriptNodes = flowModelService.GetAllNodeModel().Where(n => n.ControlType == NodeControlType.Script).OfType<SingleScriptNode>().ToArray();
             GenerateScript_InitSereinScriptMethodInfos(scriptNodes); // 初始化脚本方法
@@ -73,9 +69,17 @@ namespace Serein.NodeFlow.Services
             string flowApiInterfaceName = $"IFlowApiInvoke"; // 类名
             stringBuilder.AppendCode(0, $"public class {flowTemplateClassName} : {flowApiInterfaceName}, global::{typeof(IFlowCallTree).FullName}");
             stringBuilder.AppendCode(0, $"{{");
+
+            // 生成 IFlowCallTree 接口
+            var listNodes = $"global::System.Collections.Generic.List<{typeof(CallNode).FullName}>";
+            stringBuilder.AppendCode(1, $"public {listNodes} {nameof(IFlowCallTree.StartNodes)} {{ get; }} = new {listNodes}();");
+            stringBuilder.AppendCode(1, $"public {listNodes} {nameof(IFlowCallTree.GlobalFlipflopNodes)} {{get; }} = new {listNodes}();");
+
+
             GenerateCtor(stringBuilder, flowTemplateClassName, assemblyFlowClasss); // 生成构造方法
             GenerateInitMethod(stringBuilder); // 生成初始化方法
-            GenerateCallTree(stringBuilder, flowNodes); // 生成调用树
+            GenerateCallTree(stringBuilder, flowNodes, flowCanvass); // 生成调用树
+            Generate_InitAndStart(stringBuilder); // 生成 InitAndStartAsync
             GenerateNodeIndexLookup(stringBuilder, flowTemplateClassName, flowNodes); // 初始化节点缓存
 
             // 生成每个节点的方法
@@ -85,7 +89,7 @@ namespace Serein.NodeFlow.Services
             }
 
             // 生成实现流程接口的实现方法
-            var flowApiInfos = flowApiMethodInfos.Values.ToArray();
+            var flowApiInfos = _flowApiMethodInfos.Values.ToArray();
             foreach (var info in flowApiInfos)
             {
                 stringBuilder.AppendCode(2, info.ToObjPoolSignature());
@@ -98,7 +102,7 @@ namespace Serein.NodeFlow.Services
 
 
             // 载入脚本节点转换的C#代码（载入类）
-            var scriptInfos = scriptMethodInfos.Values.ToArray();
+            var scriptInfos = _scriptMethodInfos.Values.ToArray();
             foreach (var info in scriptInfos)
             {
                 stringBuilder.AppendCode(2, info.CsharpCode);
@@ -168,10 +172,11 @@ namespace Serein.NodeFlow.Services
 
             if (flowNode.ControlType == NodeControlType.Action && flowNode is SingleActionNode actionNode)
             {
-                CreateMethodCore_Action(sb_main, actionNode, flowContextTypeName, flowContext);
+                CreateMethodCore_ActionOrFliplop(sb_main, actionNode, flowContextTypeName, flowContext);
             }
-            else if (flowNode.ControlType == NodeControlType.Flipflop)
+            else if (flowNode.ControlType == NodeControlType.Flipflop && flowNode is SingleFlipflopNode flipflopNode)
             {
+                CreateMethodCore_ActionOrFliplop(sb_main, flipflopNode, flowContextTypeName, flowContext);
             }
             else if (flowNode.ControlType == NodeControlType.Script && flowNode is SingleScriptNode singleScriptNode)
             {
@@ -196,7 +201,6 @@ namespace Serein.NodeFlow.Services
             throw new Exception("无法为该节点生成调用逻辑");
         }
 
-
         /// <summary>
         /// 生成初始化方法（用于执行构造函数中无法完成的操作）
         /// </summary>
@@ -215,16 +219,17 @@ namespace Serein.NodeFlow.Services
         /// <param name="sb"></param>
         /// <param name="flowNodes"></param>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
-        private void GenerateCallTree(StringBuilder sb, IFlowNode[] flowNodes)
+        private void GenerateCallTree(StringBuilder sb, IFlowNode[] flowNodes, FlowCanvasDetails[] flowCanvass)
         {
             //  Get("0fa6985b-4b63-4499-80b2-76401669292d").AddChildNodeSucceed(Get("acdbe7ea-eb27-4a3e-9cc9-c48f642ee4f5"));
             sb.AppendCode(2, $"private void {nameof(GenerateCallTree)}()");
             sb.AppendCode(2, $"{{");
-
+            #region 设置节点回调
             foreach (var node in flowNodes)
             {
                 var nodeMethod = node.ToNodeMethodName(); // 节点对应的方法名称
-                if (node.ControlType == NodeControlType.Action 
+                if (node.ControlType == NodeControlType.Action
+                    || node.ControlType == NodeControlType.Flipflop
                     || node.ControlType == NodeControlType.FlowCall
                     || node.ControlType == NodeControlType.Script
                     )
@@ -241,6 +246,8 @@ namespace Serein.NodeFlow.Services
 
             }
 
+            #endregion
+            #region 设置调用顺序
             var cts = NodeStaticConfig.ConnectionTypes;
             foreach (var node in flowNodes)
             {
@@ -287,8 +294,28 @@ namespace Serein.NodeFlow.Services
                 }
 
             }
+            #endregion
+
+            #region 实现接口
+            var startNodeGuids = flowCanvass.Where(canvas => canvas.StartNode is not null).Select(canvas => canvas.StartNode!.Guid).ToList();
+            foreach (var startNodeGuid in startNodeGuids)
+            {
+                sb.AppendCode(3, $"{nameof(IFlowCallTree.StartNodes)}.Add(Get(\"{startNodeGuid}\")); // 添加起始节点");
+            }
+
+            var flipflopNodeGuids = flowNodes.Where(node => node.ControlType == NodeControlType.Flipflop)
+                                     .OfType<SingleFlipflopNode>()
+                                     .Where(node => node.IsRoot())
+                                     .ToList();
+            foreach (var flipflopNodeGuid in flipflopNodeGuids)
+            {
+                sb.AppendCode(3, $"{nameof(IFlowCallTree.GlobalFlipflopNodes)}.Add(Get(\"{flipflopNodeGuid.Guid}\")); // 添加全局触发器节点");
+            } 
+            #endregion
             sb.AppendCode(2, $"}}");
             sb.AppendLine();
+
+
 
             /*string? dynamicContextTypeName = typeof(IDynamicContext).FullName;
             string? flowContext = nameof(flowContext);
@@ -400,6 +427,43 @@ namespace Serein.NodeFlow.Services
             sb.AppendCode(2, $"}}");
         }
 
+        private void Generate_InitAndStart(StringBuilder sb)
+        {
+            string value =
+"""
+/// <summary>
+/// 初始化并启动流程控制器，遍历所有的起始节点并启动对应的流程，同时处理全局触发器节点。
+/// </summary>
+/// <returns></returns>
+public async global::System.Threading.Tasks.Task InitAndStartAsync(global::System.Threading.CancellationToken token)
+{
+    var startNodes = StartNodes.ToArray();
+    foreach (var startNode in startNodes)
+    {
+        await flowEnvironment.FlowControl.StartFlowAsync(startNode.Guid);
+    }
+    var globalFlipflopNodes = GlobalFlipflopNodes.ToArray();
+    var tasks = globalFlipflopNodes.Select(async node =>
+    {
+        while (!token.IsCancellationRequested)
+        {
+            try
+            {
+                await flowEnvironment.FlowControl.StartFlowAsync(node.Guid);
+            }
+            catch (global::Serein.Library.FlipflopException ex)
+            {
+                if (ex.Type == global::Serein.Library.FlipflopException.CancelClass.CancelFlow)
+                    break;
+            }
+        }
+    });
+    await Task.WhenAll(tasks);
+}
+""";
+            sb.AppendLine(value);
+        }
+
         #region 节点方法生成
 
         /// <summary>
@@ -410,7 +474,7 @@ namespace Serein.NodeFlow.Services
         /// <param name="flowContextTypeName"></param>
         /// <param name="flowContext"></param>
         /// <exception cref="Exception"></exception>
-        private void CreateMethodCore_Action(StringBuilder sb_main, SingleActionNode actionNode, string? flowContextTypeName, string flowContext)
+        private void CreateMethodCore_ActionOrFliplop(StringBuilder sb_main, IFlowNode actionNode, string? flowContextTypeName, string flowContext)
         {
             if (!flowLibraryService.TryGetMethodInfo(actionNode.MethodDetails.AssemblyName,
                                                                                 actionNode.MethodDetails.MethodName,
@@ -476,10 +540,18 @@ namespace Serein.NodeFlow.Services
                     #region 非显式设置的参数以正常方式获取
                     if (pd.ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData)
                     {
-                        var previousNode = $"previousNode{index}";
+                        
                         var valueType = pd.IsParams ? $"global::{pd.DataType.GetFriendlyName()}" : $"global::{paramtTypeFullName}";
-                        sb_invoke_login.AppendCode(3, $"global::System.String {previousNode} = {flowContext}.GetPreviousNode(\"{actionNode.Guid}\");"); // 获取运行时上一节点Guid
-                        sb_invoke_login.AppendCode(3, $"{valueType} value{index} = {previousNode} == null ? default : ({valueType}){flowContext}.{nameof(IFlowContext.GetFlowData)}({previousNode}).Value; // 获取运行时上一节点的数据");
+                        if (typeof(IFlowContext).IsAssignableFrom(pd.DataType))
+                        {
+                            sb_invoke_login.AppendCode(3, $"{valueType} value{index} = {flowContext}; // 使用流程上下文");
+                        }
+                        else
+                        {
+                            var previousNode = $"previousNode{index}";
+                            sb_invoke_login.AppendCode(3, $"global::System.String {previousNode} = {flowContext}.GetPreviousNode(\"{actionNode.Guid}\");"); // 获取运行时上一节点Guid
+                            sb_invoke_login.AppendCode(3, $"{valueType} value{index} = {previousNode} == null ? default : ({valueType}){flowContext}.{nameof(IFlowContext.GetFlowData)}({previousNode}).Value; // 获取运行时上一节点的数据");
+                        }
                     }
                     else if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
                     {
@@ -604,14 +676,14 @@ namespace Serein.NodeFlow.Services
         /// <exception cref="Exception"></exception>
         private void CreateMethodCore_FlowCall(StringBuilder sb_main, SingleFlowCallNode flowCallNode, string? flowContextTypeName, string flowContext)
         {
-            if (!flowApiMethodInfos.TryGetValue(flowCallNode, out var flowApiMethodInfo))
+            if (!_flowApiMethodInfos.TryGetValue(flowCallNode, out var flowApiMethodInfo))
             {
                 return;
             }
 
             if (flowCallNode.TargetNode is SingleScriptNode singleScriptNode)
             {
-                if (!scriptMethodInfos.TryGetValue(singleScriptNode, out var scriptMethodInfo))
+                if (!_scriptMethodInfos.TryGetValue(singleScriptNode, out var scriptMethodInfo))
                 {
                     return;
                 }
@@ -796,7 +868,7 @@ namespace Serein.NodeFlow.Services
         {
 
 
-            if (!scriptMethodInfos.TryGetValue(singleScriptNode, out var scriptMethodInfo))
+            if (!_scriptMethodInfos.TryGetValue(singleScriptNode, out var scriptMethodInfo))
             {
                 return;
             }
@@ -854,10 +926,22 @@ namespace Serein.NodeFlow.Services
                     #region 非显式设置的参数以正常方式获取
                     if (pd.ArgDataSourceType == ConnectionArgSourceType.GetPreviousNodeData)
                     {
-                        var previousNode = $"previousNode{index}";
                         var valueType = pd.IsParams ? $"global::{pd.DataType.GetFriendlyName()}" : $"global::{paramtTypeFullName}";
-                        sb_invoke_login.AppendCode(3, $"global::System.String {previousNode} = {flowContext}.GetPreviousNode(\"{singleScriptNode.Guid}\");"); // 获取运行时上一节点Guid
-                        sb_invoke_login.AppendCode(3, $"{valueType} value{index} = {previousNode} == null ? default : ({valueType}){flowContext}.{nameof(IFlowContext.GetFlowData)}({previousNode}).Value; // 获取运行时上一节点的数据");
+                        if (typeof(IFlowContext).IsAssignableFrom(pd.DataType))
+                        {
+                            sb_invoke_login.AppendCode(3, $"{valueType} value{index} = {flowContext}; // 使用流程上下文");
+                        }
+                        else
+                        {
+                            var previousNode = $"previousNode{index}";
+                            sb_invoke_login.AppendCode(3, $"global::System.String {previousNode} = {flowContext}.GetPreviousNode(\"{singleScriptNode.Guid}\");"); // 获取运行时上一节点Guid
+                            sb_invoke_login.AppendCode(3, $"{valueType} value{index} = {previousNode} == null ? default : ({valueType}){flowContext}.{nameof(IFlowContext.GetFlowData)}({previousNode}).Value; // 获取运行时上一节点的数据");
+                        }
+
+                        // var previousNode = $"previousNode{index}";
+                        // var valueType = pd.IsParams ? $"global::{pd.DataType.GetFriendlyName()}" : $"global::{paramtTypeFullName}";
+                        // sb_invoke_login.AppendCode(3, $"global::System.String {previousNode} = {flowContext}.GetPreviousNode(\"{singleScriptNode.Guid}\");"); // 获取运行时上一节点Guid
+                        // sb_invoke_login.AppendCode(3, $"{valueType} value{index} = {previousNode} == null ? default : ({valueType}){flowContext}.{nameof(IFlowContext.GetFlowData)}({previousNode}).Value; // 获取运行时上一节点的数据");
                     }
                     else if (pd.ArgDataSourceType == ConnectionArgSourceType.GetOtherNodeData)
                     {
@@ -973,56 +1057,24 @@ namespace Serein.NodeFlow.Services
 
         #endregion
 
+        #region 全局触发器与分支触发器生成
+
+        /*private Dictionary<SingleFlipflopNode, SereinFlipflopMethodInfo> _flipflopNodeInfos = [];
+
+        private class SereinFlipflopMethodInfo(bool isGlobal)
+        {
+            public bool IsGlobal { get; } = isGlobal;
+        }
+        private void GenerateFlipflop_InitSereinFlipflopMethodInfos(SingleFlipflopNode[])
+        {
+        }*/
+
+        #endregion
+
         #region 全局节点的代码生成
 
-        private Dictionary<SingleGlobalDataNode, SereinGlobalDataInfo> globalDataInfos = [];
+        private Dictionary<SingleGlobalDataNode, SereinGlobalDataInfo> _globalDataInfos = [];
         private const string FlowGlobalData = nameof(FlowGlobalData);
-
-        private void GenerateGlobalData_InitSereinGlobalDataInfos(SingleGlobalDataNode[] globalDataNodes)
-        {
-            foreach(var node in globalDataNodes)
-            {
-                var keyName = node.KeyName;
-                var dataNode = node.DataNode;
-                if(dataNode is null)
-                {
-                    throw new Exception($"全局数据节点[{node}]没有指定数据来源节点");
-                }
-                var type = dataNode.MethodDetails.ReturnType;
-                if (type is null || type == typeof(void))
-                {
-                    throw new Exception($"全局数据节点[{node}]无返回值");
-                }
-                globalDataInfos[node] = new SereinGlobalDataInfo
-                {
-                    Node = node,
-                    DataSourceNode = dataNode,
-                    KeyName = keyName,
-                    DataType = type,
-                };
-            }
-        }
-
-        /// <summary>
-        /// 生成数据实体类
-        /// </summary>
-        /// <param name="sb"></param>
-        private void GenerateGlobalData_ToClass(StringBuilder sb)
-        {
-            var infos = globalDataInfos.Values.ToArray();
-            sb.AppendCode(1, $"public sealed class {FlowGlobalData}");
-            sb.AppendCode(1, $"{{");
-            foreach (var info in infos)
-            {
-                var xmlDescription = $"{$"全局数据，来源于[{info.Node.MethodDetails?.MethodName}]{info.Node.Guid}".ToXmlComments(2)}";
-                sb.AppendCode(2, xmlDescription);
-                sb.AppendCode(2, $"public global::{info.DataType.FullName} {info.KeyName}  {{ get; set; }};");
-            }
-            sb.AppendLine();
-            sb.AppendCode(1, $"}}");
-        }
-
-      
         private class SereinGlobalDataInfo
         {
             /// <summary>
@@ -1046,13 +1098,58 @@ namespace Serein.NodeFlow.Services
         }
 
 
+        private void GenerateGlobalData_InitSereinGlobalDataInfos(SingleGlobalDataNode[] globalDataNodes)
+        {
+            foreach(var node in globalDataNodes)
+            {
+                var keyName = node.KeyName;
+                var dataNode = node.DataNode;
+                if(dataNode is null)
+                {
+                    throw new Exception($"全局数据节点[{node}]没有指定数据来源节点");
+                }
+                var type = dataNode.MethodDetails.ReturnType;
+                if (type is null || type == typeof(void))
+                {
+                    throw new Exception($"全局数据节点[{node}]无返回值");
+                }
+                _globalDataInfos[node] = new SereinGlobalDataInfo
+                {
+                    Node = node,
+                    DataSourceNode = dataNode,
+                    KeyName = keyName,
+                    DataType = type,
+                };
+            }
+        }
+
+        /// <summary>
+        /// 生成数据实体类
+        /// </summary>
+        /// <param name="sb"></param>
+        private void GenerateGlobalData_ToClass(StringBuilder sb)
+        {
+            var infos = _globalDataInfos.Values.ToArray();
+            sb.AppendCode(1, $"public sealed class {FlowGlobalData}");
+            sb.AppendCode(1, $"{{");
+            foreach (var info in infos)
+            {
+                var xmlDescription = $"{$"全局数据，来源于[{info.Node.MethodDetails?.MethodName}]{info.Node.Guid}".ToXmlComments(2)}";
+                sb.AppendCode(2, xmlDescription);
+                sb.AppendCode(2, $"public global::{info.DataType.FullName} {info.KeyName}  {{ get; set; }};");
+            }
+            sb.AppendLine();
+            sb.AppendCode(1, $"}}");
+        }
+
+
         #endregion
 
         #region 脚本节点的代码生成
-        private Dictionary<SingleScriptNode, SereinScriptMethodInfo> scriptMethodInfos = [];
+        private Dictionary<SingleScriptNode, SereinScriptMethodInfo> _scriptMethodInfos = [];
         private void GenerateScript_InitSereinScriptMethodInfos(SingleScriptNode[] flowCallNodes)
         {
-            scriptMethodInfos.Clear();
+            _scriptMethodInfos.Clear();
             bool isError = false;   
             foreach(var node in flowCallNodes)
             {
@@ -1065,7 +1162,7 @@ namespace Serein.NodeFlow.Services
                 }
                 else
                 {
-                    scriptMethodInfos[node] = info;
+                    _scriptMethodInfos[node] = info;
                 }
 
             }
@@ -1082,7 +1179,7 @@ namespace Serein.NodeFlow.Services
         /// 流程接口节点与对应的流程方法信息
         /// </summary>
 
-        private Dictionary<SingleFlowCallNode, FlowApiMethodInfo> flowApiMethodInfos = [];
+        private Dictionary<SingleFlowCallNode, FlowApiMethodInfo> _flowApiMethodInfos = [];
 
         /// <summary>
         /// 生成流程接口方法信息
@@ -1090,7 +1187,7 @@ namespace Serein.NodeFlow.Services
         /// <param name="flowCallNodes"></param>
         private void GenerateFlowApi_InitFlowApiMethodInfos(SingleFlowCallNode[] flowCallNodes)
         {
-            flowApiMethodInfos.Clear(); 
+            _flowApiMethodInfos.Clear(); 
             flowCallNodes = flowCallNodes.Where(node => !string.IsNullOrWhiteSpace(node.TargetNodeGuid)
                                                              && !flowModelService.ContainsCanvasModel(node.TargetNodeGuid))
                                          .ToArray(); // 筛选流程接口节点，只生成有效的
@@ -1100,7 +1197,7 @@ namespace Serein.NodeFlow.Services
                 var info = flowCallNode.ToFlowApiMethodInfo();
                 if (info is not null)
                 {
-                    flowApiMethodInfos[flowCallNode] = info;
+                    _flowApiMethodInfos[flowCallNode] = info;
                 }
             }
         }
@@ -1123,7 +1220,7 @@ namespace Serein.NodeFlow.Services
 
             sb.AppendCode(1, $"public interface IFlowApiInvoke");
             sb.AppendCode(1, $"{{");
-            var infos = flowApiMethodInfos.Values.ToArray();
+            var infos = _flowApiMethodInfos.Values.ToArray();
             foreach (var info in infos)
             {
                 var xmlDescription = $"{$"流程接口，{info.NodeModel.MethodDetails.MethodAnotherName}".ToXmlComments(2)}";
@@ -1151,7 +1248,7 @@ namespace Serein.NodeFlow.Services
         /// <param name="sb"></param>
         private void GenerateFlowApi_ApiParamClass(StringBuilder sb)
         {
-            var infos = flowApiMethodInfos.Values.ToArray();
+            var infos = _flowApiMethodInfos.Values.ToArray();
             foreach (var info in infos)
             {
                 sb.AppendLine(info.ToParamterClassSignature());
