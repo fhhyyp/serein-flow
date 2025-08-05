@@ -146,28 +146,28 @@ namespace Serein.NodeFlow.Env
            
             // 初始化每个画布的数据，转换为流程任务
             var flowTasks = guids.Select(guid =>
-                              {
-                                  if (!flowModelService.TryGetCanvasModel(guid, out var canvasModel))
                                   {
-                                      SereinEnv.WriteLine(InfoType.WARN, $"画布不存在，将不会运行。{guid}");
-                                      return default;
-                                  }
-                                  if (canvasModel.StartNode is null)
-                                  {
-                                      SereinEnv.WriteLine(InfoType.WARN, $"画布不存在起始节点，将不会运行。{guid}");
-                                      return default;
-                                  }
-                                  return canvasModel;
-                              })
+                                      if (!flowModelService.TryGetCanvasModel(guid, out var canvasModel))
+                                      {
+                                          SereinEnv.WriteLine(InfoType.WARN, $"画布不存在，将不会运行。{guid}");
+                                          return default;
+                                      }
+                                      if (canvasModel.StartNode is null)
+                                      {
+                                          SereinEnv.WriteLine(InfoType.WARN, $"画布不存在起始节点，将不会运行。{guid}");
+                                          return default;
+                                      }
+                                      return canvasModel;
+                                  })
                                  .Where(canvasModel => canvasModel != default && canvasModel.StartNode != null)
                                  .OfType<FlowCanvasDetails>()
                                  .ToDictionary(key => key.Guid,
                                                value => new FlowTask
-                                                   {
-                                                       GetStartNode = () => value.StartNode!,
-                                                       GetNodes = () => flowModelService.GetAllNodeModel(value.Guid),
-                                                       IsWaitStartFlow = false
-                                                   });
+                                                {
+                                                    GetStartNode = () => value.StartNode!,
+                                                    GetNodes = () => flowModelService.GetAllNodeModel(value.Guid),
+                                                    IsWaitStartFlow = false
+                                                });
 
 
             if(flowTasks.Values.Count == 0)
@@ -181,7 +181,7 @@ namespace Serein.NodeFlow.Env
             IOC.Register<IFlowEnvironment>(() => flowEnvironment);
             var flowWorkManagement = GetFWM();
             flowWorkManagement.WorkOptions.Flows = flowTasks;
-            flowWorkManagement.WorkOptions.AutoRegisterTypes = flowLibraryService.GetaAutoRegisterType(); // 需要自动实例化的类型
+            //flowWorkManagement.WorkOptions.AutoRegisterTypes = flowLibraryService.GetaAutoRegisterType(); // 需要自动实例化的类型
             flowWorkManagement.WorkOptions.InitMds = flowLibraryService.GetMdsOnFlowStart(NodeType.Init);
             flowWorkManagement.WorkOptions.LoadMds = flowLibraryService.GetMdsOnFlowStart(NodeType.Loading);
             flowWorkManagement.WorkOptions.ExitMds = flowLibraryService.GetMdsOnFlowStart(NodeType.Exit);
@@ -348,8 +348,6 @@ namespace Serein.NodeFlow.Env
             GC.Collect();
             return Task.FromResult(true);
         }
-
-
 
 
 

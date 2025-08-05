@@ -55,11 +55,6 @@ namespace Serein.NodeFlow
         public Dictionary<string, FlowTask> Flows { get; set; } = [];
 
         /// <summary>
-        /// 需要注册的类型
-        /// </summary>
-        public Dictionary<RegisterSequence, List<Type>> AutoRegisterTypes { get; set; } = [];
-
-        /// <summary>
         /// 初始化时需要的方法
         /// </summary>
         public List<MethodDetails> InitMds { get; set; } = [];

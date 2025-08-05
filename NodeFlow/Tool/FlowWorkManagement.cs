@@ -10,6 +10,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Threading.Tasks.Dataflow;
 using System.Xml.Linq;
 
@@ -53,6 +54,7 @@ namespace Serein.NodeFlow.Services
         {
             var sw = Stopwatch.StartNew();
             var checkpoints = new Dictionary<string, TimeSpan>();
+
 
             #region 注册所有节点所属的类的类型，如果注册失败则退出
             List<IFlowNode> nodes = new List<IFlowNode>();
@@ -130,27 +132,37 @@ namespace Serein.NodeFlow.Services
             var env = WorkOptions.Environment;
             var ioc = WorkOptions.FlowIOC;
 
-
-
+            HashSet<Type> types = new HashSet<Type>();
             var nodeMds = nodes.Select(item => item.MethodDetails).ToList(); // 获取环境中所有节点的方法信息 
             var allMds = new List<MethodDetails>();
-            allMds.AddRange(nodeMds.Where(md => md?.ActingInstanceType is not null));
-            allMds.AddRange(WorkOptions.InitMds.Where(md => md?.ActingInstanceType is not null));
-            allMds.AddRange(WorkOptions.LoadMds.Where(md => md?.ActingInstanceType is not null));
-            allMds.AddRange(WorkOptions.ExitMds.Where(md => md?.ActingInstanceType is not null));
+            IEnumerable<MethodDetails> Where(IEnumerable<MethodDetails> mds)
+            {
+                return mds.Where(md => md?.ActingInstanceType is not null && !md.ActingInstanceType.IsSealed && !md.ActingInstanceType.IsAbstract);
+            }
+            allMds.AddRange(Where(nodeMds));
+            allMds.AddRange(Where(WorkOptions.InitMds));
+            allMds.AddRange(Where(WorkOptions.ExitMds));
+            allMds.AddRange(Where(WorkOptions.LoadMds));
             var isSuccessful = true;
             foreach (var md in allMds)
             {
-                if (md.ActingInstanceType != null)
+               
+                Type? type = md.ActingInstanceType;
+                if (type is null)
+                {
+                    SereinEnv.WriteLine(InfoType.ERROR, "{md.MethodName} - 没有类型声明");
+                    isSuccessful = false;
+                }
+                else if (types.Add(type))
                 {
                     ioc.Register(md.ActingInstanceType);
                 }
-                else
-                {
-                    SereinEnv.WriteLine(InfoType.ERROR, "{md.MethodName} - 没有类型声明");
-                    isSuccessful = false ;
-                }
             }
+            if(types.Count == 0)
+            {
+                return true;
+            }
+
             ioc.Build(); // 绑定初始化时注册的类型
             foreach (var md in allMds)
             {
