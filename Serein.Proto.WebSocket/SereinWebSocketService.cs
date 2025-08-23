@@ -325,14 +325,22 @@ namespace Serein.Proto.WebSocket
             {
                 await SocketExtension.SendAsync(webSocket, text); // 回复客户端，处理方法中入参如果需要发送消息委托，则将该回调方法作为委托参数传入
             }
-            /*
-                ObjectPool<WebSocketMsgContext> contextPool = new ObjectPool<WebSocketMsgContext>(() =>
-                {
-                    return new WebSocketMsgContext(sendasync);
-                }, 20);
-                var context = contextPool.Allocate();
-                contextPool.Free(context);
-            */
+            
+            ObjectPool<WebSocketHandleContext> contextPool = new ObjectPool<WebSocketHandleContext>(() =>
+            {
+                var context = new WebSocketHandleContext(sendasync);
+                context.OnExceptionTracking = _onExceptionTracking;
+                context.OnReplyMakeData = _onReplyMakeData;
+                context.OnReply = _onReply;
+                return context;
+            }, context =>
+            {
+                context.MsgRequest = null;
+                context.MsgData = null;
+                context.ErrorMessage = null;
+                context.Model = null;
+            });
+
             while (webSocket.State == WebSocketState.Open)
             {
                 var message = await tranTool.WaitMsgAsync();  // 有消息时通知
@@ -341,12 +349,10 @@ namespace Serein.Proto.WebSocket
                     Console.WriteLine($"WebSocket 消息解析失败: {message}");
                     continue;
                 }
-                var context = new WebSocketHandleContext(sendasync);
+                var context = contextPool.Allocate();
                 context.MsgRequest = jsonReques;
-                context.OnExceptionTracking = _onExceptionTracking;
-                context.OnReplyMakeData = _onReplyMakeData;
-                context.OnReply = _onReply;
                 await HandleAsync(context); // 处理消息
+                contextPool.Free(context);
             }
 
         }

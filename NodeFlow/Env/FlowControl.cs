@@ -40,14 +40,14 @@ namespace Serein.NodeFlow.Env
             this.flowModelService = flowModelService;
             this.UIContextOperation = UIContextOperation;
 
-            contexts = new ObjectPool<IFlowContext>(() => new FlowContext(flowEnvironment));
+            contexts = new ObjectPool<IFlowContext>(() => new FlowContext(flowEnvironment), context => context.Reset());
             flowTaskOptions = new FlowWorkOptions
             {
                 FlowIOC = IOC,
                 Environment = flowEnvironment, // 流程
                 FlowContextPool = contexts, // 上下文对象池
             };
-            flowTaskManagementPool = new ObjectPool<FlowWorkManagement>(()=> new FlowWorkManagement(flowTaskOptions));
+            flowTaskManagementPool = new ObjectPool<FlowWorkManagement>(()=> new FlowWorkManagement(flowTaskOptions), fwm => fwm.Exit());
         }
 
         private ObjectPool<IFlowContext> contexts;
@@ -102,7 +102,6 @@ namespace Serein.NodeFlow.Env
             {
                 flowWorkManagements.Remove(fwm);
             }
-            fwm.Exit();
             flowTaskManagementPool.Free(fwm);
         }
 
@@ -257,7 +256,6 @@ namespace Serein.NodeFlow.Env
                     }
                 });
             }
-            context.Reset();
             flowContextPool.Free(context);
             ReturnFWM(flowWorkManagement); // 释放流程任务管理器
             if (flowResult.Value is TResult result)
@@ -330,7 +328,6 @@ namespace Serein.NodeFlow.Env
                     }
                 });
             }
-            context.Reset();
             flowContextPool.Free(context);
             ReturnFWM(flowWorkManagement); // 释放流程任务管理器
         }

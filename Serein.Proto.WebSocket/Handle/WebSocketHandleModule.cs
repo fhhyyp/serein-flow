@@ -344,7 +344,7 @@ namespace Serein.Proto.WebSocket.Handle
                 return;
             }
             // 返回结果
-            var responseData = context.OnReplyMakeData(context, data);
+            var responseData = context.OnReplyMakeData?.Invoke(context, data);
             if (responseData is null)
             {
                 context.TriggerExceptionTracking(new ArgumentNullException($"处理回调函数 OnReplyMakeData 返回 null"));

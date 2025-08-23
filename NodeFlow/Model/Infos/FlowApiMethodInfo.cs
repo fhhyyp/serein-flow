@@ -184,7 +184,6 @@ namespace Serein.NodeFlow.Model.Infos
                     sb.AppendCode(3,    $"}}");
                     sb.AppendCode(3,    $"finally");
                     sb.AppendCode(3,    $"{{");
-                    sb.AppendCode(4,        $"{flowContext}.{nameof(IFlowContext.Reset)}(); ");
                     sb.AppendCode(4,        $"cts.{nameof(CancellationTokenSource.Dispose)}(); ");
                     sb.AppendCode(4,        $"{flowContextPoolName}.{nameof(LightweightFlowControl.FlowContextPool)}.{nameof(LightweightFlowControl.FlowContextPool.Free)}({flowContext}); // 释放上下文");
                     sb.AppendCode(3,    $"}}");
@@ -272,7 +271,6 @@ namespace Serein.NodeFlow.Model.Infos
                     sb.AppendCode(3,    $"}}");
                     sb.AppendCode(3,    $"finally");
                     sb.AppendCode(3,    $"{{");
-                    sb.AppendCode(4,       $"{flowContext}.{nameof(IFlowContext.Reset)}(); ");
                     sb.AppendCode(4,       $"cts.{nameof(CancellationTokenSource.Dispose)}(); ");
                     sb.AppendCode(4,       $"{flowContextPoolName}.{nameof(LightweightFlowControl.FlowContextPool)}.{nameof(LightweightFlowControl.FlowContextPool.Free)}({flowContext}); // 释放上下文");
                     sb.AppendCode(3,    $"}}");
@@ -297,7 +295,6 @@ namespace Serein.NodeFlow.Model.Infos
                     sb.AppendCode(3,    $"}}");
                     sb.AppendCode(3,    $"finally");
                     sb.AppendCode(3,    $"{{");
-                    sb.AppendCode(4,       $"{flowContext}.{nameof(IFlowContext.Reset)}(); ");
                     sb.AppendCode(4,       $"{flowContextPoolName}.{nameof(LightweightFlowControl.FlowContextPool)}.{nameof(LightweightFlowControl.FlowContextPool.Free)}({flowContext}); // 释放上下文");
                     sb.AppendCode(3,    $"}}");
                     sb.AppendCode(2, $"}}");

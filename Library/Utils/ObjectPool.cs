@@ -9,16 +9,17 @@ using System.Threading.Tasks;
 namespace Serein.Library.Utils
 {
     /// <summary>
-    /// 具有预定义池大小限制的对象池模式的通用实现。其主要目的是将有限数量的经常使用的对象保留在池中，以便进一步回收。
-    /// 
-    /// 注:
-    /// 1)目标不是保留所有返回的对象。池不是用来存储的。如果池中没有空间，则会丢弃额外返回的对象。
-    /// 
-    /// 2)这意味着如果对象是从池中获得的，调用者将在相对较短的时间内返回它
-    /// 时间。长时间保持检出对象是可以的，但是会降低池的有用性。你只需要重新开始。
-    /// 
-    /// 不将对象返回给池并不会损害池的工作，但这是一种不好的做法。
-    /// 基本原理：如果没有重用对象的意图，就不要使用pool——只使用“new”
+    ///
+    /// <para>具有预定义池大小限制的对象池模式的通用实现。其主要目的是将有限数量的经常使用的对象保留在池中，以便进一步回收。  </para>
+    /// <para>                                                                                                                </para>
+    /// <para>注:                                                                                                             </para>
+    /// <para>1)目标不是保留所有返回的对象。池不是用来存储的。如果池中没有空间，则会丢弃额外返回的对象。                      </para>
+    /// <para>                                                                                                                </para>
+    /// <para>2)这意味着如果对象是从池中获得的，调用者将在相对较短的时间内返回它                                              </para>
+    /// <para>时间。长时间保持检出对象是可以的，但是会降低池的有用性。你只需要重新开始。                                      </para>
+    /// <para>                                                                                                                </para>
+    /// <para>不将对象返回给池并不会损害池的工作，但这是一种不好的做法。                                                      </para>
+    /// <para>基本原理：如果没有重用对象的意图，就不要使用pool——只使用“new”                                               </para>
     /// </summary>
     public class ObjectPool<T> where T : class
     {
@@ -28,12 +29,7 @@ namespace Serein.Library.Utils
             internal T Value;
         }
 
-        /// <summary>
-        /// 不使用System。Func{T}，因为. net 2.0没有该类型。
-        /// </summary>
-        /// <returns></returns>
-        public delegate T Factory();
-
+    
         /// <summary>
         ///  池对象的存储。第一个项存储在专用字段中，因为我们希望能够满足来自它的大多数请求。
         /// </summary>
@@ -45,14 +41,18 @@ namespace Serein.Library.Utils
         /// 工厂在池的生命周期内被存储。只有当池需要扩展时，我们才调用它。
         /// 与“new T（）”相比，Func为实现者提供了更多的灵活性，并且比“new T（）”更快。
         /// </summary>
-        private readonly Factory _factory;
+        private readonly Func<T> _factory;
+
+        /// <summary>
+        /// 指定了 T 对象释放时的行为。
+        /// </summary>
+        private readonly Action<T>? _free;
 
         /// <summary>
         /// 创建一个新的对象池实例，使用指定的工厂函数和默认大小（处理器核心数的两倍）。
         /// </summary>
         /// <param name="factory"></param>
-        public ObjectPool(Factory factory)
-            : this(factory, Environment.ProcessorCount * 2)
+        public ObjectPool(Func<T> factory, Action<T>? free = null) : this(factory, Environment.ProcessorCount * 2, free)
         {
         }
 
@@ -61,10 +61,11 @@ namespace Serein.Library.Utils
         /// </summary>
         /// <param name="factory"></param>
         /// <param name="size"></param>
-        public ObjectPool(Factory factory, int size)
+        public ObjectPool(Func<T> factory, int size, Action<T>? free = null)
         {
             Debug.Assert(size >= 1);
             _factory = factory;
+            _free = free;
             _items = new Element[size - 1];
         }
 
@@ -136,7 +137,7 @@ namespace Serein.Library.Utils
         public void Free(T obj)
         {
             Validate(obj);
-
+            _free?.Invoke(obj);
             if (_firstItem == null)
             {
                 // 这里故意不使用联锁。在最坏的情况下，两个对象可能存储在同一个槽中。这是不太可能发生的，只意味着其中一个对象将被收集。

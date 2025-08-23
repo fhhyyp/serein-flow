@@ -197,7 +197,6 @@ namespace Serein.NodeFlow.Services
                 var context = pool.Allocate();
                 var instance = ioc.Get(md.ActingInstanceType);
                 await dd.InvokeAsync(instance, [context]);
-                context.Reset();
                 pool.Free(context);
             }
             ioc.Build(); // 绑定初始化时注册的类型
@@ -225,7 +224,6 @@ namespace Serein.NodeFlow.Services
                 var context = pool.Allocate();
                 var instance = ioc.Get(md.ActingInstanceType);
                 await dd.InvokeAsync(instance, [context]);
-                context.Reset();
                 pool.Free(context);
             }
             ioc.Build(); // 绑定初始化时注册的类型
@@ -255,7 +253,6 @@ namespace Serein.NodeFlow.Services
                 var context = pool.Allocate();
                 var instance = ioc.Get(md.ActingInstanceType);
                 await dd.InvokeAsync(instance, [context]);
-                context.Reset();
                 pool.Free(context);
             }
 
@@ -304,7 +301,6 @@ namespace Serein.NodeFlow.Services
             var token = WorkOptions.CancellationTokenSource.Token;
             var context = pool.Allocate();
             await startNode.StartFlowAsync(context, token);
-            context.Reset();
             pool.Free(context);
             return;
         }
@@ -330,7 +326,6 @@ namespace Serein.NodeFlow.Services
             var result = await startNode.StartFlowAsync(context, WorkOptions.CancellationTokenSource.Token); // 开始运行时从选定节点开始运行
             checkpoints["执行流程"] = sw.Elapsed;
 
-            context.Reset();
             pool.Free(context);
             checkpoints["释放Context"] = sw.Elapsed;
 
@@ -437,8 +432,6 @@ namespace Serein.NodeFlow.Services
                 }
                 finally
                 {
-
-                    context.Reset();
                     pool.Free(context);
                 }
             }

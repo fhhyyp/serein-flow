@@ -41,6 +41,9 @@ namespace Serein.Library
             FlowContextPool = new Utils.ObjectPool<IFlowContext>(() =>
             {
                 return new FlowContext(flowEnvironment);
+            }, context =>
+            {
+                context.Reset();
             });
         }
 
