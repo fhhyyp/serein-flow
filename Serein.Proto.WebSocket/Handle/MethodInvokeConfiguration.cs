@@ -57,6 +57,11 @@ namespace Serein.Proto.WebSocket.Handle
         public bool[] UseMsgId { get; set; } = [];
 
         /// <summary>
+        /// 是否使用上下文作为参数
+        /// </summary>
+        public bool[] UseContent { get; set; } = [];
+
+        /// <summary>
         /// 参数名称
         /// </summary>
         public string[] ParameterName { get; set; } = [];

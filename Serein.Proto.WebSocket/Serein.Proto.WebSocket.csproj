@@ -25,9 +25,5 @@
   <ItemGroup>
     <ProjectReference Include="..\Library\Serein.Library.csproj" />
   </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Models\" />
-  </ItemGroup>
   
 </Project>

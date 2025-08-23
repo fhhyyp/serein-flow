@@ -210,6 +210,7 @@ namespace Serein.Proto.WebSocket
                     UseRequest = parameterInfos.Select(p => p.GetCustomAttribute<UseRequestAttribute>() is not null).ToArray(),// 是否使用整体data数据
                     UseData = parameterInfos.Select(p => p.GetCustomAttribute<UseDataAttribute>() is not null).ToArray(), // 是否使用整体data数据
                     UseMsgId = parameterInfos.Select(p => p.GetCustomAttribute<UseMsgIdAttribute>() is not null).ToArray(), // 是否使用消息ID
+                    UseContent = parameterInfos.Select(p => p.ParameterType.IsAssignableFrom(typeof(WebSocketHandleContext))).ToArray(), // 是否使用上下文
                     IsNeedSendDelegate = temp_array.Select(p => p.IsNeedSend).ToArray(), // 是否需要发送消息的委托
                     SendDelegateType = temp_array.Select(p => p.Type).ToArray(), // 发送消息的委托类型
                     CachedSendDelegates = new Delegate[temp_array.Length], // 提前缓存发送委托数组

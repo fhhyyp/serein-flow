@@ -254,6 +254,12 @@ namespace Serein.Proto.WebSocket.Handle
                     args[i] = data;
                 }
                 #endregion
+                #region 传递上下文
+                else if (config.UseContent[i])
+                {
+                    args[i] = context;
+                }
+                #endregion
                 #region 传递消息委托
                 else if (config.IsNeedSendDelegate[i]) // 传递SendAsync委托
                 {
@@ -308,6 +314,7 @@ namespace Serein.Proto.WebSocket.Handle
                     }
                 }
                 #endregion
+                
             }
             if (!isCanInvoke)
             {

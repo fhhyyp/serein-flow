@@ -11,7 +11,7 @@ namespace Serein.Library.Utils
     /// <summary>
     /// 消息ID生成工具
     /// </summary>
-    public class MessageIdGenerator
+    public class IdGeneratorHelper
     {
         private static readonly object _lock = new object();
         private static int _counter = 0;
