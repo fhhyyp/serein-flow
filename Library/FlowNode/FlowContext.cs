@@ -5,6 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Reactive.Concurrency;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -30,9 +31,11 @@ namespace Serein.Library
         /// <summary>
         /// <para>用于同一个流程上下文中共享、存储任意数据</para>
         /// <para>流程完毕时，如果存储的对象实现了 IDisposable 接口，将会自动调用</para>
-        /// <para>谨慎使用，注意数据的生命周期和内存管理</para>
+        /// <para>该属性的 set 仅限内部访问，如需赋值，请通过 SetTag() </para>
+        /// <para>请谨慎使用，请注意数据的生命周期和内存管理</para>
         /// </summary>
-        public object? Tag { get; set; }
+        public object? Tag { get;private set; }
+
 
 
         /// <summary>
@@ -256,6 +259,73 @@ namespace Serein.Library
             }
             throw new InvalidOperationException($"透传{nodeModel}节点数据时发生异常：上一节点不存在数据");
         }
+
+        private object _tagLockObj = new object();
+
+        /// <summary>
+        /// 设置共享对象，不建议设置非托管对象
+        /// </summary>
+        /// <param name="tag"></param>
+        private void SetTag(object tag)
+        {
+            lock (_tagLockObj)
+            {
+                Tag = tag;
+            }
+        }
+
+        /// <summary>
+        /// 获取共享对象(将在同一个 Web Socket 调起的上下文中保持一致)
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        private T? GetTag<T>()
+        {
+            TryGetTag(out T? tag);
+            return tag;
+        }
+
+#if NET6_0_OR_GREATER
+        /// <summary>
+        /// 获取共享对象(将在同一个 Web Socket 调起的上下文中保持一致)
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="tag"></param>
+        private bool TryGetTag<T>([NotNullWhen(true)] out T? tag)
+        {
+            lock (_tagLockObj)
+            {
+                if (Tag is T t)
+                {
+                    tag = t;
+                    return true;
+                }
+                tag = default;
+                return false;
+            }
+        }
+
+#else
+        /// <summary>
+        /// 获取共享对象(将在同一个 Web Socket 调起的上下文中保持一致)
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="tag"></param>
+        private bool TryGetTag<T>(out T? tag)
+        {
+            lock (_tagLockObj)
+            {
+                if (Tag is T t)
+                {
+                    tag = t;
+                    return true;
+                }
+                tag = default;
+                return false;
+            }
+        }
+
+#endif
+
 
         /// <summary>
         /// 重置
