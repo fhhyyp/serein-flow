@@ -78,7 +78,7 @@ namespace Serein.Proto.WebSocket
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="tag"></param>
-        private void SetTag<T>(T tag)
+        public void SetTag<T>(T tag)
         {
             lock (_wsTagLockObj) 
             {
@@ -90,7 +90,7 @@ namespace Serein.Proto.WebSocket
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="tag"></param>
-        private object? GetTag()
+        public object? GetTag()
         {
             TryGetTag(out object? tag);
             return tag;
@@ -100,7 +100,7 @@ namespace Serein.Proto.WebSocket
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="tag"></param>
-        private T? GetTag<T>()
+        public T? GetTag<T>()
         {
             TryGetTag(out T? tag);
             return tag;
@@ -110,7 +110,7 @@ namespace Serein.Proto.WebSocket
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="tag"></param>
-        private bool TryGetTag<T>([NotNullWhen(true)] out T? tag)
+        public bool TryGetTag<T>([NotNullWhen(true)] out T? tag)
         {
             lock (_wsTagLockObj)
             {
