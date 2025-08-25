@@ -27,9 +27,10 @@ namespace Serein.Library.Api
         /// <summary>
         /// <para>用于同一个流程上下文中共享、存储任意数据</para>
         /// <para>流程完毕时，如果存储的对象实现了 IDisposable 接口，将会自动调用</para>
-        /// <para>谨慎使用，注意数据的生命周期和内存管理</para>
+        /// <para>该属性的 set 仅限内部访问，如需赋值，请通过 SetTag() </para>
+        /// <para>请谨慎使用，请注意数据的生命周期和内存管理</para>
         /// </summary>
-        object? Tag { get; set; }
+        object? Tag { get; }
 
         /// <summary>
         /// 运行环境
