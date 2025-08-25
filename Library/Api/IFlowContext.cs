@@ -3,6 +3,7 @@ using Serein.Library.Utils;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
@@ -126,6 +127,24 @@ namespace Serein.Library.Api
         /// <param name="data"></param>
         void AddOrUpdate(string nodeModel, object data);
 
+        /// <summary>
+        /// 设置共享对象（在同一个上下文中保持一致）
+        /// </summary>
+        /// <param name="tag"></param>
+        void SetTag(object tag);
+
+        /// <summary>
+        /// 指定泛型尝试获取共享对象（在同一个上下文中保持一致）
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        T? GetTag<T>();
+
+        /// <summary>
+        /// 指定泛型尝试获取共享对象（在同一个上下文中保持一致）
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="tag"></param>
+        bool TryGetTag<T>(out T? tag);
 
         /// <summary>
         /// 重置流程状态（用于对象池回收）

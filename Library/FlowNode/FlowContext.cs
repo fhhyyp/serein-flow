@@ -266,7 +266,7 @@ namespace Serein.Library
         /// 设置共享对象，不建议设置非托管对象
         /// </summary>
         /// <param name="tag"></param>
-        private void SetTag(object tag)
+        public void SetTag(object tag)
         {
             lock (_tagLockObj)
             {
@@ -275,10 +275,11 @@ namespace Serein.Library
         }
 
         /// <summary>
-        /// 获取共享对象(将在同一个 Web Socket 调起的上下文中保持一致)
+        /// 指定泛型获取共享对象（在同一个上下文中保持一致）
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        private T? GetTag<T>()
+        /// <returns></returns>
+        public T? GetTag<T>()
         {
             TryGetTag(out T? tag);
             return tag;
@@ -286,11 +287,11 @@ namespace Serein.Library
 
 #if NET6_0_OR_GREATER
         /// <summary>
-        /// 获取共享对象(将在同一个 Web Socket 调起的上下文中保持一致)
+        /// 指定泛型尝试获取共享对象（在同一个上下文中保持一致）
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="tag"></param>
-        private bool TryGetTag<T>([NotNullWhen(true)] out T? tag)
+        public bool TryGetTag<T>([NotNullWhen(true)] out T? tag)
         {
             lock (_tagLockObj)
             {
@@ -306,11 +307,11 @@ namespace Serein.Library
 
 #else
         /// <summary>
-        /// 获取共享对象(将在同一个 Web Socket 调起的上下文中保持一致)
+        /// 指定泛型尝试获取共享对象（在同一个上下文中保持一致）
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="tag"></param>
-        private bool TryGetTag<T>(out T? tag)
+        public bool TryGetTag<T>(out T? tag)
         {
             lock (_tagLockObj)
             {
