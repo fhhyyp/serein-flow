@@ -335,10 +335,7 @@ namespace Serein.Proto.WebSocket
                 return context;
             }, context =>
             {
-                context.MsgRequest = null;
-                context.MsgData = null;
-                context.ErrorMessage = null;
-                context.Model = null;
+                context.Reset();
             });
 
             while (webSocket.State == WebSocketState.Open)

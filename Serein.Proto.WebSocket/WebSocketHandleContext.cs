@@ -2,6 +2,7 @@
 using Serein.Library.Utils;
 using Serein.Proto.WebSocket.Handle;
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
@@ -11,7 +12,7 @@ namespace Serein.Proto.WebSocket
     /// <summary>
     /// 消息处理上下文
     /// </summary>
-    public class WebSocketHandleContext : IDisposable
+    public class WebSocketHandleContext
     {
         /// <summary>
         /// 构造函数，传入发送消息的异步方法
@@ -23,34 +24,26 @@ namespace Serein.Proto.WebSocket
         }
 
         /// <summary>
-        /// 释放资源，清理消息上下文
+        /// 重置上下文
         /// </summary>
-        public void Dispose()
+        public void Reset()
         {
             MsgRequest = null;
-            /*MsgTheme = string.Empty; 
-            MsgId =  string.Empty; */
             MsgData = null;
-            MsgData = null;
+            ErrorMessage = null;
+            Model = null;
+            IsError = false;
         }
 
         /// <summary>
         /// 标记是否已经处理，如果是，则提前退出
         /// </summary>
-        public bool Handle { get => _handle; set{
-                if(value)
-                {
-                    Dispose();
-                    _handle = value;
-                }
-            } }
-
-        private bool _handle = false;
+        public bool Handle { get; set; }
 
         /// <summary>
         /// WebSocket 模块配置
         /// </summary>
-        public ModuleConfig Model { get; set; } 
+        public ModuleConfig Model { get; set; }
 
         /// <summary>
         /// 消息本体（IJsonToken）
@@ -62,16 +55,6 @@ namespace Serein.Proto.WebSocket
         /// </summary>
         public IJsonToken? MsgData { get; set; }
 
-        /// <summary>
-        /// 异常外部感知使能
-        /// </summary>
-        public Action<Exception>? OnExceptionTracking { get; set; }
-
-        /// <summary>
-        /// 处理回复消息的函数
-        /// </summary>
-        public Func<WebSocketHandleContext, object, object> OnReplyMakeData { get; set; }
-        public Action<string>? OnReply { get; set; }
 
         /// <summary>
         /// 是否发生错误
@@ -83,11 +66,65 @@ namespace Serein.Proto.WebSocket
         /// </summary>
         public string ErrorMessage { get; set; }
 
+
+        /// <summary>
+        /// 用于在同一个 Web Socket 中调用上下文中, 共享某个对象
+        /// </summary>
+        private object? _wsTag;
+        private object _wsTagLockObj = new object();
+
+        /// <summary>
+        /// 设置共享对象(将在同一个 Web Socket 调起的上下文中保持一致)
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="tag"></param>
+        private void SetTag<T>(T tag)
+        {
+            lock (_wsTagLockObj) 
+            {
+                _wsTag = tag; 
+            }
+        }
+
+        /// <summary>
+        /// 获取共享对象(将在同一个 Web Socket 调起的上下文中保持一致)
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="tag"></param>
+        private bool TryGetTag<T>([NotNullWhen(true)] out T? tag)
+        {
+            lock (_wsTagLockObj)
+            {
+                if (_wsTag is T t)
+                {
+                    tag = t;
+                    return true;
+                }
+                tag = default;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 异常外部感知使能
+        /// </summary>
+        public Action<Exception>? OnExceptionTracking { get; set; }
+
+        /// <summary>
+        /// 处理回复消息的函数
+        /// </summary>
+        public Func<WebSocketHandleContext, object, object> OnReplyMakeData { get; set; }
+
+        /// <summary>
+        /// 获取回复内容的回调
+        /// </summary>
+        public Action<string>? OnReply { get; set; }
         /// <summary>
         /// 发送消息
         /// </summary>
 
         private Func<string, Task> _sendAsync;
+
 
         /// <summary>
         /// 发送消息
