@@ -25,13 +25,13 @@ namespace Serein.Library.Api
         /// </summary>
         bool IsRecordInvokeInfo { get; set; }
 
-        /// <summary>
+        /*/// <summary>
         /// <para>用于同一个流程上下文中共享、存储任意数据</para>
         /// <para>流程完毕时，如果存储的对象实现了 IDisposable 接口，将会自动调用</para>
         /// <para>该属性的 set 仅限内部访问，如需赋值，请通过 SetTag() </para>
         /// <para>请谨慎使用，请注意数据的生命周期和内存管理</para>
         /// </summary>
-        object? Tag { get; }
+        object? Tag { get; }*/
 
         /// <summary>
         /// 运行环境
@@ -131,7 +131,7 @@ namespace Serein.Library.Api
         /// 设置共享对象（在同一个上下文中保持一致）
         /// </summary>
         /// <param name="tag"></param>
-        void SetTag(object tag);
+        void SetTag<T>(T tag);
 
         /// <summary>
         /// 指定泛型尝试获取共享对象（在同一个上下文中保持一致）
@@ -139,12 +139,22 @@ namespace Serein.Library.Api
         /// <typeparam name="T"></typeparam>
         T? GetTag<T>();
 
+#if NET6_0_OR_GREATER
+        /// <summary>
+        /// 指定泛型尝试获取共享对象（在同一个上下文中保持一致）
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="tag"></param>
+        bool TryGetTag<T>([NotNullWhen(true)] out T? tag);
+#else
         /// <summary>
         /// 指定泛型尝试获取共享对象（在同一个上下文中保持一致）
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="tag"></param>
         bool TryGetTag<T>(out T? tag);
+#endif
+
 
         /// <summary>
         /// 重置流程状态（用于对象池回收）

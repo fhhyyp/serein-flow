@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Reactive.Concurrency;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -27,16 +28,6 @@ namespace Serein.Library
             Env = flowEnvironment;
             RunState = RunState.Running;
         }
-
-        /// <summary>
-        /// <para>用于同一个流程上下文中共享、存储任意数据</para>
-        /// <para>流程完毕时，如果存储的对象实现了 IDisposable 接口，将会自动调用</para>
-        /// <para>该属性的 set 仅限内部访问，如需赋值，请通过 SetTag() </para>
-        /// <para>请谨慎使用，请注意数据的生命周期和内存管理</para>
-        /// </summary>
-        public object? Tag { get;private set; }
-
-
 
         /// <summary>
         /// 是否记录流程调用信息
@@ -260,18 +251,18 @@ namespace Serein.Library
             throw new InvalidOperationException($"透传{nodeModel}节点数据时发生异常：上一节点不存在数据");
         }
 
-        private object _tagLockObj = new object();
+        private ConcurrentDictionary<Type, object?> tags = new ConcurrentDictionary<Type, object?>();
 
         /// <summary>
-        /// 设置共享对象，不建议设置非托管对象
+        /// <para>用于同一个流程上下文中共享、存储任意数据，每一个数据通过类型区分</para>
+        /// <para>流程完毕时，如果存储的对象实现了 IDisposable 接口，将会自动调用</para>
+        /// <para>请谨慎使用，请注意数据的生命周期和内存管理</para>
         /// </summary>
         /// <param name="tag"></param>
-        public void SetTag(object tag)
+        public void SetTag<T>(T tag)
         {
-            lock (_tagLockObj)
-            {
-                Tag = tag;
-            }
+            var key = typeof(T);
+            tags.AddOrUpdate(key, (_) => tag, (o, n) => tag);
         }
 
         /// <summary>
@@ -285,6 +276,7 @@ namespace Serein.Library
             return tag;
         }
 
+
 #if NET6_0_OR_GREATER
         /// <summary>
         /// 指定泛型尝试获取共享对象（在同一个上下文中保持一致）
@@ -293,16 +285,13 @@ namespace Serein.Library
         /// <param name="tag"></param>
         public bool TryGetTag<T>([NotNullWhen(true)] out T? tag)
         {
-            lock (_tagLockObj)
+            if (tags.TryGetValue(typeof(T),out var temp) && temp is T t)
             {
-                if (Tag is T t)
-                {
-                    tag = t;
-                    return true;
-                }
-                tag = default;
-                return false;
+                tag = t;
+                return true;
             }
+            tag = default;
+            return false;
         }
 
 #else
@@ -313,16 +302,14 @@ namespace Serein.Library
         /// <param name="tag"></param>
         public bool TryGetTag<T>(out T? tag)
         {
-            lock (_tagLockObj)
-            {
-                if (Tag is T t)
+                if (tags.TryGetValue(typeof(T),out var temp) && temp is T t)
                 {
                     tag = t;
                     return true;
                 }
                 tag = default;
                 return false;
-            }
+            
         }
 
 #endif
@@ -333,10 +320,16 @@ namespace Serein.Library
         /// </summary>
         public void Reset()
         {
-            if(Tag is IDisposable disposable)
+            var tagObjs = tags.Values.ToArray();
+            tags.Clear();
+            foreach (var tag in tagObjs) 
             {
-                disposable.Dispose(); // 释放 Tag 中的资源
+                if (tag is IDisposable disposable)
+                {
+                    disposable.Dispose(); // 释放 Tag 中的资源
+                }
             }
+           
             this.dictNodeFlowData?.Clear();
             ExceptionOfRuning = null;
             flowInvokeInfos.Clear();
