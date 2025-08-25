@@ -74,7 +74,7 @@ namespace Serein.Proto.WebSocket
         private object _wsTagLockObj = new object();
 
         /// <summary>
-        /// 设置共享对象(将在同一个 Web Socket 调起的上下文中保持一致)
+        /// 设置共享对象，不建议设置非托管对象
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="tag"></param>
@@ -85,7 +85,26 @@ namespace Serein.Proto.WebSocket
                 _wsTag = tag; 
             }
         }
-
+        /// <summary>
+        /// 获取共享对象(将在同一个 Web Socket 调起的上下文中保持一致)
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="tag"></param>
+        private object? GetTag()
+        {
+            TryGetTag(out object? tag);
+            return tag;
+        }
+        /// <summary>
+        /// 获取共享对象(将在同一个 Web Socket 调起的上下文中保持一致)
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="tag"></param>
+        private T? GetTag<T>()
+        {
+            TryGetTag(out T? tag);
+            return tag;
+        }
         /// <summary>
         /// 获取共享对象(将在同一个 Web Socket 调起的上下文中保持一致)
         /// </summary>
