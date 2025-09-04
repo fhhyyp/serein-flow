@@ -27,6 +27,13 @@ namespace Serein.Proto.WebSocket
         /// <summary>
         /// 添加处理模块
         /// </summary>
+        /// <param name="socketHandleModule">接口实例</param>
+        /// <returns></returns>
+        ISereinWebSocketService AddHandleModule(ISocketHandleModule socketHandleModule);
+
+        /// <summary>
+        /// 添加处理模块
+        /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="instanceFactory">使用指定的实例</param>
         /// <returns></returns>

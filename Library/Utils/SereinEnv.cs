@@ -125,6 +125,7 @@ namespace Serein.Library
         public static void WriteLine(InfoType type, string message, InfoClass @class = InfoClass.General)
         {
             Debug.WriteLine($"{type} : {message}");
+            Console.WriteLine($"{type} : {message}");
             SereinEnv.environment?.WriteLine(type,message,@class);
         }
         

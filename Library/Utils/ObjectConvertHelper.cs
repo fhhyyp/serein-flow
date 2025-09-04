@@ -257,7 +257,16 @@ namespace Serein.Library.Utils
             object result;
             if (type.IsEnum)
             {
-                result = Enum.Parse(type, valueStr);
+                if (int.TryParse(valueStr, out int numericValue))
+                {
+                    // 输入是数字，直接转换
+                    result = Enum.ToObject(type, numericValue);
+                }
+                else
+                {
+                    // 输入是枚举名称
+                    result = Enum.Parse(type, valueStr, ignoreCase: true);
+                }
             }
             else if (type == typeof(bool))
             {

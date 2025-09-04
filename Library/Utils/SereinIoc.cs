@@ -194,16 +194,15 @@ namespace Serein.Library.Utils
         /// <param name="instance"></param>
         /// <returns></returns>
         public T InjectDependenciesProperty<T>(T instance)
-        {
+        {   
             var type = instance.GetType();
-            var properties = type.GetType()
-                                     .GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).ToArray()
-                                     .Where(p => p.CanWrite // 可写属性
-                                              && p.GetCustomAttribute<AutoInjectionAttribute>() != null // 有特性标注需要注入
-                                              && p.GetValue(instance) == null); // 属性为空
+            var propertys = type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                                .Where(p => p.CanWrite // 可写属性
+                                      && p.GetCustomAttribute<AutoInjectionAttribute>() is not null // 有特性标注需要注入
+                                      && p.GetValue(instance) is null); // 属性为空
             
             // 属性注入
-            foreach (var property in properties)
+            foreach (var property in propertys)
             {
                 var propertyType = property.PropertyType;
                 if (_dependencies.TryGetValue(propertyType.FullName, out var dependencyInstance))
@@ -215,7 +214,7 @@ namespace Serein.Library.Utils
 
             // 字段注入
             var fields = type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic )
-                             .Where(f => f.GetCustomAttribute<AutoInjectionAttribute>() != null
+                             .Where(f =>  f.GetCustomAttribute<AutoInjectionAttribute>() != null
                                       && f.GetValue(instance) == null);
 
             foreach (var field in fields)

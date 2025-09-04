@@ -2,19 +2,10 @@
 using Serein.Library.Utils;
 using Serein.Proto.WebSocket.Attributes;
 using Serein.Proto.WebSocket.Handle;
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Data;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Net.Sockets;
 using System.Net.WebSockets;
-using System.Reactive;
 using System.Reflection;
 using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
 using NetWebSocket = System.Net.WebSockets.WebSocket;
 
 namespace Serein.Proto.WebSocket
@@ -72,6 +63,19 @@ namespace Serein.Proto.WebSocket
         {
             var type = typeof(T);
             Func<ISocketHandleModule> instanceFactory = () => (T)Activator.CreateInstance(type);
+            return AddHandleModule(type, instanceFactory);
+        } 
+        
+        /// <summary>
+        /// 添加处理模块，使用指定的实例工厂和异常追踪回调
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="instanceFactory"></param>
+        /// <param name="onExceptionTracking"></param>
+        public ISereinWebSocketService AddHandleModule(ISocketHandleModule socketHandleModule) 
+        {
+            var type = socketHandleModule.GetType();
+            Func<ISocketHandleModule> instanceFactory = () => socketHandleModule;
             return AddHandleModule(type, instanceFactory);
         }
 
@@ -380,11 +384,11 @@ namespace Serein.Proto.WebSocket
         /// <returns></returns>
         public async Task PushDataAsync(object latestData)
         {
-            var options = new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            };
-            var json = JsonSerializer.Serialize(latestData, options);
+            //var options = new JsonSerializerOptions
+            //{
+            //    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            //};
+            var json = JsonHelper.Serialize(latestData);
             var buffer = Encoding.UTF8.GetBytes(json);
             var segment = new ArraySegment<byte>(buffer);
 

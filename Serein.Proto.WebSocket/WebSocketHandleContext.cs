@@ -1,10 +1,6 @@
 ﻿using Serein.Library.Api;
 using Serein.Library.Utils;
 using Serein.Proto.WebSocket.Handle;
-using System;
-using System.Diagnostics.CodeAnalysis;
-using System.Threading.Tasks;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Serein.Proto.WebSocket
 {
@@ -110,7 +106,8 @@ namespace Serein.Proto.WebSocket
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="tag"></param>
-        public bool TryGetTag<T>([NotNullWhen(true)] out T? tag)
+        //public bool TryGetTag<T>([NotNullWhen(true)] out T? tag)
+        public bool TryGetTag<T>(out T? tag)
         {
             lock (_wsTagLockObj)
             {

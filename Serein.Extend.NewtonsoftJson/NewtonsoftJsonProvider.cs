@@ -7,11 +7,6 @@ using System.Diagnostics.CodeAnalysis;
 namespace Serein.Extend.NewtonsoftJson
 {
 
-    public enum ProviderType
-    {
-        Default = 0,
-        Web = 1,
-    }
     /// <summary>
     /// 基于Newtonsoft.Json的IJsonProvider实现
     /// </summary>
@@ -20,39 +15,23 @@ namespace Serein.Extend.NewtonsoftJson
         private JsonSerializerSettings? settings;
 
         /// <summary>
-        ///  基于Newtonsoft.Json的JSON门户实现
+        ///  基于Newtonsoft.Json的JSON门户实现，默认首字母小写、忽略null
         /// </summary>
         public NewtonsoftJsonProvider()
-        {
-            
-        }
-
-        /// <summary>
-        /// 基于Newtonsoft.Json的JSON门户实现
-        /// </summary>
-        /// <param name="jsonType"></param>
-        public NewtonsoftJsonProvider(ProviderType jsonType)
-        {
-            settings = jsonType switch
-            {
-                ProviderType.Web => new JsonSerializerSettings
-                {
-                    ContractResolver = new CamelCasePropertyNamesContractResolver(), // 控制首字母小写
-                    NullValueHandling = NullValueHandling.Ignore                     // 可选：忽略 null
-                },
-                _ => new JsonSerializerSettings
-                {
-                },
-            };
-        }
-
-        public NewtonsoftJsonProvider(JsonSerializerSettings settings)
         {
             settings = new JsonSerializerSettings
             {
                 ContractResolver = new CamelCasePropertyNamesContractResolver(), // 控制首字母小写
                 NullValueHandling = NullValueHandling.Ignore                     // 可选：忽略 null
             };
+        }
+
+        /// <summary>
+        /// 使用自定义的序列化设置
+        /// </summary>
+        /// <param name="settings"></param>
+        public NewtonsoftJsonProvider(JsonSerializerSettings settings)
+        {
             this.settings = settings;
         }
 
