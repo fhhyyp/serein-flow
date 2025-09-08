@@ -28,17 +28,24 @@ namespace Serein.NodeFlow.Tool
         protected override Assembly? Load(AssemblyName assemblyName)
         {
             string? assemblyPath = _resolver.ResolveAssemblyToPath(assemblyName); // 加载程序集
-            if (!string.IsNullOrEmpty(assemblyPath))
+            if (!string.IsNullOrEmpty(assemblyPath) && File.Exists(assemblyPath))
             {
-                var assembly = Default.LoadFromAssemblyPath(assemblyPath); // 通过默认方式进行加载程序集及相关依赖
-                //var assembly = LoadFromAssemblyPath(assemblyPath);
-                return assembly;
+                try
+                {
+                    var assembly = Default.LoadFromAssemblyPath(assemblyPath); // 通过默认方式进行加载程序集及相关依赖
+                    return assembly;
+                }
+                catch (Exception ex)
+                {
+                    var assembly = LoadFromAssemblyPath(assemblyPath);
+                    return assembly;
+                }
             }
             else
             {
-                return Default.Assemblies.FirstOrDefault(x => x.FullName == assemblyName.FullName);
+                var assembly = Default.Assemblies.FirstOrDefault(x => x.FullName == assemblyName.FullName);
+                return assembly;
             }
-
             // return null;
 
             // 构建依赖项的路径
