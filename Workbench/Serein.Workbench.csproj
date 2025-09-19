@@ -81,7 +81,7 @@
   <ItemGroup>
     <PackageReference Include="AvalonEdit" Version="6.3.0.90" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.6" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.9" />
     <!--<PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.135" />-->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 

@@ -16,7 +16,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Library", "Library\S
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.FlowStartTool", "FlowStartTool\Serein.FlowStartTool.csproj", "{38D0FA92-5139-4616-A41E-8186AA4C1532}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Library.NodeGenerator", "Serein.Library.MyGenerator\Serein.Library.NodeGenerator.csproj", "{5F7DE0B2-A5D3-492D-AC6C-F0C39EBEF365}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Library.NodeGenerator", "Serein.Library.NodeGenerator\Serein.Library.NodeGenerator.csproj", "{5F7DE0B2-A5D3-492D-AC6C-F0C39EBEF365}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serein.Script", "Serein.Script\Serein.Script.csproj", "{D14BC18C-3D69-49FA-BEEA-A9AA570C7469}"
 EndProject
