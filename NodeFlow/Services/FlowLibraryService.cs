@@ -15,6 +15,11 @@ namespace Serein.NodeFlow.Services
     public class FlowLibraryService
     {
         /// <summary>
+        /// 是否加载过基础依赖
+        /// </summary>
+        public bool IsLoadedBaseLibrary { get; private set; } = false;
+        
+        /// <summary>
         /// 构造函数，初始化流程依赖
         /// </summary>
         /// <param name="flowEnvironment"></param>
@@ -60,7 +65,7 @@ namespace Serein.NodeFlow.Services
         /// </summary>
         public FlowLibraryInfo LoadBaseLibrary()
         {
-            Assembly baseAssmbly = typeof(FlowBaseLibrary).Assembly;
+            var baseAssmbly = typeof(FlowBaseLibrary).Assembly;
             var flowLibrary = new FlowLibraryCache(baseAssmbly);
             flowLibrary.LoadFlowMethod();
             var assemblyName = baseAssmbly.GetName().Name;
@@ -69,7 +74,9 @@ namespace Serein.NodeFlow.Services
                 throw new Exception($"程序集\"{baseAssmbly}\"返回 Name 为 null");
             }
             _flowLibraryCaches.TryAdd(assemblyName, flowLibrary);
-            return flowLibrary.ToInfo();
+            var infos = flowLibrary.ToInfo();
+            IsLoadedBaseLibrary = true;
+            return infos; 
         }
 
         /// <summary>

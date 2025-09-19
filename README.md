@@ -30,3 +30,9 @@ This project supports both **English** and **中文** documentation.
 ## 🔗 External Links
 
 - Bilibili: https://space.bilibili.com/33526379
+
+# 社群
+
+QQ群 955830545
+提供技术交流与支持，欢迎加入。
+因为个人是社畜，所以可能不会及时回复，请谅解。

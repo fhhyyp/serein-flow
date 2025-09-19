@@ -3,6 +3,9 @@
 *.user
 *.suo
 
+# 排除 Rider 相关文件夹
+.idea
+
 # 排除编译输出文件夹
 bin/
 obj/
@@ -18,11 +21,14 @@ obj/
 *.exe
 
 # 排除发布文件夹
+
 .Output/
 /.git1
+
 doc
 WorkBench.ControlLibrary.Core
 WorkBench.Remote
 Serein.FlowStartTool
 Serein.CloudWorkbench
 Serein.CollaborationSync
+Serein.Workbench.Avalonia

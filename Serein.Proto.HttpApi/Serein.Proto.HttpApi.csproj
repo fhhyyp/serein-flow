@@ -8,7 +8,7 @@
     <BaseOutputPath>..\.\.Output</BaseOutputPath>
 
     <Title>基于Json数据载体的HttpApi交互工具包</Title>
-    <Version>0.0.9</Version>
+    <Version>0.0.11</Version>
     <Description>基于Json数据载体的HttpApi交互工具包</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>

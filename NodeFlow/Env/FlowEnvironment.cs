@@ -63,7 +63,44 @@ namespace Serein.NodeFlow.Env
                .Build();
 
             // 设置JSON解析器
-            JsonHelper.UseJsonProvider(new NewtonsoftJsonProvider());
+            if (JsonHelper.Provider is null)
+            {
+                JsonHelper.UseJsonProvider(new NewtonsoftJsonProvider());
+            }
+            
+            // 默认使用本地环境
+            currentFlowEnvironment = ioc.Get<LocalFlowEnvironment>();
+            currentFlowEnvironmentEvent = ioc.Get<IFlowEnvironmentEvent>();
+            SereinEnv.SetEnv(currentFlowEnvironment);
+        }
+
+        /// <summary>
+        /// 提供上下文操作进行调用
+        /// </summary>
+        /// <param name="operation"></param>
+        public FlowEnvironment(UIContextOperation operation)
+        {
+            ISereinIOC ioc = new SereinIOC();
+            ioc.Register<ISereinIOC>(()=> ioc) // IOC容器接口
+                .Register<UIContextOperation>(() => operation) // 流程环境接口
+                .Register<IFlowEnvironment>(() => this) // 流程环境接口
+                .Register<IFlowEnvironmentEvent, FlowEnvironmentEvent>() // 流程环境事件接口
+                .Register<IFlowEdit, FlowEdit>() // 流程编辑接口
+                .Register<IFlowControl, FlowControl>() // 流程控制接口
+                .Register<LocalFlowEnvironment>() // 本地环境
+                .Register<FlowModelService>() // 节点/画布模型服务
+                .Register<FlowLibraryService>() // 流程库服务
+                .Register<FlowCoreGenerateService>() // 代码生成
+                .Register<FlowOperationService>() // 流程操作
+                .Register<NodeMVVMService>() // 节点MVVM服务
+                .Build();
+
+            // 设置JSON解析器
+            if (JsonHelper.Provider is null)
+            {
+                JsonHelper.UseJsonProvider(new NewtonsoftJsonProvider());
+            }
+            
             // 默认使用本地环境
             currentFlowEnvironment = ioc.Get<LocalFlowEnvironment>();
             currentFlowEnvironmentEvent = ioc.Get<IFlowEnvironmentEvent>();

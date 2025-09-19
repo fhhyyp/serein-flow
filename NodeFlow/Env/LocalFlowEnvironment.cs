@@ -245,11 +245,13 @@ namespace Serein.NodeFlow.Env
         /// <param name="filePath"></param>
         public void LoadProject(string filePath)
         {
-            string content = System.IO.File.ReadAllText(filePath); // 读取整个文件内容
+            _ = Task.Run(async () =>
+            {
+                await this.LoadProjetAsync((filePath));
+            });
+            /*string content = System.IO.File.ReadAllText(filePath); // 读取整个文件内容
             var FlowProjectData = JsonHelper.Deserialize<SereinProjectData>(content);
             var FileDataPath = System.IO.Path.GetDirectoryName(filePath)!;   //  filePath;//
-
-
 
             this.ProjectFileLocation = filePath;
 
@@ -285,30 +287,50 @@ namespace Serein.NodeFlow.Env
                 }
 
                 Event.OnProjectLoaded(new ProjectLoadedEventArgs());
-            });
+            });*/
         }
+        
 
         public async Task LoadProjetAsync(string filePath)
         {
-            string content =  await System.IO.File.ReadAllTextAsync(filePath); // 读取整个文件内容
-            var FlowProjectData = JsonHelper.Deserialize<SereinProjectData>(content);
-            var FileDataPath = System.IO.Path.GetDirectoryName(filePath)!;   //  filePath;//
-            if(FlowProjectData is null)
+            var content =  await System.IO.File.ReadAllTextAsync(filePath); // 读取整个文件内容
+            var flowProjectData = JsonHelper.Deserialize<SereinProjectData>(content);
+            var fileDataPath = System.IO.Path.GetDirectoryName(filePath)!;   //  filePath;//
+            if(flowProjectData is null)
             {
                 return;
             }
+            var projectData = flowProjectData ?? throw new ArgumentNullException(nameof(flowProjectData));
 
+            if (!_flowLibraryService.IsLoadedBaseLibrary)
+            {
+                var baseLibrary = _flowLibraryService.LoadBaseLibrary();
+                if (baseLibrary.MethodInfos.Count > 0 && UIContextOperation is not null)
+                { 
+                    await UIContextOperation.InvokeAsync(() => Event.OnDllLoad(new LoadDllEventArgs(baseLibrary))); // 通知UI创建dll面板显示
+                }
+
+                if (_flowModelService.GetAllCanvasModel().Count == 0)
+                {
+                    // 创建第一个画布
+                    FlowEdit.CreateCanvas("Default", 1920, 1080);
+                }
+               
+            }
+           
+
+            
+            
+            
             this.ProjectFileLocation = filePath;
-            var projectData = FlowProjectData;
 
             // 加载项目配置文件
             var dllPaths = projectData.Librarys.Select(it => it.FilePath).ToList();
-            List<MethodDetails> methodDetailss = [];
 
             // 遍历依赖项中的特性注解，生成方法详情
             foreach (var dllPath in dllPaths)
             {
-                string cleanedRelativePath = dllPath.TrimStart('.', '\\');
+                var cleanedRelativePath = dllPath.TrimStart('.', '\\');
                 var tmpPath = Path.Combine(filePath, cleanedRelativePath);
                 var dllFilePath = Path.GetFullPath(tmpPath);
                 LoadLibrary(dllFilePath);  // 加载项目文件时加载对应的程序集
@@ -526,7 +548,8 @@ namespace Serein.NodeFlow.Env
                 return;
             }
             this.UIContextOperation = uiContextOperation;
-            IOC.Register<UIContextOperation>(() => uiContextOperation).Build();
+            IOC.Register<UIContextOperation>(() => uiContextOperation);
+            IOC.Build();
             OnUIContextOperationSet();
         }
 
@@ -656,18 +679,11 @@ namespace Serein.NodeFlow.Env
         #endregion
 
         /// <summary>
-        /// 设置了 UIContextOperation 需要立刻执行的方法，用于加载基础库，创建第一个画布。
+        /// 设置了 UIContextOperation 需要立刻执行的方法
         /// </summary>
         private void OnUIContextOperationSet()
         {
-            var baseLibrary = _flowLibraryService.LoadBaseLibrary();
-            if (baseLibrary is not null && baseLibrary.MethodInfos.Count > 0)
-            {
-                UIContextOperation?.Invoke(() => Event.OnDllLoad(new LoadDllEventArgs(baseLibrary))); // 通知UI创建dll面板显示
-            }
-
-            // 创建第一个画布
-            FlowEdit.CreateCanvas("Default", 1920, 1080);
+           
         }
     }
 

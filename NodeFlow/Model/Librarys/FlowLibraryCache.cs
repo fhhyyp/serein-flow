@@ -1,5 +1,6 @@
 ﻿using Serein.Library;
 using Serein.NodeFlow.Tool;
+using System.Globalization;
 using System.Reflection;
 
 namespace Serein.NodeFlow.Model.Library
@@ -229,14 +230,17 @@ namespace Serein.NodeFlow.Model.Library
         public FlowLibraryInfo ToInfo()
         {
             var assemblyName = Assembly.GetName().Name;
-            var mdInfos = MethodDetailss.Values.Select(x => x.ToInfo()).ToList();
-            mdInfos.Sort((a, b) => string.Compare(a.MethodName, b.MethodName, StringComparison.OrdinalIgnoreCase));
+            var mdInfos = MethodDetailss.Values.Select(x => x.ToInfo())
+                                        .OrderBy(d => d.AssemblyName)
+                                        .ThenBy(s => s.MethodAnotherName, StringComparer.Create(CultureInfo.GetCultureInfo("zh-cn"), true))
+                                        .ToList();
+
             return new FlowLibraryInfo
             {
                 AssemblyName = assemblyName,
                 FileName = FullName,
                 FilePath = FilePath,
-                MethodInfos = mdInfos.ToList(),
+                MethodInfos = mdInfos,
             };
         }
 

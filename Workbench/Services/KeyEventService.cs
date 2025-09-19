@@ -55,7 +55,6 @@ namespace Serein.Workbench.Services
         /// </summary>
         /// <param name="key"></param>
         void KeyUp(Key key);
-
     }
 
     /// <summary>

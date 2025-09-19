@@ -30,6 +30,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Serein.Proto.Modbus", "Sere
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Serein.Proto.HttpApi", "Serein.Proto.HttpApi\Serein.Proto.HttpApi.csproj", "{281B8E55-B9CD-4FE5-A72F-59CBB968D844}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Serein.Workbench.Avalonia", "Serein.Workbench.Avalonia\Serein.Workbench.Avalonia.csproj", "{3115002B-4CDA-4793-803A-5C1BA95EC6C5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -80,6 +82,10 @@ Global
 		{281B8E55-B9CD-4FE5-A72F-59CBB968D844}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{281B8E55-B9CD-4FE5-A72F-59CBB968D844}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{281B8E55-B9CD-4FE5-A72F-59CBB968D844}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3115002B-4CDA-4793-803A-5C1BA95EC6C5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3115002B-4CDA-4793-803A-5C1BA95EC6C5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3115002B-4CDA-4793-803A-5C1BA95EC6C5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3115002B-4CDA-4793-803A-5C1BA95EC6C5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -17,140 +17,18 @@ using Type = System.Type;
 
 namespace Serein.Proto.HttpApi
 {
-    /// <summary>
-    /// 路由接口
-    /// </summary>
-    public interface IPathRouter
-    {
-        /// <summary>
-        /// 添加处理模块
-        /// </summary>
-        /// <param name="controllerType"></param>
-        void AddHandle(Type controllerType);
-        /// <summary>
-        /// 获取路由信息
-        /// </summary>
-        /// <returns></returns>
-        List<RouterInfo> GetRouterInfos();
-
-        /// <summary>
-        /// 路由解析开始处理
-        /// </summary>
-        /// <param name="context"></param>
-        /// <returns></returns>
-        Task<InvokeResult> HandleAsync(HttpListenerContext context);
-    }
-
-
-    public enum HandleState
-    {
-        /// <summary>
-        /// 默认值
-        /// </summary>
-        None ,
-        /// <summary>
-        /// 没有异常
-        /// </summary>
-        Ok,
-        /// <summary>
-        /// 没有对应的控制器
-        /// </summary>
-        NotHanleController,
-        /// <summary>
-        /// 没有对应的Http请求类型
-        /// </summary>
-        NotHttpApiRequestType,
-        /// <summary>
-        /// 没有处理配置
-        /// </summary>
-        NotHandleConfig,
-        /// <summary>
-        /// 无法实例化控制器
-        /// </summary>
-        HanleControllerIsNull,
-
-        /// <summary>
-        /// 调用参数获取错误
-        /// </summary>
-        InvokeArgError,
-
-        /// <summary>
-        /// 调用发生异常
-        /// </summary>
-        InvokeErrored,
-    }
-
-    /// <summary>
-    /// 调用结果
-    /// </summary>
-    public class InvokeResult 
-    {
-        /// <summary>
-        /// 调用状态
-        /// </summary>
-        public HandleState State { get; set; }
-        /// <summary>
-        /// 调用正常时这里会有数据
-        /// </summary>
-        public object? Data{ get; set; }
-        /// <summary>
-        /// 调用失败时这里可能会有异常数据
-        /// </summary>
-        public Exception? Exception { get; set; }
-
-        public static InvokeResult Ok(object? data) => new InvokeResult
-        {
-            Data = data,
-            State = HandleState.Ok,
-        };
-        public static InvokeResult Fail(HandleState state, Exception? ex = null) => new InvokeResult
-        {
-            State = state,
-            Exception = ex,
-        };
-    }
-
-    /// <summary>
-    /// 路由信息
-    /// </summary>
-    public class RouterInfo
-    {
-#if NET6_0_OR_GREATER
-        /// <summary>
-        /// 接口类型
-        /// </summary>
-        public ApiType ApiType { get; set; }
-        /// <summary>
-        /// 接口URL
-        /// </summary>
-        public required string Url { get; set; }
-        /// <summary>
-        /// 对应的处理方法
-        /// </summary>
-        public required MethodInfo MethodInfo { get; set; }
-#else
-  /// <summary>
-        /// 接口类型
-        /// </summary>
-        public ApiType ApiType { get; set; }
-        /// <summary>
-        /// 接口URL
-        /// </summary>
-        public string Url { get; set; }
-        /// <summary>
-        /// 对应的处理方法
-        /// </summary>
-        public MethodInfo MethodInfo { get; set; }  
-#endif
-    }
-
-
+   
     /// <summary>
     /// 路由注册与解析
     /// </summary>
-    public class PathRouter : IPathRouter
+    internal class PathRouter 
     {
-        private readonly ISereinIOC SereinIOC; // 用于存储路由信息
+        /// <summary>
+        /// IOC容器
+        /// </summary>
+        private readonly ISereinIOC SereinIOC; 
+
+        private long _requestId = 0;
 
         /// <summary>
         /// 控制器实例对象的类型，每次调用都会重新实例化，[Url - ControllerType]
@@ -161,6 +39,12 @@ namespace Serein.Proto.HttpApi
         /// 用于存储路由信息，[GET|POST - [Url - ApiHandleConfig]]
         /// </summary>
         private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ApiHandleConfig>> HandleModels = new ConcurrentDictionary<string, ConcurrentDictionary<string, ApiHandleConfig>>();
+
+        /// <summary>
+        /// 请求时的处理函数，传入API类型、URL、Body
+        /// </summary>
+        internal Func<ApiRequestInfo, bool>? OnBeforRequest;
+
 
         public PathRouter(ISereinIOC SereinIOC)
         {
@@ -238,19 +122,35 @@ namespace Serein.Proto.HttpApi
         public async Task<InvokeResult> HandleAsync(HttpListenerContext context)
         {
             var request = context.Request; // 获取请求对象
+            var uri = request.Url; // 获取请求的完整URL
             var httpMethod = request.HttpMethod.ToUpper(); // 获取请求的 HTTP 方法
+            var fullUrl = uri.ToString(); // 获取完整URL字符串
+            var routeValues = GetUrlData(fullUrl); // 解析 URL 获取路由参数
+            var requestBody = await ReadRequestBodyAsync(request); // 读取请求体内容
+            var requestId = System.Threading.Interlocked.Increment(ref _requestId);
+            var requestInfo = new ApiRequestInfo
+            {
+                RequestId = requestId,
+                ApiType = httpMethod,
+                Url = fullUrl,
+                Body = requestBody,
+            };
+            if (OnBeforRequest?.Invoke(requestInfo) == false)
+            {
+                return InvokeResult.Fail(requestId, HandleState.RequestBlocked); // 请求被阻止
+            }
             if (!HandleModels.TryGetValue(httpMethod, out var modules) || request.Url is null)
             {
-                return InvokeResult.Fail(HandleState.NotHttpApiRequestType); // 没有对应HTTP请求方法的处理
+                return InvokeResult.Fail(requestId, HandleState.NotHttpApiRequestType); // 没有对应HTTP请求方法的处理
             }
             var template = request.Url.AbsolutePath.ToLower() ;
             if (!_controllerTypes.TryGetValue(template, out var controllerType))
             {
-                return InvokeResult.Fail(HandleState.NotHanleController); // 没有对应的处理器
+                return InvokeResult.Fail(requestId, HandleState.NotHanleController); // 没有对应的处理器
             }
             if (!modules.TryGetValue(template, out var config))
             {
-                return InvokeResult.Fail(HandleState.NotHandleConfig); // 没有对应的处理配置
+                return InvokeResult.Fail(requestId, HandleState.NotHandleConfig); // 没有对应的处理配置
             }
 
             ControllerBase controllerInstance;
@@ -260,13 +160,13 @@ namespace Serein.Proto.HttpApi
             }
             catch 
             {
-                return InvokeResult.Fail(HandleState.HanleControllerIsNull); // 未找到控制器实例
+                return InvokeResult.Fail(requestId, HandleState.HanleControllerIsNull); // 未找到控制器实例
             }
 
 
-            var url = request.Url; // 获取请求的完整URL
-            var routeValues = GetUrlData(url); // 解析 URL 获取路由参数
-            controllerInstance.Url = url.AbsolutePath;
+            
+
+            controllerInstance.Url = uri.AbsolutePath; // 设置控制器实例的 URL 属性
 
             object?[] args;
             switch (httpMethod) 
@@ -275,32 +175,32 @@ namespace Serein.Proto.HttpApi
                     args = config.GetArgsOfGet(routeValues); // Get请求
                     break;
                 case "POST":
-                    var requestBody = await ReadRequestBodyAsync(request); // 读取请求体内容
                     controllerInstance.Body = requestBody;
                     if (!JsonHelper.TryParse(requestBody, out var requestJObject))
                     {
                         var exTips = $"body 无法转换为 json 数据, body: {requestBody}";
-                        return InvokeResult.Fail(HandleState.InvokeArgError, new Exception(exTips));
+                        return InvokeResult.Fail(requestId, HandleState.InvokeArgError, new Exception(exTips));
                     }
                     (var isPass, var index, var type, var ex) = config.TryGetArgsOfPost(routeValues, requestJObject, out args);
                     if (!isPass)
                     {
                         var exTips = $"尝试转换第{index}个入参参数时，类型 {type.FullName} 参数获取失败：{ex?.Message}";
-                        return InvokeResult.Fail(HandleState.InvokeArgError, new Exception(exTips));
+                        return InvokeResult.Fail(requestId, HandleState.InvokeArgError, new Exception(exTips));
                     }
                     break;
                 default:
-                    return InvokeResult.Fail(HandleState.NotHttpApiRequestType);
+                    return InvokeResult.Fail(requestId, HandleState.NotHttpApiRequestType);
             }
+
             try
             {
                 var invokeResult = await config.HandleAsync(controllerInstance, args);
 
-                return InvokeResult.Ok(invokeResult);
+                return InvokeResult.Ok(requestId, invokeResult);
             }
             catch (Exception ex)
             {
-                return InvokeResult.Fail(HandleState.InvokeErrored, ex);
+                return InvokeResult.Fail(requestId, HandleState.InvokeErrored, ex);
             }
 
         }
@@ -403,11 +303,11 @@ namespace Serein.Proto.HttpApi
         /// </summary>
         /// <param name="uri"></param>
         /// <returns></returns>
-        private Dictionary<string, string> GetUrlData(Uri uri)
+        private Dictionary<string, string> GetUrlData(string uri)
         {
             Dictionary<string, string> routeValues = new Dictionary<string, string>();
 
-            var pathParts = uri.ToString().Split('?'); // 拆分 URL，获取路径部分
+            var pathParts = uri.Split('?'); // 拆分 URL，获取路径部分
 
             if (pathParts.Length > 1) // 如果包含查询字符串
             {

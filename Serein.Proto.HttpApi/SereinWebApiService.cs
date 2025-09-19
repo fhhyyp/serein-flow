@@ -1,26 +1,27 @@
 ﻿using Serein.Library;
+using Serein.Library.Api;
 using Serein.Library.Utils;
 using System.Net;
 using System.Text;
 
 namespace Serein.Proto.HttpApi
 {
- 
+
     /// <summary>
     /// 对于 HttpListenerContext 的拓展服务
     /// </summary>
     public class SereinWebApiService
     {
-        private readonly IPathRouter _pathRouter;
+        private readonly PathRouter _pathRouter;
         //private RequestLimiter? requestLimiter;
 
         /// <summary>
         /// 初始化处理器
         /// </summary>
         /// <param name="pathRouter"></param>
-        public SereinWebApiService(IPathRouter pathRouter)
+        public SereinWebApiService(ISereinIOC sereinIOC)
         {
-            _pathRouter = pathRouter;
+            _pathRouter = new PathRouter(sereinIOC);
         }
 
         /// <summary>
@@ -50,7 +51,10 @@ namespace Serein.Proto.HttpApi
             return _pathRouter.GetRouterInfos();
         }
 
-        private Func<InvokeResult, (object, HttpStatusCode)> OnBeforeReplying;
+        /// <summary>
+        /// 传入方法调用结果，返回最终回复的内容和状态码
+        /// </summary>
+        private Func<InvokeResult, (object, HttpStatusCode)>? OnBeforeReplying;
 
         /// <summary>
         /// 设置回复前的处理函数
@@ -60,6 +64,16 @@ namespace Serein.Proto.HttpApi
         {
             OnBeforeReplying = func;
         }
+
+        /// <summary>
+        /// 请求时的处理函数，传入API类型、URL、Body
+        /// </summary>
+        /// <param name="func"></param>
+        public void SetOnBeforeRequest(Func<ApiRequestInfo, bool> func)
+        {
+            _pathRouter.OnBeforRequest = func;
+        }
+
 
         /// <summary>
         /// 处理请求
@@ -117,5 +131,31 @@ namespace Serein.Proto.HttpApi
 
 
         }
+    }
+
+    /// <summary>
+    /// 外部请求的信息
+    /// </summary>
+    public class ApiRequestInfo
+    {
+        /// <summary>
+        /// 请求编号
+        /// </summary>
+        public long RequestId { get; set; }
+
+        /// <summary>
+        /// API类型 GET/POST
+        /// </summary>
+        public string ApiType { get; set; }
+
+        /// <summary>
+        /// 请求的URL
+        /// </summary>
+        public string Url { get; set; }
+
+        /// <summary>
+        /// 请求的Body
+        /// </summary>
+        public string? Body { get; set; }
     }
 }

@@ -24,21 +24,21 @@ namespace Serein.NodeFlow.Env
         private readonly FlowLibraryService flowLibraryService;
         private readonly FlowOperationService flowOperationService;
         private readonly FlowModelService flowModelService;
-        private readonly UIContextOperation UIContextOperation;
+        private readonly UIContextOperation uiContextOperation;
 
         public FlowControl(IFlowEnvironment flowEnvironment,
                            IFlowEnvironmentEvent flowEnvironmentEvent,
                            FlowLibraryService flowLibraryService,
                            FlowOperationService flowOperationService,
                            FlowModelService flowModelService,
-                           UIContextOperation UIContextOperation)
+                           UIContextOperation uiContextOperation)
         {
             this.flowEnvironment = flowEnvironment;
             this.flowEnvironmentEvent = flowEnvironmentEvent;
             this.flowLibraryService = flowLibraryService;
             this.flowOperationService = flowOperationService;
             this.flowModelService = flowModelService;
-            this.UIContextOperation = UIContextOperation;
+            this.uiContextOperation = uiContextOperation;
 
             contexts = new ObjectPool<IFlowContext>(() => new FlowContext(flowEnvironment), context => context.Reset());
             flowTaskOptions = new FlowWorkOptions
@@ -340,7 +340,7 @@ namespace Serein.NodeFlow.Env
             {
                 flowWorkManagement.Exit();
             }
-            UIContextOperation?.Invoke(() => flowEnvironmentEvent.OnFlowRunComplete(new FlowEventArgs()));
+            uiContextOperation?.Invoke(() => flowEnvironmentEvent.OnFlowRunComplete(new FlowEventArgs()));
             IOC.Reset();
             GC.Collect();
             return Task.FromResult(true);

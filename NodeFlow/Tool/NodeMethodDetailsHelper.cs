@@ -332,7 +332,7 @@ public static class NodeMethodDetailsHelper
             {
                 isExplicitData  = nodeParmsAttribute.IsExplicit; // 设置是否是显式参数
             }
-            if (string.IsNullOrEmpty(nodeParmsAttribute.Name)) 
+            if (!string.IsNullOrEmpty(nodeParmsAttribute.Name)) 
             {
                 description = nodeParmsAttribute.Name; // 设置显示的名称
             }

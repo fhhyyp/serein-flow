@@ -154,7 +154,15 @@ namespace Serein.Proto.HttpApi
                     }
                     else if (jsonObject != null && PostArgTypes[i] == PostArgType.IsBobyData)
                     {
-                        args[i] = jsonObject.ToObject(type);
+                        if (type.IsEnum)
+                        {
+                            args[i] = jsonObject.ToObject(type);
+                        }
+                        
+                        else
+                        {
+                            args[i] = jsonObject.ToObject(type);
+                        }
                     }
                     else if (jsonObject != null)
                     {

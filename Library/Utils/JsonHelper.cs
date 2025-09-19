@@ -12,7 +12,7 @@ namespace Serein.Library.Utils
         /// <summary>
         /// Json门户类，需要你提供实现
         /// </summary>
-        private static IJsonProvider provider;
+        public static IJsonProvider Provider { get; private set; }
 
         /// <summary>
         /// 使用第三方包进行解析
@@ -20,7 +20,7 @@ namespace Serein.Library.Utils
         /// <param name="jsonPortal"></param>
         public static void UseJsonProvider(IJsonProvider jsonPortal)
         {
-            JsonHelper.provider = jsonPortal;
+            JsonHelper.Provider = jsonPortal;
         }
 
         /// <summary>
@@ -32,7 +32,7 @@ namespace Serein.Library.Utils
 
         public static T Deserialize<T>(string jsonText)
         {
-            return provider.Deserialize<T>(jsonText);
+            return Provider.Deserialize<T>(jsonText);
         }
 
         /// <summary>
@@ -43,7 +43,7 @@ namespace Serein.Library.Utils
         /// <returns></returns>
         public static object Deserialize(string jsonText, Type type)
         {
-            return provider.Deserialize(jsonText, type);
+            return Provider.Deserialize(jsonText, type);
 
         }
 
@@ -55,7 +55,7 @@ namespace Serein.Library.Utils
 
         public static IJsonToken Parse(string json)
         {
-            return provider.Parse(json);
+            return Provider.Parse(json);
         }
 
         /// <summary>
@@ -66,7 +66,7 @@ namespace Serein.Library.Utils
         /// <returns></returns>
         public static bool TryParse(string json, out IJsonToken jsonToken)
         {
-            return provider.TryParse(json, out jsonToken);
+            return Provider.TryParse(json, out jsonToken);
         }
 
 
@@ -78,7 +78,7 @@ namespace Serein.Library.Utils
         /// <returns></returns>
         public static string Serialize(object obj)
         {
-            return provider.Serialize(obj);
+            return Provider.Serialize(obj);
         }
 
         /// <summary>
@@ -90,7 +90,7 @@ namespace Serein.Library.Utils
         {
             var dict = new Dictionary<string, object>();
             init(dict);
-            return provider.CreateObject(dict);
+            return Provider.CreateObject(dict);
         }
 
         /// <summary>
@@ -100,7 +100,7 @@ namespace Serein.Library.Utils
         /// <returns></returns>
         public static IJsonToken Array(IEnumerable<object> values)
         {
-            return provider.CreateArray(values);
+            return Provider.CreateArray(values);
         }
 
         /// <summary>
@@ -111,8 +111,8 @@ namespace Serein.Library.Utils
         public static IJsonToken FromObject(object obj)
         {
             if (obj is System.Collections.IEnumerable && !(obj is string))
-                return provider.CreateObject(obj as IDictionary<string, object>);
-            return provider.CreateArray(obj as IEnumerable<object>);
+                return Provider.CreateObject(obj as IDictionary<string, object>);
+            return Provider.CreateArray(obj as IEnumerable<object>);
 
         }
     }

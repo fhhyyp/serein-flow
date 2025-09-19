@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
@@ -9,7 +10,18 @@ using System.Text;
 
 namespace Serein.Library.Utils
 {
-
+    /// <summary>
+    /// 指示IOC扫描构造函数时的行为
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Constructor)]
+    public sealed class SereinIOCCtorAttribute : Attribute
+    {
+        /// <summary>
+        /// 忽略该构造函数
+        /// </summary>
+        public bool IsIgnore = false;
+    }
+    
     /// <summary>
     /// 一个轻量级的单例IOC容器
     /// </summary>
@@ -380,7 +392,19 @@ namespace Serein.Library.Utils
         /// <returns></returns>
         private ConstructorInfo[] GetConstructor(Type type)
         {
-            return type.GetConstructors().OrderByDescending(ctor => ctor.GetParameters().Length).ToArray();
+            return type.GetConstructors().Where(ctor =>
+                {
+                    var attribute = ctor.GetCustomAttribute<SereinIOCCtorAttribute>();
+                    if (attribute is null)
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        return !attribute.IsIgnore;
+                    }
+                })
+                .OrderByDescending(ctor => ctor.GetParameters().Length).ToArray();
         }
 
         /// <summary>
@@ -556,6 +580,11 @@ namespace Serein.Library.Utils
                 if (typeName.Equals("Serein.Library.LightweightFlowEnvironment"))
                 {
 
+                }
+
+                if (_registerCallback.TryGetValue(typeName, out var registerCallback))
+                {
+                    
                 }
                 if (_dependencies.ContainsKey(typeName))
                 {
