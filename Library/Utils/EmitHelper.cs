@@ -40,7 +40,9 @@ namespace Serein.Library.Utils
             /// </summary>
             public bool IsStatic { get; set; }
 
-            
+
+            public bool HasByRefParameters { get; set; }
+            public int[] ByRefParameterIndexes { get; set; } = [];
         }
 
         /// <summary>
@@ -98,132 +100,176 @@ namespace Serein.Library.Utils
         /// <param name="methodInfo"></param>
         /// <param name="delegate"></param>
         /// <returns></returns>
-        public static EmitMethodInfo CreateDynamicMethod(MethodInfo methodInfo,out Delegate @delegate)
+        /// <summary>
+        /// 根据方法信息创建动态调用的委托，返回方法类型，以及传出一个委托
+        /// </summary>
+        /// <param name="methodInfo"></param>
+        /// <param name="delegate"></param>
+        /// <returns></returns>
+        public static EmitMethodInfo CreateMethod(MethodInfo methodInfo, out Delegate @delegate)
         {
             if (methodInfo.DeclaringType == null)
-            {
                 throw new ArgumentNullException(nameof(methodInfo.DeclaringType));
-            }
-            EmitMethodInfo emitMethodInfo = new EmitMethodInfo();
-            bool IsTask = IsGenericTask(methodInfo.ReturnType, out var taskGenericsType);
-            bool IsTaskGenerics = taskGenericsType != null;
-            DynamicMethod dynamicMethod;
-            
-            Type returnType;
-            if (!IsTask)
-            {
-                // 普通方法
-                returnType = typeof(object);
-               
-            }
+
+            bool isStatic = methodInfo.IsStatic;
+            bool isTask = IsGenericTask(methodInfo.ReturnType, out var taskResultType);
+            bool isTaskGeneric = taskResultType != null;
+
+            Type dynamicReturnType;
+            if (!isTask)
+                dynamicReturnType = typeof(object);
             else
+                dynamicReturnType = isTaskGeneric ? typeof(Task<object>) : typeof(Task);
+
+            var dynamicMethod = new DynamicMethod(
+                methodInfo.Name + "_Emit",
+                dynamicReturnType,
+                new[] { typeof(object), typeof(object[]) },
+                restrictedSkipVisibility: true);
+
+            ILGenerator il = dynamicMethod.GetILGenerator();
+            var parameters = methodInfo.GetParameters();
+
+            // ==============================
+            // 1. 声明 ref / out / in 局部变量
+            // ==============================
+            LocalBuilder?[] locals = new LocalBuilder?[parameters.Length];
+            List<int> byRefIndexes = new();
+
+            for (int i = 0; i < parameters.Length; i++)
             {
-                // 异步方法
-                if (IsTaskGenerics)
+                if (parameters[i].ParameterType.IsByRef)
                 {
-                    returnType = typeof(Task<object>);
+                    var elementType = parameters[i].ParameterType.GetElementType()!;
+                    locals[i] = il.DeclareLocal(elementType);
+                    byRefIndexes.Add(i);
+                }
+            }
+
+            // ==============================
+            // 2. 初始化 ref / in 参数
+            // ==============================
+            for (int i = 0; i < parameters.Length; i++)
+            {
+                var p = parameters[i];
+                if (!p.ParameterType.IsByRef || p.IsOut)
+                    continue;
+
+                il.Emit(OpCodes.Ldarg_1);
+                il.Emit(OpCodes.Ldc_I4, i);
+                il.Emit(OpCodes.Ldelem_Ref);
+
+                var elementType = p.ParameterType.GetElementType()!;
+                if (elementType.IsValueType)
+                    il.Emit(OpCodes.Unbox_Any, elementType);
+                else
+                    il.Emit(OpCodes.Castclass, elementType);
+
+                il.Emit(OpCodes.Stloc, locals[i]!);
+            }
+
+            // ==============================
+            // 3. 加载实例
+            // ==============================
+            if (!isStatic)
+            {
+                il.Emit(OpCodes.Ldarg_0);
+                il.Emit(OpCodes.Castclass, methodInfo.DeclaringType);
+            }
+
+            // ==============================
+            // 4. 加载参数
+            // ==============================
+            for (int i = 0; i < parameters.Length; i++)
+            {
+                var p = parameters[i];
+                if (p.ParameterType.IsByRef)
+                {
+                    il.Emit(OpCodes.Ldloca, locals[i]!);
                 }
                 else
                 {
-                    returnType = typeof(Task);
+                    il.Emit(OpCodes.Ldarg_1);
+                    il.Emit(OpCodes.Ldc_I4, i);
+                    il.Emit(OpCodes.Ldelem_Ref);
+
+                    if (p.ParameterType.IsValueType)
+                        il.Emit(OpCodes.Unbox_Any, p.ParameterType);
+                    else
+                        il.Emit(OpCodes.Castclass, p.ParameterType);
                 }
             }
 
+            // ==============================
+            // 5. 调用方法
+            // ==============================
+            il.Emit(isStatic ? OpCodes.Call : OpCodes.Callvirt, methodInfo);
 
-
-            dynamicMethod = new DynamicMethod(
-                       name: methodInfo.Name + "_DynamicEmitMethod",
-                       returnType: returnType,
-                       parameterTypes: new[] { typeof(object), typeof(object[]) }, // 方法实例、方法入参
-                       restrictedSkipVisibility: true // 跳过私有方法访问限制
-            );
-
-            var il = dynamicMethod.GetILGenerator();
-
-            // 判断是否为静态方法
-            bool isStatic = methodInfo.IsStatic;
-
-            if (isStatic)
+            // ==============================
+            // 6. 回写 ref / out 参数
+            // ==============================
+            for (int i = 0; i < parameters.Length; i++)
             {
-                // 如果是静态方法，直接跳过实例（不加载Ldarg_0）
-            }
-            else
-            {
-                // 加载实例 (this) 对于非静态方法
-                il.Emit(OpCodes.Ldarg_0);
-                il.Emit(OpCodes.Castclass, methodInfo.DeclaringType); // 将 ISocketControlBase 转换为目标类类型
-            }
-            // 加载方法参数
-            var methodParams = methodInfo.GetParameters();
-            for (int i = 0; i < methodParams.Length; i++)
-            {
-                il.Emit(OpCodes.Ldarg_1); // 加载参数数组
-                il.Emit(OpCodes.Ldc_I4, i); // 加载当前参数索引
-                il.Emit(OpCodes.Ldelem_Ref); // 取出数组元素
+                if (!parameters[i].ParameterType.IsByRef)
+                    continue;
 
-                var paramType = methodParams[i].ParameterType;
-                if (paramType.IsValueType) // 如果参数是值类型，拆箱
-                {
-                    il.Emit(OpCodes.Unbox_Any, paramType);
-                }
-                //else if (paramType.IsGenericParameter) // 如果是泛型参数，直接转换
-                //{
-                //    il.Emit(OpCodes.Castclass, paramType);
-                //}
-                else // 如果是引用类型，直接转换
-                {
-                    il.Emit(OpCodes.Castclass, paramType);
-                }
+                var elementType = parameters[i].ParameterType.GetElementType()!;
 
+                il.Emit(OpCodes.Ldarg_1);
+                il.Emit(OpCodes.Ldc_I4, i);
+                il.Emit(OpCodes.Ldloc, locals[i]!);
+
+                if (elementType.IsValueType)
+                    il.Emit(OpCodes.Box, elementType);
+
+                il.Emit(OpCodes.Stelem_Ref);
             }
 
-            // 调用方法：静态方法使用 Call，实例方法使用 Callvirt
-            if (isStatic)
-            {
-                il.Emit(OpCodes.Call, methodInfo); // 对于静态方法，使用 Call
-            }
-            else
-            {
-                il.Emit(OpCodes.Callvirt, methodInfo); // 对于实例方法，使用 Callvirt
-            }
-
-            //// 处理返回值，如果没有返回值，则返回null
+            // ==============================
+            // 7. 处理返回值
+            // ==============================
             if (methodInfo.ReturnType == typeof(void))
             {
                 il.Emit(OpCodes.Ldnull);
             }
-            else if (methodInfo.ReturnType.IsValueType)
+            else if (!isTask && methodInfo.ReturnType.IsValueType)
             {
-                il.Emit(OpCodes.Box, methodInfo.ReturnType); // 如果是值类型，将其装箱
+                il.Emit(OpCodes.Box, methodInfo.ReturnType);
             }
-            // 处理返回值，如果没有返回值，则返回null
-            il.Emit(OpCodes.Ret); // 返回
-            EmitMethodType emitMethodType;
-            if (IsTask)
+
+            il.Emit(OpCodes.Ret);
+
+            // ==============================
+            // 8. 创建委托
+            // ==============================
+            EmitMethodType emitType;
+            if (!isTask)
             {
-                if (IsTaskGenerics)
-                {
-                    emitMethodType = EmitMethodType.TaskHasResult;
-                    @delegate = dynamicMethod.CreateDelegate(typeof(Func<object, object[], Task<object>>));
-                }
-                else
-                {
-                    emitMethodType = EmitMethodType.Task;
-                    @delegate = dynamicMethod.CreateDelegate(typeof(Func<object, object[], Task>));
-                }
+                emitType = EmitMethodType.Func;
+                @delegate = dynamicMethod.CreateDelegate(
+                    typeof(Func<object, object[], object>));
+            }
+            else if (isTaskGeneric)
+            {
+                emitType = EmitMethodType.TaskHasResult;
+                @delegate = dynamicMethod.CreateDelegate(
+                    typeof(Func<object, object[], Task<object>>));
             }
             else
             {
-                emitMethodType = EmitMethodType.Func;
-                @delegate = dynamicMethod.CreateDelegate(typeof(Func<object, object[], object>));
-
+                emitType = EmitMethodType.Task;
+                @delegate = dynamicMethod.CreateDelegate(
+                    typeof(Func<object, object[], Task>));
             }
+
             return new EmitMethodInfo
             {
-                EmitMethodType = emitMethodType,
+                EmitMethodType = emitType,
                 DeclaringType = methodInfo.DeclaringType,
-                IsAsync = IsTask,
-                IsStatic = isStatic
+                IsAsync = isTask,
+                IsStatic = isStatic,
+                HasByRefParameters = byRefIndexes.Count > 0,
+                ByRefParameterIndexes = byRefIndexes.ToArray()
             };
         }
 

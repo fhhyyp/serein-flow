@@ -80,7 +80,7 @@ namespace Serein.Library
         public DelegateDetails(MethodInfo methodInfo) 
         {
             emitType = EmitType.MethodInvoke;
-            var emitMethodType = EmitHelper.CreateDynamicMethod(methodInfo, out var emitDelegate);
+            var emitMethodType = EmitHelper.CreateMethod(methodInfo, out var emitDelegate);
             _emitMethodInfo = emitMethodType;
             _emitDelegate = emitDelegate;
             methodType = _emitMethodInfo.EmitMethodType;
