@@ -942,6 +942,11 @@ namespace Serein.Library.Api
         IFlowControl FlowControl { get; }
 
         /// <summary>
+        /// 流程依赖类库接口
+        /// </summary>
+        IFlowLibraryService FlowLibraryService { get; }
+
+        /// <summary>
         /// 流程事件接口
         /// </summary>
         IFlowEnvironmentEvent Event { get; }
@@ -1122,6 +1127,13 @@ namespace Serein.Library.Api
         /// </summary>
         void ExitRemoteEnv();
         */
+
+        /// <summary>
+        /// 启动远程服务
+        /// </summary>
+        /// <returns></returns>
+        Task StartRemoteServerAsync(int port = 7525);
+
         /// <summary>
         /// （用于远程）通知节点属性变更
         /// </summary>

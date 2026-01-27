@@ -17,7 +17,7 @@ namespace Serein.Library.Utils
     public class UIContextOperation
     {
         private SynchronizationContext context;
-        private readonly Func<SynchronizationContext> getUiContext = null;
+        public Func<SynchronizationContext> GetUiContext = null;
 
         static UIContextOperation()
         {
@@ -55,7 +55,7 @@ namespace Serein.Library.Utils
         [SereinIOCCtor(IsIgnore =  true)]
         public UIContextOperation(Func<SynchronizationContext> getUiContext)
         {
-            this.getUiContext = getUiContext;
+            this.GetUiContext = getUiContext;
         }
 
         /// <summary>
@@ -65,9 +65,14 @@ namespace Serein.Library.Utils
         /// <param name="onException">异常发生时的回调</param>
         public void Invoke(Action uiAction, Action<Exception> onException = null)
         {
-            if(context is null && getUiContext != null)
+           
+            if(context is null && GetUiContext != null)
             {
-                context = getUiContext.Invoke();
+                while (GetUiContext is null)
+                {
+                    continue;
+                }
+                context = GetUiContext.Invoke();
             }
             context?.Post(state =>
             {
@@ -92,9 +97,13 @@ namespace Serein.Library.Utils
         /// <returns></returns>
         public Task InvokeAsync(Action uiAction, Action<Exception> onException = null)
         {
-            if (context is null && getUiContext != null)
+            if (context is null )
             {
-                context = getUiContext.Invoke();
+                while (GetUiContext is null)
+                {
+                    continue;
+                }
+                context = GetUiContext.Invoke();
             }
             var tcs = new TaskCompletionSource<bool>();
 

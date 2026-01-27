@@ -18,14 +18,14 @@ namespace Serein.NodeFlow.Services
     public class FlowCoreGenerateService
     {
         private readonly FlowModelService flowModelService;
-        private readonly FlowLibraryService flowLibraryService;
+        private readonly IFlowLibraryService flowLibraryService;
 
         /// <summary>
         /// 流程代码生成服务
         /// </summary>
         /// <param name="flowModelService"></param>
         /// <param name="flowLibraryService"></param>
-        public FlowCoreGenerateService(FlowModelService flowModelService ,FlowLibraryService flowLibraryService )
+        public FlowCoreGenerateService(FlowModelService flowModelService ,IFlowLibraryService flowLibraryService )
         {
             this.flowModelService = flowModelService;
             this.flowLibraryService = flowLibraryService;

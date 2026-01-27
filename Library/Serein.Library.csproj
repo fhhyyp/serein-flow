@@ -89,7 +89,8 @@
   <ItemGroup>
     <!--<ProjectReference Include="..\Serein.Library.MyGenerator\Serein.Library.NodeGenerator.csproj " OutputItemType="Analyzer" />-->
     <!--  ReferenceOutputAssembly="false" -->
-    <ProjectReference Include="..\Serein.Library.MyGenerator\Serein.Library.NodeGenerator.csproj " OutputItemType="Analyzer" />
+    <!--<ProjectReference Include="..\Serein.Library.MyGenerator\Serein.Library.NodeGenerator.csproj " OutputItemType="Analyzer" />-->
+    <ProjectReference Include="..\Serein.Library.NodeGenerator\Serein.Library.NodeGenerator.csproj"  OutputItemType="Analyzer"/>
   </ItemGroup>
 
 </Project>

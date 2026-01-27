@@ -51,6 +51,8 @@ namespace Serein.Library
         /// <inheritdoc/>
         public UIContextOperation UIContextOperation => throw new NotImplementedException();
 
+        public IFlowLibraryService FlowLibraryService => throw new NotImplementedException();
+
         /* public Task<(bool, RemoteMsgUtil)> ConnectRemoteEnv(string addres, int port, string token)
          {
              throw new NotImplementedException();

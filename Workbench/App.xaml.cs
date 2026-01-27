@@ -65,6 +65,7 @@ namespace Serein.Workbench
 #endif
 
             var projectService = App.GetService<FlowProjectService>();
+           
             if (e.Args.Length == 1)
             {
                 string filePath = e.Args[0];

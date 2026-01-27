@@ -49,10 +49,45 @@ namespace Serein.NodeFlow.Env
         public FlowEnvironment()
         {
             ISereinIOC ioc = new SereinIOC();
-            ioc.Register<ISereinIOC>(()=> ioc) // IOC容器接口
+            ioc.Register<ISereinIOC>(() => ioc) // IOC容器接口
                .Register<IFlowEnvironment>(() => this) // 流程环境接口
                .Register<IFlowEnvironmentEvent, FlowEnvironmentEvent>() // 流程环境事件接口
                .Register<IFlowEdit, FlowEdit>() // 流程编辑接口
+               .Register<IFlowControl, FlowControl>() // 流程控制接口
+               .Register<IFlowLibraryService, FlowLibraryService>() // 流程库服务
+               .Register<LocalFlowEnvironment>() // 本地环境
+               .Register<FlowModelService>() // 节点/画布模型服务
+               .Register<FlowCoreGenerateService>() // 代码生成
+               .Register<FlowOperationService>() // 流程操作
+               .Register<NodeMVVMService>() // 节点MVVM服务
+               .Build();
+
+            // 设置JSON解析器
+            if (JsonHelper.Provider is null)
+            {
+                JsonHelper.UseJsonProvider(new NewtonsoftJsonProvider());
+            }
+
+            // 默认使用本地环境
+            localFlowEnvironment = ioc.Get<LocalFlowEnvironment>();
+            currentFlowEnvironmentEvent = ioc.Get<IFlowEnvironmentEvent>();
+            currentFlowEnvironment = localFlowEnvironment;
+            SereinEnv.SetEnv(localFlowEnvironment);
+        }
+
+        /// <summary>
+        /// 提供上下文操作进行调用
+        /// </summary>
+        /// <param name="operation"></param>
+        public FlowEnvironment(UIContextOperation operation)
+        {
+            ISereinIOC ioc = new SereinIOC();
+            ioc.Register<ISereinIOC>(() => ioc) // IOC容器接口
+               .Register<IFlowEnvironment>(() => this) // 流程环境接口
+               .Register<IFlowEnvironmentEvent, FlowEnvironmentEvent>() // 流程环境事件接口
+               .Register<IFlowLibraryService, FlowLibraryService>() 
+               .Register<UIContextOperation>(() => operation) // 流程环境接口
+                .Register<IFlowEdit, FlowEdit>() // 流程编辑接口
                .Register<IFlowControl, FlowControl>() // 流程控制接口
                .Register<LocalFlowEnvironment>() // 本地环境
                .Register<FlowModelService>() // 节点/画布模型服务
@@ -67,56 +102,19 @@ namespace Serein.NodeFlow.Env
             {
                 JsonHelper.UseJsonProvider(new NewtonsoftJsonProvider());
             }
-            
+
             // 默认使用本地环境
-            currentFlowEnvironment = ioc.Get<LocalFlowEnvironment>();
+            localFlowEnvironment = ioc.Get<LocalFlowEnvironment>();
             currentFlowEnvironmentEvent = ioc.Get<IFlowEnvironmentEvent>();
-            SereinEnv.SetEnv(currentFlowEnvironment);
+            currentFlowEnvironment = localFlowEnvironment;
+            SereinEnv.SetEnv(localFlowEnvironment);
         }
 
         /// <summary>
-        /// 提供上下文操作进行调用
+        /// 管理当前环境
         /// </summary>
-        /// <param name="operation"></param>
-        public FlowEnvironment(UIContextOperation operation)
-        {
-            ISereinIOC ioc = new SereinIOC();
-            ioc.Register<ISereinIOC>(()=> ioc) // IOC容器接口
-                .Register<UIContextOperation>(() => operation) // 流程环境接口
-                .Register<IFlowEnvironment>(() => this) // 流程环境接口
-                .Register<IFlowEnvironmentEvent, FlowEnvironmentEvent>() // 流程环境事件接口
-                .Register<IFlowEdit, FlowEdit>() // 流程编辑接口
-                .Register<IFlowControl, FlowControl>() // 流程控制接口
-                .Register<LocalFlowEnvironment>() // 本地环境
-                .Register<FlowModelService>() // 节点/画布模型服务
-                .Register<FlowLibraryService>() // 流程库服务
-                .Register<FlowCoreGenerateService>() // 代码生成
-                .Register<FlowOperationService>() // 流程操作
-                .Register<NodeMVVMService>() // 节点MVVM服务
-                .Build();
 
-            // 设置JSON解析器
-            if (JsonHelper.Provider is null)
-            {
-                JsonHelper.UseJsonProvider(new NewtonsoftJsonProvider());
-            }
-            
-            // 默认使用本地环境
-            currentFlowEnvironment = ioc.Get<LocalFlowEnvironment>();
-            currentFlowEnvironmentEvent = ioc.Get<IFlowEnvironmentEvent>();
-            SereinEnv.SetEnv(currentFlowEnvironment);
-        }
-/*
-        /// <summary>
-        /// 本地环境事件
-        /// </summary>
-        private readonly IFlowEnvironmentEvent flowEnvironmentEvent;
-
-        /// <summary>
-        /// 远程环境事件
-        /// </summary>
-        private IFlowEnvironmentEvent remoteFlowEnvironmentEvent;
-        */
+        private LocalFlowEnvironment localFlowEnvironment;
 
         /// <summary>
         /// 管理当前环境
@@ -128,8 +126,6 @@ namespace Serein.NodeFlow.Env
         /// 管理当前环境事件
         /// </summary>
         private IFlowEnvironmentEvent currentFlowEnvironmentEvent;
-
-
 
         private int _loadingProjectFlag = 0; // 使用原子自增代替锁
         /// <summary>
@@ -159,6 +155,9 @@ namespace Serein.NodeFlow.Env
 
         /// <inheritdoc/>
         public IFlowControl FlowControl => currentFlowEnvironment.FlowControl;
+        
+        /// <inheritdoc/>
+        public IFlowLibraryService FlowLibraryService => currentFlowEnvironment.FlowLibraryService;
 
         /// <inheritdoc/>
         public ISereinIOC IOC => currentFlowEnvironment.IOC;
@@ -259,12 +258,6 @@ namespace Serein.NodeFlow.Env
             SetProjectLoadingFlag(true);
         }
 
-       /* /// <inheritdoc/>
-        public void MonitorObjectNotification(string nodeGuid, object monitorData, MonitorObjectEventArgs.ObjSourceType sourceType)
-        {
-            currentFlowEnvironment.FlowControl.MonitorObjectNotification(nodeGuid, monitorData, sourceType);
-        }*/
-
         /// <inheritdoc/>
         public bool TryUnloadLibrary(string assemblyName)
         {
@@ -312,43 +305,14 @@ namespace Serein.NodeFlow.Env
 #endif
 
         #endregion
-/*
 
         /// <inheritdoc/>
-        public async Task<bool> StartFlowAsync(string[] canvasGuids)
+        public Task StartRemoteServerAsync(int port = 7525)
         {
-            return await currentFlowEnvironment.FlowControl.StartFlowAsync(canvasGuids);
+            
+            throw new NotImplementedException();
         }
 
-        /// <inheritdoc/>
-        public async Task<TResult> StartFlowAsync<TResult>(string startNodeGuid)
-        {
-           return await currentFlowEnvironment.FlowControl.StartFlowAsync<TResult>(startNodeGuid);
-        }*/
-       
-       /* /// <inheritdoc/>
-        public async Task StartRemoteServerAsync(int port = 7525)
-        {
-            await currentFlowEnvironment.StartRemoteServerAsync(port);
-        }
-
-        /// <inheritdoc/>
-        public void StopRemoteServer()
-        {
-            currentFlowEnvironment.StopRemoteServer();
-        }*/
-/*
-        /// <inheritdoc/>
-        public void TerminateFlipflopNode(string nodeGuid)
-        {
-            currentFlowEnvironment.FlowControl.TerminateFlipflopNode(nodeGuid);
-        }
-
-        /// <inheritdoc/>
-        public void TriggerInterrupt(string nodeGuid, string expression, InterruptTriggerEventArgs.InterruptTriggerType type)
-        {
-            currentFlowEnvironment.FlowControl.TriggerInterrupt(nodeGuid, expression, type);
-        }*/
 
         /// <inheritdoc/>
         public void SetUIContextOperation(UIContextOperation uiContextOperation)
@@ -356,12 +320,6 @@ namespace Serein.NodeFlow.Env
             
             currentFlowEnvironment.SetUIContextOperation(uiContextOperation);
         }
-/*
-        /// <inheritdoc/>
-        public void UseExternalIOC(ISereinIOC ioc)
-        {
-            currentFlowEnvironment.FlowControl.UseExternalIOC(ioc);
-        }*/
 
         /// <inheritdoc/>
         public bool TryGetNodeModel(string nodeGuid, out IFlowNode nodeModel)
@@ -408,6 +366,7 @@ namespace Serein.NodeFlow.Env
         {
             currentFlowEnvironment.LoadAllNativeLibraryOfRuning(path,isRecurrence);
         }
+       
 
         #endregion
 

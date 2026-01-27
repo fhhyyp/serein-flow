@@ -22,7 +22,7 @@ namespace Serein.NodeFlow.Env
     {
         public FlowEdit(IFlowEnvironment flowEnvironment,
                         IFlowEnvironmentEvent flowEnvironmentEvent,
-                        FlowLibraryService flowLibraryManagement,
+                        IFlowLibraryService flowLibraryManagement,
                         FlowOperationService flowOperationService,
                         FlowModelService flowModelService,
                         UIContextOperation UIContextOperation,
@@ -45,7 +45,7 @@ namespace Serein.NodeFlow.Env
 
         private readonly IFlowEnvironment flowEnvironment;
         private readonly IFlowEnvironmentEvent flowEnvironmentEvent;
-        private readonly FlowLibraryService flowLibraryManagement;
+        private readonly IFlowLibraryService flowLibraryManagement;
         private readonly FlowOperationService flowOperationService;
         private readonly FlowModelService flowModelService;
 

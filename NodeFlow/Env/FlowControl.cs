@@ -21,25 +21,23 @@ namespace Serein.NodeFlow.Env
     {
         private readonly IFlowEnvironment flowEnvironment;
         private readonly IFlowEnvironmentEvent flowEnvironmentEvent;
-        private readonly FlowLibraryService flowLibraryService;
+        private readonly IFlowLibraryService flowLibraryService;
         private readonly FlowOperationService flowOperationService;
         private readonly FlowModelService flowModelService;
-        private readonly UIContextOperation uiContextOperation;
+        private readonly Lazy<UIContextOperation> uiContextOperation;
 
         public FlowControl(IFlowEnvironment flowEnvironment,
                            IFlowEnvironmentEvent flowEnvironmentEvent,
-                           FlowLibraryService flowLibraryService,
+                           IFlowLibraryService flowLibraryService,
                            FlowOperationService flowOperationService,
-                           FlowModelService flowModelService,
-                           UIContextOperation uiContextOperation)
+                           FlowModelService flowModelService)
         {
             this.flowEnvironment = flowEnvironment;
             this.flowEnvironmentEvent = flowEnvironmentEvent;
             this.flowLibraryService = flowLibraryService;
             this.flowOperationService = flowOperationService;
             this.flowModelService = flowModelService;
-            this.uiContextOperation = uiContextOperation;
-
+            uiContextOperation = new Lazy<UIContextOperation>(() => flowEnvironment.IOC.Get<UIContextOperation>());
             contexts = new ObjectPool<IFlowContext>(() => new FlowContext(flowEnvironment), context => context.Reset());
             flowTaskOptions = new FlowWorkOptions
             {
@@ -340,7 +338,7 @@ namespace Serein.NodeFlow.Env
             {
                 flowWorkManagement.Exit();
             }
-            uiContextOperation?.Invoke(() => flowEnvironmentEvent.OnFlowRunComplete(new FlowEventArgs()));
+            uiContextOperation.Value.Invoke(() => flowEnvironmentEvent.OnFlowRunComplete(new FlowEventArgs()));
             IOC.Reset();
             GC.Collect();
             return Task.FromResult(true);

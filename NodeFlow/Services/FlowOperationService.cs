@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 
 namespace Serein.NodeFlow.Services
 {
+    /// <summary>
+    /// 流程操作
+    /// </summary>
     internal class FlowOperationService 
     {
         private readonly ISereinIOC sereinIOC;

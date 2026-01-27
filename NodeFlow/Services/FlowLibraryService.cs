@@ -9,10 +9,11 @@ using System.Xml.Linq;
 
 namespace Serein.NodeFlow.Services
 {
+
     /// <summary>
     /// 管理加载在运行环境中的外部程序集
     /// </summary>
-    public class FlowLibraryService
+    public class FlowLibraryService : IFlowLibraryService
     {
         /// <summary>
         /// 是否加载过基础依赖
@@ -49,7 +50,7 @@ namespace Serein.NodeFlow.Services
         private bool CheckBaseLibrary(string libraryfilePath, out string baseLibraryPath)
         {
             var dir = Path.GetDirectoryName(libraryfilePath); // 获取目录路径
-            ArgumentNullException.ThrowIfNullOrWhiteSpace(dir);
+            ArgumentException.ThrowIfNullOrWhiteSpace(dir);
             var sereinFlowBaseLibraryPath = Path.Combine(dir, SereinBaseLibrary);
             if (!Path.Exists(sereinFlowBaseLibraryPath))
             {

@@ -54,28 +54,48 @@ namespace Serein.Workbench
         /// <param name="collection"></param>
         public static void AddFlowServices(this IServiceCollection collection)
         {
-            #region 创建实例
-            JsonHelper.UseJsonProvider(new NewtonsoftJsonProvider());
             Func<SynchronizationContext>? getSyncContext = null;
+            UIContextOperation? uIContextOperation = new(getSyncContext); // 封装一个调用UI线程的工具类
+            IFlowEnvironment flowEnvironment = new FlowEnvironment(uIContextOperation);
             Dispatcher.CurrentDispatcher.Invoke(() =>
             {
-                var uiContext = SynchronizationContext.Current; // 在UI线程上获取UI线程上下文信息
-                if (uiContext is not null)
+                if (SynchronizationContext.Current is { } uiContext)
                 {
+                    // 在UI线程上获取UI线程上下文信息
                     getSyncContext = () => uiContext;
+
+                    flowEnvironment.UIContextOperation.GetUiContext = () => uiContext; 
                 }
             });
-            UIContextOperation? uIContextOperation = new (getSyncContext); // 封装一个调用UI线程的工具类
-            IFlowEnvironment flowEnvironment = new FlowEnvironment();
-            flowEnvironment.SetUIContextOperation(uIContextOperation);
-
 
 
             collection.AddSingleton<UIContextOperation>(uIContextOperation); // 注册UI线程操作上下文
             collection.AddSingleton<IFlowEnvironment>(flowEnvironment); // 注册运行环境
             collection.AddSingleton<IFlowEnvironmentEvent>(flowEnvironment.Event); // 注册运行环境事件
+            collection.AddSingleton<IFlowEEForwardingService, FlowEEForwardingService>(); // 注册工作台环境事件
 
-            #endregion
+            //#region 创建实例
+           
+            //Func<SynchronizationContext>? getSyncContext = null;
+            //Dispatcher.CurrentDispatcher.Invoke(() =>
+            //{
+            //    var uiContext = SynchronizationContext.Current; // 在UI线程上获取UI线程上下文信息
+            //    if (uiContext is not null)
+            //    {
+            //        getSyncContext = () => uiContext;
+            //    }
+            //});
+            //UIContextOperation? uIContextOperation = new (getSyncContext); // 封装一个调用UI线程的工具类
+            //IFlowEnvironment flowEnvironment = new FlowEnvironment();
+            //flowEnvironment.SetUIContextOperation(uIContextOperation);
+
+
+
+            //collection.AddSingleton<UIContextOperation>(uIContextOperation); // 注册UI线程操作上下文
+            //collection.AddSingleton<IFlowEnvironment>(flowEnvironment); // 注册运行环境
+            //collection.AddSingleton<IFlowEnvironmentEvent>(flowEnvironment.Event); // 注册运行环境事件
+
+            //#endregion
         }
     }
 

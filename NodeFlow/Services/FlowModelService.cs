@@ -7,19 +7,19 @@ using System.Diagnostics.CodeAnalysis;
 namespace Serein.NodeFlow.Services
 {
     /// <summary>
-    /// 流程模型服务
+    /// 流程画布/节点数据实体服务
     /// </summary>
     public class FlowModelService
     {
         private readonly IFlowEnvironment environment;
-        private readonly FlowLibraryService flowLibraryService;
+        private readonly IFlowLibraryService flowLibraryService;
 
         /// <summary>
         /// 流程模型服务构造函数
         /// </summary>
         /// <param name="environment"></param>
         /// <param name="flowLibraryService"></param>
-        public FlowModelService(IFlowEnvironment environment, FlowLibraryService flowLibraryService)
+        public FlowModelService(IFlowEnvironment environment, IFlowLibraryService flowLibraryService)
         {
             this.environment = environment;
             this.flowLibraryService = flowLibraryService;
