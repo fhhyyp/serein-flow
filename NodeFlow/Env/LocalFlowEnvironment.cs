@@ -29,9 +29,10 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         public LocalFlowEnvironment(IFlowEnvironment flowEnvironment,
                                     IFlowEnvironmentEvent flowEnvironmentEvent,
-                                    FlowLibraryService flowLibraryManagement,
+                                    IFlowLibraryService flowLibraryManagement,
                                     FlowOperationService flowOperationService,
                                     FlowModelService flowModelService,
+                                    UIContextOperation uIContextOperation,
                                     IFlowControl flowControl,
                                     IFlowEdit flowEdit,
                                     ISereinIOC sereinIOC,
@@ -42,7 +43,8 @@ namespace Serein.NodeFlow.Env
             FlowEdit = flowEdit;
             IOC = sereinIOC;
             FlowControl = flowControl;
-            _flowLibraryService = flowLibraryManagement;
+            FlowLibraryService = flowLibraryManagement;
+            UIContextOperation = uIContextOperation;
             _flowModelService = flowModelService;
             _flowOperationService = flowOperationService;
             _IsGlobalInterrupt = false;
@@ -115,6 +117,11 @@ namespace Serein.NodeFlow.Env
         public IFlowControl FlowControl { get; set; }
 
         /// <summary>
+        /// 通过程序集名称管理动态加载的程序集，用于节点创建提供方法描述，流程运行时提供Emit委托
+        /// </summary>
+        public IFlowLibraryService FlowLibraryService { get; set; }
+
+        /// <summary>
         /// UI线程操作类
         /// </summary>
         public UIContextOperation? UIContextOperation { get; private set; }
@@ -184,10 +191,7 @@ namespace Serein.NodeFlow.Env
         /// </summary>
         private ISereinIOC _flowEnvIOC;
 
-        /// <summary>
-        /// 通过程序集名称管理动态加载的程序集，用于节点创建提供方法描述，流程运行时提供Emit委托
-        /// </summary>
-        private readonly FlowLibraryService _flowLibraryService;
+      
 
         /// <summary>
         /// 流程节点操作服务
@@ -302,9 +306,9 @@ namespace Serein.NodeFlow.Env
             }
             var projectData = flowProjectData ?? throw new ArgumentNullException(nameof(flowProjectData));
 
-            if (!_flowLibraryService.IsLoadedBaseLibrary)
+            if (!FlowLibraryService.IsLoadedBaseLibrary)
             {
-                var baseLibrary = _flowLibraryService.LoadBaseLibrary();
+                var baseLibrary = FlowLibraryService.LoadBaseLibrary();
                 if (baseLibrary.MethodInfos.Count > 0 && UIContextOperation is not null)
                 { 
                     await UIContextOperation.InvokeAsync(() => Event.OnDllLoad(new LoadDllEventArgs(baseLibrary))); // 通知UI创建dll面板显示
@@ -360,7 +364,7 @@ namespace Serein.NodeFlow.Env
         {
             var projectData = new SereinProjectData()
             {
-                Librarys = this._flowLibraryService.GetAllLibraryInfo().ToArray(),
+                Librarys = this.FlowLibraryService.GetAllLibraryInfo().ToArray(),
                 Nodes = _flowModelService.GetAllNodeModel()
                                          .Select(node => node.ToInfo())
                                          .Where(info => info is not null)
@@ -384,7 +388,8 @@ namespace Serein.NodeFlow.Env
         {
             try
             {
-                var libraryInfo = _flowLibraryService.LoadFlowLibrary(dllPath);
+
+                var libraryInfo = FlowLibraryService.LoadFlowLibrary(dllPath);
                 if (libraryInfo is not null && libraryInfo.MethodInfos.Count > 0)
                 {
                     UIContextOperation?.Invoke(() => Event.OnDllLoad(new LoadDllEventArgs(libraryInfo))); // 通知UI创建dll面板显示
@@ -407,7 +412,7 @@ namespace Serein.NodeFlow.Env
             var groupedNodes = _flowModelService.GetAllNodeModel().Where(node => !string.IsNullOrWhiteSpace(node.MethodDetails.AssemblyName) && node.MethodDetails.AssemblyName.Equals(assemblyName)).ToArray();
             if (groupedNodes.Length == 0)
             {
-                var isPass = _flowLibraryService.UnloadLibrary(assemblyName);
+                var isPass = FlowLibraryService.UnloadLibrary(assemblyName);
                 return isPass;
             }
             else
@@ -508,7 +513,7 @@ namespace Serein.NodeFlow.Env
 
         public bool TryGetMethodDetailsInfo(string assemblyName, string methodName, out MethodDetailsInfo? mdInfo)
         {
-            var isPass = _flowLibraryService.TryGetMethodDetails(assemblyName, methodName, out var md);
+            var isPass = FlowLibraryService.TryGetMethodDetails(assemblyName, methodName, out var md);
             if (!isPass || md is null)
             {
                 mdInfo = null;
@@ -534,7 +539,7 @@ namespace Serein.NodeFlow.Env
         /// <returns></returns>
         public bool TryGetDelegateDetails(string assemblyName, string methodName, out DelegateDetails? delegateDetails)
         {
-            return _flowLibraryService.TryGetDelegateDetails(assemblyName, methodName, out delegateDetails);
+            return FlowLibraryService.TryGetDelegateDetails(assemblyName, methodName, out delegateDetails);
         }
 
         /// <summary>
@@ -662,7 +667,6 @@ namespace Serein.NodeFlow.Env
         /// <returns></returns>
         public bool LoadNativeLibraryOfRuning(string file)
         {
-
             return NativeDllHelper.LoadDll(file);
         }
 
@@ -684,6 +688,11 @@ namespace Serein.NodeFlow.Env
         private void OnUIContextOperationSet()
         {
            
+        }
+
+        Task IFlowEnvironment.StartRemoteServerAsync(int port)
+        {
+            throw new NotImplementedException();
         }
     }
 

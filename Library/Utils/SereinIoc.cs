@@ -510,13 +510,15 @@ namespace Serein.Library.Utils
             {
                 return null;
             }
-            
             else
             {
                 // 没有显示指定构造函数入参，选择参数最多的构造函数
                 //var constructor = GetConstructorWithMostParameters(type);
                 var constructors = GetConstructor(type); // 获取构造函数
-
+                if(constructors.Length == 0)
+                {
+                    return null;
+                }
                 foreach(var constructor in constructors)
                 {
                     var parameters = constructor.GetParameters();
@@ -534,8 +536,10 @@ namespace Serein.Library.Utils
                             argObj = CreateInstance(fullName);
                             if (argObj is null)
                             {
-                                SereinEnv.WriteLine(InfoType.WARN, "构造参数创建失败"); 
-                                continue;
+                                SereinEnv.WriteLine(InfoType.WARN, "构造参数创建失败");
+
+                                argObj = CreateInstance(fullName);
+                                throw new Exception("构造参数创建失败");
                             }
                         }
                         args[i] = argObj;
@@ -545,7 +549,7 @@ namespace Serein.Library.Utils
                         instance = Activator.CreateInstance(type, args);
                         if(instance != null)
                         {
-                            break;
+                            break; // 构建完成退出
                         }
                     }
                     catch (Exception)
@@ -553,10 +557,7 @@ namespace Serein.Library.Utils
                         continue;
                     }
                 }
-
-              
             }
-
             InjectDependencies(instance); // 完成创建后注入实例需要的特性依赖项
             _dependencies[typeName] = instance;
             return instance;
@@ -662,7 +663,7 @@ namespace Serein.Library.Utils
         /// </summary>
         /// <param name="instance">实例</param>
         /// <param name="isRecord">未完成依赖项注入时是否记录</param>
-        private bool InjectDependencies(object instance,bool isRecord = true)
+        private bool InjectDependencies(object instance, bool isRecord = true)
         {
             var properties = instance.GetType()
                                      .GetProperties(BindingFlags.Instance | BindingFlags.Public).ToArray()

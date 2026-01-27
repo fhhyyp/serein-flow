@@ -17,7 +17,10 @@ namespace Serein.Library
     /// </summary>
     public static class SereinEnv
     {
-        private static IFlowEnvironment environment;
+        /// <summary>
+        /// 运行环境
+        /// </summary>
+        public static IFlowEnvironment Environment { get;private set; }
 
         #region 全局数据（暂时使用静态全局变量）
         /// <summary>
@@ -112,7 +115,7 @@ namespace Serein.Library
         {
             if (environment != null)
             {
-                SereinEnv.environment = environment;
+                SereinEnv.Environment = environment;
             }
         }
 
@@ -126,7 +129,7 @@ namespace Serein.Library
         {
             Debug.WriteLine($"{type} : {message}");
             Console.WriteLine($"{type} : {message}");
-            SereinEnv.environment?.WriteLine(type,message,@class);
+            SereinEnv.Environment?.WriteLine(type,message,@class);
         }
         
         /// <summary>
@@ -139,12 +142,12 @@ namespace Serein.Library
             if(@class == InfoClass.Debug)
             {
 
-                SereinEnv.environment.WriteLine(InfoType.ERROR, ex.ToString(), @class);
+                SereinEnv.Environment.WriteLine(InfoType.ERROR, ex.ToString(), @class);
             }
             else
             {
 
-                SereinEnv.environment.WriteLine(InfoType.ERROR, ex.Message, @class);
+                SereinEnv.Environment.WriteLine(InfoType.ERROR, ex.Message, @class);
             }
         }
 
@@ -157,13 +160,13 @@ namespace Serein.Library
         /// <returns></returns>
         public async static Task TriggerEvent(Action action)
         {
-            if (environment is null)
+            if (Environment is null)
             {
                 action?.Invoke();
             }
             else
             {
-                var uco = environment.UIContextOperation;
+                var uco = Environment.UIContextOperation;
                 if (uco is null)
                 {
                     action?.Invoke();

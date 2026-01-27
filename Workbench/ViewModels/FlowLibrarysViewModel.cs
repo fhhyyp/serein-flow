@@ -2,6 +2,7 @@
 using Serein.Library;
 using Serein.Library.Api;
 using Serein.NodeFlow.Env;
+using Serein.NodeFlow.Services;
 using Serein.Workbench.Api;
 using Serein.Workbench.Models;
 using Serein.Workbench.Services;
@@ -27,6 +28,9 @@ namespace Serein.Workbench.ViewModels
             this.flowEnvironment = flowEnvironment;
             FlowLibraryInfos = new ObservableCollection<Models.FlowLibraryInfo>();
             flowEEForwardingService.DllLoad += FlowEEForwardingService_OnDllLoad;
+
+
+            //var baseLibrary = App.GetService<IFlowLibraryService>().LoadBaseLibrary();
         }
         /// <summary>
         /// 加载文件依赖

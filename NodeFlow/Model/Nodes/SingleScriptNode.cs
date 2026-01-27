@@ -196,7 +196,7 @@ namespace Serein.NodeFlow.Model.Nodes
 
                 string returnTypeName = nodeInfo.CustomData?.ReturnTypeName ?? typeof(object);
                 
-                var flowLibService = Env.IOC.Get<FlowLibraryService>();
+                var flowLibService = Env.IOC.Get<IFlowLibraryService>();
                 
                 Type?[] argType = array.Select(info => string.IsNullOrWhiteSpace(info.ArgType) ? typeof(Unit) 
                                         : Type.GetType(info.ArgType) 

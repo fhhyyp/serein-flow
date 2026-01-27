@@ -64,6 +64,11 @@ namespace Serein.Library.Utils
             TaskHasResult,
         }
 
+        static Task<object> ConvertTaskResult<T>(Task<T> task) where T : class
+        {
+            return task.ContinueWith(t => (object)t.Result);
+        }
+
         /// <summary>
         /// 判断一个类型是否为泛型 Task&lt;T&gt; 或 Task，并返回泛型参数类型（如果有的话）
         /// </summary>
@@ -100,11 +105,6 @@ namespace Serein.Library.Utils
         /// <param name="methodInfo"></param>
         /// <param name="delegate"></param>
         /// <returns></returns>
-        /// <summary>
-        /// 根据方法信息创建动态调用的委托，返回方法类型，以及传出一个委托
-        /// </summary>
-        /// <param name="methodInfo"></param>
-        /// <param name="delegate"></param>
         /// <returns></returns>
         public static EmitMethodInfo CreateMethod(MethodInfo methodInfo, out Delegate @delegate)
         {
@@ -205,6 +205,17 @@ namespace Serein.Library.Utils
             // ==============================
             il.Emit(isStatic ? OpCodes.Call : OpCodes.Callvirt, methodInfo);
 
+            // 如果是泛型Task
+            if (isTaskGeneric && taskResultType is not null)
+            {
+                var convertMethod = typeof(EmitHelper)
+                    .GetMethod(nameof(ConvertTaskResult),
+                        BindingFlags.Static | BindingFlags.NonPublic)!
+                    .MakeGenericMethod(taskResultType);
+
+                il.Emit(OpCodes.Call, convertMethod);
+            }
+
             // ==============================
             // 6. 回写 ref / out 参数
             // ==============================
@@ -236,6 +247,8 @@ namespace Serein.Library.Utils
             {
                 il.Emit(OpCodes.Box, methodInfo.ReturnType);
             }
+
+            
 
             il.Emit(OpCodes.Ret);
 

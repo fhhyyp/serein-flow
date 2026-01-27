@@ -79,8 +79,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Serein.Extend.NewtonsoftJson\Serein.Extend.NewtonsoftJson.csproj" />
-    <ProjectReference Include="..\Serein.Library.MyGenerator\Serein.Library.NodeGenerator.csproj" OutputItemType="Analyzer" />
-    
+    <ProjectReference Include="..\Serein.Library.NodeGenerator\Serein.Library.NodeGenerator.csproj"  OutputItemType="Analyzer"/>
+
+
     <ProjectReference Include="..\Library\Serein.Library.csproj" />
     
     <ProjectReference Include="..\Serein.Script\Serein.Script.csproj" />

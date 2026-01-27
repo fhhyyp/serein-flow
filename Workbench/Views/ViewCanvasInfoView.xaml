@@ -6,6 +6,7 @@
              xmlns:local="clr-namespace:Serein.Workbench.Views"
              xmlns:vm="clr-namespace:Serein.Workbench.ViewModels"
              xmlns:converter="clr-namespace:Serein.Workbench.Converters"
+             xmlns:template="clr-namespace:CXLims.Software.WPFTemplate"
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="300"
              d:DataContext="{d:DesignInstance vm:ViewCanvasInfoViewModel}">
@@ -117,7 +118,32 @@
                     <TextBlock Text="缩放比例Y" Style="{StaticResource InfoTipsTextBlock}" />
                     <TextBox Text="{Binding Model.ScaleY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InfoValueTextBox}"/>
                 </StackPanel>
-            
+
+
+                <StackPanel x:Name="TestBtn"
+                            Height="100"
+                            DataContext="{Binding}"
+                            template:XScript.TriggerType="Event"
+                            Background="AliceBlue"
+                            template:XScript.TriggerName="MouseLeave"
+                            template:XScript.Return="{Binding Tag, RelativeSource={RelativeSource Self}}"
+                            template:XScript.ParamName1="canvasModel"
+                            template:XScript.ParamData1="{Binding Model}"
+                       >
+
+                    <template:XScript.XamlScript>
+                        <template:XamlScript>
+                            <![CDATA[
+                            debug(vm);
+                            return canvasModel.Guid;
+                        ]]>
+                        </template:XamlScript>
+
+                    </template:XScript.XamlScript>
+
+
+                </StackPanel>
+                <TextBlock Text="{Binding ElementName=TestBtn, Path=Tag}"/>
             </StackPanel>
         </Grid>
     </Border>
