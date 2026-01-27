@@ -156,6 +156,7 @@ namespace Serein.Script
             "while",
             "new",
             "class",
+            "using",
             ];
 
         internal SereinScriptLexer(string input)

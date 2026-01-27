@@ -32,7 +32,6 @@ namespace Serein.Script
             foreach (var node in nodes)
             {
                 result = await InterpretAsync(context, node); // 解释每个节点
-                if (context.IsReturn) break; // 如果需要提前返回，则停止执行
             }
             return result; // 返回最后一个节点的结果
         }
@@ -41,14 +40,25 @@ namespace Serein.Script
         {
             switch (node)
             {
+                case UsingNode usingNode: // 程序开始节点
+                    return null;
                 case ProgramNode programNode: // 程序开始节点
                     throw new Exception();
                 case ReturnNode returnNode: // 程序退出节点
                     async Task<object?> InterpreterReturnNodeAsync(IScriptInvokeContext context, ReturnNode returnNode)
                     {
-                        object? returnValue = await InterpretAsync(context, returnNode.Value);
-                        context.IsNeedReturn = true; 
-                        return returnValue;
+                        var node = returnNode.Value;
+                        context.IsReturn = true;
+                        if (node is null)
+                        {
+                            return null;
+                        }
+                        else
+                        {
+                            object? returnValue = await InterpretAsync(context, node);
+                            
+                            return returnValue;
+                        }
                     }
                     return await InterpreterReturnNodeAsync(context, returnNode);
                 #region 字面量节点
@@ -86,7 +96,7 @@ namespace Serein.Script
                             data = await InterpretAsync(context, branchNode);
                             if (branchNode is ReturnNode) // 遇到 Return 语句 提前退出
                             {
-                                context.IsNeedReturn = true;
+                                context.IsReturn = true;
                                 break;
                             }
                         }
@@ -109,7 +119,7 @@ namespace Serein.Script
                                 data = await InterpretAsync(context, node);
                                 if (node is ReturnNode) // 遇到 Return 语句 提前退出
                                 {
-                                    context.IsNeedReturn = true;
+                                    context.IsReturn = true;
                                     break ;
                                 }
                             }

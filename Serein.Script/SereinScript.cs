@@ -5,7 +5,9 @@ using System.Reflection;
 
 namespace Serein.Script
 {
-
+    /// <summary>
+    /// Serein 脚本引擎
+    /// </summary>
     public class SereinScript
     {
         /// <summary>
@@ -14,10 +16,17 @@ namespace Serein.Script
         public SereinScriptTypeAnalysis TypeAnalysis { get;  } = new SereinScriptTypeAnalysis();
 
 
-
+        /// <summary>
+        /// 程序起始节点
+        /// </summary>
         private ProgramNode? programNode;
 
-
+        /// <summary>
+        /// 执行脚本（静态方法）
+        /// </summary>
+        /// <param name="script"></param>
+        /// <param name="argTypes"></param>
+        /// <returns></returns>
         public static Task<object?> ExecuteAsync(string script, Dictionary<string, Type>? argTypes = null)
         {
             SereinScriptParser parser = new SereinScriptParser();
@@ -50,7 +59,22 @@ namespace Serein.Script
             return returnType; // 脚本返回类型
         }
 
-
+        /// <summary>
+        /// 执行脚本
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public async Task<object?> InterpreterAsync()
+        {
+            IScriptInvokeContext context = new ScriptInvokeContext();
+            if (programNode is null)
+            {
+                throw new ArgumentNullException(nameof(programNode));
+            }
+            Dictionary<ASTNode, Type> symbolInfos = TypeAnalysis.NodeSymbolInfos.ToDictionary();
+            SereinScriptInterpreter Interpreter = new SereinScriptInterpreter(symbolInfos);
+            return await Interpreter.InterpreterAsync(context, programNode);
+        }
 
         /// <summary>
         /// 执行脚本
@@ -73,7 +97,7 @@ namespace Serein.Script
         /// <summary>
         /// 转换为 C# 代码，并且附带方法信息
         /// </summary>
-        /// <param name="script">脚本</param>
+        /// <param name="mehtodName">脚本</param>
         /// <param name="argTypes">挂载的变量</param>
         /// <returns></returns>
         public SereinScriptMethodInfo? ConvertCSharpCode(string mehtodName, Dictionary<string, Type>? argTypes = null)
@@ -163,7 +187,7 @@ namespace Serein.Script
         /// <summary>
         /// 挂载类型
         /// </summary>
-        /// <param name="typeName">函数名称</param>
+        /// <param name="type">类型</param>
         /// <param name="typeName">指定类型名称</param>
         public static void AddClassType(Type type, string typeName = "")
         {

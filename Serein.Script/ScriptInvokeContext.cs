@@ -22,11 +22,6 @@ namespace Serein.Script
         private CancellationTokenSource _tokenSource = new CancellationTokenSource();
 
         /// <summary>
-        /// 是否该退出了
-        /// </summary>
-        public bool IsReturn => _tokenSource.IsCancellationRequested;
-
-        /// <summary>
         /// 是否严格检查 Null 值 （禁止使用 Null）
         /// </summary>
         public bool IsCheckNullValue { get; set; }
@@ -34,7 +29,7 @@ namespace Serein.Script
         /// <summary>
         ///  是否需要提前返回（用于脚本中提前结束）
         /// </summary>
-        public bool IsNeedReturn { get; set; }
+        public bool IsReturn { get; set; }
 
 
         /// <summary>

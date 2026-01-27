@@ -14,7 +14,6 @@ namespace Serein.Script
         private SereinScriptLexer _lexer;
         private Token _currentToken;
 
-
         public SereinScriptParser()
         {
             
@@ -32,7 +31,16 @@ namespace Serein.Script
             return Program();
         }
 
-        private List<ASTNode> Statements {  get; } = new List<ASTNode>();
+
+        /// <summary>
+        /// 命名空间
+        /// </summary>
+        public List<string> UsingNamespaces { get; } = new List<string>();
+
+        /// <summary>
+        /// 程序节点
+        /// </summary>
+        public List<ASTNode> Statements {  get; } = new List<ASTNode>();
 
         /// <summary>
         /// 解析整个程序，直到遇到文件结尾（EOF）为止。
@@ -122,7 +130,6 @@ namespace Serein.Script
                 #region 生成赋值语句/一般语句的ASTNode
                 if (isAssignment)
                 {
-                   
                     // 以赋值语句的形式进行处理
                     var assignmentNode = ParseAssignmentNode(); // 解析复制表达式
                     //if(_currentToken.Type == TokenType.Semicolon)
@@ -139,6 +146,12 @@ namespace Serein.Script
                 } 
                 #endregion
 
+            }
+            else if (JudgmentKeyword("using"))  // 定义对象
+            {
+                var usingNode = ParseUsingNode();
+                UsingNamespaces.Add(usingNode.Namespace);
+                return usingNode;
             }
             else if (JudgmentKeyword("class"))  // 定义对象
             {
@@ -173,6 +186,27 @@ namespace Serein.Script
                 // 为避免解析异常，除了 Statement() 方法以外，其它地方不需要对  TokenType.Semicolon 进行处理
                 throw new Exception("解析异常， Statement() 方法以外的地方处理了 TokenType.Semicolon ");
             }*/
+        }
+
+        /// <summary>
+        /// 解析表达式根节点
+        /// </summary>
+        /// <returns></returns>
+        private ASTNode ParserExpRootNode()
+        {
+            var name = _currentToken.Value;
+            foreach(var nsp in UsingNamespaces)
+            {
+                var fullName = $"{nsp}.{name}";
+                var type = SereinScriptTypeAnalysis.GetTypeOfString(fullName);
+                if (type is null)
+                {
+                    continue;
+                }
+                var typeNode = new TypeNode(fullName).SetTokenInfo(_currentToken);
+                return typeNode;
+            }
+            return new IdentifierNode(_currentToken.Value).SetTokenInfo(_currentToken); 
         }
 
         /// <summary>
@@ -213,8 +247,10 @@ namespace Serein.Script
              * */
             //if (JudgmentOperator(_currentToken, "=")) break; // 退出
             //var tempPeekToken = _lexer.PeekToken();
-            var backupToken = _currentToken;
-            var targetNode = new IdentifierNode(_currentToken.Value).SetTokenInfo(_currentToken); // 生成 Tagget 标记节点
+
+            
+            var targetNode = ParserExpRootNode(); // 生成 Tagget 标记节点
+            //var targetNode = new IdentifierNode(_currentToken.Value).SetTokenInfo(_currentToken); // 生成 Tagget 标记节点
             
             List<ASTNode> nodes = [targetNode];
             ASTNode? source;
@@ -471,6 +507,34 @@ namespace Serein.Script
                 return node;
             }
             throw new Exception($"解析参数节点后，当前Token类型不符合预期，当前类型为 {_currentToken.Type}。");
+        }
+
+        /// <summary>
+        /// （不处理分号）
+        /// 1. 引入命名空间
+        /// </summary>
+        /// <returns></returns>
+        private UsingNode ParseUsingNode()
+        {
+            var startIndex = _lexer.GetIndex(); // 从“using”开始锚定代码范围
+            NextToken(); //  消耗“using”关键字，获取类名
+            List<string> namespaceItems = [];
+            while (true) // 遇到 ";" 时结束
+            {
+                string className = _currentToken.Value; // 命名空间
+                namespaceItems.Add(className);
+                if (_currentToken.Type == TokenType.Semicolon)
+                {
+                    break;
+                }
+                NextToken(); // 命名空间
+            }
+            var nsp = string.Join('.', namespaceItems);
+            UsingNode usingNode = new UsingNode(nsp);
+            var usingToken = _currentToken;
+            usingToken.Code = _lexer.GetCoreContent(startIndex); // 收集类型定义的代码。
+            usingNode.SetTokenInfo(usingToken);
+            return usingNode;
         }
 
         /// <summary>

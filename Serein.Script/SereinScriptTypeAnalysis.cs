@@ -23,7 +23,6 @@ namespace Serein.Script
     /// </summary>
     public class SereinScriptTypeAnalysis
     {
-       
         /// <summary>
         /// 符号表
         /// </summary>
@@ -100,6 +99,10 @@ namespace Serein.Script
         {
             switch (node)
             {
+                case UsingNode usingNode:
+                    // 引用命名空间节点，不产生类型
+                    NodeSymbolInfos[usingNode] = typeof(void);
+                    return typeof(void);
                 case ProgramNode programNode: // 程序开始节点
                     NodeSymbolInfos[programNode] = typeof(void);
                     return typeof(void);
@@ -666,21 +669,37 @@ namespace Serein.Script
             }
         }
 
-
-        public static Type GetTypeOfString(string typeName)
+        /// <summary>
+        /// 跳过名称搜索类型
+        /// </summary>
+        /// <param name="typeFullnameName"></param>
+        /// <returns></returns>
+        /// <exception cref="InvalidOperationException"></exception>
+        public static Type GetTypeOfString(string typeFullnameName)
         {
             Type? resultType = null;
-            resultType = DynamicObjectHelper.GetCacheType(typeName); // 从自定义类型查询类型
+            resultType = DynamicObjectHelper.GetCacheType(typeFullnameName); // 从自定义类型查询类型
             if (resultType != null)
             {
                 return resultType;
             }
-            resultType = Type.GetType(typeName); // 从命名空间查询类型
+            
+            resultType = Type.GetType(typeFullnameName); // 从命名空间查询类型
             if (resultType != null)
             {
                 return resultType;
             }
-            throw new InvalidOperationException($"无法匹配类型 {typeName}");
+
+            if(SereinEnv.Environment is not null && SereinEnv.Environment.FlowLibraryService is not null)
+            {
+                resultType = SereinEnv.Environment.FlowLibraryService.GetType(typeFullnameName);
+                if (resultType != null)
+                {
+                    return resultType;
+                }
+            }
+
+            throw new InvalidOperationException($"无法匹配类型 {typeFullnameName}");
         }
 
         

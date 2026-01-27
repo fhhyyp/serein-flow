@@ -9,14 +9,9 @@ namespace Serein.Script
     {
 
         /// <summary>
-        /// 是否该退出了（由 TokenSource 控制，用于响应外部发出停止信号）
-        /// </summary>
-        bool IsReturn { get; }
-
-        /// <summary>
         /// 是否需要提前返回（用于脚本中提前结束）
         /// </summary>
-        bool IsNeedReturn { get; set; }
+        bool IsReturn { get; set; }
 
         /// <summary>
         /// 是否严格检查 Null 值 （禁止使用 Null）

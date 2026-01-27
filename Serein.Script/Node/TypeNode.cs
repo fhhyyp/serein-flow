@@ -11,6 +11,9 @@ namespace Serein.Script.Node
     /// </summary>
     public class TypeNode : ASTNode
     {
+        /// <summary>
+        /// 类型名称
+        /// </summary>
         public string TypeName { get;  }
 
         public TypeNode(string typeName)
