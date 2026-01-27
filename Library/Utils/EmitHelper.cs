@@ -206,7 +206,7 @@ namespace Serein.Library.Utils
             il.Emit(isStatic ? OpCodes.Call : OpCodes.Callvirt, methodInfo);
 
             // 如果是泛型Task
-            if (isTaskGeneric && taskResultType is not null)
+            if (isTaskGeneric && methodInfo.ReturnType.IsValueType && taskResultType is not null)
             {
                 var convertMethod = typeof(EmitHelper)
                     .GetMethod(nameof(ConvertTaskResult),
