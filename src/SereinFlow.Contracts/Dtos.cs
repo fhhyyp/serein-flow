@@ -179,6 +179,43 @@ public sealed record PluginManifestDto(
     string ApiVersion,
     IReadOnlyList<string> NodeTypes);
 
+/// <summary>
+/// A server-owned class library package. The package path is intentionally not
+/// exposed to clients; only immutable metadata and the safe node catalog cross
+/// the API boundary.
+/// </summary>
+public sealed record LibraryDto(
+    string Id,
+    string Name,
+    string Version,
+    string FileName,
+    long SizeBytes,
+    string Sha256,
+    DateTimeOffset UploadedAt,
+    IReadOnlyList<LibraryNodeDto> Nodes);
+
+public sealed record LibraryNodeDto(
+    string Id,
+    NodeTypeDto Type,
+    string DisplayName,
+    string? Description,
+    string LibraryId,
+    string ClassName,
+    string MethodName,
+    string DllName,
+    string DllVersion,
+    string ReturnType,
+    IReadOnlyList<LibraryParameterDto> Parameters);
+
+public sealed record LibraryParameterDto(
+    string Id,
+    string Name,
+    string Type,
+    string? Description,
+    bool Required);
+
+public sealed record LibraryUploadResultDto(LibraryDto Library, bool AlreadyExists);
+
 public sealed record FlowValidationResultDto(
     bool IsValid,
     IReadOnlyList<ValidationDiagnosticDto> Diagnostics);

@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
+  AlertTriangle,
   Activity,
   Check,
   ChevronDown,
   Code2,
   Database,
-  FolderOpen,
   GitBranch,
   Languages,
   LayoutGrid,
   LocateFixed,
+  RefreshCw,
   Play,
   Plus,
   RotateCcw,
@@ -19,6 +20,7 @@ import {
   Search,
   Settings2,
   Server,
+  UploadCloud,
   Square,
   Terminal,
   Trash2,
@@ -38,7 +40,9 @@ import {
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
 import FlowNodeCard from './components/flow/FlowNodeCard.vue'
+import LibraryUploadDialog from './components/library/LibraryUploadDialog.vue'
 import { FlowApiError, createProject, listProjects, loadFlow, saveFlow as saveFlowRequest, type ProjectWorkspaceDto } from './api/flowApi'
+import { listLibraries, type LibraryDto, type LibraryNodeDto } from './api/libraryApi'
 import { locale, setLocale, t, type Locale } from './i18n'
 import { cloneCanvasGraph, removeEdgesById } from './flow/canvasGraph'
 import { resolveConnectionSemantic } from './flow/connectionSeats'
@@ -55,6 +59,7 @@ import type {
   FlowNode,
   MethodParameter,
   NodeKind,
+  NodeRuntimeMetadata,
   ParameterSource,
 } from './flow/types'
 
@@ -67,6 +72,10 @@ const activeCanvasId = ref('main')
 const isRunning = ref(false)
 const activeOutput = ref<'events' | 'payload'>('events')
 const librarySearch = ref('')
+const libraries = ref<LibraryDto[]>([])
+const isLibraryCatalogLoading = ref(true)
+const libraryCatalogError = ref('')
+const libraryUploadOpen = ref(false)
 const runEvents = ref<Array<{ time: string; label: string; detail: string; success?: boolean }>>([])
 const runPayload = ref('')
 const mobilePanel = ref<'nodes' | 'inspector' | null>(null)
@@ -161,6 +170,18 @@ const saveStateKey = computed(() => {
   return isDirty.value ? 'canvas.unsaved' : 'canvas.saved'
 })
 const hasRunOutput = computed(() => runEvents.value.length > 0)
+const visibleLibraries = computed(() => {
+  const query = librarySearch.value.trim().toLocaleLowerCase()
+  return libraries.value
+    .map((library) => ({
+      library,
+      nodes: query
+        ? library.nodes.filter((node) => [node.displayName, node.className, node.methodName, node.description ?? ''].some((value) => value.toLocaleLowerCase().includes(query)))
+        : library.nodes,
+    }))
+    .filter((item) => item.nodes.length > 0)
+})
+const catalogNodeCount = computed(() => libraries.value.reduce((count, library) => count + library.nodes.length, 0))
 
 function localizeEdges(): void {
   for (const canvas of canvases.value) {
@@ -501,22 +522,44 @@ function updateParameterSource(nodeId: string, parameter: MethodParameter, event
   markWorkspaceChanged()
 }
 
-function addNode(kind: NodeKind, titleKey: string, subtitleKey: string, position?: { x: number; y: number }): void {
+function addNode(
+  kind: NodeKind,
+  titleKey: string,
+  subtitleKey: string,
+  position?: { x: number; y: number },
+  metadata?: {
+    displayName?: string
+    description?: string
+    runtime?: NodeRuntimeMetadata
+    parameters?: MethodParameter[]
+    hasDataOutput?: boolean
+  },
+): void {
   recordWorkspaceMutation()
   const number = nextNodeNumber.value++
   const id = `${kind}-${currentCanvas.value.id}-${number}`
   const column = currentCanvas.value.nodes.length % 3
   const row = Math.floor(currentCanvas.value.nodes.length / 3)
-  const parameters = kind === 'trigger'
+  const parameters = metadata?.parameters ?? (kind === 'trigger'
     ? []
-    : [{ id: 'input', nameKey: 'parameter.value', valueKind: 'JSON', source: 'literal' as const, literalValue: '' }]
+    : [{ id: 'input', nameKey: 'parameter.value', valueKind: 'JSON', source: 'literal' as const, literalValue: '' }])
 
   const newNode: FlowNode = {
     id,
     type: 'workflow',
     position: position ?? { x: 120 + column * 300, y: 450 + row * 180 },
     width: 224,
-    data: { kind, titleKey, subtitleKey, status: 'ready', hasDataOutput: true, parameters },
+    data: {
+      kind,
+      titleKey,
+      subtitleKey,
+      displayName: metadata?.displayName,
+      description: metadata?.description,
+      runtime: metadata?.runtime,
+      status: 'ready',
+      hasDataOutput: metadata?.hasDataOutput ?? true,
+      parameters,
+    },
   }
 
   nodes.value = [...nodes.value, newNode]
@@ -554,13 +597,22 @@ function handleCanvasDrop(event: DragEvent): void {
   }
 
   try {
-    const item = JSON.parse(encoded) as { kind: NodeKind; titleKey: string; subtitleKey: string }
+    const item = JSON.parse(encoded) as {
+      kind: NodeKind
+      titleKey: string
+      subtitleKey: string
+      displayName?: string
+      description?: string
+      runtime?: NodeRuntimeMetadata
+      parameters?: MethodParameter[]
+      hasDataOutput?: boolean
+    }
     if (!isNodeKind(item.kind)) {
       return
     }
 
     const position = screenToFlowCoordinate({ x: event.clientX, y: event.clientY })
-    addNode(item.kind, item.titleKey, item.subtitleKey, { x: Math.round(position.x / 16) * 16, y: Math.round(position.y / 16) * 16 })
+    addNode(item.kind, item.titleKey, item.subtitleKey, { x: Math.round(position.x / 16) * 16, y: Math.round(position.y / 16) * 16 }, item)
   } catch {
     notice.value = t('canvas.invalidNodeDrop')
   }
@@ -796,6 +848,72 @@ async function initializeWorkspace(): Promise<void> {
   }
 }
 
+async function refreshLibraryCatalog(): Promise<void> {
+  isLibraryCatalogLoading.value = true
+  libraryCatalogError.value = ''
+  try {
+    libraries.value = await listLibraries()
+  } catch {
+    libraryCatalogError.value = t('library.loadFailed')
+  } finally {
+    isLibraryCatalogLoading.value = false
+  }
+}
+
+function handleLibraryUploaded(library: LibraryDto): void {
+  const existingIndex = libraries.value.findIndex((item) => item.id === library.id)
+  if (existingIndex >= 0) {
+    libraries.value = libraries.value.map((item, index) => index === existingIndex ? library : item)
+  } else {
+    libraries.value = [...libraries.value, library]
+  }
+  libraryUploadOpen.value = false
+  librarySearch.value = ''
+  notice.value = t('libraryUpload.success', { name: library.name, count: library.nodes.length })
+}
+
+function catalogNodeKind(node: LibraryNodeDto): NodeKind {
+  return isNodeKind(node.type) ? node.type : 'action'
+}
+
+function handleLibraryNodeDragStart(event: DragEvent, node: LibraryNodeDto): void {
+  if (!event.dataTransfer) {
+    return
+  }
+
+  const runtime: NodeRuntimeMetadata = {
+    category: 'method',
+    libraryId: node.libraryId,
+    className: node.className,
+    methodName: node.methodName,
+    dllName: node.dllName,
+    dllVersion: node.dllVersion,
+    returnType: node.returnType,
+  }
+  const parameters = node.parameters.map((parameter) => ({
+    id: parameter.id,
+    nameKey: parameter.name,
+    name: parameter.name,
+    valueKind: parameter.type || 'System.Object',
+    type: parameter.type,
+    description: parameter.description ?? undefined,
+    source: 'literal' as const,
+    inputMode: 'manual' as const,
+    literalValue: '',
+  }))
+  event.dataTransfer.setData('application/sereinflow-node', JSON.stringify({
+    kind: catalogNodeKind(node),
+    titleKey: 'node.catalogMethod',
+    subtitleKey: 'node.catalogSubtitle',
+    displayName: node.displayName,
+    description: node.description ?? `${node.className}.${node.methodName}`,
+    runtime,
+    parameters,
+    hasDataOutput: node.returnType !== 'System.Void',
+  }))
+  event.dataTransfer.effectAllowed = 'copy'
+}
+
 function nodeTitle(node: FlowNode): string {
   return node.data.displayName?.trim() || t(node.data.titleKey)
 }
@@ -848,7 +966,7 @@ function handleWorkspaceShortcut(event: KeyboardEvent): void {
 
 onMounted(() => {
   window.addEventListener('keydown', handleWorkspaceShortcut)
-  void initializeWorkspace()
+  void Promise.allSettled([initializeWorkspace(), refreshLibraryCatalog()])
 })
 
 onBeforeUnmount(() => {
@@ -894,15 +1012,26 @@ function setLanguage(nextLocale: Locale): void {
 
     <main class="workspace-grid">
       <aside class="node-library" :class="{ 'mobile-visible': mobilePanel === 'nodes' }">
-        <div class="panel-heading"><div><span class="eyebrow">{{ t('library.build') }}</span><h1>{{ t('library.nodeLibrary') }}</h1></div><span class="library-badge"><Server :size="11" />API</span></div>
+        <div class="panel-heading"><div><span class="eyebrow">{{ t('library.build') }}</span><h1>{{ t('library.nodeLibrary') }}</h1></div><div class="library-heading-actions"><span class="library-badge"><Server :size="11" />API</span><button class="icon-button compact" type="button" :title="t('library.upload')" :aria-label="t('library.upload')" @click="libraryUploadOpen = true"><UploadCloud :size="15" /></button></div></div>
         <label class="library-search"><Search :size="14" aria-hidden="true" /><input v-model="librarySearch" type="search" :placeholder="t('library.searchPlaceholder')" /></label>
-        <div class="library-empty">
+
+        <div v-if="isLibraryCatalogLoading" class="library-catalog-state"><RefreshCw class="spin" :size="18" /><strong>{{ t('library.loading') }}</strong></div>
+        <div v-else-if="libraryCatalogError" class="library-catalog-state library-catalog-state--error"><AlertTriangle :size="18" /><strong>{{ libraryCatalogError }}</strong><button type="button" @click="refreshLibraryCatalog">{{ t('command.retry') }}</button></div>
+        <div v-else-if="visibleLibraries.length === 0" class="library-empty">
           <div class="library-empty__mark" aria-hidden="true"><LayoutGrid :size="18" /></div>
-          <strong>{{ librarySearch ? t('library.noSearchResults') : t('library.emptyTitle') }}</strong>
-          <p class="empty-copy">{{ t('library.empty') }}</p>
+          <strong>{{ librarySearch ? t('library.noSearchResults') : t('library.emptyCatalog') }}</strong>
+          <p class="empty-copy">{{ librarySearch ? t('library.empty') : t('library.emptyCatalogHint') }}</p>
           <span class="library-empty__hint">{{ t('library.serverOnly') }}</span>
         </div>
-        <div class="library-footer"><div class="status-line"><span class="status-dot status-dot--idle"></span><span>{{ t('library.catalogWaiting') }}</span><span class="mono">API</span></div><button class="footer-link" type="button"><FolderOpen :size="14" />{{ t('library.openProject') }}</button></div>
+        <div v-else class="library-catalog">
+          <section v-for="entry in visibleLibraries" :key="entry.library.id" class="library-catalog__group">
+            <div class="library-catalog__heading"><div><strong>{{ entry.library.name }}</strong><span>{{ entry.library.version }}</span></div><span class="mono">{{ t('library.nodeCount', { count: entry.nodes.length }) }}</span></div>
+            <button v-for="node in entry.nodes" :key="node.id" class="library-node" type="button" draggable="true" @dragstart="handleLibraryNodeDragStart($event, node)">
+              <span class="library-node__mark"><Database :size="14" /></span><span class="library-node__body"><strong>{{ node.displayName }}</strong><span>{{ node.className }}.{{ node.methodName }}</span></span><span class="library-node__drag-hint">{{ t('library.dragHint') }}</span>
+            </button>
+          </section>
+        </div>
+        <div class="library-footer"><div class="status-line"><span class="status-dot" :class="{ 'status-dot--idle': isLibraryCatalogLoading || libraryCatalogError }"></span><span>{{ libraryCatalogError ? t('library.loadFailed') : catalogNodeCount > 0 ? t('library.nodeCount', { count: catalogNodeCount }) : t('library.catalogWaiting') }}</span><span class="mono">API</span></div><button class="footer-link" type="button" @click="libraryUploadOpen = true"><UploadCloud :size="14" />{{ t('library.upload') }}</button></div>
       </aside>
 
       <section class="canvas-panel" :aria-label="t('canvas.mainHint')">
@@ -933,6 +1062,7 @@ function setLanguage(nextLocale: Locale): void {
       </aside>
     </main>
 
+    <LibraryUploadDialog v-if="libraryUploadOpen" @close="libraryUploadOpen = false" @uploaded="handleLibraryUploaded" />
     <section class="output-panel"><div class="output-tabs" role="tablist" :aria-label="t('output.eventsLabel')"><button type="button" :class="{ active: activeOutput === 'events' }" @click="activeOutput = 'events'"><Terminal :size="14" />{{ t('output.events') }}<span class="tab-count">{{ runEvents.length }}</span></button><button type="button" :class="{ active: activeOutput === 'payload' }" @click="activeOutput = 'payload'"><Code2 :size="14" />{{ t('output.payload') }}</button><span class="output-spacer"></span><span v-if="hasRunOutput" class="run-label"><span class="status-dot"></span>{{ t('output.lastRunSucceeded') }}<span class="mono">preview</span></span><span v-else class="run-label output-idle"><span class="status-dot"></span>{{ t('output.waiting') }}</span></div><div class="output-content"><template v-if="activeOutput === 'events'"><div v-if="runEvents.length === 0" class="output-empty"><Terminal :size="15" /><span>{{ t('output.emptyEvents') }}</span></div><div v-else class="output-event-list"><div v-for="event in runEvents" :key="`${event.time}-${event.label}`" class="event-row"><span class="event-time mono">{{ event.time }}</span><span class="event-dot" :class="{ success: event.success }"></span><strong>{{ event.label }}</strong><span class="event-detail">{{ event.detail }}</span></div></div></template><div v-else-if="!runPayload" class="output-empty"><Code2 :size="15" /><span>{{ t('output.emptyPayload') }}</span></div><pre v-else class="payload-preview">{{ runPayload }}</pre></div></section>
   </div>
 </template>

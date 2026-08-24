@@ -6,6 +6,7 @@ public sealed class SqliteMigrator
 {
     private const int InitialSchemaVersion = 1;
     private const int RemoveOrderPipelineSeedVersion = 2;
+    private const int AddLibraryCatalogVersion = 3;
     private readonly SqlSugarClient _client;
 
     public SqliteMigrator(SqlSugarClient client)
@@ -124,6 +125,34 @@ public sealed class SqliteMigrator
                     "DELETE FROM Projects WHERE Name IN (@seedNameZh, @seedNameEn)",
                     parameters);
                 RecordMigration(RemoveOrderPipelineSeedVersion, "remove-order-pipeline-seed-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
+
+        if (!applied.Contains(AddLibraryCatalogVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                _client.Ado.ExecuteCommand("""
+                    CREATE TABLE IF NOT EXISTS Libraries (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        Name TEXT NOT NULL,
+                        Version TEXT NOT NULL,
+                        FileName TEXT NOT NULL,
+                        SizeBytes INTEGER NOT NULL,
+                        Sha256 TEXT NOT NULL UNIQUE,
+                        UploadedAt TEXT NOT NULL,
+                        PackagePath TEXT NOT NULL,
+                        NodeCatalogJson TEXT NOT NULL
+                    );
+                    """);
+                RecordMigration(AddLibraryCatalogVersion, "library-catalog-v1");
                 _client.Ado.CommitTran();
             }
             catch
