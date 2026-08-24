@@ -341,6 +341,7 @@ function setLanguage(nextLocale: Locale): void {
   <div class="app-shell">
     <CommandBar
       :project-name="projectName"
+      :flow-version="flowVersion"
       :project-workspaces="projectWorkspaces"
       :project-id="projectId"
       :project-menu-open="projectMenuOpen"
@@ -388,8 +389,6 @@ function setLanguage(nextLocale: Locale): void {
       />
 
       <CanvasPanel
-        :project-name="projectName"
-        :flow-version="flowVersion"
         :canvases="canvases"
         :active-canvas-id="activeCanvasId"
         :current-canvas-lifecycle="currentCanvas.lifecycle"

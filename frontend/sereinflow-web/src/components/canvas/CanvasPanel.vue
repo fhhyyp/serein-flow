@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { markRaw } from 'vue'
-import { LayoutGrid, ChevronDown, LocateFixed, Plus, Save, Settings2, Check, Trash2, X } from 'lucide-vue-next'
+import { LayoutGrid, LocateFixed, Plus, Save, Settings2, Check, Trash2, X } from 'lucide-vue-next'
 import {
   ConnectionMode,
   VueFlow,
@@ -18,8 +18,6 @@ import { connectionLineTypeOptions, type ConnectionLineSettings } from '../../fl
 const nodeTypes = markRaw({ workflow: FlowNodeCard })
 
 const props = defineProps<{
-  projectName: string
-  flowVersion: number
   canvases: CanvasState[]
   activeCanvasId: string
   currentCanvasLifecycle: CanvasState['lifecycle']
@@ -82,19 +80,16 @@ function updateCustomCanvasName(event: Event): void {
 <template>
   <section class="canvas-panel" :aria-label="t('canvas.mainHint')">
     <div class="canvas-toolbar">
-      <div class="canvas-context">
-        <div class="breadcrumb"><span>{{ t('canvas.projects') }}</span><ChevronDown :size="13" /><strong>{{ props.projectName }}</strong><span class="version-pill">v{{ props.flowVersion }}</span></div>
-        <div class="canvas-tab-row">
-          <div class="canvas-tabs" role="tablist" :aria-label="t('canvas.options')">
-            <button v-for="canvas in props.canvases" :id="`canvas-tab-${canvas.id}`" :key="canvas.id" type="button" role="tab" :aria-selected="canvas.id === props.activeCanvasId" :class="{ active: canvas.id === props.activeCanvasId }" @click="emit('select-canvas', canvas.id)">{{ props.canvasLabel(canvas) }}</button>
-          </div>
-          <div class="canvas-menu">
-            <button class="icon-button compact" type="button" :title="t('canvas.add')" :aria-label="t('canvas.add')" :aria-expanded="props.canvasMenuOpen" @click="emit('toggle-canvas-menu')"><Plus :size="15" /></button>
-            <div v-if="props.canvasMenuOpen" class="canvas-popover" role="menu">
-              <button v-for="lifecycle in props.availableCanvasLifecycles" :key="lifecycle" type="button" role="menuitem" @click="emit('add-canvas', lifecycle)">{{ t(`canvas.${lifecycle}`) }}</button>
-              <p v-if="props.availableCanvasLifecycles.length === 0">{{ t('canvas.allLifecycleCanvases') }}</p>
-              <form class="canvas-custom-form" @submit.prevent="emit('add-custom-canvas')"><label>{{ t('canvas.customName') }}<input :value="props.customCanvasNameDraft" type="text" :placeholder="t('canvas.customNamePlaceholder')" maxlength="60" @input="updateCustomCanvasName" /></label><button type="submit" :title="t('canvas.addCustom')" :aria-label="t('canvas.addCustom')"><Plus :size="14" /></button></form>
-            </div>
+      <div class="canvas-tab-row">
+        <div class="canvas-tabs" role="tablist" :aria-label="t('canvas.options')">
+          <button v-for="canvas in props.canvases" :id="`canvas-tab-${canvas.id}`" :key="canvas.id" type="button" role="tab" :aria-selected="canvas.id === props.activeCanvasId" :class="{ active: canvas.id === props.activeCanvasId }" @click="emit('select-canvas', canvas.id)">{{ props.canvasLabel(canvas) }}</button>
+        </div>
+        <div class="canvas-menu">
+          <button class="icon-button compact" type="button" :title="t('canvas.add')" :aria-label="t('canvas.add')" :aria-expanded="props.canvasMenuOpen" @click="emit('toggle-canvas-menu')"><Plus :size="15" /></button>
+          <div v-if="props.canvasMenuOpen" class="canvas-popover" role="menu">
+            <button v-for="lifecycle in props.availableCanvasLifecycles" :key="lifecycle" type="button" role="menuitem" @click="emit('add-canvas', lifecycle)">{{ t(`canvas.${lifecycle}`) }}</button>
+            <p v-if="props.availableCanvasLifecycles.length === 0">{{ t('canvas.allLifecycleCanvases') }}</p>
+            <form class="canvas-custom-form" @submit.prevent="emit('add-custom-canvas')"><label>{{ t('canvas.customName') }}<input :value="props.customCanvasNameDraft" type="text" :placeholder="t('canvas.customNamePlaceholder')" maxlength="60" @input="updateCustomCanvasName" /></label><button type="submit" :title="t('canvas.addCustom')" :aria-label="t('canvas.addCustom')"><Plus :size="14" /></button></form>
           </div>
         </div>
       </div>

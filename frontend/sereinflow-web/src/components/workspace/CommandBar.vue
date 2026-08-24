@@ -18,6 +18,7 @@ import type { ProjectWorkspaceDto } from '../../api/flowApi'
 
 const props = defineProps<{
   projectName: string
+  flowVersion: number
   projectWorkspaces: ProjectWorkspaceDto[]
   projectId?: string
   projectMenuOpen: boolean
@@ -66,6 +67,7 @@ function updateProjectNameDraft(event: Event): void {
           <button class="project-picker" type="button" :title="t('command.switchProject')" :aria-expanded="props.projectMenuOpen" @click="emit('toggle-project-menu')">
             <span>{{ props.projectName }}</span><ChevronDown :size="14" />
           </button>
+          <span class="version-pill">v{{ props.flowVersion }}</span>
           <button class="project-rename-button" type="button" :title="t('project.rename')" :aria-label="t('project.rename')" :disabled="props.isProjectRenaming" @click="emit('begin-project-rename')"><Pencil :size="13" /></button>
         </div>
         <div v-if="props.projectMenuOpen" class="project-popover" role="menu">
