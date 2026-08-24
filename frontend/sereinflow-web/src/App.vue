@@ -95,6 +95,8 @@ const projectMenuOpen = ref(false)
 const canvasMenuOpen = ref(false)
 const customCanvasNameDraft = ref('')
 const connectionSettingsOpen = ref(false)
+const canvasDeleteConfirmOpen = ref(false)
+const pendingCanvasDeleteId = ref<string>()
 const isCanvasDropActive = ref(false)
 const notice = ref('')
 const nextNodeNumber = ref(1)
@@ -143,6 +145,9 @@ function iconForNodeKind(kind: NodeKind) {
 }
 
 const currentCanvas = computed<CanvasState>(() => canvases.value.find((canvas) => canvas.id === activeCanvasId.value) ?? canvases.value[0]!)
+const pendingCanvasDelete = computed(() => pendingCanvasDeleteId.value
+  ? canvases.value.find((canvas) => canvas.id === pendingCanvasDeleteId.value)
+  : undefined)
 const canvasRenderKey = computed(() => `${activeCanvasId.value}:${canvasMountRevision.value}`)
 const nodes = computed<FlowNode[]>({
   get: () => currentCanvas.value.nodes,
@@ -459,19 +464,48 @@ function addCustomCanvas(): void {
   notice.value = t('canvas.added', { canvas: canvasLabel(canvas) })
 }
 
-function removeCurrentCanvas(): void {
+function deleteCanvasById(canvasId: string): void {
+  const removedCanvas = canvases.value.find((canvas) => canvas.id === canvasId)
+  if (!removedCanvas || removedCanvas.lifecycle === 'main') {
+    return
+  }
+
+  recordWorkspaceMutation()
+  canvases.value = canvases.value.filter((canvas) => canvas.id !== removedCanvas.id)
+  if (activeCanvasId.value === removedCanvas.id) {
+    activeCanvasId.value = 'main'
+    mobilePanel.value = null
+  }
+  markWorkspaceChanged()
+  notice.value = t('canvas.removed', { canvas: canvasLabel(removedCanvas) })
+}
+
+function requestCanvasRemoval(): void {
   if (currentCanvas.value.lifecycle === 'main') {
     notice.value = t('canvas.cannotRemoveMain')
     return
   }
 
-  recordWorkspaceMutation()
-  const removedCanvas = currentCanvas.value
-  canvases.value = canvases.value.filter((canvas) => canvas.id !== removedCanvas.id)
-  activeCanvasId.value = 'main'
-  mobilePanel.value = null
-  markWorkspaceChanged()
-  notice.value = t('canvas.removed', { canvas: canvasLabel(removedCanvas) })
+  if (currentCanvas.value.nodes.length > 0 || currentCanvas.value.edges.length > 0) {
+    pendingCanvasDeleteId.value = currentCanvas.value.id
+    canvasDeleteConfirmOpen.value = true
+    return
+  }
+
+  deleteCanvasById(currentCanvas.value.id)
+}
+
+function cancelCanvasRemoval(): void {
+  canvasDeleteConfirmOpen.value = false
+  pendingCanvasDeleteId.value = undefined
+}
+
+function confirmCanvasRemoval(): void {
+  const canvasId = pendingCanvasDeleteId.value
+  cancelCanvasRemoval()
+  if (canvasId) {
+    deleteCanvasById(canvasId)
+  }
 }
 
 function selectNode(nodeId: string): void {
@@ -1102,6 +1136,12 @@ function isTextEntryTarget(target: EventTarget | null): boolean {
 }
 
 function handleWorkspaceShortcut(event: KeyboardEvent): void {
+  if (event.key === 'Escape' && canvasDeleteConfirmOpen.value) {
+    event.preventDefault()
+    cancelCanvasRemoval()
+    return
+  }
+
   const key = event.key.toLocaleLowerCase()
   const hasModifier = event.ctrlKey || event.metaKey
 
@@ -1207,8 +1247,8 @@ function setLanguage(nextLocale: Locale): void {
 
       <section class="canvas-panel" :aria-label="t('canvas.mainHint')">
         <div class="canvas-toolbar">
-          <div class="canvas-context"><div class="breadcrumb"><span>{{ t('canvas.projects') }}</span><ChevronDown :size="13" /><strong>{{ projectName }}</strong><span class="version-pill">v{{ flowVersion }}</span></div><div class="canvas-tab-row"><div class="canvas-tabs" role="tablist" :aria-label="t('canvas.options')"><button v-for="canvas in canvases" :id="`canvas-tab-${canvas.id}`" :key="canvas.id" type="button" role="tab" :aria-selected="canvas.id === activeCanvasId" :class="{ active: canvas.id === activeCanvasId }" @click="selectCanvas(canvas.id)">{{ canvasLabel(canvas) }}</button></div><div class="canvas-menu"><button class="icon-button compact" type="button" :title="t('canvas.add')" :aria-label="t('canvas.add')" :aria-expanded="canvasMenuOpen" @click="toggleCanvasMenu"><Plus :size="15" /></button><div v-if="canvasMenuOpen" class="canvas-popover" role="menu"><button v-for="lifecycle in availableCanvasLifecycles" :key="lifecycle" type="button" role="menuitem" @click="addCanvas(lifecycle)">{{ t(`canvas.${lifecycle}`) }}</button><p v-if="availableCanvasLifecycles.length === 0">{{ t('canvas.allLifecycleCanvases') }}</p><form class="canvas-custom-form" @submit.prevent="addCustomCanvas"><label>{{ t('canvas.customName') }}<input v-model="customCanvasNameDraft" type="text" :placeholder="t('canvas.customNamePlaceholder')" maxlength="60" /></label><button type="submit" :title="t('canvas.addCustom')" :aria-label="t('canvas.addCustom')"><Plus :size="14" /></button></form></div></div><button class="icon-button compact" type="button" :title="t('canvas.remove')" :aria-label="t('canvas.remove')" :disabled="currentCanvas.lifecycle === 'main'" @click="removeCurrentCanvas"><X :size="15" /></button></div></div>
-          <div class="canvas-tools"><span class="save-state" role="status"><Check v-if="!isDirty && !saveFailed && !saveConflict && !isSaving && !isWorkspaceLoading" :size="14" /><Save v-else :size="14" />{{ t(saveStateKey) }}</span><div class="connection-settings"><button class="icon-button compact" type="button" :title="t('canvas.connectionSettings')" :aria-label="t('canvas.connectionSettings')" :aria-expanded="connectionSettingsOpen" @click="connectionSettingsOpen = !connectionSettingsOpen"><Settings2 :size="15" /></button><div v-if="connectionSettingsOpen" class="connection-settings-popover" role="dialog" :aria-label="t('canvas.connectionSettings')"><span class="connection-settings-popover__title">{{ t('canvas.connectionSettings') }}</span><p>{{ t('canvas.connectionSettingsHint') }}</p><label class="connection-settings-field">{{ t('canvas.executionLineType') }}<select :value="connectionLineTypes.execution" @change="updateConnectionLineType('execution', $event)"><option v-for="option in connectionLineTypeOptions" :key="`execution-${option.value}`" :value="option.value">{{ t(option.labelKey) }}</option></select></label><label class="connection-settings-field">{{ t('canvas.dataLineType') }}<select :value="connectionLineTypes.data" @change="updateConnectionLineType('data', $event)"><option v-for="option in connectionLineTypeOptions" :key="`data-${option.value}`" :value="option.value">{{ t(option.labelKey) }}</option></select></label></div></div><button class="icon-button" type="button" :title="t('command.delete')" :aria-label="t('command.delete')" :disabled="!selectedNode && !selectedEdge" @click="removeSelection"><Trash2 :size="16" /></button></div>
+          <div class="canvas-context"><div class="breadcrumb"><span>{{ t('canvas.projects') }}</span><ChevronDown :size="13" /><strong>{{ projectName }}</strong><span class="version-pill">v{{ flowVersion }}</span></div><div class="canvas-tab-row"><div class="canvas-tabs" role="tablist" :aria-label="t('canvas.options')"><button v-for="canvas in canvases" :id="`canvas-tab-${canvas.id}`" :key="canvas.id" type="button" role="tab" :aria-selected="canvas.id === activeCanvasId" :class="{ active: canvas.id === activeCanvasId }" @click="selectCanvas(canvas.id)">{{ canvasLabel(canvas) }}</button></div><div class="canvas-menu"><button class="icon-button compact" type="button" :title="t('canvas.add')" :aria-label="t('canvas.add')" :aria-expanded="canvasMenuOpen" @click="toggleCanvasMenu"><Plus :size="15" /></button><div v-if="canvasMenuOpen" class="canvas-popover" role="menu"><button v-for="lifecycle in availableCanvasLifecycles" :key="lifecycle" type="button" role="menuitem" @click="addCanvas(lifecycle)">{{ t(`canvas.${lifecycle}`) }}</button><p v-if="availableCanvasLifecycles.length === 0">{{ t('canvas.allLifecycleCanvases') }}</p><form class="canvas-custom-form" @submit.prevent="addCustomCanvas"><label>{{ t('canvas.customName') }}<input v-model="customCanvasNameDraft" type="text" :placeholder="t('canvas.customNamePlaceholder')" maxlength="60" /></label><button type="submit" :title="t('canvas.addCustom')" :aria-label="t('canvas.addCustom')"><Plus :size="14" /></button></form></div></div></div></div>
+          <div class="canvas-tools"><span class="save-state" role="status"><Check v-if="!isDirty && !saveFailed && !saveConflict && !isSaving && !isWorkspaceLoading" :size="14" /><Save v-else :size="14" />{{ t(saveStateKey) }}</span><div class="connection-settings"><button class="icon-button compact" type="button" :title="t('canvas.connectionSettings')" :aria-label="t('canvas.connectionSettings')" :aria-expanded="connectionSettingsOpen" @click="connectionSettingsOpen = !connectionSettingsOpen"><Settings2 :size="15" /></button><div v-if="connectionSettingsOpen" class="connection-settings-popover" role="dialog" :aria-label="t('canvas.connectionSettings')"><span class="connection-settings-popover__title">{{ t('canvas.connectionSettings') }}</span><p>{{ t('canvas.connectionSettingsHint') }}</p><label class="connection-settings-field">{{ t('canvas.executionLineType') }}<select :value="connectionLineTypes.execution" @change="updateConnectionLineType('execution', $event)"><option v-for="option in connectionLineTypeOptions" :key="`execution-${option.value}`" :value="option.value">{{ t(option.labelKey) }}</option></select></label><label class="connection-settings-field">{{ t('canvas.dataLineType') }}<select :value="connectionLineTypes.data" @change="updateConnectionLineType('data', $event)"><option v-for="option in connectionLineTypeOptions" :key="`data-${option.value}`" :value="option.value">{{ t(option.labelKey) }}</option></select></label></div></div><button class="icon-button" type="button" :title="t('command.delete')" :aria-label="t('command.delete')" :disabled="!selectedNode && !selectedEdge" @click="removeSelection"><Trash2 :size="16" /></button><button class="icon-button canvas-delete-button" type="button" :title="t('canvas.remove')" :aria-label="t('canvas.remove')" :disabled="currentCanvas.lifecycle === 'main'" @click="requestCanvasRemoval"><X :size="16" /></button></div>
         </div>
         <div class="canvas-area" :class="{ 'canvas-drop-active': isCanvasDropActive }" @dragover="handleCanvasDragOver" @dragleave="handleCanvasDragLeave" @drop="handleCanvasDrop">
           <VueFlow :key="canvasRenderKey" :model-value="renderedElements" :node-types="nodeTypes" :connection-mode="ConnectionMode.Strict" :is-valid-connection="isValidConnection" :min-zoom="0.2" :max-zoom="2" :snap-to-grid="true" :snap-grid="[16, 16]" :fit-view-on-init="true" :delete-key-code="['Backspace', 'Delete']" class="serein-flow" @connect="onConnect" @nodes-change="onNodesChange" @edges-change="onEdgesChange" @node-click="onNodeClick" @edge-click="onEdgeClick" @pane-click="clearSelection"><template #connection-line="connectionLineProps"><FlowConnectionLine v-bind="connectionLineProps" :line-types="connectionLineTypes" /></template></VueFlow>
@@ -1216,6 +1256,14 @@ function setLanguage(nextLocale: Locale): void {
           <span v-if="isCanvasDropActive" class="canvas-drop-hint">{{ t('canvas.dropNode') }}</span>
           <p v-if="notice" class="canvas-notice" role="status">{{ notice }}</p><div class="canvas-legend" aria-hidden="true"><span><i class="legend-port execution"></i>{{ t('edge.flow') }}</span><span><i class="legend-port data"></i>{{ t('edge.value') }}</span></div>
           <div class="zoom-control" :aria-label="t('canvas.options')"><button type="button" :title="t('canvas.zoomOut')" :aria-label="t('canvas.zoomOut')" @click="zoomOut()">-</button><button type="button" :title="t('canvas.fitView')" :aria-label="t('canvas.fitView')" @click="fitView()"><LocateFixed :size="14" /></button><button type="button" :title="t('canvas.zoomIn')" :aria-label="t('canvas.zoomIn')" @click="zoomIn()">+</button></div>
+          <div v-if="canvasDeleteConfirmOpen && pendingCanvasDelete" class="canvas-delete-confirm" @click.self="cancelCanvasRemoval">
+            <section class="canvas-delete-confirm__dialog" role="dialog" aria-modal="true" :aria-labelledby="'canvas-delete-confirm-title'">
+              <div class="canvas-delete-confirm__header"><div><span class="eyebrow">{{ t('canvas.deleteConfirmEyebrow') }}</span><h2 id="canvas-delete-confirm-title">{{ t('canvas.deleteConfirmTitle') }}</h2></div><button class="icon-button compact" type="button" :title="t('command.cancel')" :aria-label="t('command.cancel')" @click="cancelCanvasRemoval"><X :size="15" /></button></div>
+              <p class="canvas-delete-confirm__message">{{ t('canvas.deleteConfirmMessage', { canvas: canvasLabel(pendingCanvasDelete) }) }}</p>
+              <p class="canvas-delete-confirm__details">{{ t('canvas.deleteConfirmDetails', { nodes: pendingCanvasDelete.nodes.length, edges: pendingCanvasDelete.edges.length }) }}</p>
+              <div class="canvas-delete-confirm__actions"><button class="command-button quiet" type="button" @click="cancelCanvasRemoval">{{ t('command.cancel') }}</button><button class="command-button danger" type="button" autofocus @click="confirmCanvasRemoval"><Trash2 :size="15" />{{ t('canvas.deleteConfirmAction') }}</button></div>
+            </section>
+          </div>
         </div>
       </section>
 
