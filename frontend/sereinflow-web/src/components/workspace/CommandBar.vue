@@ -79,7 +79,14 @@ function updateProjectNameDraft(event: Event): void {
           <button class="project-popover__new" type="button" role="menuitem" @click="emit('start-new-project')"><Plus :size="14" />{{ t('project.newProject') }}</button>
           <form v-if="props.projectRenameOpen" class="project-rename-form" @submit.prevent="emit('submit-project-rename')">
             <label>{{ t('project.renameTitle') }}<input :value="props.projectNameDraft" type="text" :placeholder="t('project.renamePlaceholder')" maxlength="80" autofocus @input="updateProjectNameDraft" /></label>
-            <div class="project-rename-form__actions"><button type="button" :title="t('command.cancel')" :aria-label="t('command.cancel')" @click="emit('cancel-project-rename')"><X :size="14" /></button><button type="submit" :title="t('command.confirm')" :aria-label="t('command.confirm')" :disabled="props.isProjectRenaming"><Check :size="14" /></button></div>
+            <div class="project-rename-form__actions">
+              <button type="button" :title="t('command.cancel')" :aria-label="t('command.cancel')" @click="emit('cancel-project-rename')">
+                <X :size="14" />
+              </button>
+              <button type="submit" :title="t('command.confirm')" :aria-label="t('command.confirm')" :disabled="props.isProjectRenaming">
+                <Check :size="14" />
+              </button>
+            </div>
           </form>
         </div>
       </div>
