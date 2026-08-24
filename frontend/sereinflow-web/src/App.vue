@@ -44,7 +44,7 @@ import LibraryUploadDialog from './components/library/LibraryUploadDialog.vue'
 import { FlowApiError, createProject, listProjects, loadFlow, saveFlow as saveFlowRequest, type ProjectWorkspaceDto } from './api/flowApi'
 import { listLibraries, type LibraryDto, type LibraryNodeDto } from './api/libraryApi'
 import { locale, setLocale, t, type Locale } from './i18n'
-import { cloneCanvasGraph, removeEdgesById } from './flow/canvasGraph'
+import { applyNodePositionChanges, cloneCanvasGraph, removeEdgesById } from './flow/canvasGraph'
 import { resolveConnectionSemantic } from './flow/connectionSeats'
 import { flowDefinitionToWorkspace, workspaceToFlowDefinition } from './flow/flowDtoMapper'
 import { createInitialCanvases } from './flow/initialCanvases'
@@ -451,7 +451,8 @@ function onNodesChange(changes: NodeChange[]): void {
     }
   }
 
-  nodes.value = applyNodeChanges(changes, nodes.value as never) as unknown as FlowNode[]
+  const changedNodes = applyNodeChanges(changes, nodes.value as never) as unknown as FlowNode[]
+  nodes.value = applyNodePositionChanges(changedNodes, positionChanges)
   if (removedIds.size > 0 || positionChanges.length > 0) {
     markWorkspaceChanged()
   }

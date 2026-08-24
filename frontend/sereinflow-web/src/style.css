@@ -195,7 +195,7 @@ h2 { overflow-wrap: anywhere; }
 .serein-flow .edge-data .vue-flow__edge-textbg { fill: var(--data-soft); stroke: #dcccf0; }
 .workflow-node { position: relative; width: 224px; min-height: 132px; overflow: visible; border: 1px solid var(--line-strong); border-radius: 3px; background: var(--surface); color: var(--ink); cursor: default; transition: border-color 180ms ease, background-color 180ms ease; }
 .workflow-node:hover { border-color: var(--accent); background: #fbfdff; }
-.workflow-node__header { display: flex; height: 34px; align-items: center; gap: 7px; border-bottom: 1px solid var(--line); padding: 0 11px; cursor: grab; }
+.workflow-node__header { position: relative; display: flex; height: 34px; align-items: center; gap: 7px; border-bottom: 1px solid var(--line); padding: 0 11px; cursor: grab; }
 .workflow-node__header:active { cursor: grabbing; }
 .workflow-node__icon { display: grid; width: 20px; height: 20px; place-items: center; border-radius: 2px; }
 .workflow-node.kind-trigger .workflow-node__icon { background: var(--accent-soft); color: var(--accent); }
@@ -218,11 +218,11 @@ h2 { overflow-wrap: anywhere; }
 .workflow-node__content span { overflow: hidden; color: var(--muted); font-family: var(--mono); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .workflow-node__content .workflow-node__runtime { color: var(--subtle); font-size: 9px; }
 .workflow-node__parameters { border-top: 1px solid var(--line); padding: 3px 11px 5px; }
-.workflow-node__parameter { display: flex; min-height: 27px; align-items: center; justify-content: space-between; gap: 6px; padding: 0 2px; }
+.workflow-node__parameter { position: relative; display: flex; min-height: 27px; align-items: center; justify-content: space-between; gap: 6px; padding: 0 2px; }
 .workflow-node__parameter-name { min-width: 0; overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .workflow-node__parameter-type { max-width: 70px; overflow: hidden; color: var(--subtle); font-family: var(--mono); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
 .workflow-node__parameter-source { max-width: 90px; overflow: hidden; color: var(--subtle); font-family: var(--mono); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
-.workflow-node__footer { display: flex; min-height: 29px; align-items: center; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--line); padding: 0 11px; color: var(--subtle); font-family: var(--mono); font-size: 8px; }
+.workflow-node__footer { position: relative; display: flex; min-height: 29px; align-items: center; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--line); padding: 0 11px; color: var(--subtle); font-family: var(--mono); font-size: 8px; }
 .workflow-node__rail-label { display: inline-flex; align-items: center; gap: 4px; }
 .workflow-node__return-type { max-width: 82px; overflow: hidden; color: var(--data); text-overflow: ellipsis; white-space: nowrap; }
 .workflow-node__seat-dot { display: inline-block; width: 7px; height: 7px; flex: 0 0 auto; border: 1px solid var(--surface); }
@@ -235,6 +235,7 @@ h2 { overflow-wrap: anywhere; }
 .seat-parameter-input { width: 9px; height: 9px; }
 .workflow-node .vue-flow__handle-left { left: -6px; }
 .workflow-node .vue-flow__handle-right { right: -6px; }
+.workflow-node__parameter .vue-flow__handle-left { left: -20px; }
 .canvas-notice { position: absolute; z-index: 6; top: 12px; left: 50%; margin: 0; border: 1px solid #b9ddf2; border-radius: 3px; padding: 6px 9px; transform: translateX(-50%); background: var(--surface); color: var(--accent-strong); font-size: 11px; pointer-events: none; }
 .canvas-empty-state { position: absolute; z-index: 3; top: 50%; left: 50%; display: grid; max-width: 310px; justify-items: center; gap: 9px; transform: translate(-50%, -50%); text-align: center; pointer-events: none; }
 .canvas-empty-state strong { color: var(--ink); font-size: 14px; }
