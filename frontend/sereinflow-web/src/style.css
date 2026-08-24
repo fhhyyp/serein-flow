@@ -240,16 +240,19 @@ h2 { overflow-wrap: anywhere; }
 .workflow-node__footer { position: relative; display: flex; min-height: 29px; align-items: center; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--line); padding: 0 11px; color: var(--subtle); font-family: var(--mono); font-size: 8px; }
 .workflow-node__rail-label { display: inline-flex; align-items: center; gap: 4px; }
 .workflow-node__return-type { max-width: 82px; overflow: hidden; color: var(--data); text-overflow: ellipsis; white-space: nowrap; }
-.workflow-node__seat-dot { display: inline-block; width: 7px; height: 7px; flex: 0 0 auto; border: 1px solid var(--surface); }
-.parameter-seat-dot, .data-seat-dot { border-radius: 50%; background: var(--data); }
-.execution-seat-dot { border-radius: 1px; background: var(--accent); }
-.flow-handle { z-index: 4; width: 10px; height: 10px; border: 2px solid var(--surface); background: var(--line-strong); transition: box-shadow 160ms ease, transform 160ms ease, background-color 160ms ease; }
-.flow-handle:hover, .flow-handle.connecting { box-shadow: 0 0 0 4px var(--accent-soft); transform: scale(1.18); }
-.seat-execution-input, .seat-execution-output { border-radius: 2px; background: var(--accent); }
-.seat-parameter-input, .seat-data-output { border-radius: 50%; background: var(--data); }
-.seat-parameter-input { width: 9px; height: 9px; }
-.workflow-node .vue-flow__handle-left { left: -6px; }
-.workflow-node .vue-flow__handle-right { right: -6px; }
+.workflow-node__seat-dot { display: inline-block; width: 10px; height: 10px; flex: 0 0 auto; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--line-strong); }
+.parameter-seat-dot { border-radius: 3px; background: var(--data); box-shadow: 0 0 0 1px var(--data); }
+.data-seat-dot { border-radius: 50%; background: var(--data); box-shadow: 0 0 0 1px var(--data); }
+.execution-seat-dot { border-radius: 3px; background: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.flow-handle { z-index: 4; width: 16px; height: 16px; border: 3px solid var(--surface); background: var(--line-strong); box-shadow: 0 0 0 1px var(--line-strong), 0 2px 5px rgb(15 23 42 / 18%); transition: box-shadow 160ms ease, transform 160ms ease, background-color 160ms ease; }
+.flow-handle:hover, .flow-handle.connecting { box-shadow: 0 0 0 4px var(--accent-soft), 0 0 0 1px currentColor, 0 2px 5px rgb(15 23 42 / 22%); }
+.workflow-node .vue-flow__handle-left.flow-handle:hover, .workflow-node .vue-flow__handle-left.flow-handle.connecting { transform: translate(-50%, -50%) scale(1.12); }
+.workflow-node .vue-flow__handle-right.flow-handle:hover, .workflow-node .vue-flow__handle-right.flow-handle.connecting { transform: translate(50%, -50%) scale(1.12); }
+.seat-execution-input, .seat-execution-output { border-radius: 4px; background: var(--accent); box-shadow: 0 0 0 1px var(--accent-strong), 0 2px 5px rgb(3 105 161 / 24%); }
+.seat-parameter-input { width: 18px; height: 13px; border-radius: 4px; background: var(--data); box-shadow: 0 0 0 1px var(--data), 0 2px 5px rgb(109 66 165 / 22%); }
+.seat-data-output { border-radius: 50%; background: var(--data); box-shadow: 0 0 0 1px var(--data), 0 2px 5px rgb(109 66 165 / 22%); }
+.workflow-node .vue-flow__handle-left { left: -8px; }
+.workflow-node .vue-flow__handle-right { right: -8px; }
 .workflow-node__parameter .vue-flow__handle-left { left: -20px; }
 .canvas-notice { position: absolute; z-index: 6; top: 12px; left: 50%; margin: 0; border: 1px solid #b9ddf2; border-radius: 3px; padding: 6px 9px; transform: translateX(-50%); background: var(--surface); color: var(--accent-strong); font-size: 11px; pointer-events: none; }
 .canvas-empty-state { position: absolute; z-index: 3; top: 50%; left: 50%; display: grid; max-width: 310px; justify-items: center; gap: 9px; transform: translate(-50%, -50%); text-align: center; pointer-events: none; }
