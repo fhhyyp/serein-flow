@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>SereinFlow.TestLibrary</AssemblyName>
+    <RootNamespace>SereinFlow.TestLibrary</RootNamespace>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
+    <IsPackable>false</IsPackable>
+    <!-- Node methods intentionally keep the instance-oriented library shape;
+         the host may construct the containing type when it executes a node. -->
+    <NoWarn>$(NoWarn);CA1822</NoWarn>
+
+    <!-- The API accepts a package named [library]-[version].zip whose
+         matching DLL is one directory below the archive root. -->
+    <TestLibraryPackageName>$(AssemblyName)-$(Version)</TestLibraryPackageName>
+    <TestLibraryStagingRoot>$(BaseIntermediateOutputPath)test-library-package\</TestLibraryStagingRoot>
+    <TestLibraryStagingDirectory>$(TestLibraryStagingRoot)$(TestLibraryPackageName)\</TestLibraryStagingDirectory>
+    <TestLibraryArtifactDirectory>$(MSBuildProjectDirectory)\..\..\artifacts\libraries\</TestLibraryArtifactDirectory>
+    <TestLibraryZipPath>$(TestLibraryArtifactDirectory)$(TestLibraryPackageName).zip</TestLibraryZipPath>
+  </PropertyGroup>
+
+  <Target Name="CreateTestLibraryUploadPackage" AfterTargets="Build" Condition="'$(DesignTimeBuild)' != 'true'">
+    <RemoveDir Directories="$(TestLibraryStagingRoot)" />
+    <MakeDir Directories="$(TestLibraryStagingDirectory);$(TestLibraryArtifactDirectory)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(TestLibraryStagingDirectory)" />
+    <Delete Files="$(TestLibraryZipPath)" />
+    <ZipDirectory
+      SourceDirectory="$(TestLibraryStagingRoot)"
+      DestinationFile="$(TestLibraryZipPath)"
+      Overwrite="true" />
+    <Message Importance="high" Text="SereinFlow test library package: $(TestLibraryZipPath)" />
+  </Target>
+
+</Project>

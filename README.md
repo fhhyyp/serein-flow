@@ -17,3 +17,11 @@ pnpm build
 ```
 
 Use .NET SDK `10.0.300`, Node.js `24.19.0`, and pnpm `11.19.0`. `global.json` and `.node-version` are the canonical local and CI toolchain definitions.
+
+## Upload-library smoke test
+
+The repository includes [`tests/SereinFlow.TestLibrary`](tests/SereinFlow.TestLibrary/README.md), a dependency-free class library that exercises the upload endpoint and PE metadata node scanner. Build it to create `artifacts/libraries/SereinFlow.TestLibrary-1.0.0.zip` with the required archive layout:
+
+```powershell
+dotnet build tests\SereinFlow.TestLibrary\SereinFlow.TestLibrary.csproj
+```
