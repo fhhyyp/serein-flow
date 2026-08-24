@@ -38,6 +38,10 @@ export function useNodeDrop(options: NodeDropOptions) {
     options.isCanvasDropActive.value = false
   }
 
+  function handleNodeDragEnd(): void {
+    options.isCanvasDropActive.value = false
+  }
+
   function handleCanvasDrop(event: DragEvent): void {
     event.preventDefault()
     options.isCanvasDropActive.value = false
@@ -111,5 +115,5 @@ export function useNodeDrop(options: NodeDropOptions) {
     event.dataTransfer.effectAllowed = 'copy'
   }
 
-  return { handleCanvasDragOver, handleCanvasDragLeave, handleCanvasDrop, handleLibraryNodeDragStart }
+  return { handleCanvasDragOver, handleCanvasDragLeave, handleNodeDragEnd, handleCanvasDrop, handleLibraryNodeDragStart }
 }
