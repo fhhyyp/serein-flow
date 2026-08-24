@@ -1,0 +1,34 @@
+# .NET build output and IDE state
+[Bb]in/
+[Oo]bj/
+.vs/
+TestResults/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# NuGet and local tooling
+*.nupkg
+*.snupkg
+packages/
+.idea/
+.vscode/
+.codex/
+
+# Local secrets and data
+.env
+.env.*
+!.env.example
+*.db
+*.db-shm
+*.db-wal
+worker-data/
+artifacts/
+*.ssc
+
+# Frontend output
+frontend/sereinflow-web/node_modules/
+frontend/sereinflow-web/dist/
+frontend/sereinflow-web/.vite/
+frontend/sereinflow-web/coverage/
