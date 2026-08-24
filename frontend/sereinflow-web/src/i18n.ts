@@ -5,7 +5,6 @@ type Values = Record<string, string | number>
 
 const messages: Record<Locale, Record<string, string>> = {
   'zh-CN': {
-    'project.orderPipeline': '订单处理流程',
     'project.switchProject': '切换项目',
     'project.flows': '流程',
     'project.noProjects': '暂无可用项目。',
@@ -28,9 +27,7 @@ const messages: Record<Locale, Record<string, string>> = {
     'mobile.inspector': '检查器',
     'library.build': '构建',
     'library.nodeLibrary': '节点库',
-    'library.addNode': '添加节点',
-    'library.searchNodes': '搜索节点',
-    'library.coreNodes': '核心节点',
+    'library.empty': '暂无节点定义。节点目录接入后，可从服务端添加节点。',
     'library.workerConnected': 'Worker 已连接',
     'library.openProject': '打开项目',
     'canvas.projects': '项目',
@@ -45,7 +42,6 @@ const messages: Record<Locale, Record<string, string>> = {
     'canvas.saveConflict': '保存冲突',
     'canvas.saveConflictNow': '服务器版本已更新，请重新加载后再保存。',
     'canvas.loadedFromServer': '已从服务器加载流程。',
-    'canvas.createdOnServer': '已在服务器创建流程。',
     'canvas.recoveredDraft': '服务器不可用，已恢复本地草稿。',
     'canvas.loadFailed': '无法连接服务器；可继续编辑并稍后保存。',
     'canvas.undoApplied': '已撤销上一步编辑。',
@@ -142,7 +138,6 @@ const messages: Record<Locale, Record<string, string>> = {
     'language.en': 'English',
   },
   'en-US': {
-    'project.orderPipeline': 'Order pipeline',
     'project.switchProject': 'SWITCH PROJECT',
     'project.flows': 'flows',
     'project.noProjects': 'No projects available.',
@@ -165,9 +160,7 @@ const messages: Record<Locale, Record<string, string>> = {
     'mobile.inspector': 'Inspector',
     'library.build': 'BUILD',
     'library.nodeLibrary': 'Node library',
-    'library.addNode': 'Add node',
-    'library.searchNodes': 'Search nodes',
-    'library.coreNodes': 'CORE NODES',
+    'library.empty': 'No node definitions are available. Connect a server node catalog to add nodes.',
     'library.workerConnected': 'Worker connected',
     'library.openProject': 'Open project',
     'canvas.projects': 'Projects',
@@ -182,7 +175,6 @@ const messages: Record<Locale, Record<string, string>> = {
     'canvas.saveConflict': 'Save conflict',
     'canvas.saveConflictNow': 'The server version changed. Reload before saving again.',
     'canvas.loadedFromServer': 'Flow loaded from the server.',
-    'canvas.createdOnServer': 'Flow created on the server.',
     'canvas.recoveredDraft': 'The server is unavailable; a local draft was restored.',
     'canvas.loadFailed': 'The server is unavailable. You can keep editing and save later.',
     'canvas.undoApplied': 'Last edit undone.',

@@ -5,6 +5,8 @@
 | Requirement | Evidence | Status |
 | --- | --- | --- |
 | Fresh workspace is clean | `initialCanvases.test.ts` passed | Passed |
+| No local preset catalog | Browser smoke test found no `核心节点`/`CORE NODES` text and showed the empty node-library state | Passed |
+| Legacy seed removed | SQLite migration v2 and `/api/projects` returned an empty project list after startup | Passed |
 | User-created graphs round-trip | `flowDtoMapper.test.ts` passed | Passed |
 | Empty project persists structurally | Temporary SQLite HTTP `POST` returned `201`; subsequent `GET` returned one empty `Main` canvas | Passed |
 | Empty project cannot run | `ExecutionPlanTests` diagnostic assertion passed | Passed |
@@ -37,4 +39,3 @@ A fresh API instance using a unique temporary SQLite database accepted an empty 
 ```
 
 The temporary API process and all temporary SQLite files were removed after validation.
-

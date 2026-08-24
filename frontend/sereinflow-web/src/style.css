@@ -73,27 +73,19 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .workspace-grid { position: relative; display: grid; min-height: 0; grid-template-columns: minmax(208px, 2fr) minmax(0, 7fr) minmax(288px, 3fr); }
 .node-library, .inspector-panel { min-height: 0; background: var(--surface); }
 .node-library { display: flex; flex-direction: column; border-right: 1px solid var(--line); padding: 24px 16px 16px; }
+.library-empty { display: grid; flex: 1; place-items: center; padding: 24px 8px; text-align: center; }
 .canvas-panel { display: flex; min-width: 0; flex-direction: column; background: var(--canvas); }
 .inspector-panel { border-left: 1px solid var(--line); padding: 24px 20px 16px; overflow-y: auto; }
 .panel-heading, .inspector-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .eyebrow, .section-label { display: block; color: var(--subtle); font-family: var(--mono); font-size: 10px; font-weight: 500; }
 h1, h2 { margin: 5px 0 0; font-size: 15px; line-height: 1.3; }
 h2 { overflow-wrap: anywhere; }
-.search-field { display: flex; height: 34px; align-items: center; gap: 7px; margin: 24px 0; border: 1px solid var(--line); border-radius: 3px; padding: 0 8px; color: var(--subtle); }
-.search-field:focus-within { border-color: var(--accent); }
-.search-field input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: var(--ink); font-size: 12px; }
-.search-field kbd, .mono { font-family: var(--mono); font-size: 10px; }
-.search-field kbd { border: 1px solid var(--line); border-radius: 2px; padding: 1px 4px; color: var(--subtle); }
-.library-section { display: grid; gap: 4px; }
-.library-item { display: flex; min-height: 38px; align-items: center; gap: 9px; border: 1px solid transparent; border-radius: 3px; padding: 6px 8px; background: transparent; color: var(--muted); cursor: pointer; text-align: left; font-size: 12px; transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease; }
-.library-item:hover { border-color: var(--line); background: var(--canvas); color: var(--ink); }
-.library-icon, .node-icon { display: grid; width: 25px; height: 25px; flex: 0 0 auto; place-items: center; border: 1px solid var(--line); border-radius: 3px; }
+.mono { font-family: var(--mono); font-size: 10px; }
+.node-icon { display: grid; width: 25px; height: 25px; flex: 0 0 auto; place-items: center; border: 1px solid var(--line); border-radius: 3px; }
 .kind-trigger { background: var(--accent-soft); color: var(--accent); }
 .kind-script { background: var(--data-soft); color: var(--data); }
 .kind-condition { background: var(--warning-soft); color: var(--warning); }
 .kind-action { background: var(--success-soft); color: var(--success); }
-.item-drag { margin-left: auto; color: var(--line-strong); }
-.item-add { color: var(--subtle); }
 .library-footer { display: grid; gap: 14px; margin-top: auto; border-top: 1px solid var(--line); padding-top: 16px; }
 .status-line { gap: 7px; color: var(--muted); font-size: 11px; }
 .status-line .mono { margin-left: auto; color: var(--subtle); }

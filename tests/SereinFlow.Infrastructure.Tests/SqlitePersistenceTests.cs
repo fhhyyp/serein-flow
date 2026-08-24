@@ -14,6 +14,7 @@ public sealed class SqlitePersistenceTests
         database.Initialize();
 
         Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 1"));
+        Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 2"));
         Assert.Equal(1L, database.Scalar<long>("PRAGMA foreign_keys"));
         Assert.Equal(5000L, database.Scalar<long>("PRAGMA busy_timeout"));
     }

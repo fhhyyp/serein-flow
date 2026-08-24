@@ -6,7 +6,7 @@ The Vue workbench must not contain locally preset nodes. A newly created project
 
 ## Project understanding
 
-On an empty database, the Vue application creates a default workspace and persists it through the ASP.NET Core API. The former `createInitialCanvases` function embedded a complete order-processing example in the browser. Its first node also became the `entryNodeId` sent to the API.
+On an empty database, the Vue application now stays in an unsaved blank workspace. It does not create a project or inject an order-processing example until the user explicitly saves. The local node catalog is also empty; node definitions are expected to come from the server-side catalog.
 
 ## Scope
 
@@ -18,13 +18,12 @@ On an empty database, the Vue application creates a default workspace and persis
 
 ## Boundaries
 
-- No legacy `.dnf` compatibility or data migration.
-- No change to the node library, API/Worker isolation, project permissions, or run transport.
-- Existing persisted projects remain unchanged; the new default applies to newly initialized workspaces.
+- No legacy `.dnf` compatibility migration.
+- No change to API/Worker isolation, project permissions, or run transport.
+- A one-time SQLite migration removes the old `订单处理流程` seed project and its dependent flow records. Other persisted projects remain unchanged.
 
 ## Risks and assumptions
 
 - An empty flow must not be represented with a fake or hidden trigger node.
 - `FlowDefinition.Validate` is structural editor validation, while `ExecutionPlanBuilder` is the execution admission boundary.
 - The user previously authorized autonomous execution, so the Approve step is recorded as accepted without an additional confirmation request.
-

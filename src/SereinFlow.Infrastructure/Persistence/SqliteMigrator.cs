@@ -5,6 +5,7 @@ namespace SereinFlow.Infrastructure.Persistence;
 public sealed class SqliteMigrator
 {
     private const int InitialSchemaVersion = 1;
+    private const int RemoveOrderPipelineSeedVersion = 2;
     private readonly SqlSugarClient _client;
 
     public SqliteMigrator(SqlSugarClient client)
@@ -23,15 +24,12 @@ public sealed class SqliteMigrator
             """);
 
         var applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
-        if (applied.Contains(InitialSchemaVersion))
+        if (!applied.Contains(InitialSchemaVersion))
         {
-            return;
-        }
-
-        _client.Ado.BeginTran();
-        try
-        {
-            _client.Ado.ExecuteCommand("""
+            _client.Ado.BeginTran();
+            try
+            {
+                _client.Ado.ExecuteCommand("""
                 CREATE TABLE IF NOT EXISTS Projects (
                     Id TEXT NOT NULL PRIMARY KEY,
                     Name TEXT NOT NULL,
@@ -85,17 +83,63 @@ public sealed class SqliteMigrator
                     FOREIGN KEY (RunId) REFERENCES FlowRuns(Id)
                 );
                 """);
-            _client.Ado.ExecuteCommand(
-                "INSERT INTO SchemaMigrations (Version, AppliedAt, Checksum) VALUES (@version, @appliedAt, @checksum)",
-                new SugarParameter("@version", InitialSchemaVersion),
-                new SugarParameter("@appliedAt", DateTimeOffset.UtcNow.ToString("O")),
-                new SugarParameter("@checksum", "t0-sqlite-schema-v1"));
-            _client.Ado.CommitTran();
+                RecordMigration(InitialSchemaVersion, "t0-sqlite-schema-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
         }
-        catch
+
+        if (!applied.Contains(RemoveOrderPipelineSeedVersion))
         {
-            _client.Ado.RollbackTran();
-            throw;
+            _client.Ado.BeginTran();
+            try
+            {
+                const string seedNameZh = "订单处理流程";
+                const string seedNameEn = "Order pipeline";
+                var parameters = new[]
+                {
+                    new SugarParameter("@seedNameZh", seedNameZh),
+                    new SugarParameter("@seedNameEn", seedNameEn),
+                };
+                _client.Ado.ExecuteCommand(
+                    "DELETE FROM FlowRunEvents WHERE RunId IN (SELECT Id FROM FlowRuns WHERE FlowId IN (SELECT Id FROM FlowDefinitions WHERE ProjectId IN (SELECT Id FROM Projects WHERE Name IN (@seedNameZh, @seedNameEn))))",
+                    parameters);
+                _client.Ado.ExecuteCommand(
+                    "DELETE FROM FlowRuns WHERE FlowId IN (SELECT Id FROM FlowDefinitions WHERE ProjectId IN (SELECT Id FROM Projects WHERE Name IN (@seedNameZh, @seedNameEn)))",
+                    parameters);
+                _client.Ado.ExecuteCommand(
+                    "DELETE FROM FlowDefinitionVersions WHERE FlowId IN (SELECT Id FROM FlowDefinitions WHERE ProjectId IN (SELECT Id FROM Projects WHERE Name IN (@seedNameZh, @seedNameEn)))",
+                    parameters);
+                _client.Ado.ExecuteCommand(
+                    "DELETE FROM FlowDefinitions WHERE ProjectId IN (SELECT Id FROM Projects WHERE Name IN (@seedNameZh, @seedNameEn))",
+                    parameters);
+                _client.Ado.ExecuteCommand(
+                    "DELETE FROM PluginManifests WHERE ProjectId IN (SELECT Id FROM Projects WHERE Name IN (@seedNameZh, @seedNameEn))",
+                    parameters);
+                _client.Ado.ExecuteCommand(
+                    "DELETE FROM Projects WHERE Name IN (@seedNameZh, @seedNameEn)",
+                    parameters);
+                RecordMigration(RemoveOrderPipelineSeedVersion, "remove-order-pipeline-seed-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
         }
+    }
+
+    private void RecordMigration(int version, string checksum)
+    {
+        _client.Ado.ExecuteCommand(
+            "INSERT INTO SchemaMigrations (Version, AppliedAt, Checksum) VALUES (@version, @appliedAt, @checksum)",
+            new SugarParameter("@version", version),
+            new SugarParameter("@appliedAt", DateTimeOffset.UtcNow.ToString("O")),
+            new SugarParameter("@checksum", checksum));
     }
 }

@@ -25,10 +25,10 @@ flowchart LR
 
 ## Data flow
 
-1. Browser starts with a clean `Main` canvas.
-2. It creates a project only when no server workspace exists.
+1. Browser starts with a clean `Main` canvas and no local node catalog.
+2. It remains an unsaved draft when no server workspace exists; saving is the explicit project-creation boundary.
 3. The API maps and structurally validates the empty definition, then stores it as normal flow JSON.
-4. Users add nodes through the node library; the first main node becomes the editor's current entry ID.
+4. A server-provided node catalog can later add nodes; the first main node becomes the editor's current entry ID.
 5. Before execution, the Worker builds a plan. A blank entry becomes `flow.unknown_entry_node`, not a key lookup failure in `FlowRunner`.
 
 ## Exception strategy
@@ -37,4 +37,3 @@ flowchart LR
 - An empty draft is not a save-time error.
 - Run-time admission throws `DomainValidationException` containing code `flow.unknown_entry_node` and path `entryNodeId`.
 - Valid entry IDs retain existing duplicate-node and connection-endpoint validation.
-

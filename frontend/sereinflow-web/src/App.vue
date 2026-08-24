@@ -6,10 +6,8 @@ import {
   ChevronDown,
   Code2,
   Database,
-  FileCode2,
   FolderOpen,
   GitBranch,
-  GripVertical,
   Languages,
   LayoutGrid,
   LocateFixed,
@@ -18,7 +16,6 @@ import {
   RotateCcw,
   RotateCw,
   Save,
-  Search,
   Settings2,
   Square,
   Terminal,
@@ -67,8 +64,6 @@ const activeCanvasId = ref('main')
 const isRunning = ref(false)
 const activeOutput = ref<'events' | 'payload'>('events')
 const mobilePanel = ref<'nodes' | 'inspector' | null>(null)
-const search = ref('')
-const searchInput = ref<HTMLInputElement>()
 const languageMenuOpen = ref(false)
 const projectMenuOpen = ref(false)
 const canvasMenuOpen = ref(false)
@@ -87,7 +82,7 @@ const projectId = ref<string>()
 const flowId = ref<string>()
 const projectWorkspaces = ref<ProjectWorkspaceDto[]>([])
 const canvasMountRevision = ref(0)
-const projectName = ref(t('project.orderPipeline'))
+const projectName = ref(t('project.newProject'))
 const flowVersion = ref(1)
 const savedWorkspaceFingerprint = ref('')
 let pendingTextEdit: WorkspaceSnapshot | undefined
@@ -138,17 +133,6 @@ const saveStateKey = computed(() => {
   }
 
   return isDirty.value ? 'canvas.unsaved' : 'canvas.saved'
-})
-
-const libraryItems = computed(() => [
-  { titleKey: 'node.httpTrigger', subtitleKey: 'node.triggerSubtitle', kind: 'trigger' as const, icon: Zap },
-  { titleKey: 'node.normalizeOrder', subtitleKey: 'node.scriptSubtitle', kind: 'script' as const, icon: FileCode2 },
-  { titleKey: 'node.checkInventory', subtitleKey: 'node.conditionSubtitle', kind: 'condition' as const, icon: GitBranch },
-  { titleKey: 'node.persistOrder', subtitleKey: 'node.actionSubtitle', kind: 'action' as const, icon: Database },
-])
-const visibleLibrary = computed(() => {
-  const term = search.value.trim().toLocaleLowerCase(locale.value)
-  return libraryItems.value.filter((item) => !term || t(item.titleKey).toLocaleLowerCase(locale.value).includes(term))
 })
 
 function localizeEdges(): void {
@@ -514,19 +498,6 @@ function addNode(kind: NodeKind, titleKey: string, subtitleKey: string, position
   notice.value = t('canvas.nodeAdded')
 }
 
-function handleLibraryDragStart(event: DragEvent, item: { kind: NodeKind; titleKey: string; subtitleKey: string }): void {
-  if (!event.dataTransfer) {
-    return
-  }
-
-  event.dataTransfer.effectAllowed = 'copy'
-  event.dataTransfer.setData('application/sereinflow-node', JSON.stringify({
-    kind: item.kind,
-    titleKey: item.titleKey,
-    subtitleKey: item.subtitleKey,
-  }))
-}
-
 function handleCanvasDragOver(event: DragEvent): void {
   if (!event.dataTransfer?.types.includes('application/sereinflow-node')) {
     return
@@ -745,15 +716,26 @@ async function initializeWorkspace(): Promise<void> {
       return
     }
 
-    const snapshot = currentWorkspaceSnapshot()
-    const definition = workspaceToFlowDefinition(snapshot, { id: crypto.randomUUID(), version: 1 })
-    const created = await createProject({ name: projectName.value, definition })
-    projectId.value = created.project.id
-    projectName.value = created.project.name
-    flowId.value = definition.id
-    flowVersion.value = definition.version
-    applyServerWorkspace(definition)
-    notice.value = t('canvas.createdOnServer')
+    // An empty server database remains an unsaved blank workspace. Do not
+    // manufacture a sample project on first launch; saving is the explicit
+    // boundary that creates a project in the API.
+    projectId.value = undefined
+    flowId.value = undefined
+    flowVersion.value = 1
+    projectName.value = t('project.newProject')
+    const snapshot: WorkspaceSnapshot = {
+      canvases: createInitialCanvases(),
+      activeCanvasId: 'main',
+      nextNodeNumber: 1,
+    }
+    restoreWorkspace(snapshot)
+    workspaceHistory.clear()
+    syncHistoryAvailability()
+    savedWorkspaceFingerprint.value = workspaceFingerprint(snapshot)
+    isDirty.value = false
+    saveFailed.value = false
+    saveConflict.value = false
+    notice.value = ''
   } catch {
     if (recoveryWorkspace) {
       restoreWorkspace(recoveryWorkspace)
@@ -817,12 +799,6 @@ function handleWorkspaceShortcut(event: KeyboardEvent): void {
   if (hasModifier && key === 'y') {
     event.preventDefault()
     redo()
-    return
-  }
-
-  if (!hasModifier && key === '/') {
-    event.preventDefault()
-    searchInput.value?.focus()
   }
 }
 
@@ -874,9 +850,8 @@ function setLanguage(nextLocale: Locale): void {
 
     <main class="workspace-grid">
       <aside class="node-library" :class="{ 'mobile-visible': mobilePanel === 'nodes' }">
-        <div class="panel-heading"><div><span class="eyebrow">{{ t('library.build') }}</span><h1>{{ t('library.nodeLibrary') }}</h1></div><button class="icon-button" type="button" :title="t('library.addNode')" :aria-label="t('library.addNode')" @click="addNode('action', 'node.newAction', 'node.actionSubtitle')"><Plus :size="16" /></button></div>
-        <label class="search-field"><Search :size="15" aria-hidden="true" /><input ref="searchInput" v-model="search" type="search" :placeholder="t('library.searchNodes')" :aria-label="t('library.searchNodes')" /><kbd>/</kbd></label>
-        <div class="library-section"><span class="section-label">{{ t('library.coreNodes') }}</span><button v-for="item in visibleLibrary" :key="item.titleKey" class="library-item" type="button" draggable="true" @dragstart="handleLibraryDragStart($event, item)" @click="addNode(item.kind, item.titleKey, item.subtitleKey)"><span class="library-icon" :class="`kind-${item.kind}`"><component :is="item.icon" :size="16" /></span><span>{{ t(item.titleKey) }}</span><GripVertical class="item-drag" :size="14" aria-hidden="true" /><Plus class="item-add" :size="14" aria-hidden="true" /></button></div>
+        <div class="panel-heading"><div><span class="eyebrow">{{ t('library.build') }}</span><h1>{{ t('library.nodeLibrary') }}</h1></div></div>
+        <div class="library-empty"><p class="empty-copy">{{ t('library.empty') }}</p></div>
         <div class="library-footer"><div class="status-line"><span class="status-dot"></span><span>{{ t('library.workerConnected') }}</span><span class="mono">v0.1</span></div><button class="footer-link" type="button"><FolderOpen :size="14" />{{ t('library.openProject') }}</button></div>
       </aside>
 

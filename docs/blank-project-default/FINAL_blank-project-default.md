@@ -3,6 +3,7 @@
 ## Delivered
 
 - The Vue workspace factory now creates only one empty `Main` canvas. It contains no local business nodes, parameters, execution links, data links, or selected graph entities.
+- The frontend no longer renders the local `核心节点` catalog or a local add-node shortcut. The node library is an empty server-catalog boundary until node definitions are provided by the backend.
 - Optional `Init`, `Loading`, and `Exit` canvases are no longer created automatically. The existing canvas menu remains responsible for adding them when the editor chooses to do so.
 - The API can persist an empty editor draft with `entryNodeId: ""`; no hidden trigger or synthetic sample node is introduced.
 - The isolated runtime refuses to build an execution plan from that draft, returning the structured `flow.unknown_entry_node` diagnostic at `entryNodeId` before `FlowRunner` can read an absent node.
@@ -17,9 +18,8 @@
 
 ## Design influence
 
-UI/UX PRO MAX was used for the empty-project decision. The editor retains its compact Minimalism / Swiss Style: the canvas stays neutral and unobtrusive, and the existing node library remains the primary interaction surface. No onboarding card, sample graph, decorative art, or local mock data is injected into a fresh project.
+UI/UX PRO MAX was used for the empty-project decision. The editor retains its compact Minimalism / Swiss Style: the canvas stays neutral and unobtrusive, and the node library remains a minimal server-catalog boundary. No onboarding card, sample graph, decorative art, or local mock data is injected into a fresh project.
 
 ## Risk statement
 
-Existing persisted projects are intentionally not modified. They continue to load as stored. New API projects and any client-side fallback initialized after this change start clean.
-
+The SQLite migration removes the legacy `订单处理流程` seed project, its flow definitions, versions, runs, events, and plugin manifests. Other persisted projects continue to load as stored. New API projects and any client-side fallback initialized after this change start clean.

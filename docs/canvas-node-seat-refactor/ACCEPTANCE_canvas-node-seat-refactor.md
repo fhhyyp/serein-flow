@@ -20,7 +20,8 @@ and removed from the internal store.
 
 ## Deferred
 
-- Browser automation currently verifies rendering and click insertion. A full pointer-drag E2E test should be added when the browser test harness exposes a stable drag locator API for HTML5 data transfer.
-- The new-project entry point starts with an empty Main canvas. The visible node
-  library is an add-only capability catalog; it does not inject preset nodes into
-  a newly created project.
+- Browser automation verifies the empty project, seat rendering, and persisted
+  connection rendering. A full pointer-drag E2E test should be added when the
+  browser test harness exposes a stable drag locator API for HTML5 data transfer.
+- The new-project entry point starts with an empty Main canvas. The node library
+  is an empty server-catalog boundary; it does not inject local preset nodes.
