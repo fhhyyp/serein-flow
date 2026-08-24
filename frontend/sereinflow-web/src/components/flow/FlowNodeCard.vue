@@ -63,6 +63,7 @@ function isTargetSeat(seat: ConnectionSeatLayout): boolean {
     <div class="workflow-node__header drag-handle">
       <span class="workflow-node__icon" aria-hidden="true"><component :is="icon" :size="15" /></span>
       <span class="workflow-node__kind">{{ t(`node.kind.${data.kind}`) }}</span>
+      <span v-if="runtimeSignature" class="workflow-node__runtime-header" :title="runtimeSignature">{{ runtimeSignature }}</span>
       <span class="workflow-node__status" :class="`status-${data.status}`" :title="t(`status.${data.status}`)"></span>
     </div>
 
@@ -75,7 +76,8 @@ function isTargetSeat(seat: ConnectionSeatLayout): boolean {
     <div v-if="data.parameters.length > 0" class="workflow-node__parameters">
       <div v-for="parameter in data.parameters" :key="parameter.id" class="workflow-node__parameter">
         <span class="workflow-node__seat-dot parameter-seat-dot" aria-hidden="true"></span>
-        <span class="workflow-node__parameter-name">{{ t(parameter.nameKey) }}</span>
+        <span class="workflow-node__parameter-name" :title="parameter.description || parameter.name || t(parameter.nameKey)">{{ parameter.name || t(parameter.nameKey) }}</span>
+        <span class="workflow-node__parameter-type">{{ parameter.type || parameter.valueKind }}</span>
         <span class="workflow-node__parameter-source">{{ t(`parameter.${parameter.source}`) }}</span>
       </div>
     </div>
@@ -83,6 +85,7 @@ function isTargetSeat(seat: ConnectionSeatLayout): boolean {
     <div class="workflow-node__footer">
       <span class="workflow-node__rail-label flow-rail-label"><i class="workflow-node__seat-dot execution-seat-dot" aria-hidden="true"></i>{{ t('edge.flow') }}</span>
       <span v-if="hasDataOutput" class="workflow-node__rail-label data-rail-label"><i class="workflow-node__seat-dot data-seat-dot" aria-hidden="true"></i>{{ t('edge.value') }}</span>
+      <span v-if="data.runtime?.returnType" class="workflow-node__return-type" :title="data.runtime.returnType">→ {{ data.runtime.returnType }}</span>
     </div>
   </article>
 </template>

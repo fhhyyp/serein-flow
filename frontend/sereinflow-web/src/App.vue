@@ -16,7 +16,9 @@ import {
   RotateCcw,
   RotateCw,
   Save,
+  Search,
   Settings2,
+  Server,
   Square,
   Terminal,
   Trash2,
@@ -64,6 +66,9 @@ const canvases = ref<CanvasState[]>(createInitialCanvases())
 const activeCanvasId = ref('main')
 const isRunning = ref(false)
 const activeOutput = ref<'events' | 'payload'>('events')
+const librarySearch = ref('')
+const runEvents = ref<Array<{ time: string; label: string; detail: string; success?: boolean }>>([])
+const runPayload = ref('')
 const mobilePanel = ref<'nodes' | 'inspector' | null>(null)
 const languageMenuOpen = ref(false)
 const projectMenuOpen = ref(false)
@@ -155,6 +160,7 @@ const saveStateKey = computed(() => {
 
   return isDirty.value ? 'canvas.unsaved' : 'canvas.saved'
 })
+const hasRunOutput = computed(() => runEvents.value.length > 0)
 
 function localizeEdges(): void {
   for (const canvas of canvases.value) {
@@ -584,11 +590,28 @@ function removeSelection(): void {
 }
 
 function runFlow(): void {
+  if (nodes.value.length === 0) {
+    notice.value = t('canvas.noNodesToRun')
+    return
+  }
+
   isRunning.value = !isRunning.value
-  nodes.value = nodes.value.map((node, index) => ({
-    ...node,
-    data: { ...node.data, status: isRunning.value && index === 2 ? 'active' : isRunning.value && index < 2 ? 'success' : 'ready' },
-  }))
+  if (isRunning.value) {
+    runEvents.value = []
+    runPayload.value = ''
+    nodes.value = nodes.value.map((node, index) => ({
+      ...node,
+      data: { ...node.data, status: index === 0 ? 'running' : 'idle' },
+    }))
+    return
+  }
+
+  const time = new Date().toLocaleTimeString(locale.value === 'zh-CN' ? 'zh-CN' : 'en-US', { hour12: false })
+  nodes.value = nodes.value.map((node) => ({ ...node, data: { ...node.data, status: 'success' } }))
+  runEvents.value = [
+    { time, label: t('output.runCompleted'), detail: t('output.nodesDuration', { count: nodes.value.length, duration: 'preview' }), success: true },
+  ]
+  runPayload.value = JSON.stringify({ status: 'preview', nodes: nodes.value.length }, null, 2)
 }
 
 function saveRecoveryDraft(snapshot: WorkspaceSnapshot): void {
@@ -858,7 +881,7 @@ function setLanguage(nextLocale: Locale): void {
         <button class="icon-button" type="button" :title="t('command.undo')" :aria-label="t('command.undo')" :disabled="!canUndo" @click="undo"><RotateCcw :size="16" /></button>
         <button class="icon-button" type="button" :title="t('command.redo')" :aria-label="t('command.redo')" :disabled="!canRedo" @click="redo"><RotateCw :size="16" /></button><span class="command-divider" aria-hidden="true"></span>
         <button class="command-button quiet" type="button" :title="t('command.save')" :disabled="!isDirty || isSaving || isWorkspaceLoading" @click="saveFlow"><Save :size="15" /><span>{{ t('command.save') }}</span></button>
-        <button class="command-button run" type="button" :aria-pressed="isRunning" @click="runFlow"><Square v-if="isRunning" :size="14" fill="currentColor" /><Play v-else :size="14" fill="currentColor" /><span>{{ isRunning ? t('command.stop') : t('command.run') }}</span></button>
+        <button class="command-button run" type="button" :aria-pressed="isRunning" :disabled="nodes.length === 0 || isWorkspaceLoading" @click="runFlow"><Square v-if="isRunning" :size="14" fill="currentColor" /><Play v-else :size="14" fill="currentColor" /><span>{{ isRunning ? t('command.stop') : t('command.run') }}</span></button>
         <div class="language-menu">
           <button class="language-button" type="button" :title="t('command.language')" :aria-label="t('command.language')" :aria-expanded="languageMenuOpen" @click="languageMenuOpen = !languageMenuOpen"><Languages :size="16" /><span>{{ locale === 'zh-CN' ? 'ZH' : 'EN' }}</span><ChevronDown :size="13" /></button>
           <div v-if="languageMenuOpen" class="language-popover" role="menu"><button type="button" role="menuitemradio" :aria-checked="locale === 'zh-CN'" :class="{ active: locale === 'zh-CN' }" @click="setLanguage('zh-CN')">{{ t('language.zh') }}</button><button type="button" role="menuitemradio" :aria-checked="locale === 'en-US'" :class="{ active: locale === 'en-US' }" @click="setLanguage('en-US')">{{ t('language.en') }}</button></div>
@@ -871,9 +894,15 @@ function setLanguage(nextLocale: Locale): void {
 
     <main class="workspace-grid">
       <aside class="node-library" :class="{ 'mobile-visible': mobilePanel === 'nodes' }">
-        <div class="panel-heading"><div><span class="eyebrow">{{ t('library.build') }}</span><h1>{{ t('library.nodeLibrary') }}</h1></div></div>
-        <div class="library-empty"><p class="empty-copy">{{ t('library.empty') }}</p></div>
-        <div class="library-footer"><div class="status-line"><span class="status-dot"></span><span>{{ t('library.workerConnected') }}</span><span class="mono">v0.1</span></div><button class="footer-link" type="button"><FolderOpen :size="14" />{{ t('library.openProject') }}</button></div>
+        <div class="panel-heading"><div><span class="eyebrow">{{ t('library.build') }}</span><h1>{{ t('library.nodeLibrary') }}</h1></div><span class="library-badge"><Server :size="11" />API</span></div>
+        <label class="library-search"><Search :size="14" aria-hidden="true" /><input v-model="librarySearch" type="search" :placeholder="t('library.searchPlaceholder')" /></label>
+        <div class="library-empty">
+          <div class="library-empty__mark" aria-hidden="true"><LayoutGrid :size="18" /></div>
+          <strong>{{ librarySearch ? t('library.noSearchResults') : t('library.emptyTitle') }}</strong>
+          <p class="empty-copy">{{ t('library.empty') }}</p>
+          <span class="library-empty__hint">{{ t('library.serverOnly') }}</span>
+        </div>
+        <div class="library-footer"><div class="status-line"><span class="status-dot status-dot--idle"></span><span>{{ t('library.catalogWaiting') }}</span><span class="mono">API</span></div><button class="footer-link" type="button"><FolderOpen :size="14" />{{ t('library.openProject') }}</button></div>
       </aside>
 
       <section class="canvas-panel" :aria-label="t('canvas.mainHint')">
@@ -883,13 +912,14 @@ function setLanguage(nextLocale: Locale): void {
         </div>
         <div class="canvas-area" :class="{ 'canvas-drop-active': isCanvasDropActive }" @dragover="handleCanvasDragOver" @dragleave="handleCanvasDragLeave" @drop="handleCanvasDrop">
           <VueFlow :key="canvasRenderKey" :model-value="renderedElements" :node-types="nodeTypes" :connection-mode="ConnectionMode.Strict" :is-valid-connection="isValidConnection" :min-zoom="0.2" :max-zoom="2" :snap-to-grid="true" :snap-grid="[16, 16]" :fit-view-on-init="true" :delete-key-code="['Backspace', 'Delete']" class="serein-flow" @connect="onConnect" @nodes-change="onNodesChange" @edges-change="onEdgesChange" @node-click="onNodeClick" @edge-click="onEdgeClick" @pane-click="clearSelection" />
+          <div v-if="currentCanvas.nodes.length === 0" class="canvas-empty-state" aria-live="polite"><div class="canvas-empty-state__mark"><LayoutGrid :size="20" /></div><strong>{{ t('canvas.emptyTitle') }}</strong><p>{{ t('canvas.emptyHint') }}</p><span>{{ t('canvas.emptySecondary') }}</span></div>
           <span v-if="isCanvasDropActive" class="canvas-drop-hint">{{ t('canvas.dropNode') }}</span>
           <p v-if="notice" class="canvas-notice" role="status">{{ notice }}</p><div class="canvas-legend" aria-hidden="true"><span><i class="legend-port execution"></i>{{ t('edge.flow') }}</span><span><i class="legend-port data"></i>{{ t('edge.value') }}</span></div>
           <div class="zoom-control" :aria-label="t('canvas.options')"><button type="button" :title="t('canvas.zoomOut')" :aria-label="t('canvas.zoomOut')" @click="zoomOut()">-</button><button type="button" :title="t('canvas.fitView')" :aria-label="t('canvas.fitView')" @click="fitView()"><LocateFixed :size="14" /></button><button type="button" :title="t('canvas.zoomIn')" :aria-label="t('canvas.zoomIn')" @click="zoomIn()">+</button></div>
         </div>
       </section>
 
-      <aside class="inspector-panel" :class="{ 'mobile-visible': mobilePanel === 'inspector' }">
+      <aside class="inspector-panel" :class="{ 'mobile-visible': mobilePanel === 'inspector', 'inspector-panel--empty': !selectedNode && !selectedEdge }">
         <template v-if="selectedNode">
           <div class="inspector-heading"><div><span class="eyebrow">{{ t('inspector.title') }}</span><h2>{{ nodeTitle(selectedNode) }}</h2></div><button class="icon-button" type="button" :title="t('command.close')" :aria-label="t('command.close')" @click="mobilePanel = null"><X :size="16" /></button></div>
           <div class="inspector-type"><span class="node-icon" :class="`kind-${selectedNode.data.kind}`"><component :is="iconForNodeKind(selectedNode.data.kind)" :size="15" /></span><span>{{ t('inspector.nodeType', { kind: t(`node.kind.${selectedNode.data.kind}`) }) }}</span><span class="inspector-id mono">#{{ selectedNode.id }}</span></div>
@@ -903,6 +933,6 @@ function setLanguage(nextLocale: Locale): void {
       </aside>
     </main>
 
-    <section class="output-panel"><div class="output-tabs" role="tablist" :aria-label="t('output.eventsLabel')"><button type="button" :class="{ active: activeOutput === 'events' }" @click="activeOutput = 'events'"><Terminal :size="14" />{{ t('output.events') }}<span class="tab-count">4</span></button><button type="button" :class="{ active: activeOutput === 'payload' }" @click="activeOutput = 'payload'"><Code2 :size="14" />{{ t('output.payload') }}</button><span class="output-spacer"></span><span class="run-label"><span class="status-dot"></span>{{ t('output.lastRunSucceeded') }}<span class="mono">184 ms</span></span></div><div class="output-content"><template v-if="activeOutput === 'events'"><div class="event-row"><span class="event-time mono">14:32:08.921</span><span class="event-dot success"></span><strong>{{ t('output.runCompleted') }}</strong><span class="event-detail">{{ t('output.nodesDuration', { count: 4, duration: '184 ms' }) }}</span></div><div class="event-row"><span class="event-time mono">14:32:08.783</span><span class="event-dot"></span><strong>{{ t('output.persistOrder') }}</strong><span class="event-detail">{{ t('output.sqliteInsert', { duration: '32 ms' }) }}</span></div></template><pre v-else class="payload-preview">{ "orderId": "ord_2048", "status": "accepted", "total": 128.40 }</pre></div></section>
+    <section class="output-panel"><div class="output-tabs" role="tablist" :aria-label="t('output.eventsLabel')"><button type="button" :class="{ active: activeOutput === 'events' }" @click="activeOutput = 'events'"><Terminal :size="14" />{{ t('output.events') }}<span class="tab-count">{{ runEvents.length }}</span></button><button type="button" :class="{ active: activeOutput === 'payload' }" @click="activeOutput = 'payload'"><Code2 :size="14" />{{ t('output.payload') }}</button><span class="output-spacer"></span><span v-if="hasRunOutput" class="run-label"><span class="status-dot"></span>{{ t('output.lastRunSucceeded') }}<span class="mono">preview</span></span><span v-else class="run-label output-idle"><span class="status-dot"></span>{{ t('output.waiting') }}</span></div><div class="output-content"><template v-if="activeOutput === 'events'"><div v-if="runEvents.length === 0" class="output-empty"><Terminal :size="15" /><span>{{ t('output.emptyEvents') }}</span></div><div v-else class="output-event-list"><div v-for="event in runEvents" :key="`${event.time}-${event.label}`" class="event-row"><span class="event-time mono">{{ event.time }}</span><span class="event-dot" :class="{ success: event.success }"></span><strong>{{ event.label }}</strong><span class="event-detail">{{ event.detail }}</span></div></div></template><div v-else-if="!runPayload" class="output-empty"><Code2 :size="15" /><span>{{ t('output.emptyPayload') }}</span></div><pre v-else class="payload-preview">{{ runPayload }}</pre></div></section>
   </div>
 </template>
