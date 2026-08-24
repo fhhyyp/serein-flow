@@ -1,108 +1,69 @@
 <script setup lang="ts">
-import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import {
-  AlertTriangle,
   Activity,
-  Check,
-  ChevronDown,
   Code2,
   Database,
   GitBranch,
-  Languages,
-  LayoutGrid,
-  LocateFixed,
-  RefreshCw,
-  Play,
-  Plus,
-  Pencil,
-  RotateCcw,
-  RotateCw,
-  Save,
-  Search,
-  Settings2,
-  Server,
-  UploadCloud,
-  Square,
-  Terminal,
-  Trash2,
-  X,
   Zap,
 } from 'lucide-vue-next'
-import {
-  ConnectionMode,
-  MarkerType,
-  VueFlow,
-  applyNodeChanges,
-  useVueFlow,
-  type Connection,
-  type EdgeChange,
-  type NodeChange,
-} from '@vue-flow/core'
+import { useVueFlow } from '@vue-flow/core'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
-import FlowNodeCard from './components/flow/FlowNodeCard.vue'
-import FlowConnectionLine from './components/flow/FlowConnectionLine.vue'
 import LibraryUploadDialog from './components/library/LibraryUploadDialog.vue'
-import { FlowApiError, createProject, listProjects, loadFlow, renameProject, saveFlow as saveFlowRequest, type ProjectWorkspaceDto } from './api/flowApi'
-import { listLibraries, type LibraryDto, type LibraryNodeDto } from './api/libraryApi'
+import NodeLibraryPanel from './components/library/NodeLibraryPanel.vue'
+import CommandBar from './components/workspace/CommandBar.vue'
+import MobileWorkspaceTabs from './components/workspace/MobileWorkspaceTabs.vue'
+import OutputPanel from './components/workspace/OutputPanel.vue'
+import InspectorPanel from './components/inspector/InspectorPanel.vue'
+import type { ProjectWorkspaceDto } from './api/flowApi'
+import type { LibraryDto } from './api/libraryApi'
 import { locale, setLocale, t, type Locale } from './i18n'
-import { applyNodePositionChanges, cloneCanvasGraph, removeEdgesById } from './flow/canvasGraph'
-import { resolveConnectionSemantic } from './flow/connectionSeats'
 import {
-  connectionLineStyleFor,
-  connectionLineTypeForEdge,
-  connectionLineTypeOptions,
   normalizeConnectionLineTypes,
   type ConnectionLineSettings,
 } from './flow/connectionLine'
-import { flowDefinitionToWorkspace, workspaceToFlowDefinition } from './flow/flowDtoMapper'
 import { createInitialCanvases } from './flow/initialCanvases'
-import { isNodeKind } from './flow/nodeCatalog'
-import { WorkspaceHistory, cloneWorkspaceSnapshot, workspaceFingerprint, type WorkspaceSnapshot } from './flow/workspaceHistory'
-import { loadWorkspace, saveWorkspace } from './flow/workspaceStorage'
+import { cloneWorkspaceSnapshot, workspaceFingerprint, type WorkspaceSnapshot } from './flow/workspaceHistory'
+import { loadWorkspace } from './flow/workspaceStorage'
+import { useWorkspaceHistory } from './composables/useWorkspaceHistory'
+import { useLibraryCatalog } from './composables/useLibraryCatalog'
+import { useFlowRunner } from './composables/useFlowRunner'
+import { useCanvasManager } from './composables/useCanvasManager'
+import { useProjectSession } from './composables/useProjectSession'
+import { useFlowGraph } from './composables/useFlowGraph'
+import { useNodeDrop } from './composables/useNodeDrop'
+import { useWorkspaceShortcuts } from './composables/useWorkspaceShortcuts'
 import type {
-  ConnectionSemantic,
-  CanvasLifecycle,
   CanvasState,
-  FlowEdge,
   FlowNode,
   MethodParameter,
   NodeKind,
-  NodeRuntimeMetadata,
-  ParameterSource,
-  FlowEdgeLineType,
 } from './flow/types'
 
-const nodeTypes = markRaw({ workflow: FlowNodeCard })
 const { zoomIn, zoomOut, fitView, screenToFlowCoordinate } = useVueFlow()
 
 const recoveryWorkspace = loadWorkspace()
 const canvases = ref<CanvasState[]>(createInitialCanvases())
 const connectionLineTypes = reactive<ConnectionLineSettings>(normalizeConnectionLineTypes(recoveryWorkspace?.connectionLineTypes))
 const activeCanvasId = ref('main')
-const isRunning = ref(false)
-const activeOutput = ref<'events' | 'payload'>('events')
-const librarySearch = ref('')
-const libraries = ref<LibraryDto[]>([])
-const isLibraryCatalogLoading = ref(true)
-const libraryCatalogError = ref('')
 const libraryUploadOpen = ref(false)
-const runEvents = ref<Array<{ time: string; label: string; detail: string; success?: boolean }>>([])
-const runPayload = ref('')
 const mobilePanel = ref<'nodes' | 'inspector' | null>(null)
 const languageMenuOpen = ref(false)
 const projectMenuOpen = ref(false)
-const canvasMenuOpen = ref(false)
-const customCanvasNameDraft = ref('')
 const connectionSettingsOpen = ref(false)
-const canvasDeleteConfirmOpen = ref(false)
-const pendingCanvasDeleteId = ref<string>()
 const isCanvasDropActive = ref(false)
 const notice = ref('')
+const {
+  librarySearch,
+  isLibraryCatalogLoading,
+  libraryCatalogError,
+  visibleLibraries,
+  catalogNodeCount,
+  refreshLibraryCatalog,
+  handleLibraryUploaded: updateLibraryCatalog,
+} = useLibraryCatalog({ notice })
 const nextNodeNumber = ref(1)
-const workspaceHistory = new WorkspaceHistory()
-const canUndo = ref(false)
-const canRedo = ref(false)
 const isDirty = ref(false)
 const saveFailed = ref(false)
 const saveConflict = ref(false)
@@ -119,10 +80,8 @@ const isProjectRenaming = ref(false)
 const projectVersion = ref(1)
 const flowVersion = ref(1)
 const savedWorkspaceFingerprint = ref('')
-let pendingTextEdit: WorkspaceSnapshot | undefined
-let isRestoringWorkspace = false
-let nodeDragHistoryOpen = false
-let isSwitchingCanvas = false
+const isRestoringWorkspace = ref(false)
+const isSwitchingCanvas = ref(false)
 
 function iconForNodeKind(kind: NodeKind) {
   if (kind === 'trigger' || kind === 'flipflop') {
@@ -145,58 +104,7 @@ function iconForNodeKind(kind: NodeKind) {
 }
 
 const currentCanvas = computed<CanvasState>(() => canvases.value.find((canvas) => canvas.id === activeCanvasId.value) ?? canvases.value[0]!)
-const pendingCanvasDelete = computed(() => pendingCanvasDeleteId.value
-  ? canvases.value.find((canvas) => canvas.id === pendingCanvasDeleteId.value)
-  : undefined)
 const canvasRenderKey = computed(() => `${activeCanvasId.value}:${canvasMountRevision.value}`)
-const nodes = computed<FlowNode[]>({
-  get: () => currentCanvas.value.nodes,
-  set: (value) => {
-    currentCanvas.value.nodes = value
-  },
-})
-const edges = computed<FlowEdge[]>({
-  get: () => currentCanvas.value.edges,
-  set: (value) => {
-    currentCanvas.value.edges = value
-  },
-})
-const renderedCanvas = computed(() => {
-  const canvas = cloneCanvasGraph(currentCanvas.value)
-  canvas.edges = canvas.edges.map((edge) => ({
-    ...edge,
-    type: connectionLineTypeForEdge(edge, connectionLineTypes),
-    label: undefined,
-    labelShowBg: false,
-    labelBgPadding: undefined,
-    labelBgBorderRadius: undefined,
-  }))
-  return canvas
-})
-// Vue Flow validates edges against its current node store. Supplying nodes and
-// edges through one element list makes setElements establish nodes before it
-// validates the connections, avoiding an initialization-order race when a
-// persisted canvas is restored.
-const renderedElements = computed(() => [
-  ...renderedCanvas.value.nodes,
-  ...renderedCanvas.value.edges,
-])
-const selectedNode = computed(() => currentCanvas.value.nodes.find((node) => node.id === currentCanvas.value.selectedNodeId))
-const selectedEdge = computed(() => currentCanvas.value.edges.find((edge) => edge.id === currentCanvas.value.selectedEdgeId))
-const availableCanvasLifecycles = computed<CanvasLifecycle[]>(() =>
-  (['init', 'loading', 'exit'] as CanvasLifecycle[])
-    .filter((lifecycle) => !canvases.value.some((canvas) => canvas.lifecycle === lifecycle)),
-)
-const nextCustomCanvasNumber = computed(() => {
-  const used = new Set(canvases.value
-    .map((canvas) => Number(canvas.id.match(/^custom-(\d+)$/)?.[1] ?? 0))
-    .filter((value) => value > 0))
-  let candidate = 1
-  while (used.has(candidate)) {
-    candidate += 1
-  }
-  return candidate
-})
 const saveStateKey = computed(() => {
   if (saveConflict.value) {
     return 'canvas.saveConflict'
@@ -212,20 +120,6 @@ const saveStateKey = computed(() => {
 
   return isDirty.value ? 'canvas.unsaved' : 'canvas.saved'
 })
-const hasRunOutput = computed(() => runEvents.value.length > 0)
-const visibleLibraries = computed(() => {
-  const query = librarySearch.value.trim().toLocaleLowerCase()
-  return libraries.value
-    .map((library) => ({
-      library,
-      nodes: query
-        ? library.nodes.filter((node) => [node.displayName, node.className, node.methodName, node.description ?? ''].some((value) => value.toLocaleLowerCase().includes(query)))
-        : library.nodes,
-    }))
-    .filter((item) => item.nodes.length > 0)
-})
-const catalogNodeCount = computed(() => libraries.value.reduce((count, library) => count + library.nodes.length, 0))
-
 function localizeEdges(): void {
   for (const canvas of canvases.value) {
     canvas.edges = canvas.edges.map((edge) => ({
@@ -249,34 +143,10 @@ function currentWorkspaceSnapshot(): WorkspaceSnapshot {
   })
 }
 
-function syncHistoryAvailability(): void {
-  canUndo.value = workspaceHistory.canUndo
-  canRedo.value = workspaceHistory.canRedo
-}
-
-function recordWorkspaceMutation(): void {
-  workspaceHistory.record(currentWorkspaceSnapshot())
-  syncHistoryAvailability()
-}
-
 function refreshDirtyState(): void {
   isDirty.value = workspaceFingerprint(currentWorkspaceSnapshot()) !== savedWorkspaceFingerprint.value
   if (isDirty.value) {
     saveFailed.value = false
-  }
-}
-
-function updateSavedProjectName(name: string): void {
-  if (!savedWorkspaceFingerprint.value) {
-    return
-  }
-
-  try {
-    const savedSnapshot = JSON.parse(savedWorkspaceFingerprint.value) as WorkspaceSnapshot
-    savedSnapshot.projectName = name
-    savedWorkspaceFingerprint.value = workspaceFingerprint(savedSnapshot)
-  } catch {
-    // A malformed recovery fingerprint should not block the rename itself.
   }
 }
 
@@ -285,7 +155,7 @@ function markWorkspaceChanged(): void {
 }
 
 function restoreWorkspace(snapshot: WorkspaceSnapshot): void {
-  isRestoringWorkspace = true
+  isRestoringWorkspace.value = true
   canvasMountRevision.value += 1
   canvases.value = snapshot.canvases
   if (snapshot.projectName?.trim()) {
@@ -295,824 +165,154 @@ function restoreWorkspace(snapshot: WorkspaceSnapshot): void {
   activeCanvasId.value = snapshot.activeCanvasId
   nextNodeNumber.value = snapshot.nextNodeNumber
   mobilePanel.value = null
-  pendingTextEdit = undefined
   void nextTick().then(() => {
-    isRestoringWorkspace = false
+    isRestoringWorkspace.value = false
     refreshDirtyState()
   })
 }
 
-function undo(): void {
-  const previous = workspaceHistory.undo(currentWorkspaceSnapshot())
-  if (!previous) {
-    return
-  }
+const {
+  canUndo,
+  canRedo,
+  recordWorkspaceMutation,
+  undo: undoSnapshot,
+  redo: redoSnapshot,
+  beginTextEdit,
+  commitTextEdit,
+  discardTextEdit,
+  syncHistoryAvailability,
+  clear: clearHistory,
+} = useWorkspaceHistory({
+  currentSnapshot: currentWorkspaceSnapshot,
+  restoreSnapshot: restoreWorkspace,
+  markWorkspaceChanged,
+})
 
-  restoreWorkspace(previous)
-  syncHistoryAvailability()
-  notice.value = t('canvas.undoApplied')
+const {
+  canvasMenuOpen,
+  customCanvasNameDraft,
+  canvasDeleteConfirmOpen,
+  pendingCanvasDelete,
+  availableCanvasLifecycles,
+  canvasLabel,
+  selectCanvas,
+  addCanvas,
+  toggleCanvasMenu,
+  addCustomCanvas,
+  requestCanvasRemoval,
+  cancelCanvasRemoval,
+  confirmCanvasRemoval,
+} = useCanvasManager({
+  canvases,
+  activeCanvasId,
+  currentCanvas,
+  mobilePanel,
+  notice,
+  isSwitchingCanvas,
+  recordWorkspaceMutation,
+  markWorkspaceChanged,
+})
+
+const {
+  nodes,
+  renderedElements,
+  selectedNode,
+  selectedEdge,
+  onNodeClick,
+  onEdgeClick,
+  clearSelection,
+  isValidConnection,
+  updateConnectionLineType,
+  onConnect,
+  onNodesChange,
+  onEdgesChange,
+  updateParameterSource,
+  addNode,
+  removeSelection,
+} = useFlowGraph({
+  currentCanvas,
+  nextNodeNumber,
+  connectionLineTypes,
+  mobilePanel,
+  notice,
+  isRestoringWorkspace,
+  isSwitchingCanvas,
+  recordWorkspaceMutation,
+  markWorkspaceChanged,
+})
+
+const {
+  isRunning,
+  activeOutput,
+  runEvents,
+  runPayload,
+  hasRunOutput,
+  runFlow,
+} = useFlowRunner({ nodes, notice })
+
+const {
+  handleCanvasDragOver,
+  handleCanvasDragLeave,
+  handleCanvasDrop,
+  handleLibraryNodeDragStart,
+} = useNodeDrop({ screenToFlowCoordinate, isCanvasDropActive, notice, addNode })
+
+const {
+  beginProjectRename,
+  cancelProjectRename,
+  submitProjectRename,
+  saveFlow,
+  openProject,
+  startNewProject,
+  initializeWorkspace,
+} = useProjectSession({
+  recoveryWorkspace,
+  canvases,
+  activeCanvasId,
+  nextNodeNumber,
+  connectionLineTypes,
+  projectId,
+  flowId,
+  projectWorkspaces,
+  projectName,
+  projectNameDraft,
+  projectMenuOpen,
+  projectRenameOpen,
+  isProjectRenaming,
+  projectVersion,
+  flowVersion,
+  isWorkspaceLoading,
+  isSaving,
+  isDirty,
+  saveFailed,
+  saveConflict,
+  savedWorkspaceFingerprint,
+  notice,
+  currentWorkspaceSnapshot,
+  restoreWorkspace,
+  refreshDirtyState,
+  markWorkspaceChanged,
+  recordWorkspaceMutation,
+  clearHistory,
+  syncHistoryAvailability,
+  localizeEdges,
+})
+
+function undo(): void {
+  if (undoSnapshot()) {
+    notice.value = t('canvas.undoApplied')
+  }
 }
 
 function redo(): void {
-  const next = workspaceHistory.redo(currentWorkspaceSnapshot())
-  if (!next) {
-    return
-  }
-
-  restoreWorkspace(next)
-  syncHistoryAvailability()
-  notice.value = t('canvas.redoApplied')
-}
-
-function beginTextEdit(): void {
-  pendingTextEdit ??= currentWorkspaceSnapshot()
-}
-
-function commitTextEdit(): void {
-  if (pendingTextEdit) {
-    workspaceHistory.record(pendingTextEdit)
-    pendingTextEdit = undefined
-    syncHistoryAvailability()
-  }
-  markWorkspaceChanged()
-}
-
-function discardTextEdit(): void {
-  pendingTextEdit = undefined
-}
-
-function canvasLabel(canvas: CanvasState): string {
-  return canvas.name?.trim() || t(canvas.nameKey)
-}
-
-function beginProjectRename(): void {
-  projectNameDraft.value = projectName.value
-  projectRenameOpen.value = true
-  projectMenuOpen.value = true
-}
-
-function cancelProjectRename(): void {
-  projectRenameOpen.value = false
-  projectNameDraft.value = ''
-}
-
-async function submitProjectRename(): Promise<void> {
-  const nextName = projectNameDraft.value.trim()
-  if (!nextName) {
-    notice.value = t('project.renameRequired')
-    return
-  }
-
-  if (nextName === projectName.value.trim()) {
-    cancelProjectRename()
-    return
-  }
-
-  if (!projectId.value) {
-    recordWorkspaceMutation()
-    projectName.value = nextName
-    cancelProjectRename()
-    saveRecoveryDraft(currentWorkspaceSnapshot())
-    markWorkspaceChanged()
-    notice.value = t('project.renamedLocal')
-    return
-  }
-
-  isProjectRenaming.value = true
-  try {
-    const workspace = await renameProject(projectId.value, {
-      name: nextName,
-      expectedVersion: projectVersion.value,
-    })
-    projectName.value = workspace.project.name
-    projectVersion.value = workspace.project.version
-    projectWorkspaces.value = projectWorkspaces.value.map((item) => item.project.id === workspace.project.id ? workspace : item)
-    updateSavedProjectName(projectName.value)
-    refreshDirtyState()
-    cancelProjectRename()
-    notice.value = t('project.renamed')
-  } catch (error) {
-    if (error instanceof FlowApiError && error.status === 409) {
-      notice.value = t('project.renameConflict')
-    } else {
-      notice.value = t('project.renameFailed')
-    }
-  } finally {
-    isProjectRenaming.value = false
-  }
-}
-
-function selectCanvas(canvasId: string): void {
-  if (canvasId === activeCanvasId.value) {
-    return
-  }
-
-  isSwitchingCanvas = true
-  activeCanvasId.value = canvasId
-  mobilePanel.value = null
-  canvasMenuOpen.value = false
-  void nextTick().then(() => {
-    isSwitchingCanvas = false
-  })
-}
-
-function addCanvas(lifecycle: CanvasLifecycle): void {
-  if (lifecycle === 'main' || lifecycle === 'custom' || canvases.value.some((canvas) => canvas.lifecycle === lifecycle)) {
-    return
-  }
-
-  recordWorkspaceMutation()
-  const addedCanvas: CanvasState = {
-    id: lifecycle,
-    nameKey: `canvas.${lifecycle}`,
-    lifecycle,
-    nodes: [],
-    edges: [],
-  }
-  canvases.value = [...canvases.value, addedCanvas]
-  activeCanvasId.value = addedCanvas.id
-  canvasMenuOpen.value = false
-  markWorkspaceChanged()
-  notice.value = t('canvas.added', { canvas: canvasLabel(addedCanvas) })
-}
-
-function toggleCanvasMenu(): void {
-  canvasMenuOpen.value = !canvasMenuOpen.value
-  if (canvasMenuOpen.value) {
-    customCanvasNameDraft.value = t('canvas.customDefault', { number: nextCustomCanvasNumber.value })
-  }
-}
-
-function addCustomCanvas(): void {
-  const index = nextCustomCanvasNumber.value
-  const name = customCanvasNameDraft.value.trim() || t('canvas.customDefault', { number: index })
-  const canvas: CanvasState = {
-    id: `custom-${index}`,
-    nameKey: 'canvas.custom',
-    name,
-    lifecycle: 'custom',
-    nodes: [],
-    edges: [],
-  }
-
-  recordWorkspaceMutation()
-  canvases.value = [...canvases.value, canvas]
-  activeCanvasId.value = canvas.id
-  canvasMenuOpen.value = false
-  customCanvasNameDraft.value = ''
-  markWorkspaceChanged()
-  notice.value = t('canvas.added', { canvas: canvasLabel(canvas) })
-}
-
-function deleteCanvasById(canvasId: string): void {
-  const removedCanvas = canvases.value.find((canvas) => canvas.id === canvasId)
-  if (!removedCanvas || removedCanvas.lifecycle === 'main') {
-    return
-  }
-
-  recordWorkspaceMutation()
-  canvases.value = canvases.value.filter((canvas) => canvas.id !== removedCanvas.id)
-  if (activeCanvasId.value === removedCanvas.id) {
-    activeCanvasId.value = 'main'
-    mobilePanel.value = null
-  }
-  markWorkspaceChanged()
-  notice.value = t('canvas.removed', { canvas: canvasLabel(removedCanvas) })
-}
-
-function requestCanvasRemoval(): void {
-  if (currentCanvas.value.lifecycle === 'main') {
-    notice.value = t('canvas.cannotRemoveMain')
-    return
-  }
-
-  if (currentCanvas.value.nodes.length > 0 || currentCanvas.value.edges.length > 0) {
-    pendingCanvasDeleteId.value = currentCanvas.value.id
-    canvasDeleteConfirmOpen.value = true
-    return
-  }
-
-  deleteCanvasById(currentCanvas.value.id)
-}
-
-function cancelCanvasRemoval(): void {
-  canvasDeleteConfirmOpen.value = false
-  pendingCanvasDeleteId.value = undefined
-}
-
-function confirmCanvasRemoval(): void {
-  const canvasId = pendingCanvasDeleteId.value
-  cancelCanvasRemoval()
-  if (canvasId) {
-    deleteCanvasById(canvasId)
-  }
-}
-
-function selectNode(nodeId: string): void {
-  currentCanvas.value.selectedNodeId = nodeId
-  currentCanvas.value.selectedEdgeId = undefined
-  mobilePanel.value = 'inspector'
-}
-
-function onNodeClick(event: { node: { id: string } }): void {
-  selectNode(event.node.id)
-}
-
-function onEdgeClick(event: { edge: { id: string } }): void {
-  currentCanvas.value.selectedNodeId = undefined
-  currentCanvas.value.selectedEdgeId = event.edge.id
-  mobilePanel.value = 'inspector'
-}
-
-function clearSelection(): void {
-  currentCanvas.value.selectedNodeId = undefined
-  currentCanvas.value.selectedEdgeId = undefined
-}
-
-function isValidConnection(connection: Connection): boolean {
-  const semantic = resolveConnectionSemantic(connection.sourceHandle, connection.targetHandle)
-  if (!semantic || connection.source === connection.target || !connection.source || !connection.target) {
-    return false
-  }
-
-  const connectionId = 'id' in connection && typeof connection.id === 'string' ? connection.id : undefined
-  const duplicate = edges.value.some((edge) =>
-    edge.id !== connectionId
-    &&
-    edge.source === connection.source
-    && edge.target === connection.target
-    && edge.sourceHandle === connection.sourceHandle
-    && edge.targetHandle === connection.targetHandle,
-  )
-
-  return !duplicate
-}
-
-function createEdge(connection: Connection, semantic: ConnectionSemantic, targetParameterId?: string): FlowEdge {
-  const isExecution = semantic === 'execution'
-  const lineType = connectionLineStyleFor(semantic, connectionLineTypes).lineType
-  return {
-    id: `${semantic}-${connection.source}-${connection.target}-${connection.targetHandle ?? 'flow'}`,
-    source: connection.source,
-    target: connection.target,
-    sourceHandle: connection.sourceHandle,
-    targetHandle: connection.targetHandle,
-    type: lineType,
-    markerEnd: {
-      type: MarkerType.ArrowClosed,
-      color: isExecution ? '#0369a1' : '#6d42a5',
-      width: 14,
-      height: 14,
-    },
-    data: { semantic, targetParameterId },
-    class: isExecution ? 'edge-execution' : 'edge-data',
-    ariaLabel: isExecution ? t('inspector.executionEdge') : t('inspector.dataEdge'),
-  }
-}
-
-function updateConnectionLineType(semantic: ConnectionSemantic, event: Event): void {
-  const value = (event.target as HTMLSelectElement | null)?.value as FlowEdgeLineType | undefined
-  if (!value || !connectionLineTypeOptions.some((option) => option.value === value) || connectionLineTypes[semantic] === value) {
-    return
-  }
-
-  recordWorkspaceMutation()
-  connectionLineTypes[semantic] = value
-  markWorkspaceChanged()
-}
-
-function onConnect(connection: Connection): void {
-  const semantic = resolveConnectionSemantic(connection.sourceHandle, connection.targetHandle)
-  if (!semantic) {
-    notice.value = t('canvas.invalidConnection')
-    return
-  }
-
-  if (!isValidConnection(connection)) {
-    notice.value = t('canvas.duplicateConnection')
-    return
-  }
-
-  recordWorkspaceMutation()
-  const targetParameterId = semantic === 'data' ? connection.targetHandle?.replace('param-', '') : undefined
-  edges.value = [...edges.value, createEdge(connection, semantic, targetParameterId)]
-
-  if (semantic === 'data' && targetParameterId) {
-    const targetNode = currentCanvas.value.nodes.find((node) => node.id === connection.target)
-    const parameter = targetNode?.data.parameters.find((item) => item.id === targetParameterId)
-    if (parameter && targetNode) {
-      parameter.source = 'previousNode'
-      parameter.sourceNodeId = connection.source
-      parameter.sourcePortId = connection.sourceHandle ?? 'data-out'
-      selectNode(targetNode.id)
-    }
-  }
-
-  markWorkspaceChanged()
-}
-
-function onNodesChange(changes: NodeChange[]): void {
-  if (isRestoringWorkspace || isSwitchingCanvas) {
-    return
-  }
-
-  const removedIds = new Set(changes.filter((change) => change.type === 'remove').map((change) => change.id))
-  const positionChanges = changes.filter((change) => change.type === 'position')
-  const dragStarted = positionChanges.some((change) => change.dragging === true)
-  const dragEnded = positionChanges.some((change) => change.dragging === false)
-  const positionChangedWithoutDrag = positionChanges.length > 0 && !dragStarted && !nodeDragHistoryOpen
-
-  if (removedIds.size > 0 || (dragStarted && !nodeDragHistoryOpen) || positionChangedWithoutDrag) {
-    recordWorkspaceMutation()
-  }
-  if (dragStarted) {
-    nodeDragHistoryOpen = true
-  }
-  if (dragEnded) {
-    nodeDragHistoryOpen = false
-  }
-
-  if (removedIds.size > 0) {
-    const removedEdges = edges.value.filter((edge) => removedIds.has(edge.source) || removedIds.has(edge.target))
-    removedEdges.forEach(resetDataEdgeSource)
-    edges.value = edges.value.filter((edge) => !removedIds.has(edge.source) && !removedIds.has(edge.target))
-    if (currentCanvas.value.selectedNodeId && removedIds.has(currentCanvas.value.selectedNodeId)) {
-      clearSelection()
-    }
-  }
-
-  const changedNodes = applyNodeChanges(changes, nodes.value as never) as unknown as FlowNode[]
-  nodes.value = applyNodePositionChanges(changedNodes, positionChanges)
-  if (removedIds.size > 0 || positionChanges.length > 0) {
-    markWorkspaceChanged()
-  }
-}
-
-function onEdgesChange(changes: EdgeChange[]): void {
-  if (isRestoringWorkspace || isSwitchingCanvas) {
-    return
-  }
-
-  const removedIds = new Set(changes
-    .filter((change) => change.type === 'remove')
-    .map((change) => change.id)
-    .filter((id) => edges.value.some((edge) => edge.id === id)))
-
-  if (removedIds.size === 0) {
-    return
-  }
-
-  const removedEdges = edges.value.filter((edge) => removedIds.has(edge.id))
-
-  recordWorkspaceMutation()
-  removedEdges.forEach(resetDataEdgeSource)
-  edges.value = removeEdgesById(edges.value, removedIds)
-
-  notice.value = t('canvas.edgeRemoved')
-  if (removedEdges.some((edge) => edge.id === currentCanvas.value.selectedEdgeId)) {
-    currentCanvas.value.selectedEdgeId = undefined
-  }
-  markWorkspaceChanged()
-}
-
-function resetDataEdgeSource(edge: FlowEdge): void {
-  if (edge.data?.semantic !== 'data' || !edge.data.targetParameterId) {
-    return
-  }
-
-  const targetNode = currentCanvas.value.nodes.find((node) => node.id === edge.target)
-  const parameter = targetNode?.data.parameters.find((item) => item.id === edge.data?.targetParameterId)
-  if (parameter?.source === 'previousNode' && parameter.sourceNodeId === edge.source) {
-    parameter.source = 'literal'
-    parameter.sourceNodeId = undefined
-    parameter.sourcePortId = undefined
-  }
-}
-
-function removeDataEdgeForParameter(nodeId: string, parameterId: string): void {
-  const removedEdges = edges.value.filter((edge) =>
-    edge.data?.semantic === 'data'
-    && edge.target === nodeId
-    && edge.data.targetParameterId === parameterId,
-  )
-  removedEdges.forEach(resetDataEdgeSource)
-  edges.value = edges.value.filter((edge) => !removedEdges.some((removed) => removed.id === edge.id))
-}
-
-function updateParameterSource(nodeId: string, parameter: MethodParameter, event: Event): void {
-  const source = (event.target as HTMLSelectElement).value as ParameterSource
-  if (source === parameter.source) {
-    return
-  }
-
-  recordWorkspaceMutation()
-  removeDataEdgeForParameter(nodeId, parameter.id)
-  parameter.source = source
-  parameter.sourceNodeId = undefined
-  parameter.sourcePortId = undefined
-  markWorkspaceChanged()
-}
-
-function addNode(
-  kind: NodeKind,
-  titleKey: string,
-  subtitleKey: string,
-  position?: { x: number; y: number },
-  metadata?: {
-    displayName?: string
-    description?: string
-    runtime?: NodeRuntimeMetadata
-    parameters?: MethodParameter[]
-    hasDataOutput?: boolean
-  },
-): void {
-  recordWorkspaceMutation()
-  const number = nextNodeNumber.value++
-  const id = `${kind}-${currentCanvas.value.id}-${number}`
-  const column = currentCanvas.value.nodes.length % 3
-  const row = Math.floor(currentCanvas.value.nodes.length / 3)
-  const parameters = metadata?.parameters ?? (kind === 'trigger'
-    ? []
-    : [{ id: 'input', nameKey: 'parameter.value', valueKind: 'JSON', source: 'literal' as const, literalValue: '' }])
-
-  const newNode: FlowNode = {
-    id,
-    type: 'workflow',
-    position: position ?? { x: 120 + column * 300, y: 450 + row * 180 },
-    width: 224,
-    data: {
-      kind,
-      titleKey,
-      subtitleKey,
-      displayName: metadata?.displayName,
-      description: metadata?.description,
-      runtime: metadata?.runtime,
-      status: 'ready',
-      hasDataOutput: metadata?.hasDataOutput ?? true,
-      parameters,
-    },
-  }
-
-  nodes.value = [...nodes.value, newNode]
-  selectNode(id)
-  markWorkspaceChanged()
-  notice.value = t('canvas.nodeAdded')
-}
-
-function handleCanvasDragOver(event: DragEvent): void {
-  if (!event.dataTransfer?.types.includes('application/sereinflow-node')) {
-    return
-  }
-
-  event.preventDefault()
-  event.dataTransfer.dropEffect = 'copy'
-  isCanvasDropActive.value = true
-}
-
-function handleCanvasDragLeave(event: DragEvent): void {
-  const currentTarget = event.currentTarget as HTMLElement | null
-  const relatedTarget = event.relatedTarget as Node | null
-  if (!currentTarget || (relatedTarget && currentTarget.contains(relatedTarget))) {
-    return
-  }
-
-  isCanvasDropActive.value = false
-}
-
-function handleCanvasDrop(event: DragEvent): void {
-  event.preventDefault()
-  isCanvasDropActive.value = false
-  const encoded = event.dataTransfer?.getData('application/sereinflow-node')
-  if (!encoded) {
-    return
-  }
-
-  try {
-    const item = JSON.parse(encoded) as {
-      kind: NodeKind
-      titleKey: string
-      subtitleKey: string
-      displayName?: string
-      description?: string
-      runtime?: NodeRuntimeMetadata
-      parameters?: MethodParameter[]
-      hasDataOutput?: boolean
-    }
-    if (!isNodeKind(item.kind)) {
-      return
-    }
-
-    const position = screenToFlowCoordinate({ x: event.clientX, y: event.clientY })
-    addNode(item.kind, item.titleKey, item.subtitleKey, { x: Math.round(position.x / 16) * 16, y: Math.round(position.y / 16) * 16 }, item)
-  } catch {
-    notice.value = t('canvas.invalidNodeDrop')
-  }
-}
-
-function removeSelection(): void {
-  if (selectedEdge.value) {
-    recordWorkspaceMutation()
-    resetDataEdgeSource(selectedEdge.value)
-    edges.value = edges.value.filter((edge) => edge.id !== selectedEdge.value?.id)
-    currentCanvas.value.selectedEdgeId = undefined
-    markWorkspaceChanged()
-    notice.value = t('canvas.edgeRemoved')
-    return
-  }
-
-  if (selectedNode.value) {
-    recordWorkspaceMutation()
-    const nodeId = selectedNode.value.id
-    const connected = edges.value.filter((edge) => edge.source === nodeId || edge.target === nodeId)
-    connected.forEach(resetDataEdgeSource)
-    edges.value = edges.value.filter((edge) => edge.source !== nodeId && edge.target !== nodeId)
-    nodes.value = nodes.value.filter((node) => node.id !== nodeId)
-    currentCanvas.value.selectedNodeId = undefined
-    markWorkspaceChanged()
-  }
-}
-
-function runFlow(): void {
-  if (nodes.value.length === 0) {
-    notice.value = t('canvas.noNodesToRun')
-    return
-  }
-
-  isRunning.value = !isRunning.value
-  if (isRunning.value) {
-    runEvents.value = []
-    runPayload.value = ''
-    nodes.value = nodes.value.map((node, index) => ({
-      ...node,
-      data: { ...node.data, status: index === 0 ? 'running' : 'idle' },
-    }))
-    return
-  }
-
-  const time = new Date().toLocaleTimeString(locale.value === 'zh-CN' ? 'zh-CN' : 'en-US', { hour12: false })
-  nodes.value = nodes.value.map((node) => ({ ...node, data: { ...node.data, status: 'success' } }))
-  runEvents.value = [
-    { time, label: t('output.runCompleted'), detail: t('output.nodesDuration', { count: nodes.value.length, duration: 'preview' }), success: true },
-  ]
-  runPayload.value = JSON.stringify({ status: 'preview', nodes: nodes.value.length }, null, 2)
-}
-
-function saveRecoveryDraft(snapshot: WorkspaceSnapshot): void {
-  try {
-    saveWorkspace(snapshot)
-  } catch {
-    // A recovery draft must not mask a server save result.
-  }
-}
-
-async function saveFlow(): Promise<void> {
-  if (isSaving.value || isWorkspaceLoading.value) {
-    return
-  }
-
-  const snapshot = currentWorkspaceSnapshot()
-  const snapshotFingerprint = workspaceFingerprint(snapshot)
-  saveRecoveryDraft(snapshot)
-  isSaving.value = true
-  saveFailed.value = false
-  saveConflict.value = false
-
-  try {
-    let savedDefinition
-    if (!projectId.value || !flowId.value) {
-      const newFlowId = crypto.randomUUID()
-      const definition = workspaceToFlowDefinition(snapshot, { id: newFlowId, version: 1 })
-      const workspace = await createProject({ name: projectName.value, definition })
-      projectId.value = workspace.project.id
-      projectName.value = workspace.project.name
-      projectVersion.value = workspace.project.version
-      flowId.value = newFlowId
-      savedDefinition = definition
-      projectWorkspaces.value = [
-        ...projectWorkspaces.value.filter((item) => item.project.id !== workspace.project.id),
-        {
-          project: workspace.project,
-          flows: [{ id: newFlowId, version: savedDefinition.version, entryNodeId: savedDefinition.entryNodeId }],
-        },
-      ]
-    } else {
-      const definition = workspaceToFlowDefinition(snapshot, { id: flowId.value, version: flowVersion.value })
-      savedDefinition = await saveFlowRequest(projectId.value, flowId.value, {
-        expectedVersion: flowVersion.value,
-        definition,
-      })
-    }
-
-    flowVersion.value = savedDefinition.version
-    projectWorkspaces.value = projectWorkspaces.value.map((item) => item.project.id === projectId.value
-      ? {
-          ...item,
-          project: { ...item.project, name: projectName.value, updatedAt: new Date().toISOString() },
-          flows: item.flows.some((flow) => flow.id === flowId.value)
-            ? item.flows.map((flow) => flow.id === flowId.value ? { ...flow, version: savedDefinition.version, entryNodeId: savedDefinition.entryNodeId } : flow)
-            : [...item.flows, { id: flowId.value!, version: savedDefinition.version, entryNodeId: savedDefinition.entryNodeId }],
-        }
-      : item)
-    savedWorkspaceFingerprint.value = snapshotFingerprint
-    refreshDirtyState()
-    notice.value = t('canvas.savedNow')
-  } catch (error) {
-    if (error instanceof FlowApiError && error.status === 409) {
-      saveConflict.value = true
-      notice.value = t('canvas.saveConflictNow')
-    } else {
-      saveFailed.value = true
-      notice.value = t('canvas.saveFailed')
-    }
-  } finally {
-    isSaving.value = false
-  }
-}
-
-function applyServerWorkspace(definition: ReturnType<typeof workspaceToFlowDefinition>): void {
-  const workspace = { ...flowDefinitionToWorkspace(definition), projectName: projectName.value }
-  isRestoringWorkspace = true
-  canvasMountRevision.value += 1
-  canvases.value = workspace.canvases
-  Object.assign(connectionLineTypes, normalizeConnectionLineTypes(workspace.connectionLineTypes))
-  activeCanvasId.value = workspace.activeCanvasId
-  nextNodeNumber.value = workspace.nextNodeNumber
-  workspaceHistory.clear()
-  syncHistoryAvailability()
-  savedWorkspaceFingerprint.value = workspaceFingerprint(workspace)
-  isDirty.value = false
-  saveFailed.value = false
-  saveConflict.value = false
-  localizeEdges()
-  void nextTick().then(() => {
-    isRestoringWorkspace = false
-  })
-}
-
-async function openProject(workspace: ProjectWorkspaceDto): Promise<void> {
-  const summary = workspace.flows[0]
-  if (!summary) {
-    notice.value = t('project.noFlow')
-    return
-  }
-
-  projectMenuOpen.value = false
-  projectRenameOpen.value = false
-  isWorkspaceLoading.value = true
-  try {
-    const definition = await loadFlow(workspace.project.id, summary.id)
-    projectId.value = workspace.project.id
-    projectName.value = workspace.project.name
-    projectVersion.value = workspace.project.version
-    flowId.value = definition.id
-    flowVersion.value = definition.version
-    applyServerWorkspace(definition)
-    notice.value = t('project.switched', { project: workspace.project.name })
-  } catch {
-    notice.value = t('canvas.loadFailed')
-  } finally {
-    isWorkspaceLoading.value = false
-  }
-}
-
-function startNewProject(): void {
-  projectMenuOpen.value = false
-  projectRenameOpen.value = false
-  projectId.value = undefined
-  flowId.value = undefined
-  flowVersion.value = 1
-  projectVersion.value = 1
-  projectName.value = t('project.newProject')
-  restoreWorkspace({ canvases: createInitialCanvases(), activeCanvasId: 'main', nextNodeNumber: 1, projectName: projectName.value })
-  workspaceHistory.clear()
-  savedWorkspaceFingerprint.value = ''
-  isDirty.value = true
-  saveFailed.value = false
-  saveConflict.value = false
-  notice.value = t('project.newProjectStarted')
-}
-
-async function initializeWorkspace(): Promise<void> {
-  isWorkspaceLoading.value = true
-  try {
-    const workspaces = await listProjects()
-    projectWorkspaces.value = workspaces
-    const workspace = workspaces[0]
-    if (workspace?.flows[0]) {
-      const definition = await loadFlow(workspace.project.id, workspace.flows[0].id)
-      projectId.value = workspace.project.id
-      projectName.value = workspace.project.name
-      projectVersion.value = workspace.project.version
-      flowId.value = definition.id
-      flowVersion.value = definition.version
-      applyServerWorkspace(definition)
-      notice.value = t('canvas.loadedFromServer')
-      return
-    }
-
-    // An empty server database remains an unsaved blank workspace. Do not
-    // manufacture a sample project on first launch; saving is the explicit
-    // boundary that creates a project in the API.
-    projectId.value = undefined
-    flowId.value = undefined
-    flowVersion.value = 1
-    projectVersion.value = 1
-    projectName.value = t('project.newProject')
-    const snapshot: WorkspaceSnapshot = {
-      canvases: createInitialCanvases(),
-      activeCanvasId: 'main',
-      nextNodeNumber: 1,
-      projectName: projectName.value,
-      connectionLineTypes: normalizeConnectionLineTypes(),
-    }
-    restoreWorkspace(snapshot)
-    workspaceHistory.clear()
-    syncHistoryAvailability()
-    savedWorkspaceFingerprint.value = workspaceFingerprint(snapshot)
-    isDirty.value = false
-    saveFailed.value = false
-    saveConflict.value = false
-    notice.value = ''
-  } catch {
-    if (recoveryWorkspace) {
-      restoreWorkspace(recoveryWorkspace)
-      savedWorkspaceFingerprint.value = ''
-      isDirty.value = true
-      notice.value = t('canvas.recoveredDraft')
-    } else {
-      isDirty.value = true
-      saveFailed.value = true
-      notice.value = t('canvas.loadFailed')
-    }
-  } finally {
-    isWorkspaceLoading.value = false
-  }
-}
-
-async function refreshLibraryCatalog(): Promise<void> {
-  isLibraryCatalogLoading.value = true
-  libraryCatalogError.value = ''
-  try {
-    libraries.value = await listLibraries()
-  } catch {
-    libraryCatalogError.value = t('library.loadFailed')
-  } finally {
-    isLibraryCatalogLoading.value = false
+  if (redoSnapshot()) {
+    notice.value = t('canvas.redoApplied')
   }
 }
 
 function handleLibraryUploaded(library: LibraryDto): void {
-  const existingIndex = libraries.value.findIndex((item) => item.id === library.id)
-  if (existingIndex >= 0) {
-    libraries.value = libraries.value.map((item, index) => index === existingIndex ? library : item)
-  } else {
-    libraries.value = [...libraries.value, library]
-  }
+  updateLibraryCatalog(library)
   libraryUploadOpen.value = false
-  librarySearch.value = ''
-  notice.value = t('libraryUpload.success', { name: library.name, count: library.nodes.length })
-}
-
-function catalogNodeKind(node: LibraryNodeDto): NodeKind {
-  return isNodeKind(node.type) ? node.type : 'action'
-}
-
-function handleLibraryNodeDragStart(event: DragEvent, node: LibraryNodeDto): void {
-  if (!event.dataTransfer) {
-    return
-  }
-
-  const runtime: NodeRuntimeMetadata = {
-    category: 'method',
-    libraryId: node.libraryId,
-    className: node.className,
-    methodName: node.methodName,
-    dllName: node.dllName,
-    dllVersion: node.dllVersion,
-    returnType: node.returnType,
-  }
-  const parameters = node.parameters.map((parameter) => ({
-    id: parameter.id,
-    nameKey: parameter.name,
-    name: parameter.name,
-    valueKind: parameter.type || 'System.Object',
-    type: parameter.type,
-    description: parameter.description ?? undefined,
-    source: 'literal' as const,
-    inputMode: 'manual' as const,
-    literalValue: '',
-  }))
-  event.dataTransfer.setData('application/sereinflow-node', JSON.stringify({
-    kind: catalogNodeKind(node),
-    titleKey: 'node.catalogMethod',
-    subtitleKey: 'node.catalogSubtitle',
-    displayName: node.displayName,
-    description: node.description ?? `${node.className}.${node.methodName}`,
-    runtime,
-    parameters,
-    hasDataOutput: node.returnType !== 'System.Void',
-  }))
-  event.dataTransfer.effectAllowed = 'copy'
 }
 
 function nodeTitle(node: FlowNode): string {
@@ -1124,60 +324,10 @@ function sourceNodeTitle(parameter: MethodParameter): string {
   return source ? nodeTitle(source) : t('parameter.previousNode')
 }
 
-function isTextEntryTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) {
-    return false
-  }
-
-  return target.isContentEditable
-    || target instanceof HTMLInputElement
-    || target instanceof HTMLTextAreaElement
-    || target instanceof HTMLSelectElement
-}
-
-function handleWorkspaceShortcut(event: KeyboardEvent): void {
-  if (event.key === 'Escape' && canvasDeleteConfirmOpen.value) {
-    event.preventDefault()
-    cancelCanvasRemoval()
-    return
-  }
-
-  const key = event.key.toLocaleLowerCase()
-  const hasModifier = event.ctrlKey || event.metaKey
-
-  if (hasModifier && key === 's') {
-    event.preventDefault()
-    saveFlow()
-    return
-  }
-
-  if (isTextEntryTarget(event.target)) {
-    return
-  }
-
-  if (hasModifier && key === 'z') {
-    event.preventDefault()
-    if (event.shiftKey) {
-      redo()
-    } else {
-      undo()
-    }
-    return
-  }
-
-  if (hasModifier && key === 'y') {
-    event.preventDefault()
-    redo()
-  }
-}
+useWorkspaceShortcuts({ canvasDeleteConfirmOpen, cancelCanvasRemoval, saveFlow, undo, redo })
 
 onMounted(() => {
-  window.addEventListener('keydown', handleWorkspaceShortcut)
   void Promise.allSettled([initializeWorkspace(), refreshLibraryCatalog()])
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('keydown', handleWorkspaceShortcut)
 })
 
 function setLanguage(nextLocale: Locale): void {
@@ -1188,100 +338,125 @@ function setLanguage(nextLocale: Locale): void {
 
 <template>
   <div class="app-shell">
-    <header class="command-bar">
-      <div class="brand-lockup">
-        <div class="brand-mark" aria-hidden="true"><Activity :size="18" :stroke-width="2.4" /></div>
-        <span class="brand-name">SereinFlow</span><span class="brand-divider" aria-hidden="true"></span>
-        <div class="project-menu">
-          <div class="project-picker-row"><button class="project-picker" type="button" :title="t('command.switchProject')" :aria-expanded="projectMenuOpen" @click="projectMenuOpen = !projectMenuOpen"><span>{{ projectName }}</span><ChevronDown :size="14" /></button><button class="project-rename-button" type="button" :title="t('project.rename')" :aria-label="t('project.rename')" :disabled="isProjectRenaming" @click="beginProjectRename"><Pencil :size="13" /></button></div>
-          <div v-if="projectMenuOpen" class="project-popover" role="menu">
-            <span class="project-popover__label">{{ t('project.switchProject') }}</span>
-            <button v-for="workspace in projectWorkspaces" :key="workspace.project.id" type="button" role="menuitem" :class="{ active: workspace.project.id === projectId }" @click="openProject(workspace)">{{ workspace.project.name }}<span>{{ workspace.flows.length }} {{ t('project.flows') }}</span></button>
-            <span v-if="projectWorkspaces.length === 0" class="project-popover__empty">{{ t('project.noProjects') }}</span>
-            <button class="project-popover__new" type="button" role="menuitem" @click="startNewProject"><Plus :size="14" />{{ t('project.newProject') }}</button>
-            <form v-if="projectRenameOpen" class="project-rename-form" @submit.prevent="submitProjectRename">
-              <label>{{ t('project.renameTitle') }}<input v-model="projectNameDraft" type="text" :placeholder="t('project.renamePlaceholder')" maxlength="80" autofocus /></label>
-              <div class="project-rename-form__actions"><button type="button" :title="t('command.cancel')" :aria-label="t('command.cancel')" @click="cancelProjectRename"><X :size="14" /></button><button type="submit" :title="t('command.confirm')" :aria-label="t('command.confirm')" :disabled="isProjectRenaming"><Check :size="14" /></button></div>
-            </form>
-          </div>
-        </div>
-      </div>
-      <div class="command-actions">
-        <button class="icon-button" type="button" :title="t('command.undo')" :aria-label="t('command.undo')" :disabled="!canUndo" @click="undo"><RotateCcw :size="16" /></button>
-        <button class="icon-button" type="button" :title="t('command.redo')" :aria-label="t('command.redo')" :disabled="!canRedo" @click="redo"><RotateCw :size="16" /></button><span class="command-divider" aria-hidden="true"></span>
-        <button class="command-button quiet" type="button" :title="t('command.save')" :disabled="!isDirty || isSaving || isProjectRenaming || isWorkspaceLoading" @click="saveFlow"><Save :size="15" /><span>{{ t('command.save') }}</span></button>
-        <button class="command-button run" type="button" :aria-pressed="isRunning" :disabled="nodes.length === 0 || isWorkspaceLoading" @click="runFlow"><Square v-if="isRunning" :size="14" fill="currentColor" /><Play v-else :size="14" fill="currentColor" /><span>{{ isRunning ? t('command.stop') : t('command.run') }}</span></button>
-        <div class="language-menu">
-          <button class="language-button" type="button" :title="t('command.language')" :aria-label="t('command.language')" :aria-expanded="languageMenuOpen" @click="languageMenuOpen = !languageMenuOpen"><Languages :size="16" /><span>{{ locale === 'zh-CN' ? 'ZH' : 'EN' }}</span><ChevronDown :size="13" /></button>
-          <div v-if="languageMenuOpen" class="language-popover" role="menu"><button type="button" role="menuitemradio" :aria-checked="locale === 'zh-CN'" :class="{ active: locale === 'zh-CN' }" @click="setLanguage('zh-CN')">{{ t('language.zh') }}</button><button type="button" role="menuitemradio" :aria-checked="locale === 'en-US'" :class="{ active: locale === 'en-US' }" @click="setLanguage('en-US')">{{ t('language.en') }}</button></div>
-        </div>
-        <button class="avatar" type="button" :title="t('command.workspaceSettings')" :aria-label="t('command.workspaceSettings')">SF</button>
-      </div>
-    </header>
+    <CommandBar
+      :project-name="projectName"
+      :project-workspaces="projectWorkspaces"
+      :project-id="projectId"
+      :project-menu-open="projectMenuOpen"
+      :project-rename-open="projectRenameOpen"
+      :project-name-draft="projectNameDraft"
+      :is-project-renaming="isProjectRenaming"
+      :can-undo="canUndo"
+      :can-redo="canRedo"
+      :is-dirty="isDirty"
+      :is-saving="isSaving"
+      :is-workspace-loading="isWorkspaceLoading"
+      :is-running="isRunning"
+      :language-menu-open="languageMenuOpen"
+      :locale="locale"
+      :node-count="nodes.length"
+      @toggle-project-menu="projectMenuOpen = !projectMenuOpen"
+      @begin-project-rename="beginProjectRename"
+      @cancel-project-rename="cancelProjectRename"
+      @submit-project-rename="submitProjectRename"
+      @update:project-name-draft="projectNameDraft = $event"
+      @open-project="openProject"
+      @start-new-project="startNewProject"
+      @undo="undo"
+      @redo="redo"
+      @save="saveFlow"
+      @run="runFlow"
+      @toggle-language-menu="languageMenuOpen = !languageMenuOpen"
+      @set-language="setLanguage"
+    />
 
-    <div class="mobile-tabs" role="tablist" :aria-label="t('mobile.workspacePanels')"><button type="button" :class="{ active: mobilePanel === 'nodes' }" @click="mobilePanel = mobilePanel === 'nodes' ? null : 'nodes'"><LayoutGrid :size="15" />{{ t('mobile.nodes') }}</button><button type="button" :class="{ active: mobilePanel === 'inspector' }" @click="mobilePanel = mobilePanel === 'inspector' ? null : 'inspector'"><Settings2 :size="15" />{{ t('mobile.inspector') }}</button></div>
+    <MobileWorkspaceTabs v-model:mobile-panel="mobilePanel" />
 
     <main class="workspace-grid">
-      <aside class="node-library" :class="{ 'mobile-visible': mobilePanel === 'nodes' }">
-        <div class="panel-heading"><div><span class="eyebrow">{{ t('library.build') }}</span><h1>{{ t('library.nodeLibrary') }}</h1></div><div class="library-heading-actions"><span class="library-badge"><Server :size="11" />API</span><button class="icon-button compact" type="button" :title="t('library.upload')" :aria-label="t('library.upload')" @click="libraryUploadOpen = true"><UploadCloud :size="15" /></button></div></div>
-        <label class="library-search"><Search :size="14" aria-hidden="true" /><input v-model="librarySearch" type="search" :placeholder="t('library.searchPlaceholder')" /></label>
+      <NodeLibraryPanel
+        :mobile-visible="mobilePanel === 'nodes'"
+        :library-search="librarySearch"
+        :is-loading="isLibraryCatalogLoading"
+        :error="libraryCatalogError"
+        :visible-libraries="visibleLibraries"
+        :catalog-node-count="catalogNodeCount"
+        @update:library-search="librarySearch = $event"
+        @upload="libraryUploadOpen = true"
+        @retry="refreshLibraryCatalog"
+        @drag-node="handleLibraryNodeDragStart"
+      />
 
-        <div v-if="isLibraryCatalogLoading" class="library-catalog-state"><RefreshCw class="spin" :size="18" /><strong>{{ t('library.loading') }}</strong></div>
-        <div v-else-if="libraryCatalogError" class="library-catalog-state library-catalog-state--error"><AlertTriangle :size="18" /><strong>{{ libraryCatalogError }}</strong><button type="button" @click="refreshLibraryCatalog">{{ t('command.retry') }}</button></div>
-        <div v-else-if="visibleLibraries.length === 0" class="library-empty">
-          <div class="library-empty__mark" aria-hidden="true"><LayoutGrid :size="18" /></div>
-          <strong>{{ librarySearch ? t('library.noSearchResults') : t('library.emptyCatalog') }}</strong>
-          <p class="empty-copy">{{ librarySearch ? t('library.empty') : t('library.emptyCatalogHint') }}</p>
-          <span class="library-empty__hint">{{ t('library.serverOnly') }}</span>
-        </div>
-        <div v-else class="library-catalog">
-          <section v-for="entry in visibleLibraries" :key="entry.library.id" class="library-catalog__group">
-            <div class="library-catalog__heading"><div><strong>{{ entry.library.name }}</strong><span>{{ entry.library.version }}</span></div><span class="mono">{{ t('library.nodeCount', { count: entry.nodes.length }) }}</span></div>
-            <button v-for="node in entry.nodes" :key="node.id" class="library-node" type="button" draggable="true" @dragstart="handleLibraryNodeDragStart($event, node)">
-              <span class="library-node__mark"><Database :size="14" /></span><span class="library-node__body"><strong>{{ node.displayName }}</strong><span>{{ node.className }}.{{ node.methodName }}</span></span><span class="library-node__drag-hint">{{ t('library.dragHint') }}</span>
-            </button>
-          </section>
-        </div>
-        <div class="library-footer"><div class="status-line"><span class="status-dot" :class="{ 'status-dot--idle': isLibraryCatalogLoading || libraryCatalogError }"></span><span>{{ libraryCatalogError ? t('library.loadFailed') : catalogNodeCount > 0 ? t('library.nodeCount', { count: catalogNodeCount }) : t('library.catalogWaiting') }}</span><span class="mono">API</span></div><button class="footer-link" type="button" @click="libraryUploadOpen = true"><UploadCloud :size="14" />{{ t('library.upload') }}</button></div>
-      </aside>
+      <CanvasPanel
+        :project-name="projectName"
+        :flow-version="flowVersion"
+        :canvases="canvases"
+        :active-canvas-id="activeCanvasId"
+        :current-canvas-lifecycle="currentCanvas.lifecycle"
+        :current-canvas-node-count="currentCanvas.nodes.length"
+        :current-canvas-edge-count="currentCanvas.edges.length"
+        :rendered-elements="renderedElements"
+        :is-valid-connection="isValidConnection"
+        :canvas-render-key="canvasRenderKey"
+        :canvas-menu-open="canvasMenuOpen"
+        :available-canvas-lifecycles="availableCanvasLifecycles"
+        :custom-canvas-name-draft="customCanvasNameDraft"
+        :connection-settings-open="connectionSettingsOpen"
+        :connection-line-types="connectionLineTypes"
+        :is-dirty="isDirty"
+        :is-saving="isSaving"
+        :is-workspace-loading="isWorkspaceLoading"
+        :save-failed="saveFailed"
+        :save-conflict="saveConflict"
+        :save-state-key="saveStateKey"
+        :selected-node="selectedNode"
+        :selected-edge="selectedEdge"
+        :is-canvas-drop-active="isCanvasDropActive"
+        :notice="notice"
+        :pending-canvas-delete="pendingCanvasDelete"
+        :canvas-delete-confirm-open="canvasDeleteConfirmOpen"
+        :canvas-label="canvasLabel"
+        @select-canvas="selectCanvas"
+        @toggle-canvas-menu="toggleCanvasMenu"
+        @add-canvas="addCanvas"
+        @add-custom-canvas="addCustomCanvas"
+        @update:custom-canvas-name-draft="customCanvasNameDraft = $event"
+        @toggle-connection-settings="connectionSettingsOpen = !connectionSettingsOpen"
+        @update-connection-line-type="updateConnectionLineType"
+        @remove-selection="removeSelection"
+        @request-canvas-removal="requestCanvasRemoval"
+        @cancel-canvas-removal="cancelCanvasRemoval"
+        @confirm-canvas-removal="confirmCanvasRemoval"
+        @canvas-dragover="handleCanvasDragOver"
+        @canvas-dragleave="handleCanvasDragLeave"
+        @canvas-drop="handleCanvasDrop"
+        @connect="onConnect"
+        @nodes-change="onNodesChange"
+        @edges-change="onEdgesChange"
+        @node-click="onNodeClick"
+        @edge-click="onEdgeClick"
+        @pane-click="clearSelection"
+        @zoom-in="zoomIn"
+        @zoom-out="zoomOut"
+        @fit-view="fitView"
+      />
 
-      <section class="canvas-panel" :aria-label="t('canvas.mainHint')">
-        <div class="canvas-toolbar">
-          <div class="canvas-context"><div class="breadcrumb"><span>{{ t('canvas.projects') }}</span><ChevronDown :size="13" /><strong>{{ projectName }}</strong><span class="version-pill">v{{ flowVersion }}</span></div><div class="canvas-tab-row"><div class="canvas-tabs" role="tablist" :aria-label="t('canvas.options')"><button v-for="canvas in canvases" :id="`canvas-tab-${canvas.id}`" :key="canvas.id" type="button" role="tab" :aria-selected="canvas.id === activeCanvasId" :class="{ active: canvas.id === activeCanvasId }" @click="selectCanvas(canvas.id)">{{ canvasLabel(canvas) }}</button></div><div class="canvas-menu"><button class="icon-button compact" type="button" :title="t('canvas.add')" :aria-label="t('canvas.add')" :aria-expanded="canvasMenuOpen" @click="toggleCanvasMenu"><Plus :size="15" /></button><div v-if="canvasMenuOpen" class="canvas-popover" role="menu"><button v-for="lifecycle in availableCanvasLifecycles" :key="lifecycle" type="button" role="menuitem" @click="addCanvas(lifecycle)">{{ t(`canvas.${lifecycle}`) }}</button><p v-if="availableCanvasLifecycles.length === 0">{{ t('canvas.allLifecycleCanvases') }}</p><form class="canvas-custom-form" @submit.prevent="addCustomCanvas"><label>{{ t('canvas.customName') }}<input v-model="customCanvasNameDraft" type="text" :placeholder="t('canvas.customNamePlaceholder')" maxlength="60" /></label><button type="submit" :title="t('canvas.addCustom')" :aria-label="t('canvas.addCustom')"><Plus :size="14" /></button></form></div></div></div></div>
-          <div class="canvas-tools"><span class="save-state" role="status"><Check v-if="!isDirty && !saveFailed && !saveConflict && !isSaving && !isWorkspaceLoading" :size="14" /><Save v-else :size="14" />{{ t(saveStateKey) }}</span><div class="connection-settings"><button class="icon-button compact" type="button" :title="t('canvas.connectionSettings')" :aria-label="t('canvas.connectionSettings')" :aria-expanded="connectionSettingsOpen" @click="connectionSettingsOpen = !connectionSettingsOpen"><Settings2 :size="15" /></button><div v-if="connectionSettingsOpen" class="connection-settings-popover" role="dialog" :aria-label="t('canvas.connectionSettings')"><span class="connection-settings-popover__title">{{ t('canvas.connectionSettings') }}</span><p>{{ t('canvas.connectionSettingsHint') }}</p><label class="connection-settings-field">{{ t('canvas.executionLineType') }}<select :value="connectionLineTypes.execution" @change="updateConnectionLineType('execution', $event)"><option v-for="option in connectionLineTypeOptions" :key="`execution-${option.value}`" :value="option.value">{{ t(option.labelKey) }}</option></select></label><label class="connection-settings-field">{{ t('canvas.dataLineType') }}<select :value="connectionLineTypes.data" @change="updateConnectionLineType('data', $event)"><option v-for="option in connectionLineTypeOptions" :key="`data-${option.value}`" :value="option.value">{{ t(option.labelKey) }}</option></select></label></div></div><button class="icon-button" type="button" :title="t('command.delete')" :aria-label="t('command.delete')" :disabled="!selectedNode && !selectedEdge" @click="removeSelection"><Trash2 :size="16" /></button><button class="icon-button canvas-delete-button" type="button" :title="t('canvas.remove')" :aria-label="t('canvas.remove')" :disabled="currentCanvas.lifecycle === 'main'" @click="requestCanvasRemoval"><X :size="16" /></button></div>
-        </div>
-        <div class="canvas-area" :class="{ 'canvas-drop-active': isCanvasDropActive }" @dragover="handleCanvasDragOver" @dragleave="handleCanvasDragLeave" @drop="handleCanvasDrop">
-          <VueFlow :key="canvasRenderKey" :model-value="renderedElements" :node-types="nodeTypes" :connection-mode="ConnectionMode.Strict" :is-valid-connection="isValidConnection" :min-zoom="0.2" :max-zoom="2" :snap-to-grid="true" :snap-grid="[16, 16]" :fit-view-on-init="true" :delete-key-code="['Backspace', 'Delete']" class="serein-flow" @connect="onConnect" @nodes-change="onNodesChange" @edges-change="onEdgesChange" @node-click="onNodeClick" @edge-click="onEdgeClick" @pane-click="clearSelection"><template #connection-line="connectionLineProps"><FlowConnectionLine v-bind="connectionLineProps" :line-types="connectionLineTypes" /></template></VueFlow>
-          <div v-if="currentCanvas.nodes.length === 0" class="canvas-empty-state" aria-live="polite"><div class="canvas-empty-state__mark"><LayoutGrid :size="20" /></div><strong>{{ t('canvas.emptyTitle') }}</strong><p>{{ t('canvas.emptyHint') }}</p><span>{{ t('canvas.emptySecondary') }}</span></div>
-          <span v-if="isCanvasDropActive" class="canvas-drop-hint">{{ t('canvas.dropNode') }}</span>
-          <p v-if="notice" class="canvas-notice" role="status">{{ notice }}</p><div class="canvas-legend" aria-hidden="true"><span><i class="legend-port execution"></i>{{ t('edge.flow') }}</span><span><i class="legend-port data"></i>{{ t('edge.value') }}</span></div>
-          <div class="zoom-control" :aria-label="t('canvas.options')"><button type="button" :title="t('canvas.zoomOut')" :aria-label="t('canvas.zoomOut')" @click="zoomOut()">-</button><button type="button" :title="t('canvas.fitView')" :aria-label="t('canvas.fitView')" @click="fitView()"><LocateFixed :size="14" /></button><button type="button" :title="t('canvas.zoomIn')" :aria-label="t('canvas.zoomIn')" @click="zoomIn()">+</button></div>
-          <div v-if="canvasDeleteConfirmOpen && pendingCanvasDelete" class="canvas-delete-confirm" @click.self="cancelCanvasRemoval">
-            <section class="canvas-delete-confirm__dialog" role="dialog" aria-modal="true" :aria-labelledby="'canvas-delete-confirm-title'">
-              <div class="canvas-delete-confirm__header"><div><span class="eyebrow">{{ t('canvas.deleteConfirmEyebrow') }}</span><h2 id="canvas-delete-confirm-title">{{ t('canvas.deleteConfirmTitle') }}</h2></div><button class="icon-button compact" type="button" :title="t('command.cancel')" :aria-label="t('command.cancel')" @click="cancelCanvasRemoval"><X :size="15" /></button></div>
-              <p class="canvas-delete-confirm__message">{{ t('canvas.deleteConfirmMessage', { canvas: canvasLabel(pendingCanvasDelete) }) }}</p>
-              <p class="canvas-delete-confirm__details">{{ t('canvas.deleteConfirmDetails', { nodes: pendingCanvasDelete.nodes.length, edges: pendingCanvasDelete.edges.length }) }}</p>
-              <div class="canvas-delete-confirm__actions"><button class="command-button quiet" type="button" @click="cancelCanvasRemoval">{{ t('command.cancel') }}</button><button class="command-button danger" type="button" autofocus @click="confirmCanvasRemoval"><Trash2 :size="15" />{{ t('canvas.deleteConfirmAction') }}</button></div>
-            </section>
-          </div>
-        </div>
-      </section>
-
-      <aside class="inspector-panel" :class="{ 'mobile-visible': mobilePanel === 'inspector', 'inspector-panel--empty': !selectedNode && !selectedEdge }">
-        <template v-if="selectedNode">
-          <div class="inspector-heading"><div><span class="eyebrow">{{ t('inspector.title') }}</span><h2>{{ nodeTitle(selectedNode) }}</h2></div><button class="icon-button" type="button" :title="t('command.close')" :aria-label="t('command.close')" @click="mobilePanel = null"><X :size="16" /></button></div>
-          <div class="inspector-type"><span class="node-icon" :class="`kind-${selectedNode.data.kind}`"><component :is="iconForNodeKind(selectedNode.data.kind)" :size="15" /></span><span>{{ t('inspector.nodeType', { kind: t(`node.kind.${selectedNode.data.kind}`) }) }}</span><span class="inspector-id mono">#{{ selectedNode.id }}</span></div>
-          <div class="inspector-section"><span class="section-label">{{ t('inspector.general') }}</span><label class="field-label">{{ t('inspector.displayName') }}<input v-model="selectedNode.data.displayName" type="text" :placeholder="t(selectedNode.data.titleKey)" @focus="beginTextEdit" @input="commitTextEdit" @blur="discardTextEdit" /></label><label class="field-label">{{ t('inspector.description') }}<textarea v-model="selectedNode.data.description" rows="2" :placeholder="t(selectedNode.data.subtitleKey)" @focus="beginTextEdit" @input="commitTextEdit" @blur="discardTextEdit"></textarea></label></div>
-          <div class="inspector-section parameter-section"><span class="section-label">{{ t('inspector.parameters') }}</span><p v-if="selectedNode.data.parameters.length === 0" class="empty-copy">{{ t('inspector.noParameters') }}</p><div v-for="parameter in selectedNode.data.parameters" :key="parameter.id" class="parameter-editor"><div class="parameter-heading"><strong>{{ t(parameter.nameKey) }}</strong><span class="port-kind">{{ parameter.valueKind }}</span></div><label class="field-label compact">{{ t('parameter.source') }}<select :value="parameter.source" @change="updateParameterSource(selectedNode.id, parameter, $event)"><option value="literal">{{ t('parameter.literal') }}</option><option value="previousNode">{{ t('parameter.previousNode') }}</option><option value="projectInput">{{ t('parameter.projectInput') }}</option><option value="expression">{{ t('parameter.expression') }}</option></select></label><label v-if="parameter.source === 'literal'" class="field-label compact">{{ t('parameter.literalValue') }}<input v-model="parameter.literalValue" type="text" @focus="beginTextEdit" @input="commitTextEdit" @blur="discardTextEdit" /></label><label v-else-if="parameter.source === 'projectInput'" class="field-label compact">{{ t('parameter.projectInputKey') }}<input v-model="parameter.projectInputKey" type="text" @focus="beginTextEdit" @input="commitTextEdit" @blur="discardTextEdit" /></label><label v-else-if="parameter.source === 'expression'" class="field-label compact">{{ t('parameter.expressionValue') }}<textarea v-model="parameter.expression" rows="2" @focus="beginTextEdit" @input="commitTextEdit" @blur="discardTextEdit"></textarea></label><p v-else class="source-detail"><GitBranch :size="13" />{{ t('inspector.connectedFrom', { node: sourceNodeTitle(parameter) }) }}</p></div></div>
-        </template>
-        <template v-else-if="selectedEdge">
-          <div class="inspector-heading"><div><span class="eyebrow">{{ t('inspector.title') }}</span><h2>{{ t('inspector.edgeSelected') }}</h2></div><button class="icon-button" type="button" :title="t('command.delete')" :aria-label="t('command.delete')" @click="removeSelection"><Trash2 :size="16" /></button></div><div class="edge-summary" :class="selectedEdge.data?.semantic"><span class="edge-sample"></span><strong>{{ selectedEdge.data?.semantic === 'execution' ? t('inspector.executionEdge') : t('inspector.dataEdge') }}</strong><p>{{ selectedEdge.data?.semantic === 'execution' ? t('edge.executionDescription') : t('edge.dataDescription') }}</p></div>
-        </template>
-        <div v-else class="inspector-empty"><Settings2 :size="20" /><strong>{{ t('canvas.emptySelection') }}</strong><p>{{ t('inspector.selectNode') }}</p></div>
-      </aside>
+      <InspectorPanel
+        :mobile-visible="mobilePanel === 'inspector'"
+        :selected-node="selectedNode"
+        :selected-edge="selectedEdge"
+        :icon-for-node-kind="iconForNodeKind"
+        :node-title="nodeTitle"
+        :source-node-title="sourceNodeTitle"
+        @close="mobilePanel = null"
+        @delete="removeSelection"
+        @update-parameter-source="updateParameterSource"
+        @begin-text-edit="beginTextEdit"
+        @commit-text-edit="commitTextEdit"
+        @discard-text-edit="discardTextEdit"
+      />
     </main>
 
     <LibraryUploadDialog v-if="libraryUploadOpen" @close="libraryUploadOpen = false" @uploaded="handleLibraryUploaded" />
-    <section class="output-panel"><div class="output-tabs" role="tablist" :aria-label="t('output.eventsLabel')"><button type="button" :class="{ active: activeOutput === 'events' }" @click="activeOutput = 'events'"><Terminal :size="14" />{{ t('output.events') }}<span class="tab-count">{{ runEvents.length }}</span></button><button type="button" :class="{ active: activeOutput === 'payload' }" @click="activeOutput = 'payload'"><Code2 :size="14" />{{ t('output.payload') }}</button><span class="output-spacer"></span><span v-if="hasRunOutput" class="run-label"><span class="status-dot"></span>{{ t('output.lastRunSucceeded') }}<span class="mono">preview</span></span><span v-else class="run-label output-idle"><span class="status-dot"></span>{{ t('output.waiting') }}</span></div><div class="output-content"><template v-if="activeOutput === 'events'"><div v-if="runEvents.length === 0" class="output-empty"><Terminal :size="15" /><span>{{ t('output.emptyEvents') }}</span></div><div v-else class="output-event-list"><div v-for="event in runEvents" :key="`${event.time}-${event.label}`" class="event-row"><span class="event-time mono">{{ event.time }}</span><span class="event-dot" :class="{ success: event.success }"></span><strong>{{ event.label }}</strong><span class="event-detail">{{ event.detail }}</span></div></div></template><div v-else-if="!runPayload" class="output-empty"><Code2 :size="15" /><span>{{ t('output.emptyPayload') }}</span></div><pre v-else class="payload-preview">{{ runPayload }}</pre></div></section>
+    <OutputPanel v-model:active-output="activeOutput" :run-events="runEvents" :run-payload="runPayload" :has-run-output="hasRunOutput" />
   </div>
 </template>
