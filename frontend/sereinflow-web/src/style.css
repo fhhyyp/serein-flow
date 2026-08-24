@@ -251,9 +251,12 @@ h2 { overflow-wrap: anywhere; }
 .seat-execution-input, .seat-execution-output { border-radius: 4px; background: var(--accent); box-shadow: 0 0 0 1px var(--accent-strong), 0 2px 5px rgb(3 105 161 / 24%); }
 .seat-parameter-input { width: 18px; height: 13px; border-radius: 4px; background: var(--data); box-shadow: 0 0 0 1px var(--data), 0 2px 5px rgb(109 66 165 / 22%); }
 .seat-data-output { border-radius: 50%; background: var(--data); box-shadow: 0 0 0 1px var(--data), 0 2px 5px rgb(109 66 165 / 22%); }
-.workflow-node .vue-flow__handle-left { left: -8px; }
-.workflow-node .vue-flow__handle-right { right: -8px; }
-.workflow-node__parameter .vue-flow__handle-left { left: -20px; }
+/* Vue Flow centers a side handle on its left/right inset. Keep the main
+   handles on the card border; parameter rows compensate for the 11px card
+   content gutter so their centers land on that same border. */
+.workflow-node .vue-flow__handle-left { left: 0; }
+.workflow-node .vue-flow__handle-right { right: 0; }
+.workflow-node__parameter .vue-flow__handle-left { left: -11px; }
 .canvas-notice { position: absolute; z-index: 6; top: 12px; left: 50%; margin: 0; border: 1px solid #b9ddf2; border-radius: 3px; padding: 6px 9px; transform: translateX(-50%); background: var(--surface); color: var(--accent-strong); font-size: 11px; pointer-events: none; }
 .canvas-empty-state { position: absolute; z-index: 3; top: 50%; left: 50%; display: grid; max-width: 310px; justify-items: center; gap: 9px; transform: translate(-50%, -50%); text-align: center; pointer-events: none; }
 .canvas-empty-state strong { color: var(--ink); font-size: 14px; }
