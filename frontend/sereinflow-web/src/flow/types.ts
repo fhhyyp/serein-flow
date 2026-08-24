@@ -1,15 +1,49 @@
 import type { EdgeMarkerType, XYPosition } from '@vue-flow/core'
 
-export type NodeKind = 'trigger' | 'script' | 'condition' | 'action'
-export type NodeStatus = 'ready' | 'active' | 'success'
+/**
+ * Node kinds exposed by the TRAE/SereinScript contract.
+ *
+ * The legacy `trigger`, `condition`, `value`, and `expression` values remain
+ * valid so documents created by the first web workbench can still be opened.
+ * New catalog entries should use the canonical kinds from `ReferenceNodeKind`.
+ */
+export type ReferenceNodeKind =
+  | 'action'
+  | 'flipflop'
+  | 'script'
+  | 'expOp'
+  | 'expCondition'
+  | 'flowCall'
+  | 'globalData'
+
+export type NodeKind = ReferenceNodeKind | 'trigger' | 'condition' | 'value' | 'expression'
+export type NodeCategory = 'method' | 'basic'
+export type NodeStatus = 'idle' | 'running' | 'success' | 'failed' | 'ready' | 'active'
 export type ConnectionSemantic = 'execution' | 'data'
 export type ParameterSource = 'literal' | 'previousNode' | 'projectInput' | 'expression'
+export type ParameterInputMode = 'connection' | 'manual' | 'select'
+export type ConnectorType = 'input' | 'output' | 'param' | 'result'
 export type CanvasLifecycle = 'main' | 'init' | 'loading' | 'exit'
+
+export interface NodeRuntimeMetadata {
+  category?: NodeCategory
+  libraryId?: string
+  className?: string
+  methodName?: string
+  dllName?: string
+  dllVersion?: string
+  returnType?: string
+}
 
 export interface MethodParameter {
   id: string
   nameKey: string
   valueKind: string
+  name?: string
+  type?: string
+  description?: string
+  inputMode?: ParameterInputMode
+  position?: { x: number; y: number }
   source: ParameterSource
   literalValue?: string
   projectInputKey?: string
@@ -27,6 +61,7 @@ export interface FlowNodeData {
   status: NodeStatus
   hasDataOutput: boolean
   parameters: MethodParameter[]
+  runtime?: NodeRuntimeMetadata
 }
 
 export interface FlowEdgeData {

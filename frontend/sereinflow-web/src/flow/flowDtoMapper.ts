@@ -10,7 +10,19 @@ import type {
   NodeParameterDto,
   NodePortDto,
 } from '../api/flowApi'
-import type { CanvasLifecycle, CanvasState, ConnectionSemantic, FlowEdge, FlowNode, MethodParameter, NodeKind, NodeStatus, ParameterSource } from './types'
+import type {
+  CanvasLifecycle,
+  CanvasState,
+  ConnectionSemantic,
+  FlowEdge,
+  FlowNode,
+  MethodParameter,
+  NodeKind,
+  NodeStatus,
+  ParameterInputMode,
+  ParameterSource,
+} from './types'
+import { allNodeKinds } from './nodeCatalog.ts'
 import type { WorkspaceSnapshot } from './workspaceHistory'
 
 export interface FlowIdentity {
@@ -19,9 +31,10 @@ export interface FlowIdentity {
 }
 
 const lifecycleValues: CanvasLifecycle[] = ['main', 'init', 'loading', 'exit']
-const nodeKinds: NodeKind[] = ['trigger', 'script', 'condition', 'action']
-const nodeStatuses: NodeStatus[] = ['ready', 'active', 'success']
+const nodeKinds: NodeKind[] = [...allNodeKinds]
+const nodeStatuses: NodeStatus[] = ['idle', 'running', 'success', 'failed', 'ready', 'active']
 const parameterSources: ParameterSource[] = ['literal', 'previousNode', 'projectInput', 'expression']
+const parameterInputModes: ParameterInputMode[] = ['connection', 'manual', 'select']
 
 export function workspaceToFlowDefinition(snapshot: WorkspaceSnapshot, identity: FlowIdentity): FlowDefinitionDto {
   const mainCanvas = snapshot.canvases.find((canvas) => canvas.lifecycle === 'main') ?? snapshot.canvases[0]
@@ -56,6 +69,7 @@ function toCanvasDto(canvas: CanvasState): CanvasDto {
 }
 
 function toNodeDto(node: FlowNode): NodeDto {
+  const hasDataOutput = exposesDataOutput(node)
   return {
     id: node.id,
     type: toApiNodeType(node.data.kind),
@@ -71,8 +85,15 @@ function toNodeDto(node: FlowNode): NodeDto {
       subtitleKey: node.data.subtitleKey,
       description: node.data.description,
       status: node.data.status,
-      hasDataOutput: node.data.hasDataOutput,
+      hasDataOutput,
       width: node.width,
+      category: node.data.runtime?.category,
+      libraryId: node.data.runtime?.libraryId,
+      className: node.data.runtime?.className,
+      methodName: node.data.runtime?.methodName,
+      dllName: node.data.runtime?.dllName,
+      dllVersion: node.data.runtime?.dllVersion,
+      returnType: node.data.runtime?.returnType,
     },
   }
 }
@@ -83,7 +104,7 @@ function createPorts(node: FlowNode): NodePortDto[] {
     ports.push({ id: 'exec-in', name: 'Execution input', direction: 'input', required: false })
   }
   ports.push({ id: 'exec-out', name: 'Execution output', direction: 'output', required: false })
-  if (node.data.hasDataOutput) {
+  if (exposesDataOutput(node)) {
     ports.push({ id: 'data-out', name: 'Data output', direction: 'output', required: false })
   }
   for (const parameter of node.data.parameters) {
@@ -102,6 +123,9 @@ function toParameterDto(parameter: MethodParameter): NodeParameterDto {
       id: parameter.id,
       nameKey: parameter.nameKey,
       valueKind: parameter.valueKind,
+      type: parameter.type ?? parameter.valueKind,
+      description: parameter.description,
+      inputMode: parameter.inputMode,
       literalValue: parameter.literalValue,
       projectInputKey: parameter.projectInputKey,
       expression: parameter.expression,
@@ -137,8 +161,9 @@ function toCanvasState(canvas: CanvasDto): CanvasState {
 }
 
 function toFlowNode(node: NodeDto): FlowNode {
-  const kind = isNodeKind(node.ui?.kind) ? node.ui.kind : fromApiNodeType(node.type)
+  const kind = normalizeNodeKind(node.ui?.kind) ?? fromApiNodeType(node.type)
   const titleKey = node.ui?.titleKey || `node.kind.${kind}`
+  const runtime = toRuntimeMetadata(node)
   return {
     id: node.id,
     type: 'workflow',
@@ -150,9 +175,10 @@ function toFlowNode(node: NodeDto): FlowNode {
       subtitleKey: node.ui?.subtitleKey || titleKey,
       displayName: node.displayName === titleKey ? undefined : node.displayName,
       description: node.ui?.description,
-      status: isNodeStatus(node.ui?.status) ? node.ui.status : 'ready',
-      hasDataOutput: node.ui?.hasDataOutput ?? true,
+      status: normalizeNodeStatus(node.ui?.status),
+      hasDataOutput: hasDataOutputFromDto(node),
       parameters: node.parameters.map(toMethodParameter),
+      runtime,
     },
   }
 }
@@ -163,6 +189,10 @@ function toMethodParameter(parameter: NodeParameterDto): MethodParameter {
     id: parameter.ui?.id || parameter.name,
     nameKey: parameter.ui?.nameKey || parameter.name,
     valueKind: parameter.ui?.valueKind || 'JSON',
+    name: parameter.name,
+    type: parameter.ui?.type || parameter.ui?.valueKind || 'JSON',
+    description: parameter.ui?.description,
+    inputMode: normalizeParameterInputMode(parameter.ui?.inputMode),
     source,
     literalValue: parameter.ui?.literalValue ?? parameter.valueJson,
     projectInputKey: parameter.ui?.projectInputKey,
@@ -206,7 +236,52 @@ function toApiNodeType(kind: NodeKind): ApiNodeType {
 }
 
 function fromApiNodeType(type: ApiNodeType): NodeKind {
-  return type === 'script' || type === 'condition' || type === 'trigger' ? type : 'action'
+  return type
+}
+
+function exposesDataOutput(node: FlowNode): boolean {
+  const returnType = node.data.runtime?.returnType?.trim()
+  if (returnType) {
+    return returnType.toLowerCase() !== 'void'
+  }
+
+  return node.data.hasDataOutput
+}
+
+function hasDataOutputFromDto(node: NodeDto): boolean {
+  const returnType = node.ui?.returnType?.trim()
+  if (returnType) {
+    return returnType.toLowerCase() !== 'void'
+  }
+
+  if (node.ui?.hasDataOutput !== undefined) {
+    return node.ui.hasDataOutput
+  }
+
+  // Older documents omitted UI metadata. An explicit result port is the
+  // strongest signal; an empty port collection falls back to the old default.
+  if (node.ports.length > 0) {
+    return node.ports.some((port) => port.id === 'data-out' || port.id === 'result')
+  }
+
+  return true
+}
+
+function toRuntimeMetadata(node: NodeDto) {
+  const ui = node.ui
+  if (!ui || [ui.category, ui.libraryId, ui.className, ui.methodName, ui.dllName, ui.dllVersion, ui.returnType].every((value) => value === undefined)) {
+    return undefined
+  }
+
+  return {
+    category: isNodeCategory(ui.category) ? ui.category : undefined,
+    libraryId: ui.libraryId,
+    className: ui.className,
+    methodName: ui.methodName,
+    dllName: ui.dllName,
+    dllVersion: ui.dllVersion,
+    returnType: ui.returnType,
+  }
 }
 
 function getNextNodeNumber(canvases: CanvasState[]): number {
@@ -224,8 +299,37 @@ function isNodeKind(value: string | undefined): value is NodeKind {
   return value !== undefined && nodeKinds.includes(value as NodeKind)
 }
 
+function normalizeNodeKind(value: string | undefined): NodeKind | undefined {
+  if (!value) {
+    return undefined
+  }
+
+  if (isNodeKind(value)) {
+    return value
+  }
+
+  const normalized = value.toLowerCase()
+  return nodeKinds.find((kind) => kind.toLowerCase() === normalized)
+}
+
 function isNodeStatus(value: string | undefined): value is NodeStatus {
   return value !== undefined && nodeStatuses.includes(value as NodeStatus)
+}
+
+function normalizeNodeStatus(value: string | undefined): NodeStatus {
+  const normalized = value?.trim().toLowerCase()
+  return isNodeStatus(normalized) ? normalized : 'ready'
+}
+
+function isNodeCategory(value: string | undefined): value is 'method' | 'basic' {
+  return value === 'method' || value === 'basic'
+}
+
+function normalizeParameterInputMode(value: string | undefined): ParameterInputMode | undefined {
+  const normalized = value?.trim().toLowerCase()
+  return normalized !== undefined && parameterInputModes.includes(normalized as ParameterInputMode)
+    ? normalized as ParameterInputMode
+    : undefined
 }
 
 function isParameterSource(value: ApiDataSource): value is ParameterSource {

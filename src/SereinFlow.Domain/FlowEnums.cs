@@ -23,6 +23,8 @@ public enum NodeType
     GlobalData,
     Flipflop,
     Script,
+    ExpOp,
+    ExpCondition,
     Condition,
     Value,
     Expression,

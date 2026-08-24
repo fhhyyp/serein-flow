@@ -12,6 +12,8 @@ public enum NodeTypeDto
     GlobalData,
     Flipflop,
     Script,
+    ExpOp,
+    ExpCondition,
     Condition,
     Value,
     Expression,
@@ -109,7 +111,14 @@ public sealed record NodeUiMetadataDto(
     string? Description,
     string Status,
     bool HasDataOutput,
-    double? Width);
+    double? Width,
+    string? Category = null,
+    string? LibraryId = null,
+    string? ClassName = null,
+    string? MethodName = null,
+    string? DllName = null,
+    string? DllVersion = null,
+    string? ReturnType = null);
 
 public sealed record NodePortDto(string Id, string Name, string Direction, bool Required);
 
@@ -128,7 +137,10 @@ public sealed record NodeParameterUiMetadataDto(
     string? ProjectInputKey,
     string? Expression,
     string? SourceNodeId,
-    string? SourcePortId);
+    string? SourcePortId,
+    string? Type = null,
+    string? Description = null,
+    string? InputMode = null);
 
 public sealed record ConnectionDto(
     string Id,

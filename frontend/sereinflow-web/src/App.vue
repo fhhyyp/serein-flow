@@ -42,6 +42,7 @@ import { cloneCanvasGraph, removeEdgesById } from './flow/canvasGraph'
 import { resolveConnectionSemantic } from './flow/connectionSeats'
 import { flowDefinitionToWorkspace, workspaceToFlowDefinition } from './flow/flowDtoMapper'
 import { createInitialCanvases } from './flow/initialCanvases'
+import { isNodeKind } from './flow/nodeCatalog'
 import { WorkspaceHistory, cloneWorkspaceSnapshot, workspaceFingerprint, type WorkspaceSnapshot } from './flow/workspaceHistory'
 import { loadWorkspace, saveWorkspace } from './flow/workspaceStorage'
 import type {
@@ -89,6 +90,26 @@ let pendingTextEdit: WorkspaceSnapshot | undefined
 let isRestoringWorkspace = false
 let nodeDragHistoryOpen = false
 let isSwitchingCanvas = false
+
+function iconForNodeKind(kind: NodeKind) {
+  if (kind === 'trigger' || kind === 'flipflop') {
+    return Zap
+  }
+
+  if (kind === 'script' || kind === 'expression') {
+    return Code2
+  }
+
+  if (kind === 'condition' || kind === 'expOp' || kind === 'expCondition') {
+    return GitBranch
+  }
+
+  if (kind === 'flowCall') {
+    return Activity
+  }
+
+  return Database
+}
 
 const currentCanvas = computed<CanvasState>(() => canvases.value.find((canvas) => canvas.id === activeCanvasId.value) ?? canvases.value[0]!)
 const canvasRenderKey = computed(() => `${activeCanvasId.value}:${canvasMountRevision.value}`)
@@ -528,7 +549,7 @@ function handleCanvasDrop(event: DragEvent): void {
 
   try {
     const item = JSON.parse(encoded) as { kind: NodeKind; titleKey: string; subtitleKey: string }
-    if (!['trigger', 'script', 'condition', 'action'].includes(item.kind)) {
+    if (!isNodeKind(item.kind)) {
       return
     }
 
@@ -871,7 +892,7 @@ function setLanguage(nextLocale: Locale): void {
       <aside class="inspector-panel" :class="{ 'mobile-visible': mobilePanel === 'inspector' }">
         <template v-if="selectedNode">
           <div class="inspector-heading"><div><span class="eyebrow">{{ t('inspector.title') }}</span><h2>{{ nodeTitle(selectedNode) }}</h2></div><button class="icon-button" type="button" :title="t('command.close')" :aria-label="t('command.close')" @click="mobilePanel = null"><X :size="16" /></button></div>
-          <div class="inspector-type"><span class="node-icon" :class="`kind-${selectedNode.data.kind}`"><component :is="selectedNode.data.kind === 'trigger' ? Zap : selectedNode.data.kind === 'script' ? Code2 : selectedNode.data.kind === 'condition' ? GitBranch : Database" :size="15" /></span><span>{{ t('inspector.nodeType', { kind: t(`node.kind.${selectedNode.data.kind}`) }) }}</span><span class="inspector-id mono">#{{ selectedNode.id }}</span></div>
+          <div class="inspector-type"><span class="node-icon" :class="`kind-${selectedNode.data.kind}`"><component :is="iconForNodeKind(selectedNode.data.kind)" :size="15" /></span><span>{{ t('inspector.nodeType', { kind: t(`node.kind.${selectedNode.data.kind}`) }) }}</span><span class="inspector-id mono">#{{ selectedNode.id }}</span></div>
           <div class="inspector-section"><span class="section-label">{{ t('inspector.general') }}</span><label class="field-label">{{ t('inspector.displayName') }}<input v-model="selectedNode.data.displayName" type="text" :placeholder="t(selectedNode.data.titleKey)" @focus="beginTextEdit" @input="commitTextEdit" @blur="discardTextEdit" /></label><label class="field-label">{{ t('inspector.description') }}<textarea v-model="selectedNode.data.description" rows="2" :placeholder="t(selectedNode.data.subtitleKey)" @focus="beginTextEdit" @input="commitTextEdit" @blur="discardTextEdit"></textarea></label></div>
           <div class="inspector-section parameter-section"><span class="section-label">{{ t('inspector.parameters') }}</span><p v-if="selectedNode.data.parameters.length === 0" class="empty-copy">{{ t('inspector.noParameters') }}</p><div v-for="parameter in selectedNode.data.parameters" :key="parameter.id" class="parameter-editor"><div class="parameter-heading"><strong>{{ t(parameter.nameKey) }}</strong><span class="port-kind">{{ parameter.valueKind }}</span></div><label class="field-label compact">{{ t('parameter.source') }}<select :value="parameter.source" @change="updateParameterSource(selectedNode.id, parameter, $event)"><option value="literal">{{ t('parameter.literal') }}</option><option value="previousNode">{{ t('parameter.previousNode') }}</option><option value="projectInput">{{ t('parameter.projectInput') }}</option><option value="expression">{{ t('parameter.expression') }}</option></select></label><label v-if="parameter.source === 'literal'" class="field-label compact">{{ t('parameter.literalValue') }}<input v-model="parameter.literalValue" type="text" @focus="beginTextEdit" @input="commitTextEdit" @blur="discardTextEdit" /></label><label v-else-if="parameter.source === 'projectInput'" class="field-label compact">{{ t('parameter.projectInputKey') }}<input v-model="parameter.projectInputKey" type="text" @focus="beginTextEdit" @input="commitTextEdit" @blur="discardTextEdit" /></label><label v-else-if="parameter.source === 'expression'" class="field-label compact">{{ t('parameter.expressionValue') }}<textarea v-model="parameter.expression" rows="2" @focus="beginTextEdit" @input="commitTextEdit" @blur="discardTextEdit"></textarea></label><p v-else class="source-detail"><GitBranch :size="13" />{{ t('inspector.connectedFrom', { node: sourceNodeTitle(parameter) }) }}</p></div></div>
         </template>

@@ -10,8 +10,15 @@ const props = defineProps<NodeProps<FlowNodeData>>()
 
 const icons: Record<NodeKind, typeof Activity> = {
   trigger: Zap,
+  flipflop: Zap,
   script: Code2,
   condition: GitBranch,
+  expOp: GitBranch,
+  expCondition: GitBranch,
+  flowCall: Activity,
+  globalData: Database,
+  value: Database,
+  expression: Code2,
   action: Database,
 }
 
@@ -19,6 +26,12 @@ const icon = computed(() => icons[props.data.kind])
 const title = computed(() => props.data.displayName?.trim() || t(props.data.titleKey))
 const description = computed(() => props.data.description?.trim() || t(props.data.subtitleKey))
 const seats = computed(() => layoutConnectionSeats(props.data))
+const hasDataOutput = computed(() => seats.value.some((seat) => seat.kind === 'data-output'))
+const runtimeSignature = computed(() => {
+  const runtime = props.data.runtime
+  const method = [runtime?.className, runtime?.methodName].filter(Boolean).join('.')
+  return method || runtime?.returnType || ''
+})
 
 function seatClass(seat: ConnectionSeatLayout): string {
   return `seat-${seat.kind}`
@@ -56,6 +69,7 @@ function isTargetSeat(seat: ConnectionSeatLayout): boolean {
     <div class="workflow-node__content">
       <strong>{{ title }}</strong>
       <span>{{ description }}</span>
+      <span v-if="runtimeSignature" class="workflow-node__runtime">{{ runtimeSignature }}</span>
     </div>
 
     <div v-if="data.parameters.length > 0" class="workflow-node__parameters">
@@ -68,7 +82,7 @@ function isTargetSeat(seat: ConnectionSeatLayout): boolean {
 
     <div class="workflow-node__footer">
       <span class="workflow-node__rail-label flow-rail-label"><i class="workflow-node__seat-dot execution-seat-dot" aria-hidden="true"></i>{{ t('edge.flow') }}</span>
-      <span v-if="data.hasDataOutput" class="workflow-node__rail-label data-rail-label"><i class="workflow-node__seat-dot data-seat-dot" aria-hidden="true"></i>{{ t('edge.value') }}</span>
+      <span v-if="hasDataOutput" class="workflow-node__rail-label data-rail-label"><i class="workflow-node__seat-dot data-seat-dot" aria-hidden="true"></i>{{ t('edge.value') }}</span>
     </div>
   </article>
 </template>

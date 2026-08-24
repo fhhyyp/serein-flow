@@ -1,4 +1,4 @@
-export type ApiNodeType = 'action' | 'flowCall' | 'globalData' | 'flipflop' | 'script' | 'condition' | 'value' | 'expression' | 'trigger'
+export type ApiNodeType = 'action' | 'flowCall' | 'globalData' | 'flipflop' | 'script' | 'condition' | 'value' | 'expression' | 'expOp' | 'expCondition' | 'trigger'
 export type ApiCanvasLifecycle = 'main' | 'init' | 'loading' | 'exit'
 export type ApiConnectionKind = 'execution' | 'data'
 export type ApiDataSource = 'literal' | 'previousNode' | 'projectInput' | 'expression'
@@ -14,6 +14,9 @@ export interface NodeParameterUiMetadataDto {
   id: string
   nameKey: string
   valueKind: string
+  type?: string
+  description?: string
+  inputMode?: 'connection' | 'manual' | 'select'
   literalValue?: string
   projectInputKey?: string
   expression?: string
@@ -37,6 +40,13 @@ export interface NodeUiMetadataDto {
   status: string
   hasDataOutput: boolean
   width?: number
+  category?: 'method' | 'basic'
+  libraryId?: string
+  className?: string
+  methodName?: string
+  dllName?: string
+  dllVersion?: string
+  returnType?: string
 }
 
 export interface NodeDto {

@@ -26,7 +26,9 @@ const outputGap = 16
  * The seat list is derived from node data instead of being encoded in the card
  * template. This keeps connection IDs stable when the visual card changes.
  */
-export function getConnectionSeats(data: Pick<FlowNodeData, 'kind' | 'parameters' | 'hasDataOutput'>): ConnectionSeat[] {
+type ConnectionSeatNodeData = Pick<FlowNodeData, 'kind' | 'parameters' | 'hasDataOutput' | 'runtime'>
+
+export function getConnectionSeats(data: ConnectionSeatNodeData): ConnectionSeat[] {
   const seats: ConnectionSeat[] = []
 
   if (data.kind !== 'trigger') {
@@ -62,7 +64,7 @@ export function getConnectionSeats(data: Pick<FlowNodeData, 'kind' | 'parameters
     labelKey: 'edge.executionDescription',
   })
 
-  if (data.hasDataOutput) {
+  if (hasDataOutput(data)) {
     seats.push({
       id: 'data-out',
       kind: 'data-output',
@@ -76,7 +78,7 @@ export function getConnectionSeats(data: Pick<FlowNodeData, 'kind' | 'parameters
   return seats
 }
 
-export function layoutConnectionSeats(data: Pick<FlowNodeData, 'kind' | 'parameters' | 'hasDataOutput'>): ConnectionSeatLayout[] {
+export function layoutConnectionSeats(data: ConnectionSeatNodeData): ConnectionSeatLayout[] {
   return getConnectionSeats(data).map((seat) => ({
     ...seat,
     top: seat.kind === 'execution-input' || seat.kind === 'execution-output'
@@ -85,6 +87,15 @@ export function layoutConnectionSeats(data: Pick<FlowNodeData, 'kind' | 'paramet
         ? parameterStartOffset + (seat.parameterIndex ?? 0) * parameterRowHeight
         : parameterStartOffset + data.parameters.length * parameterRowHeight + outputGap,
   }))
+}
+
+function hasDataOutput(data: Pick<FlowNodeData, 'hasDataOutput' | 'runtime'>): boolean {
+  const returnType = data.runtime?.returnType?.trim()
+  if (returnType) {
+    return returnType.toLowerCase() !== 'void'
+  }
+
+  return data.hasDataOutput
 }
 
 export function resolveConnectionSemantic(sourceHandle?: string | null, targetHandle?: string | null): 'execution' | 'data' | undefined {
@@ -102,4 +113,3 @@ export function resolveConnectionSemantic(sourceHandle?: string | null, targetHa
 export function isInputSeat(handleId: string | null | undefined): boolean {
   return handleId === 'exec-in' || handleId?.startsWith('param-') === true
 }
-
