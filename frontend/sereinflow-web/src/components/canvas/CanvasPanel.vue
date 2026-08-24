@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { markRaw } from 'vue'
 import { LayoutGrid, ChevronDown, LocateFixed, Plus, Save, Settings2, Check, Trash2, X } from 'lucide-vue-next'
 import {
   ConnectionMode,
@@ -14,7 +15,7 @@ import { t } from '../../i18n'
 import type { CanvasState, ConnectionSemantic, FlowEdge, FlowNode } from '../../flow/types'
 import { connectionLineTypeOptions, type ConnectionLineSettings } from '../../flow/connectionLine'
 
-const nodeTypes = { workflow: FlowNodeCard }
+const nodeTypes = markRaw({ workflow: FlowNodeCard })
 
 const props = defineProps<{
   projectName: string
