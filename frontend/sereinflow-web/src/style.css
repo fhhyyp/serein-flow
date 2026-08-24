@@ -192,7 +192,7 @@ h2 { overflow-wrap: anywhere; }
 .serein-flow .vue-flow__pane { cursor: grab; }
 .serein-flow .vue-flow__pane.dragging { cursor: grabbing; }
 .serein-flow .vue-flow__node { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
-.serein-flow .vue-flow__node.selected .workflow-node, .workflow-node.selected { border-color: var(--accent); border-left: 3px solid var(--accent); }
+.serein-flow .vue-flow__node.selected .workflow-node, .workflow-node.selected { border-color: var(--accent); outline: 2px solid var(--accent-soft); outline-offset: 2px; box-shadow: 0 0 0 1px var(--accent), 0 6px 16px rgb(3 105 161 / 14%); }
 .serein-flow .vue-flow__edge-path { stroke-width: 2; }
 .serein-flow .vue-flow__connection-path { stroke-width: 2; }
 .serein-flow .serein-flow__connection-preview { opacity: .95; stroke-width: 2; stroke-dashoffset: 0; animation: serein-flow-connection-dash 520ms linear infinite; }
