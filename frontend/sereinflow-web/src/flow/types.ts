@@ -20,6 +20,8 @@ export type NodeKind = ReferenceNodeKind | 'trigger' | 'condition' | 'value' | '
 export type NodeCategory = 'method' | 'basic'
 export type NodeStatus = 'idle' | 'running' | 'success' | 'failed' | 'ready' | 'active'
 export type ConnectionSemantic = 'execution' | 'data'
+/** Vue Flow's built-in edge/connection line types. `default` is Bezier. */
+export type FlowEdgeLineType = 'default' | 'simple-bezier' | 'straight' | 'step' | 'smoothstep'
 export type ParameterSource = 'literal' | 'previousNode' | 'projectInput' | 'expression'
 export type ParameterInputMode = 'connection' | 'manual' | 'select'
 export type ConnectorType = 'input' | 'output' | 'param' | 'result'
@@ -67,6 +69,8 @@ export interface FlowNodeData {
 export interface FlowEdgeData {
   semantic: ConnectionSemantic
   targetParameterId?: string
+  /** Optional per-edge override. If omitted, the semantic default is used. */
+  lineType?: FlowEdgeLineType
 }
 
 export interface FlowNode {

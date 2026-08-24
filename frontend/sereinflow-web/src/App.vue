@@ -40,12 +40,14 @@ import {
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
 import FlowNodeCard from './components/flow/FlowNodeCard.vue'
+import FlowConnectionLine from './components/flow/FlowConnectionLine.vue'
 import LibraryUploadDialog from './components/library/LibraryUploadDialog.vue'
 import { FlowApiError, createProject, listProjects, loadFlow, saveFlow as saveFlowRequest, type ProjectWorkspaceDto } from './api/flowApi'
 import { listLibraries, type LibraryDto, type LibraryNodeDto } from './api/libraryApi'
 import { locale, setLocale, t, type Locale } from './i18n'
 import { applyNodePositionChanges, cloneCanvasGraph, removeEdgesById } from './flow/canvasGraph'
 import { resolveConnectionSemantic } from './flow/connectionSeats'
+import { connectionLineStyleFor, connectionLineTypeForEdge } from './flow/connectionLine'
 import { flowDefinitionToWorkspace, workspaceToFlowDefinition } from './flow/flowDtoMapper'
 import { createInitialCanvases } from './flow/initialCanvases'
 import { isNodeKind } from './flow/nodeCatalog'
@@ -139,7 +141,14 @@ const edges = computed<FlowEdge[]>({
     currentCanvas.value.edges = value
   },
 })
-const renderedCanvas = computed(() => cloneCanvasGraph(currentCanvas.value))
+const renderedCanvas = computed(() => {
+  const canvas = cloneCanvasGraph(currentCanvas.value)
+  canvas.edges = canvas.edges.map((edge) => ({
+    ...edge,
+    type: connectionLineTypeForEdge(edge),
+  }))
+  return canvas
+})
 // Vue Flow validates edges against its current node store. Supplying nodes and
 // edges through one element list makes setElements establish nodes before it
 // validates the connections, avoiding an initialization-order race when a
@@ -368,13 +377,14 @@ function isValidConnection(connection: Connection): boolean {
 
 function createEdge(connection: Connection, semantic: ConnectionSemantic, targetParameterId?: string): FlowEdge {
   const isExecution = semantic === 'execution'
+  const lineType = connectionLineStyleFor(semantic).lineType
   return {
     id: `${semantic}-${connection.source}-${connection.target}-${connection.targetHandle ?? 'flow'}`,
     source: connection.source,
     target: connection.target,
     sourceHandle: connection.sourceHandle,
     targetHandle: connection.targetHandle,
-    type: 'smoothstep',
+    type: lineType,
     markerEnd: {
       type: MarkerType.ArrowClosed,
       color: isExecution ? '#0369a1' : '#6d42a5',
@@ -1041,7 +1051,7 @@ function setLanguage(nextLocale: Locale): void {
           <div class="canvas-tools"><span class="save-state" role="status"><Check v-if="!isDirty && !saveFailed && !saveConflict && !isSaving && !isWorkspaceLoading" :size="14" /><Save v-else :size="14" />{{ t(saveStateKey) }}</span><button class="icon-button" type="button" :title="t('command.delete')" :aria-label="t('command.delete')" :disabled="!selectedNode && !selectedEdge" @click="removeSelection"><Trash2 :size="16" /></button></div>
         </div>
         <div class="canvas-area" :class="{ 'canvas-drop-active': isCanvasDropActive }" @dragover="handleCanvasDragOver" @dragleave="handleCanvasDragLeave" @drop="handleCanvasDrop">
-          <VueFlow :key="canvasRenderKey" :model-value="renderedElements" :node-types="nodeTypes" :connection-mode="ConnectionMode.Strict" :is-valid-connection="isValidConnection" :min-zoom="0.2" :max-zoom="2" :snap-to-grid="true" :snap-grid="[16, 16]" :fit-view-on-init="true" :delete-key-code="['Backspace', 'Delete']" class="serein-flow" @connect="onConnect" @nodes-change="onNodesChange" @edges-change="onEdgesChange" @node-click="onNodeClick" @edge-click="onEdgeClick" @pane-click="clearSelection" />
+          <VueFlow :key="canvasRenderKey" :model-value="renderedElements" :node-types="nodeTypes" :connection-mode="ConnectionMode.Strict" :is-valid-connection="isValidConnection" :min-zoom="0.2" :max-zoom="2" :snap-to-grid="true" :snap-grid="[16, 16]" :fit-view-on-init="true" :delete-key-code="['Backspace', 'Delete']" class="serein-flow" @connect="onConnect" @nodes-change="onNodesChange" @edges-change="onEdgesChange" @node-click="onNodeClick" @edge-click="onEdgeClick" @pane-click="clearSelection"><template #connection-line="connectionLineProps"><FlowConnectionLine v-bind="connectionLineProps" /></template></VueFlow>
           <div v-if="currentCanvas.nodes.length === 0" class="canvas-empty-state" aria-live="polite"><div class="canvas-empty-state__mark"><LayoutGrid :size="20" /></div><strong>{{ t('canvas.emptyTitle') }}</strong><p>{{ t('canvas.emptyHint') }}</p><span>{{ t('canvas.emptySecondary') }}</span></div>
           <span v-if="isCanvasDropActive" class="canvas-drop-hint">{{ t('canvas.dropNode') }}</span>
           <p v-if="notice" class="canvas-notice" role="status">{{ notice }}</p><div class="canvas-legend" aria-hidden="true"><span><i class="legend-port execution"></i>{{ t('edge.flow') }}</span><span><i class="legend-port data"></i>{{ t('edge.value') }}</span></div>

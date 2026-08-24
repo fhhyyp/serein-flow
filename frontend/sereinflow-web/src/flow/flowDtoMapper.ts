@@ -23,6 +23,7 @@ import type {
   ParameterSource,
 } from './types'
 import { allNodeKinds } from './nodeCatalog.ts'
+import { connectionLineStyleFor } from './connectionLine.ts'
 import type { WorkspaceSnapshot } from './workspaceHistory'
 
 export interface FlowIdentity {
@@ -205,13 +206,14 @@ function toMethodParameter(parameter: NodeParameterDto): MethodParameter {
 function toFlowEdge(connection: ConnectionDto): FlowEdge {
   const semantic: ConnectionSemantic = connection.kind === 'execution' ? 'execution' : 'data'
   const isExecution = semantic === 'execution'
+  const lineType = connectionLineStyleFor(semantic).lineType
   return {
     id: connection.id,
     source: connection.fromNodeId,
     target: connection.toNodeId,
     sourceHandle: connection.fromPortId,
     targetHandle: connection.toPortId,
-    type: 'smoothstep',
+    type: lineType,
     markerEnd: {
       type: MarkerType.ArrowClosed,
       color: isExecution ? '#0369a1' : '#6d42a5',

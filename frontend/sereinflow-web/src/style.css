@@ -187,12 +187,20 @@ h2 { overflow-wrap: anywhere; }
 .serein-flow .vue-flow__node { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .serein-flow .vue-flow__node.selected .workflow-node, .workflow-node.selected { border-color: var(--accent); border-left: 3px solid var(--accent); }
 .serein-flow .vue-flow__edge-path { stroke-width: 2; }
+.serein-flow .vue-flow__connection-path { stroke-width: 2; }
+.serein-flow .serein-flow__connection-preview { opacity: .95; stroke-width: 2; stroke-dashoffset: 0; animation: serein-flow-connection-dash 520ms linear infinite; }
+.serein-flow .connection-preview-execution { filter: drop-shadow(0 0 2px rgba(3, 105, 161, .16)); }
+.serein-flow .connection-preview-data { filter: drop-shadow(0 0 2px rgba(109, 66, 165, .16)); }
+.serein-flow .connection-preview-unknown { opacity: .72; }
+.serein-flow .connection-invalid { opacity: .55; }
 .serein-flow .edge-execution .vue-flow__edge-path { stroke: var(--accent); }
 .serein-flow .edge-data .vue-flow__edge-path { stroke: var(--data); stroke-dasharray: 6 4; }
 .serein-flow .vue-flow__edge.selected .vue-flow__edge-path { stroke-width: 3; }
 .serein-flow .vue-flow__edge-text { fill: var(--muted); font-family: var(--mono); font-size: 10px; }
 .serein-flow .edge-execution .vue-flow__edge-textbg { fill: var(--accent-soft); stroke: #b9ddf2; }
 .serein-flow .edge-data .vue-flow__edge-textbg { fill: var(--data-soft); stroke: #dcccf0; }
+@keyframes serein-flow-connection-dash { to { stroke-dashoffset: -24; } }
+@media (prefers-reduced-motion: reduce) { .serein-flow .serein-flow__connection-preview { animation: none; } }
 .workflow-node { position: relative; width: 224px; min-height: 132px; overflow: visible; border: 1px solid var(--line-strong); border-radius: 3px; background: var(--surface); color: var(--ink); cursor: default; transition: border-color 180ms ease, background-color 180ms ease; }
 .workflow-node:hover { border-color: var(--accent); background: #fbfdff; }
 .workflow-node__header { position: relative; display: flex; height: 34px; align-items: center; gap: 7px; border-bottom: 1px solid var(--line); padding: 0 11px; cursor: grab; }
