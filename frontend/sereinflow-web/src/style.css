@@ -175,6 +175,13 @@ h2 { overflow-wrap: anywhere; }
 .canvas-popover button { border: 0; border-left: 2px solid transparent; padding: 8px 9px; background: transparent; color: var(--muted); cursor: pointer; text-align: left; font-size: 12px; }
 .canvas-popover button:hover { border-left-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
 .canvas-popover p { margin: 0; padding: 8px 9px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.connection-settings { position: relative; }
+.connection-settings-popover { position: absolute; z-index: 20; top: 34px; right: 0; display: grid; width: 220px; gap: 10px; border: 1px solid var(--line-strong); border-radius: 4px; padding: 12px; background: var(--surface); box-shadow: 0 8px 20px rgba(15, 23, 42, .08); }
+.connection-settings-popover__title { color: var(--ink); font-size: 12px; font-weight: 650; }
+.connection-settings-popover p { margin: -4px 0 1px; color: var(--muted); font-size: 10px; line-height: 1.45; }
+.connection-settings-field { display: grid; gap: 5px; color: var(--muted); font-size: 10px; }
+.connection-settings-field select { width: 100%; border: 1px solid var(--line-strong); border-radius: 3px; padding: 6px 7px; background: var(--surface); color: var(--ink); font-size: 11px; }
+.connection-settings-field select:focus { outline: 2px solid var(--accent-soft); outline-offset: 1px; border-color: var(--accent); }
 .canvas-tools { height: 32px; flex: 0 0 auto; gap: 8px; }
 .save-state { gap: 5px; color: var(--success); font-size: 11px; white-space: nowrap; }
 .canvas-area { position: relative; min-height: 0; flex: 1; overflow: hidden; }

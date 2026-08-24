@@ -169,7 +169,15 @@ public sealed record FlowDefinitionDto(
     long Version,
     IReadOnlyList<CanvasDto> Canvases,
     string EntryNodeId,
-    string Checksum);
+    string Checksum,
+    FlowUiMetadataDto? Ui = null);
+
+public sealed record FlowUiMetadataDto(
+    FlowConnectionLineTypesDto? ConnectionLineTypes = null);
+
+public sealed record FlowConnectionLineTypesDto(
+    string? Execution = null,
+    string? Data = null);
 
 public sealed record PluginManifestDto(
     string AssemblyName,

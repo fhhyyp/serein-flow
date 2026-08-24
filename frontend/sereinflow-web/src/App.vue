@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import {
   AlertTriangle,
   Activity,
@@ -47,7 +47,13 @@ import { listLibraries, type LibraryDto, type LibraryNodeDto } from './api/libra
 import { locale, setLocale, t, type Locale } from './i18n'
 import { applyNodePositionChanges, cloneCanvasGraph, removeEdgesById } from './flow/canvasGraph'
 import { resolveConnectionSemantic } from './flow/connectionSeats'
-import { connectionLineStyleFor, connectionLineTypeForEdge } from './flow/connectionLine'
+import {
+  connectionLineStyleFor,
+  connectionLineTypeForEdge,
+  connectionLineTypeOptions,
+  normalizeConnectionLineTypes,
+  type ConnectionLineSettings,
+} from './flow/connectionLine'
 import { flowDefinitionToWorkspace, workspaceToFlowDefinition } from './flow/flowDtoMapper'
 import { createInitialCanvases } from './flow/initialCanvases'
 import { isNodeKind } from './flow/nodeCatalog'
@@ -63,6 +69,7 @@ import type {
   NodeKind,
   NodeRuntimeMetadata,
   ParameterSource,
+  FlowEdgeLineType,
 } from './flow/types'
 
 const nodeTypes = markRaw({ workflow: FlowNodeCard })
@@ -70,6 +77,7 @@ const { zoomIn, zoomOut, fitView, screenToFlowCoordinate } = useVueFlow()
 
 const recoveryWorkspace = loadWorkspace()
 const canvases = ref<CanvasState[]>(createInitialCanvases())
+const connectionLineTypes = reactive<ConnectionLineSettings>(normalizeConnectionLineTypes(recoveryWorkspace?.connectionLineTypes))
 const activeCanvasId = ref('main')
 const isRunning = ref(false)
 const activeOutput = ref<'events' | 'payload'>('events')
@@ -84,6 +92,7 @@ const mobilePanel = ref<'nodes' | 'inspector' | null>(null)
 const languageMenuOpen = ref(false)
 const projectMenuOpen = ref(false)
 const canvasMenuOpen = ref(false)
+const connectionSettingsOpen = ref(false)
 const isCanvasDropActive = ref(false)
 const notice = ref('')
 const nextNodeNumber = ref(1)
@@ -145,7 +154,11 @@ const renderedCanvas = computed(() => {
   const canvas = cloneCanvasGraph(currentCanvas.value)
   canvas.edges = canvas.edges.map((edge) => ({
     ...edge,
-    type: connectionLineTypeForEdge(edge),
+    type: connectionLineTypeForEdge(edge, connectionLineTypes),
+    label: undefined,
+    labelShowBg: false,
+    labelBgPadding: undefined,
+    labelBgBorderRadius: undefined,
   }))
   return canvas
 })
@@ -196,7 +209,8 @@ function localizeEdges(): void {
   for (const canvas of canvases.value) {
     canvas.edges = canvas.edges.map((edge) => ({
       ...edge,
-      label: edge.data?.semantic === 'execution' ? t('edge.flow') : t('edge.value'),
+      label: undefined,
+      labelShowBg: false,
       ariaLabel: edge.data?.semantic === 'execution' ? t('inspector.executionEdge') : t('inspector.dataEdge'),
     }))
   }
@@ -209,6 +223,7 @@ function currentWorkspaceSnapshot(): WorkspaceSnapshot {
     canvases: canvases.value,
     activeCanvasId: activeCanvasId.value,
     nextNodeNumber: nextNodeNumber.value,
+    connectionLineTypes: { ...connectionLineTypes },
   })
 }
 
@@ -237,6 +252,7 @@ function restoreWorkspace(snapshot: WorkspaceSnapshot): void {
   isRestoringWorkspace = true
   canvasMountRevision.value += 1
   canvases.value = snapshot.canvases
+  Object.assign(connectionLineTypes, normalizeConnectionLineTypes(snapshot.connectionLineTypes))
   activeCanvasId.value = snapshot.activeCanvasId
   nextNodeNumber.value = snapshot.nextNodeNumber
   mobilePanel.value = null
@@ -377,7 +393,7 @@ function isValidConnection(connection: Connection): boolean {
 
 function createEdge(connection: Connection, semantic: ConnectionSemantic, targetParameterId?: string): FlowEdge {
   const isExecution = semantic === 'execution'
-  const lineType = connectionLineStyleFor(semantic).lineType
+  const lineType = connectionLineStyleFor(semantic, connectionLineTypes).lineType
   return {
     id: `${semantic}-${connection.source}-${connection.target}-${connection.targetHandle ?? 'flow'}`,
     source: connection.source,
@@ -391,14 +407,21 @@ function createEdge(connection: Connection, semantic: ConnectionSemantic, target
       width: 14,
       height: 14,
     },
-    label: isExecution ? t('edge.flow') : t('edge.value'),
-    labelShowBg: true,
-    labelBgPadding: [3, 5],
-    labelBgBorderRadius: 2,
     data: { semantic, targetParameterId },
     class: isExecution ? 'edge-execution' : 'edge-data',
     ariaLabel: isExecution ? t('inspector.executionEdge') : t('inspector.dataEdge'),
   }
+}
+
+function updateConnectionLineType(semantic: ConnectionSemantic, event: Event): void {
+  const value = (event.target as HTMLSelectElement | null)?.value as FlowEdgeLineType | undefined
+  if (!value || !connectionLineTypeOptions.some((option) => option.value === value) || connectionLineTypes[semantic] === value) {
+    return
+  }
+
+  recordWorkspaceMutation()
+  connectionLineTypes[semantic] = value
+  markWorkspaceChanged()
 }
 
 function onConnect(connection: Connection): void {
@@ -753,6 +776,7 @@ function applyServerWorkspace(definition: ReturnType<typeof workspaceToFlowDefin
   isRestoringWorkspace = true
   canvasMountRevision.value += 1
   canvases.value = workspace.canvases
+  Object.assign(connectionLineTypes, normalizeConnectionLineTypes(workspace.connectionLineTypes))
   activeCanvasId.value = workspace.activeCanvasId
   nextNodeNumber.value = workspace.nextNodeNumber
   workspaceHistory.clear()
@@ -834,6 +858,7 @@ async function initializeWorkspace(): Promise<void> {
       canvases: createInitialCanvases(),
       activeCanvasId: 'main',
       nextNodeNumber: 1,
+      connectionLineTypes: normalizeConnectionLineTypes(),
     }
     restoreWorkspace(snapshot)
     workspaceHistory.clear()
@@ -1048,10 +1073,10 @@ function setLanguage(nextLocale: Locale): void {
       <section class="canvas-panel" :aria-label="t('canvas.mainHint')">
         <div class="canvas-toolbar">
           <div class="canvas-context"><div class="breadcrumb"><span>{{ t('canvas.projects') }}</span><ChevronDown :size="13" /><strong>{{ projectName }}</strong><span class="version-pill">v{{ flowVersion }}</span></div><div class="canvas-tab-row"><div class="canvas-tabs" role="tablist" :aria-label="t('canvas.options')"><button v-for="canvas in canvases" :id="`canvas-tab-${canvas.id}`" :key="canvas.id" type="button" role="tab" :aria-selected="canvas.id === activeCanvasId" :class="{ active: canvas.id === activeCanvasId }" @click="selectCanvas(canvas.id)">{{ t(canvas.nameKey) }}</button></div><div class="canvas-menu"><button class="icon-button compact" type="button" :title="t('canvas.add')" :aria-label="t('canvas.add')" :aria-expanded="canvasMenuOpen" :disabled="availableCanvasLifecycles.length === 0" @click="canvasMenuOpen = !canvasMenuOpen"><Plus :size="15" /></button><div v-if="canvasMenuOpen" class="canvas-popover" role="menu"><button v-for="lifecycle in availableCanvasLifecycles" :key="lifecycle" type="button" role="menuitem" @click="addCanvas(lifecycle)">{{ t(`canvas.${lifecycle}`) }}</button><p v-if="availableCanvasLifecycles.length === 0">{{ t('canvas.allLifecycleCanvases') }}</p></div></div><button class="icon-button compact" type="button" :title="t('canvas.remove')" :aria-label="t('canvas.remove')" :disabled="currentCanvas.lifecycle === 'main'" @click="removeCurrentCanvas"><X :size="15" /></button></div></div>
-          <div class="canvas-tools"><span class="save-state" role="status"><Check v-if="!isDirty && !saveFailed && !saveConflict && !isSaving && !isWorkspaceLoading" :size="14" /><Save v-else :size="14" />{{ t(saveStateKey) }}</span><button class="icon-button" type="button" :title="t('command.delete')" :aria-label="t('command.delete')" :disabled="!selectedNode && !selectedEdge" @click="removeSelection"><Trash2 :size="16" /></button></div>
+          <div class="canvas-tools"><span class="save-state" role="status"><Check v-if="!isDirty && !saveFailed && !saveConflict && !isSaving && !isWorkspaceLoading" :size="14" /><Save v-else :size="14" />{{ t(saveStateKey) }}</span><div class="connection-settings"><button class="icon-button compact" type="button" :title="t('canvas.connectionSettings')" :aria-label="t('canvas.connectionSettings')" :aria-expanded="connectionSettingsOpen" @click="connectionSettingsOpen = !connectionSettingsOpen"><Settings2 :size="15" /></button><div v-if="connectionSettingsOpen" class="connection-settings-popover" role="dialog" :aria-label="t('canvas.connectionSettings')"><span class="connection-settings-popover__title">{{ t('canvas.connectionSettings') }}</span><p>{{ t('canvas.connectionSettingsHint') }}</p><label class="connection-settings-field">{{ t('canvas.executionLineType') }}<select :value="connectionLineTypes.execution" @change="updateConnectionLineType('execution', $event)"><option v-for="option in connectionLineTypeOptions" :key="`execution-${option.value}`" :value="option.value">{{ t(option.labelKey) }}</option></select></label><label class="connection-settings-field">{{ t('canvas.dataLineType') }}<select :value="connectionLineTypes.data" @change="updateConnectionLineType('data', $event)"><option v-for="option in connectionLineTypeOptions" :key="`data-${option.value}`" :value="option.value">{{ t(option.labelKey) }}</option></select></label></div></div><button class="icon-button" type="button" :title="t('command.delete')" :aria-label="t('command.delete')" :disabled="!selectedNode && !selectedEdge" @click="removeSelection"><Trash2 :size="16" /></button></div>
         </div>
         <div class="canvas-area" :class="{ 'canvas-drop-active': isCanvasDropActive }" @dragover="handleCanvasDragOver" @dragleave="handleCanvasDragLeave" @drop="handleCanvasDrop">
-          <VueFlow :key="canvasRenderKey" :model-value="renderedElements" :node-types="nodeTypes" :connection-mode="ConnectionMode.Strict" :is-valid-connection="isValidConnection" :min-zoom="0.2" :max-zoom="2" :snap-to-grid="true" :snap-grid="[16, 16]" :fit-view-on-init="true" :delete-key-code="['Backspace', 'Delete']" class="serein-flow" @connect="onConnect" @nodes-change="onNodesChange" @edges-change="onEdgesChange" @node-click="onNodeClick" @edge-click="onEdgeClick" @pane-click="clearSelection"><template #connection-line="connectionLineProps"><FlowConnectionLine v-bind="connectionLineProps" /></template></VueFlow>
+          <VueFlow :key="canvasRenderKey" :model-value="renderedElements" :node-types="nodeTypes" :connection-mode="ConnectionMode.Strict" :is-valid-connection="isValidConnection" :min-zoom="0.2" :max-zoom="2" :snap-to-grid="true" :snap-grid="[16, 16]" :fit-view-on-init="true" :delete-key-code="['Backspace', 'Delete']" class="serein-flow" @connect="onConnect" @nodes-change="onNodesChange" @edges-change="onEdgesChange" @node-click="onNodeClick" @edge-click="onEdgeClick" @pane-click="clearSelection"><template #connection-line="connectionLineProps"><FlowConnectionLine v-bind="connectionLineProps" :line-types="connectionLineTypes" /></template></VueFlow>
           <div v-if="currentCanvas.nodes.length === 0" class="canvas-empty-state" aria-live="polite"><div class="canvas-empty-state__mark"><LayoutGrid :size="20" /></div><strong>{{ t('canvas.emptyTitle') }}</strong><p>{{ t('canvas.emptyHint') }}</p><span>{{ t('canvas.emptySecondary') }}</span></div>
           <span v-if="isCanvasDropActive" class="canvas-drop-hint">{{ t('canvas.dropNode') }}</span>
           <p v-if="notice" class="canvas-notice" role="status">{{ notice }}</p><div class="canvas-legend" aria-hidden="true"><span><i class="legend-port execution"></i>{{ t('edge.flow') }}</span><span><i class="legend-port data"></i>{{ t('edge.value') }}</span></div>

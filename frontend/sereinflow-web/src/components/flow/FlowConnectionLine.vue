@@ -7,12 +7,16 @@ import {
   type ConnectionLineProps,
 } from '@vue-flow/core'
 import { computed } from 'vue'
-import { connectionLineStyleFor, semanticFromConnectionHandles } from '../../flow/connectionLine'
+import { connectionLineStyleFor, semanticFromConnectionHandles, type ConnectionLineSettings } from '../../flow/connectionLine'
 
-const props = defineProps<ConnectionLineProps>()
+interface FlowConnectionLineProps extends ConnectionLineProps {
+  lineTypes?: ConnectionLineSettings
+}
+
+const props = defineProps<FlowConnectionLineProps>()
 
 const semantic = computed(() => semanticFromConnectionHandles(props.sourceHandle?.id, props.targetHandle?.id))
-const style = computed(() => semantic.value ? connectionLineStyleFor(semantic.value) : undefined)
+const style = computed(() => semantic.value ? connectionLineStyleFor(semantic.value, props.lineTypes) : undefined)
 
 const path = computed(() => {
   const params = {

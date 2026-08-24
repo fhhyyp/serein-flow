@@ -1,9 +1,11 @@
 import type { CanvasState } from './types'
+import type { ConnectionLineSettings } from './connectionLine'
 
 export interface WorkspaceSnapshot {
   canvases: CanvasState[]
   activeCanvasId: string
   nextNodeNumber: number
+  connectionLineTypes?: ConnectionLineSettings
 }
 
 function clone<T>(value: T): T {

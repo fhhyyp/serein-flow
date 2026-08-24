@@ -113,6 +113,10 @@ test('the workbench DTO round trip retains user-created multi-canvas execution a
     ],
     activeCanvasId: 'init',
     nextNodeNumber: 4,
+    connectionLineTypes: {
+      execution: 'default',
+      data: 'smoothstep',
+    },
   }
 
   const definition = workspaceToFlowDefinition(original, {
@@ -124,6 +128,8 @@ test('the workbench DTO round trip retains user-created multi-canvas execution a
   const init = restored.canvases.find((canvas) => canvas.id === 'init')
 
   assert.equal(definition.canvases.find((canvas) => canvas.id === 'main')?.connections.length, 2)
+  assert.equal(definition.ui?.connectionLineTypes?.execution, 'default')
+  assert.equal(definition.ui?.connectionLineTypes?.data, 'smoothstep')
   assert.equal(main?.edges.length, 2)
   assert.equal(main?.edges.filter((edge) => edge.data.semantic === 'execution').length, 1)
   assert.equal(main?.edges.filter((edge) => edge.data.semantic === 'data').length, 1)
@@ -150,4 +156,5 @@ test('the empty default workspace round trips without an artificial entry node',
   assert.deepEqual(definition.canvases[0]?.connections, [])
   assert.deepEqual(restored.canvases[0]?.nodes, [])
   assert.deepEqual(restored.canvases[0]?.edges, [])
+  assert.deepEqual(restored.connectionLineTypes, { execution: 'smoothstep', data: 'default' })
 })

@@ -1,4 +1,5 @@
 import type { CanvasLifecycle, CanvasState, FlowEdge, FlowNode, MethodParameter } from './types'
+import { normalizeConnectionLineTypes } from './connectionLine'
 import type { WorkspaceSnapshot } from './workspaceHistory'
 
 const storageKey = 'sereinflow.workspace.v1'
@@ -25,6 +26,7 @@ export function loadWorkspace(): WorkspaceSnapshot | undefined {
       canvases: candidate.canvases,
       activeCanvasId: candidate.activeCanvasId,
       nextNodeNumber: candidate.nextNodeNumber,
+      connectionLineTypes: normalizeConnectionLineTypes(candidate.connectionLineTypes),
     } : undefined
   } catch {
     return undefined

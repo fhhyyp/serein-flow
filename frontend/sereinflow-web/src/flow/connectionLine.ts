@@ -1,6 +1,13 @@
 import { ConnectionLineType } from '@vue-flow/core'
 import type { ConnectionSemantic, FlowEdge, FlowEdgeLineType } from './types'
 
+export type ConnectionLineSettings = Record<ConnectionSemantic, FlowEdgeLineType>
+
+export interface ConnectionLineTypeOption {
+  value: FlowEdgeLineType
+  labelKey: string
+}
+
 export interface ConnectionLineStyle {
   /** Vue Flow edge type used for both persisted edges and the drag preview. */
   lineType: FlowEdgeLineType
@@ -10,6 +17,17 @@ export interface ConnectionLineStyle {
   color: string
 }
 
+export const defaultConnectionLineTypes: ConnectionLineSettings = {
+  execution: ConnectionLineType.SmoothStep,
+  data: ConnectionLineType.Bezier,
+}
+
+/** The console intentionally exposes only the two requested editor choices. */
+export const connectionLineTypeOptions: readonly ConnectionLineTypeOption[] = [
+  { value: ConnectionLineType.SmoothStep, labelKey: 'connectionLine.segment' },
+  { value: ConnectionLineType.Bezier, labelKey: 'connectionLine.bezier' },
+]
+
 /**
  * Semantic connection defaults. Keep this object intentionally mutable so a
  * host application can replace either line type without changing canvas code.
@@ -17,23 +35,37 @@ export interface ConnectionLineStyle {
  */
 export const connectionLineStyles: Record<ConnectionSemantic, ConnectionLineStyle> = {
   execution: {
-    lineType: ConnectionLineType.Bezier,
+    lineType: defaultConnectionLineTypes.execution,
     previewDashArray: '9 6',
     color: '#0369a1',
   },
   data: {
-    lineType: ConnectionLineType.SmoothStep,
+    lineType: defaultConnectionLineTypes.data,
     previewDashArray: '6 4',
     color: '#6d42a5',
   },
 }
 
-export function connectionLineStyleFor(semantic: ConnectionSemantic): ConnectionLineStyle {
-  return connectionLineStyles[semantic]
+export function connectionLineStyleFor(semantic: ConnectionSemantic, settings?: Partial<ConnectionLineSettings>): ConnectionLineStyle {
+  const style = connectionLineStyles[semantic]
+  const configuredType = normalizeLineType(settings?.[semantic])
+  return configuredType ? { ...style, lineType: configuredType } : style
 }
 
-export function connectionLineTypeForEdge(edge: Pick<FlowEdge, 'data'>): FlowEdgeLineType {
-  return normalizeLineType(edge.data.lineType) ?? connectionLineStyleFor(edge.data.semantic).lineType
+export function connectionLineTypeForEdge(edge: Pick<FlowEdge, 'data'>, settings?: Partial<ConnectionLineSettings>): FlowEdgeLineType {
+  return normalizeLineType(edge.data.lineType) ?? connectionLineStyleFor(edge.data.semantic, settings).lineType
+}
+
+export function normalizeConnectionLineTypes(value?: Partial<ConnectionLineSettings> | null): ConnectionLineSettings {
+  const configuredExecution = normalizeLineType(value?.execution)
+  return {
+    // `straight` was never exposed by the console; migrate any interim
+    // preview setting to the requested orthogonal line-segment style.
+    execution: configuredExecution === ConnectionLineType.Straight
+      ? defaultConnectionLineTypes.execution
+      : configuredExecution ?? defaultConnectionLineTypes.execution,
+    data: normalizeLineType(value?.data) ?? defaultConnectionLineTypes.data,
+  }
 }
 
 export function normalizeLineType(value: string | undefined): FlowEdgeLineType | undefined {

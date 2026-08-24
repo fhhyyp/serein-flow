@@ -23,7 +23,7 @@ import type {
   ParameterSource,
 } from './types'
 import { allNodeKinds } from './nodeCatalog.ts'
-import { connectionLineStyleFor } from './connectionLine.ts'
+import { connectionLineStyleFor, defaultConnectionLineTypes, normalizeConnectionLineTypes } from './connectionLine.ts'
 import type { WorkspaceSnapshot } from './workspaceHistory'
 
 export interface FlowIdentity {
@@ -47,6 +47,12 @@ export function workspaceToFlowDefinition(snapshot: WorkspaceSnapshot, identity:
     canvases: snapshot.canvases.map(toCanvasDto),
     entryNodeId,
     checksum: '',
+    ui: {
+      connectionLineTypes: {
+        execution: snapshot.connectionLineTypes?.execution ?? defaultConnectionLineTypes.execution,
+        data: snapshot.connectionLineTypes?.data ?? defaultConnectionLineTypes.data,
+      },
+    },
   }
 }
 
@@ -57,6 +63,7 @@ export function flowDefinitionToWorkspace(definition: FlowDefinitionDto): Worksp
     canvases,
     activeCanvasId,
     nextNodeNumber: getNextNodeNumber(canvases),
+    connectionLineTypes: normalizeConnectionLineTypes(definition.ui?.connectionLineTypes),
   }
 }
 
@@ -220,10 +227,6 @@ function toFlowEdge(connection: ConnectionDto): FlowEdge {
       width: 14,
       height: 14,
     },
-    label: isExecution ? 'Flow' : 'Value',
-    labelShowBg: true,
-    labelBgPadding: [3, 5],
-    labelBgBorderRadius: 2,
     data: {
       semantic,
       targetParameterId: isExecution ? undefined : connection.toPortId.replace(/^param-/, ''),

@@ -1,7 +1,18 @@
+import type { FlowEdgeLineType } from '../flow/types'
+
 export type ApiNodeType = 'action' | 'flowCall' | 'globalData' | 'flipflop' | 'script' | 'condition' | 'value' | 'expression' | 'expOp' | 'expCondition' | 'trigger'
 export type ApiCanvasLifecycle = 'main' | 'init' | 'loading' | 'exit'
 export type ApiConnectionKind = 'execution' | 'data'
 export type ApiDataSource = 'literal' | 'previousNode' | 'projectInput' | 'expression'
+
+export interface FlowConnectionLineTypesDto {
+  execution?: FlowEdgeLineType
+  data?: FlowEdgeLineType
+}
+
+export interface FlowUiMetadataDto {
+  connectionLineTypes?: FlowConnectionLineTypesDto
+}
 
 export interface NodePortDto {
   id: string
@@ -87,6 +98,7 @@ export interface FlowDefinitionDto {
   canvases: CanvasDto[]
   entryNodeId: string
   checksum: string
+  ui?: FlowUiMetadataDto
 }
 
 export interface ProjectDto {
