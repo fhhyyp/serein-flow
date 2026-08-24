@@ -43,9 +43,13 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .brand-name { font-size: 14px; font-weight: 700; white-space: nowrap; }
 .brand-divider, .command-divider { width: 1px; height: 20px; background: var(--line); }
 .project-menu { position: relative; min-width: 0; }
+.project-picker-row { display: flex; min-width: 0; align-items: center; gap: 2px; }
 .project-picker { min-width: 0; gap: 8px; border: 0; padding: 7px 8px; background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; }
 .project-picker span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .project-picker:hover { background: var(--canvas); color: var(--ink); }
+.project-rename-button { display: inline-grid; width: 26px; height: 26px; place-items: center; border: 1px solid transparent; border-radius: 3px; background: transparent; color: var(--subtle); cursor: pointer; transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease; }
+.project-rename-button:hover:not(:disabled) { border-color: var(--line); background: var(--canvas); color: var(--accent); }
+.project-rename-button:disabled { cursor: wait; opacity: .5; }
 .project-popover { position: absolute; z-index: 25; top: 39px; left: 0; display: grid; min-width: 236px; border: 1px solid var(--line-strong); border-radius: 4px; padding: 5px; background: var(--surface); box-shadow: 0 12px 24px rgb(15 23 42 / 8%); }
 .project-popover__label { padding: 7px 9px 5px; color: var(--subtle); font-family: var(--mono); font-size: 9px; letter-spacing: .06em; text-transform: uppercase; }
 .project-popover button { display: flex; min-height: 34px; align-items: center; justify-content: space-between; gap: 12px; border: 0; border-left: 2px solid transparent; padding: 7px 9px; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; text-align: left; }
@@ -53,6 +57,14 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .project-popover button:hover, .project-popover button.active { border-left-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
 .project-popover__empty { padding: 8px 9px; color: var(--muted); font-size: 11px; }
 .project-popover .project-popover__new { justify-content: flex-start; margin-top: 4px; border-top: 1px solid var(--line); color: var(--accent); }
+.project-rename-form { display: grid; gap: 8px; margin-top: 5px; border-top: 1px solid var(--line); padding: 10px 5px 4px; }
+.project-rename-form label { display: grid; gap: 5px; color: var(--subtle); font-family: var(--mono); font-size: 9px; letter-spacing: .04em; text-transform: uppercase; }
+.project-rename-form input { width: 100%; min-width: 0; border: 1px solid var(--line-strong); border-radius: 3px; padding: 7px 8px; background: var(--surface); color: var(--ink); font-family: var(--sans); font-size: 11px; letter-spacing: normal; text-transform: none; }
+.project-rename-form input:focus { outline: 2px solid var(--accent-soft); outline-offset: 1px; border-color: var(--accent); }
+.project-rename-form__actions { display: flex; justify-content: flex-end; gap: 4px; }
+.project-rename-form__actions button { display: inline-grid; width: 26px; min-height: 25px; height: 25px; place-items: center; border: 1px solid var(--line); border-radius: 3px; padding: 0; background: var(--surface); color: var(--muted); cursor: pointer; }
+.project-rename-form__actions button:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.project-rename-form__actions button:disabled { cursor: wait; opacity: .5; }
 .command-actions { position: relative; gap: 6px; }
 .icon-button { display: inline-grid; width: 32px; height: 32px; place-items: center; border: 1px solid transparent; border-radius: 3px; background: transparent; color: var(--muted); cursor: pointer; transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease; }
 .icon-button:hover:not(:disabled) { border-color: var(--line); background: var(--canvas); color: var(--ink); }
@@ -171,10 +183,16 @@ h2 { overflow-wrap: anywhere; }
 .canvas-tabs button.active { border-bottom-color: var(--accent); color: var(--accent); }
 .icon-button.compact { width: 28px; height: 28px; flex: 0 0 auto; }
 .canvas-menu { position: relative; flex: 0 0 auto; }
-.canvas-popover { position: absolute; z-index: 20; top: 32px; left: 0; display: grid; min-width: 132px; border: 1px solid var(--line-strong); border-radius: 4px; padding: 4px; background: var(--surface); }
+.canvas-popover { position: absolute; z-index: 20; top: 32px; left: 0; display: grid; min-width: 220px; border: 1px solid var(--line-strong); border-radius: 4px; padding: 4px; background: var(--surface); box-shadow: 0 10px 24px rgb(15 23 42 / 8%); }
 .canvas-popover button { border: 0; border-left: 2px solid transparent; padding: 8px 9px; background: transparent; color: var(--muted); cursor: pointer; text-align: left; font-size: 12px; }
 .canvas-popover button:hover { border-left-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
 .canvas-popover p { margin: 0; padding: 8px 9px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.canvas-custom-form { display: grid; grid-template-columns: minmax(0, 1fr) 30px; gap: 6px; margin: 4px 5px 5px; border-top: 1px solid var(--line); padding-top: 9px; }
+.canvas-custom-form label { display: grid; gap: 4px; color: var(--subtle); font-family: var(--mono); font-size: 9px; letter-spacing: .04em; text-transform: uppercase; }
+.canvas-custom-form input { width: 100%; min-width: 0; border: 1px solid var(--line-strong); border-radius: 3px; padding: 6px 7px; background: var(--surface); color: var(--ink); font-family: var(--sans); font-size: 11px; letter-spacing: normal; text-transform: none; }
+.canvas-custom-form input:focus { outline: 2px solid var(--accent-soft); outline-offset: 1px; border-color: var(--accent); }
+.canvas-custom-form > button { align-self: end; display: inline-grid; width: 30px; height: 27px; place-items: center; border: 1px solid var(--accent); border-radius: 3px; padding: 0; background: var(--accent); color: var(--surface); }
+.canvas-custom-form > button:hover { border-color: var(--accent-strong); background: var(--accent-strong); color: var(--surface); }
 .connection-settings { position: relative; }
 .connection-settings-popover { position: absolute; z-index: 20; top: 34px; right: 0; display: grid; width: 220px; gap: 10px; border: 1px solid var(--line-strong); border-radius: 4px; padding: 12px; background: var(--surface); box-shadow: 0 8px 20px rgba(15, 23, 42, .08); }
 .connection-settings-popover__title { color: var(--ink); font-size: 12px; font-weight: 650; }

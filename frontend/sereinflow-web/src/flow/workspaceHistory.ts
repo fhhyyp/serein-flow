@@ -5,6 +5,7 @@ export interface WorkspaceSnapshot {
   canvases: CanvasState[]
   activeCanvasId: string
   nextNodeNumber: number
+  projectName?: string
   connectionLineTypes?: ConnectionLineSettings
 }
 

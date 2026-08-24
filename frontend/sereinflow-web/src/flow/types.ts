@@ -25,7 +25,7 @@ export type FlowEdgeLineType = 'default' | 'simple-bezier' | 'straight' | 'step'
 export type ParameterSource = 'literal' | 'previousNode' | 'projectInput' | 'expression'
 export type ParameterInputMode = 'connection' | 'manual' | 'select'
 export type ConnectorType = 'input' | 'output' | 'param' | 'result'
-export type CanvasLifecycle = 'main' | 'init' | 'loading' | 'exit'
+export type CanvasLifecycle = 'main' | 'init' | 'loading' | 'exit' | 'custom'
 
 export interface NodeRuntimeMetadata {
   category?: NodeCategory
@@ -101,6 +101,8 @@ export interface FlowEdge {
 export interface CanvasState {
   id: string
   nameKey: string
+  /** User-facing title for a custom canvas; built-in lifecycle canvases use nameKey. */
+  name?: string
   lifecycle: CanvasLifecycle
   nodes: FlowNode[]
   edges: FlowEdge[]

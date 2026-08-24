@@ -25,7 +25,8 @@ public enum CanvasLifecycleDto
     Main,
     Init,
     Loading,
-    Exit
+    Exit,
+    Custom
 }
 
 public enum ConnectionKindDto
@@ -85,13 +86,16 @@ public sealed record ProjectWorkspaceDto(ProjectDto Project, IReadOnlyList<FlowD
 
 public sealed record CreateProjectRequestDto(string Name, FlowDefinitionDto Definition);
 
+public sealed record RenameProjectRequestDto(string Name, long ExpectedVersion);
+
 public sealed record UpdateFlowDefinitionRequestDto(long ExpectedVersion, FlowDefinitionDto Definition);
 
 public sealed record CanvasDto(
     string Id,
     CanvasLifecycleDto Lifecycle,
     IReadOnlyList<NodeDto> Nodes,
-    IReadOnlyList<ConnectionDto> Connections);
+    IReadOnlyList<ConnectionDto> Connections,
+    string? Name = null);
 
 public sealed record NodeDto(
     string Id,

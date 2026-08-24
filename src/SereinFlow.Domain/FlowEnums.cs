@@ -13,7 +13,8 @@ public enum CanvasLifecycle
     Main,
     Init,
     Loading,
-    Exit
+    Exit,
+    Custom
 }
 
 public enum NodeType

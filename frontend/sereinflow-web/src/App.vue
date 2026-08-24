@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Play,
   Plus,
+  Pencil,
   RotateCcw,
   RotateCw,
   Save,
@@ -42,7 +43,7 @@ import '@vue-flow/core/dist/theme-default.css'
 import FlowNodeCard from './components/flow/FlowNodeCard.vue'
 import FlowConnectionLine from './components/flow/FlowConnectionLine.vue'
 import LibraryUploadDialog from './components/library/LibraryUploadDialog.vue'
-import { FlowApiError, createProject, listProjects, loadFlow, saveFlow as saveFlowRequest, type ProjectWorkspaceDto } from './api/flowApi'
+import { FlowApiError, createProject, listProjects, loadFlow, renameProject, saveFlow as saveFlowRequest, type ProjectWorkspaceDto } from './api/flowApi'
 import { listLibraries, type LibraryDto, type LibraryNodeDto } from './api/libraryApi'
 import { locale, setLocale, t, type Locale } from './i18n'
 import { applyNodePositionChanges, cloneCanvasGraph, removeEdgesById } from './flow/canvasGraph'
@@ -92,6 +93,7 @@ const mobilePanel = ref<'nodes' | 'inspector' | null>(null)
 const languageMenuOpen = ref(false)
 const projectMenuOpen = ref(false)
 const canvasMenuOpen = ref(false)
+const customCanvasNameDraft = ref('')
 const connectionSettingsOpen = ref(false)
 const isCanvasDropActive = ref(false)
 const notice = ref('')
@@ -108,7 +110,11 @@ const projectId = ref<string>()
 const flowId = ref<string>()
 const projectWorkspaces = ref<ProjectWorkspaceDto[]>([])
 const canvasMountRevision = ref(0)
-const projectName = ref(t('project.newProject'))
+const projectName = ref(recoveryWorkspace?.projectName?.trim() || t('project.newProject'))
+const projectNameDraft = ref('')
+const projectRenameOpen = ref(false)
+const isProjectRenaming = ref(false)
+const projectVersion = ref(1)
 const flowVersion = ref(1)
 const savedWorkspaceFingerprint = ref('')
 let pendingTextEdit: WorkspaceSnapshot | undefined
@@ -176,6 +182,16 @@ const availableCanvasLifecycles = computed<CanvasLifecycle[]>(() =>
   (['init', 'loading', 'exit'] as CanvasLifecycle[])
     .filter((lifecycle) => !canvases.value.some((canvas) => canvas.lifecycle === lifecycle)),
 )
+const nextCustomCanvasNumber = computed(() => {
+  const used = new Set(canvases.value
+    .map((canvas) => Number(canvas.id.match(/^custom-(\d+)$/)?.[1] ?? 0))
+    .filter((value) => value > 0))
+  let candidate = 1
+  while (used.has(candidate)) {
+    candidate += 1
+  }
+  return candidate
+})
 const saveStateKey = computed(() => {
   if (saveConflict.value) {
     return 'canvas.saveConflict'
@@ -223,6 +239,7 @@ function currentWorkspaceSnapshot(): WorkspaceSnapshot {
     canvases: canvases.value,
     activeCanvasId: activeCanvasId.value,
     nextNodeNumber: nextNodeNumber.value,
+    projectName: projectName.value,
     connectionLineTypes: { ...connectionLineTypes },
   })
 }
@@ -244,6 +261,20 @@ function refreshDirtyState(): void {
   }
 }
 
+function updateSavedProjectName(name: string): void {
+  if (!savedWorkspaceFingerprint.value) {
+    return
+  }
+
+  try {
+    const savedSnapshot = JSON.parse(savedWorkspaceFingerprint.value) as WorkspaceSnapshot
+    savedSnapshot.projectName = name
+    savedWorkspaceFingerprint.value = workspaceFingerprint(savedSnapshot)
+  } catch {
+    // A malformed recovery fingerprint should not block the rename itself.
+  }
+}
+
 function markWorkspaceChanged(): void {
   void nextTick().then(refreshDirtyState)
 }
@@ -252,6 +283,9 @@ function restoreWorkspace(snapshot: WorkspaceSnapshot): void {
   isRestoringWorkspace = true
   canvasMountRevision.value += 1
   canvases.value = snapshot.canvases
+  if (snapshot.projectName?.trim()) {
+    projectName.value = snapshot.projectName.trim()
+  }
   Object.assign(connectionLineTypes, normalizeConnectionLineTypes(snapshot.connectionLineTypes))
   activeCanvasId.value = snapshot.activeCanvasId
   nextNodeNumber.value = snapshot.nextNodeNumber
@@ -302,6 +336,67 @@ function discardTextEdit(): void {
   pendingTextEdit = undefined
 }
 
+function canvasLabel(canvas: CanvasState): string {
+  return canvas.name?.trim() || t(canvas.nameKey)
+}
+
+function beginProjectRename(): void {
+  projectNameDraft.value = projectName.value
+  projectRenameOpen.value = true
+  projectMenuOpen.value = true
+}
+
+function cancelProjectRename(): void {
+  projectRenameOpen.value = false
+  projectNameDraft.value = ''
+}
+
+async function submitProjectRename(): Promise<void> {
+  const nextName = projectNameDraft.value.trim()
+  if (!nextName) {
+    notice.value = t('project.renameRequired')
+    return
+  }
+
+  if (nextName === projectName.value.trim()) {
+    cancelProjectRename()
+    return
+  }
+
+  if (!projectId.value) {
+    recordWorkspaceMutation()
+    projectName.value = nextName
+    cancelProjectRename()
+    saveRecoveryDraft(currentWorkspaceSnapshot())
+    markWorkspaceChanged()
+    notice.value = t('project.renamedLocal')
+    return
+  }
+
+  isProjectRenaming.value = true
+  try {
+    const workspace = await renameProject(projectId.value, {
+      name: nextName,
+      expectedVersion: projectVersion.value,
+    })
+    projectName.value = workspace.project.name
+    projectVersion.value = workspace.project.version
+    projectWorkspaces.value = projectWorkspaces.value.map((item) => item.project.id === workspace.project.id ? workspace : item)
+    updateSavedProjectName(projectName.value)
+    refreshDirtyState()
+    cancelProjectRename()
+    notice.value = t('project.renamed')
+  } catch (error) {
+    if (error instanceof FlowApiError && error.status === 409) {
+      notice.value = t('project.renameConflict')
+    } else {
+      notice.value = t('project.renameFailed')
+    }
+  } finally {
+    isProjectRenaming.value = false
+  }
+}
+
 function selectCanvas(canvasId: string): void {
   if (canvasId === activeCanvasId.value) {
     return
@@ -317,23 +412,51 @@ function selectCanvas(canvasId: string): void {
 }
 
 function addCanvas(lifecycle: CanvasLifecycle): void {
-  if (lifecycle === 'main' || canvases.value.some((canvas) => canvas.lifecycle === lifecycle)) {
+  if (lifecycle === 'main' || lifecycle === 'custom' || canvases.value.some((canvas) => canvas.lifecycle === lifecycle)) {
     return
   }
 
   recordWorkspaceMutation()
-  const id = lifecycle
-  canvases.value = [...canvases.value, {
-    id,
+  const addedCanvas: CanvasState = {
+    id: lifecycle,
     nameKey: `canvas.${lifecycle}`,
     lifecycle,
     nodes: [],
     edges: [],
-  }]
-  activeCanvasId.value = id
+  }
+  canvases.value = [...canvases.value, addedCanvas]
+  activeCanvasId.value = addedCanvas.id
   canvasMenuOpen.value = false
   markWorkspaceChanged()
-  notice.value = t('canvas.added', { canvas: t(`canvas.${lifecycle}`) })
+  notice.value = t('canvas.added', { canvas: canvasLabel(addedCanvas) })
+}
+
+function toggleCanvasMenu(): void {
+  canvasMenuOpen.value = !canvasMenuOpen.value
+  if (canvasMenuOpen.value) {
+    customCanvasNameDraft.value = t('canvas.customDefault', { number: nextCustomCanvasNumber.value })
+  }
+}
+
+function addCustomCanvas(): void {
+  const index = nextCustomCanvasNumber.value
+  const name = customCanvasNameDraft.value.trim() || t('canvas.customDefault', { number: index })
+  const canvas: CanvasState = {
+    id: `custom-${index}`,
+    nameKey: 'canvas.custom',
+    name,
+    lifecycle: 'custom',
+    nodes: [],
+    edges: [],
+  }
+
+  recordWorkspaceMutation()
+  canvases.value = [...canvases.value, canvas]
+  activeCanvasId.value = canvas.id
+  canvasMenuOpen.value = false
+  customCanvasNameDraft.value = ''
+  markWorkspaceChanged()
+  notice.value = t('canvas.added', { canvas: canvasLabel(canvas) })
 }
 
 function removeCurrentCanvas(): void {
@@ -348,7 +471,7 @@ function removeCurrentCanvas(): void {
   activeCanvasId.value = 'main'
   mobilePanel.value = null
   markWorkspaceChanged()
-  notice.value = t('canvas.removed', { canvas: t(removedCanvas.nameKey) })
+  notice.value = t('canvas.removed', { canvas: canvasLabel(removedCanvas) })
 }
 
 function selectNode(nodeId: string): void {
@@ -728,6 +851,7 @@ async function saveFlow(): Promise<void> {
       const workspace = await createProject({ name: projectName.value, definition })
       projectId.value = workspace.project.id
       projectName.value = workspace.project.name
+      projectVersion.value = workspace.project.version
       flowId.value = newFlowId
       savedDefinition = definition
       projectWorkspaces.value = [
@@ -772,7 +896,7 @@ async function saveFlow(): Promise<void> {
 }
 
 function applyServerWorkspace(definition: ReturnType<typeof workspaceToFlowDefinition>): void {
-  const workspace = flowDefinitionToWorkspace(definition)
+  const workspace = { ...flowDefinitionToWorkspace(definition), projectName: projectName.value }
   isRestoringWorkspace = true
   canvasMountRevision.value += 1
   canvases.value = workspace.canvases
@@ -799,11 +923,13 @@ async function openProject(workspace: ProjectWorkspaceDto): Promise<void> {
   }
 
   projectMenuOpen.value = false
+  projectRenameOpen.value = false
   isWorkspaceLoading.value = true
   try {
     const definition = await loadFlow(workspace.project.id, summary.id)
     projectId.value = workspace.project.id
     projectName.value = workspace.project.name
+    projectVersion.value = workspace.project.version
     flowId.value = definition.id
     flowVersion.value = definition.version
     applyServerWorkspace(definition)
@@ -817,11 +943,13 @@ async function openProject(workspace: ProjectWorkspaceDto): Promise<void> {
 
 function startNewProject(): void {
   projectMenuOpen.value = false
+  projectRenameOpen.value = false
   projectId.value = undefined
   flowId.value = undefined
   flowVersion.value = 1
+  projectVersion.value = 1
   projectName.value = t('project.newProject')
-  restoreWorkspace({ canvases: createInitialCanvases(), activeCanvasId: 'main', nextNodeNumber: 1 })
+  restoreWorkspace({ canvases: createInitialCanvases(), activeCanvasId: 'main', nextNodeNumber: 1, projectName: projectName.value })
   workspaceHistory.clear()
   savedWorkspaceFingerprint.value = ''
   isDirty.value = true
@@ -840,6 +968,7 @@ async function initializeWorkspace(): Promise<void> {
       const definition = await loadFlow(workspace.project.id, workspace.flows[0].id)
       projectId.value = workspace.project.id
       projectName.value = workspace.project.name
+      projectVersion.value = workspace.project.version
       flowId.value = definition.id
       flowVersion.value = definition.version
       applyServerWorkspace(definition)
@@ -853,11 +982,13 @@ async function initializeWorkspace(): Promise<void> {
     projectId.value = undefined
     flowId.value = undefined
     flowVersion.value = 1
+    projectVersion.value = 1
     projectName.value = t('project.newProject')
     const snapshot: WorkspaceSnapshot = {
       canvases: createInitialCanvases(),
       activeCanvasId: 'main',
       nextNodeNumber: 1,
+      projectName: projectName.value,
       connectionLineTypes: normalizeConnectionLineTypes(),
     }
     restoreWorkspace(snapshot)
@@ -1022,19 +1153,23 @@ function setLanguage(nextLocale: Locale): void {
         <div class="brand-mark" aria-hidden="true"><Activity :size="18" :stroke-width="2.4" /></div>
         <span class="brand-name">SereinFlow</span><span class="brand-divider" aria-hidden="true"></span>
         <div class="project-menu">
-          <button class="project-picker" type="button" :title="t('command.switchProject')" :aria-expanded="projectMenuOpen" @click="projectMenuOpen = !projectMenuOpen"><span>{{ projectName }}</span><ChevronDown :size="14" /></button>
+          <div class="project-picker-row"><button class="project-picker" type="button" :title="t('command.switchProject')" :aria-expanded="projectMenuOpen" @click="projectMenuOpen = !projectMenuOpen"><span>{{ projectName }}</span><ChevronDown :size="14" /></button><button class="project-rename-button" type="button" :title="t('project.rename')" :aria-label="t('project.rename')" :disabled="isProjectRenaming" @click="beginProjectRename"><Pencil :size="13" /></button></div>
           <div v-if="projectMenuOpen" class="project-popover" role="menu">
             <span class="project-popover__label">{{ t('project.switchProject') }}</span>
             <button v-for="workspace in projectWorkspaces" :key="workspace.project.id" type="button" role="menuitem" :class="{ active: workspace.project.id === projectId }" @click="openProject(workspace)">{{ workspace.project.name }}<span>{{ workspace.flows.length }} {{ t('project.flows') }}</span></button>
             <span v-if="projectWorkspaces.length === 0" class="project-popover__empty">{{ t('project.noProjects') }}</span>
             <button class="project-popover__new" type="button" role="menuitem" @click="startNewProject"><Plus :size="14" />{{ t('project.newProject') }}</button>
+            <form v-if="projectRenameOpen" class="project-rename-form" @submit.prevent="submitProjectRename">
+              <label>{{ t('project.renameTitle') }}<input v-model="projectNameDraft" type="text" :placeholder="t('project.renamePlaceholder')" maxlength="80" autofocus /></label>
+              <div class="project-rename-form__actions"><button type="button" :title="t('command.cancel')" :aria-label="t('command.cancel')" @click="cancelProjectRename"><X :size="14" /></button><button type="submit" :title="t('command.confirm')" :aria-label="t('command.confirm')" :disabled="isProjectRenaming"><Check :size="14" /></button></div>
+            </form>
           </div>
         </div>
       </div>
       <div class="command-actions">
         <button class="icon-button" type="button" :title="t('command.undo')" :aria-label="t('command.undo')" :disabled="!canUndo" @click="undo"><RotateCcw :size="16" /></button>
         <button class="icon-button" type="button" :title="t('command.redo')" :aria-label="t('command.redo')" :disabled="!canRedo" @click="redo"><RotateCw :size="16" /></button><span class="command-divider" aria-hidden="true"></span>
-        <button class="command-button quiet" type="button" :title="t('command.save')" :disabled="!isDirty || isSaving || isWorkspaceLoading" @click="saveFlow"><Save :size="15" /><span>{{ t('command.save') }}</span></button>
+        <button class="command-button quiet" type="button" :title="t('command.save')" :disabled="!isDirty || isSaving || isProjectRenaming || isWorkspaceLoading" @click="saveFlow"><Save :size="15" /><span>{{ t('command.save') }}</span></button>
         <button class="command-button run" type="button" :aria-pressed="isRunning" :disabled="nodes.length === 0 || isWorkspaceLoading" @click="runFlow"><Square v-if="isRunning" :size="14" fill="currentColor" /><Play v-else :size="14" fill="currentColor" /><span>{{ isRunning ? t('command.stop') : t('command.run') }}</span></button>
         <div class="language-menu">
           <button class="language-button" type="button" :title="t('command.language')" :aria-label="t('command.language')" :aria-expanded="languageMenuOpen" @click="languageMenuOpen = !languageMenuOpen"><Languages :size="16" /><span>{{ locale === 'zh-CN' ? 'ZH' : 'EN' }}</span><ChevronDown :size="13" /></button>
@@ -1072,7 +1207,7 @@ function setLanguage(nextLocale: Locale): void {
 
       <section class="canvas-panel" :aria-label="t('canvas.mainHint')">
         <div class="canvas-toolbar">
-          <div class="canvas-context"><div class="breadcrumb"><span>{{ t('canvas.projects') }}</span><ChevronDown :size="13" /><strong>{{ projectName }}</strong><span class="version-pill">v{{ flowVersion }}</span></div><div class="canvas-tab-row"><div class="canvas-tabs" role="tablist" :aria-label="t('canvas.options')"><button v-for="canvas in canvases" :id="`canvas-tab-${canvas.id}`" :key="canvas.id" type="button" role="tab" :aria-selected="canvas.id === activeCanvasId" :class="{ active: canvas.id === activeCanvasId }" @click="selectCanvas(canvas.id)">{{ t(canvas.nameKey) }}</button></div><div class="canvas-menu"><button class="icon-button compact" type="button" :title="t('canvas.add')" :aria-label="t('canvas.add')" :aria-expanded="canvasMenuOpen" :disabled="availableCanvasLifecycles.length === 0" @click="canvasMenuOpen = !canvasMenuOpen"><Plus :size="15" /></button><div v-if="canvasMenuOpen" class="canvas-popover" role="menu"><button v-for="lifecycle in availableCanvasLifecycles" :key="lifecycle" type="button" role="menuitem" @click="addCanvas(lifecycle)">{{ t(`canvas.${lifecycle}`) }}</button><p v-if="availableCanvasLifecycles.length === 0">{{ t('canvas.allLifecycleCanvases') }}</p></div></div><button class="icon-button compact" type="button" :title="t('canvas.remove')" :aria-label="t('canvas.remove')" :disabled="currentCanvas.lifecycle === 'main'" @click="removeCurrentCanvas"><X :size="15" /></button></div></div>
+          <div class="canvas-context"><div class="breadcrumb"><span>{{ t('canvas.projects') }}</span><ChevronDown :size="13" /><strong>{{ projectName }}</strong><span class="version-pill">v{{ flowVersion }}</span></div><div class="canvas-tab-row"><div class="canvas-tabs" role="tablist" :aria-label="t('canvas.options')"><button v-for="canvas in canvases" :id="`canvas-tab-${canvas.id}`" :key="canvas.id" type="button" role="tab" :aria-selected="canvas.id === activeCanvasId" :class="{ active: canvas.id === activeCanvasId }" @click="selectCanvas(canvas.id)">{{ canvasLabel(canvas) }}</button></div><div class="canvas-menu"><button class="icon-button compact" type="button" :title="t('canvas.add')" :aria-label="t('canvas.add')" :aria-expanded="canvasMenuOpen" @click="toggleCanvasMenu"><Plus :size="15" /></button><div v-if="canvasMenuOpen" class="canvas-popover" role="menu"><button v-for="lifecycle in availableCanvasLifecycles" :key="lifecycle" type="button" role="menuitem" @click="addCanvas(lifecycle)">{{ t(`canvas.${lifecycle}`) }}</button><p v-if="availableCanvasLifecycles.length === 0">{{ t('canvas.allLifecycleCanvases') }}</p><form class="canvas-custom-form" @submit.prevent="addCustomCanvas"><label>{{ t('canvas.customName') }}<input v-model="customCanvasNameDraft" type="text" :placeholder="t('canvas.customNamePlaceholder')" maxlength="60" /></label><button type="submit" :title="t('canvas.addCustom')" :aria-label="t('canvas.addCustom')"><Plus :size="14" /></button></form></div></div><button class="icon-button compact" type="button" :title="t('canvas.remove')" :aria-label="t('canvas.remove')" :disabled="currentCanvas.lifecycle === 'main'" @click="removeCurrentCanvas"><X :size="15" /></button></div></div>
           <div class="canvas-tools"><span class="save-state" role="status"><Check v-if="!isDirty && !saveFailed && !saveConflict && !isSaving && !isWorkspaceLoading" :size="14" /><Save v-else :size="14" />{{ t(saveStateKey) }}</span><div class="connection-settings"><button class="icon-button compact" type="button" :title="t('canvas.connectionSettings')" :aria-label="t('canvas.connectionSettings')" :aria-expanded="connectionSettingsOpen" @click="connectionSettingsOpen = !connectionSettingsOpen"><Settings2 :size="15" /></button><div v-if="connectionSettingsOpen" class="connection-settings-popover" role="dialog" :aria-label="t('canvas.connectionSettings')"><span class="connection-settings-popover__title">{{ t('canvas.connectionSettings') }}</span><p>{{ t('canvas.connectionSettingsHint') }}</p><label class="connection-settings-field">{{ t('canvas.executionLineType') }}<select :value="connectionLineTypes.execution" @change="updateConnectionLineType('execution', $event)"><option v-for="option in connectionLineTypeOptions" :key="`execution-${option.value}`" :value="option.value">{{ t(option.labelKey) }}</option></select></label><label class="connection-settings-field">{{ t('canvas.dataLineType') }}<select :value="connectionLineTypes.data" @change="updateConnectionLineType('data', $event)"><option v-for="option in connectionLineTypeOptions" :key="`data-${option.value}`" :value="option.value">{{ t(option.labelKey) }}</option></select></label></div></div><button class="icon-button" type="button" :title="t('command.delete')" :aria-label="t('command.delete')" :disabled="!selectedNode && !selectedEdge" @click="removeSelection"><Trash2 :size="16" /></button></div>
         </div>
         <div class="canvas-area" :class="{ 'canvas-drop-active': isCanvasDropActive }" @dragover="handleCanvasDragOver" @dragleave="handleCanvasDragLeave" @drop="handleCanvasDrop">

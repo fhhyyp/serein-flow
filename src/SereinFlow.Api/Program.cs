@@ -74,6 +74,50 @@ projects.MapPost("", (CreateProjectRequestDto request, IProjectRepository projec
     return Results.Created($"/api/projects/{project.Id:D}/flows/{request.Definition.Id:D}", workspace);
 });
 
+projects.MapPut("/{projectId:guid}", (Guid projectId, RenameProjectRequestDto request, IProjectRepository projectRepository, IFlowDefinitionRepository flowRepository) =>
+{
+    if (request.ExpectedVersion < 1 || string.IsNullOrWhiteSpace(request.Name))
+    {
+        return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "A non-empty project name and a positive expected version are required.");
+    }
+
+    var project = projectRepository.Find(projectId);
+    if (project is null)
+    {
+        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Project not found.");
+    }
+
+    if (project.Version != request.ExpectedVersion)
+    {
+        return Results.Problem(
+            statusCode: StatusCodes.Status409Conflict,
+            title: "The project was changed by another editor.",
+            extensions: new Dictionary<string, object?>
+            {
+                ["currentVersion"] = project.Version
+            });
+    }
+
+    project.Rename(request.Name);
+    if (!projectRepository.TryUpdate(project, request.ExpectedVersion))
+    {
+        return Results.Problem(
+            statusCode: StatusCodes.Status409Conflict,
+            title: "The project was changed by another editor.",
+            extensions: new Dictionary<string, object?>
+            {
+                ["currentVersion"] = projectRepository.Find(projectId)?.Version
+            });
+    }
+
+    var workspace = new ProjectWorkspaceDto(
+        ToProjectDto(project),
+        flowRepository.ListByProject(project.Id)
+            .Select(flow => new FlowDefinitionSummaryDto(flow.Id, flow.Version, flow.EntryNodeId))
+            .ToArray());
+    return Results.Ok(workspace);
+});
+
 projects.MapGet("/{projectId:guid}/flows/{flowId:guid}", (Guid projectId, Guid flowId, IProjectRepository projectRepository, IFlowDefinitionRepository flowRepository) =>
 {
     if (projectRepository.Find(projectId) is null)

@@ -4,7 +4,7 @@ import type { WorkspaceSnapshot } from './workspaceHistory'
 
 const storageKey = 'sereinflow.workspace.v1'
 const formatVersion = 1
-const lifecycleValues: CanvasLifecycle[] = ['main', 'init', 'loading', 'exit']
+const lifecycleValues: CanvasLifecycle[] = ['main', 'init', 'loading', 'exit', 'custom']
 
 interface StoredWorkspace extends WorkspaceSnapshot {
   formatVersion: number
@@ -26,6 +26,7 @@ export function loadWorkspace(): WorkspaceSnapshot | undefined {
       canvases: candidate.canvases,
       activeCanvasId: candidate.activeCanvasId,
       nextNodeNumber: candidate.nextNodeNumber,
+      projectName: typeof candidate.projectName === 'string' ? candidate.projectName : undefined,
       connectionLineTypes: normalizeConnectionLineTypes(candidate.connectionLineTypes),
     } : undefined
   } catch {
@@ -63,6 +64,7 @@ function isCanvas(value: unknown): value is CanvasState {
     && typeof value.id === 'string'
     && typeof value.nameKey === 'string'
     && lifecycleValues.includes(value.lifecycle as CanvasLifecycle)
+    && (value.lifecycle !== 'custom' || (typeof value.name === 'string' && value.name.trim().length > 0))
     && Array.isArray(value.nodes)
     && value.nodes.every(isNode)
     && Array.isArray(value.edges)

@@ -31,7 +31,7 @@ export interface FlowIdentity {
   version: number
 }
 
-const lifecycleValues: CanvasLifecycle[] = ['main', 'init', 'loading', 'exit']
+const lifecycleValues: CanvasLifecycle[] = ['main', 'init', 'loading', 'exit', 'custom']
 const nodeKinds: NodeKind[] = [...allNodeKinds]
 const nodeStatuses: NodeStatus[] = ['idle', 'running', 'success', 'failed', 'ready', 'active']
 const parameterSources: ParameterSource[] = ['literal', 'previousNode', 'projectInput', 'expression']
@@ -73,6 +73,7 @@ function toCanvasDto(canvas: CanvasState): CanvasDto {
     lifecycle: canvas.lifecycle,
     nodes: canvas.nodes.map(toNodeDto),
     connections: canvas.edges.map(toConnectionDto),
+    name: canvas.name,
   }
 }
 
@@ -163,6 +164,7 @@ function toCanvasState(canvas: CanvasDto): CanvasState {
     id: canvas.id,
     lifecycle,
     nameKey: `canvas.${lifecycle}`,
+    name: canvas.name?.trim() || undefined,
     nodes: canvas.nodes.map(toFlowNode),
     edges: canvas.connections.map(toFlowEdge),
   }

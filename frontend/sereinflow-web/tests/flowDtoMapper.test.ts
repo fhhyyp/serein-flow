@@ -158,3 +158,33 @@ test('the empty default workspace round trips without an artificial entry node',
   assert.deepEqual(restored.canvases[0]?.edges, [])
   assert.deepEqual(restored.connectionLineTypes, { execution: 'smoothstep', data: 'default' })
 })
+
+test('custom canvas names and lifecycle survive DTO round trips', () => {
+  const main = createInitialCanvases()[0]!
+  const custom = {
+    ...main,
+    id: 'custom-1',
+    nameKey: 'canvas.custom',
+    name: '审计流程',
+    lifecycle: 'custom' as const,
+  }
+  const snapshot: WorkspaceSnapshot = {
+    canvases: [main, custom],
+    activeCanvasId: custom.id,
+    nextNodeNumber: 1,
+    projectName: '运行编排',
+  }
+
+  const definition = workspaceToFlowDefinition(snapshot, {
+    id: '9d922e9d-a0f0-48b4-babb-20f7e4dd982e',
+    version: 1,
+  })
+  const restored = flowDefinitionToWorkspace(definition)
+  const restoredCustom = restored.canvases.find((canvas) => canvas.id === custom.id)
+
+  assert.equal(definition.canvases[1]?.lifecycle, 'custom')
+  assert.equal(definition.canvases[1]?.name, '审计流程')
+  assert.equal(restoredCustom?.lifecycle, 'custom')
+  assert.equal(restoredCustom?.name, '审计流程')
+  assert.equal(restored.activeCanvasId, 'main')
+})

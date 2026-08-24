@@ -1,7 +1,7 @@
 import type { FlowEdgeLineType } from '../flow/types'
 
 export type ApiNodeType = 'action' | 'flowCall' | 'globalData' | 'flipflop' | 'script' | 'condition' | 'value' | 'expression' | 'expOp' | 'expCondition' | 'trigger'
-export type ApiCanvasLifecycle = 'main' | 'init' | 'loading' | 'exit'
+export type ApiCanvasLifecycle = 'main' | 'init' | 'loading' | 'exit' | 'custom'
 export type ApiConnectionKind = 'execution' | 'data'
 export type ApiDataSource = 'literal' | 'previousNode' | 'projectInput' | 'expression'
 
@@ -89,6 +89,7 @@ export interface CanvasDto {
   lifecycle: ApiCanvasLifecycle
   nodes: NodeDto[]
   connections: ConnectionDto[]
+  name?: string
 }
 
 export interface FlowDefinitionDto {
@@ -126,6 +127,11 @@ export interface CreateProjectRequestDto {
   definition: FlowDefinitionDto
 }
 
+export interface RenameProjectRequestDto {
+  name: string
+  expectedVersion: number
+}
+
 export interface UpdateFlowDefinitionRequestDto {
   expectedVersion: number
   definition: FlowDefinitionDto
@@ -157,6 +163,10 @@ export async function listProjects(): Promise<ProjectWorkspaceDto[]> {
 
 export async function createProject(requestBody: CreateProjectRequestDto): Promise<ProjectWorkspaceDto> {
   return request<ProjectWorkspaceDto>('/api/projects', { method: 'POST', body: requestBody })
+}
+
+export async function renameProject(projectId: string, requestBody: RenameProjectRequestDto): Promise<ProjectWorkspaceDto> {
+  return request<ProjectWorkspaceDto>(`/api/projects/${projectId}`, { method: 'PUT', body: requestBody })
 }
 
 export async function loadFlow(projectId: string, flowId: string): Promise<FlowDefinitionDto> {
