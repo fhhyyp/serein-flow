@@ -62,7 +62,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .project-rename-form input { width: 100%; min-width: 0; border: 1px solid var(--line-strong); border-radius: 3px; padding: 7px 8px; background: var(--surface); color: var(--ink); font-family: var(--sans); font-size: 12px; letter-spacing: normal; text-transform: none; }
 .project-rename-form input:focus { outline: 2px solid var(--accent-soft); outline-offset: 1px; border-color: var(--accent); }
 .project-rename-form__actions { display: flex; justify-content: flex-end; gap: 4px; }
-.project-rename-form__actions button { display: inline-grid; width: 26px; min-height: 25px; height: 25px; place-items: center; border: 1px solid var(--line); border-radius: 3px; padding: 0; background: var(--surface); color: var(--muted); cursor: pointer; }
+.project-rename-form__actions button { display: inline-grid; width: 26px; min-height: 25px; height: 25px; place-items: center; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 3px; padding: 0; background: var(--surface); color: var(--muted); cursor: pointer; }
 .project-rename-form__actions button:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
 .project-rename-form__actions button:disabled { cursor: wait; opacity: .5; }
 .command-actions { position: relative; gap: 6px; }
@@ -175,7 +175,7 @@ h2 { overflow-wrap: anywhere; }
 .footer-link:hover { color: var(--accent); }
 
 .canvas-toolbar { display: flex; min-height: 48px; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); padding: 8px 16px; background: var(--surface); }
-.version-pill { border: 1px solid var(--line); border-radius: 2px; padding: 2px 5px; color: var(--muted); font-family: var(--mono); font-size: 10px; }
+.version-pill { border: 1px solid var(--line); border-radius: 2px; padding: 2px 5px; color: var(--muted); font-family: var(--mono); font-size: 12px; }
 .canvas-tab-row { display: flex; min-width: 0; align-items: center; gap: 3px; }
 .canvas-tabs { display: flex; min-width: 0; max-width: 100%; gap: 2px; overflow-x: auto; }
 .canvas-tabs button { height: 28px; border: 0; border-bottom: 2px solid transparent; padding: 0 9px; background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; font-weight: 500; white-space: nowrap; transition: border-color 180ms ease, color 180ms ease; }
