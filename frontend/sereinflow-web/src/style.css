@@ -106,7 +106,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .library-catalog__heading > div { display: grid; min-width: 0; gap: 2px; }
 .library-catalog__heading strong { overflow: hidden; color: var(--ink); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .library-catalog__heading span { color: var(--subtle); font-family: var(--mono); font-size: 9px; }
-.library-node { display: flex; width: 100%; min-width: 0; align-items: center; gap: 7px; border: 1px solid transparent; border-radius: 4px; padding: 7px 6px; background: transparent; color: var(--muted); cursor: grab; text-align: left; transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease; }
+.library-node { display: flex; width: 100%; min-width: 0; align-items: center; gap: 7px; border: 1px solid transparent; border-radius: 4px; padding: 7px 6px; background: transparent; color: var(--muted); cursor: grab; touch-action: none; text-align: left; transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease; }
 .library-node:hover { border-color: var(--line-strong); background: var(--canvas); color: var(--ink); }
 .library-node:active { cursor: grabbing; }
 .library-node__mark { display: grid; width: 25px; height: 25px; flex: 0 0 auto; place-items: center; border: 1px solid var(--data-soft); border-radius: 3px; color: var(--data); background: var(--data-soft); }

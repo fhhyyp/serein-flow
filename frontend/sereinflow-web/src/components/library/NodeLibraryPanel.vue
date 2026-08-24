@@ -16,8 +16,7 @@ const emit = defineEmits<{
   'update:librarySearch': [value: string]
   upload: []
   retry: []
-  'drag-node': [event: DragEvent, node: LibraryNodeDto]
-  'drag-end': []
+  'node-pointer-down': [event: PointerEvent, node: LibraryNodeDto]
 }>()
 
 function updateSearch(event: Event): void {
@@ -44,7 +43,7 @@ function updateSearch(event: Event): void {
     <div v-else class="library-catalog">
       <section v-for="entry in visibleLibraries" :key="entry.library.id" class="library-catalog__group">
         <div class="library-catalog__heading"><div><strong>{{ entry.library.name }}</strong><span>{{ entry.library.version }}</span></div><span class="mono">{{ t('library.nodeCount', { count: entry.nodes.length }) }}</span></div>
-        <button v-for="node in entry.nodes" :key="node.id" class="library-node" type="button" draggable="true" @dragstart="emit('drag-node', $event, node)" @dragend="emit('drag-end')">
+        <button v-for="node in entry.nodes" :key="node.id" class="library-node" type="button" draggable="false" @pointerdown="emit('node-pointer-down', $event, node)">
           <span class="library-node__mark"><Database :size="14" /></span><span class="library-node__body"><strong>{{ node.displayName }}</strong><span>{{ node.className }}.{{ node.methodName }}</span></span><span class="library-node__drag-hint">{{ t('library.dragHint') }}</span>
         </button>
       </section>

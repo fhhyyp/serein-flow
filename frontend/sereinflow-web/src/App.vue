@@ -254,9 +254,8 @@ const {
 const {
   handleCanvasDragOver,
   handleCanvasDragLeave,
-  handleNodeDragEnd,
   handleCanvasDrop,
-  handleLibraryNodeDragStart,
+  handleLibraryNodePointerDown,
 } = useNodeDrop({ screenToFlowCoordinate, isCanvasDropActive, notice, addNode })
 
 const {
@@ -386,8 +385,7 @@ function setLanguage(nextLocale: Locale): void {
         @update:library-search="librarySearch = $event"
         @upload="libraryUploadOpen = true"
         @retry="refreshLibraryCatalog"
-        @drag-node="handleLibraryNodeDragStart"
-        @drag-end="handleNodeDragEnd"
+        @node-pointer-down="handleLibraryNodePointerDown"
       />
 
       <CanvasPanel

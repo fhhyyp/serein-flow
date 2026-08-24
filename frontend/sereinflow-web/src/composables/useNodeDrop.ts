@@ -1,4 +1,4 @@
-import type { Ref } from 'vue'
+import { onBeforeUnmount, type Ref } from 'vue'
 import type { LibraryNodeDto } from '../api/libraryApi'
 import { isNodeKind } from '../flow/nodeCatalog'
 import type { MethodParameter, NodeKind, NodeRuntimeMetadata } from '../flow/types'
@@ -13,7 +13,162 @@ interface NodeDropOptions {
 
 const nodeDragMimeType = 'application/sereinflow-node'
 
+interface NodeDropPayload {
+  kind: NodeKind
+  titleKey: string
+  subtitleKey: string
+  displayName?: string
+  description?: string
+  runtime?: NodeRuntimeMetadata
+  parameters?: MethodParameter[]
+  hasDataOutput?: boolean
+}
+
 export function useNodeDrop(options: NodeDropOptions) {
+  let pointerId: number | undefined
+  let pointerSource: HTMLElement | undefined
+  let pointerStart: { x: number; y: number } | undefined
+  let pointerPayload: NodeDropPayload | undefined
+  let pointerDragging = false
+  let previousBodyCursor = ''
+  let previousBodyUserSelect = ''
+
+  function isCanvasPoint(x: number, y: number): boolean {
+    const target = document.elementFromPoint(x, y)
+    return target instanceof Element && target.closest('.canvas-area') !== null
+  }
+
+  function clearPointerDrag(): void {
+    if (pointerId !== undefined && pointerSource?.hasPointerCapture(pointerId)) {
+      pointerSource.releasePointerCapture(pointerId)
+    }
+
+    window.removeEventListener('pointermove', handlePointerMove)
+    window.removeEventListener('pointerup', handlePointerUp)
+    window.removeEventListener('pointercancel', handlePointerCancel)
+    window.removeEventListener('keydown', handlePointerKeyDown)
+    document.body.style.cursor = previousBodyCursor
+    document.body.style.userSelect = previousBodyUserSelect
+    pointerId = undefined
+    pointerSource = undefined
+    pointerStart = undefined
+    pointerPayload = undefined
+    pointerDragging = false
+    options.isCanvasDropActive.value = false
+  }
+
+  function handlePointerMove(event: PointerEvent): void {
+    if (event.pointerId !== pointerId || !pointerPayload || !pointerStart) {
+      return
+    }
+
+    const distance = Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y)
+    if (!pointerDragging && distance < 5) {
+      return
+    }
+
+    pointerDragging = true
+    options.isCanvasDropActive.value = isCanvasPoint(event.clientX, event.clientY)
+  }
+
+  function handlePointerUp(event: PointerEvent): void {
+    if (event.pointerId !== pointerId || !pointerPayload) {
+      return
+    }
+
+    const payload = pointerPayload
+    const shouldCreate = pointerDragging && isCanvasPoint(event.clientX, event.clientY)
+    let position: { x: number; y: number } | undefined
+    try {
+      position = shouldCreate ? options.screenToFlowCoordinate({ x: event.clientX, y: event.clientY }) : undefined
+    } catch {
+      options.notice.value = t('canvas.invalidNodeDrop')
+    } finally {
+      clearPointerDrag()
+    }
+
+    if (!position) {
+      return
+    }
+
+    options.addNode(
+      payload.kind,
+      payload.titleKey,
+      payload.subtitleKey,
+      { x: Math.round(position.x / 16) * 16, y: Math.round(position.y / 16) * 16 },
+      payload,
+    )
+  }
+
+  function handlePointerCancel(): void {
+    clearPointerDrag()
+  }
+
+  function handlePointerKeyDown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      clearPointerDrag()
+    }
+  }
+
+  function createNodePayload(node: LibraryNodeDto): NodeDropPayload {
+    const runtime: NodeRuntimeMetadata = {
+      category: 'method',
+      libraryId: node.libraryId,
+      className: node.className,
+      methodName: node.methodName,
+      dllName: node.dllName,
+      dllVersion: node.dllVersion,
+      returnType: node.returnType,
+    }
+    const parameters = node.parameters.map((parameter) => ({
+      id: parameter.id,
+      nameKey: parameter.name,
+      name: parameter.name,
+      valueKind: parameter.type || 'System.Object',
+      type: parameter.type,
+      description: parameter.description ?? undefined,
+      source: 'literal' as const,
+      inputMode: 'manual' as const,
+      literalValue: '',
+    }))
+
+    return {
+      kind: isNodeKind(node.type) ? node.type : 'action',
+      titleKey: 'node.catalogMethod',
+      subtitleKey: 'node.catalogSubtitle',
+      displayName: node.displayName,
+      description: node.description ?? `${node.className}.${node.methodName}`,
+      runtime,
+      parameters,
+      hasDataOutput: node.returnType !== 'System.Void',
+    }
+  }
+
+  function handleLibraryNodePointerDown(event: PointerEvent, node: LibraryNodeDto): void {
+    if (event.button !== 0 || event.isPrimary === false) {
+      return
+    }
+
+    clearPointerDrag()
+    event.preventDefault()
+    pointerId = event.pointerId
+    pointerSource = event.currentTarget instanceof HTMLElement ? event.currentTarget : undefined
+    pointerStart = { x: event.clientX, y: event.clientY }
+    pointerPayload = createNodePayload(node)
+    previousBodyCursor = document.body.style.cursor
+    previousBodyUserSelect = document.body.style.userSelect
+    document.body.style.cursor = 'grabbing'
+    document.body.style.userSelect = 'none'
+    pointerSource?.setPointerCapture(event.pointerId)
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
+    window.addEventListener('pointercancel', handlePointerCancel)
+    window.addEventListener('keydown', handlePointerKeyDown)
+  }
+
+  onBeforeUnmount(clearPointerDrag)
+
   function handleCanvasDragOver(event: DragEvent): void {
     const dataTransfer = event.dataTransfer
     if (!dataTransfer) {
@@ -35,10 +190,6 @@ export function useNodeDrop(options: NodeDropOptions) {
       return
     }
 
-    options.isCanvasDropActive.value = false
-  }
-
-  function handleNodeDragEnd(): void {
     options.isCanvasDropActive.value = false
   }
 
@@ -74,46 +225,5 @@ export function useNodeDrop(options: NodeDropOptions) {
     }
   }
 
-  function handleLibraryNodeDragStart(event: DragEvent, node: LibraryNodeDto): void {
-    if (!event.dataTransfer) {
-      return
-    }
-
-    const runtime: NodeRuntimeMetadata = {
-      category: 'method',
-      libraryId: node.libraryId,
-      className: node.className,
-      methodName: node.methodName,
-      dllName: node.dllName,
-      dllVersion: node.dllVersion,
-      returnType: node.returnType,
-    }
-    const parameters = node.parameters.map((parameter) => ({
-      id: parameter.id,
-      nameKey: parameter.name,
-      name: parameter.name,
-      valueKind: parameter.type || 'System.Object',
-      type: parameter.type,
-      description: parameter.description ?? undefined,
-      source: 'literal' as const,
-      inputMode: 'manual' as const,
-      literalValue: '',
-    }))
-    const payload = JSON.stringify({
-      kind: isNodeKind(node.type) ? node.type : 'action',
-      titleKey: 'node.catalogMethod',
-      subtitleKey: 'node.catalogSubtitle',
-      displayName: node.displayName,
-      description: node.description ?? `${node.className}.${node.methodName}`,
-      runtime,
-      parameters,
-      hasDataOutput: node.returnType !== 'System.Void',
-    })
-    event.dataTransfer.setData(nodeDragMimeType, payload)
-    event.dataTransfer.setData('application/json', payload)
-    event.dataTransfer.setData('text/plain', payload)
-    event.dataTransfer.effectAllowed = 'copy'
-  }
-
-  return { handleCanvasDragOver, handleCanvasDragLeave, handleNodeDragEnd, handleCanvasDrop, handleLibraryNodeDragStart }
+  return { handleCanvasDragOver, handleCanvasDragLeave, handleCanvasDrop, handleLibraryNodePointerDown }
 }
