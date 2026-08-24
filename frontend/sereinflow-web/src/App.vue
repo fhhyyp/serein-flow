@@ -426,6 +426,7 @@ function setLanguage(nextLocale: Locale): void {
         @request-canvas-removal="requestCanvasRemoval"
         @cancel-canvas-removal="cancelCanvasRemoval"
         @confirm-canvas-removal="confirmCanvasRemoval"
+        @canvas-dragenter="handleCanvasDragOver"
         @canvas-dragover="handleCanvasDragOver"
         @canvas-dragleave="handleCanvasDragLeave"
         @canvas-drop="handleCanvasDrop"

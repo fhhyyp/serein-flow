@@ -59,6 +59,7 @@ const emit = defineEmits<{
   'cancel-canvas-removal': []
   'confirm-canvas-removal': []
   'canvas-dragover': [event: DragEvent]
+  'canvas-dragenter': [event: DragEvent]
   'canvas-dragleave': [event: DragEvent]
   'canvas-drop': [event: DragEvent]
   connect: [connection: Connection]
@@ -103,7 +104,7 @@ function updateCustomCanvasName(event: Event): void {
         <button class="icon-button canvas-delete-button" type="button" :title="t('canvas.remove')" :aria-label="t('canvas.remove')" :disabled="props.currentCanvasLifecycle === 'main'" @click="emit('request-canvas-removal')"><X :size="16" /></button>
       </div>
     </div>
-    <div class="canvas-area" :class="{ 'canvas-drop-active': props.isCanvasDropActive }" @dragover="emit('canvas-dragover', $event)" @dragleave="emit('canvas-dragleave', $event)" @drop="emit('canvas-drop', $event)">
+    <div class="canvas-area" :class="{ 'canvas-drop-active': props.isCanvasDropActive }" @dragenter="emit('canvas-dragenter', $event)" @dragover="emit('canvas-dragover', $event)" @dragleave="emit('canvas-dragleave', $event)" @drop="emit('canvas-drop', $event)">
       <VueFlow :key="props.canvasRenderKey" :model-value="props.renderedElements" :node-types="nodeTypes" :connection-mode="ConnectionMode.Strict" :is-valid-connection="props.isValidConnection" :min-zoom="0.2" :max-zoom="2" :snap-to-grid="true" :snap-grid="[16, 16]" :fit-view-on-init="true" :delete-key-code="['Backspace', 'Delete']" class="serein-flow" @connect="emit('connect', $event)" @nodes-change="emit('nodes-change', $event)" @edges-change="emit('edges-change', $event)" @node-click="emit('node-click', $event)" @edge-click="emit('edge-click', $event)" @pane-click="emit('pane-click')"><template #connection-line="connectionLineProps"><FlowConnectionLine v-bind="connectionLineProps" :line-types="props.connectionLineTypes" /></template></VueFlow>
       <div v-if="props.currentCanvasNodeCount === 0" class="canvas-empty-state" aria-live="polite"><div class="canvas-empty-state__mark"><LayoutGrid :size="20" /></div><strong>{{ t('canvas.emptyTitle') }}</strong><p>{{ t('canvas.emptyHint') }}</p><span>{{ t('canvas.emptySecondary') }}</span></div>
       <span v-if="props.isCanvasDropActive" class="canvas-drop-hint">{{ t('canvas.dropNode') }}</span>

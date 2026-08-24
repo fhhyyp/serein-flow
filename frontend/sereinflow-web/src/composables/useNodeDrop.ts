@@ -11,14 +11,20 @@ interface NodeDropOptions {
   addNode: (kind: NodeKind, titleKey: string, subtitleKey: string, position?: { x: number; y: number }, metadata?: { displayName?: string; description?: string; runtime?: NodeRuntimeMetadata; parameters?: MethodParameter[]; hasDataOutput?: boolean }) => void
 }
 
+const nodeDragMimeType = 'application/sereinflow-node'
+
 export function useNodeDrop(options: NodeDropOptions) {
   function handleCanvasDragOver(event: DragEvent): void {
-    if (!event.dataTransfer?.types.includes('application/sereinflow-node')) {
+    const dataTransfer = event.dataTransfer
+    if (!dataTransfer) {
       return
     }
 
+    // A browser may hide custom MIME types while a drag is crossing
+    // component boundaries. Always accept the dragover so the subsequent
+    // drop event can expose the payload through one of the supported types.
     event.preventDefault()
-    event.dataTransfer.dropEffect = 'copy'
+    dataTransfer.dropEffect = 'copy'
     options.isCanvasDropActive.value = true
   }
 
@@ -35,7 +41,9 @@ export function useNodeDrop(options: NodeDropOptions) {
   function handleCanvasDrop(event: DragEvent): void {
     event.preventDefault()
     options.isCanvasDropActive.value = false
-    const encoded = event.dataTransfer?.getData('application/sereinflow-node')
+    const encoded = event.dataTransfer?.getData(nodeDragMimeType)
+      || event.dataTransfer?.getData('application/json')
+      || event.dataTransfer?.getData('text/plain')
     if (!encoded) {
       return
     }
@@ -87,7 +95,7 @@ export function useNodeDrop(options: NodeDropOptions) {
       inputMode: 'manual' as const,
       literalValue: '',
     }))
-    event.dataTransfer.setData('application/sereinflow-node', JSON.stringify({
+    const payload = JSON.stringify({
       kind: isNodeKind(node.type) ? node.type : 'action',
       titleKey: 'node.catalogMethod',
       subtitleKey: 'node.catalogSubtitle',
@@ -96,7 +104,10 @@ export function useNodeDrop(options: NodeDropOptions) {
       runtime,
       parameters,
       hasDataOutput: node.returnType !== 'System.Void',
-    }))
+    })
+    event.dataTransfer.setData(nodeDragMimeType, payload)
+    event.dataTransfer.setData('application/json', payload)
+    event.dataTransfer.setData('text/plain', payload)
     event.dataTransfer.effectAllowed = 'copy'
   }
 
