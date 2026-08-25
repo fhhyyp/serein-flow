@@ -25,7 +25,10 @@ public sealed class WorkerSupervisor
 
     public WorkerSupervisor(RunnerLaunchOptions launchOptions)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(launchOptions.FileName);
+        if (launchOptions is null)
+            throw new ArgumentNullException(nameof(launchOptions), "Worker runner launch options cannot be null. Worker Runner 启动选项不能为空。");
+        if (string.IsNullOrWhiteSpace(launchOptions.FileName))
+            throw new ArgumentException("Worker runner file name cannot be empty. Worker Runner 文件名不能为空。", nameof(launchOptions));
         _launchOptions = launchOptions;
     }
 
@@ -34,12 +37,14 @@ public sealed class WorkerSupervisor
         Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(request);
-        ArgumentNullException.ThrowIfNull(publishEvent);
+        if (request is null)
+            throw new ArgumentNullException(nameof(request), "The worker request cannot be null. Worker 请求不能为空。");
+        if (publishEvent is null)
+            throw new ArgumentNullException(nameof(publishEvent), "The worker event publisher cannot be null. Worker 事件发布器不能为空。");
         if (request.ProtocolVersion != WorkerProtocolConstants.Version)
-            return Failure(request.RunId, "worker.protocol_mismatch", "The requested worker protocol version is not supported.");
+            return Failure(request.RunId, "worker.protocol_mismatch", "The requested worker protocol version is not supported. 请求的 Worker 协议版本不受支持。");
         if (request.Deadline <= DateTimeOffset.UtcNow)
-            return new WorkerRunResultDto(WorkerProtocolConstants.Version, request.RunId, FlowRunStatusDto.TimedOut, "worker.timed_out", "The run deadline elapsed before the runner started.");
+            return new WorkerRunResultDto(WorkerProtocolConstants.Version, request.RunId, FlowRunStatusDto.TimedOut, "worker.timed_out", "The run deadline elapsed before the runner started. Worker Runner 启动前运行截止时间已到。");
 
         using var process = StartProcess();
         using var stdout = process.StandardOutput;
@@ -52,16 +57,16 @@ public sealed class WorkerSupervisor
         {
             var ready = await WorkerProtocolCodec.ReadAsync(stdout, runCancellation.Token).AsTask().WaitAsync(_launchOptions.EffectiveHandshakeTimeout, runCancellation.Token);
             if (ready is null)
-                return await TerminateAndReturnAsync(process, request.RunId, "worker.crashed", "Runner closed its protocol stream before announcing readiness.", FlowRunStatusDto.Failed);
+                return await TerminateAndReturnAsync(process, request.RunId, "worker.crashed", "Runner closed its protocol stream before announcing readiness. Worker Runner 在宣布就绪前关闭了协议流。", FlowRunStatusDto.Failed);
             if (ready.Kind != WorkerProtocolConstants.ReadyKind)
-                return await TerminateAndReturnAsync(process, request.RunId, "worker.handshake_failed", "Runner did not announce readiness.", FlowRunStatusDto.Failed);
+                return await TerminateAndReturnAsync(process, request.RunId, "worker.handshake_failed", "Runner did not announce readiness. Worker Runner 未宣布就绪。", FlowRunStatusDto.Failed);
 
             await writer.WriteAsync(WorkerMessage.Create(WorkerProtocolConstants.HandshakeKind), runCancellation.Token);
             var accepted = await WorkerProtocolCodec.ReadAsync(stdout, runCancellation.Token).AsTask().WaitAsync(_launchOptions.EffectiveHandshakeTimeout, runCancellation.Token);
             if (accepted is null)
-                return await TerminateAndReturnAsync(process, request.RunId, "worker.crashed", "Runner closed its protocol stream during the handshake.", FlowRunStatusDto.Failed);
+                return await TerminateAndReturnAsync(process, request.RunId, "worker.crashed", "Runner closed its protocol stream during the handshake. Worker Runner 在握手期间关闭了协议流。", FlowRunStatusDto.Failed);
             if (accepted.Kind != WorkerProtocolConstants.HandshakeAcceptedKind)
-                return await TerminateAndReturnAsync(process, request.RunId, "worker.protocol_mismatch", "Runner rejected the worker protocol handshake.", FlowRunStatusDto.Failed);
+                return await TerminateAndReturnAsync(process, request.RunId, "worker.protocol_mismatch", "Runner rejected the worker protocol handshake. Worker Runner 拒绝了 Worker 协议握手。", FlowRunStatusDto.Failed);
 
             await writer.WriteAsync(
                 WorkerMessage.Create(WorkerProtocolConstants.RunKind, WorkerProtocolCodec.SerializePayload(request), request.RunId, request.Deadline),
@@ -87,7 +92,7 @@ public sealed class WorkerSupervisor
         }
         catch (Exception)
         {
-            return await TerminateAndReturnAsync(process, request.RunId, "worker.crashed", "The runner exited before returning a valid result.", FlowRunStatusDto.Failed);
+            return await TerminateAndReturnAsync(process, request.RunId, "worker.crashed", "The runner exited before returning a valid result. Worker Runner 在返回有效结果前退出。", FlowRunStatusDto.Failed);
         }
         finally
         {
@@ -132,7 +137,7 @@ public sealed class WorkerSupervisor
 
             var message = await readTask;
             if (message is null)
-                return Failure(request.RunId, "worker.crashed", "The runner closed its protocol stream without a result.");
+                return Failure(request.RunId, "worker.crashed", "The runner closed its protocol stream without a result. Worker Runner 在返回结果前关闭了协议流。");
 
             var completion = await HandleMessageAsync(message, request, publishEvent, lastSequence, CancellationToken.None);
             if (completion.Result is not null)
@@ -163,7 +168,7 @@ public sealed class WorkerSupervisor
         }
         catch (Exception)
         {
-            return await TerminateAndReturnAsync(process, request.RunId, fallbackCode, "Runner could not be reached for cancellation.", fallbackStatus);
+            return await TerminateAndReturnAsync(process, request.RunId, fallbackCode, "Runner could not be reached for cancellation. 无法连接 Worker Runner 以取消运行。", fallbackStatus);
         }
 
         var readTask = existingReadTask ?? WorkerProtocolCodec.ReadAsync(stdout, CancellationToken.None).AsTask();
@@ -186,7 +191,7 @@ public sealed class WorkerSupervisor
             readTask = WorkerProtocolCodec.ReadAsync(stdout, CancellationToken.None).AsTask();
         }
 
-        return await TerminateAndReturnAsync(process, request.RunId, fallbackCode, "Runner did not stop before the cancellation grace period elapsed.", fallbackStatus);
+        return await TerminateAndReturnAsync(process, request.RunId, fallbackCode, "Runner did not stop before the cancellation grace period elapsed. Worker Runner 在取消宽限期结束前未停止。", fallbackStatus);
     }
 
     private static async Task<(WorkerRunResultDto? Result, long LastSequence)> HandleMessageAsync(
@@ -197,7 +202,7 @@ public sealed class WorkerSupervisor
         CancellationToken cancellationToken)
     {
         if (message.RunId is not null && message.RunId != request.RunId)
-            return (Failure(request.RunId, "worker.invalid_message", "Runner returned a message for another run."), lastSequence);
+            return (Failure(request.RunId, "worker.invalid_message", "Runner returned a message for another run. Worker Runner 返回了属于其他运行实例的消息。"), lastSequence);
 
         switch (message.Kind)
         {
@@ -205,7 +210,7 @@ public sealed class WorkerSupervisor
             {
                 var workerEvent = WorkerProtocolCodec.DeserializePayload<WorkerEventEnvelopeDto>(message);
                 if (workerEvent.RunId != request.RunId || workerEvent.Sequence <= lastSequence)
-                    return (Failure(request.RunId, "worker.event_sequence_invalid", "Runner event sequence is not strictly increasing."), lastSequence);
+                    return (Failure(request.RunId, "worker.event_sequence_invalid", "Runner event sequence is not strictly increasing. Worker Runner 的事件序列没有严格递增。"), lastSequence);
                 await publishEvent(workerEvent, cancellationToken);
                 return (null, workerEvent.Sequence);
             }
@@ -213,7 +218,7 @@ public sealed class WorkerSupervisor
             {
                 var result = WorkerProtocolCodec.DeserializePayload<WorkerRunResultDto>(message);
                 if (result.RunId != request.RunId || result.ProtocolVersion != WorkerProtocolConstants.Version)
-                    return (Failure(request.RunId, "worker.invalid_result", "Runner returned an invalid result."), lastSequence);
+                    return (Failure(request.RunId, "worker.invalid_result", "Runner returned an invalid result. Worker Runner 返回了无效结果。"), lastSequence);
                 return (result, lastSequence);
             }
             case WorkerProtocolConstants.ErrorKind:
@@ -225,7 +230,7 @@ public sealed class WorkerSupervisor
             case WorkerProtocolConstants.HeartbeatAcknowledgedKind:
                 return (null, lastSequence);
             default:
-                return (Failure(request.RunId, "worker.invalid_message", $"Runner sent unsupported message '{message.Kind}'."), lastSequence);
+                return (Failure(request.RunId, "worker.invalid_message", $"Runner sent unsupported message '{message.Kind}'. Worker Runner 发送了不支持的消息“{message.Kind}”。"), lastSequence);
         }
     }
 
@@ -245,7 +250,7 @@ public sealed class WorkerSupervisor
             startInfo.ArgumentList.Add(argument);
 
         return Process.Start(startInfo)
-            ?? throw new InvalidOperationException("Unable to start the worker runner process.");
+            ?? throw new InvalidOperationException("Unable to start the worker runner process. 无法启动 Worker Runner 进程。");
     }
 
     private static async Task<WorkerRunResultDto> TerminateAndReturnAsync(Process process, Guid runId, string code, string message, FlowRunStatusDto status)

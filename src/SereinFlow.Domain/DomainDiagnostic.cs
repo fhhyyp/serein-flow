@@ -5,7 +5,7 @@ public sealed record DomainDiagnostic(string Code, string Message, string? Path 
 public sealed class DomainValidationException : Exception
 {
     public DomainValidationException(IReadOnlyList<DomainDiagnostic> diagnostics)
-        : base("The domain object is invalid.")
+        : base("The domain object is invalid. 领域对象无效。")
     {
         Diagnostics = diagnostics;
     }

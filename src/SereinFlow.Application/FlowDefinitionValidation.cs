@@ -7,7 +7,8 @@ public static class FlowDefinitionContractMapper
 {
     public static FlowDefinition Map(FlowDefinitionDto dto)
     {
-        ArgumentNullException.ThrowIfNull(dto);
+        if (dto is null)
+            throw new ArgumentNullException(nameof(dto), "The flow definition cannot be null. 流程定义不能为空。");
         return FlowDefinition.Create(
             dto.Id,
             dto.Version,

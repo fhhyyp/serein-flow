@@ -20,6 +20,7 @@ public sealed record ScriptArtifactBuildResult(
 /// <summary>
 /// Owns disposable per-project .ssc artifacts. A failed rebuild never leaves
 /// an older artifact eligible for execution.
+/// 管理每个项目的临时 .ssc 构建缓存；重建失败时不会留下可执行的旧缓存。
 /// </summary>
 public sealed class ScriptArtifactStore
 {
@@ -28,7 +29,7 @@ public sealed class ScriptArtifactStore
     public ScriptArtifactStore(string rootPath)
     {
         if (string.IsNullOrWhiteSpace(rootPath))
-            throw new ArgumentException("Artifact root cannot be empty.", nameof(rootPath));
+            throw new ArgumentException("Artifact root cannot be empty. 缓存根目录不能为空。", nameof(rootPath));
         _rootPath = Path.GetFullPath(rootPath);
         Directory.CreateDirectory(_rootPath);
     }
@@ -44,14 +45,15 @@ public sealed class ScriptArtifactStore
         IEnumerable<ScriptNodeDefinition> definitions)
     {
         ValidateProjectId(projectId);
-        ArgumentNullException.ThrowIfNull(definitions);
+        if (definitions is null)
+            throw new ArgumentNullException(nameof(definitions), "Script definitions cannot be null. 脚本定义集合不能为空。");
 
         var nodes = definitions.ToArray();
         var duplicate = nodes.GroupBy(node => node.NodeId, StringComparer.Ordinal).FirstOrDefault(group => group.Count() > 1);
         if (duplicate is not null)
         {
             return new(false, new Dictionary<string, ScriptArtifact>(),
-                [new("script.duplicate_node", $"Script node '{duplicate.Key}' is defined more than once.", NodeId: duplicate.Key)]);
+                [new("script.duplicate_node", $"Script node '{duplicate.Key}' is defined more than once. 脚本节点“{duplicate.Key}”被重复定义。", NodeId: duplicate.Key)]);
         }
 
         var projectPath = GetProjectPath(projectId);
@@ -69,7 +71,7 @@ public sealed class ScriptArtifactStore
             {
                 if (!IsSafeSegment(node.NodeId))
                 {
-                    diagnostics.Add(new("script.node_id_invalid", $"Script node ID '{node.NodeId}' cannot be used as an artifact name.", NodeId: node.NodeId));
+                    diagnostics.Add(new("script.node_id_invalid", $"Script node ID '{node.NodeId}' cannot be used as an artifact name. 脚本节点 ID“{node.NodeId}”不能用作缓存名称。", NodeId: node.NodeId));
                     return new(false, new Dictionary<string, ScriptArtifact>(), diagnostics);
                 }
                 var engine = new ScriptEngine();
@@ -144,7 +146,7 @@ public sealed class ScriptArtifactStore
     private static void ValidateProjectId(string projectId)
     {
         if (!IsSafeSegment(projectId))
-            throw new ArgumentException("Project ID must be a simple directory name.", nameof(projectId));
+            throw new ArgumentException("Project ID must be a simple directory name. 项目 ID 必须是简单目录名称。", nameof(projectId));
     }
 
     private static bool IsSafeSegment(string value)

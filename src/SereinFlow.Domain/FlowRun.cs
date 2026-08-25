@@ -35,10 +35,11 @@ public sealed class FlowRun
     {
         if (flowId == Guid.Empty)
         {
-            throw new ArgumentException("Flow ID cannot be empty.", nameof(flowId));
+            throw new ArgumentException("Flow ID cannot be empty. 流程 ID 不能为空。", nameof(flowId));
         }
 
-        ArgumentOutOfRangeException.ThrowIfLessThan(flowVersion, 1);
+        if (flowVersion < 1)
+            throw new ArgumentOutOfRangeException(nameof(flowVersion), "Flow version must be positive. 流程版本必须为正数。");
 
         return new FlowRun(id ?? Guid.NewGuid(), flowId, flowVersion, createdAt);
     }
@@ -48,7 +49,7 @@ public sealed class FlowRun
         EnsureNotTerminal();
         if (Status != FlowRunStatus.Pending)
         {
-            throw new InvalidOperationException("Only a pending run can start.");
+            throw new InvalidOperationException("Only a pending run can start. 只有待处理状态的运行实例可以启动。");
         }
 
         Status = FlowRunStatus.Running;
@@ -60,7 +61,7 @@ public sealed class FlowRun
         EnsureNotTerminal();
         if (terminalStatus is not (FlowRunStatus.Succeeded or FlowRunStatus.Failed or FlowRunStatus.TimedOut))
         {
-            throw new ArgumentException("Complete requires a successful, failed, or timed out status.", nameof(terminalStatus));
+            throw new ArgumentException("Complete requires a successful, failed, or timed out status. 完成操作需要成功、失败或超时状态。", nameof(terminalStatus));
         }
 
         Status = terminalStatus;
@@ -85,7 +86,7 @@ public sealed class FlowRun
     {
         if (IsTerminal)
         {
-            throw new InvalidOperationException("A terminal run cannot transition again.");
+            throw new InvalidOperationException("A terminal run cannot transition again. 终止状态的运行实例不能再次转换。");
         }
     }
 }

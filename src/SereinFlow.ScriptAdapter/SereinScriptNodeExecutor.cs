@@ -25,10 +25,11 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
 
     public async ValueTask<NodeExecutionResult> ExecuteAsync(NodeExecutionRequest request, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        if (request is null)
+            throw new ArgumentNullException(nameof(request), "The script execution request cannot be null. 脚本执行请求不能为空。");
         var definition = request.Node.Script;
         if (definition is null)
-            return NodeExecutionResult.Failure("script.definition_missing", "Script node definition is missing.");
+            return NodeExecutionResult.Failure("script.definition_missing", "Script node definition is missing. 脚本节点定义缺失。");
 
         try
         {
@@ -61,7 +62,7 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
         }
         catch (OperationCanceledException)
         {
-            return NodeExecutionResult.Failure("script.cancelled", "Script execution was cancelled.");
+            return NodeExecutionResult.Failure("script.cancelled", "Script execution was cancelled. 脚本执行已取消。");
         }
         catch (ScriptExecutionException exception)
         {
@@ -69,15 +70,15 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
         }
         catch (NotSupportedException exception)
         {
-            return NodeExecutionResult.Failure("script.value_unsupported", exception.Message);
+            return NodeExecutionResult.Failure("script.value_unsupported", $"Script value is not supported. 脚本值不受支持。 {exception.Message}");
         }
         catch (InvalidOperationException exception)
         {
-            return NodeExecutionResult.Failure("script.compile_failed", exception.Message);
+            return NodeExecutionResult.Failure("script.compile_failed", $"Script compilation failed. 脚本编译失败。 {exception.Message}");
         }
         catch (Exception exception)
         {
-            return NodeExecutionResult.Failure("script.runtime_failed", exception.Message);
+            return NodeExecutionResult.Failure("script.runtime_failed", $"Script runtime execution failed. 脚本运行时执行失败。 {exception.Message}");
         }
     }
 
@@ -86,11 +87,11 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
         var contracts = definition.Inputs.ToDictionary(input => input.Name, StringComparer.Ordinal);
         var unknown = inputs.Keys.FirstOrDefault(name => !contracts.ContainsKey(name));
         if (unknown is not null)
-            throw new ScriptExecutionException("script.input_unknown", $"Unknown script input '{unknown}'.");
+            throw new ScriptExecutionException("script.input_unknown", $"Unknown script input '{unknown}'. 未知的脚本输入“{unknown}”。");
 
         var missing = definition.Inputs.FirstOrDefault(input => input.Required && !inputs.ContainsKey(input.Name));
         if (missing is not null)
-            throw new ScriptExecutionException("script.input_missing", $"Required script input '{missing.Name}' is missing.");
+            throw new ScriptExecutionException("script.input_missing", $"Required script input '{missing.Name}' is missing. 缺少必需的脚本输入“{missing.Name}”。");
     }
 
     private static Dictionary<string, object?> MapOutputs(ScriptNodeDefinition definition, Value result)
@@ -105,7 +106,7 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
             };
 
         if (result is not ObjectValue objectResult)
-            throw new ScriptExecutionException("script.output_shape_invalid", "A script with multiple outputs must return an object.");
+            throw new ScriptExecutionException("script.output_shape_invalid", "A script with multiple outputs must return an object. 包含多个输出的脚本必须返回对象。");
 
         var outputs = new Dictionary<string, object?>(StringComparer.Ordinal);
         foreach (var output in definition.Outputs)

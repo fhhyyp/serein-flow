@@ -9,7 +9,17 @@ using SereinFlow.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddProblemDetails();
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = context =>
+    {
+        if (context.HttpContext.Response.StatusCode >= StatusCodes.Status500InternalServerError)
+        {
+            context.ProblemDetails.Title = "An unexpected server error occurred. 服务器发生未预期错误。";
+            context.ProblemDetails.Detail = "Please retry the request or contact support. 请重试请求或联系支持人员。";
+        }
+    };
+});
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy
     .AllowAnyOrigin()
     .AllowAnyHeader()
@@ -78,20 +88,20 @@ projects.MapPut("/{projectId:guid}", (Guid projectId, RenameProjectRequestDto re
 {
     if (request.ExpectedVersion < 1 || string.IsNullOrWhiteSpace(request.Name))
     {
-        return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "A non-empty project name and a positive expected version are required.");
+        return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "A non-empty project name and a positive expected version are required. 项目名称不能为空，期望版本必须为正数。");
     }
 
     var project = projectRepository.Find(projectId);
     if (project is null)
     {
-        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Project not found.");
+        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Project not found. 未找到项目。");
     }
 
     if (project.Version != request.ExpectedVersion)
     {
         return Results.Problem(
             statusCode: StatusCodes.Status409Conflict,
-            title: "The project was changed by another editor.",
+            title: "The project was changed by another editor. 项目已被其他编辑器修改。",
             extensions: new Dictionary<string, object?>
             {
                 ["currentVersion"] = project.Version
@@ -103,7 +113,7 @@ projects.MapPut("/{projectId:guid}", (Guid projectId, RenameProjectRequestDto re
     {
         return Results.Problem(
             statusCode: StatusCodes.Status409Conflict,
-            title: "The project was changed by another editor.",
+            title: "The project was changed by another editor. 项目已被其他编辑器修改。",
             extensions: new Dictionary<string, object?>
             {
                 ["currentVersion"] = projectRepository.Find(projectId)?.Version
@@ -122,12 +132,12 @@ projects.MapGet("/{projectId:guid}/flows/{flowId:guid}", (Guid projectId, Guid f
 {
     if (projectRepository.Find(projectId) is null)
     {
-        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Project not found.");
+        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Project not found. 未找到项目。");
     }
 
     var flow = flowRepository.Find(projectId, flowId);
     return flow is null
-        ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Flow definition not found.")
+        ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Flow definition not found. 未找到流程定义。")
         : Results.Ok(flow);
 });
 
@@ -135,12 +145,12 @@ projects.MapPut("/{projectId:guid}/flows/{flowId:guid}", (Guid projectId, Guid f
 {
     if (request.ExpectedVersion < 1 || request.Definition.Id != flowId)
     {
-        return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The flow route and version must match the update request.");
+        return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The flow route and version must match the update request. 流程路由和版本必须与更新请求一致。");
     }
 
     if (projectRepository.Find(projectId) is null || flowRepository.Find(projectId, flowId) is null)
     {
-        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Flow definition not found.");
+        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Flow definition not found. 未找到流程定义。");
     }
 
     var validation = FlowDefinitionContractValidator.Validate(request.Definition);
@@ -153,7 +163,7 @@ projects.MapPut("/{projectId:guid}/flows/{flowId:guid}", (Guid projectId, Guid f
     return saved is null
         ? Results.Problem(
             statusCode: StatusCodes.Status409Conflict,
-            title: "Flow definition was changed by another editor.",
+            title: "Flow definition was changed by another editor. 流程定义已被其他编辑器修改。",
             extensions: new Dictionary<string, object?>
             {
                 ["currentVersion"] = flowRepository.Find(projectId, flowId)?.Version
@@ -169,7 +179,7 @@ libraries.MapGet("/{libraryId}", (string libraryId, ILibraryCatalogService libra
 {
     var library = libraryCatalog.Find(libraryId);
     return library is null
-        ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Library not found.")
+        ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Library not found. 未找到类库。")
         : Results.Ok(library);
 });
 
@@ -177,14 +187,14 @@ async Task<IResult> UploadLibraryAsync(HttpRequest request, ILibraryCatalogServi
 {
     if (!request.HasFormContentType)
     {
-        return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "A multipart form upload is required.");
+        return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "A multipart form upload is required. 必须使用 multipart 表单上传文件。");
     }
 
     var form = await request.ReadFormAsync(cancellationToken);
     var file = form.Files.GetFile("file") ?? (form.Files.Count > 0 ? form.Files[0] : null);
     if (file is null)
     {
-        return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The upload must include a file field named 'file'.");
+        return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The upload must include a file field named 'file'. 上传请求必须包含名为 file 的文件字段。");
     }
 
     try
@@ -195,36 +205,38 @@ async Task<IResult> UploadLibraryAsync(HttpRequest request, ILibraryCatalogServi
     }
     catch (LibraryUploadException exception)
     {
-        return Results.Problem(statusCode: exception.StatusCode, title: "Library upload rejected.", detail: exception.Message);
+        return Results.Problem(statusCode: exception.StatusCode, title: "Library upload rejected. 类库上传已拒绝。", detail: exception.Message);
     }
 }
 
 // Keep both names during the transition so the TRAE client contract
 // (POST /api/Libraries/upload-zip) and the new lower-case REST contract work.
+// 过渡期间保留两个路径，以兼容 TRAE 客户端契约和新的小写 REST 契约。
 libraries.MapPost("/upload", UploadLibraryAsync);
 libraries.MapPost("/upload-zip", UploadLibraryAsync);
 
 libraries.MapDelete("/{libraryId}", (string libraryId, ILibraryCatalogService libraryCatalog) =>
     libraryCatalog.Delete(libraryId)
         ? Results.NoContent()
-        : Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Library not found."));
+        : Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Library not found. 未找到类库。"));
 
 // Singular aliases mirror the existing TRAE client service paths while the
 // plural route remains the canonical REST contract for this project.
+// 单数别名对应现有 TRAE 客户端服务路径，复数路径仍是本项目的标准 REST 契约。
 var legacyLibraries = app.MapGroup("/api/library");
 legacyLibraries.MapGet("", (ILibraryCatalogService libraryCatalog) => Results.Ok(libraryCatalog.List()));
 legacyLibraries.MapGet("/{libraryId}", (string libraryId, ILibraryCatalogService libraryCatalog) =>
 {
     var library = libraryCatalog.Find(libraryId);
     return library is null
-        ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Library not found.")
+        ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Library not found. 未找到类库。")
         : Results.Ok(library);
 });
 legacyLibraries.MapGet("/{libraryId}/nodes", (string libraryId, ILibraryCatalogService libraryCatalog) =>
 {
     var library = libraryCatalog.Find(libraryId);
     return library is null
-        ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Library not found.")
+        ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Library not found. 未找到类库。")
         : Results.Ok(library.Nodes);
 });
 legacyLibraries.MapPost("/upload", UploadLibraryAsync);
@@ -232,7 +244,7 @@ legacyLibraries.MapPost("/upload-zip", UploadLibraryAsync);
 legacyLibraries.MapDelete("/{libraryId}", (string libraryId, ILibraryCatalogService libraryCatalog) =>
     libraryCatalog.Delete(libraryId)
         ? Results.NoContent()
-        : Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Library not found."));
+        : Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Library not found. 未找到类库。"));
 
 app.Run();
 

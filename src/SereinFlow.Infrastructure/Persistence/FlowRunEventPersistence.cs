@@ -16,7 +16,8 @@ public sealed class SqlSugarFlowRunEventStore : IFlowRunEventStore
 
     public void Append(IReadOnlyList<FlowRunEvent> events)
     {
-        ArgumentNullException.ThrowIfNull(events);
+        if (events is null)
+            throw new ArgumentNullException(nameof(events), "Flow run events cannot be null. 流程运行事件集合不能为空。");
         if (events.Count == 0)
         {
             return;
@@ -37,7 +38,7 @@ public sealed class SqlSugarFlowRunEventStore : IFlowRunEventStore
                     new SugarParameter("@timestamp", item.Timestamp.ToString("O")));
                 if (affected != 1)
                 {
-                    throw new InvalidOperationException($"Event sequence {item.Sequence} could not be inserted.");
+                    throw new InvalidOperationException($"Event sequence {item.Sequence} could not be inserted. 事件序列 {item.Sequence} 无法写入。");
                 }
             }
 
@@ -46,7 +47,7 @@ public sealed class SqlSugarFlowRunEventStore : IFlowRunEventStore
         catch (Exception exception)
         {
             _database.Client.Ado.RollbackTran();
-            throw new InvalidOperationException("Flow run event append failed; the batch was rolled back.", exception);
+            throw new InvalidOperationException("Flow run event append failed; the batch was rolled back. 流程运行事件追加失败，批处理已回滚。", exception);
         }
     }
 

@@ -88,7 +88,7 @@ public sealed class ConnectionDefinition
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new ArgumentException("Connection identifiers and endpoints cannot be empty.", parameterName);
+            throw new ArgumentException("Connection identifiers and endpoints cannot be empty. 连接标识和端点不能为空。", parameterName);
         }
 
         return value.Trim();

@@ -22,6 +22,10 @@
     <TestLibraryZipPath>$(TestLibraryArtifactDirectory)$(TestLibraryPackageName).zip</TestLibraryZipPath>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\SereinFlow.Contracts\SereinFlow.Contracts.csproj" />
+  </ItemGroup>
+
   <Target Name="CreateTestLibraryUploadPackage" AfterTargets="Build" Condition="'$(DesignTimeBuild)' != 'true'">
     <RemoveDir Directories="$(TestLibraryStagingRoot)" />
     <MakeDir Directories="$(TestLibraryStagingDirectory);$(TestLibraryArtifactDirectory)" />

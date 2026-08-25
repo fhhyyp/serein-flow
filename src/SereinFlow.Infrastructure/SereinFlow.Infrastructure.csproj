@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SereinFlow.Application\SereinFlow.Application.csproj" />
+    <ProjectReference Include="..\SereinFlow.Contracts\SereinFlow.Contracts.csproj" />
     <ProjectReference Include="..\SereinFlow.Domain\SereinFlow.Domain.csproj" />
   </ItemGroup>
 

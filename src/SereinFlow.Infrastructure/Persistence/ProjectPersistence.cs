@@ -31,7 +31,8 @@ public sealed class SqlSugarProjectRepository : IProjectRepository
 
     public void Add(Project project)
     {
-        ArgumentNullException.ThrowIfNull(project);
+        if (project is null)
+            throw new ArgumentNullException(nameof(project), "The project cannot be null. 项目不能为空。");
         _database.Execute(
             "INSERT INTO Projects (Id, Name, Version, Status, CreatedAt, UpdatedAt) VALUES (@id, @name, @version, @status, @createdAt, @updatedAt)",
             new SugarParameter("@id", project.Id.ToString("D")),
@@ -44,7 +45,8 @@ public sealed class SqlSugarProjectRepository : IProjectRepository
 
     public bool TryUpdate(Project project, long expectedVersion)
     {
-        ArgumentNullException.ThrowIfNull(project);
+        if (project is null)
+            throw new ArgumentNullException(nameof(project), "The project cannot be null. 项目不能为空。");
         var affected = _database.Execute(
             "UPDATE Projects SET Name = @name, Version = @version, Status = @status, UpdatedAt = @updatedAt WHERE Id = @id AND Version = @expectedVersion",
             new SugarParameter("@name", project.Name),

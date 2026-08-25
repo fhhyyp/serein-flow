@@ -178,6 +178,8 @@ export function useNodeDrop(options: NodeDropOptions) {
     // A browser may hide custom MIME types while a drag is crossing
     // component boundaries. Always accept the dragover so the subsequent
     // drop event can expose the payload through one of the supported types.
+    // 拖拽跨越组件边界时，浏览器可能隐藏自定义 MIME 类型；始终接受 dragover，
+    // 让后续 drop 事件可以通过受支持的类型暴露载荷。
     event.preventDefault()
     dataTransfer.dropEffect = 'copy'
     options.isCanvasDropActive.value = true

@@ -7,7 +7,9 @@ namespace SereinFlow.ScriptAdapter;
 
 /// <summary>
 /// Converts only the JSON-compatible value boundary used by Worker DTOs.
+/// 仅转换 Worker DTO 使用的 JSON 兼容值边界。
 /// CLR objects, methods and delegates are deliberately rejected on output.
+/// CLR 对象、方法和委托在输出时会被明确拒绝。
 /// </summary>
 public static class ScriptValueConverter
 {
@@ -34,15 +36,16 @@ public static class ScriptValueConverter
             char character => StringValue.Create(character.ToString()),
             IDictionary dictionary => FromDictionary(dictionary),
             IEnumerable sequence when value is not string => FromSequence(sequence),
-            _ => throw new NotSupportedException($"Value type '{value.GetType().FullName}' is not supported by the script boundary.")
+            _ => throw new NotSupportedException($"Value type '{value.GetType().FullName}' is not supported by the script boundary. 脚本边界不支持值类型“{value.GetType().FullName}”。")
         };
     }
 
     public static object? ToClrValue(Value value, int maxDepth = 32, int maxItems = 10_000)
     {
-        ArgumentNullException.ThrowIfNull(value);
+        if (value is null)
+            throw new ArgumentNullException(nameof(value), "The script value cannot be null. 脚本值不能为空。");
         if (maxDepth < 0)
-            throw new InvalidOperationException("Script output exceeded the maximum nesting depth.");
+            throw new InvalidOperationException("Script output exceeded the maximum nesting depth. 脚本输出超过最大嵌套深度。");
 
         return value switch
         {
@@ -58,7 +61,7 @@ public static class ScriptValueConverter
             ObjectValue obj => ToClrObject(obj, maxDepth, maxItems),
             DateTimeValue dateTime => dateTime.Value,
             TimeSpanValue timeSpan => timeSpan.Value,
-            _ => throw new NotSupportedException($"Script output type '{value.GetType().Name}' is not serializable.")
+            _ => throw new NotSupportedException($"Script output type '{value.GetType().Name}' is not serializable. 脚本输出类型“{value.GetType().Name}”无法序列化。")
         };
     }
 
@@ -75,7 +78,7 @@ public static class ScriptValueConverter
             JsonValueKind.Number => NumberValueFactory.Create(element.GetDouble()),
             JsonValueKind.Array => new ArrayValue(element.EnumerateArray().Select(FromJsonElement).ToList()),
             JsonValueKind.Object => new ObjectValue(element.EnumerateObject().ToDictionary(p => p.Name, p => FromJsonElement(p.Value), StringComparer.Ordinal)),
-            _ => throw new NotSupportedException($"JSON value kind '{element.ValueKind}' is not supported.")
+            _ => throw new NotSupportedException($"JSON value kind '{element.ValueKind}' is not supported. 不支持 JSON 值类型“{element.ValueKind}”。")
         };
 
     private static ObjectValue FromDictionary(IDictionary dictionary)
@@ -84,7 +87,7 @@ public static class ScriptValueConverter
         foreach (DictionaryEntry entry in dictionary)
         {
             if (entry.Key is not string key || string.IsNullOrWhiteSpace(key))
-                throw new NotSupportedException("Script object keys must be non-empty strings.");
+                throw new NotSupportedException("Script object keys must be non-empty strings. 脚本对象键必须是非空字符串。");
             result[key] = ToScriptValue(entry.Value);
         }
         return new ObjectValue(result);
@@ -101,14 +104,14 @@ public static class ScriptValueConverter
     private static object?[] ToClrArray(ArrayValue array, int maxDepth, int maxItems)
     {
         if (array.Elements.Count > maxItems)
-            throw new InvalidOperationException("Script output exceeded the maximum item count.");
+            throw new InvalidOperationException("Script output exceeded the maximum item count. 脚本输出超过最大项目数。");
         return array.Elements.Select(item => ToClrValue(item, maxDepth - 1, maxItems)).ToArray();
     }
 
     private static Dictionary<string, object?> ToClrObject(ObjectValue value, int maxDepth, int maxItems)
     {
         if (value.Properties.Count > maxItems)
-            throw new InvalidOperationException("Script output exceeded the maximum property count.");
+            throw new InvalidOperationException("Script output exceeded the maximum property count. 脚本输出超过最大属性数。");
         return value.Properties.ToDictionary(
             pair => pair.Key,
             pair => ToClrValue(pair.Value, maxDepth - 1, maxItems),

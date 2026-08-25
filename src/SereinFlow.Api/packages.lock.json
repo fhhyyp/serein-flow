@@ -272,6 +272,7 @@
         "dependencies": {
           "Microsoft.Data.Sqlite": "[10.0.11, )",
           "SereinFlow.Application": "[1.0.0, )",
+          "SereinFlow.Contracts": "[1.0.0, )",
           "SereinFlow.Domain": "[1.0.0, )",
           "SqlSugarCore": "[5.1.4.217, )"
         }

@@ -37,7 +37,8 @@ public sealed class Project
         DateTimeOffset updatedAt)
     {
         ValidateName(name);
-        ArgumentOutOfRangeException.ThrowIfLessThan(version, 1);
+        if (version < 1)
+            throw new ArgumentOutOfRangeException(nameof(version), "Project version must be positive. 项目版本必须为正数。");
         var project = new Project(id, name.Trim(), createdAt)
         {
             Version = version,
@@ -73,7 +74,7 @@ public sealed class Project
     {
         if (string.IsNullOrWhiteSpace(name))
         {
-            throw new ArgumentException("Project name cannot be empty.", nameof(name));
+            throw new ArgumentException("Project name cannot be empty. 项目名称不能为空。", nameof(name));
         }
     }
 }

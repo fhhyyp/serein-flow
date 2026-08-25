@@ -24,7 +24,7 @@ public sealed record PortDefinition
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new ArgumentException("Port identifiers and names cannot be empty.", parameterName);
+            throw new ArgumentException("Port identifiers and names cannot be empty. 端口标识和名称不能为空。", parameterName);
         }
 
         return value.Trim();
@@ -57,7 +57,7 @@ public sealed record NodeParameterDefinition
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new ArgumentException("Parameter names cannot be empty.", parameterName);
+            throw new ArgumentException("Parameter names cannot be empty. 参数名称不能为空。", parameterName);
         }
 
         return value.Trim();
@@ -121,7 +121,7 @@ public sealed class NodeDefinition
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new ArgumentException("Node identifiers and display names cannot be empty.", parameterName);
+            throw new ArgumentException("Node identifiers and display names cannot be empty. 节点标识和显示名称不能为空。", parameterName);
         }
 
         return value.Trim();

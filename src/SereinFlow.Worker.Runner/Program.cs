@@ -26,7 +26,7 @@ public static class RunnerHost
         var handshake = await WorkerProtocolCodec.ReadAsync(reader, cancellationToken);
         if (handshake is null || handshake.Kind != WorkerProtocolConstants.HandshakeKind)
         {
-            await SendErrorAsync(writer, "worker.handshake_required", "The runner requires a handshake before a run.", cancellationToken);
+            await SendErrorAsync(writer, "worker.handshake_required", "The runner requires a handshake before a run. Worker Runner 必须先完成握手才能运行。", cancellationToken);
             return 2;
         }
 
@@ -35,7 +35,7 @@ public static class RunnerHost
         var runMessage = await WorkerProtocolCodec.ReadAsync(reader, cancellationToken);
         if (runMessage is null || runMessage.Kind != WorkerProtocolConstants.RunKind || runMessage.RunId is null)
         {
-            await SendErrorAsync(writer, "worker.run_required", "The runner requires one run request.", cancellationToken);
+            await SendErrorAsync(writer, "worker.run_required", "The runner requires one run request. Worker Runner 需要一个运行请求。", cancellationToken);
             return 2;
         }
 
@@ -133,13 +133,13 @@ public static class RunnerHost
                         request.RunId,
                         FlowRunStatusDto.Cancelled,
                         "worker.cancelled",
-                        "The worker run was cancelled.")),
+                        "The worker run was cancelled. Worker 运行已取消。")),
                     request.RunId),
                 CancellationToken.None);
         }
         catch (Exception exception)
         {
-            await SendErrorAsync(writer, "worker.run_failed", exception.Message, CancellationToken.None, request.RunId);
+            await SendErrorAsync(writer, "worker.run_failed", $"The worker run failed. Worker 运行失败。 {exception.Message}", CancellationToken.None, request.RunId);
         }
     }
 
@@ -198,7 +198,7 @@ public static class FlowDefinitionMapper
     public static FlowDefinition Map(string definitionJson)
     {
         var dto = JsonSerializer.Deserialize<FlowDefinitionDto>(definitionJson, Options)
-            ?? throw new InvalidOperationException("Flow definition payload is empty.");
+            ?? throw new InvalidOperationException("Flow definition payload is empty. 流程定义载荷为空。");
         return FlowDefinition.Create(
             dto.Id,
             dto.Version,

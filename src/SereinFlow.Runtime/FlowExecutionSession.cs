@@ -25,13 +25,15 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
 
     public object? Read(string key)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        if (string.IsNullOrWhiteSpace(key))
+            throw new ArgumentException("Execution context keys cannot be empty. 执行上下文键不能为空。", nameof(key));
         return _values.TryGetValue(key, out var value) ? value : null;
     }
 
     public void Write(string key, object? value)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        if (string.IsNullOrWhiteSpace(key))
+            throw new ArgumentException("Execution context keys cannot be empty. 执行上下文键不能为空。", nameof(key));
         _values[key] = value;
     }
 

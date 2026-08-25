@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using SereinFlow.Application;
 using SereinFlow.Contracts;
+using SereinFlow.Core.Api;
 using SqlSugar;
 
 namespace SereinFlow.Infrastructure.Persistence;
@@ -22,12 +23,15 @@ public sealed record LibraryCatalogOptions
     {
         if (string.IsNullOrWhiteSpace(rootPath))
         {
-            throw new ArgumentException("Library root path cannot be empty.", nameof(rootPath));
+            throw new ArgumentException("Library root path cannot be empty. 类库根目录不能为空。", nameof(rootPath));
         }
 
-        ArgumentOutOfRangeException.ThrowIfLessThan(maxPackageBytes, 1);
-        ArgumentOutOfRangeException.ThrowIfLessThan(maxUncompressedBytes, 1);
-        ArgumentOutOfRangeException.ThrowIfLessThan(maxEntries, 1);
+        if (maxPackageBytes < 1)
+            throw new ArgumentOutOfRangeException(nameof(maxPackageBytes), "Maximum package size must be positive. 最大包大小必须为正数。");
+        if (maxUncompressedBytes < 1)
+            throw new ArgumentOutOfRangeException(nameof(maxUncompressedBytes), "Maximum uncompressed size must be positive. 最大解压大小必须为正数。");
+        if (maxEntries < 1)
+            throw new ArgumentOutOfRangeException(nameof(maxEntries), "Maximum entry count must be positive. 最大条目数必须为正数。");
         RootPath = Path.GetFullPath(rootPath);
         MaxPackageBytes = maxPackageBytes;
         MaxUncompressedBytes = maxUncompressedBytes;
@@ -45,8 +49,10 @@ public sealed record LibraryCatalogOptions
 
 /// <summary>
 /// Persists uploaded class-library packages and their safe metadata catalog.
+/// 保存上传的类库包及其安全元数据目录。
 /// The API only reads ZIP/PE metadata; it never calls Assembly.Load or executes
 /// code from the uploaded package. The Worker boundary owns runtime loading.
+/// API 只读取 ZIP/PE 元数据，不调用 Assembly.Load，也不执行上传包中的代码；运行时加载由 Worker 边界负责。
 /// </summary>
 public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDisposable
 {
@@ -62,8 +68,8 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
     public SqliteLibraryCatalogService(SqliteDatabase database, LibraryCatalogOptions options)
     {
-        _database = database ?? throw new ArgumentNullException(nameof(database));
-        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _database = database ?? throw new ArgumentNullException(nameof(database), "The database cannot be null. 数据库不能为空。");
+        _options = options ?? throw new ArgumentNullException(nameof(options), "Library catalog options cannot be null. 类库目录选项不能为空。");
         Directory.CreateDirectory(_options.RootPath);
         Directory.CreateDirectory(PackagesPath);
     }
@@ -97,11 +103,12 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         long? declaredLength = null,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(package);
+        if (package is null)
+            throw new ArgumentNullException(nameof(package), "The library package stream cannot be null. 类库包流不能为空。");
         ValidateFileName(fileName);
         if (declaredLength is > 0 && declaredLength > _options.MaxPackageBytes)
         {
-            throw new LibraryUploadException($"类库压缩包不能超过 {_options.MaxPackageBytes / (1024 * 1024)} MB。", 413);
+            throw new LibraryUploadException($"The library package cannot exceed {_options.MaxPackageBytes / (1024 * 1024)} MB. 类库压缩包不能超过 {_options.MaxPackageBytes / (1024 * 1024)} MB。", 413);
         }
 
         await _gate.WaitAsync(cancellationToken);
@@ -141,11 +148,11 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         }
         catch (InvalidDataException exception)
         {
-            throw new LibraryUploadException("类库压缩包无法读取或已损坏。", exception);
+            throw new LibraryUploadException("The library package cannot be read or is corrupted. 类库压缩包无法读取或已损坏。", exception);
         }
         catch (JsonException exception)
         {
-            throw new LibraryUploadException("类库节点清单格式无效。", exception);
+            throw new LibraryUploadException("The library node catalog format is invalid. 类库节点清单格式无效。", exception);
         }
         finally
         {
@@ -204,7 +211,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             total += read;
             if (total > _options.MaxPackageBytes)
             {
-                throw new LibraryUploadException($"类库压缩包不能超过 {_options.MaxPackageBytes / (1024 * 1024)} MB。", 413);
+                throw new LibraryUploadException($"The library package cannot exceed {_options.MaxPackageBytes / (1024 * 1024)} MB. 类库压缩包不能超过 {_options.MaxPackageBytes / (1024 * 1024)} MB。", 413);
             }
 
             hash.AppendData(buffer, 0, read);
@@ -227,7 +234,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         using var archive = new ZipArchive(packageStream, ZipArchiveMode.Read, leaveOpen: false);
         if (archive.Entries.Count == 0 || archive.Entries.Count > _options.MaxEntries)
         {
-            throw new LibraryUploadException($"类库压缩包必须包含 1 到 {_options.MaxEntries} 个文件。", 422);
+            throw new LibraryUploadException($"The library package must contain between 1 and {_options.MaxEntries} files. 类库压缩包必须包含 1 到 {_options.MaxEntries} 个文件。", 422);
         }
 
         long uncompressedBytes = 0;
@@ -237,12 +244,12 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             var normalizedName = entry.FullName.Replace('\\', '/');
             if (Path.IsPathRooted(normalizedName) || normalizedName.Split('/').Any(static segment => segment is ".."))
             {
-                throw new LibraryUploadException("类库压缩包包含不安全的路径。", 422);
+                throw new LibraryUploadException("The library package contains an unsafe path. 类库压缩包包含不安全的路径。", 422);
             }
 
             if (entry.Length > _options.MaxUncompressedBytes || (uncompressedBytes += entry.Length) > _options.MaxUncompressedBytes)
             {
-                throw new LibraryUploadException("类库解压后的内容超过安全大小限制。", 422);
+                throw new LibraryUploadException("The uncompressed library content exceeds the safety limit. 类库解压后的内容超过安全大小限制。", 422);
             }
 
             if (string.Equals(Path.GetFileName(normalizedName), $"{libraryName}.dll", StringComparison.OrdinalIgnoreCase))
@@ -253,7 +260,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
         if (dllEntry is null)
         {
-            throw new LibraryUploadException($"压缩包中未找到与类库同名的 {libraryName}.dll。", 422);
+            throw new LibraryUploadException($"The package does not contain the library-matching file {libraryName}.dll. 压缩包中未找到与类库同名的 {libraryName}.dll。", 422);
         }
 
         var dllMemory = new MemoryStream();
@@ -283,7 +290,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             || !string.Equals(safeName, fileName, StringComparison.Ordinal)
             || !safeName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
         {
-            throw new LibraryUploadException("只能上传 ZIP 类库压缩包。", 400);
+            throw new LibraryUploadException("Only ZIP library packages can be uploaded. 只能上传 ZIP 类库压缩包。", 400);
         }
     }
 
@@ -293,14 +300,14 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         var separator = stem.LastIndexOf('-');
         if (separator <= 0 || separator == stem.Length - 1)
         {
-            throw new LibraryUploadException("文件名格式不正确，应为：[类库名称]-[版本号].zip。", 422);
+            throw new LibraryUploadException("The filename must use the format [library-name]-[version].zip. 文件名格式不正确，应为：[类库名称]-[版本号].zip。", 422);
         }
 
         var name = stem[..separator].Trim();
         var version = stem[(separator + 1)..].Trim();
         if (name.Length == 0 || version.Length == 0 || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
         {
-            throw new LibraryUploadException("类库名称或版本号无效。", 422);
+            throw new LibraryUploadException("The library name or version is invalid. 类库名称或版本号无效。", 422);
         }
 
         return (name, version);
@@ -358,7 +365,10 @@ internal static class LibraryMetadataScanner
             foreach (var typeHandle in reader.TypeDefinitions)
             {
                 var type = reader.GetTypeDefinition(typeHandle);
-                if (!HasAttribute(reader, type.GetCustomAttributes(), "FlowLibraryAttribute"))
+                if (!FindAttribute(
+                        reader,
+                        type.GetCustomAttributes(),
+                        LibraryAttributeContract.FlowLibraryAttributeFullName).HasValue)
                 {
                     continue;
                 }
@@ -367,24 +377,35 @@ internal static class LibraryMetadataScanner
                 foreach (var methodHandle in type.GetMethods())
                 {
                     var method = reader.GetMethodDefinition(methodHandle);
-                    if (!HasAttribute(reader, method.GetCustomAttributes(), "FlowNodeAttribute"))
+                    var nodeAttribute = FindAttribute(
+                        reader,
+                        method.GetCustomAttributes(),
+                        LibraryAttributeContract.FlowNodeAttributeFullName);
+                    if (!nodeAttribute.HasValue)
                     {
                         continue;
                     }
 
                     var signature = method.DecodeSignature(provider, null);
-                    var nodeAttribute = method.GetCustomAttributes().First(attribute => GetAttributeName(reader, attribute).EndsWith("FlowNodeAttribute", StringComparison.Ordinal));
-                    var nodeMetadata = ReadNodeMetadata(reader, nodeAttribute, provider);
+                    var nodeMetadata = ReadNodeMetadata(reader, nodeAttribute.Value, provider);
                     var parameters = method.GetParameters()
                         .Select(reader.GetParameter)
                         .Where(static parameter => parameter.SequenceNumber > 0)
                         .OrderBy(static parameter => parameter.SequenceNumber)
-                        .Select((parameter, index) => new LibraryParameterDto(
-                            $"param-{index + 1}",
-                            parameter.Name.IsNil ? $"param{index + 1}" : reader.GetString(parameter.Name),
-                            signature.ParameterTypes.Length > index ? signature.ParameterTypes[index] : "System.Object",
-                            null,
-                            (parameter.Attributes & ParameterAttributes.Optional) == 0))
+                        .Select((parameter, index) =>
+                        {
+                            var parameterMetadata = ReadParameterMetadata(reader, parameter, provider);
+                            var parameterName = parameterMetadata.Name
+                                ?? (parameter.Name.IsNil ? $"param{index + 1}" : reader.GetString(parameter.Name));
+                            var isRequired = (parameter.Attributes & ParameterAttributes.Optional) == 0
+                                && parameterMetadata.IsExplicit;
+                            return new LibraryParameterDto(
+                                $"param-{index + 1}",
+                                parameterName,
+                                signature.ParameterTypes.Length > index ? signature.ParameterTypes[index] : "System.Object",
+                                null,
+                                isRequired);
+                        })
                         .ToArray();
 
                     var methodName = reader.GetString(method.Name);
@@ -418,25 +439,33 @@ internal static class LibraryMetadataScanner
         }
     }
 
-    private static bool HasAttribute(MetadataReader reader, CustomAttributeHandleCollection attributes, string suffix)
-        => attributes.Any(attribute => GetAttributeName(reader, attribute).EndsWith(suffix, StringComparison.Ordinal));
+    private static CustomAttributeHandle? FindAttribute(
+        MetadataReader reader,
+        CustomAttributeHandleCollection attributes,
+        string fullName)
+    {
+        foreach (var attribute in attributes)
+        {
+            if (string.Equals(GetAttributeName(reader, attribute), fullName, StringComparison.Ordinal))
+            {
+                return attribute;
+            }
+        }
+
+        return null;
+    }
 
     private static NodeMetadata ReadNodeMetadata(MetadataReader reader, CustomAttributeHandle handle, MetadataTypeNameProvider provider)
     {
         try
         {
             var value = reader.GetCustomAttribute(handle).DecodeValue(provider);
-            var typeValue = value.NamedArguments.FirstOrDefault(argument => argument.Name == "NodeType").Value;
-            var nodeType = typeValue switch
-            {
-                byte byteValue when byteValue == 1 => NodeTypeDto.Flipflop,
-                short shortValue when shortValue == 1 => NodeTypeDto.Flipflop,
-                int intValue when intValue == 1 => NodeTypeDto.Flipflop,
-                long longValue when longValue == 1 => NodeTypeDto.Flipflop,
-                _ => NodeTypeDto.Action,
-            };
-            var displayName = value.NamedArguments.FirstOrDefault(argument => argument.Name == "AnotherName").Value as string;
-            var description = value.NamedArguments.FirstOrDefault(argument => argument.Name == "Desc").Value as string;
+            var typeValue = ReadNamedValue(value, LibraryAttributeContract.NodeTypePropertyName);
+            var nodeType = IsEnumValue(typeValue, NodeType.Flipflop)
+                ? NodeTypeDto.Flipflop
+                : NodeTypeDto.Action;
+            var displayName = ReadNamedValue(value, LibraryAttributeContract.DisplayNamePropertyName) as string;
+            var description = ReadNamedValue(value, LibraryAttributeContract.DescriptionPropertyName) as string;
             return new NodeMetadata(nodeType, string.IsNullOrWhiteSpace(displayName) ? null : displayName, string.IsNullOrWhiteSpace(description) ? null : description);
         }
         catch (BadImageFormatException)
@@ -446,6 +475,70 @@ internal static class LibraryMetadataScanner
         catch (ArgumentException)
         {
             return new NodeMetadata(NodeTypeDto.Action, null, null);
+        }
+    }
+
+    private static ParameterMetadata ReadParameterMetadata(
+        MetadataReader reader,
+        Parameter parameter,
+        MetadataTypeNameProvider provider)
+    {
+        var handle = FindAttribute(
+            reader,
+            parameter.GetCustomAttributes(),
+            LibraryAttributeContract.NodeParamAttributeFullName);
+        if (!handle.HasValue)
+        {
+            return new ParameterMetadata(null, true);
+        }
+
+        try
+        {
+            var value = reader.GetCustomAttribute(handle.Value).DecodeValue(provider);
+            var name = ReadNamedValue(value, LibraryAttributeContract.ParameterNamePropertyName) as string;
+            var explicitValue = ReadNamedValue(value, LibraryAttributeContract.IsExplicitPropertyName);
+            var isExplicit = explicitValue is bool boolValue ? boolValue : true;
+            return new ParameterMetadata(
+                string.IsNullOrWhiteSpace(name) ? null : name,
+                isExplicit);
+        }
+        catch (BadImageFormatException)
+        {
+            return new ParameterMetadata(null, true);
+        }
+        catch (ArgumentException)
+        {
+            return new ParameterMetadata(null, true);
+        }
+    }
+
+    private static object? ReadNamedValue(CustomAttributeValue<string> value, string name)
+        => value.NamedArguments
+            .FirstOrDefault(argument => string.Equals(argument.Name, name, StringComparison.Ordinal))
+            .Value;
+
+    private static bool IsEnumValue(object? value, NodeType expected)
+    {
+        if (value is not IConvertible convertible)
+        {
+            return false;
+        }
+
+        try
+        {
+            return Convert.ToInt32(convertible, System.Globalization.CultureInfo.InvariantCulture) == (int)expected;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+        catch (InvalidCastException)
+        {
+            return false;
+        }
+        catch (OverflowException)
+        {
+            return false;
         }
     }
 
@@ -490,6 +583,8 @@ internal static class LibraryMetadataScanner
 }
 
 internal sealed record NodeMetadata(NodeTypeDto Type, string? DisplayName, string? Description);
+
+internal sealed record ParameterMetadata(string? Name, bool IsExplicit);
 
 internal sealed record LibraryScanResult(string AssemblyName, string AssemblyVersion, IReadOnlyList<LibraryNodeDto> Nodes);
 

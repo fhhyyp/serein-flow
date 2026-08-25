@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using SereinFlow.Application;
 using SereinFlow.Infrastructure.Persistence;
+using SereinFlow.TestLibrary;
 
 namespace SereinFlow.Infrastructure.Tests;
 
@@ -57,6 +58,40 @@ public sealed class LibraryCatalogTests
 
             Assert.Equal(422, error.StatusCode);
             Assert.Empty(catalog.List());
+        }
+        finally
+        {
+            TryDelete(databasePath);
+            TryDeleteDirectory(libraryRoot);
+        }
+    }
+
+    [Fact]
+    public async Task UploadReadsSharedLibraryAttributesAndParameterMetadata()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"sereinflow-library-{Guid.NewGuid():N}.db");
+        var libraryRoot = Path.Combine(Path.GetTempPath(), $"sereinflow-library-{Guid.NewGuid():N}");
+        try
+        {
+            using var database = new SqliteDatabase(new SqliteDatabaseOptions(databasePath));
+            database.Initialize();
+            var catalog = new SqliteLibraryCatalogService(database, new LibraryCatalogOptions(libraryRoot));
+            await using var package = CreatePackage(
+                "SereinFlow.TestLibrary-1.0.0.zip",
+                "SereinFlow.TestLibrary.dll",
+                typeof(MathNodes).Assembly.Location);
+
+            var result = await catalog.UploadAsync(package, "SereinFlow.TestLibrary-1.0.0.zip");
+
+            Assert.Equal(5, result.Library.Nodes.Count);
+            var add = Assert.Single(result.Library.Nodes, node => node.MethodName == "Add");
+            Assert.Equal(SereinFlow.Contracts.NodeTypeDto.Action, add.Type);
+            Assert.Equal("Add numbers", add.DisplayName);
+            Assert.Equal("Adds two integers.", add.Description);
+            Assert.Equal(["left", "right"], add.Parameters.Select(parameter => parameter.Name).ToArray());
+
+            var flipflop = Assert.Single(result.Library.Nodes, node => node.MethodName == "IsPositive");
+            Assert.Equal(SereinFlow.Contracts.NodeTypeDto.Flipflop, flipflop.Type);
         }
         finally
         {

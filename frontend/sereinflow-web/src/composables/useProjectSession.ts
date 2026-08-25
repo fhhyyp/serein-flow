@@ -48,6 +48,7 @@ export function useProjectSession(options: UseProjectSessionOptions) {
       saveWorkspace(snapshot)
     } catch {
       // A recovery draft must not mask a server save result.
+      // 恢复草稿不能覆盖服务端保存结果。
     }
   }
 
@@ -62,6 +63,7 @@ export function useProjectSession(options: UseProjectSessionOptions) {
       options.savedWorkspaceFingerprint.value = JSON.stringify(savedSnapshot)
     } catch {
       // A malformed recovery fingerprint should not block the rename itself.
+      // 格式错误的恢复指纹不应阻止项目重命名本身。
     }
   }
 

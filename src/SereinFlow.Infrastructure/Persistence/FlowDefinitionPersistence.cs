@@ -38,7 +38,8 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
 
     public void Add(Guid projectId, FlowDefinitionDto definition)
     {
-        ArgumentNullException.ThrowIfNull(definition);
+        if (definition is null)
+            throw new ArgumentNullException(nameof(definition), "The flow definition cannot be null. 流程定义不能为空。");
         var serialized = Serialize(definition);
         _database.Execute(
             "INSERT INTO FlowDefinitions (Id, ProjectId, Version, DefinitionJson, Checksum) VALUES (@id, @projectId, @version, @definitionJson, @checksum)",
@@ -57,8 +58,10 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
 
     public FlowDefinitionDto? TryUpdate(Guid projectId, FlowDefinitionDto definition, long expectedVersion)
     {
-        ArgumentNullException.ThrowIfNull(definition);
-        ArgumentOutOfRangeException.ThrowIfLessThan(expectedVersion, 1);
+        if (definition is null)
+            throw new ArgumentNullException(nameof(definition), "The flow definition cannot be null. 流程定义不能为空。");
+        if (expectedVersion < 1)
+            throw new ArgumentOutOfRangeException(nameof(expectedVersion), "Expected flow version must be positive. 期望流程版本必须为正数。");
         var saved = definition with { Version = expectedVersion + 1 };
         var serialized = Serialize(saved);
 
@@ -101,7 +104,7 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
     private static FlowDefinitionDto Deserialize(FlowDefinitionRow row)
     {
         var definition = JsonSerializer.Deserialize<FlowDefinitionDto>(row.DefinitionJson, SerializerOptions)
-            ?? throw new InvalidOperationException($"Flow definition '{row.Id}' is empty.");
+            ?? throw new InvalidOperationException($"Flow definition '{row.Id}' is empty. 流程定义“{row.Id}”为空。");
         return definition with { Version = row.Version, Checksum = row.Checksum };
     }
 

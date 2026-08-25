@@ -24,8 +24,10 @@ public sealed class FlowRunner
         FlowExecutionSession session,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(definition);
-        ArgumentNullException.ThrowIfNull(session);
+        if (definition is null)
+            throw new ArgumentNullException(nameof(definition), "The flow definition cannot be null. 流程定义不能为空。");
+        if (session is null)
+            throw new ArgumentNullException(nameof(session), "The runtime session cannot be null. 运行时会话不能为空。");
         using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(session.CancellationToken, cancellationToken);
         var token = linkedCancellation.Token;
         var plan = _planBuilder.Build(definition);

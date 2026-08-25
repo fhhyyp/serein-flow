@@ -28,12 +28,14 @@ public sealed class CanvasDefinition
         IEnumerable<NodeDefinition> nodes,
         IEnumerable<ConnectionDefinition> connections)
     {
-        ArgumentNullException.ThrowIfNull(nodes);
-        ArgumentNullException.ThrowIfNull(connections);
+        if (nodes is null)
+            throw new ArgumentNullException(nameof(nodes), "Canvas nodes cannot be null. 画布节点集合不能为空。");
+        if (connections is null)
+            throw new ArgumentNullException(nameof(connections), "Canvas connections cannot be null. 画布连接集合不能为空。");
 
         if (string.IsNullOrWhiteSpace(id))
         {
-            throw new ArgumentException("Canvas ID cannot be empty.", nameof(id));
+            throw new ArgumentException("Canvas ID cannot be empty. 画布 ID 不能为空。", nameof(id));
         }
 
         return new CanvasDefinition(id.Trim(), lifecycle, nodes.ToArray(), connections.ToArray());

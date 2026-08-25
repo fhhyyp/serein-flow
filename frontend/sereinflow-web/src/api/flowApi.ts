@@ -1,4 +1,5 @@
 import type { FlowEdgeLineType } from '../flow/types'
+import { localizeMessage } from '../i18n'
 
 export type ApiNodeType = 'action' | 'flowCall' | 'globalData' | 'flipflop' | 'script' | 'condition' | 'value' | 'expression' | 'expOp' | 'expCondition' | 'trigger'
 export type ApiCanvasLifecycle = 'main' | 'init' | 'loading' | 'exit' | 'custom'
@@ -188,5 +189,5 @@ async function request<T>(path: string, options: { method?: 'POST' | 'PUT'; body
   }
 
   const problem = await response.json().catch(() => ({})) as ApiProblem
-  throw new FlowApiError(response.status, problem.detail ?? problem.title ?? `Request failed with status ${response.status}.`, problem.currentVersion)
+  throw new FlowApiError(response.status, localizeMessage(problem.detail ?? problem.title ?? `Request failed with status ${response.status}. 请求失败，状态码为 ${response.status}。`), problem.currentVersion)
 }

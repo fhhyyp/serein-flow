@@ -47,45 +47,47 @@ public static class WorkerProtocolCodec
 
     public static string Serialize(WorkerMessage message)
     {
-        ArgumentNullException.ThrowIfNull(message);
+        if (message is null)
+            throw new ArgumentNullException(nameof(message), "The worker message cannot be null. Worker 消息不能为空。");
         if (message.ProtocolVersion != WorkerProtocolConstants.Version)
-            throw new WorkerProtocolException("worker.protocol_mismatch", $"Unsupported protocol version '{message.ProtocolVersion}'.");
+            throw new WorkerProtocolException("worker.protocol_mismatch", $"Unsupported protocol version '{message.ProtocolVersion}'. 不支持的协议版本“{message.ProtocolVersion}”。");
 
         var json = JsonSerializer.Serialize(message, JsonOptions);
         var byteCount = Encoding.UTF8.GetByteCount(json);
         if (byteCount > WorkerProtocolConstants.MaxMessageBytes)
-            throw new WorkerProtocolException("worker.message_too_large", $"Worker message is limited to {WorkerProtocolConstants.MaxMessageBytes} bytes.");
+            throw new WorkerProtocolException("worker.message_too_large", $"Worker messages are limited to {WorkerProtocolConstants.MaxMessageBytes} bytes. Worker 消息大小不能超过 {WorkerProtocolConstants.MaxMessageBytes} 字节。");
         return json;
     }
 
     public static WorkerMessage Deserialize(string line)
     {
         if (string.IsNullOrWhiteSpace(line))
-            throw new WorkerProtocolException("worker.invalid_message", "Worker message cannot be empty.");
+            throw new WorkerProtocolException("worker.invalid_message", "Worker message cannot be empty. Worker 消息不能为空。");
         if (Encoding.UTF8.GetByteCount(line) > WorkerProtocolConstants.MaxMessageBytes)
-            throw new WorkerProtocolException("worker.message_too_large", $"Worker message is limited to {WorkerProtocolConstants.MaxMessageBytes} bytes.");
+            throw new WorkerProtocolException("worker.message_too_large", $"Worker messages are limited to {WorkerProtocolConstants.MaxMessageBytes} bytes. Worker 消息大小不能超过 {WorkerProtocolConstants.MaxMessageBytes} 字节。");
 
         try
         {
             var message = JsonSerializer.Deserialize<WorkerMessage>(line, JsonOptions)
-                ?? throw new WorkerProtocolException("worker.invalid_message", "Worker message payload is null.");
+                ?? throw new WorkerProtocolException("worker.invalid_message", "Worker message payload is null. Worker 消息载荷为空。");
             if (message.ProtocolVersion != WorkerProtocolConstants.Version)
-                throw new WorkerProtocolException("worker.protocol_mismatch", $"Unsupported protocol version '{message.ProtocolVersion}'.");
+                throw new WorkerProtocolException("worker.protocol_mismatch", $"Unsupported protocol version '{message.ProtocolVersion}'. 不支持的协议版本“{message.ProtocolVersion}”。");
             if (string.IsNullOrWhiteSpace(message.Kind) || string.IsNullOrWhiteSpace(message.RequestId))
-                throw new WorkerProtocolException("worker.invalid_message", "Worker message kind and requestId are required.");
+                throw new WorkerProtocolException("worker.invalid_message", "Worker message kind and requestId are required. Worker 消息类型和 requestId 不能为空。");
             if (message.PayloadJson is { Length: > WorkerProtocolConstants.MaxPayloadBytes })
-                throw new WorkerProtocolException("worker.payload_too_large", $"Worker payload is limited to {WorkerProtocolConstants.MaxPayloadBytes} characters.");
+                throw new WorkerProtocolException("worker.payload_too_large", $"Worker payloads are limited to {WorkerProtocolConstants.MaxPayloadBytes} characters. Worker 载荷不能超过 {WorkerProtocolConstants.MaxPayloadBytes} 个字符。");
             return message;
         }
         catch (JsonException exception)
         {
-            throw new WorkerProtocolException("worker.invalid_message", "Worker message is not valid JSON.", exception);
+            throw new WorkerProtocolException("worker.invalid_message", "Worker message is not valid JSON. Worker 消息不是有效的 JSON。", exception);
         }
     }
 
     public static async ValueTask WriteAsync(Stream stream, WorkerMessage message, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        if (stream is null)
+            throw new ArgumentNullException(nameof(stream), "The worker stream cannot be null. Worker 流不能为空。");
         var line = Serialize(message) + "\n";
         var bytes = Encoding.UTF8.GetBytes(line);
         await stream.WriteAsync(bytes, cancellationToken);
@@ -94,7 +96,8 @@ public static class WorkerProtocolCodec
 
     public static async ValueTask<WorkerMessage?> ReadAsync(StreamReader reader, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(reader);
+        if (reader is null)
+            throw new ArgumentNullException(nameof(reader), "The worker reader cannot be null. Worker 读取器不能为空。");
         var line = await reader.ReadLineAsync(cancellationToken);
         return line is null ? null : Deserialize(line);
     }
@@ -105,15 +108,15 @@ public static class WorkerProtocolCodec
     public static T DeserializePayload<T>(WorkerMessage message)
     {
         if (string.IsNullOrWhiteSpace(message.PayloadJson))
-            throw new WorkerProtocolException("worker.invalid_payload", $"Message '{message.Kind}' requires a payload.");
+            throw new WorkerProtocolException("worker.invalid_payload", $"Message '{message.Kind}' requires a payload. 消息“{message.Kind}”需要载荷。");
         try
         {
             return JsonSerializer.Deserialize<T>(message.PayloadJson, JsonOptions)
-                ?? throw new WorkerProtocolException("worker.invalid_payload", $"Message '{message.Kind}' payload is null.");
+                ?? throw new WorkerProtocolException("worker.invalid_payload", $"Message '{message.Kind}' payload is null. 消息“{message.Kind}”的载荷为空。");
         }
         catch (JsonException exception)
         {
-            throw new WorkerProtocolException("worker.invalid_payload", $"Message '{message.Kind}' payload is invalid.", exception);
+            throw new WorkerProtocolException("worker.invalid_payload", $"Message '{message.Kind}' payload is invalid. 消息“{message.Kind}”的载荷无效。", exception);
         }
     }
 }
@@ -125,7 +128,7 @@ public sealed class WorkerMessageWriter : IAsyncDisposable
 
     public WorkerMessageWriter(Stream stream)
     {
-        _stream = stream ?? throw new ArgumentNullException(nameof(stream));
+        _stream = stream ?? throw new ArgumentNullException(nameof(stream), "The worker stream cannot be null. Worker 流不能为空。");
     }
 
     public async ValueTask WriteAsync(WorkerMessage message, CancellationToken cancellationToken = default)

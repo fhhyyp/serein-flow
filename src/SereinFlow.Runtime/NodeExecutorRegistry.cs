@@ -9,12 +9,13 @@ public sealed class NodeExecutorRegistry
 
     public NodeExecutorRegistry(IEnumerable<INodeExecutor> executors)
     {
-        ArgumentNullException.ThrowIfNull(executors);
+        if (executors is null)
+            throw new ArgumentNullException(nameof(executors), "Node executors cannot be null. 节点执行器集合不能为空。");
         _executors = executors.ToDictionary(executor => executor.NodeType);
     }
 
     public INodeExecutor Get(NodeType nodeType)
         => _executors.TryGetValue(nodeType, out var executor)
             ? executor
-            : throw new InvalidOperationException($"No executor is registered for node type '{nodeType}'.");
+            : throw new InvalidOperationException($"No executor is registered for node type '{nodeType}'. 未注册节点类型“{nodeType}”的执行器。");
 }

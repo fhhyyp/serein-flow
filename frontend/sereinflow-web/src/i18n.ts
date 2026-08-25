@@ -119,6 +119,7 @@ const messages: Record<Locale, Record<string, string>> = {
     'canvas.noNodesToRun': '当前画布没有可运行节点。',
     'canvas.invalidConnection': '只能连接相同语义的端口。',
     'canvas.duplicateConnection': '该连接已经存在。',
+    'canvas.invalidNodeDrop': '无法放置节点。不能将该节点放置到当前画布。',
     'canvas.nodeAdded': '已将节点添加到当前画布。',
     'canvas.dropNode': '拖放节点到画布',
     'canvas.edgeRemoved': '连接已移除。',
@@ -327,6 +328,7 @@ const messages: Record<Locale, Record<string, string>> = {
     'canvas.noNodesToRun': 'There are no runnable nodes on this canvas.',
     'canvas.invalidConnection': 'Only matching semantic ports can be connected.',
     'canvas.duplicateConnection': 'That connection already exists.',
+    'canvas.invalidNodeDrop': 'Invalid node drop.',
     'canvas.nodeAdded': 'Node added to the active canvas.',
     'canvas.dropNode': 'DROP NODE ON CANVAS',
     'canvas.edgeRemoved': 'Connection removed.',
@@ -435,6 +437,23 @@ export const locale = ref<Locale>(getInitialLocale())
 export function t(key: string, values: Values = {}): string {
   const template = messages[locale.value][key] ?? messages['zh-CN'][key] ?? key
   return template.replace(/\{(\w+)\}/g, (_, name: string) => String(values[name] ?? `{${name}}`))
+}
+
+/**
+ * Selects one side of a bilingual server error for the active UI language.
+ * 从双语服务端错误中按当前界面语言选择对应的一侧。
+ */
+export function localizeMessage(message: string): string {
+  const bilingualSeparator = /[.!?]\s+(?=[\u4e00-\u9fff])/.exec(message)
+  if (!bilingualSeparator) {
+    return message
+  }
+
+  if (locale.value === 'zh-CN') {
+    return message.slice(bilingualSeparator.index + bilingualSeparator[0].length).trim()
+  }
+
+  return message.slice(0, bilingualSeparator.index + 1).trim()
 }
 
 export function setLocale(nextLocale: Locale): void {

@@ -31,4 +31,4 @@ SereinFlow.TestLibrary-1.0.0\
 - `Emit`：Action，一个 `System.String` 参数，返回 `System.Void`。
 - `Join labels`：Action，三个 `System.String` 参数，最后一个参数可选。
 
-属性放在 `SereinFlow.Core.Api` 命名空间中，并保持与现有类库约定的属性后缀一致；因此服务端可以使用 PE 元数据扫描，而不需要在 API 进程加载该 DLL。
+属性由共享的 `SereinFlow.Contracts` 程序集提供，命名空间仍为 `SereinFlow.Core.Api`，以保持类库元数据契约的稳定性。服务端通过该契约提供的完整类型名读取 PE 元数据，不使用属性名后缀匹配，也不需要在 API 进程加载该 DLL。

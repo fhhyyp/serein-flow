@@ -4,6 +4,8 @@ import type { NodeCategory, NodeKind, ReferenceNodeKind } from './types'
  * The node catalog is a server-owned contract. This module intentionally
  * contains no built-in node instances or demo definitions; it only describes
  * the shape and classification used by the editor when a catalog is supplied.
+ * 节点目录是由服务端管理的契约。本模块不包含内置节点实例或示例定义，
+ * 仅描述编辑器接入目录时使用的数据结构和分类。
  */
 export const referenceNodeKinds = [
   'action',

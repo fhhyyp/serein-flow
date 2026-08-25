@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\SereinFlow.Infrastructure\SereinFlow.Infrastructure.csproj" />
+    <ProjectReference Include="..\SereinFlow.TestLibrary\SereinFlow.TestLibrary.csproj" />
   </ItemGroup>
 
   <ItemGroup>

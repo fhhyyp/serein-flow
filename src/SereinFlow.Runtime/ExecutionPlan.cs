@@ -30,16 +30,17 @@ public sealed class ExecutionPlan
 
 public sealed class ExecutionPlanBuilder
 {
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Builder is an injectable composition boundary.")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Builder is an injectable composition boundary. 构建器是可注入的组合边界。")]
     public ExecutionPlan Build(FlowDefinition definition)
     {
-        ArgumentNullException.ThrowIfNull(definition);
+        if (definition is null)
+            throw new ArgumentNullException(nameof(definition), "The flow definition cannot be null. 流程定义不能为空。");
         var diagnostics = definition.Validate().ToList();
         if (string.IsNullOrWhiteSpace(definition.EntryNodeId))
         {
             diagnostics.Add(new DomainDiagnostic(
                 DomainErrorCodes.UnknownEntryNode,
-                "A flow must have an entry node before it can be executed.",
+                "A flow must have an entry node before it can be executed. 流程必须包含入口节点才能执行。",
                 "entryNodeId"));
         }
 

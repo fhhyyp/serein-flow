@@ -27,6 +27,8 @@ export function cloneCanvasGraph<TNode extends IdentifiedGraphItem, TEdge extend
  * Vue Flow keeps a separate graph store while a node is being dragged. The
  * emitted position changes must be copied into the workspace model explicitly
  * before another controlled-model update can replace that store.
+ * 拖拽节点时 Vue Flow 会维护独立的图存储；在受控模型更新替换该存储前，
+ * 必须显式将发出的坐标变化复制到工作区模型中。
  */
 export function applyNodePositionChanges<
   TNode extends IdentifiedGraphItem & { position: { x: number; y: number } },

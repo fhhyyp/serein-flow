@@ -195,6 +195,7 @@ public sealed record PluginManifestDto(
 /// A server-owned class library package. The package path is intentionally not
 /// exposed to clients; only immutable metadata and the safe node catalog cross
 /// the API boundary.
+/// 服务端管理的类库包。包路径不会暴露给客户端，只有不可变元数据和安全节点目录会跨越 API 边界。
 /// </summary>
 public sealed record LibraryDto(
     string Id,

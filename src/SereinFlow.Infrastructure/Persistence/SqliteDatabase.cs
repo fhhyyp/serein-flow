@@ -9,10 +9,11 @@ public sealed record SqliteDatabaseOptions
     {
         if (string.IsNullOrWhiteSpace(databasePath))
         {
-            throw new ArgumentException("Database path cannot be empty.", nameof(databasePath));
+            throw new ArgumentException("Database path cannot be empty. 数据库路径不能为空。", nameof(databasePath));
         }
 
-        ArgumentOutOfRangeException.ThrowIfLessThan(busyTimeoutMilliseconds, 1);
+        if (busyTimeoutMilliseconds < 1)
+            throw new ArgumentOutOfRangeException(nameof(busyTimeoutMilliseconds), "Busy timeout must be positive. 忙等待超时时间必须为正数。");
         DatabasePath = Path.GetFullPath(databasePath);
         BusyTimeoutMilliseconds = busyTimeoutMilliseconds;
     }
@@ -82,7 +83,7 @@ public sealed class SqliteDatabase : IDisposable
     {
         if (string.IsNullOrWhiteSpace(targetPath))
         {
-            throw new ArgumentException("Backup path cannot be empty.", nameof(targetPath));
+            throw new ArgumentException("Backup path cannot be empty. 备份路径不能为空。", nameof(targetPath));
         }
 
         var fullTargetPath = Path.GetFullPath(targetPath);

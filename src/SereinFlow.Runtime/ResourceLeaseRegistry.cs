@@ -8,13 +8,15 @@ public sealed class ResourceLeaseRegistry : IAsyncDisposable, IDisposable
 
     public void Register(IDisposable resource)
     {
-        ArgumentNullException.ThrowIfNull(resource);
+        if (resource is null)
+            throw new ArgumentNullException(nameof(resource), "The resource cannot be null. 资源不能为空。");
         Register(new AsyncDisposableAdapter(resource));
     }
 
     public void Register(IAsyncDisposable resource)
     {
-        ArgumentNullException.ThrowIfNull(resource);
+        if (resource is null)
+            throw new ArgumentNullException(nameof(resource), "The resource cannot be null. 资源不能为空。");
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);

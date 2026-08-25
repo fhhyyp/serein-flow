@@ -45,23 +45,23 @@ public sealed class ScriptNodeDefinition
     {
         if (string.IsNullOrWhiteSpace(nodeId))
         {
-            throw new ArgumentException("Script node ID cannot be empty.", nameof(nodeId));
+            throw new ArgumentException("Script node ID cannot be empty. 脚本节点 ID 不能为空。", nameof(nodeId));
         }
 
         if (string.IsNullOrWhiteSpace(source))
         {
-            throw new ArgumentException("Script source cannot be empty.", nameof(source));
+            throw new ArgumentException("Script source cannot be empty. 脚本源代码不能为空。", nameof(source));
         }
 
         if (string.IsNullOrWhiteSpace(languageVersion))
         {
-            throw new ArgumentException("Script language version cannot be empty.", nameof(languageVersion));
+            throw new ArgumentException("Script language version cannot be empty. 脚本语言版本不能为空。", nameof(languageVersion));
         }
 
         var computedHash = ComputeSourceHash(source);
         if (sourceHash is not null && !string.Equals(sourceHash, computedHash, StringComparison.OrdinalIgnoreCase))
         {
-            throw new ArgumentException("The supplied source hash does not match the source.", nameof(sourceHash));
+            throw new ArgumentException("The supplied source hash does not match the source. 提供的源代码哈希与源代码不匹配。", nameof(sourceHash));
         }
 
         return new ScriptNodeDefinition(
@@ -75,7 +75,8 @@ public sealed class ScriptNodeDefinition
 
     public static string ComputeSourceHash(string source)
     {
-        ArgumentNullException.ThrowIfNull(source);
+        if (source is null)
+            throw new ArgumentNullException(nameof(source), "Script input and output definitions cannot be null. 脚本输入和输出定义不能为空。");
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(source))).ToLowerInvariant();
     }
 }

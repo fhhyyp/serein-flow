@@ -1,4 +1,5 @@
 import type { ApiNodeType } from './flowApi'
+import { localizeMessage } from '../i18n'
 
 export interface LibraryParameterDto {
   id: string
@@ -81,5 +82,5 @@ async function request<T>(path: string, options: { method?: 'POST'; body?: BodyI
 
 async function readError(response: Response): Promise<string> {
   const problem = await response.json().catch(() => ({})) as { detail?: string; title?: string }
-  return problem.detail ?? problem.title ?? `Library request failed with status ${response.status}.`
+  return localizeMessage(problem.detail ?? problem.title ?? `Library request failed with status ${response.status}. 类库请求失败，状态码为 ${response.status}。`)
 }

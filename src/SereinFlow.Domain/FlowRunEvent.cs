@@ -12,10 +12,11 @@ public sealed record FlowRunEvent
     {
         if (runId == Guid.Empty)
         {
-            throw new ArgumentException("Run ID cannot be empty.", nameof(runId));
+            throw new ArgumentException("Run ID cannot be empty. 运行 ID 不能为空。", nameof(runId));
         }
 
-        ArgumentOutOfRangeException.ThrowIfLessThan(sequence, 1);
+        if (sequence < 1)
+            throw new ArgumentOutOfRangeException(nameof(sequence), "Event sequence must be positive. 事件序列必须为正数。");
         RunId = runId;
         Sequence = sequence;
         Timestamp = timestamp;
@@ -40,7 +41,7 @@ public sealed record FlowRunEvent
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new ArgumentException("Event type cannot be empty.", parameterName);
+            throw new ArgumentException("Event type cannot be empty. 事件类型不能为空。", parameterName);
         }
 
         return value.Trim();

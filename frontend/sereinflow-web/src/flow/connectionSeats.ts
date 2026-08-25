@@ -25,6 +25,7 @@ const outputGap = 16
 /**
  * The seat list is derived from node data instead of being encoded in the card
  * template. This keeps connection IDs stable when the visual card changes.
+ * 连接席位列表由节点数据派生，而不是写死在卡片模板中，确保视觉卡片变化时连接 ID 保持稳定。
  */
 type ConnectionSeatNodeData = Pick<FlowNodeData, 'kind' | 'parameters' | 'hasDataOutput' | 'runtime'>
 

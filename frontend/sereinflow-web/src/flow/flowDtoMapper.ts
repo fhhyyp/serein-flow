@@ -267,6 +267,7 @@ function hasDataOutputFromDto(node: NodeDto): boolean {
 
   // Older documents omitted UI metadata. An explicit result port is the
   // strongest signal; an empty port collection falls back to the old default.
+  // 旧文档可能没有 UI 元数据；显式结果端口优先级最高，空端口集合回退到旧默认值。
   if (node.ports.length > 0) {
     return node.ports.some((port) => port.id === 'data-out' || port.id === 'result')
   }

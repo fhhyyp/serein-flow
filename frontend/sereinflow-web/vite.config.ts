@@ -1,7 +1,8 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
-// https://vite.dev/config/
+// Vite configuration reference: https://vite.dev/config/
+// Vite 配置参考：https://vite.dev/config/
 export default defineConfig({
   plugins: [vue()],
   server: {
