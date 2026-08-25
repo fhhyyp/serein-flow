@@ -49,4 +49,44 @@ public sealed class ExecutionPlanTests
 
         Assert.Equal("second", plan.GetOutgoing("first", ExecutionBranch.Success)[0].ToNodeId);
     }
+
+    [Fact]
+    public void BuilderRejectsCrossFlowFlowCallTargets()
+    {
+        var target = NodeDefinition.Create("target", NodeType.Action, "Target");
+        var call = NodeDefinition.Create(
+            "call",
+            NodeType.FlowCall,
+            "Call",
+            runtime: new NodeRuntimeDefinition(TargetNodeId: "target", TargetFlowId: Guid.NewGuid()));
+        var flow = FlowDefinition.Create(
+            Guid.NewGuid(),
+            1,
+            [CanvasDefinition.Create("main", CanvasLifecycle.Main, [call, target], [])],
+            "call");
+
+        var exception = Assert.Throws<DomainValidationException>(() => new ExecutionPlanBuilder().Build(flow));
+
+        Assert.Contains(exception.Diagnostics, diagnostic => diagnostic.Code == "flowcall.target_flow_unavailable");
+    }
+
+    [Fact]
+    public void BuilderRejectsExecutionCyclesAsStaticDagViolation()
+    {
+        var first = NodeDefinition.Create("first", NodeType.Action, "First");
+        var second = NodeDefinition.Create("second", NodeType.Action, "Second");
+        var flow = FlowDefinition.Create(
+            Guid.NewGuid(),
+            1,
+            [CanvasDefinition.Create("main", CanvasLifecycle.Main, [first, second],
+            [
+                ConnectionDefinition.Execution("first", "out", "second", "in", ExecutionBranch.Success),
+                ConnectionDefinition.Execution("second", "out", "first", "in", ExecutionBranch.Success),
+            ])],
+            "first");
+
+        var exception = Assert.Throws<DomainValidationException>(() => new ExecutionPlanBuilder().Build(flow));
+
+        Assert.Contains(exception.Diagnostics, diagnostic => diagnostic.Code == "flow.cycle_detected");
+    }
 }

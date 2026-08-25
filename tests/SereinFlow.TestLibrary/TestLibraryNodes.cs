@@ -18,8 +18,8 @@ public sealed class MathNodes
         => $"{prefix}{value:0.###}";
 
     [FlowNode(NodeType = NodeType.Flipflop, AnotherName = "Is positive", Desc = "Returns whether the value is positive.")]
-    public bool IsPositive([NodeParam(Name = "value")] int value)
-        => value > 0;
+    public Task<bool> IsPositive([NodeParam(Name = "value")] int value)
+        => Task.FromResult(value > 0);
 
     [FlowNode(Desc = "Emits a message and has no data output.")]
     public void Emit([NodeParam(Name = "message")] string message)

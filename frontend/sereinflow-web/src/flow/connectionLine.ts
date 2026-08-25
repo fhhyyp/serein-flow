@@ -93,7 +93,7 @@ export function semanticFromConnectionHandles(sourceHandle?: string | null, targ
   // an invalid target seat).
   // 源连接席位在整个拖拽过程中都可用，因此在指针尚未到达目标或位于无效目标时，
   // 它是最可靠的连接类型信号。
-  if (sourceHandle === 'exec-out') {
+  if (sourceHandle === 'exec-success' || sourceHandle === 'exec-failure' || sourceHandle === 'exec-error') {
     return 'execution'
   }
 

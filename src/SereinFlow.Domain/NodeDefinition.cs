@@ -37,13 +37,27 @@ public sealed record NodeParameterDefinition
         string name,
         string? valueJson,
         DataSource source = DataSource.Literal,
-        bool required = false)
+        bool required = false,
+        string? id = null,
+        string? projectInputKey = null,
+        string? expression = null,
+        string? sourceNodeId = null,
+        string? sourcePortId = null,
+        string? valueKind = null)
     {
         Name = Validate(name, nameof(name));
+        Id = string.IsNullOrWhiteSpace(id) ? Name : id.Trim();
         ValueJson = valueJson;
         Source = source;
         Required = required;
+        ProjectInputKey = projectInputKey?.Trim();
+        Expression = expression;
+        SourceNodeId = sourceNodeId?.Trim();
+        SourcePortId = sourcePortId?.Trim();
+        ValueKind = valueKind?.Trim();
     }
+
+    public string Id { get; }
 
     public string Name { get; }
 
@@ -52,6 +66,16 @@ public sealed record NodeParameterDefinition
     public DataSource Source { get; }
 
     public bool Required { get; }
+
+    public string? ProjectInputKey { get; }
+
+    public string? Expression { get; }
+
+    public string? SourceNodeId { get; }
+
+    public string? SourcePortId { get; }
+
+    public string? ValueKind { get; }
 
     private static string Validate(string value, string parameterName)
     {
@@ -64,6 +88,19 @@ public sealed record NodeParameterDefinition
     }
 }
 
+public sealed record NodeRuntimeDefinition(
+    string? LibraryId = null,
+    string? ClassName = null,
+    string? MethodName = null,
+    string? DllName = null,
+    string? DllVersion = null,
+    string? ReturnType = null,
+    string? TargetNodeId = null,
+    Guid? TargetFlowId = null,
+    bool IsAwaitable = false,
+    string? StaticReturnType = null,
+    bool IsDynamicReturnType = false);
+
 public sealed class NodeDefinition
 {
     private NodeDefinition(
@@ -73,7 +110,8 @@ public sealed class NodeDefinition
         NodePosition position,
         IReadOnlyList<PortDefinition> ports,
         IReadOnlyList<NodeParameterDefinition> parameters,
-        ScriptNodeDefinition? script)
+        ScriptNodeDefinition? script,
+        NodeRuntimeDefinition? runtime)
     {
         Id = id;
         Type = type;
@@ -82,6 +120,7 @@ public sealed class NodeDefinition
         Ports = ports;
         Parameters = parameters;
         Script = script;
+        Runtime = runtime;
     }
 
     public string Id { get; }
@@ -98,6 +137,11 @@ public sealed class NodeDefinition
 
     public ScriptNodeDefinition? Script { get; }
 
+    public NodeRuntimeDefinition? Runtime { get; }
+
+    public NodeDefinition WithRuntime(NodeRuntimeDefinition? runtime)
+        => Create(Id, Type, DisplayName, Position, Ports, Parameters, Script, runtime);
+
     public static NodeDefinition Create(
         string id,
         NodeType type,
@@ -105,7 +149,8 @@ public sealed class NodeDefinition
         NodePosition? position = null,
         IEnumerable<PortDefinition>? ports = null,
         IEnumerable<NodeParameterDefinition>? parameters = null,
-        ScriptNodeDefinition? script = null)
+        ScriptNodeDefinition? script = null,
+        NodeRuntimeDefinition? runtime = null)
     {
         return new NodeDefinition(
             Validate(id, nameof(id)),
@@ -114,7 +159,8 @@ public sealed class NodeDefinition
             position ?? new NodePosition(0, 0),
             (ports ?? []).ToArray(),
             (parameters ?? []).ToArray(),
-            script);
+            script,
+            runtime);
     }
 
     private static string Validate(string value, string parameterName)

@@ -10,7 +10,10 @@ public sealed record RunnerLaunchOptions(
     string? WorkingDirectory = null,
     TimeSpan? HandshakeTimeout = null,
     TimeSpan? HeartbeatInterval = null,
-    TimeSpan? CancellationGracePeriod = null)
+    TimeSpan? CancellationGracePeriod = null,
+    string? AllowedScriptArtifactRoot = null,
+    string? AllowedLibraryPackageRoot = null,
+    Action<string>? DiagnosticLogger = null)
 {
     public TimeSpan EffectiveHandshakeTimeout => HandshakeTimeout ?? TimeSpan.FromSeconds(5);
 
@@ -43,6 +46,18 @@ public sealed class WorkerSupervisor
             throw new ArgumentNullException(nameof(publishEvent), "The worker event publisher cannot be null. Worker 事件发布器不能为空。");
         if (request.ProtocolVersion != WorkerProtocolConstants.Version)
             return Failure(request.RunId, "worker.protocol_mismatch", "The requested worker protocol version is not supported. 请求的 Worker 协议版本不受支持。");
+        if (!IsAllowedPath(request.ScriptArtifactRootPath, _launchOptions.AllowedScriptArtifactRoot)
+            || !IsAllowedPath(request.LibraryPackageRootPath, _launchOptions.AllowedLibraryPackageRoot))
+        {
+                return Failure(request.RunId, "worker.path_outside_root", "Worker artifact paths are outside the configured service roots. Worker 缓存路径超出了服务端允许的根目录。");
+        }
+        var runnerPath = ResolveRunnerPath();
+        if (runnerPath is not null && !File.Exists(runnerPath))
+        {
+            var message = $"Worker Runner executable was not found at '{runnerPath}'. Worker Runner 可执行文件不存在：'{runnerPath}'。";
+            RecordDiagnostic(request.RunId, "runner.path", message);
+            return Failure(request.RunId, "worker.runner_not_found", message);
+        }
         if (request.Deadline <= DateTimeOffset.UtcNow)
             return new WorkerRunResultDto(WorkerProtocolConstants.Version, request.RunId, FlowRunStatusDto.TimedOut, "worker.timed_out", "The run deadline elapsed before the runner started. Worker Runner 启动前运行截止时间已到。");
 
@@ -55,14 +70,22 @@ public sealed class WorkerSupervisor
 
         try
         {
-            var ready = await WorkerProtocolCodec.ReadAsync(stdout, runCancellation.Token).AsTask().WaitAsync(_launchOptions.EffectiveHandshakeTimeout, runCancellation.Token);
+            var ready = await WorkerProtocolCodec.ReadAsync(
+                stdout,
+                line => RecordDiagnostic(request.RunId, "runner.stdout_noise", line),
+                runCancellation.Token).AsTask()
+                .WaitAsync(_launchOptions.EffectiveHandshakeTimeout, runCancellation.Token);
             if (ready is null)
                 return await TerminateAndReturnAsync(process, request.RunId, "worker.crashed", "Runner closed its protocol stream before announcing readiness. Worker Runner 在宣布就绪前关闭了协议流。", FlowRunStatusDto.Failed);
             if (ready.Kind != WorkerProtocolConstants.ReadyKind)
                 return await TerminateAndReturnAsync(process, request.RunId, "worker.handshake_failed", "Runner did not announce readiness. Worker Runner 未宣布就绪。", FlowRunStatusDto.Failed);
 
             await writer.WriteAsync(WorkerMessage.Create(WorkerProtocolConstants.HandshakeKind), runCancellation.Token);
-            var accepted = await WorkerProtocolCodec.ReadAsync(stdout, runCancellation.Token).AsTask().WaitAsync(_launchOptions.EffectiveHandshakeTimeout, runCancellation.Token);
+            var accepted = await WorkerProtocolCodec.ReadAsync(
+                stdout,
+                line => RecordDiagnostic(request.RunId, "runner.stdout_noise", line),
+                runCancellation.Token).AsTask()
+                .WaitAsync(_launchOptions.EffectiveHandshakeTimeout, runCancellation.Token);
             if (accepted is null)
                 return await TerminateAndReturnAsync(process, request.RunId, "worker.crashed", "Runner closed its protocol stream during the handshake. Worker Runner 在握手期间关闭了协议流。", FlowRunStatusDto.Failed);
             if (accepted.Kind != WorkerProtocolConstants.HandshakeAcceptedKind)
@@ -88,17 +111,21 @@ public sealed class WorkerSupervisor
         }
         catch (WorkerProtocolException exception)
         {
+            RecordProtocolDiagnostic(request.RunId, "protocol", exception);
             return await TerminateAndReturnAsync(process, request.RunId, exception.Code, exception.Message, FlowRunStatusDto.Failed);
         }
-        catch (Exception)
+        catch (Exception exception)
         {
+            RecordDiagnostic(request.RunId, "supervisor", exception.ToString(), exception);
             return await TerminateAndReturnAsync(process, request.RunId, "worker.crashed", "The runner exited before returning a valid result. Worker Runner 在返回有效结果前退出。", FlowRunStatusDto.Failed);
         }
         finally
         {
             if (!process.HasExited)
                 TerminateProcessTree(process);
-            await IgnoreFailureAsync(stderrTask);
+            var stderr = await ReadDiagnosticsAsync(stderrTask);
+            if (!string.IsNullOrWhiteSpace(stderr))
+                RecordDiagnostic(request.RunId, "runner.stderr", stderr);
         }
     }
 
@@ -112,7 +139,10 @@ public sealed class WorkerSupervisor
         CancellationToken callerCancellationToken)
     {
         using var heartbeatCancellation = new CancellationTokenSource();
-        var readTask = WorkerProtocolCodec.ReadAsync(stdout, CancellationToken.None).AsTask();
+        var readTask = WorkerProtocolCodec.ReadAsync(
+            stdout,
+            line => RecordDiagnostic(request.RunId, "runner.stdout_noise", line),
+            CancellationToken.None).AsTask();
         var heartbeatTask = Task.Delay(_launchOptions.EffectiveHeartbeatInterval, heartbeatCancellation.Token);
         var callerCancellationTask = Task.Delay(Timeout.InfiniteTimeSpan, callerCancellationToken);
         var deadlineTask = Task.Delay(Timeout.InfiniteTimeSpan, deadlineCancellation.Token);
@@ -143,7 +173,10 @@ public sealed class WorkerSupervisor
             if (completion.Result is not null)
                 return completion.Result;
             lastSequence = completion.LastSequence;
-            readTask = WorkerProtocolCodec.ReadAsync(stdout, CancellationToken.None).AsTask();
+            readTask = WorkerProtocolCodec.ReadAsync(
+                stdout,
+                line => RecordDiagnostic(request.RunId, "runner.stdout_noise", line),
+                CancellationToken.None).AsTask();
         }
     }
 
@@ -171,7 +204,10 @@ public sealed class WorkerSupervisor
             return await TerminateAndReturnAsync(process, request.RunId, fallbackCode, "Runner could not be reached for cancellation. 无法连接 Worker Runner 以取消运行。", fallbackStatus);
         }
 
-        var readTask = existingReadTask ?? WorkerProtocolCodec.ReadAsync(stdout, CancellationToken.None).AsTask();
+        var readTask = existingReadTask ?? WorkerProtocolCodec.ReadAsync(
+            stdout,
+            line => RecordDiagnostic(request.RunId, "runner.stdout_noise", line),
+            CancellationToken.None).AsTask();
         var graceDeadline = DateTimeOffset.UtcNow + _launchOptions.EffectiveCancellationGracePeriod;
         while (DateTimeOffset.UtcNow < graceDeadline)
         {
@@ -188,7 +224,10 @@ public sealed class WorkerSupervisor
             if (completion.Result is not null)
                 return completion.Result;
             lastSequence = completion.LastSequence;
-            readTask = WorkerProtocolCodec.ReadAsync(stdout, CancellationToken.None).AsTask();
+            readTask = WorkerProtocolCodec.ReadAsync(
+                stdout,
+                line => RecordDiagnostic(request.RunId, "runner.stdout_noise", line),
+                CancellationToken.None).AsTask();
         }
 
         return await TerminateAndReturnAsync(process, request.RunId, fallbackCode, "Runner did not stop before the cancellation grace period elapsed. Worker Runner 在取消宽限期结束前未停止。", fallbackStatus);
@@ -281,14 +320,114 @@ public sealed class WorkerSupervisor
     private static WorkerRunResultDto Failure(Guid runId, string code, string message)
         => new(WorkerProtocolConstants.Version, runId, FlowRunStatusDto.Failed, code, message);
 
-    private static async Task IgnoreFailureAsync(Task task)
+    private static bool IsAllowedPath(string? candidate, string? allowedRoot)
+    {
+        // A missing candidate is only valid when the corresponding feature is
+        // not configured at all.  Once a service root is configured, the
+        // request must carry a path and that path must stay inside the root.
+        // 未配置该能力时允许两者均为空；一旦配置根目录，请求必须提供路径且路径不得越界。
+        if (string.IsNullOrWhiteSpace(candidate))
+            return string.IsNullOrWhiteSpace(allowedRoot);
+        if (string.IsNullOrWhiteSpace(allowedRoot))
+            return false;
+
+        try
+        {
+            var root = NormalizePath(allowedRoot);
+            var path = NormalizePath(candidate);
+            return string.Equals(path, root, StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith(root + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static string NormalizePath(string value)
+        => Path.GetFullPath(value)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+    private string? ResolveRunnerPath()
+    {
+        foreach (var argument in _launchOptions.Arguments.Reverse())
+        {
+            if (Path.IsPathRooted(argument)
+                && (argument.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)
+                    || argument.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                    || !Path.HasExtension(argument)))
+            {
+                return argument;
+            }
+        }
+
+        return null;
+    }
+
+    private void RecordProtocolDiagnostic(Guid runId, string phase, WorkerProtocolException exception)
+    {
+        var location = exception.JsonLineNumber is null
+            ? string.Empty
+            : $" line={exception.JsonLineNumber} byte={exception.JsonBytePositionInLine}";
+        var raw = exception.RawMessage is null
+            ? string.Empty
+            : $" raw={TrimDiagnostic(exception.RawMessage)}";
+        RecordDiagnostic(
+            runId,
+            phase,
+            $"code={exception.Code}; message={exception.Message};{location}{raw}",
+            exception);
+    }
+
+    private void RecordDiagnostic(Guid runId, string phase, string message, Exception? exception = null)
+    {
+        if (_launchOptions.DiagnosticLogger is null)
+            return;
+
+        var exceptionDetails = exception is null
+            ? string.Empty
+            : $" exception={exception.GetType().FullName}: {exception.InnerException?.Message ?? exception.Message}";
+        try
+        {
+            _launchOptions.DiagnosticLogger(
+                $"Worker diagnostic runId={runId:D} phase={phase}; Worker 诊断 runId={runId:D} 阶段={phase}；{TrimDiagnostic(message)}{exceptionDetails}");
+        }
+        catch
+        {
+            // Logging must never alter Worker lifecycle or mask the original error.
+            // 记录日志失败时不能改变 Worker 生命周期，也不能覆盖原始错误。
+        }
+    }
+
+    private static string TrimDiagnostic(string value)
+    {
+        const int maxLength = 4096;
+        var normalized = value.Replace("\r", "\\r", StringComparison.Ordinal).Replace("\n", "\\n", StringComparison.Ordinal);
+        return normalized.Length <= maxLength ? normalized : normalized[..maxLength] + "…";
+    }
+
+    private static async Task<string?> ReadDiagnosticsAsync(Task<string> task)
     {
         try
         {
-            await task;
+            return await task;
         }
         catch (Exception)
         {
+            return null;
         }
     }
 }

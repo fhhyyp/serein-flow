@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using SereinFlow.Domain;
 using ScriptLang;
@@ -94,7 +95,10 @@ public sealed class ScriptArtifactStore
         }
         catch (Exception exception)
         {
-            diagnostics.Add(new("script.compile_failed", exception.Message, NodeId: nodes.FirstOrDefault()?.NodeId));
+            diagnostics.Add(new(
+                "script.compile_failed",
+                $"Script artifact compilation failed. 脚本缓存编译失败。 {exception.Message}",
+                NodeId: nodes.FirstOrDefault()?.NodeId));
             return new(false, new Dictionary<string, ScriptArtifact>(), diagnostics);
         }
         finally
@@ -162,6 +166,7 @@ public sealed class ScriptArtifactStore
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         WriteIndented = true
     };
 }

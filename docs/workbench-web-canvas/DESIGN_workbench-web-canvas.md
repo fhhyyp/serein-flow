@@ -11,7 +11,7 @@ flowchart LR
     CanvasStore --> VueFlow["Vue Flow Graph"]
     VueFlow -->|"node/edge changes"| CanvasStore
     VueFlow -->|"onConnect"| Guard["语义和端口校验"]
-    Guard -->|"exec-out -> exec-in"| Execution["Execution edge"]
+    Guard -->|"exec-success / exec-failure / exec-error -> exec-in"| Execution["Execution edge"]
     Guard -->|"data-out -> param-*"| Data["Data edge + 参数来源"]
     CanvasStore --> Inspector["节点检查器"]
     Inspector -->|"编辑参数来源"| CanvasStore
@@ -39,8 +39,10 @@ flowchart TD
 
 | Handle | 方向 | 连接语义 | 允许对端 | 表现 |
 | --- | --- | --- | --- | --- |
-| `exec-in` | target | 流程调度入口 | `exec-out` | 方形端口、实线、Flow 标签 |
-| `exec-out` | source | 流程调度出口 | `exec-in` | 方形端口、实线、Flow 标签 |
+| `exec-in` | target | 流程调度入口 | `exec-success`、`exec-failure`、`exec-error` | 流程分支入口 |
+| `exec-success` | source | Success 分支 | `exec-in` | 绿色流程连接器 |
+| `exec-failure` | source | Failure 分支 | `exec-in` | 琥珀色流程连接器 |
+| `exec-error` | source | Error 分支 | `exec-in` | 红色流程连接器 |
 | `data-out` | source | 方法返回数据 | `param-*` | 圆形端口、虚线、Value 标签 |
 | `param-{parameterId}` | target | 方法参数来源 | `data-out` | 圆形端口、虚线、参数名称 |
 

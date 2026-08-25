@@ -9,7 +9,7 @@ using System.Text.Json.Serialization;
 using SereinFlow.Application;
 using SereinFlow.Contracts;
 using SereinFlow.Core.Api;
-using SqlSugar;
+using SereinFlow.Application.Persistence;
 
 namespace SereinFlow.Infrastructure.Persistence;
 
@@ -56,19 +56,35 @@ public sealed record LibraryCatalogOptions
 /// </summary>
 public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDisposable
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateWebOptions(options =>
     {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
-    };
+        options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+        options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+    });
 
-    private readonly SqliteDatabase _database;
+    private readonly IRepository<LibraryRecord> _libraries;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly LibraryCatalogOptions _options;
-    private readonly SemaphoreSlim _gate = new(1, 1);
+    // The catalog is scoped because it consumes scoped repository services,
+    // while uploads must still be serialized across concurrent HTTP requests.
+    // Keep the gate process-wide instead of tying it to one request scope.
+    private static readonly SemaphoreSlim UploadGate = new(1, 1);
 
     public SqliteLibraryCatalogService(SqliteDatabase database, LibraryCatalogOptions options)
+        : this(
+            new SqlSugarRepository<LibraryRecord>(database?.Client ?? throw new ArgumentNullException(nameof(database), "The database cannot be null. 数据库不能为空。")),
+            new SqlSugarUnitOfWork(database.Client),
+            options)
     {
-        _database = database ?? throw new ArgumentNullException(nameof(database), "The database cannot be null. 数据库不能为空。");
+    }
+
+    public SqliteLibraryCatalogService(
+        IRepository<LibraryRecord> libraries,
+        IUnitOfWork unitOfWork,
+        LibraryCatalogOptions options)
+    {
+        _libraries = libraries ?? throw new ArgumentNullException(nameof(libraries), "The library repository cannot be null. 类库仓储不能为空。");
+        _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork), "The unit of work cannot be null. 工作单元不能为空。");
         _options = options ?? throw new ArgumentNullException(nameof(options), "Library catalog options cannot be null. 类库目录选项不能为空。");
         Directory.CreateDirectory(_options.RootPath);
         Directory.CreateDirectory(PackagesPath);
@@ -77,10 +93,12 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
     private string PackagesPath => Path.Combine(_options.RootPath, "packages");
 
     public IReadOnlyList<LibraryDto> List()
-        => QueryRows()
+        => _libraries.ListAsync(cancellationToken: CancellationToken.None).GetAwaiter().GetResult()
             .Select(Map)
             .Where(static library => library is not null)
             .Cast<LibraryDto>()
+            .OrderBy(static library => library.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static library => library.Version, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     public LibraryDto? Find(string libraryId)
@@ -90,10 +108,10 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             return null;
         }
 
-        var rows = _database.Query<LibraryRow>(
-            "SELECT Id, Name, Version, FileName, SizeBytes, Sha256, UploadedAt, PackagePath, NodeCatalogJson FROM Libraries WHERE Id = @id LIMIT 1",
-            new SugarParameter("@id", libraryId.Trim()));
-        var row = rows.Count == 0 ? null : rows[0];
+        var key = libraryId.Trim();
+        var row = _libraries.ListAsync(cancellationToken: CancellationToken.None)
+            .GetAwaiter().GetResult()
+            .SingleOrDefault(item => string.Equals(item.Id, key, StringComparison.OrdinalIgnoreCase));
         return row is null ? null : Map(row);
     }
 
@@ -111,12 +129,12 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             throw new LibraryUploadException($"The library package cannot exceed {_options.MaxPackageBytes / (1024 * 1024)} MB. 类库压缩包不能超过 {_options.MaxPackageBytes / (1024 * 1024)} MB。", 413);
         }
 
-        await _gate.WaitAsync(cancellationToken);
+        await UploadGate.WaitAsync(cancellationToken);
         var temporaryPath = Path.Combine(_options.RootPath, $".upload-{Guid.NewGuid():N}.tmp");
         try
         {
             var (size, sha256) = await CopyToTemporaryFileAsync(package, temporaryPath, cancellationToken);
-            var existing = Find(sha256);
+            var existing = await FindAsyncCore(sha256, cancellationToken);
             if (existing is not null)
             {
                 return new LibraryUploadResultDto(existing, true);
@@ -128,17 +146,34 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
             var library = packageInfo with { };
             var nodesJson = JsonSerializer.Serialize(library.Nodes, JsonOptions);
-            _database.Execute(
-                "INSERT INTO Libraries (Id, Name, Version, FileName, SizeBytes, Sha256, UploadedAt, PackagePath, NodeCatalogJson) VALUES (@id, @name, @version, @fileName, @sizeBytes, @sha256, @uploadedAt, @packagePath, @nodeCatalogJson)",
-                new SugarParameter("@id", library.Id),
-                new SugarParameter("@name", library.Name),
-                new SugarParameter("@version", library.Version),
-                new SugarParameter("@fileName", library.FileName),
-                new SugarParameter("@sizeBytes", library.SizeBytes),
-                new SugarParameter("@sha256", library.Sha256),
-                new SugarParameter("@uploadedAt", library.UploadedAt.ToString("O")),
-                new SugarParameter("@packagePath", finalPath),
-                new SugarParameter("@nodeCatalogJson", nodesJson));
+            try
+            {
+                await _unitOfWork.ExecuteAsync(async token =>
+                {
+                    await _libraries.AddAsync(new LibraryRecord
+                    {
+                        Id = library.Id,
+                        Name = library.Name,
+                        Version = library.Version,
+                        FileName = library.FileName,
+                        SizeBytes = library.SizeBytes,
+                        Sha256 = library.Sha256,
+                        UploadedAt = library.UploadedAt.ToString("O"),
+                        PackagePath = finalPath,
+                        NodeCatalogJson = nodesJson,
+                    }, token);
+                    return true;
+                }, cancellationToken);
+            }
+            catch
+            {
+                // The database row is the source of truth. If it cannot be
+                // committed, remove the moved package so an orphan cannot be
+                // loaded by a future Worker run.
+                // 数据库提交失败时删除已移动的包，避免 Worker 读取孤儿文件。
+                TryDelete(finalPath);
+                throw;
+            }
 
             return new LibraryUploadResultDto(library, false);
         }
@@ -157,7 +192,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         finally
         {
             TryDelete(temporaryPath);
-            _gate.Release();
+            UploadGate.Release();
         }
     }
 
@@ -168,30 +203,36 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             return false;
         }
 
-        var rows = _database.Query<LibraryRow>(
-            "SELECT Id, Name, Version, FileName, SizeBytes, Sha256, UploadedAt, PackagePath, NodeCatalogJson FROM Libraries WHERE Id = @id LIMIT 1",
-            new SugarParameter("@id", libraryId.Trim()));
-        var row = rows.Count == 0 ? null : rows[0];
+        var key = libraryId.Trim();
+        var row = _libraries.ListAsync(cancellationToken: CancellationToken.None)
+            .GetAwaiter().GetResult()
+            .SingleOrDefault(item => string.Equals(item.Id, key, StringComparison.OrdinalIgnoreCase));
         if (row is null)
         {
             return false;
         }
 
-        _database.Execute("DELETE FROM Libraries WHERE Id = @id", new SugarParameter("@id", libraryId.Trim()));
+        _unitOfWork.ExecuteAsync(
+            token => _libraries.DeleteAsync(row.Id, token),
+            CancellationToken.None).GetAwaiter().GetResult();
         TryDelete(row.PackagePath);
         return true;
     }
 
-    private IReadOnlyList<LibraryRow> QueryRows()
-        => _database.Query<LibraryRow>("SELECT Id, Name, Version, FileName, SizeBytes, Sha256, UploadedAt, PackagePath, NodeCatalogJson FROM Libraries ORDER BY Name, Version");
-
-    private static LibraryDto Map(LibraryRow row)
+    private static LibraryDto Map(LibraryRecord row)
     {
         var nodes = JsonSerializer.Deserialize<IReadOnlyList<LibraryNodeDto>>(row.NodeCatalogJson, JsonOptions) ?? [];
         var uploadedAt = DateTimeOffset.TryParse(row.UploadedAt, out var parsed)
             ? parsed
             : DateTimeOffset.UnixEpoch;
         return new LibraryDto(row.Id, row.Name, row.Version, row.FileName, row.SizeBytes, row.Sha256, uploadedAt, nodes);
+    }
+
+    private async Task<LibraryDto?> FindAsyncCore(string libraryId, CancellationToken cancellationToken)
+    {
+        var rows = await _libraries.ListAsync(cancellationToken: cancellationToken);
+        var row = rows.SingleOrDefault(item => string.Equals(item.Id, libraryId, StringComparison.OrdinalIgnoreCase));
+        return row is null ? null : Map(row);
     }
 
     private async Task<(long Size, string Sha256)> CopyToTemporaryFileAsync(Stream source, string destinationPath, CancellationToken cancellationToken)
@@ -271,6 +312,14 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
         dllMemory.Position = 0;
         var metadata = LibraryMetadataScanner.Scan(dllMemory, libraryName, version, sha256);
+        var invalidFlipflop = metadata.Nodes.FirstOrDefault(node =>
+            node.Type == NodeTypeDto.Flipflop && !node.IsAwaitable);
+        if (invalidFlipflop is not null)
+        {
+            throw new LibraryUploadException(
+                $"Flipflop method '{invalidFlipflop.MethodName}' must return Task or Task<T>. Flipflop 方法“{invalidFlipflop.MethodName}”必须返回 Task 或 Task<T>。",
+                422);
+        }
         return new LibraryDto(
             sha256,
             libraryName,
@@ -327,20 +376,13 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         }
     }
 
-    public void Dispose() => _gate.Dispose();
-
-    private sealed class LibraryRow
+    public void Dispose()
     {
-        public string Id { get; set; } = string.Empty;
-        public string Name { get; set; } = string.Empty;
-        public string Version { get; set; } = string.Empty;
-        public string FileName { get; set; } = string.Empty;
-        public long SizeBytes { get; set; }
-        public string Sha256 { get; set; } = string.Empty;
-        public string UploadedAt { get; set; } = string.Empty;
-        public string PackagePath { get; set; } = string.Empty;
-        public string NodeCatalogJson { get; set; } = "[]";
+        // UploadGate is process-wide and intentionally lives for the host
+        // lifetime; scoped instances must not dispose it underneath another
+        // request.
     }
+
 }
 
 internal static class LibraryMetadataScanner
@@ -420,7 +462,8 @@ internal static class LibraryMetadataScanner
                         $"{assemblyName}.dll",
                         assemblyVersion,
                         signature.ReturnType,
-                        parameters));
+                        parameters,
+                        IsAwaitableReturnType(signature.ReturnType)));
                 }
             }
 
@@ -466,7 +509,10 @@ internal static class LibraryMetadataScanner
                 : NodeTypeDto.Action;
             var displayName = ReadNamedValue(value, LibraryAttributeContract.DisplayNamePropertyName) as string;
             var description = ReadNamedValue(value, LibraryAttributeContract.DescriptionPropertyName) as string;
-            return new NodeMetadata(nodeType, string.IsNullOrWhiteSpace(displayName) ? null : displayName, string.IsNullOrWhiteSpace(description) ? null : description);
+            return new NodeMetadata(
+                nodeType,
+                string.IsNullOrWhiteSpace(displayName) ? null : displayName,
+                string.IsNullOrWhiteSpace(description) ? null : description);
         }
         catch (BadImageFormatException)
         {
@@ -541,6 +587,13 @@ internal static class LibraryMetadataScanner
             return false;
         }
     }
+
+    private static bool IsAwaitableReturnType(string returnType)
+        => string.Equals(returnType, "System.Threading.Tasks.Task", StringComparison.Ordinal)
+            || returnType.StartsWith("System.Threading.Tasks.Task<", StringComparison.Ordinal)
+            // Metadata signatures preserve the CLR arity suffix (Task`1<T>)
+            // while reflection exposes the same type as Task<T>.
+            || returnType.StartsWith("System.Threading.Tasks.Task`1<", StringComparison.Ordinal);
 
     private static string GetAttributeName(MetadataReader reader, CustomAttributeHandle handle)
     {

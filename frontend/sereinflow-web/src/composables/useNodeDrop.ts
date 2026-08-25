@@ -1,6 +1,7 @@
 import { onBeforeUnmount, type Ref } from 'vue'
 import type { LibraryNodeDto } from '../api/libraryApi'
 import { isNodeKind } from '../flow/nodeCatalog'
+import { canonicalParameterId } from '../flow/connectionSeats'
 import type { MethodParameter, NodeKind, NodeRuntimeMetadata } from '../flow/types'
 import { t } from '../i18n'
 
@@ -120,13 +121,15 @@ export function useNodeDrop(options: NodeDropOptions) {
       dllName: node.dllName,
       dllVersion: node.dllVersion,
       returnType: node.returnType,
+      isAwaitable: node.isAwaitable,
     }
     const parameters = node.parameters.map((parameter) => ({
-      id: parameter.id,
+      id: canonicalParameterId(parameter.id),
       nameKey: parameter.name,
       name: parameter.name,
       valueKind: parameter.type || 'System.Object',
       type: parameter.type,
+      required: parameter.required,
       description: parameter.description ?? undefined,
       source: 'literal' as const,
       inputMode: 'manual' as const,

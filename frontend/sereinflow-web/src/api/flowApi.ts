@@ -1,7 +1,7 @@
 import type { FlowEdgeLineType } from '../flow/types'
 import { localizeMessage } from '../i18n'
 
-export type ApiNodeType = 'action' | 'flowCall' | 'globalData' | 'flipflop' | 'script' | 'condition' | 'value' | 'expression' | 'expOp' | 'expCondition' | 'trigger'
+export type ApiNodeType = 'action' | 'flowCall' | 'flipflop' | 'script' | 'condition'
 export type ApiCanvasLifecycle = 'main' | 'init' | 'loading' | 'exit' | 'custom'
 export type ApiConnectionKind = 'execution' | 'data'
 export type ApiDataSource = 'literal' | 'previousNode' | 'projectInput' | 'expression'
@@ -59,6 +59,11 @@ export interface NodeUiMetadataDto {
   dllName?: string
   dllVersion?: string
   returnType?: string
+  targetNodeId?: string
+  targetFlowId?: string
+  isAwaitable?: boolean
+  staticReturnType?: string
+  isDynamicReturnType?: boolean
 }
 
 export interface NodeDto {
@@ -69,8 +74,23 @@ export interface NodeDto {
   y: number
   ports: NodePortDto[]
   parameters: NodeParameterDto[]
-  script: unknown | null
+  script: ScriptNodeDataDto | null
   ui?: NodeUiMetadataDto
+}
+
+export interface ScriptValueContractDto {
+  name: string
+  valueKind: string
+  required: boolean
+}
+
+export interface ScriptNodeDataDto {
+  nodeId: string
+  source: string
+  languageVersion: string
+  sourceHash: string
+  inputs: ScriptValueContractDto[]
+  outputs: ScriptValueContractDto[]
 }
 
 export interface ConnectionDto {
@@ -80,7 +100,7 @@ export interface ConnectionDto {
   toNodeId: string
   toPortId: string
   kind: ApiConnectionKind
-  branch?: 'success' | 'failure' | 'error' | 'upstream'
+  branch?: 'success' | 'failure' | 'error'
   dataSource?: ApiDataSource
   priority: number
 }
@@ -138,6 +158,36 @@ export interface UpdateFlowDefinitionRequestDto {
   definition: FlowDefinitionDto
 }
 
+export interface RunFlowRequestDto {
+  expectedFlowVersion?: number
+  projectInputs?: Record<string, unknown>
+  timeoutSeconds?: number
+  maxSteps?: number
+  maxNodeVisits?: number
+}
+
+export interface FlowRunDto {
+  id: string
+  flowId: string
+  flowVersion: number
+  status: 'pending' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'timedOut'
+  startedAt?: string
+  endedAt?: string
+  errorSummary?: string
+  projectId?: string
+  createdAt?: string
+  cancellationReason?: string
+}
+
+export interface FlowRunEventDto {
+  runId: string
+  sequence: number
+  timestamp: string
+  type: string
+  nodeId?: string
+  payloadJson: string
+}
+
 interface ApiProblem {
   title?: string
   detail?: string
@@ -178,6 +228,157 @@ export async function saveFlow(projectId: string, flowId: string, requestBody: U
   return request<FlowDefinitionDto>(`/api/projects/${projectId}/flows/${flowId}`, { method: 'PUT', body: requestBody })
 }
 
+export async function startFlowRun(projectId: string, flowId: string, requestBody: RunFlowRequestDto = {}): Promise<FlowRunDto> {
+  return request<FlowRunDto>(`/api/projects/${projectId}/flows/${flowId}/runs`, { method: 'POST', body: requestBody })
+}
+
+export async function getFlowRun(runId: string): Promise<FlowRunDto> {
+  return request<FlowRunDto>(`/api/runs/${runId}`)
+}
+
+export async function cancelFlowRun(runId: string): Promise<void> {
+  await request<unknown>(`/api/runs/${runId}/cancel`, { method: 'POST' })
+}
+
+export async function listFlowRunEvents(runId: string, afterSequence = 0): Promise<FlowRunEventDto[]> {
+  return request<FlowRunEventDto[]>(`/api/runs/${runId}/events?afterSequence=${afterSequence}`)
+}
+
+export function subscribeFlowRunEvents(
+  runId: string,
+  onEvent: (event: FlowRunEventDto) => void,
+  onError?: () => void,
+): () => void {
+  let closed = false
+  let fallbackStarted = false
+  let socket: WebSocket | undefined
+  let sseCleanup: (() => void) | undefined
+  let lastSequence = 0
+  let replayInFlight = false
+  const deliver = (event: FlowRunEventDto) => {
+    if (event.sequence <= lastSequence) return
+    lastSequence = event.sequence
+    onEvent(event)
+  }
+
+  const replay = async () => {
+    if (closed || replayInFlight) return
+    replayInFlight = true
+    try {
+      const events = await listFlowRunEvents(runId, lastSequence)
+      events.forEach(deliver)
+    } catch {
+      onError?.()
+    } finally {
+      replayInFlight = false
+    }
+  }
+
+  const startSseFallback = () => {
+    if (closed || fallbackStarted) return
+    fallbackStarted = true
+    const source = new EventSource(`${apiBaseUrl}/api/runs/${runId}/events/stream`)
+    const eventTypes = ['run.started', 'node.started', 'node.completed', 'node.failed', 'node.error', 'run.completed', 'run.failed', 'run.cancelled', 'run.timed_out', 'log']
+    const listeners = eventTypes.map((type) => {
+      const listener = (event: Event) => {
+        try {
+          deliver(JSON.parse((event as MessageEvent).data) as FlowRunEventDto)
+        } catch {
+          onError?.()
+        }
+      }
+      source.addEventListener(type, listener)
+      return [type, listener] as const
+    })
+    // EventSource reconnects natively, but the API may have committed events
+    // while the connection was down. Replay from the last sequence on every
+    // reconnect/open event to close that gap.
+    source.onopen = () => { void replay() }
+    source.onerror = () => {
+      onError?.()
+      // Keep the EventSource alive so its built-in retry can recover. A
+      // replay is harmless when the stream is still unavailable and will be
+      // de-duplicated by sequence when it comes back.
+      void replay()
+    }
+    sseCleanup = () => {
+      listeners.forEach(([type, listener]) => source.removeEventListener(type, listener))
+      source.close()
+    }
+  }
+
+  // Use the native SignalR JSON hub protocol so the web client does not need
+  // an additional runtime dependency. If WebSocket, handshake, or the hub
+  // invocation fails, transparently fall back to the resumable SSE stream.
+  // 使用原生 SignalR JSON Hub 协议，失败时自动降级到可断点续传的 SSE。
+  const startSignalR = () => {
+    if (typeof WebSocket === 'undefined') {
+      startSseFallback()
+      return
+    }
+
+    const configured = apiBaseUrl || window.location.origin
+    const base = new URL(configured)
+    base.protocol = base.protocol === 'https:' ? 'wss:' : 'ws:'
+    base.pathname = `${base.pathname.replace(/\/$/, '')}/hubs/runs`
+    base.search = ''
+    let buffer = ''
+    let handshaken = false
+    let failed = false
+
+    const failover = () => {
+      if (failed || closed) return
+      failed = true
+      try { socket?.close() } catch { /* ignore close failures */ }
+      startSseFallback()
+    }
+
+    try {
+      socket = new WebSocket(base.toString())
+      socket.onopen = () => {
+        socket?.send(JSON.stringify({ protocol: 'json', version: 1 }) + '\u001e')
+      }
+      socket.onmessage = (message) => {
+        buffer += typeof message.data === 'string' ? message.data : ''
+        const records = buffer.split('\u001e')
+        buffer = records.pop() ?? ''
+        for (const record of records) {
+          if (!record) continue
+          let payload: any
+          try { payload = JSON.parse(record) } catch { failover(); return }
+          if (!handshaken) {
+            if (payload.error) { failover(); return }
+            handshaken = true
+            socket?.send(JSON.stringify({ type: 1, invocationId: `subscribe-${runId}`, target: 'Subscribe', arguments: [runId] }) + '\u001e')
+            void replay()
+            continue
+          }
+          if (payload.type === 1 && payload.target === 'runEvent' && payload.arguments?.[0]) {
+            deliver(payload.arguments[0] as FlowRunEventDto)
+          }
+        }
+      }
+      socket.onerror = failover
+      socket.onclose = () => {
+        if (!closed) failover()
+      }
+    } catch {
+      failover()
+    }
+  }
+
+  // Replay persisted events before subscribing to the live hub. Sequence
+  // de-duplication closes the small gap between the replay query and the hub
+  // handshake.
+  void replay()
+  startSignalR()
+  return () => {
+    closed = true
+    try { socket?.close() } catch { /* ignore close failures */ }
+    sseCleanup?.()
+  }
+}
+
 async function request<T>(path: string, options: { method?: 'POST' | 'PUT'; body?: unknown } = {}): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     method: options.method,
@@ -185,7 +386,11 @@ async function request<T>(path: string, options: { method?: 'POST' | 'PUT'; body
     body: options.body ? JSON.stringify(options.body) : undefined,
   })
   if (response.ok) {
-    return response.json() as Promise<T>
+    if (response.status === 204) {
+      return undefined as T
+    }
+    const payload = await response.text()
+    return (payload ? JSON.parse(payload) : undefined) as T
   }
 
   const problem = await response.json().catch(() => ({})) as ApiProblem

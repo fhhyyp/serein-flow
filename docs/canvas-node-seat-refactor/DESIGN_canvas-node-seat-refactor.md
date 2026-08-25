@@ -24,7 +24,9 @@ The reference client models connectors separately from the node body. The new im
 | --- | --- | --- | --- | --- |
 | `exec-in` | left | target | execution | one |
 | `param-{id}` | left | target | data | one |
-| `exec-out` | right | source | execution | many |
+| `exec-success` | right | source | execution / Success | many |
+| `exec-failure` | right | source | execution / Failure | many |
+| `exec-error` | right | source | execution / Error | many |
 | `data-out` | right | source | data | many |
 
 The node card renders this model rather than manually positioning individual handles. The seat ID is also the persisted port ID, so visual changes do not rewrite connections.
@@ -56,4 +58,3 @@ sequenceDiagram
 - Keep white surfaces, slate text, thin borders, compact typography, blue execution accents, and purple data accents.
 - Avoid gradient node cards, emoji connector icons, large onboarding artwork, or a separate visual language for the seat model.
 - Use focus-visible outlines and restrained 160–180ms transitions.
-

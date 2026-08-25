@@ -15,7 +15,7 @@
 | 旧 Workbench 语义映射 | 通过 | 已调研 `FlowEditView`、`FlowCanvasView` 与 `INodeJunction`；多画布和 Execute/Next/Arg/Return 四类端口已写入设计契约。 |
 | 多画布隔离 | 通过 | `Main` 新增节点前后由 4 变为 5；切换 `Init` 仍为 2；切回 `Main` 恢复为 5。 |
 | 节点编辑 | 通过 | Vue Flow 处理节点创建、拖拽、缩放、平移、选中，以及 Delete/Backspace 删除节点或边。 |
-| 流程调度连接 | 通过 | 仅允许 `exec-out -> exec-in`；生成 `execution` 蓝色实线边、Flow 标签和方形端口。 |
+| 流程调度连接 | 通过 | 仅允许 `exec-success/exec-failure/exec-error -> exec-in`；生成带 Success/Failure/Error 分支的 `execution` 边。 |
 | 参数来源连接 | 通过 | 仅允许 `data-out -> param-*`；生成 `data` 紫色虚线边、Value 标签和圆形端口，并同步目标参数为 `previousNode`。 |
 | 参数来源一致性 | 通过 | 更改为 literal/projectInput/expression 时移除数据边；删除数据边或相关节点时回退/清理参数引用。 |
 | 非法连接保护 | 通过 | 拒绝跨语义连线、自连接和重复的执行边。 |

@@ -27,7 +27,7 @@ SereinFlow.TestLibrary-1.0.0\
 
 - `Add numbers`：Action，两个 `System.Int32` 参数，返回 `System.Int32`。
 - `Format text`：Action，`System.Double` 与 `System.String` 参数，返回 `System.String`。
-- `Is positive`：Flipflop，一个 `System.Int32` 参数，返回 `System.Boolean`。
+- `Is positive`：Flipflop，一个 `System.Int32` 参数，返回 `Task<System.Boolean>`（异步触发器方法）。
 - `Emit`：Action，一个 `System.String` 参数，返回 `System.Void`。
 - `Join labels`：Action，三个 `System.String` 参数，最后一个参数可选。
 

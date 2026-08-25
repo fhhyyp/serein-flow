@@ -2,9 +2,10 @@ namespace SereinFlow.Domain;
 
 public sealed class FlowRun
 {
-    private FlowRun(Guid id, Guid flowId, long flowVersion, DateTimeOffset createdAt)
+    private FlowRun(Guid id, Guid projectId, Guid flowId, long flowVersion, DateTimeOffset createdAt)
     {
         Id = id;
+        ProjectId = projectId;
         FlowId = flowId;
         FlowVersion = flowVersion;
         CreatedAt = createdAt;
@@ -12,6 +13,8 @@ public sealed class FlowRun
     }
 
     public Guid Id { get; }
+
+    public Guid ProjectId { get; }
 
     public Guid FlowId { get; }
 
@@ -32,6 +35,9 @@ public sealed class FlowRun
     public bool IsTerminal => Status is FlowRunStatus.Succeeded or FlowRunStatus.Failed or FlowRunStatus.Cancelled or FlowRunStatus.TimedOut;
 
     public static FlowRun Start(Guid flowId, long flowVersion, DateTimeOffset createdAt, Guid? id = null)
+        => Start(Guid.Empty, flowId, flowVersion, createdAt, id);
+
+    public static FlowRun Start(Guid projectId, Guid flowId, long flowVersion, DateTimeOffset createdAt, Guid? id = null)
     {
         if (flowId == Guid.Empty)
         {
@@ -41,7 +47,28 @@ public sealed class FlowRun
         if (flowVersion < 1)
             throw new ArgumentOutOfRangeException(nameof(flowVersion), "Flow version must be positive. 流程版本必须为正数。");
 
-        return new FlowRun(id ?? Guid.NewGuid(), flowId, flowVersion, createdAt);
+        return new FlowRun(id ?? Guid.NewGuid(), projectId, flowId, flowVersion, createdAt);
+    }
+
+    public static FlowRun Rehydrate(
+        Guid id,
+        Guid projectId,
+        Guid flowId,
+        long flowVersion,
+        FlowRunStatus status,
+        DateTimeOffset createdAt,
+        DateTimeOffset? startedAt,
+        DateTimeOffset? endedAt,
+        string? cancellationReason,
+        string? errorSummary)
+    {
+        var run = Start(projectId, flowId, flowVersion, createdAt, id);
+        run.Status = status;
+        run.StartedAt = startedAt;
+        run.EndedAt = endedAt;
+        run.CancellationReason = cancellationReason;
+        run.ErrorSummary = errorSummary;
+        return run;
     }
 
     public void MarkRunning(DateTimeOffset startedAt)

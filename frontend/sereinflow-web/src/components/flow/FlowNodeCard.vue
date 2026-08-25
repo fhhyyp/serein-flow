@@ -9,16 +9,10 @@ import type { FlowNodeData, NodeKind } from '../../flow/types'
 const props = defineProps<NodeProps<FlowNodeData>>()
 
 const icons: Record<NodeKind, typeof Activity> = {
-  trigger: Zap,
   flipflop: Zap,
   script: Code2,
   condition: GitBranch,
-  expOp: GitBranch,
-  expCondition: GitBranch,
   flowCall: Activity,
-  globalData: Database,
-  value: Database,
-  expression: Code2,
   action: Database,
 }
 
@@ -27,7 +21,7 @@ const title = computed(() => props.data.displayName?.trim() || t(props.data.titl
 const description = computed(() => props.data.description?.trim() || t(props.data.subtitleKey))
 const seats = computed(() => layoutConnectionSeats(props.data))
 const executionInputSeat = computed(() => seats.value.find((seat) => seat.kind === 'execution-input'))
-const executionOutputSeat = computed(() => seats.value.find((seat) => seat.kind === 'execution-output'))
+const executionOutputSeats = computed(() => seats.value.filter((seat) => seat.kind === 'execution-output'))
 const parameterSeats = computed(() => seats.value.filter((seat) => seat.kind === 'parameter-input'))
 const dataOutputSeat = computed(() => seats.value.find((seat) => seat.kind === 'data-output'))
 const hasDataOutput = computed(() => seats.value.some((seat) => seat.kind === 'data-output'))
@@ -62,19 +56,24 @@ function isTargetSeat(seat: ConnectionSeatLayout | undefined): boolean {
         :connectable="isTargetSeat(executionInputSeat) ? 'single' : connectable"
         :aria-label="seatLabel(executionInputSeat)"
       />
-      <Handle
-        v-if="executionOutputSeat"
-        :id="executionOutputSeat.id"
-        :type="executionOutputSeat.handleType"
-        :position="Position.Right"
-        :class="['flow-handle', seatClass(executionOutputSeat)]"
-        :connectable="isTargetSeat(executionOutputSeat) ? 'single' : connectable"
-        :aria-label="seatLabel(executionOutputSeat)"
-      />
       <span class="workflow-node__icon" aria-hidden="true"><component :is="icon" :size="15" /></span>
       <span class="workflow-node__kind">{{ t(`node.kind.${data.kind}`) }}</span>
       <span v-if="runtimeSignature" class="workflow-node__runtime-header" :title="runtimeSignature">{{ runtimeSignature }}</span>
       <span class="workflow-node__status" :class="`status-${data.status}`" :title="t(`status.${data.status}`)"></span>
+    </div>
+
+    <div class="workflow-node__branch-handles" :aria-label="t('edge.executionBranches')">
+      <Handle
+        v-for="seat in executionOutputSeats"
+        :key="seat.id"
+        :id="seat.id"
+        :type="seat.handleType"
+        :position="Position.Right"
+        :style="{ top: `${seat.top}px` }"
+        :class="['flow-handle', seatClass(seat), `branch-${seat.branch}`]"
+        :connectable="connectable"
+        :aria-label="seatLabel(seat)"
+      />
     </div>
 
     <div class="workflow-node__content">

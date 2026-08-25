@@ -12,22 +12,25 @@ test('connection seats expose control, parameter, and result rails in stable ord
     ],
   })
 
-  assert.deepEqual(seats.map((seat) => seat.id), ['exec-in', 'param-payload', 'param-mode', 'exec-out', 'data-out'])
+  assert.deepEqual(seats.map((seat) => seat.id), ['exec-in', 'param-payload', 'param-mode', 'exec-success', 'exec-failure', 'exec-error', 'data-out'])
   assert.equal(seats.find((seat) => seat.id === 'param-payload')?.handleType, 'target')
   assert.equal(seats.find((seat) => seat.id === 'data-out')?.semantic, 'data')
 })
 
-test('trigger nodes have no control input and seat rows never overlap', () => {
-  const layout = layoutConnectionSeats({ kind: 'trigger', hasDataOutput: true, parameters: [] })
+test('all nodes expose three execution branches and result rows never overlap', () => {
+  const layout = layoutConnectionSeats({ kind: 'flipflop', hasDataOutput: true, parameters: [] })
 
-  assert.deepEqual(layout.map((seat) => seat.id), ['exec-out', 'data-out'])
-  assert.ok((layout[1]?.top ?? 0) > (layout[0]?.top ?? 0))
+  assert.deepEqual(layout.map((seat) => seat.id), ['exec-in', 'exec-success', 'exec-failure', 'exec-error', 'data-out'])
+  assert.ok((layout.find((seat) => seat.id === 'exec-failure')?.top ?? 0) > (layout.find((seat) => seat.id === 'exec-success')?.top ?? 0))
+  assert.ok((layout.find((seat) => seat.id === 'exec-error')?.top ?? 0) > (layout.find((seat) => seat.id === 'exec-failure')?.top ?? 0))
 })
 
 test('semantic resolution accepts only matching source and target seats', () => {
-  assert.equal(resolveConnectionSemantic('exec-out', 'exec-in'), 'execution')
+  assert.equal(resolveConnectionSemantic('exec-success', 'exec-in'), 'execution')
+  assert.equal(resolveConnectionSemantic('exec-failure', 'exec-in'), 'execution')
+  assert.equal(resolveConnectionSemantic('exec-error', 'exec-in'), 'execution')
   assert.equal(resolveConnectionSemantic('data-out', 'param-payload'), 'data')
-  assert.equal(resolveConnectionSemantic('exec-out', 'param-payload'), undefined)
+  assert.equal(resolveConnectionSemantic('exec-success', 'param-payload'), undefined)
   assert.equal(isInputSeat('exec-in'), true)
   assert.equal(isInputSeat('param-payload'), true)
   assert.equal(isInputSeat('data-out'), false)

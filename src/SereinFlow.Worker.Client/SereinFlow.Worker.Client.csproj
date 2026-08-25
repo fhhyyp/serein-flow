@@ -10,6 +10,7 @@
     <ProjectReference Include="..\SereinFlow.Contracts\SereinFlow.Contracts.csproj" />
     <ProjectReference Include="..\SereinFlow.Runtime.Abstractions\SereinFlow.Runtime.Abstractions.csproj" />
     <ProjectReference Include="..\SereinFlow.Worker.Protocol\SereinFlow.Worker.Protocol.csproj" />
+    <ProjectReference Include="..\SereinFlow.Worker.Supervisor\SereinFlow.Worker.Supervisor.csproj" />
   </ItemGroup>
 
 </Project>

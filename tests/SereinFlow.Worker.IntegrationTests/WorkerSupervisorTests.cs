@@ -1,5 +1,6 @@
 using System.Text.Json;
 using SereinFlow.Contracts;
+using SereinFlow.Worker.Client;
 using SereinFlow.Worker.Runner;
 using SereinFlow.Worker.Supervisor;
 
@@ -27,6 +28,29 @@ public sealed class WorkerSupervisorTests
         Assert.Equal(events.OrderBy(workerEvent => workerEvent.Sequence).Select(workerEvent => workerEvent.Sequence), events.Select(workerEvent => workerEvent.Sequence));
         Assert.Contains(events, workerEvent => workerEvent.EventType == WorkerEventType.NodeStarted);
         Assert.Contains(events, workerEvent => workerEvent.EventType == WorkerEventType.NodeCompleted);
+    }
+
+    [Fact]
+    public async Task SupervisorWorkerRunClientUsesDotnetExecForManagedRunnerAssembly()
+    {
+        var events = new List<WorkerEventEnvelopeDto>();
+        var client = new SupervisorWorkerRunClient(new SupervisorWorkerRunClientOptions(
+            typeof(RunnerHost).Assembly.Location,
+            RunnerFileName: "dotnet",
+            HandshakeTimeout: TimeSpan.FromSeconds(10),
+            HeartbeatInterval: TimeSpan.FromMilliseconds(100),
+            CancellationGracePeriod: TimeSpan.FromSeconds(2)));
+
+        var result = await client.RunAsync(
+            CreateActionRequest(DateTimeOffset.UtcNow.AddSeconds(15)),
+            new DelegateWorkerRunEventSink((workerEvent, _) =>
+            {
+                events.Add(workerEvent);
+                return ValueTask.CompletedTask;
+            }));
+
+        Assert.Equal(FlowRunStatusDto.Succeeded, result.Status);
+        Assert.NotEmpty(events);
     }
 
     [Fact]
@@ -74,7 +98,7 @@ public sealed class WorkerSupervisorTests
         var result = await supervisor.RunAsync(request, static (_, _) => ValueTask.CompletedTask);
 
         Assert.Equal(FlowRunStatusDto.Failed, result.Status);
-        Assert.Equal("worker.crashed", result.ErrorCode);
+        Assert.Equal("worker.runner_not_found", result.ErrorCode);
     }
 
     private static WorkerSupervisor CreateSupervisor()
@@ -110,7 +134,7 @@ public sealed class WorkerSupervisorTests
     {
         var definition = new FlowDefinitionDto(
             flowId,
-            1,
+            3,
             1,
             [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])],
             node.Id,

@@ -18,4 +18,6 @@ public sealed class NodeExecutorRegistry
         => _executors.TryGetValue(nodeType, out var executor)
             ? executor
             : throw new InvalidOperationException($"No executor is registered for node type '{nodeType}'. 未注册节点类型“{nodeType}”的执行器。");
+
+    public IReadOnlyCollection<INodeExecutor> GetAll() => _executors.Values.ToArray();
 }

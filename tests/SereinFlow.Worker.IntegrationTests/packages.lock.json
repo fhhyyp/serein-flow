@@ -130,7 +130,8 @@
         "dependencies": {
           "SereinFlow.Contracts": "[1.0.0, )",
           "SereinFlow.Runtime.Abstractions": "[1.0.0, )",
-          "SereinFlow.Worker.Protocol": "[1.0.0, )"
+          "SereinFlow.Worker.Protocol": "[1.0.0, )",
+          "SereinFlow.Worker.Supervisor": "[1.0.0, )"
         }
       },
       "sereinflow.worker.protocol": {

@@ -85,15 +85,15 @@ const isRestoringWorkspace = ref(false)
 const isSwitchingCanvas = ref(false)
 
 function iconForNodeKind(kind: NodeKind) {
-  if (kind === 'trigger' || kind === 'flipflop') {
+  if (kind === 'flipflop') {
     return Zap
   }
 
-  if (kind === 'script' || kind === 'expression') {
+  if (kind === 'script') {
     return Code2
   }
 
-  if (kind === 'condition' || kind === 'expOp' || kind === 'expCondition') {
+  if (kind === 'condition') {
     return GitBranch
   }
 
@@ -249,7 +249,7 @@ const {
   runPayload,
   hasRunOutput,
   runFlow,
-} = useFlowRunner({ nodes, notice })
+} = useFlowRunner({ nodes, notice, projectId, flowId, flowVersion })
 
 const {
   handleCanvasDragOver,

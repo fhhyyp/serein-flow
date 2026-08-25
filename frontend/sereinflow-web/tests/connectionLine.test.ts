@@ -34,9 +34,11 @@ test('legacy straight settings migrate to the requested orthogonal segment style
 })
 
 test('drag previews resolve semantic type before the target handle is selected', () => {
-  assert.equal(semanticFromConnectionHandles('exec-out', null), 'execution')
+  assert.equal(semanticFromConnectionHandles('exec-success', null), 'execution')
+  assert.equal(semanticFromConnectionHandles('exec-failure', null), 'execution')
+  assert.equal(semanticFromConnectionHandles('exec-error', null), 'execution')
   assert.equal(semanticFromConnectionHandles('data-out', null), 'data')
-  assert.equal(semanticFromConnectionHandles('exec-out', 'exec-in'), 'execution')
+  assert.equal(semanticFromConnectionHandles('exec-error', 'exec-in'), 'execution')
   assert.equal(semanticFromConnectionHandles('data-out', 'param-payload'), 'data')
   assert.equal(semanticFromConnectionHandles(undefined, undefined), undefined)
 })

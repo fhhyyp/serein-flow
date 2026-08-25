@@ -20,6 +20,7 @@ export interface LibraryNodeDto {
   dllName: string
   dllVersion: string
   returnType: string
+  isAwaitable?: boolean
   parameters: LibraryParameterDto[]
 }
 

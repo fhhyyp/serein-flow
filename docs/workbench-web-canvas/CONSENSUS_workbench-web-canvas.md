@@ -10,7 +10,7 @@ SereinFlow Web 工作台应提供旧 Workbench 核心能力的现代 Web 实现�
 
 - 初始显示 `Main`、`Init`、`Loading` 三个可切换画布，切换后节点和边不混合。
 - 用户可从左侧节点库添加节点，拖拽节点改变位置，选择节点，并删除选中的节点或边。
-- `exec-out` 仅可连至 `exec-in`，创建为 `execution` 边，使用实线和“Flow”标签。
+- `exec-success`、`exec-failure`、`exec-error` 仅可连至 `exec-in`，创建为带对应 `Success`、`Failure`、`Error` 分支的 `execution` 边。
 - `data-out` 仅可连至目标节点参数 `param-*`，创建为 `data` 边，使用虚线和“Value”标签，并将目标参数来源更新为 `previousNode`。
 - 不允许不同语义交叉连接、同节点自连接，或为同一执行输出重复创建同一目标流程边。
 - 选择节点时，检查器可编辑名称、描述及其参数来源；切换参数来源会移除相应的数据边；删除数据边会回退参数来源。

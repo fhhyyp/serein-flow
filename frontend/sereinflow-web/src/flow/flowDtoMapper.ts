@@ -9,6 +9,7 @@ import type {
   NodeDto,
   NodeParameterDto,
   NodePortDto,
+  ScriptNodeDataDto,
 } from '../api/flowApi'
 import type {
   CanvasLifecycle,
@@ -21,9 +22,11 @@ import type {
   NodeStatus,
   ParameterInputMode,
   ParameterSource,
+  ScriptNodeData,
 } from './types'
 import { allNodeKinds } from './nodeCatalog.ts'
 import { connectionLineStyleFor, defaultConnectionLineTypes, normalizeConnectionLineTypes } from './connectionLine.ts'
+import { canonicalParameterId, executionBranchFromHandle, parameterHandleFor } from './connectionSeats.ts'
 import type { WorkspaceSnapshot } from './workspaceHistory'
 
 export interface FlowIdentity {
@@ -33,7 +36,7 @@ export interface FlowIdentity {
 
 const lifecycleValues: CanvasLifecycle[] = ['main', 'init', 'loading', 'exit', 'custom']
 const nodeKinds: NodeKind[] = [...allNodeKinds]
-const nodeStatuses: NodeStatus[] = ['idle', 'running', 'success', 'failed', 'ready', 'active']
+const nodeStatuses: NodeStatus[] = ['idle', 'running', 'success', 'failed', 'error', 'ready', 'active']
 const parameterSources: ParameterSource[] = ['literal', 'previousNode', 'projectInput', 'expression']
 const parameterInputModes: ParameterInputMode[] = ['connection', 'manual', 'select']
 
@@ -42,7 +45,7 @@ export function workspaceToFlowDefinition(snapshot: WorkspaceSnapshot, identity:
   const entryNodeId = mainCanvas?.nodes[0]?.id ?? ''
   return {
     id: identity.id,
-    schemaVersion: 1,
+    schemaVersion: 3,
     version: identity.version,
     canvases: snapshot.canvases.map(toCanvasDto),
     entryNodeId,
@@ -87,7 +90,7 @@ function toNodeDto(node: FlowNode): NodeDto {
     y: node.position.y,
     ports: createPorts(node),
     parameters: node.data.parameters.map(toParameterDto),
-    script: null,
+    script: node.data.script ? toScriptDto(node.data.script) : null,
     ui: {
       kind: node.data.kind,
       titleKey: node.data.titleKey,
@@ -103,31 +106,41 @@ function toNodeDto(node: FlowNode): NodeDto {
       dllName: node.data.runtime?.dllName,
       dllVersion: node.data.runtime?.dllVersion,
       returnType: node.data.runtime?.returnType,
+      targetNodeId: node.data.runtime?.targetNodeId,
+      targetFlowId: node.data.runtime?.targetFlowId,
+      isAwaitable: node.data.runtime?.isAwaitable,
+      staticReturnType: node.data.runtime?.staticReturnType,
+      isDynamicReturnType: node.data.runtime?.isDynamicReturnType,
     },
   }
 }
 
 function createPorts(node: FlowNode): NodePortDto[] {
   const ports: NodePortDto[] = []
-  if (node.data.kind !== 'trigger') {
-    ports.push({ id: 'exec-in', name: 'Execution input', direction: 'input', required: false })
-  }
-  ports.push({ id: 'exec-out', name: 'Execution output', direction: 'output', required: false })
+  ports.push({ id: 'exec-in', name: 'Execution input', direction: 'input', required: false })
+  ports.push({ id: 'exec-success', name: 'Success', direction: 'output', required: false })
+  ports.push({ id: 'exec-failure', name: 'Failure', direction: 'output', required: false })
+  ports.push({ id: 'exec-error', name: 'Error', direction: 'output', required: false })
   if (exposesDataOutput(node)) {
     ports.push({ id: 'data-out', name: 'Data output', direction: 'output', required: false })
   }
   for (const parameter of node.data.parameters) {
-    ports.push({ id: `param-${parameter.id}`, name: parameter.id, direction: 'input', required: false })
+    ports.push({ id: parameterHandleFor(parameter.id), name: parameter.id, direction: 'input', required: false })
   }
   return ports
 }
 
 function toParameterDto(parameter: MethodParameter): NodeParameterDto {
   return {
-    name: parameter.id,
+    // The API/Worker name must remain the reflected method parameter name
+    // (for example `left`), while `id` is only the stable canvas connector
+    // identifier (for example `1`). Mixing the two makes the Worker unable
+    // to bind values to DLL method arguments.
+    // API/Worker 使用反射得到的方法参数名（例如 `left`），id 仅用于画布连接席位（例如 `1`）。
+    name: parameter.name?.trim() || parameter.id,
     valueJson: parameter.source === 'literal' ? parameter.literalValue : undefined,
     source: parameter.source,
-    required: false,
+    required: parameter.required ?? false,
     ui: {
       id: parameter.id,
       nameKey: parameter.nameKey,
@@ -148,11 +161,15 @@ function toConnectionDto(edge: FlowEdge): ConnectionDto {
   return {
     id: edge.id,
     fromNodeId: edge.source,
-    fromPortId: edge.sourceHandle ?? (edge.data.semantic === 'execution' ? 'exec-out' : 'data-out'),
+    fromPortId: edge.data.semantic === 'execution'
+      ? executionHandleForBranch(edge.data.branch ?? executionBranchFromHandle(edge.sourceHandle))
+      : (edge.sourceHandle ?? 'data-out'),
     toNodeId: edge.target,
-    toPortId: edge.targetHandle ?? (edge.data.semantic === 'execution' ? 'exec-in' : `param-${edge.data.targetParameterId ?? 'input'}`),
+    toPortId: edge.data.semantic === 'execution'
+      ? (edge.targetHandle ?? 'exec-in')
+      : canonicalParameterId(edge.data.targetParameterId ?? edge.targetHandle?.replace(/^param-/, '') ?? 'input'),
     kind: edge.data.semantic === 'execution' ? 'execution' : 'data',
-    branch: edge.data.semantic === 'execution' ? 'success' : undefined,
+    branch: edge.data.semantic === 'execution' ? (edge.data.branch ?? executionBranchFromHandle(edge.sourceHandle)) : undefined,
     dataSource: edge.data.semantic === 'data' ? 'previousNode' : undefined,
     priority: 0,
   }
@@ -187,20 +204,28 @@ function toFlowNode(node: NodeDto): FlowNode {
       description: node.ui?.description,
       status: normalizeNodeStatus(node.ui?.status),
       hasDataOutput: hasDataOutputFromDto(node),
-      parameters: node.parameters.map(toMethodParameter),
+      parameters: node.parameters.map((parameter) => toMethodParameter(parameter, node.ui?.category === 'method')),
+      script: node.script ? toScriptData(node.script) : undefined,
       runtime,
     },
   }
 }
 
-function toMethodParameter(parameter: NodeParameterDto): MethodParameter {
+function toMethodParameter(parameter: NodeParameterDto, isMethodNode: boolean): MethodParameter {
   const source = isParameterSource(parameter.source) ? parameter.source : 'literal'
+  const reflectedName = parameter.name?.trim()
+  const uiName = parameter.ui?.nameKey?.trim()
   return {
-    id: parameter.ui?.id || parameter.name,
-    nameKey: parameter.ui?.nameKey || parameter.name,
+    id: canonicalParameterId(parameter.ui?.id || parameter.name),
+    nameKey: uiName || reflectedName,
     valueKind: parameter.ui?.valueKind || 'JSON',
-    name: parameter.name,
+    // Flows saved before the mapping fix used the connector id (`1`, `2`, …)
+    // as `name`. Method-node UI metadata still carries the reflected name,
+    // so restore it when loading those definitions.
+    // 兼容修复前把连接器 ID 写入 name 的流程；类库节点的 UI 元数据仍保留真实参数名。
+    name: isMethodNode && uiName ? uiName : reflectedName,
     type: parameter.ui?.type || parameter.ui?.valueKind || 'JSON',
+    required: parameter.required,
     description: parameter.ui?.description,
     inputMode: normalizeParameterInputMode(parameter.ui?.inputMode),
     source,
@@ -212,30 +237,71 @@ function toMethodParameter(parameter: NodeParameterDto): MethodParameter {
   }
 }
 
+function toScriptDto(script: ScriptNodeData): ScriptNodeDataDto {
+  return {
+    nodeId: script.nodeId,
+    source: script.source,
+    languageVersion: script.languageVersion,
+    sourceHash: script.sourceHash,
+    inputs: script.inputs,
+    outputs: script.outputs,
+  }
+}
+
+function toScriptData(script: ScriptNodeDataDto): ScriptNodeData {
+  return {
+    nodeId: script.nodeId,
+    source: script.source,
+    languageVersion: script.languageVersion,
+    sourceHash: script.sourceHash,
+    inputs: script.inputs,
+    outputs: script.outputs,
+  }
+}
+
 function toFlowEdge(connection: ConnectionDto): FlowEdge {
   const semantic: ConnectionSemantic = connection.kind === 'execution' ? 'execution' : 'data'
   const isExecution = semantic === 'execution'
+  if (isExecution && !connection.branch) {
+    throw new Error('Execution connections must declare Success, Failure, or Error. 流程连接必须声明 Success、Failure 或 Error 分支。')
+  }
+  const branch = isExecution ? connection.branch : undefined
   const lineType = connectionLineStyleFor(semantic).lineType
   return {
     id: connection.id,
     source: connection.fromNodeId,
     target: connection.toNodeId,
-    sourceHandle: connection.fromPortId,
-    targetHandle: connection.toPortId,
+    sourceHandle: isExecution ? executionHandleForBranch(branch) : connection.fromPortId,
+    targetHandle: isExecution ? connection.toPortId : parameterHandleFor(connection.toPortId),
     type: lineType,
     markerEnd: {
       type: MarkerType.ArrowClosed,
-      color: isExecution ? '#0369a1' : '#6d42a5',
+      color: isExecution ? executionBranchColor(branch) : '#6d42a5',
       width: 14,
       height: 14,
     },
     data: {
       semantic,
-      targetParameterId: isExecution ? undefined : connection.toPortId.replace(/^param-/, ''),
+      branch,
+      targetParameterId: isExecution ? undefined : canonicalParameterId(connection.toPortId),
     },
-    class: isExecution ? 'edge-execution' : 'edge-data',
-    ariaLabel: isExecution ? 'Flow scheduling connection' : 'Parameter source connection',
+    class: isExecution ? `edge-execution branch-${branch}` : 'edge-data',
+    ariaLabel: isExecution
+      ? `Flow scheduling connection · ${branch} branch`
+      : 'Parameter source connection',
   }
+}
+
+function executionHandleForBranch(branch: 'success' | 'failure' | 'error' | undefined): string {
+  if (!branch) {
+    throw new Error('Execution connections must declare Success, Failure, or Error. 流程连接必须声明 Success、Failure 或 Error 分支。')
+  }
+
+  return `exec-${branch}`
+}
+
+function executionBranchColor(branch: 'success' | 'failure' | 'error' | undefined): string {
+  return branch === 'failure' ? '#b45309' : branch === 'error' ? '#dc2626' : '#15803d'
 }
 
 function toApiNodeType(kind: NodeKind): ApiNodeType {
@@ -277,7 +343,7 @@ function hasDataOutputFromDto(node: NodeDto): boolean {
 
 function toRuntimeMetadata(node: NodeDto) {
   const ui = node.ui
-  if (!ui || [ui.category, ui.libraryId, ui.className, ui.methodName, ui.dllName, ui.dllVersion, ui.returnType].every((value) => value === undefined)) {
+  if (!ui || [ui.category, ui.libraryId, ui.className, ui.methodName, ui.dllName, ui.dllVersion, ui.returnType, ui.targetNodeId, ui.targetFlowId, ui.isAwaitable, ui.staticReturnType, ui.isDynamicReturnType].every((value) => value === undefined)) {
     return undefined
   }
 
@@ -289,6 +355,11 @@ function toRuntimeMetadata(node: NodeDto) {
     dllName: ui.dllName,
     dllVersion: ui.dllVersion,
     returnType: ui.returnType,
+    targetNodeId: ui.targetNodeId,
+    targetFlowId: ui.targetFlowId,
+    isAwaitable: ui.isAwaitable,
+    staticReturnType: ui.staticReturnType,
+    isDynamicReturnType: ui.isDynamicReturnType,
   }
 }
 

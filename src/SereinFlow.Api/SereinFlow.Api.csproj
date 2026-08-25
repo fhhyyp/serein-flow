@@ -13,4 +13,11 @@
     <ProjectReference Include="..\SereinFlow.Worker.Client\SereinFlow.Worker.Client.csproj" />
   </ItemGroup>
 
+  <Target Name="BuildWorkerRunner" BeforeTargets="Build">
+    <MSBuild
+      Projects="$(MSBuildThisFileDirectory)..\SereinFlow.Worker.Runner\SereinFlow.Worker.Runner.csproj"
+      Targets="Build"
+      Properties="Configuration=$(Configuration)" />
+  </Target>
+
 </Project>

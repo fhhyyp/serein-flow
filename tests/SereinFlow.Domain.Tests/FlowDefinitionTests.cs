@@ -98,4 +98,19 @@ public sealed class FlowDefinitionTests
         Assert.Contains(diagnostics, diagnostic => diagnostic.Code == DomainErrorCodes.DuplicateParameterName);
         Assert.Contains(diagnostics, diagnostic => diagnostic.Code == DomainErrorCodes.MissingRequiredParameter);
     }
+
+    [Fact]
+    public void LegacySchemaIsRejectedInsteadOfRemappingRetiredNodeValues()
+    {
+        var flow = FlowDefinition.Create(
+            Guid.NewGuid(),
+            1,
+            [CanvasDefinition.Create("main", CanvasLifecycle.Main, [NodeDefinition.Create("node", NodeType.Action, "Node")], [])],
+            "node",
+            schemaVersion: 1);
+
+        var diagnostic = Assert.Single(flow.Validate(), item => item.Code == DomainErrorCodes.NodeTypeRemoved);
+
+        Assert.Equal("schemaVersion", diagnostic.Path);
+    }
 }

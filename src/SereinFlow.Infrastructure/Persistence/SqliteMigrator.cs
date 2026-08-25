@@ -7,6 +7,8 @@ public sealed class SqliteMigrator
     private const int InitialSchemaVersion = 1;
     private const int RemoveOrderPipelineSeedVersion = 2;
     private const int AddLibraryCatalogVersion = 3;
+    private const int AddFlowRunSnapshotsVersion = 4;
+    private const int AddFlowRunExecutionOptionsVersion = 5;
     private readonly SqlSugarClient _client;
 
     public SqliteMigrator(SqlSugarClient client)
@@ -153,6 +155,60 @@ public sealed class SqliteMigrator
                     );
                     """);
                 RecordMigration(AddLibraryCatalogVersion, "library-catalog-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
+
+        if (!applied.Contains(AddFlowRunSnapshotsVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                _client.Ado.ExecuteCommand("""
+                    ALTER TABLE FlowRuns ADD COLUMN ProjectId TEXT NULL;
+                    ALTER TABLE FlowRuns ADD COLUMN CreatedAt TEXT NULL;
+                    ALTER TABLE FlowRuns ADD COLUMN CancellationReason TEXT NULL;
+                    CREATE TABLE IF NOT EXISTS FlowRunDefinitions (
+                        RunId TEXT NOT NULL PRIMARY KEY,
+                        FlowId TEXT NOT NULL,
+                        FlowVersion INTEGER NOT NULL,
+                        SchemaVersion INTEGER NOT NULL,
+                        Checksum TEXT NOT NULL,
+                        DefinitionJson TEXT NOT NULL,
+                        CreatedAt TEXT NOT NULL,
+                        FOREIGN KEY (RunId) REFERENCES FlowRuns(Id)
+                    );
+                    CREATE INDEX IF NOT EXISTS IX_FlowRuns_ProjectId_CreatedAt ON FlowRuns(ProjectId, CreatedAt);
+                    CREATE INDEX IF NOT EXISTS IX_FlowRunEvents_RunId_Sequence ON FlowRunEvents(RunId, Sequence);
+                    """);
+                RecordMigration(AddFlowRunSnapshotsVersion, "flow-run-snapshots-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
+
+        applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
+        if (!applied.Contains(AddFlowRunExecutionOptionsVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                _client.Ado.ExecuteCommand("""
+                    ALTER TABLE FlowRuns ADD COLUMN Deadline TEXT NULL;
+                    ALTER TABLE FlowRuns ADD COLUMN MaxSteps INTEGER NULL;
+                    ALTER TABLE FlowRuns ADD COLUMN MaxNodeVisits INTEGER NULL;
+                    ALTER TABLE FlowRuns ADD COLUMN ProjectInputsJson TEXT NULL;
+                    """);
+                RecordMigration(AddFlowRunExecutionOptionsVersion, "flow-run-execution-options-v1");
                 _client.Ado.CommitTran();
             }
             catch

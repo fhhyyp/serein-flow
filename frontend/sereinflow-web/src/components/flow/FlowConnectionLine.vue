@@ -8,6 +8,7 @@ import {
 } from '@vue-flow/core'
 import { computed } from 'vue'
 import { connectionLineStyleFor, semanticFromConnectionHandles, type ConnectionLineSettings } from '../../flow/connectionLine'
+import { executionBranchFromHandle } from '../../flow/connectionSeats'
 
 interface FlowConnectionLineProps extends ConnectionLineProps {
   lineTypes?: ConnectionLineSettings
@@ -17,6 +18,14 @@ const props = defineProps<FlowConnectionLineProps>()
 
 const semantic = computed(() => semanticFromConnectionHandles(props.sourceHandle?.id, props.targetHandle?.id))
 const style = computed(() => semantic.value ? connectionLineStyleFor(semantic.value, props.lineTypes) : undefined)
+const branch = computed(() => executionBranchFromHandle(props.sourceHandle?.id))
+const previewColor = computed(() => branch.value === 'failure'
+  ? '#b45309'
+  : branch.value === 'error'
+    ? '#dc2626'
+    : branch.value === 'success'
+      ? '#15803d'
+      : style.value?.color ?? '#64748b')
 
 const path = computed(() => {
   const params = {
@@ -55,7 +64,7 @@ const previewClass = computed(() => [
     :d="path"
     :class="previewClass"
     :style="{
-      stroke: style?.color ?? '#64748b',
+      stroke: previewColor,
       strokeDasharray: style?.previewDashArray ?? '5 5',
     }"
     fill="none"

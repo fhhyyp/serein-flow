@@ -39,11 +39,11 @@ public sealed record WorkerErrorDto(string Code, string Message);
 
 public static class WorkerProtocolCodec
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateWebOptions(options =>
     {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = false
-    };
+        options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+        options.WriteIndented = false;
+    });
 
     public static string Serialize(WorkerMessage message)
     {
@@ -80,7 +80,13 @@ public static class WorkerProtocolCodec
         }
         catch (JsonException exception)
         {
-            throw new WorkerProtocolException("worker.invalid_message", "Worker message is not valid JSON. Worker 消息不是有效的 JSON。", exception);
+            throw new WorkerProtocolException(
+                "worker.invalid_message",
+                "Worker message is not valid JSON. Worker 消息不是有效的 JSON。",
+                exception,
+                line,
+                exception.LineNumber,
+                exception.BytePositionInLine);
         }
     }
 
@@ -94,12 +100,51 @@ public static class WorkerProtocolCodec
         await stream.FlushAsync(cancellationToken);
     }
 
-    public static async ValueTask<WorkerMessage?> ReadAsync(StreamReader reader, CancellationToken cancellationToken = default)
+    public static ValueTask<WorkerMessage?> ReadAsync(
+        StreamReader reader,
+        CancellationToken cancellationToken = default)
+        => ReadAsync(reader, diagnostic: null, cancellationToken);
+
+    public static async ValueTask<WorkerMessage?> ReadAsync(
+        StreamReader reader,
+        Action<string>? diagnostic,
+        CancellationToken cancellationToken = default)
     {
         if (reader is null)
             throw new ArgumentNullException(nameof(reader), "The worker reader cannot be null. Worker 读取器不能为空。");
-        var line = await reader.ReadLineAsync(cancellationToken);
-        return line is null ? null : Deserialize(line);
+        while (true)
+        {
+            var line = await reader.ReadLineAsync(cancellationToken);
+            if (line is null)
+                return null;
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+
+            try
+            {
+                return Deserialize(line);
+            }
+            catch (WorkerProtocolException exception)
+                when (exception.Code == "worker.invalid_message"
+                    && !line.TrimStart().StartsWith('{'))
+            {
+                // A third-party component may still write a plain-text
+                // diagnostic line to stdout despite the runner's Console.Out
+                // isolation. Ignore only non-JSON noise; malformed JSON that
+                // looks like a protocol object must still fail fast.
+                // 外部组件即使绕过 Console.Out 隔离，也可能向 stdout 写入纯文本诊断；仅忽略非 JSON 噪声，疑似协议对象的坏 JSON 仍立即失败。
+                try
+                {
+                    diagnostic?.Invoke(line);
+                }
+                catch
+                {
+                    // Diagnostics must never break protocol consumption.
+                    // 诊断记录失败时不能影响协议读取。
+                }
+                continue;
+            }
+        }
     }
 
     public static string SerializePayload<T>(T payload)
@@ -153,8 +198,26 @@ public sealed class WorkerMessageWriter : IAsyncDisposable
 
 public sealed class WorkerProtocolException : Exception
 {
-    public WorkerProtocolException(string code, string message, Exception? innerException = null)
-        : base(message, innerException) => Code = code;
+    public WorkerProtocolException(
+        string code,
+        string message,
+        Exception? innerException = null,
+        string? rawMessage = null,
+        long? jsonLineNumber = null,
+        long? jsonBytePositionInLine = null)
+        : base(message, innerException)
+    {
+        Code = code;
+        RawMessage = rawMessage;
+        JsonLineNumber = jsonLineNumber;
+        JsonBytePositionInLine = jsonBytePositionInLine;
+    }
 
     public string Code { get; }
+
+    public string? RawMessage { get; }
+
+    public long? JsonLineNumber { get; }
+
+    public long? JsonBytePositionInLine { get; }
 }

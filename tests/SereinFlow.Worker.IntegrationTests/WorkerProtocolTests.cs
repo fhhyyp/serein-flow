@@ -1,3 +1,5 @@
+using System.Text;
+using System.Text.Json;
 using SereinFlow.Worker.Protocol;
 
 namespace SereinFlow.Worker.IntegrationTests;
@@ -18,6 +20,24 @@ public sealed class WorkerProtocolTests
     }
 
     [Fact]
+    public void CodecKeepsChineseDiagnosticsReadable()
+    {
+        var payload = WorkerProtocolCodec.SerializePayload(new
+        {
+            errorMessage = "缺少类库必需输入“left”。"
+        });
+        var message = WorkerMessage.Create(
+            WorkerProtocolConstants.EventKind,
+            payload,
+            Guid.NewGuid());
+
+        var json = WorkerProtocolCodec.Serialize(message);
+
+        Assert.Contains("缺少类库必需输入", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("\\u7F3A", json, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void CodecRejectsProtocolMismatchesAndOversizedMessages()
     {
         var mismatch = new WorkerMessage(WorkerProtocolConstants.Version + 1, WorkerProtocolConstants.RunKind, "request");
@@ -28,5 +48,33 @@ public sealed class WorkerProtocolTests
 
         Assert.Equal("worker.protocol_mismatch", mismatchError.Code);
         Assert.Equal("worker.message_too_large", oversizedError.Code);
+    }
+
+    [Fact]
+    public async Task ReaderSkipsPlainTextStdoutNoiseBeforeProtocolMessage()
+    {
+        var diagnostics = new List<string>();
+        var message = WorkerMessage.Create(WorkerProtocolConstants.HeartbeatKind);
+        await using var stream = new MemoryStream(Encoding.UTF8.GetBytes($"diagnostic noise\n{WorkerProtocolCodec.Serialize(message)}\n"));
+        using var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
+
+        var result = await WorkerProtocolCodec.ReadAsync(reader, diagnostics.Add);
+
+        Assert.NotNull(result);
+        Assert.Equal(WorkerProtocolConstants.HeartbeatKind, result!.Kind);
+        Assert.Equal(["diagnostic noise"], diagnostics);
+    }
+
+    [Fact]
+    public void InvalidJsonRetainsRawMessageAndParserLocation()
+    {
+        const string raw = "{\"kind\": broken}";
+
+        var exception = Assert.Throws<WorkerProtocolException>(() => WorkerProtocolCodec.Deserialize(raw));
+
+        Assert.Equal("worker.invalid_message", exception.Code);
+        Assert.Equal(raw, exception.RawMessage);
+        Assert.NotNull(exception.JsonBytePositionInLine);
+        Assert.IsType<JsonException>(exception.InnerException);
     }
 }

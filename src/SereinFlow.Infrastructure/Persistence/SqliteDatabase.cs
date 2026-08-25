@@ -52,6 +52,27 @@ public sealed class SqliteDatabase : IDisposable
 
     public string DatabasePath => _options.DatabasePath;
 
+    public int BusyTimeoutMilliseconds => _options.BusyTimeoutMilliseconds;
+
+    /// <summary>
+    /// Creates a short-lived SqlSugar client for one DI scope. SqlSugar clients
+    /// own mutable ADO state and must not be shared by concurrent HTTP requests.
+    /// 创建一个供单个 DI 作用域使用的 SqlSugar 客户端。SqlSugar 客户端包含可变
+    /// ADO 状态，不能在并发 HTTP 请求之间共享。
+    /// </summary>
+    public SqlSugarClient CreateClient()
+    {
+        var client = new SqlSugarClient(new ConnectionConfig
+        {
+            ConnectionString = $"Data Source={DatabasePath}",
+            DbType = DbType.Sqlite,
+            IsAutoCloseConnection = true,
+            InitKeyType = InitKeyType.Attribute
+        });
+        ConfigurePragmas(client);
+        return client;
+    }
+
     public void Initialize()
     {
         if (_initialized)
@@ -107,8 +128,13 @@ public sealed class SqliteDatabase : IDisposable
 
     private void ConfigurePragmas()
     {
-        Client.Ado.ExecuteCommand("PRAGMA foreign_keys = ON;");
-        Client.Ado.ExecuteCommand("PRAGMA journal_mode = WAL;");
-        Client.Ado.ExecuteCommand($"PRAGMA busy_timeout = {_options.BusyTimeoutMilliseconds};");
+        ConfigurePragmas(Client);
+    }
+
+    private void ConfigurePragmas(SqlSugarClient client)
+    {
+        client.Ado.ExecuteCommand("PRAGMA foreign_keys = ON;");
+        client.Ado.ExecuteCommand("PRAGMA journal_mode = WAL;");
+        client.Ado.ExecuteCommand($"PRAGMA busy_timeout = {_options.BusyTimeoutMilliseconds};");
     }
 }

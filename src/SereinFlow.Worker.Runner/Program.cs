@@ -19,6 +19,11 @@ public static class RunnerHost
 {
     public static async Task<int> RunAsync(Stream input, Stream output, CancellationToken cancellationToken = default)
     {
+        // stdout is the framed Worker protocol stream. Third-party DLLs and
+        // script runtimes must never be able to write diagnostic text into it,
+        // otherwise the supervisor will try to parse that text as JSON.
+        // stdout 是 Worker 协议专用流；外部 DLL 或脚本不得向其中写入诊断文本，否则 Supervisor 会把文本误解析为 JSON。
+        Console.SetOut(TextWriter.Null);
         using var reader = new StreamReader(input, leaveOpen: true);
         await using var writer = new WorkerMessageWriter(output);
         await writer.WriteAsync(WorkerMessage.Create(WorkerProtocolConstants.ReadyKind), cancellationToken);
@@ -89,7 +94,16 @@ public static class RunnerHost
         try
         {
             var definition = FlowDefinitionMapper.Map(request.DefinitionJson);
-            await using var session = new FlowExecutionSession(request.RunId, cancellationToken);
+            await using var session = new FlowExecutionSession(
+                request.RunId,
+                cancellationToken,
+                request.MaxSteps > 0 ? request.MaxSteps : 10_000,
+                request.MaxNodeVisits > 0 ? request.MaxNodeVisits : 1_000);
+            if (request.ProjectInputs is not null)
+            {
+                foreach (var input in request.ProjectInputs)
+                    session.Write($"project.{input.Key}", JsonElementToClr(input.Value));
+            }
             await writer.WriteAsync(
                 WorkerMessage.Create(
                     WorkerProtocolConstants.EventKind,
@@ -104,10 +118,29 @@ public static class RunnerHost
                     request.RunId),
                 cancellationToken);
 
-            var publisher = new WorkerEventPublisher(writer, request.RunId);
+            await using var publisher = new WorkerEventPublisher(writer, request.RunId);
+            ScriptArtifactStore? artifactStore = null;
+            if (!string.IsNullOrWhiteSpace(request.ScriptArtifactRootPath))
+            {
+                artifactStore = new ScriptArtifactStore(request.ScriptArtifactRootPath);
+                var scriptDefinitions = definition.Canvases
+                    .SelectMany(canvas => canvas.Nodes)
+                    .Where(static node => node.Type == NodeType.Script && node.Script is not null)
+                    .Select(static node => node.Script!)
+                    .ToArray();
+                // Rebuild failures are surfaced by the Script node itself so
+                // the flow can route them through its Error branch.
+                // 缓存重建失败由脚本节点在执行时报告，从而进入 Error 分支。
+                _ = artifactStore.RebuildProject(request.ProjectId ?? "default", scriptDefinitions);
+            }
+
+            session.Write("projectId", request.ProjectId ?? "default");
             var executors = new NodeExecutorRegistry([
-                new SuccessfulActionExecutor(),
-                new SereinScriptNodeExecutor()]);
+                new LibraryNodeExecutor(NodeType.Action, request.LibraryPackageRootPath, request.RunId),
+                new LibraryNodeExecutor(NodeType.Flipflop, request.LibraryPackageRootPath, request.RunId),
+                new SereinScriptNodeExecutor(artifactStore, request.ProjectId ?? "default"),
+                new ConditionNodeExecutor(),
+                new FlowCallNodeExecutor()]);
             var runner = new FlowRunner(new ExecutionPlanBuilder(), executors, publisher);
             var result = await runner.RunAsync(definition, session, cancellationToken);
             var status = result.IsSuccess ? FlowRunStatusDto.Succeeded : FlowRunStatusDto.Failed;
@@ -151,8 +184,17 @@ public static class RunnerHost
                 runId),
             cancellationToken);
 
-    private sealed class WorkerEventPublisher(WorkerMessageWriter writer, Guid runId) : IRunEventPublisher
+    private sealed class WorkerEventPublisher(WorkerMessageWriter writer, Guid runId) : IRunEventPublisher, IAsyncDisposable
     {
+        private readonly SemaphoreSlim _gate = new(1, 1);
+        private readonly SortedDictionary<long, WorkerEventEnvelopeDto> _pending = [];
+        // RunStarted is written by ExecuteRunAsync before this publisher is
+        // created, so the first runtime event has sequence 2. Keep the
+        // already-emitted sequence as the initial cursor.
+        // RunStarted 在创建发布器前写出，因此第一个运行时事件通常是 2；
+        // 以已写出的序列作为初始游标，避免等待不存在的序列 1。
+        private long _lastWrittenSequence = 1;
+
         public async ValueTask PublishAsync(RuntimeEvent runtimeEvent, CancellationToken cancellationToken)
         {
             var eventType = runtimeEvent.Type switch
@@ -161,9 +203,10 @@ public static class RunnerHost
                 "node.started" => WorkerEventType.NodeStarted,
                 "node.completed" => WorkerEventType.NodeCompleted,
                 "node.failed" => WorkerEventType.NodeFailed,
+                "node.error" => WorkerEventType.NodeErrored,
                 _ => WorkerEventType.Log
             };
-            var payload = JsonSerializer.Serialize(runtimeEvent.Payload);
+            var payload = JsonSerializer.Serialize(runtimeEvent.Payload, SereinJsonSerialization.CreateWebOptions());
             var envelope = new WorkerEventEnvelopeDto(
                 WorkerProtocolConstants.Version,
                 runId,
@@ -172,9 +215,28 @@ public static class RunnerHost
                 eventType,
                 runtimeEvent.NodeId,
                 payload);
-            await writer.WriteAsync(
-                WorkerMessage.Create(WorkerProtocolConstants.EventKind, WorkerProtocolCodec.SerializePayload(envelope), runId, sequence: runtimeEvent.Sequence),
-                cancellationToken);
+            await _gate.WaitAsync(cancellationToken);
+            try
+            {
+                _pending[runtimeEvent.Sequence] = envelope;
+                while (_pending.Remove(_lastWrittenSequence + 1, out var next))
+                {
+                    await writer.WriteAsync(
+                        WorkerMessage.Create(WorkerProtocolConstants.EventKind, WorkerProtocolCodec.SerializePayload(next), runId, sequence: next.Sequence),
+                        cancellationToken);
+                    _lastWrittenSequence = next.Sequence;
+                }
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            _gate.Dispose();
+            return ValueTask.CompletedTask;
         }
     }
 
@@ -185,15 +247,29 @@ public static class RunnerHost
         public ValueTask<NodeExecutionResult> ExecuteAsync(NodeExecutionRequest request, CancellationToken cancellationToken)
             => ValueTask.FromResult(NodeExecutionResult.Success());
     }
+
+    private static object? JsonElementToClr(JsonElement element)
+        => element.ValueKind switch
+        {
+            JsonValueKind.Null => null,
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.String => element.GetString(),
+            JsonValueKind.Number when element.TryGetInt64(out var integer) => integer,
+            JsonValueKind.Number when element.TryGetDecimal(out var decimalValue) => decimalValue,
+            JsonValueKind.Array => element.EnumerateArray().Select(JsonElementToClr).ToArray(),
+            JsonValueKind.Object => element.EnumerateObject().ToDictionary(item => item.Name, item => JsonElementToClr(item.Value), StringComparer.Ordinal),
+            _ => null
+        };
 }
 
 public static class FlowDefinitionMapper
 {
-    private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
+    private static readonly JsonSerializerOptions Options = SereinJsonSerialization.CreateWebOptions(options =>
     {
-        PropertyNameCaseInsensitive = true,
-        Converters = { new JsonStringEnumConverter() }
-    };
+        options.PropertyNameCaseInsensitive = true;
+        options.Converters.Add(new JsonStringEnumConverter());
+    });
 
     public static FlowDefinition Map(string definitionJson)
     {
@@ -218,17 +294,66 @@ public static class FlowDefinitionMapper
             dto.DisplayName,
             new NodePosition(dto.X, dto.Y),
             dto.Ports.Select(port => new PortDefinition(port.Id, port.Name, Enum.Parse<PortDirection>(port.Direction, true), port.Required)),
-            dto.Parameters.Select(parameter => new NodeParameterDefinition(parameter.Name, parameter.ValueJson, (DataSource)parameter.Source, parameter.Required)),
+            dto.Parameters.Select(parameter => new NodeParameterDefinition(
+                parameter.Name,
+                parameter.ValueJson,
+                (DataSource)parameter.Source,
+                parameter.Required,
+                parameter.Ui?.Id,
+                parameter.Ui?.ProjectInputKey,
+                parameter.Ui?.Expression,
+                parameter.Ui?.SourceNodeId,
+                parameter.Ui?.SourcePortId,
+                parameter.Ui?.ValueKind)),
             dto.Script is null ? null : ScriptNodeDefinition.Create(
                 dto.Script.NodeId,
                 dto.Script.Source,
                 dto.Script.LanguageVersion,
                 dto.Script.SourceHash,
                 dto.Script.Inputs.Select(input => new ScriptValueContract(input.Name, input.ValueKind, input.Required)),
-                dto.Script.Outputs.Select(output => new ScriptValueContract(output.Name, output.ValueKind, output.Required))));
+                dto.Script.Outputs.Select(output => new ScriptValueContract(output.Name, output.ValueKind, output.Required))),
+            dto.Ui is null
+                ? null
+                : new NodeRuntimeDefinition(
+                    dto.Ui.LibraryId,
+                    dto.Ui.ClassName,
+                    dto.Ui.MethodName,
+                    dto.Ui.DllName,
+                    dto.Ui.DllVersion,
+                    dto.Ui.ReturnType,
+                    dto.Ui.TargetNodeId,
+                    Guid.TryParse(dto.Ui.TargetFlowId, out var targetFlowId) ? targetFlowId : null,
+                    dto.Ui.IsAwaitable ?? false,
+                    dto.Ui.StaticReturnType,
+                    dto.Ui.IsDynamicReturnType ?? false));
 
     private static ConnectionDefinition MapConnection(ConnectionDto dto)
-        => dto.Kind == ConnectionKindDto.Execution
-            ? ConnectionDefinition.Execution(dto.FromNodeId, dto.FromPortId, dto.ToNodeId, dto.ToPortId, (ExecutionBranch)(dto.Branch ?? ExecutionBranchDto.Success), dto.Priority, dto.Id)
-            : ConnectionDefinition.Data(dto.FromNodeId, dto.FromPortId, dto.ToNodeId, dto.ToPortId, (DataSource)(dto.DataSource ?? DataSourceDto.Literal), dto.Priority, dto.Id);
+    {
+        if (dto.Kind == ConnectionKindDto.Execution)
+        {
+            if (dto.Branch is null)
+                throw new ArgumentException("Execution connections must declare Success, Failure, or Error. 流程连接必须声明 Success、Failure 或 Error 分支。", nameof(dto));
+
+            if (!Enum.IsDefined(dto.Branch.Value))
+                throw new ArgumentException("Execution connection branch is invalid. 流程连接分支无效。", nameof(dto));
+
+            return ConnectionDefinition.Execution(
+                dto.FromNodeId,
+                dto.FromPortId,
+                dto.ToNodeId,
+                dto.ToPortId,
+                (ExecutionBranch)dto.Branch.Value,
+                dto.Priority,
+                dto.Id);
+        }
+
+        return ConnectionDefinition.Data(
+            dto.FromNodeId,
+            dto.FromPortId,
+            dto.ToNodeId,
+            dto.ToPortId,
+            (DataSource)(dto.DataSource ?? DataSourceDto.Literal),
+            dto.Priority,
+            dto.Id);
+    }
 }

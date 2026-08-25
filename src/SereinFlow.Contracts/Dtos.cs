@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace SereinFlow.Contracts;
 
 public static class WorkerProtocol
@@ -8,16 +10,10 @@ public static class WorkerProtocol
 public enum NodeTypeDto
 {
     Action,
-    FlowCall,
-    GlobalData,
     Flipflop,
     Script,
-    ExpOp,
-    ExpCondition,
     Condition,
-    Value,
-    Expression,
-    Trigger
+    FlowCall,
 }
 
 public enum CanvasLifecycleDto
@@ -39,8 +35,7 @@ public enum ExecutionBranchDto
 {
     Success,
     Failure,
-    Error,
-    Upstream
+    Error
 }
 
 public enum DataSourceDto
@@ -67,6 +62,7 @@ public enum WorkerEventType
     NodeStarted,
     NodeCompleted,
     NodeFailed,
+    NodeErrored,
     Log,
     RunCompleted,
     RunCancelled
@@ -89,6 +85,13 @@ public sealed record CreateProjectRequestDto(string Name, FlowDefinitionDto Defi
 public sealed record RenameProjectRequestDto(string Name, long ExpectedVersion);
 
 public sealed record UpdateFlowDefinitionRequestDto(long ExpectedVersion, FlowDefinitionDto Definition);
+
+public sealed record RunFlowRequestDto(
+    long? ExpectedFlowVersion,
+    IReadOnlyDictionary<string, JsonElement>? ProjectInputs,
+    int? TimeoutSeconds,
+    int? MaxSteps,
+    int? MaxNodeVisits = null);
 
 public sealed record CanvasDto(
     string Id,
@@ -122,7 +125,12 @@ public sealed record NodeUiMetadataDto(
     string? MethodName = null,
     string? DllName = null,
     string? DllVersion = null,
-    string? ReturnType = null);
+    string? ReturnType = null,
+    string? TargetNodeId = null,
+    string? TargetFlowId = null,
+    bool? IsAwaitable = null,
+    string? StaticReturnType = null,
+    bool? IsDynamicReturnType = null);
 
 public sealed record NodePortDto(string Id, string Name, string Direction, bool Required);
 
@@ -218,7 +226,8 @@ public sealed record LibraryNodeDto(
     string DllName,
     string DllVersion,
     string ReturnType,
-    IReadOnlyList<LibraryParameterDto> Parameters);
+    IReadOnlyList<LibraryParameterDto> Parameters,
+    bool IsAwaitable = false);
 
 public sealed record LibraryParameterDto(
     string Id,
@@ -242,7 +251,10 @@ public sealed record FlowRunDto(
     FlowRunStatusDto Status,
     DateTimeOffset? StartedAt,
     DateTimeOffset? EndedAt,
-    string? ErrorSummary);
+    string? ErrorSummary,
+    Guid? ProjectId = null,
+    DateTimeOffset? CreatedAt = null,
+    string? CancellationReason = null);
 
 public sealed record FlowRunEventDto(
     Guid RunId,
@@ -267,7 +279,13 @@ public sealed record WorkerRunRequestDto(
     Guid FlowId,
     long FlowVersion,
     string DefinitionJson,
-    DateTimeOffset Deadline);
+    DateTimeOffset Deadline,
+    string? ProjectId = null,
+    IReadOnlyDictionary<string, JsonElement>? ProjectInputs = null,
+    int MaxSteps = 10_000,
+    string? ScriptArtifactRootPath = null,
+    string? LibraryPackageRootPath = null,
+    int MaxNodeVisits = 1_000);
 
 public sealed record WorkerCancelRequestDto(
     int ProtocolVersion,

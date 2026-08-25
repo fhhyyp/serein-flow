@@ -20,7 +20,7 @@ public sealed class FlowDefinitionPersistenceTests
 
         var loaded = repository.Find(project.Id, initial.Id);
         Assert.NotNull(loaded);
-        Assert.Equal(NodeTypeDto.Trigger, loaded!.Canvases.Single().Nodes.Single().Type);
+        Assert.Equal(NodeTypeDto.Action, loaded!.Canvases.Single().Nodes.Single().Type);
         Assert.Equal("node.httpTrigger", loaded.Canvases.Single().Nodes.Single().Ui!.TitleKey);
         Assert.Equal("method", loaded.Canvases.Single().Nodes.Single().Ui!.Category);
         Assert.Equal("Orders.Create", $"{loaded.Canvases.Single().Nodes.Single().Ui!.ClassName}.{loaded.Canvases.Single().Nodes.Single().Ui!.MethodName}");
@@ -43,11 +43,13 @@ public sealed class FlowDefinitionPersistenceTests
         var flowId = Guid.NewGuid();
         var node = new NodeDto(
             "trigger",
-            NodeTypeDto.Trigger,
+            NodeTypeDto.Action,
             "HTTP trigger",
             120,
             80,
-            [new NodePortDto("exec-out", "Execution", "Output", false)],
+            [new NodePortDto("exec-success", "Success", "Output", false),
+             new NodePortDto("exec-failure", "Failure", "Output", false),
+             new NodePortDto("exec-error", "Error", "Output", false)],
             [new NodeParameterDto(
                 "payload",
                 "\"order\"",
@@ -58,7 +60,7 @@ public sealed class FlowDefinitionPersistenceTests
             new NodeUiMetadataDto("trigger", "node.httpTrigger", "node.triggerSubtitle", null, "ready", true, 224, "method", "library-orders", "Orders", "Create", "Orders.dll", "1.2.0", "System.String"));
         return new FlowDefinitionDto(
             flowId,
-            1,
+            3,
             1,
             [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])],
             "trigger",

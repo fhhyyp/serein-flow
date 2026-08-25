@@ -1,4 +1,4 @@
-import type { FlowNodeData } from './types'
+import type { ExecutionBranch, FlowNodeData } from './types'
 
 export type ConnectionSeatKind = 'execution-input' | 'execution-output' | 'parameter-input' | 'data-output'
 
@@ -8,6 +8,7 @@ export interface ConnectionSeat {
   side: 'left' | 'right'
   handleType: 'target' | 'source'
   semantic: 'execution' | 'data'
+  branch?: ExecutionBranch
   parameterId?: string
   parameterIndex?: number
   labelKey: string
@@ -32,20 +33,18 @@ type ConnectionSeatNodeData = Pick<FlowNodeData, 'kind' | 'parameters' | 'hasDat
 export function getConnectionSeats(data: ConnectionSeatNodeData): ConnectionSeat[] {
   const seats: ConnectionSeat[] = []
 
-  if (data.kind !== 'trigger') {
-    seats.push({
-      id: 'exec-in',
-      kind: 'execution-input',
-      side: 'left',
-      handleType: 'target',
-      semantic: 'execution',
-      labelKey: 'edge.executionDescription',
-    })
-  }
+  seats.push({
+    id: 'exec-in',
+    kind: 'execution-input',
+    side: 'left',
+    handleType: 'target',
+    semantic: 'execution',
+    labelKey: 'edge.executionDescription',
+  })
 
   data.parameters.forEach((parameter, index) => {
     seats.push({
-      id: `param-${parameter.id}`,
+      id: parameterHandleFor(parameter.id),
       kind: 'parameter-input',
       side: 'left',
       handleType: 'target',
@@ -56,14 +55,17 @@ export function getConnectionSeats(data: ConnectionSeatNodeData): ConnectionSeat
     })
   })
 
-  seats.push({
-    id: 'exec-out',
-    kind: 'execution-output',
-    side: 'right',
-    handleType: 'source',
-    semantic: 'execution',
-    labelKey: 'edge.executionDescription',
-  })
+  for (const branch of ['success', 'failure', 'error'] as const) {
+    seats.push({
+      id: `exec-${branch}`,
+      kind: 'execution-output',
+      side: 'right',
+      handleType: 'source',
+      semantic: 'execution',
+      branch,
+      labelKey: `branch.${branch}`,
+    })
+  }
 
   if (hasDataOutput(data)) {
     seats.push({
@@ -82,8 +84,10 @@ export function getConnectionSeats(data: ConnectionSeatNodeData): ConnectionSeat
 export function layoutConnectionSeats(data: ConnectionSeatNodeData): ConnectionSeatLayout[] {
   return getConnectionSeats(data).map((seat) => ({
     ...seat,
-    top: seat.kind === 'execution-input' || seat.kind === 'execution-output'
+    top: seat.kind === 'execution-input'
       ? headerOffset
+      : seat.kind === 'execution-output'
+        ? 18 + (seat.branch === 'failure' ? 18 : seat.branch === 'error' ? 36 : 0)
       : seat.kind === 'parameter-input'
         ? parameterStartOffset + (seat.parameterIndex ?? 0) * parameterRowHeight
         : parameterStartOffset + data.parameters.length * parameterRowHeight + outputGap,
@@ -100,7 +104,7 @@ function hasDataOutput(data: Pick<FlowNodeData, 'hasDataOutput' | 'runtime'>): b
 }
 
 export function resolveConnectionSemantic(sourceHandle?: string | null, targetHandle?: string | null): 'execution' | 'data' | undefined {
-  if (sourceHandle === 'exec-out' && targetHandle === 'exec-in') {
+  if (isExecutionOutputHandle(sourceHandle) && targetHandle === 'exec-in') {
     return 'execution'
   }
 
@@ -108,6 +112,32 @@ export function resolveConnectionSemantic(sourceHandle?: string | null, targetHa
     return 'data'
   }
 
+  return undefined
+}
+
+/**
+ * Parameter IDs in the library metadata historically used the transport
+ * prefix `param-1`, while the canvas handle itself also adds `param-`.
+ * Canonicalize numeric metadata IDs once so a restored edge targets the same
+ * handle that the node card renders instead of Vue Flow's node center.
+ * 类库元数据曾把 `param-` 作为参数 ID 前缀，而画布句柄又会追加一次；统一规范化后避免回载时句柄变成 `param-param-1`。
+ */
+export function canonicalParameterId(parameterId: string): string {
+  return parameterId.replace(/^param-(?=\d+$)/, '')
+}
+
+export function parameterHandleFor(parameterId: string): string {
+  return `param-${canonicalParameterId(parameterId)}`
+}
+
+export function isExecutionOutputHandle(handleId: string | null | undefined): boolean {
+  return handleId === 'exec-success' || handleId === 'exec-failure' || handleId === 'exec-error'
+}
+
+export function executionBranchFromHandle(handleId: string | null | undefined): ExecutionBranch | undefined {
+  if (handleId === 'exec-success') return 'success'
+  if (handleId === 'exec-failure') return 'failure'
+  if (handleId === 'exec-error') return 'error'
   return undefined
 }
 

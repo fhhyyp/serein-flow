@@ -8,6 +8,13 @@
       "sereinflow.domain": {
         "type": "Project"
       },
+      "sereinflow.runtime": {
+        "type": "Project",
+        "dependencies": {
+          "SereinFlow.Domain": "[1.0.0, )",
+          "SereinFlow.Runtime.Abstractions": "[1.0.0, )"
+        }
+      },
       "sereinflow.runtime.abstractions": {
         "type": "Project",
         "dependencies": {

@@ -29,7 +29,7 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
             throw new ArgumentNullException(nameof(request), "The script execution request cannot be null. 脚本执行请求不能为空。");
         var definition = request.Node.Script;
         if (definition is null)
-            return NodeExecutionResult.Failure("script.definition_missing", "Script node definition is missing. 脚本节点定义缺失。");
+            return NodeExecutionResult.Error("script.definition_missing", "Script node definition is missing. 脚本节点定义缺失。");
 
         try
         {
@@ -66,19 +66,24 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
         }
         catch (ScriptExecutionException exception)
         {
-            return NodeExecutionResult.Failure(exception.Code, exception.Message);
+            // Script exceptions are engine-visible errors rather than a
+            // business Failure branch.  This keeps unhandled script faults
+            // distinguishable from a script that deliberately returns a
+            // failure value.
+            // 脚本异常属于引擎错误，统一进入 Error 分支；只有脚本显式返回业务结果时才走 Success/Failure。
+            return NodeExecutionResult.Error(exception.Code, exception.Message);
         }
         catch (NotSupportedException exception)
         {
-            return NodeExecutionResult.Failure("script.value_unsupported", $"Script value is not supported. 脚本值不受支持。 {exception.Message}");
+            return NodeExecutionResult.Error("script.value_unsupported", $"Script value is not supported. 脚本值不受支持。 {exception.Message}");
         }
         catch (InvalidOperationException exception)
         {
-            return NodeExecutionResult.Failure("script.compile_failed", $"Script compilation failed. 脚本编译失败。 {exception.Message}");
+            return NodeExecutionResult.Error("script.compile_failed", $"Script compilation failed. 脚本编译失败。 {exception.Message}");
         }
         catch (Exception exception)
         {
-            return NodeExecutionResult.Failure("script.runtime_failed", $"Script runtime execution failed. 脚本运行时执行失败。 {exception.Message}");
+            return NodeExecutionResult.Error("script.runtime_failed", $"Script runtime execution failed. 脚本运行时执行失败。 {exception.Message}");
         }
     }
 

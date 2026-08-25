@@ -233,14 +233,8 @@
         "resolved": "8.0.0",
         "contentHash": "JlYi9XVvIREURRUlGMr1F6vOFLk7YSY4p1vHo4kX3tQ0AGrjqlRWHDi66ImHhy6qwXBG3BJ6Y1QlYQ+Qz6Xgww==",
         "dependencies": {
-          "System.Diagnostics.EventLog": "8.0.0",
           "System.Security.Cryptography.ProtectedData": "8.0.0"
         }
-      },
-      "System.Diagnostics.EventLog": {
-        "type": "Transitive",
-        "resolved": "8.0.0",
-        "contentHash": "fdYxcRjQqTTacKId/2IECojlDSFvp7LP5N78+0z/xH7v/Tuw5ZAxu23Y6PTCRinqyu2ePx+Gn1098NC6jM6d+A=="
       },
       "System.Diagnostics.PerformanceCounter": {
         "type": "Transitive",
@@ -292,6 +286,7 @@
         "dependencies": {
           "SereinFlow.Contracts": "[1.0.0, )",
           "SereinFlow.Domain": "[1.0.0, )",
+          "SereinFlow.Runtime": "[1.0.0, )",
           "SereinFlow.Runtime.Abstractions": "[1.0.0, )"
         }
       },
@@ -300,6 +295,13 @@
       },
       "sereinflow.domain": {
         "type": "Project"
+      },
+      "sereinflow.runtime": {
+        "type": "Project",
+        "dependencies": {
+          "SereinFlow.Domain": "[1.0.0, )",
+          "SereinFlow.Runtime.Abstractions": "[1.0.0, )"
+        }
       },
       "sereinflow.runtime.abstractions": {
         "type": "Project",

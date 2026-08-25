@@ -1,7 +1,7 @@
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import { MarkerType, applyNodeChanges, type Connection, type EdgeChange, type NodeChange } from '@vue-flow/core'
 import { applyNodePositionChanges, cloneCanvasGraph, removeEdgesById } from '../flow/canvasGraph'
-import { resolveConnectionSemantic } from '../flow/connectionSeats'
+import { canonicalParameterId, executionBranchFromHandle, resolveConnectionSemantic } from '../flow/connectionSeats'
 import { connectionLineStyleFor, connectionLineTypeForEdge, connectionLineTypeOptions, type ConnectionLineSettings } from '../flow/connectionLine'
 import type { CanvasState, ConnectionSemantic, FlowEdge, FlowEdgeLineType, FlowNode, MethodParameter, NodeKind, NodeRuntimeMetadata, ParameterSource } from '../flow/types'
 import { t } from '../i18n'
@@ -92,6 +92,10 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
 
   function createEdge(connection: Connection, semantic: ConnectionSemantic, targetParameterId?: string): FlowEdge {
     const isExecution = semantic === 'execution'
+    const branch = isExecution ? executionBranchFromHandle(connection.sourceHandle) : undefined
+    if (isExecution && !branch) {
+      throw new Error('Execution connections must declare Success, Failure, or Error. 流程连接必须声明 Success、Failure 或 Error 分支。')
+    }
     const lineType = connectionLineStyleFor(semantic, options.connectionLineTypes).lineType
     return {
       id: `${semantic}-${connection.source}-${connection.target}-${connection.targetHandle ?? 'flow'}`,
@@ -102,13 +106,17 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
       type: lineType,
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        color: isExecution ? '#0369a1' : '#6d42a5',
+        color: isExecution
+          ? branch === 'failure' ? '#b45309' : branch === 'error' ? '#dc2626' : '#15803d'
+          : '#6d42a5',
         width: 14,
         height: 14,
       },
-      data: { semantic, targetParameterId },
-      class: isExecution ? 'edge-execution' : 'edge-data',
-      ariaLabel: isExecution ? t('inspector.executionEdge') : t('inspector.dataEdge'),
+      data: { semantic, targetParameterId, branch },
+      class: isExecution ? `edge-execution branch-${branch}` : 'edge-data',
+      ariaLabel: isExecution
+        ? `${t('inspector.executionEdge')} · ${t(`branch.${branch}`)}`
+        : t('inspector.dataEdge'),
     }
   }
 
@@ -135,8 +143,15 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
       return
     }
 
+    if (semantic === 'execution' && !executionBranchFromHandle(connection.sourceHandle)) {
+      options.notice.value = t('canvas.invalidConnection')
+      return
+    }
+
     options.recordWorkspaceMutation()
-    const targetParameterId = semantic === 'data' ? connection.targetHandle?.replace('param-', '') : undefined
+    const targetParameterId = semantic === 'data' && connection.targetHandle
+      ? canonicalParameterId(connection.targetHandle.replace(/^param-/, ''))
+      : undefined
     edges.value = [...edges.value, createEdge(connection, semantic, targetParameterId)]
 
     if (semantic === 'data' && targetParameterId) {
@@ -255,9 +270,7 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
     const id = `${kind}-${currentCanvas.value.id}-${number}`
     const column = currentCanvas.value.nodes.length % 3
     const row = Math.floor(currentCanvas.value.nodes.length / 3)
-    const parameters = metadata?.parameters ?? (kind === 'trigger'
-      ? []
-      : [{ id: 'input', nameKey: 'parameter.value', valueKind: 'JSON', source: 'literal' as const, literalValue: '' }])
+    const parameters = metadata?.parameters ?? [{ id: 'input', nameKey: 'parameter.value', valueKind: 'JSON', source: 'literal' as const, literalValue: '' }]
     const newNode: FlowNode = {
       id,
       type: 'workflow',

@@ -19,14 +19,18 @@ public sealed record NodeExecutionRequest(
 public sealed record NodeExecutionResult(
     bool IsSuccess,
     IReadOnlyDictionary<string, object?> Outputs,
+    ExecutionBranch NextBranch = ExecutionBranch.Success,
     string? ErrorCode = null,
     string? ErrorMessage = null)
 {
     public static NodeExecutionResult Success(IReadOnlyDictionary<string, object?>? outputs = null)
-        => new(true, outputs ?? new Dictionary<string, object?>());
+        => new(true, outputs ?? new Dictionary<string, object?>(), ExecutionBranch.Success);
 
     public static NodeExecutionResult Failure(string errorCode, string errorMessage)
-        => new(false, new Dictionary<string, object?>(), errorCode, errorMessage);
+        => new(false, new Dictionary<string, object?>(), ExecutionBranch.Failure, errorCode, errorMessage);
+
+    public static NodeExecutionResult Error(string errorCode, string errorMessage)
+        => new(false, new Dictionary<string, object?>(), ExecutionBranch.Error, errorCode, errorMessage);
 }
 
 public interface INodeExecutor
@@ -34,6 +38,18 @@ public interface INodeExecutor
     NodeType NodeType { get; }
 
     ValueTask<NodeExecutionResult> ExecuteAsync(NodeExecutionRequest request, CancellationToken cancellationToken);
+}
+
+public interface IGlobalFlipflopExecutor
+{
+    ValueTask<NodeExecutionResult> WaitForTriggerAsync(
+        NodeExecutionRequest request,
+        CancellationToken cancellationToken);
+}
+
+public interface IFlowCallExecutorConfiguration
+{
+    void Configure(Func<NodeExecutionRequest, CancellationToken, ValueTask<NodeExecutionResult>> execute);
 }
 
 public sealed record RuntimeEvent(

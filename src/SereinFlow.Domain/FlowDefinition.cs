@@ -2,6 +2,8 @@ namespace SereinFlow.Domain;
 
 public sealed class FlowDefinition
 {
+    public const int CurrentSchemaVersion = 3;
+
     private FlowDefinition(
         Guid id,
         int schemaVersion,
@@ -35,7 +37,7 @@ public sealed class FlowDefinition
         long version,
         IEnumerable<CanvasDefinition> canvases,
         string entryNodeId,
-        int schemaVersion = 1,
+        int schemaVersion = CurrentSchemaVersion,
         string checksum = "")
     {
         if (canvases is null)
@@ -63,6 +65,16 @@ public sealed class FlowDefinition
     public IReadOnlyList<DomainDiagnostic> Validate()
     {
         var diagnostics = new List<DomainDiagnostic>();
+        if (SchemaVersion != CurrentSchemaVersion)
+        {
+            // The branch connector model is part of schema v3.  Older payloads
+            // are intentionally rejected instead of being silently upgraded.
+            // 分支连接器模型属于 Schema v3，旧流程明确拒绝，不再静默升级。
+            diagnostics.Add(new(
+                DomainErrorCodes.NodeTypeRemoved,
+                $"Flow schema version {SchemaVersion} is no longer supported; schema {CurrentSchemaVersion} is required. 流程 Schema 版本 {SchemaVersion} 已不再支持，必须使用 Schema {CurrentSchemaVersion}。",
+                "schemaVersion"));
+        }
         var canvasIds = new HashSet<string>(StringComparer.Ordinal);
         var nodeIds = new HashSet<string>(StringComparer.Ordinal);
         var connectionIds = new HashSet<string>(StringComparer.Ordinal);
@@ -76,6 +88,14 @@ public sealed class FlowDefinition
 
             foreach (var node in canvas.Nodes)
             {
+                if (!Enum.IsDefined(node.Type))
+                {
+                    diagnostics.Add(new(
+                        DomainErrorCodes.NodeTypeRemoved,
+                        $"Node type '{(int)node.Type}' has been removed and cannot execute. 节点类型“{(int)node.Type}”已移除，不能执行。",
+                        $"nodes.{node.Id}.type"));
+                }
+
                 if (!nodeIds.Add(node.Id))
                 {
                     diagnostics.Add(new(DomainErrorCodes.DuplicateNodeId, $"Node '{node.Id}' is duplicated. 节点“{node.Id}”重复。", $"nodes.{node.Id}"));

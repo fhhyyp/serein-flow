@@ -71,6 +71,18 @@ public sealed class ScriptAdapterTests
     }
 
     [Fact]
+    public async Task ScriptExceptionsUseErrorBranch()
+    {
+        var node = CreateScriptNode("return missing_value", [], [new("result", "number")]);
+
+        var result = await Execute(node, new Dictionary<string, object?>());
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ExecutionBranch.Error, result.NextBranch);
+        Assert.NotNull(result.ErrorCode);
+    }
+
+    [Fact]
     public void RebuildsArtifactsAndDoesNotKeepOldArtifactAfterFailure()
     {
         var root = Path.Combine(Path.GetTempPath(), "sereinflow-script-tests", Guid.NewGuid().ToString("N"));

@@ -19,6 +19,13 @@
         "dependencies": {
           "SereinFlow.Contracts": "[1.0.0, )"
         }
+      },
+      "sereinflow.worker.supervisor": {
+        "type": "Project",
+        "dependencies": {
+          "SereinFlow.Contracts": "[1.0.0, )",
+          "SereinFlow.Worker.Protocol": "[1.0.0, )"
+        }
       }
     }
   }

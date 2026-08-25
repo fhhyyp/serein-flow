@@ -11,6 +11,16 @@ export default defineConfig({
         target: process.env.VITE_API_PROXY_TARGET ?? 'http://127.0.0.1:5178',
         changeOrigin: true,
       },
+      // SignalR uses a WebSocket transport in browsers. Keep the development
+      // proxy aligned with the API proxy so the native client does not try to
+      // connect to Vite itself (and silently fall back without live events).
+      // SignalR 使用 WebSocket，开发代理必须转发 /hubs，否则客户端会连到
+      // Vite 自身并在没有实时事件的情况下静默降级。
+      '/hubs': {
+        target: process.env.VITE_API_PROXY_TARGET ?? 'http://127.0.0.1:5178',
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
 })

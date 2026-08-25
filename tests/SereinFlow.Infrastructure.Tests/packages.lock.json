@@ -367,6 +367,7 @@
         "dependencies": {
           "SereinFlow.Contracts": "[1.0.0, )",
           "SereinFlow.Domain": "[1.0.0, )",
+          "SereinFlow.Runtime": "[1.0.0, )",
           "SereinFlow.Runtime.Abstractions": "[1.0.0, )"
         }
       },
@@ -384,6 +385,13 @@
           "SereinFlow.Contracts": "[1.0.0, )",
           "SereinFlow.Domain": "[1.0.0, )",
           "SqlSugarCore": "[5.1.4.217, )"
+        }
+      },
+      "sereinflow.runtime": {
+        "type": "Project",
+        "dependencies": {
+          "SereinFlow.Domain": "[1.0.0, )",
+          "SereinFlow.Runtime.Abstractions": "[1.0.0, )"
         }
       },
       "sereinflow.runtime.abstractions": {

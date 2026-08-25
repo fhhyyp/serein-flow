@@ -42,20 +42,14 @@ function workspace(nodes: FlowNode[]): WorkspaceSnapshot {
   }
 }
 
-test('the catalog contract matches TRAE method and basic node groups without local definitions', () => {
-  assert.deepEqual(referenceNodeKinds, ['action', 'flipflop', 'script', 'expOp', 'expCondition', 'flowCall', 'globalData'])
+test('the catalog contract exposes only the five runtime node kinds', () => {
+  assert.deepEqual(referenceNodeKinds, ['action', 'flipflop', 'script', 'condition', 'flowCall'])
   assert.deepEqual(methodNodeKinds, ['action', 'flipflop'])
-  assert.deepEqual(basicNodeKinds, ['script', 'expOp', 'expCondition', 'flowCall', 'globalData'])
+  assert.deepEqual(basicNodeKinds, ['script', 'condition', 'flowCall'])
 })
 
-test('every reference and legacy API node type round trips without degrading to action', () => {
-  const kinds: NodeKind[] = [
-    ...referenceNodeKinds,
-    'trigger',
-    'condition',
-    'value',
-    'expression',
-  ]
+test('every runtime node type round trips without degrading to action', () => {
+  const kinds: NodeKind[] = [...referenceNodeKinds]
   const definition = workspaceToFlowDefinition(workspace(kinds.map((kind) => node(kind))), identity)
   assert.deepEqual(definition.canvases[0]?.nodes.map((item) => item.type), kinds)
 
@@ -63,14 +57,16 @@ test('every reference and legacy API node type round trips without degrading to 
   assert.deepEqual(restored.canvases[0]?.nodes.map((item) => item.data.kind), kinds)
 })
 
-test('flipflop keeps control input while trigger remains the legacy entry shape', () => {
-  const definition = workspaceToFlowDefinition(workspace([node('flipflop'), node('trigger')]), identity)
+test('every node exposes a control input and three execution outputs', () => {
+  const definition = workspaceToFlowDefinition(workspace([node('flipflop'), node('condition')]), identity)
   const flipflop = definition.canvases[0]?.nodes.find((item) => item.type === 'flipflop')
-  const trigger = definition.canvases[0]?.nodes.find((item) => item.type === 'trigger')
+  const condition = definition.canvases[0]?.nodes.find((item) => item.type === 'condition')
 
   assert.ok(flipflop?.ports.some((port) => port.id === 'exec-in'))
-  assert.ok(flipflop?.ports.some((port) => port.id === 'exec-out'))
-  assert.equal(trigger?.ports.some((port) => port.id === 'exec-in'), false)
+  assert.ok(flipflop?.ports.some((port) => port.id === 'exec-success'))
+  assert.ok(flipflop?.ports.some((port) => port.id === 'exec-failure'))
+  assert.ok(flipflop?.ports.some((port) => port.id === 'exec-error'))
+  assert.ok(condition?.ports.some((port) => port.id === 'exec-error'))
 })
 
 test('return type controls result seats and parameter metadata survives persistence', () => {
@@ -80,7 +76,7 @@ test('return type controls result seats and parameter metadata survives persiste
     methodName: 'Call',
     returnType: 'void',
   })
-  const valueNode = node('expOp', {
+  const valueNode = node('action', {
     category: 'basic',
     className: 'Expressions',
     methodName: 'Add',
@@ -88,7 +84,7 @@ test('return type controls result seats and parameter metadata survives persiste
   })
   const definition = workspaceToFlowDefinition(workspace([voidNode, valueNode]), identity)
   const flowCall = definition.canvases[0]?.nodes.find((item) => item.type === 'flowCall')
-  const expOp = definition.canvases[0]?.nodes.find((item) => item.type === 'expOp')
+  const expOp = definition.canvases[0]?.nodes.find((item) => item.type === 'action')
 
   assert.equal(flowCall?.ports.some((port) => port.id === 'data-out'), false)
   assert.equal(expOp?.ports.some((port) => port.id === 'data-out'), true)
@@ -98,7 +94,7 @@ test('return type controls result seats and parameter metadata survives persiste
 
   const restored = flowDefinitionToWorkspace(definition)
   const restoredCall = restored.canvases[0]?.nodes.find((item) => item.data.kind === 'flowCall')
-  const restoredOp = restored.canvases[0]?.nodes.find((item) => item.data.kind === 'expOp')
+  const restoredOp = restored.canvases[0]?.nodes.find((item) => item.data.kind === 'action')
   assert.equal(getConnectionSeats(restoredCall!.data).some((seat) => seat.id === 'data-out'), false)
   assert.equal(getConnectionSeats(restoredOp!.data).some((seat) => seat.id === 'data-out'), true)
   assert.equal(restoredOp?.data.runtime?.returnType, 'System.Int32')

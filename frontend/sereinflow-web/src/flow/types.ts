@@ -3,25 +3,21 @@ import type { EdgeMarkerType, XYPosition } from '@vue-flow/core'
 /**
  * Node kinds exposed by the TRAE/SereinScript contract.
  *
- * The legacy `trigger`, `condition`, `value`, and `expression` values remain
- * valid so documents created by the first web workbench can still be opened.
- * New catalog entries should use the canonical kinds from `ReferenceNodeKind`.
- * 旧版 `trigger`、`condition`、`value` 和 `expression` 值仍然有效，因此早期 Web 工作台创建的文档仍可打开。
- * 新的目录条目应使用 `ReferenceNodeKind` 中的规范类型。
+ * The runtime supports only the five canonical node kinds.
+ * 运行时只支持五种规范节点类型。
  */
 export type ReferenceNodeKind =
   | 'action'
   | 'flipflop'
   | 'script'
-  | 'expOp'
-  | 'expCondition'
+  | 'condition'
   | 'flowCall'
-  | 'globalData'
 
-export type NodeKind = ReferenceNodeKind | 'trigger' | 'condition' | 'value' | 'expression'
+export type NodeKind = ReferenceNodeKind
 export type NodeCategory = 'method' | 'basic'
-export type NodeStatus = 'idle' | 'running' | 'success' | 'failed' | 'ready' | 'active'
+export type NodeStatus = 'idle' | 'running' | 'success' | 'failed' | 'error' | 'ready' | 'active'
 export type ConnectionSemantic = 'execution' | 'data'
+export type ExecutionBranch = 'success' | 'failure' | 'error'
 /** Vue Flow's built-in edge/connection line types. `default` is Bezier. */
 /** Vue Flow 内置的边/连接线类型；`default` 表示贝塞尔曲线。 */
 export type FlowEdgeLineType = 'default' | 'simple-bezier' | 'straight' | 'step' | 'smoothstep'
@@ -38,12 +34,18 @@ export interface NodeRuntimeMetadata {
   dllName?: string
   dllVersion?: string
   returnType?: string
+  targetNodeId?: string
+  targetFlowId?: string
+  isAwaitable?: boolean
+  staticReturnType?: string
+  isDynamicReturnType?: boolean
 }
 
 export interface MethodParameter {
   id: string
   nameKey: string
   valueKind: string
+  required?: boolean
   name?: string
   type?: string
   description?: string
@@ -66,12 +68,23 @@ export interface FlowNodeData {
   status: NodeStatus
   hasDataOutput: boolean
   parameters: MethodParameter[]
+  script?: ScriptNodeData
   runtime?: NodeRuntimeMetadata
+}
+
+export interface ScriptNodeData {
+  nodeId: string
+  source: string
+  languageVersion: string
+  sourceHash: string
+  inputs: Array<{ name: string; valueKind: string; required: boolean }>
+  outputs: Array<{ name: string; valueKind: string; required: boolean }>
 }
 
 export interface FlowEdgeData {
   semantic: ConnectionSemantic
   targetParameterId?: string
+  branch?: ExecutionBranch
   /** Optional per-edge override. If omitted, the semantic default is used. */
   /** 可选的单边覆盖设置；省略时使用语义默认值。 */
   lineType?: FlowEdgeLineType

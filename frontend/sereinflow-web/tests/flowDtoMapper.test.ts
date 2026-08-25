@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createInitialCanvases } from '../src/flow/initialCanvases.ts'
 import { flowDefinitionToWorkspace, workspaceToFlowDefinition } from '../src/flow/flowDtoMapper.ts'
+import type { FlowDefinitionDto } from '../src/api/flowApi.ts'
 import type { WorkspaceSnapshot } from '../src/flow/workspaceHistory.ts'
 
 test('the workbench DTO round trip retains user-created multi-canvas execution and data connections', () => {
@@ -13,13 +14,13 @@ test('the workbench DTO round trip retains user-created multi-canvas execution a
         lifecycle: 'main',
         nodes: [
           {
-            id: 'trigger',
+            id: 'flipflop',
             type: 'workflow',
             position: { x: 50, y: 180 },
             data: {
-              kind: 'trigger',
-              titleKey: 'node.httpTrigger',
-              subtitleKey: 'node.triggerSubtitle',
+              kind: 'flipflop',
+              titleKey: 'node.kind.flipflop',
+              subtitleKey: 'node.kind.flipflop',
               status: 'ready',
               hasDataOutput: true,
               parameters: [],
@@ -41,7 +42,7 @@ test('the workbench DTO round trip retains user-created multi-canvas execution a
                   nameKey: 'parameter.payload',
                   valueKind: 'JSON',
                   source: 'previousNode',
-                  sourceNodeId: 'trigger',
+                  sourceNodeId: 'flipflop',
                   sourcePortId: 'data-out',
                 },
               ],
@@ -50,16 +51,16 @@ test('the workbench DTO round trip retains user-created multi-canvas execution a
         ],
         edges: [
           {
-            id: 'exec-trigger-normalize',
-            source: 'trigger',
+            id: 'exec-flipflop-normalize',
+            source: 'flipflop',
             target: 'normalize',
-            sourceHandle: 'exec-out',
+            sourceHandle: 'exec-success',
             targetHandle: 'exec-in',
-            data: { semantic: 'execution' },
+            data: { semantic: 'execution', branch: 'success' },
           },
           {
-            id: 'data-trigger-normalize-payload',
-            source: 'trigger',
+            id: 'data-flipflop-normalize-payload',
+            source: 'flipflop',
             target: 'normalize',
             sourceHandle: 'data-out',
             targetHandle: 'param-payload',
@@ -104,9 +105,9 @@ test('the workbench DTO round trip retains user-created multi-canvas execution a
             id: 'exec-prepare-catalog',
             source: 'prepare',
             target: 'catalog',
-            sourceHandle: 'exec-out',
+            sourceHandle: 'exec-success',
             targetHandle: 'exec-in',
-            data: { semantic: 'execution' },
+            data: { semantic: 'execution', branch: 'success' },
           },
         ],
       },
@@ -127,6 +128,7 @@ test('the workbench DTO round trip retains user-created multi-canvas execution a
   const main = restored.canvases.find((canvas) => canvas.id === 'main')
   const init = restored.canvases.find((canvas) => canvas.id === 'init')
 
+  assert.equal(definition.schemaVersion, 3)
   assert.equal(definition.canvases.find((canvas) => canvas.id === 'main')?.connections.length, 2)
   assert.equal(definition.ui?.connectionLineTypes?.execution, 'default')
   assert.equal(definition.ui?.connectionLineTypes?.data, 'smoothstep')
@@ -134,7 +136,7 @@ test('the workbench DTO round trip retains user-created multi-canvas execution a
   assert.equal(main?.edges.filter((edge) => edge.data.semantic === 'execution').length, 1)
   assert.equal(main?.edges.filter((edge) => edge.data.semantic === 'data').length, 1)
   assert.equal(init?.edges[0]?.id, 'exec-prepare-catalog')
-  assert.equal(main?.nodes.find((node) => node.id === 'normalize')?.data.parameters[0]?.sourceNodeId, 'trigger')
+  assert.equal(main?.nodes.find((node) => node.id === 'normalize')?.data.parameters[0]?.sourceNodeId, 'flipflop')
 })
 
 test('the empty default workspace round trips without an artificial entry node', () => {
@@ -187,4 +189,83 @@ test('custom canvas names and lifecycle survive DTO round trips', () => {
   assert.equal(restoredCustom?.lifecycle, 'custom')
   assert.equal(restoredCustom?.name, '审计流程')
   assert.equal(restored.activeCanvasId, 'main')
+})
+
+test('restored parameter connections target the rendered parameter handle', () => {
+  const definition: FlowDefinitionDto = {
+    id: 'flow',
+    schemaVersion: 3,
+    version: 1,
+    entryNodeId: 'source',
+    checksum: '',
+    canvases: [{
+      id: 'main',
+      lifecycle: 'main',
+      nodes: [
+        { id: 'source', type: 'action', displayName: 'Source', x: 0, y: 0, ports: [{ id: 'data-out', name: 'Data', direction: 'output', required: false }], parameters: [], script: null },
+        { id: 'target', type: 'action', displayName: 'Target', x: 320, y: 0, ports: [{ id: 'param-param-1', name: 'param-1', direction: 'input', required: false }], parameters: [{ name: 'param-1', source: 'previousNode', required: false, ui: { id: 'param-1', nameKey: 'value', valueKind: 'JSON' } }], script: null },
+      ],
+      connections: [{ id: 'data-1', fromNodeId: 'source', fromPortId: 'data-out', toNodeId: 'target', toPortId: 'param-1', kind: 'data', dataSource: 'previousNode', priority: 0 }],
+    }],
+  }
+
+  const restored = flowDefinitionToWorkspace(definition)
+  const edge = restored.canvases[0]?.edges[0]
+  const parameter = restored.canvases[0]?.nodes.find((node) => node.id === 'target')?.data.parameters[0]
+
+  assert.equal(parameter?.id, '1')
+  assert.equal(edge?.targetHandle, 'param-1')
+  assert.equal(edge?.data.targetParameterId, '1')
+})
+
+test('library method parameters keep reflected names separate from connector ids', () => {
+  const snapshot: WorkspaceSnapshot = {
+    canvases: [{
+      id: 'main',
+      nameKey: 'canvas.main',
+      lifecycle: 'main',
+      nodes: [{
+        id: 'add',
+        type: 'workflow',
+        position: { x: 0, y: 0 },
+        data: {
+          kind: 'action',
+          titleKey: 'node.catalogMethod',
+          subtitleKey: 'node.catalogSubtitle',
+          status: 'ready',
+          hasDataOutput: true,
+          runtime: { category: 'method', methodName: 'Add' },
+          parameters: [
+            { id: '1', nameKey: 'left', name: 'left', valueKind: 'System.Int32', required: true, source: 'literal', literalValue: '10' },
+            { id: '2', nameKey: 'right', name: 'right', valueKind: 'System.Int32', required: true, source: 'literal', literalValue: '20' },
+          ],
+        },
+      }],
+      edges: [],
+    }],
+    activeCanvasId: 'main',
+    nextNodeNumber: 2,
+  }
+
+  const definition = workspaceToFlowDefinition(snapshot, { id: 'flow', version: 1 })
+  const parameters = definition.canvases[0]?.nodes[0]?.parameters ?? []
+  assert.deepEqual(parameters.map((parameter) => parameter.name), ['left', 'right'])
+  assert.deepEqual(parameters.map((parameter) => parameter.ui?.id), ['1', '2'])
+  assert.deepEqual(parameters.map((parameter) => parameter.required), [true, true])
+
+  const restored = flowDefinitionToWorkspace(definition)
+  assert.deepEqual(restored.canvases[0]?.nodes[0]?.data.parameters.map((parameter) => parameter.name), ['left', 'right'])
+
+  const legacyDefinition = {
+    ...definition,
+    canvases: definition.canvases.map((canvas) => ({
+      ...canvas,
+      nodes: canvas.nodes.map((node) => ({
+        ...node,
+        parameters: node.parameters.map((parameter) => ({ ...parameter, name: parameter.ui?.id ?? parameter.name })),
+      })),
+    })),
+  }
+  const migrated = flowDefinitionToWorkspace(legacyDefinition)
+  assert.deepEqual(migrated.canvases[0]?.nodes[0]?.data.parameters.map((parameter) => parameter.name), ['left', 'right'])
 })

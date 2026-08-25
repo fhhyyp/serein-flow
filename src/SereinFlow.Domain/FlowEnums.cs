@@ -20,16 +20,10 @@ public enum CanvasLifecycle
 public enum NodeType
 {
     Action,
-    FlowCall,
-    GlobalData,
     Flipflop,
     Script,
-    ExpOp,
-    ExpCondition,
     Condition,
-    Value,
-    Expression,
-    Trigger
+    FlowCall,
 }
 
 public enum PortDirection
@@ -48,8 +42,7 @@ public enum ExecutionBranch
 {
     Success,
     Failure,
-    Error,
-    Upstream
+    Error
 }
 
 public enum DataSource
