@@ -1,5 +1,6 @@
 import type { CanvasState } from './types'
 import type { ConnectionLineSettings } from './connectionLine'
+import type { FlowConcurrencyMode } from '../api/flowApi'
 
 export interface WorkspaceSnapshot {
   canvases: CanvasState[]
@@ -7,6 +8,9 @@ export interface WorkspaceSnapshot {
   nextNodeNumber: number
   projectName?: string
   connectionLineTypes?: ConnectionLineSettings
+  runPolicy?: {
+    concurrencyMode: FlowConcurrencyMode
+  }
 }
 
 function clone<T>(value: T): T {

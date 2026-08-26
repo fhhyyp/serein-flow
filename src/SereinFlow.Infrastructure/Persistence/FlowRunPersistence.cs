@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using SqlSugar;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
@@ -38,7 +39,7 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
         => CreateWithSnapshotAsync(
             run,
             definition,
-            new FlowRunExecutionOptions(null, DateTimeOffset.UtcNow.AddMinutes(5), 10_000, 1_000),
+            new FlowRunExecutionOptions(null, 300, 10_000, 1_000),
             cancellationToken);
 
     public Task<FlowRun> CreateWithSnapshotAsync(
@@ -46,6 +47,34 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
         FlowDefinitionDto definition,
         FlowRunExecutionOptions options,
         CancellationToken cancellationToken = default)
+        => CreateWithSnapshotCoreAsync(run, definition, options, cancellationToken);
+
+    public async Task<FlowRunAdmissionResult> TryCreateWithSnapshotAsync(
+        FlowRun run,
+        FlowDefinitionDto definition,
+        FlowRunExecutionOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var saved = await CreateWithSnapshotCoreAsync(run, definition, options, cancellationToken);
+            return new FlowRunAdmissionResult(saved);
+        }
+        catch (SqlSugarException exception) when (IsExclusiveConflict(exception))
+        {
+            var active = (await ListAsync(
+                    new FlowRunQuery([FlowRunStatus.Pending, FlowRunStatus.Running]),
+                    cancellationToken))
+                .FirstOrDefault(item => item.FlowId == run.FlowId && item.ConcurrencyMode == FlowConcurrencyMode.ExclusiveReject);
+            return new FlowRunAdmissionResult(null, active?.Id);
+        }
+    }
+
+    private Task<FlowRun> CreateWithSnapshotCoreAsync(
+        FlowRun run,
+        FlowDefinitionDto definition,
+        FlowRunExecutionOptions options,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(options);
         var serialized = JsonSerializer.Serialize(definition, JsonOptions);
@@ -60,10 +89,15 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
                 FlowVersion = run.FlowVersion,
                 Status = run.Status.ToString(),
                 CreatedAt = run.CreatedAt.ToString("O"),
-                Deadline = options.Deadline.ToString("O"),
+                Deadline = run.Deadline?.ToString("O"),
+                TimeoutSeconds = options.TimeoutSeconds,
                 MaxSteps = options.MaxSteps,
                 ProjectInputsJson = projectInputsJson,
-                MaxNodeVisits = options.MaxNodeVisits
+                MaxNodeVisits = options.MaxNodeVisits,
+                ConcurrencyMode = run.ConcurrencyMode.ToString(),
+                ExclusivityKey = run.ExclusivityKey,
+                IsListenerRun = run.IsListenerRun,
+                QueuedAt = run.QueuedAt.ToString("O")
             }, token);
             await _definitions.AddAsync(new FlowRunDefinitionRecord
             {
@@ -96,12 +130,32 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
                 inputs = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(row.ProjectInputsJson!, JsonOptions);
             }
 
-            var deadline = ParseNullable(row.Deadline) ?? run.CreatedAt.AddMinutes(5);
+            var timeoutSeconds = row.TimeoutSeconds > 0 ? row.TimeoutSeconds : 300;
             var maxSteps = row.MaxSteps > 0 ? row.MaxSteps : 10_000;
             var maxNodeVisits = row.MaxNodeVisits > 0 ? row.MaxNodeVisits : 1_000;
-            pending.Add(new PendingFlowRun(run, definition, new FlowRunExecutionOptions(inputs, deadline, maxSteps, maxNodeVisits)));
+            pending.Add(new PendingFlowRun(run, definition, new FlowRunExecutionOptions(inputs, timeoutSeconds, maxSteps, maxNodeVisits)));
         }
-        return pending;
+        return pending
+            .OrderBy(static item => item.Run.QueuedAt)
+            .ThenBy(static item => item.Run.Id)
+            .ToArray();
+    }
+
+    public async Task<IReadOnlyList<FlowRun>> ListAsync(FlowRunQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        var statuses = query.Statuses?.Select(static item => item.ToString()).ToHashSet(StringComparer.Ordinal);
+        var rows = await _runs.ListAsync(
+            query.ProjectId is { } projectId
+                ? row => row.ProjectId == projectId.ToString("D")
+                : null,
+            cancellationToken);
+        return rows
+            .Where(row => statuses is null || statuses.Contains(row.Status))
+            .Select(Map)
+            .OrderByDescending(static item => item.CreatedAt)
+            .Take(Math.Clamp(query.Take, 1, 500))
+            .ToArray();
     }
 
     public async Task<FlowRun?> FindAsync(Guid runId, CancellationToken cancellationToken = default)
@@ -128,7 +182,12 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
         record.EndedAt = run.EndedAt?.ToString("O");
         record.CancellationReason = run.CancellationReason;
         record.ErrorSummary = run.ErrorSummary;
+        record.Deadline = run.Deadline?.ToString("O");
         record.CreatedAt = run.CreatedAt.ToString("O");
+        record.ConcurrencyMode = run.ConcurrencyMode.ToString();
+        record.ExclusivityKey = run.ExclusivityKey;
+        record.IsListenerRun = run.IsListenerRun;
+        record.QueuedAt = run.QueuedAt.ToString("O");
         return await _runs.UpdateAsync(record, cancellationToken);
     }
 
@@ -144,7 +203,11 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
                 FlowId = run.FlowId.ToString("D"),
                 FlowVersion = run.FlowVersion,
                 Status = run.Status.ToString(),
-                CreatedAt = run.CreatedAt.ToString("O")
+                CreatedAt = run.CreatedAt.ToString("O"),
+                ConcurrencyMode = run.ConcurrencyMode.ToString(),
+                ExclusivityKey = run.ExclusivityKey,
+                IsListenerRun = run.IsListenerRun,
+                QueuedAt = run.QueuedAt.ToString("O")
             }, cancellationToken);
             await _definitions.AddAsync(new FlowRunDefinitionRecord
             {
@@ -191,7 +254,12 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
         record.EndedAt = run.EndedAt?.ToString("O");
         record.CancellationReason = run.CancellationReason;
         record.ErrorSummary = run.ErrorSummary;
+        record.Deadline = run.Deadline?.ToString("O");
         record.CreatedAt = run.CreatedAt.ToString("O");
+        record.ConcurrencyMode = run.ConcurrencyMode.ToString();
+        record.ExclusivityKey = run.ExclusivityKey;
+        record.IsListenerRun = run.IsListenerRun;
+        record.QueuedAt = run.QueuedAt.ToString("O");
         return _runs.UpdateAsync(record).GetAwaiter().GetResult();
     }
 
@@ -206,7 +274,17 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
             ParseNullable(row.StartedAt),
             ParseNullable(row.EndedAt),
             row.CancellationReason,
-            row.ErrorSummary);
+            row.ErrorSummary,
+            Enum.TryParse<FlowConcurrencyMode>(row.ConcurrencyMode, out var concurrencyMode)
+                ? concurrencyMode
+                : FlowConcurrencyMode.Parallel,
+            row.IsListenerRun,
+            ParseNullable(row.QueuedAt),
+            ParseNullable(row.Deadline));
+
+    private static bool IsExclusiveConflict(SqlSugarException exception)
+        => exception.Message.Contains("UX_FlowRuns_ActiveExclusiveFlow", StringComparison.OrdinalIgnoreCase)
+            || exception.Message.Contains("FlowRuns.ExclusivityKey", StringComparison.OrdinalIgnoreCase);
 
     private static DateTimeOffset Parse(string value) => DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
     private static DateTimeOffset? ParseNullable(string? value) => string.IsNullOrWhiteSpace(value) ? null : Parse(value);

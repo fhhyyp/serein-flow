@@ -60,11 +60,12 @@ public sealed class FlowDefinitionPersistenceTests
             new NodeUiMetadataDto("trigger", "node.httpTrigger", "node.triggerSubtitle", null, "ready", true, 224, "method", "library-orders", "Orders", "Create", "Orders.dll", "1.2.0", "System.String"));
         return new FlowDefinitionDto(
             flowId,
-            3,
+            4,
             1,
             [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])],
             "trigger",
-            "initial");
+            "initial",
+            RunPolicy: new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel));
     }
 
     private static SqliteDatabase CreateDatabase()

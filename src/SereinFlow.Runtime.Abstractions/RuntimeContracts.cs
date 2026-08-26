@@ -21,7 +21,8 @@ public sealed record NodeExecutionResult(
     IReadOnlyDictionary<string, object?> Outputs,
     ExecutionBranch NextBranch = ExecutionBranch.Success,
     string? ErrorCode = null,
-    string? ErrorMessage = null)
+    string? ErrorMessage = null,
+    IReadOnlyDictionary<string, object?>? Inputs = null)
 {
     public static NodeExecutionResult Success(IReadOnlyDictionary<string, object?>? outputs = null)
         => new(true, outputs ?? new Dictionary<string, object?>(), ExecutionBranch.Success);

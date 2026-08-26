@@ -60,6 +60,72 @@ public sealed class RuntimeSessionTests
         Assert.Equal("second", second.Read("observed"));
     }
 
+    [Fact]
+    public async Task TerminalEventRetainsResolvedInputsForTraceability()
+    {
+        var node = NodeDefinition.Create(
+            "action",
+            NodeType.Action,
+            "Action",
+            parameters: [new NodeParameterDefinition("count", "42")]);
+        var definition = FlowDefinition.Create(
+            Guid.NewGuid(),
+            1,
+            [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])],
+            "action");
+        var publisher = new RecordingPublisher();
+        var runner = new FlowRunner(
+            new ExecutionPlanBuilder(),
+            new NodeExecutorRegistry([new ContextWritingExecutor()]),
+            publisher);
+
+        await using var session = new FlowExecutionSession();
+        await runner.RunAsync(definition, session);
+
+        var terminal = Assert.Single(publisher.Events, item => item.Type == "node.completed");
+        var inputs = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object?>>(terminal.Payload["inputs"]);
+
+        Assert.Equal(42L, inputs["count"]);
+    }
+
+    [Fact]
+    public async Task BindingFailureRetainsInputsResolvedBeforeTheMissingParameter()
+    {
+        var node = NodeDefinition.Create(
+            "action",
+            NodeType.Action,
+            "Action",
+            parameters:
+            [
+                new NodeParameterDefinition("first", "10"),
+                new NodeParameterDefinition(
+                    "second",
+                    null,
+                    DataSource.ProjectInput,
+                    required: true,
+                    projectInputKey: "second")
+            ]);
+        var definition = FlowDefinition.Create(
+            Guid.NewGuid(),
+            1,
+            [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])],
+            "action");
+        var publisher = new RecordingPublisher();
+        var runner = new FlowRunner(
+            new ExecutionPlanBuilder(),
+            new NodeExecutorRegistry([new ContextWritingExecutor()]),
+            publisher);
+
+        await using var session = new FlowExecutionSession();
+        await runner.RunAsync(definition, session);
+
+        var terminal = Assert.Single(publisher.Events, item => item.Type == "node.failed");
+        var inputs = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object?>>(terminal.Payload["inputs"]);
+
+        Assert.Equal(10L, inputs["first"]);
+        Assert.DoesNotContain("second", inputs.Keys);
+    }
+
     private sealed class ContextWritingExecutor : INodeExecutor
     {
         public NodeType NodeType => NodeType.Action;
@@ -68,6 +134,17 @@ public sealed class RuntimeSessionTests
         {
             request.Context.Write("observed", request.Context.Read("run"));
             return ValueTask.FromResult(NodeExecutionResult.Success());
+        }
+    }
+
+    private sealed class RecordingPublisher : IRunEventPublisher
+    {
+        public List<RuntimeEvent> Events { get; } = [];
+
+        public ValueTask PublishAsync(RuntimeEvent runtimeEvent, CancellationToken cancellationToken)
+        {
+            Events.Add(runtimeEvent);
+            return ValueTask.CompletedTask;
         }
     }
 

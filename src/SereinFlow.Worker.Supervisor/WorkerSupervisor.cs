@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using SereinFlow.Contracts;
 using SereinFlow.Worker.Protocol;
 
@@ -281,6 +282,9 @@ public sealed class WorkerSupervisor
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            StandardInputEncoding = Encoding.UTF8,
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
             CreateNoWindow = true
         };
         if (!string.IsNullOrWhiteSpace(_launchOptions.WorkingDirectory))

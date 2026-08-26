@@ -1,6 +1,7 @@
 import type { CanvasLifecycle, CanvasState, FlowEdge, FlowNode, MethodParameter } from './types'
 import { normalizeConnectionLineTypes } from './connectionLine'
 import type { WorkspaceSnapshot } from './workspaceHistory'
+import type { FlowConcurrencyMode } from '../api/flowApi'
 
 const storageKey = 'sereinflow.workspace.v1'
 const formatVersion = 1
@@ -28,6 +29,9 @@ export function loadWorkspace(): WorkspaceSnapshot | undefined {
       nextNodeNumber: candidate.nextNodeNumber,
       projectName: typeof candidate.projectName === 'string' ? candidate.projectName : undefined,
       connectionLineTypes: normalizeConnectionLineTypes(candidate.connectionLineTypes),
+      runPolicy: isFlowConcurrencyMode(candidate.runPolicy?.concurrencyMode)
+        ? { concurrencyMode: candidate.runPolicy.concurrencyMode }
+        : undefined,
     } : undefined
   } catch {
     return undefined
@@ -101,4 +105,8 @@ function isParameter(value: unknown): value is MethodParameter {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
+}
+
+function isFlowConcurrencyMode(value: unknown): value is FlowConcurrencyMode {
+  return value === 'parallel' || value === 'exclusiveReject'
 }

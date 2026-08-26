@@ -17,7 +17,8 @@ import MobileWorkspaceTabs from './components/workspace/MobileWorkspaceTabs.vue'
 import OutputPanel from './components/workspace/OutputPanel.vue'
 import CanvasPanel from './components/canvas/CanvasPanel.vue'
 import InspectorPanel from './components/inspector/InspectorPanel.vue'
-import type { ProjectWorkspaceDto } from './api/flowApi'
+import RunConsole from './components/runs/RunConsole.vue'
+import type { FlowConcurrencyMode, ProjectWorkspaceDto } from './api/flowApi'
 import type { LibraryDto } from './api/libraryApi'
 import { locale, setLocale, t, type Locale } from './i18n'
 import {
@@ -83,6 +84,8 @@ const flowVersion = ref(1)
 const savedWorkspaceFingerprint = ref('')
 const isRestoringWorkspace = ref(false)
 const isSwitchingCanvas = ref(false)
+const workspaceView = ref<'console' | 'editor'>('console')
+const runPolicy = ref<{ concurrencyMode: FlowConcurrencyMode }>({ concurrencyMode: 'parallel' })
 
 function iconForNodeKind(kind: NodeKind) {
   if (kind === 'flipflop') {
@@ -141,6 +144,7 @@ function currentWorkspaceSnapshot(): WorkspaceSnapshot {
     nextNodeNumber: nextNodeNumber.value,
     projectName: projectName.value,
     connectionLineTypes: { ...connectionLineTypes },
+    runPolicy: { ...runPolicy.value },
   })
 }
 
@@ -163,6 +167,7 @@ function restoreWorkspace(snapshot: WorkspaceSnapshot): void {
     projectName.value = snapshot.projectName.trim()
   }
   Object.assign(connectionLineTypes, normalizeConnectionLineTypes(snapshot.connectionLineTypes))
+  runPolicy.value = snapshot.runPolicy ?? { concurrencyMode: 'parallel' }
   activeCanvasId.value = snapshot.activeCanvasId
   nextNodeNumber.value = snapshot.nextNodeNumber
   mobilePanel.value = null
@@ -263,8 +268,8 @@ const {
   cancelProjectRename,
   submitProjectRename,
   saveFlow,
-  openProject,
-  startNewProject,
+  openProject: loadProject,
+  startNewProject: beginNewProject,
   initializeWorkspace,
 } = useProjectSession({
   recoveryWorkspace,
@@ -325,10 +330,32 @@ function sourceNodeTitle(parameter: MethodParameter): string {
   return source ? nodeTitle(source) : t('parameter.previousNode')
 }
 
+async function openProjectInEditor(workspace: ProjectWorkspaceDto, requestedFlowId?: string): Promise<void> {
+  await loadProject(workspace, requestedFlowId)
+  workspaceView.value = 'editor'
+  void refreshLibraryCatalog()
+}
+
+function startNewProjectInEditor(): void {
+  beginNewProject()
+  workspaceView.value = 'editor'
+  void refreshLibraryCatalog()
+}
+
+function updateConcurrencyMode(mode: FlowConcurrencyMode): void {
+  if (runPolicy.value.concurrencyMode === mode) {
+    return
+  }
+
+  recordWorkspaceMutation()
+  runPolicy.value = { concurrencyMode: mode }
+  markWorkspaceChanged()
+}
+
 useWorkspaceShortcuts({ canvasDeleteConfirmOpen, cancelCanvasRemoval, saveFlow, undo, redo })
 
 onMounted(() => {
-  void Promise.allSettled([initializeWorkspace(), refreshLibraryCatalog()])
+  void initializeWorkspace()
 })
 
 function setLanguage(nextLocale: Locale): void {
@@ -338,7 +365,7 @@ function setLanguage(nextLocale: Locale): void {
 </script>
 
 <template>
-  <div class="app-shell">
+  <div class="app-shell" :class="{ 'app-shell--console': workspaceView === 'console' }">
     <CommandBar
       :project-name="projectName"
       :flow-version="flowVersion"
@@ -357,24 +384,35 @@ function setLanguage(nextLocale: Locale): void {
       :language-menu-open="languageMenuOpen"
       :locale="locale"
       :node-count="nodes.length"
+      :workspace-view="workspaceView"
+      :concurrency-mode="runPolicy.concurrencyMode"
       @toggle-project-menu="projectMenuOpen = !projectMenuOpen"
       @begin-project-rename="beginProjectRename"
       @cancel-project-rename="cancelProjectRename"
       @submit-project-rename="submitProjectRename"
       @update:project-name-draft="projectNameDraft = $event"
-      @open-project="openProject"
-      @start-new-project="startNewProject"
+      @open-project="openProjectInEditor"
+      @start-new-project="startNewProjectInEditor"
       @undo="undo"
       @redo="redo"
       @save="saveFlow"
       @run="runFlow"
       @toggle-language-menu="languageMenuOpen = !languageMenuOpen"
       @set-language="setLanguage"
+      @show-run-console="workspaceView = 'console'"
+      @update-concurrency-mode="updateConcurrencyMode"
     />
 
-    <MobileWorkspaceTabs v-model:mobile-panel="mobilePanel" />
+    <RunConsole
+      v-if="workspaceView === 'console'"
+      :project-workspaces="projectWorkspaces"
+      @open-flow="openProjectInEditor"
+      @start-new-project="startNewProjectInEditor"
+    />
 
-    <main class="workspace-grid">
+    <MobileWorkspaceTabs v-if="workspaceView === 'editor'" v-model:mobile-panel="mobilePanel" />
+
+    <main v-if="workspaceView === 'editor'" class="workspace-grid">
       <NodeLibraryPanel
         :mobile-visible="mobilePanel === 'nodes'"
         :library-search="librarySearch"
@@ -457,7 +495,7 @@ function setLanguage(nextLocale: Locale): void {
       />
     </main>
 
-    <LibraryUploadDialog v-if="libraryUploadOpen" @close="libraryUploadOpen = false" @uploaded="handleLibraryUploaded" />
-    <OutputPanel v-model:active-output="activeOutput" :run-events="runEvents" :run-payload="runPayload" :has-run-output="hasRunOutput" />
+    <LibraryUploadDialog v-if="workspaceView === 'editor' && libraryUploadOpen" @close="libraryUploadOpen = false" @uploaded="handleLibraryUploaded" />
+    <OutputPanel v-if="workspaceView === 'editor'" v-model:active-output="activeOutput" :run-events="runEvents" :run-payload="runPayload" :has-run-output="hasRunOutput" />
   </div>
 </template>

@@ -195,8 +195,10 @@ export function useProjectSession(options: UseProjectSessionOptions) {
     options.localizeEdges()
   }
 
-  async function openProject(workspace: ProjectWorkspaceDto): Promise<void> {
-    const summary = workspace.flows[0]
+  async function openProject(workspace: ProjectWorkspaceDto, requestedFlowId?: string): Promise<void> {
+    const summary = requestedFlowId
+      ? workspace.flows.find((flow) => flow.id === requestedFlowId) ?? workspace.flows[0]
+      : workspace.flows[0]
     if (!summary) {
       options.notice.value = t('project.noFlow')
       return
@@ -229,7 +231,13 @@ export function useProjectSession(options: UseProjectSessionOptions) {
     options.flowVersion.value = 1
     options.projectVersion.value = 1
     options.projectName.value = t('project.newProject')
-    options.restoreWorkspace({ canvases: createInitialCanvases(), activeCanvasId: 'main', nextNodeNumber: 1, projectName: options.projectName.value })
+    options.restoreWorkspace({
+      canvases: createInitialCanvases(),
+      activeCanvasId: 'main',
+      nextNodeNumber: 1,
+      projectName: options.projectName.value,
+      runPolicy: { concurrencyMode: 'parallel' },
+    })
     options.clearHistory()
     options.savedWorkspaceFingerprint.value = ''
     options.isDirty.value = true
@@ -267,6 +275,7 @@ export function useProjectSession(options: UseProjectSessionOptions) {
         nextNodeNumber: 1,
         projectName: options.projectName.value,
         connectionLineTypes: normalizeConnectionLineTypes(),
+        runPolicy: { concurrencyMode: 'parallel' },
       }
       options.restoreWorkspace(snapshot)
       options.clearHistory()

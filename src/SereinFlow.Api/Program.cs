@@ -37,6 +37,8 @@ builder.Services.AddSereinFlowInfrastructure(
     builder.Configuration,
     builder.Environment.ContentRootPath);
 builder.Services.AddScoped<RunApplicationService>();
+builder.Services.AddScoped<RunSubmissionService>();
+builder.Services.Configure<RunExecutionOptions>(builder.Configuration.GetSection("SereinFlow:RunExecution"));
 
 var workerRunnerPath = ResolveWorkerRunnerPath(
     builder.Configuration["SereinFlow:WorkerRunnerPath"],
@@ -73,33 +75,11 @@ projects.MapPost("/{projectId:guid}/flows/{flowId:guid}/runs", async (
     Guid projectId,
     Guid flowId,
     RunFlowRequestDto request,
-    RunApplicationService runService,
-    RunExecutionQueue queue,
+    RunSubmissionService submissionService,
     CancellationToken cancellationToken) =>
 {
-    var preparation = await runService.PrepareAsync(projectId, flowId, request, cancellationToken);
-    if (!preparation.IsSuccess)
-    {
-        if (preparation.ErrorBody is not null)
-            return Results.BadRequest(preparation.ErrorBody);
-        return Results.Problem(
-            statusCode: preparation.StatusCode,
-            title: preparation.ErrorTitle,
-            extensions: preparation.CurrentVersion is null
-                ? null
-                : new Dictionary<string, object?> { ["currentVersion"] = preparation.CurrentVersion });
-    }
-
-    var prepared = preparation.Preparation!;
-    await queue.EnqueueAsync(new RunWorkItem(
-        prepared.Run.Id,
-        projectId,
-        prepared.Definition,
-        prepared.ProjectInputs,
-        prepared.Deadline,
-        prepared.MaxSteps,
-        prepared.MaxNodeVisits), cancellationToken);
-    return Results.Accepted($"/api/runs/{prepared.Run.Id:D}", ToRunDto(prepared.Run));
+    var submission = await submissionService.SubmitAsync(projectId, flowId, request, cancellationToken);
+    return ToRunSubmissionResponse(submission);
 });
 
 projects.MapGet("", async (IProjectRepository projectRepository, IFlowDefinitionRepository flowRepository, CancellationToken cancellationToken) =>
@@ -110,7 +90,7 @@ projects.MapGet("", async (IProjectRepository projectRepository, IFlowDefinition
         var flows = await flowRepository.ListByProjectAsync(project.Id, cancellationToken);
         workspaceList.Add(new ProjectWorkspaceDto(
             ToProjectDto(project),
-            flows.Select(flow => new FlowDefinitionSummaryDto(flow.Id, flow.Version, flow.EntryNodeId)).ToArray()));
+            flows.Select(ToFlowSummaryDto).ToArray()));
     }
     var workspaces = workspaceList.ToArray();
     return Results.Ok(workspaces);
@@ -130,7 +110,7 @@ projects.MapPost("", async (CreateProjectRequestDto request, IProjectRepository 
     await flowRepository.AddAsync(project.Id, normalizedDefinition, cancellationToken);
     var workspace = new ProjectWorkspaceDto(
         ToProjectDto(project),
-        [new FlowDefinitionSummaryDto(normalizedDefinition.Id, normalizedDefinition.Version, normalizedDefinition.EntryNodeId)]);
+        [ToFlowSummaryDto(normalizedDefinition)]);
     return Results.Created($"/api/projects/{project.Id:D}/flows/{request.Definition.Id:D}", workspace);
 });
 
@@ -173,7 +153,7 @@ projects.MapPut("/{projectId:guid}", async (Guid projectId, RenameProjectRequest
     var flows = await flowRepository.ListByProjectAsync(project.Id, cancellationToken);
     var workspace = new ProjectWorkspaceDto(
         ToProjectDto(project),
-        flows.Select(flow => new FlowDefinitionSummaryDto(flow.Id, flow.Version, flow.EntryNodeId)).ToArray());
+        flows.Select(ToFlowSummaryDto).ToArray());
     return Results.Ok(workspace);
 });
 
@@ -296,6 +276,227 @@ legacyLibraries.MapDelete("/{libraryId}", (string libraryId, ILibraryCatalogServ
         ? Results.NoContent()
         : Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Library not found. 未找到类库。"));
 
+var environmentApi = app.MapGroup("/api/environment");
+
+environmentApi.MapGet("/settings", (RunExecutionQueue queue) =>
+    Results.Ok(queue.Options.ToDto()));
+
+environmentApi.MapPut("/settings", async (
+    RunExecutionSettingsDto settings,
+    RunExecutionQueue queue,
+    IRunEnvironmentSettingsStore settingsStore,
+    CancellationToken cancellationToken) =>
+{
+    var normalized = RunExecutionOptions.FromDto(settings).ToDto();
+    var saved = await settingsStore.SaveAsync(normalized, cancellationToken);
+    return Results.Ok(queue.Configure(saved));
+});
+
+environmentApi.MapGet("/interfaces", async (IFlowInterfaceRepository interfaces, CancellationToken cancellationToken) =>
+    Results.Ok(await interfaces.ListAsync(cancellationToken)));
+
+environmentApi.MapPost("/interfaces", async (
+    CreateFlowInterfaceRequestDto request,
+    IProjectRepository projects,
+    IFlowDefinitionRepository flows,
+    IFlowInterfaceRepository interfaces,
+    CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Trim().Length > 80)
+    {
+        return Results.Problem(
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "The interface name must contain 1 to 80 characters. 接口名称长度必须为 1 到 80 个字符。");
+    }
+    if (!Enum.IsDefined(request.InvocationMode))
+    {
+        return Results.Problem(
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "The interface invocation mode is invalid. 接口调用模式无效。");
+    }
+    if (await projects.FindAsync(request.ProjectId, cancellationToken) is null
+        || await flows.FindAsync(request.ProjectId, request.FlowId, cancellationToken) is null)
+    {
+        return Results.Problem(
+            statusCode: StatusCodes.Status404NotFound,
+            title: "The selected project or flow was not found. 所选项目或流程不存在。");
+    }
+
+    var now = DateTimeOffset.UtcNow;
+    var flowInterface = new FlowInterfaceDto(
+        Guid.NewGuid(),
+        request.ProjectId,
+        request.FlowId,
+        request.Name.Trim(),
+        request.InvocationMode,
+        request.IsEnabled,
+        now,
+        now);
+    await interfaces.AddAsync(flowInterface, cancellationToken);
+    return Results.Created($"/api/environment/interfaces/{flowInterface.Id:D}", flowInterface);
+});
+
+environmentApi.MapPut("/interfaces/{interfaceId:guid}", async (
+    Guid interfaceId,
+    UpdateFlowInterfaceRequestDto request,
+    IFlowInterfaceRepository interfaces,
+    CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Trim().Length > 80 || !Enum.IsDefined(request.InvocationMode))
+    {
+        return Results.Problem(
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "The interface configuration is invalid. 接口配置无效。");
+    }
+    var existing = await interfaces.FindAsync(interfaceId, cancellationToken);
+    if (existing is null)
+        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Flow interface not found. 流程接口不存在。");
+
+    var updated = existing with
+    {
+        Name = request.Name.Trim(),
+        InvocationMode = request.InvocationMode,
+        IsEnabled = request.IsEnabled,
+        UpdatedAt = DateTimeOffset.UtcNow,
+    };
+    await interfaces.UpdateAsync(updated, cancellationToken);
+    return Results.Ok(updated);
+});
+
+environmentApi.MapDelete("/interfaces/{interfaceId:guid}", async (
+    Guid interfaceId,
+    IFlowInterfaceRepository interfaces,
+    CancellationToken cancellationToken) =>
+    await interfaces.DeleteAsync(interfaceId, cancellationToken)
+        ? Results.NoContent()
+        : Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Flow interface not found. 流程接口不存在。"));
+
+app.MapPost("/api/public/flows/{interfaceId:guid}/invoke", async (
+    Guid interfaceId,
+    PublicFlowInvocationRequestDto request,
+    IFlowInterfaceRepository interfaces,
+    RunSubmissionService submissionService,
+    IFlowRunStore runStore,
+    IFlowRunOutputStore outputStore,
+    RunExecutionQueue queue,
+    CancellationToken cancellationToken) =>
+{
+    var flowInterface = await interfaces.FindAsync(interfaceId, cancellationToken);
+    if (flowInterface is null || !flowInterface.IsEnabled)
+    {
+        return Results.Problem(
+            statusCode: StatusCodes.Status404NotFound,
+            title: "The flow interface is unavailable. 流程接口不可用。");
+    }
+
+    var submission = await submissionService.SubmitAsync(
+        flowInterface.ProjectId,
+        flowInterface.FlowId,
+        new RunFlowRequestDto(null, request.ProjectInputs, request.TimeoutSeconds, request.MaxSteps, request.MaxNodeVisits),
+        cancellationToken);
+    if (!submission.IsAccepted)
+        return ToRunSubmissionResponse(submission);
+
+    var submittedRun = submission.Run!;
+    if (flowInterface.InvocationMode == FlowInvocationModeDto.Asynchronous)
+    {
+        return Results.Accepted(
+            $"/api/public/tasks/{submittedRun.Id:D}",
+            new PublicFlowInvocationResponseDto(
+                submittedRun.Id,
+                FlowRunStatusDto.Pending,
+                false,
+                []));
+    }
+
+    var maximumWait = TimeSpan.FromSeconds(queue.Options.SynchronousInvocationTimeoutSeconds);
+    var completedRun = await WaitForTerminalRunAsync(runStore, submittedRun.Id, maximumWait, cancellationToken);
+    if (completedRun is null || !completedRun.IsTerminal)
+    {
+        return Results.Accepted(
+            $"/api/public/tasks/{submittedRun.Id:D}",
+            new PublicFlowInvocationResponseDto(
+                submittedRun.Id,
+                FlowRunStatusDto.Pending,
+                false,
+                []));
+    }
+
+    return Results.Ok(new PublicFlowInvocationResponseDto(
+        completedRun.Id,
+        (FlowRunStatusDto)completedRun.Status,
+        true,
+        await ReadNodeDataAsync(outputStore, completedRun.Id, cancellationToken)));
+});
+
+app.MapGet("/api/public/tasks/{taskId:guid}", async (
+    Guid taskId,
+    IFlowRunStore runStore,
+    IFlowRunOutputStore outputStore,
+    CancellationToken cancellationToken) =>
+{
+    var run = await runStore.FindAsync(taskId, cancellationToken);
+    if (run is null)
+        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Task not found. 任务不存在。");
+
+    return Results.Ok(new PublicFlowInvocationResponseDto(
+        run.Id,
+        (FlowRunStatusDto)run.Status,
+        run.IsTerminal,
+        run.IsTerminal ? await ReadNodeDataAsync(outputStore, run.Id, cancellationToken) : []));
+});
+
+app.MapGet("/api/runs", async (
+    string? status,
+    Guid? projectId,
+    int? take,
+    IFlowRunStore runStore,
+    CancellationToken cancellationToken) =>
+{
+    IReadOnlyCollection<FlowRunStatus>? statuses = null;
+    if (!string.IsNullOrWhiteSpace(status))
+    {
+        var parsed = new List<FlowRunStatus>();
+        foreach (var value in status.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!Enum.TryParse<FlowRunStatus>(value, ignoreCase: true, out var item))
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status400BadRequest,
+                    title: "A run status filter is invalid. 运行状态筛选条件无效。",
+                    extensions: new Dictionary<string, object?> { ["code"] = "run.status_invalid" });
+            }
+            parsed.Add(item);
+        }
+        statuses = parsed.Distinct().ToArray();
+    }
+
+    var runs = await runStore.ListAsync(new FlowRunQuery(statuses, projectId, take ?? 100), cancellationToken);
+    return Results.Ok(runs.Select(ToRunDto).ToArray());
+});
+
+app.MapGet("/api/runs/overview", async (
+    IFlowRunStore runStore,
+    RunExecutionQueue queue,
+    CancellationToken cancellationToken) =>
+{
+    var queued = await runStore.ListAsync(new FlowRunQuery([FlowRunStatus.Pending], Take: 50), cancellationToken);
+    var active = await runStore.ListAsync(new FlowRunQuery([FlowRunStatus.Running], Take: 50), cancellationToken);
+    var recent = await runStore.ListAsync(new FlowRunQuery(Take: 100), cancellationToken);
+    var snapshot = queue.GetSnapshot();
+    return Results.Ok(new FlowRunOverviewDto(
+        snapshot.QueueCapacity,
+        snapshot.QueuedCount,
+        snapshot.ActiveRunCount,
+        snapshot.ActiveListenerRunCount,
+        snapshot.MaxConcurrentRuns,
+        snapshot.MaxConcurrentListenerRuns,
+        snapshot.MaxConcurrentRunsPerProject,
+        queued.Select(ToRunDto).ToArray(),
+        active.Select(ToRunDto).ToArray(),
+        recent.Where(static run => run.IsTerminal).Take(50).Select(ToRunDto).ToArray()));
+});
+
 app.MapGet("/api/runs/{runId:guid}", async (Guid runId, IFlowRunStore runStore, CancellationToken cancellationToken) =>
 {
     var run = await runStore.FindAsync(runId, cancellationToken);
@@ -306,6 +507,19 @@ app.MapGet("/api/runs/{runId:guid}/snapshot", async (Guid runId, IFlowRunStore r
 {
     var snapshot = await runStore.GetSnapshotAsync(runId, cancellationToken);
     return snapshot is null ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Run snapshot not found. 未找到运行快照。") : Results.Ok(snapshot);
+});
+
+app.MapGet("/api/runs/{runId:guid}/outputs", async (
+    Guid runId,
+    IFlowRunStore runStore,
+    IFlowRunOutputStore outputStore,
+    CancellationToken cancellationToken) =>
+{
+    if (await runStore.FindAsync(runId, cancellationToken) is null)
+        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Run not found. 未找到运行实例。");
+
+    var outputs = await outputStore.ListAsync(runId, cancellationToken);
+    return Results.Ok(outputs.Select(ToRunOutputDto).ToArray());
 });
 
 app.MapPost("/api/runs/{runId:guid}/cancel", async (Guid runId, RunExecutionQueue queue, IFlowRunStore runStore, CancellationToken cancellationToken) =>
@@ -337,7 +551,8 @@ app.MapGet("/api/runs/{runId:guid}/events/stream", async (
     RunEventBroadcaster broadcaster,
     CancellationToken cancellationToken) =>
 {
-    if (await runStore.FindAsync(runId, cancellationToken) is null)
+    var run = await runStore.FindAsync(runId, cancellationToken);
+    if (run is null)
     {
         context.Response.StatusCode = StatusCodes.Status404NotFound;
         return;
@@ -346,15 +561,19 @@ app.MapGet("/api/runs/{runId:guid}/events/stream", async (
     context.Response.ContentType = "text/event-stream";
     context.Response.Headers.CacheControl = "no-cache";
     var lastEventId = context.Request.Headers.TryGetValue("Last-Event-ID", out var value) && long.TryParse(value, out var parsed) ? parsed : 0;
-    // Subscribe before replaying history so events committed during the
-    // database read remain buffered and are de-duplicated by sequence.
-    // 先订阅实时通道再回放历史，避免读取数据库期间提交的事件丢失。
-    var reader = broadcaster.Subscribe(runId);
+    // Terminal runs only require a durable event replay. Active runs subscribe
+    // before reading history, so events committed during the read remain
+    // buffered and are de-duplicated by sequence.
+    // 已结束实例只需回放持久化事件；活动实例先订阅再读取历史，避免读取期间提交的事件丢失。
+    var reader = run.IsTerminal ? null : broadcaster.Subscribe(runId, context.RequestAborted);
     foreach (var item in await eventStore.GetAfterAsync(runId, lastEventId, cancellationToken))
     {
         await WriteSseAsync(context, new FlowRunEventDto(item.RunId, item.Sequence, item.Timestamp, item.Type, item.NodeId, item.PayloadJson));
         lastEventId = item.Sequence;
     }
+
+    if (reader is null)
+        return;
 
     await foreach (var item in reader.ReadAllAsync(context.RequestAborted))
     {
@@ -373,7 +592,94 @@ static ProjectDto ToProjectDto(Project project)
     => new(project.Id, project.Name, project.Version, project.Status.ToString(), project.CreatedAt, project.UpdatedAt);
 
 static FlowRunDto ToRunDto(FlowRun run)
-    => new(run.Id, run.FlowId, run.FlowVersion, (FlowRunStatusDto)run.Status, run.StartedAt, run.EndedAt, run.ErrorSummary, run.ProjectId == Guid.Empty ? null : run.ProjectId, run.CreatedAt, run.CancellationReason);
+    => new(
+        run.Id,
+        run.FlowId,
+        run.FlowVersion,
+        (FlowRunStatusDto)run.Status,
+        run.StartedAt,
+        run.EndedAt,
+        run.ErrorSummary,
+        run.ProjectId == Guid.Empty ? null : run.ProjectId,
+        run.CreatedAt,
+        run.CancellationReason,
+        (FlowConcurrencyModeDto)run.ConcurrencyMode,
+        run.IsListenerRun,
+        run.QueuedAt);
+
+static FlowDefinitionSummaryDto ToFlowSummaryDto(FlowDefinitionDto definition)
+    => new(
+        definition.Id,
+        definition.Version,
+        definition.EntryNodeId,
+        definition.Canvases.Count,
+        definition.Canvases.Sum(static canvas => canvas.Nodes.Count));
+
+static IResult ToRunSubmissionResponse(RunSubmissionResult submission)
+{
+    if (submission.IsAccepted)
+        return Results.Accepted($"/api/runs/{submission.Run!.Id:D}", ToRunDto(submission.Run));
+    if (submission.ErrorBody is not null)
+        return Results.Json(submission.ErrorBody, statusCode: submission.StatusCode);
+    return Results.Problem(
+        statusCode: submission.StatusCode,
+        title: submission.ErrorTitle,
+        extensions: submission.CurrentVersion is null
+            ? null
+            : new Dictionary<string, object?> { ["currentVersion"] = submission.CurrentVersion });
+}
+
+static async Task<FlowRun?> WaitForTerminalRunAsync(
+    IFlowRunStore runStore,
+    Guid runId,
+    TimeSpan timeout,
+    CancellationToken cancellationToken)
+{
+    var deadline = DateTimeOffset.UtcNow + timeout;
+    while (DateTimeOffset.UtcNow < deadline)
+    {
+        var run = await runStore.FindAsync(runId, cancellationToken);
+        if (run is null || run.IsTerminal)
+            return run;
+        await Task.Delay(TimeSpan.FromMilliseconds(80), cancellationToken);
+    }
+    return await runStore.FindAsync(runId, cancellationToken);
+}
+
+static async Task<IReadOnlyList<FlowNodeDataDto>> ReadNodeDataAsync(
+    IFlowRunOutputStore outputStore,
+    Guid runId,
+    CancellationToken cancellationToken)
+{
+    var data = new List<FlowNodeDataDto>();
+    foreach (var item in await outputStore.ListAsync(runId, cancellationToken))
+    {
+        if (!string.Equals(item.Outcome, "completed", StringComparison.OrdinalIgnoreCase))
+            continue;
+
+        using var outputs = JsonDocument.Parse(item.OutputsJson);
+        data.Add(new FlowNodeDataDto(item.NodeId, outputs.RootElement.Clone()));
+    }
+
+    return data;
+}
+
+static FlowRunOutputDto ToRunOutputDto(FlowRunOutput output)
+{
+    using var inputs = JsonDocument.Parse(output.InputsJson);
+    using var outputs = JsonDocument.Parse(output.OutputsJson);
+    return new FlowRunOutputDto(
+        output.RunId,
+        output.Sequence,
+        output.Timestamp,
+        output.NodeId,
+        output.Outcome,
+        output.Branch,
+        inputs.RootElement.Clone(),
+        outputs.RootElement.Clone(),
+        output.ErrorCode,
+        output.ErrorMessage);
+}
 
 static async Task WriteSseAsync(HttpContext context, FlowRunEventDto item)
 {

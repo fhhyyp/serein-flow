@@ -9,9 +9,10 @@ public sealed record RunPreparation(
     FlowRun Run,
     FlowDefinitionDto Definition,
     IReadOnlyDictionary<string, JsonElement>? ProjectInputs,
-    DateTimeOffset Deadline,
+    int TimeoutSeconds,
     int MaxSteps,
-    int MaxNodeVisits);
+    int MaxNodeVisits,
+    bool IsListenerRun);
 
 public sealed class RunApplicationService
 {
@@ -52,20 +53,40 @@ public sealed class RunApplicationService
         var timeout = Math.Clamp(request.TimeoutSeconds ?? 300, 1, 86_400);
         var maxSteps = Math.Clamp(request.MaxSteps ?? 10_000, 1, 1_000_000);
         var maxNodeVisits = Math.Clamp(request.MaxNodeVisits ?? 1_000, 1, 100_000);
-        var run = FlowRun.Start(projectId, flowId, definition.Version, DateTimeOffset.UtcNow);
-        var deadline = DateTimeOffset.UtcNow.AddSeconds(timeout);
-        await _runs.CreateWithSnapshotAsync(
+        var createdAt = DateTimeOffset.UtcNow;
+        var isListenerRun = IsListenerRun(definition);
+        var concurrencyMode = (FlowConcurrencyMode)definition.RunPolicy!.ConcurrencyMode;
+        var run = FlowRun.Start(projectId, flowId, definition.Version, createdAt, concurrencyMode, isListenerRun);
+        // The execution deadline is bound when the scheduler actually obtains
+        // a Worker slot. Before that, QueueWaitTimeoutSeconds governs waiting.
+        // 实际执行截止时间在调度器取得 Worker 槽位时绑定；排队等待由独立超时控制。
+        var admission = await _runs.TryCreateWithSnapshotAsync(
             run,
             definition,
-            new FlowRunExecutionOptions(request.ProjectInputs, deadline, maxSteps, maxNodeVisits),
+            new FlowRunExecutionOptions(request.ProjectInputs, timeout, maxSteps, maxNodeVisits),
             cancellationToken);
+        if (!admission.IsAdmitted)
+            return RunPreparationResult.AlreadyActive(admission.ActiveRunId);
         return RunPreparationResult.Success(new RunPreparation(
-            run,
+            admission.Run!,
             definition,
             request.ProjectInputs,
-            deadline,
+            timeout,
             maxSteps,
-            maxNodeVisits));
+            maxNodeVisits,
+            isListenerRun));
+    }
+
+    private static bool IsListenerRun(FlowDefinitionDto definition)
+    {
+        var incomingExecutionNodes = definition.Canvases
+            .SelectMany(static canvas => canvas.Connections)
+            .Where(static connection => connection.Kind == ConnectionKindDto.Execution)
+            .Select(static connection => connection.ToNodeId)
+            .ToHashSet(StringComparer.Ordinal);
+        return definition.Canvases
+            .SelectMany(static canvas => canvas.Nodes)
+            .Any(node => node.Type == NodeTypeDto.Flipflop && !incomingExecutionNodes.Contains(node.Id));
     }
 }
 
@@ -90,4 +111,16 @@ public sealed record RunPreparationResult(
 
     public static RunPreparationResult Invalid(object validation)
         => new(null, 400, null, validation);
+
+    public static RunPreparationResult AlreadyActive(Guid? activeRunId)
+        => new(
+            null,
+            409,
+            "The flow already has an active run and does not allow concurrent execution. 该流程已有活动运行实例，不允许并发执行。",
+            new
+            {
+                code = "flow.run_already_active",
+                message = "The flow already has an active run and does not allow concurrent execution. 该流程已有活动运行实例，不允许并发执行。",
+                activeRunId
+            });
 }

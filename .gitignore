@@ -7,6 +7,10 @@ TestResults/
 *.suo
 *.userosscache
 *.sln.docstates
+output/
+
+# npm
+.pnpm-store
 
 # NuGet and local tooling
 *.nupkg
@@ -20,6 +24,8 @@ packages/
 .env
 .env.*
 !.env.example
+data/
+src/SereinFlow.Api/data/
 *.db
 *.db-shm
 *.db-wal
@@ -32,3 +38,4 @@ frontend/sereinflow-web/node_modules/
 frontend/sereinflow-web/dist/
 frontend/sereinflow-web/.vite/
 frontend/sereinflow-web/coverage/
+frontend/sereinflow-web/output-vite.err

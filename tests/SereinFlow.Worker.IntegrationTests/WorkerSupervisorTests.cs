@@ -57,7 +57,8 @@ public sealed class WorkerSupervisorTests
     public async Task SupervisorPropagatesCancellationToScriptRunner()
     {
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var supervisor = CreateSupervisor();
+        var diagnostics = new List<string>();
+        var supervisor = CreateSupervisor(diagnostics.Add);
         var request = CreateScriptRequest(DateTimeOffset.UtcNow.AddSeconds(15));
         using var cancellation = new CancellationTokenSource();
 
@@ -72,7 +73,9 @@ public sealed class WorkerSupervisorTests
         cancellation.Cancel();
         var result = await runTask.WaitAsync(TimeSpan.FromSeconds(10));
 
-        Assert.Equal(FlowRunStatusDto.Cancelled, result.Status);
+        Assert.True(
+            result.Status == FlowRunStatusDto.Cancelled,
+            $"Expected a cancelled worker result but received {result.Status}; code={result.ErrorCode}; message={result.ErrorMessage}; diagnostics={string.Join(" | ", diagnostics)}");
         Assert.Equal("worker.cancelled", result.ErrorCode);
     }
 
@@ -101,13 +104,14 @@ public sealed class WorkerSupervisorTests
         Assert.Equal("worker.runner_not_found", result.ErrorCode);
     }
 
-    private static WorkerSupervisor CreateSupervisor()
+    private static WorkerSupervisor CreateSupervisor(Action<string>? diagnosticLogger = null)
         => new(new RunnerLaunchOptions(
             "dotnet",
             [typeof(RunnerHost).Assembly.Location],
             HandshakeTimeout: TimeSpan.FromSeconds(10),
             HeartbeatInterval: TimeSpan.FromMilliseconds(100),
-            CancellationGracePeriod: TimeSpan.FromSeconds(2)));
+            CancellationGracePeriod: TimeSpan.FromSeconds(2),
+            DiagnosticLogger: diagnosticLogger));
 
     private static WorkerRunRequestDto CreateActionRequest(DateTimeOffset deadline)
     {
@@ -134,11 +138,12 @@ public sealed class WorkerSupervisorTests
     {
         var definition = new FlowDefinitionDto(
             flowId,
-            3,
+            4,
             1,
             [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])],
             node.Id,
-            "test");
+            "test",
+            RunPolicy: new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel));
         return new WorkerRunRequestDto(
             WorkerProtocol.Version,
             Guid.NewGuid(),

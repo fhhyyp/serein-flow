@@ -5,6 +5,7 @@ export type ApiNodeType = 'action' | 'flowCall' | 'flipflop' | 'script' | 'condi
 export type ApiCanvasLifecycle = 'main' | 'init' | 'loading' | 'exit' | 'custom'
 export type ApiConnectionKind = 'execution' | 'data'
 export type ApiDataSource = 'literal' | 'previousNode' | 'projectInput' | 'expression'
+export type FlowConcurrencyMode = 'parallel' | 'exclusiveReject'
 
 export interface FlowConnectionLineTypesDto {
   execution?: FlowEdgeLineType
@@ -13,6 +14,10 @@ export interface FlowConnectionLineTypesDto {
 
 export interface FlowUiMetadataDto {
   connectionLineTypes?: FlowConnectionLineTypesDto
+}
+
+export interface FlowRunPolicyDto {
+  concurrencyMode: FlowConcurrencyMode
 }
 
 export interface NodePortDto {
@@ -120,6 +125,7 @@ export interface FlowDefinitionDto {
   canvases: CanvasDto[]
   entryNodeId: string
   checksum: string
+  runPolicy?: FlowRunPolicyDto
   ui?: FlowUiMetadataDto
 }
 
@@ -136,6 +142,8 @@ export interface FlowDefinitionSummaryDto {
   id: string
   version: number
   entryNodeId: string
+  canvasCount?: number
+  nodeCount?: number
 }
 
 export interface ProjectWorkspaceDto {
@@ -177,6 +185,22 @@ export interface FlowRunDto {
   projectId?: string
   createdAt?: string
   cancellationReason?: string
+  concurrencyMode?: FlowConcurrencyMode
+  isListenerRun?: boolean
+  queuedAt?: string
+}
+
+export interface FlowRunOverviewDto {
+  queueCapacity: number
+  queuedCount: number
+  activeRunCount: number
+  activeListenerRunCount: number
+  maxConcurrentRuns: number
+  maxConcurrentListenerRuns: number
+  maxConcurrentRunsPerProject: number
+  queuedRuns: FlowRunDto[]
+  activeRuns: FlowRunDto[]
+  recentRuns: FlowRunDto[]
 }
 
 export interface FlowRunEventDto {
@@ -186,6 +210,56 @@ export interface FlowRunEventDto {
   type: string
   nodeId?: string
   payloadJson: string
+}
+
+export interface FlowRunOutputDto {
+  runId: string
+  sequence: number
+  timestamp: string
+  nodeId: string
+  outcome: 'completed' | 'failed' | 'error'
+  branch?: string
+  inputs: unknown
+  outputs: unknown
+  errorCode?: string
+  errorMessage?: string
+}
+
+export interface RunExecutionSettingsDto {
+  queueCapacity: number
+  maxConcurrentRuns: number
+  maxConcurrentListenerRuns: number
+  maxConcurrentRunsPerProject: number
+  queueWaitTimeoutSeconds: number
+  shutdownGracePeriodSeconds: number
+  synchronousInvocationTimeoutSeconds: number
+}
+
+export type FlowInvocationMode = 'asynchronous' | 'synchronous'
+
+export interface FlowInterfaceDto {
+  id: string
+  projectId: string
+  flowId: string
+  name: string
+  invocationMode: FlowInvocationMode
+  isEnabled: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateFlowInterfaceRequestDto {
+  projectId: string
+  flowId: string
+  name: string
+  invocationMode: FlowInvocationMode
+  isEnabled: boolean
+}
+
+export interface UpdateFlowInterfaceRequestDto {
+  name: string
+  invocationMode: FlowInvocationMode
+  isEnabled: boolean
 }
 
 interface ApiProblem {
@@ -236,8 +310,59 @@ export async function getFlowRun(runId: string): Promise<FlowRunDto> {
   return request<FlowRunDto>(`/api/runs/${runId}`)
 }
 
+export async function listFlowRuns(options: { statuses?: FlowRunDto['status'][]; projectId?: string; take?: number } = {}): Promise<FlowRunDto[]> {
+  const query = new URLSearchParams()
+  if (options.statuses?.length) {
+    query.set('status', options.statuses.join(','))
+  }
+  if (options.projectId) {
+    query.set('projectId', options.projectId)
+  }
+  if (options.take) {
+    query.set('take', String(options.take))
+  }
+  const suffix = query.size > 0 ? `?${query.toString()}` : ''
+  return request<FlowRunDto[]>(`/api/runs${suffix}`)
+}
+
+export async function getFlowRunOverview(): Promise<FlowRunOverviewDto> {
+  return request<FlowRunOverviewDto>('/api/runs/overview')
+}
+
 export async function cancelFlowRun(runId: string): Promise<void> {
   await request<unknown>(`/api/runs/${runId}/cancel`, { method: 'POST' })
+}
+
+export async function getFlowRunSnapshot(runId: string): Promise<FlowDefinitionDto> {
+  return request<FlowDefinitionDto>(`/api/runs/${runId}/snapshot`)
+}
+
+export async function listFlowRunOutputs(runId: string): Promise<FlowRunOutputDto[]> {
+  return request<FlowRunOutputDto[]>(`/api/runs/${runId}/outputs`)
+}
+
+export async function getRunExecutionSettings(): Promise<RunExecutionSettingsDto> {
+  return request<RunExecutionSettingsDto>('/api/environment/settings')
+}
+
+export async function saveRunExecutionSettings(settings: RunExecutionSettingsDto): Promise<RunExecutionSettingsDto> {
+  return request<RunExecutionSettingsDto>('/api/environment/settings', { method: 'PUT', body: settings })
+}
+
+export async function listFlowInterfaces(): Promise<FlowInterfaceDto[]> {
+  return request<FlowInterfaceDto[]>('/api/environment/interfaces')
+}
+
+export async function createFlowInterface(requestBody: CreateFlowInterfaceRequestDto): Promise<FlowInterfaceDto> {
+  return request<FlowInterfaceDto>('/api/environment/interfaces', { method: 'POST', body: requestBody })
+}
+
+export async function updateFlowInterface(interfaceId: string, requestBody: UpdateFlowInterfaceRequestDto): Promise<FlowInterfaceDto> {
+  return request<FlowInterfaceDto>(`/api/environment/interfaces/${interfaceId}`, { method: 'PUT', body: requestBody })
+}
+
+export async function deleteFlowInterface(interfaceId: string): Promise<void> {
+  await request<unknown>(`/api/environment/interfaces/${interfaceId}`, { method: 'DELETE' })
 }
 
 export async function listFlowRunEvents(runId: string, afterSequence = 0): Promise<FlowRunEventDto[]> {
@@ -379,7 +504,7 @@ export function subscribeFlowRunEvents(
   }
 }
 
-async function request<T>(path: string, options: { method?: 'POST' | 'PUT'; body?: unknown } = {}): Promise<T> {
+async function request<T>(path: string, options: { method?: 'POST' | 'PUT' | 'DELETE'; body?: unknown } = {}): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     method: options.method,
     headers: options.body ? { 'content-type': 'application/json' } : undefined,

@@ -56,6 +56,18 @@ public enum FlowRunStatusDto
     TimedOut
 }
 
+public enum FlowConcurrencyModeDto
+{
+    Parallel,
+    ExclusiveReject
+}
+
+public enum FlowInvocationModeDto
+{
+    Asynchronous,
+    Synchronous
+}
+
 public enum WorkerEventType
 {
     RunStarted,
@@ -76,7 +88,12 @@ public sealed record ProjectDto(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
-public sealed record FlowDefinitionSummaryDto(Guid Id, long Version, string EntryNodeId);
+public sealed record FlowDefinitionSummaryDto(
+    Guid Id,
+    long Version,
+    string EntryNodeId,
+    int CanvasCount = 0,
+    int NodeCount = 0);
 
 public sealed record ProjectWorkspaceDto(ProjectDto Project, IReadOnlyList<FlowDefinitionSummaryDto> Flows);
 
@@ -182,7 +199,10 @@ public sealed record FlowDefinitionDto(
     IReadOnlyList<CanvasDto> Canvases,
     string EntryNodeId,
     string Checksum,
-    FlowUiMetadataDto? Ui = null);
+    FlowUiMetadataDto? Ui = null,
+    FlowRunPolicyDto? RunPolicy = null);
+
+public sealed record FlowRunPolicyDto(FlowConcurrencyModeDto ConcurrencyMode);
 
 public sealed record FlowUiMetadataDto(
     FlowConnectionLineTypesDto? ConnectionLineTypes = null);
@@ -254,7 +274,67 @@ public sealed record FlowRunDto(
     string? ErrorSummary,
     Guid? ProjectId = null,
     DateTimeOffset? CreatedAt = null,
-    string? CancellationReason = null);
+    string? CancellationReason = null,
+    FlowConcurrencyModeDto? ConcurrencyMode = null,
+    bool IsListenerRun = false,
+    DateTimeOffset? QueuedAt = null);
+
+public sealed record FlowRunOverviewDto(
+    int QueueCapacity,
+    int QueuedCount,
+    int ActiveRunCount,
+    int ActiveListenerRunCount,
+    int MaxConcurrentRuns,
+    int MaxConcurrentListenerRuns,
+    int MaxConcurrentRunsPerProject,
+    IReadOnlyList<FlowRunDto> QueuedRuns,
+    IReadOnlyList<FlowRunDto> ActiveRuns,
+    IReadOnlyList<FlowRunDto> RecentRuns);
+
+public sealed record RunExecutionSettingsDto(
+    int QueueCapacity,
+    int MaxConcurrentRuns,
+    int MaxConcurrentListenerRuns,
+    int MaxConcurrentRunsPerProject,
+    int QueueWaitTimeoutSeconds = 60,
+    int ShutdownGracePeriodSeconds = 10,
+    int SynchronousInvocationTimeoutSeconds = 30);
+
+public sealed record FlowInterfaceDto(
+    Guid Id,
+    Guid ProjectId,
+    Guid FlowId,
+    string Name,
+    FlowInvocationModeDto InvocationMode,
+    bool IsEnabled,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
+
+public sealed record CreateFlowInterfaceRequestDto(
+    Guid ProjectId,
+    Guid FlowId,
+    string Name,
+    FlowInvocationModeDto InvocationMode,
+    bool IsEnabled = true);
+
+public sealed record UpdateFlowInterfaceRequestDto(
+    string Name,
+    FlowInvocationModeDto InvocationMode,
+    bool IsEnabled);
+
+public sealed record PublicFlowInvocationRequestDto(
+    IReadOnlyDictionary<string, JsonElement>? ProjectInputs = null,
+    int? TimeoutSeconds = null,
+    int? MaxSteps = null,
+    int? MaxNodeVisits = null);
+
+public sealed record FlowNodeDataDto(string NodeId, JsonElement Outputs);
+
+public sealed record PublicFlowInvocationResponseDto(
+    Guid TaskId,
+    FlowRunStatusDto Status,
+    bool IsCompleted,
+    IReadOnlyList<FlowNodeDataDto> FlowData);
 
 public sealed record FlowRunEventDto(
     Guid RunId,
@@ -263,6 +343,18 @@ public sealed record FlowRunEventDto(
     string Type,
     string? NodeId,
     string PayloadJson);
+
+public sealed record FlowRunOutputDto(
+    Guid RunId,
+    long Sequence,
+    DateTimeOffset Timestamp,
+    string NodeId,
+    string Outcome,
+    string? Branch,
+    JsonElement Inputs,
+    JsonElement Outputs,
+    string? ErrorCode,
+    string? ErrorMessage);
 
 public sealed record WorkerEventEnvelopeDto(
     int ProtocolVersion,

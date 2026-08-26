@@ -46,11 +46,21 @@ public static class SereinFlowInfrastructureRegistration
             new SqlSugarFlowRunEventStore(
                 serviceProvider.GetRequiredService<IRepository<FlowRunEventRecord>>(),
                 serviceProvider.GetRequiredService<IUnitOfWork>()));
+        services.AddScoped<IFlowRunOutputStore>(serviceProvider =>
+            new SqlSugarFlowRunOutputStore(
+                serviceProvider.GetRequiredService<IRepository<FlowRunOutputRecord>>(),
+                serviceProvider.GetRequiredService<IUnitOfWork>()));
         services.AddScoped<IFlowRunStore>(serviceProvider =>
             new SqlSugarFlowRunStore(
                 serviceProvider.GetRequiredService<IRepository<FlowRunRecord>>(),
                 serviceProvider.GetRequiredService<IRepository<FlowRunDefinitionRecord>>(),
                 serviceProvider.GetRequiredService<IUnitOfWork>()));
+        services.AddScoped<IRunEnvironmentSettingsStore>(serviceProvider =>
+            new SqlSugarRunEnvironmentSettingsStore(
+                serviceProvider.GetRequiredService<IRepository<RunEnvironmentSettingsRecord>>()));
+        services.AddScoped<IFlowInterfaceRepository>(serviceProvider =>
+            new SqlSugarFlowInterfaceRepository(
+                serviceProvider.GetRequiredService<IRepository<FlowInterfaceRecord>>()));
 
         var configuredLibraryDirectory = configuration["SereinFlow:LibraryDirectory"] ?? "data/libraries";
         var libraryDirectory = Path.IsPathRooted(configuredLibraryDirectory)

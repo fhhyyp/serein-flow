@@ -24,7 +24,6 @@ const executionInputSeat = computed(() => seats.value.find((seat) => seat.kind =
 const executionOutputSeats = computed(() => seats.value.filter((seat) => seat.kind === 'execution-output'))
 const parameterSeats = computed(() => seats.value.filter((seat) => seat.kind === 'parameter-input'))
 const dataOutputSeat = computed(() => seats.value.find((seat) => seat.kind === 'data-output'))
-const hasDataOutput = computed(() => seats.value.some((seat) => seat.kind === 'data-output'))
 const runtimeSignature = computed(() => {
   const runtime = props.data.runtime
   const method = [runtime?.className, runtime?.methodName].filter(Boolean).join('.')
@@ -110,8 +109,6 @@ function isTargetSeat(seat: ConnectionSeatLayout | undefined): boolean {
         :connectable="isTargetSeat(dataOutputSeat) ? 'single' : connectable"
         :aria-label="seatLabel(dataOutputSeat)"
       />
-      <span class="workflow-node__rail-label flow-rail-label"><i class="workflow-node__seat-dot execution-seat-dot" aria-hidden="true"></i>{{ t('edge.flow') }}</span>
-      <span v-if="hasDataOutput" class="workflow-node__rail-label data-rail-label"><i class="workflow-node__seat-dot data-seat-dot" aria-hidden="true"></i>{{ t('edge.value') }}</span>
       <span v-if="data.runtime?.returnType" class="workflow-node__return-type" :title="data.runtime.returnType">→ {{ data.runtime.returnType }}</span>
     </div>
   </article>

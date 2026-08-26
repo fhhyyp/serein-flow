@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import {
   Activity,
   Check,
@@ -10,11 +11,14 @@ import {
   RotateCcw,
   RotateCw,
   Save,
+  Settings,
   Square,
   X,
 } from 'lucide-vue-next'
 import { t, type Locale } from '../../i18n'
-import type { ProjectWorkspaceDto } from '../../api/flowApi'
+import type { FlowConcurrencyMode, ProjectWorkspaceDto } from '../../api/flowApi'
+
+const policyMenuOpen = ref(false)
 
 const props = defineProps<{
   projectName: string
@@ -34,6 +38,8 @@ const props = defineProps<{
   languageMenuOpen: boolean
   locale: Locale
   nodeCount: number
+  workspaceView: 'console' | 'editor'
+  concurrencyMode: FlowConcurrencyMode
 }>()
 
 const emit = defineEmits<{
@@ -50,10 +56,17 @@ const emit = defineEmits<{
   run: []
   'toggle-language-menu': []
   'set-language': [locale: Locale]
+  'show-run-console': []
+  'update-concurrency-mode': [mode: FlowConcurrencyMode]
 }>()
 
 function updateProjectNameDraft(event: Event): void {
   emit('update:projectNameDraft', (event.target as HTMLInputElement).value)
+}
+
+function selectConcurrencyMode(mode: FlowConcurrencyMode): void {
+  policyMenuOpen.value = false
+  emit('update-concurrency-mode', mode)
 }
 </script>
 
@@ -62,7 +75,8 @@ function updateProjectNameDraft(event: Event): void {
     <div class="brand-lockup">
       <div class="brand-mark" aria-hidden="true"><Activity :size="18" :stroke-width="2.4" /></div>
       <span class="brand-name">SereinFlow</span><span class="brand-divider" aria-hidden="true"></span>
-      <div class="project-menu">
+      <span v-if="props.workspaceView === 'console'" class="command-console-label">{{ t('console.application') }}</span>
+      <div v-else class="project-menu">
         <div class="project-picker-row">
           <button class="project-picker" type="button" :title="t('command.switchProject')" :aria-expanded="props.projectMenuOpen" @click="emit('toggle-project-menu')">
             <span>{{ props.projectName }}</span><ChevronDown :size="14" />
@@ -92,15 +106,25 @@ function updateProjectNameDraft(event: Event): void {
       </div>
     </div>
     <div class="command-actions">
-      <button class="icon-button" type="button" :title="t('command.undo')" :aria-label="t('command.undo')" :disabled="!props.canUndo" @click="emit('undo')"><RotateCcw :size="16" /></button>
-      <button class="icon-button" type="button" :title="t('command.redo')" :aria-label="t('command.redo')" :disabled="!props.canRedo" @click="emit('redo')"><RotateCw :size="16" /></button><span class="command-divider" aria-hidden="true"></span>
-      <button class="command-button quiet" type="button" :title="t('command.save')" :disabled="!props.isDirty || props.isSaving || props.isProjectRenaming || props.isWorkspaceLoading" @click="emit('save')"><Save :size="15" /><span>{{ t('command.save') }}</span></button>
-      <button class="command-button run" type="button" :aria-pressed="props.isRunning" :disabled="props.nodeCount === 0 || props.isWorkspaceLoading" @click="emit('run')"><Square v-if="props.isRunning" :size="14" fill="currentColor" /><Play v-else :size="14" fill="currentColor" /><span>{{ props.isRunning ? t('command.stop') : t('command.run') }}</span></button>
+      <template v-if="props.workspaceView === 'editor'">
+        <button class="icon-button" type="button" :title="t('command.showRunConsole')" :aria-label="t('command.showRunConsole')" @click="emit('show-run-console')"><Activity :size="16" /></button><span class="command-divider" aria-hidden="true"></span>
+        <button class="icon-button" type="button" :title="t('command.undo')" :aria-label="t('command.undo')" :disabled="!props.canUndo" @click="emit('undo')"><RotateCcw :size="16" /></button>
+        <button class="icon-button" type="button" :title="t('command.redo')" :aria-label="t('command.redo')" :disabled="!props.canRedo" @click="emit('redo')"><RotateCw :size="16" /></button><span class="command-divider" aria-hidden="true"></span>
+        <button class="command-button quiet" type="button" :title="t('command.save')" :disabled="!props.isDirty || props.isSaving || props.isProjectRenaming || props.isWorkspaceLoading" @click="emit('save')"><Save :size="15" /><span>{{ t('command.save') }}</span></button>
+        <button class="command-button run" type="button" :aria-pressed="props.isRunning" :disabled="props.nodeCount === 0 || props.isWorkspaceLoading" @click="emit('run')"><Square v-if="props.isRunning" :size="14" fill="currentColor" /><Play v-else :size="14" fill="currentColor" /><span>{{ props.isRunning ? t('command.stop') : t('command.run') }}</span></button>
+        <div class="workspace-settings">
+          <button class="icon-button" type="button" :title="t('command.workspaceSettings')" :aria-label="t('command.workspaceSettings')" :aria-expanded="policyMenuOpen" @click="policyMenuOpen = !policyMenuOpen"><Settings :size="16" /></button>
+          <div v-if="policyMenuOpen" class="workspace-settings__popover" role="menu">
+            <span>{{ t('flowPolicy.title') }}</span>
+            <button type="button" role="menuitemradio" :aria-checked="props.concurrencyMode === 'parallel'" :class="{ active: props.concurrencyMode === 'parallel' }" @click="selectConcurrencyMode('parallel')"><strong>{{ t('flowPolicy.parallel') }}</strong><small>{{ t('flowPolicy.parallelHint') }}</small></button>
+            <button type="button" role="menuitemradio" :aria-checked="props.concurrencyMode === 'exclusiveReject'" :class="{ active: props.concurrencyMode === 'exclusiveReject' }" @click="selectConcurrencyMode('exclusiveReject')"><strong>{{ t('flowPolicy.exclusiveReject') }}</strong><small>{{ t('flowPolicy.exclusiveRejectHint') }}</small></button>
+          </div>
+        </div>
+      </template>
       <div class="language-menu">
         <button class="language-button" type="button" :title="t('command.language')" :aria-label="t('command.language')" :aria-expanded="props.languageMenuOpen" @click="emit('toggle-language-menu')"><Languages :size="16" /><span>{{ props.locale === 'zh-CN' ? 'ZH' : 'EN' }}</span><ChevronDown :size="13" /></button>
         <div v-if="props.languageMenuOpen" class="language-popover" role="menu"><button type="button" role="menuitemradio" :aria-checked="props.locale === 'zh-CN'" :class="{ active: props.locale === 'zh-CN' }" @click="emit('set-language', 'zh-CN')">{{ t('language.zh') }}</button><button type="button" role="menuitemradio" :aria-checked="props.locale === 'en-US'" :class="{ active: props.locale === 'en-US' }" @click="emit('set-language', 'en-US')">{{ t('language.en') }}</button></div>
       </div>
-      <button class="avatar" type="button" :title="t('command.workspaceSettings')" :aria-label="t('command.workspaceSettings')">SF</button>
     </div>
   </header>
 </template>

@@ -135,9 +135,10 @@ public static class RunnerHost
             }
 
             session.Write("projectId", request.ProjectId ?? "default");
+            await using var libraryRuntimeCache = new WorkerLibraryRuntimeCache(request.LibraryPackageRootPath, request.RunId);
             var executors = new NodeExecutorRegistry([
-                new LibraryNodeExecutor(NodeType.Action, request.LibraryPackageRootPath, request.RunId),
-                new LibraryNodeExecutor(NodeType.Flipflop, request.LibraryPackageRootPath, request.RunId),
+                new LibraryNodeExecutor(NodeType.Action, libraryRuntimeCache),
+                new LibraryNodeExecutor(NodeType.Flipflop, libraryRuntimeCache),
                 new SereinScriptNodeExecutor(artifactStore, request.ProjectId ?? "default"),
                 new ConditionNodeExecutor(),
                 new FlowCallNodeExecutor()]);
@@ -240,14 +241,6 @@ public static class RunnerHost
         }
     }
 
-    private sealed class SuccessfulActionExecutor : INodeExecutor
-    {
-        public NodeType NodeType => NodeType.Action;
-
-        public ValueTask<NodeExecutionResult> ExecuteAsync(NodeExecutionRequest request, CancellationToken cancellationToken)
-            => ValueTask.FromResult(NodeExecutionResult.Success());
-    }
-
     private static object? JsonElementToClr(JsonElement element)
         => element.ValueKind switch
         {
@@ -281,7 +274,8 @@ public static class FlowDefinitionMapper
             dto.Canvases.Select(MapCanvas),
             dto.EntryNodeId,
             dto.SchemaVersion,
-            dto.Checksum);
+            dto.Checksum,
+            dto.RunPolicy is null ? null : new FlowRunPolicy((FlowConcurrencyMode)dto.RunPolicy.ConcurrencyMode));
     }
 
     private static CanvasDefinition MapCanvas(CanvasDto dto)

@@ -2,7 +2,7 @@ namespace SereinFlow.Domain;
 
 public sealed class FlowDefinition
 {
-    public const int CurrentSchemaVersion = 3;
+    public const int CurrentSchemaVersion = 4;
 
     private FlowDefinition(
         Guid id,
@@ -10,7 +10,8 @@ public sealed class FlowDefinition
         long version,
         IReadOnlyList<CanvasDefinition> canvases,
         string entryNodeId,
-        string checksum)
+        string checksum,
+        FlowRunPolicy runPolicy)
     {
         Id = id;
         SchemaVersion = schemaVersion;
@@ -18,6 +19,7 @@ public sealed class FlowDefinition
         Canvases = canvases;
         EntryNodeId = entryNodeId;
         Checksum = checksum;
+        RunPolicy = runPolicy;
     }
 
     public Guid Id { get; }
@@ -32,13 +34,16 @@ public sealed class FlowDefinition
 
     public string Checksum { get; }
 
+    public FlowRunPolicy RunPolicy { get; }
+
     public static FlowDefinition Create(
         Guid id,
         long version,
         IEnumerable<CanvasDefinition> canvases,
         string entryNodeId,
         int schemaVersion = CurrentSchemaVersion,
-        string checksum = "")
+        string checksum = "",
+        FlowRunPolicy? runPolicy = null)
     {
         if (canvases is null)
             throw new ArgumentNullException(nameof(canvases), "Flow canvases cannot be null. 流程画布集合不能为空。");
@@ -59,7 +64,14 @@ public sealed class FlowDefinition
 
         // An empty entry node is a valid editor draft. Execution validates this separately.
         // 空入口节点是有效的编辑器草稿状态，执行时会单独进行校验。
-        return new FlowDefinition(id, schemaVersion, version, canvases.ToArray(), entryNodeId?.Trim() ?? string.Empty, checksum ?? string.Empty);
+        return new FlowDefinition(
+            id,
+            schemaVersion,
+            version,
+            canvases.ToArray(),
+            entryNodeId?.Trim() ?? string.Empty,
+            checksum ?? string.Empty,
+            runPolicy ?? FlowRunPolicy.Parallel);
     }
 
     public IReadOnlyList<DomainDiagnostic> Validate()
@@ -67,7 +79,7 @@ public sealed class FlowDefinition
         var diagnostics = new List<DomainDiagnostic>();
         if (SchemaVersion != CurrentSchemaVersion)
         {
-            // The branch connector model is part of schema v3.  Older payloads
+            // The run policy and branch connector model are part of schema v4. Older payloads
             // are intentionally rejected instead of being silently upgraded.
             // 分支连接器模型属于 Schema v3，旧流程明确拒绝，不再静默升级。
             diagnostics.Add(new(
@@ -149,4 +161,9 @@ public sealed class FlowDefinition
 
         return diagnostics;
     }
+}
+
+public sealed record FlowRunPolicy(FlowConcurrencyMode ConcurrencyMode)
+{
+    public static FlowRunPolicy Parallel { get; } = new(FlowConcurrencyMode.Parallel);
 }

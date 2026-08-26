@@ -50,9 +50,14 @@ public sealed class FlowRunRecord
     public string? CreatedAt { get; set; }
     public string? CancellationReason { get; set; }
     public string? Deadline { get; set; }
+    public int TimeoutSeconds { get; set; }
     public int MaxSteps { get; set; }
     public int MaxNodeVisits { get; set; }
     public string? ProjectInputsJson { get; set; }
+    public string? ConcurrencyMode { get; set; }
+    public string? ExclusivityKey { get; set; }
+    public bool IsListenerRun { get; set; }
+    public string? QueuedAt { get; set; }
 }
 
 [SugarTable("FlowRunDefinitions")]
@@ -78,6 +83,21 @@ public sealed class FlowRunEventRecord
     public string Timestamp { get; set; } = string.Empty;
 }
 
+[SugarTable("FlowRunOutputs")]
+public sealed class FlowRunOutputRecord
+{
+    [SugarColumn(IsPrimaryKey = true)] public string RunId { get; set; } = string.Empty;
+    [SugarColumn(IsPrimaryKey = true)] public long Sequence { get; set; }
+    public string NodeId { get; set; } = string.Empty;
+    public string Outcome { get; set; } = string.Empty;
+    public string? Branch { get; set; }
+    public string OutputsJson { get; set; } = "{}";
+    public string InputsJson { get; set; } = "{}";
+    public string? ErrorCode { get; set; }
+    public string? ErrorMessage { get; set; }
+    public string Timestamp { get; set; } = string.Empty;
+}
+
 [SugarTable("Libraries")]
 public sealed class LibraryRecord
 {
@@ -90,4 +110,31 @@ public sealed class LibraryRecord
     public string UploadedAt { get; set; } = string.Empty;
     public string PackagePath { get; set; } = string.Empty;
     public string NodeCatalogJson { get; set; } = "[]";
+}
+
+[SugarTable("RunEnvironmentSettings")]
+public sealed class RunEnvironmentSettingsRecord
+{
+    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = "default";
+    public int QueueCapacity { get; set; }
+    public int MaxConcurrentRuns { get; set; }
+    public int MaxConcurrentListenerRuns { get; set; }
+    public int MaxConcurrentRunsPerProject { get; set; }
+    public int QueueWaitTimeoutSeconds { get; set; }
+    public int ShutdownGracePeriodSeconds { get; set; }
+    public int SynchronousInvocationTimeoutSeconds { get; set; }
+    public string UpdatedAt { get; set; } = string.Empty;
+}
+
+[SugarTable("FlowInterfaces")]
+public sealed class FlowInterfaceRecord
+{
+    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    public string ProjectId { get; set; } = string.Empty;
+    public string FlowId { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string InvocationMode { get; set; } = string.Empty;
+    public bool IsEnabled { get; set; }
+    public string CreatedAt { get; set; } = string.Empty;
+    public string UpdatedAt { get; set; } = string.Empty;
 }

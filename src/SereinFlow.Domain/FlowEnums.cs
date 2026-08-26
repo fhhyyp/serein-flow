@@ -62,3 +62,13 @@ public enum FlowRunStatus
     Cancelled,
     TimedOut
 }
+
+/// <summary>
+/// Controls whether separate instances of one flow may be admitted together.
+/// 控制同一流程的不同运行实例是否可以同时准入。
+/// </summary>
+public enum FlowConcurrencyMode
+{
+    Parallel,
+    ExclusiveReject
+}

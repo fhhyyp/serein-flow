@@ -46,7 +46,8 @@ public sealed class DataConnectionResolver
             {
                 throw new FlowDataBindingException(
                     "node.input_missing",
-                    $"Required input '{parameter.Name}' on node '{node.Id}' is missing. 节点“{node.Id}”缺少必需输入“{parameter.Name}”。");
+                    $"Required input '{parameter.Name}' on node '{node.Id}' is missing. 节点“{node.Id}”缺少必需输入“{parameter.Name}”。",
+                    values);
             }
 
             values[parameter.Name] = value;
@@ -117,8 +118,23 @@ public sealed class DataConnectionResolver
 
 public sealed class FlowDataBindingException : Exception
 {
-    public FlowDataBindingException(string code, string message)
-        : base(message) => Code = code;
+    public FlowDataBindingException(
+        string code,
+        string message,
+        IReadOnlyDictionary<string, object?>? resolvedInputs = null)
+        : base(message)
+    {
+        Code = code;
+        ResolvedInputs = resolvedInputs is null
+            ? new Dictionary<string, object?>(StringComparer.Ordinal)
+            : new Dictionary<string, object?>(resolvedInputs, StringComparer.Ordinal);
+    }
 
     public string Code { get; }
+
+    /// <summary>
+    /// Values resolved before the binding error stopped the current node.
+    /// 参数绑定错误发生前已经解析完成的输入值。
+    /// </summary>
+    public IReadOnlyDictionary<string, object?> ResolvedInputs { get; }
 }

@@ -15,7 +15,8 @@ public static class FlowDefinitionContractMapper
             dto.Canvases.Select(MapCanvas),
             dto.EntryNodeId,
             dto.SchemaVersion,
-            dto.Checksum);
+            dto.Checksum,
+            dto.RunPolicy is null ? null : new FlowRunPolicy((FlowConcurrencyMode)dto.RunPolicy.ConcurrencyMode));
     }
 
     private static CanvasDefinition MapCanvas(CanvasDto dto)
@@ -102,6 +103,20 @@ public static class FlowDefinitionContractValidator
     {
         try
         {
+            if (definition.RunPolicy is null)
+            {
+                return new FlowValidationResultDto(false, [new ValidationDiagnosticDto(
+                    "flow.run_policy_missing",
+                    "The flow run policy is required. 流程运行策略不能为空。",
+                    "runPolicy")]);
+            }
+            if (!Enum.IsDefined(definition.RunPolicy.ConcurrencyMode))
+            {
+                return new FlowValidationResultDto(false, [new ValidationDiagnosticDto(
+                    "flow.run_policy_invalid",
+                    "The flow run policy is invalid. 流程运行策略无效。",
+                    "runPolicy.concurrencyMode")]);
+            }
             var domain = FlowDefinitionContractMapper.Map(definition);
             var diagnostics = domain
                 .Validate()

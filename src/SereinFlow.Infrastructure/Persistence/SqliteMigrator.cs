@@ -9,6 +9,11 @@ public sealed class SqliteMigrator
     private const int AddLibraryCatalogVersion = 3;
     private const int AddFlowRunSnapshotsVersion = 4;
     private const int AddFlowRunExecutionOptionsVersion = 5;
+    private const int AddFlowRunOrchestrationVersion = 6;
+    private const int AddFlowRunTimeoutVersion = 7;
+    private const int AddEnvironmentConsoleVersion = 8;
+    private const int AddFlowRunOutputsVersion = 9;
+    private const int AddFlowRunOutputInputsVersion = 10;
     private readonly SqlSugarClient _client;
 
     public SqliteMigrator(SqlSugarClient client)
@@ -209,6 +214,143 @@ public sealed class SqliteMigrator
                     ALTER TABLE FlowRuns ADD COLUMN ProjectInputsJson TEXT NULL;
                     """);
                 RecordMigration(AddFlowRunExecutionOptionsVersion, "flow-run-execution-options-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
+
+        applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
+        if (!applied.Contains(AddFlowRunOrchestrationVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                _client.Ado.ExecuteCommand("""
+                    ALTER TABLE FlowRuns ADD COLUMN ConcurrencyMode TEXT NULL;
+                    ALTER TABLE FlowRuns ADD COLUMN ExclusivityKey TEXT NULL;
+                    ALTER TABLE FlowRuns ADD COLUMN IsListenerRun INTEGER NOT NULL DEFAULT 0;
+                    ALTER TABLE FlowRuns ADD COLUMN QueuedAt TEXT NULL;
+                    CREATE INDEX IF NOT EXISTS IX_FlowRuns_Status_QueuedAt ON FlowRuns(Status, QueuedAt);
+                    CREATE INDEX IF NOT EXISTS IX_FlowRuns_ProjectId_Status ON FlowRuns(ProjectId, Status);
+                    CREATE UNIQUE INDEX IF NOT EXISTS UX_FlowRuns_ActiveExclusiveFlow
+                    ON FlowRuns(ExclusivityKey)
+                    WHERE ExclusivityKey IS NOT NULL AND Status IN ('Pending', 'Running');
+                    """);
+                RecordMigration(AddFlowRunOrchestrationVersion, "flow-run-orchestration-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
+
+        applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
+        if (!applied.Contains(AddFlowRunTimeoutVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                _client.Ado.ExecuteCommand("""
+                    ALTER TABLE FlowRuns ADD COLUMN TimeoutSeconds INTEGER NOT NULL DEFAULT 300;
+                    """);
+                RecordMigration(AddFlowRunTimeoutVersion, "flow-run-execution-timeout-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
+
+        applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
+        if (!applied.Contains(AddEnvironmentConsoleVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                _client.Ado.ExecuteCommand("""
+                    CREATE TABLE IF NOT EXISTS RunEnvironmentSettings (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        QueueCapacity INTEGER NOT NULL,
+                        MaxConcurrentRuns INTEGER NOT NULL,
+                        MaxConcurrentListenerRuns INTEGER NOT NULL,
+                        MaxConcurrentRunsPerProject INTEGER NOT NULL,
+                        QueueWaitTimeoutSeconds INTEGER NOT NULL,
+                        ShutdownGracePeriodSeconds INTEGER NOT NULL,
+                        SynchronousInvocationTimeoutSeconds INTEGER NOT NULL,
+                        UpdatedAt TEXT NOT NULL
+                    );
+                    CREATE TABLE IF NOT EXISTS FlowInterfaces (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        ProjectId TEXT NOT NULL,
+                        FlowId TEXT NOT NULL,
+                        Name TEXT NOT NULL,
+                        InvocationMode TEXT NOT NULL,
+                        IsEnabled INTEGER NOT NULL DEFAULT 1,
+                        CreatedAt TEXT NOT NULL,
+                        UpdatedAt TEXT NOT NULL,
+                        FOREIGN KEY (ProjectId) REFERENCES Projects(Id),
+                        FOREIGN KEY (FlowId) REFERENCES FlowDefinitions(Id)
+                    );
+                    CREATE INDEX IF NOT EXISTS IX_FlowInterfaces_ProjectId_FlowId ON FlowInterfaces(ProjectId, FlowId);
+                    """);
+                RecordMigration(AddEnvironmentConsoleVersion, "environment-console-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
+
+        applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
+        if (!applied.Contains(AddFlowRunOutputsVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                _client.Ado.ExecuteCommand("""
+                    CREATE TABLE IF NOT EXISTS FlowRunOutputs (
+                        RunId TEXT NOT NULL,
+                        Sequence INTEGER NOT NULL,
+                        NodeId TEXT NOT NULL,
+                        Outcome TEXT NOT NULL,
+                        Branch TEXT NULL,
+                        OutputsJson TEXT NOT NULL,
+                        ErrorCode TEXT NULL,
+                        ErrorMessage TEXT NULL,
+                        Timestamp TEXT NOT NULL,
+                        PRIMARY KEY (RunId, Sequence),
+                        FOREIGN KEY (RunId) REFERENCES FlowRuns(Id)
+                    );
+                    CREATE INDEX IF NOT EXISTS IX_FlowRunOutputs_RunId_Sequence ON FlowRunOutputs(RunId, Sequence);
+                    """);
+                RecordMigration(AddFlowRunOutputsVersion, "flow-run-outputs-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
+
+        applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
+        if (!applied.Contains(AddFlowRunOutputInputsVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                _client.Ado.ExecuteCommand("ALTER TABLE FlowRunOutputs ADD COLUMN InputsJson TEXT NOT NULL DEFAULT '{}';");
+                RecordMigration(AddFlowRunOutputInputsVersion, "flow-run-output-inputs-v1");
                 _client.Ado.CommitTran();
             }
             catch

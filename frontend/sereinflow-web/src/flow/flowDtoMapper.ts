@@ -45,11 +45,12 @@ export function workspaceToFlowDefinition(snapshot: WorkspaceSnapshot, identity:
   const entryNodeId = mainCanvas?.nodes[0]?.id ?? ''
   return {
     id: identity.id,
-    schemaVersion: 3,
+    schemaVersion: 4,
     version: identity.version,
     canvases: snapshot.canvases.map(toCanvasDto),
     entryNodeId,
     checksum: '',
+    runPolicy: snapshot.runPolicy ?? { concurrencyMode: 'parallel' },
     ui: {
       connectionLineTypes: {
         execution: snapshot.connectionLineTypes?.execution ?? defaultConnectionLineTypes.execution,
@@ -67,6 +68,7 @@ export function flowDefinitionToWorkspace(definition: FlowDefinitionDto): Worksp
     activeCanvasId,
     nextNodeNumber: getNextNodeNumber(canvases),
     connectionLineTypes: normalizeConnectionLineTypes(definition.ui?.connectionLineTypes),
+    runPolicy: definition.runPolicy ?? { concurrencyMode: 'parallel' },
   }
 }
 

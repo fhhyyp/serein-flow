@@ -5,6 +5,9 @@ namespace SereinFlow.Runtime;
 
 public sealed class FlowRunner
 {
+    private static readonly IReadOnlyDictionary<string, object?> EmptyInputs =
+        new Dictionary<string, object?>(StringComparer.Ordinal);
+
     private readonly ExecutionPlanBuilder _planBuilder;
     private readonly NodeExecutorRegistry _executors;
     private readonly IRunEventPublisher _eventPublisher;
@@ -109,15 +112,21 @@ public sealed class FlowRunner
                 ["step"] = session.StepCount
             });
 
+            IReadOnlyDictionary<string, object?> inputs = EmptyInputs;
             try
             {
-                var inputs = _dataResolver.Resolve(node, plan, session);
+                inputs = _dataResolver.Resolve(node, plan, session);
                 var executor = _executors.Get(node.Type);
                 lastResult = await executor.ExecuteAsync(new NodeExecutionRequest(node, session, inputs), cancellationToken);
+                lastResult = AttachInputs(lastResult, inputs);
             }
             catch (FlowDataBindingException exception)
             {
-                lastResult = NodeExecutionResult.Failure(exception.Code, exception.Message);
+                inputs = exception.ResolvedInputs;
+                lastResult = NodeExecutionResult.Failure(exception.Code, exception.Message) with
+                {
+                    Inputs = CopyInputs(inputs)
+                };
             }
             catch (OperationCanceledException)
             {
@@ -127,7 +136,10 @@ public sealed class FlowRunner
             {
                 lastResult = NodeExecutionResult.Error(
                     "node.execution_failed",
-                    $"Node '{node.Id}' execution failed. 节点“{node.Id}”执行失败。 {exception.Message}");
+                    $"Node '{node.Id}' execution failed. 节点“{node.Id}”执行失败。 {exception.Message}") with
+                {
+                    Inputs = CopyInputs(inputs)
+                };
             }
 
             foreach (var output in lastResult.Outputs)
@@ -152,6 +164,7 @@ public sealed class FlowRunner
                     ["branch"] = lastResult.NextBranch.ToString(),
                     ["errorCode"] = lastResult.ErrorCode,
                     ["errorMessage"] = lastResult.ErrorMessage,
+                    ["inputs"] = lastResult.Inputs ?? inputs,
                     ["outputs"] = lastResult.Outputs
                 });
 
@@ -175,6 +188,8 @@ public sealed class FlowRunner
             await PublishAsync(session, "node.failed", node.Id, new Dictionary<string, object?>
             {
                 ["success"] = false,
+                ["inputs"] = EmptyInputs,
+                ["outputs"] = EmptyInputs,
                 ["errorCode"] = "flipflop.executor_invalid",
                 ["errorMessage"] = "The global Flipflop executor is invalid. 全局 Flipflop 执行器无效。"
             });
@@ -183,6 +198,7 @@ public sealed class FlowRunner
 
         while (!cancellationToken.IsCancellationRequested)
         {
+            IReadOnlyDictionary<string, object?> inputs = EmptyInputs;
             try
             {
                 if (!session.TryBeginStep(node.Id, out var limitError))
@@ -191,6 +207,9 @@ public sealed class FlowRunner
                     {
                         ["global"] = true,
                         ["success"] = false,
+                        ["branch"] = ExecutionBranch.Error.ToString(),
+                        ["inputs"] = EmptyInputs,
+                        ["outputs"] = EmptyInputs,
                         ["errorCode"] = limitError,
                         ["errorMessage"] = "The global Flipflop execution limit was exceeded. 全局 Flipflop 执行限制已超出。"
                     });
@@ -208,8 +227,9 @@ public sealed class FlowRunner
                     ["global"] = true,
                     ["step"] = session.StepCount
                 });
-                var inputs = _dataResolver.Resolve(node, plan, triggerSession);
+                inputs = _dataResolver.Resolve(node, plan, triggerSession);
                 var result = await trigger.WaitForTriggerAsync(new NodeExecutionRequest(node, triggerSession, inputs), cancellationToken);
+                result = AttachInputs(result, inputs);
                 foreach (var output in result.Outputs)
                     triggerSession.Write($"{node.Id}.{output.Key}", output.Value);
                 if (result.Outputs.Count == 1)
@@ -227,7 +247,9 @@ public sealed class FlowRunner
                     ["success"] = result.IsSuccess,
                     ["branch"] = result.NextBranch.ToString(),
                     ["errorCode"] = result.ErrorCode,
-                    ["errorMessage"] = result.ErrorMessage
+                    ["errorMessage"] = result.ErrorMessage,
+                    ["inputs"] = result.Inputs ?? inputs,
+                    ["outputs"] = result.Outputs
                 });
 
                 foreach (var connection in plan.GetOutgoing(node.Id, result.NextBranch))
@@ -237,12 +259,32 @@ public sealed class FlowRunner
             {
                 return NodeExecutionResult.Error("worker.cancelled", "The global trigger run was cancelled. 全局触发器运行已取消。");
             }
+            catch (FlowDataBindingException exception)
+            {
+                inputs = exception.ResolvedInputs;
+                await PublishAsync(session, "node.failed", node.Id, new Dictionary<string, object?>
+                {
+                    ["global"] = true,
+                    ["success"] = false,
+                    ["branch"] = ExecutionBranch.Failure.ToString(),
+                    ["inputs"] = inputs,
+                    ["outputs"] = EmptyInputs,
+                    ["errorCode"] = exception.Code,
+                    ["errorMessage"] = exception.Message
+                });
+                foreach (var connection in plan.GetOutgoing(node.Id, ExecutionBranch.Failure))
+                    await RunStackAsync(connection.ToNodeId, plan, session, cancellationToken);
+                await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken);
+            }
             catch (Exception exception)
             {
                 await PublishAsync(session, "node.failed", node.Id, new Dictionary<string, object?>
                 {
                     ["global"] = true,
                     ["success"] = false,
+                    ["branch"] = ExecutionBranch.Error.ToString(),
+                    ["inputs"] = inputs,
+                    ["outputs"] = EmptyInputs,
                     ["errorCode"] = "flipflop.execution_failed",
                     ["errorMessage"] = $"Global Flipflop execution failed. 全局 Flipflop 执行失败。 {exception.Message}"
                 });
@@ -298,6 +340,16 @@ public sealed class FlowRunner
         for (var index = connections.Count - 1; index >= 0; index--)
             stack.Push(connections[index].ToNodeId);
     }
+
+    private static NodeExecutionResult AttachInputs(
+        NodeExecutionResult result,
+        IReadOnlyDictionary<string, object?> fallbackInputs)
+        => result.Inputs is null
+            ? result with { Inputs = CopyInputs(fallbackInputs) }
+            : result with { Inputs = CopyInputs(result.Inputs) };
+
+    private static Dictionary<string, object?> CopyInputs(IReadOnlyDictionary<string, object?> values)
+        => new Dictionary<string, object?>(values, StringComparer.Ordinal);
 
     private async ValueTask PublishAsync(
         FlowExecutionSession session,
