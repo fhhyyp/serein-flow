@@ -15,6 +15,14 @@ public interface ILibraryCatalogService
 
     LibraryDto? Find(string libraryId);
 
+    Task<IReadOnlyList<LibraryDto>> ListAsync(
+        bool includeArchived = false,
+        CancellationToken cancellationToken = default);
+
+    Task<LibraryDto?> FindAsync(
+        string libraryId,
+        CancellationToken cancellationToken = default);
+
     Task<LibraryUploadResultDto> UploadAsync(
         Stream package,
         string fileName,
@@ -22,6 +30,10 @@ public interface ILibraryCatalogService
         CancellationToken cancellationToken = default);
 
     bool Delete(string libraryId);
+
+    Task<bool> ArchiveAsync(
+        string libraryId,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class LibraryUploadException : Exception

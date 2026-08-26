@@ -33,11 +33,19 @@ export interface LibraryDto {
   sha256: string
   uploadedAt: string
   nodes: LibraryNodeDto[]
+  lifecycle: 'available' | 'archived'
 }
 
 export interface LibraryUploadResultDto {
   library: LibraryDto
   alreadyExists: boolean
+}
+
+export interface ProjectLibraryReferenceDto {
+  projectId: string
+  libraryId: string
+  referencedAt: string
+  library: LibraryDto
 }
 
 export class LibraryApiError extends Error {
@@ -56,10 +64,33 @@ export async function listLibraries(): Promise<LibraryDto[]> {
   return request<LibraryDto[]>('/api/libraries')
 }
 
+export async function listEnvironmentLibraries(): Promise<LibraryDto[]> {
+  return request<LibraryDto[]>('/api/environment/libraries')
+}
+
+export async function listProjectLibraries(projectId: string): Promise<ProjectLibraryReferenceDto[]> {
+  return request<ProjectLibraryReferenceDto[]>(`/api/projects/${encodeURIComponent(projectId)}/libraries`)
+}
+
 export async function uploadLibrary(file: File): Promise<LibraryUploadResultDto> {
   const body = new FormData()
   body.append('file', file)
-  return request<LibraryUploadResultDto>('/api/libraries/upload', { method: 'POST', body })
+  return request<LibraryUploadResultDto>('/api/environment/libraries/upload', { method: 'POST', body })
+}
+
+export async function referenceProjectLibrary(projectId: string, libraryId: string): Promise<ProjectLibraryReferenceDto[]> {
+  return request<ProjectLibraryReferenceDto[]>(`/api/projects/${encodeURIComponent(projectId)}/libraries/${encodeURIComponent(libraryId)}`, { method: 'PUT' })
+}
+
+export async function unreferenceProjectLibrary(projectId: string, libraryId: string): Promise<ProjectLibraryReferenceDto[]> {
+  return request<ProjectLibraryReferenceDto[]>(`/api/projects/${encodeURIComponent(projectId)}/libraries/${encodeURIComponent(libraryId)}`, { method: 'DELETE' })
+}
+
+export async function archiveEnvironmentLibrary(libraryId: string): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/api/environment/libraries/${encodeURIComponent(libraryId)}/archive`, { method: 'POST' })
+  if (!response.ok) {
+    throw new LibraryApiError(response.status, await readError(response))
+  }
 }
 
 export async function deleteLibrary(libraryId: string): Promise<void> {
@@ -69,7 +100,7 @@ export async function deleteLibrary(libraryId: string): Promise<void> {
   }
 }
 
-async function request<T>(path: string, options: { method?: 'POST'; body?: BodyInit } = {}): Promise<T> {
+async function request<T>(path: string, options: { method?: 'POST' | 'PUT' | 'DELETE'; body?: BodyInit } = {}): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     method: options.method,
     body: options.body,

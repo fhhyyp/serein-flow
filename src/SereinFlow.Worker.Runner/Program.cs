@@ -135,7 +135,10 @@ public static class RunnerHost
             }
 
             session.Write("projectId", request.ProjectId ?? "default");
-            await using var libraryRuntimeCache = new WorkerLibraryRuntimeCache(request.LibraryPackageRootPath, request.RunId);
+            await using var libraryRuntimeCache = new WorkerLibraryRuntimeCache(
+                request.LibraryPackageRootPath,
+                request.RunId,
+                request.AllowedLibraryIds);
             var executors = new NodeExecutorRegistry([
                 new LibraryNodeExecutor(NodeType.Action, libraryRuntimeCache),
                 new LibraryNodeExecutor(NodeType.Flipflop, libraryRuntimeCache),

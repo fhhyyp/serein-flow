@@ -803,7 +803,8 @@ public sealed class RunExecutionHostedService : BackgroundService
                 item.MaxSteps,
                 _scriptRoot,
                 _libraryRoot,
-                item.MaxNodeVisits);
+                item.MaxNodeVisits,
+                ProjectLibraryService.GetLibraryIds(item.Definition));
 
             var result = await _workerClient.RunAsync(
                 request,

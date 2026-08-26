@@ -68,6 +68,12 @@ public enum FlowInvocationModeDto
     Synchronous
 }
 
+public enum LibraryLifecycleDto
+{
+    Available,
+    Archived
+}
+
 public enum WorkerEventType
 {
     RunStarted,
@@ -233,7 +239,8 @@ public sealed record LibraryDto(
     long SizeBytes,
     string Sha256,
     DateTimeOffset UploadedAt,
-    IReadOnlyList<LibraryNodeDto> Nodes);
+    IReadOnlyList<LibraryNodeDto> Nodes,
+    LibraryLifecycleDto Lifecycle = LibraryLifecycleDto.Available);
 
 public sealed record LibraryNodeDto(
     string Id,
@@ -257,6 +264,12 @@ public sealed record LibraryParameterDto(
     bool Required);
 
 public sealed record LibraryUploadResultDto(LibraryDto Library, bool AlreadyExists);
+
+public sealed record ProjectLibraryReferenceDto(
+    Guid ProjectId,
+    string LibraryId,
+    DateTimeOffset ReferencedAt,
+    LibraryDto Library);
 
 public sealed record FlowValidationResultDto(
     bool IsValid,
@@ -377,7 +390,8 @@ public sealed record WorkerRunRequestDto(
     int MaxSteps = 10_000,
     string? ScriptArtifactRootPath = null,
     string? LibraryPackageRootPath = null,
-    int MaxNodeVisits = 1_000);
+    int MaxNodeVisits = 1_000,
+    IReadOnlyList<string>? AllowedLibraryIds = null);
 
 public sealed record WorkerCancelRequestDto(
     int ProtocolVersion,

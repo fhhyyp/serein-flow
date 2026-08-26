@@ -19,15 +19,18 @@ public sealed class RunApplicationService
     private readonly IProjectRepository _projects;
     private readonly IFlowDefinitionRepository _flows;
     private readonly IFlowRunStore _runs;
+    private readonly ProjectLibraryService _projectLibraries;
 
     public RunApplicationService(
         IProjectRepository projects,
         IFlowDefinitionRepository flows,
-        IFlowRunStore runs)
+        IFlowRunStore runs,
+        ProjectLibraryService projectLibraries)
     {
         _projects = projects;
         _flows = flows;
         _runs = runs;
+        _projectLibraries = projectLibraries;
     }
 
     public async Task<RunPreparationResult> PrepareAsync(
@@ -49,6 +52,10 @@ public sealed class RunApplicationService
         var validation = FlowDefinitionContractValidator.Validate(definition);
         if (!validation.IsValid)
             return RunPreparationResult.Invalid(validation);
+
+        var libraryValidation = await _projectLibraries.ValidateFlowLibrariesAsync(projectId, definition, cancellationToken);
+        if (!libraryValidation.IsValid)
+            return RunPreparationResult.Invalid(libraryValidation);
 
         var timeout = Math.Clamp(request.TimeoutSeconds ?? 300, 1, 86_400);
         var maxSteps = Math.Clamp(request.MaxSteps ?? 10_000, 1, 1_000_000);

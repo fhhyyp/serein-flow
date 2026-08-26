@@ -1,5 +1,7 @@
 using System.Text.Json;
+using System.IO.Compression;
 using SereinFlow.Contracts;
+using SereinFlow.TestLibrary;
 using SereinFlow.Worker.Client;
 using SereinFlow.Worker.Runner;
 using SereinFlow.Worker.Supervisor;
@@ -8,6 +10,8 @@ namespace SereinFlow.Worker.IntegrationTests;
 
 public sealed class WorkerSupervisorTests
 {
+    private const string TestLibraryArtifactId = "test-library-artifact";
+
     [Fact]
     public async Task SupervisorRunsDisposableRunnerAndForwardsOrderedEvents()
     {
@@ -104,13 +108,76 @@ public sealed class WorkerSupervisorTests
         Assert.Equal("worker.runner_not_found", result.ErrorCode);
     }
 
-    private static WorkerSupervisor CreateSupervisor(Action<string>? diagnosticLogger = null)
+    [Fact]
+    public async Task SupervisorRejectsExternalLibraryOutsideRunAllowList()
+    {
+        var packageRoot = CreateTestLibraryPackageRoot();
+        try
+        {
+            var events = new List<WorkerEventEnvelopeDto>();
+            var supervisor = CreateSupervisor(allowedLibraryPackageRoot: packageRoot);
+            var request = CreateLibraryActionRequest(
+                DateTimeOffset.UtcNow.AddSeconds(15),
+                packageRoot,
+                []);
+
+            var result = await supervisor.RunAsync(request, (workerEvent, _) =>
+            {
+                events.Add(workerEvent);
+                return ValueTask.CompletedTask;
+            });
+
+            Assert.Equal(FlowRunStatusDto.Failed, result.Status);
+            Assert.Equal("library.not_allowed", result.ErrorCode);
+            var nodeError = Assert.Single(events, workerEvent => workerEvent.EventType == WorkerEventType.NodeErrored);
+            Assert.Contains("\"errorCode\":\"library.not_allowed\"", nodeError.PayloadJson, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TryDeleteDirectory(packageRoot);
+        }
+    }
+
+    [Fact]
+    public async Task SupervisorExecutesExternalLibraryInsideRunAllowList()
+    {
+        var packageRoot = CreateTestLibraryPackageRoot();
+        try
+        {
+            var events = new List<WorkerEventEnvelopeDto>();
+            var supervisor = CreateSupervisor(allowedLibraryPackageRoot: packageRoot);
+            var request = CreateLibraryActionRequest(
+                DateTimeOffset.UtcNow.AddSeconds(15),
+                packageRoot,
+                [TestLibraryArtifactId]);
+
+            var result = await supervisor.RunAsync(request, (workerEvent, _) =>
+            {
+                events.Add(workerEvent);
+                return ValueTask.CompletedTask;
+            });
+
+            Assert.Equal(FlowRunStatusDto.Succeeded, result.Status);
+            var completed = Assert.Single(events, workerEvent => workerEvent.EventType == WorkerEventType.NodeCompleted);
+            using var payload = JsonDocument.Parse(completed.PayloadJson);
+            Assert.Equal(50m, payload.RootElement.GetProperty("outputs").GetProperty("result").GetDecimal());
+        }
+        finally
+        {
+            TryDeleteDirectory(packageRoot);
+        }
+    }
+
+    private static WorkerSupervisor CreateSupervisor(
+        Action<string>? diagnosticLogger = null,
+        string? allowedLibraryPackageRoot = null)
         => new(new RunnerLaunchOptions(
             "dotnet",
             [typeof(RunnerHost).Assembly.Location],
             HandshakeTimeout: TimeSpan.FromSeconds(10),
             HeartbeatInterval: TimeSpan.FromMilliseconds(100),
             CancellationGracePeriod: TimeSpan.FromSeconds(2),
+            AllowedLibraryPackageRoot: allowedLibraryPackageRoot,
             DiagnosticLogger: diagnosticLogger));
 
     private static WorkerRunRequestDto CreateActionRequest(DateTimeOffset deadline)
@@ -134,6 +201,58 @@ public sealed class WorkerSupervisorTests
         return CreateRequest(flowId, node, deadline);
     }
 
+    private static WorkerRunRequestDto CreateLibraryActionRequest(
+        DateTimeOffset deadline,
+        string packageRoot,
+        IReadOnlyList<string> allowedLibraryIds)
+    {
+        var flowId = Guid.NewGuid();
+        var action = new NodeDto(
+            "library-action",
+            NodeTypeDto.Action,
+            "Calculate quality rate",
+            0,
+            0,
+            [],
+            [
+                new NodeParameterDto("合格数量", "8", DataSourceDto.Literal, true),
+                new NodeParameterDto("检测总数", "16", DataSourceDto.Literal, true)
+            ],
+            null,
+            new NodeUiMetadataDto(
+                "library-action",
+                "node.libraryAction.title",
+                "node.libraryAction.subtitle",
+                null,
+                "ready",
+                true,
+                null,
+                Category: "library",
+                LibraryId: TestLibraryArtifactId,
+                ClassName: typeof(生产线节点).FullName,
+                MethodName: "计算合格率",
+                DllName: Path.GetFileName(typeof(生产线节点).Assembly.Location),
+                DllVersion: "1.0.0",
+                ReturnType: "System.Decimal"));
+        var definition = new FlowDefinitionDto(
+            flowId,
+            4,
+            1,
+            [new CanvasDto("main", CanvasLifecycleDto.Main, [action], [])],
+            action.Id,
+            "test",
+            RunPolicy: new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel));
+        return new WorkerRunRequestDto(
+            WorkerProtocol.Version,
+            Guid.NewGuid(),
+            flowId,
+            1,
+            JsonSerializer.Serialize(definition),
+            deadline,
+            LibraryPackageRootPath: packageRoot,
+            AllowedLibraryIds: allowedLibraryIds);
+    }
+
     private static WorkerRunRequestDto CreateRequest(Guid flowId, NodeDto node, DateTimeOffset deadline)
     {
         var definition = new FlowDefinitionDto(
@@ -151,5 +270,47 @@ public sealed class WorkerSupervisorTests
             1,
             JsonSerializer.Serialize(definition),
             deadline);
+    }
+
+    private static string CreateTestLibraryPackageRoot()
+    {
+        var packageRoot = Path.Combine(Path.GetTempPath(), $"sereinflow-worker-library-{Guid.NewGuid():N}");
+        var packageDirectory = Path.Combine(packageRoot, "packages");
+        Directory.CreateDirectory(packageDirectory);
+        var packagePath = Path.Combine(packageDirectory, $"{TestLibraryArtifactId}.zip");
+        var assemblyPath = typeof(生产线节点).Assembly.Location;
+        var assemblyDirectory = Path.GetDirectoryName(assemblyPath)!;
+
+        using var archive = ZipFile.Open(packagePath, ZipArchiveMode.Create);
+        foreach (var dependencyPath in Directory.EnumerateFiles(assemblyDirectory, "SereinFlow*.dll"))
+        {
+            archive.CreateEntryFromFile(
+                dependencyPath,
+                $"library/{Path.GetFileName(dependencyPath)}",
+                CompressionLevel.NoCompression);
+        }
+
+        var dependenciesFile = Path.ChangeExtension(assemblyPath, ".deps.json");
+        if (File.Exists(dependenciesFile))
+        {
+            archive.CreateEntryFromFile(
+                dependenciesFile,
+                $"library/{Path.GetFileName(dependenciesFile)}",
+                CompressionLevel.NoCompression);
+        }
+
+        return packageRoot;
+    }
+
+    private static void TryDeleteDirectory(string path)
+    {
+        try
+        {
+            if (Directory.Exists(path))
+                Directory.Delete(path, recursive: true);
+        }
+        catch (IOException)
+        {
+        }
     }
 }

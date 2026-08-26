@@ -93,15 +93,25 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
     private string PackagesPath => Path.Combine(_options.RootPath, "packages");
 
     public IReadOnlyList<LibraryDto> List()
-        => _libraries.ListAsync(cancellationToken: CancellationToken.None).GetAwaiter().GetResult()
-            .Select(Map)
-            .Where(static library => library is not null)
-            .Cast<LibraryDto>()
-            .OrderBy(static library => library.Name, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(static library => library.Version, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        => ListAsync(includeArchived: true, cancellationToken: CancellationToken.None).GetAwaiter().GetResult();
 
     public LibraryDto? Find(string libraryId)
+        => FindAsync(libraryId, CancellationToken.None).GetAwaiter().GetResult();
+
+    public async Task<IReadOnlyList<LibraryDto>> ListAsync(
+        bool includeArchived = false,
+        CancellationToken cancellationToken = default)
+        => (await _libraries.ListAsync(cancellationToken: cancellationToken))
+            .Select(Map)
+            .Where(library => includeArchived || library.Lifecycle == LibraryLifecycleDto.Available)
+            .OrderBy(static library => library.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static library => library.Version, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static library => library.Id, StringComparer.Ordinal)
+            .ToArray();
+
+    public async Task<LibraryDto?> FindAsync(
+        string libraryId,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(libraryId))
         {
@@ -109,9 +119,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         }
 
         var key = libraryId.Trim();
-        var row = _libraries.ListAsync(cancellationToken: CancellationToken.None)
-            .GetAwaiter().GetResult()
-            .SingleOrDefault(item => string.Equals(item.Id, key, StringComparison.OrdinalIgnoreCase));
+        var row = await _libraries.GetByIdAsync(key, cancellationToken);
         return row is null ? null : Map(row);
     }
 
@@ -161,6 +169,8 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
                         UploadedAt = library.UploadedAt.ToString("O"),
                         PackagePath = finalPath,
                         NodeCatalogJson = nodesJson,
+                        Status = LibraryLifecycleDto.Available.ToString(),
+                        ArchivedAt = null,
                     }, token);
                     return true;
                 }, cancellationToken);
@@ -197,6 +207,11 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
     }
 
     public bool Delete(string libraryId)
+        => ArchiveAsync(libraryId, CancellationToken.None).GetAwaiter().GetResult();
+
+    public async Task<bool> ArchiveAsync(
+        string libraryId,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(libraryId))
         {
@@ -204,19 +219,18 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         }
 
         var key = libraryId.Trim();
-        var row = _libraries.ListAsync(cancellationToken: CancellationToken.None)
-            .GetAwaiter().GetResult()
-            .SingleOrDefault(item => string.Equals(item.Id, key, StringComparison.OrdinalIgnoreCase));
+        var row = await _libraries.GetByIdAsync(key, cancellationToken);
         if (row is null)
         {
             return false;
         }
 
-        _unitOfWork.ExecuteAsync(
-            token => _libraries.DeleteAsync(row.Id, token),
-            CancellationToken.None).GetAwaiter().GetResult();
-        TryDelete(row.PackagePath);
-        return true;
+        if (ParseLifecycle(row.Status) == LibraryLifecycleDto.Archived)
+            return true;
+
+        row.Status = LibraryLifecycleDto.Archived.ToString();
+        row.ArchivedAt = DateTimeOffset.UtcNow.ToString("O");
+        return await _libraries.UpdateAsync(row, cancellationToken);
     }
 
     private static LibraryDto Map(LibraryRecord row)
@@ -225,15 +239,27 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         var uploadedAt = DateTimeOffset.TryParse(row.UploadedAt, out var parsed)
             ? parsed
             : DateTimeOffset.UnixEpoch;
-        return new LibraryDto(row.Id, row.Name, row.Version, row.FileName, row.SizeBytes, row.Sha256, uploadedAt, nodes);
+        return new LibraryDto(
+            row.Id,
+            row.Name,
+            row.Version,
+            row.FileName,
+            row.SizeBytes,
+            row.Sha256,
+            uploadedAt,
+            nodes,
+            ParseLifecycle(row.Status));
     }
 
     private async Task<LibraryDto?> FindAsyncCore(string libraryId, CancellationToken cancellationToken)
     {
-        var rows = await _libraries.ListAsync(cancellationToken: cancellationToken);
-        var row = rows.SingleOrDefault(item => string.Equals(item.Id, libraryId, StringComparison.OrdinalIgnoreCase));
-        return row is null ? null : Map(row);
+        return await FindAsync(libraryId, cancellationToken);
     }
+
+    private static LibraryLifecycleDto ParseLifecycle(string? status)
+        => Enum.TryParse<LibraryLifecycleDto>(status, ignoreCase: true, out var lifecycle)
+            ? lifecycle
+            : LibraryLifecycleDto.Available;
 
     private async Task<(long Size, string Sha256)> CopyToTemporaryFileAsync(Stream source, string destinationPath, CancellationToken cancellationToken)
     {

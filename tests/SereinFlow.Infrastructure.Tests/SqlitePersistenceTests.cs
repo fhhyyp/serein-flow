@@ -1,5 +1,6 @@
 using SereinFlow.Domain;
 using SereinFlow.Infrastructure.Persistence;
+using Microsoft.Data.Sqlite;
 
 namespace SereinFlow.Infrastructure.Tests;
 
@@ -39,6 +40,107 @@ public sealed class SqlitePersistenceTests
         Assert.True(repository.TryUpdate(loaded, expectedVersion: 1));
         Assert.False(repository.TryUpdate(loaded, expectedVersion: 1));
         Assert.Equal("Renamed", repository.Find(project.Id)!.Name);
+    }
+
+    [Fact]
+    public async Task ProjectLibraryReferenceRepositoryKeepsProjectsAndArtifactsIsolated()
+    {
+        using var database = CreateDatabase();
+        database.Initialize();
+        var repository = new SqlSugarProjectLibraryReferenceRepository(database);
+        var projectA = Guid.NewGuid();
+        var projectB = Guid.NewGuid();
+        const string oldArtifact = "a1b2c3d4";
+        const string newArtifact = "e5f6a7b8";
+
+        new SqlSugarProjectRepository(database).Add(Project.Create("Project A"));
+        var persistedProjectA = new SqlSugarProjectRepository(database).List().Single(static project => project.Name == "Project A");
+        new SqlSugarProjectRepository(database).Add(Project.Create("Project B"));
+        var persistedProjectB = new SqlSugarProjectRepository(database).List().Single(static project => project.Name == "Project B");
+        AddLibraryArtifact(database, oldArtifact);
+        AddLibraryArtifact(database, newArtifact);
+
+        projectA = persistedProjectA.Id;
+        projectB = persistedProjectB.Id;
+        await repository.AddAsync(projectA, oldArtifact);
+        await repository.AddAsync(projectA, oldArtifact.ToUpperInvariant());
+        await repository.AddAsync(projectB, newArtifact);
+
+        var referencesForA = await repository.ListByProjectAsync(projectA);
+        var referencesForB = await repository.ListByProjectAsync(projectB);
+        Assert.Equal([oldArtifact], referencesForA.Select(static item => item.LibraryId));
+        Assert.Equal([newArtifact], referencesForB.Select(static item => item.LibraryId));
+        Assert.True(await repository.IsReferencedAsync(projectA, oldArtifact));
+        Assert.False(await repository.IsReferencedAsync(projectA, newArtifact));
+
+        Assert.True(await repository.RemoveAsync(projectA, oldArtifact));
+        Assert.Empty(await repository.ListByProjectAsync(projectA));
+        Assert.Equal([newArtifact], (await repository.ListByProjectAsync(projectB)).Select(static item => item.LibraryId));
+    }
+
+    [Fact]
+    public void MigrationBackfillsReferencesForExistingFlowDefinitions()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"sereinflow-migration-{Guid.NewGuid():N}.db");
+        var projectId = Guid.NewGuid();
+        const string libraryId = "abc123artifact";
+        try
+        {
+            using (var connection = new SqliteConnection($"Data Source={databasePath}"))
+            {
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = """
+                    CREATE TABLE SchemaMigrations (Version INTEGER NOT NULL PRIMARY KEY, AppliedAt TEXT NOT NULL, Checksum TEXT NOT NULL);
+                    CREATE TABLE Projects (Id TEXT NOT NULL PRIMARY KEY, Name TEXT NOT NULL, Version INTEGER NOT NULL, Status TEXT NOT NULL, CreatedAt TEXT NOT NULL, UpdatedAt TEXT NOT NULL);
+                    CREATE TABLE Libraries (Id TEXT NOT NULL PRIMARY KEY, Name TEXT NOT NULL, Version TEXT NOT NULL, FileName TEXT NOT NULL, SizeBytes INTEGER NOT NULL, Sha256 TEXT NOT NULL UNIQUE, UploadedAt TEXT NOT NULL, PackagePath TEXT NOT NULL, NodeCatalogJson TEXT NOT NULL);
+                    CREATE TABLE FlowDefinitions (Id TEXT NOT NULL PRIMARY KEY, ProjectId TEXT NOT NULL, Version INTEGER NOT NULL, DefinitionJson TEXT NOT NULL, Checksum TEXT NOT NULL);
+                    """;
+                command.ExecuteNonQuery();
+
+                for (var version = 1; version <= 10; version++)
+                {
+                    command.CommandText = "INSERT INTO SchemaMigrations (Version, AppliedAt, Checksum) VALUES ($version, $now, $checksum);";
+                    command.Parameters.Clear();
+                    command.Parameters.AddWithValue("$version", version);
+                    command.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToString("O"));
+                    command.Parameters.AddWithValue("$checksum", "legacy");
+                    command.ExecuteNonQuery();
+                }
+
+                command.CommandText = "INSERT INTO Projects (Id, Name, Version, Status, CreatedAt, UpdatedAt) VALUES ($id, 'Legacy', 1, 'Ready', $now, $now);";
+                command.Parameters.Clear();
+                command.Parameters.AddWithValue("$id", projectId.ToString("D"));
+                command.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToString("O"));
+                command.ExecuteNonQuery();
+                command.CommandText = "INSERT INTO Libraries (Id, Name, Version, FileName, SizeBytes, Sha256, UploadedAt, PackagePath, NodeCatalogJson) VALUES ($id, 'LegacyLibrary', '1.0.0', 'LegacyLibrary-1.0.0.zip', 1, $sha, $now, 'legacy.zip', '[]');";
+                command.Parameters.Clear();
+                command.Parameters.AddWithValue("$id", libraryId);
+                command.Parameters.AddWithValue("$sha", libraryId);
+                command.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToString("O"));
+                command.ExecuteNonQuery();
+                command.CommandText = "INSERT INTO FlowDefinitions (Id, ProjectId, Version, DefinitionJson, Checksum) VALUES ($id, $projectId, 1, $definition, 'legacy');";
+                command.Parameters.Clear();
+                command.Parameters.AddWithValue("$id", Guid.NewGuid().ToString("D"));
+                command.Parameters.AddWithValue("$projectId", projectId.ToString("D"));
+                command.Parameters.AddWithValue("$definition", "{\"canvases\":[{\"nodes\":[{\"ui\":{\"libraryId\":\"" + libraryId + "\"}}]}]}");
+                command.ExecuteNonQuery();
+            }
+
+            using (var database = new SqliteDatabase(new SqliteDatabaseOptions(databasePath)))
+            {
+                database.Initialize();
+
+                Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM ProjectLibraryReferences WHERE ProjectId = @projectId AND LibraryId = @libraryId",
+                    new SqlSugar.SugarParameter("@projectId", projectId.ToString("D")),
+                    new SqlSugar.SugarParameter("@libraryId", libraryId)));
+                Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 11"));
+            }
+        }
+        finally
+        {
+            DeleteSqliteFiles(databasePath);
+        }
     }
 
     [Fact]
@@ -143,5 +245,37 @@ public sealed class SqlitePersistenceTests
     {
         var path = Path.Combine(Path.GetTempPath(), $"sereinflow-{Guid.NewGuid():N}.db");
         return new SqliteDatabase(new SqliteDatabaseOptions(path));
+    }
+
+    private static void AddLibraryArtifact(SqliteDatabase database, string libraryId)
+    {
+        database.Execute(
+            """
+            INSERT INTO Libraries (Id, Name, Version, FileName, SizeBytes, Sha256, UploadedAt, PackagePath, NodeCatalogJson, Status)
+            VALUES (@id, @name, '1.0.0', @fileName, 1, @sha256, @uploadedAt, @packagePath, '[]', 'Available')
+            """,
+            new SqlSugar.SugarParameter("@id", libraryId),
+            new SqlSugar.SugarParameter("@name", libraryId),
+            new SqlSugar.SugarParameter("@fileName", $"{libraryId}-1.0.0.zip"),
+            new SqlSugar.SugarParameter("@sha256", libraryId),
+            new SqlSugar.SugarParameter("@uploadedAt", DateTimeOffset.UtcNow.ToString("O")),
+            new SqlSugar.SugarParameter("@packagePath", $"{libraryId}.zip"));
+    }
+
+    private static void DeleteSqliteFiles(string databasePath)
+    {
+        SqliteConnection.ClearAllPools();
+        foreach (var path in new[] { databasePath, $"{databasePath}-wal", $"{databasePath}-shm" })
+        {
+            try
+            {
+                if (File.Exists(path)) File.Delete(path);
+            }
+            catch (IOException)
+            {
+                // Test cleanup must not hide a successful migration assertion.
+                // 测试清理不能掩盖已成功的迁移断言。
+            }
+        }
     }
 }

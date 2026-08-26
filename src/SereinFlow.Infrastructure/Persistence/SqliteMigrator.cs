@@ -1,4 +1,5 @@
 using SqlSugar;
+using System.Text.Json;
 
 namespace SereinFlow.Infrastructure.Persistence;
 
@@ -14,6 +15,7 @@ public sealed class SqliteMigrator
     private const int AddEnvironmentConsoleVersion = 8;
     private const int AddFlowRunOutputsVersion = 9;
     private const int AddFlowRunOutputInputsVersion = 10;
+    private const int AddProjectLibraryReferencesVersion = 11;
     private readonly SqlSugarClient _client;
 
     public SqliteMigrator(SqlSugarClient client)
@@ -359,6 +361,167 @@ public sealed class SqliteMigrator
                 throw;
             }
         }
+
+        applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
+        if (!applied.Contains(AddProjectLibraryReferencesVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                _client.Ado.ExecuteCommand("""
+                    ALTER TABLE Libraries ADD COLUMN Status TEXT NOT NULL DEFAULT 'Available';
+                    ALTER TABLE Libraries ADD COLUMN ArchivedAt TEXT NULL;
+                    CREATE TABLE IF NOT EXISTS ProjectLibraryReferences (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        ProjectId TEXT NOT NULL,
+                        LibraryId TEXT NOT NULL,
+                        ReferencedAt TEXT NOT NULL,
+                        FOREIGN KEY (ProjectId) REFERENCES Projects(Id),
+                        FOREIGN KEY (LibraryId) REFERENCES Libraries(Id)
+                    );
+                    CREATE UNIQUE INDEX IF NOT EXISTS UX_ProjectLibraryReferences_ProjectId_LibraryId
+                    ON ProjectLibraryReferences(ProjectId, LibraryId);
+                    CREATE INDEX IF NOT EXISTS IX_ProjectLibraryReferences_LibraryId
+                    ON ProjectLibraryReferences(LibraryId);
+                    CREATE INDEX IF NOT EXISTS IX_Libraries_Status_Name_Version
+                    ON Libraries(Status, Name, Version);
+                    """);
+                PopulateProjectLibraryReferencesFromExistingFlows();
+                RecordMigration(AddProjectLibraryReferencesVersion, "project-library-references-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Makes the project-reference boundary safe for databases created before
+    /// project library references existed. The data is read only from the
+    /// persisted definitions; package metadata remains the authoritative
+    /// catalog and unknown artifacts are deliberately not invented.
+    /// 为引入项目类库引用前创建的数据库补齐归属关系。只读取现有流程定义；
+    /// 类库目录仍是唯一权威来源，不会为未知制品伪造引用。
+    /// </summary>
+    private void PopulateProjectLibraryReferencesFromExistingFlows()
+    {
+        var knownLibraryIds = _client.Ado.SqlQuery<string>("SELECT Id FROM Libraries")
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (knownLibraryIds.Count == 0)
+        {
+            return;
+        }
+
+        var definitions = _client.Ado.SqlQuery<FlowDefinitionLibraryReferenceMigrationRow>(
+            "SELECT ProjectId, DefinitionJson FROM FlowDefinitions");
+        var referencedAt = DateTimeOffset.UtcNow.ToString("O");
+        foreach (var definition in definitions)
+        {
+            if (!Guid.TryParse(definition.ProjectId, out var projectId))
+            {
+                continue;
+            }
+
+            foreach (var libraryId in ReadLibraryIds(definition.DefinitionJson))
+            {
+                if (!knownLibraryIds.Contains(libraryId))
+                {
+                    continue;
+                }
+
+                var normalizedLibraryId = libraryId.Trim().ToLowerInvariant();
+                _client.Ado.ExecuteCommand(
+                    """
+                    INSERT OR IGNORE INTO ProjectLibraryReferences (Id, ProjectId, LibraryId, ReferencedAt)
+                    VALUES (@id, @projectId, @libraryId, @referencedAt)
+                    """,
+                    new SugarParameter("@id", $"{projectId:N}:{normalizedLibraryId}"),
+                    new SugarParameter("@projectId", projectId.ToString("D")),
+                    new SugarParameter("@libraryId", normalizedLibraryId),
+                    new SugarParameter("@referencedAt", referencedAt));
+            }
+        }
+    }
+
+    private static List<string> ReadLibraryIds(string? definitionJson)
+    {
+        var libraryIds = new List<string>();
+        if (string.IsNullOrWhiteSpace(definitionJson))
+        {
+            return libraryIds;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(definitionJson);
+            if (!TryGetProperty(document.RootElement, "canvases", out var canvases)
+                || canvases.ValueKind != JsonValueKind.Array)
+            {
+                return libraryIds;
+            }
+
+            foreach (var canvas in canvases.EnumerateArray())
+            {
+                if (!TryGetProperty(canvas, "nodes", out var nodes)
+                    || nodes.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+
+                foreach (var node in nodes.EnumerateArray())
+                {
+                    if (!TryGetProperty(node, "ui", out var ui)
+                        || ui.ValueKind != JsonValueKind.Object
+                        || !TryGetProperty(ui, "libraryId", out var libraryId)
+                        || libraryId.ValueKind != JsonValueKind.String)
+                    {
+                        continue;
+                    }
+
+                    var value = libraryId.GetString()?.Trim();
+                    if (!string.IsNullOrWhiteSpace(value))
+                    {
+                        libraryIds.Add(value);
+                    }
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // A malformed historical definition is validated when it is next
+            // saved or run. Do not block the entire database migration.
+            // 历史流程定义损坏时留待保存或运行校验，不能阻塞整个数据库迁移。
+        }
+
+        return libraryIds;
+    }
+
+    private static bool TryGetProperty(JsonElement element, string name, out JsonElement value)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in element.EnumerateObject())
+            {
+                if (string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    value = property.Value;
+                    return true;
+                }
+            }
+        }
+
+        value = default;
+        return false;
+    }
+
+    private sealed class FlowDefinitionLibraryReferenceMigrationRow
+    {
+        public string ProjectId { get; set; } = string.Empty;
+
+        public string DefinitionJson { get; set; } = string.Empty;
     }
 
     private void RecordMigration(int version, string checksum)

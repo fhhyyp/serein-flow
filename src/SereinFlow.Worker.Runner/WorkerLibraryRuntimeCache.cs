@@ -17,14 +17,24 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
 {
     private readonly string? _packageRoot;
     private readonly string _runRoot;
+    private readonly HashSet<string>? _allowedLibraryIds;
     private readonly ConcurrentDictionary<LibraryKey, Lazy<Task<LoadedLibrary>>> _libraries = new();
     private readonly ConcurrentDictionary<TypeKey, Lazy<Task<Type>>> _types = new();
     private readonly ConcurrentDictionary<MethodKey, Lazy<Task<ResolvedLibraryMethod>>> _methods = new();
 
-    public WorkerLibraryRuntimeCache(string? packageRoot, Guid runId)
+    public WorkerLibraryRuntimeCache(
+        string? packageRoot,
+        Guid runId,
+        IReadOnlyCollection<string>? allowedLibraryIds = null)
     {
         _packageRoot = string.IsNullOrWhiteSpace(packageRoot) ? null : Path.GetFullPath(packageRoot);
         _runRoot = Path.Combine(Path.GetTempPath(), "sereinflow-worker", runId.ToString("N"));
+        _allowedLibraryIds = allowedLibraryIds is null
+            ? null
+            : allowedLibraryIds
+                .Where(static id => !string.IsNullOrWhiteSpace(id))
+                .Select(static id => id.Trim())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
     public async Task<ResolvedLibraryMethod> ResolveMethodAsync(NodeDefinition node, CancellationToken cancellationToken)
@@ -34,6 +44,12 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
             "library.metadata_missing",
             "The library method metadata is missing. 类库方法元数据缺失。");
         var libraryId = RequireSafeSegment(runtime.LibraryId, "library.identifier_invalid", "The library identifier is invalid. 类库标识无效。");
+        if (_allowedLibraryIds is not null && !_allowedLibraryIds.Contains(libraryId))
+        {
+            throw new LibraryRuntimeCacheException(
+                "library.not_allowed",
+                "The library artifact is not authorized for this run. 当前运行未授权使用该类库制品。");
+        }
         var dllName = RequireSafeSegment(runtime.DllName, "library.assembly_invalid", "The library assembly file name is invalid. 类库程序集文件名无效。");
         var className = RequireNonEmpty(runtime.ClassName, "library.type_invalid", "The library type name is invalid. 类库类型名称无效。");
         var methodName = RequireNonEmpty(runtime.MethodName, "library.method_invalid", "The library method name is invalid. 类库方法名称无效。");

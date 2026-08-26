@@ -77,21 +77,54 @@ public sealed class LibraryCatalogTests
             database.Initialize();
             var catalog = new SqliteLibraryCatalogService(database, new LibraryCatalogOptions(libraryRoot));
             await using var package = CreatePackage(
-                "SereinFlow.TestLibrary-1.0.0.zip",
+                "SereinFlow.TestLibrary-1.1.0.zip",
                 "SereinFlow.TestLibrary.dll",
-                typeof(MathNodes).Assembly.Location);
+                typeof(生产线节点).Assembly.Location);
 
-            var result = await catalog.UploadAsync(package, "SereinFlow.TestLibrary-1.0.0.zip");
+            var result = await catalog.UploadAsync(package, "SereinFlow.TestLibrary-1.1.0.zip");
 
             Assert.Equal(5, result.Library.Nodes.Count);
-            var add = Assert.Single(result.Library.Nodes, node => node.MethodName == "Add");
-            Assert.Equal(SereinFlow.Contracts.NodeTypeDto.Action, add.Type);
-            Assert.Equal("Add numbers", add.DisplayName);
-            Assert.Equal("Adds two integers.", add.Description);
-            Assert.Equal(["left", "right"], add.Parameters.Select(parameter => parameter.Name).ToArray());
+            var passRate = Assert.Single(result.Library.Nodes, node => node.MethodName == "计算合格率");
+            Assert.Equal(SereinFlow.Contracts.NodeTypeDto.Action, passRate.Type);
+            Assert.Equal("计算合格率", passRate.DisplayName);
+            Assert.Equal("根据合格数量和检测总数计算本批次合格率。", passRate.Description);
+            Assert.Equal(["合格数量", "检测总数"], passRate.Parameters.Select(parameter => parameter.Name).ToArray());
 
-            var flipflop = Assert.Single(result.Library.Nodes, node => node.MethodName == "IsPositive");
+            var flipflop = Assert.Single(result.Library.Nodes, node => node.MethodName == "等待设备触发");
             Assert.Equal(SereinFlow.Contracts.NodeTypeDto.Flipflop, flipflop.Type);
+        }
+        finally
+        {
+            TryDelete(databasePath);
+            TryDeleteDirectory(libraryRoot);
+        }
+    }
+
+    [Fact]
+    public async Task ArchiveRetainsTheImmutablePackageForExistingProjectRuns()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"sereinflow-library-{Guid.NewGuid():N}.db");
+        var libraryRoot = Path.Combine(Path.GetTempPath(), $"sereinflow-library-{Guid.NewGuid():N}");
+        try
+        {
+            using var database = new SqliteDatabase(new SqliteDatabaseOptions(databasePath));
+            database.Initialize();
+            var catalog = new SqliteLibraryCatalogService(database, new LibraryCatalogOptions(libraryRoot));
+            await using var package = CreatePackage(
+                "SereinFlow.TestLibrary-1.1.0.zip",
+                "SereinFlow.TestLibrary.dll",
+                typeof(生产线节点).Assembly.Location);
+
+            var uploaded = await catalog.UploadAsync(package, "SereinFlow.TestLibrary-1.1.0.zip");
+            var packagePath = Path.Combine(libraryRoot, "packages", $"{uploaded.Library.Id}.zip");
+
+            Assert.True(await catalog.ArchiveAsync(uploaded.Library.Id));
+
+            Assert.Empty(await catalog.ListAsync());
+            var archived = Assert.Single(await catalog.ListAsync(includeArchived: true));
+            Assert.Equal(SereinFlow.Contracts.LibraryLifecycleDto.Archived, archived.Lifecycle);
+            Assert.Equal(uploaded.Library.Id, (await catalog.FindAsync(uploaded.Library.Id))!.Id);
+            Assert.True(File.Exists(packagePath));
         }
         finally
         {

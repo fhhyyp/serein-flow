@@ -20,6 +20,7 @@
     <ProjectReference Include="..\..\src\SereinFlow.Worker.Protocol\SereinFlow.Worker.Protocol.csproj" />
     <ProjectReference Include="..\..\src\SereinFlow.Worker.Runner\SereinFlow.Worker.Runner.csproj" />
     <ProjectReference Include="..\..\src\SereinFlow.Worker.Supervisor\SereinFlow.Worker.Supervisor.csproj" />
+    <ProjectReference Include="..\SereinFlow.TestLibrary\SereinFlow.TestLibrary.csproj" />
   </ItemGroup>
 
   <ItemGroup>

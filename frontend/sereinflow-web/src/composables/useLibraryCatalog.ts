@@ -1,12 +1,8 @@
-import { computed, ref, type Ref } from 'vue'
-import { listLibraries, type LibraryDto } from '../api/libraryApi'
+import { computed, ref } from 'vue'
+import { listProjectLibraries, type LibraryDto } from '../api/libraryApi'
 import { t } from '../i18n'
 
-interface UseLibraryCatalogOptions {
-  notice: Ref<string>
-}
-
-export function useLibraryCatalog(options: UseLibraryCatalogOptions) {
+export function useLibraryCatalog() {
   const librarySearch = ref('')
   const libraries = ref<LibraryDto[]>([])
   const isLibraryCatalogLoading = ref(true)
@@ -25,11 +21,16 @@ export function useLibraryCatalog(options: UseLibraryCatalogOptions) {
   })
   const catalogNodeCount = computed(() => libraries.value.reduce((count, library) => count + library.nodes.length, 0))
 
-  async function refreshLibraryCatalog(): Promise<void> {
+  async function refreshLibraryCatalog(projectId?: string): Promise<void> {
     isLibraryCatalogLoading.value = true
     libraryCatalogError.value = ''
+    if (!projectId) {
+      libraries.value = []
+      isLibraryCatalogLoading.value = false
+      return
+    }
     try {
-      libraries.value = await listLibraries()
+      libraries.value = (await listProjectLibraries(projectId)).map((reference) => reference.library)
     } catch {
       libraryCatalogError.value = t('library.loadFailed')
     } finally {
@@ -37,15 +38,9 @@ export function useLibraryCatalog(options: UseLibraryCatalogOptions) {
     }
   }
 
-  function handleLibraryUploaded(library: LibraryDto): void {
-    const existingIndex = libraries.value.findIndex((item) => item.id === library.id)
-    if (existingIndex >= 0) {
-      libraries.value = libraries.value.map((item, index) => index === existingIndex ? library : item)
-    } else {
-      libraries.value = [...libraries.value, library]
-    }
+  function replaceProjectLibraries(nextLibraries: LibraryDto[]): void {
+    libraries.value = nextLibraries
     librarySearch.value = ''
-    options.notice.value = t('libraryUpload.success', { name: library.name, count: library.nodes.length })
   }
 
   return {
@@ -56,6 +51,6 @@ export function useLibraryCatalog(options: UseLibraryCatalogOptions) {
     visibleLibraries,
     catalogNodeCount,
     refreshLibraryCatalog,
-    handleLibraryUploaded,
+    replaceProjectLibraries,
   }
 }

@@ -2,7 +2,7 @@
 
 SereinFlow is a web-first workflow orchestration system. The ASP.NET Core API coordinates project data and execution requests, while untrusted scripts and plug-ins run only in isolated Worker Runner processes.
 
-The refactoring architecture, approved scope, and incremental delivery plan are documented in [docs/sereinflow-refactor](docs/sereinflow-refactor/README.md).
+The versioned API-to-Worker IPC contract is documented in [docs/worker-protocol-v1.md](docs/worker-protocol-v1.md).
 
 ## Local verification
 

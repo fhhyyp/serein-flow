@@ -4,17 +4,15 @@
     <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>SereinFlow.TestLibrary</AssemblyName>
     <RootNamespace>SereinFlow.TestLibrary</RootNamespace>
-    <Version>1.0.0</Version>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
-    <InformationalVersion>1.0.0</InformationalVersion>
+    <Version>1.1.0</Version>
+    <AssemblyVersion>1.1.0.0</AssemblyVersion>
+    <FileVersion>1.1.0.0</FileVersion>
+    <InformationalVersion>1.1.0</InformationalVersion>
     <IsPackable>false</IsPackable>
-    <!-- Node methods intentionally keep the instance-oriented library shape;
-         the host may construct the containing type when it executes a node. -->
+    <!-- 节点方法采用实例类库形式，运行宿主执行节点时会创建对应的类型实例。 -->
     <NoWarn>$(NoWarn);CA1822</NoWarn>
 
-    <!-- The API accepts a package named [library]-[version].zip whose
-         matching DLL is one directory below the archive root. -->
+    <!-- API 接收“类库名-版本号.zip”格式的上传包；匹配 DLL 位于压缩包根目录下一层。 -->
     <TestLibraryPackageName>$(AssemblyName)-$(Version)</TestLibraryPackageName>
     <TestLibraryStagingRoot>$(BaseIntermediateOutputPath)test-library-package\</TestLibraryStagingRoot>
     <TestLibraryStagingDirectory>$(TestLibraryStagingRoot)$(TestLibraryPackageName)\</TestLibraryStagingDirectory>
@@ -35,7 +33,7 @@
       SourceDirectory="$(TestLibraryStagingRoot)"
       DestinationFile="$(TestLibraryZipPath)"
       Overwrite="true" />
-    <Message Importance="high" Text="SereinFlow test library package: $(TestLibraryZipPath)" />
+    <Message Importance="high" Text="SereinFlow 测试类库上传包：$(TestLibraryZipPath)" />
   </Target>
 
 </Project>

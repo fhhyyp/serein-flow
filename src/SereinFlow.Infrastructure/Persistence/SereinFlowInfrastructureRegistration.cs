@@ -61,6 +61,9 @@ public static class SereinFlowInfrastructureRegistration
         services.AddScoped<IFlowInterfaceRepository>(serviceProvider =>
             new SqlSugarFlowInterfaceRepository(
                 serviceProvider.GetRequiredService<IRepository<FlowInterfaceRecord>>()));
+        services.AddScoped<IProjectLibraryReferenceRepository>(serviceProvider =>
+            new SqlSugarProjectLibraryReferenceRepository(
+                serviceProvider.GetRequiredService<IRepository<ProjectLibraryReferenceRecord>>()));
 
         var configuredLibraryDirectory = configuration["SereinFlow:LibraryDirectory"] ?? "data/libraries";
         var libraryDirectory = Path.IsPathRooted(configuredLibraryDirectory)

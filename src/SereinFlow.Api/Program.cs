@@ -38,6 +38,7 @@ builder.Services.AddSereinFlowInfrastructure(
     builder.Environment.ContentRootPath);
 builder.Services.AddScoped<RunApplicationService>();
 builder.Services.AddScoped<RunSubmissionService>();
+builder.Services.AddScoped<ProjectLibraryService>();
 builder.Services.Configure<RunExecutionOptions>(builder.Configuration.GetSection("SereinFlow:RunExecution"));
 
 var workerRunnerPath = ResolveWorkerRunnerPath(
@@ -102,6 +103,12 @@ projects.MapPost("", async (CreateProjectRequestDto request, IProjectRepository 
     if (!validation.IsValid)
     {
         return Results.BadRequest(validation);
+    }
+
+    var libraryValidation = ProjectLibraryService.ValidateNewProjectFlowLibraries(request.Definition);
+    if (!libraryValidation.IsValid)
+    {
+        return Results.BadRequest(libraryValidation);
     }
 
     var normalizedDefinition = FlowDefinitionContractNormalizer.Normalize(request.Definition);
@@ -170,7 +177,7 @@ projects.MapGet("/{projectId:guid}/flows/{flowId:guid}", async (Guid projectId, 
         : Results.Ok(flow);
 });
 
-projects.MapPut("/{projectId:guid}/flows/{flowId:guid}", async (Guid projectId, Guid flowId, UpdateFlowDefinitionRequestDto request, IProjectRepository projectRepository, IFlowDefinitionRepository flowRepository, CancellationToken cancellationToken) =>
+projects.MapPut("/{projectId:guid}/flows/{flowId:guid}", async (Guid projectId, Guid flowId, UpdateFlowDefinitionRequestDto request, IProjectRepository projectRepository, IFlowDefinitionRepository flowRepository, ProjectLibraryService projectLibraries, CancellationToken cancellationToken) =>
 {
     if (request.ExpectedVersion < 1 || request.Definition.Id != flowId)
     {
@@ -188,6 +195,12 @@ projects.MapPut("/{projectId:guid}/flows/{flowId:guid}", async (Guid projectId, 
         return Results.BadRequest(validation);
     }
 
+    var libraryValidation = await projectLibraries.ValidateFlowLibrariesAsync(projectId, request.Definition, cancellationToken);
+    if (!libraryValidation.IsValid)
+    {
+        return Results.BadRequest(libraryValidation);
+    }
+
     var normalizedDefinition = FlowDefinitionContractNormalizer.Normalize(request.Definition);
     var saved = await flowRepository.TryUpdateAsync(projectId, normalizedDefinition, request.ExpectedVersion, cancellationToken);
     return saved is null
@@ -201,13 +214,34 @@ projects.MapPut("/{projectId:guid}/flows/{flowId:guid}", async (Guid projectId, 
         : Results.Ok(saved);
 });
 
+projects.MapGet("/{projectId:guid}/libraries", async (
+    Guid projectId,
+    ProjectLibraryService projectLibraries,
+    CancellationToken cancellationToken) =>
+    ToProjectLibraryResponse(await projectLibraries.ListAsync(projectId, cancellationToken)));
+
+projects.MapPut("/{projectId:guid}/libraries/{libraryId}", async (
+    Guid projectId,
+    string libraryId,
+    ProjectLibraryService projectLibraries,
+    CancellationToken cancellationToken) =>
+    ToProjectLibraryResponse(await projectLibraries.AddAsync(projectId, libraryId, cancellationToken)));
+
+projects.MapDelete("/{projectId:guid}/libraries/{libraryId}", async (
+    Guid projectId,
+    string libraryId,
+    ProjectLibraryService projectLibraries,
+    CancellationToken cancellationToken) =>
+    ToProjectLibraryResponse(await projectLibraries.RemoveAsync(projectId, libraryId, cancellationToken)));
+
 var libraries = app.MapGroup("/api/libraries");
 
-libraries.MapGet("", (ILibraryCatalogService libraryCatalog) => Results.Ok(libraryCatalog.List()));
+libraries.MapGet("", async (ILibraryCatalogService libraryCatalog, CancellationToken cancellationToken) =>
+    Results.Ok(await libraryCatalog.ListAsync(cancellationToken: cancellationToken)));
 
-libraries.MapGet("/{libraryId}", (string libraryId, ILibraryCatalogService libraryCatalog) =>
+libraries.MapGet("/{libraryId}", async (string libraryId, ILibraryCatalogService libraryCatalog, CancellationToken cancellationToken) =>
 {
-    var library = libraryCatalog.Find(libraryId);
+    var library = await libraryCatalog.FindAsync(libraryId, cancellationToken);
     return library is null
         ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Library not found. 未找到类库。")
         : Results.Ok(library);
@@ -245,8 +279,8 @@ async Task<IResult> UploadLibraryAsync(HttpRequest request, ILibraryCatalogServi
 libraries.MapPost("/upload", UploadLibraryAsync);
 libraries.MapPost("/upload-zip", UploadLibraryAsync);
 
-libraries.MapDelete("/{libraryId}", (string libraryId, ILibraryCatalogService libraryCatalog) =>
-    libraryCatalog.Delete(libraryId)
+libraries.MapDelete("/{libraryId}", async (string libraryId, ILibraryCatalogService libraryCatalog, CancellationToken cancellationToken) =>
+    await libraryCatalog.ArchiveAsync(libraryId, cancellationToken)
         ? Results.NoContent()
         : Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Library not found. 未找到类库。"));
 
@@ -254,29 +288,43 @@ libraries.MapDelete("/{libraryId}", (string libraryId, ILibraryCatalogService li
 // plural route remains the canonical REST contract for this project.
 // 单数别名对应现有 TRAE 客户端服务路径，复数路径仍是本项目的标准 REST 契约。
 var legacyLibraries = app.MapGroup("/api/library");
-legacyLibraries.MapGet("", (ILibraryCatalogService libraryCatalog) => Results.Ok(libraryCatalog.List()));
-legacyLibraries.MapGet("/{libraryId}", (string libraryId, ILibraryCatalogService libraryCatalog) =>
+legacyLibraries.MapGet("", async (ILibraryCatalogService libraryCatalog, CancellationToken cancellationToken) =>
+    Results.Ok(await libraryCatalog.ListAsync(cancellationToken: cancellationToken)));
+legacyLibraries.MapGet("/{libraryId}", async (string libraryId, ILibraryCatalogService libraryCatalog, CancellationToken cancellationToken) =>
 {
-    var library = libraryCatalog.Find(libraryId);
+    var library = await libraryCatalog.FindAsync(libraryId, cancellationToken);
     return library is null
         ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Library not found. 未找到类库。")
         : Results.Ok(library);
 });
-legacyLibraries.MapGet("/{libraryId}/nodes", (string libraryId, ILibraryCatalogService libraryCatalog) =>
+legacyLibraries.MapGet("/{libraryId}/nodes", async (string libraryId, ILibraryCatalogService libraryCatalog, CancellationToken cancellationToken) =>
 {
-    var library = libraryCatalog.Find(libraryId);
+    var library = await libraryCatalog.FindAsync(libraryId, cancellationToken);
     return library is null
         ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Library not found. 未找到类库。")
         : Results.Ok(library.Nodes);
 });
 legacyLibraries.MapPost("/upload", UploadLibraryAsync);
 legacyLibraries.MapPost("/upload-zip", UploadLibraryAsync);
-legacyLibraries.MapDelete("/{libraryId}", (string libraryId, ILibraryCatalogService libraryCatalog) =>
-    libraryCatalog.Delete(libraryId)
+legacyLibraries.MapDelete("/{libraryId}", async (string libraryId, ILibraryCatalogService libraryCatalog, CancellationToken cancellationToken) =>
+    await libraryCatalog.ArchiveAsync(libraryId, cancellationToken)
         ? Results.NoContent()
         : Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Library not found. 未找到类库。"));
 
 var environmentApi = app.MapGroup("/api/environment");
+
+environmentApi.MapGet("/libraries", async (ILibraryCatalogService libraryCatalog, CancellationToken cancellationToken) =>
+    Results.Ok(await libraryCatalog.ListAsync(includeArchived: true, cancellationToken: cancellationToken)));
+
+environmentApi.MapPost("/libraries/upload", UploadLibraryAsync);
+
+environmentApi.MapPost("/libraries/{libraryId}/archive", async (
+    string libraryId,
+    ILibraryCatalogService libraryCatalog,
+    CancellationToken cancellationToken) =>
+    await libraryCatalog.ArchiveAsync(libraryId, cancellationToken)
+        ? Results.NoContent()
+        : Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Library artifact not found. 未找到类库制品。"));
 
 environmentApi.MapGet("/settings", (RunExecutionQueue queue) =>
     Results.Ok(queue.Options.ToDto()));
@@ -627,6 +675,19 @@ static IResult ToRunSubmissionResponse(RunSubmissionResult submission)
         extensions: submission.CurrentVersion is null
             ? null
             : new Dictionary<string, object?> { ["currentVersion"] = submission.CurrentVersion });
+}
+
+static IResult ToProjectLibraryResponse(ProjectLibraryOperationResult result)
+{
+    if (result.IsSuccess)
+        return Results.Ok(result.References ?? []);
+
+    return Results.Problem(
+        statusCode: result.StatusCode,
+        title: result.Message,
+        extensions: string.IsNullOrWhiteSpace(result.Code)
+            ? null
+            : new Dictionary<string, object?> { ["code"] = result.Code });
 }
 
 static async Task<FlowRun?> WaitForTerminalRunAsync(

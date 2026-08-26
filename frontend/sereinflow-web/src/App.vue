@@ -10,8 +10,8 @@ import {
 import { useVueFlow } from '@vue-flow/core'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
-import LibraryUploadDialog from './components/library/LibraryUploadDialog.vue'
 import NodeLibraryPanel from './components/library/NodeLibraryPanel.vue'
+import ProjectLibraryDialog from './components/library/ProjectLibraryDialog.vue'
 import CommandBar from './components/workspace/CommandBar.vue'
 import MobileWorkspaceTabs from './components/workspace/MobileWorkspaceTabs.vue'
 import OutputPanel from './components/workspace/OutputPanel.vue'
@@ -19,7 +19,6 @@ import CanvasPanel from './components/canvas/CanvasPanel.vue'
 import InspectorPanel from './components/inspector/InspectorPanel.vue'
 import RunConsole from './components/runs/RunConsole.vue'
 import type { FlowConcurrencyMode, ProjectWorkspaceDto } from './api/flowApi'
-import type { LibraryDto } from './api/libraryApi'
 import { locale, setLocale, t, type Locale } from './i18n'
 import {
   normalizeConnectionLineTypes,
@@ -49,7 +48,7 @@ const recoveryWorkspace = loadWorkspace()
 const canvases = ref<CanvasState[]>(createInitialCanvases())
 const connectionLineTypes = reactive<ConnectionLineSettings>(normalizeConnectionLineTypes(recoveryWorkspace?.connectionLineTypes))
 const activeCanvasId = ref('main')
-const libraryUploadOpen = ref(false)
+const projectLibraryOpen = ref(false)
 const mobilePanel = ref<'nodes' | 'inspector' | null>(null)
 const languageMenuOpen = ref(false)
 const projectMenuOpen = ref(false)
@@ -63,8 +62,8 @@ const {
   visibleLibraries,
   catalogNodeCount,
   refreshLibraryCatalog,
-  handleLibraryUploaded: updateLibraryCatalog,
-} = useLibraryCatalog({ notice })
+  replaceProjectLibraries,
+} = useLibraryCatalog()
 const nextNodeNumber = ref(1)
 const isDirty = ref(false)
 const saveFailed = ref(false)
@@ -316,11 +315,6 @@ function redo(): void {
   }
 }
 
-function handleLibraryUploaded(library: LibraryDto): void {
-  updateLibraryCatalog(library)
-  libraryUploadOpen.value = false
-}
-
 function nodeTitle(node: FlowNode): string {
   return node.data.displayName?.trim() || t(node.data.titleKey)
 }
@@ -333,14 +327,21 @@ function sourceNodeTitle(parameter: MethodParameter): string {
 async function openProjectInEditor(workspace: ProjectWorkspaceDto, requestedFlowId?: string): Promise<void> {
   await loadProject(workspace, requestedFlowId)
   workspaceView.value = 'editor'
-  void refreshLibraryCatalog()
 }
 
 function startNewProjectInEditor(): void {
   beginNewProject()
   workspaceView.value = 'editor'
-  void refreshLibraryCatalog()
 }
+
+function refreshProjectLibraryCatalog(): void {
+  void refreshLibraryCatalog(projectId.value)
+}
+
+watch(projectId, (nextProjectId) => {
+  projectLibraryOpen.value = false
+  void refreshLibraryCatalog(nextProjectId)
+})
 
 function updateConcurrencyMode(mode: FlowConcurrencyMode): void {
   if (runPolicy.value.concurrencyMode === mode) {
@@ -421,8 +422,8 @@ function setLanguage(nextLocale: Locale): void {
         :visible-libraries="visibleLibraries"
         :catalog-node-count="catalogNodeCount"
         @update:library-search="librarySearch = $event"
-        @upload="libraryUploadOpen = true"
-        @retry="refreshLibraryCatalog"
+        @manage="projectLibraryOpen = true"
+        @retry="refreshProjectLibraryCatalog"
         @node-pointer-down="handleLibraryNodePointerDown"
       />
 
@@ -495,7 +496,13 @@ function setLanguage(nextLocale: Locale): void {
       />
     </main>
 
-    <LibraryUploadDialog v-if="workspaceView === 'editor' && libraryUploadOpen" @close="libraryUploadOpen = false" @uploaded="handleLibraryUploaded" />
+    <ProjectLibraryDialog
+      v-if="workspaceView === 'editor' && projectLibraryOpen && projectId"
+      :project-id="projectId"
+      :project-name="projectName"
+      @close="projectLibraryOpen = false"
+      @changed="replaceProjectLibraries"
+    />
     <OutputPanel v-if="workspaceView === 'editor'" v-model:active-output="activeOutput" :run-events="runEvents" :run-payload="runPayload" :has-run-output="hasRunOutput" />
   </div>
 </template>

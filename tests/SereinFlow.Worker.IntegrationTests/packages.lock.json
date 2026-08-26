@@ -125,6 +125,12 @@
           "SereinFlow.Runtime.Abstractions": "[1.0.0, )"
         }
       },
+      "sereinflow.testlibrary": {
+        "type": "Project",
+        "dependencies": {
+          "SereinFlow.Contracts": "[1.0.0, )"
+        }
+      },
       "sereinflow.worker.client": {
         "type": "Project",
         "dependencies": {

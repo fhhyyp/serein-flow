@@ -110,6 +110,17 @@ public sealed class LibraryRecord
     public string UploadedAt { get; set; } = string.Empty;
     public string PackagePath { get; set; } = string.Empty;
     public string NodeCatalogJson { get; set; } = "[]";
+    public string Status { get; set; } = "Available";
+    public string? ArchivedAt { get; set; }
+}
+
+[SugarTable("ProjectLibraryReferences")]
+public sealed class ProjectLibraryReferenceRecord
+{
+    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    public string ProjectId { get; set; } = string.Empty;
+    public string LibraryId { get; set; } = string.Empty;
+    public string ReferencedAt { get; set; } = string.Empty;
 }
 
 [SugarTable("RunEnvironmentSettings")]

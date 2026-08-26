@@ -1,6 +1,6 @@
 # SereinFlow Worker Protocol v1
 
-> 状态：T7 第一轮已实现并由 `SereinFlow.Worker.IntegrationTests` 覆盖。传输先使用 Supervisor 到一次性 Runner 的受限标准输入/输出 JSON Lines；API 到 Supervisor 的 Linux UDS 适配是后续部署任务，不改变本信封或 DTO。
+> 状态：当前生产协议，由 `SereinFlow.Worker.IntegrationTests` 覆盖。Supervisor 与一次性 Runner 使用受限标准输入/输出 JSON Lines；部署环境可在不改变本信封或 DTO 的前提下，为 API 与 Supervisor 增加 Linux UDS 传输适配。
 
 ## 1. 边界
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { Copy, Eye, FilePenLine, FolderKanban, LayoutDashboard, ListOrdered, Plus, RadioTower, RefreshCw, Save, Settings2, SlidersHorizontal, Square, Trash2, X } from 'lucide-vue-next'
+import { Archive, Copy, Eye, FilePenLine, FolderKanban, LayoutDashboard, ListOrdered, PackagePlus, Plus, RadioTower, RefreshCw, Save, Settings2, SlidersHorizontal, Square, Trash2, X } from 'lucide-vue-next'
 import {
   cancelFlowRun,
   createFlowInterface,
@@ -24,10 +24,12 @@ import {
   type ProjectWorkspaceDto,
   type RunExecutionSettingsDto,
 } from '../../api/flowApi'
+import { archiveEnvironmentLibrary, listEnvironmentLibraries, type LibraryDto } from '../../api/libraryApi'
 import { locale, t } from '../../i18n'
+import LibraryUploadDialog from '../library/LibraryUploadDialog.vue'
 import RunSnapshotViewer from './RunSnapshotViewer.vue'
 
-type ConsoleView = 'overview' | 'projects' | 'queue' | 'settings' | 'interfaces'
+type ConsoleView = 'overview' | 'projects' | 'queue' | 'settings' | 'interfaces' | 'libraries'
 
 const props = defineProps<{ projectWorkspaces: ProjectWorkspaceDto[] }>()
 const emit = defineEmits<{
@@ -52,6 +54,9 @@ const snapshotOutputsError = ref('')
 const snapshotRun = ref<FlowRunDto>()
 const isSnapshotLoading = ref(false)
 const snapshotError = ref('')
+const environmentLibraries = ref<LibraryDto[]>([])
+const libraryUploadOpen = ref(false)
+const isLibraryArchiving = ref<Set<string>>(new Set())
 const editingInterfaceId = ref<string>()
 const subscriptions = new Map<string, () => void>()
 let refreshTimer: number | undefined
@@ -121,10 +126,11 @@ async function refreshRunData(showLoading = true): Promise<void> {
 }
 
 async function refreshDirectoryData(): Promise<void> {
-  const [nextWorkspaces, nextInterfaces, nextSettings] = await Promise.all([listProjects(), listFlowInterfaces(), getRunExecutionSettings()])
+  const [nextWorkspaces, nextInterfaces, nextSettings, nextLibraries] = await Promise.all([listProjects(), listFlowInterfaces(), getRunExecutionSettings(), listEnvironmentLibraries()])
   workspaces.value = nextWorkspaces
   interfaces.value = nextInterfaces
   Object.assign(settingsForm, nextSettings)
+  environmentLibraries.value = nextLibraries
   ensureInterfaceFormTarget()
   lastDirectoryRefreshAt = Date.now()
 }
@@ -284,6 +290,35 @@ async function copyInterfaceUrl(flowInterface: FlowInterfaceDto): Promise<void> 
   try { await navigator.clipboard.writeText(interfaceUrl(flowInterface)); noticeKey.value = 'console.copySuccess' }
   catch { loadErrorKey.value = 'console.interfaceActionFailed' }
 }
+
+async function archiveLibrary(library: LibraryDto): Promise<void> {
+  if (library.lifecycle === 'archived' || isLibraryArchiving.value.has(library.id)) return
+  if (!window.confirm(t('console.archiveLibraryConfirm', { name: library.name }))) return
+  isLibraryArchiving.value = new Set(isLibraryArchiving.value).add(library.id)
+  try {
+    await archiveEnvironmentLibrary(library.id)
+    environmentLibraries.value = environmentLibraries.value.map((item) => item.id === library.id ? { ...item, lifecycle: 'archived' } : item)
+    noticeKey.value = 'console.libraryArchived'
+  } catch {
+    loadErrorKey.value = 'console.libraryActionFailed'
+  } finally {
+    const next = new Set(isLibraryArchiving.value)
+    next.delete(library.id)
+    isLibraryArchiving.value = next
+  }
+}
+
+async function handleLibraryUploaded(): Promise<void> {
+  libraryUploadOpen.value = false
+  try {
+    environmentLibraries.value = await listEnvironmentLibraries()
+    noticeKey.value = 'console.libraryUploadSuccess'
+  } catch {
+    loadErrorKey.value = 'console.libraryActionFailed'
+  }
+}
+
+function shortHash(value: string): string { return value.length <= 12 ? value : value.slice(0, 12) }
 function interfaceModeKey(mode: FlowInvocationMode): string { return mode === 'synchronous' ? 'console.interfaceSync' : 'console.interfaceAsync' }
 function interfaceEnabledKey(flowInterface: FlowInterfaceDto): string { return flowInterface.isEnabled ? 'console.enabled' : 'console.disabled' }
 function selectView(view: ConsoleView): void {
@@ -312,12 +347,13 @@ onBeforeUnmount(() => {
         <span class="operations-console__nav-divider" aria-hidden="true"></span>
         <button type="button" :class="{ active: activeView === 'settings' }" @click="selectView('settings')"><SlidersHorizontal :size="17" /><span>{{ t('console.environmentSettings') }}</span></button>
         <button type="button" :class="{ active: activeView === 'interfaces' }" @click="selectView('interfaces')"><RadioTower :size="17" /><span>{{ t('console.environmentInterfaces') }}</span></button>
+        <button type="button" :class="{ active: activeView === 'libraries' }" @click="selectView('libraries')"><PackagePlus :size="17" /><span>{{ t('console.environmentLibraries') }}</span></button>
       </nav>
       <div class="operations-console__sidebar-footer"><span>{{ t('runs.activeWorkers') }}</span><strong>{{ overview?.activeRunCount ?? 0 }} / {{ overview?.maxConcurrentRuns ?? '—' }}</strong></div>
     </aside>
 
     <section class="operations-console__content">
-      <header class="operations-console__header"><div><p class="operations-console__eyebrow">{{ t('console.consoleLabel') }}</p><h1>{{ t(activeView === 'overview' ? 'console.quickPreview' : activeView === 'projects' ? 'console.projectListTitle' : activeView === 'queue' ? 'console.queueTitle' : activeView === 'settings' ? 'console.environmentSettingsTitle' : 'console.environmentInterfacesTitle') }}</h1></div><button class="icon-button" type="button" :title="t('runs.refresh')" :aria-label="t('runs.refresh')" :disabled="isLoading" @click="refreshAll()"><RefreshCw :size="16" :class="{ 'is-spinning': isLoading }" /></button></header>
+      <header class="operations-console__header"><div><p class="operations-console__eyebrow">{{ t('console.consoleLabel') }}</p><h1>{{ t(activeView === 'overview' ? 'console.quickPreview' : activeView === 'projects' ? 'console.projectListTitle' : activeView === 'queue' ? 'console.queueTitle' : activeView === 'settings' ? 'console.environmentSettingsTitle' : activeView === 'interfaces' ? 'console.environmentInterfacesTitle' : 'console.environmentLibrariesTitle') }}</h1></div><button class="icon-button" type="button" :title="t('runs.refresh')" :aria-label="t('runs.refresh')" :disabled="isLoading" @click="refreshAll()"><RefreshCw :size="16" :class="{ 'is-spinning': isLoading }" /></button></header>
       <p v-if="loadErrorKey" class="operations-console__notice operations-console__notice--error" role="alert">{{ t(loadErrorKey) }}</p><p v-else-if="noticeKey" class="operations-console__notice" role="status">{{ t(noticeKey) }}</p>
 
       <template v-if="activeView === 'overview'">
@@ -342,12 +378,18 @@ onBeforeUnmount(() => {
         <form class="environment-settings" @submit.prevent="saveSettings"><label><span>{{ t('runs.queueCapacity') }}</span><input v-model.number="settingsForm.queueCapacity" type="number" min="1" max="10000" required /></label><label><span>{{ t('runs.activeWorkers') }}</span><input v-model.number="settingsForm.maxConcurrentRuns" type="number" min="1" max="1024" required /></label><label><span>{{ t('runs.listenerWorkers') }}</span><input v-model.number="settingsForm.maxConcurrentListenerRuns" type="number" min="0" max="1024" required /></label><label><span>{{ t('runs.projectLimit') }}</span><input v-model.number="settingsForm.maxConcurrentRunsPerProject" type="number" min="1" max="1024" required /></label><label><span>{{ t('console.queueWaitTimeout') }}</span><input v-model.number="settingsForm.queueWaitTimeoutSeconds" type="number" min="1" max="86400" required /></label><label><span>{{ t('console.shutdownGrace') }}</span><input v-model.number="settingsForm.shutdownGracePeriodSeconds" type="number" min="1" max="300" required /></label><label><span>{{ t('console.syncTimeout') }}</span><input v-model.number="settingsForm.synchronousInvocationTimeoutSeconds" type="number" min="1" max="300" required /></label><div class="environment-settings__actions"><button class="command-button run" type="submit" :disabled="isSettingsSaving"><Save :size="15" /><span>{{ t('console.saveSettings') }}</span></button></div></form>
       </template>
 
+      <template v-else-if="activeView === 'libraries'">
+        <p class="operations-console__intro">{{ t('console.environmentLibrariesHint') }}</p>
+        <section class="operations-console__section environment-libraries"><div class="operations-console__section-heading"><div><h2>{{ t('console.environmentLibrariesTitle') }}</h2><p>{{ t('console.environmentLibrariesTableHint') }}</p></div><button class="command-button run" type="button" @click="libraryUploadOpen = true"><PackagePlus :size="15" /><span>{{ t('library.upload') }}</span></button></div><div class="operations-table-wrap"><table class="operations-table operations-table--libraries"><thead><tr><th>{{ t('console.libraryName') }}</th><th>{{ t('console.libraryVersion') }}</th><th>SHA</th><th>{{ t('console.libraryNodes') }}</th><th>{{ t('console.libraryUploadedAt') }}</th><th>{{ t('console.libraryStatus') }}</th><th>{{ t('runs.actions') }}</th></tr></thead><tbody v-if="environmentLibraries.length"><tr v-for="library in environmentLibraries" :key="library.id"><td><strong>{{ library.name }}</strong><small>{{ library.fileName }}</small></td><td>{{ library.version }}</td><td><code>{{ shortHash(library.sha256) }}</code></td><td>{{ library.nodes.length }}</td><td>{{ formatDate(library.uploadedAt) }}</td><td><span :class="['library-state', `library-state--${library.lifecycle}`]"><Archive v-if="library.lifecycle === 'archived'" :size="13" /><span>{{ library.lifecycle === 'archived' ? t('console.libraryStatusArchived') : t('console.libraryStatusAvailable') }}</span></span></td><td class="operations-table__actions"><button v-if="library.lifecycle === 'available'" class="icon-button icon-button--danger" type="button" :title="t('console.archiveLibrary')" :aria-label="t('console.archiveLibrary')" :disabled="isLibraryArchiving.has(library.id)" @click="archiveLibrary(library)"><Archive :size="15" /></button><span v-else class="operations-table__muted">{{ t('console.libraryArchivedReadonly') }}</span></td></tr></tbody><tbody v-else><tr><td class="operations-table__empty" colspan="7">{{ t('console.libraryEmpty') }}</td></tr></tbody></table></div></section>
+      </template>
+
       <template v-else>
         <p class="operations-console__intro">{{ t('console.environmentInterfacesHint') }}</p>
         <section class="interface-layout"><form class="interface-form" @submit.prevent="saveInterface"><h2>{{ editingInterfaceId ? t('console.updateInterface') : t('console.createInterface') }}</h2><label><span>{{ t('console.interfaceName') }}</span><input v-model.trim="interfaceForm.name" type="text" maxlength="80" required /></label><label><span>{{ t('console.interfaceProject') }}</span><select v-model="interfaceForm.projectId" :disabled="Boolean(editingInterfaceId)" required @change="selectInterfaceProject"><option value="" disabled>{{ t('console.noProjectFlow') }}</option><option v-for="workspace in workspaces.filter((item) => item.flows.length)" :key="workspace.project.id" :value="workspace.project.id">{{ workspace.project.name }}</option></select></label><label><span>{{ t('console.interfaceFlow') }}</span><select v-model="interfaceForm.flowId" :disabled="Boolean(editingInterfaceId)" required><option v-for="flow in availableInterfaceFlows" :key="flow.id" :value="flow.id">{{ shortId(flow.id) }}</option></select></label><fieldset><legend>{{ t('console.interfaceMode') }}</legend><label class="interface-form__choice"><input v-model="interfaceForm.invocationMode" type="radio" value="asynchronous" /><span><strong>{{ t('console.interfaceAsync') }}</strong><small>{{ t('console.interfaceAsyncHint') }}</small></span></label><label class="interface-form__choice"><input v-model="interfaceForm.invocationMode" type="radio" value="synchronous" /><span><strong>{{ t('console.interfaceSync') }}</strong><small>{{ t('console.interfaceSyncHint') }}</small></span></label></fieldset><label class="interface-form__toggle"><input v-model="interfaceForm.isEnabled" type="checkbox" /><span>{{ t('console.interfaceEnabled') }}</span></label><div class="interface-form__actions"><button class="command-button run" type="submit" :disabled="isInterfaceSaving"><Save :size="15" /><span>{{ editingInterfaceId ? t('console.updateInterface') : t('console.createInterface') }}</span></button><button v-if="editingInterfaceId" class="command-button quiet" type="button" @click="resetInterfaceForm"><X :size="15" /><span>{{ t('console.cancelEdit') }}</span></button></div></form><div class="interface-list"><div class="operations-console__section-heading"><h2>{{ t('console.environmentInterfaces') }}</h2><span>{{ interfaces.length }}</span></div><div class="operations-table-wrap"><table class="operations-table operations-table--interfaces"><thead><tr><th>{{ t('console.interfaceName') }}</th><th>{{ t('console.interfaceMode') }}</th><th>{{ t('console.interfaceEnabled') }}</th><th>{{ t('console.interfaceUrl') }}</th><th>{{ t('console.interfaceActions') }}</th></tr></thead><tbody v-if="interfaces.length"><tr v-for="flowInterface in interfaces" :key="flowInterface.id"><td>{{ flowInterface.name }}</td><td>{{ t(interfaceModeKey(flowInterface.invocationMode)) }}</td><td><span :class="['interface-state', { 'interface-state--disabled': !flowInterface.isEnabled }]">{{ t(interfaceEnabledKey(flowInterface)) }}</span></td><td><code class="interface-list__url">{{ interfaceUrl(flowInterface) }}</code></td><td class="operations-table__actions"><button class="icon-button" type="button" :title="t('console.copyUrl')" :aria-label="t('console.copyUrl')" @click="copyInterfaceUrl(flowInterface)"><Copy :size="15" /></button><button class="icon-button" type="button" :title="t('console.updateInterface')" :aria-label="t('console.updateInterface')" @click="editInterface(flowInterface)"><Settings2 :size="15" /></button><button class="icon-button icon-button--danger" type="button" :title="t('command.delete')" :aria-label="t('command.delete')" @click="removeInterface(flowInterface)"><Trash2 :size="15" /></button></td></tr></tbody><tbody v-else><tr><td class="operations-table__empty" colspan="5">{{ t('console.interfaceEmpty') }}</td></tr></tbody></table></div></div></section>
       </template>
     </section>
 
+    <LibraryUploadDialog v-if="libraryUploadOpen" @close="libraryUploadOpen = false" @uploaded="handleLibraryUploaded" />
     <div v-if="snapshotRun" class="snapshot-dialog-backdrop" role="presentation" @click.self="closeSnapshot"><section class="snapshot-dialog" role="dialog" aria-modal="true" :aria-label="t('console.snapshotTitle')"><header><div><p class="operations-console__eyebrow">{{ shortId(snapshotRun.id) }}</p><h2>{{ t('console.snapshotTitle') }}</h2></div><button class="icon-button" type="button" :title="t('command.close')" :aria-label="t('command.close')" @click="closeSnapshot"><X :size="16" /></button></header><p>{{ t('console.snapshotReadonly') }}</p><div v-if="isSnapshotLoading" class="snapshot-dialog__status">{{ t('console.snapshotLoading') }}</div><div v-else-if="snapshotError" class="snapshot-dialog__status snapshot-dialog__status--error">{{ snapshotError }}</div><RunSnapshotViewer v-else :definition="snapshot" :outputs="snapshotOutputs" :outputs-error="snapshotOutputsError" /></section></div>
   </main>
 </template>
