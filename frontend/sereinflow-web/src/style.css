@@ -602,6 +602,15 @@ h2 { overflow-wrap: anywhere; }
 .parameter-editor { display: grid; gap: 7px; border-left: 2px solid var(--line); padding: 9px 0 9px 10px; background: var(--canvas); }
 .parameter-heading { justify-content: space-between; gap: 8px; }
 .parameter-heading strong { font-size: 12px; }
+.enum-parameter-type { display: block; overflow: hidden; color: var(--subtle); font-size: 10px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.enum-flags-editor { display: grid; min-width: 0; gap: 6px; margin: 0; border: 1px solid var(--line-strong); border-radius: 3px; padding: 7px 8px 8px; color: var(--muted); }
+.enum-flags-editor legend { padding: 0 3px; color: var(--muted); font-size: 11px; }
+.enum-flags-editor__options { display: grid; max-height: 172px; gap: 2px; overflow-y: auto; padding-right: 2px; }
+.enum-flags-editor__option { display: grid; min-width: 0; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 7px; padding: 4px 2px; color: var(--ink); font-size: 12px; cursor: pointer; }
+.enum-flags-editor__option:hover { background: var(--canvas); }
+.enum-flags-editor__option input { width: 14px; height: 14px; margin: 0; accent-color: var(--accent); }
+.enum-flags-editor__option span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.enum-flags-editor__option code { color: var(--subtle); font-family: var(--mono); font-size: 10px; }
 .toggle-field { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 8px; align-items: center; color: var(--ink); cursor: pointer; font-size: 12px; }
 .toggle-field input { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); }
 .toggle-field small { grid-column: 2; color: var(--muted); font-size: 11px; line-height: 1.45; }

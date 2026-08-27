@@ -48,7 +48,8 @@ public static class FlowDefinitionContractMapper
                 parameter.Ui?.IsVariadic ?? false,
                 parameter.Ui?.VariadicGroupId,
                 parameter.Ui?.ElementType,
-                ParseVariadicMode(parameter.Ui?.VariadicMode))),
+                ParseVariadicMode(parameter.Ui?.VariadicMode),
+                MapEnumMetadata(parameter.Ui?.EnumMetadata))),
             dto.Script is null ? null : ScriptNodeDefinition.Create(
                 dto.Script.NodeId,
                 dto.Script.Source,
@@ -85,6 +86,15 @@ public static class FlowDefinitionContractMapper
 
     private static VariadicParameterMode? ParseVariadicMode(string? value)
         => Enum.TryParse<VariadicParameterMode>(value, ignoreCase: true, out var mode) ? mode : null;
+
+    private static EnumParameterMetadata? MapEnumMetadata(EnumParameterMetadataDto? metadata)
+        => metadata is null
+            ? null
+            : new EnumParameterMetadata(
+                metadata.TypeName,
+                metadata.IsFlags,
+                metadata.UnderlyingType,
+                metadata.Options.Select(static option => new EnumValueOption(option.Name, option.NumericValue)));
 
     private static ConnectionDefinition MapConnection(ConnectionDto dto)
     {

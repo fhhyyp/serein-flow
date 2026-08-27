@@ -320,5 +320,11 @@ public sealed class ProjectLibraryServiceTests
             _libraries[libraryId] = library with { Lifecycle = LibraryLifecycleDto.Archived };
             return Task.FromResult(true);
         }
+
+        public Task<LibraryDto?> ReindexAsync(string libraryId, CancellationToken cancellationToken = default)
+            => Task.FromResult(Find(libraryId));
+
+        public Task<int> ReindexOutdatedAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(0);
     }
 }

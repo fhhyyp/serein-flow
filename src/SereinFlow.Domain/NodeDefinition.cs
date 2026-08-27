@@ -48,7 +48,8 @@ public sealed record NodeParameterDefinition
         bool isVariadic = false,
         string? variadicGroupId = null,
         string? elementType = null,
-        VariadicParameterMode? variadicMode = null)
+        VariadicParameterMode? variadicMode = null,
+        EnumParameterMetadata? enumMetadata = null)
     {
         Name = Validate(name, nameof(name));
         Id = string.IsNullOrWhiteSpace(id) ? Name : id.Trim();
@@ -65,6 +66,7 @@ public sealed record NodeParameterDefinition
         VariadicGroupId = variadicGroupId?.Trim();
         ElementType = elementType?.Trim();
         VariadicMode = variadicMode;
+        EnumMetadata = enumMetadata;
     }
 
     public string Id { get; }
@@ -96,6 +98,8 @@ public sealed record NodeParameterDefinition
     public string? ElementType { get; }
 
     public VariadicParameterMode? VariadicMode { get; }
+
+    public EnumParameterMetadata? EnumMetadata { get; }
 
     private static string Validate(string value, string parameterName)
     {

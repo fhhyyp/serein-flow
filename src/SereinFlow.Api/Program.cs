@@ -62,6 +62,7 @@ builder.Services.AddSingleton<IWorkerRunClient>(serviceProvider =>
 builder.Services.AddSingleton<RunExecutionQueue>();
 builder.Services.AddSingleton<RunEventBroadcaster>();
 builder.Services.AddHostedService<RunExecutionHostedService>();
+builder.Services.AddHostedService<LibraryCatalogReindexHostedService>();
 
 var app = builder.Build();
 
@@ -330,6 +331,24 @@ environmentApi.MapPost("/libraries/{libraryId}/archive", async (
     await libraryCatalog.ArchiveAsync(libraryId, cancellationToken)
         ? Results.NoContent()
         : Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Library artifact not found. 未找到类库制品。"));
+
+environmentApi.MapPost("/libraries/{libraryId}/reindex", async (
+    string libraryId,
+    ILibraryCatalogService libraryCatalog,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var library = await libraryCatalog.ReindexAsync(libraryId, cancellationToken);
+        return library is null
+            ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Library artifact not found. 未找到类库制品。")
+            : Results.Ok(library);
+    }
+    catch (LibraryUploadException exception)
+    {
+        return Results.Problem(statusCode: exception.StatusCode, title: exception.Message);
+    }
+});
 
 environmentApi.MapGet("/settings", (RunExecutionQueue queue) =>
     Results.Ok(queue.Options.ToDto()));

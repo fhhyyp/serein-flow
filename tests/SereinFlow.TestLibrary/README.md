@@ -13,22 +13,28 @@ dotnet build tests\SereinFlow.TestLibrary\SereinFlow.TestLibrary.csproj
 构建完成后，上传包会生成到：
 
 ```text
-artifacts\libraries\SereinFlow.TestLibrary-1.1.0.zip
+artifacts\libraries\SereinFlow.TestLibrary-1.4.0.zip
 ```
 
 压缩包结构固定为：
 
 ```text
-SereinFlow.TestLibrary-1.1.0\
+SereinFlow.TestLibrary-1.4.0\
 └── SereinFlow.TestLibrary.dll
 ```
 
-其中包含 5 个面向生产线业务的节点：
+其中包含 11 个面向生产线业务的节点，覆盖数值、布尔、可变参数、流程上下文、结构化输出、普通枚举和 Flags 枚举：
 
 - `计算合格率`：Action，接收合格数量和检测总数，返回 `System.Decimal`。
 - `构建设备写入指令`：Action，接收设备编号、点位名称和写入值，保留小数位为可选参数，返回 `System.String`。
 - `记录工序结果`：Action，接收工单、工序、合格状态和可选备注，返回 `System.Void`。
 - `等待设备触发`：Flipflop，接收设备编号和可选轮询间隔（50 至 3,600,000 毫秒），返回 `Task<System.Boolean>`。它模拟设备触发等待；作为全局 Flipflop 时，完成后会调度下游，并继续等待下一次触发。
 - `汇总批次质量`：Action，返回 `批次质量结果`，用于覆盖结构化业务结果在数据连接中的传递。
+- `按设备状态选择分支`：Action，通过 `IFlowContext` 显式选择成功、失败或错误分支。
+- `汇总多个检测值`：Action，接收 `params int[]`，用于验证可变参数的展开和集合模式。
+- `设置设备运行模式`：Action，接收 `设备运行模式`，用于验证普通枚举下拉选择和运行时转换。
+- `配置设备操作权限`：Action，接收 `[Flags] 设备操作权限`，用于验证多选组合与零值互斥。
+- `生成设备配置摘要`：Action，同时接收普通枚举与 Flags 枚举，返回 `设备配置摘要`，适合验证保存、重载和数据输出。
+- `监听设备配置变更`：Flipflop，返回 `Task<设备配置摘要>`，用于验证 Flipflop 的枚举参数转换和异步输出。
 
 属性由共享的 `SereinFlow.Contracts` 程序集提供，命名空间仍为 `SereinFlow.Core.Api`，以保持类库元数据契约稳定。服务端通过该契约提供的完整类型名读取 PE 元数据，不使用属性名后缀匹配，也不需要在 API 进程加载 DLL。

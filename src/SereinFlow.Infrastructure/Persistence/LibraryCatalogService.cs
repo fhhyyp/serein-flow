@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Globalization;
 using System.IO.Compression;
 using System.Reflection;
 using System.Reflection.Metadata;
@@ -6,6 +7,7 @@ using System.Reflection.PortableExecutable;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Logging;
 using SereinFlow.Application;
 using SereinFlow.Contracts;
 using SereinFlow.Core.Api;
@@ -57,6 +59,11 @@ public sealed record LibraryCatalogOptions
 /// </summary>
 public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDisposable
 {
+    internal const int CurrentCatalogSchemaVersion = 2;
+    private static readonly Action<ILogger, string, Exception?> ReindexSkippedLog = LoggerMessage.Define<string>(
+        LogLevel.Warning,
+        new EventId(1001, nameof(ReindexSkippedLog)),
+        "Library catalog reindex skipped library {LibraryId}; the saved catalog remains unchanged. 类库目录重建已跳过该类库；已保存目录保持不变。");
     private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateWebOptions(options =>
     {
         options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
@@ -66,6 +73,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
     private readonly IRepository<LibraryRecord> _libraries;
     private readonly IUnitOfWork _unitOfWork;
     private readonly LibraryCatalogOptions _options;
+    private readonly ILogger<SqliteLibraryCatalogService>? _logger;
     // The catalog is scoped because it consumes scoped repository services,
     // while uploads must still be serialized across concurrent HTTP requests.
     // Keep the gate process-wide instead of tying it to one request scope.
@@ -82,11 +90,13 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
     public SqliteLibraryCatalogService(
         IRepository<LibraryRecord> libraries,
         IUnitOfWork unitOfWork,
-        LibraryCatalogOptions options)
+        LibraryCatalogOptions options,
+        ILogger<SqliteLibraryCatalogService>? logger = null)
     {
         _libraries = libraries ?? throw new ArgumentNullException(nameof(libraries), "The library repository cannot be null. 类库仓储不能为空。");
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork), "The unit of work cannot be null. 工作单元不能为空。");
         _options = options ?? throw new ArgumentNullException(nameof(options), "Library catalog options cannot be null. 类库目录选项不能为空。");
+        _logger = logger;
         Directory.CreateDirectory(_options.RootPath);
         Directory.CreateDirectory(PackagesPath);
     }
@@ -170,6 +180,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
                         UploadedAt = library.UploadedAt.ToString("O"),
                         PackagePath = finalPath,
                         NodeCatalogJson = nodesJson,
+                        CatalogSchemaVersion = CurrentCatalogSchemaVersion,
                         Status = LibraryLifecycleDto.Available.ToString(),
                         ArchivedAt = null,
                     }, token);
@@ -232,6 +243,85 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         row.Status = LibraryLifecycleDto.Archived.ToString();
         row.ArchivedAt = DateTimeOffset.UtcNow.ToString("O");
         return await _libraries.UpdateAsync(row, cancellationToken);
+    }
+
+    public async Task<LibraryDto?> ReindexAsync(
+        string libraryId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(libraryId))
+        {
+            return null;
+        }
+
+        await UploadGate.WaitAsync(cancellationToken);
+        try
+        {
+            var row = await _libraries.GetByIdAsync(libraryId.Trim(), cancellationToken);
+            if (row is null)
+            {
+                return null;
+            }
+
+            var packagePath = Path.GetFullPath(row.PackagePath);
+            if (!IsPathWithinRoot(packagePath, PackagesPath) || !File.Exists(packagePath))
+            {
+                throw new LibraryUploadException(
+                    "The stored library package cannot be found in the allowed package root. 已存储类库包不在允许的包目录中或不存在。",
+                    422);
+            }
+
+            var rescanned = await InspectPackageAsync(
+                packagePath,
+                row.FileName,
+                row.Sha256,
+                row.SizeBytes,
+                cancellationToken);
+            row.NodeCatalogJson = JsonSerializer.Serialize(rescanned.Nodes, JsonOptions);
+            row.CatalogSchemaVersion = CurrentCatalogSchemaVersion;
+            await _unitOfWork.ExecuteAsync(
+                token => _libraries.UpdateAsync(row, token),
+                cancellationToken);
+            return Map(row);
+        }
+        finally
+        {
+            UploadGate.Release();
+        }
+    }
+
+    public async Task<int> ReindexOutdatedAsync(CancellationToken cancellationToken = default)
+    {
+        var rows = await _libraries.ListAsync(cancellationToken: cancellationToken);
+        var outdatedIds = rows
+            .Where(static row => row.CatalogSchemaVersion < CurrentCatalogSchemaVersion)
+            .Select(static row => row.Id)
+            .ToArray();
+        var reindexed = 0;
+        foreach (var libraryId in outdatedIds)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                if (await ReindexAsync(libraryId, cancellationToken) is not null)
+                {
+                    reindexed++;
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception) when (IsRecoverableReindexFailure(exception))
+            {
+                if (_logger is not null)
+                {
+                    ReindexSkippedLog(_logger, libraryId, exception);
+                }
+            }
+        }
+
+        return reindexed;
     }
 
     private static LibraryDto Map(LibraryRecord row)
@@ -307,6 +397,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
         long uncompressedBytes = 0;
         ZipArchiveEntry? dllEntry = null;
+        var dllEntries = new List<ZipArchiveEntry>();
         foreach (var entry in archive.Entries)
         {
             var normalizedName = entry.FullName.Replace('\\', '/');
@@ -324,6 +415,11 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             {
                 dllEntry = entry;
             }
+
+            if (normalizedName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            {
+                dllEntries.Add(entry);
+            }
         }
 
         if (dllEntry is null)
@@ -331,14 +427,15 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             throw new LibraryUploadException($"The package does not contain the library-matching file {libraryName}.dll. 压缩包中未找到与类库同名的 {libraryName}.dll。", 422);
         }
 
-        var dllMemory = new MemoryStream();
-        await using (var dllStream = dllEntry.Open())
+        var enumMetadataIndex = new EnumMetadataIndex();
+        foreach (var candidate in dllEntries)
         {
-            await dllStream.CopyToAsync(dllMemory, cancellationToken);
+            await using var candidateMemory = await ReadEntryAsync(candidate, cancellationToken);
+            LibraryMetadataScanner.AddEnumDefinitions(candidateMemory, enumMetadataIndex);
         }
 
-        dllMemory.Position = 0;
-        var metadata = LibraryMetadataScanner.Scan(dllMemory, libraryName, version, sha256);
+        await using var dllMemory = await ReadEntryAsync(dllEntry, cancellationToken);
+        var metadata = LibraryMetadataScanner.Scan(dllMemory, libraryName, version, sha256, enumMetadataIndex);
         var invalidFlipflop = metadata.Nodes.FirstOrDefault(node =>
             node.Type == NodeTypeDto.Flipflop && !node.IsAwaitable);
         if (invalidFlipflop is not null)
@@ -403,6 +500,28 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         }
     }
 
+    private static async Task<MemoryStream> ReadEntryAsync(ZipArchiveEntry entry, CancellationToken cancellationToken)
+    {
+        var stream = new MemoryStream(entry.Length is <= int.MaxValue ? (int)entry.Length : 0);
+        await using var source = entry.Open();
+        await source.CopyToAsync(stream, cancellationToken);
+        stream.Position = 0;
+        return stream;
+    }
+
+    private static bool IsPathWithinRoot(string candidatePath, string rootPath)
+    {
+        var normalizedRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(rootPath)) + Path.DirectorySeparatorChar;
+        return candidatePath.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsRecoverableReindexFailure(Exception exception)
+        => exception is LibraryUploadException
+            or InvalidDataException
+            or BadImageFormatException
+            or IOException
+            or UnauthorizedAccessException;
+
     public void Dispose()
     {
         // UploadGate is process-wide and intentionally lives for the host
@@ -412,9 +531,59 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
 }
 
+internal sealed class EnumMetadataIndex
+{
+    private readonly Dictionary<string, EnumParameterMetadataDto> _entries = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _ambiguousNames = new(StringComparer.Ordinal);
+
+    public void Add(EnumParameterMetadataDto metadata)
+    {
+        if (_ambiguousNames.Contains(metadata.TypeName))
+        {
+            return;
+        }
+
+        if (_entries.ContainsKey(metadata.TypeName))
+        {
+            _entries.Remove(metadata.TypeName);
+            _ambiguousNames.Add(metadata.TypeName);
+            return;
+        }
+
+        _entries.Add(metadata.TypeName, metadata);
+    }
+
+    public EnumParameterMetadataDto? Resolve(string typeName)
+    {
+        var normalized = UnwrapNullable(typeName);
+        return _ambiguousNames.Contains(normalized)
+            ? null
+            : _entries.GetValueOrDefault(normalized);
+    }
+
+    private static string UnwrapNullable(string typeName)
+    {
+        var normalized = typeName.Replace(" ", string.Empty, StringComparison.Ordinal).Trim();
+        const string nullablePrefix = "System.Nullable";
+        if (!normalized.StartsWith(nullablePrefix, StringComparison.Ordinal)
+            || !normalized.EndsWith('>'))
+        {
+            return normalized;
+        }
+
+        var start = normalized.IndexOf('<');
+        return start < 0 ? normalized : normalized[(start + 1)..^1];
+    }
+}
+
 internal static class LibraryMetadataScanner
 {
-    public static LibraryScanResult Scan(Stream assemblyStream, string fallbackName, string fallbackVersion, string libraryId)
+    public static LibraryScanResult Scan(
+        Stream assemblyStream,
+        string fallbackName,
+        string fallbackVersion,
+        string libraryId,
+        EnumMetadataIndex? enumMetadataIndex = null)
     {
         try
         {
@@ -490,7 +659,8 @@ internal static class LibraryMetadataScanner
                                 isRequired,
                                 isVariadic,
                                 isVariadic ? parameterId : null,
-                                isVariadic ? GetArrayElementType(parameterType) : null);
+                                isVariadic ? GetArrayElementType(parameterType) : null,
+                                enumMetadataIndex?.Resolve(parameterType));
                         })
                         .ToArray();
 
@@ -526,6 +696,77 @@ internal static class LibraryMetadataScanner
         }
     }
 
+    public static void AddEnumDefinitions(Stream assemblyStream, EnumMetadataIndex index)
+    {
+        try
+        {
+            using var peReader = new PEReader(assemblyStream, PEStreamOptions.LeaveOpen);
+            if (!peReader.HasMetadata)
+            {
+                return;
+            }
+
+            var reader = peReader.GetMetadataReader();
+            var provider = new MetadataTypeNameProvider();
+            foreach (var typeHandle in reader.TypeDefinitions)
+            {
+                var type = reader.GetTypeDefinition(typeHandle);
+                if (!IsEnumType(reader, type))
+                {
+                    continue;
+                }
+
+                var options = new List<EnumValueOptionDto>();
+                string? underlyingType = null;
+                foreach (var fieldHandle in type.GetFields())
+                {
+                    var field = reader.GetFieldDefinition(fieldHandle);
+                    var fieldName = reader.GetString(field.Name);
+                    if (string.Equals(fieldName, "value__", StringComparison.Ordinal))
+                    {
+                        underlyingType = field.DecodeSignature(provider, genericContext: null);
+                        continue;
+                    }
+
+                    if ((field.Attributes & (FieldAttributes.Static | FieldAttributes.Literal))
+                        != (FieldAttributes.Static | FieldAttributes.Literal)
+                        || field.GetDefaultValue().IsNil)
+                    {
+                        continue;
+                    }
+
+                    var value = ReadEnumConstant(reader, reader.GetConstant(field.GetDefaultValue()));
+                    if (value is not null)
+                    {
+                        options.Add(new EnumValueOptionDto(fieldName, value));
+                    }
+                }
+
+                if (options.Count == 0 || string.IsNullOrWhiteSpace(underlyingType))
+                {
+                    continue;
+                }
+
+                index.Add(new EnumParameterMetadataDto(
+                    GetTypeName(reader, typeHandle),
+                    FindAttribute(reader, type.GetCustomAttributes(), "System.FlagsAttribute").HasValue,
+                    underlyingType,
+                    options));
+            }
+        }
+        catch (BadImageFormatException)
+        {
+            // A non-managed dependency cannot contribute enum options.
+            // 非托管依赖无法提供枚举选项，安全跳过。
+        }
+        catch (ArgumentException)
+        {
+            // Metadata that cannot be decoded must not make an upload execute
+            // or load code; the affected parameter falls back to text input.
+            // 无法解码的元数据不会触发代码加载，受影响参数回退为文本输入。
+        }
+    }
+
     private static CustomAttributeHandle? FindAttribute(
         MetadataReader reader,
         CustomAttributeHandleCollection attributes,
@@ -540,6 +781,35 @@ internal static class LibraryMetadataScanner
         }
 
         return null;
+    }
+
+    private static bool IsEnumType(MetadataReader reader, TypeDefinition type)
+        => !type.BaseType.IsNil
+            && string.Equals(GetTypeName(reader, type.BaseType), "System.Enum", StringComparison.Ordinal);
+
+    private static string GetTypeName(MetadataReader reader, EntityHandle handle)
+        => handle.Kind switch
+        {
+            HandleKind.TypeDefinition => GetTypeName(reader, (TypeDefinitionHandle)handle),
+            HandleKind.TypeReference => GetTypeName(reader, (TypeReferenceHandle)handle),
+            _ => string.Empty,
+        };
+
+    private static string? ReadEnumConstant(MetadataReader reader, Constant constant)
+    {
+        var value = reader.GetBlobReader(constant.Value);
+        return constant.TypeCode switch
+        {
+            ConstantTypeCode.SByte => value.ReadSByte().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.Byte => value.ReadByte().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.Int16 => value.ReadInt16().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.UInt16 => value.ReadUInt16().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.Int32 => value.ReadInt32().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.UInt32 => value.ReadUInt32().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.Int64 => value.ReadInt64().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.UInt64 => value.ReadUInt64().ToString(CultureInfo.InvariantCulture),
+            _ => null,
+        };
     }
 
     private static NodeMetadata ReadNodeMetadata(MetadataReader reader, CustomAttributeHandle handle, MetadataTypeNameProvider provider)

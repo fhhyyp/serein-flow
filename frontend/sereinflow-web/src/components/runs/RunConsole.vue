@@ -27,7 +27,7 @@ import {
   type ProjectWorkspaceDto,
   type RunExecutionSettingsDto,
 } from '../../api/flowApi'
-import { archiveEnvironmentLibrary, listEnvironmentLibraries, type LibraryDto } from '../../api/libraryApi'
+import { archiveEnvironmentLibrary, listEnvironmentLibraries, reindexEnvironmentLibrary, type LibraryDto } from '../../api/libraryApi'
 import { locale, t } from '../../i18n'
 import LibraryUploadDialog from '../library/LibraryUploadDialog.vue'
 import RunSnapshotViewer from './RunSnapshotViewer.vue'
@@ -63,6 +63,7 @@ const snapshotError = ref('')
 const environmentLibraries = ref<LibraryDto[]>([])
 const libraryUploadOpen = ref(false)
 const isLibraryArchiving = ref<Set<string>>(new Set())
+const isLibraryReindexing = ref<Set<string>>(new Set())
 const editingInterfaceId = ref<string>()
 const subscriptions = new Map<string, () => void>()
 let refreshTimer: number | undefined
@@ -338,6 +339,22 @@ async function archiveLibrary(library: LibraryDto): Promise<void> {
   }
 }
 
+async function reindexLibrary(library: LibraryDto): Promise<void> {
+  if (isLibraryReindexing.value.has(library.id)) return
+  isLibraryReindexing.value = new Set(isLibraryReindexing.value).add(library.id)
+  try {
+    const refreshed = await reindexEnvironmentLibrary(library.id)
+    environmentLibraries.value = environmentLibraries.value.map((item) => item.id === library.id ? refreshed : item)
+    noticeKey.value = 'console.libraryReindexed'
+  } catch {
+    loadErrorKey.value = 'console.libraryReindexFailed'
+  } finally {
+    const next = new Set(isLibraryReindexing.value)
+    next.delete(library.id)
+    isLibraryReindexing.value = next
+  }
+}
+
 async function handleLibraryUploaded(): Promise<void> {
   libraryUploadOpen.value = false
   try {
@@ -410,7 +427,7 @@ onBeforeUnmount(() => {
 
       <template v-else-if="activeView === 'libraries'">
         <p class="operations-console__intro">{{ t('console.environmentLibrariesHint') }}</p>
-        <section class="operations-console__section environment-libraries"><div class="operations-console__section-heading"><div><h2>{{ t('console.environmentLibrariesTitle') }}</h2><p>{{ t('console.environmentLibrariesTableHint') }}</p></div><button class="command-button run" type="button" @click="libraryUploadOpen = true"><PackagePlus :size="15" /><span>{{ t('library.upload') }}</span></button></div><div class="operations-table-wrap"><table class="operations-table operations-table--libraries"><thead><tr><th>{{ t('console.libraryName') }}</th><th>{{ t('console.libraryVersion') }}</th><th>SHA</th><th>{{ t('console.libraryNodes') }}</th><th>{{ t('console.libraryUploadedAt') }}</th><th>{{ t('console.libraryStatus') }}</th><th>{{ t('runs.actions') }}</th></tr></thead><tbody v-if="environmentLibraries.length"><tr v-for="library in environmentLibraries" :key="library.id"><td><strong>{{ library.name }}</strong><small>{{ library.fileName }}</small></td><td>{{ library.version }}</td><td><code>{{ shortHash(library.sha256) }}</code></td><td>{{ library.nodes.length }}</td><td>{{ formatDate(library.uploadedAt) }}</td><td><span :class="['library-state', `library-state--${library.lifecycle}`]"><Archive v-if="library.lifecycle === 'archived'" :size="13" /><span>{{ library.lifecycle === 'archived' ? t('console.libraryStatusArchived') : t('console.libraryStatusAvailable') }}</span></span></td><td class="operations-table__actions"><button v-if="library.lifecycle === 'available'" class="icon-button icon-button--danger" type="button" :title="t('console.archiveLibrary')" :aria-label="t('console.archiveLibrary')" :disabled="isLibraryArchiving.has(library.id)" @click="archiveLibrary(library)"><Archive :size="15" /></button><span v-else class="operations-table__muted">{{ t('console.libraryArchivedReadonly') }}</span></td></tr></tbody><tbody v-else><tr><td class="operations-table__empty" colspan="7">{{ t('console.libraryEmpty') }}</td></tr></tbody></table></div></section>
+        <section class="operations-console__section environment-libraries"><div class="operations-console__section-heading"><div><h2>{{ t('console.environmentLibrariesTitle') }}</h2><p>{{ t('console.environmentLibrariesTableHint') }}</p></div><button class="command-button run" type="button" @click="libraryUploadOpen = true"><PackagePlus :size="15" /><span>{{ t('library.upload') }}</span></button></div><div class="operations-table-wrap"><table class="operations-table operations-table--libraries"><thead><tr><th>{{ t('console.libraryName') }}</th><th>{{ t('console.libraryVersion') }}</th><th>SHA</th><th>{{ t('console.libraryNodes') }}</th><th>{{ t('console.libraryUploadedAt') }}</th><th>{{ t('console.libraryStatus') }}</th><th>{{ t('runs.actions') }}</th></tr></thead><tbody v-if="environmentLibraries.length"><tr v-for="library in environmentLibraries" :key="library.id"><td><strong>{{ library.name }}</strong><small>{{ library.fileName }}</small></td><td>{{ library.version }}</td><td><code>{{ shortHash(library.sha256) }}</code></td><td>{{ library.nodes.length }}</td><td>{{ formatDate(library.uploadedAt) }}</td><td><span :class="['library-state', `library-state--${library.lifecycle}`]"><Archive v-if="library.lifecycle === 'archived'" :size="13" /><span>{{ library.lifecycle === 'archived' ? t('console.libraryStatusArchived') : t('console.libraryStatusAvailable') }}</span></span></td><td class="operations-table__actions"><button class="icon-button" type="button" :title="t('console.reindexLibrary')" :aria-label="t('console.reindexLibrary')" :disabled="isLibraryReindexing.has(library.id)" @click="reindexLibrary(library)"><RefreshCw :size="15" :class="{ 'is-spinning': isLibraryReindexing.has(library.id) }" /></button><button v-if="library.lifecycle === 'available'" class="icon-button icon-button--danger" type="button" :title="t('console.archiveLibrary')" :aria-label="t('console.archiveLibrary')" :disabled="isLibraryArchiving.has(library.id)" @click="archiveLibrary(library)"><Archive :size="15" /></button><span v-else class="operations-table__muted">{{ t('console.libraryArchivedReadonly') }}</span></td></tr></tbody><tbody v-else><tr><td class="operations-table__empty" colspan="7">{{ t('console.libraryEmpty') }}</td></tr></tbody></table></div></section>
       </template>
 
       <template v-else>

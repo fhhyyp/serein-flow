@@ -25,6 +25,18 @@ export type ParameterInputMode = 'connection' | 'manual' | 'select'
 export type ConnectorType = 'input' | 'output' | 'param' | 'result'
 export type CanvasLifecycle = 'main' | 'init' | 'loading' | 'exit' | 'custom'
 
+export interface EnumValueOption {
+  name: string
+  numericValue: string
+}
+
+export interface EnumParameterMetadata {
+  typeName: string
+  isFlags: boolean
+  underlyingType: string
+  options: EnumValueOption[]
+}
+
 export interface NodeRuntimeMetadata {
   category?: NodeCategory
   libraryId?: string
@@ -63,6 +75,7 @@ export interface MethodParameter {
   variadicGroupId?: string
   elementType?: string
   variadicMode?: 'expanded' | 'collection'
+  enumMetadata?: EnumParameterMetadata
 }
 
 export interface FlowNodeData {

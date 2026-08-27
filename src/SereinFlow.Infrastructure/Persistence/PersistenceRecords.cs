@@ -110,6 +110,7 @@ public sealed class LibraryRecord
     public string UploadedAt { get; set; } = string.Empty;
     public string PackagePath { get; set; } = string.Empty;
     public string NodeCatalogJson { get; set; } = "[]";
+    public int CatalogSchemaVersion { get; set; }
     public string Status { get; set; } = "Available";
     public string? ArchivedAt { get; set; }
 }

@@ -184,7 +184,26 @@ public sealed record NodeParameterUiMetadataDto(
     bool? IsVariadic = null,
     string? VariadicGroupId = null,
     string? ElementType = null,
-    string? VariadicMode = null);
+    string? VariadicMode = null,
+    EnumParameterMetadataDto? EnumMetadata = null);
+
+/// <summary>
+/// A display-safe enum member extracted from PE metadata. Numeric values are
+/// strings so unsigned 64-bit enum values never lose precision in JSON/JS.
+/// 从 PE 元数据提取的安全枚举成员。数值以字符串保存，避免无符号 64 位枚举值在 JSON/JS 中丢失精度。
+/// </summary>
+public sealed record EnumValueOptionDto(string Name, string NumericValue);
+
+/// <summary>
+/// Enum metadata travels with a parameter definition rather than resolving a
+/// potentially newer library catalog at run/snapshot read time.
+/// 枚举元数据随参数定义保存，不会在读取运行快照时改用可能已更新的类库目录。
+/// </summary>
+public sealed record EnumParameterMetadataDto(
+    string TypeName,
+    bool IsFlags,
+    string UnderlyingType,
+    IReadOnlyList<EnumValueOptionDto> Options);
 
 public sealed record ConnectionDto(
     string Id,
@@ -291,7 +310,8 @@ public sealed record LibraryParameterDto(
     bool Required,
     bool IsVariadic = false,
     string? VariadicGroupId = null,
-    string? ElementType = null);
+    string? ElementType = null,
+    EnumParameterMetadataDto? EnumMetadata = null);
 
 public sealed record LibraryUploadResultDto(LibraryDto Library, bool AlreadyExists);
 

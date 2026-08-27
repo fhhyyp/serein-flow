@@ -16,6 +16,7 @@ public sealed class SqliteMigrator
     private const int AddFlowRunOutputsVersion = 9;
     private const int AddFlowRunOutputInputsVersion = 10;
     private const int AddProjectLibraryReferencesVersion = 11;
+    private const int AddLibraryEnumCatalogVersion = 12;
     private readonly SqlSugarClient _client;
 
     public SqliteMigrator(SqlSugarClient client)
@@ -388,6 +389,23 @@ public sealed class SqliteMigrator
                     """);
                 PopulateProjectLibraryReferencesFromExistingFlows();
                 RecordMigration(AddProjectLibraryReferencesVersion, "project-library-references-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
+
+        applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
+        if (!applied.Contains(AddLibraryEnumCatalogVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                _client.Ado.ExecuteCommand("ALTER TABLE Libraries ADD COLUMN CatalogSchemaVersion INTEGER NOT NULL DEFAULT 0;");
+                RecordMigration(AddLibraryEnumCatalogVersion, "library-enum-catalog-v1");
                 _client.Ado.CommitTran();
             }
             catch

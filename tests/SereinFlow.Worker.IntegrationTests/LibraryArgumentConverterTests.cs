@@ -16,6 +16,7 @@ public sealed class LibraryArgumentConverterTests
         Assert.Equal(12.5m, LibraryArgumentConverter.Convert("12.5", typeof(decimal)));
         Assert.True((bool)LibraryArgumentConverter.Convert("1", typeof(bool))!);
         Assert.Equal(DayOfWeek.Monday, LibraryArgumentConverter.Convert("monday", typeof(DayOfWeek)));
+        Assert.Equal(FileAccess.ReadWrite, LibraryArgumentConverter.Convert("Read, Write", typeof(FileAccess)));
     }
 
     [Fact]

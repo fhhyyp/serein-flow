@@ -10,6 +10,7 @@ public static class DomainErrorCodes
     public const string DuplicateConnectionId = "flow.duplicate_connection_id";
     public const string DuplicateParameterName = "node.duplicate_parameter_name";
     public const string MissingRequiredParameter = "node.missing_required_parameter";
+    public const string InvalidEnumLiteral = "node.enum_literal_invalid";
     public const string InvalidSourceHash = "script.invalid_source_hash";
     public const string NodeTypeRemoved = "node.type_removed";
 }

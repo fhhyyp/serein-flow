@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using SqlSugar;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Application;
@@ -73,7 +74,8 @@ public static class SereinFlowInfrastructureRegistration
             new SqliteLibraryCatalogService(
                 serviceProvider.GetRequiredService<IRepository<LibraryRecord>>(),
                 serviceProvider.GetRequiredService<IUnitOfWork>(),
-                new LibraryCatalogOptions(libraryDirectory)));
+                new LibraryCatalogOptions(libraryDirectory),
+                serviceProvider.GetRequiredService<ILogger<SqliteLibraryCatalogService>>()));
         return services;
     }
 }

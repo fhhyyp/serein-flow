@@ -272,3 +272,53 @@ test('library method parameters keep reflected names separate from connector ids
   const migrated = flowDefinitionToWorkspace(legacyDefinition)
   assert.deepEqual(migrated.canvases[0]?.nodes[0]?.data.parameters.map((parameter) => parameter.name), ['left', 'right'])
 })
+
+test('enum parameter metadata remains available after a workspace DTO round trip', () => {
+  const snapshot: WorkspaceSnapshot = {
+    canvases: [{
+      id: 'main',
+      nameKey: 'canvas.main',
+      lifecycle: 'main',
+      nodes: [{
+        id: 'configure-mode',
+        type: 'workflow',
+        position: { x: 0, y: 0 },
+        data: {
+          kind: 'action',
+          titleKey: 'node.catalogMethod',
+          subtitleKey: 'node.catalogSubtitle',
+          status: 'ready',
+          hasDataOutput: true,
+          parameters: [{
+            id: 'mode',
+            nameKey: 'parameter.mode',
+            name: 'mode',
+            valueKind: 'DeviceMode',
+            required: true,
+            source: 'literal',
+            literalValue: 'Manual',
+            enumMetadata: {
+              typeName: 'Example.DeviceMode',
+              isFlags: false,
+              underlyingType: 'System.Int32',
+              options: [
+                { name: 'Automatic', numericValue: '0' },
+                { name: 'Manual', numericValue: '1' },
+              ],
+            },
+          }],
+        },
+      }],
+      edges: [],
+    }],
+    activeCanvasId: 'main',
+    nextNodeNumber: 2,
+  }
+
+  const definition = workspaceToFlowDefinition(snapshot, { id: 'flow', version: 1 })
+  const restored = flowDefinitionToWorkspace(definition)
+  const parameter = restored.canvases[0]?.nodes[0]?.data.parameters[0]
+
+  assert.deepEqual(definition.canvases[0]?.nodes[0]?.parameters[0]?.ui?.enumMetadata, snapshot.canvases[0]?.nodes[0]?.data.parameters[0]?.enumMetadata)
+  assert.deepEqual(parameter?.enumMetadata, snapshot.canvases[0]?.nodes[0]?.data.parameters[0]?.enumMetadata)
+})

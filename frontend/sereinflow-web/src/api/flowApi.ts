@@ -43,6 +43,19 @@ export interface NodeParameterUiMetadataDto {
   variadicGroupId?: string
   elementType?: string
   variadicMode?: 'expanded' | 'collection'
+  enumMetadata?: EnumParameterMetadataDto
+}
+
+export interface EnumValueOptionDto {
+  name: string
+  numericValue: string
+}
+
+export interface EnumParameterMetadataDto {
+  typeName: string
+  isFlags: boolean
+  underlyingType: string
+  options: EnumValueOptionDto[]
 }
 
 export interface NodeParameterDto {

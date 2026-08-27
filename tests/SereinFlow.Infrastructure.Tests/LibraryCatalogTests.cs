@@ -83,7 +83,7 @@ public sealed class LibraryCatalogTests
 
             var result = await catalog.UploadAsync(package, "SereinFlow.TestLibrary-1.1.0.zip");
 
-            Assert.Equal(7, result.Library.Nodes.Count);
+            Assert.Equal(11, result.Library.Nodes.Count);
             var passRate = Assert.Single(result.Library.Nodes, node => node.MethodName == "计算合格率");
             Assert.Equal(SereinFlow.Contracts.NodeTypeDto.Action, passRate.Type);
             Assert.Equal("计算合格率", passRate.DisplayName);
@@ -103,6 +103,35 @@ public sealed class LibraryCatalogTests
             Assert.True(values.IsVariadic);
             Assert.Equal("param-1", values.VariadicGroupId);
             Assert.Equal("System.Int32", values.ElementType);
+
+            var mode = Assert.Single(result.Library.Nodes, node => node.MethodName == "设置设备运行模式");
+            var modeParameter = Assert.Single(mode.Parameters);
+            Assert.NotNull(modeParameter.EnumMetadata);
+            var modeMetadata = modeParameter.EnumMetadata!;
+            Assert.False(modeMetadata.IsFlags);
+            Assert.Equal("SereinFlow.TestLibrary.设备运行模式", modeMetadata.TypeName);
+            Assert.Equal("System.Int32", modeMetadata.UnderlyingType);
+            Assert.Equal(["自动", "手动", "维护"], modeMetadata.Options.Select(option => option.Name).ToArray());
+            Assert.Equal(["0", "1", "2"], modeMetadata.Options.Select(option => option.NumericValue).ToArray());
+
+            var permissions = Assert.Single(result.Library.Nodes, node => node.MethodName == "配置设备操作权限");
+            var permissionsParameter = Assert.Single(permissions.Parameters);
+            Assert.NotNull(permissionsParameter.EnumMetadata);
+            var permissionsMetadata = permissionsParameter.EnumMetadata!;
+            Assert.True(permissionsMetadata.IsFlags);
+            Assert.Equal("System.UInt64", permissionsMetadata.UnderlyingType);
+            Assert.Equal(["0", "1", "2", "4", "7"], permissionsMetadata.Options.Select(option => option.NumericValue).ToArray());
+
+            var combinedConfiguration = Assert.Single(result.Library.Nodes, node => node.MethodName == "生成设备配置摘要");
+            Assert.Equal(["运行模式", "操作权限"], combinedConfiguration.Parameters.Select(parameter => parameter.Name).ToArray());
+            Assert.All(combinedConfiguration.Parameters, parameter => Assert.NotNull(parameter.EnumMetadata));
+
+            var listener = Assert.Single(result.Library.Nodes, node => node.MethodName == "监听设备配置变更");
+            Assert.Equal(SereinFlow.Contracts.NodeTypeDto.Flipflop, listener.Type);
+            Assert.True(listener.IsAwaitable);
+            Assert.Equal(["运行模式", "操作权限", "监听间隔毫秒"], listener.Parameters.Select(parameter => parameter.Name).ToArray());
+            Assert.NotNull(listener.Parameters[0].EnumMetadata);
+            Assert.NotNull(listener.Parameters[1].EnumMetadata);
         }
         finally
         {
@@ -144,15 +173,92 @@ public sealed class LibraryCatalogTests
         }
     }
 
-    private static MemoryStream CreatePackage(string archiveName, string dllName, string dllPath)
+    [Fact]
+    public async Task ReindexOutdatedCatalogRebuildsEnumMetadataFromTheImmutablePackage()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"sereinflow-library-{Guid.NewGuid():N}.db");
+        var libraryRoot = Path.Combine(Path.GetTempPath(), $"sereinflow-library-{Guid.NewGuid():N}");
+        try
+        {
+            using var database = new SqliteDatabase(new SqliteDatabaseOptions(databasePath));
+            database.Initialize();
+            var catalog = new SqliteLibraryCatalogService(database, new LibraryCatalogOptions(libraryRoot));
+            await using var package = CreatePackage(
+                "SereinFlow.TestLibrary-1.3.0.zip",
+                "SereinFlow.TestLibrary.dll",
+                typeof(生产线节点).Assembly.Location);
+
+            var uploaded = await catalog.UploadAsync(package, "SereinFlow.TestLibrary-1.3.0.zip");
+            database.Client.Ado.ExecuteCommand(
+                "UPDATE Libraries SET CatalogSchemaVersion = 0, NodeCatalogJson = '[]' WHERE Id = @id",
+                new SqlSugar.SugarParameter("@id", uploaded.Library.Id));
+
+            Assert.Equal(1, await catalog.ReindexOutdatedAsync());
+
+            var reindexed = await catalog.FindAsync(uploaded.Library.Id);
+            var mode = Assert.Single(reindexed!.Nodes, node => node.MethodName == "设置设备运行模式");
+            Assert.NotNull(Assert.Single(mode.Parameters).EnumMetadata);
+        }
+        finally
+        {
+            TryDelete(databasePath);
+            TryDeleteDirectory(libraryRoot);
+        }
+    }
+
+    [Fact]
+    public async Task ReindexOutdatedCatalogContinuesAfterOneStoredPackageIsDamaged()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"sereinflow-library-{Guid.NewGuid():N}.db");
+        var libraryRoot = Path.Combine(Path.GetTempPath(), $"sereinflow-library-{Guid.NewGuid():N}");
+        try
+        {
+            using var database = new SqliteDatabase(new SqliteDatabaseOptions(databasePath));
+            database.Initialize();
+            var catalog = new SqliteLibraryCatalogService(database, new LibraryCatalogOptions(libraryRoot));
+            await using var damagedPackage = CreatePackage(
+                "SereinFlow.TestLibrary-1.3.0.zip",
+                "SereinFlow.TestLibrary.dll",
+                typeof(生产线节点).Assembly.Location);
+            await using var validPackage = CreatePackage(
+                "SereinFlow.TestLibrary-1.3.1.zip",
+                "SereinFlow.TestLibrary.dll",
+                typeof(生产线节点).Assembly.Location,
+                marker: "second-package");
+
+            var damaged = await catalog.UploadAsync(damagedPackage, "SereinFlow.TestLibrary-1.3.0.zip");
+            var valid = await catalog.UploadAsync(validPackage, "SereinFlow.TestLibrary-1.3.1.zip");
+            File.WriteAllBytes(Path.Combine(libraryRoot, "packages", $"{damaged.Library.Id}.zip"), [0x00]);
+            database.Client.Ado.ExecuteCommand("UPDATE Libraries SET CatalogSchemaVersion = 0, NodeCatalogJson = '[]'");
+
+            Assert.Equal(1, await catalog.ReindexOutdatedAsync());
+            var reindexed = await catalog.FindAsync(valid.Library.Id);
+            var mode = Assert.Single(reindexed!.Nodes, node => node.MethodName == "设置设备运行模式");
+            Assert.NotNull(Assert.Single(mode.Parameters).EnumMetadata);
+        }
+        finally
+        {
+            TryDelete(databasePath);
+            TryDeleteDirectory(libraryRoot);
+        }
+    }
+
+    private static MemoryStream CreatePackage(string archiveName, string dllName, string dllPath, string? marker = null)
     {
         var stream = new MemoryStream();
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
         {
             var entry = archive.CreateEntry($"{Path.GetFileNameWithoutExtension(archiveName)}/{dllName}");
-            using var target = entry.Open();
-            using var source = File.OpenRead(dllPath);
-            source.CopyTo(target);
+            using (var target = entry.Open())
+            using (var source = File.OpenRead(dllPath))
+            {
+                source.CopyTo(target);
+            }
+            if (!string.IsNullOrWhiteSpace(marker))
+            {
+                using var markerWriter = new StreamWriter(archive.CreateEntry("package-marker.txt").Open());
+                markerWriter.Write(marker);
+            }
         }
 
         stream.Position = 0;

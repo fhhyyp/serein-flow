@@ -143,6 +143,17 @@ public sealed class FlowDefinition
                             $"nodes.{node.Id}.parameters.{parameter.Id}"));
                     }
 
+                    if (parameter.Source == DataSource.Literal
+                        && parameter.EnumMetadata is not null
+                        && !string.IsNullOrWhiteSpace(parameter.ValueJson)
+                        && !IsValidEnumLiteral(parameter.ValueJson, parameter.EnumMetadata))
+                    {
+                        diagnostics.Add(new(
+                            DomainErrorCodes.InvalidEnumLiteral,
+                            $"Enum literal '{parameter.ValueJson}' is not valid for parameter '{parameter.Name}'. 枚举字面量“{parameter.ValueJson}”不是参数“{parameter.Name}”的有效选项。",
+                            $"nodes.{node.Id}.parameters.{parameter.Name}"));
+                    }
+
                     if (parameter.Required
                         && parameter.Source == DataSource.Literal
                         && string.IsNullOrWhiteSpace(parameter.ValueJson)
@@ -205,6 +216,33 @@ public sealed class FlowDefinition
 
     private static string CreateParameterKey(string nodeId, string parameterId)
         => string.Concat(nodeId, "\u001f", parameterId);
+
+    private static bool IsValidEnumLiteral(string value, EnumParameterMetadata metadata)
+    {
+        var members = value.Split(',', StringSplitOptions.TrimEntries);
+        if (members.Length == 0 || members.Any(static member => string.IsNullOrWhiteSpace(member)))
+        {
+            return false;
+        }
+
+        if (!metadata.IsFlags)
+        {
+            return members.Length == 1
+                && metadata.Options.Any(option => string.Equals(option.Name, members[0], StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (members.Distinct(StringComparer.OrdinalIgnoreCase).Count() != members.Length
+            || members.Any(member => !metadata.Options.Any(option => string.Equals(option.Name, member, StringComparison.OrdinalIgnoreCase))))
+        {
+            return false;
+        }
+
+        var zeroValueNames = metadata.Options
+            .Where(static option => string.Equals(option.NumericValue, "0", StringComparison.Ordinal))
+            .Select(static option => option.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return members.Length == 1 || !members.Any(zeroValueNames.Contains);
+    }
 }
 
 public sealed record FlowRunPolicy(FlowConcurrencyMode ConcurrencyMode)

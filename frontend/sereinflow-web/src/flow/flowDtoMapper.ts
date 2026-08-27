@@ -164,6 +164,7 @@ function toParameterDto(parameter: MethodParameter): NodeParameterDto {
       variadicGroupId: parameter.variadicGroupId,
       elementType: parameter.elementType,
       variadicMode: parameter.variadicMode,
+      enumMetadata: parameter.enumMetadata,
     },
   }
 }
@@ -249,6 +250,7 @@ function toMethodParameter(parameter: NodeParameterDto, isMethodNode: boolean): 
     variadicGroupId: parameter.ui?.variadicGroupId,
     elementType: parameter.ui?.elementType,
     variadicMode: parameter.ui?.variadicMode,
+    enumMetadata: parameter.ui?.enumMetadata,
   }
 }
 

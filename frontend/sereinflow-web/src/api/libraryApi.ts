@@ -1,4 +1,5 @@
 import type { ApiNodeType } from './flowApi'
+import type { EnumParameterMetadataDto } from './flowApi'
 import { localizeMessage } from '../i18n'
 
 export interface LibraryParameterDto {
@@ -10,6 +11,7 @@ export interface LibraryParameterDto {
   isVariadic?: boolean
   variadicGroupId?: string | null
   elementType?: string | null
+  enumMetadata?: EnumParameterMetadataDto | null
 }
 
 export interface LibraryNodeDto {
@@ -94,6 +96,10 @@ export async function archiveEnvironmentLibrary(libraryId: string): Promise<void
   if (!response.ok) {
     throw new LibraryApiError(response.status, await readError(response))
   }
+}
+
+export async function reindexEnvironmentLibrary(libraryId: string): Promise<LibraryDto> {
+  return request<LibraryDto>(`/api/environment/libraries/${encodeURIComponent(libraryId)}/reindex`, { method: 'POST' })
 }
 
 export async function deleteLibrary(libraryId: string): Promise<void> {

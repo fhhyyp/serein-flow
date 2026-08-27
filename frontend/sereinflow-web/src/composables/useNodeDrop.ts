@@ -137,6 +137,7 @@ export function useNodeDrop(options: NodeDropOptions) {
       variadicGroupId: parameter.variadicGroupId ? canonicalParameterId(parameter.variadicGroupId) : undefined,
       elementType: parameter.elementType ?? undefined,
       variadicMode: parameter.isVariadic ? 'expanded' : undefined,
+      enumMetadata: parameter.enumMetadata ?? undefined,
       source: 'literal' as const,
       inputMode: 'manual' as const,
       literalValue: '',
@@ -194,6 +195,7 @@ export function useNodeDrop(options: NodeDropOptions) {
         : parameter.ui?.isVariadic
           ? 'expanded'
           : undefined,
+      enumMetadata: parameter.ui?.enumMetadata,
     }))
 
     return {

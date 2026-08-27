@@ -54,6 +54,18 @@ function parameterSourceDetail(parameter: FlowNode['data']['parameters'][number]
 function parameterSourceLabel(parameter: FlowNode['data']['parameters'][number]): string {
   return t(`parameter.${parameter.source}`)
 }
+
+function enumMembers(parameter: FlowNode['data']['parameters'][number]): string | undefined {
+  if (!parameter.enumMetadata || parameter.source !== 'literal') return undefined
+  const selected = parameter.literalValue?.split(',').map((item) => item.trim()).filter(Boolean) ?? []
+  if (!selected.length) return undefined
+  return selected
+    .map((name) => {
+      const option = parameter.enumMetadata?.options.find((candidate) => candidate.name === name)
+      return option ? `${option.name} (${option.numericValue})` : name
+    })
+    .join(', ')
+}
 </script>
 
 <template>
@@ -111,6 +123,8 @@ function parameterSourceLabel(parameter: FlowNode['data']['parameters'][number])
                 <div><dt>{{ t('console.snapshotParameterId') }}</dt><dd class="mono">{{ parameter.id }}</dd></div>
                 <div><dt>{{ t('parameter.source') }}</dt><dd>{{ parameterSourceLabel(parameter) }}</dd></div>
                 <div><dt>{{ t('inspector.required') }}</dt><dd>{{ parameter.required ? t('console.snapshotYes') : t('console.snapshotNo') }}</dd></div>
+                <div v-if="parameter.enumMetadata"><dt>{{ t('console.snapshotEnumType') }}</dt><dd class="mono">{{ formatNodeType(parameter.enumMetadata.typeName) || parameter.enumMetadata.typeName }}</dd></div>
+                <div v-if="enumMembers(parameter)"><dt>{{ t('console.snapshotEnumMembers') }}</dt><dd>{{ enumMembers(parameter) }}</dd></div>
                 <div v-if="parameterSourceDetail(parameter) !== undefined"><dt>{{ t('console.snapshotConfiguredValue') }}</dt><dd class="mono snapshot-parameter-list__source">{{ parameterSourceDetail(parameter) }}</dd></div>
               </dl>
               <p v-if="parameter.description" class="snapshot-parameter-list__description">{{ parameter.description }}</p>

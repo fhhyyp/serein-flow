@@ -34,6 +34,20 @@ public interface ILibraryCatalogService
     Task<bool> ArchiveAsync(
         string libraryId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Rebuilds the safe metadata catalog from the immutable ZIP package.
+    /// 从不可变 ZIP 包重新构建安全元数据目录。
+    /// </summary>
+    Task<LibraryDto?> ReindexAsync(
+        string libraryId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Rebuilds packages created by an older catalog scanner version.
+    /// 重新扫描由旧版目录扫描器创建的类库包。
+    /// </summary>
+    Task<int> ReindexOutdatedAsync(CancellationToken cancellationToken = default);
 }
 
 public sealed class LibraryUploadException : Exception

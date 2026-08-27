@@ -84,6 +84,30 @@ public sealed class 生产线节点
     public int 汇总多个检测值([NodeParam(Name = "检测值")] params int[] 检测值)
         => 检测值.Sum();
 
+    [FlowNode(AnotherName = "设置设备运行模式", Desc = "设置设备在自动、手动或维护模式下运行，演示普通枚举输入。")]
+    public string 设置设备运行模式([NodeParam(Name = "运行模式")] 设备运行模式 运行模式)
+        => $"当前运行模式：{运行模式}";
+
+    [FlowNode(AnotherName = "配置设备操作权限", Desc = "配置设备可执行的操作权限，演示 Flags 枚举输入。")]
+    public string 配置设备操作权限([NodeParam(Name = "操作权限")] 设备操作权限 操作权限)
+        => $"当前操作权限：{操作权限}";
+
+    [FlowNode(AnotherName = "生成设备配置摘要", Desc = "同时接收运行模式和操作权限，便于验证普通枚举下拉、Flags 多选、保存重载及节点输出。")]
+    public 设备配置摘要 生成设备配置摘要(
+        [NodeParam(Name = "运行模式")] 设备运行模式 运行模式,
+        [NodeParam(Name = "操作权限")] 设备操作权限 操作权限)
+        => new(运行模式, 操作权限, DateTimeOffset.UtcNow);
+
+    [FlowNode(NodeType = NodeType.Flipflop, AnotherName = "监听设备配置变更", Desc = "以异步监听方式返回当前设备枚举配置，用于验证 Flipflop 的枚举参数转换与 Task<T> 输出。")]
+    public async Task<设备配置摘要> 监听设备配置变更(
+        [NodeParam(Name = "运行模式")] 设备运行模式 运行模式,
+        [NodeParam(Name = "操作权限")] 设备操作权限 操作权限,
+        [NodeParam(Name = "监听间隔毫秒")] int 监听间隔毫秒 = 1000)
+    {
+        await Task.Delay(Math.Clamp(监听间隔毫秒, 50, 3_600_000));
+        return new 设备配置摘要(运行模式, 操作权限, DateTimeOffset.UtcNow);
+    }
+
     private static string 选择失败(IFlowContext 流程上下文)
     {
         流程上下文.SelectFailure("device.not_ready", "Device is not ready. 设备未就绪。");
@@ -104,3 +128,25 @@ public sealed record 批次质量结果(
     int 合格数量,
     decimal 合格率,
     bool 是否全部合格);
+
+public sealed record 设备配置摘要(
+    设备运行模式 运行模式,
+    设备操作权限 操作权限,
+    DateTimeOffset 生效时间);
+
+public enum 设备运行模式
+{
+    自动 = 0,
+    手动 = 1,
+    维护 = 2,
+}
+
+[Flags]
+public enum 设备操作权限 : ulong
+{
+    无 = 0,
+    读取状态 = 1,
+    写入参数 = 2,
+    执行诊断 = 4,
+    全部 = 7,
+}
