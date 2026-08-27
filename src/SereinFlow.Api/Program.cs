@@ -38,6 +38,7 @@ builder.Services.AddSereinFlowInfrastructure(
     builder.Environment.ContentRootPath);
 builder.Services.AddScoped<RunApplicationService>();
 builder.Services.AddScoped<RunSubmissionService>();
+builder.Services.AddScoped<RunInterruptionService>();
 builder.Services.AddScoped<ProjectLibraryService>();
 builder.Services.AddSingleton<IBuiltinNodeCatalog, BuiltinNodeCatalog>();
 builder.Services.Configure<RunExecutionOptions>(builder.Configuration.GetSection("SereinFlow:RunExecution"));
@@ -584,6 +585,51 @@ app.MapPost("/api/runs/{runId:guid}/cancel", async (Guid runId, RunExecutionQueu
     return queue.Cancel(runId)
         ? Results.Accepted($"/api/runs/{runId:D}")
         : Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Run is not currently cancellable. 当前运行实例不可取消。");
+});
+
+app.MapPost("/api/runs/{runId:guid}/interrupt", async (
+    Guid runId,
+    RunExecutionQueue queue,
+    IFlowRunStore runStore,
+    RunInterruptionService interruptionService,
+    CancellationToken cancellationToken) =>
+{
+    var run = await runStore.FindAsync(runId, cancellationToken);
+    if (run is null)
+        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Run not found. 未找到运行实例。");
+    if (run.IsTerminal)
+    {
+        return Results.Problem(
+            statusCode: StatusCodes.Status409Conflict,
+            title: "The run is already complete. 运行实例已经完成。");
+    }
+    if (run.Status != FlowRunStatus.Running)
+    {
+        return Results.Problem(
+            statusCode: StatusCodes.Status409Conflict,
+            title: "Only an orphaned running run can be marked as interrupted. 只有孤儿运行中的实例可以标记为中断。");
+    }
+    if (queue.IsTracked(runId))
+    {
+        return Results.Problem(
+            statusCode: StatusCodes.Status409Conflict,
+            title: "The run is currently supervised and cannot be interrupted manually. 当前运行实例正在受控执行，不能手动标记为中断。");
+    }
+
+    var result = await interruptionService.InterruptAsync(
+        runId,
+        "operator_reconciliation",
+        "run.operator_interrupted",
+        "The orphaned run was marked as interrupted by an operator. 孤儿运行实例已由操作人员标记为中断。",
+        cancellationToken);
+    return result.Disposition switch
+    {
+        RunInterruptionDisposition.Interrupted => Results.Accepted($"/api/runs/{runId:D}", ToRunDto(result.Run!)),
+        RunInterruptionDisposition.NotFound => Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Run not found. 未找到运行实例。"),
+        RunInterruptionDisposition.AlreadyTerminal => Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "The run is already complete. 运行实例已经完成。"),
+        RunInterruptionDisposition.NotRunning => Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Only an orphaned running run can be marked as interrupted. 只有孤儿运行中的实例可以标记为中断。"),
+        _ => Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "The run could not be marked as interrupted. 无法将运行实例标记为中断。")
+    };
 });
 
 app.MapGet("/api/runs/{runId:guid}/events", async (Guid runId, long? afterSequence, IFlowRunStore runStore, IFlowRunEventStore eventStore, CancellationToken cancellationToken) =>

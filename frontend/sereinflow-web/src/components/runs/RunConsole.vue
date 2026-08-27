@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { Archive, Copy, Eye, FilePenLine, FolderKanban, LayoutDashboard, ListOrdered, PackagePlus, Plus, RadioTower, RefreshCw, Save, Settings2, SlidersHorizontal, Square, Trash2, X } from 'lucide-vue-next'
+import { Archive, CircleOff, Copy, Eye, FilePenLine, FolderKanban, LayoutDashboard, ListOrdered, PackagePlus, Plus, RadioTower, RefreshCw, Save, Settings2, SlidersHorizontal, Square, Trash2, X } from 'lucide-vue-next'
 import {
   cancelFlowRun,
+  interruptFlowRun,
   createFlowInterface,
   deleteFlowInterface,
   getFlowRunOverview,
@@ -50,6 +51,7 @@ const isInterfaceSaving = ref(false)
 const loadErrorKey = ref('')
 const noticeKey = ref('')
 const cancellingRunIds = ref<Set<string>>(new Set())
+const interruptingRunIds = ref<Set<string>>(new Set())
 const snapshot = ref<FlowDefinitionDto>()
 const snapshotOutputs = ref<FlowRunOutputDto[]>([])
 const snapshotOutputsError = ref('')
@@ -178,14 +180,17 @@ function formatDate(value?: string): string {
 function queueStatusKey(run: FlowRunDto): string {
   if (run.status === 'pending') return 'console.status.queued'
   if (run.status === 'running') return 'console.status.running'
+  if (run.status === 'interrupted') return 'console.status.interrupted'
   return run.status === 'succeeded' ? 'console.status.completed' : 'console.status.failed'
 }
 function queueStatusClass(run: FlowRunDto): string {
   if (run.status === 'pending') return 'pending'
   if (run.status === 'running') return 'running'
+  if (run.status === 'interrupted') return 'interrupted'
   return run.status === 'succeeded' ? 'succeeded' : 'failed'
 }
 function isCancellable(run: FlowRunDto): boolean { return run.status === 'pending' || run.status === 'running' }
+function isInterruptible(run: FlowRunDto): boolean { return run.status === 'running' }
 
 async function cancelRun(run: FlowRunDto): Promise<void> {
   if (!isCancellable(run) || cancellingRunIds.value.has(run.id)) return
@@ -199,6 +204,22 @@ async function cancelRun(run: FlowRunDto): Promise<void> {
     const next = new Set(cancellingRunIds.value)
     next.delete(run.id)
     cancellingRunIds.value = next
+  }
+}
+
+async function interruptRun(run: FlowRunDto): Promise<void> {
+  if (!isInterruptible(run) || interruptingRunIds.value.has(run.id)) return
+  if (!window.confirm(t('runs.interruptConfirm'))) return
+  interruptingRunIds.value = new Set(interruptingRunIds.value).add(run.id)
+  try {
+    await interruptFlowRun(run.id)
+    await refreshRunData(false)
+  } catch {
+    loadErrorKey.value = 'runs.interruptFailed'
+  } finally {
+    const next = new Set(interruptingRunIds.value)
+    next.delete(run.id)
+    interruptingRunIds.value = next
   }
 }
 
@@ -368,7 +389,7 @@ onBeforeUnmount(() => {
       <template v-if="activeView === 'overview'">
         <p class="operations-console__intro">{{ t('console.quickPreviewHint') }}</p>
         <dl class="operations-console__metrics"><div><dt>{{ t('runs.queueCapacity') }}</dt><dd>{{ overview?.queuedCount ?? 0 }} <span>/ {{ overview?.queueCapacity ?? '—' }}</span></dd></div><div><dt>{{ t('runs.activeWorkers') }}</dt><dd>{{ overview?.activeRunCount ?? 0 }} <span>/ {{ overview?.maxConcurrentRuns ?? '—' }}</span></dd></div><div><dt>{{ t('runs.listenerWorkers') }}</dt><dd>{{ overview?.activeListenerRunCount ?? 0 }} <span>/ {{ overview?.maxConcurrentListenerRuns ?? '—' }}</span></dd></div><div><dt>{{ t('runs.projectLimit') }}</dt><dd>{{ overview?.maxConcurrentRunsPerProject ?? '—' }}</dd></div></dl>
-        <section class="operations-console__section"><div class="operations-console__section-heading"><h2>{{ t('console.queue') }}</h2><button class="text-button text-button--with-icon" type="button" @click="selectView('queue')"><ListOrdered :size="14" /><span>{{ t('console.viewQueue') }}</span></button></div><div class="operations-table-wrap"><table class="operations-table operations-table--overview"><thead><tr><th>{{ t('runs.project') }}</th><th>{{ t('runs.flow') }}</th><th>{{ t('runs.status') }}</th><th>{{ t('runs.queuedAt') }}</th><th>{{ t('runs.actions') }}</th></tr></thead><tbody v-if="latestRuns.length"><tr v-for="run in latestRuns" :key="run.id"><td>{{ projectNameFor(run) }}</td><td><code>{{ flowNameFor(run) }}</code></td><td><span :class="['run-status', `run-status--${queueStatusClass(run)}`]">{{ t(queueStatusKey(run)) }}</span></td><td>{{ formatDate(run.createdAt) }}</td><td class="operations-table__actions"><button class="icon-button" type="button" :title="t('console.snapshot')" :aria-label="t('console.snapshot')" @click="openSnapshot(run)"><Eye :size="16" /></button><button v-if="isCancellable(run)" class="icon-button icon-button--danger" type="button" :title="t('runs.cancel')" :aria-label="t('runs.cancel')" :disabled="cancellingRunIds.has(run.id)" @click="cancelRun(run)"><Square :size="14" fill="currentColor" /></button></td></tr></tbody><tbody v-else><tr><td class="operations-table__empty" colspan="5">{{ t('runs.emptyRecent') }}</td></tr></tbody></table></div></section>
+        <section class="operations-console__section"><div class="operations-console__section-heading"><h2>{{ t('console.queue') }}</h2><button class="text-button text-button--with-icon" type="button" @click="selectView('queue')"><ListOrdered :size="14" /><span>{{ t('console.viewQueue') }}</span></button></div><div class="operations-table-wrap"><table class="operations-table operations-table--overview"><thead><tr><th>{{ t('runs.project') }}</th><th>{{ t('runs.flow') }}</th><th>{{ t('runs.status') }}</th><th>{{ t('runs.queuedAt') }}</th><th>{{ t('runs.actions') }}</th></tr></thead><tbody v-if="latestRuns.length"><tr v-for="run in latestRuns" :key="run.id"><td>{{ projectNameFor(run) }}</td><td><code>{{ flowNameFor(run) }}</code></td><td><span :class="['run-status', `run-status--${queueStatusClass(run)}`]">{{ t(queueStatusKey(run)) }}</span></td><td>{{ formatDate(run.createdAt) }}</td><td class="operations-table__actions"><button class="icon-button" type="button" :title="t('console.snapshot')" :aria-label="t('console.snapshot')" @click="openSnapshot(run)"><Eye :size="16" /></button><button v-if="isInterruptible(run)" class="icon-button icon-button--warning" type="button" :title="t('runs.interrupt')" :aria-label="t('runs.interrupt')" :disabled="interruptingRunIds.has(run.id)" @click="interruptRun(run)"><CircleOff :size="15" /></button><button v-if="isCancellable(run)" class="icon-button icon-button--danger" type="button" :title="t('runs.cancel')" :aria-label="t('runs.cancel')" :disabled="cancellingRunIds.has(run.id)" @click="cancelRun(run)"><Square :size="14" fill="currentColor" /></button></td></tr></tbody><tbody v-else><tr><td class="operations-table__empty" colspan="5">{{ t('runs.emptyRecent') }}</td></tr></tbody></table></div></section>
       </template>
 
       <template v-else-if="activeView === 'projects'">
@@ -379,7 +400,7 @@ onBeforeUnmount(() => {
 
       <template v-else-if="activeView === 'queue'">
         <p class="operations-console__intro">{{ t('console.queueHint') }}</p>
-        <div class="operations-table-wrap"><table class="operations-table operations-table--queue"><thead><tr><th>{{ t('runs.project') }}</th><th>{{ t('runs.flow') }}</th><th>{{ t('runs.status') }}</th><th>{{ t('runs.policy') }}</th><th>{{ t('runs.queuedAt') }}</th><th>{{ t('runs.actions') }}</th></tr></thead><tbody v-if="runs.length"><tr v-for="run in runs" :key="run.id"><td>{{ projectNameFor(run) }}</td><td><code>{{ flowNameFor(run) }}</code></td><td><span :class="['run-status', `run-status--${queueStatusClass(run)}`]">{{ t(queueStatusKey(run)) }}</span></td><td>{{ t(`runs.policy.${run.concurrencyMode ?? 'parallel'}`) }}</td><td>{{ formatDate(run.createdAt) }}</td><td class="operations-table__actions"><button class="icon-button" type="button" :title="t('console.snapshot')" :aria-label="t('console.snapshot')" @click="openSnapshot(run)"><FilePenLine :size="15" /></button><button v-if="isCancellable(run)" class="icon-button icon-button--danger" type="button" :title="t('runs.cancel')" :aria-label="t('runs.cancel')" :disabled="cancellingRunIds.has(run.id)" @click="cancelRun(run)"><Square :size="14" fill="currentColor" /></button></td></tr></tbody><tbody v-else><tr><td class="operations-table__empty" colspan="6">{{ t('runs.emptyRecent') }}</td></tr></tbody></table></div>
+        <div class="operations-table-wrap"><table class="operations-table operations-table--queue"><thead><tr><th>{{ t('runs.project') }}</th><th>{{ t('runs.flow') }}</th><th>{{ t('runs.status') }}</th><th>{{ t('runs.policy') }}</th><th>{{ t('runs.queuedAt') }}</th><th>{{ t('runs.actions') }}</th></tr></thead><tbody v-if="runs.length"><tr v-for="run in runs" :key="run.id"><td>{{ projectNameFor(run) }}</td><td><code>{{ flowNameFor(run) }}</code></td><td><span :class="['run-status', `run-status--${queueStatusClass(run)}`]">{{ t(queueStatusKey(run)) }}</span></td><td>{{ t(`runs.policy.${run.concurrencyMode ?? 'parallel'}`) }}</td><td>{{ formatDate(run.createdAt) }}</td><td class="operations-table__actions"><button class="icon-button" type="button" :title="t('console.snapshot')" :aria-label="t('console.snapshot')" @click="openSnapshot(run)"><FilePenLine :size="15" /></button><button v-if="isInterruptible(run)" class="icon-button icon-button--warning" type="button" :title="t('runs.interrupt')" :aria-label="t('runs.interrupt')" :disabled="interruptingRunIds.has(run.id)" @click="interruptRun(run)"><CircleOff :size="15" /></button><button v-if="isCancellable(run)" class="icon-button icon-button--danger" type="button" :title="t('runs.cancel')" :aria-label="t('runs.cancel')" :disabled="cancellingRunIds.has(run.id)" @click="cancelRun(run)"><Square :size="14" fill="currentColor" /></button></td></tr></tbody><tbody v-else><tr><td class="operations-table__empty" colspan="6">{{ t('runs.emptyRecent') }}</td></tr></tbody></table></div>
       </template>
 
       <template v-else-if="activeView === 'settings'">

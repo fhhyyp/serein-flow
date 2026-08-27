@@ -59,7 +59,11 @@ public sealed class FlowRun
 
     public string? ErrorSummary { get; private set; }
 
-    public bool IsTerminal => Status is FlowRunStatus.Succeeded or FlowRunStatus.Failed or FlowRunStatus.Cancelled or FlowRunStatus.TimedOut;
+    public bool IsTerminal => Status is FlowRunStatus.Succeeded
+        or FlowRunStatus.Failed
+        or FlowRunStatus.Cancelled
+        or FlowRunStatus.TimedOut
+        or FlowRunStatus.Interrupted;
 
     public static FlowRun Start(Guid flowId, long flowVersion, DateTimeOffset createdAt, Guid? id = null)
         => Start(Guid.Empty, flowId, flowVersion, createdAt, FlowConcurrencyMode.Parallel, false, id);
@@ -164,6 +168,29 @@ public sealed class FlowRun
         Status = FlowRunStatus.Cancelled;
         EndedAt = endedAt;
         CancellationReason ??= string.IsNullOrWhiteSpace(reason) ? "cancelled" : reason.Trim();
+    }
+
+    /// <summary>
+    /// Archives a run whose Worker can no longer be supervised. An interrupted
+    /// run is terminal and must be retried by creating a new run from its
+    /// immutable snapshot.
+    /// 将已无法受控的 Worker 运行实例归档为中断。中断是终态；如需重试，必须基于不可变快照创建新的运行实例。
+    /// </summary>
+    public void Interrupt(string reason, string errorSummary, DateTimeOffset endedAt)
+    {
+        if (Status != FlowRunStatus.Running)
+        {
+            throw new InvalidOperationException(
+                "Only a running run can be interrupted. 只有运行中的实例可以标记为中断。");
+        }
+
+        EnsureNotTerminal();
+        Status = FlowRunStatus.Interrupted;
+        EndedAt = endedAt;
+        CancellationReason = string.IsNullOrWhiteSpace(reason) ? "interrupted" : reason.Trim();
+        ErrorSummary = string.IsNullOrWhiteSpace(errorSummary)
+            ? "The Worker was lost before the run reached a terminal state. Worker 在流程到达终态前已丢失。"
+            : errorSummary.Trim();
     }
 
     private void EnsureNotTerminal()

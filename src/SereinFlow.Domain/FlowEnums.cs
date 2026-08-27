@@ -68,7 +68,8 @@ public enum FlowRunStatus
     Succeeded,
     Failed,
     Cancelled,
-    TimedOut
+    TimedOut,
+    Interrupted
 }
 
 /// <summary>

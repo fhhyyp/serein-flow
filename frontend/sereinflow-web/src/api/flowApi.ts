@@ -206,7 +206,7 @@ export interface FlowRunDto {
   id: string
   flowId: string
   flowVersion: number
-  status: 'pending' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'timedOut'
+  status: 'pending' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'timedOut' | 'interrupted'
   startedAt?: string
   endedAt?: string
   errorSummary?: string
@@ -379,6 +379,10 @@ export async function cancelFlowRun(runId: string): Promise<void> {
   await request<unknown>(`/api/runs/${runId}/cancel`, { method: 'POST' })
 }
 
+export async function interruptFlowRun(runId: string): Promise<FlowRunDto> {
+  return request<FlowRunDto>(`/api/runs/${runId}/interrupt`, { method: 'POST' })
+}
+
 export async function getFlowRunSnapshot(runId: string): Promise<FlowDefinitionDto> {
   return request<FlowDefinitionDto>(`/api/runs/${runId}/snapshot`)
 }
@@ -449,7 +453,7 @@ export function subscribeFlowRunEvents(
     if (closed || fallbackStarted) return
     fallbackStarted = true
     const source = new EventSource(`${apiBaseUrl}/api/runs/${runId}/events/stream`)
-    const eventTypes = ['run.started', 'node.started', 'node.completed', 'node.failed', 'node.error', 'run.completed', 'run.failed', 'run.cancelled', 'run.timed_out', 'log']
+    const eventTypes = ['run.started', 'node.started', 'node.completed', 'node.failed', 'node.error', 'run.completed', 'run.failed', 'run.cancelled', 'run.timed_out', 'run.interrupted', 'log']
     const listeners = eventTypes.map((type) => {
       const listener = (event: Event) => {
         try {

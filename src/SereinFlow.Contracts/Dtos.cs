@@ -54,7 +54,8 @@ public enum FlowRunStatusDto
     Succeeded,
     Failed,
     Cancelled,
-    TimedOut
+    TimedOut,
+    Interrupted
 }
 
 public enum FlowConcurrencyModeDto

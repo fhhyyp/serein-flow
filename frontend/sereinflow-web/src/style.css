@@ -180,7 +180,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .run-status--running { color: var(--accent); background: var(--accent-soft); }
 .run-status--succeeded { color: var(--success); background: var(--success-soft); }
 .run-status--failed, .run-status--cancelled, .run-status--timedOut { color: var(--danger); background: #fef2f2; }
+.run-status--interrupted { color: #9a5a00; background: var(--warning-soft); }
 .icon-button--danger:hover:not(:disabled) { border-color: rgb(185 28 28 / 38%); background: #fef2f2; color: var(--danger); }
+.icon-button--warning { color: #9a5a00; }
+.icon-button--warning:hover:not(:disabled) { border-color: #e6b35c; background: var(--warning-soft); color: #7a4300; }
 .snapshot-dialog-backdrop { position: fixed; z-index: 60; inset: 0; display: grid; place-items: center; padding: 22px; background: rgb(15 23 42 / 38%); }
 .snapshot-dialog { display: grid; width: min(1440px, calc(100vw - 44px)); height: min(900px, calc(90vh - 4px)); min-height: 520px; grid-template-rows: auto auto minmax(0, 1fr); overflow: hidden; border: 1px solid var(--line-strong); background: var(--surface); box-shadow: 0 24px 60px rgb(15 23 42 / 22%); }
 .snapshot-dialog > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); padding: 16px 18px; }

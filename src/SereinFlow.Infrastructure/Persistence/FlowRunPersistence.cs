@@ -154,7 +154,7 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
             .Where(row => statuses is null || statuses.Contains(row.Status))
             .Select(Map)
             .OrderByDescending(static item => item.CreatedAt)
-            .Take(Math.Clamp(query.Take, 1, 500))
+            .Take(Math.Clamp(query.Take, 1, 10_000))
             .ToArray();
     }
 

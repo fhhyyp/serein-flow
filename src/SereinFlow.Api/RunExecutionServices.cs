@@ -495,7 +495,7 @@ public sealed class RunEventBroadcaster
                 channel.Writer.TryWrite(item);
         }
 
-        if (item.Type is "run.completed" or "run.failed" or "run.cancelled" or "run.timed_out")
+        if (item.Type is "run.completed" or "run.failed" or "run.cancelled" or "run.timed_out" or "run.interrupted")
         {
             _completedRuns[item.RunId] = DateTimeOffset.UtcNow;
             if (_channels.TryRemove(item.RunId, out var completed))
@@ -547,6 +547,11 @@ public sealed class RunExecutionHostedService : BackgroundService
             LogLevel.Error,
             new EventId(4101, "WorkerRunFailed"),
             "Worker run {RunId} failed before completion. Worker 运行在完成前失败。");
+    private static readonly Action<ILogger, Guid, Exception?> ReconciliationFailedLog =
+        LoggerMessage.Define<Guid>(
+            LogLevel.Error,
+            new EventId(4103, "InterruptedRunReconciliationFailed"),
+            "Interrupted run reconciliation failed for {RunId}. 中断运行实例对账失败。");
 
     private readonly RunExecutionQueue _queue;
     private readonly IServiceScopeFactory _scopeFactory;
@@ -584,6 +589,7 @@ public sealed class RunExecutionHostedService : BackgroundService
         try
         {
             await ApplyPersistedEnvironmentSettingsAsync(stoppingToken);
+            await ReconcileInterruptedRunsAsync(stoppingToken);
             await RecoverPendingRunsAsync(stoppingToken);
             while (!stoppingToken.IsCancellationRequested)
             {
@@ -675,6 +681,48 @@ public sealed class RunExecutionHostedService : BackgroundService
                     item.RunId);
                 break;
             }
+        }
+    }
+
+    private async Task ReconcileInterruptedRunsAsync(CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var runStore = scope.ServiceProvider.GetRequiredService<IFlowRunStore>();
+        var interruptionService = scope.ServiceProvider.GetRequiredService<RunInterruptionService>();
+        var running = await runStore.ListAsync(
+            new FlowRunQuery([FlowRunStatus.Running], Take: 10_000),
+            cancellationToken);
+        var reconciled = 0;
+
+        foreach (var run in running)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                var result = await interruptionService.InterruptAsync(
+                    run.Id,
+                    "engine_restart",
+                    "run.worker_lost",
+                    "The worker was lost before the run reached a terminal state. Worker 在流程到达终态前已丢失。",
+                    cancellationToken);
+                if (result.IsInterrupted)
+                    reconciled++;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                ReconciliationFailedLog(_logger, run.Id, exception);
+            }
+        }
+
+        if (reconciled > 0)
+        {
+            _logger.LogWarning(
+                "Reconciled {Count} orphaned running flow run(s) after engine startup. 引擎启动后已将这些孤儿运行实例标记为中断。",
+                reconciled);
         }
     }
 
