@@ -27,6 +27,7 @@ export function loadWorkspace(): WorkspaceSnapshot | undefined {
       canvases: candidate.canvases,
       activeCanvasId: candidate.activeCanvasId,
       nextNodeNumber: candidate.nextNodeNumber,
+      entryNodeId: typeof candidate.entryNodeId === 'string' ? candidate.entryNodeId : undefined,
       projectName: typeof candidate.projectName === 'string' ? candidate.projectName : undefined,
       connectionLineTypes: normalizeConnectionLineTypes(candidate.connectionLineTypes),
       runPolicy: isFlowConcurrencyMode(candidate.runPolicy?.concurrencyMode)

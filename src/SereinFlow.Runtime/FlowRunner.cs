@@ -49,11 +49,13 @@ public sealed class FlowRunner
             .Select(node => RunGlobalFlipflopAsync(node, plan, session, linkedCancellation.Token))
             .ToArray();
 
-        var mainResult = plan.Nodes.TryGetValue(definition.EntryNodeId, out var entry)
-            && entry.Type == NodeType.Flipflop
-            && globalFlipflops.Any(node => node.Id == entry.Id)
+        var mainResult = string.IsNullOrWhiteSpace(definition.EntryNodeId)
             ? NodeExecutionResult.Success()
-            : await RunStackAsync(definition.EntryNodeId, plan, session, linkedCancellation.Token);
+            : plan.Nodes.TryGetValue(definition.EntryNodeId, out var entry)
+                && entry.Type == NodeType.Flipflop
+                && globalFlipflops.Any(node => node.Id == entry.Id)
+                ? NodeExecutionResult.Success()
+                : await RunStackAsync(definition.EntryNodeId, plan, session, linkedCancellation.Token);
 
         if (globalTasks.Length > 0)
         {
@@ -70,10 +72,16 @@ public sealed class FlowRunner
             }
             catch (OperationCanceledException) when (linkedCancellation.IsCancellationRequested)
             {
-                return NodeExecutionResult.Error("worker.cancelled", "The global trigger run was cancelled. 全局触发器运行已取消。");
+                throw;
             }
         }
 
+        // A listener can observe cancellation before entering its wait loop
+        // and finish without throwing. Preserve the run lifecycle outcome in
+        // that narrow race instead of reporting a successful flow run.
+        // 监听器可能在进入等待循环前观察到取消并正常结束；此时仍应保留运行的取消终态，
+        // 不能误报为成功。
+        linkedCancellation.Token.ThrowIfCancellationRequested();
         return mainResult;
     }
 
@@ -257,7 +265,7 @@ public sealed class FlowRunner
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                return NodeExecutionResult.Error("worker.cancelled", "The global trigger run was cancelled. 全局触发器运行已取消。");
+                throw;
             }
             catch (FlowDataBindingException exception)
             {

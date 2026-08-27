@@ -156,6 +156,22 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
         {
             return NodeExecutionResult.Error(exception.Code, exception.Message) with { Inputs = SnapshotInputs(auditInputs) };
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Cancellation is a run lifecycle signal, not a node error. Let
+            // the runner publish the correct Cancelled or TimedOut terminal state.
+            // 取消是运行生命周期信号，而非节点错误；交由 Runner 发布正确的取消或超时终态。
+            throw;
+        }
+        catch (TargetInvocationException exception) when (
+            cancellationToken.IsCancellationRequested
+            && exception.InnerException is OperationCanceledException)
+        {
+            throw new OperationCanceledException(
+                "The library operation was cancelled. 类库操作已取消。",
+                exception.InnerException,
+                cancellationToken);
+        }
         catch (TargetInvocationException exception)
         {
             var detail = exception.InnerException?.Message ?? exception.Message;

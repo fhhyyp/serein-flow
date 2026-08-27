@@ -15,6 +15,7 @@ const props = defineProps<{
   nodeTitle: (node: FlowNode) => string
   sourceNodeTitle: (parameter: MethodParameter) => string
   canvases: CanvasState[]
+  entryNodeId: string
 }>()
 
 const emit = defineEmits<{
@@ -25,6 +26,7 @@ const emit = defineEmits<{
   'commit-text-edit': []
   'discard-text-edit': []
   'set-node-public': [nodeId: string, value: boolean]
+  'set-flow-entry': [nodeId: string, value: boolean]
   'set-flowcall-target': [nodeId: string, canvasId: string, targetNodeId?: string]
   'add-script-input': [nodeId: string]
   'remove-script-input': [nodeId: string, parameterId: string]
@@ -49,6 +51,10 @@ function updateScriptInputName(parameter: MethodParameter): void {
 
 function onPublicChange(event: Event): void {
   emit('set-node-public', props.selectedNode?.id ?? '', (event.target as HTMLInputElement).checked)
+}
+
+function onFlowEntryChange(event: Event): void {
+  emit('set-flow-entry', props.selectedNode?.id ?? '', (event.target as HTMLInputElement).checked)
 }
 
 function onTargetCanvasChange(event: Event): void {
@@ -116,7 +122,7 @@ function applyScriptSource(source: string): void {
     <template v-if="props.selectedNode">
       <div class="inspector-heading"><div><span class="eyebrow">{{ t('inspector.title') }}</span><h2>{{ props.nodeTitle(props.selectedNode) }}</h2></div><button class="icon-button" type="button" :title="t('command.close')" :aria-label="t('command.close')" @click="emit('close')"><X :size="16" /></button></div>
       <div class="inspector-type"><span class="node-icon" :class="`kind-${props.selectedNode.data.kind}`"><component :is="props.iconForNodeKind(props.selectedNode.data.kind)" :size="15" /></span><span>{{ t('inspector.nodeType', { kind: t(`node.kind.${props.selectedNode.data.kind}`) }) }}</span><span class="inspector-id mono">#{{ props.selectedNode.id }}</span></div>
-      <div class="inspector-section"><span class="section-label">{{ t('inspector.general') }}</span><label class="field-label">{{ t('inspector.displayName') }}<input v-model="props.selectedNode.data.displayName" type="text" :placeholder="t(props.selectedNode.data.titleKey)" @focus="emit('begin-text-edit')" @input="emit('commit-text-edit')" @blur="emit('discard-text-edit')" /></label><label class="field-label">{{ t('inspector.description') }}<textarea v-model="props.selectedNode.data.description" rows="2" :placeholder="t(props.selectedNode.data.subtitleKey)" @focus="emit('begin-text-edit')" @input="emit('commit-text-edit')" @blur="emit('discard-text-edit')"></textarea></label><label class="toggle-field"><input type="checkbox" :checked="props.selectedNode.data.runtime?.isPublic === true" @change="onPublicChange" /><span>{{ t('inspector.publicNode') }}</span><small>{{ t('inspector.publicNodeHint') }}</small></label></div>
+      <div class="inspector-section"><span class="section-label">{{ t('inspector.general') }}</span><label class="field-label">{{ t('inspector.displayName') }}<input v-model="props.selectedNode.data.displayName" type="text" :placeholder="t(props.selectedNode.data.titleKey)" @focus="emit('begin-text-edit')" @input="emit('commit-text-edit')" @blur="emit('discard-text-edit')" /></label><label class="field-label">{{ t('inspector.description') }}<textarea v-model="props.selectedNode.data.description" rows="2" :placeholder="t(props.selectedNode.data.subtitleKey)" @focus="emit('begin-text-edit')" @input="emit('commit-text-edit')" @blur="emit('discard-text-edit')"></textarea></label><label class="toggle-field"><input type="checkbox" :checked="props.entryNodeId === props.selectedNode.id" @change="onFlowEntryChange" /><span>{{ t('inspector.flowEntry') }}</span><small>{{ t('inspector.flowEntryHint') }}</small></label><label class="toggle-field"><input type="checkbox" :checked="props.selectedNode.data.runtime?.isPublic === true" @change="onPublicChange" /><span>{{ t('inspector.publicNode') }}</span><small>{{ t('inspector.publicNodeHint') }}</small></label></div>
 
       <div v-if="props.selectedNode.data.kind === 'script' && props.selectedNode.data.script" class="inspector-section script-editor"><div class="section-label-row"><span class="section-label">{{ t('inspector.script') }}</span><button class="icon-button compact" type="button" :title="t('inspector.openScriptEditor')" :aria-label="t('inspector.openScriptEditor')" @click="openScriptEditor"><Maximize2 :size="14" /></button></div><label class="field-label">{{ t('inspector.scriptSource') }}<textarea :value="props.selectedNode.data.script.source" class="script-source-input mono" rows="8" spellcheck="false" readonly></textarea></label></div>
 

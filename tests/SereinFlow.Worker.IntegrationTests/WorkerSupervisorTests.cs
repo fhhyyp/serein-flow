@@ -117,6 +117,18 @@ public sealed class WorkerSupervisorTests
     }
 
     [Fact]
+    public async Task SupervisorReportsTimedOutWhenAnActiveRunnerReachesItsDeadline()
+    {
+        var supervisor = CreateSupervisor();
+        var request = CreateScriptRequest(DateTimeOffset.UtcNow.AddMilliseconds(150));
+
+        var result = await supervisor.RunAsync(request, static (_, _) => ValueTask.CompletedTask);
+
+        Assert.Equal(FlowRunStatusDto.TimedOut, result.Status);
+        Assert.Equal("worker.timed_out", result.ErrorCode);
+    }
+
+    [Fact]
     public async Task SupervisorClassifiesUnexpectedRunnerExitAsCrash()
     {
         var missingRunner = Path.Combine(Path.GetTempPath(), $"missing-runner-{Guid.NewGuid():N}.dll");

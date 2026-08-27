@@ -44,7 +44,10 @@ public sealed class 生产线节点
         [NodeParam(Name = "轮询间隔毫秒")] int 轮询间隔毫秒 = 200)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(设备编号);
-        await Task.Delay(Math.Clamp(轮询间隔毫秒, 50, 5_000));
+        // Keep the lower bound so a malformed setting cannot create a busy
+        // loop, while allowing production-like device polling intervals.
+        // 保留最小值以避免错误配置导致忙循环，同时允许符合实际设备场景的轮询间隔。
+        await Task.Delay(Math.Clamp(轮询间隔毫秒, 50, 3_600_000));
         return true;
     }
 

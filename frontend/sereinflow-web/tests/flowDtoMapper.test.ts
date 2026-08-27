@@ -114,6 +114,7 @@ test('the workbench DTO round trip retains user-created multi-canvas execution a
     ],
     activeCanvasId: 'init',
     nextNodeNumber: 4,
+    entryNodeId: 'prepare',
     connectionLineTypes: {
       execution: 'default',
       data: 'smoothstep',
@@ -129,6 +130,7 @@ test('the workbench DTO round trip retains user-created multi-canvas execution a
   const init = restored.canvases.find((canvas) => canvas.id === 'init')
 
   assert.equal(definition.schemaVersion, 5)
+  assert.equal(definition.entryNodeId, 'prepare')
   assert.equal(definition.canvases.find((canvas) => canvas.id === 'main')?.connections.length, 2)
   assert.equal(definition.ui?.connectionLineTypes?.execution, 'default')
   assert.equal(definition.ui?.connectionLineTypes?.data, 'smoothstep')
@@ -137,6 +139,7 @@ test('the workbench DTO round trip retains user-created multi-canvas execution a
   assert.equal(main?.edges.filter((edge) => edge.data.semantic === 'data').length, 1)
   assert.equal(init?.edges[0]?.id, 'exec-prepare-catalog')
   assert.equal(main?.nodes.find((node) => node.id === 'normalize')?.data.parameters[0]?.sourceNodeId, 'flipflop')
+  assert.equal(restored.entryNodeId, 'prepare')
 })
 
 test('the empty default workspace round trips without an artificial entry node', () => {

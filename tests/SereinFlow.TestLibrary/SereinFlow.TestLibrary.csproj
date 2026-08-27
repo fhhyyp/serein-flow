@@ -4,10 +4,10 @@
     <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>SereinFlow.TestLibrary</AssemblyName>
     <RootNamespace>SereinFlow.TestLibrary</RootNamespace>
-    <Version>1.2.0</Version>
-    <AssemblyVersion>1.2.0.0</AssemblyVersion>
-    <FileVersion>1.2.0.0</FileVersion>
-    <InformationalVersion>1.2.0</InformationalVersion>
+    <Version>1.3.0</Version>
+    <AssemblyVersion>1.3.0.0</AssemblyVersion>
+    <FileVersion>1.3.0.0</FileVersion>
+    <InformationalVersion>1.3.0</InformationalVersion>
     <IsPackable>false</IsPackable>
     <!-- 节点方法采用实例类库形式，运行宿主执行节点时会创建对应的类型实例。 -->
     <NoWarn>$(NoWarn);CA1822</NoWarn>

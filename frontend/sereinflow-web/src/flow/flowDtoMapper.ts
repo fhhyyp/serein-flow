@@ -41,14 +41,15 @@ const parameterSources: ParameterSource[] = ['literal', 'previousNode', 'project
 const parameterInputModes: ParameterInputMode[] = ['connection', 'manual', 'select']
 
 export function workspaceToFlowDefinition(snapshot: WorkspaceSnapshot, identity: FlowIdentity): FlowDefinitionDto {
-  const mainCanvas = snapshot.canvases.find((canvas) => canvas.lifecycle === 'main') ?? snapshot.canvases[0]
-  const entryNodeId = mainCanvas?.nodes[0]?.id ?? ''
   return {
     id: identity.id,
     schemaVersion: 5,
     version: identity.version,
     canvases: snapshot.canvases.map(toCanvasDto),
-    entryNodeId,
+    // Entry selection is an explicit part of the workspace. Inferring it from
+    // node order makes a canvas reorder change runtime behavior.
+    // 入口选择是工作区的显式状态，不能从节点排列顺序推导，否则节点排序会改变运行行为。
+    entryNodeId: snapshot.entryNodeId ?? '',
     checksum: '',
     runPolicy: snapshot.runPolicy ?? { concurrencyMode: 'parallel' },
     ui: {
@@ -67,6 +68,7 @@ export function flowDefinitionToWorkspace(definition: FlowDefinitionDto): Worksp
     canvases,
     activeCanvasId,
     nextNodeNumber: getNextNodeNumber(canvases),
+    entryNodeId: definition.entryNodeId,
     connectionLineTypes: normalizeConnectionLineTypes(definition.ui?.connectionLineTypes),
     runPolicy: definition.runPolicy ?? { concurrencyMode: 'parallel' },
   }

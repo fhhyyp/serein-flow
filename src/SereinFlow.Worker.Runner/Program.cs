@@ -45,14 +45,15 @@ public static class RunnerHost
         }
 
         var request = WorkerProtocolCodec.DeserializePayload<WorkerRunRequestDto>(runMessage);
-        using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var deadlineCancellation = new CancellationTokenSource();
         var remaining = request.Deadline - DateTimeOffset.UtcNow;
         if (remaining <= TimeSpan.Zero)
-            runCancellation.Cancel();
+            deadlineCancellation.Cancel();
         else
-            runCancellation.CancelAfter(remaining);
+            deadlineCancellation.CancelAfter(remaining);
+        using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadlineCancellation.Token);
 
-        var runTask = ExecuteRunAsync(request, writer, runCancellation.Token);
+        var runTask = ExecuteRunAsync(request, writer, runCancellation.Token, deadlineCancellation.Token);
         var readTask = WorkerProtocolCodec.ReadAsync(reader, cancellationToken).AsTask();
 
         while (!runTask.IsCompleted)
@@ -89,7 +90,11 @@ public static class RunnerHost
         return 0;
     }
 
-    private static async Task ExecuteRunAsync(WorkerRunRequestDto request, WorkerMessageWriter writer, CancellationToken cancellationToken)
+    private static async Task ExecuteRunAsync(
+        WorkerRunRequestDto request,
+        WorkerMessageWriter writer,
+        CancellationToken cancellationToken,
+        CancellationToken deadlineCancellationToken)
     {
         try
         {
@@ -161,15 +166,18 @@ public static class RunnerHost
         }
         catch (OperationCanceledException)
         {
+            var timedOut = deadlineCancellationToken.IsCancellationRequested;
             await writer.WriteAsync(
                 WorkerMessage.Create(
                     WorkerProtocolConstants.ResultKind,
                     WorkerProtocolCodec.SerializePayload(new WorkerRunResultDto(
                         WorkerProtocolConstants.Version,
                         request.RunId,
-                        FlowRunStatusDto.Cancelled,
-                        "worker.cancelled",
-                        "The worker run was cancelled. Worker 运行已取消。")),
+                        timedOut ? FlowRunStatusDto.TimedOut : FlowRunStatusDto.Cancelled,
+                        timedOut ? "worker.timed_out" : "worker.cancelled",
+                        timedOut
+                            ? "The worker run timed out. Worker 运行已超时。"
+                            : "The worker run was cancelled. Worker 运行已取消。")),
                     request.RunId),
                 CancellationToken.None);
         }

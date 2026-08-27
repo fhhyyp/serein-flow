@@ -230,6 +230,33 @@ public sealed class RuntimeSessionTests
         Assert.Equal("flowcall.return_type_mismatch", result.ErrorCode);
     }
 
+    [Fact]
+    public async Task CancellingAGlobalFlipflopPropagatesTheRunCancellationWithoutNodeError()
+    {
+        var trigger = NodeDefinition.Create("trigger", NodeType.Flipflop, "Trigger");
+        var definition = FlowDefinition.Create(
+            Guid.NewGuid(),
+            1,
+            [CanvasDefinition.Create("main", CanvasLifecycle.Main, [trigger], [])],
+            "");
+        var executor = new WaitingFlipflopExecutor();
+        var publisher = new RecordingPublisher();
+        var runner = new FlowRunner(
+            new ExecutionPlanBuilder(),
+            new NodeExecutorRegistry([executor]),
+            publisher);
+        using var cancellation = new CancellationTokenSource();
+        await using var session = new FlowExecutionSession();
+
+        var runTask = runner.RunAsync(definition, session, cancellation.Token).AsTask();
+        await executor.Started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => runTask);
+        Assert.Contains(publisher.Events, item => item.Type == "node.started" && item.NodeId == trigger.Id);
+        Assert.DoesNotContain(publisher.Events, item => item.Type is "node.error" or "node.failed");
+    }
+
     private sealed class ContextWritingExecutor : INodeExecutor
     {
         public NodeType NodeType => NodeType.Action;
@@ -282,6 +309,23 @@ public sealed class RuntimeSessionTests
         public ValueTask<NodeExecutionResult> ExecuteAsync(NodeExecutionRequest request, CancellationToken cancellationToken)
             => ValueTask.FromResult(NodeExecutionResult.Success(
                 new Dictionary<string, object?> { ["result"] = "not-an-int" }));
+    }
+
+    private sealed class WaitingFlipflopExecutor : INodeExecutor, IGlobalFlipflopExecutor
+    {
+        public NodeType NodeType => NodeType.Flipflop;
+
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public ValueTask<NodeExecutionResult> ExecuteAsync(NodeExecutionRequest request, CancellationToken cancellationToken)
+            => WaitForTriggerAsync(request, cancellationToken);
+
+        public async ValueTask<NodeExecutionResult> WaitForTriggerAsync(NodeExecutionRequest request, CancellationToken cancellationToken)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return NodeExecutionResult.Success();
+        }
     }
 
     private sealed class RecordingPublisher : IRunEventPublisher

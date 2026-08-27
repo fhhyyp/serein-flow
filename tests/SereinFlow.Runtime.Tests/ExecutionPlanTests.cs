@@ -35,6 +35,21 @@ public sealed class ExecutionPlanTests
     }
 
     [Fact]
+    public void BuilderAllowsAListenerOnlyFlowWithoutAnOrdinaryEntryNode()
+    {
+        var trigger = NodeDefinition.Create("trigger", NodeType.Flipflop, "Trigger");
+        var definition = FlowDefinition.Create(
+            Guid.NewGuid(),
+            1,
+            [CanvasDefinition.Create("main", CanvasLifecycle.Main, [trigger], [])],
+            "");
+
+        var plan = new ExecutionPlanBuilder().Build(definition);
+
+        Assert.Equal(trigger.Id, Assert.Single(plan.Nodes).Key);
+    }
+
+    [Fact]
     public void BuilderOrdersOutgoingConnectionsByPriority()
     {
         var first = NodeDefinition.Create("first", NodeType.Action, "First");

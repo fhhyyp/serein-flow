@@ -84,6 +84,7 @@ const projectRenameOpen = ref(false)
 const isProjectRenaming = ref(false)
 const projectVersion = ref(1)
 const flowVersion = ref(1)
+const entryNodeId = ref(recoveryWorkspace?.entryNodeId ?? '')
 const savedWorkspaceFingerprint = ref('')
 const isRestoringWorkspace = ref(false)
 const isSwitchingCanvas = ref(false)
@@ -137,10 +138,12 @@ function localizeEdges(): void {
 watch(locale, localizeEdges, { immediate: true })
 
 function currentWorkspaceSnapshot(): WorkspaceSnapshot {
+  const hasEntryNode = canvases.value.some((canvas) => canvas.nodes.some((node) => node.id === entryNodeId.value))
   return cloneWorkspaceSnapshot({
     canvases: canvases.value,
     activeCanvasId: activeCanvasId.value,
     nextNodeNumber: nextNodeNumber.value,
+    entryNodeId: hasEntryNode ? entryNodeId.value : '',
     projectName: projectName.value,
     connectionLineTypes: { ...connectionLineTypes },
     runPolicy: { ...runPolicy.value },
@@ -170,6 +173,7 @@ function restoreWorkspace(snapshot: WorkspaceSnapshot): void {
   }
   Object.assign(connectionLineTypes, normalizeConnectionLineTypes(snapshot.connectionLineTypes))
   runPolicy.value = snapshot.runPolicy ?? { concurrencyMode: 'parallel' }
+  entryNodeId.value = snapshot.entryNodeId ?? ''
   activeCanvasId.value = snapshot.activeCanvasId
   nextNodeNumber.value = snapshot.nextNodeNumber
   mobilePanel.value = null
@@ -415,6 +419,17 @@ function setNodePublic(nodeId: string, value: boolean): void {
 
   recordWorkspaceMutation()
   node.data.runtime = { ...(node.data.runtime ?? { category: node.data.kind === 'action' || node.data.kind === 'flipflop' ? 'method' : 'basic' }), isPublic: value }
+  markWorkspaceChanged()
+}
+
+function setFlowEntry(nodeId: string, value: boolean): void {
+  const node = findNode(nodeId)
+  if (!node || (value && entryNodeId.value === nodeId) || (!value && entryNodeId.value !== nodeId)) {
+    return
+  }
+
+  recordWorkspaceMutation()
+  entryNodeId.value = value ? nodeId : ''
   markWorkspaceChanged()
 }
 
@@ -737,6 +752,7 @@ function setLanguage(nextLocale: Locale): void {
         :node-title="nodeTitle"
         :source-node-title="sourceNodeTitle"
         :canvases="canvases"
+        :entry-node-id="entryNodeId"
         @close="mobilePanel = null"
         @delete="removeSelection"
         @update-parameter-source="updateParameterSource"
@@ -744,6 +760,7 @@ function setLanguage(nextLocale: Locale): void {
         @commit-text-edit="commitTextEdit"
         @discard-text-edit="discardTextEdit"
         @set-node-public="setNodePublic"
+        @set-flow-entry="setFlowEntry"
         @set-flowcall-target="setFlowCallTarget"
         @add-script-input="addScriptInput"
         @remove-script-input="removeScriptInput"

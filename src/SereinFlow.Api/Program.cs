@@ -582,7 +582,7 @@ app.MapPost("/api/runs/{runId:guid}/cancel", async (Guid runId, RunExecutionQueu
         return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Run not found. 未找到运行实例。");
     if (run.IsTerminal)
         return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "The run is already complete. 运行实例已经完成。");
-    return queue.Cancel(runId)
+    return queue.Cancel(runId, RunCancellationSources.Api)
         ? Results.Accepted($"/api/runs/{runId:D}")
         : Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Run is not currently cancellable. 当前运行实例不可取消。");
 });

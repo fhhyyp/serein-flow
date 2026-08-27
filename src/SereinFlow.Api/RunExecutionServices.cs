@@ -12,6 +12,13 @@ using SereinFlow.Worker.Protocol;
 
 namespace SereinFlow.Api;
 
+public static class RunCancellationSources
+{
+    public const string Api = "api";
+    public const string HostShutdown = "host_shutdown";
+    public const string Worker = "worker";
+}
+
 public sealed record RunWorkItem(
     Guid RunId,
     Guid ProjectId,
@@ -160,6 +167,7 @@ public sealed class RunExecutionQueue
 {
     private readonly Channel<RunWorkItem> _queue;
     private readonly Dictionary<Guid, CancellationTokenSource> _cancellations = [];
+    private readonly Dictionary<Guid, string> _cancellationSources = [];
     private readonly ConcurrentDictionary<Guid, ActiveRunInfo> _activeRuns = new();
     // A single pending wake-up is enough: scheduling always re-evaluates all
     // work and limits. This prevents signal counts accumulating under load.
@@ -257,15 +265,30 @@ public sealed class RunExecutionQueue
     }
 
     public bool Cancel(Guid runId)
+        => Cancel(runId, RunCancellationSources.Api);
+
+    public bool Cancel(Guid runId, string source)
+    {
+        CancellationTokenSource? cancellation = null;
+        lock (_gate)
+        {
+            if (!_cancellations.TryGetValue(runId, out cancellation))
+                return false;
+            if (cancellation.IsCancellationRequested)
+                return false;
+            _cancellationSources[runId] = NormalizeCancellationSource(source);
+        }
+        cancellation!.Cancel();
+        SignalScheduler();
+        return true;
+    }
+
+    public string? GetCancellationSource(Guid runId)
     {
         lock (_gate)
         {
-            if (!_cancellations.TryGetValue(runId, out var source))
-                return false;
-            source.Cancel();
+            return _cancellationSources.TryGetValue(runId, out var source) ? source : null;
         }
-        SignalScheduler();
-        return true;
     }
 
     public bool IsCancellationRequested(Guid runId)
@@ -350,7 +373,14 @@ public sealed class RunExecutionQueue
         {
             _accepting = false;
             _queue.Writer.TryComplete();
-            sources = _cancellations.Values.ToArray();
+            sources = _cancellations
+                .Where(static pair => !pair.Value.IsCancellationRequested)
+                .Select(pair =>
+                {
+                    _cancellationSources.TryAdd(pair.Key, RunCancellationSources.HostShutdown);
+                    return pair.Value;
+                })
+                .ToArray();
         }
         foreach (var source in sources)
             source.Cancel();
@@ -383,6 +413,7 @@ public sealed class RunExecutionQueue
         {
             if (_cancellations.Remove(runId, out var existing))
                 source = existing;
+            _cancellationSources.Remove(runId);
         }
         source?.Dispose();
     }
@@ -416,6 +447,9 @@ public sealed class RunExecutionQueue
             .SelectMany(static canvas => canvas.Nodes)
             .Any(node => node.Type == NodeTypeDto.Flipflop && !incoming.Contains(node.Id));
     }
+
+    private static string NormalizeCancellationSource(string source)
+        => string.IsNullOrWhiteSpace(source) ? RunCancellationSources.Worker : source.Trim();
 
     private sealed record ActiveRunInfo(Guid ProjectId, bool IsListenerRun);
 
@@ -740,6 +774,7 @@ public sealed class RunExecutionHostedService : BackgroundService
                     FlowRunStatusDto.Cancelled,
                     "run.cancelled",
                     "The queued run was cancelled. 排队中的运行实例已取消。",
+                    _queue.GetCancellationSource(item.RunId) ?? RunCancellationSources.Worker,
                     cancellationToken);
                 continue;
             }
@@ -753,6 +788,7 @@ public sealed class RunExecutionHostedService : BackgroundService
                 FlowRunStatusDto.TimedOut,
                 "run.queue_timeout",
                 "The run exceeded the queue wait timeout. 运行实例超过了队列等待超时。",
+                RunCancellationSources.Worker,
                 cancellationToken);
         }
     }
@@ -772,6 +808,7 @@ public sealed class RunExecutionHostedService : BackgroundService
         FlowRunStatusDto terminalStatus,
         string code,
         string message,
+        string cancellationSource,
         CancellationToken cancellationToken)
     {
         try
@@ -783,7 +820,7 @@ public sealed class RunExecutionHostedService : BackgroundService
             if (run is not null && !run.IsTerminal)
             {
                 if (terminalStatus == FlowRunStatusDto.Cancelled)
-                    run.Cancel(code, DateTimeOffset.UtcNow);
+                    run.Cancel(cancellationSource, DateTimeOffset.UtcNow);
                 else
                     run.Complete(FlowRunStatus.TimedOut, DateTimeOffset.UtcNow, message);
                 await runStore.SaveAsync(run, CancellationToken.None);
@@ -820,7 +857,8 @@ public sealed class RunExecutionHostedService : BackgroundService
                 return;
             if (runToken.IsCancellationRequested)
             {
-                run.Cancel("run.cancelled", DateTimeOffset.UtcNow);
+                var cancellationSource = ResolveCancellationSource(item.RunId, stoppingToken);
+                run.Cancel(cancellationSource, DateTimeOffset.UtcNow);
                 await runStore.SaveAsync(run, CancellationToken.None);
                 await PublishTerminalAsync(
                     run,
@@ -860,7 +898,7 @@ public sealed class RunExecutionHostedService : BackgroundService
                 runToken);
 
             if (result.Status == FlowRunStatusDto.Cancelled)
-                run.Cancel(result.ErrorCode ?? "cancelled", DateTimeOffset.UtcNow);
+                run.Cancel(ResolveCancellationSource(item.RunId, stoppingToken), DateTimeOffset.UtcNow);
             else
                 run.Complete(ToDomainStatus(result.Status), DateTimeOffset.UtcNow, result.ErrorMessage);
             await runStore.SaveAsync(run, CancellationToken.None);
@@ -872,7 +910,7 @@ public sealed class RunExecutionHostedService : BackgroundService
         }
         catch (OperationCanceledException)
         {
-            await MarkCancelledAfterStartAsync(item.RunId);
+            await MarkCancelledAfterStartAsync(item.RunId, ResolveCancellationSource(item.RunId, stoppingToken));
         }
         catch (Exception exception)
         {
@@ -885,7 +923,11 @@ public sealed class RunExecutionHostedService : BackgroundService
         }
     }
 
-    private async Task MarkCancelledAfterStartAsync(Guid runId)
+    private string ResolveCancellationSource(Guid runId, CancellationToken stoppingToken)
+        => _queue.GetCancellationSource(runId)
+            ?? (stoppingToken.IsCancellationRequested ? RunCancellationSources.HostShutdown : RunCancellationSources.Worker);
+
+    private async Task MarkCancelledAfterStartAsync(Guid runId, string cancellationSource)
     {
         using var scope = _scopeFactory.CreateScope();
         var runStore = scope.ServiceProvider.GetRequiredService<IFlowRunStore>();
@@ -893,7 +935,7 @@ public sealed class RunExecutionHostedService : BackgroundService
         var run = await runStore.FindAsync(runId, CancellationToken.None);
         if (run is null || run.IsTerminal)
             return;
-        run.Cancel("worker.cancelled", DateTimeOffset.UtcNow);
+        run.Cancel(cancellationSource, DateTimeOffset.UtcNow);
         await runStore.SaveAsync(run, CancellationToken.None);
         await PublishTerminalAsync(
             run,
@@ -1062,7 +1104,7 @@ public sealed class RunExecutionHostedService : BackgroundService
             type,
             null,
             JsonSerializer.Serialize(
-                new { result.Status, result.ErrorCode, result.ErrorMessage },
+                new { result.Status, result.ErrorCode, result.ErrorMessage, cancellationSource = run.CancellationReason },
                 SereinJsonSerialization.CreateWebOptions()));
         await eventStore.AppendAsync([item], cancellationToken);
         var dto = new FlowRunEventDto(item.RunId, item.Sequence, item.Timestamp, item.Type, item.NodeId, item.PayloadJson);

@@ -49,8 +49,17 @@ public sealed class ExecutionPlanBuilder
     {
         if (definition is null)
             throw new ArgumentNullException(nameof(definition), "The flow definition cannot be null. 流程定义不能为空。");
+        var nodes = definition.Canvases
+            .SelectMany(canvas => canvas.Nodes)
+            .ToDictionary(node => node.Id, StringComparer.Ordinal);
+        var connections = definition.Canvases
+            .SelectMany(canvas => canvas.Connections)
+            .ToArray();
         var diagnostics = definition.Validate().ToList();
-        if (string.IsNullOrWhiteSpace(definition.EntryNodeId))
+        var hasGlobalFlipflop = nodes.Values.Any(node =>
+            node.Type == NodeType.Flipflop
+            && !connections.Any(connection => connection.Kind == ConnectionKind.Execution && connection.ToNodeId == node.Id));
+        if (string.IsNullOrWhiteSpace(definition.EntryNodeId) && !hasGlobalFlipflop)
         {
             diagnostics.Add(new DomainDiagnostic(
                 DomainErrorCodes.UnknownEntryNode,
@@ -63,12 +72,6 @@ public sealed class ExecutionPlanBuilder
             throw new DomainValidationException(diagnostics);
         }
 
-        var nodes = definition.Canvases
-            .SelectMany(canvas => canvas.Nodes)
-            .ToDictionary(node => node.Id, StringComparer.Ordinal);
-        var connections = definition.Canvases
-            .SelectMany(canvas => canvas.Connections)
-            .ToArray();
         ValidateExecutionCycles(nodes, connections);
         ValidateFlowCallTargets(definition, nodes);
         ValidateFlowCallCycles(nodes, connections);

@@ -223,7 +223,7 @@ public sealed class WorkerSupervisor
 
             var completion = await HandleMessageAsync(message, request, publishEvent, lastSequence, CancellationToken.None);
             if (completion.Result is not null)
-                return completion.Result;
+                return NormalizeCancellationResult(completion.Result, request.RunId, fallbackStatus, fallbackCode);
             lastSequence = completion.LastSequence;
             readTask = WorkerProtocolCodec.ReadAsync(
                 stdout,
@@ -232,6 +232,23 @@ public sealed class WorkerSupervisor
         }
 
         return await TerminateAndReturnAsync(process, request.RunId, fallbackCode, "Runner did not stop before the cancellation grace period elapsed. Worker Runner 在取消宽限期结束前未停止。", fallbackStatus);
+    }
+
+    private static WorkerRunResultDto NormalizeCancellationResult(
+        WorkerRunResultDto result,
+        Guid runId,
+        FlowRunStatusDto fallbackStatus,
+        string fallbackCode)
+    {
+        if (fallbackStatus != FlowRunStatusDto.TimedOut || result.Status != FlowRunStatusDto.Cancelled)
+            return result;
+
+        return new WorkerRunResultDto(
+            WorkerProtocolConstants.Version,
+            runId,
+            FlowRunStatusDto.TimedOut,
+            fallbackCode,
+            "The run deadline elapsed. 运行截止时间已到。");
     }
 
     private static async Task<(WorkerRunResultDto? Result, long LastSequence)> HandleMessageAsync(
