@@ -4,6 +4,7 @@ import { Activity, Code2, Database, GitBranch, Zap } from 'lucide-vue-next'
 import { Handle, Position, type NodeProps } from '@vue-flow/core'
 import { t } from '../../i18n'
 import { layoutConnectionSeats, type ConnectionSeatLayout } from '../../flow/connectionSeats'
+import { formatNodeType } from '../../flow/typeDisplay'
 import type { FlowNodeData, NodeKind } from '../../flow/types'
 
 const props = defineProps<NodeProps<FlowNodeData>>()
@@ -27,8 +28,9 @@ const dataOutputSeat = computed(() => seats.value.find((seat) => seat.kind === '
 const runtimeSignature = computed(() => {
   const runtime = props.data.runtime
   const method = [runtime?.className, runtime?.methodName].filter(Boolean).join('.')
-  return method || runtime?.returnType || ''
+  return method || formatNodeType(runtime?.returnType)
 })
+const returnType = computed(() => formatNodeType(props.data.runtime?.returnType))
 
 function seatClass(seat: ConnectionSeatLayout): string {
   return `seat-${seat.kind}`
@@ -94,7 +96,7 @@ function isTargetSeat(seat: ConnectionSeatLayout | undefined): boolean {
         />
         <span class="workflow-node__seat-dot parameter-seat-dot" aria-hidden="true"></span>
         <span class="workflow-node__parameter-name" :title="parameter.description || parameter.name || t(parameter.nameKey)">{{ parameter.name || t(parameter.nameKey) }}</span>
-        <span class="workflow-node__parameter-type">{{ parameter.type || parameter.valueKind }}</span>
+        <span class="workflow-node__parameter-type">{{ formatNodeType(parameter.type) || parameter.valueKind }}</span>
         <span class="workflow-node__parameter-source">{{ t(`parameter.${parameter.source}`) }}</span>
       </div>
     </div>
@@ -109,7 +111,7 @@ function isTargetSeat(seat: ConnectionSeatLayout | undefined): boolean {
         :connectable="isTargetSeat(dataOutputSeat) ? 'single' : connectable"
         :aria-label="seatLabel(dataOutputSeat)"
       />
-      <span v-if="data.runtime?.returnType" class="workflow-node__return-type" :title="data.runtime.returnType">→ {{ data.runtime.returnType }}</span>
+      <span v-if="returnType" class="workflow-node__return-type" :title="data.runtime?.returnType">→ {{ returnType }}</span>
     </div>
   </article>
 </template>
