@@ -13,13 +13,13 @@ dotnet build tests\SereinFlow.TestLibrary\SereinFlow.TestLibrary.csproj
 构建完成后，上传包会生成到：
 
 ```text
-artifacts\libraries\SereinFlow.TestLibrary-1.4.0.zip
+artifacts\libraries\SereinFlow.TestLibrary-1.5.0.zip
 ```
 
 压缩包结构固定为：
 
 ```text
-SereinFlow.TestLibrary-1.4.0\
+SereinFlow.TestLibrary-1.5.0\
 └── SereinFlow.TestLibrary.dll
 ```
 

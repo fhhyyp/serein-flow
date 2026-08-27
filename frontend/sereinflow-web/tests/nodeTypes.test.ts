@@ -3,6 +3,7 @@ import test from 'node:test'
 import { flowDefinitionToWorkspace, workspaceToFlowDefinition } from '../src/flow/flowDtoMapper.ts'
 import { basicNodeKinds, methodNodeKinds, referenceNodeKinds } from '../src/flow/nodeCatalog.ts'
 import { getConnectionSeats } from '../src/flow/connectionSeats.ts'
+import { initialLibraryParameterLiteral } from '../src/flow/libraryParameterDefaults.ts'
 import type { FlowNode, NodeKind } from '../src/flow/types.ts'
 import type { WorkspaceSnapshot } from '../src/flow/workspaceHistory.ts'
 
@@ -99,4 +100,11 @@ test('return type controls result seats and parameter metadata survives persiste
   assert.equal(getConnectionSeats(restoredOp!.data).some((seat) => seat.id === 'data-out'), true)
   assert.equal(restoredOp?.data.runtime?.returnType, 'System.Int32')
   assert.equal(restoredOp?.data.parameters[0]?.inputMode, 'connection')
+})
+
+test('library node creation initializes literal parameters from reflected defaults', () => {
+  assert.equal(initialLibraryParameterLiteral('3'), '3')
+  assert.equal(initialLibraryParameterLiteral('Automatic'), 'Automatic')
+  assert.equal(initialLibraryParameterLiteral(null), '')
+  assert.equal(initialLibraryParameterLiteral(undefined), '')
 })

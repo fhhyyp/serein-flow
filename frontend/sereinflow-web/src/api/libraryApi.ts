@@ -12,6 +12,7 @@ export interface LibraryParameterDto {
   variadicGroupId?: string | null
   elementType?: string | null
   enumMetadata?: EnumParameterMetadataDto | null
+  defaultValue?: string | null
 }
 
 export interface LibraryNodeDto {

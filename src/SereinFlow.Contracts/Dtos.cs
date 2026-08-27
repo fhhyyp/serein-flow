@@ -311,7 +311,8 @@ public sealed record LibraryParameterDto(
     bool IsVariadic = false,
     string? VariadicGroupId = null,
     string? ElementType = null,
-    EnumParameterMetadataDto? EnumMetadata = null);
+    EnumParameterMetadataDto? EnumMetadata = null,
+    string? DefaultValue = null);
 
 public sealed record LibraryUploadResultDto(LibraryDto Library, bool AlreadyExists);
 

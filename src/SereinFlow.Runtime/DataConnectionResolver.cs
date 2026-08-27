@@ -23,7 +23,8 @@ public sealed class DataConnectionResolver
             // unconnected parameters.
             // 已建立的数据连接优先于参数来源选择器；未连接时才使用参数自身来源。
             object? value;
-            if (session.TryReadFlowCallInput(node.Id, parameter.Id, out var flowCallValue))
+            var hasFlowCallInput = session.TryReadFlowCallInput(node.Id, parameter.Id, out var flowCallValue);
+            if (hasFlowCallInput)
             {
                 // Explicit FlowCall mappings have the highest precedence at the
                 // public target entry and never leak to downstream nodes.
@@ -59,6 +60,20 @@ public sealed class DataConnectionResolver
                     "node.input_missing",
                     $"Required input '{parameter.Name}' on node '{node.Id}' is missing. 节点“{node.Id}”缺少必需输入“{parameter.Name}”。",
                     values);
+            }
+
+            // An empty optional literal means the caller did not provide an
+            // argument. Omit it so a reflected C# optional parameter can use
+            // its declared default in the Worker.
+            // 空的可选字面量表示调用方未提供参数。省略该输入，使 Worker 中反射的方法使用 C# 声明的默认值。
+            if (value is null
+                && !parameter.Required
+                && !hasFlowCallInput
+                && incoming.Count == 0
+                && parameter.Source == DataSource.Literal
+                && string.IsNullOrWhiteSpace(parameter.ValueJson))
+            {
+                continue;
             }
 
             // Parameter IDs are the persisted binding identity. Names are UI

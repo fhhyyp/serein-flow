@@ -59,7 +59,7 @@ public sealed record LibraryCatalogOptions
 /// </summary>
 public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDisposable
 {
-    internal const int CurrentCatalogSchemaVersion = 2;
+    internal const int CurrentCatalogSchemaVersion = 3;
     private static readonly Action<ILogger, string, Exception?> ReindexSkippedLog = LoggerMessage.Define<string>(
         LogLevel.Warning,
         new EventId(1001, nameof(ReindexSkippedLog)),
@@ -651,6 +651,8 @@ internal static class LibraryMetadataScanner
                                 ? signature.ParameterTypes[index]
                                 : "System.Object";
                             var parameterId = $"param-{index + 1}";
+                            var enumMetadata = enumMetadataIndex?.Resolve(parameterType);
+                            var defaultValue = ReadParameterDefaultValue(reader, parameter, provider, enumMetadata);
                             return new LibraryParameterDto(
                                 parameterId,
                                 parameterName,
@@ -660,7 +662,8 @@ internal static class LibraryMetadataScanner
                                 isVariadic,
                                 isVariadic ? parameterId : null,
                                 isVariadic ? GetArrayElementType(parameterType) : null,
-                                enumMetadataIndex?.Resolve(parameterType));
+                                enumMetadata,
+                                defaultValue);
                         })
                         .ToArray();
 
@@ -810,6 +813,175 @@ internal static class LibraryMetadataScanner
             ConstantTypeCode.UInt64 => value.ReadUInt64().ToString(CultureInfo.InvariantCulture),
             _ => null,
         };
+    }
+
+    private static string? ReadParameterDefaultValue(
+        MetadataReader reader,
+        Parameter parameter,
+        MetadataTypeNameProvider provider,
+        EnumParameterMetadataDto? enumMetadata)
+    {
+        var constantHandle = parameter.GetDefaultValue();
+        if (!constantHandle.IsNil)
+        {
+            var literal = ReadParameterConstant(reader, reader.GetConstant(constantHandle));
+            return enumMetadata is null ? literal : FormatEnumDefaultValue(literal, enumMetadata);
+        }
+
+        return ReadDecimalDefaultValue(reader, parameter, provider)
+            ?? ReadDateTimeDefaultValue(reader, parameter, provider);
+    }
+
+    private static string? ReadParameterConstant(MetadataReader reader, Constant constant)
+    {
+        var value = reader.GetBlobReader(constant.Value);
+        return constant.TypeCode switch
+        {
+            ConstantTypeCode.Boolean => value.ReadBoolean() ? "true" : "false",
+            ConstantTypeCode.Char => ((char)value.ReadUInt16()).ToString(),
+            ConstantTypeCode.SByte => value.ReadSByte().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.Byte => value.ReadByte().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.Int16 => value.ReadInt16().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.UInt16 => value.ReadUInt16().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.Int32 => value.ReadInt32().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.UInt32 => value.ReadUInt32().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.Int64 => value.ReadInt64().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.UInt64 => value.ReadUInt64().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.Single => value.ReadSingle().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.Double => value.ReadDouble().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.String => System.Text.Encoding.Unicode.GetString(reader.GetBlobBytes(constant.Value)),
+            ConstantTypeCode.NullReference => null,
+            _ => null,
+        };
+    }
+
+    private static string? ReadDecimalDefaultValue(
+        MetadataReader reader,
+        Parameter parameter,
+        MetadataTypeNameProvider provider)
+    {
+        var attribute = FindAttribute(
+            reader,
+            parameter.GetCustomAttributes(),
+            "System.Runtime.CompilerServices.DecimalConstantAttribute");
+        if (!attribute.HasValue)
+        {
+            return null;
+        }
+
+        try
+        {
+            var arguments = reader.GetCustomAttribute(attribute.Value).DecodeValue(provider).FixedArguments;
+            if (arguments.Length != 5)
+            {
+                return null;
+            }
+
+            var scale = Convert.ToByte(arguments[0].Value, CultureInfo.InvariantCulture);
+            var isNegative = Convert.ToByte(arguments[1].Value, CultureInfo.InvariantCulture) != 0;
+            var high = unchecked((int)Convert.ToUInt32(arguments[2].Value, CultureInfo.InvariantCulture));
+            var middle = unchecked((int)Convert.ToUInt32(arguments[3].Value, CultureInfo.InvariantCulture));
+            var low = unchecked((int)Convert.ToUInt32(arguments[4].Value, CultureInfo.InvariantCulture));
+            return new decimal(low, middle, high, isNegative, scale).ToString(CultureInfo.InvariantCulture);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+        catch (BadImageFormatException)
+        {
+            return null;
+        }
+        catch (InvalidCastException)
+        {
+            return null;
+        }
+        catch (OverflowException)
+        {
+            return null;
+        }
+    }
+
+    private static string? ReadDateTimeDefaultValue(
+        MetadataReader reader,
+        Parameter parameter,
+        MetadataTypeNameProvider provider)
+    {
+        var attribute = FindAttribute(
+            reader,
+            parameter.GetCustomAttributes(),
+            "System.Runtime.CompilerServices.DateTimeConstantAttribute");
+        if (!attribute.HasValue)
+        {
+            return null;
+        }
+
+        try
+        {
+            var arguments = reader.GetCustomAttribute(attribute.Value).DecodeValue(provider).FixedArguments;
+            if (arguments.Length != 1)
+            {
+                return null;
+            }
+
+            var ticks = Convert.ToInt64(arguments[0].Value, CultureInfo.InvariantCulture);
+            return new DateTime(ticks, DateTimeKind.Unspecified).ToString("O", CultureInfo.InvariantCulture);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+        catch (BadImageFormatException)
+        {
+            return null;
+        }
+        catch (InvalidCastException)
+        {
+            return null;
+        }
+        catch (OverflowException)
+        {
+            return null;
+        }
+    }
+
+    private static string? FormatEnumDefaultValue(string? numericValue, EnumParameterMetadataDto metadata)
+    {
+        if (string.IsNullOrWhiteSpace(numericValue))
+        {
+            return null;
+        }
+
+        var exactMatch = metadata.Options.FirstOrDefault(option =>
+            string.Equals(option.NumericValue, numericValue, StringComparison.Ordinal));
+        if (exactMatch is not null)
+        {
+            return exactMatch.Name;
+        }
+
+        if (!metadata.IsFlags
+            || !ulong.TryParse(numericValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var remaining))
+        {
+            return null;
+        }
+
+        var selected = new List<string>();
+        foreach (var option in metadata.Options)
+        {
+            if (!ulong.TryParse(option.NumericValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var optionValue)
+                || optionValue == 0
+                || (remaining & optionValue) != optionValue)
+            {
+                continue;
+            }
+
+            selected.Add(option.Name);
+            remaining &= ~optionValue;
+        }
+
+        return remaining == 0 && selected.Count > 0
+            ? string.Join(", ", selected)
+            : null;
     }
 
     private static NodeMetadata ReadNodeMetadata(MetadataReader reader, CustomAttributeHandle handle, MetadataTypeNameProvider provider)

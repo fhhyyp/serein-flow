@@ -3,6 +3,7 @@ import type { NodeCreationDescriptorDto } from '../api/flowApi'
 import type { LibraryNodeDto } from '../api/libraryApi'
 import { isNodeKind } from '../flow/nodeCatalog'
 import { canonicalParameterId } from '../flow/connectionSeats'
+import { initialLibraryParameterLiteral } from '../flow/libraryParameterDefaults'
 import type { MethodParameter, NodeKind, NodeRuntimeMetadata, ScriptNodeData } from '../flow/types'
 import { t } from '../i18n'
 
@@ -140,7 +141,7 @@ export function useNodeDrop(options: NodeDropOptions) {
       enumMetadata: parameter.enumMetadata ?? undefined,
       source: 'literal' as const,
       inputMode: 'manual' as const,
-      literalValue: '',
+      literalValue: initialLibraryParameterLiteral(parameter.defaultValue),
     }))
 
     return {

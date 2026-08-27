@@ -22,8 +22,10 @@ public sealed class 生产线节点
         [NodeParam(Name = "设备编号")] string 设备编号,
         [NodeParam(Name = "点位名称")] string 点位名称,
         [NodeParam(Name = "写入值")] decimal 写入值,
-        [NodeParam(Name = "保留小数位")] int 保留小数位 = 2)
-        => $"{设备编号}:{点位名称}={Math.Round(写入值, Math.Clamp(保留小数位, 0, 6))}";
+        [NodeParam(Name = "保留小数位")] int 保留小数位 = 2,
+        [NodeParam(Name = "工程单位")] string 工程单位 = "毫米",
+        [NodeParam(Name = "允许误差")] decimal 允许误差 = 0.01m)
+        => $"{设备编号}:{点位名称}={Math.Round(写入值, Math.Clamp(保留小数位, 0, 6))} {工程单位}（允许误差：{允许误差}）";
 
     [FlowNode(AnotherName = "记录工序结果", Desc = "记录工单在指定工序中的合格状态和备注，不产生数据输出。")]
     public void 记录工序结果(
@@ -85,23 +87,23 @@ public sealed class 生产线节点
         => 检测值.Sum();
 
     [FlowNode(AnotherName = "设置设备运行模式", Desc = "设置设备在自动、手动或维护模式下运行，演示普通枚举输入。")]
-    public string 设置设备运行模式([NodeParam(Name = "运行模式")] 设备运行模式 运行模式)
+    public string 设置设备运行模式([NodeParam(Name = "运行模式")] 设备运行模式 运行模式 = 设备运行模式.自动)
         => $"当前运行模式：{运行模式}";
 
     [FlowNode(AnotherName = "配置设备操作权限", Desc = "配置设备可执行的操作权限，演示 Flags 枚举输入。")]
-    public string 配置设备操作权限([NodeParam(Name = "操作权限")] 设备操作权限 操作权限)
+    public string 配置设备操作权限([NodeParam(Name = "操作权限")] 设备操作权限 操作权限 = 设备操作权限.读取状态)
         => $"当前操作权限：{操作权限}";
 
     [FlowNode(AnotherName = "生成设备配置摘要", Desc = "同时接收运行模式和操作权限，便于验证普通枚举下拉、Flags 多选、保存重载及节点输出。")]
     public 设备配置摘要 生成设备配置摘要(
-        [NodeParam(Name = "运行模式")] 设备运行模式 运行模式,
-        [NodeParam(Name = "操作权限")] 设备操作权限 操作权限)
+        [NodeParam(Name = "运行模式")] 设备运行模式 运行模式 = 设备运行模式.自动,
+        [NodeParam(Name = "操作权限")] 设备操作权限 操作权限 = 设备操作权限.读取状态)
         => new(运行模式, 操作权限, DateTimeOffset.UtcNow);
 
     [FlowNode(NodeType = NodeType.Flipflop, AnotherName = "监听设备配置变更", Desc = "以异步监听方式返回当前设备枚举配置，用于验证 Flipflop 的枚举参数转换与 Task<T> 输出。")]
     public async Task<设备配置摘要> 监听设备配置变更(
-        [NodeParam(Name = "运行模式")] 设备运行模式 运行模式,
-        [NodeParam(Name = "操作权限")] 设备操作权限 操作权限,
+        [NodeParam(Name = "运行模式")] 设备运行模式 运行模式 = 设备运行模式.自动,
+        [NodeParam(Name = "操作权限")] 设备操作权限 操作权限 = 设备操作权限.读取状态,
         [NodeParam(Name = "监听间隔毫秒")] int 监听间隔毫秒 = 1000)
     {
         await Task.Delay(Math.Clamp(监听间隔毫秒, 50, 3_600_000));

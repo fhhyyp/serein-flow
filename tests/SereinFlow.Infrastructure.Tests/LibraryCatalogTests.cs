@@ -90,6 +90,9 @@ public sealed class LibraryCatalogTests
             Assert.Equal("根据合格数量和检测总数计算本批次合格率。", passRate.Description);
             Assert.Equal(["合格数量", "检测总数"], passRate.Parameters.Select(parameter => parameter.Name).ToArray());
 
+            var writeInstruction = Assert.Single(result.Library.Nodes, node => node.MethodName == "构建设备写入指令");
+            Assert.Equal(["2", "毫米", "0.01"], writeInstruction.Parameters.Skip(3).Select(parameter => parameter.DefaultValue!).ToArray());
+
             var flipflop = Assert.Single(result.Library.Nodes, node => node.MethodName == "等待设备触发");
             Assert.Equal(SereinFlow.Contracts.NodeTypeDto.Flipflop, flipflop.Type);
 
@@ -113,6 +116,7 @@ public sealed class LibraryCatalogTests
             Assert.Equal("System.Int32", modeMetadata.UnderlyingType);
             Assert.Equal(["自动", "手动", "维护"], modeMetadata.Options.Select(option => option.Name).ToArray());
             Assert.Equal(["0", "1", "2"], modeMetadata.Options.Select(option => option.NumericValue).ToArray());
+            Assert.Equal("自动", modeParameter.DefaultValue);
 
             var permissions = Assert.Single(result.Library.Nodes, node => node.MethodName == "配置设备操作权限");
             var permissionsParameter = Assert.Single(permissions.Parameters);
@@ -121,10 +125,12 @@ public sealed class LibraryCatalogTests
             Assert.True(permissionsMetadata.IsFlags);
             Assert.Equal("System.UInt64", permissionsMetadata.UnderlyingType);
             Assert.Equal(["0", "1", "2", "4", "7"], permissionsMetadata.Options.Select(option => option.NumericValue).ToArray());
+            Assert.Equal("读取状态", permissionsParameter.DefaultValue);
 
             var combinedConfiguration = Assert.Single(result.Library.Nodes, node => node.MethodName == "生成设备配置摘要");
             Assert.Equal(["运行模式", "操作权限"], combinedConfiguration.Parameters.Select(parameter => parameter.Name).ToArray());
             Assert.All(combinedConfiguration.Parameters, parameter => Assert.NotNull(parameter.EnumMetadata));
+            Assert.Equal(["自动", "读取状态"], combinedConfiguration.Parameters.Select(parameter => parameter.DefaultValue!).ToArray());
 
             var listener = Assert.Single(result.Library.Nodes, node => node.MethodName == "监听设备配置变更");
             Assert.Equal(SereinFlow.Contracts.NodeTypeDto.Flipflop, listener.Type);
@@ -132,6 +138,7 @@ public sealed class LibraryCatalogTests
             Assert.Equal(["运行模式", "操作权限", "监听间隔毫秒"], listener.Parameters.Select(parameter => parameter.Name).ToArray());
             Assert.NotNull(listener.Parameters[0].EnumMetadata);
             Assert.NotNull(listener.Parameters[1].EnumMetadata);
+            Assert.Equal(["自动", "读取状态", "1000"], listener.Parameters.Select(parameter => parameter.DefaultValue!).ToArray());
         }
         finally
         {

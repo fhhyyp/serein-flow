@@ -127,6 +127,28 @@ public sealed class RuntimeSessionTests
     }
 
     [Fact]
+    public async Task EmptyOptionalLiteralIsOmittedSoTheWorkerCanApplyTheMethodDefault()
+    {
+        var parameter = new NodeParameterDefinition("retryCount", string.Empty, DataSource.Literal, required: false);
+        var node = NodeDefinition.Create(
+            "action",
+            NodeType.Action,
+            "Action",
+            parameters: [parameter]);
+        var definition = FlowDefinition.Create(
+            Guid.NewGuid(),
+            1,
+            [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])],
+            node.Id);
+        var plan = new ExecutionPlanBuilder().Build(definition);
+
+        await using var session = new FlowExecutionSession();
+        var inputs = new DataConnectionResolver().Resolve(node, plan, session);
+
+        Assert.DoesNotContain(parameter.Id, inputs.Keys);
+    }
+
+    [Fact]
     public async Task NodeLogIsPublishedBetweenNodeStartAndCompletionWithRuntimeMetadata()
     {
         var node = NodeDefinition.Create("action", NodeType.Action, "Action");
