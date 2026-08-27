@@ -604,7 +604,21 @@ h2 { overflow-wrap: anywhere; }
 .toggle-field input { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); }
 .toggle-field small { grid-column: 2; color: var(--muted); font-size: 11px; line-height: 1.45; }
 .script-editor, .flowcall-editor { gap: 10px; }
-.script-source-input { min-height: 154px; line-height: 1.55; tab-size: 2; }
+.script-source-input { min-height: 154px; line-height: 1.55; tab-size: 2; resize: none; background: var(--canvas) !important; color: var(--muted) !important; cursor: default; }
+.script-editor-backdrop { position: fixed; z-index: 80; inset: 0; display: grid; place-items: center; padding: 16px; background: rgb(15 23 42 / 44%); }
+.script-editor-dialog { display: grid; width: min(1600px, calc(100vw - 32px)); height: min(980px, calc(100vh - 32px)); min-height: 460px; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); box-shadow: 0 24px 64px rgb(15 23 42 / 24%); }
+.script-editor-dialog > header { display: flex; min-width: 0; align-items: flex-start; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); padding: 16px 18px 14px; }
+.script-editor-dialog > header > div { min-width: 0; }
+.script-editor-dialog > header .eyebrow { display: inline-flex; align-items: center; gap: 5px; margin: 0; }
+.script-editor-dialog > header h2 { margin: 5px 0 3px; color: var(--ink); font-size: 16px; }
+.script-editor-dialog > header span { display: block; overflow: hidden; color: var(--subtle); font-family: var(--mono); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.script-editor-dialog__body { min-width: 0; min-height: 0; background: var(--surface); }
+.serein-script-code-editor { width: 100%; height: 100%; min-width: 0; min-height: 0; }
+.script-editor-dialog > footer { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 14px; border-top: 1px solid var(--line); padding: 10px 14px; background: #fbfcfd; }
+.script-editor-dialog__metrics, .script-editor-dialog__actions { display: flex; min-width: 0; align-items: center; gap: 8px; }
+.script-editor-dialog__metrics { overflow: hidden; color: var(--subtle); font-family: var(--mono); font-size: 10px; }
+.script-editor-dialog__metrics span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.script-editor-dialog__metrics span + span { border-left: 1px solid var(--line); padding-left: 8px; }
 .section-label-row { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; }
 .parameter-editor-wrap { display: grid; gap: 7px; }
 .script-input-meta { display: grid; grid-template-columns: minmax(0, 1fr) minmax(72px, .7fr); gap: 7px; border: 1px solid var(--line); border-bottom: 0; padding: 8px; background: var(--surface); }
@@ -749,6 +763,12 @@ h2 { overflow-wrap: anywhere; }
   .output-event-layout { display: block; }
   .event-detail-card { display: none; }
   .output-content { padding-top: 9px; }
+  .script-editor-backdrop { padding: 8px; }
+  .script-editor-dialog { width: 100%; height: calc(100vh - 16px); min-height: 0; }
+  .script-editor-dialog > header { padding: 13px 14px 11px; }
+  .script-editor-dialog > footer { align-items: flex-end; flex-direction: column; gap: 9px; padding: 9px 12px; }
+  .script-editor-dialog__metrics { align-self: flex-start; }
+  .script-editor-dialog__actions { width: 100%; justify-content: flex-end; }
   .event-time { width: 75px; }
   .brand-divider, .command-console-label { display: none; }
   .operations-console { display: block; overflow: auto; }

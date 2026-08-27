@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { Plus, Settings2, Trash2, X } from 'lucide-vue-next'
+import { Maximize2, Plus, Settings2, Trash2, X } from 'lucide-vue-next'
+import { defineAsyncComponent, ref } from 'vue'
 import { t } from '../../i18n'
 import ParameterEditor from './ParameterEditor.vue'
 import type { CanvasState, FlowEdge, FlowNode, MethodParameter, NodeKind } from '../../flow/types'
+
+const ScriptEditorDialog = defineAsyncComponent(() => import('../editor/ScriptEditorDialog.vue'))
 
 const props = defineProps<{
   mobileVisible: boolean
@@ -29,6 +32,11 @@ const emit = defineEmits<{
   'add-variadic-input': [nodeId: string, parameterId: string]
   'remove-variadic-input': [nodeId: string, parameterId: string]
 }>()
+
+const scriptEditorOpen = ref(false)
+const scriptEditorSource = ref('')
+const scriptEditorNodeId = ref('')
+const scriptEditorNodeTitle = ref('')
 
 function updateParameterSource(nodeId: string, parameter: MethodParameter, event: Event): void {
   emit('update-parameter-source', nodeId, parameter, event)
@@ -70,6 +78,37 @@ function isFirstVariadic(node: FlowNode, parameter: MethodParameter): boolean {
 
   return node.data.parameters.find((candidate) => candidate.variadicGroupId === parameter.variadicGroupId)?.id === parameter.id
 }
+
+function openScriptEditor(): void {
+  const node = props.selectedNode
+  if (!node || node.data.kind !== 'script' || !node.data.script) {
+    return
+  }
+
+  scriptEditorNodeId.value = node.id
+  scriptEditorNodeTitle.value = props.nodeTitle(node)
+  scriptEditorSource.value = node.data.script.source
+  scriptEditorOpen.value = true
+}
+
+function closeScriptEditor(): void {
+  scriptEditorOpen.value = false
+}
+
+function applyScriptSource(source: string): void {
+  const node = props.canvases
+    .flatMap((canvas) => canvas.nodes)
+    .find((candidate) => candidate.id === scriptEditorNodeId.value)
+  if (!node?.data.script || source === node.data.script.source) {
+    closeScriptEditor()
+    return
+  }
+
+  emit('begin-text-edit')
+  node.data.script.source = source
+  emit('commit-text-edit')
+  closeScriptEditor()
+}
 </script>
 
 <template>
@@ -79,7 +118,7 @@ function isFirstVariadic(node: FlowNode, parameter: MethodParameter): boolean {
       <div class="inspector-type"><span class="node-icon" :class="`kind-${props.selectedNode.data.kind}`"><component :is="props.iconForNodeKind(props.selectedNode.data.kind)" :size="15" /></span><span>{{ t('inspector.nodeType', { kind: t(`node.kind.${props.selectedNode.data.kind}`) }) }}</span><span class="inspector-id mono">#{{ props.selectedNode.id }}</span></div>
       <div class="inspector-section"><span class="section-label">{{ t('inspector.general') }}</span><label class="field-label">{{ t('inspector.displayName') }}<input v-model="props.selectedNode.data.displayName" type="text" :placeholder="t(props.selectedNode.data.titleKey)" @focus="emit('begin-text-edit')" @input="emit('commit-text-edit')" @blur="emit('discard-text-edit')" /></label><label class="field-label">{{ t('inspector.description') }}<textarea v-model="props.selectedNode.data.description" rows="2" :placeholder="t(props.selectedNode.data.subtitleKey)" @focus="emit('begin-text-edit')" @input="emit('commit-text-edit')" @blur="emit('discard-text-edit')"></textarea></label><label class="toggle-field"><input type="checkbox" :checked="props.selectedNode.data.runtime?.isPublic === true" @change="onPublicChange" /><span>{{ t('inspector.publicNode') }}</span><small>{{ t('inspector.publicNodeHint') }}</small></label></div>
 
-      <div v-if="props.selectedNode.data.kind === 'script' && props.selectedNode.data.script" class="inspector-section script-editor"><span class="section-label">{{ t('inspector.script') }}</span><label class="field-label">{{ t('inspector.scriptSource') }}<textarea v-model="props.selectedNode.data.script.source" class="script-source-input mono" rows="8" spellcheck="false" @focus="emit('begin-text-edit')" @input="emit('commit-text-edit')" @blur="emit('discard-text-edit')"></textarea></label></div>
+      <div v-if="props.selectedNode.data.kind === 'script' && props.selectedNode.data.script" class="inspector-section script-editor"><div class="section-label-row"><span class="section-label">{{ t('inspector.script') }}</span><button class="icon-button compact" type="button" :title="t('inspector.openScriptEditor')" :aria-label="t('inspector.openScriptEditor')" @click="openScriptEditor"><Maximize2 :size="14" /></button></div><label class="field-label">{{ t('inspector.scriptSource') }}<textarea :value="props.selectedNode.data.script.source" class="script-source-input mono" rows="8" spellcheck="false" readonly></textarea></label></div>
 
       <div v-if="props.selectedNode.data.kind === 'flowCall'" class="inspector-section flowcall-editor"><span class="section-label">{{ t('inspector.flowCallTarget') }}</span><label class="field-label">{{ t('inspector.targetCanvas') }}<select :value="props.selectedNode.data.runtime?.targetCanvasId ?? ''" @change="onTargetCanvasChange"><option value="">{{ t('inspector.selectCanvas') }}</option><option v-for="canvas in props.canvases" :key="canvas.id" :value="canvas.id">{{ canvas.name || t(canvas.nameKey) }}</option></select></label><label v-if="props.selectedNode.data.runtime?.targetCanvasId" class="field-label">{{ t('inspector.publicTargetNode') }}<select :value="props.selectedNode.data.runtime?.targetNodeId ?? ''" @change="onTargetNodeChange"><option value="">{{ t('inspector.selectPublicNode') }}</option><option v-for="node in publicNodes(props.selectedNode.data.runtime?.targetCanvasId ?? '', props.selectedNode.id)" :key="node.id" :value="node.id">{{ props.nodeTitle(node) }}</option></select></label><p v-if="props.selectedNode.data.runtime?.targetCanvasId && publicNodes(props.selectedNode.data.runtime.targetCanvasId, props.selectedNode.id).length === 0" class="empty-copy">{{ t('inspector.noPublicNodes') }}</p></div>
 
@@ -90,4 +129,5 @@ function isFirstVariadic(node: FlowNode, parameter: MethodParameter): boolean {
     </template>
     <div v-else class="inspector-empty"><Settings2 :size="20" /><strong>{{ t('canvas.emptySelection') }}</strong><p>{{ t('inspector.selectNode') }}</p></div>
   </aside>
+  <ScriptEditorDialog v-if="scriptEditorOpen" :open="scriptEditorOpen" :source="scriptEditorSource" :node-title="scriptEditorNodeTitle" @close="closeScriptEditor" @apply="applyScriptSource" />
 </template>

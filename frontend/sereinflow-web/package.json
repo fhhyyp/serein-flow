@@ -15,6 +15,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@codemirror/commands": "^6.11.0",
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/state": "^6.7.1",
+    "@codemirror/view": "^6.43.9",
     "@vue-flow/core": "^1.48.2",
     "lucide-vue-next": "^1.0.0",
     "vue": "^3.5.40"
