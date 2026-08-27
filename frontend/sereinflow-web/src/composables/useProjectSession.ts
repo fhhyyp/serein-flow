@@ -1,5 +1,5 @@
 import type { Ref } from 'vue'
-import { FlowApiError, createProject, listProjects, loadFlow, renameProject, saveFlow as saveFlowRequest, type ProjectWorkspaceDto } from '../api/flowApi'
+import { FlowApiError, createProject, listProjects, loadFlow, renameProject, saveFlow as saveFlowRequest, type FlowValidationDiagnostic, type ProjectWorkspaceDto } from '../api/flowApi'
 import { t } from '../i18n'
 import type { ConnectionLineSettings } from '../flow/connectionLine'
 import { normalizeConnectionLineTypes } from '../flow/connectionLine'
@@ -30,6 +30,7 @@ interface UseProjectSessionOptions {
   isDirty: Ref<boolean>
   saveFailed: Ref<boolean>
   saveConflict: Ref<boolean>
+  saveDiagnostics: Ref<FlowValidationDiagnostic[]>
   savedWorkspaceFingerprint: Ref<string>
   notice: Ref<string>
   currentWorkspaceSnapshot: () => WorkspaceSnapshot
@@ -43,6 +44,14 @@ interface UseProjectSessionOptions {
 }
 
 export function useProjectSession(options: UseProjectSessionOptions) {
+  function captureSaveDiagnostics(error: unknown): void {
+    options.saveDiagnostics.value = error instanceof FlowApiError ? error.diagnostics : []
+  }
+
+  function clearSaveDiagnostics(): void {
+    options.saveDiagnostics.value = []
+  }
+
   function saveRecoveryDraft(snapshot: WorkspaceSnapshot): void {
     try {
       saveWorkspace(snapshot)
@@ -134,6 +143,7 @@ export function useProjectSession(options: UseProjectSessionOptions) {
     options.isSaving.value = true
     options.saveFailed.value = false
     options.saveConflict.value = false
+    clearSaveDiagnostics()
 
     try {
       let savedDefinition
@@ -172,6 +182,7 @@ export function useProjectSession(options: UseProjectSessionOptions) {
       options.refreshDirtyState()
       options.notice.value = t('canvas.savedNow')
     } catch (error) {
+      captureSaveDiagnostics(error)
       if (error instanceof FlowApiError && error.status === 409) {
         options.saveConflict.value = true
         options.notice.value = t('canvas.saveConflictNow')
@@ -192,6 +203,7 @@ export function useProjectSession(options: UseProjectSessionOptions) {
     options.isDirty.value = false
     options.saveFailed.value = false
     options.saveConflict.value = false
+    clearSaveDiagnostics()
     options.localizeEdges()
   }
 
@@ -223,7 +235,11 @@ export function useProjectSession(options: UseProjectSessionOptions) {
     }
   }
 
-  function startNewProject(): void {
+  async function startNewProject(): Promise<void> {
+    if (options.isWorkspaceLoading.value || options.isSaving.value) {
+      return
+    }
+
     options.projectRenameOpen.value = false
     options.projectMenuOpen.value = false
     options.projectId.value = undefined
@@ -231,19 +247,54 @@ export function useProjectSession(options: UseProjectSessionOptions) {
     options.flowVersion.value = 1
     options.projectVersion.value = 1
     options.projectName.value = t('project.newProject')
-    options.restoreWorkspace({
+    const newFlowId = crypto.randomUUID()
+    const initialSnapshot: WorkspaceSnapshot = {
       canvases: createInitialCanvases(),
       activeCanvasId: 'main',
       nextNodeNumber: 1,
       projectName: options.projectName.value,
+      connectionLineTypes: normalizeConnectionLineTypes(options.connectionLineTypes),
       runPolicy: { concurrencyMode: 'parallel' },
-    })
+    }
+    options.restoreWorkspace(initialSnapshot)
     options.clearHistory()
     options.savedWorkspaceFingerprint.value = ''
     options.isDirty.value = true
     options.saveFailed.value = false
     options.saveConflict.value = false
-    options.notice.value = t('project.newProjectStarted')
+    clearSaveDiagnostics()
+    options.isWorkspaceLoading.value = true
+
+    try {
+      // A project is created together with an empty main canvas. It is a
+      // persisted editor draft, not a runnable flow until an entry node exists.
+      // 项目与空白主画布一并创建。它是已持久化的编辑草稿，在拥有入口节点前不能运行。
+      const definition = workspaceToFlowDefinition(initialSnapshot, { id: newFlowId, version: 1 })
+      const workspace = await createProject({ name: options.projectName.value, definition })
+      const savedFlow = workspace.flows.find((flow) => flow.id === newFlowId)
+
+      options.projectId.value = workspace.project.id
+      options.projectName.value = workspace.project.name
+      options.projectVersion.value = workspace.project.version
+      options.flowId.value = newFlowId
+      options.flowVersion.value = savedFlow?.version ?? definition.version
+      options.projectWorkspaces.value = [
+        ...options.projectWorkspaces.value.filter((item) => item.project.id !== workspace.project.id),
+        workspace,
+      ]
+      options.savedWorkspaceFingerprint.value = JSON.stringify(options.currentWorkspaceSnapshot())
+      options.refreshDirtyState()
+      options.notice.value = t('project.newProjectCreated')
+    } catch (error) {
+      saveRecoveryDraft(initialSnapshot)
+      options.savedWorkspaceFingerprint.value = ''
+      options.isDirty.value = true
+      options.saveFailed.value = true
+      captureSaveDiagnostics(error)
+      options.notice.value = t('project.newProjectCreateFailed')
+    } finally {
+      options.isWorkspaceLoading.value = false
+    }
   }
 
   async function initializeWorkspace(): Promise<void> {
@@ -284,12 +335,14 @@ export function useProjectSession(options: UseProjectSessionOptions) {
       options.isDirty.value = false
       options.saveFailed.value = false
       options.saveConflict.value = false
+      clearSaveDiagnostics()
       options.notice.value = ''
     } catch {
       if (options.recoveryWorkspace) {
         options.restoreWorkspace(options.recoveryWorkspace)
         options.savedWorkspaceFingerprint.value = ''
         options.isDirty.value = true
+        clearSaveDiagnostics()
         options.notice.value = t('canvas.recoveredDraft')
       } else {
         options.isDirty.value = true

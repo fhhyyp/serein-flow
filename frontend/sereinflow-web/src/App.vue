@@ -18,13 +18,14 @@ import OutputPanel from './components/workspace/OutputPanel.vue'
 import CanvasPanel from './components/canvas/CanvasPanel.vue'
 import InspectorPanel from './components/inspector/InspectorPanel.vue'
 import RunConsole from './components/runs/RunConsole.vue'
-import type { FlowConcurrencyMode, ProjectWorkspaceDto } from './api/flowApi'
+import type { FlowConcurrencyMode, FlowValidationDiagnostic, ProjectWorkspaceDto } from './api/flowApi'
 import { locale, setLocale, t, type Locale } from './i18n'
 import {
   normalizeConnectionLineTypes,
   type ConnectionLineSettings,
 } from './flow/connectionLine'
 import { createInitialCanvases } from './flow/initialCanvases'
+import { parseFlowValidationDiagnosticTarget } from './flow/validationDiagnostics'
 import { cloneWorkspaceSnapshot, workspaceFingerprint, type WorkspaceSnapshot } from './flow/workspaceHistory'
 import { loadWorkspace } from './flow/workspaceStorage'
 import { useWorkspaceHistory } from './composables/useWorkspaceHistory'
@@ -68,6 +69,7 @@ const nextNodeNumber = ref(1)
 const isDirty = ref(false)
 const saveFailed = ref(false)
 const saveConflict = ref(false)
+const saveDiagnostics = ref<FlowValidationDiagnostic[]>([])
 const isWorkspaceLoading = ref(true)
 const isSaving = ref(false)
 const projectId = ref<string>()
@@ -155,6 +157,9 @@ function refreshDirtyState(): void {
 }
 
 function markWorkspaceChanged(): void {
+  if (saveDiagnostics.value.length) {
+    saveDiagnostics.value = []
+  }
   void nextTick().then(refreshDirtyState)
 }
 
@@ -223,6 +228,7 @@ const {
   renderedElements,
   selectedNode,
   selectedEdge,
+  selectNode,
   onNodeClick,
   onEdgeClick,
   clearSelection,
@@ -291,6 +297,7 @@ const {
   isDirty,
   saveFailed,
   saveConflict,
+  saveDiagnostics,
   savedWorkspaceFingerprint,
   notice,
   currentWorkspaceSnapshot,
@@ -324,14 +331,37 @@ function sourceNodeTitle(parameter: MethodParameter): string {
   return source ? nodeTitle(source) : t('parameter.previousNode')
 }
 
+function nodeIdFromDiagnostic(diagnostic: FlowValidationDiagnostic): string | undefined {
+  return parseFlowValidationDiagnosticTarget(diagnostic.path)?.nodeId
+}
+
+function dismissSaveDiagnostics(): void {
+  saveDiagnostics.value = []
+}
+
+function locateSaveDiagnostic(diagnostic: FlowValidationDiagnostic): void {
+  const nodeId = nodeIdFromDiagnostic(diagnostic)
+  if (!nodeId) {
+    return
+  }
+
+  const canvas = canvases.value.find((candidate) => candidate.nodes.some((node) => node.id === nodeId))
+  if (!canvas) {
+    return
+  }
+
+  selectCanvas(canvas.id)
+  void nextTick().then(() => selectNode(nodeId))
+}
+
 async function openProjectInEditor(workspace: ProjectWorkspaceDto, requestedFlowId?: string): Promise<void> {
   await loadProject(workspace, requestedFlowId)
   workspaceView.value = 'editor'
 }
 
-function startNewProjectInEditor(): void {
-  beginNewProject()
+async function startNewProjectInEditor(): Promise<void> {
   workspaceView.value = 'editor'
+  await beginNewProject()
 }
 
 function refreshProjectLibraryCatalog(): void {
@@ -503,6 +533,16 @@ function setLanguage(nextLocale: Locale): void {
       @close="projectLibraryOpen = false"
       @changed="replaceProjectLibraries"
     />
-    <OutputPanel v-if="workspaceView === 'editor'" v-model:active-output="activeOutput" :run-events="runEvents" :run-payload="runPayload" :has-run-output="hasRunOutput" />
+    <OutputPanel
+      v-if="workspaceView === 'editor'"
+      v-model:active-output="activeOutput"
+      :run-events="runEvents"
+      :run-payload="runPayload"
+      :has-run-output="hasRunOutput"
+      :diagnostics="saveDiagnostics"
+      :canvases="canvases"
+      @dismiss-diagnostics="dismissSaveDiagnostics"
+      @locate-diagnostic="locateSaveDiagnostic"
+    />
   </div>
 </template>

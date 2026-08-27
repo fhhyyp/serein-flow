@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
-import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, CircleDashed, Code2, Copy, Maximize2, Minimize2, Terminal } from 'lucide-vue-next'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, CircleDashed, Code2, Copy, Maximize2, Minimize2, Terminal } from 'lucide-vue-next'
 import { t } from '../../i18n'
+import type { FlowValidationDiagnostic } from '../../api/flowApi'
+import type { CanvasState } from '../../flow/types'
+import FlowValidationDiagnostics from '../canvas/FlowValidationDiagnostics.vue'
 
 interface RunEvent {
   time: string
@@ -13,15 +16,21 @@ interface RunEvent {
   nodeId?: string
 }
 
+type OutputPanelView = 'output' | 'diagnostics'
+
 const props = defineProps<{
   activeOutput: 'events' | 'payload'
   runEvents: RunEvent[]
   runPayload: string
   hasRunOutput: boolean
+  diagnostics: FlowValidationDiagnostic[]
+  canvases: CanvasState[]
 }>()
 
 const emit = defineEmits<{
   'update:activeOutput': [value: 'events' | 'payload']
+  'dismiss-diagnostics': []
+  'locate-diagnostic': [diagnostic: FlowValidationDiagnostic]
 }>()
 
 const collapsed = ref(false)
@@ -30,7 +39,16 @@ const panelHeight = ref(300)
 const resizing = ref(false)
 const eventFilter = ref<'all' | 'success' | 'error'>('all')
 const selectedEventKey = ref<string>()
+const activePanelView = ref<OutputPanelView>('output')
 let stopResize: (() => void) | undefined
+
+watch(
+  () => props.diagnostics.length,
+  (count) => {
+    activePanelView.value = count > 0 ? 'diagnostics' : 'output'
+  },
+  { immediate: true },
+)
 
 const visibleEvents = computed(() => props.runEvents.filter((event) => {
   if (eventFilter.value === 'all') return true
@@ -104,6 +122,10 @@ onBeforeUnmount(() => {
 function selectOutput(value: 'events' | 'payload'): void {
   emit('update:activeOutput', value)
 }
+
+function selectPanelView(value: OutputPanelView): void {
+  activePanelView.value = value
+}
 </script>
 
 <template>
@@ -123,42 +145,51 @@ function selectOutput(value: 'events' | 'payload'): void {
     </div>
     <div v-if="!collapsed" class="output-body">
       <div class="output-tabs" role="tablist" :aria-label="t('output.eventsLabel')">
-        <button type="button" :class="{ active: props.activeOutput === 'events' }" @click="selectOutput('events')">
-          <Terminal :size="14" />{{ t('output.events') }}<span class="tab-count">{{ props.runEvents.length }}</span>
+        <button type="button" role="tab" :aria-selected="activePanelView === 'output'" :class="{ active: activePanelView === 'output' }" @click="selectPanelView('output')">
+          <Terminal :size="14" />{{ t('output.eventsLabel') }}<span class="tab-count">{{ props.runEvents.length }}</span>
         </button>
-        <button type="button" :class="{ active: props.activeOutput === 'payload' }" @click="selectOutput('payload')">
-          <Code2 :size="14" />{{ t('output.payload') }}
+        <button type="button" role="tab" :aria-selected="activePanelView === 'diagnostics'" :class="['output-diagnostics-tab', { active: activePanelView === 'diagnostics' }]" @click="selectPanelView('diagnostics')">
+          <AlertTriangle :size="14" />{{ t('diagnostics.tab') }}<span class="tab-count">{{ props.diagnostics.length }}</span>
         </button>
       </div>
-      <div v-if="props.activeOutput === 'events'" class="output-toolbar">
-        <span class="output-toolbar__label">{{ t('output.filter') }}</span>
-        <button v-for="filter in ['all', 'success', 'error'] as const" :key="filter" type="button" class="filter-chip" :class="{ active: eventFilter === filter }" @click="eventFilter = filter">{{ t(`output.filter.${filter}`) }}</button>
-        <span class="output-toolbar__spacer"></span><span class="output-toolbar__hint">{{ t('output.selectHint') }}</span>
-      </div>
-      <div class="output-content">
-        <template v-if="props.activeOutput === 'events'">
-          <div v-if="visibleEvents.length === 0" class="output-empty"><Terminal :size="17" /><span>{{ props.runEvents.length === 0 ? t('output.emptyEvents') : t('output.emptyFiltered') }}</span></div>
-          <div v-else class="output-event-layout">
-            <div class="output-event-list">
-              <button v-for="event in visibleEvents" :key="eventKey(event)" type="button" class="event-row" :class="[`status-${eventStatus(event)}`, { selected: selectedEventKey === eventKey(event) }]" @click="selectEvent(event)">
-                <span class="event-time mono">{{ event.time }}</span>
-                <span class="event-icon"><component :is="eventIcon(event)" :size="14" /></span>
-                <span class="event-copy"><strong>{{ event.label }}</strong><span>{{ event.nodeId || t('output.runEvent') }}</span></span>
-                <span v-if="event.sequence" class="event-sequence mono">#{{ event.sequence }}</span>
-              </button>
+      <template v-if="activePanelView === 'output'">
+        <div class="output-mode-tabs" role="tablist" :aria-label="t('output.eventsLabel')">
+          <button type="button" role="tab" :aria-selected="props.activeOutput === 'events'" :class="{ active: props.activeOutput === 'events' }" @click="selectOutput('events')"><Terminal :size="13" />{{ t('output.events') }}</button>
+          <button type="button" role="tab" :aria-selected="props.activeOutput === 'payload'" :class="{ active: props.activeOutput === 'payload' }" @click="selectOutput('payload')"><Code2 :size="13" />{{ t('output.payload') }}</button>
+        </div>
+        <div v-if="props.activeOutput === 'events'" class="output-toolbar">
+          <span class="output-toolbar__label">{{ t('output.filter') }}</span>
+          <button v-for="filter in ['all', 'success', 'error'] as const" :key="filter" type="button" class="filter-chip" :class="{ active: eventFilter === filter }" @click="eventFilter = filter">{{ t(`output.filter.${filter}`) }}</button>
+          <span class="output-toolbar__spacer"></span><span class="output-toolbar__hint">{{ t('output.selectHint') }}</span>
+        </div>
+        <div class="output-content">
+          <template v-if="props.activeOutput === 'events'">
+            <div v-if="visibleEvents.length === 0" class="output-empty"><Terminal :size="17" /><span>{{ props.runEvents.length === 0 ? t('output.emptyEvents') : t('output.emptyFiltered') }}</span></div>
+            <div v-else class="output-event-layout">
+              <div class="output-event-list">
+                <button v-for="event in visibleEvents" :key="eventKey(event)" type="button" class="event-row" :class="[`status-${eventStatus(event)}`, { selected: selectedEventKey === eventKey(event) }]" @click="selectEvent(event)">
+                  <span class="event-time mono">{{ event.time }}</span>
+                  <span class="event-icon"><component :is="eventIcon(event)" :size="14" /></span>
+                  <span class="event-copy"><strong>{{ event.label }}</strong><span>{{ event.nodeId || t('output.runEvent') }}</span></span>
+                  <span v-if="event.sequence" class="event-sequence mono">#{{ event.sequence }}</span>
+                </button>
+              </div>
+              <aside v-if="selectedEvent" class="event-detail-card">
+                <div class="event-detail-card__header"><span>{{ t('output.eventDetail') }}</span><span class="mono">#{{ selectedEvent.sequence ?? '—' }}</span></div>
+                <strong>{{ selectedEvent.label }}</strong><span class="event-detail-card__node">{{ selectedEvent.nodeId || t('output.runEvent') }} · {{ selectedEvent.time }}</span>
+                <pre>{{ selectedEvent.detail }}</pre>
+              </aside>
             </div>
-            <aside v-if="selectedEvent" class="event-detail-card">
-              <div class="event-detail-card__header"><span>{{ t('output.eventDetail') }}</span><span class="mono">#{{ selectedEvent.sequence ?? '—' }}</span></div>
-              <strong>{{ selectedEvent.label }}</strong><span class="event-detail-card__node">{{ selectedEvent.nodeId || t('output.runEvent') }} · {{ selectedEvent.time }}</span>
-              <pre>{{ selectedEvent.detail }}</pre>
-            </aside>
-          </div>
-        </template>
-        <template v-else>
-          <div class="payload-toolbar"><span>{{ t('output.payloadHint') }}</span><button type="button" class="output-icon-button" :title="t('output.copyPayload')" :aria-label="t('output.copyPayload')" :disabled="!props.runPayload" @click="copyPayload"><Copy :size="14" /></button></div>
-          <div v-if="!props.runPayload" class="output-empty"><Code2 :size="17" /><span>{{ t('output.emptyPayload') }}</span></div>
-          <pre v-else class="payload-preview">{{ props.runPayload }}</pre>
-        </template>
+          </template>
+          <template v-else>
+            <div class="payload-toolbar"><span>{{ t('output.payloadHint') }}</span><button type="button" class="output-icon-button" :title="t('output.copyPayload')" :aria-label="t('output.copyPayload')" :disabled="!props.runPayload" @click="copyPayload"><Copy :size="14" /></button></div>
+            <div v-if="!props.runPayload" class="output-empty"><Code2 :size="17" /><span>{{ t('output.emptyPayload') }}</span></div>
+            <pre v-else class="payload-preview">{{ props.runPayload }}</pre>
+          </template>
+        </div>
+      </template>
+      <div v-else class="output-content output-diagnostics-content">
+        <FlowValidationDiagnostics :diagnostics="props.diagnostics" :canvases="props.canvases" @dismiss="emit('dismiss-diagnostics')" @locate="emit('locate-diagnostic', $event)" />
       </div>
     </div>
   </section>

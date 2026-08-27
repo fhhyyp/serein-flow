@@ -99,7 +99,31 @@ public static class FlowDefinitionContractMapper
 
 public static class FlowDefinitionContractValidator
 {
+    /// <summary>
+    /// Validates a flow that is being saved by the editor. An empty entry node
+    /// represents an intentionally blank editor draft and is not executable.
+    /// 校验编辑器保存的流程。空入口节点表示刻意保留的空白编辑草稿，不能执行。
+    /// </summary>
+    public static FlowValidationResultDto ValidateForPersistence(FlowDefinitionDto definition)
+        => ValidateCore(definition, requireExecutionPlan: !string.IsNullOrWhiteSpace(definition.EntryNodeId));
+
+    /// <summary>
+    /// Validates a flow that is about to enter the runtime. Runtime validation
+    /// always requires an entry node and a complete executable plan.
+    /// 校验即将进入运行时的流程。运行校验始终要求入口节点和完整的可执行计划。
+    /// </summary>
+    public static FlowValidationResultDto ValidateForExecution(FlowDefinitionDto definition)
+        => ValidateCore(definition, requireExecutionPlan: true);
+
+    // Preserve the existing strict behavior for callers that have not yet
+    // opted into one of the explicit validation contexts.
+    // 对尚未迁移到明确校验上下文的调用方，保持原有的严格行为。
     public static FlowValidationResultDto Validate(FlowDefinitionDto definition)
+        => ValidateForExecution(definition);
+
+    private static FlowValidationResultDto ValidateCore(
+        FlowDefinitionDto definition,
+        bool requireExecutionPlan)
     {
         try
         {
@@ -122,7 +146,7 @@ public static class FlowDefinitionContractValidator
                 .Validate()
                 .Select(static diagnostic => new ValidationDiagnosticDto(diagnostic.Code, diagnostic.Message, diagnostic.Path))
                 .ToList();
-            if (diagnostics.Count == 0)
+            if (diagnostics.Count == 0 && requireExecutionPlan)
             {
                 try
                 {
@@ -148,7 +172,25 @@ public static class FlowDefinitionContractValidator
 
 public static class FlowDefinitionContractNormalizer
 {
+    /// <summary>
+    /// Normalizes a flow persisted by the editor. A blank draft has no
+    /// execution plan, so FlowCall return-type analysis is deferred until it
+    /// receives an entry node and becomes executable.
+    /// 规范化由编辑器持久化的流程。空白草稿没有执行计划，因此 FlowCall 返回类型分析会延后到
+    /// 它拥有入口节点并成为可执行流程之后。
+    /// </summary>
+    public static FlowDefinitionDto NormalizeForPersistence(FlowDefinitionDto definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        return string.IsNullOrWhiteSpace(definition.EntryNodeId)
+            ? definition
+            : NormalizeForExecution(definition);
+    }
+
     public static FlowDefinitionDto Normalize(FlowDefinitionDto definition)
+        => NormalizeForExecution(definition);
+
+    public static FlowDefinitionDto NormalizeForExecution(FlowDefinitionDto definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
         var domain = FlowDefinitionContractMapper.Map(definition);

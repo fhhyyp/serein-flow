@@ -49,7 +49,7 @@ public sealed class RunApplicationService
         if (request.ExpectedFlowVersion is not null && request.ExpectedFlowVersion != definition.Version)
             return RunPreparationResult.VersionConflict(definition.Version);
 
-        var validation = FlowDefinitionContractValidator.Validate(definition);
+        var validation = FlowDefinitionContractValidator.ValidateForExecution(definition);
         if (!validation.IsValid)
             return RunPreparationResult.Invalid(validation);
 

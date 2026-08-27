@@ -38,6 +38,7 @@ function updateSearch(event: Event): void {
       <div class="library-empty__mark" aria-hidden="true"><LayoutGrid :size="18" /></div>
       <strong>{{ librarySearch ? t('library.noSearchResults') : t('library.emptyCatalog') }}</strong>
       <p class="empty-copy">{{ librarySearch ? t('library.empty') : t('library.projectEmptyHint') }}</p>
+      <button v-if="!librarySearch" class="library-empty__action" type="button" @click="emit('manage')"><Link2 :size="14" />{{ t('library.manageProject') }}</button>
       <span class="library-empty__hint">{{ t('library.serverOnly') }}</span>
     </div>
     <div v-else class="library-catalog">

@@ -99,7 +99,7 @@ projects.MapGet("", async (IProjectRepository projectRepository, IFlowDefinition
 
 projects.MapPost("", async (CreateProjectRequestDto request, IProjectRepository projectRepository, IFlowDefinitionRepository flowRepository, CancellationToken cancellationToken) =>
 {
-    var validation = FlowDefinitionContractValidator.Validate(request.Definition);
+    var validation = FlowDefinitionContractValidator.ValidateForPersistence(request.Definition);
     if (!validation.IsValid)
     {
         return Results.BadRequest(validation);
@@ -111,7 +111,7 @@ projects.MapPost("", async (CreateProjectRequestDto request, IProjectRepository 
         return Results.BadRequest(libraryValidation);
     }
 
-    var normalizedDefinition = FlowDefinitionContractNormalizer.Normalize(request.Definition);
+    var normalizedDefinition = FlowDefinitionContractNormalizer.NormalizeForPersistence(request.Definition);
     var project = Project.Create(request.Name);
     await projectRepository.AddAsync(project, cancellationToken);
     await flowRepository.AddAsync(project.Id, normalizedDefinition, cancellationToken);
@@ -189,7 +189,7 @@ projects.MapPut("/{projectId:guid}/flows/{flowId:guid}", async (Guid projectId, 
         return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Flow definition not found. 未找到流程定义。");
     }
 
-    var validation = FlowDefinitionContractValidator.Validate(request.Definition);
+    var validation = FlowDefinitionContractValidator.ValidateForPersistence(request.Definition);
     if (!validation.IsValid)
     {
         return Results.BadRequest(validation);
@@ -201,7 +201,7 @@ projects.MapPut("/{projectId:guid}/flows/{flowId:guid}", async (Guid projectId, 
         return Results.BadRequest(libraryValidation);
     }
 
-    var normalizedDefinition = FlowDefinitionContractNormalizer.Normalize(request.Definition);
+    var normalizedDefinition = FlowDefinitionContractNormalizer.NormalizeForPersistence(request.Definition);
     var saved = await flowRepository.TryUpdateAsync(projectId, normalizedDefinition, request.ExpectedVersion, cancellationToken);
     return saved is null
         ? Results.Problem(

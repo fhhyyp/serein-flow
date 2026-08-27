@@ -262,21 +262,35 @@ export interface UpdateFlowInterfaceRequestDto {
   isEnabled: boolean
 }
 
+export interface FlowValidationDiagnostic {
+  code: string
+  message: string
+  path?: string | null
+}
+
 interface ApiProblem {
   title?: string
   detail?: string
   currentVersion?: number
+  diagnostics?: FlowValidationDiagnostic[]
 }
 
 export class FlowApiError extends Error {
   public readonly status: number
   public readonly currentVersion?: number
+  public readonly diagnostics: FlowValidationDiagnostic[]
 
-  public constructor(status: number, message: string, currentVersion?: number) {
+  public constructor(
+    status: number,
+    message: string,
+    currentVersion?: number,
+    diagnostics: FlowValidationDiagnostic[] = [],
+  ) {
     super(message)
     this.name = 'FlowApiError'
     this.status = status
     this.currentVersion = currentVersion
+    this.diagnostics = diagnostics
   }
 }
 
@@ -519,5 +533,11 @@ async function request<T>(path: string, options: { method?: 'POST' | 'PUT' | 'DE
   }
 
   const problem = await response.json().catch(() => ({})) as ApiProblem
-  throw new FlowApiError(response.status, localizeMessage(problem.detail ?? problem.title ?? `Request failed with status ${response.status}. 请求失败，状态码为 ${response.status}。`), problem.currentVersion)
+  const diagnostics = Array.isArray(problem.diagnostics)
+    ? problem.diagnostics.filter((diagnostic): diagnostic is FlowValidationDiagnostic =>
+      typeof diagnostic?.code === 'string' && typeof diagnostic.message === 'string')
+    : []
+  const fallback = `Request failed with status ${response.status}. 请求失败，状态码为 ${response.status}。`
+  const message = problem.detail ?? problem.title ?? diagnostics[0]?.message ?? fallback
+  throw new FlowApiError(response.status, localizeMessage(message), problem.currentVersion, diagnostics)
 }
