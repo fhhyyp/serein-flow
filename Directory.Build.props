@@ -8,5 +8,10 @@
     <Deterministic>true</Deterministic>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <RestoreLockedMode Condition="'$(CI)' == 'true'">true</RestoreLockedMode>
+    <!-- The module bridge uses the ScriptLang prototype source generator. CI and
+         Linux builds set this property to their checked-out SereinScript root. -->
+    <SereinScriptSourceRoot Condition="'$(SereinScriptSourceRoot)' == '' and Exists('D:\Project\C#\SereinScript\SereinScript\ScriptLang.Generator\ScriptLang.Generator.csproj')">D:\Project\C#\SereinScript\SereinScript</SereinScriptSourceRoot>
+    <SereinScriptRuntimeProject>$(SereinScriptSourceRoot)\ScriptLang\ScriptLang.csproj</SereinScriptRuntimeProject>
+    <SereinScriptGeneratorProject>$(SereinScriptSourceRoot)\ScriptLang.Generator\ScriptLang.Generator.csproj</SereinScriptGeneratorProject>
   </PropertyGroup>
 </Project>

@@ -117,7 +117,7 @@ public sealed class FlowRunner
             {
                 inputs = _dataResolver.Resolve(node, plan, session);
                 var executor = _executors.Get(node.Type);
-                lastResult = await executor.ExecuteAsync(new NodeExecutionRequest(node, session, inputs), cancellationToken);
+                lastResult = await executor.ExecuteAsync(CreateExecutionRequest(node, plan, session, inputs), cancellationToken);
                 lastResult = AttachInputs(lastResult, inputs);
             }
             catch (FlowDataBindingException exception)
@@ -228,7 +228,7 @@ public sealed class FlowRunner
                     ["step"] = session.StepCount
                 });
                 inputs = _dataResolver.Resolve(node, plan, triggerSession);
-                var result = await trigger.WaitForTriggerAsync(new NodeExecutionRequest(node, triggerSession, inputs), cancellationToken);
+                var result = await trigger.WaitForTriggerAsync(CreateExecutionRequest(node, plan, triggerSession, inputs), cancellationToken);
                 result = AttachInputs(result, inputs);
                 foreach (var output in result.Outputs)
                     triggerSession.Write($"{node.Id}.{output.Key}", output.Value);
@@ -371,6 +371,30 @@ public sealed class FlowRunner
             stack.Push(connections[index].ToNodeId);
     }
 
+    private NodeExecutionRequest CreateExecutionRequest(
+        NodeDefinition node,
+        ExecutionPlan plan,
+        FlowExecutionSession session,
+        IReadOnlyDictionary<string, object?> inputs)
+    {
+        var canvasId = plan.Definition.Canvases
+            .FirstOrDefault(canvas => canvas.Nodes.Any(candidate => string.Equals(candidate.Id, node.Id, StringComparison.Ordinal)))
+            ?.Id ?? string.Empty;
+        var projectId = session.Read("projectId") as string ?? string.Empty;
+        var environment = new NodeExecutionEnvironment(
+            session.RunId,
+            projectId,
+            plan.Definition.Id,
+            canvasId,
+            node.Id,
+            session.FrameDepth);
+        var runtime = new NodeExecutionRuntime(
+            environment,
+            new NodeEventSink(this, session, node.Id),
+            () => session.CancellationToken.IsCancellationRequested);
+        return new NodeExecutionRequest(node, session, inputs, runtime);
+    }
+
     private static NodeExecutionResult AttachInputs(
         NodeExecutionResult result,
         IReadOnlyDictionary<string, object?> fallbackInputs)
@@ -380,6 +404,24 @@ public sealed class FlowRunner
 
     private static Dictionary<string, object?> CopyInputs(IReadOnlyDictionary<string, object?> values)
         => new Dictionary<string, object?>(values, StringComparer.Ordinal);
+
+    private sealed class NodeEventSink(FlowRunner runner, FlowExecutionSession session, string nodeId) : INodeExecutionEventSink
+    {
+        public ValueTask PublishLogAsync(NodeExecutionLogEntry entry, CancellationToken cancellationToken)
+        {
+            ArgumentNullException.ThrowIfNull(entry);
+            return runner.PublishAsync(
+                session,
+                "node.log",
+                nodeId,
+                new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["level"] = entry.Level,
+                    ["message"] = entry.Message,
+                    ["value"] = entry.Value
+                });
+        }
+    }
 
     private async ValueTask PublishAsync(
         FlowExecutionSession session,

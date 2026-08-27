@@ -14,6 +14,8 @@ interface RunEvent {
   status?: 'running' | 'success' | 'failed' | 'error' | 'idle'
   sequence?: number
   nodeId?: string
+  logLevel?: 'info' | 'error'
+  message?: string
 }
 
 type OutputPanelView = 'output' | 'diagnostics'
@@ -65,10 +67,22 @@ function eventKey(event: RunEvent): string {
 function eventStatus(event: RunEvent): 'running' | 'success' | 'failed' | 'error' | 'idle' {
   if (event.status) return event.status
   if (event.success) return 'success'
+  if (event.logLevel === 'error') return 'error'
   if (event.label.includes('error')) return 'error'
   if (event.label.includes('failed')) return 'failed'
   if (event.label.includes('started')) return 'running'
   return 'idle'
+}
+
+function eventTitle(event: RunEvent): string {
+  return event.message ?? event.label
+}
+
+function eventContext(event: RunEvent): string {
+  if (!event.logLevel) return event.nodeId || t('output.runEvent')
+  const level = t(`output.log.${event.logLevel}`)
+  const node = event.nodeId || t('output.runEvent')
+  return `${level} · ${node}`
 }
 
 function eventIcon(event: RunEvent) {
@@ -170,13 +184,13 @@ function selectPanelView(value: OutputPanelView): void {
                 <button v-for="event in visibleEvents" :key="eventKey(event)" type="button" class="event-row" :class="[`status-${eventStatus(event)}`, { selected: selectedEventKey === eventKey(event) }]" @click="selectEvent(event)">
                   <span class="event-time mono">{{ event.time }}</span>
                   <span class="event-icon"><component :is="eventIcon(event)" :size="14" /></span>
-                  <span class="event-copy"><strong>{{ event.label }}</strong><span>{{ event.nodeId || t('output.runEvent') }}</span></span>
+                  <span class="event-copy"><strong>{{ eventTitle(event) }}</strong><span>{{ eventContext(event) }}</span></span>
                   <span v-if="event.sequence" class="event-sequence mono">#{{ event.sequence }}</span>
                 </button>
               </div>
               <aside v-if="selectedEvent" class="event-detail-card">
                 <div class="event-detail-card__header"><span>{{ t('output.eventDetail') }}</span><span class="mono">#{{ selectedEvent.sequence ?? '—' }}</span></div>
-                <strong>{{ selectedEvent.label }}</strong><span class="event-detail-card__node">{{ selectedEvent.nodeId || t('output.runEvent') }} · {{ selectedEvent.time }}</span>
+                <strong>{{ eventTitle(selectedEvent) }}</strong><span class="event-detail-card__node">{{ eventContext(selectedEvent) }} · {{ selectedEvent.time }}</span>
                 <pre>{{ selectedEvent.detail }}</pre>
               </aside>
             </div>

@@ -3,8 +3,9 @@ import { computed, ref, watch } from 'vue'
 import { AlertCircle, CheckCircle2, CircleDashed, Copy, Terminal } from 'lucide-vue-next'
 import { locale, t } from '../../i18n'
 import type { FlowRunEventDto } from '../../api/flowApi'
+import { parseRuntimeLog } from '../../flow/runtimeLog'
 
-type EventTone = 'running' | 'success' | 'failed' | 'idle'
+type EventTone = 'running' | 'success' | 'failed' | 'error' | 'idle'
 
 const props = defineProps<{
   events: FlowRunEventDto[]
@@ -24,6 +25,8 @@ watch(orderedEvents, (events) => {
 }, { immediate: true })
 
 function eventTone(event: FlowRunEventDto): EventTone {
+  const log = parseRuntimeLog(event.type, event.payloadJson)
+  if (log?.level === 'error') return 'error'
   const type = event.type.toLowerCase()
   if (type.includes('error') || type.includes('failed')) return 'failed'
   if (type.includes('completed') || type.includes('succeeded')) return 'success'
@@ -33,7 +36,17 @@ function eventTone(event: FlowRunEventDto): EventTone {
 
 function eventIcon(event: FlowRunEventDto) {
   const tone = eventTone(event)
-  return tone === 'success' ? CheckCircle2 : tone === 'failed' ? AlertCircle : tone === 'running' ? CircleDashed : Terminal
+  return tone === 'success' ? CheckCircle2 : tone === 'failed' || tone === 'error' ? AlertCircle : tone === 'running' ? CircleDashed : Terminal
+}
+
+function eventTitle(event: FlowRunEventDto): string {
+  return parseRuntimeLog(event.type, event.payloadJson)?.message ?? event.type
+}
+
+function eventContext(event: FlowRunEventDto): string {
+  const log = parseRuntimeLog(event.type, event.payloadJson)
+  if (!log) return event.nodeId || t('console.snapshotEventRun')
+  return `${t(`output.log.${log.level}`)} · ${event.nodeId || t('console.snapshotEventRun')}`
 }
 
 function formatTimestamp(value: string): string {
@@ -89,7 +102,7 @@ function copyPayload(): void {
             @click="selectEvent(event)"
           >
             <span class="run-snapshot-output-list__icon"><component :is="eventIcon(event)" :size="14" /></span>
-            <span class="run-snapshot-output-list__copy"><strong>{{ event.type }}</strong><span>{{ event.nodeId || t('console.snapshotEventRun') }}</span></span>
+            <span class="run-snapshot-output-list__copy"><strong>{{ eventTitle(event) }}</strong><span>{{ eventContext(event) }}</span></span>
             <span class="run-snapshot-output-list__sequence">#{{ event.sequence }}</span>
           </button>
         </li>
@@ -99,7 +112,7 @@ function copyPayload(): void {
         <header>
           <div>
             <p>{{ t('console.snapshotEventDetails') }}</p>
-            <strong>{{ selectedEvent.type }}</strong>
+            <strong>{{ eventTitle(selectedEvent) }}</strong>
           </div>
           <button type="button" class="run-snapshot-output-detail__copy" :title="t('console.snapshotCopyEventPayload')" :aria-label="t('console.snapshotCopyEventPayload')" @click="copyPayload"><Copy :size="14" /></button>
         </header>

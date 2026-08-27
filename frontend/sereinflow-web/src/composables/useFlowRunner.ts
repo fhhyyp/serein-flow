@@ -1,6 +1,7 @@
 import { computed, ref, type Ref } from 'vue'
 import { locale, t } from '../i18n'
 import type { FlowNode } from '../flow/types'
+import { parseRuntimeLog, type RuntimeLogLevel } from '../flow/runtimeLog'
 import {
   cancelFlowRun,
   getFlowRun,
@@ -19,6 +20,8 @@ export interface RunEvent {
   status?: 'running' | 'success' | 'failed' | 'error' | 'idle'
   sequence?: number
   nodeId?: string
+  logLevel?: RuntimeLogLevel
+  message?: string
 }
 
 interface UseFlowRunnerOptions {
@@ -148,12 +151,15 @@ export function useFlowRunner(options: UseFlowRunnerOptions) {
     lastEventSequence = event.sequence
     const time = new Date(event.timestamp).toLocaleTimeString(locale.value === 'zh-CN' ? 'zh-CN' : 'en-US', { hour12: false })
     const success = event.type === 'node.completed' || event.type === 'run.completed'
+    const log = parseRuntimeLog(event.type, event.payloadJson)
     runEvents.value = [...runEvents.value, {
       time,
       label: event.type,
       detail: event.payloadJson,
       success,
-      status: event.type === 'node.started'
+      status: log?.level === 'error'
+        ? 'error'
+        : event.type === 'node.started'
         ? 'running'
         : success
           ? 'success'
@@ -164,6 +170,8 @@ export function useFlowRunner(options: UseFlowRunnerOptions) {
               : 'idle',
       sequence: event.sequence,
       nodeId: event.nodeId ?? undefined,
+      logLevel: log?.level,
+      message: log?.message,
     }]
     runPayload.value = JSON.stringify(event, null, 2)
     if (event.nodeId && (event.type === 'node.started' || event.type === 'node.completed' || event.type === 'node.failed' || event.type === 'node.error')) {

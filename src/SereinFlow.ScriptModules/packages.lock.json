@@ -13,13 +13,6 @@
         "dependencies": {
           "SereinFlow.Domain": "[1.0.0, )"
         }
-      },
-      "sereinflow.scriptmodules": {
-        "type": "Project",
-        "dependencies": {
-          "Serein.ScriptLang": "[0.1.0, )",
-          "SereinFlow.Runtime.Abstractions": "[1.0.0, )"
-        }
       }
     }
   }

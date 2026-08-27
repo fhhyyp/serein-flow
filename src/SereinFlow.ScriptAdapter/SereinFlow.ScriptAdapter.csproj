@@ -7,8 +7,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Serein.ScriptLang" />
     <ProjectReference Include="..\SereinFlow.Runtime.Abstractions\SereinFlow.Runtime.Abstractions.csproj" />
+    <ProjectReference Include="..\SereinFlow.ScriptModules\SereinFlow.ScriptModules.csproj" />
+    <ProjectReference Include="$(SereinScriptRuntimeProject)" />
   </ItemGroup>
 
 </Project>

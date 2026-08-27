@@ -1,5 +1,6 @@
 using SereinFlow.Domain;
 using SereinFlow.Runtime.Abstractions;
+using SereinFlow.ScriptModules;
 using ScriptLang;
 using ScriptLang.Runtime;
 using ScriptLang.Runtime.ByteCode;
@@ -38,6 +39,9 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
 
             var projectId = request.Context.Read("projectId") as string ?? _defaultProjectId;
             var engine = new ScriptEngine();
+            SereinFlowScriptModuleRegistration.Register(
+                engine,
+                new SereinFlowScriptModuleContext(request.Runtime, cancellationToken));
             ByteCodeChunk chunk;
             string? artifactPath = null;
             if (_artifactStore?.TryLoad(projectId, definition, out var persistedChunk, out artifactPath) == true && persistedChunk is not null)

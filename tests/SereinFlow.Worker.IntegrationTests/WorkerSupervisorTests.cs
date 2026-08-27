@@ -84,6 +84,27 @@ public sealed class WorkerSupervisorTests
     }
 
     [Fact]
+    public async Task SupervisorForwardsSereinFlowScriptLogsAsProtocolEvents()
+    {
+        var events = new List<WorkerEventEnvelopeDto>();
+        var supervisor = CreateSupervisor();
+        var request = CreateScriptLogRequest(DateTimeOffset.UtcNow.AddSeconds(15));
+
+        var result = await supervisor.RunAsync(request, (workerEvent, _) =>
+        {
+            events.Add(workerEvent);
+            return ValueTask.CompletedTask;
+        });
+
+        Assert.Equal(FlowRunStatusDto.Succeeded, result.Status);
+        var log = Assert.Single(events, item => item.EventType == WorkerEventType.Log);
+        using var payload = JsonDocument.Parse(log.PayloadJson);
+        Assert.Equal("info", payload.RootElement.GetProperty("level").GetString());
+        Assert.Equal("Started by script", payload.RootElement.GetProperty("message").GetString());
+        Assert.Equal(0, payload.RootElement.GetProperty("frameDepth").GetInt32());
+    }
+
+    [Fact]
     public async Task SupervisorRejectsExpiredDeadlinesWithoutStartingRunner()
     {
         var supervisor = CreateSupervisor();
@@ -338,6 +359,25 @@ public sealed class WorkerSupervisorTests
             "for i in range(0, 1000000000) { var keep = i }",
             "1",
             SereinFlow.Domain.ScriptNodeDefinition.ComputeSourceHash("for i in range(0, 1000000000) { var keep = i }"),
+            [],
+            []);
+        var node = new NodeDto("script", NodeTypeDto.Script, "Script", 0, 0, [], [], script);
+        return CreateRequest(flowId, node, deadline);
+    }
+
+    private static WorkerRunRequestDto CreateScriptLogRequest(DateTimeOffset deadline)
+    {
+        const string source = """
+            import { log, env } from "sereinflow"
+            log.info("Started by script")
+            return env.nodeId
+            """;
+        var flowId = Guid.NewGuid();
+        var script = new ScriptNodeDataDto(
+            "script",
+            source,
+            "1",
+            SereinFlow.Domain.ScriptNodeDefinition.ComputeSourceHash(source),
             [],
             []);
         var node = new NodeDto("script", NodeTypeDto.Script, "Script", 0, 0, [], [], script);

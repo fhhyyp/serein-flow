@@ -99,6 +99,9 @@
           "xunit.extensibility.core": "[2.9.3]"
         }
       },
+      "Serein.ScriptLang": {
+        "type": "Project"
+      },
       "sereinflow.domain": {
         "type": "Project"
       },
@@ -111,15 +114,17 @@
       "sereinflow.scriptadapter": {
         "type": "Project",
         "dependencies": {
-          "Serein.ScriptLang": "[0.1.0-sf.3, )",
-          "SereinFlow.Runtime.Abstractions": "[1.0.0, )"
+          "Serein.ScriptLang": "[0.1.0, )",
+          "SereinFlow.Runtime.Abstractions": "[1.0.0, )",
+          "SereinFlow.ScriptModules": "[1.0.0, )"
         }
       },
-      "Serein.ScriptLang": {
-        "type": "CentralTransitive",
-        "requested": "[0.1.0-sf.3, )",
-        "resolved": "0.1.0-sf.3",
-        "contentHash": "hW4AwJTkZazLE4irtLXGbSj9WQ6RTPXq6SLOvqFgVdIbGmiv05x0YIQm4C4VkR1tK4qOfRWQjGAWw0sgyfrckw=="
+      "sereinflow.scriptmodules": {
+        "type": "Project",
+        "dependencies": {
+          "Serein.ScriptLang": "[0.1.0, )",
+          "SereinFlow.Runtime.Abstractions": "[1.0.0, )"
+        }
       }
     }
   }

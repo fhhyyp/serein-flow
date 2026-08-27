@@ -127,6 +127,41 @@ public sealed class RuntimeSessionTests
     }
 
     [Fact]
+    public async Task NodeLogIsPublishedBetweenNodeStartAndCompletionWithRuntimeMetadata()
+    {
+        var node = NodeDefinition.Create("action", NodeType.Action, "Action");
+        var definition = FlowDefinition.Create(
+            Guid.NewGuid(),
+            1,
+            [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])],
+            node.Id);
+        var publisher = new RecordingPublisher();
+        var runner = new FlowRunner(
+            new ExecutionPlanBuilder(),
+            new NodeExecutorRegistry([new LoggingActionExecutor()]),
+            publisher);
+
+        await using var session = new FlowExecutionSession();
+        await runner.RunAsync(definition, session);
+
+        var startedIndex = publisher.Events.FindIndex(item => item.Type == "node.started");
+        var logIndex = publisher.Events.FindIndex(item => item.Type == "node.log");
+        var completedIndex = publisher.Events.FindIndex(item => item.Type == "node.completed");
+        var log = Assert.Single(publisher.Events, item => item.Type == "node.log");
+
+        Assert.True(startedIndex >= 0);
+        Assert.True(startedIndex < logIndex);
+        Assert.True(logIndex < completedIndex);
+        Assert.Equal(node.Id, log.NodeId);
+        Assert.Equal("info", log.Payload["level"]);
+        Assert.Equal("Started", log.Payload["message"]);
+        Assert.Equal(0, log.Payload["frameDepth"]);
+        Assert.Equal(
+            publisher.Events.Select(item => item.Sequence).OrderBy(sequence => sequence),
+            publisher.Events.Select(item => item.Sequence));
+    }
+
+    [Fact]
     public async Task FlowCallUsesAnIsolatedFrameAndOnlyPassesExplicitBindings()
     {
         var target = NodeDefinition.Create(
@@ -223,6 +258,20 @@ public sealed class RuntimeSessionTests
             FrameDepth = Assert.IsType<FlowExecutionSession>(request.Context).FrameDepth;
             return ValueTask.FromResult(NodeExecutionResult.Success(
                 new Dictionary<string, object?> { ["result"] = Input }));
+        }
+    }
+
+    private sealed class LoggingActionExecutor : INodeExecutor
+    {
+        public NodeType NodeType => NodeType.Action;
+
+        public async ValueTask<NodeExecutionResult> ExecuteAsync(NodeExecutionRequest request, CancellationToken cancellationToken)
+        {
+            Assert.NotNull(request.Runtime);
+            await request.Runtime.EventSink.PublishLogAsync(
+                new NodeExecutionLogEntry("info", "Started", "Started"),
+                cancellationToken);
+            return NodeExecutionResult.Success();
         }
     }
 

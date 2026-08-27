@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SereinFlow.Runtime.Abstractions\SereinFlow.Runtime.Abstractions.csproj" />
+    <ProjectReference Include="$(SereinScriptRuntimeProject)" />
+    <ProjectReference Include="$(SereinScriptGeneratorProject)" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <Target Name="ValidateSereinScriptSource" BeforeTargets="CoreCompile" Condition="!Exists('$(SereinScriptRuntimeProject)') Or !Exists('$(SereinScriptGeneratorProject)')">
+    <Error Text="SereinScript source projects were not found. Set SereinScriptSourceRoot to the SereinScript checkout root. 未找到 SereinScript 源码项目，请将 SereinScriptSourceRoot 设置为 SereinScript 源码根目录。" />
+  </Target>
+
+</Project>

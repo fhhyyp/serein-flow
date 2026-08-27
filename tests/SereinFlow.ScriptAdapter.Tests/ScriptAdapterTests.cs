@@ -155,6 +155,117 @@ public sealed class ScriptAdapterTests
     }
 
     [Fact]
+    public async Task ImportsSereinFlowLogAndEnvironmentWithoutWritingToConsole()
+    {
+        const string nodeId = "script-node";
+        var node = NodeDefinition.Create(
+            nodeId,
+            NodeType.Script,
+            "Script",
+            script: ScriptNodeDefinition.Create(
+                nodeId,
+                """
+                import { log, env } from "sereinflow"
+                log.info("Started")
+                log.error("Attention")
+                return env.nodeId
+                """,
+                "1",
+                outputs: [new ScriptValueContract("result", "System.String")]));
+        var runId = Guid.NewGuid();
+        var flowId = Guid.NewGuid();
+        var sink = new RecordingEventSink();
+        var runtime = new NodeExecutionRuntime(
+            new NodeExecutionEnvironment(runId, "project-a", flowId, "canvas-a", nodeId, 2),
+            sink);
+
+        var result = await new SereinScriptNodeExecutor().ExecuteAsync(
+            new NodeExecutionRequest(node, new TestContext(), new Dictionary<string, object?>(), runtime),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.Equal(nodeId, ScriptValueTypeConverter.Convert(
+            Assert.IsAssignableFrom<Value>(result.Outputs["result"]), typeof(string)));
+        Assert.Collection(
+            sink.Entries,
+            entry =>
+            {
+                Assert.Equal("info", entry.Level);
+                Assert.Equal("Started", entry.Message);
+            },
+            entry =>
+            {
+                Assert.Equal("error", entry.Level);
+                Assert.Equal("Attention", entry.Message);
+            });
+    }
+
+    [Fact]
+    public async Task ExposesOnlyTheDocumentedSereinFlowEnvironmentValuesFromCachedArtifact()
+    {
+        const string nodeId = "script-node";
+        var root = Path.Combine(Path.GetTempPath(), "sereinflow-script-tests", Guid.NewGuid().ToString("N"));
+        try
+        {
+            var definition = ScriptNodeDefinition.Create(
+                nodeId,
+                """
+                import { env } from "sereinflow"
+                return {
+                    runId = env.runId,
+                    projectId = env.projectId,
+                    flowId = env.flowId,
+                    canvasId = env.canvasId,
+                    nodeId = env.nodeId,
+                    frameDepth = env.frameDepth,
+                    isCancellationRequested = env.isCancellationRequested
+                }
+                """,
+                "1",
+                outputs:
+                [
+                    new ScriptValueContract("runId", "System.String"),
+                    new ScriptValueContract("projectId", "System.String"),
+                    new ScriptValueContract("flowId", "System.String"),
+                    new ScriptValueContract("canvasId", "System.String"),
+                    new ScriptValueContract("nodeId", "System.String"),
+                    new ScriptValueContract("frameDepth", "System.Int32"),
+                    new ScriptValueContract("isCancellationRequested", "System.Boolean")
+                ]);
+            var store = new ScriptArtifactStore(root);
+            Assert.True(store.RebuildProject("project-a", [definition]).IsSuccess);
+
+            var runId = Guid.NewGuid();
+            var flowId = Guid.NewGuid();
+            var context = new TestContext();
+            context.Write("projectId", "project-a");
+            var runtime = new NodeExecutionRuntime(
+                new NodeExecutionEnvironment(runId, "project-a", flowId, "canvas-a", nodeId, 3));
+            var result = await new SereinScriptNodeExecutor(store).ExecuteAsync(
+                new NodeExecutionRequest(
+                    NodeDefinition.Create(nodeId, NodeType.Script, "Script", script: definition),
+                    context,
+                    new Dictionary<string, object?>(),
+                    runtime),
+                CancellationToken.None);
+
+            Assert.True(result.IsSuccess, result.ErrorMessage);
+            Assert.Equal(runId.ToString("D"), ConvertOutput<string>(result, "runId"));
+            Assert.Equal("project-a", ConvertOutput<string>(result, "projectId"));
+            Assert.Equal(flowId.ToString("D"), ConvertOutput<string>(result, "flowId"));
+            Assert.Equal("canvas-a", ConvertOutput<string>(result, "canvasId"));
+            Assert.Equal(nodeId, ConvertOutput<string>(result, "nodeId"));
+            Assert.Equal(3, ConvertOutput<int>(result, "frameDepth"));
+            Assert.False(ConvertOutput<bool>(result, "isCancellationRequested"));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
     public void RebuildsArtifactsAndDoesNotKeepOldArtifactAfterFailure()
     {
         var root = Path.Combine(Path.GetTempPath(), "sereinflow-script-tests", Guid.NewGuid().ToString("N"));
@@ -257,6 +368,11 @@ public sealed class ScriptAdapterTests
         return await executor.ExecuteAsync(new NodeExecutionRequest(node, new TestContext(), inputs), cancellationToken);
     }
 
+    private static T ConvertOutput<T>(NodeExecutionResult result, string outputId)
+        => Assert.IsType<T>(ScriptValueTypeConverter.Convert(
+            Assert.IsAssignableFrom<Value>(result.Outputs[outputId]),
+            typeof(T)));
+
     private static NodeDefinition CreateScriptNode(
         string source,
         IEnumerable<ScriptValueContract> inputs,
@@ -288,6 +404,17 @@ public sealed class ScriptAdapterTests
         public string? Name { get; set; }
 
         public int Count { get; set; }
+    }
+
+    private sealed class RecordingEventSink : INodeExecutionEventSink
+    {
+        public List<NodeExecutionLogEntry> Entries { get; } = [];
+
+        public ValueTask PublishLogAsync(NodeExecutionLogEntry entry, CancellationToken cancellationToken)
+        {
+            Entries.Add(entry);
+            return ValueTask.CompletedTask;
+        }
     }
 
     private static void StaticMethod()

@@ -248,11 +248,11 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .run-snapshot-output-list__item:focus-visible, .run-snapshot-output-detail__copy:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .run-snapshot-output-list__item.selected { border-color: var(--accent); border-left-color: var(--accent); background: #f2f7ff; color: var(--ink); }
 .run-snapshot-output-list__item.status-success { border-left-color: var(--success); }
-.run-snapshot-output-list__item.status-failed { border-left-color: var(--danger); }
+.run-snapshot-output-list__item.status-failed, .run-snapshot-output-list__item.status-error { border-left-color: var(--danger); }
 .run-snapshot-output-list__item.status-running { border-left-color: var(--accent); }
 .run-snapshot-output-list__icon { display: inline-grid; width: 20px; height: 20px; place-items: center; color: var(--subtle); }
 .run-snapshot-output-list__item.status-success .run-snapshot-output-list__icon { color: var(--success); }
-.run-snapshot-output-list__item.status-failed .run-snapshot-output-list__icon { color: var(--danger); }
+.run-snapshot-output-list__item.status-failed .run-snapshot-output-list__icon, .run-snapshot-output-list__item.status-error .run-snapshot-output-list__icon { color: var(--danger); }
 .run-snapshot-output-list__item.status-running .run-snapshot-output-list__icon { color: var(--accent); }
 .run-snapshot-output-list__copy { display: grid; min-width: 0; gap: 2px; }
 .run-snapshot-output-list__copy strong, .run-snapshot-output-list__copy span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
