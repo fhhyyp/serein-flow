@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertTriangle, Braces, Database, Link2, LayoutGrid, RefreshCw, Search, Server } from 'lucide-vue-next'
+import { AlertTriangle, Braces, Database, Link2, LayoutGrid, RefreshCw, Search, Server, Zap } from 'lucide-vue-next'
 import { t } from '../../i18n'
 import type { NodeCreationDescriptorDto } from '../../api/flowApi'
 import type { LibraryDto, LibraryNodeDto } from '../../api/libraryApi'
@@ -24,6 +24,10 @@ const emit = defineEmits<{
 
 function updateSearch(event: Event): void {
   emit('update:librarySearch', (event.target as HTMLInputElement).value)
+}
+
+function iconForLibraryNode(node: LibraryNodeDto) {
+  return node.type === 'flipflop' ? Zap : Database
 }
 </script>
 
@@ -54,7 +58,7 @@ function updateSearch(event: Event): void {
       <section v-for="entry in visibleLibraries" :key="entry.library.id" class="library-catalog__group">
         <div class="library-catalog__heading"><div><strong>{{ entry.library.name }}</strong><span>{{ entry.library.version }}</span></div><span class="mono">{{ t('library.nodeCount', { count: entry.nodes.length }) }}</span></div>
         <button v-for="node in entry.nodes" :key="node.id" class="library-node" type="button" draggable="false" @pointerdown="emit('node-pointer-down', $event, node)">
-          <span class="library-node__mark"><Database :size="14" /></span><span class="library-node__body"><strong>{{ node.displayName }}</strong><span>{{ node.className }}.{{ node.methodName }}</span></span><span class="library-node__drag-hint">{{ t('library.dragHint') }}</span>
+          <span class="library-node__mark" :class="`library-node__mark--${node.type}`"><component :is="iconForLibraryNode(node)" :size="14" aria-hidden="true" /></span><span class="library-node__body"><strong>{{ node.displayName }}</strong><span>{{ node.className }}.{{ node.methodName }}</span></span><span class="library-node__drag-hint">{{ t('library.dragHint') }}</span>
         </button>
       </section>
     </div>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { GitBranch, ListPlus, Rows3 } from 'lucide-vue-next'
 import { t } from '../../i18n'
+import { isBooleanParameterType, normalizeBooleanLiteralValue } from '../../flow/parameterTypes'
 import type { MethodParameter } from '../../flow/types'
 
 defineProps<{
@@ -19,6 +20,19 @@ const emit = defineEmits<{
   'add-variadic-input': []
   'remove-variadic-input': []
 }>()
+
+function isBooleanParameter(parameter: MethodParameter): boolean {
+  return isBooleanParameterType(parameter.type ?? parameter.valueKind)
+}
+
+function booleanLiteralValue(parameter: MethodParameter): 'true' | 'false' | '' {
+  return normalizeBooleanLiteralValue(parameter.literalValue)
+}
+
+function updateBooleanLiteral(parameter: MethodParameter, event: Event): void {
+  parameter.literalValue = (event.target as HTMLSelectElement).value
+  emit('commit-text-edit')
+}
 </script>
 
 <template>
@@ -26,7 +40,8 @@ const emit = defineEmits<{
     <div class="parameter-heading"><strong>{{ t(parameter.nameKey) }}</strong><span class="port-kind">{{ parameter.valueKind }}</span></div>
     <div v-if="showVariadicControls" class="variadic-controls"><span>{{ t('parameter.variadic') }}</span><div class="segmented-control"><button type="button" :class="{ active: parameter.variadicMode !== 'collection' }" @click="emit('set-variadic-mode', 'expanded')"><Rows3 :size="13" />{{ t('parameter.variadicExpanded') }}</button><button type="button" :class="{ active: parameter.variadicMode === 'collection' }" @click="emit('set-variadic-mode', 'collection')"><ListPlus :size="13" />{{ t('parameter.variadicCollection') }}</button></div><div v-if="parameter.variadicMode !== 'collection'" class="variadic-actions"><button class="icon-button compact" type="button" :title="t('parameter.addVariadic')" :aria-label="t('parameter.addVariadic')" @click="emit('add-variadic-input')"><ListPlus :size="14" /></button><button class="icon-button compact danger" type="button" :title="t('parameter.removeVariadic')" :aria-label="t('parameter.removeVariadic')" @click="emit('remove-variadic-input')"><Rows3 :size="14" /></button></div></div>
     <label class="field-label compact">{{ t('parameter.source') }}<select :value="parameter.source" @change="emit('update-source', nodeId, parameter, $event)"><option value="literal">{{ t('parameter.literal') }}</option><option value="previousNode">{{ t('parameter.previousNode') }}</option><option value="projectInput">{{ t('parameter.projectInput') }}</option><option value="expression">{{ t('parameter.expression') }}</option></select></label>
-    <label v-if="parameter.source === 'literal'" class="field-label compact">{{ t('parameter.literalValue') }}<input v-model="parameter.literalValue" type="text" @focus="emit('begin-text-edit')" @input="emit('commit-text-edit')" @blur="emit('discard-text-edit')" /></label>
+    <label v-if="parameter.source === 'literal' && isBooleanParameter(parameter)" class="field-label compact">{{ t('parameter.literalValue') }}<select :value="booleanLiteralValue(parameter)" @focus="emit('begin-text-edit')" @change="updateBooleanLiteral(parameter, $event)" @blur="emit('discard-text-edit')"><option value="" disabled>{{ t('parameter.booleanSelect') }}</option><option value="true">{{ t('parameter.booleanTrue') }}</option><option value="false">{{ t('parameter.booleanFalse') }}</option></select></label>
+    <label v-else-if="parameter.source === 'literal'" class="field-label compact">{{ t('parameter.literalValue') }}<input v-model="parameter.literalValue" type="text" @focus="emit('begin-text-edit')" @input="emit('commit-text-edit')" @blur="emit('discard-text-edit')" /></label>
     <label v-else-if="parameter.source === 'projectInput'" class="field-label compact">{{ t('parameter.projectInputKey') }}<input v-model="parameter.projectInputKey" type="text" @focus="emit('begin-text-edit')" @input="emit('commit-text-edit')" @blur="emit('discard-text-edit')" /></label>
     <label v-else-if="parameter.source === 'expression'" class="field-label compact">{{ t('parameter.expressionValue') }}<textarea v-model="parameter.expression" rows="2" @focus="emit('begin-text-edit')" @input="emit('commit-text-edit')" @blur="emit('discard-text-edit')"></textarea></label>
     <p v-else class="source-detail"><GitBranch :size="13" />{{ t('inspector.connectedFrom', { node: sourceNodeTitle(parameter) }) }}</p>

@@ -346,6 +346,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .library-node:hover { border-color: var(--line-strong); background: var(--canvas); color: var(--ink); }
 .library-node:active { cursor: grabbing; }
 .library-node__mark { display: grid; width: 25px; height: 25px; flex: 0 0 auto; place-items: center; border: 1px solid var(--data-soft); border-radius: 3px; color: var(--data); background: var(--data-soft); }
+.library-node__mark--action { border-color: var(--success-soft); color: var(--success); background: var(--success-soft); }
+.library-node__mark--flipflop { border-color: var(--accent-soft); color: var(--accent); background: var(--accent-soft); }
 .library-node__body { display: grid; min-width: 0; flex: 1; gap: 2px; }
 .library-node__body strong, .library-node__body span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .library-node__body strong { color: inherit; font-size: 11px; font-weight: 600; }
