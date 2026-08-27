@@ -1,15 +1,16 @@
 import { onBeforeUnmount, type Ref } from 'vue'
+import type { NodeCreationDescriptorDto } from '../api/flowApi'
 import type { LibraryNodeDto } from '../api/libraryApi'
 import { isNodeKind } from '../flow/nodeCatalog'
 import { canonicalParameterId } from '../flow/connectionSeats'
-import type { MethodParameter, NodeKind, NodeRuntimeMetadata } from '../flow/types'
+import type { MethodParameter, NodeKind, NodeRuntimeMetadata, ScriptNodeData } from '../flow/types'
 import { t } from '../i18n'
 
 interface NodeDropOptions {
   screenToFlowCoordinate: (position: { x: number; y: number }) => { x: number; y: number }
   isCanvasDropActive: Ref<boolean>
   notice: Ref<string>
-  addNode: (kind: NodeKind, titleKey: string, subtitleKey: string, position?: { x: number; y: number }, metadata?: { displayName?: string; description?: string; runtime?: NodeRuntimeMetadata; parameters?: MethodParameter[]; hasDataOutput?: boolean }) => void
+  addNode: (kind: NodeKind, titleKey: string, subtitleKey: string, position?: { x: number; y: number }, metadata?: { displayName?: string; description?: string; runtime?: NodeRuntimeMetadata; parameters?: MethodParameter[]; script?: ScriptNodeData; hasDataOutput?: boolean }) => void
 }
 
 const nodeDragMimeType = 'application/sereinflow-node'
@@ -22,6 +23,7 @@ interface NodeDropPayload {
   description?: string
   runtime?: NodeRuntimeMetadata
   parameters?: MethodParameter[]
+  script?: ScriptNodeData
   hasDataOutput?: boolean
 }
 
@@ -112,7 +114,7 @@ export function useNodeDrop(options: NodeDropOptions) {
     }
   }
 
-  function createNodePayload(node: LibraryNodeDto): NodeDropPayload {
+  function createLibraryNodePayload(node: LibraryNodeDto): NodeDropPayload {
     const runtime: NodeRuntimeMetadata = {
       category: 'method',
       libraryId: node.libraryId,
@@ -123,7 +125,7 @@ export function useNodeDrop(options: NodeDropOptions) {
       returnType: node.returnType,
       isAwaitable: node.isAwaitable,
     }
-    const parameters = node.parameters.map((parameter) => ({
+    const parameters: MethodParameter[] = node.parameters.map((parameter) => ({
       id: canonicalParameterId(parameter.id),
       nameKey: parameter.name,
       name: parameter.name,
@@ -131,6 +133,10 @@ export function useNodeDrop(options: NodeDropOptions) {
       type: parameter.type,
       required: parameter.required,
       description: parameter.description ?? undefined,
+      isVariadic: parameter.isVariadic,
+      variadicGroupId: parameter.variadicGroupId ? canonicalParameterId(parameter.variadicGroupId) : undefined,
+      elementType: parameter.elementType ?? undefined,
+      variadicMode: parameter.isVariadic ? 'expanded' : undefined,
       source: 'literal' as const,
       inputMode: 'manual' as const,
       literalValue: '',
@@ -148,7 +154,69 @@ export function useNodeDrop(options: NodeDropOptions) {
     }
   }
 
-  function handleLibraryNodePointerDown(event: PointerEvent, node: LibraryNodeDto): void {
+  function createBuiltinNodePayload(node: NodeCreationDescriptorDto): NodeDropPayload | undefined {
+    if (!isNodeKind(node.type)) {
+      return undefined
+    }
+
+    const runtime: NodeRuntimeMetadata = {
+      category: 'basic',
+      returnType: node.ui.returnType,
+      targetNodeId: node.ui.targetNodeId,
+      targetFlowId: node.ui.targetFlowId,
+      targetCanvasId: node.ui.targetCanvasId,
+      isAwaitable: node.ui.isAwaitable,
+      staticReturnType: node.ui.staticReturnType,
+      isDynamicReturnType: node.ui.isDynamicReturnType,
+      isPublic: node.ui.isPublic,
+      flowCallParameterBindings: node.ui.flowCallParameterBindings,
+    }
+    const parameters: MethodParameter[] = (node.parameters ?? []).map((parameter) => ({
+      id: canonicalParameterId(parameter.ui?.id ?? parameter.name),
+      nameKey: parameter.ui?.nameKey ?? parameter.name,
+      name: parameter.name,
+      valueKind: parameter.ui?.valueKind ?? 'System.Object',
+      type: parameter.ui?.type ?? parameter.ui?.valueKind ?? 'System.Object',
+      required: parameter.required,
+      description: parameter.ui?.description,
+      source: parameter.source,
+      inputMode: parameter.ui?.inputMode,
+      literalValue: parameter.ui?.literalValue ?? parameter.valueJson ?? '',
+      projectInputKey: parameter.ui?.projectInputKey,
+      expression: parameter.ui?.expression,
+      sourceNodeId: parameter.ui?.sourceNodeId,
+      sourcePortId: parameter.ui?.sourcePortId,
+      isVariadic: parameter.ui?.isVariadic,
+      variadicGroupId: parameter.ui?.variadicGroupId,
+      elementType: parameter.ui?.elementType,
+      variadicMode: parameter.ui?.variadicMode === 'collection'
+        ? 'collection'
+        : parameter.ui?.isVariadic
+          ? 'expanded'
+          : undefined,
+    }))
+
+    return {
+      kind: node.type,
+      titleKey: node.ui.titleKey,
+      subtitleKey: node.ui.subtitleKey,
+      runtime,
+      parameters,
+      script: node.script
+        ? {
+            nodeId: node.script.nodeId,
+            source: node.script.source,
+            languageVersion: node.script.languageVersion,
+            sourceHash: node.script.sourceHash,
+            inputs: node.script.inputs.map((input) => ({ ...input })),
+            outputs: node.script.outputs.map((output) => ({ ...output })),
+          }
+        : undefined,
+      hasDataOutput: node.ui.hasDataOutput,
+    }
+  }
+
+  function beginPointerNodeDrag(event: PointerEvent, payload: NodeDropPayload): void {
     if (event.button !== 0 || event.isPrimary === false) {
       return
     }
@@ -158,7 +226,7 @@ export function useNodeDrop(options: NodeDropOptions) {
     pointerId = event.pointerId
     pointerSource = event.currentTarget instanceof HTMLElement ? event.currentTarget : undefined
     pointerStart = { x: event.clientX, y: event.clientY }
-    pointerPayload = createNodePayload(node)
+    pointerPayload = payload
     previousBodyCursor = document.body.style.cursor
     previousBodyUserSelect = document.body.style.userSelect
     document.body.style.cursor = 'grabbing'
@@ -168,6 +236,17 @@ export function useNodeDrop(options: NodeDropOptions) {
     window.addEventListener('pointerup', handlePointerUp)
     window.addEventListener('pointercancel', handlePointerCancel)
     window.addEventListener('keydown', handlePointerKeyDown)
+  }
+
+  function handleLibraryNodePointerDown(event: PointerEvent, node: LibraryNodeDto): void {
+    beginPointerNodeDrag(event, createLibraryNodePayload(node))
+  }
+
+  function handleBuiltinNodePointerDown(event: PointerEvent, node: NodeCreationDescriptorDto): void {
+    const payload = createBuiltinNodePayload(node)
+    if (payload) {
+      beginPointerNodeDrag(event, payload)
+    }
   }
 
   onBeforeUnmount(clearPointerDrag)
@@ -230,5 +309,5 @@ export function useNodeDrop(options: NodeDropOptions) {
     }
   }
 
-  return { handleCanvasDragOver, handleCanvasDragLeave, handleCanvasDrop, handleLibraryNodePointerDown }
+  return { handleCanvasDragOver, handleCanvasDragLeave, handleCanvasDrop, handleLibraryNodePointerDown, handleBuiltinNodePointerDown }
 }

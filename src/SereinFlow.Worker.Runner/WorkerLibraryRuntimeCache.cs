@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.Loader;
 using SereinFlow.Domain;
+using SereinFlow.Runtime.Abstractions;
 
 namespace SereinFlow.Worker.Runner;
 
@@ -107,18 +108,18 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
                 "The library method was not found. 未找到类库方法。");
         }
 
-        var expectedNames = parameters.Select(static parameter => parameter.Name).ToArray();
+        var expectedNames = parameters
+            .Where(static parameter => !parameter.IsVariadic)
+            .Select(static parameter => parameter.Name)
+            .ToArray();
         var matched = candidates
-            .Where(method => method.GetParameters().Length == expectedNames.Length)
-            .Where(method => method.GetParameters()
-                .Select(static parameter => parameter.Name ?? string.Empty)
-                .SequenceEqual(expectedNames, StringComparer.Ordinal))
+            .Where(method => IsCandidateCompatible(method, expectedNames, parameters.Any(static parameter => parameter.IsVariadic)))
             .ToArray();
         var method = matched.Length == 1
             ? matched[0]
             : candidates.Length == 1
                 ? candidates[0]
-                : candidates.SingleOrDefault(candidate => candidate.GetParameters().Length == expectedNames.Length);
+                : candidates.SingleOrDefault(candidate => IsCandidateCompatible(candidate, expectedNames, parameters.Any(static parameter => parameter.IsVariadic)));
         if (method is null)
         {
             throw new LibraryRuntimeCacheException(
@@ -127,6 +128,25 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         }
         return new ResolvedLibraryMethod(type, method);
     }
+
+    private static bool IsCandidateCompatible(
+        MethodInfo method,
+        IReadOnlyList<string> expectedNames,
+        bool hasVariadicDefinitions)
+    {
+        var parameters = method.GetParameters();
+        var visible = parameters.Where(static parameter => !IsFlowContextParameter(parameter)).ToArray();
+        var methodHasVariadic = visible.LastOrDefault()?.GetCustomAttribute<ParamArrayAttribute>() is not null;
+        if (methodHasVariadic != hasVariadicDefinitions)
+            return false;
+        var ordinary = methodHasVariadic ? visible[..^1] : visible;
+        return ordinary.Length == expectedNames.Count
+            && ordinary.Select(static parameter => parameter.Name ?? string.Empty)
+                .SequenceEqual(expectedNames, StringComparer.Ordinal);
+    }
+
+    internal static bool IsFlowContextParameter(ParameterInfo parameter)
+        => string.Equals(parameter.ParameterType.FullName, typeof(IFlowContext).FullName, StringComparison.Ordinal);
 
     private async Task<Type> ResolveTypeCoreAsync(LibraryKey libraryKey, string className)
     {
@@ -225,6 +245,8 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
 
         protected override Assembly? Load(AssemblyName assemblyName)
         {
+            if (string.Equals(assemblyName.Name, typeof(IFlowContext).Assembly.GetName().Name, StringComparison.Ordinal))
+                return typeof(IFlowContext).Assembly;
             var path = _resolver.ResolveAssemblyToPath(assemblyName);
             return path is null ? null : LoadFromAssemblyPath(path);
         }

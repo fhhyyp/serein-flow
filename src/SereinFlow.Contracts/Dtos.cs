@@ -9,11 +9,12 @@ public static class WorkerProtocol
 
 public enum NodeTypeDto
 {
-    Action,
-    Flipflop,
-    Script,
-    Condition,
-    FlowCall,
+    Action = 0,
+    Flipflop = 1,
+    Script = 2,
+    // 3 is intentionally reserved for the removed Condition node.
+    // 3 专门保留给已移除的 Condition 节点，不能复用。
+    FlowCall = 4,
 }
 
 public enum CanvasLifecycleDto
@@ -153,7 +154,10 @@ public sealed record NodeUiMetadataDto(
     string? TargetFlowId = null,
     bool? IsAwaitable = null,
     string? StaticReturnType = null,
-    bool? IsDynamicReturnType = null);
+    bool? IsDynamicReturnType = null,
+    string? TargetCanvasId = null,
+    bool? IsPublic = null,
+    IReadOnlyList<FlowCallParameterBindingDto>? FlowCallParameterBindings = null);
 
 public sealed record NodePortDto(string Id, string Name, string Direction, bool Required);
 
@@ -175,7 +179,11 @@ public sealed record NodeParameterUiMetadataDto(
     string? SourcePortId,
     string? Type = null,
     string? Description = null,
-    string? InputMode = null);
+    string? InputMode = null,
+    bool? IsVariadic = null,
+    string? VariadicGroupId = null,
+    string? ElementType = null,
+    string? VariadicMode = null);
 
 public sealed record ConnectionDto(
     string Id,
@@ -196,7 +204,25 @@ public sealed record ScriptNodeDataDto(
     IReadOnlyList<ScriptValueContractDto> Inputs,
     IReadOnlyList<ScriptValueContractDto> Outputs);
 
-public sealed record ScriptValueContractDto(string Name, string ValueKind, bool Required);
+public sealed record ScriptValueContractDto(
+    string Name,
+    string ValueKind,
+    bool Required,
+    string? Id = null,
+    string? Description = null);
+
+public sealed record FlowCallParameterBindingDto(string CallParameterId, string TargetParameterId);
+
+public sealed record BuiltinNodeCatalogDto(IReadOnlyList<NodeCreationDescriptorDto> Nodes);
+
+public sealed record NodeCreationDescriptorDto(
+    string Id,
+    NodeTypeDto Type,
+    string DisplayName,
+    string? Description,
+    NodeUiMetadataDto Ui,
+    ScriptNodeDataDto? Script = null,
+    IReadOnlyList<NodeParameterDto>? Parameters = null);
 
 public sealed record FlowDefinitionDto(
     Guid Id,
@@ -261,7 +287,10 @@ public sealed record LibraryParameterDto(
     string Name,
     string Type,
     string? Description,
-    bool Required);
+    bool Required,
+    bool IsVariadic = false,
+    string? VariadicGroupId = null,
+    string? ElementType = null);
 
 public sealed record LibraryUploadResultDto(LibraryDto Library, bool AlreadyExists);
 

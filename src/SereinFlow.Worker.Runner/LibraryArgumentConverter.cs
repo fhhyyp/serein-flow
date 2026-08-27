@@ -3,6 +3,8 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using SereinFlow.ScriptAdapter;
+using ScriptLang.Runtime;
 
 namespace SereinFlow.Worker.Runner;
 
@@ -27,6 +29,8 @@ public static class LibraryArgumentConverter
 
         var nullableType = Nullable.GetUnderlyingType(targetType);
         var effectiveType = nullableType ?? targetType;
+        if (value is Value scriptValue)
+            return ScriptValueTypeConverter.Convert(scriptValue, targetType);
         if (value is JsonElement element)
             value = ToClrValue(element);
 

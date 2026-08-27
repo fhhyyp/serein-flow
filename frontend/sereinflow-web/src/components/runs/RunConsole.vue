@@ -7,6 +7,7 @@ import {
   deleteFlowInterface,
   getFlowRunOverview,
   listFlowRunOutputs,
+  listFlowRunEvents,
   getFlowRunSnapshot,
   getRunExecutionSettings,
   listFlowInterfaces,
@@ -20,6 +21,7 @@ import {
   type FlowInvocationMode,
   type FlowRunDto,
   type FlowRunOverviewDto,
+  type FlowRunEventDto,
   type FlowRunOutputDto,
   type ProjectWorkspaceDto,
   type RunExecutionSettingsDto,
@@ -51,6 +53,8 @@ const cancellingRunIds = ref<Set<string>>(new Set())
 const snapshot = ref<FlowDefinitionDto>()
 const snapshotOutputs = ref<FlowRunOutputDto[]>([])
 const snapshotOutputsError = ref('')
+const snapshotEvents = ref<FlowRunEventDto[]>([])
+const snapshotEventsError = ref('')
 const snapshotRun = ref<FlowRunDto>()
 const isSnapshotLoading = ref(false)
 const snapshotError = ref('')
@@ -203,23 +207,28 @@ async function openSnapshot(run: FlowRunDto): Promise<void> {
   snapshot.value = undefined
   snapshotOutputs.value = []
   snapshotOutputsError.value = ''
+  snapshotEvents.value = []
+  snapshotEventsError.value = ''
   snapshotError.value = ''
   isSnapshotLoading.value = true
   try {
     const definition = await getFlowRunSnapshot(run.id)
     snapshot.value = definition
-    try {
-      snapshotOutputs.value = await listFlowRunOutputs(run.id)
-    } catch {
-      snapshotOutputsError.value = t('console.snapshotOutputsError')
-    }
+    const [outputsResult, eventsResult] = await Promise.allSettled([
+      listFlowRunOutputs(run.id),
+      listFlowRunEvents(run.id),
+    ])
+    if (outputsResult.status === 'fulfilled') snapshotOutputs.value = outputsResult.value
+    else snapshotOutputsError.value = t('console.snapshotOutputsError')
+    if (eventsResult.status === 'fulfilled') snapshotEvents.value = eventsResult.value
+    else snapshotEventsError.value = t('console.snapshotEventsError')
   } catch {
     snapshotError.value = t('console.snapshotEmpty')
   } finally {
     isSnapshotLoading.value = false
   }
 }
-function closeSnapshot(): void { snapshotRun.value = undefined; snapshot.value = undefined; snapshotOutputs.value = []; snapshotOutputsError.value = ''; snapshotError.value = '' }
+function closeSnapshot(): void { snapshotRun.value = undefined; snapshot.value = undefined; snapshotOutputs.value = []; snapshotOutputsError.value = ''; snapshotEvents.value = []; snapshotEventsError.value = ''; snapshotError.value = '' }
 function openFlow(workspace: ProjectWorkspaceDto, flowId?: string): void { emit('open-flow', workspace, flowId) }
 
 async function saveSettings(): Promise<void> {
@@ -390,6 +399,6 @@ onBeforeUnmount(() => {
     </section>
 
     <LibraryUploadDialog v-if="libraryUploadOpen" @close="libraryUploadOpen = false" @uploaded="handleLibraryUploaded" />
-    <div v-if="snapshotRun" class="snapshot-dialog-backdrop" role="presentation" @click.self="closeSnapshot"><section class="snapshot-dialog" role="dialog" aria-modal="true" :aria-label="t('console.snapshotTitle')"><header><div><p class="operations-console__eyebrow">{{ shortId(snapshotRun.id) }}</p><h2>{{ t('console.snapshotTitle') }}</h2></div><button class="icon-button" type="button" :title="t('command.close')" :aria-label="t('command.close')" @click="closeSnapshot"><X :size="16" /></button></header><p>{{ t('console.snapshotReadonly') }}</p><div v-if="isSnapshotLoading" class="snapshot-dialog__status">{{ t('console.snapshotLoading') }}</div><div v-else-if="snapshotError" class="snapshot-dialog__status snapshot-dialog__status--error">{{ snapshotError }}</div><RunSnapshotViewer v-else :definition="snapshot" :outputs="snapshotOutputs" :outputs-error="snapshotOutputsError" /></section></div>
+    <div v-if="snapshotRun" class="snapshot-dialog-backdrop" role="presentation" @click.self="closeSnapshot"><section class="snapshot-dialog" role="dialog" aria-modal="true" :aria-label="t('console.snapshotTitle')"><header><div><p class="operations-console__eyebrow">{{ shortId(snapshotRun.id) }}</p><h2>{{ t('console.snapshotTitle') }}</h2></div><button class="icon-button" type="button" :title="t('command.close')" :aria-label="t('command.close')" @click="closeSnapshot"><X :size="16" /></button></header><p>{{ t('console.snapshotReadonly') }}</p><div v-if="isSnapshotLoading" class="snapshot-dialog__status">{{ t('console.snapshotLoading') }}</div><div v-else-if="snapshotError" class="snapshot-dialog__status snapshot-dialog__status--error">{{ snapshotError }}</div><RunSnapshotViewer v-else :definition="snapshot" :outputs="snapshotOutputs" :outputs-error="snapshotOutputsError" :events="snapshotEvents" :events-error="snapshotEventsError" /></section></div>
   </main>
 </template>

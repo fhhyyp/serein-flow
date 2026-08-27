@@ -11,6 +11,7 @@ output/
 
 # npm
 .pnpm-store
+.npm-cache/
 
 # NuGet and local tooling
 *.nupkg

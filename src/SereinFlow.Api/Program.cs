@@ -39,6 +39,7 @@ builder.Services.AddSereinFlowInfrastructure(
 builder.Services.AddScoped<RunApplicationService>();
 builder.Services.AddScoped<RunSubmissionService>();
 builder.Services.AddScoped<ProjectLibraryService>();
+builder.Services.AddSingleton<IBuiltinNodeCatalog, BuiltinNodeCatalog>();
 builder.Services.Configure<RunExecutionOptions>(builder.Configuration.GetSection("SereinFlow:RunExecution"));
 
 var workerRunnerPath = ResolveWorkerRunnerPath(
@@ -71,6 +72,9 @@ app.MapGet("/healthz", () => Results.Ok(new HealthCheckResponse("Healthy")))
     .AllowAnonymous();
 
 var projects = app.MapGroup("/api/projects");
+
+app.MapGet("/api/node-catalog/builtins", (IBuiltinNodeCatalog catalog) =>
+    Results.Ok(catalog.GetCatalog()));
 
 projects.MapPost("/{projectId:guid}/flows/{flowId:guid}/runs", async (
     Guid projectId,

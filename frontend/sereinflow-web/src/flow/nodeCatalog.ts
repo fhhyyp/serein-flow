@@ -11,12 +11,11 @@ export const referenceNodeKinds = [
   'action',
   'flipflop',
   'script',
-  'condition',
   'flowCall',
 ] as const satisfies readonly ReferenceNodeKind[]
 
 export const methodNodeKinds = ['action', 'flipflop'] as const satisfies readonly ReferenceNodeKind[]
-export const basicNodeKinds = ['script', 'condition', 'flowCall'] as const satisfies readonly ReferenceNodeKind[]
+export const basicNodeKinds = ['script', 'flowCall'] as const satisfies readonly ReferenceNodeKind[]
 export const allNodeKinds = [...referenceNodeKinds] as const satisfies readonly NodeKind[]
 
 export interface NodeParameterDefinition {

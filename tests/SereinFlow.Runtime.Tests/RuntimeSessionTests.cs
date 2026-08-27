@@ -126,6 +126,75 @@ public sealed class RuntimeSessionTests
         Assert.DoesNotContain("second", inputs.Keys);
     }
 
+    [Fact]
+    public async Task FlowCallUsesAnIsolatedFrameAndOnlyPassesExplicitBindings()
+    {
+        var target = NodeDefinition.Create(
+            "target",
+            NodeType.Action,
+            "Target",
+            parameters: [new NodeParameterDefinition("value", null, required: true, id: "target-value")],
+            runtime: new NodeRuntimeDefinition(IsPublic: true, ReturnType: "System.Int64"));
+        var call = NodeDefinition.Create(
+            "call",
+            NodeType.FlowCall,
+            "Call",
+            parameters: [new NodeParameterDefinition("value", "7", id: "call-value")],
+            runtime: new NodeRuntimeDefinition(
+                TargetNodeId: target.Id,
+                FlowCallParameterBindings: [new FlowCallParameterBinding("call-value", "target-value")]));
+        var definition = FlowDefinition.Create(
+            Guid.NewGuid(),
+            1,
+            [CanvasDefinition.Create("main", CanvasLifecycle.Main, [call, target], [])],
+            call.Id);
+        var action = new CapturingActionExecutor();
+        var runner = new FlowRunner(
+            new ExecutionPlanBuilder(),
+            new NodeExecutorRegistry([action, new FlowCallNodeExecutor()]));
+
+        await using var session = new FlowExecutionSession();
+        session.Write("call.result", "must-not-leak");
+        var result = await runner.RunAsync(definition, session);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(7L, action.Input);
+        Assert.True(action.CallerOutputWasHidden);
+        Assert.Equal(1, action.FrameDepth);
+        Assert.Equal(7L, session.Read("call.result"));
+        Assert.Null(session.Read("target.result"));
+    }
+
+    [Fact]
+    public async Task FlowCallRejectsAValueThatDoesNotMatchTheStaticReturnType()
+    {
+        var target = NodeDefinition.Create(
+            "target",
+            NodeType.Action,
+            "Target",
+            runtime: new NodeRuntimeDefinition(IsPublic: true, ReturnType: "System.Int32"));
+        var call = NodeDefinition.Create(
+            "call",
+            NodeType.FlowCall,
+            "Call",
+            runtime: new NodeRuntimeDefinition(TargetNodeId: target.Id));
+        var definition = FlowDefinition.Create(
+            Guid.NewGuid(),
+            1,
+            [CanvasDefinition.Create("main", CanvasLifecycle.Main, [call, target], [])],
+            call.Id);
+        var runner = new FlowRunner(
+            new ExecutionPlanBuilder(),
+            new NodeExecutorRegistry([new MismatchedReturnActionExecutor(), new FlowCallNodeExecutor()]));
+
+        await using var session = new FlowExecutionSession();
+        var result = await runner.RunAsync(definition, session);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ExecutionBranch.Error, result.NextBranch);
+        Assert.Equal("flowcall.return_type_mismatch", result.ErrorCode);
+    }
+
     private sealed class ContextWritingExecutor : INodeExecutor
     {
         public NodeType NodeType => NodeType.Action;
@@ -135,6 +204,35 @@ public sealed class RuntimeSessionTests
             request.Context.Write("observed", request.Context.Read("run"));
             return ValueTask.FromResult(NodeExecutionResult.Success());
         }
+    }
+
+    private sealed class CapturingActionExecutor : INodeExecutor
+    {
+        public NodeType NodeType => NodeType.Action;
+
+        public object? Input { get; private set; }
+
+        public bool CallerOutputWasHidden { get; private set; }
+
+        public int FrameDepth { get; private set; }
+
+        public ValueTask<NodeExecutionResult> ExecuteAsync(NodeExecutionRequest request, CancellationToken cancellationToken)
+        {
+            Input = request.Inputs["target-value"];
+            CallerOutputWasHidden = request.Context.Read("call.result") is null;
+            FrameDepth = Assert.IsType<FlowExecutionSession>(request.Context).FrameDepth;
+            return ValueTask.FromResult(NodeExecutionResult.Success(
+                new Dictionary<string, object?> { ["result"] = Input }));
+        }
+    }
+
+    private sealed class MismatchedReturnActionExecutor : INodeExecutor
+    {
+        public NodeType NodeType => NodeType.Action;
+
+        public ValueTask<NodeExecutionResult> ExecuteAsync(NodeExecutionRequest request, CancellationToken cancellationToken)
+            => ValueTask.FromResult(NodeExecutionResult.Success(
+                new Dictionary<string, object?> { ["result"] = "not-an-int" }));
     }
 
     private sealed class RecordingPublisher : IRunEventPublisher

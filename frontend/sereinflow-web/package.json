@@ -3,13 +3,14 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "packageManager": "pnpm@11.19.0",
+  "packageManager": "npm@11.6.2",
   "engines": {
     "node": ">=24.19.0 <25",
-    "pnpm": "11.19.0"
+    "npm": ">=11.6.2 <12"
   },
   "scripts": {
     "dev": "vite",
+    "test": "node --test tests/*.test.ts",
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview"
   },

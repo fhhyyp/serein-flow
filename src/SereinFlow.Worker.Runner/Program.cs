@@ -143,7 +143,6 @@ public static class RunnerHost
                 new LibraryNodeExecutor(NodeType.Action, libraryRuntimeCache),
                 new LibraryNodeExecutor(NodeType.Flipflop, libraryRuntimeCache),
                 new SereinScriptNodeExecutor(artifactStore, request.ProjectId ?? "default"),
-                new ConditionNodeExecutor(),
                 new FlowCallNodeExecutor()]);
             var runner = new FlowRunner(new ExecutionPlanBuilder(), executors, publisher);
             var result = await runner.RunAsync(definition, session, cancellationToken);
@@ -210,7 +209,14 @@ public static class RunnerHost
                 "node.error" => WorkerEventType.NodeErrored,
                 _ => WorkerEventType.Log
             };
-            var payload = JsonSerializer.Serialize(runtimeEvent.Payload, SereinJsonSerialization.CreateWebOptions());
+            // Runtime sessions can retain ScriptLang.Value instances so a
+            // following DLL node can convert them against its declared type.
+            // The protocol boundary must receive only a safe audit projection.
+            // 运行会话可保留 ScriptLang.Value 供后续 DLL 节点按声明类型转换；
+            // 协议边界只能接收安全的审计投影。
+            var payload = JsonSerializer.Serialize(
+                ScriptValueConverter.ToAuditValue(runtimeEvent.Payload),
+                SereinJsonSerialization.CreateWebOptions());
             var envelope = new WorkerEventEnvelopeDto(
                 WorkerProtocolConstants.Version,
                 runId,
@@ -301,14 +307,19 @@ public static class FlowDefinitionMapper
                 parameter.Ui?.Expression,
                 parameter.Ui?.SourceNodeId,
                 parameter.Ui?.SourcePortId,
-                parameter.Ui?.ValueKind)),
+                parameter.Ui?.ValueKind,
+                parameter.Ui?.Description,
+                parameter.Ui?.IsVariadic ?? false,
+                parameter.Ui?.VariadicGroupId,
+                parameter.Ui?.ElementType,
+                ParseVariadicMode(parameter.Ui?.VariadicMode))),
             dto.Script is null ? null : ScriptNodeDefinition.Create(
                 dto.Script.NodeId,
                 dto.Script.Source,
                 dto.Script.LanguageVersion,
                 dto.Script.SourceHash,
-                dto.Script.Inputs.Select(input => new ScriptValueContract(input.Name, input.ValueKind, input.Required)),
-                dto.Script.Outputs.Select(output => new ScriptValueContract(output.Name, output.ValueKind, output.Required))),
+                dto.Script.Inputs.Select(input => new ScriptValueContract(input.Name, input.ValueKind, input.Required, input.Id, input.Description)),
+                dto.Script.Outputs.Select(output => new ScriptValueContract(output.Name, output.ValueKind, output.Required, output.Id, output.Description))),
             dto.Ui is null
                 ? null
                 : new NodeRuntimeDefinition(
@@ -322,7 +333,13 @@ public static class FlowDefinitionMapper
                     Guid.TryParse(dto.Ui.TargetFlowId, out var targetFlowId) ? targetFlowId : null,
                     dto.Ui.IsAwaitable ?? false,
                     dto.Ui.StaticReturnType,
-                    dto.Ui.IsDynamicReturnType ?? false));
+                    dto.Ui.IsDynamicReturnType ?? false,
+                    dto.Ui.TargetCanvasId,
+                    dto.Ui.IsPublic ?? false,
+                    dto.Ui.FlowCallParameterBindings?.Select(item => new FlowCallParameterBinding(item.CallParameterId, item.TargetParameterId)).ToArray()));
+
+    private static VariadicParameterMode? ParseVariadicMode(string? value)
+        => Enum.TryParse<VariadicParameterMode>(value, ignoreCase: true, out var mode) ? mode : null;
 
     private static ConnectionDefinition MapConnection(ConnectionDto dto)
     {

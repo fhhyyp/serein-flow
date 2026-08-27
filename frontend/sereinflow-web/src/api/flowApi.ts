@@ -1,7 +1,7 @@
 import type { FlowEdgeLineType } from '../flow/types'
 import { localizeMessage } from '../i18n'
 
-export type ApiNodeType = 'action' | 'flowCall' | 'flipflop' | 'script' | 'condition'
+export type ApiNodeType = 'action' | 'flowCall' | 'flipflop' | 'script'
 export type ApiCanvasLifecycle = 'main' | 'init' | 'loading' | 'exit' | 'custom'
 export type ApiConnectionKind = 'execution' | 'data'
 export type ApiDataSource = 'literal' | 'previousNode' | 'projectInput' | 'expression'
@@ -39,6 +39,10 @@ export interface NodeParameterUiMetadataDto {
   expression?: string
   sourceNodeId?: string
   sourcePortId?: string
+  isVariadic?: boolean
+  variadicGroupId?: string
+  elementType?: string
+  variadicMode?: 'expanded' | 'collection'
 }
 
 export interface NodeParameterDto {
@@ -69,6 +73,9 @@ export interface NodeUiMetadataDto {
   isAwaitable?: boolean
   staticReturnType?: string
   isDynamicReturnType?: boolean
+  targetCanvasId?: string
+  isPublic?: boolean
+  flowCallParameterBindings?: FlowCallParameterBindingDto[]
 }
 
 export interface NodeDto {
@@ -87,6 +94,8 @@ export interface ScriptValueContractDto {
   name: string
   valueKind: string
   required: boolean
+  id?: string
+  description?: string
 }
 
 export interface ScriptNodeDataDto {
@@ -96,6 +105,25 @@ export interface ScriptNodeDataDto {
   sourceHash: string
   inputs: ScriptValueContractDto[]
   outputs: ScriptValueContractDto[]
+}
+
+export interface FlowCallParameterBindingDto {
+  callParameterId: string
+  targetParameterId: string
+}
+
+export interface NodeCreationDescriptorDto {
+  id: string
+  type: ApiNodeType
+  displayName: string
+  description: string | null
+  ui: NodeUiMetadataDto
+  script?: ScriptNodeDataDto | null
+  parameters?: NodeParameterDto[] | null
+}
+
+export interface BuiltinNodeCatalogDto {
+  nodes: NodeCreationDescriptorDto[]
 }
 
 export interface ConnectionDto {
@@ -298,6 +326,10 @@ const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
 export async function listProjects(): Promise<ProjectWorkspaceDto[]> {
   return request<ProjectWorkspaceDto[]>('/api/projects')
+}
+
+export async function getBuiltinNodeCatalog(): Promise<BuiltinNodeCatalogDto> {
+  return request<BuiltinNodeCatalogDto>('/api/node-catalog/builtins')
 }
 
 export async function createProject(requestBody: CreateProjectRequestDto): Promise<ProjectWorkspaceDto> {

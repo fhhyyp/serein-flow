@@ -83,7 +83,7 @@ public sealed class LibraryCatalogTests
 
             var result = await catalog.UploadAsync(package, "SereinFlow.TestLibrary-1.1.0.zip");
 
-            Assert.Equal(5, result.Library.Nodes.Count);
+            Assert.Equal(7, result.Library.Nodes.Count);
             var passRate = Assert.Single(result.Library.Nodes, node => node.MethodName == "计算合格率");
             Assert.Equal(SereinFlow.Contracts.NodeTypeDto.Action, passRate.Type);
             Assert.Equal("计算合格率", passRate.DisplayName);
@@ -92,6 +92,17 @@ public sealed class LibraryCatalogTests
 
             var flipflop = Assert.Single(result.Library.Nodes, node => node.MethodName == "等待设备触发");
             Assert.Equal(SereinFlow.Contracts.NodeTypeDto.Flipflop, flipflop.Type);
+
+            var contextBranch = Assert.Single(result.Library.Nodes, node => node.MethodName == "按设备状态选择分支");
+            Assert.Equal(["设备状态"], contextBranch.Parameters.Select(parameter => parameter.Name).ToArray());
+            Assert.DoesNotContain(contextBranch.Parameters, parameter => parameter.Name == "流程上下文");
+
+            var variadic = Assert.Single(result.Library.Nodes, node => node.MethodName == "汇总多个检测值");
+            var values = Assert.Single(variadic.Parameters);
+            Assert.Equal("检测值", values.Name);
+            Assert.True(values.IsVariadic);
+            Assert.Equal("param-1", values.VariadicGroupId);
+            Assert.Equal("System.Int32", values.ElementType);
         }
         finally
         {

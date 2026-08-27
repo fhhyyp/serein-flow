@@ -4,6 +4,15 @@
     "net10.0": {
       "sereinflow.contracts": {
         "type": "Project"
+      },
+      "sereinflow.domain": {
+        "type": "Project"
+      },
+      "sereinflow.runtime.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "SereinFlow.Domain": "[1.0.0, )"
+        }
       }
     }
   }

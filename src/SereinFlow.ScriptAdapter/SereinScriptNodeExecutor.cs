@@ -54,7 +54,17 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
 
             var task = engine.CreateTask(chunk, artifactPath);
             foreach (var input in definition.Inputs)
-                engine.SetGlobal(input.Name, ScriptValueConverter.ToScriptValue(request.Inputs.GetValueOrDefault(input.Name)));
+            {
+                var inputId = input.Id ?? input.Name;
+                // A persisted .ssc chunk contains only globals referenced by
+                // the compiled source. Register every declared input again so
+                // a valid but currently unused connector can still receive a
+                // value without failing the node.
+                // 已持久化的 .ssc 仅包含源码实际引用的全局变量；重新注册全部声明输入，
+                // 使当前未在源码中使用但合法的连接器也能安全赋值。
+                engine.RegisterGlobal(input.Name);
+                engine.SetGlobal(input.Name, ScriptValueConverter.ToScriptValue(request.Inputs.GetValueOrDefault(inputId)));
+            }
 
             var result = await task.RunAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
@@ -89,12 +99,12 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
 
     private static void ValidateInputs(ScriptNodeDefinition definition, IReadOnlyDictionary<string, object?> inputs)
     {
-        var contracts = definition.Inputs.ToDictionary(input => input.Name, StringComparer.Ordinal);
-        var unknown = inputs.Keys.FirstOrDefault(name => !contracts.ContainsKey(name));
+        var contracts = definition.Inputs.ToDictionary(input => input.Id ?? input.Name, StringComparer.Ordinal);
+        var unknown = inputs.Keys.FirstOrDefault(id => !contracts.ContainsKey(id));
         if (unknown is not null)
             throw new ScriptExecutionException("script.input_unknown", $"Unknown script input '{unknown}'. 未知的脚本输入“{unknown}”。");
 
-        var missing = definition.Inputs.FirstOrDefault(input => input.Required && !inputs.ContainsKey(input.Name));
+        var missing = definition.Inputs.FirstOrDefault(input => input.Required && !inputs.ContainsKey(input.Id ?? input.Name));
         if (missing is not null)
             throw new ScriptExecutionException("script.input_missing", $"Required script input '{missing.Name}' is missing. 缺少必需的脚本输入“{missing.Name}”。");
     }
@@ -107,7 +117,7 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
         if (definition.Outputs.Count == 1)
             return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
-                [definition.Outputs[0].Name] = ScriptValueConverter.ToClrValue(result)
+                [definition.Outputs[0].Id ?? definition.Outputs[0].Name] = result
             };
 
         if (result is not ObjectValue objectResult)
@@ -116,8 +126,8 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
         var outputs = new Dictionary<string, object?>(StringComparer.Ordinal);
         foreach (var output in definition.Outputs)
         {
-            outputs[output.Name] = objectResult.TryGetValue(output.Name, out var value)
-                ? ScriptValueConverter.ToClrValue(value)
+            outputs[output.Id ?? output.Name] = objectResult.TryGetValue(output.Name, out var value)
+                ? value
                 : null;
         }
         return outputs;

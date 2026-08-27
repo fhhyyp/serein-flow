@@ -10,6 +10,7 @@ using SereinFlow.Application;
 using SereinFlow.Contracts;
 using SereinFlow.Core.Api;
 using SereinFlow.Application.Persistence;
+using SereinFlow.Runtime.Abstractions;
 
 namespace SereinFlow.Infrastructure.Persistence;
 
@@ -460,19 +461,36 @@ internal static class LibraryMetadataScanner
                         .Select(reader.GetParameter)
                         .Where(static parameter => parameter.SequenceNumber > 0)
                         .OrderBy(static parameter => parameter.SequenceNumber)
-                        .Select((parameter, index) =>
+                        .Select((parameter, index) => new { Parameter = parameter, Index = index })
+                        .Where(item => signature.ParameterTypes.Length <= item.Index
+                            || !string.Equals(signature.ParameterTypes[item.Index], FlowContextContract.FullName, StringComparison.Ordinal))
+                        .Select(item =>
                         {
+                            var parameter = item.Parameter;
+                            var index = item.Index;
                             var parameterMetadata = ReadParameterMetadata(reader, parameter, provider);
                             var parameterName = parameterMetadata.Name
                                 ?? (parameter.Name.IsNil ? $"param{index + 1}" : reader.GetString(parameter.Name));
-                            var isRequired = (parameter.Attributes & ParameterAttributes.Optional) == 0
+                            var isVariadic = FindAttribute(
+                                reader,
+                                parameter.GetCustomAttributes(),
+                                LibraryAttributeContract.ParamArrayAttributeFullName).HasValue;
+                            var isRequired = !isVariadic
+                                && (parameter.Attributes & ParameterAttributes.Optional) == 0
                                 && parameterMetadata.IsExplicit;
+                            var parameterType = signature.ParameterTypes.Length > index
+                                ? signature.ParameterTypes[index]
+                                : "System.Object";
+                            var parameterId = $"param-{index + 1}";
                             return new LibraryParameterDto(
-                                $"param-{index + 1}",
+                                parameterId,
                                 parameterName,
-                                signature.ParameterTypes.Length > index ? signature.ParameterTypes[index] : "System.Object",
+                                parameterType,
                                 null,
-                                isRequired);
+                                isRequired,
+                                isVariadic,
+                                isVariadic ? parameterId : null,
+                                isVariadic ? GetArrayElementType(parameterType) : null);
                         })
                         .ToArray();
 
@@ -620,6 +638,9 @@ internal static class LibraryMetadataScanner
             // Metadata signatures preserve the CLR arity suffix (Task`1<T>)
             // while reflection exposes the same type as Task<T>.
             || returnType.StartsWith("System.Threading.Tasks.Task`1<", StringComparison.Ordinal);
+
+    private static string GetArrayElementType(string type)
+        => type.EndsWith("[]", StringComparison.Ordinal) ? type[..^2] : "System.Object";
 
     private static string GetAttributeName(MetadataReader reader, CustomAttributeHandle handle)
     {

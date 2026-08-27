@@ -128,7 +128,7 @@ test('the workbench DTO round trip retains user-created multi-canvas execution a
   const main = restored.canvases.find((canvas) => canvas.id === 'main')
   const init = restored.canvases.find((canvas) => canvas.id === 'init')
 
-  assert.equal(definition.schemaVersion, 4)
+  assert.equal(definition.schemaVersion, 5)
   assert.equal(definition.canvases.find((canvas) => canvas.id === 'main')?.connections.length, 2)
   assert.equal(definition.ui?.connectionLineTypes?.execution, 'default')
   assert.equal(definition.ui?.connectionLineTypes?.data, 'smoothstep')

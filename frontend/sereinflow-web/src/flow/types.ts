@@ -3,14 +3,13 @@ import type { EdgeMarkerType, XYPosition } from '@vue-flow/core'
 /**
  * Node kinds exposed by the TRAE/SereinScript contract.
  *
- * The runtime supports only the five canonical node kinds.
- * 运行时只支持五种规范节点类型。
+ * The runtime supports only the four canonical node kinds.
+ * 运行时只支持四种规范节点类型。
  */
 export type ReferenceNodeKind =
   | 'action'
   | 'flipflop'
   | 'script'
-  | 'condition'
   | 'flowCall'
 
 export type NodeKind = ReferenceNodeKind
@@ -39,6 +38,9 @@ export interface NodeRuntimeMetadata {
   isAwaitable?: boolean
   staticReturnType?: string
   isDynamicReturnType?: boolean
+  targetCanvasId?: string
+  isPublic?: boolean
+  flowCallParameterBindings?: Array<{ callParameterId: string; targetParameterId: string }>
 }
 
 export interface MethodParameter {
@@ -57,6 +59,10 @@ export interface MethodParameter {
   expression?: string
   sourceNodeId?: string
   sourcePortId?: string
+  isVariadic?: boolean
+  variadicGroupId?: string
+  elementType?: string
+  variadicMode?: 'expanded' | 'collection'
 }
 
 export interface FlowNodeData {
@@ -77,8 +83,8 @@ export interface ScriptNodeData {
   source: string
   languageVersion: string
   sourceHash: string
-  inputs: Array<{ name: string; valueKind: string; required: boolean }>
-  outputs: Array<{ name: string; valueKind: string; required: boolean }>
+  inputs: Array<{ id?: string; name: string; valueKind: string; required: boolean; description?: string }>
+  outputs: Array<{ id?: string; name: string; valueKind: string; required: boolean; description?: string }>
 }
 
 export interface FlowEdgeData {

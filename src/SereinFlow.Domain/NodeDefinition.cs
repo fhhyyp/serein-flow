@@ -43,7 +43,12 @@ public sealed record NodeParameterDefinition
         string? expression = null,
         string? sourceNodeId = null,
         string? sourcePortId = null,
-        string? valueKind = null)
+        string? valueKind = null,
+        string? description = null,
+        bool isVariadic = false,
+        string? variadicGroupId = null,
+        string? elementType = null,
+        VariadicParameterMode? variadicMode = null)
     {
         Name = Validate(name, nameof(name));
         Id = string.IsNullOrWhiteSpace(id) ? Name : id.Trim();
@@ -55,6 +60,11 @@ public sealed record NodeParameterDefinition
         SourceNodeId = sourceNodeId?.Trim();
         SourcePortId = sourcePortId?.Trim();
         ValueKind = valueKind?.Trim();
+        Description = description?.Trim();
+        IsVariadic = isVariadic;
+        VariadicGroupId = variadicGroupId?.Trim();
+        ElementType = elementType?.Trim();
+        VariadicMode = variadicMode;
     }
 
     public string Id { get; }
@@ -76,6 +86,16 @@ public sealed record NodeParameterDefinition
     public string? SourcePortId { get; }
 
     public string? ValueKind { get; }
+
+    public string? Description { get; }
+
+    public bool IsVariadic { get; }
+
+    public string? VariadicGroupId { get; }
+
+    public string? ElementType { get; }
+
+    public VariadicParameterMode? VariadicMode { get; }
 
     private static string Validate(string value, string parameterName)
     {
@@ -99,7 +119,12 @@ public sealed record NodeRuntimeDefinition(
     Guid? TargetFlowId = null,
     bool IsAwaitable = false,
     string? StaticReturnType = null,
-    bool IsDynamicReturnType = false);
+    bool IsDynamicReturnType = false,
+    string? TargetCanvasId = null,
+    bool IsPublic = false,
+    IReadOnlyList<FlowCallParameterBinding>? FlowCallParameterBindings = null);
+
+public sealed record FlowCallParameterBinding(string CallParameterId, string TargetParameterId);
 
 public sealed class NodeDefinition
 {

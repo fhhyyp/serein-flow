@@ -7,6 +7,9 @@ export interface LibraryParameterDto {
   type: string
   description?: string | null
   required: boolean
+  isVariadic?: boolean
+  variadicGroupId?: string | null
+  elementType?: string | null
 }
 
 export interface LibraryNodeDto {

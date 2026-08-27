@@ -22,25 +22,36 @@ public sealed class DataConnectionResolver
             // parameter; the editor's source selector is only a fallback for
             // unconnected parameters.
             // 已建立的数据连接优先于参数来源选择器；未连接时才使用参数自身来源。
-            object? value = incoming.Count > 0
-                ? ReadPreviousNode(incoming, session)
-                : parameter.Source switch
-                {
-                    DataSource.Literal => ParseJson(parameter.ValueJson),
-                    DataSource.PreviousNode => ReadPreviousNode(
-                        string.IsNullOrWhiteSpace(parameter.SourceNodeId)
-                            ? []
-                            : [ConnectionDefinition.Data(
-                                parameter.SourceNodeId,
-                                parameter.SourcePortId ?? "data-out",
-                                node.Id,
-                                parameter.Id,
-                                DataSource.PreviousNode)],
-                        session),
-                    DataSource.ProjectInput => ReadProjectInput(parameter.ProjectInputKey ?? parameter.Name, session),
-                    DataSource.Expression => EvaluateExpression(parameter.Expression, session),
-                    _ => null
-                };
+            object? value;
+            if (session.TryReadFlowCallInput(node.Id, parameter.Id, out var flowCallValue))
+            {
+                // Explicit FlowCall mappings have the highest precedence at the
+                // public target entry and never leak to downstream nodes.
+                // 显式 FlowCall 映射在公开目标入口优先级最高，且不会泄漏到下游节点。
+                value = flowCallValue;
+            }
+            else
+            {
+                value = incoming.Count > 0
+                    ? ReadPreviousNode(incoming, session)
+                    : parameter.Source switch
+                    {
+                        DataSource.Literal => ParseJson(parameter.ValueJson),
+                        DataSource.PreviousNode => ReadPreviousNode(
+                            string.IsNullOrWhiteSpace(parameter.SourceNodeId)
+                                ? []
+                                : [ConnectionDefinition.Data(
+                                    parameter.SourceNodeId,
+                                    parameter.SourcePortId ?? "data-out",
+                                    node.Id,
+                                    parameter.Id,
+                                    DataSource.PreviousNode)],
+                            session),
+                        DataSource.ProjectInput => ReadProjectInput(parameter.ProjectInputKey ?? parameter.Name, session),
+                        DataSource.Expression => EvaluateExpression(parameter.Expression, session),
+                        _ => null
+                    };
+            }
 
             if (value is null && parameter.Required)
             {
@@ -50,7 +61,10 @@ public sealed class DataConnectionResolver
                     values);
             }
 
-            values[parameter.Name] = value;
+            // Parameter IDs are the persisted binding identity. Names are UI
+            // labels and may change without breaking data connections.
+            // 参数 ID 是持久化绑定身份；名称只是 UI 标签，重命名不能破坏数据连接。
+            values[parameter.Id] = value;
         }
 
         return values;

@@ -8,7 +8,11 @@ public sealed class FlowDefinitionTests
     public void ValidFlowAcceptsExecutionAndDataConnections()
     {
         var start = NodeDefinition.Create("start", NodeType.Action, "Start");
-        var finish = NodeDefinition.Create("finish", NodeType.Action, "Finish");
+        var finish = NodeDefinition.Create(
+            "finish",
+            NodeType.Action,
+            "Finish",
+            parameters: [new NodeParameterDefinition("input", null, id: "input")]);
         var canvas = CanvasDefinition.Create("main", CanvasLifecycle.Main, [start, finish],
         [
             ConnectionDefinition.Execution("start", "success", "finish", "in", ExecutionBranch.Success),

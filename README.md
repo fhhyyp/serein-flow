@@ -12,11 +12,11 @@ dotnet build SereinFlow.sln --no-restore
 dotnet test SereinFlow.sln --no-build
 
 Set-Location frontend/sereinflow-web
-pnpm install --frozen-lockfile
-pnpm build
+npm ci
+npm run build
 ```
 
-Use .NET SDK `10.0.300`, Node.js `24.19.0`, and pnpm `11.19.0`. `global.json` and `.node-version` are the canonical local and CI toolchain definitions.
+Use .NET SDK `10.0.300`, Node.js `24.19.0`, and npm `11.6.2`. `global.json` and `.node-version` are the canonical local and CI toolchain definitions.
 
 ## Upload-library smoke test
 

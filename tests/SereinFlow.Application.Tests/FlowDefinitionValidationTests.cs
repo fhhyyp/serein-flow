@@ -1,5 +1,6 @@
 using SereinFlow.Application;
 using SereinFlow.Contracts;
+using SereinFlow.Domain;
 
 namespace SereinFlow.Application.Tests;
 
@@ -32,7 +33,7 @@ public sealed class FlowDefinitionValidationTests
     private static FlowDefinitionDto CreateBlankDraft()
         => new(
             Guid.NewGuid(),
-            4,
+            FlowDefinition.CurrentSchemaVersion,
             1,
             [new CanvasDto("main", CanvasLifecycleDto.Main, [], [])],
             string.Empty,

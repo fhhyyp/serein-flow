@@ -1,6 +1,8 @@
 using System.Reflection;
 using SereinFlow.Domain;
+using SereinFlow.Runtime;
 using SereinFlow.Runtime.Abstractions;
+using SereinFlow.ScriptAdapter;
 
 namespace SereinFlow.Worker.Runner;
 
@@ -45,15 +47,52 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
             var target = method.IsStatic ? null : Activator.CreateInstance(resolved.DeclaringType);
             var parameters = method.GetParameters();
             var arguments = new object?[parameters.Length];
+            var flowContext = new LibraryFlowContext(
+                request.Context is FlowExecutionSession session ? session.RunId : Guid.Empty,
+                request.Node.Id,
+                cancellationToken);
+            var ordinaryParameterIndex = 0;
             for (var index = 0; index < parameters.Length; index++)
             {
+                if (WorkerLibraryRuntimeCache.IsFlowContextParameter(parameters[index]))
+                {
+                    arguments[index] = flowContext;
+                    continue;
+                }
+
                 var name = parameters[index].Name ?? $"param{index + 1}";
                 var parameterDefinition = request.Node.Parameters.FirstOrDefault(item =>
                     string.Equals(item.Name, name, StringComparison.Ordinal)
                     || string.Equals(item.Id, name, StringComparison.Ordinal));
-                parameterDefinition ??= index < request.Node.Parameters.Count
-                    ? request.Node.Parameters[index]
+                parameterDefinition ??= ordinaryParameterIndex < request.Node.Parameters.Count
+                    ? request.Node.Parameters[ordinaryParameterIndex]
                     : null;
+
+                if (parameters[index].GetCustomAttribute<ParamArrayAttribute>() is not null)
+                {
+                    try
+                    {
+                        arguments[index] = BuildVariadicArgument(
+                            request,
+                            parameters[index],
+                            parameterDefinition,
+                            auditInputs);
+                        ordinaryParameterIndex++;
+                        continue;
+                    }
+                    catch (Exception exception)
+                    {
+                        return NodeExecutionResult.Error(
+                            exception is ScriptValueConversionException
+                                ? "script.value_conversion_failed"
+                                : "node.input_invalid",
+                            $"Library input '{name}' cannot be converted to '{parameters[index].ParameterType.Name}'. 类库输入“{name}”无法转换为“{parameters[index].ParameterType.Name}”。 {exception.Message}") with
+                        {
+                            Inputs = SnapshotInputs(auditInputs)
+                        };
+                    }
+                }
+
                 if (!request.Inputs.TryGetValue(name, out var value)
                     && (parameterDefinition is null || !request.Inputs.TryGetValue(parameterDefinition.Id, out value)))
                 {
@@ -61,6 +100,7 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
                     {
                         arguments[index] = parameters[index].DefaultValue;
                         auditInputs[name] = arguments[index];
+                        ordinaryParameterIndex++;
                         continue;
                     }
                     if (!parameters[index].ParameterType.IsValueType
@@ -68,6 +108,7 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
                     {
                         arguments[index] = null;
                         auditInputs[name] = null;
+                        ordinaryParameterIndex++;
                         continue;
                     }
                     return NodeExecutionResult.Error(
@@ -86,6 +127,14 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
                 }
                 catch (Exception exception)
                 {
+                    if (exception is ScriptValueConversionException)
+                    {
+                        return NodeExecutionResult.Error("script.value_conversion_failed", exception.Message) with
+                        {
+                            Inputs = SnapshotInputs(auditInputs)
+                        };
+                    }
+
                     return NodeExecutionResult.Error(
                         "node.input_invalid",
                         $"Library input '{name}' cannot be converted to '{parameters[index].ParameterType.Name}'. 类库输入“{name}”无法转换为“{parameters[index].ParameterType.Name}”。 {exception.Message}") with
@@ -93,6 +142,7 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
                         Inputs = SnapshotInputs(auditInputs)
                     };
                 }
+                ordinaryParameterIndex++;
             }
 
             var invocationResult = method.Invoke(target, arguments);
@@ -100,7 +150,7 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
             var result = valueResult is null
                 ? NodeExecutionResult.Success()
                 : NodeExecutionResult.Success(new Dictionary<string, object?> { ["result"] = valueResult });
-            return result with { Inputs = SnapshotInputs(auditInputs) };
+            return flowContext.Apply(result) with { Inputs = SnapshotInputs(auditInputs) };
         }
         catch (LibraryRuntimeCacheException exception)
         {
@@ -136,4 +186,102 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
 
     private static Dictionary<string, object?> SnapshotInputs(IReadOnlyDictionary<string, object?> inputs)
         => new Dictionary<string, object?>(inputs, StringComparer.Ordinal);
+
+    private static Array BuildVariadicArgument(
+        NodeExecutionRequest request,
+        ParameterInfo parameter,
+        NodeParameterDefinition? representative,
+        IDictionary<string, object?> auditInputs)
+    {
+        var arrayType = parameter.ParameterType;
+        var elementType = arrayType.GetElementType()
+            ?? throw new InvalidOperationException("The params array has no element type. params 数组没有元素类型。");
+        var groupId = representative?.VariadicGroupId ?? representative?.Id ?? parameter.Name ?? string.Empty;
+        var definitions = request.Node.Parameters
+            .Where(item => item.IsVariadic
+                && string.Equals(item.VariadicGroupId ?? item.Id, groupId, StringComparison.Ordinal))
+            .ToArray();
+        if (definitions.Length == 0 && representative?.IsVariadic == true)
+            definitions = [representative];
+
+        if (definitions.Length == 1 && definitions[0].VariadicMode == VariadicParameterMode.Collection)
+        {
+            var collection = definitions[0];
+            if (!TryGetInput(request.Inputs, collection, out var value))
+                return Array.CreateInstance(elementType, 0);
+            var converted = LibraryArgumentConverter.Convert(value, arrayType);
+            auditInputs[collection.Name] = converted;
+            return (Array)(converted ?? Array.CreateInstance(elementType, 0));
+        }
+
+        var values = new List<object?>();
+        foreach (var definition in definitions)
+        {
+            if (!TryGetInput(request.Inputs, definition, out var value) || value is null)
+            {
+                if (definition.Required)
+                    throw new InvalidOperationException($"Required variadic input '{definition.Name}' is missing. 缺少必需可变参数输入“{definition.Name}”。");
+                continue;
+            }
+            auditInputs[definition.Name] = value;
+            var converted = LibraryArgumentConverter.Convert(value, elementType);
+            auditInputs[definition.Name] = converted;
+            values.Add(converted);
+        }
+
+        var result = Array.CreateInstance(elementType, values.Count);
+        for (var index = 0; index < values.Count; index++)
+            result.SetValue(values[index], index);
+        return result;
+    }
+
+    private static bool TryGetInput(
+        IReadOnlyDictionary<string, object?> inputs,
+        NodeParameterDefinition parameter,
+        out object? value)
+        => inputs.TryGetValue(parameter.Id, out value)
+            || inputs.TryGetValue(parameter.Name, out value);
+
+    private sealed class LibraryFlowContext(Guid runId, string nodeId, CancellationToken cancellationToken) : IFlowContext
+    {
+        private ExecutionBranch _branch = ExecutionBranch.Success;
+        private string? _code;
+        private string? _message;
+
+        public Guid RunId { get; } = runId;
+
+        public string NodeId { get; } = nodeId;
+
+        public CancellationToken CancellationToken { get; } = cancellationToken;
+
+        public void SelectSuccess()
+        {
+            _branch = ExecutionBranch.Success;
+            _code = null;
+            _message = null;
+        }
+
+        public void SelectFailure(string? code = null, string? message = null)
+        {
+            _branch = ExecutionBranch.Failure;
+            _code = string.IsNullOrWhiteSpace(code) ? "node.branch_failure" : code;
+            _message = string.IsNullOrWhiteSpace(message)
+                ? "The node selected the Failure branch. 节点选择了 Failure 分支。"
+                : message;
+        }
+
+        public void SelectError(string? code = null, string? message = null)
+        {
+            _branch = ExecutionBranch.Error;
+            _code = string.IsNullOrWhiteSpace(code) ? "node.branch_error" : code;
+            _message = string.IsNullOrWhiteSpace(message)
+                ? "The node selected the Error branch. 节点选择了 Error 分支。"
+                : message;
+        }
+
+        public NodeExecutionResult Apply(NodeExecutionResult result)
+            => _branch == ExecutionBranch.Success
+                ? result
+                : new NodeExecutionResult(false, result.Outputs, _branch, _code, _message);
+    }
 }

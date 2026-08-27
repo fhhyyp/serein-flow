@@ -52,6 +52,7 @@ public static class LibraryAttributeContract
     public static readonly string FlowLibraryAttributeFullName = GetFullName<FlowLibraryAttribute>();
     public static readonly string FlowNodeAttributeFullName = GetFullName<FlowNodeAttribute>();
     public static readonly string NodeParamAttributeFullName = GetFullName<NodeParamAttribute>();
+    public static readonly string ParamArrayAttributeFullName = typeof(ParamArrayAttribute).FullName ?? nameof(ParamArrayAttribute);
 
     public const string LibraryNamePropertyName = nameof(FlowLibraryAttribute.Name);
     public const string NodeTypePropertyName = nameof(FlowNodeAttribute.NodeType);

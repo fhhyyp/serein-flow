@@ -311,7 +311,12 @@ public sealed class FlowRunner
         if (string.IsNullOrWhiteSpace(target))
             return NodeExecutionResult.Error("flowcall.target_missing", "FlowCall target node is missing. FlowCall 目标节点缺失。");
 
-        var result = await RunFromNodeAsync(target, session, cancellationToken);
+        if (!session.Plan.Nodes.TryGetValue(target, out var targetNode))
+            return NodeExecutionResult.Error("flowcall.target_missing", "FlowCall target node is missing. FlowCall 目标节点缺失。");
+
+        var callInputs = ResolveFlowCallInputs(request.Node, targetNode, request.Inputs);
+        await using var callFrame = session.CreateFlowCallFrame(target, callInputs);
+        var result = await RunFromNodeAsync(target, callFrame, cancellationToken);
         if (!result.IsSuccess)
             return new NodeExecutionResult(false, result.Outputs, result.NextBranch, result.ErrorCode, result.ErrorMessage);
 
@@ -328,6 +333,31 @@ public sealed class FlowRunner
         }
 
         return NodeExecutionResult.Success(result.Outputs);
+    }
+
+    private static IReadOnlyDictionary<string, object?> ResolveFlowCallInputs(
+        NodeDefinition callNode,
+        NodeDefinition targetNode,
+        IReadOnlyDictionary<string, object?> inputs)
+    {
+        var mappings = callNode.Runtime?.FlowCallParameterBindings ?? [];
+        var targetInputs = new Dictionary<string, object?>(StringComparer.Ordinal);
+        if (mappings.Count == 0)
+        {
+            foreach (var targetParameter in targetNode.Parameters)
+            {
+                if (inputs.TryGetValue(targetParameter.Id, out var value))
+                    targetInputs[targetParameter.Id] = value;
+            }
+            return targetInputs;
+        }
+
+        foreach (var mapping in mappings)
+        {
+            if (inputs.TryGetValue(mapping.CallParameterId, out var value))
+                targetInputs[mapping.TargetParameterId] = value;
+        }
+        return targetInputs;
     }
 
     private static bool IsCompatibleReturnType(object value, string staticType)
@@ -357,8 +387,12 @@ public sealed class FlowRunner
         string nodeId,
         IReadOnlyDictionary<string, object?> payload)
     {
+        var payloadWithFrame = new Dictionary<string, object?>(payload, StringComparer.Ordinal)
+        {
+            ["frameDepth"] = session.FrameDepth
+        };
         await _eventPublisher.PublishAsync(
-            new RuntimeEvent(session.RunId, session.NextSequence(), DateTimeOffset.UtcNow, type, nodeId, payload),
+            new RuntimeEvent(session.RunId, session.NextSequence(), DateTimeOffset.UtcNow, type, nodeId, payloadWithFrame),
             session.CancellationToken);
     }
 }

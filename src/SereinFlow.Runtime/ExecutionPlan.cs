@@ -143,6 +143,9 @@ public sealed class ExecutionPlanBuilder
 
     private static void ValidateFlowCallTargets(FlowDefinition definition, IReadOnlyDictionary<string, NodeDefinition> nodes)
     {
+        var canvasByNodeId = definition.Canvases
+            .SelectMany(canvas => canvas.Nodes.Select(node => new { node.Id, CanvasId = canvas.Id }))
+            .ToDictionary(item => item.Id, item => item.CanvasId, StringComparer.Ordinal);
         foreach (var node in nodes.Values.Where(node => node.Type == NodeType.FlowCall))
         {
             if (string.IsNullOrWhiteSpace(node.Runtime?.TargetNodeId))
@@ -171,6 +174,66 @@ public sealed class ExecutionPlanBuilder
                         "The target flow is not part of the current immutable run snapshot. 目标流程不在当前不可变运行快照中。",
                         $"nodes.{node.Id}.runtime.targetFlowId")]);
             }
+
+            var target = nodes[node.Runtime.TargetNodeId];
+            if (target.Runtime?.IsPublic != true)
+            {
+                throw new DomainValidationException([
+                    new DomainDiagnostic(
+                        "flowcall.target_not_public",
+                        $"FlowCall target node '{target.Id}' is not public. FlowCall 目标节点“{target.Id}”不是公开节点。",
+                        $"nodes.{node.Id}.runtime.targetNodeId")]);
+            }
+
+            if (!string.IsNullOrWhiteSpace(node.Runtime.TargetCanvasId)
+                && (!canvasByNodeId.TryGetValue(target.Id, out var targetCanvasId)
+                    || !string.Equals(node.Runtime.TargetCanvasId, targetCanvasId, StringComparison.Ordinal)))
+            {
+                throw new DomainValidationException([
+                    new DomainDiagnostic(
+                        "flowcall.target_canvas_mismatch",
+                        "The FlowCall target canvas does not match the target node. FlowCall 目标画布与目标节点不匹配。",
+                        $"nodes.{node.Id}.runtime.targetCanvasId")]);
+            }
+
+            ValidateFlowCallParameterBindings(node, target);
+        }
+    }
+
+    private static void ValidateFlowCallParameterBindings(NodeDefinition callNode, NodeDefinition targetNode)
+    {
+        var bindings = callNode.Runtime?.FlowCallParameterBindings ?? [];
+        var callParameterIds = callNode.Parameters.Select(static parameter => parameter.Id).ToHashSet(StringComparer.Ordinal);
+        var targetParameterIds = targetNode.Parameters.Select(static parameter => parameter.Id).ToHashSet(StringComparer.Ordinal);
+        var boundCalls = new HashSet<string>(StringComparer.Ordinal);
+        var boundTargets = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var binding in bindings)
+        {
+            if (!callParameterIds.Contains(binding.CallParameterId)
+                || !targetParameterIds.Contains(binding.TargetParameterId)
+                || !boundCalls.Add(binding.CallParameterId)
+                || !boundTargets.Add(binding.TargetParameterId))
+            {
+                throw new DomainValidationException([
+                    new DomainDiagnostic(
+                        "flowcall.parameter_binding_invalid",
+                        "The FlowCall parameter binding is invalid. FlowCall 参数映射无效。",
+                        $"nodes.{callNode.Id}.runtime.flowCallParameterBindings")]);
+            }
+        }
+
+        var missing = targetNode.Parameters.FirstOrDefault(parameter =>
+            parameter.Required
+            && !(bindings.Count == 0
+                ? callParameterIds.Contains(parameter.Id)
+                : boundTargets.Contains(parameter.Id)));
+        if (missing is not null)
+        {
+            throw new DomainValidationException([
+                new DomainDiagnostic(
+                    "flowcall.parameter_binding_missing",
+                    $"Required target parameter '{missing.Name}' has no FlowCall input mapping. 目标必需参数“{missing.Name}”没有 FlowCall 输入映射。",
+                    $"nodes.{callNode.Id}.runtime.flowCallParameterBindings")]);
         }
     }
 

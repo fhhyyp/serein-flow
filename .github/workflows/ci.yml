@@ -26,17 +26,12 @@ jobs:
         with:
           global-json-file: global.json
 
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 11.19.0
-
       - name: Set up Node.js
         uses: actions/setup-node@v5
         with:
           node-version-file: .node-version
-          cache: pnpm
-          cache-dependency-path: frontend/sereinflow-web/pnpm-lock.yaml
+          cache: npm
+          cache-dependency-path: frontend/sereinflow-web/package-lock.json
 
       - name: Restore .NET dependencies
         run: dotnet restore SereinFlow.sln --locked-mode
@@ -49,8 +44,8 @@ jobs:
 
       - name: Restore frontend dependencies
         working-directory: frontend/sereinflow-web
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Build frontend
         working-directory: frontend/sereinflow-web
-        run: pnpm build
+        run: npm run build

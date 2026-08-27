@@ -2,7 +2,7 @@ namespace SereinFlow.Domain;
 
 public sealed class FlowDefinition
 {
-    public const int CurrentSchemaVersion = 4;
+    public const int CurrentSchemaVersion = 5;
 
     private FlowDefinition(
         Guid id,
@@ -79,9 +79,9 @@ public sealed class FlowDefinition
         var diagnostics = new List<DomainDiagnostic>();
         if (SchemaVersion != CurrentSchemaVersion)
         {
-            // The run policy and branch connector model are part of schema v4. Older payloads
-            // are intentionally rejected instead of being silently upgraded.
-            // 分支连接器模型属于 Schema v3，旧流程明确拒绝，不再静默升级。
+            // Schema v5 removes Condition and makes parameter IDs the binding identity.
+            // Older payloads are intentionally rejected instead of being silently upgraded.
+            // Schema v5 移除了 Condition，并将参数 ID 作为绑定身份；旧流程明确拒绝，不再静默升级。
             diagnostics.Add(new(
                 DomainErrorCodes.NodeTypeRemoved,
                 $"Flow schema version {SchemaVersion} is no longer supported; schema {CurrentSchemaVersion} is required. 流程 Schema 版本 {SchemaVersion} 已不再支持，必须使用 Schema {CurrentSchemaVersion}。",
@@ -90,6 +90,16 @@ public sealed class FlowDefinition
         var canvasIds = new HashSet<string>(StringComparer.Ordinal);
         var nodeIds = new HashSet<string>(StringComparer.Ordinal);
         var connectionIds = new HashSet<string>(StringComparer.Ordinal);
+        var dataBoundParameters = Canvases
+            .SelectMany(static canvas => canvas.Connections)
+            .Where(static connection => connection.Kind == ConnectionKind.Data)
+            .Select(static connection => CreateParameterKey(connection.ToNodeId, connection.ToPortId))
+            .ToHashSet(StringComparer.Ordinal);
+        var flowCallTargetNodes = Canvases
+            .SelectMany(static canvas => canvas.Nodes)
+            .Where(static node => node.Type == NodeType.FlowCall && !string.IsNullOrWhiteSpace(node.Runtime?.TargetNodeId))
+            .Select(static node => node.Runtime!.TargetNodeId!)
+            .ToHashSet(StringComparer.Ordinal);
 
         foreach (var canvas in Canvases)
         {
@@ -114,6 +124,7 @@ public sealed class FlowDefinition
                 }
 
                 var parameterNames = new HashSet<string>(StringComparer.Ordinal);
+                var parameterIds = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var parameter in node.Parameters)
                 {
                     if (!parameterNames.Add(parameter.Name))
@@ -124,7 +135,24 @@ public sealed class FlowDefinition
                             $"nodes.{node.Id}.parameters.{parameter.Name}"));
                     }
 
-                    if (parameter.Required && parameter.Source == DataSource.Literal && string.IsNullOrWhiteSpace(parameter.ValueJson))
+                    if (!parameterIds.Add(parameter.Id))
+                    {
+                        diagnostics.Add(new(
+                            DomainErrorCodes.DuplicateParameterName,
+                            $"Parameter ID '{parameter.Id}' is duplicated on node '{node.Id}'. 节点“{node.Id}”中参数 ID“{parameter.Id}”重复。",
+                            $"nodes.{node.Id}.parameters.{parameter.Id}"));
+                    }
+
+                    if (parameter.Required
+                        && parameter.Source == DataSource.Literal
+                        && string.IsNullOrWhiteSpace(parameter.ValueJson)
+                        && !dataBoundParameters.Contains(CreateParameterKey(node.Id, parameter.Id))
+                        // A FlowCall provides the public entry's input through
+                        // a separate mapping. Its completeness is validated by
+                        // ExecutionPlanBuilder after target resolution.
+                        // FlowCall 通过独立映射提供公开入口参数；映射完整性将在
+                        // ExecutionPlanBuilder 解析目标节点后校验。
+                        && !flowCallTargetNodes.Contains(node.Id))
                     {
                         diagnostics.Add(new(
                             DomainErrorCodes.MissingRequiredParameter,
@@ -156,11 +184,27 @@ public sealed class FlowDefinition
                         $"Connection '{connection.Id}' references an unknown node. 连接“{connection.Id}”引用了未知节点。",
                         $"connections.{connection.Id}"));
                 }
+
+                if (connection.Kind == ConnectionKind.Data && nodeIds.Contains(connection.ToNodeId))
+                {
+                    var targetNode = Canvases.SelectMany(static item => item.Nodes)
+                        .First(item => string.Equals(item.Id, connection.ToNodeId, StringComparison.Ordinal));
+                    if (!targetNode.Parameters.Any(parameter => string.Equals(parameter.Id, connection.ToPortId, StringComparison.Ordinal)))
+                    {
+                        diagnostics.Add(new(
+                            DomainErrorCodes.UnknownConnectionEndpoint,
+                            $"Data connection '{connection.Id}' targets an unknown parameter ID '{connection.ToPortId}'. 数据连接“{connection.Id}”指向未知参数 ID“{connection.ToPortId}”。",
+                            $"connections.{connection.Id}.toPortId"));
+                    }
+                }
             }
         }
 
         return diagnostics;
     }
+
+    private static string CreateParameterKey(string nodeId, string parameterId)
+        => string.Concat(nodeId, "\u001f", parameterId);
 }
 
 public sealed record FlowRunPolicy(FlowConcurrencyMode ConcurrencyMode)

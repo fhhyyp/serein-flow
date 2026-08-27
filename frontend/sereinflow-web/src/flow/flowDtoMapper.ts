@@ -45,7 +45,7 @@ export function workspaceToFlowDefinition(snapshot: WorkspaceSnapshot, identity:
   const entryNodeId = mainCanvas?.nodes[0]?.id ?? ''
   return {
     id: identity.id,
-    schemaVersion: 4,
+    schemaVersion: 5,
     version: identity.version,
     canvases: snapshot.canvases.map(toCanvasDto),
     entryNodeId,
@@ -113,6 +113,9 @@ function toNodeDto(node: FlowNode): NodeDto {
       isAwaitable: node.data.runtime?.isAwaitable,
       staticReturnType: node.data.runtime?.staticReturnType,
       isDynamicReturnType: node.data.runtime?.isDynamicReturnType,
+      targetCanvasId: node.data.runtime?.targetCanvasId,
+      isPublic: node.data.runtime?.isPublic,
+      flowCallParameterBindings: node.data.runtime?.flowCallParameterBindings,
     },
   }
 }
@@ -155,6 +158,10 @@ function toParameterDto(parameter: MethodParameter): NodeParameterDto {
       expression: parameter.expression,
       sourceNodeId: parameter.sourceNodeId,
       sourcePortId: parameter.sourcePortId,
+      isVariadic: parameter.isVariadic,
+      variadicGroupId: parameter.variadicGroupId,
+      elementType: parameter.elementType,
+      variadicMode: parameter.variadicMode,
     },
   }
 }
@@ -236,6 +243,10 @@ function toMethodParameter(parameter: NodeParameterDto, isMethodNode: boolean): 
     expression: parameter.ui?.expression,
     sourceNodeId: parameter.ui?.sourceNodeId,
     sourcePortId: parameter.ui?.sourcePortId,
+    isVariadic: parameter.ui?.isVariadic,
+    variadicGroupId: parameter.ui?.variadicGroupId,
+    elementType: parameter.ui?.elementType,
+    variadicMode: parameter.ui?.variadicMode,
   }
 }
 
@@ -362,6 +373,9 @@ function toRuntimeMetadata(node: NodeDto) {
     isAwaitable: ui.isAwaitable,
     staticReturnType: ui.staticReturnType,
     isDynamicReturnType: ui.isDynamicReturnType,
+    targetCanvasId: ui.targetCanvasId,
+    isPublic: ui.isPublic,
+    flowCallParameterBindings: ui.flowCallParameterBindings,
   }
 }
 

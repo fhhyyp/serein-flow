@@ -3,7 +3,7 @@ import { MarkerType, applyNodeChanges, type Connection, type EdgeChange, type No
 import { applyNodePositionChanges, cloneCanvasGraph, removeEdgesById } from '../flow/canvasGraph'
 import { canonicalParameterId, executionBranchFromHandle, resolveConnectionSemantic } from '../flow/connectionSeats'
 import { connectionLineStyleFor, connectionLineTypeForEdge, connectionLineTypeOptions, type ConnectionLineSettings } from '../flow/connectionLine'
-import type { CanvasState, ConnectionSemantic, FlowEdge, FlowEdgeLineType, FlowNode, MethodParameter, NodeKind, NodeRuntimeMetadata, ParameterSource } from '../flow/types'
+import type { CanvasState, ConnectionSemantic, FlowEdge, FlowEdgeLineType, FlowNode, MethodParameter, NodeKind, NodeRuntimeMetadata, ParameterSource, ScriptNodeData } from '../flow/types'
 import { t } from '../i18n'
 
 interface UseFlowGraphOptions {
@@ -264,19 +264,30 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
     options.markWorkspaceChanged()
   }
 
-  function addNode(kind: NodeKind, titleKey: string, subtitleKey: string, position?: { x: number; y: number }, metadata?: { displayName?: string; description?: string; runtime?: NodeRuntimeMetadata; parameters?: MethodParameter[]; hasDataOutput?: boolean }): void {
+  function addNode(kind: NodeKind, titleKey: string, subtitleKey: string, position?: { x: number; y: number }, metadata?: { displayName?: string; description?: string; runtime?: NodeRuntimeMetadata; parameters?: MethodParameter[]; script?: ScriptNodeData; hasDataOutput?: boolean }): void {
     options.recordWorkspaceMutation()
     const number = options.nextNodeNumber.value++
     const id = `${kind}-${currentCanvas.value.id}-${number}`
     const column = currentCanvas.value.nodes.length % 3
     const row = Math.floor(currentCanvas.value.nodes.length / 3)
-    const parameters = metadata?.parameters ?? [{ id: 'input', nameKey: 'parameter.value', valueKind: 'JSON', source: 'literal' as const, literalValue: '' }]
+    const parameters = metadata?.parameters?.map((parameter) => ({ ...parameter })) ?? []
     const newNode: FlowNode = {
       id,
       type: 'workflow',
       position: position ?? { x: 120 + column * 300, y: 450 + row * 180 },
       width: 224,
-      data: { kind, titleKey, subtitleKey, displayName: metadata?.displayName, description: metadata?.description, runtime: metadata?.runtime, status: 'ready', hasDataOutput: metadata?.hasDataOutput ?? true, parameters },
+      data: {
+        kind,
+        titleKey,
+        subtitleKey,
+        displayName: metadata?.displayName,
+        description: metadata?.description,
+        runtime: metadata?.runtime ? { ...metadata.runtime } : undefined,
+        status: 'ready',
+        hasDataOutput: metadata?.hasDataOutput ?? true,
+        parameters,
+        script: metadata?.script ? { ...metadata.script, nodeId: id } : undefined,
+      },
     }
 
     nodes.value = [...nodes.value, newNode]

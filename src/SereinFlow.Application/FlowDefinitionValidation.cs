@@ -43,14 +43,28 @@ public static class FlowDefinitionContractMapper
                 parameter.Ui?.Expression,
                 parameter.Ui?.SourceNodeId,
                 parameter.Ui?.SourcePortId,
-                parameter.Ui?.ValueKind)),
+                parameter.Ui?.ValueKind,
+                parameter.Ui?.Description,
+                parameter.Ui?.IsVariadic ?? false,
+                parameter.Ui?.VariadicGroupId,
+                parameter.Ui?.ElementType,
+                ParseVariadicMode(parameter.Ui?.VariadicMode))),
             dto.Script is null ? null : ScriptNodeDefinition.Create(
                 dto.Script.NodeId,
                 dto.Script.Source,
                 dto.Script.LanguageVersion,
-                dto.Script.SourceHash,
-                dto.Script.Inputs.Select(input => new ScriptValueContract(input.Name, input.ValueKind, input.Required)),
-                dto.Script.Outputs.Select(output => new ScriptValueContract(output.Name, output.ValueKind, output.Required))),
+                // The browser cannot safely keep a cryptographic source hash in
+                // sync while a script is being edited. Compute it from the
+                // authoritative source on the server instead.
+                // 浏览器编辑脚本时无法可靠同步加密源哈希，因此由服务端从权威源代码重新计算。
+                sourceHash: null,
+                dto.Parameters.Select(input => new ScriptValueContract(
+                    input.Name,
+                    input.Ui?.ValueKind ?? "System.Object",
+                    input.Required,
+                    input.Ui?.Id,
+                    input.Ui?.Description)),
+                dto.Script.Outputs.Select(output => new ScriptValueContract(output.Name, output.ValueKind, output.Required, output.Id, output.Description))),
             dto.Ui is null
                 ? null
                 : new NodeRuntimeDefinition(
@@ -64,7 +78,13 @@ public static class FlowDefinitionContractMapper
                     Guid.TryParse(dto.Ui.TargetFlowId, out var targetFlowId) ? targetFlowId : null,
                     dto.Ui.IsAwaitable ?? false,
                     dto.Ui.StaticReturnType,
-                    dto.Ui.IsDynamicReturnType ?? false));
+                    dto.Ui.IsDynamicReturnType ?? false,
+                    dto.Ui.TargetCanvasId,
+                    dto.Ui.IsPublic ?? false,
+                    dto.Ui.FlowCallParameterBindings?.Select(item => new FlowCallParameterBinding(item.CallParameterId, item.TargetParameterId)).ToArray()));
+
+    private static VariadicParameterMode? ParseVariadicMode(string? value)
+        => Enum.TryParse<VariadicParameterMode>(value, ignoreCase: true, out var mode) ? mode : null;
 
     private static ConnectionDefinition MapConnection(ConnectionDto dto)
     {
@@ -200,6 +220,23 @@ public static class FlowDefinitionContractNormalizer
             {
                 Nodes = canvas.Nodes.Select(node =>
                 {
+                    if (node.Script is not null)
+                    {
+                        node = node with
+                        {
+                            Script = node.Script with
+                            {
+                                SourceHash = ScriptNodeDefinition.ComputeSourceHash(node.Script.Source),
+                                Inputs = node.Parameters.Select(parameter => new ScriptValueContractDto(
+                                    parameter.Name,
+                                    parameter.Ui?.ValueKind ?? "System.Object",
+                                    parameter.Required,
+                                    parameter.Ui?.Id,
+                                    parameter.Ui?.Description)).ToArray(),
+                            },
+                        };
+                    }
+
                     if (!plan.Nodes.TryGetValue(node.Id, out var runtimeNode)
                         || runtimeNode.Type != NodeType.FlowCall
                         || runtimeNode.Runtime is null

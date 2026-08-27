@@ -128,7 +128,8 @@
       "sereinflow.testlibrary": {
         "type": "Project",
         "dependencies": {
-          "SereinFlow.Contracts": "[1.0.0, )"
+          "SereinFlow.Contracts": "[1.0.0, )",
+          "SereinFlow.Runtime.Abstractions": "[1.0.0, )"
         }
       },
       "sereinflow.worker.client": {

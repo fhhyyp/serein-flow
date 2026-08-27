@@ -10,6 +10,7 @@ public sealed record ScriptArtifact(
     string ProjectId,
     string NodeId,
     string SourceHash,
+    string ArtifactFingerprint,
     string LanguageVersion,
     string Path);
 
@@ -80,7 +81,13 @@ public sealed class ScriptArtifactStore
                 var chunk = engine.CompileSource(node.Source, sourceName, node.Inputs.Select(input => input.Name));
                 var artifactPath = Path.Combine(stagingPath, $"{node.NodeId}.ssc");
                 ByteCodeChunk.Save(chunk, artifactPath);
-                artifacts[node.NodeId] = new ScriptArtifact(projectId, node.NodeId, node.SourceHash, node.LanguageVersion, artifactPath);
+                artifacts[node.NodeId] = new ScriptArtifact(
+                    projectId,
+                    node.NodeId,
+                    node.SourceHash,
+                    node.ArtifactFingerprint,
+                    node.LanguageVersion,
+                    artifactPath);
             }
 
             var manifest = new ArtifactManifest(projectId, DateTimeOffset.UtcNow, artifacts.Values.Select(ToManifest).ToArray());
@@ -130,7 +137,8 @@ public sealed class ScriptArtifactStore
                 return false;
             var manifest = JsonSerializer.Deserialize<ArtifactManifest>(File.ReadAllText(manifestPath), JsonOptions);
             var entry = manifest?.Artifacts.FirstOrDefault(item => string.Equals(item.NodeId, definition.NodeId, StringComparison.Ordinal));
-            if (entry is null || !string.Equals(entry.SourceHash, definition.SourceHash, StringComparison.OrdinalIgnoreCase))
+            if (entry is null
+                || !string.Equals(entry.ArtifactFingerprint, definition.ArtifactFingerprint, StringComparison.OrdinalIgnoreCase))
                 return false;
             chunk = ByteCodeChunk.Load(path);
             artifactPath = path;
@@ -145,7 +153,7 @@ public sealed class ScriptArtifactStore
     }
 
     private static ArtifactManifestEntry ToManifest(ScriptArtifact artifact)
-        => new(artifact.NodeId, artifact.SourceHash, artifact.LanguageVersion);
+        => new(artifact.NodeId, artifact.SourceHash, artifact.ArtifactFingerprint, artifact.LanguageVersion);
 
     private static void ValidateProjectId(string projectId)
     {
@@ -162,7 +170,11 @@ public sealed class ScriptArtifactStore
             && value.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
 
     private sealed record ArtifactManifest(string ProjectId, DateTimeOffset BuiltAt, IReadOnlyList<ArtifactManifestEntry> Artifacts);
-    private sealed record ArtifactManifestEntry(string NodeId, string SourceHash, string LanguageVersion);
+    private sealed record ArtifactManifestEntry(
+        string NodeId,
+        string SourceHash,
+        string ArtifactFingerprint,
+        string LanguageVersion);
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {

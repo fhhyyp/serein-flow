@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Activity, Code2, Database, GitBranch, Zap } from 'lucide-vue-next'
+import { Activity, Code2, Database, Zap } from 'lucide-vue-next'
 import { Handle, Position, type NodeProps } from '@vue-flow/core'
 import { t } from '../../i18n'
 import { layoutConnectionSeats, type ConnectionSeatLayout } from '../../flow/connectionSeats'
@@ -12,7 +12,6 @@ const props = defineProps<NodeProps<FlowNodeData>>()
 const icons: Record<NodeKind, typeof Activity> = {
   flipflop: Zap,
   script: Code2,
-  condition: GitBranch,
   flowCall: Activity,
   action: Database,
 }

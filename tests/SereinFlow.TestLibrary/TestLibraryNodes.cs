@@ -1,4 +1,5 @@
 using SereinFlow.Core.Api;
+using SereinFlow.Runtime.Abstractions;
 
 namespace SereinFlow.TestLibrary;
 
@@ -60,6 +61,36 @@ public sealed class 生产线节点
 
         var 合格率 = 检测数量 == 0 ? 0m : Math.Round((decimal)合格数量 / 检测数量 * 100m, 2);
         return new 批次质量结果(批次号, 计划数量, 检测数量, 合格数量, 合格率, 检测数量 >= 计划数量 && 合格数量 == 检测数量);
+    }
+
+    [FlowNode(AnotherName = "按设备状态选择分支", Desc = "根据设备状态选择成功、失败或错误分支，演示受限流程上下文注入。")]
+    public string 按设备状态选择分支(
+        [NodeParam(Name = "设备状态")] string 设备状态,
+        IFlowContext 流程上下文)
+    {
+        return 设备状态 switch
+        {
+            "就绪" => "设备已就绪",
+            "告警" => 选择失败(流程上下文),
+            "故障" => 选择错误(流程上下文),
+            _ => 选择失败(流程上下文)
+        };
+    }
+
+    [FlowNode(AnotherName = "汇总多个检测值", Desc = "接收可变数量的检测值并返回合计，演示 params 参数。")]
+    public int 汇总多个检测值([NodeParam(Name = "检测值")] params int[] 检测值)
+        => 检测值.Sum();
+
+    private static string 选择失败(IFlowContext 流程上下文)
+    {
+        流程上下文.SelectFailure("device.not_ready", "Device is not ready. 设备未就绪。");
+        return "设备未就绪";
+    }
+
+    private static string 选择错误(IFlowContext 流程上下文)
+    {
+        流程上下文.SelectError("device.faulted", "Device faulted. 设备发生故障。");
+        return "设备故障";
     }
 }
 

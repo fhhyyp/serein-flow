@@ -4,7 +4,6 @@ import {
   Activity,
   Code2,
   Database,
-  GitBranch,
   Zap,
 } from 'lucide-vue-next'
 import { useVueFlow } from '@vue-flow/core'
@@ -25,6 +24,8 @@ import {
   type ConnectionLineSettings,
 } from './flow/connectionLine'
 import { createInitialCanvases } from './flow/initialCanvases'
+import { parameterHandleFor } from './flow/connectionSeats'
+import { convertVariadicParameterMode } from './flow/variadicParameters'
 import { parseFlowValidationDiagnosticTarget } from './flow/validationDiagnostics'
 import { cloneWorkspaceSnapshot, workspaceFingerprint, type WorkspaceSnapshot } from './flow/workspaceHistory'
 import { loadWorkspace } from './flow/workspaceStorage'
@@ -43,7 +44,7 @@ import type {
   NodeKind,
 } from './flow/types'
 
-const { zoomIn, zoomOut, fitView, screenToFlowCoordinate } = useVueFlow()
+const { zoomIn, zoomOut, fitView, screenToFlowCoordinate } = useVueFlow('workspace-editor')
 
 const recoveryWorkspace = loadWorkspace()
 const canvases = ref<CanvasState[]>(createInitialCanvases())
@@ -61,6 +62,7 @@ const {
   isLibraryCatalogLoading,
   libraryCatalogError,
   visibleLibraries,
+  visibleBuiltinNodes,
   catalogNodeCount,
   refreshLibraryCatalog,
   replaceProjectLibraries,
@@ -95,10 +97,6 @@ function iconForNodeKind(kind: NodeKind) {
 
   if (kind === 'script') {
     return Code2
-  }
-
-  if (kind === 'condition') {
-    return GitBranch
   }
 
   if (kind === 'flowCall') {
@@ -266,6 +264,7 @@ const {
   handleCanvasDragLeave,
   handleCanvasDrop,
   handleLibraryNodePointerDown,
+  handleBuiltinNodePointerDown,
 } = useNodeDrop({ screenToFlowCoordinate, isCanvasDropActive, notice, addNode })
 
 const {
@@ -368,6 +367,223 @@ function refreshProjectLibraryCatalog(): void {
   void refreshLibraryCatalog(projectId.value)
 }
 
+function findNode(nodeId: string): FlowNode | undefined {
+  return canvases.value.flatMap((canvas) => canvas.nodes).find((node) => node.id === nodeId)
+}
+
+function removeParameterConnections(nodeId: string, parameterIds: ReadonlySet<string>): void {
+  for (const canvas of canvases.value) {
+    canvas.edges = canvas.edges.filter((edge) =>
+      edge.data.semantic !== 'data'
+      || edge.target !== nodeId
+      || !edge.data.targetParameterId
+      || !parameterIds.has(edge.data.targetParameterId))
+  }
+}
+
+function migrateParameterConnections(nodeId: string, targetParameterIdRemap: ReadonlyMap<string, string>): void {
+  if (targetParameterIdRemap.size === 0) {
+    return
+  }
+
+  for (const canvas of canvases.value) {
+    canvas.edges = canvas.edges.map((edge) => {
+      const nextParameterId = edge.data.semantic === 'data' && edge.target === nodeId && edge.data.targetParameterId
+        ? targetParameterIdRemap.get(edge.data.targetParameterId)
+        : undefined
+      if (!nextParameterId) {
+        return edge
+      }
+
+      return {
+        ...edge,
+        targetHandle: parameterHandleFor(nextParameterId),
+        data: {
+          ...edge.data,
+          targetParameterId: nextParameterId,
+        },
+      }
+    })
+  }
+}
+
+function setNodePublic(nodeId: string, value: boolean): void {
+  const node = findNode(nodeId)
+  if (!node || node.data.runtime?.isPublic === value) {
+    return
+  }
+
+  recordWorkspaceMutation()
+  node.data.runtime = { ...(node.data.runtime ?? { category: node.data.kind === 'action' || node.data.kind === 'flipflop' ? 'method' : 'basic' }), isPublic: value }
+  markWorkspaceChanged()
+}
+
+function setFlowCallTarget(nodeId: string, canvasId: string, targetNodeId?: string): void {
+  const callNode = findNode(nodeId)
+  if (!callNode || callNode.data.kind !== 'flowCall') {
+    return
+  }
+
+  const targetCanvas = canvases.value.find((canvas) => canvas.id === canvasId)
+  const target = targetNodeId ? targetCanvas?.nodes.find((node) => node.id === targetNodeId && node.data.runtime?.isPublic === true) : undefined
+  const previousParameterIds = new Set(callNode.data.parameters.map((parameter) => parameter.id))
+  recordWorkspaceMutation()
+
+  if (!target) {
+    removeParameterConnections(nodeId, previousParameterIds)
+    callNode.data.parameters = []
+    callNode.data.runtime = {
+      ...(callNode.data.runtime ?? { category: 'basic', returnType: 'System.Object' }),
+      targetCanvasId: canvasId || undefined,
+      targetNodeId: undefined,
+      targetFlowId: undefined,
+      flowCallParameterBindings: [],
+    }
+    markWorkspaceChanged()
+    return
+  }
+
+  const existingBindings = new Map(
+    (callNode.data.runtime?.flowCallParameterBindings ?? []).map((binding) => [binding.targetParameterId, binding.callParameterId]),
+  )
+  const existingInputs = new Map(callNode.data.parameters.map((parameter) => [parameter.id, parameter]))
+  const nextParameters = target.data.parameters.map((parameter) => {
+    const callParameterId = existingBindings.get(parameter.id) ?? parameter.id
+    const existing = existingInputs.get(callParameterId)
+    return {
+      ...parameter,
+      id: callParameterId,
+      nameKey: parameter.nameKey,
+      name: parameter.name,
+      source: existing?.source ?? 'literal',
+      literalValue: existing?.literalValue ?? '',
+      projectInputKey: existing?.projectInputKey,
+      expression: existing?.expression,
+      sourceNodeId: existing?.sourceNodeId,
+      sourcePortId: existing?.sourcePortId,
+    }
+  })
+  const nextIds = new Set(nextParameters.map((parameter) => parameter.id))
+  removeParameterConnections(nodeId, new Set([...previousParameterIds].filter((id) => !nextIds.has(id))))
+  callNode.data.parameters = nextParameters
+  callNode.data.runtime = {
+    ...(callNode.data.runtime ?? { category: 'basic', returnType: 'System.Object' }),
+    targetCanvasId: canvasId,
+    targetNodeId: target.id,
+    targetFlowId: undefined,
+    flowCallParameterBindings: nextParameters.map((parameter, index) => ({
+      callParameterId: parameter.id,
+      targetParameterId: target.data.parameters[index]!.id,
+    })),
+  }
+  markWorkspaceChanged()
+}
+
+function addScriptInput(nodeId: string): void {
+  const node = findNode(nodeId)
+  if (!node || node.data.kind !== 'script') {
+    return
+  }
+
+  recordWorkspaceMutation()
+  let index = node.data.parameters.length + 1
+  let id = `input-${index}`
+  while (node.data.parameters.some((parameter) => parameter.id === id)) {
+    id = `input-${++index}`
+  }
+  node.data.parameters.push({
+    id,
+    nameKey: `input${index}`,
+    name: `input${index}`,
+    valueKind: 'System.Object',
+    type: 'System.Object',
+    description: '',
+    required: false,
+    source: 'literal',
+    literalValue: '',
+  })
+  markWorkspaceChanged()
+}
+
+function removeScriptInput(nodeId: string, parameterId: string): void {
+  const node = findNode(nodeId)
+  if (!node || node.data.kind !== 'script') {
+    return
+  }
+
+  recordWorkspaceMutation()
+  removeParameterConnections(nodeId, new Set([parameterId]))
+  node.data.parameters = node.data.parameters.filter((parameter) => parameter.id !== parameterId)
+  markWorkspaceChanged()
+}
+
+function setVariadicMode(nodeId: string, parameterId: string, mode: 'expanded' | 'collection'): void {
+  const node = findNode(nodeId)
+  const parameter = node?.data.parameters.find((item) => item.id === parameterId)
+  const groupId = parameter?.variadicGroupId
+  if (!node || !parameter || !groupId) {
+    return
+  }
+
+  const conversion = convertVariadicParameterMode(node.data.parameters, groupId, mode)
+  if (!conversion.ok) {
+    notice.value = t('parameter.variadicConversionBlocked')
+    return
+  }
+
+  recordWorkspaceMutation()
+  node.data.parameters = conversion.parameters
+  migrateParameterConnections(nodeId, conversion.targetParameterIdRemap)
+  markWorkspaceChanged()
+}
+
+function addVariadicInput(nodeId: string, parameterId: string): void {
+  const node = findNode(nodeId)
+  const parameter = node?.data.parameters.find((item) => item.id === parameterId)
+  const groupId = parameter?.variadicGroupId
+  if (!node || !parameter || !groupId) {
+    return
+  }
+
+  recordWorkspaceMutation()
+  const existing = node.data.parameters.filter((item) => item.variadicGroupId === groupId)
+  const id = `${groupId}-${existing.length + 1}`
+  node.data.parameters.push({
+    ...parameter,
+    id,
+    nameKey: `${parameter.nameKey} ${existing.length + 1}`,
+    name: `${parameter.name ?? parameter.nameKey} ${existing.length + 1}`,
+    source: 'literal',
+    literalValue: '',
+    projectInputKey: undefined,
+    expression: undefined,
+    sourceNodeId: undefined,
+    sourcePortId: undefined,
+    variadicMode: 'expanded',
+  })
+  markWorkspaceChanged()
+}
+
+function removeVariadicInput(nodeId: string, parameterId: string): void {
+  const node = findNode(nodeId)
+  const parameter = node?.data.parameters.find((item) => item.id === parameterId)
+  const groupId = parameter?.variadicGroupId
+  if (!node || !parameter || !groupId) {
+    return
+  }
+
+  const members = node.data.parameters.filter((item) => item.variadicGroupId === groupId)
+  if (members.length <= 1) {
+    notice.value = t('parameter.keepVariadicPlaceholder')
+    return
+  }
+
+  recordWorkspaceMutation()
+  removeParameterConnections(nodeId, new Set([parameterId]))
+  node.data.parameters = node.data.parameters.filter((item) => item.id !== parameterId)
+  markWorkspaceChanged()
+}
+
 watch(projectId, (nextProjectId) => {
   projectLibraryOpen.value = false
   void refreshLibraryCatalog(nextProjectId)
@@ -387,6 +603,7 @@ useWorkspaceShortcuts({ canvasDeleteConfirmOpen, cancelCanvasRemoval, saveFlow, 
 
 onMounted(() => {
   void initializeWorkspace()
+  void refreshLibraryCatalog()
 })
 
 function setLanguage(nextLocale: Locale): void {
@@ -450,11 +667,13 @@ function setLanguage(nextLocale: Locale): void {
         :is-loading="isLibraryCatalogLoading"
         :error="libraryCatalogError"
         :visible-libraries="visibleLibraries"
+        :visible-builtin-nodes="visibleBuiltinNodes"
         :catalog-node-count="catalogNodeCount"
         @update:library-search="librarySearch = $event"
         @manage="projectLibraryOpen = true"
         @retry="refreshProjectLibraryCatalog"
         @node-pointer-down="handleLibraryNodePointerDown"
+        @builtin-node-pointer-down="handleBuiltinNodePointerDown"
       />
 
       <CanvasPanel
@@ -517,12 +736,20 @@ function setLanguage(nextLocale: Locale): void {
         :icon-for-node-kind="iconForNodeKind"
         :node-title="nodeTitle"
         :source-node-title="sourceNodeTitle"
+        :canvases="canvases"
         @close="mobilePanel = null"
         @delete="removeSelection"
         @update-parameter-source="updateParameterSource"
         @begin-text-edit="beginTextEdit"
         @commit-text-edit="commitTextEdit"
         @discard-text-edit="discardTextEdit"
+        @set-node-public="setNodePublic"
+        @set-flowcall-target="setFlowCallTarget"
+        @add-script-input="addScriptInput"
+        @remove-script-input="removeScriptInput"
+        @set-variadic-mode="setVariadicMode"
+        @add-variadic-input="addVariadicInput"
+        @remove-variadic-input="removeVariadicInput"
       />
     </main>
 

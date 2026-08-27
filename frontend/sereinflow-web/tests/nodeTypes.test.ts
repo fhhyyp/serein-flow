@@ -42,10 +42,10 @@ function workspace(nodes: FlowNode[]): WorkspaceSnapshot {
   }
 }
 
-test('the catalog contract exposes only the five runtime node kinds', () => {
-  assert.deepEqual(referenceNodeKinds, ['action', 'flipflop', 'script', 'condition', 'flowCall'])
+test('the catalog contract exposes only the four runtime node kinds', () => {
+  assert.deepEqual(referenceNodeKinds, ['action', 'flipflop', 'script', 'flowCall'])
   assert.deepEqual(methodNodeKinds, ['action', 'flipflop'])
-  assert.deepEqual(basicNodeKinds, ['script', 'condition', 'flowCall'])
+  assert.deepEqual(basicNodeKinds, ['script', 'flowCall'])
 })
 
 test('every runtime node type round trips without degrading to action', () => {
@@ -58,15 +58,15 @@ test('every runtime node type round trips without degrading to action', () => {
 })
 
 test('every node exposes a control input and three execution outputs', () => {
-  const definition = workspaceToFlowDefinition(workspace([node('flipflop'), node('condition')]), identity)
+  const definition = workspaceToFlowDefinition(workspace([node('flipflop'), node('script')]), identity)
   const flipflop = definition.canvases[0]?.nodes.find((item) => item.type === 'flipflop')
-  const condition = definition.canvases[0]?.nodes.find((item) => item.type === 'condition')
+  const script = definition.canvases[0]?.nodes.find((item) => item.type === 'script')
 
   assert.ok(flipflop?.ports.some((port) => port.id === 'exec-in'))
   assert.ok(flipflop?.ports.some((port) => port.id === 'exec-success'))
   assert.ok(flipflop?.ports.some((port) => port.id === 'exec-failure'))
   assert.ok(flipflop?.ports.some((port) => port.id === 'exec-error'))
-  assert.ok(condition?.ports.some((port) => port.id === 'exec-error'))
+  assert.ok(script?.ports.some((port) => port.id === 'exec-error'))
 })
 
 test('return type controls result seats and parameter metadata survives persistence', () => {

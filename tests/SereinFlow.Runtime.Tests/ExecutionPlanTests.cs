@@ -89,4 +89,93 @@ public sealed class ExecutionPlanTests
 
         Assert.Contains(exception.Diagnostics, diagnostic => diagnostic.Code == "flow.cycle_detected");
     }
+
+    [Fact]
+    public void BuilderRejectsNonPublicFlowCallTargets()
+    {
+        var target = NodeDefinition.Create("target", NodeType.Action, "Target");
+        var call = NodeDefinition.Create(
+            "call",
+            NodeType.FlowCall,
+            "Call",
+            runtime: new NodeRuntimeDefinition(TargetNodeId: target.Id));
+        var definition = FlowDefinition.Create(
+            Guid.NewGuid(),
+            1,
+            [CanvasDefinition.Create("main", CanvasLifecycle.Main, [call, target], [])],
+            call.Id);
+
+        var exception = Assert.Throws<DomainValidationException>(() => new ExecutionPlanBuilder().Build(definition));
+
+        Assert.Contains(exception.Diagnostics, diagnostic => diagnostic.Code == "flowcall.target_not_public");
+    }
+
+    [Fact]
+    public void BuilderRejectsFlowCallTargetsOutsideTheConfiguredCanvas()
+    {
+        var target = NodeDefinition.Create(
+            "target",
+            NodeType.Action,
+            "Target",
+            runtime: new NodeRuntimeDefinition(IsPublic: true));
+        var call = NodeDefinition.Create(
+            "call",
+            NodeType.FlowCall,
+            "Call",
+            runtime: new NodeRuntimeDefinition(TargetNodeId: target.Id, TargetCanvasId: "other"));
+        var definition = FlowDefinition.Create(
+            Guid.NewGuid(),
+            1,
+            [CanvasDefinition.Create("main", CanvasLifecycle.Main, [call, target], [])],
+            call.Id);
+
+        var exception = Assert.Throws<DomainValidationException>(() => new ExecutionPlanBuilder().Build(definition));
+
+        Assert.Contains(exception.Diagnostics, diagnostic => diagnostic.Code == "flowcall.target_canvas_mismatch");
+    }
+
+    [Fact]
+    public void BuilderRejectsMissingRequiredFlowCallParameterBinding()
+    {
+        var target = NodeDefinition.Create(
+            "target",
+            NodeType.Action,
+            "Target",
+            parameters: [new NodeParameterDefinition("required", null, required: true, id: "target-required")],
+            runtime: new NodeRuntimeDefinition(IsPublic: true));
+        var call = NodeDefinition.Create(
+            "call",
+            NodeType.FlowCall,
+            "Call",
+            parameters: [new NodeParameterDefinition("other", "1", id: "call-other")],
+            runtime: new NodeRuntimeDefinition(TargetNodeId: target.Id));
+        var definition = FlowDefinition.Create(
+            Guid.NewGuid(),
+            1,
+            [CanvasDefinition.Create("main", CanvasLifecycle.Main, [call, target], [])],
+            call.Id);
+
+        var exception = Assert.Throws<DomainValidationException>(() => new ExecutionPlanBuilder().Build(definition));
+
+        Assert.Contains(exception.Diagnostics, diagnostic => diagnostic.Code == "flowcall.parameter_binding_missing");
+    }
+
+    [Fact]
+    public void BuilderRejectsDirectRecursiveFlowCall()
+    {
+        var call = NodeDefinition.Create(
+            "call",
+            NodeType.FlowCall,
+            "Call",
+            runtime: new NodeRuntimeDefinition(TargetNodeId: "call", IsPublic: true));
+        var definition = FlowDefinition.Create(
+            Guid.NewGuid(),
+            1,
+            [CanvasDefinition.Create("main", CanvasLifecycle.Main, [call], [])],
+            call.Id);
+
+        var exception = Assert.Throws<DomainValidationException>(() => new ExecutionPlanBuilder().Build(definition));
+
+        Assert.Contains(exception.Diagnostics, diagnostic => diagnostic.Code == "flowcall.cycle_detected");
+    }
 }

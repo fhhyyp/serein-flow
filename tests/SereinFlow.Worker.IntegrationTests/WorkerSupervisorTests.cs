@@ -168,6 +168,149 @@ public sealed class WorkerSupervisorTests
         }
     }
 
+    [Fact]
+    public async Task SupervisorInjectsFlowContextAndForwardsTheFailureBranch()
+    {
+        var packageRoot = CreateTestLibraryPackageRoot();
+        try
+        {
+            var events = new List<WorkerEventEnvelopeDto>();
+            var supervisor = CreateSupervisor(allowedLibraryPackageRoot: packageRoot);
+            var request = CreateLibraryActionRequest(
+                DateTimeOffset.UtcNow.AddSeconds(15),
+                packageRoot,
+                [TestLibraryArtifactId],
+                methodName: "按设备状态选择分支",
+                parameters: [new NodeParameterDto("设备状态", "\"告警\"", DataSourceDto.Literal, true)],
+                returnType: "System.String");
+
+            var result = await supervisor.RunAsync(request, (workerEvent, _) =>
+            {
+                events.Add(workerEvent);
+                return ValueTask.CompletedTask;
+            });
+
+            Assert.Equal(FlowRunStatusDto.Failed, result.Status);
+            Assert.Equal("device.not_ready", result.ErrorCode);
+            var failed = Assert.Single(events, workerEvent => workerEvent.EventType == WorkerEventType.NodeFailed);
+            using var payload = JsonDocument.Parse(failed.PayloadJson);
+            Assert.Equal("Failure", payload.RootElement.GetProperty("branch").GetString());
+            Assert.Equal("device.not_ready", payload.RootElement.GetProperty("errorCode").GetString());
+            Assert.DoesNotContain("流程上下文", payload.RootElement.GetProperty("inputs").EnumerateObject().Select(item => item.Name));
+        }
+        finally
+        {
+            TryDeleteDirectory(packageRoot);
+        }
+    }
+
+    [Fact]
+    public async Task SupervisorInjectsFlowContextAndForwardsTheErrorBranch()
+    {
+        var packageRoot = CreateTestLibraryPackageRoot();
+        try
+        {
+            var events = new List<WorkerEventEnvelopeDto>();
+            var supervisor = CreateSupervisor(allowedLibraryPackageRoot: packageRoot);
+            var request = CreateLibraryActionRequest(
+                DateTimeOffset.UtcNow.AddSeconds(15),
+                packageRoot,
+                [TestLibraryArtifactId],
+                methodName: "按设备状态选择分支",
+                parameters: [new NodeParameterDto("设备状态", "\"故障\"", DataSourceDto.Literal, true)],
+                returnType: "System.String");
+
+            var result = await supervisor.RunAsync(request, (workerEvent, _) =>
+            {
+                events.Add(workerEvent);
+                return ValueTask.CompletedTask;
+            });
+
+            Assert.Equal(FlowRunStatusDto.Failed, result.Status);
+            Assert.Equal("device.faulted", result.ErrorCode);
+            var errored = Assert.Single(events, workerEvent => workerEvent.EventType == WorkerEventType.NodeErrored);
+            using var payload = JsonDocument.Parse(errored.PayloadJson);
+            Assert.Equal("Error", payload.RootElement.GetProperty("branch").GetString());
+            Assert.Equal("device.faulted", payload.RootElement.GetProperty("errorCode").GetString());
+        }
+        finally
+        {
+            TryDeleteDirectory(packageRoot);
+        }
+    }
+
+    [Fact]
+    public async Task SupervisorExpandsVariadicLibraryInputsAndSkipsEmptyPlaceholders()
+    {
+        var packageRoot = CreateTestLibraryPackageRoot();
+        try
+        {
+            var events = new List<WorkerEventEnvelopeDto>();
+            var supervisor = CreateSupervisor(allowedLibraryPackageRoot: packageRoot);
+            var request = CreateLibraryActionRequest(
+                DateTimeOffset.UtcNow.AddSeconds(15),
+                packageRoot,
+                [TestLibraryArtifactId],
+                methodName: "汇总多个检测值",
+                parameters:
+                [
+                    CreateVariadicParameter("param-1", "检测值", "2", "expanded"),
+                    CreateVariadicParameter("param-1-2", "检测值 2", "3", "expanded"),
+                    CreateVariadicParameter("param-1-3", "检测值 3", null, "expanded")
+                ],
+                returnType: "System.Int32");
+
+            var result = await supervisor.RunAsync(request, (workerEvent, _) =>
+            {
+                events.Add(workerEvent);
+                return ValueTask.CompletedTask;
+            });
+
+            Assert.Equal(FlowRunStatusDto.Succeeded, result.Status);
+            var completed = Assert.Single(events, workerEvent => workerEvent.EventType == WorkerEventType.NodeCompleted);
+            using var payload = JsonDocument.Parse(completed.PayloadJson);
+            Assert.Equal(5, payload.RootElement.GetProperty("outputs").GetProperty("result").GetInt32());
+            Assert.Equal(2, payload.RootElement.GetProperty("inputs").EnumerateObject().Count());
+        }
+        finally
+        {
+            TryDeleteDirectory(packageRoot);
+        }
+    }
+
+    [Fact]
+    public async Task SupervisorConvertsCollectionVariadicLibraryInput()
+    {
+        var packageRoot = CreateTestLibraryPackageRoot();
+        try
+        {
+            var events = new List<WorkerEventEnvelopeDto>();
+            var supervisor = CreateSupervisor(allowedLibraryPackageRoot: packageRoot);
+            var request = CreateLibraryActionRequest(
+                DateTimeOffset.UtcNow.AddSeconds(15),
+                packageRoot,
+                [TestLibraryArtifactId],
+                methodName: "汇总多个检测值",
+                parameters: [CreateVariadicParameter("param-1", "检测值", "[2,3,5]", "collection")],
+                returnType: "System.Int32");
+
+            var result = await supervisor.RunAsync(request, (workerEvent, _) =>
+            {
+                events.Add(workerEvent);
+                return ValueTask.CompletedTask;
+            });
+
+            Assert.Equal(FlowRunStatusDto.Succeeded, result.Status);
+            var completed = Assert.Single(events, workerEvent => workerEvent.EventType == WorkerEventType.NodeCompleted);
+            using var payload = JsonDocument.Parse(completed.PayloadJson);
+            Assert.Equal(10, payload.RootElement.GetProperty("outputs").GetProperty("result").GetInt32());
+        }
+        finally
+        {
+            TryDeleteDirectory(packageRoot);
+        }
+    }
+
     private static WorkerSupervisor CreateSupervisor(
         Action<string>? diagnosticLogger = null,
         string? allowedLibraryPackageRoot = null)
@@ -204,7 +347,10 @@ public sealed class WorkerSupervisorTests
     private static WorkerRunRequestDto CreateLibraryActionRequest(
         DateTimeOffset deadline,
         string packageRoot,
-        IReadOnlyList<string> allowedLibraryIds)
+        IReadOnlyList<string> allowedLibraryIds,
+        string methodName = "计算合格率",
+        IReadOnlyList<NodeParameterDto>? parameters = null,
+        string returnType = "System.Decimal")
     {
         var flowId = Guid.NewGuid();
         var action = new NodeDto(
@@ -214,6 +360,7 @@ public sealed class WorkerSupervisorTests
             0,
             0,
             [],
+            parameters ??
             [
                 new NodeParameterDto("合格数量", "8", DataSourceDto.Literal, true),
                 new NodeParameterDto("检测总数", "16", DataSourceDto.Literal, true)
@@ -230,13 +377,13 @@ public sealed class WorkerSupervisorTests
                 Category: "library",
                 LibraryId: TestLibraryArtifactId,
                 ClassName: typeof(生产线节点).FullName,
-                MethodName: "计算合格率",
+                MethodName: methodName,
                 DllName: Path.GetFileName(typeof(生产线节点).Assembly.Location),
                 DllVersion: "1.0.0",
-                ReturnType: "System.Decimal"));
+                ReturnType: returnType));
         var definition = new FlowDefinitionDto(
             flowId,
-            4,
+            5,
             1,
             [new CanvasDto("main", CanvasLifecycleDto.Main, [action], [])],
             action.Id,
@@ -253,11 +400,36 @@ public sealed class WorkerSupervisorTests
             AllowedLibraryIds: allowedLibraryIds);
     }
 
+    private static NodeParameterDto CreateVariadicParameter(
+        string id,
+        string name,
+        string? valueJson,
+        string mode)
+        => new(
+            name,
+            valueJson,
+            DataSourceDto.Literal,
+            false,
+            new NodeParameterUiMetadataDto(
+                id,
+                name,
+                "System.Int32",
+                valueJson,
+                null,
+                null,
+                null,
+                null,
+                Type: "System.Int32",
+                IsVariadic: true,
+                VariadicGroupId: "param-1",
+                ElementType: "System.Int32",
+                VariadicMode: mode));
+
     private static WorkerRunRequestDto CreateRequest(Guid flowId, NodeDto node, DateTimeOffset deadline)
     {
         var definition = new FlowDefinitionDto(
             flowId,
-            4,
+            5,
             1,
             [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])],
             node.Id,

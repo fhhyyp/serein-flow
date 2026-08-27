@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { AlertTriangle, Database, Link2, LayoutGrid, RefreshCw, Search, Server } from 'lucide-vue-next'
+import { AlertTriangle, Braces, Database, Link2, LayoutGrid, RefreshCw, Search, Server } from 'lucide-vue-next'
 import { t } from '../../i18n'
+import type { NodeCreationDescriptorDto } from '../../api/flowApi'
 import type { LibraryDto, LibraryNodeDto } from '../../api/libraryApi'
 
 defineProps<{
@@ -9,6 +10,7 @@ defineProps<{
   isLoading: boolean
   error: string
   visibleLibraries: Array<{ library: LibraryDto; nodes: LibraryNodeDto[] }>
+  visibleBuiltinNodes: NodeCreationDescriptorDto[]
   catalogNodeCount: number
 }>()
 
@@ -17,6 +19,7 @@ const emit = defineEmits<{
   manage: []
   retry: []
   'node-pointer-down': [event: PointerEvent, node: LibraryNodeDto]
+  'builtin-node-pointer-down': [event: PointerEvent, node: NodeCreationDescriptorDto]
 }>()
 
 function updateSearch(event: Event): void {
@@ -34,7 +37,7 @@ function updateSearch(event: Event): void {
 
     <div v-if="isLoading" class="library-catalog-state"><RefreshCw class="spin" :size="18" /><strong>{{ t('library.loading') }}</strong></div>
     <div v-else-if="error" class="library-catalog-state library-catalog-state--error"><AlertTriangle :size="18" /><strong>{{ error }}</strong><button type="button" @click="emit('retry')">{{ t('command.retry') }}</button></div>
-    <div v-else-if="visibleLibraries.length === 0" class="library-empty">
+    <div v-else-if="visibleLibraries.length === 0 && visibleBuiltinNodes.length === 0" class="library-empty">
       <div class="library-empty__mark" aria-hidden="true"><LayoutGrid :size="18" /></div>
       <strong>{{ librarySearch ? t('library.noSearchResults') : t('library.emptyCatalog') }}</strong>
       <p class="empty-copy">{{ librarySearch ? t('library.empty') : t('library.projectEmptyHint') }}</p>
@@ -42,6 +45,12 @@ function updateSearch(event: Event): void {
       <span class="library-empty__hint">{{ t('library.serverOnly') }}</span>
     </div>
     <div v-else class="library-catalog">
+      <section v-if="visibleBuiltinNodes.length > 0" class="library-catalog__group library-catalog__group--builtin">
+        <div class="library-catalog__heading"><div><strong>{{ t('library.basicNodes') }}</strong><span>{{ t('library.basicNodesHint') }}</span></div><span class="mono">{{ visibleBuiltinNodes.length }}</span></div>
+        <button v-for="node in visibleBuiltinNodes" :key="node.id" class="library-node library-node--builtin" type="button" draggable="false" @pointerdown="emit('builtin-node-pointer-down', $event, node)">
+          <span class="library-node__mark"><Braces :size="14" /></span><span class="library-node__body"><strong>{{ t(node.ui.titleKey) === node.ui.titleKey ? node.displayName : t(node.ui.titleKey) }}</strong><span>{{ node.description || t(node.ui.subtitleKey) }}</span></span><span class="library-node__drag-hint">{{ t('library.dragHint') }}</span>
+        </button>
+      </section>
       <section v-for="entry in visibleLibraries" :key="entry.library.id" class="library-catalog__group">
         <div class="library-catalog__heading"><div><strong>{{ entry.library.name }}</strong><span>{{ entry.library.version }}</span></div><span class="mono">{{ t('library.nodeCount', { count: entry.nodes.length }) }}</span></div>
         <button v-for="node in entry.nodes" :key="node.id" class="library-node" type="button" draggable="false" @pointerdown="emit('node-pointer-down', $event, node)">

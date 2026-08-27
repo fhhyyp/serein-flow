@@ -19,11 +19,19 @@ public enum CanvasLifecycle
 
 public enum NodeType
 {
-    Action,
-    Flipflop,
-    Script,
-    Condition,
-    FlowCall,
+    Action = 0,
+    Flipflop = 1,
+    Script = 2,
+    // Value 3 belonged to the removed Condition node. Do not reuse it:
+    // persisted numeric payloads must remain invalid instead of becoming FlowCall.
+    // 数值 3 曾属于已移除的 Condition 节点，不能复用，避免旧数据被误解释为 FlowCall。
+    FlowCall = 4,
+}
+
+public enum VariadicParameterMode
+{
+    Expanded,
+    Collection
 }
 
 public enum PortDirection
