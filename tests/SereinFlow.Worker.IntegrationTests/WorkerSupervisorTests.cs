@@ -105,6 +105,31 @@ public sealed class WorkerSupervisorTests
     }
 
     [Fact]
+    public async Task SupervisorDerivesScriptHashFromSourceWhenSerializedSnapshotHashIsStale()
+    {
+        var supervisor = CreateSupervisor();
+        var request = CreateScriptLogRequest(DateTimeOffset.UtcNow.AddSeconds(15));
+        var definition = JsonSerializer.Deserialize<FlowDefinitionDto>(request.DefinitionJson)!;
+        var canvas = definition.Canvases.Single();
+        var node = canvas.Nodes.Single();
+        var staleNode = node with
+        {
+            Script = node.Script! with { SourceHash = "stale-source-hash" }
+        };
+        var staleDefinition = definition with
+        {
+            Canvases = [canvas with { Nodes = [staleNode] }]
+        };
+
+        var result = await supervisor.RunAsync(
+            request with { DefinitionJson = JsonSerializer.Serialize(staleDefinition) },
+            static (_, _) => ValueTask.CompletedTask);
+
+        Assert.Equal(FlowRunStatusDto.Succeeded, result.Status);
+        Assert.Null(result.ErrorCode);
+    }
+
+    [Fact]
     public async Task SupervisorRejectsExpiredDeadlinesWithoutStartingRunner()
     {
         var supervisor = CreateSupervisor();

@@ -325,7 +325,12 @@ public static class FlowDefinitionMapper
                 dto.Script.NodeId,
                 dto.Script.Source,
                 dto.Script.LanguageVersion,
-                dto.Script.SourceHash,
+                // SourceHash is presentation/cache metadata. The Worker must
+                // derive it from the immutable source rather than reject a run
+                // whose persisted DTO predates the server-side normalization.
+                // SourceHash 是展示/缓存元数据；Worker 必须从不可变源代码重新计算它，
+                // 不能因运行快照早于服务端规范化逻辑而拒绝执行。
+                null,
                 dto.Script.Inputs.Select(input => new ScriptValueContract(input.Name, input.ValueKind, input.Required, input.Id, input.Description)),
                 dto.Script.Outputs.Select(output => new ScriptValueContract(output.Name, output.ValueKind, output.Required, output.Id, output.Description))),
             dto.Ui is null

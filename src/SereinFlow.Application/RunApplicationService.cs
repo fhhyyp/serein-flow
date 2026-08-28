@@ -53,6 +53,11 @@ public sealed class RunApplicationService
         if (!validation.IsValid)
             return RunPreparationResult.Invalid(validation);
 
+        // The source hash is derived data. Persist the canonical value into the
+        // immutable run snapshot so its displayed hash always matches its source.
+        // 源代码哈希属于派生数据；写入不可变运行快照前统一规范化，确保展示的哈希始终与源代码一致。
+        definition = FlowDefinitionContractNormalizer.NormalizeForExecution(definition);
+
         var libraryValidation = await _projectLibraries.ValidateFlowLibrariesAsync(projectId, definition, cancellationToken);
         if (!libraryValidation.IsValid)
             return RunPreparationResult.Invalid(libraryValidation);
