@@ -30,7 +30,7 @@
 
 * { box-sizing: border-box; }
 html, body, #app { min-width: 320px; min-height: 100%; margin: 0; }
-body { min-height: 100vh; overflow-x: hidden; }
+body { min-height: 100vh; overflow-x: hidden; font-size: 14px; }
 button, input, textarea, select { font: inherit; }
 button { color: inherit; }
 button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -836,6 +836,155 @@ h2 { overflow-wrap: anywhere; }
 .payload-toolbar { min-height: 34px; justify-content: space-between; color: var(--subtle); font-family: var(--mono); font-size: 10px; }
 .payload-preview { min-height: 0; flex: 1; margin: 0; overflow: auto; border: 1px solid var(--line); border-radius: 6px; padding: 14px; background: #0f172a; color: #dbeafe; font-family: var(--mono); font-size: 11px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
 
+/* Keep secondary operational information readable at ordinary browser zoom. */
+.project-popover__label,
+.project-popover button span,
+.project-rename-form label,
+.workspace-settings__popover > span,
+.operations-console__eyebrow,
+.operations-console__sidebar-footer span,
+.interface-form legend,
+.project-library-dialog__heading > span,
+.library-upgrade-report__count,
+.library-upgrade-artifact dt,
+.library-upgrade-field > span,
+.library-upgrade-flow-picker legend,
+.library-upgrade-flow-picker legend small,
+.library-family-dialog__form legend,
+.library-family-field > span,
+.library-family-group__state,
+.library-family-group__summary dt,
+.output-heading span,
+.tab-count,
+.output-toolbar__label,
+.output-toolbar__hint,
+.event-time,
+.payload-toolbar,
+.library-node__body span,
+.library-node__drag-hint,
+.workflow-node__kind,
+.workflow-node__runtime-header,
+.workflow-node__content .workflow-node__runtime,
+.workflow-node__parameter-type,
+.workflow-node__parameter-source,
+.workflow-node__footer,
+.workflow-node__return-type,
+.canvas-empty-state > span,
+.enum-parameter-type,
+.port-kind { font-size: 11px; }
+
+.run-snapshot-viewer__readonly,
+.run-snapshot-viewer__side-tabs span,
+.run-snapshot-viewer__outputs > header p,
+.run-snapshot-output-list__heading code,
+.run-snapshot-output-list__error code,
+.run-snapshot-output-list__meta,
+.run-snapshot-output-list__payload > span,
+.run-snapshot-output-list__payload pre,
+.run-snapshot-output-viewer__header p,
+.run-snapshot-output-detail__header p,
+.run-snapshot-output-viewer__scope,
+.run-snapshot-output-list__copy span,
+.run-snapshot-output-list__sequence,
+.run-snapshot-output-detail__meta dt,
+.run-snapshot-output-detail__meta dd,
+.run-snapshot-output-detail__payload > span,
+.run-snapshot-output-detail__payload pre,
+.run-snapshot-output-detail__feedback,
+.run-snapshot-node-inspector__header p,
+.snapshot-inspector-section h4,
+.snapshot-contract-grid h5,
+.run-snapshot-node-inspector__status,
+.snapshot-property-list__hash,
+.snapshot-code-block pre,
+.snapshot-contract-grid span,
+.snapshot-contract-grid small,
+.snapshot-parameter-list__heading span,
+.library-empty__hint,
+.library-badge,
+.library-catalog__heading span,
+.library-upload-dropzone span,
+.library-upload-file span,
+.operations-table__muted,
+.canvas-custom-form label,
+.flow-validation-diagnostics__meta code,
+.enum-flags-editor__option code,
+.script-editor-dialog__metrics,
+.segmented-control button,
+.event-sequence,
+.event-detail-card__header { font-size: 11px; }
+
+.operations-console__metrics dt,
+.project-catalog__item dt,
+.operations-table th,
+.operations-console__section-heading > span,
+.operations-table code,
+.operations-table--libraries td small,
+.interface-form__choice small,
+.run-status,
+.interface-state,
+.project-library-dialog__heading p,
+.project-library-dialog__empty,
+.project-library-item__body span,
+.project-library-item__body small,
+.library-upgrade-dialog__heading p,
+.library-upgrade-artifact strong,
+.library-upgrade-artifact dd > span,
+.library-upgrade-artifact select,
+.library-upgrade-field select,
+.library-upgrade-flow-picker__list strong,
+.library-upgrade-flow-picker__list small,
+.library-upgrade-dialog__empty,
+.library-upgrade-summary,
+.library-upgrade-status,
+.library-upgrade-classification,
+.library-upgrade-table th,
+.library-upgrade-table td code,
+.library-upgrade-table td small,
+.library-upgrade-table td strong,
+.library-upgrade-results strong,
+.library-upgrade-results small,
+.library-family-dialog > header span,
+.library-family-dialog__hint,
+.environment-libraries .operations-console__section-heading p,
+.library-family-group__summary dd,
+.library-version,
+.output-mode-tabs button,
+.run-label,
+.filter-chip,
+.event-detail-card__node,
+.payload-preview,
+.library-node__body strong,
+.workflow-node__content span,
+.workflow-node__parameter-name,
+.field-label.compact,
+.parameter-heading strong { font-size: 12px; }
+
+.text-button,
+.project-catalog__item p,
+.project-catalog__readonly,
+.environment-settings label,
+.interface-form > label,
+.interface-form__choice strong,
+.project-library-dialog > header span,
+.project-library-dialog__error,
+.project-library-item__body strong,
+.library-upgrade-dialog > header span,
+.library-upgrade-dialog__message,
+.library-upgrade-dialog__heading h3,
+.library-upgrade-table td,
+.library-upgrade-confirm,
+.library-upgrade-no-confirm,
+.library-upgrade-results li,
+.library-family-dialog__error,
+.library-family-dialog__state,
+.library-family-dialog__form fieldset label,
+.library-family-field select,
+.library-family-field input,
+.library-family-field textarea,
+.library-family-group__title strong,
+.event-row { font-size: 13px; }
+
 @media (max-width: 1023px) {
   .app-shell { grid-template-rows: 56px 40px minmax(0, 1fr) auto; }
   .app-shell--console { grid-template-rows: 56px minmax(0, 1fr); }
@@ -933,7 +1082,7 @@ h2 { overflow-wrap: anywhere; }
   .snapshot-dialog > header { padding: 13px 14px; }
   .snapshot-dialog > p { padding: 8px 14px; }
   .run-snapshot-viewer__toolbar { min-height: 44px; padding: 5px 10px; }
-  .run-snapshot-viewer__readonly { padding: 3px 5px; font-size: 9px; }
+  .run-snapshot-viewer__readonly { padding: 3px 5px; font-size: 11px; }
   .run-snapshot-viewer__layout { grid-template-rows: minmax(280px, 48vh) minmax(230px, 1fr); grid-template-columns: 1fr; overflow: auto; }
   .run-snapshot-viewer__canvas { min-height: 280px; border-right: 0; border-bottom: 1px solid var(--line); }
   .run-snapshot-viewer__side-panel, .run-snapshot-viewer__outputs { min-height: 230px; }
