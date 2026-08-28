@@ -137,9 +137,11 @@ public sealed class DebugExecutionGateTests
         });
         var flipflop = new QueuedFlipflopExecutor();
         var executor = new CapturingTriggerActionExecutor();
+        var publisher = new RecordingPublisher();
         var runner = new FlowRunner(
             new ExecutionPlanBuilder(),
             new NodeExecutorRegistry([flipflop, executor]),
+            publisher,
             executionGate: gate,
             debugInvocationScheduler: new DebugInvocationScheduler(maximumQueuedInvocations: 2));
 
@@ -151,6 +153,7 @@ public sealed class DebugExecutionGateTests
         var first = await firstPause.Task.WaitAsync(TimeSpan.FromSeconds(2));
         Assert.NotNull(first.InvocationId);
         Assert.Empty(executor.Values);
+        AssertTriggerEventsUseInvocation(publisher.Events, trigger.Id, first.InvocationId.Value);
 
         await flipflop.WaitForWaitCountAsync(2);
         flipflop.Enqueue(20);
@@ -161,6 +164,7 @@ public sealed class DebugExecutionGateTests
         var second = await secondPause.Task.WaitAsync(TimeSpan.FromSeconds(2));
         Assert.NotNull(second.InvocationId);
         Assert.NotEqual(first.InvocationId, second.InvocationId);
+        AssertTriggerEventsUseInvocation(publisher.Events, trigger.Id, second.InvocationId.Value);
         Assert.Equal([10L], executor.Values);
 
         Assert.True(gate.TryContinue());
@@ -186,6 +190,20 @@ public sealed class DebugExecutionGateTests
             new ExecutionPlanBuilder(),
             new NodeExecutorRegistry([executor]),
             executionGate: gate);
+
+    private static void AssertTriggerEventsUseInvocation(
+        IReadOnlyCollection<RuntimeEvent> events,
+        string nodeId,
+        Guid invocationId)
+    {
+        var matchingEvents = events
+            .Where(item => item.NodeId == nodeId && item.Type is "node.started" or "node.completed")
+            .Where(item => item.Payload.TryGetValue("triggerInvocationId", out var value) && value is Guid id && id == invocationId)
+            .ToArray();
+
+        Assert.Contains(matchingEvents, item => item.Type == "node.started");
+        Assert.Contains(matchingEvents, item => item.Type == "node.completed");
+    }
 
     private sealed class CountingActionExecutor : INodeExecutor
     {
@@ -229,6 +247,19 @@ public sealed class DebugExecutionGateTests
             lock (_sync)
                 _values.Add(value);
             return ValueTask.FromResult(NodeExecutionResult.Success());
+        }
+    }
+
+    private sealed class RecordingPublisher : IRunEventPublisher
+    {
+        private readonly ConcurrentQueue<RuntimeEvent> _events = new();
+
+        public IReadOnlyCollection<RuntimeEvent> Events => _events.ToArray();
+
+        public ValueTask PublishAsync(RuntimeEvent runtimeEvent, CancellationToken cancellationToken)
+        {
+            _events.Enqueue(runtimeEvent);
+            return ValueTask.CompletedTask;
         }
     }
 

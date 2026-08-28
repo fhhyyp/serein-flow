@@ -307,6 +307,7 @@ const {
   debugSession,
   pauseBoundary,
   runEvents: debugRunEvents,
+  executionStates: debugExecutionStates,
   runPayload: debugRunPayload,
   isStarting: isDebugStarting,
   isControlling: isDebugControlling,
@@ -329,6 +330,13 @@ const {
   notice,
   onPauseNode: locateDebugPause,
 })
+
+const debugNodeNames = computed<Record<string, string>>(() => Object.fromEntries(
+  canvases.value.flatMap((canvas) => canvas.nodes.map((node) => [
+    node.id,
+    node.data.displayName?.trim() || t(node.data.titleKey),
+  ])),
+))
 
 watch(mobilePanel, (panel) => {
   if (panel === 'nodes') {
@@ -910,6 +918,8 @@ function setLanguage(nextLocale: Locale): void {
         v-if="debugSession && !isDebugPanelCollapsed"
         :session="debugSession"
         :boundary="pauseBoundary"
+        :executions="debugExecutionStates"
+        :node-names="debugNodeNames"
         :is-controlling="isDebugControlling"
         :is-stopping="isDebugStopping"
         @continue="continueDebug"

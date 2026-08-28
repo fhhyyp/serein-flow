@@ -5,11 +5,13 @@ import { Bug, LockKeyhole } from 'lucide-vue-next'
 import FlowNodeCard from '../flow/FlowNodeCard.vue'
 import RunSnapshotNodeInspector from './RunSnapshotNodeInspector.vue'
 import RunSnapshotOutputViewer from './RunSnapshotOutputViewer.vue'
-import { t, locale } from '../../i18n'
+import { t } from '../../i18n'
 import { flowDefinitionToWorkspace } from '../../flow/flowDtoMapper'
 import { connectionLineTypeForEdge } from '../../flow/connectionLine'
+import { buildNodeExecutionStates } from '../../flow/nodeExecutionState'
 import type { CanvasState, FlowEdge, FlowNode, NodeStatus } from '../../flow/types'
 import type { FlowDefinitionDto, FlowRunEventDto, FlowRunOutputDto } from '../../api/flowApi'
+import NodeExecutionInspector from '../debug/NodeExecutionInspector.vue'
 
 const props = defineProps<{
   definition?: FlowDefinitionDto
@@ -23,7 +25,7 @@ const props = defineProps<{
 const nodeTypes = markRaw({ workflow: FlowNodeCard })
 const activeCanvasId = ref('')
 const selectedNodeId = ref('')
-const sidePanel = ref<'properties' | 'audit' | 'output'>('properties')
+const sidePanel = ref<'properties' | 'execution' | 'output'>('properties')
 
 const workspace = computed(() => props.definition ? flowDefinitionToWorkspace(props.definition) : undefined)
 const activeCanvas = computed<CanvasState | undefined>(() => {
@@ -61,7 +63,13 @@ const renderedElements = computed<Array<FlowNode | FlowEdge>>(() => {
     })),
   ]
 })
-const orderedOutputs = computed(() => [...props.outputs].sort((left, right) => left.sequence - right.sequence))
+const executionStates = computed(() => buildNodeExecutionStates(props.events))
+const nodeNames = computed<Record<string, string>>(() => Object.fromEntries(
+  (workspace.value?.canvases ?? []).flatMap((canvas) => canvas.nodes.map((node) => [
+    node.id,
+    node.data.displayName?.trim() || t(node.data.titleKey),
+  ])),
+))
 const viewKey = computed(() => `${props.definition?.id ?? 'empty'}-${activeCanvas.value?.id ?? 'none'}`)
 const selectedNode = computed(() => activeCanvas.value?.nodes.find((node) => node.id === selectedNodeId.value))
 
@@ -88,38 +96,15 @@ function canvasLabel(canvas: CanvasState): string {
   return canvas.name?.trim() || t(canvas.nameKey)
 }
 
-function outputStatus(output: FlowRunOutputDto): NodeStatus {
-  return output.outcome === 'error' ? 'error' : output.outcome === 'failed' ? 'failed' : 'success'
-}
-
-function branchLabel(output: FlowRunOutputDto): string {
-  const branch = output.branch?.toLowerCase()
-  return branch === 'success' || branch === 'failure' || branch === 'error'
-    ? t(`branch.${branch}`)
-    : '-'
-}
-
-function formatTimestamp(value: string): string {
-  const timestamp = new Date(value)
-  if (Number.isNaN(timestamp.getTime())) return value
-  return new Intl.DateTimeFormat(locale.value, { dateStyle: 'short', timeStyle: 'medium' }).format(timestamp)
-}
-
-function formatValue(value: unknown): string {
-  if (typeof value === 'string') {
-    try {
-      return JSON.stringify(JSON.parse(value), null, 2)
-    } catch {
-      return value
-    }
-  }
-
-  return JSON.stringify(value ?? {}, null, 2)
-}
-
 function selectNode(nodeId: string): void {
   selectedNodeId.value = nodeId
   sidePanel.value = 'properties'
+}
+
+function selectExecutionNode(nodeId: string): void {
+  const canvas = workspace.value?.canvases.find((candidate) => candidate.nodes.some((node) => node.id === nodeId))
+  if (canvas) activeCanvasId.value = canvas.id
+  selectedNodeId.value = nodeId
 }
 </script>
 
@@ -170,32 +155,13 @@ function selectNode(nodeId: string): void {
       <aside class="run-snapshot-viewer__side-panel">
         <div class="run-snapshot-viewer__side-tabs" role="tablist" :aria-label="t('console.snapshotTitle')">
           <button type="button" role="tab" :aria-selected="sidePanel === 'properties'" :class="{ active: sidePanel === 'properties' }" @click="sidePanel = 'properties'">{{ t('console.snapshotProperties') }}</button>
-          <button type="button" role="tab" :aria-selected="sidePanel === 'audit'" :class="{ active: sidePanel === 'audit' }" @click="sidePanel = 'audit'">{{ t('console.snapshotAudit') }}<span>{{ orderedOutputs.length }}</span></button>
+          <button type="button" role="tab" :aria-selected="sidePanel === 'execution'" :class="{ active: sidePanel === 'execution' }" @click="sidePanel = 'execution'">{{ t('console.snapshotExecution') }}<span>{{ executionStates.length }}</span></button>
           <button type="button" role="tab" :aria-selected="sidePanel === 'output'" :class="{ active: sidePanel === 'output' }" @click="sidePanel = 'output'">{{ t('console.snapshotRunOutput') }}<span>{{ events.length }}</span></button>
         </div>
 
         <RunSnapshotNodeInspector v-if="sidePanel === 'properties'" :node="selectedNode" :status="selectedNode ? nodeStatus(selectedNode.id) : 'idle'" />
 
-        <section v-else-if="sidePanel === 'audit'" class="run-snapshot-viewer__outputs" :aria-label="t('console.snapshotAudit')">
-          <header><div><p>{{ t('console.snapshotAudit') }}</p><strong>{{ orderedOutputs.length }} {{ t('output.records') }}</strong></div></header>
-          <p v-if="outputsError" class="run-snapshot-viewer__outputs-error">{{ outputsError }}</p>
-          <ol v-else-if="orderedOutputs.length" class="run-snapshot-output-list">
-            <li v-for="output in orderedOutputs" :key="`${output.nodeId}-${output.sequence}`">
-              <div class="run-snapshot-output-list__heading"><span :class="['run-snapshot-output-list__status', `status-${outputStatus(output)}`]"></span><strong>{{ output.nodeId }}</strong><code>#{{ output.sequence }}</code></div>
-              <div class="run-snapshot-output-list__meta"><span>{{ branchLabel(output) }}</span><time>{{ formatTimestamp(output.timestamp) }}</time></div>
-              <p v-if="output.errorCode || output.errorMessage" class="run-snapshot-output-list__error"><code v-if="output.errorCode">{{ output.errorCode }}</code><span v-if="output.errorMessage">{{ output.errorMessage }}</span></p>
-              <section class="run-snapshot-output-list__payload">
-                <span>{{ t('console.snapshotInputs') }}</span>
-                <pre>{{ formatValue(output.inputs) }}</pre>
-              </section>
-              <section class="run-snapshot-output-list__payload">
-                <span>{{ t('console.snapshotOutputs') }}</span>
-                <pre>{{ formatValue(output.outputs) }}</pre>
-              </section>
-            </li>
-          </ol>
-          <p v-else class="run-snapshot-viewer__outputs-empty">{{ t('console.snapshotOutputsEmpty') }}</p>
-        </section>
+        <NodeExecutionInspector v-else-if="sidePanel === 'execution'" :executions="executionStates" :node-names="nodeNames" compact @select-node="selectExecutionNode" />
 
         <RunSnapshotOutputViewer v-else :events="events" :error="eventsError" />
       </aside>

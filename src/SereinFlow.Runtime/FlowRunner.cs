@@ -132,7 +132,8 @@ public sealed class FlowRunner
 
             await PublishAsync(session, "node.started", node.Id, new Dictionary<string, object?>
             {
-                ["step"] = session.StepCount
+                ["step"] = session.StepCount,
+                ["triggerInvocationId"] = session.InvocationId
             });
 
             IReadOnlyDictionary<string, object?> inputs = EmptyInputs;
@@ -206,7 +207,8 @@ public sealed class FlowRunner
                     ["errorCode"] = lastResult.ErrorCode,
                     ["errorMessage"] = lastResult.ErrorMessage,
                     ["inputs"] = lastResult.Inputs ?? inputs,
-                    ["outputs"] = lastResult.Outputs
+                    ["outputs"] = lastResult.Outputs,
+                    ["triggerInvocationId"] = session.InvocationId
                 });
 
             var branch = lastResult.NextBranch;
@@ -240,6 +242,7 @@ public sealed class FlowRunner
         while (!cancellationToken.IsCancellationRequested)
         {
             IReadOnlyDictionary<string, object?> inputs = EmptyInputs;
+            Guid? invocationId = null;
             try
             {
                 if (!session.TryBeginStep(node.Id, out var limitError))
@@ -262,7 +265,7 @@ public sealed class FlowRunner
                 // downstream work is owned by the FIFO scheduler.
                 // 每次触发都有隔离值上下文。调试模式下，子会话会跨越本次监听循环，
                 // 因为其下游工作由 FIFO 调度器拥有。
-                var invocationId = _debugInvocationScheduler is null ? (Guid?)null : Guid.NewGuid();
+                invocationId = _debugInvocationScheduler is null ? null : Guid.NewGuid();
                 var triggerSession = session.CreateChild(invocationId);
                 var triggerSessionOwnedByListener = true;
                 try
@@ -270,7 +273,8 @@ public sealed class FlowRunner
                     await PublishAsync(session, "node.started", node.Id, new Dictionary<string, object?>
                     {
                         ["global"] = true,
-                        ["step"] = session.StepCount
+                        ["step"] = session.StepCount,
+                        ["triggerInvocationId"] = invocationId
                     });
                     inputs = _dataResolver.Resolve(node, plan, triggerSession);
                     var result = await trigger.WaitForTriggerAsync(CreateExecutionRequest(node, plan, triggerSession, inputs), cancellationToken);
@@ -294,7 +298,8 @@ public sealed class FlowRunner
                         ["errorCode"] = result.ErrorCode,
                         ["errorMessage"] = result.ErrorMessage,
                         ["inputs"] = result.Inputs ?? inputs,
-                        ["outputs"] = result.Outputs
+                        ["outputs"] = result.Outputs,
+                        ["triggerInvocationId"] = invocationId
                     });
 
                     if (_debugInvocationScheduler is null)
@@ -367,7 +372,8 @@ public sealed class FlowRunner
                     ["inputs"] = inputs,
                     ["outputs"] = EmptyInputs,
                     ["errorCode"] = exception.Code,
-                    ["errorMessage"] = exception.Message
+                    ["errorMessage"] = exception.Message,
+                    ["triggerInvocationId"] = invocationId
                 });
                 foreach (var connection in plan.GetOutgoing(node.Id, ExecutionBranch.Failure))
                     await RunStackAsync(connection.ToNodeId, plan, session, cancellationToken);
@@ -383,7 +389,8 @@ public sealed class FlowRunner
                     ["inputs"] = inputs,
                     ["outputs"] = EmptyInputs,
                     ["errorCode"] = "flipflop.execution_failed",
-                    ["errorMessage"] = $"Global Flipflop execution failed. 全局 Flipflop 执行失败。 {exception.Message}"
+                    ["errorMessage"] = $"Global Flipflop execution failed. 全局 Flipflop 执行失败。 {exception.Message}",
+                    ["triggerInvocationId"] = invocationId
                 });
                 // An exception escaping a global listener still follows the
                 // node's Error branch before the listener waits again.

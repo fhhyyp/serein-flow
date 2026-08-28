@@ -4,10 +4,14 @@ import { Bug, CirclePause, ListOrdered, PanelTopClose, Play, Square, StepForward
 import { t } from '../../i18n'
 import type { FlowDebugSessionDto } from '../../api/flowApi'
 import type { DebugPauseBoundary } from '../../composables/useFlowDebugger'
+import type { NodeExecutionState } from '../../flow/nodeExecutionState'
+import NodeExecutionInspector from '../debug/NodeExecutionInspector.vue'
 
 const props = defineProps<{
   session?: FlowDebugSessionDto
   boundary?: DebugPauseBoundary
+  executions: readonly NodeExecutionState[]
+  nodeNames?: Record<string, string>
   isControlling: boolean
   isStopping: boolean
 }>()
@@ -21,17 +25,6 @@ const emit = defineEmits<{
 
 const isPaused = computed(() => props.session?.status === 'paused' && !props.isStopping)
 const invocationShortId = computed(() => props.session?.activeInvocationId?.slice(0, 8))
-
-function formatValue(value: unknown): string {
-  if (typeof value === 'string') {
-    try {
-      return JSON.stringify(JSON.parse(value), null, 2)
-    } catch {
-      return value
-    }
-  }
-  return JSON.stringify(value ?? {}, null, 2)
-}
 </script>
 
 <template>
@@ -56,10 +49,7 @@ function formatValue(value: unknown): string {
       <div v-if="props.session.queuedTriggerCount > 0"><dt>{{ t('debug.queuedTriggers') }}</dt><dd><ListOrdered :size="13" />{{ props.session.queuedTriggerCount }}</dd></div>
     </dl>
 
-    <section v-if="props.boundary" class="flow-debug-panel__inputs">
-      <span>{{ t('debug.resolvedInputs') }}</span>
-      <pre>{{ formatValue(props.boundary.inputs) }}</pre>
-    </section>
+    <NodeExecutionInspector :executions="props.executions" :node-names="props.nodeNames" compact />
 
     <footer class="flow-debug-panel__controls">
       <button class="flow-debug-panel__control" type="button" :title="t('debug.continue')" :aria-label="t('debug.continue')" :disabled="!isPaused || props.isControlling || props.isStopping" @click="emit('continue')"><Play :size="16" fill="currentColor" /></button>

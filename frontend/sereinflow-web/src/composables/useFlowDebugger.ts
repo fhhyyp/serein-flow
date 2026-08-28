@@ -20,6 +20,7 @@ import {
   saveBreakpointNodeIds,
   saveStoredDebugSessionId,
 } from '../flow/debugBreakpoints'
+import { buildNodeExecutionStates } from '../flow/nodeExecutionState'
 import type { CanvasState, NodeStatus } from '../flow/types'
 import type { RunEvent } from './useFlowRunner'
 
@@ -52,6 +53,7 @@ export function useFlowDebugger(options: UseFlowDebuggerOptions) {
   const debugSession = ref<FlowDebugSessionDto>()
   const pauseBoundary = ref<DebugPauseBoundary>()
   const runEvents = ref<RunEvent[]>([])
+  const rawRunEvents = ref<FlowRunEventDto[]>([])
   const runPayload = ref('')
   const isStarting = ref(false)
   const isControlling = ref(false)
@@ -85,6 +87,7 @@ export function useFlowDebugger(options: UseFlowDebuggerOptions) {
     && !isDebugActive.value
     && !isStarting.value,
   ))
+  const executionStates = computed(() => buildNodeExecutionStates(rawRunEvents.value))
 
   function stopPolling(): void {
     if (pollTimer !== undefined) {
@@ -151,6 +154,7 @@ export function useFlowDebugger(options: UseFlowDebuggerOptions) {
   function clearRuntimeState(): void {
     pauseBoundary.value = undefined
     runEvents.value = []
+    rawRunEvents.value = []
     runPayload.value = ''
     lastEventSequence = 0
   }
@@ -209,6 +213,7 @@ export function useFlowDebugger(options: UseFlowDebuggerOptions) {
     if (!session || event.runId !== session.runId || event.sequence <= lastEventSequence) return
     lastEventSequence = event.sequence
     runEvents.value = [...runEvents.value, toRunEvent(event)]
+    rawRunEvents.value = [...rawRunEvents.value, event]
     runPayload.value = JSON.stringify(event, null, 2)
 
     if (event.nodeId && (event.type === 'node.started' || event.type === 'node.completed' || event.type === 'node.failed' || event.type === 'node.error')) {
@@ -405,6 +410,7 @@ export function useFlowDebugger(options: UseFlowDebuggerOptions) {
     debugSession,
     pauseBoundary,
     runEvents,
+    executionStates,
     runPayload,
     isStarting,
     isControlling,
