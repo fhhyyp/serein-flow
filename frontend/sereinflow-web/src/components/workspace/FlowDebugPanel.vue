@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Bug, CirclePause, ListOrdered, PanelTopClose, Play, Square, StepForward } from 'lucide-vue-next'
+import { Bug, CirclePause, ListOrdered, PanelRightClose, Play, Settings2, Square, StepForward } from 'lucide-vue-next'
 import { t } from '../../i18n'
 import type { FlowDebugSessionDto } from '../../api/flowApi'
 import type { DebugPauseBoundary } from '../../composables/useFlowDebugger'
@@ -20,6 +20,8 @@ const emit = defineEmits<{
   continue: []
   step: []
   stop: []
+  inspect: []
+  selectNode: [nodeId: string]
   close: []
 }>()
 
@@ -28,7 +30,7 @@ const invocationShortId = computed(() => props.session?.activeInvocationId?.slic
 </script>
 
 <template>
-  <aside v-if="props.session" class="flow-debug-panel" :class="`flow-debug-panel--${props.isStopping ? 'running' : props.session.status}`" :aria-label="t('debug.panelTitle')">
+  <section v-if="props.session" class="flow-debug-panel" :class="`flow-debug-panel--${props.isStopping ? 'running' : props.session.status}`" :aria-label="t('debug.panelTitle')">
     <header class="flow-debug-panel__header">
       <div>
         <span class="flow-debug-panel__eyebrow"><Bug :size="13" />{{ t('debug.panelEyebrow') }}</span>
@@ -36,7 +38,8 @@ const invocationShortId = computed(() => props.session?.activeInvocationId?.slic
       </div>
       <div class="flow-debug-panel__header-actions">
         <span v-if="isPaused" class="flow-debug-panel__paused"><CirclePause :size="14" />{{ t('debug.paused') }}</span>
-        <button class="icon-button compact" type="button" :title="t('panel.collapseDebug')" :aria-label="t('panel.collapseDebug')" @click="emit('close')"><PanelTopClose :size="15" /></button>
+        <button class="icon-button compact" type="button" :title="t('debug.showInspector')" :aria-label="t('debug.showInspector')" @click="emit('inspect')"><Settings2 :size="15" /></button>
+        <button class="icon-button compact" type="button" :title="t('panel.collapseInspector')" :aria-label="t('panel.collapseInspector')" @click="emit('close')"><PanelRightClose :size="15" /></button>
       </div>
     </header>
 
@@ -49,12 +52,12 @@ const invocationShortId = computed(() => props.session?.activeInvocationId?.slic
       <div v-if="props.session.queuedTriggerCount > 0"><dt>{{ t('debug.queuedTriggers') }}</dt><dd><ListOrdered :size="13" />{{ props.session.queuedTriggerCount }}</dd></div>
     </dl>
 
-    <NodeExecutionInspector :executions="props.executions" :node-names="props.nodeNames" compact />
+    <NodeExecutionInspector :executions="props.executions" :node-names="props.nodeNames" compact @select-node="emit('selectNode', $event)" />
 
     <footer class="flow-debug-panel__controls">
       <button class="flow-debug-panel__control" type="button" :title="t('debug.continue')" :aria-label="t('debug.continue')" :disabled="!isPaused || props.isControlling || props.isStopping" @click="emit('continue')"><Play :size="16" fill="currentColor" /></button>
       <button class="flow-debug-panel__control" type="button" :title="t('debug.step')" :aria-label="t('debug.step')" :disabled="!isPaused || props.isControlling || props.isStopping" @click="emit('step')"><StepForward :size="16" /></button>
       <button class="flow-debug-panel__control flow-debug-panel__control--stop" type="button" :title="t('debug.stop')" :aria-label="t('debug.stop')" :disabled="props.isControlling || props.isStopping || ['completed', 'cancelled', 'failed'].includes(props.session.status)" @click="emit('stop')"><Square :size="15" fill="currentColor" /></button>
     </footer>
-  </aside>
+  </section>
 </template>

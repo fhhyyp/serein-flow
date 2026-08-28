@@ -2,12 +2,10 @@
 import { computed, nextTick, onMounted, provide, reactive, ref, watch } from 'vue'
 import {
   Activity,
-  Bug,
   Code2,
   Database,
   PanelLeftOpen,
   PanelRightOpen,
-  PanelTopOpen,
   Zap,
 } from 'lucide-vue-next'
 import { useVueFlow } from '@vue-flow/core'
@@ -18,7 +16,6 @@ import ProjectLibraryDialog from './components/library/ProjectLibraryDialog.vue'
 import CommandBar from './components/workspace/CommandBar.vue'
 import MobileWorkspaceTabs from './components/workspace/MobileWorkspaceTabs.vue'
 import OutputPanel from './components/workspace/OutputPanel.vue'
-import FlowDebugPanel from './components/workspace/FlowDebugPanel.vue'
 import CanvasPanel from './components/canvas/CanvasPanel.vue'
 import InspectorPanel from './components/inspector/InspectorPanel.vue'
 import RunConsole from './components/runs/RunConsole.vue'
@@ -61,7 +58,6 @@ const projectLibraryOpen = ref(false)
 const mobilePanel = ref<'nodes' | 'inspector' | null>(null)
 const isNodeLibraryCollapsed = ref(false)
 const isInspectorCollapsed = ref(false)
-const isDebugPanelCollapsed = ref(false)
 const languageMenuOpen = ref(false)
 const projectMenuOpen = ref(false)
 const connectionSettingsOpen = ref(false)
@@ -346,10 +342,8 @@ watch(mobilePanel, (panel) => {
   }
 })
 
-watch(debugSession, (session) => {
-  if (!session) {
-    isDebugPanelCollapsed.value = false
-  }
+watch(() => debugSession.value?.id, (sessionId) => {
+  if (sessionId) isInspectorCollapsed.value = false
 })
 
 function collapseNodeLibrary(): void {
@@ -360,10 +354,6 @@ function collapseNodeLibrary(): void {
 function collapseInspector(): void {
   isInspectorCollapsed.value = true
   mobilePanel.value = null
-}
-
-function collapseDebugPanel(): void {
-  isDebugPanelCollapsed.value = true
 }
 
 const visibleRunEvents = computed(() => isDebugActive.value || (!isRunning.value && debugSession.value) ? debugRunEvents.value : runEvents.value)
@@ -898,8 +888,18 @@ function setLanguage(nextLocale: Locale): void {
         :source-node-title="sourceNodeTitle"
         :canvases="canvases"
         :entry-node-id="entryNodeId"
+        :debug-session="debugSession"
+        :debug-boundary="pauseBoundary"
+        :debug-executions="debugExecutionStates"
+        :debug-node-names="debugNodeNames"
+        :debug-is-controlling="isDebugControlling"
+        :debug-is-stopping="isDebugStopping"
         @close="collapseInspector"
         @delete="removeSelection"
+        @continue-debug="continueDebug"
+        @step-debug="stepDebug"
+        @stop-debug="stopDebug"
+        @select-debug-node="locateDebugPause"
         @update-parameter-source="updateParameterSource"
         @begin-text-edit="beginTextEdit"
         @commit-text-edit="commitTextEdit"
@@ -914,20 +914,6 @@ function setLanguage(nextLocale: Locale): void {
         @remove-variadic-input="removeVariadicInput"
       />
       <button v-else class="workspace-panel-launcher workspace-panel-launcher--inspector" type="button" :title="t('panel.expandInspector')" :aria-label="t('panel.expandInspector')" @click="isInspectorCollapsed = false"><PanelRightOpen :size="17" /></button>
-      <FlowDebugPanel
-        v-if="debugSession && !isDebugPanelCollapsed"
-        :session="debugSession"
-        :boundary="pauseBoundary"
-        :executions="debugExecutionStates"
-        :node-names="debugNodeNames"
-        :is-controlling="isDebugControlling"
-        :is-stopping="isDebugStopping"
-        @continue="continueDebug"
-        @step="stepDebug"
-        @stop="stopDebug"
-        @close="collapseDebugPanel"
-      />
-      <button v-else-if="debugSession" class="workspace-panel-launcher workspace-panel-launcher--debug" type="button" :title="t('panel.expandDebug')" :aria-label="t('panel.expandDebug')" @click="isDebugPanelCollapsed = false"><Bug :size="17" /><PanelTopOpen :size="13" /></button>
     </main>
 
     <ProjectLibraryDialog

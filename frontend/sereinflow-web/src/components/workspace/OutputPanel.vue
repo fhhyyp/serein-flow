@@ -35,7 +35,7 @@ const emit = defineEmits<{
   'locate-diagnostic': [diagnostic: FlowValidationDiagnostic]
 }>()
 
-const collapsed = ref(false)
+const collapsed = ref(true)
 const maximized = ref(false)
 const panelHeight = ref(300)
 const resizing = ref(false)
