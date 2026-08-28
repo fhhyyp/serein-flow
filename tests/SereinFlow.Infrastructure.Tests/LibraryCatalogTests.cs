@@ -88,6 +88,7 @@ public sealed class LibraryCatalogTests
             Assert.Equal(SereinFlow.Contracts.NodeTypeDto.Action, passRate.Type);
             Assert.Equal("计算合格率", passRate.DisplayName);
             Assert.Equal("根据合格数量和检测总数计算本批次合格率。", passRate.Description);
+            Assert.Equal("生产线设备与质量数据示例库", passRate.FlowLibraryName);
             Assert.Equal(["合格数量", "检测总数"], passRate.Parameters.Select(parameter => parameter.Name).ToArray());
             Assert.Equal("生产线设备与质量数据示例库.计算合格率", passRate.ContractId);
             Assert.Equal(SereinFlow.Contracts.LibraryContractIdentityConfidenceDto.Explicit, passRate.IdentityConfidence);
@@ -120,6 +121,7 @@ public sealed class LibraryCatalogTests
             Assert.Equal("System.Int32", values.ElementType);
 
             var unnamedLibraryNode = Assert.Single(result.Library.Nodes, node => node.MethodName == "读取默认类库名称");
+            Assert.Equal("未命名类库节点", unnamedLibraryNode.FlowLibraryName);
             Assert.Equal("未命名类库节点.读取默认类库名称", unnamedLibraryNode.ContractId);
             Assert.Equal(SereinFlow.Contracts.LibraryContractIdentityConfidenceDto.Explicit, unnamedLibraryNode.IdentityConfidence);
             var unnamedLibraryParameter = Assert.Single(unnamedLibraryNode.Parameters);

@@ -105,6 +105,7 @@ function toNodeDto(node: FlowNode): NodeDto {
       width: node.width,
       category: node.data.runtime?.category,
       libraryId: node.data.runtime?.libraryId,
+      flowLibraryName: node.data.runtime?.flowLibraryName,
       className: node.data.runtime?.className,
       methodName: node.data.runtime?.methodName,
       dllName: node.data.runtime?.dllName,
@@ -361,13 +362,14 @@ function hasDataOutputFromDto(node: NodeDto): boolean {
 
 function toRuntimeMetadata(node: NodeDto) {
   const ui = node.ui
-  if (!ui || [ui.category, ui.libraryId, ui.className, ui.methodName, ui.dllName, ui.dllVersion, ui.returnType, ui.targetNodeId, ui.targetFlowId, ui.isAwaitable, ui.staticReturnType, ui.isDynamicReturnType, ui.libraryNodeContractId].every((value) => value === undefined)) {
+  if (!ui || [ui.category, ui.libraryId, ui.flowLibraryName, ui.className, ui.methodName, ui.dllName, ui.dllVersion, ui.returnType, ui.targetNodeId, ui.targetFlowId, ui.isAwaitable, ui.staticReturnType, ui.isDynamicReturnType, ui.libraryNodeContractId].every((value) => value === undefined)) {
     return undefined
   }
 
   return {
     category: isNodeCategory(ui.category) ? ui.category : undefined,
     libraryId: ui.libraryId,
+    flowLibraryName: ui.flowLibraryName,
     className: ui.className,
     methodName: ui.methodName,
     dllName: ui.dllName,

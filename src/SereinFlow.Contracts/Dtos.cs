@@ -218,7 +218,8 @@ public sealed record NodeUiMetadataDto(
     string? TargetCanvasId = null,
     bool? IsPublic = null,
     IReadOnlyList<FlowCallParameterBindingDto>? FlowCallParameterBindings = null,
-    string? LibraryNodeContractId = null);
+    string? LibraryNodeContractId = null,
+    string? FlowLibraryName = null);
 
 public sealed record NodePortDto(string Id, string Name, string Direction, bool Required);
 
@@ -367,7 +368,8 @@ public sealed record LibraryNodeDto(
     bool IsAwaitable = false,
     string? ContractId = null,
     string? OverloadSignature = null,
-    LibraryContractIdentityConfidenceDto IdentityConfidence = LibraryContractIdentityConfidenceDto.Legacy);
+    LibraryContractIdentityConfidenceDto IdentityConfidence = LibraryContractIdentityConfidenceDto.Legacy,
+    string? FlowLibraryName = null);
 
 public sealed record LibraryParameterDto(
     string Id,

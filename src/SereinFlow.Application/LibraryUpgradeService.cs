@@ -450,6 +450,7 @@ public sealed class LibraryUpgradeService
             ReturnType = targetCatalogNode.ReturnType,
             IsAwaitable = targetCatalogNode.IsAwaitable,
             LibraryNodeContractId = targetCatalogNode.ContractId,
+            FlowLibraryName = targetCatalogNode.FlowLibraryName,
         };
         return new TransformedNode(node with { Type = targetCatalogNode.Type, Parameters = transformedParameters, Ui = runtime }, parameterMap);
     }

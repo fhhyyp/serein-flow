@@ -289,6 +289,9 @@ test('enum parameter metadata remains available after a workspace DTO round trip
           subtitleKey: 'node.catalogSubtitle',
           status: 'ready',
           hasDataOutput: true,
+          runtime: {
+            flowLibraryName: '生产线设备与质量数据示例库',
+          },
           parameters: [{
             id: 'mode',
             nameKey: 'parameter.mode',
@@ -319,6 +322,8 @@ test('enum parameter metadata remains available after a workspace DTO round trip
   const restored = flowDefinitionToWorkspace(definition)
   const parameter = restored.canvases[0]?.nodes[0]?.data.parameters[0]
 
+  assert.equal(definition.canvases[0]?.nodes[0]?.ui?.flowLibraryName, '生产线设备与质量数据示例库')
+  assert.equal(restored.canvases[0]?.nodes[0]?.data.runtime?.flowLibraryName, '生产线设备与质量数据示例库')
   assert.deepEqual(definition.canvases[0]?.nodes[0]?.parameters[0]?.ui?.enumMetadata, snapshot.canvases[0]?.nodes[0]?.data.parameters[0]?.enumMetadata)
   assert.deepEqual(parameter?.enumMetadata, snapshot.canvases[0]?.nodes[0]?.data.parameters[0]?.enumMetadata)
 })

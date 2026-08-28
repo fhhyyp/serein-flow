@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, provide, reactive, ref, watch } from 'vue'
 import {
   Activity,
+  Bug,
   Code2,
   Database,
+  PanelLeftOpen,
+  PanelRightOpen,
+  PanelTopOpen,
   Zap,
 } from 'lucide-vue-next'
 import { useVueFlow } from '@vue-flow/core'
@@ -26,6 +30,7 @@ import {
 } from './flow/connectionLine'
 import { createInitialCanvases } from './flow/initialCanvases'
 import { parameterHandleFor } from './flow/connectionSeats'
+import { libraryNameResolverKey } from './flow/libraryNameResolver'
 import { convertVariadicParameterMode } from './flow/variadicParameters'
 import { parseFlowValidationDiagnosticTarget } from './flow/validationDiagnostics'
 import { cloneWorkspaceSnapshot, workspaceFingerprint, type WorkspaceSnapshot } from './flow/workspaceHistory'
@@ -54,6 +59,9 @@ const connectionLineTypes = reactive<ConnectionLineSettings>(normalizeConnection
 const activeCanvasId = ref('main')
 const projectLibraryOpen = ref(false)
 const mobilePanel = ref<'nodes' | 'inspector' | null>(null)
+const isNodeLibraryCollapsed = ref(false)
+const isInspectorCollapsed = ref(false)
+const isDebugPanelCollapsed = ref(false)
 const languageMenuOpen = ref(false)
 const projectMenuOpen = ref(false)
 const connectionSettingsOpen = ref(false)
@@ -61,6 +69,7 @@ const isCanvasDropActive = ref(false)
 const notice = ref('')
 const {
   librarySearch,
+  libraries,
   isLibraryCatalogLoading,
   libraryCatalogError,
   visibleLibraries,
@@ -69,6 +78,22 @@ const {
   refreshLibraryCatalog,
   replaceProjectLibraries,
 } = useLibraryCatalog()
+provide(libraryNameResolverKey, (runtime) => {
+  const explicitName = runtime?.flowLibraryName?.trim()
+  if (explicitName) {
+    return explicitName
+  }
+
+  const library = libraries.value.find((candidate) => candidate.id === runtime?.libraryId)
+  const catalogNode = library?.nodes.find((candidate) =>
+    candidate.contractId === runtime?.libraryNodeContractId)
+    ?? library?.nodes.find((candidate) =>
+      candidate.className === runtime?.className
+      && candidate.methodName === runtime?.methodName
+      && candidate.dllName === runtime?.dllName
+      && candidate.dllVersion === runtime?.dllVersion)
+  return catalogNode?.flowLibraryName?.trim() || undefined
+})
 const nextNodeNumber = ref(1)
 const isDirty = ref(false)
 const saveFailed = ref(false)
@@ -304,6 +329,34 @@ const {
   notice,
   onPauseNode: locateDebugPause,
 })
+
+watch(mobilePanel, (panel) => {
+  if (panel === 'nodes') {
+    isNodeLibraryCollapsed.value = false
+  } else if (panel === 'inspector') {
+    isInspectorCollapsed.value = false
+  }
+})
+
+watch(debugSession, (session) => {
+  if (!session) {
+    isDebugPanelCollapsed.value = false
+  }
+})
+
+function collapseNodeLibrary(): void {
+  isNodeLibraryCollapsed.value = true
+  mobilePanel.value = null
+}
+
+function collapseInspector(): void {
+  isInspectorCollapsed.value = true
+  mobilePanel.value = null
+}
+
+function collapseDebugPanel(): void {
+  isDebugPanelCollapsed.value = true
+}
 
 const visibleRunEvents = computed(() => isDebugActive.value || (!isRunning.value && debugSession.value) ? debugRunEvents.value : runEvents.value)
 const visibleRunPayload = computed(() => isDebugActive.value || (!isRunning.value && debugSession.value) ? debugRunPayload.value : runPayload.value)
@@ -755,8 +808,9 @@ function setLanguage(nextLocale: Locale): void {
 
     <MobileWorkspaceTabs v-if="workspaceView === 'editor'" v-model:mobile-panel="mobilePanel" />
 
-    <main v-if="workspaceView === 'editor'" class="workspace-grid">
+    <main v-if="workspaceView === 'editor'" class="workspace-grid" :class="{ 'workspace-grid--inspector-collapsed': isInspectorCollapsed }">
       <NodeLibraryPanel
+        v-if="!isNodeLibraryCollapsed"
         :mobile-visible="mobilePanel === 'nodes'"
         :library-search="librarySearch"
         :is-loading="isLibraryCatalogLoading"
@@ -769,7 +823,9 @@ function setLanguage(nextLocale: Locale): void {
         @retry="refreshProjectLibraryCatalog"
         @node-pointer-down="handleLibraryNodePointerDown"
         @builtin-node-pointer-down="handleBuiltinNodePointerDown"
+        @collapse="collapseNodeLibrary"
       />
+      <button v-else class="workspace-panel-launcher workspace-panel-launcher--library" type="button" :title="t('panel.expandLibrary')" :aria-label="t('panel.expandLibrary')" @click="isNodeLibraryCollapsed = false"><PanelLeftOpen :size="17" /></button>
 
       <CanvasPanel
         :canvases="canvases"
@@ -825,6 +881,7 @@ function setLanguage(nextLocale: Locale): void {
       />
 
       <InspectorPanel
+        v-if="!isInspectorCollapsed"
         :mobile-visible="mobilePanel === 'inspector'"
         :selected-node="selectedNode"
         :selected-edge="selectedEdge"
@@ -833,7 +890,7 @@ function setLanguage(nextLocale: Locale): void {
         :source-node-title="sourceNodeTitle"
         :canvases="canvases"
         :entry-node-id="entryNodeId"
-        @close="mobilePanel = null"
+        @close="collapseInspector"
         @delete="removeSelection"
         @update-parameter-source="updateParameterSource"
         @begin-text-edit="beginTextEdit"
@@ -848,8 +905,9 @@ function setLanguage(nextLocale: Locale): void {
         @add-variadic-input="addVariadicInput"
         @remove-variadic-input="removeVariadicInput"
       />
+      <button v-else class="workspace-panel-launcher workspace-panel-launcher--inspector" type="button" :title="t('panel.expandInspector')" :aria-label="t('panel.expandInspector')" @click="isInspectorCollapsed = false"><PanelRightOpen :size="17" /></button>
       <FlowDebugPanel
-        v-if="debugSession"
+        v-if="debugSession && !isDebugPanelCollapsed"
         :session="debugSession"
         :boundary="pauseBoundary"
         :is-controlling="isDebugControlling"
@@ -857,7 +915,9 @@ function setLanguage(nextLocale: Locale): void {
         @continue="continueDebug"
         @step="stepDebug"
         @stop="stopDebug"
+        @close="collapseDebugPanel"
       />
+      <button v-else-if="debugSession" class="workspace-panel-launcher workspace-panel-launcher--debug" type="button" :title="t('panel.expandDebug')" :aria-label="t('panel.expandDebug')" @click="isDebugPanelCollapsed = false"><Bug :size="17" /><PanelTopOpen :size="13" /></button>
     </main>
 
     <ProjectLibraryDialog

@@ -76,6 +76,7 @@ export interface NodeUiMetadataDto {
   width?: number
   category?: 'method' | 'basic'
   libraryId?: string
+  flowLibraryName?: string
   className?: string
   methodName?: string
   dllName?: string

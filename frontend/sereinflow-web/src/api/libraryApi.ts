@@ -23,6 +23,7 @@ export interface LibraryNodeDto {
   displayName: string
   description?: string | null
   libraryId: string
+  flowLibraryName?: string | null
   className: string
   methodName: string
   dllName: string

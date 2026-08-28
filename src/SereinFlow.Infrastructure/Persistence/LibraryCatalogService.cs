@@ -59,7 +59,7 @@ public sealed record LibraryCatalogOptions
 /// </summary>
 public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDisposable
 {
-    internal const int CurrentCatalogSchemaVersion = 5;
+    internal const int CurrentCatalogSchemaVersion = 6;
     private static readonly Action<ILogger, string, Exception?> ReindexSkippedLog = LoggerMessage.Define<string>(
         LogLevel.Warning,
         new EventId(1001, nameof(ReindexSkippedLog)),
@@ -982,7 +982,8 @@ internal static class LibraryMetadataScanner
                         IsAwaitableReturnType(signature.ReturnType),
                         nodeContractId,
                         overloadSignature,
-                        nodeIdentityConfidence));
+                        nodeIdentityConfidence,
+                        libraryName));
                     manifestNodes.Add(new LibraryManifestNodeDto(
                         nodeContractId,
                         nodeIdentityConfidence,

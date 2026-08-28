@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertTriangle, Braces, Database, Link2, LayoutGrid, RefreshCw, Search, Server, Zap } from 'lucide-vue-next'
+import { AlertTriangle, Braces, Database, Link2, LayoutGrid, PanelLeftClose, RefreshCw, Search, Server, Zap } from 'lucide-vue-next'
 import { t } from '../../i18n'
 import type { NodeCreationDescriptorDto } from '../../api/flowApi'
 import type { LibraryDto, LibraryNodeDto } from '../../api/libraryApi'
@@ -20,6 +20,7 @@ const emit = defineEmits<{
   retry: []
   'node-pointer-down': [event: PointerEvent, node: LibraryNodeDto]
   'builtin-node-pointer-down': [event: PointerEvent, node: NodeCreationDescriptorDto]
+  collapse: []
 }>()
 
 function updateSearch(event: Event): void {
@@ -35,7 +36,7 @@ function iconForLibraryNode(node: LibraryNodeDto) {
   <aside class="node-library" :class="{ 'mobile-visible': mobileVisible }">
     <div class="panel-heading">
       <div><span class="eyebrow">{{ t('library.projectScope') }}</span><h1>{{ t('library.nodeLibrary') }}</h1></div>
-      <div class="library-heading-actions"><span class="library-badge"><Server :size="11" />API</span><button class="icon-button compact" type="button" :title="t('library.manageProject')" :aria-label="t('library.manageProject')" @click="emit('manage')"><Link2 :size="15" /></button></div>
+      <div class="library-heading-actions"><span class="library-badge"><Server :size="11" />API</span><button class="icon-button compact" type="button" :title="t('library.manageProject')" :aria-label="t('library.manageProject')" @click="emit('manage')"><Link2 :size="15" /></button><button class="icon-button compact" type="button" :title="t('panel.collapseLibrary')" :aria-label="t('panel.collapseLibrary')" @click="emit('collapse')"><PanelLeftClose :size="15" /></button></div>
     </div>
     <label class="library-search"><Search :size="14" aria-hidden="true" /><input :value="librarySearch" type="search" :placeholder="t('library.searchPlaceholder')" @input="updateSearch" /></label>
 

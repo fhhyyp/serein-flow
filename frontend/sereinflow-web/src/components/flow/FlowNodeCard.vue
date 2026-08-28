@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { Activity, Circle, CircleDot, Code2, Database, Zap } from 'lucide-vue-next'
 import { Handle, Position, type NodeProps } from '@vue-flow/core'
 import { t } from '../../i18n'
 import { layoutConnectionSeats, type ConnectionSeatLayout } from '../../flow/connectionSeats'
 import { formatNodeType } from '../../flow/typeDisplay'
+import { libraryNameResolverKey } from '../../flow/libraryNameResolver'
 import type { FlowNodeData, NodeKind } from '../../flow/types'
 
 const props = defineProps<NodeProps<FlowNodeData>>()
@@ -19,16 +20,13 @@ const icons: Record<NodeKind, typeof Activity> = {
 const icon = computed(() => icons[props.data.kind])
 const title = computed(() => props.data.displayName?.trim() || t(props.data.titleKey))
 const description = computed(() => props.data.description?.trim() || t(props.data.subtitleKey))
+const libraryNameFor = inject(libraryNameResolverKey, () => undefined)
+const libraryName = computed(() => libraryNameFor(props.data.runtime))
 const seats = computed(() => layoutConnectionSeats(props.data))
 const executionInputSeat = computed(() => seats.value.find((seat) => seat.kind === 'execution-input'))
 const executionOutputSeats = computed(() => seats.value.filter((seat) => seat.kind === 'execution-output'))
 const parameterSeats = computed(() => seats.value.filter((seat) => seat.kind === 'parameter-input'))
 const dataOutputSeat = computed(() => seats.value.find((seat) => seat.kind === 'data-output'))
-const runtimeSignature = computed(() => {
-  const runtime = props.data.runtime
-  const method = [runtime?.className, runtime?.methodName].filter(Boolean).join('.')
-  return method || formatNodeType(runtime?.returnType)
-})
 const returnType = computed(() => formatNodeType(props.data.runtime?.returnType))
 
 function seatClass(seat: ConnectionSeatLayout): string {
@@ -58,7 +56,7 @@ function isTargetSeat(seat: ConnectionSeatLayout | undefined): boolean {
       />
       <span class="workflow-node__icon" aria-hidden="true"><component :is="icon" :size="15" /></span>
       <span class="workflow-node__kind">{{ t(`node.kind.${data.kind}`) }}</span>
-      <span v-if="runtimeSignature" class="workflow-node__runtime-header" :title="runtimeSignature">{{ runtimeSignature }}</span>
+      <span v-if="libraryName" class="workflow-node__library" :title="libraryName">{{ libraryName }}</span>
       <span class="workflow-node__status" :class="`status-${data.status}`" :title="t(`status.${data.status}`)"></span>
       <button
         v-if="data.onToggleBreakpoint"
@@ -91,7 +89,6 @@ function isTargetSeat(seat: ConnectionSeatLayout | undefined): boolean {
     <div class="workflow-node__content">
       <strong>{{ title }}</strong>
       <span>{{ description }}</span>
-      <span v-if="runtimeSignature" class="workflow-node__runtime">{{ runtimeSignature }}</span>
     </div>
 
     <div v-if="data.parameters.length > 0" class="workflow-node__parameters">

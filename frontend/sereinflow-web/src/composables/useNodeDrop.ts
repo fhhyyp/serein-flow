@@ -119,6 +119,7 @@ export function useNodeDrop(options: NodeDropOptions) {
     const runtime: NodeRuntimeMetadata = {
       category: 'method',
       libraryId: node.libraryId,
+      flowLibraryName: node.flowLibraryName ?? undefined,
       className: node.className,
       methodName: node.methodName,
       dllName: node.dllName,

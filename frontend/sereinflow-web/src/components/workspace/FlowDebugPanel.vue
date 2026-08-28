@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Bug, CirclePause, ListOrdered, Play, Square, StepForward } from 'lucide-vue-next'
+import { Bug, CirclePause, ListOrdered, PanelTopClose, Play, Square, StepForward } from 'lucide-vue-next'
 import { t } from '../../i18n'
 import type { FlowDebugSessionDto } from '../../api/flowApi'
 import type { DebugPauseBoundary } from '../../composables/useFlowDebugger'
@@ -16,6 +16,7 @@ const emit = defineEmits<{
   continue: []
   step: []
   stop: []
+  close: []
 }>()
 
 const isPaused = computed(() => props.session?.status === 'paused' && !props.isStopping)
@@ -40,7 +41,10 @@ function formatValue(value: unknown): string {
         <span class="flow-debug-panel__eyebrow"><Bug :size="13" />{{ t('debug.panelEyebrow') }}</span>
         <strong>{{ t(`debug.status.${props.isStopping ? 'stopping' : props.session.status}`) }}</strong>
       </div>
-      <span v-if="isPaused" class="flow-debug-panel__paused"><CirclePause :size="14" />{{ t('debug.paused') }}</span>
+      <div class="flow-debug-panel__header-actions">
+        <span v-if="isPaused" class="flow-debug-panel__paused"><CirclePause :size="14" />{{ t('debug.paused') }}</span>
+        <button class="icon-button compact" type="button" :title="t('panel.collapseDebug')" :aria-label="t('panel.collapseDebug')" @click="emit('close')"><PanelTopClose :size="15" /></button>
+      </div>
     </header>
 
     <dl class="flow-debug-panel__facts">

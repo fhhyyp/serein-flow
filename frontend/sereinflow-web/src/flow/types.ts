@@ -40,6 +40,7 @@ export interface EnumParameterMetadata {
 export interface NodeRuntimeMetadata {
   category?: NodeCategory
   libraryId?: string
+  flowLibraryName?: string
   className?: string
   methodName?: string
   dllName?: string
