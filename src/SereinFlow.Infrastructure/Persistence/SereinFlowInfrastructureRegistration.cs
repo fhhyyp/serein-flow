@@ -38,13 +38,19 @@ public static class SereinFlowInfrastructureRegistration
             new SqlSugarProjectRepository(
                 serviceProvider.GetRequiredService<IRepository<ProjectRecord>>(),
                 serviceProvider.GetRequiredService<IUnitOfWork>()));
-        services.AddScoped<IFlowDefinitionRepository>(serviceProvider =>
+        services.AddScoped<SqlSugarFlowDefinitionRepository>(serviceProvider =>
             new SqlSugarFlowDefinitionRepository(
                 serviceProvider.GetRequiredService<IRepository<FlowDefinitionRecord>>(),
                 serviceProvider.GetRequiredService<IRepository<FlowDefinitionVersionRecord>>(),
+                serviceProvider.GetRequiredService<IRepository<FlowProductionHeadRecord>>(),
+                serviceProvider.GetRequiredService<IRepository<FlowVersionCounterRecord>>(),
                 serviceProvider.GetRequiredService<IRepository<LibraryRecord>>(),
                 serviceProvider.GetRequiredService<IRepository<FlowLibraryBindingRecord>>(),
                 serviceProvider.GetRequiredService<IUnitOfWork>()));
+        services.AddScoped<IFlowDefinitionRepository>(serviceProvider =>
+            serviceProvider.GetRequiredService<SqlSugarFlowDefinitionRepository>());
+        services.AddScoped<IFlowVersionRepository>(serviceProvider =>
+            serviceProvider.GetRequiredService<SqlSugarFlowDefinitionRepository>());
         services.AddScoped<IFlowRunEventStore>(serviceProvider =>
             new SqlSugarFlowRunEventStore(
                 serviceProvider.GetRequiredService<IRepository<FlowRunEventRecord>>(),
@@ -83,6 +89,7 @@ public static class SereinFlowInfrastructureRegistration
                 serviceProvider.GetRequiredService<IRepository<LibraryUpgradePlanRecord>>(),
                 serviceProvider.GetRequiredService<IRepository<FlowDefinitionRecord>>(),
                 serviceProvider.GetRequiredService<IRepository<FlowDefinitionVersionRecord>>(),
+                serviceProvider.GetRequiredService<IRepository<FlowVersionCounterRecord>>(),
                 serviceProvider.GetRequiredService<IRepository<ProjectLibraryReferenceRecord>>(),
                 serviceProvider.GetRequiredService<IRepository<LibraryRecord>>(),
                 serviceProvider.GetRequiredService<IRepository<FlowLibraryBindingRecord>>(),

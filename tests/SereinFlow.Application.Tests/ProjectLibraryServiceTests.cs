@@ -50,6 +50,28 @@ public sealed class ProjectLibraryServiceTests
     }
 
     [Fact]
+    public async Task RemoveRejectsArtifactUsedByProductionHistory()
+    {
+        var project = Project.Create("Production history library project");
+        var projects = new InMemoryProjectRepository(project);
+        var flows = new InMemoryFlowDefinitionRepository();
+        var references = new InMemoryProjectLibraryReferenceRepository();
+        var service = CreateService(
+            projects,
+            flows,
+            references,
+            CreateLibrary(),
+            new ProductionHistoryVersionRepository(isReferenced: true));
+        await service.AddAsync(project.Id, LibraryId);
+
+        var remove = await service.RemoveAsync(project.Id, LibraryId);
+
+        Assert.False(remove.IsSuccess);
+        Assert.Equal(409, remove.StatusCode);
+        Assert.Equal("project_library.in_use_by_production_history", remove.Code);
+    }
+
+    [Fact]
     public async Task ValidationRejectsArtifactNotReferencedByCurrentProject()
     {
         var projectA = Project.Create("Project A");
@@ -102,8 +124,9 @@ public sealed class ProjectLibraryServiceTests
         IProjectRepository projects,
         IFlowDefinitionRepository flows,
         IProjectLibraryReferenceRepository references,
-        LibraryDto library)
-        => new(projects, flows, references, new InMemoryLibraryCatalogService(library));
+        LibraryDto library,
+        IFlowVersionRepository? versions = null)
+        => new(projects, flows, references, new InMemoryLibraryCatalogService(library), versions);
 
     private static LibraryDto CreateLibrary(LibraryLifecycleDto lifecycle = LibraryLifecycleDto.Available)
         => new(
@@ -284,6 +307,30 @@ public sealed class ProjectLibraryServiceTests
             => Task.FromResult(
                 _references.TryGetValue(projectId, out var references)
                 && references.Remove(libraryId));
+    }
+
+    private sealed class ProductionHistoryVersionRepository(bool isReferenced) : IFlowVersionRepository
+    {
+        public Task<IReadOnlyList<FlowVersionSummaryDto>> ListVersionsAsync(Guid projectId, Guid flowId, FlowVersionTrackDto track, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<FlowVersionSummaryDto>>([]);
+
+        public Task<FlowVersionDetailDto?> FindVersionAsync(Guid projectId, Guid flowId, long version, CancellationToken cancellationToken = default)
+            => Task.FromResult<FlowVersionDetailDto?>(null);
+
+        public Task<FlowDefinitionDto?> FindProductionDefinitionAsync(Guid projectId, Guid flowId, CancellationToken cancellationToken = default)
+            => Task.FromResult<FlowDefinitionDto?>(null);
+
+        public Task<long?> FindProductionVersionAsync(Guid projectId, Guid flowId, CancellationToken cancellationToken = default)
+            => Task.FromResult<long?>(null);
+
+        public Task<FlowVersionMutationResult> PublishAsync(Guid projectId, Guid flowId, long expectedDevelopmentVersion, string? remark, CancellationToken cancellationToken = default)
+            => Task.FromResult(new FlowVersionMutationResult(null, null));
+
+        public Task<FlowVersionMutationResult> RollbackAsync(Guid projectId, Guid flowId, long sourceVersion, FlowVersionTrackDto track, long expectedHeadVersion, CancellationToken cancellationToken = default)
+            => Task.FromResult(new FlowVersionMutationResult(null, null));
+
+        public Task<bool> IsLibraryReferencedByProductionHistoryAsync(Guid projectId, string libraryId, CancellationToken cancellationToken = default)
+            => Task.FromResult(isReferenced);
     }
 
     private sealed class InMemoryLibraryCatalogService(params LibraryDto[] libraries) : ILibraryCatalogService

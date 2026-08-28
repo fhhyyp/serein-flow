@@ -39,6 +39,81 @@ public sealed class FlowDefinitionPersistenceTests
     }
 
     [Fact]
+    public async Task VersionTracksUseOneSequenceAndRollbackCreatesNewImmutableHeads()
+    {
+        using var database = CreateDatabase();
+        database.Initialize();
+        var project = Project.Create("Versioned workflow");
+        new SqlSugarProjectRepository(database).Add(project);
+        var repository = new SqlSugarFlowDefinitionRepository(database);
+        var initial = CreateDefinition();
+        await repository.AddAsync(project.Id, initial);
+
+        var developmentV2 = await repository.TryUpdateAsync(
+            project.Id,
+            initial with { Checksum = "development-v2" },
+            expectedVersion: 1);
+        Assert.NotNull(developmentV2);
+        Assert.Equal(2, developmentV2!.Version);
+        var storedDevelopment = database.Query<FlowDefinitionVersionRecord>(
+            "SELECT FlowId, Version, DefinitionJson, Checksum, Track, Operation, ParentVersion, SourceVersion, Remark, CreatedAt FROM FlowDefinitionVersions WHERE FlowId = @flowId ORDER BY Version",
+            new SqlSugar.SugarParameter("@flowId", initial.Id.ToString("D")));
+        Assert.Equal(FlowVersionTrackDto.Development.ToString(), storedDevelopment.Single(item => item.Version == developmentV2.Version).Track);
+
+        var published = await repository.PublishAsync(
+            project.Id,
+            initial.Id,
+            expectedDevelopmentVersion: developmentV2.Version,
+            remark: null);
+        Assert.True(published.IsCommitted);
+        Assert.Equal(3, published.Version!.Version);
+        Assert.Equal(FlowVersionTrackDto.Production, published.Version.Track);
+        Assert.Equal("由开发版本 v2 发布", published.Version.Remark);
+
+        var developmentV4 = await repository.TryUpdateAsync(
+            project.Id,
+            developmentV2 with { Checksum = "development-v4" },
+            expectedVersion: developmentV2.Version);
+        Assert.NotNull(developmentV4);
+        Assert.Equal(4, developmentV4!.Version);
+
+        var productionRollback = await repository.RollbackAsync(
+            project.Id,
+            initial.Id,
+            sourceVersion: published.Version.Version,
+            FlowVersionTrackDto.Production,
+            expectedHeadVersion: published.Version.Version);
+        Assert.True(productionRollback.IsCommitted);
+        Assert.Equal(5, productionRollback.Version!.Version);
+        Assert.Equal("由生产版本 v3 回滚", productionRollback.Version.Remark);
+
+        var developmentRollback = await repository.RollbackAsync(
+            project.Id,
+            initial.Id,
+            sourceVersion: initial.Version,
+            FlowVersionTrackDto.Development,
+            expectedHeadVersion: developmentV4.Version);
+        Assert.True(developmentRollback.IsCommitted);
+        Assert.Equal(6, developmentRollback.Version!.Version);
+        Assert.Equal("由开发版本 v1 回滚", developmentRollback.Version.Remark);
+
+        var currentDevelopment = await repository.FindAsync(project.Id, initial.Id);
+        var currentProduction = await repository.FindProductionDefinitionAsync(project.Id, initial.Id);
+        Assert.Equal(6, currentDevelopment!.Version);
+        Assert.Equal(initial.Checksum, currentDevelopment.Checksum);
+        Assert.Equal(5, currentProduction!.Version);
+        Assert.Equal("development-v2", currentProduction.Checksum);
+        Assert.True(await repository.IsLibraryReferencedByProductionHistoryAsync(project.Id, "library-orders"));
+
+        var developmentHistory = await repository.ListVersionsAsync(project.Id, initial.Id, FlowVersionTrackDto.Development);
+        var productionHistory = await repository.ListVersionsAsync(project.Id, initial.Id, FlowVersionTrackDto.Production);
+        Assert.Equal([6L, 4L, 2L, 1L], developmentHistory.Select(static item => item.Version));
+        Assert.Equal([5L, 3L], productionHistory.Select(static item => item.Version));
+        Assert.True(developmentHistory[0].IsCurrent);
+        Assert.True(productionHistory[0].IsCurrent);
+    }
+
+    [Fact]
     public async Task LibraryUpgradeCommitRemovesUnusedSourceReferenceAndPreservesSourceBindings()
     {
         using var database = CreateDatabase();

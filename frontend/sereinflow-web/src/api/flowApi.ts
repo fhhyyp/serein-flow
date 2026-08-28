@@ -6,6 +6,8 @@ export type ApiCanvasLifecycle = 'main' | 'init' | 'loading' | 'exit' | 'custom'
 export type ApiConnectionKind = 'execution' | 'data'
 export type ApiDataSource = 'literal' | 'previousNode' | 'projectInput' | 'expression'
 export type FlowConcurrencyMode = 'parallel' | 'exclusiveReject'
+export type FlowVersionTrack = 'development' | 'production'
+export type FlowVersionOperation = 'created' | 'saved' | 'published' | 'rolledBack' | 'libraryUpgraded' | 'imported'
 
 export interface FlowConnectionLineTypesDto {
   execution?: FlowEdgeLineType
@@ -187,6 +189,7 @@ export interface FlowDefinitionSummaryDto {
   entryNodeId: string
   canvasCount?: number
   nodeCount?: number
+  productionVersion?: number
 }
 
 export interface ProjectWorkspaceDto {
@@ -207,6 +210,33 @@ export interface RenameProjectRequestDto {
 export interface UpdateFlowDefinitionRequestDto {
   expectedVersion: number
   definition: FlowDefinitionDto
+}
+
+export interface FlowVersionSummaryDto {
+  flowId: string
+  version: number
+  track: FlowVersionTrack
+  operation: FlowVersionOperation
+  parentVersion?: number
+  sourceVersion?: number
+  remark: string
+  createdAt?: string
+  isCurrent: boolean
+}
+
+export interface FlowVersionDetailDto {
+  version: FlowVersionSummaryDto
+  definition: FlowDefinitionDto
+}
+
+export interface PublishFlowVersionRequestDto {
+  expectedDevelopmentVersion: number
+  remark?: string
+}
+
+export interface RollbackFlowVersionRequestDto {
+  track: FlowVersionTrack
+  expectedHeadVersion: number
 }
 
 export interface RunFlowRequestDto {
@@ -320,6 +350,7 @@ export interface FlowInterfaceDto {
   isEnabled: boolean
   createdAt: string
   updatedAt: string
+  productionVersion?: number
 }
 
 export interface CreateFlowInterfaceRequestDto {
@@ -397,6 +428,31 @@ export async function loadFlow(projectId: string, flowId: string): Promise<FlowD
 
 export async function saveFlow(projectId: string, flowId: string, requestBody: UpdateFlowDefinitionRequestDto): Promise<FlowDefinitionDto> {
   return request<FlowDefinitionDto>(`/api/projects/${projectId}/flows/${flowId}`, { method: 'PUT', body: requestBody })
+}
+
+export async function listFlowVersions(projectId: string, flowId: string, track: FlowVersionTrack): Promise<FlowVersionSummaryDto[]> {
+  return request<FlowVersionSummaryDto[]>(`/api/projects/${projectId}/flows/${flowId}/versions?track=${track}`)
+}
+
+export async function getFlowVersion(projectId: string, flowId: string, version: number): Promise<FlowVersionDetailDto> {
+  return request<FlowVersionDetailDto>(`/api/projects/${projectId}/flows/${flowId}/versions/${version}`)
+}
+
+export async function publishFlowVersion(
+  projectId: string,
+  flowId: string,
+  requestBody: PublishFlowVersionRequestDto,
+): Promise<FlowVersionSummaryDto> {
+  return request<FlowVersionSummaryDto>(`/api/projects/${projectId}/flows/${flowId}/publish`, { method: 'POST', body: requestBody })
+}
+
+export async function rollbackFlowVersion(
+  projectId: string,
+  flowId: string,
+  version: number,
+  requestBody: RollbackFlowVersionRequestDto,
+): Promise<FlowVersionSummaryDto> {
+  return request<FlowVersionSummaryDto>(`/api/projects/${projectId}/flows/${flowId}/versions/${version}/rollback`, { method: 'POST', body: requestBody })
 }
 
 export async function startFlowRun(projectId: string, flowId: string, requestBody: RunFlowRequestDto = {}): Promise<FlowRunDto> {

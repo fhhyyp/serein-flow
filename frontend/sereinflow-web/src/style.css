@@ -423,6 +423,42 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .project-library-item__body strong { overflow: hidden; color: var(--ink); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .project-library-item__body span, .project-library-item__body small { overflow: hidden; color: var(--subtle); font-family: var(--mono); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .project-library-dialog__empty { margin: 0; border: 1px dashed var(--line-strong); padding: 20px 12px; color: var(--subtle); font-size: 11px; line-height: 1.5; text-align: center; }
+.flow-version-dialog-backdrop { position: fixed; z-index: 70; inset: 0; display: grid; place-items: center; padding: 18px; background: rgb(15 23 42 / 36%); }
+.flow-version-dialog { display: grid; width: min(900px, 100%); max-height: calc(100vh - 36px); grid-template-rows: auto auto minmax(0, 1fr); overflow: hidden; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); box-shadow: 0 24px 64px rgb(15 23 42 / 24%); }
+.flow-version-dialog > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; border-bottom: 1px solid var(--line); padding: 17px 18px 14px; }
+.flow-version-dialog > header h2 { margin: 5px 0 0; color: var(--ink); font-size: 17px; }
+.flow-version-dialog > header .eyebrow { display: inline-flex; align-items: center; gap: 5px; margin: 0; color: var(--subtle); font-family: var(--mono); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
+.flow-version-dialog__tabs { display: flex; min-height: 42px; border-bottom: 1px solid var(--line); background: #fbfcfd; }
+.flow-version-dialog__tabs button { display: inline-flex; min-width: 0; align-items: center; gap: 7px; border: 0; border-bottom: 2px solid transparent; padding: 0 16px; background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease; }
+.flow-version-dialog__tabs button:hover { background: var(--canvas); color: var(--ink); }
+.flow-version-dialog__tabs button.active { border-bottom-color: var(--accent); color: var(--accent-strong); font-weight: 600; }
+.flow-version-dialog__tabs code { color: var(--subtle); font-family: var(--mono); font-size: 11px; }
+.flow-version-dialog__error { margin: 0; border-bottom: 1px solid #f2c4c0; padding: 9px 18px; background: #fff7f6; color: var(--danger); font-size: 12px; line-height: 1.45; }
+.flow-version-dialog__content { display: grid; min-width: 0; min-height: 360px; grid-template-columns: minmax(270px, .8fr) minmax(0, 1.2fr); overflow: hidden; }
+.flow-version-list { display: grid; min-width: 0; min-height: 0; align-content: start; overflow-y: auto; border-right: 1px solid var(--line); padding: 7px; background: var(--canvas); }
+.flow-version-list__item { display: grid; min-width: 0; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 9px; border: 1px solid transparent; border-left: 2px solid var(--line-strong); padding: 9px 8px; background: transparent; color: var(--muted); cursor: pointer; text-align: left; transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease; }
+.flow-version-list__item:hover { border-color: var(--line); background: var(--surface); color: var(--ink); }
+.flow-version-list__item.selected { border-color: var(--accent); border-left-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
+.flow-version-list__item.current { border-left-color: var(--success); }
+.flow-version-list__version { color: inherit; font-family: var(--mono); font-size: 12px; font-weight: 600; }
+.flow-version-list__copy { display: grid; min-width: 0; gap: 2px; }
+.flow-version-list__copy strong, .flow-version-list__copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flow-version-list__copy strong { color: inherit; font-size: 12px; font-weight: 600; }
+.flow-version-list__copy small { color: var(--subtle); font-size: 11px; }
+.flow-version-list__current { border: 1px solid #a8d7b7; padding: 2px 4px; background: var(--success-soft); color: var(--success); font-size: 10px; font-weight: 600; }
+.flow-version-detail { display: grid; min-width: 0; min-height: 0; align-content: start; gap: 15px; overflow-y: auto; padding: 18px; background: var(--surface); }
+.flow-version-dialog__state { display: flex; min-height: 100%; align-items: center; justify-content: center; gap: 8px; margin: 0; padding: 22px; color: var(--subtle); font-size: 12px; line-height: 1.5; text-align: center; }
+.flow-version-detail__header { display: flex; min-width: 0; align-items: flex-start; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); padding-bottom: 13px; }
+.flow-version-detail__header > div { display: grid; gap: 3px; }
+.flow-version-detail__header span { color: var(--subtle); font-family: var(--mono); font-size: 11px; }
+.flow-version-detail__header strong { color: var(--ink); font-family: var(--mono); font-size: 18px; }
+.flow-version-detail__facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; margin: 0; }
+.flow-version-detail__facts div { display: grid; min-width: 0; gap: 3px; }
+.flow-version-detail__facts dt, .flow-version-detail__remark > span { color: var(--subtle); font-family: var(--mono); font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
+.flow-version-detail__facts dd { min-width: 0; margin: 0; overflow: hidden; color: var(--ink); font-size: 12px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.flow-version-detail__facts code { font-family: var(--mono); font-size: 11px; }
+.flow-version-detail__remark { display: grid; gap: 6px; border-top: 1px solid var(--line); padding-top: 13px; }
+.flow-version-detail__remark p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
 .library-upgrade-dialog-backdrop { position: fixed; z-index: 50; inset: 0; display: grid; place-items: center; padding: 18px; background: rgb(15 23 42 / 42%); }
 .library-upgrade-dialog { display: grid; width: min(1120px, 100%); max-height: min(780px, calc(100vh - 36px)); grid-template-rows: auto auto minmax(0, 1fr) auto; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); box-shadow: 0 28px 72px rgb(15 23 42 / 24%); }
 .library-upgrade-dialog > header, .library-upgrade-dialog > footer { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; border-bottom: 1px solid var(--line); padding: 18px 20px; }
@@ -577,7 +613,9 @@ h2 { overflow-wrap: anywhere; }
 .footer-link:hover { color: var(--accent); }
 
 .canvas-toolbar { display: flex; min-height: 48px; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); padding: 8px 16px; background: var(--surface); }
-.version-pill { border: 1px solid var(--line); border-radius: 2px; padding: 2px 5px; color: var(--muted); font-family: var(--mono); font-size: 12px; }
+.version-pill { border: 1px solid var(--line); border-radius: 2px; padding: 2px 5px; color: var(--muted); font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+.version-pill--development { border-color: #b5d9ed; background: #f1f9fd; color: var(--accent-strong); }
+.version-pill--production { border-color: #a8d7b7; background: var(--success-soft); color: var(--success); }
 .canvas-tab-row { display: flex; min-width: 0; align-items: center; gap: 3px; }
 .canvas-tabs { display: flex; min-width: 0; max-width: 100%; gap: 2px; overflow-x: auto; }
 .canvas-tabs button { height: 28px; border: 0; border-bottom: 2px solid transparent; padding: 0 9px; background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; font-weight: 500; white-space: nowrap; transition: border-color 180ms ease, color 180ms ease; }
@@ -1184,6 +1222,12 @@ h2 { overflow-wrap: anywhere; }
   .project-library-dialog__content { grid-template-columns: 1fr; }
   .project-library-dialog__content > section { padding: 15px 14px 18px; }
   .project-library-dialog__content > section + section { border-top: 1px solid var(--line); border-left: 0; }
+  .flow-version-dialog-backdrop { padding: 10px; }
+  .flow-version-dialog { width: 100%; max-height: calc(100vh - 20px); }
+  .flow-version-dialog > header { padding: 14px; }
+  .flow-version-dialog__content { min-height: 0; grid-template-rows: minmax(180px, 34vh) minmax(250px, 1fr); grid-template-columns: 1fr; overflow-y: auto; }
+  .flow-version-list { min-height: 180px; max-height: 34vh; border-right: 0; border-bottom: 1px solid var(--line); }
+  .flow-version-detail { min-height: 250px; overflow: visible; padding: 14px; }
   .library-upgrade-dialog-backdrop { padding: 10px; }
   .library-upgrade-dialog { max-height: calc(100vh - 20px); }
   .library-upgrade-dialog > header, .library-upgrade-dialog > footer { padding: 14px; }

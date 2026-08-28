@@ -40,6 +40,7 @@ public sealed class RunApplicationService
         FlowRunExecutionKind executionKind = FlowRunExecutionKind.Production,
         Guid? debugSessionId = null,
         IReadOnlyCollection<string>? breakpointNodeIds = null,
+        FlowDefinitionDto? definitionOverride = null,
         CancellationToken cancellationToken = default)
     {
         var project = await _projects.FindAsync(projectId, cancellationToken);
@@ -48,7 +49,10 @@ public sealed class RunApplicationService
         if (project.Status == ProjectStatus.Archived)
             return RunPreparationResult.ProjectArchived;
 
-        var definition = await _flows.FindAsync(projectId, flowId, cancellationToken);
+        if (definitionOverride is not null && definitionOverride.Id != flowId)
+            return RunPreparationResult.FlowNotFound;
+
+        var definition = definitionOverride ?? await _flows.FindAsync(projectId, flowId, cancellationToken);
         if (definition is null)
             return RunPreparationResult.FlowNotFound;
 

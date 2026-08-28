@@ -14,12 +14,19 @@ import '@vue-flow/core/dist/theme-default.css'
 import NodeLibraryPanel from './components/library/NodeLibraryPanel.vue'
 import ProjectLibraryDialog from './components/library/ProjectLibraryDialog.vue'
 import CommandBar from './components/workspace/CommandBar.vue'
+import FlowVersionHistoryDialog from './components/workspace/FlowVersionHistoryDialog.vue'
 import MobileWorkspaceTabs from './components/workspace/MobileWorkspaceTabs.vue'
 import OutputPanel from './components/workspace/OutputPanel.vue'
 import CanvasPanel from './components/canvas/CanvasPanel.vue'
 import InspectorPanel from './components/inspector/InspectorPanel.vue'
 import RunConsole from './components/runs/RunConsole.vue'
-import type { FlowConcurrencyMode, FlowValidationDiagnostic, ProjectWorkspaceDto } from './api/flowApi'
+import {
+  publishFlowVersion,
+  type FlowConcurrencyMode,
+  type FlowValidationDiagnostic,
+  type FlowVersionSummaryDto,
+  type ProjectWorkspaceDto,
+} from './api/flowApi'
 import { locale, setLocale, t, type Locale } from './i18n'
 import {
   normalizeConnectionLineTypes,
@@ -113,11 +120,21 @@ const isRestoringWorkspace = ref(false)
 const isSwitchingCanvas = ref(false)
 const workspaceView = ref<'console' | 'editor'>('console')
 const runPolicy = ref<{ concurrencyMode: FlowConcurrencyMode }>({ concurrencyMode: 'parallel' })
+const flowVersionHistoryOpen = ref(false)
+const isVersionPublishing = ref(false)
 
 const currentProjectFlows = computed(() =>
   projectId.value
     ? projectWorkspaces.value.find((workspace) => workspace.project.id === projectId.value)?.flows ?? []
     : [])
+const productionVersion = computed(() => currentProjectFlows.value.find((flow) => flow.id === flowId.value)?.productionVersion)
+const canViewVersions = computed(() => Boolean(projectId.value && flowId.value && !isWorkspaceLoading.value))
+const canMutateVersions = computed(() => canViewVersions.value
+  && !isDirty.value
+  && !isSaving.value
+  && !isDebugActive.value
+  && !isVersionPublishing.value)
+const canPublishVersion = computed(() => canMutateVersions.value && !flowVersionHistoryOpen.value)
 
 function iconForNodeKind(kind: NodeKind) {
   if (kind === 'flipflop') {
@@ -491,6 +508,46 @@ function updateActiveProjectDirectory(workspaces: ProjectWorkspaceDto[]): void {
   projectWorkspaces.value = workspaces
 }
 
+function updateCurrentFlowVersionSummary(version: FlowVersionSummaryDto): void {
+  if (!projectId.value || !flowId.value) return
+  projectWorkspaces.value = projectWorkspaces.value.map((workspace) => workspace.project.id === projectId.value
+    ? {
+        ...workspace,
+        flows: workspace.flows.map((flow) => flow.id === flowId.value
+          ? version.track === 'development'
+            ? { ...flow, version: version.version }
+            : { ...flow, productionVersion: version.version }
+          : flow),
+      }
+    : workspace)
+}
+
+async function publishCurrentFlowVersion(): Promise<void> {
+  if (!projectId.value || !flowId.value || !canPublishVersion.value) return
+
+  isVersionPublishing.value = true
+  try {
+    const published = await publishFlowVersion(projectId.value, flowId.value, {
+      expectedDevelopmentVersion: flowVersion.value,
+    })
+    updateCurrentFlowVersionSummary(published)
+    notice.value = t('version.published', { version: published.version })
+  } catch {
+    notice.value = t('version.publishFailed')
+  } finally {
+    isVersionPublishing.value = false
+  }
+}
+
+async function handleFlowVersionChanged(version: FlowVersionSummaryDto): Promise<void> {
+  updateCurrentFlowVersionSummary(version)
+  if (version.track === 'development' && projectId.value && flowId.value) {
+    const workspace = projectWorkspaces.value.find((item) => item.project.id === projectId.value)
+    if (workspace) await loadProject(workspace, flowId.value)
+  }
+  notice.value = t('version.rolledBack', { version: version.version })
+}
+
 function findNode(nodeId: string): FlowNode | undefined {
   return canvases.value.flatMap((canvas) => canvas.nodes).find((node) => node.id === nodeId)
 }
@@ -752,6 +809,7 @@ function setLanguage(nextLocale: Locale): void {
     <CommandBar
       :project-name="projectName"
       :flow-version="flowVersion"
+      :production-version="productionVersion"
       :project-workspaces="projectWorkspaces"
       :project-id="projectId"
       :project-menu-open="projectMenuOpen"
@@ -770,6 +828,8 @@ function setLanguage(nextLocale: Locale): void {
       :is-debug-controlling="isDebugControlling"
       :is-debug-stopping="isDebugStopping"
       :can-start-debug="canStartDebug"
+      :can-view-versions="canViewVersions"
+      :can-manage-versions="canPublishVersion"
       :language-menu-open="languageMenuOpen"
       :locale="locale"
       :node-count="nodes.length"
@@ -793,6 +853,8 @@ function setLanguage(nextLocale: Locale): void {
       @toggle-language-menu="languageMenuOpen = !languageMenuOpen"
       @set-language="setLanguage"
       @show-run-console="workspaceView = 'console'"
+      @show-version-history="flowVersionHistoryOpen = true"
+      @publish-version="publishCurrentFlowVersion"
       @update-concurrency-mode="updateConcurrencyMode"
     />
 
@@ -923,6 +985,16 @@ function setLanguage(nextLocale: Locale): void {
       :flows="currentProjectFlows"
       @close="projectLibraryOpen = false"
       @changed="replaceProjectLibraries"
+    />
+    <FlowVersionHistoryDialog
+      v-if="workspaceView === 'editor' && flowVersionHistoryOpen && projectId && flowId"
+      :project-id="projectId"
+      :flow-id="flowId"
+      :development-version="flowVersion"
+      :production-version="productionVersion"
+      :can-mutate="canMutateVersions"
+      @close="flowVersionHistoryOpen = false"
+      @changed="handleFlowVersionChanged"
     />
     <OutputPanel
       v-if="workspaceView === 'editor'"

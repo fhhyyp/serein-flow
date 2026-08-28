@@ -141,7 +141,7 @@ public sealed class FlowDebugSessionService : IHostedService
             FlowRunExecutionKind.Debug,
             debugSessionId,
             breakpointNodeIds,
-            cancellationToken);
+            cancellationToken: cancellationToken);
         if (!preparation.IsSuccess)
         {
             return new FlowDebugSessionStartResult(

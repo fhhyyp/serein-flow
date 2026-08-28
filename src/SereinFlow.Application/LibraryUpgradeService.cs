@@ -224,12 +224,8 @@ public sealed class LibraryUpgradeService
             upgraded,
             request.ExpectedFlowVersion,
             target.Id,
-            new LibraryUpgradePlanFlowResultDto(
-                flow.Id,
-                request.ExpectedFlowVersion,
-                request.ExpectedFlowVersion + 1,
-                DateTimeOffset.UtcNow),
-            cancellationToken);
+            appliedFlow: null,
+            cancellationToken: cancellationToken);
         if (!commit.IsCommitted)
         {
             return new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(

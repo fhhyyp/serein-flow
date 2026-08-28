@@ -64,6 +64,22 @@ public enum FlowRunExecutionKindDto
     Debug
 }
 
+public enum FlowVersionTrackDto
+{
+    Development,
+    Production
+}
+
+public enum FlowVersionOperationDto
+{
+    Created,
+    Saved,
+    Published,
+    RolledBack,
+    LibraryUpgraded,
+    Imported
+}
+
 public enum FlowDebugSessionStatusDto
 {
     Pending,
@@ -160,7 +176,8 @@ public sealed record FlowDefinitionSummaryDto(
     long Version,
     string EntryNodeId,
     int CanvasCount = 0,
-    int NodeCount = 0);
+    int NodeCount = 0,
+    long? ProductionVersion = null);
 
 public sealed record ProjectWorkspaceDto(ProjectDto Project, IReadOnlyList<FlowDefinitionSummaryDto> Flows);
 
@@ -169,6 +186,23 @@ public sealed record CreateProjectRequestDto(string Name, FlowDefinitionDto Defi
 public sealed record RenameProjectRequestDto(string Name, long ExpectedVersion);
 
 public sealed record UpdateFlowDefinitionRequestDto(long ExpectedVersion, FlowDefinitionDto Definition);
+
+public sealed record FlowVersionSummaryDto(
+    Guid FlowId,
+    long Version,
+    FlowVersionTrackDto Track,
+    FlowVersionOperationDto Operation,
+    long? ParentVersion,
+    long? SourceVersion,
+    string Remark,
+    DateTimeOffset? CreatedAt,
+    bool IsCurrent);
+
+public sealed record FlowVersionDetailDto(FlowVersionSummaryDto Version, FlowDefinitionDto Definition);
+
+public sealed record PublishFlowVersionRequestDto(long ExpectedDevelopmentVersion, string? Remark = null);
+
+public sealed record RollbackFlowVersionRequestDto(FlowVersionTrackDto Track, long ExpectedHeadVersion);
 
 public sealed record RunFlowRequestDto(
     long? ExpectedFlowVersion,
@@ -642,7 +676,8 @@ public sealed record FlowInterfaceDto(
     FlowInvocationModeDto InvocationMode,
     bool IsEnabled,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    long? ProductionVersion = null);
 
 public sealed record CreateFlowInterfaceRequestDto(
     Guid ProjectId,

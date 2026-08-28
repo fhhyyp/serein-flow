@@ -5,6 +5,7 @@ import {
   Check,
   Bug,
   ChevronDown,
+  History,
   Languages,
   Pencil,
   Play,
@@ -15,6 +16,7 @@ import {
   StepForward,
   Settings,
   Square,
+  Upload,
   X,
 } from 'lucide-vue-next'
 import { t, type Locale } from '../../i18n'
@@ -25,6 +27,7 @@ const policyMenuOpen = ref(false)
 const props = defineProps<{
   projectName: string
   flowVersion: number
+  productionVersion?: number
   projectWorkspaces: ProjectWorkspaceDto[]
   projectId?: string
   projectMenuOpen: boolean
@@ -43,6 +46,8 @@ const props = defineProps<{
   isDebugControlling: boolean
   isDebugStopping: boolean
   canStartDebug: boolean
+  canViewVersions: boolean
+  canManageVersions: boolean
   languageMenuOpen: boolean
   locale: Locale
   nodeCount: number
@@ -69,6 +74,8 @@ const emit = defineEmits<{
   'toggle-language-menu': []
   'set-language': [locale: Locale]
   'show-run-console': []
+  'show-version-history': []
+  'publish-version': []
   'update-concurrency-mode': [mode: FlowConcurrencyMode]
 }>()
 
@@ -93,7 +100,8 @@ function selectConcurrencyMode(mode: FlowConcurrencyMode): void {
           <button class="project-picker" type="button" :title="t('command.switchProject')" :aria-expanded="props.projectMenuOpen" @click="emit('toggle-project-menu')">
             <span>{{ props.projectName }}</span><ChevronDown :size="14" />
           </button>
-          <span class="version-pill">v{{ props.flowVersion }}</span>
+          <span class="version-pill version-pill--development" :title="t('version.track.development')">D v{{ props.flowVersion }}</span>
+          <span class="version-pill version-pill--production" :title="t('version.track.production')">P {{ props.productionVersion ? `v${props.productionVersion}` : '—' }}</span>
           <button class="project-rename-button" type="button" :title="t('project.rename')" :aria-label="t('project.rename')" :disabled="props.isProjectRenaming" @click="emit('begin-project-rename')"><Pencil :size="13" /></button>
         </div>
         <div v-if="props.projectMenuOpen" class="project-popover" role="menu">
@@ -123,6 +131,8 @@ function selectConcurrencyMode(mode: FlowConcurrencyMode): void {
         <button class="icon-button" type="button" :title="t('command.undo')" :aria-label="t('command.undo')" :disabled="!props.canUndo" @click="emit('undo')"><RotateCcw :size="16" /></button>
         <button class="icon-button" type="button" :title="t('command.redo')" :aria-label="t('command.redo')" :disabled="!props.canRedo" @click="emit('redo')"><RotateCw :size="16" /></button><span class="command-divider" aria-hidden="true"></span>
         <button class="command-button quiet" type="button" :title="t('command.save')" :disabled="!props.isDirty || props.isSaving || props.isProjectRenaming || props.isWorkspaceLoading" @click="emit('save')"><Save :size="15" /><span>{{ t('command.save') }}</span></button>
+        <button class="icon-button" type="button" :title="t('version.historyTitle')" :aria-label="t('version.historyTitle')" :disabled="!props.canViewVersions" @click="emit('show-version-history')"><History :size="16" /></button>
+        <button class="icon-button" type="button" :title="t('version.publish')" :aria-label="t('version.publish')" :disabled="!props.canManageVersions" @click="emit('publish-version')"><Upload :size="16" /></button><span class="command-divider" aria-hidden="true"></span>
         <button class="command-button run" type="button" :aria-pressed="props.isRunning" :disabled="props.nodeCount === 0 || props.isWorkspaceLoading || props.isDebugActive" @click="emit('run')"><Square v-if="props.isRunning" :size="14" fill="currentColor" /><Play v-else :size="14" fill="currentColor" /><span>{{ props.isRunning ? t('command.stop') : t('command.run') }}</span></button>
         <template v-if="props.isDebugActive">
           <span class="command-debug-status" :class="{ paused: props.isDebugPaused }"><Bug :size="14" />{{ t(`debug.status.${props.isDebugStopping ? 'stopping' : props.isDebugPaused ? 'paused' : 'running'}`) }}</span>

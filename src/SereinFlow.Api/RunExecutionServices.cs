@@ -118,6 +118,24 @@ public sealed class RunSubmissionService
         Guid flowId,
         RunFlowRequestDto request,
         CancellationToken cancellationToken = default)
+        => await SubmitCoreAsync(projectId, flowId, request, definitionOverride: null, cancellationToken);
+
+    public async Task<RunSubmissionResult> SubmitDefinitionAsync(
+        Guid projectId,
+        FlowDefinitionDto definition,
+        RunFlowRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        return await SubmitCoreAsync(projectId, definition.Id, request, definition, cancellationToken);
+    }
+
+    private async Task<RunSubmissionResult> SubmitCoreAsync(
+        Guid projectId,
+        Guid flowId,
+        RunFlowRequestDto request,
+        FlowDefinitionDto? definitionOverride,
+        CancellationToken cancellationToken)
     {
         using var reservation = _queue.TryReserve();
         if (reservation is null)
@@ -129,7 +147,12 @@ public sealed class RunSubmissionService
                 new { code = "run.queue_full" });
         }
 
-        var preparation = await _runService.PrepareAsync(projectId, flowId, request, cancellationToken: cancellationToken);
+        var preparation = await _runService.PrepareAsync(
+            projectId,
+            flowId,
+            request,
+            definitionOverride: definitionOverride,
+            cancellationToken: cancellationToken);
         if (!preparation.IsSuccess)
         {
             return new RunSubmissionResult(

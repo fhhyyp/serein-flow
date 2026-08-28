@@ -21,6 +21,7 @@ public sealed class SqliteMigrator
     private const int AddLibraryUpgradePlansVersion = 14;
     private const int AddFlowDebugSessionsVersion = 15;
     private const int AddFlowDebugCommandSequenceVersion = 16;
+    private const int AddFlowVersionManagementVersion = 17;
     private readonly SqlSugarClient _client;
 
     public SqliteMigrator(SqlSugarClient client)
@@ -575,6 +576,81 @@ public sealed class SqliteMigrator
                         """);
                 }
                 RecordMigration(AddFlowDebugCommandSequenceVersion, "flow-debug-command-sequence-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
+
+        applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
+        if (!applied.Contains(AddFlowVersionManagementVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                if (HasTable("FlowDefinitionVersions"))
+                {
+                    _client.Ado.ExecuteCommand("""
+                        ALTER TABLE FlowDefinitionVersions ADD COLUMN Track TEXT NOT NULL DEFAULT 'Development';
+                        ALTER TABLE FlowDefinitionVersions ADD COLUMN Operation TEXT NOT NULL DEFAULT 'Imported';
+                        ALTER TABLE FlowDefinitionVersions ADD COLUMN ParentVersion INTEGER NULL;
+                        ALTER TABLE FlowDefinitionVersions ADD COLUMN SourceVersion INTEGER NULL;
+                        ALTER TABLE FlowDefinitionVersions ADD COLUMN Remark TEXT NOT NULL DEFAULT '';
+                        ALTER TABLE FlowDefinitionVersions ADD COLUMN CreatedAt TEXT NULL;
+                        """);
+                }
+                else
+                {
+                    _client.Ado.ExecuteCommand("""
+                        CREATE TABLE FlowDefinitionVersions (
+                            FlowId TEXT NOT NULL,
+                            Version INTEGER NOT NULL,
+                            DefinitionJson TEXT NOT NULL,
+                            Checksum TEXT NOT NULL,
+                            Track TEXT NOT NULL DEFAULT 'Development',
+                            Operation TEXT NOT NULL DEFAULT 'Imported',
+                            ParentVersion INTEGER NULL,
+                            SourceVersion INTEGER NULL,
+                            Remark TEXT NOT NULL DEFAULT '',
+                            CreatedAt TEXT NULL,
+                            PRIMARY KEY (FlowId, Version),
+                            FOREIGN KEY (FlowId) REFERENCES FlowDefinitions(Id)
+                        );
+                        """);
+                }
+                _client.Ado.ExecuteCommand("""
+                    CREATE TABLE IF NOT EXISTS FlowProductionHeads (
+                        FlowId TEXT NOT NULL PRIMARY KEY,
+                        Version INTEGER NOT NULL,
+                        UpdatedAt TEXT NOT NULL,
+                        FOREIGN KEY (FlowId) REFERENCES FlowDefinitions(Id)
+                    );
+                    CREATE TABLE IF NOT EXISTS FlowVersionCounters (
+                        FlowId TEXT NOT NULL PRIMARY KEY,
+                        NextVersion INTEGER NOT NULL,
+                        FOREIGN KEY (FlowId) REFERENCES FlowDefinitions(Id)
+                    );
+                    CREATE INDEX IF NOT EXISTS IX_FlowDefinitionVersions_Track_Version
+                    ON FlowDefinitionVersions(FlowId, Track, Version DESC);
+                    """);
+                _client.Ado.ExecuteCommand("""
+                    UPDATE FlowDefinitionVersions
+                    SET Track = 'Development',
+                        Operation = 'Imported',
+                        Remark = 'Imported historical development version'
+                    WHERE Track IS NULL OR Track = '';
+                    INSERT OR IGNORE INTO FlowVersionCounters (FlowId, NextVersion)
+                    SELECT FlowId, MAX(Version) + 1
+                    FROM FlowDefinitionVersions
+                    GROUP BY FlowId;
+                    INSERT OR IGNORE INTO FlowVersionCounters (FlowId, NextVersion)
+                    SELECT Id, Version + 1
+                    FROM FlowDefinitions;
+                    """);
+                RecordMigration(AddFlowVersionManagementVersion, "flow-version-management-v1");
                 _client.Ado.CommitTran();
             }
             catch

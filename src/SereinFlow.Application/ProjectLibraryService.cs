@@ -20,6 +20,7 @@ public sealed class ProjectLibraryService
 {
     private readonly IProjectRepository _projects;
     private readonly IFlowDefinitionRepository _flows;
+    private readonly IFlowVersionRepository? _versions;
     private readonly IProjectLibraryReferenceRepository _references;
     private readonly ILibraryCatalogService _catalog;
 
@@ -27,12 +28,14 @@ public sealed class ProjectLibraryService
         IProjectRepository projects,
         IFlowDefinitionRepository flows,
         IProjectLibraryReferenceRepository references,
-        ILibraryCatalogService catalog)
+        ILibraryCatalogService catalog,
+        IFlowVersionRepository? versions = null)
     {
         _projects = projects;
         _flows = flows;
         _references = references;
         _catalog = catalog;
+        _versions = versions;
     }
 
     public async Task<ProjectLibraryOperationResult> ListAsync(
@@ -114,6 +117,16 @@ public sealed class ProjectLibraryService
                 409,
                 "project_library.in_use",
                 "The library is used by a current project flow and cannot be removed. 该类库仍被当前项目流程使用，不能取消引用。");
+        }
+
+        if (_versions is not null
+            && await _versions.IsLibraryReferencedByProductionHistoryAsync(projectId, libraryId, cancellationToken))
+        {
+            return new ProjectLibraryOperationResult(
+                false,
+                409,
+                "project_library.in_use_by_production_history",
+                "The library is retained by production flow history and cannot be removed. 该类库仍被生产流程历史使用，不能取消引用。");
         }
 
         await _references.RemoveAsync(projectId, libraryId, cancellationToken);

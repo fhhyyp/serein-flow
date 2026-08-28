@@ -37,6 +37,7 @@ builder.Services.AddSereinFlowInfrastructure(
     builder.Configuration,
     builder.Environment.ContentRootPath);
 builder.Services.AddScoped<RunApplicationService>();
+builder.Services.AddScoped<AiReadModelService>();
 builder.Services.AddScoped<RunSubmissionService>();
 builder.Services.AddScoped<RunInterruptionService>();
 builder.Services.AddScoped<ProjectArchiveService>();
@@ -117,7 +118,12 @@ projects.MapPost("/{projectId:guid}/flows/{flowId:guid}/debug-sessions", async (
     return Results.Problem(statusCode: result.StatusCode, title: result.ErrorTitle);
 });
 
-projects.MapGet("", async (bool? includeArchived, IProjectRepository projectRepository, IFlowDefinitionRepository flowRepository, CancellationToken cancellationToken) =>
+projects.MapGet("", async (
+    bool? includeArchived,
+    IProjectRepository projectRepository,
+    IFlowDefinitionRepository flowRepository,
+    IFlowVersionRepository versionRepository,
+    CancellationToken cancellationToken) =>
 {
     var workspaceList = new List<ProjectWorkspaceDto>();
     foreach (var project in await projectRepository.ListAsync(cancellationToken))
@@ -125,9 +131,14 @@ projects.MapGet("", async (bool? includeArchived, IProjectRepository projectRepo
         if (includeArchived != true && project.Status == ProjectStatus.Archived)
             continue;
         var flows = await flowRepository.ListByProjectAsync(project.Id, cancellationToken);
-        workspaceList.Add(new ProjectWorkspaceDto(
-            ToProjectDto(project),
-            flows.Select(ToFlowSummaryDto).ToArray()));
+        var summaries = new List<FlowDefinitionSummaryDto>(flows.Count);
+        foreach (var flow in flows)
+        {
+            summaries.Add(ToFlowSummaryDto(
+                flow,
+                await versionRepository.FindProductionVersionAsync(project.Id, flow.Id, cancellationToken)));
+        }
+        workspaceList.Add(new ProjectWorkspaceDto(ToProjectDto(project), summaries));
     }
     var workspaces = workspaceList.ToArray();
     return Results.Ok(workspaces);
@@ -157,7 +168,13 @@ projects.MapPost("", async (CreateProjectRequestDto request, IProjectRepository 
     return Results.Created($"/api/projects/{project.Id:D}/flows/{request.Definition.Id:D}", workspace);
 });
 
-projects.MapPut("/{projectId:guid}", async (Guid projectId, RenameProjectRequestDto request, IProjectRepository projectRepository, IFlowDefinitionRepository flowRepository, CancellationToken cancellationToken) =>
+projects.MapPut("/{projectId:guid}", async (
+    Guid projectId,
+    RenameProjectRequestDto request,
+    IProjectRepository projectRepository,
+    IFlowDefinitionRepository flowRepository,
+    IFlowVersionRepository versionRepository,
+    CancellationToken cancellationToken) =>
 {
     if (request.ExpectedVersion < 1 || string.IsNullOrWhiteSpace(request.Name))
     {
@@ -198,9 +215,16 @@ projects.MapPut("/{projectId:guid}", async (Guid projectId, RenameProjectRequest
     }
 
     var flows = await flowRepository.ListByProjectAsync(project.Id, cancellationToken);
+    var flowSummaries = new List<FlowDefinitionSummaryDto>(flows.Count);
+    foreach (var flow in flows)
+    {
+        flowSummaries.Add(ToFlowSummaryDto(
+            flow,
+            await versionRepository.FindProductionVersionAsync(project.Id, flow.Id, cancellationToken)));
+    }
     var workspace = new ProjectWorkspaceDto(
         ToProjectDto(project),
-        flows.Select(ToFlowSummaryDto).ToArray());
+        flowSummaries);
     return Results.Ok(workspace);
 });
 
@@ -230,6 +254,150 @@ projects.MapGet("/{projectId:guid}/flows/{flowId:guid}", async (Guid projectId, 
     return flow is null
         ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Flow definition not found. 未找到流程定义。")
         : Results.Ok(flow);
+});
+
+projects.MapGet("/{projectId:guid}/flows/{flowId:guid}/versions", async (
+    Guid projectId,
+    Guid flowId,
+    string? track,
+    IProjectRepository projectRepository,
+    IFlowDefinitionRepository flowRepository,
+    IFlowVersionRepository versionRepository,
+    CancellationToken cancellationToken) =>
+{
+    if (!TryParseFlowVersionTrack(track, out var parsedTrack))
+    {
+        return Results.Problem(
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "The flow version track is invalid. 流程版本轨道无效。",
+            extensions: new Dictionary<string, object?> { ["code"] = "flow.version_track_invalid" });
+    }
+    if (await projectRepository.FindAsync(projectId, cancellationToken) is null
+        || await flowRepository.FindAsync(projectId, flowId, cancellationToken) is null)
+    {
+        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Flow definition not found. 未找到流程定义。");
+    }
+
+    return Results.Ok(await versionRepository.ListVersionsAsync(projectId, flowId, parsedTrack, cancellationToken));
+});
+
+projects.MapGet("/{projectId:guid}/flows/{flowId:guid}/versions/{version:long}", async (
+    Guid projectId,
+    Guid flowId,
+    long version,
+    IProjectRepository projectRepository,
+    IFlowDefinitionRepository flowRepository,
+    IFlowVersionRepository versionRepository,
+    CancellationToken cancellationToken) =>
+{
+    if (await projectRepository.FindAsync(projectId, cancellationToken) is null
+        || await flowRepository.FindAsync(projectId, flowId, cancellationToken) is null)
+    {
+        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Flow definition not found. 未找到流程定义。");
+    }
+
+    var item = await versionRepository.FindVersionAsync(projectId, flowId, version, cancellationToken);
+    return item is null
+        ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Flow version not found. 未找到流程版本。")
+        : Results.Ok(item);
+});
+
+projects.MapPost("/{projectId:guid}/flows/{flowId:guid}/publish", async (
+    Guid projectId,
+    Guid flowId,
+    PublishFlowVersionRequestDto request,
+    IProjectRepository projectRepository,
+    IFlowDefinitionRepository flowRepository,
+    IFlowVersionRepository versionRepository,
+    ProjectLibraryService projectLibraries,
+    CancellationToken cancellationToken) =>
+{
+    if (request.ExpectedDevelopmentVersion < 1)
+    {
+        return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "A positive development version is required. 需要有效的开发版本号。");
+    }
+
+    var project = await projectRepository.FindAsync(projectId, cancellationToken);
+    var development = await flowRepository.FindAsync(projectId, flowId, cancellationToken);
+    if (project is null || development is null)
+        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Flow definition not found. 未找到流程定义。");
+    if (project.Status == ProjectStatus.Archived)
+        return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Archived projects cannot publish flow versions. 已归档项目不能发布流程版本。");
+    if (development.Version != request.ExpectedDevelopmentVersion)
+    {
+        return Results.Problem(
+            statusCode: StatusCodes.Status409Conflict,
+            title: "The development flow version changed before publishing. 开发流程版本已变更，无法发布。",
+            extensions: new Dictionary<string, object?> { ["currentVersion"] = development.Version });
+    }
+
+    var validation = FlowDefinitionContractValidator.ValidateForExecution(development);
+    if (!validation.IsValid)
+        return Results.BadRequest(validation);
+    var libraryValidation = await projectLibraries.ValidateFlowLibrariesAsync(projectId, development, cancellationToken);
+    if (!libraryValidation.IsValid)
+        return Results.BadRequest(libraryValidation);
+
+    var published = await versionRepository.PublishAsync(
+        projectId,
+        flowId,
+        request.ExpectedDevelopmentVersion,
+        request.Remark,
+        cancellationToken);
+    return published.IsCommitted
+        ? Results.Ok(published.Version)
+        : Results.Problem(
+            statusCode: StatusCodes.Status409Conflict,
+            title: "The development flow version changed before publishing. 开发流程版本已变更，无法发布。",
+            extensions: new Dictionary<string, object?> { ["currentVersion"] = published.CurrentHeadVersion });
+});
+
+projects.MapPost("/{projectId:guid}/flows/{flowId:guid}/versions/{version:long}/rollback", async (
+    Guid projectId,
+    Guid flowId,
+    long version,
+    RollbackFlowVersionRequestDto request,
+    IProjectRepository projectRepository,
+    IFlowDefinitionRepository flowRepository,
+    IFlowVersionRepository versionRepository,
+    ProjectLibraryService projectLibraries,
+    CancellationToken cancellationToken) =>
+{
+    if (version < 1 || request.ExpectedHeadVersion < 1 || !Enum.IsDefined(request.Track))
+    {
+        return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The rollback request is invalid. 回滚请求无效。");
+    }
+
+    var project = await projectRepository.FindAsync(projectId, cancellationToken);
+    if (project is null || await flowRepository.FindAsync(projectId, flowId, cancellationToken) is null)
+        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Flow definition not found. 未找到流程定义。");
+    if (project.Status == ProjectStatus.Archived)
+        return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Archived projects cannot roll back flow versions. 已归档项目不能回滚流程版本。");
+
+    var source = await versionRepository.FindVersionAsync(projectId, flowId, version, cancellationToken);
+    if (source is null || source.Version.Track != request.Track)
+        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "The requested flow version was not found on this track. 当前版本轨道中未找到要回滚的流程版本。");
+
+    var validation = FlowDefinitionContractValidator.ValidateForExecution(source.Definition);
+    if (!validation.IsValid)
+        return Results.BadRequest(validation);
+    var libraryValidation = await projectLibraries.ValidateFlowLibrariesAsync(projectId, source.Definition, cancellationToken);
+    if (!libraryValidation.IsValid)
+        return Results.BadRequest(libraryValidation);
+
+    var rolledBack = await versionRepository.RollbackAsync(
+        projectId,
+        flowId,
+        version,
+        request.Track,
+        request.ExpectedHeadVersion,
+        cancellationToken);
+    return rolledBack.IsCommitted
+        ? Results.Ok(rolledBack.Version)
+        : Results.Problem(
+            statusCode: StatusCodes.Status409Conflict,
+            title: "The flow version head changed before rollback. 流程版本头已变更，无法回滚。",
+            extensions: new Dictionary<string, object?> { ["currentVersion"] = rolledBack.CurrentHeadVersion });
 });
 
 projects.MapPut("/{projectId:guid}/flows/{flowId:guid}", async (Guid projectId, Guid flowId, UpdateFlowDefinitionRequestDto request, IProjectRepository projectRepository, IFlowDefinitionRepository flowRepository, ProjectLibraryService projectLibraries, CancellationToken cancellationToken) =>
@@ -518,13 +686,30 @@ environmentApi.MapPut("/settings", async (
     return Results.Ok(queue.Configure(saved));
 });
 
-environmentApi.MapGet("/interfaces", async (IFlowInterfaceRepository interfaces, CancellationToken cancellationToken) =>
-    Results.Ok(await interfaces.ListAsync(cancellationToken)));
+environmentApi.MapGet("/interfaces", async (
+    IFlowInterfaceRepository interfaces,
+    IFlowVersionRepository versionRepository,
+    CancellationToken cancellationToken) =>
+{
+    var items = new List<FlowInterfaceDto>();
+    foreach (var flowInterface in await interfaces.ListAsync(cancellationToken))
+    {
+        items.Add(flowInterface with
+        {
+            ProductionVersion = await versionRepository.FindProductionVersionAsync(
+                flowInterface.ProjectId,
+                flowInterface.FlowId,
+                cancellationToken),
+        });
+    }
+    return Results.Ok(items);
+});
 
 environmentApi.MapPost("/interfaces", async (
     CreateFlowInterfaceRequestDto request,
     IProjectRepository projects,
     IFlowDefinitionRepository flows,
+    IFlowVersionRepository versionRepository,
     IFlowInterfaceRepository interfaces,
     CancellationToken cancellationToken) =>
 {
@@ -554,6 +739,18 @@ environmentApi.MapPost("/interfaces", async (
             title: "Archived projects cannot be published through environment interfaces. 已归档项目不能发布为环境接口。");
     }
 
+    var productionVersion = await versionRepository.FindProductionVersionAsync(
+        request.ProjectId,
+        request.FlowId,
+        cancellationToken);
+    if (productionVersion is null)
+    {
+        return Results.Problem(
+            statusCode: StatusCodes.Status409Conflict,
+            title: "A production flow version is required before creating an environment interface. 创建环境接口前必须先发布生产流程版本。",
+            extensions: new Dictionary<string, object?> { ["code"] = "flow.production_version_required" });
+    }
+
     var now = DateTimeOffset.UtcNow;
     var flowInterface = new FlowInterfaceDto(
         Guid.NewGuid(),
@@ -563,7 +760,8 @@ environmentApi.MapPost("/interfaces", async (
         request.InvocationMode,
         request.IsEnabled,
         now,
-        now);
+        now,
+        productionVersion);
     await interfaces.AddAsync(flowInterface, cancellationToken);
     return Results.Created($"/api/environment/interfaces/{flowInterface.Id:D}", flowInterface);
 });
@@ -607,6 +805,7 @@ app.MapPost("/api/public/flows/{interfaceId:guid}/invoke", async (
     Guid interfaceId,
     PublicFlowInvocationRequestDto request,
     IFlowInterfaceRepository interfaces,
+    IFlowVersionRepository versionRepository,
     RunSubmissionService submissionService,
     IFlowRunStore runStore,
     IFlowRunOutputStore outputStore,
@@ -621,9 +820,21 @@ app.MapPost("/api/public/flows/{interfaceId:guid}/invoke", async (
             title: "The flow interface is unavailable. 流程接口不可用。");
     }
 
-    var submission = await submissionService.SubmitAsync(
+    var productionDefinition = await versionRepository.FindProductionDefinitionAsync(
         flowInterface.ProjectId,
         flowInterface.FlowId,
+        cancellationToken);
+    if (productionDefinition is null)
+    {
+        return Results.Problem(
+            statusCode: StatusCodes.Status409Conflict,
+            title: "The flow interface requires a published production version. 流程接口需要已发布的生产版本。",
+            extensions: new Dictionary<string, object?> { ["code"] = "flow.production_version_required" });
+    }
+
+    var submission = await submissionService.SubmitDefinitionAsync(
+        flowInterface.ProjectId,
+        productionDefinition,
         new RunFlowRequestDto(null, request.ProjectInputs, request.TimeoutSeconds, request.MaxSteps, request.MaxNodeVisits),
         cancellationToken);
     if (!submission.IsAccepted)
@@ -961,13 +1172,25 @@ static IResult ToDebugCommandResponse(FlowDebugSessionCommandResult result)
         ? Results.Accepted()
         : Results.Problem(statusCode: result.StatusCode, title: result.ErrorTitle);
 
-static FlowDefinitionSummaryDto ToFlowSummaryDto(FlowDefinitionDto definition)
+static FlowDefinitionSummaryDto ToFlowSummaryDto(FlowDefinitionDto definition, long? productionVersion = null)
     => new(
         definition.Id,
         definition.Version,
         definition.EntryNodeId,
         definition.Canvases.Count,
-        definition.Canvases.Sum(static canvas => canvas.Nodes.Count));
+        definition.Canvases.Sum(static canvas => canvas.Nodes.Count),
+        productionVersion);
+
+static bool TryParseFlowVersionTrack(string? value, out FlowVersionTrackDto track)
+{
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        track = FlowVersionTrackDto.Development;
+        return true;
+    }
+
+    return Enum.TryParse(value, ignoreCase: true, out track) && Enum.IsDefined(track);
+}
 
 static IResult ToRunSubmissionResponse(RunSubmissionResult submission)
 {

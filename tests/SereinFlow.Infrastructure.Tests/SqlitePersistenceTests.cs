@@ -19,6 +19,9 @@ public sealed class SqlitePersistenceTests
         Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 3"));
         Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 9"));
         Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 15"));
+        Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 17"));
+        Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'FlowProductionHeads'"));
+        Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'FlowVersionCounters'"));
         Assert.Equal(1L, database.Scalar<long>("PRAGMA foreign_keys"));
         Assert.Equal(5000L, database.Scalar<long>("PRAGMA busy_timeout"));
     }

@@ -18,6 +18,7 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
     private readonly IRepository<LibraryUpgradePlanRecord> _plans;
     private readonly IRepository<FlowDefinitionRecord> _definitions;
     private readonly IRepository<FlowDefinitionVersionRecord> _versions;
+    private readonly IRepository<FlowVersionCounterRecord> _versionCounters;
     private readonly IRepository<ProjectLibraryReferenceRecord> _references;
     private readonly IRepository<LibraryRecord> _libraries;
     private readonly IRepository<FlowLibraryBindingRecord> _bindings;
@@ -27,6 +28,7 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
         IRepository<LibraryUpgradePlanRecord> plans,
         IRepository<FlowDefinitionRecord> definitions,
         IRepository<FlowDefinitionVersionRecord> versions,
+        IRepository<FlowVersionCounterRecord> versionCounters,
         IRepository<ProjectLibraryReferenceRecord> references,
         IRepository<LibraryRecord> libraries,
         IRepository<FlowLibraryBindingRecord> bindings,
@@ -35,6 +37,7 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
         _plans = plans;
         _definitions = definitions;
         _versions = versions;
+        _versionCounters = versionCounters;
         _references = references;
         _libraries = libraries;
         _bindings = bindings;
@@ -46,6 +49,7 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
             new SqlSugarRepository<LibraryUpgradePlanRecord>(database.Client),
             new SqlSugarRepository<FlowDefinitionRecord>(database.Client),
             new SqlSugarRepository<FlowDefinitionVersionRecord>(database.Client),
+            new SqlSugarRepository<FlowVersionCounterRecord>(database.Client),
             new SqlSugarRepository<ProjectLibraryReferenceRecord>(database.Client),
             new SqlSugarRepository<LibraryRecord>(database.Client),
             new SqlSugarRepository<FlowLibraryBindingRecord>(database.Client),
@@ -115,7 +119,7 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
                 return new FlowLibraryUpgradeCommitResult(null, current.Version);
             }
 
-            var saved = upgradedDefinition with { Version = expectedVersion + 1 };
+            var saved = upgradedDefinition with { Version = await AllocateVersionAsync(upgradedDefinition.Id, token) };
             var definitionJson = JsonSerializer.Serialize(saved, JsonOptions);
             await _definitions.UpdateAsync(new FlowDefinitionRecord
             {
@@ -131,6 +135,12 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
                 Version = saved.Version,
                 DefinitionJson = definitionJson,
                 Checksum = saved.Checksum,
+                Track = FlowVersionTrackDto.Development.ToString(),
+                Operation = FlowVersionOperationDto.LibraryUpgraded.ToString(),
+                ParentVersion = expectedVersion,
+                SourceVersion = null,
+                Remark = "类库升级",
+                CreatedAt = DateTimeOffset.UtcNow.ToString("O"),
             }, token);
 
             var referenceId = CreateReferenceId(projectId, targetArtifactId);
@@ -168,11 +178,15 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
                 }, token);
             }
 
-            var result = appliedFlow ?? new LibraryUpgradePlanFlowResultDto(
+            var result = (appliedFlow ?? new LibraryUpgradePlanFlowResultDto(
                 saved.Id,
                 expectedVersion,
                 saved.Version,
-                DateTimeOffset.UtcNow);
+                DateTimeOffset.UtcNow)) with
+            {
+                PreviousVersion = expectedVersion,
+                NewVersion = saved.Version,
+            };
             var appliedFlows = (planDto.AppliedFlows ?? [])
                 .Append(result)
                 .OrderBy(item => item.FlowId)
@@ -231,7 +245,54 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
             }
         }
 
+        var projectFlowIds = currentDefinitions
+            .Select(static definition => definition.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var productionVersions = await _versions.ListAsync(cancellationToken: cancellationToken);
+        foreach (var version in productionVersions.Where(version =>
+                     projectFlowIds.Contains(version.FlowId)
+                     && string.Equals(version.Track, FlowVersionTrackDto.Production.ToString(), StringComparison.OrdinalIgnoreCase)))
+        {
+            try
+            {
+                var definition = JsonSerializer.Deserialize<FlowDefinitionDto>(version.DefinitionJson, JsonOptions);
+                if (definition is null
+                    || LibraryBindingIndex.Extract(definition).Contains(sourceArtifactId.Trim(), StringComparer.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+            }
+            catch (JsonException)
+            {
+                // A corrupt production snapshot must retain the old reference.
+                // 损坏的生产快照必须保留旧引用，不能据此判断来源类库已无用。
+                return;
+            }
+        }
+
         await _references.DeleteAsync(referenceId, cancellationToken);
+    }
+
+    private async Task<long> AllocateVersionAsync(Guid flowId, CancellationToken cancellationToken)
+    {
+        var key = flowId.ToString("D");
+        var counter = await _versionCounters.GetByIdAsync(key, cancellationToken);
+        if (counter is null)
+        {
+            var versions = await _versions.ListAsync(version => version.FlowId == key, cancellationToken);
+            var allocated = versions.Count == 0 ? 1 : checked(versions.Max(static version => version.Version) + 1);
+            await _versionCounters.AddAsync(new FlowVersionCounterRecord
+            {
+                FlowId = key,
+                NextVersion = checked(allocated + 1),
+            }, cancellationToken);
+            return allocated;
+        }
+
+        var next = Math.Max(1, counter.NextVersion);
+        counter.NextVersion = checked(next + 1);
+        await _versionCounters.UpdateAsync(counter, cancellationToken);
+        return next;
     }
 
     private static LibraryUpgradePlanRecord ToRecord(LibraryUpgradePlanDto plan)

@@ -34,6 +34,27 @@ public sealed class FlowDefinitionVersionRecord
     [SugarColumn(IsPrimaryKey = true)] public long Version { get; set; }
     public string DefinitionJson { get; set; } = string.Empty;
     public string Checksum { get; set; } = string.Empty;
+    public string Track { get; set; } = "Development";
+    public string Operation { get; set; } = "Imported";
+    public long? ParentVersion { get; set; }
+    public long? SourceVersion { get; set; }
+    public string Remark { get; set; } = string.Empty;
+    public string? CreatedAt { get; set; }
+}
+
+[SugarTable("FlowProductionHeads")]
+public sealed class FlowProductionHeadRecord
+{
+    [SugarColumn(IsPrimaryKey = true)] public string FlowId { get; set; } = string.Empty;
+    public long Version { get; set; }
+    public string UpdatedAt { get; set; } = string.Empty;
+}
+
+[SugarTable("FlowVersionCounters")]
+public sealed class FlowVersionCounterRecord
+{
+    [SugarColumn(IsPrimaryKey = true)] public string FlowId { get; set; } = string.Empty;
+    public long NextVersion { get; set; }
 }
 
 [SugarTable("FlowRuns")]
