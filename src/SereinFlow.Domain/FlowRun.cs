@@ -9,7 +9,9 @@ public sealed class FlowRun
         long flowVersion,
         DateTimeOffset createdAt,
         FlowConcurrencyMode concurrencyMode,
-        bool isListenerRun)
+        bool isListenerRun,
+        FlowRunExecutionKind executionKind,
+        Guid? debugSessionId)
     {
         Id = id;
         ProjectId = projectId;
@@ -19,6 +21,8 @@ public sealed class FlowRun
         QueuedAt = createdAt;
         ConcurrencyMode = concurrencyMode;
         IsListenerRun = isListenerRun;
+        ExecutionKind = executionKind;
+        DebugSessionId = debugSessionId;
         Status = FlowRunStatus.Pending;
     }
 
@@ -39,6 +43,10 @@ public sealed class FlowRun
     public FlowConcurrencyMode ConcurrencyMode { get; }
 
     public bool IsListenerRun { get; }
+
+    public FlowRunExecutionKind ExecutionKind { get; }
+
+    public Guid? DebugSessionId { get; }
 
     public string? ExclusivityKey => ConcurrencyMode == FlowConcurrencyMode.ExclusiveReject
         ? FlowId.ToString("D")
@@ -78,7 +86,9 @@ public sealed class FlowRun
         DateTimeOffset createdAt,
         FlowConcurrencyMode concurrencyMode,
         bool isListenerRun,
-        Guid? id = null)
+        Guid? id = null,
+        FlowRunExecutionKind executionKind = FlowRunExecutionKind.Production,
+        Guid? debugSessionId = null)
     {
         if (flowId == Guid.Empty)
         {
@@ -90,8 +100,32 @@ public sealed class FlowRun
 
         if (!Enum.IsDefined(concurrencyMode))
             throw new ArgumentOutOfRangeException(nameof(concurrencyMode), "The flow concurrency mode is invalid. 流程并发模式无效。");
+        if (!Enum.IsDefined(executionKind))
+            throw new ArgumentOutOfRangeException(nameof(executionKind), "The flow execution kind is invalid. 流程运行类型无效。");
+        if (executionKind == FlowRunExecutionKind.Debug
+            && (!debugSessionId.HasValue || debugSessionId.Value == Guid.Empty))
+        {
+            throw new ArgumentException(
+                "Debug runs require a non-empty debug session ID. 调试运行需要非空的调试会话 ID。",
+                nameof(debugSessionId));
+        }
+        if (executionKind != FlowRunExecutionKind.Debug && debugSessionId is not null)
+        {
+            throw new ArgumentException(
+                "Only debug runs may have a debug session ID. 只有调试运行可以关联调试会话 ID。",
+                nameof(debugSessionId));
+        }
 
-        return new FlowRun(id ?? Guid.NewGuid(), projectId, flowId, flowVersion, createdAt, concurrencyMode, isListenerRun);
+        return new FlowRun(
+            id ?? Guid.NewGuid(),
+            projectId,
+            flowId,
+            flowVersion,
+            createdAt,
+            concurrencyMode,
+            isListenerRun,
+            executionKind,
+            debugSessionId);
     }
 
     public static FlowRun Rehydrate(
@@ -108,9 +142,20 @@ public sealed class FlowRun
         FlowConcurrencyMode concurrencyMode = FlowConcurrencyMode.Parallel,
         bool isListenerRun = false,
         DateTimeOffset? queuedAt = null,
-        DateTimeOffset? deadline = null)
+        DateTimeOffset? deadline = null,
+        FlowRunExecutionKind executionKind = FlowRunExecutionKind.Production,
+        Guid? debugSessionId = null)
     {
-        var run = Start(projectId, flowId, flowVersion, createdAt, concurrencyMode, isListenerRun, id);
+        var run = Start(
+            projectId,
+            flowId,
+            flowVersion,
+            createdAt,
+            concurrencyMode,
+            isListenerRun,
+            id,
+            executionKind,
+            debugSessionId);
         run.Status = status;
         run.QueuedAt = queuedAt ?? createdAt;
         run.StartedAt = startedAt;

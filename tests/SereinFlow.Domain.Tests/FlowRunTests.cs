@@ -60,4 +60,45 @@ public sealed class FlowRunTests
             "The worker was lost. Worker 已丢失。",
             DateTimeOffset.UtcNow));
     }
+
+    [Fact]
+    public void DebugRunsRequireAndRetainTheirDebugSessionIdentity()
+    {
+        var sessionId = Guid.NewGuid();
+        var run = FlowRun.Start(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            1,
+            DateTimeOffset.UtcNow,
+            FlowConcurrencyMode.Parallel,
+            false,
+            executionKind: FlowRunExecutionKind.Debug,
+            debugSessionId: sessionId);
+
+        Assert.Equal(FlowRunExecutionKind.Debug, run.ExecutionKind);
+        Assert.Equal(sessionId, run.DebugSessionId);
+        Assert.Throws<ArgumentException>(() => FlowRun.Start(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            1,
+            DateTimeOffset.UtcNow,
+            FlowConcurrencyMode.Parallel,
+            false,
+            executionKind: FlowRunExecutionKind.Debug));
+    }
+
+    [Fact]
+    public void DebugSessionRetainsTheLastAcceptedControlSequence()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var session = FlowDebugSession.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), [], now);
+        session.MarkRunning(now.AddSeconds(1));
+        session.Pause("node-a", now.AddSeconds(2));
+
+        session.AcceptCommand(4, now.AddSeconds(3));
+
+        Assert.Equal(4, session.LastCommandSequence);
+        Assert.Throws<InvalidOperationException>(() => session.AcceptCommand(4, now.AddSeconds(4)));
+        Assert.Throws<InvalidOperationException>(() => session.AcceptCommand(3, now.AddSeconds(4)));
+    }
 }

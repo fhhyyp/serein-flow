@@ -12,17 +12,23 @@ public sealed class FlowRunner
     private readonly NodeExecutorRegistry _executors;
     private readonly IRunEventPublisher _eventPublisher;
     private readonly DataConnectionResolver _dataResolver;
+    private readonly IExecutionGate _executionGate;
+    private readonly DebugInvocationScheduler? _debugInvocationScheduler;
 
     public FlowRunner(
         ExecutionPlanBuilder planBuilder,
         NodeExecutorRegistry executors,
         IRunEventPublisher? eventPublisher = null,
-        DataConnectionResolver? dataResolver = null)
+        DataConnectionResolver? dataResolver = null,
+        IExecutionGate? executionGate = null,
+        DebugInvocationScheduler? debugInvocationScheduler = null)
     {
         _planBuilder = planBuilder;
         _executors = executors;
         _eventPublisher = eventPublisher ?? new NullRunEventPublisher();
         _dataResolver = dataResolver ?? new DataConnectionResolver();
+        _executionGate = executionGate ?? NoopExecutionGate.Instance;
+        _debugInvocationScheduler = debugInvocationScheduler;
 
         foreach (var flowCall in executors.GetAll().OfType<IFlowCallExecutorConfiguration>())
             flowCall.Configure(ExecuteFlowCallAsync);
@@ -42,47 +48,56 @@ public sealed class FlowRunner
         var plan = _planBuilder.Build(definition);
         session.AttachPlan(plan);
 
-        var globalFlipflops = plan.Nodes.Values
-            .Where(node => node.Type == NodeType.Flipflop && !plan.HasIncomingExecution(node.Id))
-            .ToArray();
-        var globalTasks = globalFlipflops
-            .Select(node => RunGlobalFlipflopAsync(node, plan, session, linkedCancellation.Token))
-            .ToArray();
-
-        var mainResult = string.IsNullOrWhiteSpace(definition.EntryNodeId)
-            ? NodeExecutionResult.Success()
-            : plan.Nodes.TryGetValue(definition.EntryNodeId, out var entry)
-                && entry.Type == NodeType.Flipflop
-                && globalFlipflops.Any(node => node.Id == entry.Id)
-                ? NodeExecutionResult.Success()
-                : await RunStackAsync(definition.EntryNodeId, plan, session, linkedCancellation.Token);
-
-        if (globalTasks.Length > 0)
+        try
         {
-            try
+
+            var globalFlipflops = plan.Nodes.Values
+                .Where(node => node.Type == NodeType.Flipflop && !plan.HasIncomingExecution(node.Id))
+                .ToArray();
+            var globalTasks = globalFlipflops
+                .Select(node => RunGlobalFlipflopAsync(node, plan, session, linkedCancellation.Token))
+                .ToArray();
+
+            var mainResult = string.IsNullOrWhiteSpace(definition.EntryNodeId)
+                ? NodeExecutionResult.Success()
+                : plan.Nodes.TryGetValue(definition.EntryNodeId, out var entry)
+                    && entry.Type == NodeType.Flipflop
+                    && globalFlipflops.Any(node => node.Id == entry.Id)
+                    ? NodeExecutionResult.Success()
+                    : await RunStackAsync(definition.EntryNodeId, plan, session, linkedCancellation.Token);
+
+            if (globalTasks.Length > 0)
             {
-                var globalResults = await Task.WhenAll(globalTasks);
-                var globalFailure = globalResults.FirstOrDefault(result => !result.IsSuccess);
-                if (globalFailure is not null)
+                try
                 {
-                    if (globalFailure.ErrorCode == "worker.cancelled" && linkedCancellation.IsCancellationRequested)
-                        throw new OperationCanceledException(linkedCancellation.Token);
-                    return globalFailure;
+                    var globalResults = await Task.WhenAll(globalTasks);
+                    var globalFailure = globalResults.FirstOrDefault(result => !result.IsSuccess);
+                    if (globalFailure is not null)
+                    {
+                        if (globalFailure.ErrorCode == "worker.cancelled" && linkedCancellation.IsCancellationRequested)
+                            throw new OperationCanceledException(linkedCancellation.Token);
+                        return globalFailure;
+                    }
+                }
+                catch (OperationCanceledException) when (linkedCancellation.IsCancellationRequested)
+                {
+                    throw;
                 }
             }
-            catch (OperationCanceledException) when (linkedCancellation.IsCancellationRequested)
-            {
-                throw;
-            }
-        }
 
-        // A listener can observe cancellation before entering its wait loop
-        // and finish without throwing. Preserve the run lifecycle outcome in
-        // that narrow race instead of reporting a successful flow run.
-        // 监听器可能在进入等待循环前观察到取消并正常结束；此时仍应保留运行的取消终态，
-        // 不能误报为成功。
-        linkedCancellation.Token.ThrowIfCancellationRequested();
-        return mainResult;
+            // A listener can observe cancellation before entering its wait loop
+            // and finish without throwing. Preserve the run lifecycle outcome in
+            // that narrow race instead of reporting a successful flow run.
+            // 监听器可能在进入等待循环前观察到取消并正常结束；此时仍应保留运行的取消终态，
+            // 不能误报为成功。
+            linkedCancellation.Token.ThrowIfCancellationRequested();
+            return mainResult;
+        }
+        finally
+        {
+            if (_debugInvocationScheduler is not null)
+                await _debugInvocationScheduler.StopAndDrainAsync();
+        }
     }
 
     public ValueTask<NodeExecutionResult> RunFromNodeAsync(
@@ -124,6 +139,24 @@ public sealed class FlowRunner
             try
             {
                 inputs = _dataResolver.Resolve(node, plan, session);
+                var gateDecision = await _executionGate.BeforeNodeAsync(
+                    new NodeExecutionBoundary(
+                        session.RunId,
+                        node.Id,
+                        node.Type,
+                        session.StepCount,
+                        CopyInputs(inputs),
+                        session.FrameDepth,
+                        session.InvocationId),
+                    cancellationToken);
+                if (gateDecision == ExecutionGateDecision.Cancel)
+                {
+                    session.Cancel();
+                    throw new OperationCanceledException(
+                        "The debug execution was cancelled. 调试执行已取消。",
+                        session.CancellationToken);
+                }
+
                 var executor = _executors.Get(node.Type);
                 lastResult = await executor.ExecuteAsync(CreateExecutionRequest(node, plan, session, inputs), cancellationToken);
                 lastResult = AttachInputs(lastResult, inputs);
@@ -224,44 +257,100 @@ public sealed class FlowRunner
                     return NodeExecutionResult.Error(limitError!, "The global Flipflop execution limit was exceeded. 全局 Flipflop 执行限制已超出。");
                 }
 
-                // Every trigger event gets an isolated value context.  The
-                // child shares only the run-wide step/sequence budget, while
-                // its inputs and downstream outputs cannot overwrite another
-                // trigger instance or the ordinary entry flow.
-                await using var triggerSession = session.CreateChild();
-
-                await PublishAsync(session, "node.started", node.Id, new Dictionary<string, object?>
+                // Every trigger gets an isolated value context. In debug mode
+                // the child outlives this listener-loop iteration because its
+                // downstream work is owned by the FIFO scheduler.
+                // 每次触发都有隔离值上下文。调试模式下，子会话会跨越本次监听循环，
+                // 因为其下游工作由 FIFO 调度器拥有。
+                var invocationId = _debugInvocationScheduler is null ? (Guid?)null : Guid.NewGuid();
+                var triggerSession = session.CreateChild(invocationId);
+                var triggerSessionOwnedByListener = true;
+                try
                 {
-                    ["global"] = true,
-                    ["step"] = session.StepCount
-                });
-                inputs = _dataResolver.Resolve(node, plan, triggerSession);
-                var result = await trigger.WaitForTriggerAsync(CreateExecutionRequest(node, plan, triggerSession, inputs), cancellationToken);
-                result = AttachInputs(result, inputs);
-                foreach (var output in result.Outputs)
-                    triggerSession.Write($"{node.Id}.{output.Key}", output.Value);
-                if (result.Outputs.Count == 1)
-                    triggerSession.Write($"{node.Id}.data-out", result.Outputs.Values.First());
+                    await PublishAsync(session, "node.started", node.Id, new Dictionary<string, object?>
+                    {
+                        ["global"] = true,
+                        ["step"] = session.StepCount
+                    });
+                    inputs = _dataResolver.Resolve(node, plan, triggerSession);
+                    var result = await trigger.WaitForTriggerAsync(CreateExecutionRequest(node, plan, triggerSession, inputs), cancellationToken);
+                    result = AttachInputs(result, inputs);
+                    foreach (var output in result.Outputs)
+                        triggerSession.Write($"{node.Id}.{output.Key}", output.Value);
+                    if (result.Outputs.Count == 1)
+                        triggerSession.Write($"{node.Id}.data-out", result.Outputs.Values.First());
 
-                await PublishAsync(
-                    session,
-                    result.IsSuccess
-                        ? "node.completed"
-                        : result.NextBranch == ExecutionBranch.Error ? "node.error" : "node.failed",
-                    node.Id,
-                    new Dictionary<string, object?>
+                    await PublishAsync(
+                        session,
+                        result.IsSuccess
+                            ? "node.completed"
+                            : result.NextBranch == ExecutionBranch.Error ? "node.error" : "node.failed",
+                        node.Id,
+                        new Dictionary<string, object?>
+                    {
+                        ["global"] = true,
+                        ["success"] = result.IsSuccess,
+                        ["branch"] = result.NextBranch.ToString(),
+                        ["errorCode"] = result.ErrorCode,
+                        ["errorMessage"] = result.ErrorMessage,
+                        ["inputs"] = result.Inputs ?? inputs,
+                        ["outputs"] = result.Outputs
+                    });
+
+                    if (_debugInvocationScheduler is null)
+                    {
+                        foreach (var connection in plan.GetOutgoing(node.Id, result.NextBranch))
+                            await RunStackAsync(connection.ToNodeId, plan, triggerSession, cancellationToken);
+                    }
+                    else
+                    {
+                        var debugInputs = CopyInputs(result.Inputs ?? inputs);
+                        await PublishAsync(session, "debug.trigger.received", node.Id, new Dictionary<string, object?>
+                        {
+                            ["triggerInvocationId"] = invocationId,
+                            ["flipflopNodeId"] = node.Id,
+                            ["inputs"] = debugInputs
+                        });
+                        if (_debugInvocationScheduler.TrySchedule(
+                            () => ExecuteScheduledTriggerAsync(
+                                node,
+                                plan,
+                                session,
+                                triggerSession,
+                                result.NextBranch,
+                                debugInputs,
+                                cancellationToken),
+                            () => triggerSession.DisposeAsync().AsTask(),
+                            out var queuePosition))
+                        {
+                            triggerSessionOwnedByListener = false;
+                            if (queuePosition > 0)
+                            {
+                                await PublishAsync(session, "debug.trigger.queued", node.Id, new Dictionary<string, object?>
+                                {
+                                    ["triggerInvocationId"] = invocationId,
+                                    ["flipflopNodeId"] = node.Id,
+                                    ["queuePosition"] = queuePosition
+                                });
+                            }
+                        }
+                        else
+                        {
+                            await PublishAsync(session, "debug.trigger.rejected", node.Id, new Dictionary<string, object?>
+                            {
+                                ["triggerInvocationId"] = invocationId,
+                                ["flipflopNodeId"] = node.Id,
+                                ["reason"] = "debug.trigger.queue_full",
+                                ["maximumQueuedTriggers"] = _debugInvocationScheduler.MaximumQueuedInvocations
+                            });
+                        }
+                    }
+                }
+                finally
                 {
-                    ["global"] = true,
-                    ["success"] = result.IsSuccess,
-                    ["branch"] = result.NextBranch.ToString(),
-                    ["errorCode"] = result.ErrorCode,
-                    ["errorMessage"] = result.ErrorMessage,
-                    ["inputs"] = result.Inputs ?? inputs,
-                    ["outputs"] = result.Outputs
-                });
-
-                foreach (var connection in plan.GetOutgoing(node.Id, result.NextBranch))
-                    await RunStackAsync(connection.ToNodeId, plan, triggerSession, cancellationToken);
+                    if (triggerSessionOwnedByListener)
+                        await triggerSession.DisposeAsync();
+                }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -306,6 +395,72 @@ public sealed class FlowRunner
         }
 
         return NodeExecutionResult.Success();
+    }
+
+    private async Task ExecuteScheduledTriggerAsync(
+        NodeDefinition flipflopNode,
+        ExecutionPlan plan,
+        FlowExecutionSession rootSession,
+        FlowExecutionSession triggerSession,
+        ExecutionBranch branch,
+        IReadOnlyDictionary<string, object?> inputs,
+        CancellationToken cancellationToken)
+    {
+        await using var ownedTriggerSession = triggerSession;
+        var invocationId = triggerSession.InvocationId;
+        try
+        {
+            await PublishAsync(rootSession, "debug.trigger.admitted", flipflopNode.Id, new Dictionary<string, object?>
+            {
+                ["triggerInvocationId"] = invocationId,
+                ["flipflopNodeId"] = flipflopNode.Id
+            });
+            var decision = await _executionGate.BeforeNodeAsync(
+                new NodeExecutionBoundary(
+                    rootSession.RunId,
+                    flipflopNode.Id,
+                    flipflopNode.Type,
+                    rootSession.StepCount,
+                    CopyInputs(inputs),
+                    triggerSession.FrameDepth,
+                    invocationId),
+                cancellationToken);
+            if (decision == ExecutionGateDecision.Cancel)
+            {
+                rootSession.Cancel();
+                throw new OperationCanceledException(
+                    "The debug execution was cancelled. 调试执行已取消。",
+                    rootSession.CancellationToken);
+            }
+
+            var lastResult = NodeExecutionResult.Success();
+            foreach (var connection in plan.GetOutgoing(flipflopNode.Id, branch))
+                lastResult = await RunStackAsync(connection.ToNodeId, plan, triggerSession, cancellationToken);
+
+            await PublishAsync(rootSession, "debug.trigger.completed", flipflopNode.Id, new Dictionary<string, object?>
+            {
+                ["triggerInvocationId"] = invocationId,
+                ["flipflopNodeId"] = flipflopNode.Id,
+                ["success"] = lastResult.IsSuccess,
+                ["branch"] = lastResult.NextBranch.ToString(),
+                ["errorCode"] = lastResult.ErrorCode,
+                ["errorMessage"] = lastResult.ErrorMessage
+            });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || rootSession.CancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            await PublishAsync(rootSession, "debug.trigger.failed", flipflopNode.Id, new Dictionary<string, object?>
+            {
+                ["triggerInvocationId"] = invocationId,
+                ["flipflopNodeId"] = flipflopNode.Id,
+                ["errorCode"] = "debug.trigger.execution_failed",
+                ["errorMessage"] = exception.Message
+            });
+        }
     }
 
     private async ValueTask<NodeExecutionResult> ExecuteFlowCallAsync(

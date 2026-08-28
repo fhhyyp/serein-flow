@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, markRaw, ref, watch } from 'vue'
 import { ConnectionMode, VueFlow } from '@vue-flow/core'
-import { LockKeyhole } from 'lucide-vue-next'
+import { Bug, LockKeyhole } from 'lucide-vue-next'
 import FlowNodeCard from '../flow/FlowNodeCard.vue'
 import RunSnapshotNodeInspector from './RunSnapshotNodeInspector.vue'
 import RunSnapshotOutputViewer from './RunSnapshotOutputViewer.vue'
@@ -17,6 +17,7 @@ const props = defineProps<{
   outputsError?: string
   events: FlowRunEventDto[]
   eventsError?: string
+  isDebugRun?: boolean
 }>()
 
 const nodeTypes = markRaw({ workflow: FlowNodeCard })
@@ -136,7 +137,7 @@ function selectNode(nodeId: string): void {
           @click="activeCanvasId = canvas.id"
         >{{ canvasLabel(canvas) }}</button>
       </div>
-      <span class="run-snapshot-viewer__readonly"><LockKeyhole :size="13" />{{ t('console.snapshotReadOnlyMode') }}</span>
+      <div class="run-snapshot-viewer__mode"><span v-if="props.isDebugRun" class="run-snapshot-viewer__debug"><Bug :size="13" />{{ t('runs.kind.debug') }}</span><span class="run-snapshot-viewer__readonly"><LockKeyhole :size="13" />{{ t('console.snapshotReadOnlyMode') }}</span></div>
     </header>
 
     <div class="run-snapshot-viewer__layout">

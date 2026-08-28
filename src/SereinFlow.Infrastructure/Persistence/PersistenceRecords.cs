@@ -58,6 +58,27 @@ public sealed class FlowRunRecord
     public string? ExclusivityKey { get; set; }
     public bool IsListenerRun { get; set; }
     public string? QueuedAt { get; set; }
+    public string ExecutionKind { get; set; } = "Production";
+    public string? DebugSessionId { get; set; }
+}
+
+[SugarTable("FlowDebugSessions")]
+public sealed class FlowDebugSessionRecord
+{
+    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    public string RunId { get; set; } = string.Empty;
+    public string ProjectId { get; set; } = string.Empty;
+    public string FlowId { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string BreakpointsJson { get; set; } = "[]";
+    public string? CurrentNodeId { get; set; }
+    public string? ActiveInvocationId { get; set; }
+    public string? ActiveFlipflopNodeId { get; set; }
+    public int QueuedTriggerCount { get; set; }
+    public long LastCommandSequence { get; set; }
+    public string? FailureMessage { get; set; }
+    public string CreatedAt { get; set; } = string.Empty;
+    public string UpdatedAt { get; set; } = string.Empty;
 }
 
 [SugarTable("FlowRunDefinitions")]

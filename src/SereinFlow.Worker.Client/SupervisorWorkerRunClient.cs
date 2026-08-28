@@ -21,7 +21,7 @@ public sealed record SupervisorWorkerRunClientOptions(
     string RunnerFileName = "dotnet",
     Action<string>? DiagnosticLogger = null);
 
-public sealed class SupervisorWorkerRunClient : IWorkerRunClient
+public sealed class SupervisorWorkerRunClient : IWorkerDebugRunClient
 {
     private readonly WorkerSupervisor _supervisor;
 
@@ -64,5 +64,46 @@ public sealed class SupervisorWorkerRunClient : IWorkerRunClient
             request,
             (workerEvent, token) => eventSink.PublishAsync(workerEvent, token),
             cancellationToken);
+    }
+
+    public async Task<IWorkerDebugRunHandle> StartDebugAsync(
+        WorkerRunRequestDto request,
+        IWorkerRunEventSink eventSink,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(eventSink);
+        if (request.Debug is null)
+        {
+            throw new ArgumentException(
+                "A debug worker request must include debug options. 调试 Worker 请求必须包含调试选项。",
+                nameof(request));
+        }
+
+        var session = await _supervisor.StartDebugAsync(
+            request,
+            (workerEvent, token) => eventSink.PublishAsync(workerEvent, token),
+            cancellationToken);
+        return new SupervisorDebugRunHandle(session);
+    }
+
+    private sealed class SupervisorDebugRunHandle(WorkerSupervisor.DebugRunSession session) : IWorkerDebugRunHandle
+    {
+        public Guid RunId => session.RunId;
+
+        public Guid DebugSessionId => session.DebugSessionId;
+
+        public Task<WorkerRunResultDto> Completion => session.Completion;
+
+        public Task ContinueAsync(long commandSequence, CancellationToken cancellationToken = default)
+            => session.ContinueAsync(commandSequence, cancellationToken);
+
+        public Task StepAsync(long commandSequence, CancellationToken cancellationToken = default)
+            => session.StepAsync(commandSequence, cancellationToken);
+
+        public Task StopAsync(long commandSequence, CancellationToken cancellationToken = default)
+            => session.StopAsync(commandSequence, cancellationToken);
+
+        public ValueTask DisposeAsync() => session.DisposeAsync();
     }
 }

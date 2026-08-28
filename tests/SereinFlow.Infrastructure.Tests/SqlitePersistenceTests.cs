@@ -18,6 +18,7 @@ public sealed class SqlitePersistenceTests
         Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 2"));
         Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 3"));
         Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 9"));
+        Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 15"));
         Assert.Equal(1L, database.Scalar<long>("PRAGMA foreign_keys"));
         Assert.Equal(5000L, database.Scalar<long>("PRAGMA busy_timeout"));
     }
@@ -222,6 +223,48 @@ public sealed class SqlitePersistenceTests
         Assert.Equal("{\"left\":10,\"right\":20}", outputs[0].InputsJson);
         Assert.Equal("{\"result\":42}", outputs[0].OutputsJson);
         Assert.Equal("node.input_missing", outputs[1].ErrorCode);
+    }
+
+    [Fact]
+    public async Task DebugSessionStorePersistsBreakpointsAndPausedState()
+    {
+        using var database = CreateDatabase();
+        database.Initialize();
+        var projectId = Guid.NewGuid();
+        var flowId = Guid.NewGuid();
+        var runId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        database.Execute(
+            "INSERT INTO Projects (Id, Name, Version, Status, CreatedAt, UpdatedAt) VALUES (@id, @name, 1, @status, @now, @now)",
+            new SqlSugar.SugarParameter("@id", projectId.ToString("D")),
+            new SqlSugar.SugarParameter("@name", "Debug"),
+            new SqlSugar.SugarParameter("@status", ProjectStatus.Ready.ToString()),
+            new SqlSugar.SugarParameter("@now", now.ToString("O")));
+        database.Execute(
+            "INSERT INTO FlowDefinitions (Id, ProjectId, Version, DefinitionJson, Checksum) VALUES (@id, @projectId, 1, '{}', '')",
+            new SqlSugar.SugarParameter("@id", flowId.ToString("D")),
+            new SqlSugar.SugarParameter("@projectId", projectId.ToString("D")));
+        database.Execute(
+            "INSERT INTO FlowRuns (Id, FlowId, FlowVersion, Status, ExecutionKind) VALUES (@id, @flowId, 1, 'Running', 'Debug')",
+            new SqlSugar.SugarParameter("@id", runId.ToString("D")),
+            new SqlSugar.SugarParameter("@flowId", flowId.ToString("D")));
+
+        var store = new SqlSugarFlowDebugSessionStore(database);
+        var session = FlowDebugSession.Create(runId, projectId, flowId, ["second", "first", "first"], now);
+        await store.CreateAsync(session);
+        session.MarkRunning(now.AddSeconds(1));
+        session.Pause("first", now.AddSeconds(2));
+        session.AcceptCommand(7, now.AddSeconds(3));
+        Assert.True(await store.SaveAsync(session));
+
+        var restored = await store.FindAsync(session.Id);
+
+        Assert.NotNull(restored);
+        Assert.Equal(FlowDebugSessionStatus.Paused, restored!.Status);
+        Assert.Equal("first", restored.CurrentNodeId);
+        Assert.Equal(["first", "second"], restored.BreakpointNodeIds);
+        Assert.Equal(runId, restored.RunId);
+        Assert.Equal(7, restored.LastCommandSequence);
     }
 
     [Fact]

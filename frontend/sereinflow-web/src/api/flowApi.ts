@@ -230,6 +230,37 @@ export interface FlowRunDto {
   concurrencyMode?: FlowConcurrencyMode
   isListenerRun?: boolean
   queuedAt?: string
+  executionKind?: 'production' | 'debug'
+  debugSessionId?: string
+}
+
+export type FlowDebugSessionStatus = 'pending' | 'running' | 'paused' | 'completed' | 'cancelled' | 'failed'
+
+export interface StartFlowDebugSessionRequestDto {
+  breakpointNodeIds?: string[]
+  projectInputs?: Record<string, unknown>
+  timeoutSeconds?: number
+  maxSteps?: number
+  maxNodeVisits?: number
+  expectedFlowVersion?: number
+  maxQueuedFlipflopTriggers?: number
+}
+
+export interface FlowDebugSessionDto {
+  id: string
+  runId: string
+  projectId: string
+  flowId: string
+  status: FlowDebugSessionStatus
+  breakpointNodeIds: string[]
+  currentNodeId?: string
+  activeInvocationId?: string
+  activeFlipflopNodeId?: string
+  queuedTriggerCount: number
+  lastCommandSequence: number
+  failureMessage?: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface FlowRunOverviewDto {
@@ -369,6 +400,34 @@ export async function saveFlow(projectId: string, flowId: string, requestBody: U
 
 export async function startFlowRun(projectId: string, flowId: string, requestBody: RunFlowRequestDto = {}): Promise<FlowRunDto> {
   return request<FlowRunDto>(`/api/projects/${projectId}/flows/${flowId}/runs`, { method: 'POST', body: requestBody })
+}
+
+export async function startFlowDebugSession(
+  projectId: string,
+  flowId: string,
+  requestBody: StartFlowDebugSessionRequestDto,
+): Promise<FlowDebugSessionDto> {
+  return request<FlowDebugSessionDto>(`/api/projects/${projectId}/flows/${flowId}/debug-sessions`, { method: 'POST', body: requestBody })
+}
+
+export async function getFlowDebugSession(sessionId: string): Promise<FlowDebugSessionDto> {
+  return request<FlowDebugSessionDto>(`/api/debug-sessions/${sessionId}`)
+}
+
+export async function getDebugSessionForRun(runId: string): Promise<FlowDebugSessionDto> {
+  return request<FlowDebugSessionDto>(`/api/runs/${runId}/debug-session`)
+}
+
+export async function continueFlowDebugSession(sessionId: string, commandSequence: number): Promise<void> {
+  await request<unknown>(`/api/debug-sessions/${sessionId}/continue`, { method: 'POST', body: { commandSequence } })
+}
+
+export async function stepFlowDebugSession(sessionId: string, commandSequence: number): Promise<void> {
+  await request<unknown>(`/api/debug-sessions/${sessionId}/step`, { method: 'POST', body: { commandSequence } })
+}
+
+export async function stopFlowDebugSession(sessionId: string, commandSequence: number): Promise<void> {
+  await request<unknown>(`/api/debug-sessions/${sessionId}/stop`, { method: 'POST', body: { commandSequence } })
 }
 
 export async function getFlowRun(runId: string): Promise<FlowRunDto> {

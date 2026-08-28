@@ -15,6 +15,34 @@ public interface IWorkerRunClient
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Optional extension for Worker clients that support a long-lived debug
+/// session. Normal production execution continues to use <see cref="IWorkerRunClient"/>.
+/// 支持长寿命调试会话的 Worker 客户端可选扩展；普通生产运行仍使用 <see cref="IWorkerRunClient"/>。
+/// </summary>
+public interface IWorkerDebugRunClient : IWorkerRunClient
+{
+    Task<IWorkerDebugRunHandle> StartDebugAsync(
+        WorkerRunRequestDto request,
+        IWorkerRunEventSink eventSink,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IWorkerDebugRunHandle : IAsyncDisposable
+{
+    Guid RunId { get; }
+
+    Guid DebugSessionId { get; }
+
+    Task<WorkerRunResultDto> Completion { get; }
+
+    Task ContinueAsync(long commandSequence, CancellationToken cancellationToken = default);
+
+    Task StepAsync(long commandSequence, CancellationToken cancellationToken = default);
+
+    Task StopAsync(long commandSequence, CancellationToken cancellationToken = default);
+}
+
 public interface IWorkerRunEventSink
 {
     ValueTask PublishAsync(WorkerEventEnvelopeDto workerEvent, CancellationToken cancellationToken = default);

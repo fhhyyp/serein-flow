@@ -90,6 +90,12 @@ export interface FlowNodeData {
   parameters: MethodParameter[]
   script?: ScriptNodeData
   runtime?: NodeRuntimeMetadata
+  /** Local editor-only debug decoration; never persisted in FlowDefinition. */
+  breakpoint?: boolean
+  /** Current Worker pause boundary; never persisted in FlowDefinition. */
+  debugPaused?: boolean
+  breakpointLocked?: boolean
+  onToggleBreakpoint?: (nodeId: string) => void
 }
 
 export interface ScriptNodeData {

@@ -14,6 +14,7 @@ import ProjectLibraryDialog from './components/library/ProjectLibraryDialog.vue'
 import CommandBar from './components/workspace/CommandBar.vue'
 import MobileWorkspaceTabs from './components/workspace/MobileWorkspaceTabs.vue'
 import OutputPanel from './components/workspace/OutputPanel.vue'
+import FlowDebugPanel from './components/workspace/FlowDebugPanel.vue'
 import CanvasPanel from './components/canvas/CanvasPanel.vue'
 import InspectorPanel from './components/inspector/InspectorPanel.vue'
 import RunConsole from './components/runs/RunConsole.vue'
@@ -32,6 +33,7 @@ import { loadWorkspace } from './flow/workspaceStorage'
 import { useWorkspaceHistory } from './composables/useWorkspaceHistory'
 import { useLibraryCatalog } from './composables/useLibraryCatalog'
 import { useFlowRunner } from './composables/useFlowRunner'
+import { useFlowDebugger } from './composables/useFlowDebugger'
 import { useCanvasManager } from './composables/useCanvasManager'
 import { useProjectSession } from './composables/useProjectSession'
 import { useFlowGraph } from './composables/useFlowGraph'
@@ -264,9 +266,67 @@ const {
   activeOutput,
   runEvents,
   runPayload,
-  hasRunOutput,
   runFlow,
 } = useFlowRunner({ nodes, notice, projectId, flowId, flowVersion })
+
+function locateDebugPause(nodeId: string): void {
+  const canvas = canvases.value.find((candidate) => candidate.nodes.some((node) => node.id === nodeId))
+  if (!canvas) return
+  if (canvas.id !== activeCanvasId.value) selectCanvas(canvas.id)
+  void nextTick().then(() => selectNode(nodeId))
+}
+
+const {
+  isBreakpoint,
+  toggleBreakpoint,
+  debugSession,
+  pauseBoundary,
+  runEvents: debugRunEvents,
+  runPayload: debugRunPayload,
+  isStarting: isDebugStarting,
+  isControlling: isDebugControlling,
+  isStopping: isDebugStopping,
+  isDebugActive,
+  isDebugPaused,
+  canStartDebug,
+  startDebug,
+  continueDebug,
+  stepDebug,
+  stopDebug,
+} = useFlowDebugger({
+  canvases,
+  projectId,
+  flowId,
+  flowVersion,
+  isDirty,
+  isWorkspaceLoading,
+  isNormalRunActive: isRunning,
+  notice,
+  onPauseNode: locateDebugPause,
+})
+
+const visibleRunEvents = computed(() => isDebugActive.value || (!isRunning.value && debugSession.value) ? debugRunEvents.value : runEvents.value)
+const visibleRunPayload = computed(() => isDebugActive.value || (!isRunning.value && debugSession.value) ? debugRunPayload.value : runPayload.value)
+const visibleHasRunOutput = computed(() => visibleRunEvents.value.length > 0)
+const visibleActiveOutput = computed({
+  get: () => activeOutput.value,
+  set: (value: 'events' | 'payload') => { activeOutput.value = value },
+})
+
+const debugRenderedElements = computed(() => renderedElements.value.map((element) => {
+  if (!('data' in element) || !('position' in element)) return element
+  const node = element as FlowNode
+  return {
+    ...node,
+    data: {
+      ...node.data,
+      breakpoint: isBreakpoint(node.id),
+      debugPaused: debugSession.value?.currentNodeId === node.id,
+      breakpointLocked: isDebugActive.value,
+      onToggleBreakpoint: toggleBreakpoint,
+    },
+  }
+}))
 
 const {
   handleCanvasDragOver,
@@ -653,6 +713,12 @@ function setLanguage(nextLocale: Locale): void {
       :is-saving="isSaving"
       :is-workspace-loading="isWorkspaceLoading"
       :is-running="isRunning"
+      :is-debug-active="isDebugActive"
+      :is-debug-paused="isDebugPaused"
+      :is-debug-starting="isDebugStarting"
+      :is-debug-controlling="isDebugControlling"
+      :is-debug-stopping="isDebugStopping"
+      :can-start-debug="canStartDebug"
       :language-menu-open="languageMenuOpen"
       :locale="locale"
       :node-count="nodes.length"
@@ -669,6 +735,10 @@ function setLanguage(nextLocale: Locale): void {
       @redo="redo"
       @save="saveFlow"
       @run="runFlow"
+      @debug="startDebug"
+      @debug-continue="continueDebug"
+      @debug-step="stepDebug"
+      @debug-stop="stopDebug"
       @toggle-language-menu="languageMenuOpen = !languageMenuOpen"
       @set-language="setLanguage"
       @show-run-console="workspaceView = 'console'"
@@ -707,7 +777,7 @@ function setLanguage(nextLocale: Locale): void {
         :current-canvas-lifecycle="currentCanvas.lifecycle"
         :current-canvas-node-count="currentCanvas.nodes.length"
         :current-canvas-edge-count="currentCanvas.edges.length"
-        :rendered-elements="renderedElements"
+        :rendered-elements="debugRenderedElements"
         :is-valid-connection="isValidConnection"
         :canvas-render-key="canvasRenderKey"
         :canvas-menu-open="canvasMenuOpen"
@@ -778,6 +848,16 @@ function setLanguage(nextLocale: Locale): void {
         @add-variadic-input="addVariadicInput"
         @remove-variadic-input="removeVariadicInput"
       />
+      <FlowDebugPanel
+        v-if="debugSession"
+        :session="debugSession"
+        :boundary="pauseBoundary"
+        :is-controlling="isDebugControlling"
+        :is-stopping="isDebugStopping"
+        @continue="continueDebug"
+        @step="stepDebug"
+        @stop="stopDebug"
+      />
     </main>
 
     <ProjectLibraryDialog
@@ -790,10 +870,10 @@ function setLanguage(nextLocale: Locale): void {
     />
     <OutputPanel
       v-if="workspaceView === 'editor'"
-      v-model:active-output="activeOutput"
-      :run-events="runEvents"
-      :run-payload="runPayload"
-      :has-run-output="hasRunOutput"
+      v-model:active-output="visibleActiveOutput"
+      :run-events="visibleRunEvents"
+      :run-payload="visibleRunPayload"
+      :has-run-output="visibleHasRunOutput"
       :diagnostics="saveDiagnostics"
       :canvases="canvases"
       @dismiss-diagnostics="dismissSaveDiagnostics"

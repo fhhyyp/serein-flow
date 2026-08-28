@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Activity, Code2, Database, Zap } from 'lucide-vue-next'
+import { Activity, Circle, CircleDot, Code2, Database, Zap } from 'lucide-vue-next'
 import { Handle, Position, type NodeProps } from '@vue-flow/core'
 import { t } from '../../i18n'
 import { layoutConnectionSeats, type ConnectionSeatLayout } from '../../flow/connectionSeats'
@@ -45,7 +45,7 @@ function isTargetSeat(seat: ConnectionSeatLayout | undefined): boolean {
 </script>
 
 <template>
-  <article class="workflow-node" :class="[`kind-${data.kind}`, { selected }]" :aria-label="title">
+  <article class="workflow-node" :class="[`kind-${data.kind}`, { selected, 'has-breakpoint': data.breakpoint, 'is-debug-paused': data.debugPaused }]" :aria-label="title">
     <div class="workflow-node__header drag-handle">
       <Handle
         v-if="executionInputSeat"
@@ -60,6 +60,18 @@ function isTargetSeat(seat: ConnectionSeatLayout | undefined): boolean {
       <span class="workflow-node__kind">{{ t(`node.kind.${data.kind}`) }}</span>
       <span v-if="runtimeSignature" class="workflow-node__runtime-header" :title="runtimeSignature">{{ runtimeSignature }}</span>
       <span class="workflow-node__status" :class="`status-${data.status}`" :title="t(`status.${data.status}`)"></span>
+      <button
+        v-if="data.onToggleBreakpoint"
+        class="workflow-node__breakpoint"
+        type="button"
+        :class="{ active: data.breakpoint }"
+        :title="data.breakpoint ? t('debug.removeBreakpoint') : t('debug.addBreakpoint')"
+        :aria-label="data.breakpoint ? t('debug.removeBreakpoint') : t('debug.addBreakpoint')"
+        :aria-pressed="Boolean(data.breakpoint)"
+        :disabled="data.breakpointLocked"
+        @pointerdown.stop
+        @click.stop="data.onToggleBreakpoint(id)"
+      ><CircleDot v-if="data.breakpoint" :size="15" /><Circle v-else :size="15" /></button>
     </div>
 
     <div class="workflow-node__branch-handles" :aria-label="t('edge.executionBranches')">

@@ -53,7 +53,10 @@ public static class RunnerHost
             deadlineCancellation.CancelAfter(remaining);
         using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadlineCancellation.Token);
 
-        var runTask = ExecuteRunAsync(request, writer, runCancellation.Token, deadlineCancellation.Token);
+        var debugController = request.Debug is null
+            ? null
+            : new DebugRunController(request.RunId, request.Debug);
+        var runTask = ExecuteRunAsync(request, writer, runCancellation.Token, deadlineCancellation.Token, debugController);
         var readTask = WorkerProtocolCodec.ReadAsync(reader, cancellationToken).AsTask();
 
         while (!runTask.IsCompleted)
@@ -76,6 +79,23 @@ public static class RunnerHost
                     WorkerMessage.Create(WorkerProtocolConstants.CancelAcknowledgedKind, runId: request.RunId),
                     cancellationToken);
             }
+            else if (debugController is not null
+                && message.RunId == request.RunId
+                && message.Kind is WorkerProtocolConstants.DebugContinueKind
+                    or WorkerProtocolConstants.DebugStepKind
+                    or WorkerProtocolConstants.DebugStopKind)
+            {
+                var command = WorkerProtocolCodec.DeserializePayload<WorkerDebugCommandDto>(message);
+                var accepted = message.Kind switch
+                {
+                    WorkerProtocolConstants.DebugContinueKind => debugController.TryContinue(command),
+                    WorkerProtocolConstants.DebugStepKind => debugController.TryStep(command),
+                    WorkerProtocolConstants.DebugStopKind => debugController.TryStop(command),
+                    _ => false
+                };
+                if (accepted && message.Kind == WorkerProtocolConstants.DebugStopKind)
+                    runCancellation.Cancel();
+            }
             else if (message.Kind == WorkerProtocolConstants.HeartbeatKind)
             {
                 await writer.WriteAsync(
@@ -94,7 +114,8 @@ public static class RunnerHost
         WorkerRunRequestDto request,
         WorkerMessageWriter writer,
         CancellationToken cancellationToken,
-        CancellationToken deadlineCancellationToken)
+        CancellationToken deadlineCancellationToken,
+        DebugRunController? debugController)
     {
         try
         {
@@ -149,7 +170,16 @@ public static class RunnerHost
                 new LibraryNodeExecutor(NodeType.Flipflop, libraryRuntimeCache),
                 new SereinScriptNodeExecutor(artifactStore, request.ProjectId ?? "default"),
                 new FlowCallNodeExecutor()]);
-            var runner = new FlowRunner(new ExecutionPlanBuilder(), executors, publisher);
+            var executionGate = debugController?.CreateGate(session, publisher);
+            var invocationScheduler = request.Debug is null
+                ? null
+                : new DebugInvocationScheduler(request.Debug.MaxQueuedFlipflopTriggers);
+            var runner = new FlowRunner(
+                new ExecutionPlanBuilder(),
+                executors,
+                publisher,
+                executionGate: executionGate,
+                debugInvocationScheduler: invocationScheduler);
             var result = await runner.RunAsync(definition, session, cancellationToken);
             var status = result.IsSuccess ? FlowRunStatusDto.Succeeded : FlowRunStatusDto.Failed;
             await writer.WriteAsync(
@@ -215,6 +245,13 @@ public static class RunnerHost
                 "node.completed" => WorkerEventType.NodeCompleted,
                 "node.failed" => WorkerEventType.NodeFailed,
                 "node.error" => WorkerEventType.NodeErrored,
+                "debug.paused" => WorkerEventType.DebugPaused,
+                "debug.trigger.received" => WorkerEventType.DebugTriggerReceived,
+                "debug.trigger.queued" => WorkerEventType.DebugTriggerQueued,
+                "debug.trigger.admitted" => WorkerEventType.DebugTriggerAdmitted,
+                "debug.trigger.rejected" => WorkerEventType.DebugTriggerRejected,
+                "debug.trigger.completed" => WorkerEventType.DebugTriggerCompleted,
+                "debug.trigger.failed" => WorkerEventType.DebugTriggerFailed,
                 _ => WorkerEventType.Log
             };
             // Runtime sessions can retain ScriptLang.Value instances so a
@@ -251,10 +288,159 @@ public static class RunnerHost
             }
         }
 
+        public ValueTask PublishDebugPausedAsync(
+            WorkerDebugPauseDto pause,
+            long sequence,
+            CancellationToken cancellationToken)
+        {
+            var payload = new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["debugSessionId"] = pause.DebugSessionId,
+                ["runId"] = pause.RunId,
+                ["nodeId"] = pause.NodeId,
+                ["nodeType"] = pause.NodeType,
+                ["step"] = pause.Step,
+                ["inputs"] = ScriptValueConverter.ToAuditValue(pause.Inputs),
+                ["frameDepth"] = pause.FrameDepth,
+                ["triggerInvocationId"] = pause.TriggerInvocationId
+            };
+            return PublishEnvelopeAsync(
+                new WorkerEventEnvelopeDto(
+                    WorkerProtocolConstants.Version,
+                    runId,
+                    sequence,
+                    DateTimeOffset.UtcNow,
+                    WorkerEventType.DebugPaused,
+                    pause.NodeId,
+                    JsonSerializer.Serialize(
+                        payload,
+                        SereinJsonSerialization.CreateWebOptions())),
+                cancellationToken);
+        }
+
+        private async ValueTask PublishEnvelopeAsync(
+            WorkerEventEnvelopeDto envelope,
+            CancellationToken cancellationToken)
+        {
+            await _gate.WaitAsync(cancellationToken);
+            try
+            {
+                _pending[envelope.Sequence] = envelope;
+                while (_pending.Remove(_lastWrittenSequence + 1, out var next))
+                {
+                    await writer.WriteAsync(
+                        WorkerMessage.Create(WorkerProtocolConstants.EventKind, WorkerProtocolCodec.SerializePayload(next), runId, sequence: next.Sequence),
+                        cancellationToken);
+                    _lastWrittenSequence = next.Sequence;
+                }
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
+
         public ValueTask DisposeAsync()
         {
             _gate.Dispose();
             return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class DebugRunController
+    {
+        private readonly Guid _runId;
+        private readonly WorkerDebugOptionsDto _options;
+        private readonly object _sync = new();
+        private DebugExecutionGate? _gate;
+        private long _lastCommandSequence;
+
+        public DebugRunController(Guid runId, WorkerDebugOptionsDto options)
+        {
+            if (options.DebugSessionId == Guid.Empty)
+            {
+                throw new ArgumentException(
+                    "The debug session ID cannot be empty. 调试会话 ID 不能为空。",
+                    nameof(options));
+            }
+
+            _runId = runId;
+            _options = options;
+        }
+
+        public DebugExecutionGate CreateGate(FlowExecutionSession session, WorkerEventPublisher publisher)
+        {
+            var gate = new DebugExecutionGate(_options.BreakpointNodeIds, (boundary, token) =>
+            {
+                var pause = new WorkerDebugPauseDto(
+                    _options.DebugSessionId,
+                    boundary.RunId,
+                    boundary.NodeId,
+                    boundary.NodeType.ToString(),
+                    boundary.Step,
+                    boundary.Inputs,
+                    boundary.FrameDepth,
+                    boundary.InvocationId);
+                return publisher.PublishDebugPausedAsync(pause, session.NextSequence(), token);
+            });
+            lock (_sync)
+                _gate = gate;
+            return gate;
+        }
+
+        public bool TryContinue(WorkerDebugCommandDto command)
+            => TryApply(command, static gate => gate.TryContinue());
+
+        public bool TryStep(WorkerDebugCommandDto command)
+            => TryApply(command, static gate => gate.TryStep());
+
+        public bool TryStop(WorkerDebugCommandDto command)
+        {
+            if (command.ProtocolVersion != WorkerProtocolConstants.Version
+                || command.RunId != _runId
+                || command.DebugSessionId != _options.DebugSessionId
+                || command.CommandSequence < 1)
+            {
+                return false;
+            }
+
+            lock (_sync)
+            {
+                if (command.CommandSequence <= _lastCommandSequence)
+                    return false;
+
+                // A listener may be blocked in WaitForTriggerAsync and have
+                // no current boundary. Accepting Stop still lets the Runner
+                // cancel that wait; if a boundary exists, release it too.
+                // 监听器可能阻塞在 WaitForTriggerAsync 且不存在当前断点边界。Stop
+                // 仍必须被接受以取消该等待；若边界存在，也一并释放。
+                _gate?.TryCancel();
+                _lastCommandSequence = command.CommandSequence;
+                return true;
+            }
+        }
+
+        private bool TryApply(WorkerDebugCommandDto command, Func<DebugExecutionGate, bool> apply)
+        {
+            if (command.ProtocolVersion != WorkerProtocolConstants.Version
+                || command.RunId != _runId
+                || command.DebugSessionId != _options.DebugSessionId
+                || command.CommandSequence < 1)
+            {
+                return false;
+            }
+
+            lock (_sync)
+            {
+                if (command.CommandSequence <= _lastCommandSequence || _gate is null)
+                    return false;
+
+                if (!apply(_gate))
+                    return false;
+
+                _lastCommandSequence = command.CommandSequence;
+                return true;
+            }
         }
     }
 

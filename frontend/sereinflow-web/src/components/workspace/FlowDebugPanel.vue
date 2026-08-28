@@ -1,0 +1,66 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+import { Bug, CirclePause, ListOrdered, Play, Square, StepForward } from 'lucide-vue-next'
+import { t } from '../../i18n'
+import type { FlowDebugSessionDto } from '../../api/flowApi'
+import type { DebugPauseBoundary } from '../../composables/useFlowDebugger'
+
+const props = defineProps<{
+  session?: FlowDebugSessionDto
+  boundary?: DebugPauseBoundary
+  isControlling: boolean
+  isStopping: boolean
+}>()
+
+const emit = defineEmits<{
+  continue: []
+  step: []
+  stop: []
+}>()
+
+const isPaused = computed(() => props.session?.status === 'paused' && !props.isStopping)
+const invocationShortId = computed(() => props.session?.activeInvocationId?.slice(0, 8))
+
+function formatValue(value: unknown): string {
+  if (typeof value === 'string') {
+    try {
+      return JSON.stringify(JSON.parse(value), null, 2)
+    } catch {
+      return value
+    }
+  }
+  return JSON.stringify(value ?? {}, null, 2)
+}
+</script>
+
+<template>
+  <aside v-if="props.session" class="flow-debug-panel" :class="`flow-debug-panel--${props.isStopping ? 'running' : props.session.status}`" :aria-label="t('debug.panelTitle')">
+    <header class="flow-debug-panel__header">
+      <div>
+        <span class="flow-debug-panel__eyebrow"><Bug :size="13" />{{ t('debug.panelEyebrow') }}</span>
+        <strong>{{ t(`debug.status.${props.isStopping ? 'stopping' : props.session.status}`) }}</strong>
+      </div>
+      <span v-if="isPaused" class="flow-debug-panel__paused"><CirclePause :size="14" />{{ t('debug.paused') }}</span>
+    </header>
+
+    <dl class="flow-debug-panel__facts">
+      <div><dt>{{ t('debug.currentNode') }}</dt><dd><code>{{ props.boundary?.nodeId ?? props.session.currentNodeId ?? '—' }}</code></dd></div>
+      <div><dt>{{ t('debug.stepCount') }}</dt><dd>{{ props.boundary?.step ?? '—' }}</dd></div>
+      <div><dt>{{ t('debug.frameDepth') }}</dt><dd>{{ props.boundary?.frameDepth ?? '—' }}</dd></div>
+      <div v-if="invocationShortId"><dt>{{ t('debug.invocation') }}</dt><dd><code>{{ invocationShortId }}</code></dd></div>
+      <div v-if="props.session.activeFlipflopNodeId"><dt>{{ t('debug.flipflop') }}</dt><dd><code>{{ props.session.activeFlipflopNodeId }}</code></dd></div>
+      <div v-if="props.session.queuedTriggerCount > 0"><dt>{{ t('debug.queuedTriggers') }}</dt><dd><ListOrdered :size="13" />{{ props.session.queuedTriggerCount }}</dd></div>
+    </dl>
+
+    <section v-if="props.boundary" class="flow-debug-panel__inputs">
+      <span>{{ t('debug.resolvedInputs') }}</span>
+      <pre>{{ formatValue(props.boundary.inputs) }}</pre>
+    </section>
+
+    <footer class="flow-debug-panel__controls">
+      <button class="flow-debug-panel__control" type="button" :title="t('debug.continue')" :aria-label="t('debug.continue')" :disabled="!isPaused || props.isControlling || props.isStopping" @click="emit('continue')"><Play :size="16" fill="currentColor" /></button>
+      <button class="flow-debug-panel__control" type="button" :title="t('debug.step')" :aria-label="t('debug.step')" :disabled="!isPaused || props.isControlling || props.isStopping" @click="emit('step')"><StepForward :size="16" /></button>
+      <button class="flow-debug-panel__control flow-debug-panel__control--stop" type="button" :title="t('debug.stop')" :aria-label="t('debug.stop')" :disabled="props.isControlling || props.isStopping || ['completed', 'cancelled', 'failed'].includes(props.session.status)" @click="emit('stop')"><Square :size="15" fill="currentColor" /></button>
+    </footer>
+  </aside>
+</template>

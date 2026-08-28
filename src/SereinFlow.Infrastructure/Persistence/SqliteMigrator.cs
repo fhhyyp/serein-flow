@@ -19,6 +19,8 @@ public sealed class SqliteMigrator
     private const int AddLibraryEnumCatalogVersion = 12;
     private const int AddLibraryVersioningVersion = 13;
     private const int AddLibraryUpgradePlansVersion = 14;
+    private const int AddFlowDebugSessionsVersion = 15;
+    private const int AddFlowDebugCommandSequenceVersion = 16;
     private readonly SqlSugarClient _client;
 
     public SqliteMigrator(SqlSugarClient client)
@@ -504,6 +506,75 @@ public sealed class SqliteMigrator
                     ON LibraryUpgradePlans(ProjectId, CreatedAt DESC);
                     """);
                 RecordMigration(AddLibraryUpgradePlansVersion, "library-upgrade-plans-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
+
+        applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
+        if (!applied.Contains(AddFlowDebugSessionsVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                if (HasTable("FlowRuns"))
+                {
+                    _client.Ado.ExecuteCommand("""
+                        ALTER TABLE FlowRuns ADD COLUMN ExecutionKind TEXT NOT NULL DEFAULT 'Production';
+                        ALTER TABLE FlowRuns ADD COLUMN DebugSessionId TEXT NULL;
+                        CREATE INDEX IF NOT EXISTS IX_FlowRuns_ExecutionKind_CreatedAt
+                        ON FlowRuns(ExecutionKind, CreatedAt DESC);
+                        """);
+                }
+                _client.Ado.ExecuteCommand("""
+                    CREATE TABLE IF NOT EXISTS FlowDebugSessions (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        RunId TEXT NOT NULL UNIQUE,
+                        ProjectId TEXT NOT NULL,
+                        FlowId TEXT NOT NULL,
+                        Status TEXT NOT NULL,
+                        BreakpointsJson TEXT NOT NULL,
+                        CurrentNodeId TEXT NULL,
+                        ActiveInvocationId TEXT NULL,
+                        ActiveFlipflopNodeId TEXT NULL,
+                        QueuedTriggerCount INTEGER NOT NULL DEFAULT 0,
+                        FailureMessage TEXT NULL,
+                        CreatedAt TEXT NOT NULL,
+                        UpdatedAt TEXT NOT NULL,
+                        FOREIGN KEY (RunId) REFERENCES FlowRuns(Id),
+                        FOREIGN KEY (ProjectId) REFERENCES Projects(Id),
+                        FOREIGN KEY (FlowId) REFERENCES FlowDefinitions(Id)
+                    );
+                    CREATE INDEX IF NOT EXISTS IX_FlowDebugSessions_Status_UpdatedAt
+                    ON FlowDebugSessions(Status, UpdatedAt DESC);
+                    """);
+                RecordMigration(AddFlowDebugSessionsVersion, "flow-debug-sessions-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
+
+        applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
+        if (!applied.Contains(AddFlowDebugCommandSequenceVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                if (HasTable("FlowDebugSessions"))
+                {
+                    _client.Ado.ExecuteCommand("""
+                        ALTER TABLE FlowDebugSessions ADD COLUMN LastCommandSequence INTEGER NOT NULL DEFAULT 0;
+                        """);
+                }
+                RecordMigration(AddFlowDebugCommandSequenceVersion, "flow-debug-command-sequence-v1");
                 _client.Ado.CommitTran();
             }
             catch

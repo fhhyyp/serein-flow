@@ -58,6 +58,127 @@ public sealed class WorkerSupervisorTests
     }
 
     [Fact]
+    public async Task SupervisorDebugSessionStepsAtNodeBoundariesAndCompletesAfterContinue()
+    {
+        var events = new List<WorkerEventEnvelopeDto>();
+        var firstPause = new TaskCompletionSource<WorkerEventEnvelopeDto>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondPause = new TaskCompletionSource<WorkerEventEnvelopeDto>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var supervisor = CreateSupervisor();
+        var request = CreateTwoNodeDebugRequest(DateTimeOffset.UtcNow.AddSeconds(15));
+
+        await using var debug = await supervisor.StartDebugAsync(request, (workerEvent, _) =>
+        {
+            events.Add(workerEvent);
+            if (workerEvent.EventType == WorkerEventType.DebugPaused)
+            {
+                using var payload = JsonDocument.Parse(workerEvent.PayloadJson);
+                var nodeId = payload.RootElement.GetProperty("nodeId").GetString();
+                if (nodeId == "first")
+                    firstPause.TrySetResult(workerEvent);
+                else if (nodeId == "second")
+                    secondPause.TrySetResult(workerEvent);
+            }
+            return ValueTask.CompletedTask;
+        });
+
+        var first = await firstPause.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        using (var payload = JsonDocument.Parse(first.PayloadJson))
+        {
+            Assert.Equal("first", payload.RootElement.GetProperty("nodeId").GetString());
+            Assert.Equal(1, payload.RootElement.GetProperty("step").GetInt32());
+            Assert.Equal(0, payload.RootElement.GetProperty("frameDepth").GetInt32());
+        }
+        Assert.DoesNotContain(events, item => item.EventType == WorkerEventType.NodeCompleted && item.NodeId == "first");
+
+        await debug.StepAsync(1);
+        var second = await secondPause.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        using (var payload = JsonDocument.Parse(second.PayloadJson))
+            Assert.Equal("second", payload.RootElement.GetProperty("nodeId").GetString());
+        Assert.Single(events, item => item.EventType == WorkerEventType.NodeCompleted && item.NodeId == "first");
+        Assert.DoesNotContain(events, item => item.EventType == WorkerEventType.NodeCompleted && item.NodeId == "second");
+
+        await debug.ContinueAsync(2);
+        var result = await debug.Completion.WaitAsync(TimeSpan.FromSeconds(10));
+
+        Assert.Equal(FlowRunStatusDto.Succeeded, result.Status);
+        Assert.Single(events, item => item.EventType == WorkerEventType.NodeCompleted && item.NodeId == "second");
+    }
+
+    [Fact]
+    public async Task SupervisorStopsGlobalFlipflopDebugSessionWhileListenerWaitsForATrigger()
+    {
+        var packageRoot = CreateTestLibraryPackageRoot();
+        try
+        {
+            var listenerStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var supervisor = CreateSupervisor(allowedLibraryPackageRoot: packageRoot);
+            var request = CreateLibraryGlobalFlipflopDebugRequest(
+                DateTimeOffset.UtcNow.AddSeconds(15),
+                packageRoot,
+                breakpointNodeIds: [],
+                intervalMilliseconds: 3_600_000);
+
+            await using var debug = await supervisor.StartDebugAsync(request, (workerEvent, _) =>
+            {
+                if (workerEvent.EventType == WorkerEventType.NodeStarted && workerEvent.NodeId == "library-flipflop")
+                    listenerStarted.TrySetResult();
+                return ValueTask.CompletedTask;
+            });
+
+            await listenerStarted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await Task.Delay(100);
+            await debug.StopAsync(1);
+            var result = await debug.Completion.WaitAsync(TimeSpan.FromSeconds(10));
+
+            Assert.Equal(FlowRunStatusDto.Cancelled, result.Status);
+            Assert.Equal("worker.cancelled", result.ErrorCode);
+        }
+        finally
+        {
+            TryDeleteDirectory(packageRoot);
+        }
+    }
+
+    [Fact]
+    public async Task SupervisorDebugSessionPausesAtGlobalFlipflopAfterItsTriggerArrives()
+    {
+        var packageRoot = CreateTestLibraryPackageRoot();
+        try
+        {
+            var paused = new TaskCompletionSource<WorkerEventEnvelopeDto>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var supervisor = CreateSupervisor(allowedLibraryPackageRoot: packageRoot);
+            var request = CreateLibraryGlobalFlipflopDebugRequest(
+                DateTimeOffset.UtcNow.AddSeconds(15),
+                packageRoot,
+                breakpointNodeIds: ["library-flipflop"],
+                intervalMilliseconds: 50);
+
+            await using var debug = await supervisor.StartDebugAsync(request, (workerEvent, _) =>
+            {
+                if (workerEvent.EventType == WorkerEventType.DebugPaused)
+                    paused.TrySetResult(workerEvent);
+                return ValueTask.CompletedTask;
+            });
+
+            var pause = await paused.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            using (var payload = JsonDocument.Parse(pause.PayloadJson))
+            {
+                Assert.Equal("library-flipflop", payload.RootElement.GetProperty("nodeId").GetString());
+                Assert.NotEqual(Guid.Empty, payload.RootElement.GetProperty("triggerInvocationId").GetGuid());
+            }
+
+            await debug.StopAsync(1);
+            var result = await debug.Completion.WaitAsync(TimeSpan.FromSeconds(10));
+
+            Assert.Equal(FlowRunStatusDto.Cancelled, result.Status);
+        }
+        finally
+        {
+            TryDeleteDirectory(packageRoot);
+        }
+    }
+
+    [Fact]
     public async Task SupervisorPropagatesCancellationToScriptRunner()
     {
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -388,6 +509,69 @@ public sealed class WorkerSupervisorTests
         return CreateRequest(flowId, action, deadline);
     }
 
+    private static WorkerRunRequestDto CreateTwoNodeDebugRequest(DateTimeOffset deadline)
+    {
+        const string firstSource = "return 1";
+        const string secondSource = "return 2";
+        var flowId = Guid.NewGuid();
+        var first = new NodeDto(
+            "first",
+            NodeTypeDto.Script,
+            "First",
+            0,
+            0,
+            [],
+            [],
+            new ScriptNodeDataDto(
+                "first",
+                firstSource,
+                "1",
+                SereinFlow.Domain.ScriptNodeDefinition.ComputeSourceHash(firstSource),
+                [],
+                []));
+        var second = new NodeDto(
+            "second",
+            NodeTypeDto.Script,
+            "Second",
+            0,
+            0,
+            [],
+            [],
+            new ScriptNodeDataDto(
+                "second",
+                secondSource,
+                "1",
+                SereinFlow.Domain.ScriptNodeDefinition.ComputeSourceHash(secondSource),
+                [],
+                []));
+        var connection = new ConnectionDto(
+            "first:success->second:execute",
+            first.Id,
+            "success",
+            second.Id,
+            "execute",
+            ConnectionKindDto.Execution,
+            ExecutionBranchDto.Success,
+            null,
+            0);
+        var definition = new FlowDefinitionDto(
+            flowId,
+            5,
+            1,
+            [new CanvasDto("main", CanvasLifecycleDto.Main, [first, second], [connection])],
+            first.Id,
+            "test",
+            RunPolicy: new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel));
+        return new WorkerRunRequestDto(
+            WorkerProtocol.Version,
+            Guid.NewGuid(),
+            flowId,
+            1,
+            JsonSerializer.Serialize(definition),
+            deadline,
+            Debug: new WorkerDebugOptionsDto(Guid.NewGuid(), [first.Id]));
+    }
+
     private static WorkerRunRequestDto CreateScriptRequest(DateTimeOffset deadline)
     {
         var flowId = Guid.NewGuid();
@@ -475,6 +659,61 @@ public sealed class WorkerSupervisorTests
             deadline,
             LibraryPackageRootPath: packageRoot,
             AllowedLibraryIds: allowedLibraryIds);
+    }
+
+    private static WorkerRunRequestDto CreateLibraryGlobalFlipflopDebugRequest(
+        DateTimeOffset deadline,
+        string packageRoot,
+        IReadOnlyList<string> breakpointNodeIds,
+        int intervalMilliseconds)
+    {
+        var flowId = Guid.NewGuid();
+        var flipflop = new NodeDto(
+            "library-flipflop",
+            NodeTypeDto.Flipflop,
+            "Wait for device trigger",
+            0,
+            0,
+            [],
+            [
+                new NodeParameterDto("设备编号", "\"debug-device\"", DataSourceDto.Literal, true),
+                new NodeParameterDto("轮询间隔毫秒", intervalMilliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture), DataSourceDto.Literal, false)
+            ],
+            null,
+            new NodeUiMetadataDto(
+                "library-flipflop",
+                "node.libraryFlipflop.title",
+                "node.libraryFlipflop.subtitle",
+                null,
+                "ready",
+                true,
+                null,
+                Category: "library",
+                LibraryId: TestLibraryArtifactId,
+                ClassName: typeof(生产线节点).FullName,
+                MethodName: "等待设备触发",
+                DllName: Path.GetFileName(typeof(生产线节点).Assembly.Location),
+                DllVersion: "1.0.0",
+                ReturnType: "System.Boolean",
+                IsAwaitable: true));
+        var definition = new FlowDefinitionDto(
+            flowId,
+            5,
+            1,
+            [new CanvasDto("main", CanvasLifecycleDto.Main, [flipflop], [])],
+            string.Empty,
+            "test",
+            RunPolicy: new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel));
+        return new WorkerRunRequestDto(
+            WorkerProtocol.Version,
+            Guid.NewGuid(),
+            flowId,
+            1,
+            JsonSerializer.Serialize(definition),
+            deadline,
+            LibraryPackageRootPath: packageRoot,
+            AllowedLibraryIds: [TestLibraryArtifactId],
+            Debug: new WorkerDebugOptionsDto(Guid.NewGuid(), breakpointNodeIds));
     }
 
     private static NodeParameterDto CreateVariadicParameter(

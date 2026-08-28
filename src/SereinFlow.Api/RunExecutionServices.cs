@@ -129,7 +129,7 @@ public sealed class RunSubmissionService
                 new { code = "run.queue_full" });
         }
 
-        var preparation = await _runService.PrepareAsync(projectId, flowId, request, cancellationToken);
+        var preparation = await _runService.PrepareAsync(projectId, flowId, request, cancellationToken: cancellationToken);
         if (!preparation.IsSuccess)
         {
             return new RunSubmissionResult(
@@ -340,6 +340,41 @@ public sealed class RunExecutionQueue
             lease = new RunExecutionLease(this, item.RunId);
             return true;
         }
+    }
+
+    /// <summary>
+    /// Reserves an execution slot for an interactive session that must retain
+    /// its Worker control handle. Unlike queued production runs, debug runs
+    /// are rejected when no slot is available instead of being handed to the
+    /// one-shot scheduler.
+    /// 为必须保留 Worker 控制句柄的交互会话预留执行槽。与排队的生产运行不同，
+    /// 调试运行没有可用槽时直接拒绝，不交给一次性调度器。
+    /// </summary>
+    public bool TryStartDirectExecution(RunWorkItem item, out RunExecutionLease? lease)
+    {
+        lease = null;
+        CancellationTokenSource? source = null;
+        lock (_gate)
+        {
+            if (!_accepting || _activeRuns.Count >= _options.MaxConcurrentRuns)
+                return false;
+
+            var listenerRun = IsListenerRun(item);
+            if (listenerRun && _activeRuns.Values.Count(static run => run.IsListenerRun) >= _options.MaxConcurrentListenerRuns)
+                return false;
+            if (_activeRuns.Values.Count(run => run.ProjectId == item.ProjectId) >= _options.MaxConcurrentRunsPerProject)
+                return false;
+            if (_cancellations.ContainsKey(item.RunId))
+                return false;
+            if (!_activeRuns.TryAdd(item.RunId, new ActiveRunInfo(item.ProjectId, listenerRun)))
+                return false;
+
+            source = new CancellationTokenSource();
+            _cancellations[item.RunId] = source;
+            lease = new RunExecutionLease(this, item.RunId);
+        }
+        SignalScheduler();
+        return true;
     }
 
     public RunExecutionSnapshot GetSnapshot()
@@ -992,6 +1027,13 @@ public sealed class RunExecutionHostedService : BackgroundService
             WorkerEventType.NodeErrored => "node.error",
             WorkerEventType.RunCompleted => "run.completed",
             WorkerEventType.RunCancelled => "run.cancelled",
+            WorkerEventType.DebugPaused => "debug.paused",
+            WorkerEventType.DebugTriggerReceived => "debug.trigger.received",
+            WorkerEventType.DebugTriggerQueued => "debug.trigger.queued",
+            WorkerEventType.DebugTriggerAdmitted => "debug.trigger.admitted",
+            WorkerEventType.DebugTriggerRejected => "debug.trigger.rejected",
+            WorkerEventType.DebugTriggerCompleted => "debug.trigger.completed",
+            WorkerEventType.DebugTriggerFailed => "debug.trigger.failed",
             _ => "log"
         };
         var item = new FlowRunEvent(

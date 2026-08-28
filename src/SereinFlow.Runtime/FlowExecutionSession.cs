@@ -31,7 +31,8 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
         ResourceLeaseRegistry? resources,
         bool ownsResources,
         IReadOnlyDictionary<string, object?>? flowCallInputs,
-        int frameDepth)
+        int frameDepth,
+        Guid? invocationId = null)
     {
         if (maxSteps < 1)
             throw new ArgumentOutOfRangeException(nameof(maxSteps), "Maximum flow steps must be positive. 最大流程步数必须为正数。");
@@ -44,6 +45,7 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
         _ownsResources = ownsResources;
         _flowCallInputs = flowCallInputs ?? new Dictionary<string, object?>(StringComparer.Ordinal);
         _frameDepth = frameDepth;
+        InvocationId = invocationId;
         MaxSteps = maxSteps;
         MaxNodeVisits = maxNodeVisits;
     }
@@ -102,7 +104,7 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
 
     public long NextSequence() => Interlocked.Increment(ref _sharedState.Sequence);
 
-    internal FlowExecutionSession CreateChild()
+    internal FlowExecutionSession CreateChild(Guid? invocationId = null)
     {
         var child = new FlowExecutionSession(
             RunId,
@@ -117,7 +119,8 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
             // frame. Keep its visible depth unchanged so audit consumers can
             // distinguish FlowCall nesting from trigger instances.
             // 监听触发器是隔离值上下文，并非 FlowCall 调用帧；保持可见深度不变，便于审计区分两者。
-            FrameDepth);
+            FrameDepth,
+            invocationId ?? InvocationId);
         if (Plan is not null)
             child.AttachPlan(Plan);
         CopyProjectScopeTo(child);
@@ -148,7 +151,8 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
             Resources,
             ownsResources: false,
             new Dictionary<string, object?>(inputs, StringComparer.Ordinal),
-            FrameDepth + 1);
+            FrameDepth + 1,
+            InvocationId);
         if (Plan is not null)
             child.AttachPlan(Plan);
         child._flowCallTargetNodeId = targetNodeId;
@@ -171,6 +175,13 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
     }
 
     public int FrameDepth => _frameDepth;
+
+    /// <summary>
+    /// Identifies one accepted listener trigger while preserving the shared run
+    /// identity and budgets. It is null for ordinary entry-flow execution.
+    /// 标识一次已接收的监听触发，同时保留共享的运行标识与预算。普通入口流程执行时为 null。
+    /// </summary>
+    internal Guid? InvocationId { get; }
 
     private void CopyProjectScopeTo(FlowExecutionSession child)
     {

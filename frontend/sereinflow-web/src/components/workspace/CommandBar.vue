@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import {
   Activity,
   Check,
+  Bug,
   ChevronDown,
   Languages,
   Pencil,
@@ -11,6 +12,7 @@ import {
   RotateCcw,
   RotateCw,
   Save,
+  StepForward,
   Settings,
   Square,
   X,
@@ -35,6 +37,12 @@ const props = defineProps<{
   isSaving: boolean
   isWorkspaceLoading: boolean
   isRunning: boolean
+  isDebugActive: boolean
+  isDebugPaused: boolean
+  isDebugStarting: boolean
+  isDebugControlling: boolean
+  isDebugStopping: boolean
+  canStartDebug: boolean
   languageMenuOpen: boolean
   locale: Locale
   nodeCount: number
@@ -54,6 +62,10 @@ const emit = defineEmits<{
   redo: []
   save: []
   run: []
+  debug: []
+  'debug-continue': []
+  'debug-step': []
+  'debug-stop': []
   'toggle-language-menu': []
   'set-language': [locale: Locale]
   'show-run-console': []
@@ -111,7 +123,14 @@ function selectConcurrencyMode(mode: FlowConcurrencyMode): void {
         <button class="icon-button" type="button" :title="t('command.undo')" :aria-label="t('command.undo')" :disabled="!props.canUndo" @click="emit('undo')"><RotateCcw :size="16" /></button>
         <button class="icon-button" type="button" :title="t('command.redo')" :aria-label="t('command.redo')" :disabled="!props.canRedo" @click="emit('redo')"><RotateCw :size="16" /></button><span class="command-divider" aria-hidden="true"></span>
         <button class="command-button quiet" type="button" :title="t('command.save')" :disabled="!props.isDirty || props.isSaving || props.isProjectRenaming || props.isWorkspaceLoading" @click="emit('save')"><Save :size="15" /><span>{{ t('command.save') }}</span></button>
-        <button class="command-button run" type="button" :aria-pressed="props.isRunning" :disabled="props.nodeCount === 0 || props.isWorkspaceLoading" @click="emit('run')"><Square v-if="props.isRunning" :size="14" fill="currentColor" /><Play v-else :size="14" fill="currentColor" /><span>{{ props.isRunning ? t('command.stop') : t('command.run') }}</span></button>
+        <button class="command-button run" type="button" :aria-pressed="props.isRunning" :disabled="props.nodeCount === 0 || props.isWorkspaceLoading || props.isDebugActive" @click="emit('run')"><Square v-if="props.isRunning" :size="14" fill="currentColor" /><Play v-else :size="14" fill="currentColor" /><span>{{ props.isRunning ? t('command.stop') : t('command.run') }}</span></button>
+        <template v-if="props.isDebugActive">
+          <span class="command-debug-status" :class="{ paused: props.isDebugPaused }"><Bug :size="14" />{{ t(`debug.status.${props.isDebugStopping ? 'stopping' : props.isDebugPaused ? 'paused' : 'running'}`) }}</span>
+          <button class="icon-button" type="button" :title="t('debug.continue')" :aria-label="t('debug.continue')" :disabled="!props.isDebugPaused || props.isDebugControlling || props.isDebugStopping" @click="emit('debug-continue')"><Play :size="16" fill="currentColor" /></button>
+          <button class="icon-button" type="button" :title="t('debug.step')" :aria-label="t('debug.step')" :disabled="!props.isDebugPaused || props.isDebugControlling || props.isDebugStopping" @click="emit('debug-step')"><StepForward :size="17" /></button>
+          <button class="icon-button icon-button--danger" type="button" :title="t('debug.stop')" :aria-label="t('debug.stop')" :disabled="props.isDebugControlling || props.isDebugStopping" @click="emit('debug-stop')"><Square :size="14" fill="currentColor" /></button>
+        </template>
+        <button v-else class="command-button debug" type="button" :disabled="!props.canStartDebug || props.isDebugStarting" @click="emit('debug')"><Bug :size="15" /><span>{{ t('command.debug') }}</span></button>
         <div class="workspace-settings">
           <button class="icon-button" type="button" :title="t('command.workspaceSettings')" :aria-label="t('command.workspaceSettings')" :aria-expanded="policyMenuOpen" @click="policyMenuOpen = !policyMenuOpen"><Settings :size="16" /></button>
           <div v-if="policyMenuOpen" class="workspace-settings__popover" role="menu">

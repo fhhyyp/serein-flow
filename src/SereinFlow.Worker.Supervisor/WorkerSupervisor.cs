@@ -130,6 +130,316 @@ public sealed class WorkerSupervisor
         }
     }
 
+    /// <summary>
+    /// Starts a Worker process whose stdin remains owned by the supervisor for
+    /// the lifetime of the returned debug session. This is deliberately a
+    /// distinct API from RunAsync so a caller cannot write directly to Worker
+    /// stdin or compete with its sole stdout reader.
+    /// 启动调试 Worker，并在返回会话的生命周期内由 Supervisor 独占其 stdin。它与
+    /// RunAsync 分开，避免调用方直接写 Worker stdin 或与唯一 stdout 读取器竞争。
+    /// </summary>
+    public async Task<DebugRunSession> StartDebugAsync(
+        WorkerRunRequestDto request,
+        Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent,
+        CancellationToken cancellationToken = default)
+    {
+        if (request is null)
+            throw new ArgumentNullException(nameof(request), "The worker request cannot be null. Worker 请求不能为空。");
+        if (publishEvent is null)
+            throw new ArgumentNullException(nameof(publishEvent), "The worker event publisher cannot be null. Worker 事件发布器不能为空。");
+        if (request.Debug is null || request.Debug.DebugSessionId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "A debug request requires a non-empty debug session ID. 调试请求需要非空的调试会话 ID。",
+                nameof(request));
+        }
+        if (request.ProtocolVersion != WorkerProtocolConstants.Version)
+            throw new WorkerProtocolException("worker.protocol_mismatch", "The requested worker protocol version is not supported. 请求的 Worker 协议版本不受支持。");
+        if (!IsAllowedPath(request.ScriptArtifactRootPath, _launchOptions.AllowedScriptArtifactRoot)
+            || !IsAllowedPath(request.LibraryPackageRootPath, _launchOptions.AllowedLibraryPackageRoot))
+        {
+            throw new WorkerProtocolException("worker.path_outside_root", "Worker artifact paths are outside the configured service roots. Worker 缓存路径超出了服务端允许的根目录。");
+        }
+        var runnerPath = ResolveRunnerPath();
+        if (runnerPath is not null && !File.Exists(runnerPath))
+        {
+            throw new FileNotFoundException(
+                $"Worker Runner executable was not found at '{runnerPath}'. Worker Runner 可执行文件不存在：'{runnerPath}'。",
+                runnerPath);
+        }
+        if (request.Deadline <= DateTimeOffset.UtcNow)
+        {
+            throw new TimeoutException(
+                "The run deadline elapsed before the runner started. Worker Runner 启动前运行截止时间已到。");
+        }
+
+        var process = StartProcess();
+        var stdout = process.StandardOutput;
+        var writer = new WorkerMessageWriter(process.StandardInput.BaseStream);
+        var stderrTask = process.StandardError.ReadToEndAsync(CancellationToken.None);
+        var deadlineCancellation = new CancellationTokenSource(request.Deadline - DateTimeOffset.UtcNow);
+        var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadlineCancellation.Token);
+        try
+        {
+            var ready = await WorkerProtocolCodec.ReadAsync(
+                stdout,
+                line => RecordDiagnostic(request.RunId, "runner.stdout_noise", line),
+                runCancellation.Token).AsTask()
+                .WaitAsync(_launchOptions.EffectiveHandshakeTimeout, runCancellation.Token);
+            if (ready is null || ready.Kind != WorkerProtocolConstants.ReadyKind)
+            {
+                throw new WorkerProtocolException(
+                    "worker.handshake_failed",
+                    "Runner did not announce readiness. Worker Runner 未宣布就绪。");
+            }
+
+            await writer.WriteAsync(WorkerMessage.Create(WorkerProtocolConstants.HandshakeKind), runCancellation.Token);
+            var accepted = await WorkerProtocolCodec.ReadAsync(
+                stdout,
+                line => RecordDiagnostic(request.RunId, "runner.stdout_noise", line),
+                runCancellation.Token).AsTask()
+                .WaitAsync(_launchOptions.EffectiveHandshakeTimeout, runCancellation.Token);
+            if (accepted is null || accepted.Kind != WorkerProtocolConstants.HandshakeAcceptedKind)
+            {
+                throw new WorkerProtocolException(
+                    "worker.protocol_mismatch",
+                    "Runner rejected the worker protocol handshake. Worker Runner 拒绝了 Worker 协议握手。");
+            }
+
+            await writer.WriteAsync(
+                WorkerMessage.Create(WorkerProtocolConstants.RunKind, WorkerProtocolCodec.SerializePayload(request), request.RunId, request.Deadline),
+                runCancellation.Token);
+
+            var session = new DebugRunSession(
+                this,
+                process,
+                stdout,
+                writer,
+                stderrTask,
+                request,
+                publishEvent,
+                deadlineCancellation,
+                runCancellation);
+            session.Start();
+            return session;
+        }
+        catch
+        {
+            runCancellation.Cancel();
+            deadlineCancellation.Dispose();
+            runCancellation.Dispose();
+            await writer.DisposeAsync();
+            stdout.Dispose();
+            if (!process.HasExited)
+                TerminateProcessTree(process);
+            process.Dispose();
+            throw;
+        }
+    }
+
+    public sealed class DebugRunSession : IAsyncDisposable
+    {
+        private readonly WorkerSupervisor _supervisor;
+        private readonly Process _process;
+        private readonly StreamReader _stdout;
+        private readonly WorkerMessageWriter _writer;
+        private readonly Task<string> _stderrTask;
+        private readonly WorkerRunRequestDto _request;
+        private readonly Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> _publishEvent;
+        private readonly CancellationTokenSource _deadlineCancellation;
+        private readonly CancellationTokenSource _runCancellation;
+        private readonly SemaphoreSlim _commandGate = new(1, 1);
+        private Task<WorkerRunResultDto>? _completion;
+        private long _lastCommandSequence;
+        private int _disposed;
+
+        internal DebugRunSession(
+            WorkerSupervisor supervisor,
+            Process process,
+            StreamReader stdout,
+            WorkerMessageWriter writer,
+            Task<string> stderrTask,
+            WorkerRunRequestDto request,
+            Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent,
+            CancellationTokenSource deadlineCancellation,
+            CancellationTokenSource runCancellation)
+        {
+            _supervisor = supervisor;
+            _process = process;
+            _stdout = stdout;
+            _writer = writer;
+            _stderrTask = stderrTask;
+            _request = request;
+            _publishEvent = publishEvent;
+            _deadlineCancellation = deadlineCancellation;
+            _runCancellation = runCancellation;
+        }
+
+        public Guid RunId => _request.RunId;
+
+        public Guid DebugSessionId => _request.Debug!.DebugSessionId;
+
+        public Task<WorkerRunResultDto> Completion
+            => _completion ?? throw new InvalidOperationException(
+                "The debug session has not started monitoring. 调试会话尚未开始监控。");
+
+        internal void Start() => _completion = MonitorAsync();
+
+        public Task ContinueAsync(long commandSequence, CancellationToken cancellationToken = default)
+            => SendCommandAsync(WorkerProtocolConstants.DebugContinueKind, commandSequence, cancellationToken);
+
+        public Task StepAsync(long commandSequence, CancellationToken cancellationToken = default)
+            => SendCommandAsync(WorkerProtocolConstants.DebugStepKind, commandSequence, cancellationToken);
+
+        public Task StopAsync(long commandSequence, CancellationToken cancellationToken = default)
+            => SendCommandAsync(
+                WorkerProtocolConstants.DebugStopKind,
+                commandSequence,
+                cancellationToken,
+                cancelRunAfterCommand: true);
+
+        public async ValueTask DisposeAsync()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) == 1)
+                return;
+
+            if (!Completion.IsCompleted)
+            {
+                try
+                {
+                    _runCancellation.Cancel();
+                }
+                catch (ObjectDisposedException)
+                {
+                }
+            }
+            try
+            {
+                await Completion.ConfigureAwait(false);
+            }
+            finally
+            {
+                _commandGate.Dispose();
+            }
+        }
+
+        private async Task SendCommandAsync(
+            string kind,
+            long commandSequence,
+            CancellationToken cancellationToken,
+            bool cancelRunAfterCommand = false)
+        {
+            if (commandSequence < 1)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(commandSequence),
+                    "The debug command sequence must be positive. 调试命令序号必须为正数。");
+            }
+            if (Completion.IsCompleted)
+            {
+                throw new InvalidOperationException(
+                    "The debug run is already terminal. 调试运行已到达终态。");
+            }
+
+            await _commandGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            var shouldCancelRun = false;
+            try
+            {
+                if (commandSequence <= _lastCommandSequence)
+                {
+                    throw new InvalidOperationException(
+                        "The debug command sequence must be strictly increasing. 调试命令序号必须严格递增。");
+                }
+
+                // Stop is a run-lifecycle command, not merely a gate release.
+                // A global Flipflop can be waiting for its next trigger without
+                // any paused gate, so the supervisor must own the final
+                // cancellation and enforce its grace-period process cleanup.
+                // Stop 是运行生命周期命令，不只是闸门放行。全局 Flipflop 可能正在等待
+                // 下一次触发而没有暂停闸门，因此 Supervisor 必须负责最终取消并执行宽限期
+                // 进程清理。
+                shouldCancelRun = cancelRunAfterCommand;
+                var command = new WorkerDebugCommandDto(
+                    WorkerProtocolConstants.Version,
+                    RunId,
+                    DebugSessionId,
+                    commandSequence);
+                await _writer.WriteAsync(
+                    WorkerMessage.Create(
+                        kind,
+                        WorkerProtocolCodec.SerializePayload(command),
+                        RunId,
+                        sequence: commandSequence),
+                    cancellationToken).ConfigureAwait(false);
+                _lastCommandSequence = commandSequence;
+            }
+            finally
+            {
+                _commandGate.Release();
+                if (shouldCancelRun)
+                {
+                    try
+                    {
+                        _runCancellation.Cancel();
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                    }
+                }
+            }
+        }
+
+        private async Task<WorkerRunResultDto> MonitorAsync()
+        {
+            try
+            {
+                return await _supervisor.MonitorRunAsync(
+                    _process,
+                    _stdout,
+                    _writer,
+                    _request,
+                    _publishEvent,
+                    _deadlineCancellation,
+                    _runCancellation.Token).ConfigureAwait(false);
+            }
+            catch (WorkerProtocolException exception)
+            {
+                _supervisor.RecordProtocolDiagnostic(RunId, "debug.protocol", exception);
+                return Failure(RunId, exception.Code, exception.Message);
+            }
+            catch (Exception exception)
+            {
+                _supervisor.RecordDiagnostic(RunId, "debug.supervisor", exception.ToString(), exception);
+                return Failure(
+                    RunId,
+                    "worker.crashed",
+                    "The runner exited before returning a valid result. Worker Runner 在返回有效结果前退出。");
+            }
+            finally
+            {
+                if (!_process.HasExited)
+                    TerminateProcessTree(_process);
+                try
+                {
+                    await _process.WaitForExitAsync().ConfigureAwait(false);
+                }
+                catch (InvalidOperationException)
+                {
+                }
+
+                var stderr = await ReadDiagnosticsAsync(_stderrTask).ConfigureAwait(false);
+                if (!string.IsNullOrWhiteSpace(stderr))
+                    _supervisor.RecordDiagnostic(RunId, "runner.stderr", stderr);
+
+                await _writer.DisposeAsync().ConfigureAwait(false);
+                _stdout.Dispose();
+                _process.Dispose();
+                _deadlineCancellation.Dispose();
+                _runCancellation.Dispose();
+            }
+        }
+    }
+
     private async Task<WorkerRunResultDto> MonitorRunAsync(
         Process process,
         StreamReader stdout,
@@ -154,7 +464,7 @@ public sealed class WorkerSupervisor
             var completed = await Task.WhenAny(readTask, heartbeatTask, callerCancellationTask, deadlineTask);
             if (completed == callerCancellationTask || completed == deadlineTask)
             {
-                var status = completed == deadlineTask ? FlowRunStatusDto.TimedOut : FlowRunStatusDto.Cancelled;
+                var status = deadlineCancellation.IsCancellationRequested ? FlowRunStatusDto.TimedOut : FlowRunStatusDto.Cancelled;
                 var code = status == FlowRunStatusDto.TimedOut ? "worker.timed_out" : "worker.cancelled";
                 return await CancelAndReturnAsync(process, stdout, writer, request, publishEvent, status, code, readTask, lastSequence);
             }

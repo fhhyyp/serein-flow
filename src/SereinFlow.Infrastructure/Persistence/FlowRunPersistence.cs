@@ -105,7 +105,9 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
                 ConcurrencyMode = run.ConcurrencyMode.ToString(),
                 ExclusivityKey = run.ExclusivityKey,
                 IsListenerRun = run.IsListenerRun,
-                QueuedAt = run.QueuedAt.ToString("O")
+                QueuedAt = run.QueuedAt.ToString("O"),
+                ExecutionKind = run.ExecutionKind.ToString(),
+                DebugSessionId = run.DebugSessionId?.ToString("D")
             }, token);
             await _definitions.AddAsync(new FlowRunDefinitionRecord
             {
@@ -124,7 +126,10 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
 
     public async Task<IReadOnlyList<PendingFlowRun>> ListPendingAsync(CancellationToken cancellationToken = default)
     {
-        var rows = await _runs.ListAsync(row => row.Status == FlowRunStatus.Pending.ToString(), cancellationToken);
+        var rows = await _runs.ListAsync(
+            row => row.Status == FlowRunStatus.Pending.ToString()
+                && (row.ExecutionKind == null || row.ExecutionKind == FlowRunExecutionKind.Production.ToString()),
+            cancellationToken);
         var pending = new List<PendingFlowRun>(rows.Count);
         foreach (var row in rows)
         {
@@ -197,6 +202,8 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
         record.ExclusivityKey = run.ExclusivityKey;
         record.IsListenerRun = run.IsListenerRun;
         record.QueuedAt = run.QueuedAt.ToString("O");
+        record.ExecutionKind = run.ExecutionKind.ToString();
+        record.DebugSessionId = run.DebugSessionId?.ToString("D");
         return await _runs.UpdateAsync(record, cancellationToken);
     }
 
@@ -216,7 +223,9 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
                 ConcurrencyMode = run.ConcurrencyMode.ToString(),
                 ExclusivityKey = run.ExclusivityKey,
                 IsListenerRun = run.IsListenerRun,
-                QueuedAt = run.QueuedAt.ToString("O")
+                QueuedAt = run.QueuedAt.ToString("O"),
+                ExecutionKind = run.ExecutionKind.ToString(),
+                DebugSessionId = run.DebugSessionId?.ToString("D")
             }, cancellationToken);
             await _definitions.AddAsync(new FlowRunDefinitionRecord
             {
@@ -270,6 +279,8 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
         record.ExclusivityKey = run.ExclusivityKey;
         record.IsListenerRun = run.IsListenerRun;
         record.QueuedAt = run.QueuedAt.ToString("O");
+        record.ExecutionKind = run.ExecutionKind.ToString();
+        record.DebugSessionId = run.DebugSessionId?.ToString("D");
         return _runs.UpdateAsync(record).GetAwaiter().GetResult();
     }
 
@@ -290,7 +301,11 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
                 : FlowConcurrencyMode.Parallel,
             row.IsListenerRun,
             ParseNullable(row.QueuedAt),
-            ParseNullable(row.Deadline));
+            ParseNullable(row.Deadline),
+            Enum.TryParse<FlowRunExecutionKind>(row.ExecutionKind, out var executionKind)
+                ? executionKind
+                : FlowRunExecutionKind.Production,
+            Guid.TryParse(row.DebugSessionId, out var debugSessionId) ? debugSessionId : null);
 
     private static bool IsExclusiveConflict(SqlSugarException exception)
         => exception.Message.Contains("UX_FlowRuns_ActiveExclusiveFlow", StringComparison.OrdinalIgnoreCase)

@@ -46,6 +46,10 @@ jobs:
         working-directory: frontend/sereinflow-web
         run: npm ci
 
+      - name: Test frontend
+        working-directory: frontend/sereinflow-web
+        run: npm test
+
       - name: Build frontend
         working-directory: frontend/sereinflow-web
         run: npm run build

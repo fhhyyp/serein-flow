@@ -60,6 +60,9 @@ public static class SereinFlowInfrastructureRegistration
                 serviceProvider.GetRequiredService<IRepository<LibraryRecord>>(),
                 serviceProvider.GetRequiredService<IRepository<RunLibraryBindingRecord>>(),
                 serviceProvider.GetRequiredService<IUnitOfWork>()));
+        services.AddScoped<IFlowDebugSessionStore>(serviceProvider =>
+            new SqlSugarFlowDebugSessionStore(
+                serviceProvider.GetRequiredService<IRepository<FlowDebugSessionRecord>>()));
         services.AddScoped<IRunEnvironmentSettingsStore>(serviceProvider =>
             new SqlSugarRunEnvironmentSettingsStore(
                 serviceProvider.GetRequiredService<IRepository<RunEnvironmentSettingsRecord>>()));

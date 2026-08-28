@@ -50,7 +50,7 @@ var workerRunnerPath = ResolveWorkerRunnerPath(
     builder.Configuration["SereinFlow:WorkerRunnerPath"],
     builder.Environment.ContentRootPath);
 var workerRunnerFileName = IsManagedWorkerAssembly(workerRunnerPath) ? "dotnet" : workerRunnerPath;
-builder.Services.AddSingleton<IWorkerRunClient>(serviceProvider =>
+builder.Services.AddSingleton<SupervisorWorkerRunClient>(serviceProvider =>
 {
     var logger = serviceProvider.GetRequiredService<ILogger<SupervisorWorkerRunClient>>();
     return new SupervisorWorkerRunClient(
@@ -62,9 +62,15 @@ builder.Services.AddSingleton<IWorkerRunClient>(serviceProvider =>
             AllowedLibraryPackageRoot: ResolveServicePath(builder.Configuration["SereinFlow:LibraryDirectory"] ?? "data/libraries", builder.Environment.ContentRootPath),
             DiagnosticLogger: message => WorkerLog.WorkerDiagnostic(logger, message, null)));
 });
+builder.Services.AddSingleton<IWorkerRunClient>(serviceProvider =>
+    serviceProvider.GetRequiredService<SupervisorWorkerRunClient>());
+builder.Services.AddSingleton<IWorkerDebugRunClient>(serviceProvider =>
+    serviceProvider.GetRequiredService<SupervisorWorkerRunClient>());
 builder.Services.AddSingleton<RunExecutionQueue>();
 builder.Services.AddSingleton<RunEventBroadcaster>();
+builder.Services.AddSingleton<FlowDebugSessionService>();
 builder.Services.AddHostedService<RunExecutionHostedService>();
+builder.Services.AddHostedService(serviceProvider => serviceProvider.GetRequiredService<FlowDebugSessionService>());
 builder.Services.AddHostedService<LibraryCatalogReindexHostedService>();
 
 var app = builder.Build();
@@ -90,6 +96,25 @@ projects.MapPost("/{projectId:guid}/flows/{flowId:guid}/runs", async (
 {
     var submission = await submissionService.SubmitAsync(projectId, flowId, request, cancellationToken);
     return ToRunSubmissionResponse(submission);
+});
+
+projects.MapPost("/{projectId:guid}/flows/{flowId:guid}/debug-sessions", async (
+    Guid projectId,
+    Guid flowId,
+    StartFlowDebugSessionRequestDto request,
+    FlowDebugSessionService debugSessions,
+    CancellationToken cancellationToken) =>
+{
+    var result = await debugSessions.CreateAsync(projectId, flowId, request, cancellationToken);
+    if (result.IsAccepted)
+    {
+        return Results.Accepted(
+            $"/api/debug-sessions/{result.Session!.Id:D}",
+            ToFlowDebugSessionDto(result.Session));
+    }
+    if (result.ErrorBody is not null)
+        return Results.Json(result.ErrorBody, statusCode: result.StatusCode);
+    return Results.Problem(statusCode: result.StatusCode, title: result.ErrorTitle);
 });
 
 projects.MapGet("", async (bool? includeArchived, IProjectRepository projectRepository, IFlowDefinitionRepository flowRepository, CancellationToken cancellationToken) =>
@@ -710,6 +735,49 @@ app.MapGet("/api/runs/{runId:guid}", async (Guid runId, IFlowRunStore runStore, 
     return run is null ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Run not found. 未找到运行实例。") : Results.Ok(ToRunDto(run));
 });
 
+app.MapGet("/api/runs/{runId:guid}/debug-session", async (
+    Guid runId,
+    IFlowDebugSessionStore debugStore,
+    CancellationToken cancellationToken) =>
+{
+    var session = await debugStore.FindByRunIdAsync(runId, cancellationToken);
+    return session is null
+        ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Debug session not found. 未找到调试会话。")
+        : Results.Ok(ToFlowDebugSessionDto(session));
+});
+
+app.MapGet("/api/debug-sessions/{sessionId:guid}", async (
+    Guid sessionId,
+    FlowDebugSessionService debugSessions,
+    CancellationToken cancellationToken) =>
+{
+    var session = await debugSessions.FindAsync(sessionId, cancellationToken);
+    return session is null
+        ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Debug session not found. 未找到调试会话。")
+        : Results.Ok(ToFlowDebugSessionDto(session));
+});
+
+app.MapPost("/api/debug-sessions/{sessionId:guid}/continue", async (
+    Guid sessionId,
+    FlowDebugCommandRequestDto request,
+    FlowDebugSessionService debugSessions,
+    CancellationToken cancellationToken) =>
+    ToDebugCommandResponse(await debugSessions.ContinueAsync(sessionId, request.CommandSequence, cancellationToken)));
+
+app.MapPost("/api/debug-sessions/{sessionId:guid}/step", async (
+    Guid sessionId,
+    FlowDebugCommandRequestDto request,
+    FlowDebugSessionService debugSessions,
+    CancellationToken cancellationToken) =>
+    ToDebugCommandResponse(await debugSessions.StepAsync(sessionId, request.CommandSequence, cancellationToken)));
+
+app.MapPost("/api/debug-sessions/{sessionId:guid}/stop", async (
+    Guid sessionId,
+    FlowDebugCommandRequestDto request,
+    FlowDebugSessionService debugSessions,
+    CancellationToken cancellationToken) =>
+    ToDebugCommandResponse(await debugSessions.StopAsync(sessionId, request.CommandSequence, cancellationToken)));
+
 app.MapGet("/api/runs/{runId:guid}/snapshot", async (Guid runId, IFlowRunStore runStore, CancellationToken cancellationToken) =>
 {
     var snapshot = await runStore.GetSnapshotAsync(runId, cancellationToken);
@@ -867,7 +935,31 @@ static FlowRunDto ToRunDto(FlowRun run)
         run.CancellationReason,
         (FlowConcurrencyModeDto)run.ConcurrencyMode,
         run.IsListenerRun,
-        run.QueuedAt);
+        run.QueuedAt,
+        (FlowRunExecutionKindDto)run.ExecutionKind,
+        run.DebugSessionId);
+
+static FlowDebugSessionDto ToFlowDebugSessionDto(FlowDebugSession session)
+    => new(
+        session.Id,
+        session.RunId,
+        session.ProjectId,
+        session.FlowId,
+        (FlowDebugSessionStatusDto)session.Status,
+        session.BreakpointNodeIds,
+        session.CurrentNodeId,
+        session.ActiveInvocationId,
+        session.ActiveFlipflopNodeId,
+        session.QueuedTriggerCount,
+        session.LastCommandSequence,
+        session.FailureMessage,
+        session.CreatedAt,
+        session.UpdatedAt);
+
+static IResult ToDebugCommandResponse(FlowDebugSessionCommandResult result)
+    => result.IsAccepted
+        ? Results.Accepted()
+        : Results.Problem(statusCode: result.StatusCode, title: result.ErrorTitle);
 
 static FlowDefinitionSummaryDto ToFlowSummaryDto(FlowDefinitionDto definition)
     => new(

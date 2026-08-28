@@ -15,6 +15,9 @@ public static class WorkerProtocolConstants
     public const string RunKind = "worker.run";
     public const string CancelKind = "worker.cancel";
     public const string CancelAcknowledgedKind = "worker.cancel.ack";
+    public const string DebugContinueKind = "worker.debug.continue";
+    public const string DebugStepKind = "worker.debug.step";
+    public const string DebugStopKind = "worker.debug.stop";
     public const string HeartbeatKind = "worker.heartbeat";
     public const string HeartbeatAcknowledgedKind = "worker.heartbeat.ack";
     public const string EventKind = "worker.event";

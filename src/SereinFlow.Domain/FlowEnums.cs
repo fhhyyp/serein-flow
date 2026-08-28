@@ -73,6 +73,28 @@ public enum FlowRunStatus
 }
 
 /// <summary>
+/// Identifies the source and interaction model of a run without introducing a
+/// flow publishing lifecycle. A debug run still executes an immutable normal
+/// flow snapshot.
+/// 标识运行来源和交互模型，不引入流程发布生命周期。调试运行仍执行不可变的普通流程快照。
+/// </summary>
+public enum FlowRunExecutionKind
+{
+    Production,
+    Debug
+}
+
+public enum FlowDebugSessionStatus
+{
+    Pending,
+    Running,
+    Paused,
+    Completed,
+    Cancelled,
+    Failed
+}
+
+/// <summary>
 /// Controls whether separate instances of one flow may be admitted together.
 /// 控制同一流程的不同运行实例是否可以同时准入。
 /// </summary>

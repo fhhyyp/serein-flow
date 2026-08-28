@@ -4,7 +4,7 @@ namespace SereinFlow.Contracts;
 
 public static class WorkerProtocol
 {
-    public const int Version = 1;
+    public const int Version = 2;
 }
 
 public enum NodeTypeDto
@@ -56,6 +56,22 @@ public enum FlowRunStatusDto
     Cancelled,
     TimedOut,
     Interrupted
+}
+
+public enum FlowRunExecutionKindDto
+{
+    Production,
+    Debug
+}
+
+public enum FlowDebugSessionStatusDto
+{
+    Pending,
+    Running,
+    Paused,
+    Completed,
+    Cancelled,
+    Failed
 }
 
 public enum FlowConcurrencyModeDto
@@ -121,7 +137,14 @@ public enum WorkerEventType
     NodeErrored,
     Log,
     RunCompleted,
-    RunCancelled
+    RunCancelled,
+    DebugPaused,
+    DebugTriggerReceived,
+    DebugTriggerQueued,
+    DebugTriggerAdmitted,
+    DebugTriggerRejected,
+    DebugTriggerCompleted,
+    DebugTriggerFailed
 }
 
 public sealed record ProjectDto(
@@ -557,7 +580,36 @@ public sealed record FlowRunDto(
     string? CancellationReason = null,
     FlowConcurrencyModeDto? ConcurrencyMode = null,
     bool IsListenerRun = false,
-    DateTimeOffset? QueuedAt = null);
+    DateTimeOffset? QueuedAt = null,
+    FlowRunExecutionKindDto ExecutionKind = FlowRunExecutionKindDto.Production,
+    Guid? DebugSessionId = null);
+
+public sealed record StartFlowDebugSessionRequestDto(
+    IReadOnlyList<string>? BreakpointNodeIds,
+    IReadOnlyDictionary<string, JsonElement>? ProjectInputs = null,
+    int? TimeoutSeconds = null,
+    int? MaxSteps = null,
+    int? MaxNodeVisits = null,
+    long? ExpectedFlowVersion = null,
+    int? MaxQueuedFlipflopTriggers = null);
+
+public sealed record FlowDebugSessionDto(
+    Guid Id,
+    Guid RunId,
+    Guid ProjectId,
+    Guid FlowId,
+    FlowDebugSessionStatusDto Status,
+    IReadOnlyList<string> BreakpointNodeIds,
+    string? CurrentNodeId,
+    Guid? ActiveInvocationId,
+    string? ActiveFlipflopNodeId,
+    int QueuedTriggerCount,
+    long LastCommandSequence,
+    string? FailureMessage,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
+
+public sealed record FlowDebugCommandRequestDto(long CommandSequence);
 
 public sealed record FlowRunOverviewDto(
     int QueueCapacity,
@@ -658,7 +710,43 @@ public sealed record WorkerRunRequestDto(
     string? ScriptArtifactRootPath = null,
     string? LibraryPackageRootPath = null,
     int MaxNodeVisits = 1_000,
-    IReadOnlyList<string>? AllowedLibraryIds = null);
+    IReadOnlyList<string>? AllowedLibraryIds = null,
+    WorkerDebugOptionsDto? Debug = null);
+
+/// <summary>
+/// Immutable debug settings captured when a worker run starts. Breakpoints are
+/// node IDs from the submitted flow snapshot, never CLR code locations.
+/// Worker 运行启动时捕获的不可变调试设置。断点是已提交流程快照中的节点 ID，
+/// 绝不是 CLR 代码位置。
+/// </summary>
+public sealed record WorkerDebugOptionsDto(
+    Guid DebugSessionId,
+    IReadOnlyList<string> BreakpointNodeIds,
+    int MaxQueuedFlipflopTriggers = 64);
+
+/// <summary>
+/// A strictly increasing control command scoped to one debug session.
+/// 严格递增且仅作用于一个调试会话的控制命令。
+/// </summary>
+public sealed record WorkerDebugCommandDto(
+    int ProtocolVersion,
+    Guid RunId,
+    Guid DebugSessionId,
+    long CommandSequence);
+
+/// <summary>
+/// Safe snapshot emitted before the paused node enters its executor.
+/// 节点进入执行器前发出的安全快照。
+/// </summary>
+public sealed record WorkerDebugPauseDto(
+    Guid DebugSessionId,
+    Guid RunId,
+    string NodeId,
+    string NodeType,
+    int Step,
+    object? Inputs,
+    int FrameDepth,
+    Guid? TriggerInvocationId = null);
 
 public sealed record WorkerCancelRequestDto(
     int ProtocolVersion,
