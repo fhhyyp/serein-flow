@@ -59,8 +59,11 @@ public sealed class ProjectLibraryService
         string libraryId,
         CancellationToken cancellationToken = default)
     {
-        if (await _projects.FindAsync(projectId, cancellationToken) is null)
+        var project = await _projects.FindAsync(projectId, cancellationToken);
+        if (project is null)
             return ProjectNotFound();
+        if (project.Status == SereinFlow.Domain.ProjectStatus.Archived)
+            return ProjectArchived();
 
         var library = await _catalog.FindAsync(libraryId, cancellationToken);
         if (library is null)
@@ -89,8 +92,11 @@ public sealed class ProjectLibraryService
         string libraryId,
         CancellationToken cancellationToken = default)
     {
-        if (await _projects.FindAsync(projectId, cancellationToken) is null)
+        var project = await _projects.FindAsync(projectId, cancellationToken);
+        if (project is null)
             return ProjectNotFound();
+        if (project.Status == SereinFlow.Domain.ProjectStatus.Archived)
+            return ProjectArchived();
         if (!await _references.IsReferencedAsync(projectId, libraryId, cancellationToken))
         {
             return new ProjectLibraryOperationResult(
@@ -218,4 +224,7 @@ public sealed class ProjectLibraryService
 
     private static ProjectLibraryOperationResult ProjectNotFound()
         => new(false, 404, "project.not_found", "Project was not found. 未找到项目。");
+
+    private static ProjectLibraryOperationResult ProjectArchived()
+        => new(false, 409, "project.archived", "Archived projects cannot change library references. 已归档项目不能修改类库引用。");
 }

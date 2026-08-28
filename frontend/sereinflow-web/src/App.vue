@@ -371,6 +371,10 @@ function refreshProjectLibraryCatalog(): void {
   void refreshLibraryCatalog(projectId.value)
 }
 
+function updateActiveProjectDirectory(workspaces: ProjectWorkspaceDto[]): void {
+  projectWorkspaces.value = workspaces
+}
+
 function findNode(nodeId: string): FlowNode | undefined {
   return canvases.value.flatMap((canvas) => canvas.nodes).find((node) => node.id === nodeId)
 }
@@ -671,6 +675,7 @@ function setLanguage(nextLocale: Locale): void {
       :project-workspaces="projectWorkspaces"
       @open-flow="openProjectInEditor"
       @start-new-project="startNewProjectInEditor"
+      @project-directory-changed="updateActiveProjectDirectory"
     />
 
     <MobileWorkspaceTabs v-if="workspaceView === 'editor'" v-model:mobile-panel="mobilePanel" />

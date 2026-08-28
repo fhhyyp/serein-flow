@@ -152,6 +152,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .project-catalog__item dl > div { min-width: 0; border-left: 1px solid var(--line); padding-left: 9px; }
 .project-catalog__item dl > div:first-child { border-left: 0; padding-left: 0; }
 .project-catalog__item dd { margin: 5px 0 0; color: var(--ink); font-family: var(--mono); font-size: 16px; font-weight: 500; }
+.project-catalog__actions { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; }
+.project-catalog__item--archived { border-color: var(--line); background: var(--canvas); box-shadow: none; }
+.project-catalog__item--archived:hover { border-color: var(--line-strong); box-shadow: none; }
+.project-catalog__readonly { display: inline-flex; align-items: center; gap: 6px; color: var(--subtle); font-size: 12px; }
 
 .environment-settings { display: grid; max-width: 880px; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; margin-top: 22px; border: 1px solid var(--line-strong); padding: 20px; background: var(--surface); }
 .environment-settings label, .interface-form > label { display: grid; min-width: 0; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 600; }

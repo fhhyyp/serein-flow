@@ -70,6 +70,16 @@ public sealed class Project
         UpdatedAt = now ?? DateTimeOffset.UtcNow;
     }
 
+    public void Archive(DateTimeOffset? now = null)
+    {
+        if (Status == ProjectStatus.Archived)
+            return;
+
+        Status = ProjectStatus.Archived;
+        Version++;
+        UpdatedAt = now ?? DateTimeOffset.UtcNow;
+    }
+
     private static void ValidateName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))

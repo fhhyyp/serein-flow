@@ -337,8 +337,9 @@ export class FlowApiError extends Error {
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
-export async function listProjects(): Promise<ProjectWorkspaceDto[]> {
-  return request<ProjectWorkspaceDto[]>('/api/projects')
+export async function listProjects(includeArchived = false): Promise<ProjectWorkspaceDto[]> {
+  const suffix = includeArchived ? '?includeArchived=true' : ''
+  return request<ProjectWorkspaceDto[]>(`/api/projects${suffix}`)
 }
 
 export async function getBuiltinNodeCatalog(): Promise<BuiltinNodeCatalogDto> {
@@ -351,6 +352,10 @@ export async function createProject(requestBody: CreateProjectRequestDto): Promi
 
 export async function renameProject(projectId: string, requestBody: RenameProjectRequestDto): Promise<ProjectWorkspaceDto> {
   return request<ProjectWorkspaceDto>(`/api/projects/${projectId}`, { method: 'PUT', body: requestBody })
+}
+
+export async function archiveProject(projectId: string): Promise<ProjectDto> {
+  return request<ProjectDto>(`/api/projects/${projectId}/archive`, { method: 'POST' })
 }
 
 export async function loadFlow(projectId: string, flowId: string): Promise<FlowDefinitionDto> {

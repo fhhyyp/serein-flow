@@ -39,8 +39,11 @@ public sealed class RunApplicationService
         RunFlowRequestDto request,
         CancellationToken cancellationToken = default)
     {
-        if (await _projects.FindAsync(projectId, cancellationToken) is null)
+        var project = await _projects.FindAsync(projectId, cancellationToken);
+        if (project is null)
             return RunPreparationResult.ProjectNotFound;
+        if (project.Status == ProjectStatus.Archived)
+            return RunPreparationResult.ProjectArchived;
 
         var definition = await _flows.FindAsync(projectId, flowId, cancellationToken);
         if (definition is null)
@@ -115,6 +118,16 @@ public sealed record RunPreparationResult(
         => new(preparation, 202, null);
 
     public static RunPreparationResult ProjectNotFound { get; } = new(null, 404, "Project not found. 未找到项目。");
+
+    public static RunPreparationResult ProjectArchived { get; } = new(
+        null,
+        409,
+        "Archived projects cannot start new runs. 已归档项目不能启动新的运行实例。",
+        new
+        {
+            code = "project.archived",
+            message = "Archived projects cannot start new runs. 已归档项目不能启动新的运行实例。"
+        });
 
     public static RunPreparationResult FlowNotFound { get; } = new(null, 404, "Flow definition not found. 未找到流程定义。");
 

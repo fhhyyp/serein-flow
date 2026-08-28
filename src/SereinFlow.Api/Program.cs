@@ -39,6 +39,7 @@ builder.Services.AddSereinFlowInfrastructure(
 builder.Services.AddScoped<RunApplicationService>();
 builder.Services.AddScoped<RunSubmissionService>();
 builder.Services.AddScoped<RunInterruptionService>();
+builder.Services.AddScoped<ProjectArchiveService>();
 builder.Services.AddScoped<ProjectLibraryService>();
 builder.Services.AddSingleton<IBuiltinNodeCatalog, BuiltinNodeCatalog>();
 builder.Services.Configure<RunExecutionOptions>(builder.Configuration.GetSection("SereinFlow:RunExecution"));
@@ -89,11 +90,13 @@ projects.MapPost("/{projectId:guid}/flows/{flowId:guid}/runs", async (
     return ToRunSubmissionResponse(submission);
 });
 
-projects.MapGet("", async (IProjectRepository projectRepository, IFlowDefinitionRepository flowRepository, CancellationToken cancellationToken) =>
+projects.MapGet("", async (bool? includeArchived, IProjectRepository projectRepository, IFlowDefinitionRepository flowRepository, CancellationToken cancellationToken) =>
 {
     var workspaceList = new List<ProjectWorkspaceDto>();
     foreach (var project in await projectRepository.ListAsync(cancellationToken))
     {
+        if (includeArchived != true && project.Status == ProjectStatus.Archived)
+            continue;
         var flows = await flowRepository.ListByProjectAsync(project.Id, cancellationToken);
         workspaceList.Add(new ProjectWorkspaceDto(
             ToProjectDto(project),
@@ -139,6 +142,10 @@ projects.MapPut("/{projectId:guid}", async (Guid projectId, RenameProjectRequest
     {
         return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Project not found. 未找到项目。");
     }
+    if (project.Status == ProjectStatus.Archived)
+    {
+        return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Archived projects cannot be renamed. 已归档项目不能重命名。");
+    }
 
     if (project.Version != request.ExpectedVersion)
     {
@@ -170,6 +177,21 @@ projects.MapPut("/{projectId:guid}", async (Guid projectId, RenameProjectRequest
     return Results.Ok(workspace);
 });
 
+projects.MapPost("/{projectId:guid}/archive", async (
+    Guid projectId,
+    ProjectArchiveService projectArchiveService,
+    CancellationToken cancellationToken) =>
+{
+    var result = await projectArchiveService.ArchiveAsync(projectId, cancellationToken);
+    if (result.IsSuccess)
+        return Results.Ok(ToProjectDto(result.Project!));
+
+    return Results.Problem(
+        statusCode: result.StatusCode,
+        title: result.Message,
+        extensions: new Dictionary<string, object?> { ["code"] = result.Code });
+});
+
 projects.MapGet("/{projectId:guid}/flows/{flowId:guid}", async (Guid projectId, Guid flowId, IProjectRepository projectRepository, IFlowDefinitionRepository flowRepository, CancellationToken cancellationToken) =>
 {
     if (await projectRepository.FindAsync(projectId, cancellationToken) is null)
@@ -190,9 +212,14 @@ projects.MapPut("/{projectId:guid}/flows/{flowId:guid}", async (Guid projectId, 
         return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The flow route and version must match the update request. 流程路由和版本必须与更新请求一致。");
     }
 
-    if (await projectRepository.FindAsync(projectId, cancellationToken) is null || await flowRepository.FindAsync(projectId, flowId, cancellationToken) is null)
+    var project = await projectRepository.FindAsync(projectId, cancellationToken);
+    if (project is null || await flowRepository.FindAsync(projectId, flowId, cancellationToken) is null)
     {
         return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Flow definition not found. 未找到流程定义。");
+    }
+    if (project.Status == ProjectStatus.Archived)
+    {
+        return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Archived projects cannot save flow definitions. 已归档项目不能保存流程定义。");
     }
 
     var validation = FlowDefinitionContractValidator.ValidateForPersistence(request.Definition);
@@ -386,12 +413,18 @@ environmentApi.MapPost("/interfaces", async (
             statusCode: StatusCodes.Status400BadRequest,
             title: "The interface invocation mode is invalid. 接口调用模式无效。");
     }
-    if (await projects.FindAsync(request.ProjectId, cancellationToken) is null
-        || await flows.FindAsync(request.ProjectId, request.FlowId, cancellationToken) is null)
+    var project = await projects.FindAsync(request.ProjectId, cancellationToken);
+    if (project is null || await flows.FindAsync(request.ProjectId, request.FlowId, cancellationToken) is null)
     {
         return Results.Problem(
             statusCode: StatusCodes.Status404NotFound,
             title: "The selected project or flow was not found. 所选项目或流程不存在。");
+    }
+    if (project.Status == ProjectStatus.Archived)
+    {
+        return Results.Problem(
+            statusCode: StatusCodes.Status409Conflict,
+            title: "Archived projects cannot be published through environment interfaces. 已归档项目不能发布为环境接口。");
     }
 
     var now = DateTimeOffset.UtcNow;
@@ -706,7 +739,17 @@ app.MapHub<RunEventsHub>("/hubs/runs");
 app.Run();
 
 static ProjectDto ToProjectDto(Project project)
-    => new(project.Id, project.Name, project.Version, project.Status.ToString(), project.CreatedAt, project.UpdatedAt);
+    => new(project.Id, project.Name, project.Version, ToProjectStatusValue(project.Status), project.CreatedAt, project.UpdatedAt);
+
+static string ToProjectStatusValue(ProjectStatus status)
+    => status switch
+    {
+        ProjectStatus.Draft => "draft",
+        ProjectStatus.Ready => "ready",
+        ProjectStatus.ScriptInvalid => "scriptInvalid",
+        ProjectStatus.Archived => "archived",
+        _ => throw new ArgumentOutOfRangeException(nameof(status), status, "The project status is not supported. 项目状态不受支持。")
+    };
 
 static FlowRunDto ToRunDto(FlowRun run)
     => new(
