@@ -91,6 +91,11 @@ const isSwitchingCanvas = ref(false)
 const workspaceView = ref<'console' | 'editor'>('console')
 const runPolicy = ref<{ concurrencyMode: FlowConcurrencyMode }>({ concurrencyMode: 'parallel' })
 
+const currentProjectFlows = computed(() =>
+  projectId.value
+    ? projectWorkspaces.value.find((workspace) => workspace.project.id === projectId.value)?.flows ?? []
+    : [])
+
 function iconForNodeKind(kind: NodeKind) {
   if (kind === 'flipflop') {
     return Zap
@@ -779,6 +784,7 @@ function setLanguage(nextLocale: Locale): void {
       v-if="workspaceView === 'editor' && projectLibraryOpen && projectId"
       :project-id="projectId"
       :project-name="projectName"
+      :flows="currentProjectFlows"
       @close="projectLibraryOpen = false"
       @changed="replaceProjectLibraries"
     />

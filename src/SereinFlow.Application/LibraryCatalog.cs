@@ -48,6 +48,35 @@ public interface ILibraryCatalogService
     /// 重新扫描由旧版目录扫描器创建的类库包。
     /// </summary>
     Task<int> ReindexOutdatedAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lists administrator-defined library families and their immutable
+    /// artifacts. Legacy artifacts remain unassigned until an explicit action.
+    /// 列出管理员定义的类库族及其不可变工件。历史工件在显式归类前保持未归属。
+    /// </summary>
+    Task<IReadOnlyList<LibraryFamilyDto>> ListFamiliesAsync(
+        bool includeArchivedArtifacts = true,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<LibraryFamilyDto>>([]);
+
+    Task<LibraryFamilyDto?> AssignFamilyAsync(
+        string libraryId,
+        AssignLibraryFamilyRequestDto request,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult<LibraryFamilyDto?>(null);
+
+    /// <summary>
+    /// Changes catalog visibility only. Package bytes and existing flow/run
+    /// bindings remain available for deterministic execution and audit.
+    /// 只改变目录可见性；包文件以及既有流程/运行绑定仍可用于确定性执行和审计。
+    /// </summary>
+    Task<bool> SetLifecycleAsync(
+        string libraryId,
+        LibraryLifecycleDto lifecycle,
+        CancellationToken cancellationToken = default)
+        => lifecycle == LibraryLifecycleDto.Archived
+            ? ArchiveAsync(libraryId, cancellationToken)
+            : Task.FromResult(false);
 }
 
 public sealed class LibraryUploadException : Exception

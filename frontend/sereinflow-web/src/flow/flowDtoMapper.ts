@@ -118,6 +118,7 @@ function toNodeDto(node: FlowNode): NodeDto {
       targetCanvasId: node.data.runtime?.targetCanvasId,
       isPublic: node.data.runtime?.isPublic,
       flowCallParameterBindings: node.data.runtime?.flowCallParameterBindings,
+      libraryNodeContractId: node.data.runtime?.libraryNodeContractId,
     },
   }
 }
@@ -360,7 +361,7 @@ function hasDataOutputFromDto(node: NodeDto): boolean {
 
 function toRuntimeMetadata(node: NodeDto) {
   const ui = node.ui
-  if (!ui || [ui.category, ui.libraryId, ui.className, ui.methodName, ui.dllName, ui.dllVersion, ui.returnType, ui.targetNodeId, ui.targetFlowId, ui.isAwaitable, ui.staticReturnType, ui.isDynamicReturnType].every((value) => value === undefined)) {
+  if (!ui || [ui.category, ui.libraryId, ui.className, ui.methodName, ui.dllName, ui.dllVersion, ui.returnType, ui.targetNodeId, ui.targetFlowId, ui.isAwaitable, ui.staticReturnType, ui.isDynamicReturnType, ui.libraryNodeContractId].every((value) => value === undefined)) {
     return undefined
   }
 
@@ -380,6 +381,7 @@ function toRuntimeMetadata(node: NodeDto) {
     targetCanvasId: ui.targetCanvasId,
     isPublic: ui.isPublic,
     flowCallParameterBindings: ui.flowCallParameterBindings,
+    libraryNodeContractId: ui.libraryNodeContractId,
   }
 }
 

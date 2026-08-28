@@ -126,7 +126,8 @@ public sealed record NodeRuntimeDefinition(
     bool IsDynamicReturnType = false,
     string? TargetCanvasId = null,
     bool IsPublic = false,
-    IReadOnlyList<FlowCallParameterBinding>? FlowCallParameterBindings = null);
+    IReadOnlyList<FlowCallParameterBinding>? FlowCallParameterBindings = null,
+    string? LibraryNodeContractId = null);
 
 public sealed record FlowCallParameterBinding(string CallParameterId, string TargetParameterId);
 

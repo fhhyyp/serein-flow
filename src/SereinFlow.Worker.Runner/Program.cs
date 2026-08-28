@@ -349,7 +349,8 @@ public static class FlowDefinitionMapper
                     dto.Ui.IsDynamicReturnType ?? false,
                     dto.Ui.TargetCanvasId,
                     dto.Ui.IsPublic ?? false,
-                    dto.Ui.FlowCallParameterBindings?.Select(item => new FlowCallParameterBinding(item.CallParameterId, item.TargetParameterId)).ToArray()));
+                    dto.Ui.FlowCallParameterBindings?.Select(item => new FlowCallParameterBinding(item.CallParameterId, item.TargetParameterId)).ToArray(),
+                    dto.Ui.LibraryNodeContractId));
 
     private static VariadicParameterMode? ParseVariadicMode(string? value)
         => Enum.TryParse<VariadicParameterMode>(value, ignoreCase: true, out var mode) ? mode : null;

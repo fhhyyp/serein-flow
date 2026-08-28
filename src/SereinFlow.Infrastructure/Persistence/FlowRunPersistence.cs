@@ -15,15 +15,21 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
 
     private readonly IRepository<FlowRunRecord> _runs;
     private readonly IRepository<FlowRunDefinitionRecord> _definitions;
+    private readonly IRepository<LibraryRecord>? _libraries;
+    private readonly IRepository<RunLibraryBindingRecord>? _libraryBindings;
     private readonly IUnitOfWork _unitOfWork;
 
     public SqlSugarFlowRunStore(
         IRepository<FlowRunRecord> runs,
         IRepository<FlowRunDefinitionRecord> definitions,
+        IRepository<LibraryRecord>? libraries,
+        IRepository<RunLibraryBindingRecord>? libraryBindings,
         IUnitOfWork unitOfWork)
     {
         _runs = runs;
         _definitions = definitions;
+        _libraries = libraries;
+        _libraryBindings = libraryBindings;
         _unitOfWork = unitOfWork;
     }
 
@@ -31,6 +37,8 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
         : this(
             new SqlSugarRepository<FlowRunRecord>(database.Client),
             new SqlSugarRepository<FlowRunDefinitionRecord>(database.Client),
+            new SqlSugarRepository<LibraryRecord>(database.Client),
+            new SqlSugarRepository<RunLibraryBindingRecord>(database.Client),
             new SqlSugarUnitOfWork(database.Client))
     {
     }
@@ -109,6 +117,7 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
                 DefinitionJson = serialized,
                 CreatedAt = run.CreatedAt.ToString("O")
             }, token);
+            await WriteLibraryBindingsAsync(run, definition, token);
             return run;
         }, cancellationToken);
     }
@@ -219,6 +228,7 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
                 DefinitionJson = serialized,
                 CreatedAt = run.CreatedAt.ToString("O")
             }, cancellationToken);
+            await WriteLibraryBindingsAsync(run, definition, cancellationToken);
             return run;
         }).GetAwaiter().GetResult();
     }
@@ -285,6 +295,34 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
     private static bool IsExclusiveConflict(SqlSugarException exception)
         => exception.Message.Contains("UX_FlowRuns_ActiveExclusiveFlow", StringComparison.OrdinalIgnoreCase)
             || exception.Message.Contains("FlowRuns.ExclusivityKey", StringComparison.OrdinalIgnoreCase);
+
+    private async Task WriteLibraryBindingsAsync(
+        FlowRun run,
+        FlowDefinitionDto definition,
+        CancellationToken cancellationToken)
+    {
+        if (_libraryBindings is null || _libraries is null)
+            return;
+
+        foreach (var artifactId in LibraryBindingIndex.Extract(definition))
+        {
+            // Run snapshots can contain older, no-longer-catalogued bindings.
+            // The index is optional audit metadata and must not prevent the
+            // immutable run snapshot itself from being retained.
+            // 运行快照可能包含目录中已不存在的旧绑定。该索引只是可选的审计
+            // 元数据，不能妨碍不可变运行快照本身被保留。
+            if (await _libraries.GetByIdAsync(artifactId, cancellationToken) is null)
+                continue;
+
+            await _libraryBindings.AddAsync(new RunLibraryBindingRecord
+            {
+                Id = Guid.NewGuid().ToString("N"),
+                RunId = run.Id.ToString("D"),
+                LibraryArtifactId = artifactId,
+                CreatedAt = run.CreatedAt.ToString("O")
+            }, cancellationToken);
+        }
+    }
 
     private static DateTimeOffset Parse(string value) => DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
     private static DateTimeOffset? ParseNullable(string? value) => string.IsNullOrWhiteSpace(value) ? null : Parse(value);

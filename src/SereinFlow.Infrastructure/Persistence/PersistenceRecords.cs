@@ -110,9 +110,57 @@ public sealed class LibraryRecord
     public string UploadedAt { get; set; } = string.Empty;
     public string PackagePath { get; set; } = string.Empty;
     public string NodeCatalogJson { get; set; } = "[]";
+    public string? FamilyId { get; set; }
+    public string? SemanticVersion { get; set; }
+    public string? CompatibilityManifestJson { get; set; }
     public int CatalogSchemaVersion { get; set; }
     public string Status { get; set; } = "Available";
     public string? ArchivedAt { get; set; }
+}
+
+[SugarTable("LibraryFamilies")]
+public sealed class LibraryFamilyRecord
+{
+    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? LatestArtifactId { get; set; }
+    public string CreatedAt { get; set; } = string.Empty;
+    public string UpdatedAt { get; set; } = string.Empty;
+}
+
+[SugarTable("FlowLibraryBindings")]
+public sealed class FlowLibraryBindingRecord
+{
+    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    public string ProjectId { get; set; } = string.Empty;
+    public string FlowId { get; set; } = string.Empty;
+    public long FlowVersion { get; set; }
+    public string LibraryArtifactId { get; set; } = string.Empty;
+    public string CreatedAt { get; set; } = string.Empty;
+}
+
+[SugarTable("RunLibraryBindings")]
+public sealed class RunLibraryBindingRecord
+{
+    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    public string RunId { get; set; } = string.Empty;
+    public string LibraryArtifactId { get; set; } = string.Empty;
+    public string CreatedAt { get; set; } = string.Empty;
+}
+
+[SugarTable("LibraryUpgradePlans")]
+public sealed class LibraryUpgradePlanRecord
+{
+    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    public string ProjectId { get; set; } = string.Empty;
+    public string SourceArtifactId { get; set; } = string.Empty;
+    public string TargetArtifactId { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string AnalysisJson { get; set; } = string.Empty;
+    public string CreatedAt { get; set; } = string.Empty;
+    public string? AppliedAt { get; set; }
+    public string? FailureMessage { get; set; }
 }
 
 [SugarTable("ProjectLibraryReferences")]

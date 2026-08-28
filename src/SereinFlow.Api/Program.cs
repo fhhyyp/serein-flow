@@ -41,6 +41,8 @@ builder.Services.AddScoped<RunSubmissionService>();
 builder.Services.AddScoped<RunInterruptionService>();
 builder.Services.AddScoped<ProjectArchiveService>();
 builder.Services.AddScoped<ProjectLibraryService>();
+builder.Services.AddSingleton<ILibraryCompatibilityAnalyzer, LibraryCompatibilityAnalyzer>();
+builder.Services.AddScoped<LibraryUpgradeService>();
 builder.Services.AddSingleton<IBuiltinNodeCatalog, BuiltinNodeCatalog>();
 builder.Services.Configure<RunExecutionOptions>(builder.Configuration.GetSection("SereinFlow:RunExecution"));
 
@@ -253,6 +255,22 @@ projects.MapGet("/{projectId:guid}/libraries", async (
     CancellationToken cancellationToken) =>
     ToProjectLibraryResponse(await projectLibraries.ListAsync(projectId, cancellationToken)));
 
+projects.MapGet("/{projectId:guid}/libraries/usage", async (
+    Guid projectId,
+    IProjectRepository projectRepository,
+    ILibraryArtifactUsageStore usageStore,
+    CancellationToken cancellationToken) =>
+{
+    if (await projectRepository.FindAsync(projectId, cancellationToken) is null)
+    {
+        return Results.Problem(
+            statusCode: StatusCodes.Status404NotFound,
+            title: "Project was not found. 未找到项目。");
+    }
+
+    return Results.Ok(await usageStore.ListByProjectAsync(projectId, cancellationToken));
+});
+
 projects.MapPut("/{projectId:guid}/libraries/{libraryId}", async (
     Guid projectId,
     string libraryId,
@@ -267,10 +285,58 @@ projects.MapDelete("/{projectId:guid}/libraries/{libraryId}", async (
     CancellationToken cancellationToken) =>
     ToProjectLibraryResponse(await projectLibraries.RemoveAsync(projectId, libraryId, cancellationToken)));
 
+projects.MapPost("/{projectId:guid}/library-upgrades/preview", async (
+    Guid projectId,
+    LibraryUpgradePreviewRequestDto request,
+    LibraryUpgradeService upgrades,
+    CancellationToken cancellationToken) =>
+    ToLibraryUpgradeResponse(await upgrades.PreviewAsync(projectId, request, cancellationToken)));
+
+projects.MapGet("/{projectId:guid}/library-upgrades/{upgradeId:guid}", async (
+    Guid projectId,
+    Guid upgradeId,
+    LibraryUpgradeService upgrades,
+    CancellationToken cancellationToken) =>
+    ToLibraryUpgradeResponse(await upgrades.GetPlanAsync(projectId, upgradeId, cancellationToken)));
+
+projects.MapPost("/{projectId:guid}/library-upgrades/{upgradeId:guid}/apply", async (
+    Guid projectId,
+    Guid upgradeId,
+    ApplyLibraryUpgradeRequestDto request,
+    LibraryUpgradeService upgrades,
+    CancellationToken cancellationToken) =>
+    ToLibraryUpgradeResponse(await upgrades.ApplyAsync(projectId, upgradeId, request, cancellationToken)));
+
+projects.MapPost("/{projectId:guid}/library-upgrades/{upgradeId:guid}/apply-batch", async (
+    Guid projectId,
+    Guid upgradeId,
+    ApplyLibraryUpgradeBatchRequestDto request,
+    LibraryUpgradeService upgrades,
+    CancellationToken cancellationToken) =>
+    ToLibraryUpgradeResponse(await upgrades.ApplyBatchAsync(projectId, upgradeId, request, cancellationToken)));
+
 var libraries = app.MapGroup("/api/libraries");
+
+app.MapGet("/api/library-families", async (ILibraryCatalogService libraryCatalog, CancellationToken cancellationToken) =>
+    Results.Ok(await libraryCatalog.ListFamiliesAsync(cancellationToken: cancellationToken)));
+
+app.MapGet("/api/library-families/{familyId}/artifacts", async (
+    string familyId,
+    ILibraryCatalogService libraryCatalog,
+    CancellationToken cancellationToken) =>
+{
+    var family = (await libraryCatalog.ListFamiliesAsync(cancellationToken: cancellationToken))
+        .SingleOrDefault(item => string.Equals(item.Id, familyId, StringComparison.OrdinalIgnoreCase));
+    return family is null
+        ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Library family not found. 未找到类库族。")
+        : Results.Ok(family.Artifacts ?? []);
+});
 
 libraries.MapGet("", async (ILibraryCatalogService libraryCatalog, CancellationToken cancellationToken) =>
     Results.Ok(await libraryCatalog.ListAsync(cancellationToken: cancellationToken)));
+
+libraries.MapGet("/usage", async (ILibraryArtifactUsageStore usageStore, CancellationToken cancellationToken) =>
+    Results.Ok(await usageStore.ListAsync(cancellationToken)));
 
 libraries.MapGet("/{libraryId}", async (string libraryId, ILibraryCatalogService libraryCatalog, CancellationToken cancellationToken) =>
 {
@@ -278,6 +344,42 @@ libraries.MapGet("/{libraryId}", async (string libraryId, ILibraryCatalogService
     return library is null
         ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Library not found. 未找到类库。")
         : Results.Ok(library);
+});
+
+libraries.MapPatch("/{libraryId}/family", async (
+    string libraryId,
+    AssignLibraryFamilyRequestDto request,
+    ILibraryCatalogService libraryCatalog,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var family = await libraryCatalog.AssignFamilyAsync(libraryId, request, cancellationToken);
+        return family is null
+            ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Library artifact not found. 未找到类库制品。")
+            : Results.Ok(family);
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: exception.Message);
+    }
+});
+
+libraries.MapPatch("/{libraryId}/lifecycle", async (
+    string libraryId,
+    UpdateLibraryLifecycleRequestDto request,
+    ILibraryCatalogService libraryCatalog,
+    CancellationToken cancellationToken) =>
+{
+    if (!Enum.IsDefined(request.Lifecycle))
+    {
+        return Results.Problem(
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "The library lifecycle is invalid. 类库生命周期无效。");
+    }
+    return await libraryCatalog.SetLifecycleAsync(libraryId, request.Lifecycle, cancellationToken)
+        ? Results.NoContent()
+        : Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Library artifact not found. 未找到类库制品。");
 });
 
 async Task<IResult> UploadLibraryAsync(HttpRequest request, ILibraryCatalogService libraryCatalog, CancellationToken cancellationToken)
@@ -801,6 +903,27 @@ static IResult ToProjectLibraryResponse(ProjectLibraryOperationResult result)
             ? null
             : new Dictionary<string, object?> { ["code"] = result.Code });
 }
+
+static IResult ToLibraryUpgradeResponse<T>(LibraryUpgradeOperationResult<T> result)
+{
+    if (result.IsSuccess)
+    {
+        return result.StatusCode == StatusCodes.Status201Created
+            ? Results.Created($"/api/projects/library-upgrades/{GetUpgradeId(result.Value)}", result.Value)
+            : Results.Ok(result.Value);
+    }
+
+    var extensions = new Dictionary<string, object?> { ["code"] = result.Code };
+    if (result.CurrentVersion is not null)
+        extensions["currentVersion"] = result.CurrentVersion;
+    return Results.Problem(
+        statusCode: result.StatusCode,
+        title: result.Message ?? "Library upgrade request failed. 类库升级请求失败。",
+        extensions: extensions);
+}
+
+static string GetUpgradeId<T>(T? value)
+    => value is LibraryUpgradePlanDto plan ? plan.Id.ToString("D") : string.Empty;
 
 static async Task<FlowRun?> WaitForTerminalRunAsync(
     IFlowRunStore runStore,

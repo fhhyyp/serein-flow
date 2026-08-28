@@ -59,7 +59,7 @@ public sealed record LibraryCatalogOptions
 /// </summary>
 public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDisposable
 {
-    internal const int CurrentCatalogSchemaVersion = 3;
+    internal const int CurrentCatalogSchemaVersion = 5;
     private static readonly Action<ILogger, string, Exception?> ReindexSkippedLog = LoggerMessage.Define<string>(
         LogLevel.Warning,
         new EventId(1001, nameof(ReindexSkippedLog)),
@@ -71,6 +71,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
     });
 
     private readonly IRepository<LibraryRecord> _libraries;
+    private readonly IRepository<LibraryFamilyRecord> _families;
     private readonly IUnitOfWork _unitOfWork;
     private readonly LibraryCatalogOptions _options;
     private readonly ILogger<SqliteLibraryCatalogService>? _logger;
@@ -82,6 +83,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
     public SqliteLibraryCatalogService(SqliteDatabase database, LibraryCatalogOptions options)
         : this(
             new SqlSugarRepository<LibraryRecord>(database?.Client ?? throw new ArgumentNullException(nameof(database), "The database cannot be null. 数据库不能为空。")),
+            new SqlSugarRepository<LibraryFamilyRecord>(database.Client),
             new SqlSugarUnitOfWork(database.Client),
             options)
     {
@@ -89,11 +91,13 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
     public SqliteLibraryCatalogService(
         IRepository<LibraryRecord> libraries,
+        IRepository<LibraryFamilyRecord> families,
         IUnitOfWork unitOfWork,
         LibraryCatalogOptions options,
         ILogger<SqliteLibraryCatalogService>? logger = null)
     {
         _libraries = libraries ?? throw new ArgumentNullException(nameof(libraries), "The library repository cannot be null. 类库仓储不能为空。");
+        _families = families ?? throw new ArgumentNullException(nameof(families), "The library family repository cannot be null. 类库族仓储不能为空。");
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork), "The unit of work cannot be null. 工作单元不能为空。");
         _options = options ?? throw new ArgumentNullException(nameof(options), "Library catalog options cannot be null. 类库目录选项不能为空。");
         _logger = logger;
@@ -112,13 +116,17 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
     public async Task<IReadOnlyList<LibraryDto>> ListAsync(
         bool includeArchived = false,
         CancellationToken cancellationToken = default)
-        => (await _libraries.ListAsync(cancellationToken: cancellationToken))
-            .Select(Map)
+    {
+        var rows = await _libraries.ListAsync(cancellationToken: cancellationToken);
+        var familyNames = await GetFamilyNamesAsync(rows, cancellationToken);
+        return rows
+            .Select(row => Map(row, GetFamilyName(row, familyNames)))
             .Where(library => includeArchived || library.Lifecycle == LibraryLifecycleDto.Available)
             .OrderBy(static library => library.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(static library => library.Version, StringComparer.OrdinalIgnoreCase)
             .ThenBy(static library => library.Id, StringComparer.Ordinal)
             .ToArray();
+    }
 
     public async Task<LibraryDto?> FindAsync(
         string libraryId,
@@ -131,7 +139,13 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
         var key = libraryId.Trim();
         var row = await _libraries.GetByIdAsync(key, cancellationToken);
-        return row is null ? null : Map(row);
+        if (row is null)
+            return null;
+
+        var family = string.IsNullOrWhiteSpace(row.FamilyId)
+            ? null
+            : await _families.GetByIdAsync(row.FamilyId, cancellationToken);
+        return Map(row, family?.Name);
     }
 
     public async Task<LibraryUploadResultDto> UploadAsync(
@@ -180,6 +194,8 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
                         UploadedAt = library.UploadedAt.ToString("O"),
                         PackagePath = finalPath,
                         NodeCatalogJson = nodesJson,
+                        SemanticVersion = library.Version,
+                        CompatibilityManifestJson = JsonSerializer.Serialize(library.CompatibilityManifest, JsonOptions),
                         CatalogSchemaVersion = CurrentCatalogSchemaVersion,
                         Status = LibraryLifecycleDto.Available.ToString(),
                         ArchivedAt = null,
@@ -237,12 +253,130 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             return false;
         }
 
-        if (ParseLifecycle(row.Status) == LibraryLifecycleDto.Archived)
-            return true;
+        return await SetLifecycleAsync(libraryId, LibraryLifecycleDto.Archived, cancellationToken);
+    }
 
-        row.Status = LibraryLifecycleDto.Archived.ToString();
-        row.ArchivedAt = DateTimeOffset.UtcNow.ToString("O");
-        return await _libraries.UpdateAsync(row, cancellationToken);
+    public async Task<bool> SetLifecycleAsync(
+        string libraryId,
+        LibraryLifecycleDto lifecycle,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(libraryId))
+            return false;
+
+        return await _unitOfWork.ExecuteAsync(async token =>
+        {
+            var row = await _libraries.GetByIdAsync(libraryId.Trim(), token);
+            if (row is null)
+                return false;
+
+            if (ParseLifecycle(row.Status) != lifecycle)
+            {
+                row.Status = lifecycle.ToString();
+                row.ArchivedAt = lifecycle == LibraryLifecycleDto.Archived
+                    ? DateTimeOffset.UtcNow.ToString("O")
+                    : null;
+                if (!await _libraries.UpdateAsync(row, token))
+                    return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(row.FamilyId))
+            {
+                var family = await _families.GetByIdAsync(row.FamilyId, token);
+                if (family is not null)
+                    await RefreshLatestArtifactAsync(family, token);
+            }
+
+            return true;
+        }, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<LibraryFamilyDto>> ListFamiliesAsync(
+        bool includeArchivedArtifacts = true,
+        CancellationToken cancellationToken = default)
+    {
+        var families = await _families.ListAsync(cancellationToken: cancellationToken);
+        var artifactRows = await _libraries.ListAsync(cancellationToken: cancellationToken);
+        var familyNames = families.ToDictionary(family => family.Id, family => family.Name, StringComparer.OrdinalIgnoreCase);
+        var artifacts = artifactRows
+            .Select(row => Map(row, GetFamilyName(row, familyNames)))
+            .Where(library => includeArchivedArtifacts || library.Lifecycle == LibraryLifecycleDto.Available)
+            .ToArray();
+        return families
+            .Select(family => MapFamily(family, artifacts))
+            .OrderBy(static family => family.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static family => family.Id, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    public async Task<LibraryFamilyDto?> AssignFamilyAsync(
+        string libraryId,
+        AssignLibraryFamilyRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (string.IsNullOrWhiteSpace(libraryId))
+            return null;
+
+        return await _unitOfWork.ExecuteAsync(async token =>
+        {
+            var library = await _libraries.GetByIdAsync(libraryId.Trim(), token);
+            if (library is null)
+                return null;
+
+            var previousFamilyId = library.FamilyId;
+            LibraryFamilyRecord? family;
+            if (!string.IsNullOrWhiteSpace(request.FamilyId))
+            {
+                family = await _families.GetByIdAsync(request.FamilyId.Trim(), token);
+                if (family is null)
+                {
+                    throw new ArgumentException(
+                        "The requested library family does not exist. 指定的类库族不存在。",
+                        nameof(request));
+                }
+            }
+            else
+            {
+                var name = NormalizeFamilyName(request.Name);
+                family = (await _families.ListAsync(cancellationToken: token))
+                    .SingleOrDefault(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase));
+                if (family is null)
+                {
+                    var now = DateTimeOffset.UtcNow;
+                    family = new LibraryFamilyRecord
+                    {
+                        Id = Guid.NewGuid().ToString("N"),
+                        Name = name,
+                        Description = NormalizeOptional(request.Description),
+                        CreatedAt = now.ToString("O"),
+                        UpdatedAt = now.ToString("O")
+                    };
+                    await _families.AddAsync(family, token);
+                }
+            }
+
+            library.FamilyId = family.Id;
+            library.SemanticVersion = string.IsNullOrWhiteSpace(library.SemanticVersion) ? library.Version : library.SemanticVersion;
+            await _libraries.UpdateAsync(library, token);
+
+            var members = await RefreshLatestArtifactAsync(family, token);
+
+            // A family assignment moves the artifact instead of copying it.
+            // Recompute the old family's recommendation in the same transaction
+            // so it cannot retain an artifact that no longer belongs to it.
+            // 类库工件归类是迁移而不是复制；在同一事务内重算原类库族的推荐工件，
+            // 避免它继续指向已迁出的工件。
+            if (!string.IsNullOrWhiteSpace(previousFamilyId)
+                && !string.Equals(previousFamilyId, family.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                var previousFamily = await _families.GetByIdAsync(previousFamilyId, token);
+                if (previousFamily is not null)
+                    await RefreshLatestArtifactAsync(previousFamily, token);
+            }
+
+            return MapFamily(family, members.Select(member => Map(member, family.Name)).ToArray());
+        }, cancellationToken);
     }
 
     public async Task<LibraryDto?> ReindexAsync(
@@ -278,11 +412,15 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
                 row.SizeBytes,
                 cancellationToken);
             row.NodeCatalogJson = JsonSerializer.Serialize(rescanned.Nodes, JsonOptions);
+            row.CompatibilityManifestJson = JsonSerializer.Serialize(rescanned.CompatibilityManifest, JsonOptions);
             row.CatalogSchemaVersion = CurrentCatalogSchemaVersion;
             await _unitOfWork.ExecuteAsync(
                 token => _libraries.UpdateAsync(row, token),
                 cancellationToken);
-            return Map(row);
+            var family = string.IsNullOrWhiteSpace(row.FamilyId)
+                ? null
+                : await _families.GetByIdAsync(row.FamilyId, cancellationToken);
+            return Map(row, family?.Name);
         }
         finally
         {
@@ -324,9 +462,12 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         return reindexed;
     }
 
-    private static LibraryDto Map(LibraryRecord row)
+    private static LibraryDto Map(LibraryRecord row, string? familyName = null)
     {
         var nodes = JsonSerializer.Deserialize<IReadOnlyList<LibraryNodeDto>>(row.NodeCatalogJson, JsonOptions) ?? [];
+        var manifest = string.IsNullOrWhiteSpace(row.CompatibilityManifestJson)
+            ? null
+            : JsonSerializer.Deserialize<LibraryArtifactManifestDto>(row.CompatibilityManifestJson, JsonOptions);
         var uploadedAt = DateTimeOffset.TryParse(row.UploadedAt, out var parsed)
             ? parsed
             : DateTimeOffset.UnixEpoch;
@@ -339,8 +480,106 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             row.Sha256,
             uploadedAt,
             nodes,
-            ParseLifecycle(row.Status));
+            ParseLifecycle(row.Status),
+            row.FamilyId,
+            string.IsNullOrWhiteSpace(row.SemanticVersion) ? row.Version : row.SemanticVersion,
+            manifest,
+            familyName);
     }
+
+    private async Task<IReadOnlyDictionary<string, string>> GetFamilyNamesAsync(
+        IReadOnlyList<LibraryRecord> libraries,
+        CancellationToken cancellationToken)
+    {
+        var familyIds = libraries
+            .Select(static library => library.FamilyId)
+            .Where(static familyId => !string.IsNullOrWhiteSpace(familyId))
+            .Select(static familyId => familyId!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (familyIds.Count == 0)
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        return (await _families.ListAsync(cancellationToken: cancellationToken))
+            .Where(family => familyIds.Contains(family.Id))
+            .ToDictionary(family => family.Id, family => family.Name, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string? GetFamilyName(
+        LibraryRecord library,
+        IReadOnlyDictionary<string, string> familyNames)
+        => !string.IsNullOrWhiteSpace(library.FamilyId)
+            && familyNames.TryGetValue(library.FamilyId, out var familyName)
+            ? familyName
+            : null;
+
+    private static LibraryFamilyDto MapFamily(
+        LibraryFamilyRecord family,
+        IEnumerable<LibraryDto> artifacts)
+    {
+        var members = artifacts
+            .Where(item => string.Equals(item.FamilyId, family.Id, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(item => ParseSemanticVersion(item.SemanticVersion ?? item.Version))
+            .ThenByDescending(static item => item.UploadedAt)
+            .ThenBy(static item => item.Id, StringComparer.Ordinal)
+            .ToArray();
+        return new LibraryFamilyDto(
+            family.Id,
+            family.Name,
+            family.Description,
+            family.LatestArtifactId,
+            ParseDate(family.CreatedAt),
+            ParseDate(family.UpdatedAt),
+            members);
+    }
+
+    /// <summary>
+    /// Rebuilds a family's recommendation from immutable members. Archived
+    /// artifacts remain visible for audit but are never advertised as the
+    /// preferred target for a new reference or upgrade.
+    /// 从不可变工件成员重新计算类库族推荐项。已归档工件仍可用于审计展示，
+    /// 但不会再被作为新引用或升级的推荐目标。
+    /// </summary>
+    private async Task<LibraryRecord[]> RefreshLatestArtifactAsync(
+        LibraryFamilyRecord family,
+        CancellationToken cancellationToken)
+    {
+        var members = (await _libraries.ListAsync(cancellationToken: cancellationToken))
+            .Where(item => string.Equals(item.FamilyId, family.Id, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        var latest = members
+            .Where(item => ParseLifecycle(item.Status) == LibraryLifecycleDto.Available)
+            .OrderByDescending(item => ParseSemanticVersion(item.SemanticVersion ?? item.Version))
+            .ThenByDescending(static item => item.UploadedAt, StringComparer.Ordinal)
+            .ThenByDescending(static item => item.Id, StringComparer.Ordinal)
+            .FirstOrDefault();
+        family.LatestArtifactId = latest?.Id;
+        family.UpdatedAt = DateTimeOffset.UtcNow.ToString("O");
+        await _families.UpdateAsync(family, cancellationToken);
+        return members;
+    }
+
+    private static string NormalizeFamilyName(string? value)
+    {
+        var name = value?.Trim();
+        if (string.IsNullOrWhiteSpace(name) || name.Length > 120)
+        {
+            throw new ArgumentException(
+                "The library family name must contain 1 to 120 characters. 类库族名称长度必须为 1 到 120 个字符。",
+                nameof(value));
+        }
+        return name;
+    }
+
+    private static string? NormalizeOptional(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static Version ParseSemanticVersion(string value)
+        => Version.TryParse(value?.Trim().TrimStart('v', 'V'), out var version)
+            ? version
+            : new Version(0, 0);
+
+    private static DateTimeOffset ParseDate(string? value)
+        => DateTimeOffset.TryParse(value, out var parsed) ? parsed : DateTimeOffset.UnixEpoch;
 
     private async Task<LibraryDto?> FindAsyncCore(string libraryId, CancellationToken cancellationToken)
     {
@@ -452,7 +691,13 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             size,
             sha256,
             DateTimeOffset.UtcNow,
-            metadata.Nodes);
+            metadata.Nodes,
+            CompatibilityManifest: new LibraryArtifactManifestDto(
+                sha256,
+                metadata.AssemblyName,
+                metadata.AssemblyVersion,
+                version,
+                metadata.ManifestNodes));
     }
 
     private static void ValidateFileName(string fileName)
@@ -590,7 +835,7 @@ internal static class LibraryMetadataScanner
             using var peReader = new PEReader(assemblyStream, PEStreamOptions.LeaveOpen);
             if (!peReader.HasMetadata)
             {
-                return new LibraryScanResult(fallbackName, fallbackVersion, []);
+                return new LibraryScanResult(fallbackName, fallbackVersion, [], []);
             }
 
             var reader = peReader.GetMetadataReader();
@@ -599,19 +844,23 @@ internal static class LibraryMetadataScanner
             var assemblyVersion = assembly.Version.ToString();
             var provider = new MetadataTypeNameProvider();
             var nodes = new List<LibraryNodeDto>();
+            var manifestNodes = new List<LibraryManifestNodeDto>();
+            var nodeContractIds = new HashSet<string>(StringComparer.Ordinal);
 
             foreach (var typeHandle in reader.TypeDefinitions)
             {
                 var type = reader.GetTypeDefinition(typeHandle);
-                if (!FindAttribute(
+                var libraryAttribute = FindAttribute(
                         reader,
                         type.GetCustomAttributes(),
-                        LibraryAttributeContract.FlowLibraryAttributeFullName).HasValue)
+                        LibraryAttributeContract.FlowLibraryAttributeFullName);
+                if (!libraryAttribute.HasValue)
                 {
                     continue;
                 }
 
                 var className = GetTypeName(reader, typeHandle);
+                var libraryName = ReadLibraryName(reader, type, libraryAttribute.Value, provider);
                 foreach (var methodHandle in type.GetMethods())
                 {
                     var method = reader.GetMethodDefinition(methodHandle);
@@ -626,50 +875,100 @@ internal static class LibraryMetadataScanner
 
                     var signature = method.DecodeSignature(provider, null);
                     var nodeMetadata = ReadNodeMetadata(reader, nodeAttribute.Value, provider);
-                    var parameters = method.GetParameters()
+                    var parameterDefinitions = method.GetParameters()
                         .Select(reader.GetParameter)
                         .Where(static parameter => parameter.SequenceNumber > 0)
                         .OrderBy(static parameter => parameter.SequenceNumber)
                         .Select((parameter, index) => new { Parameter = parameter, Index = index })
                         .Where(item => signature.ParameterTypes.Length <= item.Index
                             || !string.Equals(signature.ParameterTypes[item.Index], FlowContextContract.FullName, StringComparison.Ordinal))
-                        .Select(item =>
-                        {
-                            var parameter = item.Parameter;
-                            var index = item.Index;
-                            var parameterMetadata = ReadParameterMetadata(reader, parameter, provider);
-                            var parameterName = parameterMetadata.Name
-                                ?? (parameter.Name.IsNil ? $"param{index + 1}" : reader.GetString(parameter.Name));
-                            var isVariadic = FindAttribute(
-                                reader,
-                                parameter.GetCustomAttributes(),
-                                LibraryAttributeContract.ParamArrayAttributeFullName).HasValue;
-                            var isRequired = !isVariadic
-                                && (parameter.Attributes & ParameterAttributes.Optional) == 0
-                                && parameterMetadata.IsExplicit;
-                            var parameterType = signature.ParameterTypes.Length > index
-                                ? signature.ParameterTypes[index]
-                                : "System.Object";
-                            var parameterId = $"param-{index + 1}";
-                            var enumMetadata = enumMetadataIndex?.Resolve(parameterType);
-                            var defaultValue = ReadParameterDefaultValue(reader, parameter, provider, enumMetadata);
-                            return new LibraryParameterDto(
-                                parameterId,
-                                parameterName,
-                                parameterType,
-                                null,
-                                isRequired,
-                                isVariadic,
-                                isVariadic ? parameterId : null,
-                                isVariadic ? GetArrayElementType(parameterType) : null,
-                                enumMetadata,
-                                defaultValue);
-                        })
                         .ToArray();
 
                     var methodName = reader.GetString(method.Name);
+                    var overloadSignature = $"{className}.{methodName}({string.Join(",", signature.ParameterTypes)})";
+                    var nodeContractId = nodeMetadata.ContractId ?? $"{libraryName}.{methodName}";
+                    var nodeIdentityConfidence = LibraryContractIdentityConfidenceDto.Explicit;
+                    if (!nodeContractIds.Add(nodeContractId))
+                    {
+                        throw new LibraryUploadException(
+                            $"Node contract ID '{nodeContractId}' is duplicated in the library package. 节点契约 ID“{nodeContractId}”在类库包中重复。",
+                            422);
+                    }
+
+                    var parameters = new List<LibraryParameterDto>();
+                    var manifestParameters = new List<LibraryManifestParameterDto>();
+                    var parameterIds = new HashSet<string>(StringComparer.Ordinal);
+                    var parameterAliases = new HashSet<string>(StringComparer.Ordinal);
+                    foreach (var item in parameterDefinitions)
+                    {
+                        var parameter = item.Parameter;
+                        var index = item.Index;
+                        var parameterMetadata = ReadParameterMetadata(reader, parameter, provider);
+                        var clrParameterName = parameter.Name.IsNil ? $"param{index + 1}" : reader.GetString(parameter.Name);
+                        var parameterName = parameterMetadata.Name ?? clrParameterName;
+                        var isVariadic = FindAttribute(
+                            reader,
+                            parameter.GetCustomAttributes(),
+                            LibraryAttributeContract.ParamArrayAttributeFullName).HasValue;
+                        var isRequired = !isVariadic
+                            && (parameter.Attributes & ParameterAttributes.Optional) == 0
+                            && parameterMetadata.IsExplicit;
+                        var parameterType = signature.ParameterTypes.Length > index
+                            ? signature.ParameterTypes[index]
+                            : "System.Object";
+                        var parameterId = parameterMetadata.ContractId ?? clrParameterName;
+                        var identityConfidence = LibraryContractIdentityConfidenceDto.Explicit;
+                        if (!parameterIds.Add(parameterId) || parameterAliases.Contains(parameterId))
+                        {
+                            throw new LibraryUploadException(
+                                $"Parameter contract ID '{parameterId}' is duplicated on node '{nodeContractId}'. 节点“{nodeContractId}”中的参数契约 ID“{parameterId}”重复。",
+                                422);
+                        }
+
+                        foreach (var alias in parameterMetadata.Aliases)
+                        {
+                            if (string.Equals(alias, parameterId, StringComparison.Ordinal)
+                                || parameterIds.Contains(alias)
+                                || !parameterAliases.Add(alias))
+                            {
+                                throw new LibraryUploadException(
+                                    $"Parameter alias '{alias}' is duplicated or conflicts with an active parameter ID on node '{nodeContractId}'. 参数别名“{alias}”重复，或与节点“{nodeContractId}”的活动参数 ID 冲突。",
+                                    422);
+                            }
+                        }
+
+                        var enumMetadata = enumMetadataIndex?.Resolve(parameterType);
+                        var defaultValue = ReadParameterDefaultValue(reader, parameter, provider, enumMetadata);
+                        var elementType = isVariadic ? GetArrayElementType(parameterType) : null;
+                        parameters.Add(new LibraryParameterDto(
+                            parameterId,
+                            parameterName,
+                            parameterType,
+                            null,
+                            isRequired,
+                            isVariadic,
+                            isVariadic ? parameterId : null,
+                            elementType,
+                            enumMetadata,
+                            defaultValue,
+                            parameterMetadata.Aliases,
+                            identityConfidence));
+                        manifestParameters.Add(new LibraryManifestParameterDto(
+                            parameterId,
+                            identityConfidence,
+                            parameterMetadata.Aliases,
+                            clrParameterName,
+                            parameterName,
+                            parameterType,
+                            isRequired,
+                            defaultValue,
+                            isVariadic,
+                            elementType,
+                            enumMetadata));
+                    }
+
                     nodes.Add(new LibraryNodeDto(
-                        $"{libraryId}:{className}:{methodName}",
+                        $"{libraryId}:{nodeContractId}",
                         nodeMetadata.Type,
                         nodeMetadata.DisplayName ?? methodName,
                         nodeMetadata.Description,
@@ -680,22 +979,36 @@ internal static class LibraryMetadataScanner
                         assemblyVersion,
                         signature.ReturnType,
                         parameters,
-                        IsAwaitableReturnType(signature.ReturnType)));
+                        IsAwaitableReturnType(signature.ReturnType),
+                        nodeContractId,
+                        overloadSignature,
+                        nodeIdentityConfidence));
+                    manifestNodes.Add(new LibraryManifestNodeDto(
+                        nodeContractId,
+                        nodeIdentityConfidence,
+                        nodeMetadata.Type,
+                        className,
+                        methodName,
+                        overloadSignature,
+                        signature.ReturnType,
+                        IsAwaitableReturnType(signature.ReturnType),
+                        manifestParameters));
                 }
             }
 
             return new LibraryScanResult(
                 string.IsNullOrWhiteSpace(assemblyName) ? fallbackName : assemblyName,
                 string.IsNullOrWhiteSpace(assemblyVersion) ? fallbackVersion : assemblyVersion,
-                nodes);
+                nodes,
+                manifestNodes);
         }
         catch (BadImageFormatException)
         {
-            return new LibraryScanResult(fallbackName, fallbackVersion, []);
+            return new LibraryScanResult(fallbackName, fallbackVersion, [], []);
         }
         catch (ArgumentException)
         {
-            return new LibraryScanResult(fallbackName, fallbackVersion, []);
+            return new LibraryScanResult(fallbackName, fallbackVersion, [], []);
         }
     }
 
@@ -995,18 +1308,47 @@ internal static class LibraryMetadataScanner
                 : NodeTypeDto.Action;
             var displayName = ReadNamedValue(value, LibraryAttributeContract.DisplayNamePropertyName) as string;
             var description = ReadNamedValue(value, LibraryAttributeContract.DescriptionPropertyName) as string;
+            var contractId = NormalizeContractId(
+                ReadNamedValue(value, LibraryAttributeContract.NodeContractIdPropertyName) as string,
+                "node");
             return new NodeMetadata(
                 nodeType,
                 string.IsNullOrWhiteSpace(displayName) ? null : displayName,
-                string.IsNullOrWhiteSpace(description) ? null : description);
+                string.IsNullOrWhiteSpace(description) ? null : description,
+                contractId);
         }
         catch (BadImageFormatException)
         {
-            return new NodeMetadata(NodeTypeDto.Action, null, null);
+            return new NodeMetadata(NodeTypeDto.Action, null, null, null);
         }
         catch (ArgumentException)
         {
-            return new NodeMetadata(NodeTypeDto.Action, null, null);
+            return new NodeMetadata(NodeTypeDto.Action, null, null, null);
+        }
+    }
+
+    private static string ReadLibraryName(
+        MetadataReader reader,
+        TypeDefinition type,
+        CustomAttributeHandle handle,
+        MetadataTypeNameProvider provider)
+    {
+        var className = reader.GetString(type.Name);
+        try
+        {
+            var value = reader.GetCustomAttribute(handle).DecodeValue(provider);
+            var name = value.FixedArguments.Length > 0
+                ? value.FixedArguments[0].Value as string
+                : null;
+            return string.IsNullOrWhiteSpace(name) ? className : name.Trim();
+        }
+        catch (BadImageFormatException)
+        {
+            return className;
+        }
+        catch (ArgumentException)
+        {
+            return className;
         }
     }
 
@@ -1021,26 +1363,34 @@ internal static class LibraryMetadataScanner
             LibraryAttributeContract.NodeParamAttributeFullName);
         if (!handle.HasValue)
         {
-            return new ParameterMetadata(null, true);
+            return new ParameterMetadata(null, null, [], true);
         }
 
         try
         {
             var value = reader.GetCustomAttribute(handle.Value).DecodeValue(provider);
             var name = ReadNamedValue(value, LibraryAttributeContract.ParameterNamePropertyName) as string;
+            var contractId = NormalizeContractId(
+                ReadNamedValue(value, LibraryAttributeContract.ParameterContractIdPropertyName) as string,
+                "parameter");
+            var aliases = ReadNamedStringArray(value, LibraryAttributeContract.ParameterAliasesPropertyName)
+                .Select(alias => NormalizeContractId(alias, "parameter alias")!)
+                .ToArray();
             var explicitValue = ReadNamedValue(value, LibraryAttributeContract.IsExplicitPropertyName);
             var isExplicit = explicitValue is bool boolValue ? boolValue : true;
             return new ParameterMetadata(
                 string.IsNullOrWhiteSpace(name) ? null : name,
+                contractId,
+                aliases,
                 isExplicit);
         }
         catch (BadImageFormatException)
         {
-            return new ParameterMetadata(null, true);
+            return new ParameterMetadata(null, null, [], true);
         }
         catch (ArgumentException)
         {
-            return new ParameterMetadata(null, true);
+            return new ParameterMetadata(null, null, [], true);
         }
     }
 
@@ -1048,6 +1398,39 @@ internal static class LibraryMetadataScanner
         => value.NamedArguments
             .FirstOrDefault(argument => string.Equals(argument.Name, name, StringComparison.Ordinal))
             .Value;
+
+    private static string[] ReadNamedStringArray(CustomAttributeValue<string> value, string name)
+    {
+        var raw = ReadNamedValue(value, name);
+        return raw is ImmutableArray<CustomAttributeTypedArgument<string>> values
+            ? values
+                .Select(static item => item.Value as string)
+                .Where(static item => !string.IsNullOrWhiteSpace(item))
+                .Select(static item => item!.Trim())
+                .ToArray()
+            : [];
+    }
+
+    private static string? NormalizeContractId(string? value, string kind)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var normalized = value.Trim();
+        var isValid = normalized.All(static character => (character is >= 'a' and <= 'z')
+            || (character is >= '0' and <= '9')
+            || character is '.' or '-' or '_');
+        if (!isValid)
+        {
+            throw new LibraryUploadException(
+                $"The {kind} contract ID '{normalized}' is invalid; use lowercase letters, digits, '.', '-' or '_'. {kind} 契约 ID“{normalized}”无效；只能使用小写字母、数字、“.”、“-”或“_”。",
+                422);
+        }
+
+        return normalized;
+    }
 
     private static bool IsEnumValue(object? value, NodeType expected)
     {
@@ -1124,11 +1507,23 @@ internal static class LibraryMetadataScanner
         => string.IsNullOrWhiteSpace(@namespace) ? name : $"{@namespace}.{name}";
 }
 
-internal sealed record NodeMetadata(NodeTypeDto Type, string? DisplayName, string? Description);
+internal sealed record NodeMetadata(
+    NodeTypeDto Type,
+    string? DisplayName,
+    string? Description,
+    string? ContractId);
 
-internal sealed record ParameterMetadata(string? Name, bool IsExplicit);
+internal sealed record ParameterMetadata(
+    string? Name,
+    string? ContractId,
+    IReadOnlyList<string> Aliases,
+    bool IsExplicit);
 
-internal sealed record LibraryScanResult(string AssemblyName, string AssemblyVersion, IReadOnlyList<LibraryNodeDto> Nodes);
+internal sealed record LibraryScanResult(
+    string AssemblyName,
+    string AssemblyVersion,
+    IReadOnlyList<LibraryNodeDto> Nodes,
+    IReadOnlyList<LibraryManifestNodeDto> ManifestNodes);
 
 internal sealed class MetadataTypeNameProvider : ISignatureTypeProvider<string, object?>, ICustomAttributeTypeProvider<string>
 {

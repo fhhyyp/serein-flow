@@ -42,6 +42,8 @@ public static class SereinFlowInfrastructureRegistration
             new SqlSugarFlowDefinitionRepository(
                 serviceProvider.GetRequiredService<IRepository<FlowDefinitionRecord>>(),
                 serviceProvider.GetRequiredService<IRepository<FlowDefinitionVersionRecord>>(),
+                serviceProvider.GetRequiredService<IRepository<LibraryRecord>>(),
+                serviceProvider.GetRequiredService<IRepository<FlowLibraryBindingRecord>>(),
                 serviceProvider.GetRequiredService<IUnitOfWork>()));
         services.AddScoped<IFlowRunEventStore>(serviceProvider =>
             new SqlSugarFlowRunEventStore(
@@ -55,6 +57,8 @@ public static class SereinFlowInfrastructureRegistration
             new SqlSugarFlowRunStore(
                 serviceProvider.GetRequiredService<IRepository<FlowRunRecord>>(),
                 serviceProvider.GetRequiredService<IRepository<FlowRunDefinitionRecord>>(),
+                serviceProvider.GetRequiredService<IRepository<LibraryRecord>>(),
+                serviceProvider.GetRequiredService<IRepository<RunLibraryBindingRecord>>(),
                 serviceProvider.GetRequiredService<IUnitOfWork>()));
         services.AddScoped<IRunEnvironmentSettingsStore>(serviceProvider =>
             new SqlSugarRunEnvironmentSettingsStore(
@@ -65,6 +69,21 @@ public static class SereinFlowInfrastructureRegistration
         services.AddScoped<IProjectLibraryReferenceRepository>(serviceProvider =>
             new SqlSugarProjectLibraryReferenceRepository(
                 serviceProvider.GetRequiredService<IRepository<ProjectLibraryReferenceRecord>>()));
+        services.AddScoped<ILibraryArtifactUsageStore>(serviceProvider =>
+            new SqlSugarLibraryArtifactUsageStore(
+                serviceProvider.GetRequiredService<IRepository<FlowDefinitionRecord>>(),
+                serviceProvider.GetRequiredService<IRepository<FlowLibraryBindingRecord>>(),
+                serviceProvider.GetRequiredService<IRepository<FlowRunRecord>>(),
+                serviceProvider.GetRequiredService<IRepository<RunLibraryBindingRecord>>()));
+        services.AddScoped<IFlowLibraryUpgradeStore>(serviceProvider =>
+            new SqlSugarFlowLibraryUpgradeStore(
+                serviceProvider.GetRequiredService<IRepository<LibraryUpgradePlanRecord>>(),
+                serviceProvider.GetRequiredService<IRepository<FlowDefinitionRecord>>(),
+                serviceProvider.GetRequiredService<IRepository<FlowDefinitionVersionRecord>>(),
+                serviceProvider.GetRequiredService<IRepository<ProjectLibraryReferenceRecord>>(),
+                serviceProvider.GetRequiredService<IRepository<LibraryRecord>>(),
+                serviceProvider.GetRequiredService<IRepository<FlowLibraryBindingRecord>>(),
+                serviceProvider.GetRequiredService<IUnitOfWork>()));
 
         var configuredLibraryDirectory = configuration["SereinFlow:LibraryDirectory"] ?? "data/libraries";
         var libraryDirectory = Path.IsPathRooted(configuredLibraryDirectory)
@@ -73,6 +92,7 @@ public static class SereinFlowInfrastructureRegistration
         services.AddScoped<ILibraryCatalogService>(serviceProvider =>
             new SqliteLibraryCatalogService(
                 serviceProvider.GetRequiredService<IRepository<LibraryRecord>>(),
+                serviceProvider.GetRequiredService<IRepository<LibraryFamilyRecord>>(),
                 serviceProvider.GetRequiredService<IUnitOfWork>(),
                 new LibraryCatalogOptions(libraryDirectory),
                 serviceProvider.GetRequiredService<ILogger<SqliteLibraryCatalogService>>()));

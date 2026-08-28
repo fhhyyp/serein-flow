@@ -21,6 +21,15 @@ public sealed class FlowLibraryAttribute : Attribute
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
 public sealed class FlowNodeAttribute : Attribute
 {
+    /// <summary>
+    /// Stable node contract identifier shared by compatible versions of the
+    /// same library family. When omitted, the metadata scanner derives it
+    /// from the FlowLibrary name and CLR method name.
+    /// 同一类库族兼容版本之间共享的稳定节点契约标识。未指定时，元数据扫描器会
+    /// 根据 FlowLibrary 名称和 CLR 方法名派生该标识。
+    /// </summary>
+    public string? Id { get; set; }
+
     public NodeType NodeType { get; set; } = NodeType.Action;
 
     public string? AnotherName { get; set; }
@@ -31,6 +40,21 @@ public sealed class FlowNodeAttribute : Attribute
 [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false, Inherited = false)]
 public sealed class NodeParamAttribute : Attribute
 {
+    /// <summary>
+    /// Stable parameter contract identifier. When omitted, the metadata
+    /// scanner uses the CLR parameter name. Reordering parameters therefore
+    /// does not change the derived value.
+    /// 稳定参数契约标识。未指定时，元数据扫描器使用 CLR 参数名；因此调整参数
+    /// 顺序不会改变派生值。
+    /// </summary>
+    public string? Id { get; set; }
+
+    /// <summary>
+    /// Previous stable IDs accepted when a parameter is intentionally renamed.
+    /// 参数有意改名时可接受的旧稳定 ID。
+    /// </summary>
+    public string[]? Aliases { get; set; }
+
     public string? Name { get; set; }
 
     public bool IsExplicit { get; set; } = true;
@@ -55,9 +79,12 @@ public static class LibraryAttributeContract
     public static readonly string ParamArrayAttributeFullName = typeof(ParamArrayAttribute).FullName ?? nameof(ParamArrayAttribute);
 
     public const string LibraryNamePropertyName = nameof(FlowLibraryAttribute.Name);
+    public const string NodeContractIdPropertyName = nameof(FlowNodeAttribute.Id);
     public const string NodeTypePropertyName = nameof(FlowNodeAttribute.NodeType);
     public const string DisplayNamePropertyName = nameof(FlowNodeAttribute.AnotherName);
     public const string DescriptionPropertyName = nameof(FlowNodeAttribute.Desc);
+    public const string ParameterContractIdPropertyName = nameof(NodeParamAttribute.Id);
+    public const string ParameterAliasesPropertyName = nameof(NodeParamAttribute.Aliases);
     public const string ParameterNamePropertyName = nameof(NodeParamAttribute.Name);
     public const string IsExplicitPropertyName = nameof(NodeParamAttribute.IsExplicit);
 

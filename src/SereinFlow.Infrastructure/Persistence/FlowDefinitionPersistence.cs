@@ -12,15 +12,21 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
 
     private readonly IRepository<FlowDefinitionRecord> _definitions;
     private readonly IRepository<FlowDefinitionVersionRecord> _versions;
+    private readonly IRepository<LibraryRecord>? _libraries;
+    private readonly IRepository<FlowLibraryBindingRecord>? _libraryBindings;
     private readonly IUnitOfWork _unitOfWork;
 
     public SqlSugarFlowDefinitionRepository(
         IRepository<FlowDefinitionRecord> definitions,
         IRepository<FlowDefinitionVersionRecord> versions,
+        IRepository<LibraryRecord>? libraries,
+        IRepository<FlowLibraryBindingRecord>? libraryBindings,
         IUnitOfWork unitOfWork)
     {
         _definitions = definitions;
         _versions = versions;
+        _libraries = libraries;
+        _libraryBindings = libraryBindings;
         _unitOfWork = unitOfWork;
     }
 
@@ -28,6 +34,8 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
         : this(
             new SqlSugarRepository<FlowDefinitionRecord>(database.Client),
             new SqlSugarRepository<FlowDefinitionVersionRecord>(database.Client),
+            new SqlSugarRepository<LibraryRecord>(database.Client),
+            new SqlSugarRepository<FlowLibraryBindingRecord>(database.Client),
             new SqlSugarUnitOfWork(database.Client))
     {
     }
@@ -55,6 +63,7 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
         {
             await _definitions.AddAsync(ToRecord(projectId, definition, serialized), token);
             await _versions.AddAsync(ToVersionRecord(definition, serialized), token);
+            await WriteLibraryBindingsAsync(projectId, definition, token);
             return true;
         }, cancellationToken);
     }
@@ -75,6 +84,7 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
                 return null;
             await _definitions.UpdateAsync(ToRecord(projectId, saved, serialized), token);
             await _versions.AddAsync(ToVersionRecord(saved, serialized), token);
+            await WriteLibraryBindingsAsync(projectId, saved, token);
             return saved;
         }, cancellationToken);
     }
@@ -103,6 +113,7 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
         {
             await _definitions.AddAsync(ToRecord(projectId, definition, serialized), cancellationToken);
             await _versions.AddAsync(ToVersionRecord(definition, serialized), cancellationToken);
+            await WriteLibraryBindingsAsync(projectId, definition, cancellationToken);
             return true;
         }).GetAwaiter().GetResult();
     }
@@ -124,6 +135,7 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
                 return null;
             await _definitions.UpdateAsync(ToRecord(projectId, saved, serialized), cancellationToken);
             await _versions.AddAsync(ToVersionRecord(saved, serialized), cancellationToken);
+            await WriteLibraryBindingsAsync(projectId, saved, cancellationToken);
             return saved;
         }).GetAwaiter().GetResult();
     }
@@ -155,6 +167,36 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
         var definition = JsonSerializer.Deserialize<FlowDefinitionDto>(row.DefinitionJson, SerializerOptions)
             ?? throw new InvalidOperationException($"Flow definition '{row.Id}' is empty. 流程定义“{row.Id}”为空。");
         return definition with { Version = row.Version, Checksum = row.Checksum };
+    }
+
+    private async Task WriteLibraryBindingsAsync(
+        Guid projectId,
+        FlowDefinitionDto definition,
+        CancellationToken cancellationToken)
+    {
+        if (_libraryBindings is null || _libraries is null)
+            return;
+
+        foreach (var artifactId in LibraryBindingIndex.Extract(definition))
+        {
+            // The index is derived metadata. Historical definitions may carry
+            // an invalid or manually authored library ID, so never manufacture
+            // a catalog row just to satisfy this foreign key.
+            // 该索引属于派生元数据。历史流程可能保留无效或手工填写的类库 ID，
+            // 因此不能为了满足外键而伪造类库目录记录。
+            if (await _libraries.GetByIdAsync(artifactId, cancellationToken) is null)
+                continue;
+
+            await _libraryBindings.AddAsync(new FlowLibraryBindingRecord
+            {
+                Id = Guid.NewGuid().ToString("N"),
+                ProjectId = projectId.ToString("D"),
+                FlowId = definition.Id.ToString("D"),
+                FlowVersion = definition.Version,
+                LibraryArtifactId = artifactId,
+                CreatedAt = DateTimeOffset.UtcNow.ToString("O")
+            }, cancellationToken);
+        }
     }
 
 }

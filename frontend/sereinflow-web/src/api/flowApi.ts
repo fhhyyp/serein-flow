@@ -89,6 +89,7 @@ export interface NodeUiMetadataDto {
   targetCanvasId?: string
   isPublic?: boolean
   flowCallParameterBindings?: FlowCallParameterBindingDto[]
+  libraryNodeContractId?: string
 }
 
 export interface NodeDto {

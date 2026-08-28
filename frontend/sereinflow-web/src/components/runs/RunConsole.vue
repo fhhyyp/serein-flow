@@ -29,9 +29,19 @@ import {
   type ProjectWorkspaceDto,
   type RunExecutionSettingsDto,
 } from '../../api/flowApi'
-import { archiveEnvironmentLibrary, listEnvironmentLibraries, reindexEnvironmentLibrary, type LibraryDto } from '../../api/libraryApi'
+import {
+  archiveEnvironmentLibrary,
+  listEnvironmentLibraries,
+  listLibraryArtifactUsages,
+  listLibraryFamilies,
+  reindexEnvironmentLibrary,
+  type LibraryArtifactUsageDto,
+  type LibraryDto,
+  type LibraryFamilyDto,
+} from '../../api/libraryApi'
 import { isArchivedProjectStatus } from '../../flow/projectStatus'
 import { locale, t } from '../../i18n'
+import LibraryFamilyDialog from '../library/LibraryFamilyDialog.vue'
 import LibraryUploadDialog from '../library/LibraryUploadDialog.vue'
 import RunSnapshotViewer from './RunSnapshotViewer.vue'
 
@@ -65,7 +75,10 @@ const snapshotRun = ref<FlowRunDto>()
 const isSnapshotLoading = ref(false)
 const snapshotError = ref('')
 const environmentLibraries = ref<LibraryDto[]>([])
+const libraryFamilies = ref<LibraryFamilyDto[]>([])
+const libraryArtifactUsages = ref<LibraryArtifactUsageDto[]>([])
 const libraryUploadOpen = ref(false)
+const libraryFamilyAssignment = ref<LibraryDto>()
 const isLibraryArchiving = ref<Set<string>>(new Set())
 const isLibraryReindexing = ref<Set<string>>(new Set())
 const isProjectArchiving = ref<Set<string>>(new Set())
@@ -99,6 +112,46 @@ const activeWorkspaces = computed(() => workspaces.value.filter((workspace) => !
 const archivedWorkspaces = computed(() => workspaces.value.filter((workspace) => isArchivedProjectStatus(workspace.project.status)))
 const activeEnvironmentLibraries = computed(() => environmentLibraries.value.filter((library) => library.lifecycle === 'available'))
 const archivedEnvironmentLibraries = computed(() => environmentLibraries.value.filter((library) => library.lifecycle === 'archived'))
+const libraryUsageByArtifactId = computed(() => new Map(libraryArtifactUsages.value.map((usage) => [usage.libraryArtifactId, usage])))
+const activeLibraryFamilyGroups = computed(() => {
+  const familyById = new Map(libraryFamilies.value.map((family) => [family.id, family]))
+  const groups = new Map<string, {
+    id: string
+    name: string
+    latestArtifactId?: string | null
+    artifacts: LibraryDto[]
+    isUnassigned: boolean
+  }>()
+  for (const library of activeEnvironmentLibraries.value) {
+    const family = library.familyId ? familyById.get(library.familyId) : undefined
+    const id = family?.id ?? library.familyId ?? 'unassigned'
+    const name = family?.name ?? library.familyName ?? t('libraryFamily.unassigned')
+    const current = groups.get(id) ?? {
+      id,
+      name,
+      latestArtifactId: family?.latestArtifactId,
+      artifacts: [],
+      isUnassigned: !family,
+    }
+    current.artifacts.push(library)
+    groups.set(id, current)
+  }
+  return [...groups.values()]
+    .map((group) => {
+      const artifacts = [...group.artifacts].sort((left, right) => {
+        const leftRecommended = left.id === group.latestArtifactId ? 1 : 0
+        const rightRecommended = right.id === group.latestArtifactId ? 1 : 0
+        if (leftRecommended !== rightRecommended) return rightRecommended - leftRecommended
+        return right.uploadedAt.localeCompare(left.uploadedAt)
+      })
+      return {
+        ...group,
+        artifacts,
+        lastUploadedAt: artifacts.reduce((latest, artifact) => artifact.uploadedAt > latest ? artifact.uploadedAt : latest, ''),
+      }
+    })
+    .sort((left, right) => Number(left.isUnassigned) - Number(right.isUnassigned) || left.name.localeCompare(right.name, locale.value))
+})
 const activeViewTitleKey = computed(() => ({
   overview: 'console.quickPreview',
   projects: 'console.projectListTitle',
@@ -154,11 +207,20 @@ async function refreshRunData(showLoading = true): Promise<void> {
 }
 
 async function refreshDirectoryData(): Promise<void> {
-  const [nextWorkspaces, nextInterfaces, nextSettings, nextLibraries] = await Promise.all([listProjects(true), listFlowInterfaces(), getRunExecutionSettings(), listEnvironmentLibraries()])
+  const [nextWorkspaces, nextInterfaces, nextSettings, nextLibraries, nextFamilies, nextUsages] = await Promise.all([
+    listProjects(true),
+    listFlowInterfaces(),
+    getRunExecutionSettings(),
+    listEnvironmentLibraries(),
+    listLibraryFamilies(),
+    listLibraryArtifactUsages(),
+  ])
   workspaces.value = nextWorkspaces
   interfaces.value = nextInterfaces
   Object.assign(settingsForm, nextSettings)
   environmentLibraries.value = nextLibraries
+  libraryFamilies.value = nextFamilies
+  libraryArtifactUsages.value = nextUsages
   ensureInterfaceFormTarget()
   lastDirectoryRefreshAt = Date.now()
 }
@@ -352,7 +414,9 @@ async function archiveLibrary(library: LibraryDto): Promise<void> {
   isLibraryArchiving.value = new Set(isLibraryArchiving.value).add(library.id)
   try {
     await archiveEnvironmentLibrary(library.id)
-    environmentLibraries.value = environmentLibraries.value.map((item) => item.id === library.id ? { ...item, lifecycle: 'archived' } : item)
+    const [nextLibraries, nextFamilies] = await Promise.all([listEnvironmentLibraries(), listLibraryFamilies()])
+    environmentLibraries.value = nextLibraries
+    libraryFamilies.value = nextFamilies
     noticeKey.value = 'console.libraryArchived'
   } catch {
     loadErrorKey.value = 'console.libraryActionFailed'
@@ -405,8 +469,26 @@ async function reindexLibrary(library: LibraryDto): Promise<void> {
 async function handleLibraryUploaded(): Promise<void> {
   libraryUploadOpen.value = false
   try {
-    environmentLibraries.value = await listEnvironmentLibraries()
+    const [nextLibraries, nextFamilies, nextUsages] = await Promise.all([
+      listEnvironmentLibraries(),
+      listLibraryFamilies(),
+      listLibraryArtifactUsages(),
+    ])
+    environmentLibraries.value = nextLibraries
+    libraryFamilies.value = nextFamilies
+    libraryArtifactUsages.value = nextUsages
     noticeKey.value = 'console.libraryUploadSuccess'
+  } catch {
+    loadErrorKey.value = 'console.libraryActionFailed'
+  }
+}
+
+async function handleLibraryFamilyAssigned(): Promise<void> {
+  try {
+    const [nextLibraries, nextFamilies] = await Promise.all([listEnvironmentLibraries(), listLibraryFamilies()])
+    environmentLibraries.value = nextLibraries
+    libraryFamilies.value = nextFamilies
+    noticeKey.value = 'libraryFamily.assigned'
   } catch {
     loadErrorKey.value = 'console.libraryActionFailed'
   }
@@ -475,13 +557,50 @@ onBeforeUnmount(() => {
 
       <template v-else-if="activeView === 'libraries'">
         <p class="operations-console__intro">{{ t('console.environmentLibrariesHint') }}</p>
-        <section class="operations-console__section environment-libraries"><div class="operations-console__section-heading"><div><h2>{{ t('console.environmentLibrariesTitle') }}</h2><p>{{ t('console.environmentLibrariesTableHint') }}</p></div><button class="command-button run" type="button" @click="libraryUploadOpen = true"><PackagePlus :size="15" /><span>{{ t('library.upload') }}</span></button></div><div class="operations-table-wrap"><table class="operations-table operations-table--libraries"><thead><tr><th>{{ t('console.libraryName') }}</th><th>{{ t('console.libraryVersion') }}</th><th>SHA</th><th>{{ t('console.libraryNodes') }}</th><th>{{ t('console.libraryUploadedAt') }}</th><th>{{ t('console.libraryStatus') }}</th><th>{{ t('runs.actions') }}</th></tr></thead><tbody v-if="activeEnvironmentLibraries.length"><tr v-for="library in activeEnvironmentLibraries" :key="library.id"><td><strong>{{ library.name }}</strong><small>{{ library.fileName }}</small></td><td>{{ library.version }}</td><td><code>{{ shortHash(library.sha256) }}</code></td><td>{{ library.nodes.length }}</td><td>{{ formatDate(library.uploadedAt) }}</td><td><span class="library-state library-state--available">{{ t('console.libraryStatusAvailable') }}</span></td><td class="operations-table__actions"><button class="icon-button" type="button" :title="t('console.reindexLibrary')" :aria-label="t('console.reindexLibrary')" :disabled="isLibraryReindexing.has(library.id)" @click="reindexLibrary(library)"><RefreshCw :size="15" :class="{ 'is-spinning': isLibraryReindexing.has(library.id) }" /></button><button class="icon-button icon-button--danger" type="button" :title="t('console.archiveLibrary')" :aria-label="t('console.archiveLibrary')" :disabled="isLibraryArchiving.has(library.id)" @click="archiveLibrary(library)"><Archive :size="15" /></button></td></tr></tbody><tbody v-else><tr><td class="operations-table__empty" colspan="7">{{ t('console.libraryEmpty') }}</td></tr></tbody></table></div></section>
+        <section class="operations-console__section environment-libraries">
+          <div class="operations-console__section-heading">
+            <div><h2>{{ t('console.environmentLibrariesTitle') }}</h2><p>{{ t('console.environmentLibrariesTableHint') }}</p></div>
+            <button class="command-button run" type="button" @click="libraryUploadOpen = true"><PackagePlus :size="15" /><span>{{ t('library.upload') }}</span></button>
+          </div>
+          <div v-if="activeLibraryFamilyGroups.length" class="library-family-groups">
+            <details v-for="group in activeLibraryFamilyGroups" :key="group.id" class="library-family-group" :open="group.isUnassigned">
+              <summary>
+                <div class="library-family-group__title"><FolderKanban :size="16" /><strong>{{ group.name }}</strong><span v-if="group.isUnassigned" class="library-family-group__state">{{ t('libraryFamily.unassigned') }}</span></div>
+                <dl class="library-family-group__summary">
+                  <div><dt>{{ t('console.libraryFamilyArtifacts') }}</dt><dd>{{ group.artifacts.length }}</dd></div>
+                  <div><dt>{{ t('console.libraryFamilyRecommended') }}</dt><dd>{{ group.latestArtifactId ? (group.artifacts.find((artifact) => artifact.id === group.latestArtifactId)?.semanticVersion ?? group.artifacts.find((artifact) => artifact.id === group.latestArtifactId)?.version ?? '—') : '—' }}</dd></div>
+                  <div><dt>{{ t('console.libraryFamilyLatestUpload') }}</dt><dd>{{ formatDate(group.lastUploadedAt) }}</dd></div>
+                </dl>
+              </summary>
+              <div class="operations-table-wrap library-family-group__artifacts">
+                <table class="operations-table operations-table--libraries">
+                  <thead><tr><th>{{ t('console.libraryName') }}</th><th>{{ t('console.libraryVersion') }}</th><th>SHA</th><th>{{ t('console.libraryNodes') }}</th><th>{{ t('console.libraryCurrentFlows') }}</th><th>{{ t('console.libraryFlowVersions') }}</th><th>{{ t('console.libraryRunSnapshots') }}</th><th>{{ t('console.libraryUploadedAt') }}</th><th>{{ t('console.libraryStatus') }}</th><th>{{ t('runs.actions') }}</th></tr></thead>
+                  <tbody>
+                    <tr v-for="library in group.artifacts" :key="library.id">
+                      <td><strong>{{ library.name }}</strong><small>{{ library.fileName }}</small></td>
+                      <td><span class="library-version" :class="{ 'library-version--recommended': library.id === group.latestArtifactId }">{{ library.semanticVersion ?? library.version }}</span></td>
+                      <td><code>{{ shortHash(library.sha256) }}</code></td>
+                      <td>{{ library.nodes.length }}</td>
+                      <td>{{ libraryUsageByArtifactId.get(library.id)?.currentFlowCount ?? 0 }}</td>
+                      <td>{{ libraryUsageByArtifactId.get(library.id)?.flowVersionCount ?? 0 }}</td>
+                      <td>{{ libraryUsageByArtifactId.get(library.id)?.runSnapshotCount ?? 0 }}</td>
+                      <td>{{ formatDate(library.uploadedAt) }}</td>
+                      <td><span class="library-state library-state--available">{{ t('console.libraryStatusAvailable') }}</span></td>
+                      <td class="operations-table__actions"><button class="icon-button" type="button" :title="t('libraryFamily.assign')" :aria-label="t('libraryFamily.assign')" @click="libraryFamilyAssignment = library"><FolderKanban :size="15" /></button><button class="icon-button" type="button" :title="t('console.reindexLibrary')" :aria-label="t('console.reindexLibrary')" :disabled="isLibraryReindexing.has(library.id)" @click="reindexLibrary(library)"><RefreshCw :size="15" :class="{ 'is-spinning': isLibraryReindexing.has(library.id) }" /></button><button class="icon-button icon-button--danger" type="button" :title="t('console.archiveLibrary')" :aria-label="t('console.archiveLibrary')" :disabled="isLibraryArchiving.has(library.id)" @click="archiveLibrary(library)"><Archive :size="15" /></button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          </div>
+          <p v-else class="operations-console__empty">{{ t('console.libraryEmpty') }}</p>
+        </section>
       </template>
 
       <template v-else-if="activeView === 'archives'">
         <p class="operations-console__intro">{{ t('console.archivesHint') }}</p>
         <section class="operations-console__section"><div class="operations-console__section-heading"><h2>{{ t('console.archivedProjects') }}</h2><span>{{ archivedWorkspaces.length }}</span></div><div class="project-catalog"><article v-for="workspace in archivedWorkspaces" :key="workspace.project.id" class="project-catalog__item project-catalog__item--archived"><div><h2>{{ workspace.project.name }}</h2><p>{{ t('console.projectCreatedAt', { date: formatDate(workspace.project.createdAt) }) }}</p></div><dl><div><dt>{{ t('project.flows') }}</dt><dd>{{ workspace.flows.length }}</dd></div><div><dt>{{ t('console.canvasCount') }}</dt><dd>{{ workspace.flows.reduce((total, flow) => total + (flow.canvasCount ?? 0), 0) }}</dd></div><div><dt>{{ t('console.nodeCount') }}</dt><dd>{{ workspace.flows.reduce((total, flow) => total + (flow.nodeCount ?? 0), 0) }}</dd></div></dl><span class="project-catalog__readonly"><Archive :size="14" />{{ t('console.projectArchivedReadonly') }}</span></article><p v-if="archivedWorkspaces.length === 0" class="operations-console__empty">{{ t('console.archivedProjectsEmpty') }}</p></div></section>
-        <section class="operations-console__section"><div class="operations-console__section-heading"><h2>{{ t('console.archivedLibraries') }}</h2><span>{{ archivedEnvironmentLibraries.length }}</span></div><div class="operations-table-wrap"><table class="operations-table operations-table--libraries"><thead><tr><th>{{ t('console.libraryName') }}</th><th>{{ t('console.libraryVersion') }}</th><th>SHA</th><th>{{ t('console.libraryNodes') }}</th><th>{{ t('console.libraryUploadedAt') }}</th><th>{{ t('console.libraryStatus') }}</th></tr></thead><tbody v-if="archivedEnvironmentLibraries.length"><tr v-for="library in archivedEnvironmentLibraries" :key="library.id"><td><strong>{{ library.name }}</strong><small>{{ library.fileName }}</small></td><td>{{ library.version }}</td><td><code>{{ shortHash(library.sha256) }}</code></td><td>{{ library.nodes.length }}</td><td>{{ formatDate(library.uploadedAt) }}</td><td><span class="library-state library-state--archived"><Archive :size="13" />{{ t('console.libraryStatusArchived') }}</span></td></tr></tbody><tbody v-else><tr><td class="operations-table__empty" colspan="6">{{ t('console.archivedLibrariesEmpty') }}</td></tr></tbody></table></div></section>
+        <section class="operations-console__section"><div class="operations-console__section-heading"><h2>{{ t('console.archivedLibraries') }}</h2><span>{{ archivedEnvironmentLibraries.length }}</span></div><div class="operations-table-wrap"><table class="operations-table operations-table--libraries"><thead><tr><th>{{ t('console.libraryName') }}</th><th>{{ t('console.libraryFamily') }}</th><th>{{ t('console.libraryVersion') }}</th><th>SHA</th><th>{{ t('console.libraryNodes') }}</th><th>{{ t('console.libraryCurrentFlows') }}</th><th>{{ t('console.libraryFlowVersions') }}</th><th>{{ t('console.libraryRunSnapshots') }}</th><th>{{ t('console.libraryUploadedAt') }}</th><th>{{ t('console.libraryStatus') }}</th></tr></thead><tbody v-if="archivedEnvironmentLibraries.length"><tr v-for="library in archivedEnvironmentLibraries" :key="library.id"><td><strong>{{ library.name }}</strong><small>{{ library.fileName }}</small></td><td>{{ library.familyName ?? (library.familyId ? t('library.familyBound') : t('libraryFamily.unassigned')) }}</td><td>{{ library.semanticVersion ?? library.version }}</td><td><code>{{ shortHash(library.sha256) }}</code></td><td>{{ library.nodes.length }}</td><td>{{ libraryUsageByArtifactId.get(library.id)?.currentFlowCount ?? 0 }}</td><td>{{ libraryUsageByArtifactId.get(library.id)?.flowVersionCount ?? 0 }}</td><td>{{ libraryUsageByArtifactId.get(library.id)?.runSnapshotCount ?? 0 }}</td><td>{{ formatDate(library.uploadedAt) }}</td><td><span class="library-state library-state--archived"><Archive :size="13" />{{ t('console.libraryStatusArchived') }}</span></td></tr></tbody><tbody v-else><tr><td class="operations-table__empty" colspan="10">{{ t('console.archivedLibrariesEmpty') }}</td></tr></tbody></table></div></section>
       </template>
 
       <template v-else>
@@ -491,6 +610,7 @@ onBeforeUnmount(() => {
     </section>
 
     <LibraryUploadDialog v-if="libraryUploadOpen" @close="libraryUploadOpen = false" @uploaded="handleLibraryUploaded" />
+    <LibraryFamilyDialog v-if="libraryFamilyAssignment" :library="libraryFamilyAssignment" @close="libraryFamilyAssignment = undefined" @assigned="handleLibraryFamilyAssigned" />
     <div v-if="snapshotRun" class="snapshot-dialog-backdrop" role="presentation" @click.self="closeSnapshot"><section class="snapshot-dialog" role="dialog" aria-modal="true" :aria-label="t('console.snapshotTitle')"><header><div><p class="operations-console__eyebrow">{{ shortId(snapshotRun.id) }}</p><h2>{{ t('console.snapshotTitle') }}</h2></div><button class="icon-button" type="button" :title="t('command.close')" :aria-label="t('command.close')" @click="closeSnapshot"><X :size="16" /></button></header><p>{{ t('console.snapshotReadonly') }}</p><div v-if="isSnapshotLoading" class="snapshot-dialog__status">{{ t('console.snapshotLoading') }}</div><div v-else-if="snapshotError" class="snapshot-dialog__status snapshot-dialog__status--error">{{ snapshotError }}</div><RunSnapshotViewer v-else :definition="snapshot" :outputs="snapshotOutputs" :outputs-error="snapshotOutputsError" :events="snapshotEvents" :events-error="snapshotEventsError" /></section></div>
   </main>
 </template>

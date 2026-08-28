@@ -8,7 +8,7 @@ public sealed class 生产线节点
 {
     [FlowNode(AnotherName = "计算合格率", Desc = "根据合格数量和检测总数计算本批次合格率。")]
     public decimal 计算合格率(
-        [NodeParam(Name = "合格数量")] int 合格数量,
+        [NodeParam(Name = "合格数量", Aliases = ["pass-count"])] int 合格数量,
         [NodeParam(Name = "检测总数")] int 检测总数)
     {
         if (检测总数 <= 0)
@@ -121,6 +121,14 @@ public sealed class 生产线节点
         流程上下文.SelectError("device.faulted", "Device faulted. 设备发生故障。");
         return "设备故障";
     }
+}
+
+[FlowLibrary]
+public sealed class 未命名类库节点
+{
+    [FlowNode(AnotherName = "读取默认类库名称")]
+    public string 读取默认类库名称([NodeParam(Name = "输入值")] string 输入值)
+        => 输入值;
 }
 
 public sealed record 批次质量结果(

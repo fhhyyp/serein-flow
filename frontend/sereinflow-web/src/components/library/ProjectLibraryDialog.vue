@@ -1,19 +1,24 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { Archive, Link2, PackagePlus, RefreshCw, Unlink, X } from 'lucide-vue-next'
+import { Archive, ArrowUpRight, Link2, PackagePlus, RefreshCw, Unlink, X } from 'lucide-vue-next'
 import {
   listEnvironmentLibraries,
+  listProjectLibraryArtifactUsages,
   listProjectLibraries,
   referenceProjectLibrary,
   unreferenceProjectLibrary,
+  type LibraryArtifactUsageDto,
   type LibraryDto,
   type ProjectLibraryReferenceDto,
 } from '../../api/libraryApi'
+import type { FlowDefinitionSummaryDto } from '../../api/flowApi'
 import { t } from '../../i18n'
+import LibraryUpgradeDialog from './LibraryUpgradeDialog.vue'
 
 const props = defineProps<{
   projectId: string
   projectName: string
+  flows: FlowDefinitionSummaryDto[]
 }>()
 
 const emit = defineEmits<{
@@ -23,12 +28,23 @@ const emit = defineEmits<{
 
 const references = ref<ProjectLibraryReferenceDto[]>([])
 const environmentLibraries = ref<LibraryDto[]>([])
+const artifactUsages = ref<LibraryArtifactUsageDto[]>([])
 const isLoading = ref(true)
 const changingLibraryIds = ref<Set<string>>(new Set())
 const error = ref('')
+const upgradeSource = ref<LibraryDto>()
 
 const referencedIds = computed(() => new Set(references.value.map((item) => item.libraryId)))
 const availableLibraries = computed(() => environmentLibraries.value.filter((library) => library.lifecycle === 'available' && !referencedIds.value.has(library.id)))
+const usageByArtifactId = computed(() => new Map(artifactUsages.value.map((usage) => [usage.libraryArtifactId, usage])))
+
+function upgradeTargets(source: LibraryDto): LibraryDto[] {
+  if (!source.familyId) return []
+  return environmentLibraries.value.filter((candidate) =>
+    candidate.lifecycle === 'available'
+    && candidate.id !== source.id
+    && candidate.familyId === source.familyId)
+}
 
 function shortHash(value: string): string {
   return value.length <= 10 ? value : value.slice(0, 10)
@@ -50,12 +66,14 @@ async function refresh(): Promise<void> {
   isLoading.value = true
   error.value = ''
   try {
-    const [nextReferences, nextEnvironmentLibraries] = await Promise.all([
+    const [nextReferences, nextEnvironmentLibraries, nextArtifactUsages] = await Promise.all([
       listProjectLibraries(props.projectId),
       listEnvironmentLibraries(),
+      listProjectLibraryArtifactUsages(props.projectId),
     ])
-    references.value = nextReferences
+    publishReferences(nextReferences)
     environmentLibraries.value = nextEnvironmentLibraries
+    artifactUsages.value = nextArtifactUsages
   } catch (reason) {
     error.value = reason instanceof Error ? reason.message : t('library.loadFailed')
   } finally {
@@ -87,6 +105,16 @@ async function unreference(reference: ProjectLibraryReferenceDto): Promise<void>
   }
 }
 
+async function handleUpgradeApplied(): Promise<void> {
+  try {
+    await refresh()
+  } catch {
+    // The upgrade itself has succeeded; a later manual refresh can recover
+    // the reference list if this secondary directory refresh fails.
+    // 升级已经成功；若后续目录刷新失败，可由用户稍后手动刷新恢复引用列表。
+  }
+}
+
 onMounted(() => { void refresh() })
 </script>
 
@@ -103,7 +131,7 @@ onMounted(() => { void refresh() })
         <section>
           <div class="project-library-dialog__heading"><div><h3>{{ t('library.referencedLibraries') }}</h3><p>{{ t('library.referencedLibrariesHint') }}</p></div><span>{{ references.length }}</span></div>
           <div v-if="references.length" class="project-library-list">
-            <article v-for="reference in references" :key="reference.libraryId" class="project-library-item"><div class="project-library-item__icon"><Archive v-if="reference.library.lifecycle === 'archived'" :size="16" /><Link2 v-else :size="16" /></div><div class="project-library-item__body"><strong>{{ reference.library.name }}</strong><span>{{ t('library.version', { version: reference.library.version }) }} · {{ shortHash(reference.library.sha256) }}</span><small v-if="reference.library.lifecycle === 'archived'">{{ t('library.archived') }}</small></div><button class="icon-button icon-button--danger" type="button" :title="t('library.unreference')" :aria-label="t('library.unreference')" :disabled="changingLibraryIds.has(reference.libraryId)" @click="unreference(reference)"><Unlink :size="15" /></button></article>
+            <article v-for="reference in references" :key="reference.libraryId" class="project-library-item"><div class="project-library-item__icon"><Archive v-if="reference.library.lifecycle === 'archived'" :size="16" /><Link2 v-else :size="16" /></div><div class="project-library-item__body"><strong>{{ reference.library.name }}</strong><span>{{ t('library.version', { version: reference.library.semanticVersion ?? reference.library.version }) }} · {{ shortHash(reference.library.sha256) }}</span><small v-if="reference.library.lifecycle === 'archived'">{{ t('library.archived') }}</small><small v-else-if="reference.library.familyName">{{ reference.library.familyName }}</small><small v-else-if="reference.library.familyId">{{ t('library.familyBound') }}</small><small>{{ t('library.currentFlowUsage', { count: usageByArtifactId.get(reference.libraryId)?.currentFlowCount ?? 0 }) }}</small></div><button v-if="upgradeTargets(reference.library).length" class="icon-button" type="button" :title="t('library.checkUpgrade')" :aria-label="t('library.checkUpgrade')" :disabled="changingLibraryIds.has(reference.libraryId)" @click="upgradeSource = reference.library"><ArrowUpRight :size="15" /></button><button class="icon-button icon-button--danger" type="button" :title="t('library.unreference')" :aria-label="t('library.unreference')" :disabled="changingLibraryIds.has(reference.libraryId)" @click="unreference(reference)"><Unlink :size="15" /></button></article>
           </div>
           <p v-else class="project-library-dialog__empty">{{ t('library.referenceEmpty') }}</p>
         </section>
@@ -116,5 +144,15 @@ onMounted(() => { void refresh() })
         </section>
       </div>
     </section>
+    <LibraryUpgradeDialog
+      v-if="upgradeSource"
+      :project-id="projectId"
+      :project-name="projectName"
+      :source="upgradeSource"
+      :targets="upgradeTargets(upgradeSource)"
+      :flows="flows"
+      @close="upgradeSource = undefined"
+      @applied="handleUpgradeApplied"
+    />
   </div>
 </template>

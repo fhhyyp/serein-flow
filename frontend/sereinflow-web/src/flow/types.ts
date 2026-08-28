@@ -53,6 +53,7 @@ export interface NodeRuntimeMetadata {
   targetCanvasId?: string
   isPublic?: boolean
   flowCallParameterBindings?: Array<{ callParameterId: string; targetParameterId: string }>
+  libraryNodeContractId?: string
 }
 
 export interface MethodParameter {

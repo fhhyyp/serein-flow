@@ -17,6 +17,8 @@ public sealed class SqliteMigrator
     private const int AddFlowRunOutputInputsVersion = 10;
     private const int AddProjectLibraryReferencesVersion = 11;
     private const int AddLibraryEnumCatalogVersion = 12;
+    private const int AddLibraryVersioningVersion = 13;
+    private const int AddLibraryUpgradePlansVersion = 14;
     private readonly SqlSugarClient _client;
 
     public SqliteMigrator(SqlSugarClient client)
@@ -414,6 +416,102 @@ public sealed class SqliteMigrator
                 throw;
             }
         }
+
+        applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
+        if (!applied.Contains(AddLibraryVersioningVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                _client.Ado.ExecuteCommand("""
+                    ALTER TABLE Libraries ADD COLUMN FamilyId TEXT NULL;
+                    ALTER TABLE Libraries ADD COLUMN SemanticVersion TEXT NULL;
+                    ALTER TABLE Libraries ADD COLUMN CompatibilityManifestJson TEXT NULL;
+                    CREATE TABLE IF NOT EXISTS LibraryFamilies (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        Name TEXT NOT NULL,
+                        Description TEXT NULL,
+                        LatestArtifactId TEXT NULL,
+                        CreatedAt TEXT NOT NULL,
+                        UpdatedAt TEXT NOT NULL,
+                        FOREIGN KEY (LatestArtifactId) REFERENCES Libraries(Id)
+                    );
+                    CREATE UNIQUE INDEX IF NOT EXISTS UX_LibraryFamilies_Name
+                    ON LibraryFamilies(Name COLLATE NOCASE);
+                    CREATE INDEX IF NOT EXISTS IX_Libraries_FamilyId_SemanticVersion
+                    ON Libraries(FamilyId, SemanticVersion);
+                    CREATE TABLE IF NOT EXISTS FlowLibraryBindings (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        ProjectId TEXT NOT NULL,
+                        FlowId TEXT NOT NULL,
+                        FlowVersion INTEGER NOT NULL,
+                        LibraryArtifactId TEXT NOT NULL,
+                        CreatedAt TEXT NOT NULL,
+                        FOREIGN KEY (ProjectId) REFERENCES Projects(Id),
+                        FOREIGN KEY (FlowId) REFERENCES FlowDefinitions(Id),
+                        FOREIGN KEY (LibraryArtifactId) REFERENCES Libraries(Id)
+                    );
+                    CREATE UNIQUE INDEX IF NOT EXISTS UX_FlowLibraryBindings_Flow_Version_Artifact
+                    ON FlowLibraryBindings(FlowId, FlowVersion, LibraryArtifactId);
+                    CREATE INDEX IF NOT EXISTS IX_FlowLibraryBindings_Project_Artifact
+                    ON FlowLibraryBindings(ProjectId, LibraryArtifactId);
+                    CREATE TABLE IF NOT EXISTS RunLibraryBindings (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        RunId TEXT NOT NULL,
+                        LibraryArtifactId TEXT NOT NULL,
+                        CreatedAt TEXT NOT NULL,
+                        FOREIGN KEY (RunId) REFERENCES FlowRuns(Id),
+                        FOREIGN KEY (LibraryArtifactId) REFERENCES Libraries(Id)
+                    );
+                    CREATE UNIQUE INDEX IF NOT EXISTS UX_RunLibraryBindings_Run_Artifact
+                    ON RunLibraryBindings(RunId, LibraryArtifactId);
+                    CREATE INDEX IF NOT EXISTS IX_RunLibraryBindings_Artifact
+                    ON RunLibraryBindings(LibraryArtifactId);
+                    """);
+                PopulateLibraryBindingIndexes();
+                RecordMigration(AddLibraryVersioningVersion, "library-versioning-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
+
+        applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
+        if (!applied.Contains(AddLibraryUpgradePlansVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                _client.Ado.ExecuteCommand("""
+                    CREATE TABLE IF NOT EXISTS LibraryUpgradePlans (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        ProjectId TEXT NOT NULL,
+                        SourceArtifactId TEXT NOT NULL,
+                        TargetArtifactId TEXT NOT NULL,
+                        Status TEXT NOT NULL,
+                        AnalysisJson TEXT NOT NULL,
+                        CreatedAt TEXT NOT NULL,
+                        AppliedAt TEXT NULL,
+                        FailureMessage TEXT NULL,
+                        FOREIGN KEY (ProjectId) REFERENCES Projects(Id),
+                        FOREIGN KEY (SourceArtifactId) REFERENCES Libraries(Id),
+                        FOREIGN KEY (TargetArtifactId) REFERENCES Libraries(Id)
+                    );
+                    CREATE INDEX IF NOT EXISTS IX_LibraryUpgradePlans_Project_Created
+                    ON LibraryUpgradePlans(ProjectId, CreatedAt DESC);
+                    """);
+                RecordMigration(AddLibraryUpgradePlansVersion, "library-upgrade-plans-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
     }
 
     /// <summary>
@@ -517,6 +615,100 @@ public sealed class SqliteMigrator
         return libraryIds;
     }
 
+    /// <summary>
+    /// Backfills immutable flow-version and run-snapshot binding indexes.
+    /// Definitions remain authoritative; malformed historical JSON is skipped
+    /// and will still be rejected by normal save/run validation.
+    /// 回填不可变流程版本和运行快照的类库绑定索引。定义本身仍是权威；损坏的
+    /// 历史 JSON 会被跳过，后续仍由正常保存/运行校验拒绝。
+    /// </summary>
+    private void PopulateLibraryBindingIndexes()
+    {
+        var knownLibraryIds = _client.Ado.SqlQuery<string>("SELECT Id FROM Libraries")
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (knownLibraryIds.Count == 0)
+        {
+            return;
+        }
+
+        var createdAt = DateTimeOffset.UtcNow.ToString("O");
+        var flowVersions = HasTable("FlowDefinitionVersions")
+            ? _client.Ado.SqlQuery<FlowVersionLibraryBindingMigrationRow>("""
+                SELECT FlowDefinitions.ProjectId, FlowDefinitionVersions.FlowId, FlowDefinitionVersions.Version, FlowDefinitionVersions.DefinitionJson
+                FROM FlowDefinitionVersions
+                INNER JOIN FlowDefinitions ON FlowDefinitions.Id = FlowDefinitionVersions.FlowId
+                """)
+            : _client.Ado.SqlQuery<FlowVersionLibraryBindingMigrationRow>("""
+                SELECT ProjectId, Id AS FlowId, Version, DefinitionJson
+                FROM FlowDefinitions
+                """);
+        foreach (var flowVersion in flowVersions)
+        {
+            if (!Guid.TryParse(flowVersion.ProjectId, out var projectId)
+                || !Guid.TryParse(flowVersion.FlowId, out var flowId))
+            {
+                continue;
+            }
+
+            foreach (var libraryId in ReadLibraryIds(flowVersion.DefinitionJson)
+                         .Select(static id => id.Trim().ToLowerInvariant())
+                         .Distinct(StringComparer.Ordinal))
+            {
+                if (!knownLibraryIds.Contains(libraryId))
+                {
+                    continue;
+                }
+
+                _client.Ado.ExecuteCommand(
+                    """
+                    INSERT OR IGNORE INTO FlowLibraryBindings (Id, ProjectId, FlowId, FlowVersion, LibraryArtifactId, CreatedAt)
+                    VALUES (@id, @projectId, @flowId, @flowVersion, @libraryArtifactId, @createdAt)
+                    """,
+                    new SugarParameter("@id", $"{flowId:N}:{flowVersion.Version}:{libraryId}"),
+                    new SugarParameter("@projectId", projectId.ToString("D")),
+                    new SugarParameter("@flowId", flowId.ToString("D")),
+                    new SugarParameter("@flowVersion", flowVersion.Version),
+                    new SugarParameter("@libraryArtifactId", libraryId),
+                    new SugarParameter("@createdAt", createdAt));
+            }
+        }
+
+        if (!HasTable("FlowRunDefinitions"))
+        {
+            return;
+        }
+
+        var runDefinitions = _client.Ado.SqlQuery<RunLibraryBindingMigrationRow>(
+            "SELECT RunId, DefinitionJson FROM FlowRunDefinitions");
+        foreach (var runDefinition in runDefinitions)
+        {
+            if (!Guid.TryParse(runDefinition.RunId, out var runId))
+            {
+                continue;
+            }
+
+            foreach (var libraryId in ReadLibraryIds(runDefinition.DefinitionJson)
+                         .Select(static id => id.Trim().ToLowerInvariant())
+                         .Distinct(StringComparer.Ordinal))
+            {
+                if (!knownLibraryIds.Contains(libraryId))
+                {
+                    continue;
+                }
+
+                _client.Ado.ExecuteCommand(
+                    """
+                    INSERT OR IGNORE INTO RunLibraryBindings (Id, RunId, LibraryArtifactId, CreatedAt)
+                    VALUES (@id, @runId, @libraryArtifactId, @createdAt)
+                    """,
+                    new SugarParameter("@id", $"{runId:N}:{libraryId}"),
+                    new SugarParameter("@runId", runId.ToString("D")),
+                    new SugarParameter("@libraryArtifactId", libraryId),
+                    new SugarParameter("@createdAt", createdAt));
+            }
+        }
+    }
+
     private static bool TryGetProperty(JsonElement element, string name, out JsonElement value)
     {
         if (element.ValueKind == JsonValueKind.Object)
@@ -535,9 +727,32 @@ public sealed class SqliteMigrator
         return false;
     }
 
+    private bool HasTable(string tableName)
+        => _client.Ado.GetInt(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = @tableName",
+            new SugarParameter("@tableName", tableName)) > 0;
+
     private sealed class FlowDefinitionLibraryReferenceMigrationRow
     {
         public string ProjectId { get; set; } = string.Empty;
+
+        public string DefinitionJson { get; set; } = string.Empty;
+    }
+
+    private sealed class FlowVersionLibraryBindingMigrationRow
+    {
+        public string ProjectId { get; set; } = string.Empty;
+
+        public string FlowId { get; set; } = string.Empty;
+
+        public long Version { get; set; }
+
+        public string DefinitionJson { get; set; } = string.Empty;
+    }
+
+    private sealed class RunLibraryBindingMigrationRow
+    {
+        public string RunId { get; set; } = string.Empty;
 
         public string DefinitionJson { get; set; } = string.Empty;
     }

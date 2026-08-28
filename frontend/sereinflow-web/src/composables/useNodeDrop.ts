@@ -125,6 +125,7 @@ export function useNodeDrop(options: NodeDropOptions) {
       dllVersion: node.dllVersion,
       returnType: node.returnType,
       isAwaitable: node.isAwaitable,
+      libraryNodeContractId: node.contractId ?? undefined,
     }
     const parameters: MethodParameter[] = node.parameters.map((parameter) => ({
       id: canonicalParameterId(parameter.id),

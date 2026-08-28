@@ -76,6 +76,42 @@ public enum LibraryLifecycleDto
     Archived
 }
 
+/// <summary>
+/// States whether a node/parameter identity is stable under the current
+/// attribute rules or was derived from legacy metadata. Stable identities may
+/// be explicitly declared or deterministically inferred by the PE scanner.
+/// 标明节点/参数身份是当前特性规则下稳定的，还是从旧元数据推导而来。稳定身份
+/// 可以由类库作者显式声明，也可以由 PE 扫描器确定性推导。
+/// </summary>
+public enum LibraryContractIdentityConfidenceDto
+{
+    Explicit,
+    Legacy
+}
+
+/// <summary>
+/// Deterministic compatibility classification used by the library upgrade
+/// preview. Values are ordered by neither severity nor UI color.
+/// 类库升级预览使用的确定性兼容性分类。这些值不表示严重程度排序，也不等同于 UI 颜色。
+/// </summary>
+public enum LibraryCompatibilityClassificationDto
+{
+    Exact,
+    Compatible,
+    RequiresMapping,
+    RequiresRewire,
+    Breaking,
+    Unknown
+}
+
+public enum LibraryUpgradePlanStatusDto
+{
+    Analyzed,
+    Applied,
+    Failed,
+    Superseded
+}
+
 public enum WorkerEventType
 {
     RunStarted,
@@ -158,7 +194,8 @@ public sealed record NodeUiMetadataDto(
     bool? IsDynamicReturnType = null,
     string? TargetCanvasId = null,
     bool? IsPublic = null,
-    IReadOnlyList<FlowCallParameterBindingDto>? FlowCallParameterBindings = null);
+    IReadOnlyList<FlowCallParameterBindingDto>? FlowCallParameterBindings = null,
+    string? LibraryNodeContractId = null);
 
 public sealed record NodePortDto(string Id, string Name, string Direction, bool Required);
 
@@ -286,7 +323,11 @@ public sealed record LibraryDto(
     string Sha256,
     DateTimeOffset UploadedAt,
     IReadOnlyList<LibraryNodeDto> Nodes,
-    LibraryLifecycleDto Lifecycle = LibraryLifecycleDto.Available);
+    LibraryLifecycleDto Lifecycle = LibraryLifecycleDto.Available,
+    string? FamilyId = null,
+    string? SemanticVersion = null,
+    LibraryArtifactManifestDto? CompatibilityManifest = null,
+    string? FamilyName = null);
 
 public sealed record LibraryNodeDto(
     string Id,
@@ -300,7 +341,10 @@ public sealed record LibraryNodeDto(
     string DllVersion,
     string ReturnType,
     IReadOnlyList<LibraryParameterDto> Parameters,
-    bool IsAwaitable = false);
+    bool IsAwaitable = false,
+    string? ContractId = null,
+    string? OverloadSignature = null,
+    LibraryContractIdentityConfidenceDto IdentityConfidence = LibraryContractIdentityConfidenceDto.Legacy);
 
 public sealed record LibraryParameterDto(
     string Id,
@@ -312,7 +356,179 @@ public sealed record LibraryParameterDto(
     string? VariadicGroupId = null,
     string? ElementType = null,
     EnumParameterMetadataDto? EnumMetadata = null,
-    string? DefaultValue = null);
+    string? DefaultValue = null,
+    IReadOnlyList<string>? Aliases = null,
+    LibraryContractIdentityConfidenceDto IdentityConfidence = LibraryContractIdentityConfidenceDto.Legacy);
+
+/// <summary>
+/// Immutable compatibility snapshot generated from PE metadata at upload time.
+/// It is separate from the presentation catalog so later UI changes cannot
+/// alter the ABI used by a class-library upgrade analysis.
+/// 上传时由 PE 元数据生成的不可变兼容性快照。它与展示目录分离，后续 UI
+/// 调整不会改变类库升级分析所依据的 ABI。
+/// </summary>
+public sealed record LibraryArtifactManifestDto(
+    string ArtifactId,
+    string AssemblyName,
+    string AssemblyVersion,
+    string SemanticVersion,
+    IReadOnlyList<LibraryManifestNodeDto> Nodes);
+
+/// <summary>
+/// A logical product line containing immutable library artifacts. The family
+/// never replaces an artifact identity; flows and runs continue to bind SHA
+/// artifact IDs directly.
+/// 逻辑上的类库产品线，包含多个不可变类库工件。类库族不会替代工件身份；
+/// 流程和运行仍直接绑定 SHA 工件 ID。
+/// </summary>
+public sealed record LibraryFamilyDto(
+    string Id,
+    string Name,
+    string? Description,
+    string? LatestArtifactId,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt,
+    IReadOnlyList<LibraryDto>? Artifacts = null);
+
+/// <summary>
+/// Read-only impact counts for one immutable library artifact. Current flows
+/// are counted from the latest saved definition of each flow; version and run
+/// counts retain the historical audit footprint.
+/// 单个不可变类库工件的只读影响统计。当前流程按每个流程最新保存的定义统计；
+/// 流程版本和运行次数则保留历史审计范围。
+/// </summary>
+public sealed record LibraryArtifactUsageDto(
+    string LibraryArtifactId,
+    int CurrentFlowCount,
+    int FlowVersionCount,
+    int RunSnapshotCount);
+
+/// <summary>
+/// Assigns an immutable artifact to an existing family, or creates a new
+/// family from Name when FamilyId is absent. Neither option changes the ZIP.
+/// 当提供 FamilyId 时把不可变工件归入现有类库族；缺少 FamilyId 时按 Name
+/// 创建新类库族。两种操作都不会更改 ZIP 工件。
+/// </summary>
+public sealed record AssignLibraryFamilyRequestDto(
+    string? FamilyId,
+    string? Name,
+    string? Description = null);
+
+public sealed record UpdateLibraryLifecycleRequestDto(LibraryLifecycleDto Lifecycle);
+
+public sealed record LibraryUpgradePreviewRequestDto(
+    string SourceArtifactId,
+    string TargetArtifactId,
+    IReadOnlyList<Guid> FlowIds);
+
+public sealed record LibraryUpgradeIssueDto(
+    string Id,
+    LibraryCompatibilityClassificationDto Classification,
+    string Code,
+    string Message,
+    string? CanvasId = null,
+    string? NodeId = null,
+    string? SourceNodeContractId = null,
+    string? TargetNodeContractId = null,
+    string? SourceParameterId = null,
+    string? TargetParameterId = null,
+    string? ConnectionId = null,
+    bool RequiresAcknowledgement = false,
+    bool BlocksApplication = false);
+
+public sealed record FlowLibraryUpgradePreviewDto(
+    Guid FlowId,
+    long FlowVersion,
+    bool CanApply,
+    int AffectedNodeCount,
+    IReadOnlyList<LibraryUpgradeIssueDto> Issues);
+
+public sealed record LibraryUpgradePlanDto(
+    Guid Id,
+    Guid ProjectId,
+    string SourceArtifactId,
+    string TargetArtifactId,
+    LibraryUpgradePlanStatusDto Status,
+    IReadOnlyList<FlowLibraryUpgradePreviewDto> Flows,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? AppliedAt = null,
+    string? FailureMessage = null,
+    IReadOnlyList<LibraryUpgradePlanFlowResultDto>? AppliedFlows = null);
+
+/// <summary>
+/// Immutable audit entry for one successfully applied flow within a library
+/// upgrade plan. A plan may apply several flows independently.
+/// 类库升级计划中单个流程成功应用的不可变审计记录。一个计划可以独立应用多个流程。
+/// </summary>
+public sealed record LibraryUpgradePlanFlowResultDto(
+    Guid FlowId,
+    long PreviousVersion,
+    long NewVersion,
+    DateTimeOffset AppliedAt);
+
+/// <summary>
+/// Phase 3 applies one selected flow at a time. The expected version prevents
+/// a preview from overwriting an editor's newer definition.
+/// 第三阶段一次只应用一个选定流程。期望版本可防止旧预览覆盖编辑器中的新定义。
+/// </summary>
+public sealed record ApplyLibraryUpgradeRequestDto(
+    Guid FlowId,
+    long ExpectedFlowVersion,
+    IReadOnlyList<string>? AcknowledgedItemIds = null);
+
+public sealed record LibraryUpgradeApplyResultDto(
+    Guid FlowId,
+    long PreviousVersion,
+    long NewVersion,
+    string SourceArtifactId,
+    string TargetArtifactId,
+    int MigratedNodeCount,
+    IReadOnlyList<LibraryUpgradeIssueDto> Issues);
+
+/// <summary>
+/// A batch keeps every flow result explicit: success on one flow never hides
+/// a conflict or validation failure on another flow.
+/// 批量操作会明确保留每个流程的结果：一个流程成功不会掩盖其它流程的冲突或校验失败。
+/// </summary>
+public sealed record ApplyLibraryUpgradeBatchRequestDto(
+    IReadOnlyList<ApplyLibraryUpgradeRequestDto> Flows);
+
+public sealed record LibraryUpgradeApplyFailureDto(
+    Guid FlowId,
+    int StatusCode,
+    string? Code,
+    string? Message,
+    long? CurrentVersion = null);
+
+public sealed record LibraryUpgradeBatchApplyResultDto(
+    Guid PlanId,
+    IReadOnlyList<LibraryUpgradeApplyResultDto> Succeeded,
+    IReadOnlyList<LibraryUpgradeApplyFailureDto> Failed);
+
+public sealed record LibraryManifestNodeDto(
+    string ContractId,
+    LibraryContractIdentityConfidenceDto IdentityConfidence,
+    NodeTypeDto Type,
+    string DeclaringType,
+    string MethodName,
+    string OverloadSignature,
+    string ReturnType,
+    bool IsAwaitable,
+    IReadOnlyList<LibraryManifestParameterDto> Parameters);
+
+public sealed record LibraryManifestParameterDto(
+    string ContractId,
+    LibraryContractIdentityConfidenceDto IdentityConfidence,
+    IReadOnlyList<string> Aliases,
+    string ClrName,
+    string DisplayName,
+    string Type,
+    bool Required,
+    string? DefaultValue,
+    bool IsVariadic,
+    string? ElementType,
+    EnumParameterMetadataDto? EnumMetadata,
+    bool IsInjectedFlowContext = false);
 
 public sealed record LibraryUploadResultDto(LibraryDto Library, bool AlreadyExists);
 
