@@ -1,5 +1,26 @@
 namespace SereinFlow.Domain;
 
+public sealed record FlowDebugPauseState(
+    string NodeId,
+    string NodeType,
+    int Step,
+    int FrameDepth,
+    Guid? InvocationId,
+    long BoundarySequence,
+    string InputsJson,
+    DateTimeOffset PausedAt);
+
+public sealed record FlowDebugNodeResult(
+    string NodeId,
+    long Sequence,
+    DateTimeOffset CompletedAt,
+    string Outcome,
+    string? Branch,
+    string InputsJson,
+    string OutputsJson,
+    string? ErrorCode,
+    string? ErrorMessage);
+
 /// <summary>
 /// Persisted control-plane state for one interactive debug run. Execution
 /// state itself remains inside the isolated Worker process.
@@ -38,6 +59,16 @@ public sealed class FlowDebugSession
     public FlowDebugSessionStatus Status { get; private set; }
 
     public string? CurrentNodeId { get; private set; }
+
+    /// <summary>
+    /// Monotonic cursor for consumers waiting on observable debug state.
+    /// 等待调试状态变化的单调游标。
+    /// </summary>
+    public long StateRevision { get; private set; }
+
+    public FlowDebugPauseState? PauseState { get; private set; }
+
+    public FlowDebugNodeResult? LastNodeResult { get; private set; }
 
     public Guid? ActiveInvocationId { get; private set; }
 
@@ -100,7 +131,10 @@ public sealed class FlowDebugSession
         long lastCommandSequence,
         string? failureMessage,
         DateTimeOffset createdAt,
-        DateTimeOffset updatedAt)
+        DateTimeOffset updatedAt,
+        long stateRevision = 0,
+        FlowDebugPauseState? pauseState = null,
+        FlowDebugNodeResult? lastNodeResult = null)
     {
         var session = Create(runId, projectId, flowId, breakpointNodeIds, createdAt, id);
         session.Status = status;
@@ -111,6 +145,9 @@ public sealed class FlowDebugSession
         session.LastCommandSequence = Math.Max(0, lastCommandSequence);
         session.FailureMessage = failureMessage;
         session.UpdatedAt = updatedAt;
+        session.StateRevision = Math.Max(0, stateRevision);
+        session.PauseState = session.IsTerminal ? null : pauseState;
+        session.LastNodeResult = lastNodeResult;
         return session;
     }
 
@@ -119,6 +156,8 @@ public sealed class FlowDebugSession
         EnsureNotTerminal();
         Status = FlowDebugSessionStatus.Running;
         CurrentNodeId = null;
+        PauseState = null;
+        AdvanceRevision();
         UpdatedAt = updatedAt;
     }
 
@@ -127,15 +166,46 @@ public sealed class FlowDebugSession
         DateTimeOffset updatedAt,
         Guid? activeInvocationId = null,
         string? activeFlipflopNodeId = null)
+        => Pause(
+            new FlowDebugPauseState(
+                nodeId,
+                string.Empty,
+                0,
+                0,
+                activeInvocationId,
+                0,
+                "{}",
+                updatedAt),
+            updatedAt,
+            activeInvocationId,
+            activeFlipflopNodeId);
+
+    public void Pause(
+        FlowDebugPauseState pauseState,
+        DateTimeOffset updatedAt,
+        Guid? activeInvocationId = null,
+        string? activeFlipflopNodeId = null)
     {
         EnsureNotTerminal();
-        if (string.IsNullOrWhiteSpace(nodeId))
-            throw new ArgumentException("Paused node ID cannot be empty. 暂停节点 ID 不能为空。", nameof(nodeId));
+        ArgumentNullException.ThrowIfNull(pauseState);
+        if (string.IsNullOrWhiteSpace(pauseState.NodeId))
+            throw new ArgumentException("Paused node ID cannot be empty. 暂停节点 ID 不能为空。", nameof(pauseState));
 
         Status = FlowDebugSessionStatus.Paused;
-        CurrentNodeId = nodeId.Trim();
-        ActiveInvocationId = activeInvocationId;
+        CurrentNodeId = pauseState.NodeId.Trim();
+        ActiveInvocationId = activeInvocationId ?? pauseState.InvocationId;
         ActiveFlipflopNodeId = activeFlipflopNodeId?.Trim();
+        PauseState = pauseState with
+        {
+            NodeId = pauseState.NodeId.Trim(),
+            NodeType = pauseState.NodeType?.Trim() ?? string.Empty,
+            Step = Math.Max(0, pauseState.Step),
+            FrameDepth = Math.Max(0, pauseState.FrameDepth),
+            BoundarySequence = Math.Max(0, pauseState.BoundarySequence),
+            InputsJson = string.IsNullOrWhiteSpace(pauseState.InputsJson) ? "{}" : pauseState.InputsJson,
+            PausedAt = pauseState.PausedAt == default ? updatedAt : pauseState.PausedAt
+        };
+        AdvanceRevision();
         UpdatedAt = updatedAt;
     }
 
@@ -146,6 +216,8 @@ public sealed class FlowDebugSession
 
         Status = FlowDebugSessionStatus.Running;
         CurrentNodeId = null;
+        PauseState = null;
+        AdvanceRevision();
         UpdatedAt = updatedAt;
     }
 
@@ -161,6 +233,7 @@ public sealed class FlowDebugSession
         ActiveInvocationId = activeInvocationId;
         ActiveFlipflopNodeId = activeFlipflopNodeId?.Trim();
         QueuedTriggerCount = Math.Max(0, queuedTriggerCount);
+        AdvanceRevision();
         UpdatedAt = updatedAt;
     }
 
@@ -174,6 +247,26 @@ public sealed class FlowDebugSession
         }
 
         LastCommandSequence = commandSequence;
+        AdvanceRevision();
+        UpdatedAt = updatedAt;
+    }
+
+    public void RecordNodeResult(FlowDebugNodeResult result, DateTimeOffset updatedAt)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        if (string.IsNullOrWhiteSpace(result.NodeId))
+            throw new ArgumentException("Node result ID cannot be empty. 节点结果 ID 不能为空。", nameof(result));
+
+        LastNodeResult = result with
+        {
+            NodeId = result.NodeId.Trim(),
+            Outcome = string.IsNullOrWhiteSpace(result.Outcome) ? "unknown" : result.Outcome.Trim(),
+            InputsJson = string.IsNullOrWhiteSpace(result.InputsJson) ? "{}" : result.InputsJson,
+            OutputsJson = string.IsNullOrWhiteSpace(result.OutputsJson) ? "{}" : result.OutputsJson,
+            ErrorCode = string.IsNullOrWhiteSpace(result.ErrorCode) ? null : result.ErrorCode.Trim(),
+            ErrorMessage = string.IsNullOrWhiteSpace(result.ErrorMessage) ? null : result.ErrorMessage.Trim()
+        };
+        AdvanceRevision();
         UpdatedAt = updatedAt;
     }
 
@@ -189,9 +282,11 @@ public sealed class FlowDebugSession
             _ => FlowDebugSessionStatus.Failed
         };
         CurrentNodeId = null;
+        PauseState = null;
         ActiveInvocationId = null;
         ActiveFlipflopNodeId = null;
         QueuedTriggerCount = 0;
+        AdvanceRevision();
         FailureMessage = Status == FlowDebugSessionStatus.Completed ? null : message?.Trim();
         UpdatedAt = updatedAt;
     }
@@ -203,6 +298,8 @@ public sealed class FlowDebugSession
 
         Status = FlowDebugSessionStatus.Failed;
         CurrentNodeId = null;
+        PauseState = null;
+        AdvanceRevision();
         FailureMessage = string.IsNullOrWhiteSpace(message)
             ? "The debug session failed. 调试会话失败。"
             : message.Trim();
@@ -217,4 +314,7 @@ public sealed class FlowDebugSession
                 "A terminal debug session cannot transition again. 终态调试会话不能再次转换。");
         }
     }
+
+    private void AdvanceRevision()
+        => StateRevision = StateRevision == long.MaxValue ? long.MaxValue : StateRevision + 1;
 }

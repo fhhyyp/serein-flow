@@ -121,9 +121,9 @@ sereinflow://projects/{projectId}/flows/{flowId}/versions/{version}
 
    当前脚本主要在 Worker 执行链路内编译或读取 `.ssc`。需要独立的 `compile_script` 和结构化行列诊断，支持 AI 反复修复后再写入流程。
 
-7. **C# 类库构建流水线**
+7. **C# 类库工件导入流水线**
 
-   当前支持上传预构建 ZIP，不支持创建项目、生成源码、执行受控 `dotnet build`、扫描 DLL、打包工件和返回 Manifest。AI 不能直接获得任意 shell 执行权限。
+   C# 源码生成、项目创建和 DLL 构建属于用户本地具备 VS/.NET 工具链的环境。服务端不执行用户提交的项目、脚本、`dotnet build` 或 MSBuild；它只接收命名合规的预构建 ZIP，完成 ZIP 安全校验、PE 元数据扫描、契约兼容性分析、预览确认和不可变工件导入。
 
 8. **生成代码的执行隔离**
 
@@ -177,22 +177,22 @@ run_flow
 cancel_run
 compile_script
 create_library_project
-build_library_project
-scan_library_artifact
-preview_library_upgrade
-apply_library_upgrade
+preview_library_package
+apply_library_package
+preview_project_library_attach
+apply_project_library_attach
 publish_flow_version
 rollback_flow_version
 ```
 
-生产发布、生产回滚、流程修改、类库构建和类库上传应支持 `dryRun`、`expectedVersion`、`idempotencyKey` 和人工审批。
+生产发布、生产回滚、流程修改、类库导入和项目类库接入应支持预览、`expectedVersion`、`idempotencyKey` 和人工确认。
 
 ## 5. Skill 划分
 
 - `SereinFlow Designer Skill`：读取节点目录和流程拓扑，生成或修复 `FlowDefinition`，始终先调用校验工具。
 - `SereinLang Authoring Skill`：根据脚本输入输出契约生成源码，调用编译工具并根据行列诊断修复。
 - `SereinFlow Runtime Analyst Skill`：读取运行状态、事件、节点输入输出和调试状态，分析实际执行路径与失败原因。
-- `SereinFlow Library Builder Skill`：按模板生成 C# 类库项目，调用受控构建工具，读取 PE 扫描结果和兼容性 Manifest。
+- `SereinFlow Library Builder Skill`：在用户本地 VS/.NET 环境生成 C# 类库项目并构建 DLL/ZIP，再调用 MCP 的 PE 扫描、兼容性预览和导入 Tool；Skill 不授予服务端构建或任意 shell 权限。
 
 Skill 只定义工作流程和知识，不授予权限。权限、参数校验、敏感数据处理和构建隔离必须由 MCP Server 和 Application 服务强制执行。
 

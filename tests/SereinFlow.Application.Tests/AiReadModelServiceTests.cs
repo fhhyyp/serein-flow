@@ -23,6 +23,8 @@ public sealed class AiReadModelServiceTests
         Assert.Equal("amount", parameter.Id);
         Assert.True(parameter.IsConfigured);
         Assert.Null(parameter.ValueJson);
+        Assert.Null(parameter.ProjectInputKey);
+        Assert.Null(parameter.Expression);
         Assert.NotNull(node.Script);
         Assert.Null(node.Script.Source);
         Assert.Equal("source-hash", node.Script.SourceHash);
@@ -43,6 +45,8 @@ public sealed class AiReadModelServiceTests
         Assert.NotNull(topology);
         var node = Assert.Single(Assert.Single(topology.Canvases).Nodes);
         Assert.Equal("42", Assert.Single(node.Parameters).ValueJson);
+        Assert.Equal("secret-input", Assert.Single(node.Parameters).ProjectInputKey);
+        Assert.Equal("secret-expression", Assert.Single(node.Parameters).Expression);
         Assert.Equal("return amount", node.Script!.Source);
     }
 
@@ -90,12 +94,50 @@ public sealed class AiReadModelServiceTests
         Assert.Equal(42, output.Inputs.GetProperty("amount").GetInt32());
     }
 
+    [Fact]
+    public async Task DebugStateExposesStructuredPauseAndLastResult()
+    {
+        var project = Project.Create("AI project", id: Guid.NewGuid());
+        var definition = CreateDefinition(project.Id);
+        var session = FlowDebugSession.Create(
+            Guid.NewGuid(),
+            project.Id,
+            definition.Id,
+            ["node"],
+            DateTimeOffset.UtcNow);
+        session.MarkRunning(DateTimeOffset.UtcNow);
+        session.Pause(
+            new FlowDebugPauseState(
+                "node",
+                "Script",
+                4,
+                0,
+                null,
+                9,
+                "{\"amount\":42}",
+                DateTimeOffset.UtcNow),
+            DateTimeOffset.UtcNow);
+        var service = CreateService(
+            project,
+            definition,
+            debugStore: new InMemoryDebugSessionStore(session));
+
+        var debug = await service.GetDebugStateAsync(session.Id);
+
+        Assert.NotNull(debug);
+        Assert.Equal(2, debug.StateRevision);
+        Assert.Equal("Script", debug.PauseState!.NodeType);
+        Assert.Equal(4, debug.PauseState.Step);
+        Assert.Equal(42, debug.PauseState.Inputs.GetProperty("amount").GetInt32());
+    }
+
     private static AiReadModelService CreateService(
         Project project,
         FlowDefinitionDto definition,
         FlowRun? run = null,
         InMemoryEventStore? events = null,
-        InMemoryOutputStore? outputs = null)
+        InMemoryOutputStore? outputs = null,
+        IFlowDebugSessionStore? debugStore = null)
         => new(
             new SingleProjectRepository(project),
             new SingleFlowRepository(project.Id, definition),
@@ -104,7 +146,7 @@ public sealed class AiReadModelServiceTests
             new InMemoryRunStore(run, definition),
             events ?? new InMemoryEventStore(),
             outputs ?? new InMemoryOutputStore(),
-            new EmptyDebugSessionStore());
+            debugStore ?? new EmptyDebugSessionStore());
 
     private static FlowDefinitionDto CreateDefinition(Guid projectId)
     {
@@ -127,7 +169,7 @@ public sealed class AiReadModelServiceTests
                 "42",
                 DataSourceDto.Literal,
                 true,
-                new NodeParameterUiMetadataDto("amount", "amount", "number", null, null, null, null, null, Type: "System.Int32"))],
+                new NodeParameterUiMetadataDto("amount", "amount", "number", "42", "secret-input", "secret-expression", null, null, Type: "System.Int32"))],
             script);
         return new FlowDefinitionDto(
             Guid.NewGuid(),
@@ -169,7 +211,7 @@ public sealed class AiReadModelServiceTests
         public Task<FlowVersionDetailDto?> FindVersionAsync(Guid projectId, Guid flowId, long version, CancellationToken cancellationToken = default) => Task.FromResult<FlowVersionDetailDto?>(null);
         public Task<FlowDefinitionDto?> FindProductionDefinitionAsync(Guid projectId, Guid flowId, CancellationToken cancellationToken = default) => Task.FromResult<FlowDefinitionDto?>(null);
         public Task<long?> FindProductionVersionAsync(Guid projectId, Guid flowId, CancellationToken cancellationToken = default) => Task.FromResult<long?>(null);
-        public Task<FlowVersionMutationResult> PublishAsync(Guid projectId, Guid flowId, long expectedDevelopmentVersion, string? remark, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<FlowVersionMutationResult> PublishAsync(Guid projectId, Guid flowId, long expectedDevelopmentVersion, string? remark, long? expectedProductionVersion = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<FlowVersionMutationResult> RollbackAsync(Guid projectId, Guid flowId, long sourceVersion, FlowVersionTrackDto track, long expectedHeadVersion, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> IsLibraryReferencedByProductionHistoryAsync(Guid projectId, string libraryId, CancellationToken cancellationToken = default) => Task.FromResult(false);
     }
@@ -225,5 +267,14 @@ public sealed class AiReadModelServiceTests
         public Task<FlowDebugSession?> FindByRunIdAsync(Guid runId, CancellationToken cancellationToken = default) => Task.FromResult<FlowDebugSession?>(null);
         public Task<IReadOnlyList<FlowDebugSession>> ListActiveAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<FlowDebugSession>>([]);
         public Task<bool> SaveAsync(FlowDebugSession session, CancellationToken cancellationToken = default) => Task.FromResult(false);
+    }
+
+    private sealed class InMemoryDebugSessionStore(FlowDebugSession session) : IFlowDebugSessionStore
+    {
+        public Task<FlowDebugSession> CreateAsync(FlowDebugSession value, CancellationToken cancellationToken = default) => Task.FromResult(value);
+        public Task<FlowDebugSession?> FindAsync(Guid sessionId, CancellationToken cancellationToken = default) => Task.FromResult<FlowDebugSession?>(session.Id == sessionId ? session : null);
+        public Task<FlowDebugSession?> FindByRunIdAsync(Guid runId, CancellationToken cancellationToken = default) => Task.FromResult<FlowDebugSession?>(session.RunId == runId ? session : null);
+        public Task<IReadOnlyList<FlowDebugSession>> ListActiveAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<FlowDebugSession>>(session.IsTerminal ? [] : [session]);
+        public Task<bool> SaveAsync(FlowDebugSession value, CancellationToken cancellationToken = default) => Task.FromResult(value.Id == session.Id);
     }
 }

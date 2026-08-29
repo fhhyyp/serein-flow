@@ -191,6 +191,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
                         FileName = library.FileName,
                         SizeBytes = library.SizeBytes,
                         Sha256 = library.Sha256,
+                        DllSha256 = library.DllSha256,
                         UploadedAt = library.UploadedAt.ToString("O"),
                         PackagePath = finalPath,
                         NodeCatalogJson = nodesJson,
@@ -232,6 +233,108 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             TryDelete(temporaryPath);
             UploadGate.Release();
         }
+    }
+
+    public async Task<LibraryPackageInspectionDto?> InspectAsync(
+        Stream package,
+        string fileName,
+        long? declaredLength = null,
+        string? familyId = null,
+        string? baselineArtifactId = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(package);
+        ValidateFileName(fileName);
+        if (declaredLength is > 0 && declaredLength > _options.MaxPackageBytes)
+            throw new LibraryUploadException($"The library package cannot exceed {_options.MaxPackageBytes / (1024 * 1024)} MB. 类库压缩包不能超过 {_options.MaxPackageBytes / (1024 * 1024)} MB。", 413);
+
+        await UploadGate.WaitAsync(cancellationToken);
+        var temporaryPath = Path.Combine(_options.RootPath, $".inspect-{Guid.NewGuid():N}.tmp");
+        try
+        {
+            var (size, sha256) = await CopyToTemporaryFileAsync(package, temporaryPath, cancellationToken);
+            var existing = await FindAsyncCore(sha256, cancellationToken);
+            if (existing is not null)
+            {
+                var existingBaseline = await ResolveCompatibilityBaselineAsync(
+                    familyId,
+                    baselineArtifactId,
+                    cancellationToken);
+                var existingCompatibility = existingBaseline is null
+                    ? null
+                    : LibraryArtifactCompatibilityAnalyzer.Analyze(existingBaseline, existing);
+                return new LibraryPackageInspectionDto(existing, true, existingCompatibility);
+            }
+
+            var inspected = await InspectPackageAsync(temporaryPath, fileName, sha256, size, cancellationToken);
+            var baseline = await ResolveCompatibilityBaselineAsync(
+                familyId,
+                baselineArtifactId,
+                cancellationToken);
+            var compatibility = baseline is null
+                ? null
+                : LibraryArtifactCompatibilityAnalyzer.Analyze(baseline, inspected);
+            return new LibraryPackageInspectionDto(inspected, false, compatibility);
+        }
+        finally
+        {
+            TryDelete(temporaryPath);
+            UploadGate.Release();
+        }
+    }
+
+    private async Task<LibraryDto?> ResolveCompatibilityBaselineAsync(
+        string? familyId,
+        string? baselineArtifactId,
+        CancellationToken cancellationToken)
+    {
+        var normalizedBaseline = baselineArtifactId?.Trim();
+        var normalizedFamily = familyId?.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedBaseline) && string.IsNullOrWhiteSpace(normalizedFamily))
+            return null;
+
+        LibraryDto? baseline;
+        if (!string.IsNullOrWhiteSpace(normalizedBaseline))
+        {
+            baseline = await FindAsync(normalizedBaseline, cancellationToken);
+            if (baseline is null)
+            {
+                throw new LibraryUploadException(
+                    "The requested baseline library artifact was not found. 指定的基线类库工件不存在。",
+                    422);
+            }
+        }
+        else
+        {
+            var family = (await ListFamiliesAsync(includeArchivedArtifacts: true, cancellationToken: cancellationToken))
+                .SingleOrDefault(item => string.Equals(item.Id, normalizedFamily, StringComparison.OrdinalIgnoreCase));
+            if (family is null)
+            {
+                throw new LibraryUploadException(
+                    "The requested library family was not found. 指定的类库族不存在。",
+                    422);
+            }
+
+            baseline = string.IsNullOrWhiteSpace(family.LatestArtifactId)
+                ? null
+                : await FindAsync(family.LatestArtifactId, cancellationToken);
+            if (baseline is null)
+            {
+                throw new LibraryUploadException(
+                    "The requested library family has no baseline artifact. 指定的类库族没有可用基线工件。",
+                    422);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(normalizedFamily)
+            && !string.Equals(baseline!.FamilyId, normalizedFamily, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new LibraryUploadException(
+                "The baseline artifact does not belong to the requested library family. 基线工件不属于指定的类库族。",
+                422);
+        }
+
+        return baseline;
     }
 
     public bool Delete(string libraryId)
@@ -484,7 +587,8 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             row.FamilyId,
             string.IsNullOrWhiteSpace(row.SemanticVersion) ? row.Version : row.SemanticVersion,
             manifest,
-            familyName);
+            familyName,
+            row.DllSha256);
     }
 
     private async Task<IReadOnlyDictionary<string, string>> GetFamilyNamesAsync(
@@ -634,9 +738,10 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             throw new LibraryUploadException($"The library package must contain between 1 and {_options.MaxEntries} files. 类库压缩包必须包含 1 到 {_options.MaxEntries} 个文件。", 422);
         }
 
-        long uncompressedBytes = 0;
-        ZipArchiveEntry? dllEntry = null;
-        var dllEntries = new List<ZipArchiveEntry>();
+            long uncompressedBytes = 0;
+            ZipArchiveEntry? dllEntry = null;
+            ZipArchiveEntry? symbolsEntry = null;
+            var dllEntries = new List<ZipArchiveEntry>();
         foreach (var entry in archive.Entries)
         {
             var normalizedName = entry.FullName.Replace('\\', '/');
@@ -650,9 +755,31 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
                 throw new LibraryUploadException("The uncompressed library content exceeds the safety limit. 类库解压后的内容超过安全大小限制。", 422);
             }
 
-            if (string.Equals(Path.GetFileName(normalizedName), $"{libraryName}.dll", StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrEmpty(entry.Name))
+                continue;
+
+            var entryFileName = Path.GetFileName(normalizedName);
+            var isExpectedDll = string.Equals(entryFileName, $"{libraryName}.dll", StringComparison.OrdinalIgnoreCase);
+            var isExpectedSymbols = string.Equals(entryFileName, $"{libraryName}.pdb", StringComparison.OrdinalIgnoreCase);
+            if (!isExpectedDll && !isExpectedSymbols)
             {
+                throw new LibraryUploadException(
+                    $"The library package contains an unsupported file '{entryFileName}'. Only {libraryName}.dll and its PDB symbols are allowed. 类库包包含不受支持的文件；只允许 {libraryName}.dll 及其 PDB 符号文件。",
+                    422);
+            }
+
+            if (isExpectedDll)
+            {
+                if (dllEntry is not null)
+                    throw new LibraryUploadException($"The package contains more than one {libraryName}.dll. 压缩包中包含多个 {libraryName}.dll。", 422);
                 dllEntry = entry;
+            }
+
+            if (isExpectedSymbols)
+            {
+                if (symbolsEntry is not null)
+                    throw new LibraryUploadException($"The package contains more than one {libraryName}.pdb. 压缩包中包含多个 {libraryName}.pdb。", 422);
+                symbolsEntry = entry;
             }
 
             if (normalizedName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
@@ -674,7 +801,16 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         }
 
         await using var dllMemory = await ReadEntryAsync(dllEntry, cancellationToken);
+        var dllBytes = dllMemory.ToArray();
+        var dllSha256 = Convert.ToHexString(SHA256.HashData(dllBytes)).ToLowerInvariant();
+        dllMemory.Position = 0;
         var metadata = LibraryMetadataScanner.Scan(dllMemory, libraryName, version, sha256, enumMetadataIndex);
+        if (!string.Equals(metadata.AssemblyName, libraryName, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new LibraryUploadException(
+                $"The DLL assembly name '{metadata.AssemblyName}' does not match the package library name '{libraryName}'. DLL 程序集名称“{metadata.AssemblyName}”与类库包名称“{libraryName}”不匹配。",
+                422);
+        }
         var invalidFlipflop = metadata.Nodes.FirstOrDefault(node =>
             node.Type == NodeTypeDto.Flipflop && !node.IsAwaitable);
         if (invalidFlipflop is not null)
@@ -697,7 +833,8 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
                 metadata.AssemblyName,
                 metadata.AssemblyVersion,
                 version,
-                metadata.ManifestNodes));
+                metadata.ManifestNodes),
+            DllSha256: dllSha256);
     }
 
     private static void ValidateFileName(string fileName)
@@ -835,7 +972,9 @@ internal static class LibraryMetadataScanner
             using var peReader = new PEReader(assemblyStream, PEStreamOptions.LeaveOpen);
             if (!peReader.HasMetadata)
             {
-                return new LibraryScanResult(fallbackName, fallbackVersion, [], []);
+                throw new LibraryUploadException(
+                    "The library DLL is not a managed PE assembly. 类库 DLL 不是有效的托管 PE 程序集。",
+                    422);
             }
 
             var reader = peReader.GetMetadataReader();
@@ -904,8 +1043,16 @@ internal static class LibraryMetadataScanner
                         var parameter = item.Parameter;
                         var index = item.Index;
                         var parameterMetadata = ReadParameterMetadata(reader, parameter, provider);
-                        var clrParameterName = parameter.Name.IsNil ? $"param{index + 1}" : reader.GetString(parameter.Name);
-                        var parameterName = parameterMetadata.Name ?? clrParameterName;
+                        var clrParameterName = parameter.Name.IsNil ? null : reader.GetString(parameter.Name);
+                        var parameterId = parameterMetadata.ContractId ?? clrParameterName;
+                        if (string.IsNullOrWhiteSpace(parameterId))
+                        {
+                            throw new LibraryUploadException(
+                                $"Parameter {index + 1} on node '{nodeContractId}' has no CLR name; specify NodeParamAttribute.Id explicitly. 节点“{nodeContractId}”的第 {index + 1} 个参数没有 CLR 参数名，必须显式指定 NodeParamAttribute.Id。",
+                                422);
+                        }
+
+                        var parameterName = parameterMetadata.Name ?? clrParameterName ?? parameterId;
                         var isVariadic = FindAttribute(
                             reader,
                             parameter.GetCustomAttributes(),
@@ -916,7 +1063,6 @@ internal static class LibraryMetadataScanner
                         var parameterType = signature.ParameterTypes.Length > index
                             ? signature.ParameterTypes[index]
                             : "System.Object";
-                        var parameterId = parameterMetadata.ContractId ?? clrParameterName;
                         var identityConfidence = LibraryContractIdentityConfidenceDto.Explicit;
                         if (!parameterIds.Add(parameterId) || parameterAliases.Contains(parameterId))
                         {
@@ -957,7 +1103,7 @@ internal static class LibraryMetadataScanner
                             parameterId,
                             identityConfidence,
                             parameterMetadata.Aliases,
-                            clrParameterName,
+                            clrParameterName ?? parameterId,
                             parameterName,
                             parameterType,
                             isRequired,
@@ -1003,13 +1149,19 @@ internal static class LibraryMetadataScanner
                 nodes,
                 manifestNodes);
         }
-        catch (BadImageFormatException)
+        catch (BadImageFormatException exception)
         {
-            return new LibraryScanResult(fallbackName, fallbackVersion, [], []);
+            throw new LibraryUploadException(
+                "The library DLL is not a valid PE assembly. 类库 DLL 不是有效的 PE 程序集。",
+                exception,
+                422);
         }
-        catch (ArgumentException)
+        catch (ArgumentException exception)
         {
-            return new LibraryScanResult(fallbackName, fallbackVersion, [], []);
+            throw new LibraryUploadException(
+                "The library DLL metadata cannot be decoded. 类库 DLL 元数据无法解码。",
+                exception,
+                422);
         }
     }
 
@@ -1303,10 +1455,7 @@ internal static class LibraryMetadataScanner
         try
         {
             var value = reader.GetCustomAttribute(handle).DecodeValue(provider);
-            var typeValue = ReadNamedValue(value, LibraryAttributeContract.NodeTypePropertyName);
-            var nodeType = IsEnumValue(typeValue, NodeType.Flipflop)
-                ? NodeTypeDto.Flipflop
-                : NodeTypeDto.Action;
+            var nodeType = ReadNodeType(ReadNamedValue(value, LibraryAttributeContract.NodeTypePropertyName));
             var displayName = ReadNamedValue(value, LibraryAttributeContract.DisplayNamePropertyName) as string;
             var description = ReadNamedValue(value, LibraryAttributeContract.DescriptionPropertyName) as string;
             var contractId = NormalizeContractId(
@@ -1318,13 +1467,19 @@ internal static class LibraryMetadataScanner
                 string.IsNullOrWhiteSpace(description) ? null : description,
                 contractId);
         }
-        catch (BadImageFormatException)
+        catch (BadImageFormatException exception)
         {
-            return new NodeMetadata(NodeTypeDto.Action, null, null, null);
+            throw new LibraryUploadException(
+                "The FlowNodeAttribute metadata is invalid. FlowNodeAttribute 元数据无效。",
+                exception,
+                422);
         }
-        catch (ArgumentException)
+        catch (ArgumentException exception)
         {
-            return new NodeMetadata(NodeTypeDto.Action, null, null, null);
+            throw new LibraryUploadException(
+                "The FlowNodeAttribute metadata is invalid. FlowNodeAttribute 元数据无效。",
+                exception,
+                422);
         }
     }
 
@@ -1343,13 +1498,19 @@ internal static class LibraryMetadataScanner
                 : null;
             return string.IsNullOrWhiteSpace(name) ? className : name.Trim();
         }
-        catch (BadImageFormatException)
+        catch (BadImageFormatException exception)
         {
-            return className;
+            throw new LibraryUploadException(
+                "The FlowLibraryAttribute metadata is invalid. FlowLibraryAttribute 元数据无效。",
+                exception,
+                422);
         }
-        catch (ArgumentException)
+        catch (ArgumentException exception)
         {
-            return className;
+            throw new LibraryUploadException(
+                "The FlowLibraryAttribute metadata is invalid. FlowLibraryAttribute 元数据无效。",
+                exception,
+                422);
         }
     }
 
@@ -1385,13 +1546,19 @@ internal static class LibraryMetadataScanner
                 aliases,
                 isExplicit);
         }
-        catch (BadImageFormatException)
+        catch (BadImageFormatException exception)
         {
-            return new ParameterMetadata(null, null, [], true);
+            throw new LibraryUploadException(
+                "The NodeParamAttribute metadata is invalid. NodeParamAttribute 元数据无效。",
+                exception,
+                422);
         }
-        catch (ArgumentException)
+        catch (ArgumentException exception)
         {
-            return new ParameterMetadata(null, null, [], true);
+            throw new LibraryUploadException(
+                "The NodeParamAttribute metadata is invalid. NodeParamAttribute 元数据无效。",
+                exception,
+                422);
         }
     }
 
@@ -1433,28 +1600,33 @@ internal static class LibraryMetadataScanner
         return normalized;
     }
 
-    private static bool IsEnumValue(object? value, NodeType expected)
+    private static NodeTypeDto ReadNodeType(object? value)
     {
+        if (value is null)
+            return NodeTypeDto.Action;
         if (value is not IConvertible convertible)
-        {
-            return false;
-        }
+            throw new LibraryUploadException("The FlowNodeAttribute NodeType value is invalid. FlowNodeAttribute 的 NodeType 值无效。", 422);
 
         try
         {
-            return Convert.ToInt32(convertible, System.Globalization.CultureInfo.InvariantCulture) == (int)expected;
+            return Convert.ToInt32(convertible, CultureInfo.InvariantCulture) switch
+            {
+                (int)NodeType.Action => NodeTypeDto.Action,
+                (int)NodeType.Flipflop => NodeTypeDto.Flipflop,
+                _ => throw new LibraryUploadException("The FlowNodeAttribute NodeType value is unsupported. FlowNodeAttribute 的 NodeType 值不受支持。", 422),
+            };
         }
         catch (FormatException)
         {
-            return false;
+            throw new LibraryUploadException("The FlowNodeAttribute NodeType value is invalid. FlowNodeAttribute 的 NodeType 值无效。", 422);
         }
         catch (InvalidCastException)
         {
-            return false;
+            throw new LibraryUploadException("The FlowNodeAttribute NodeType value is invalid. FlowNodeAttribute 的 NodeType 值无效。", 422);
         }
         catch (OverflowException)
         {
-            return false;
+            throw new LibraryUploadException("The FlowNodeAttribute NodeType value is invalid. FlowNodeAttribute 的 NodeType 值无效。", 422);
         }
     }
 

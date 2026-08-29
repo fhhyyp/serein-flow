@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\SereinFlow.Contracts\SereinFlow.Contracts.csproj" />
     <ProjectReference Include="..\..\src\SereinFlow.ScriptAdapter\SereinFlow.ScriptAdapter.csproj" />
   </ItemGroup>
 

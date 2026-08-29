@@ -101,4 +101,85 @@ public sealed class FlowRunTests
         Assert.Throws<InvalidOperationException>(() => session.AcceptCommand(4, now.AddSeconds(4)));
         Assert.Throws<InvalidOperationException>(() => session.AcceptCommand(3, now.AddSeconds(4)));
     }
+
+    [Fact]
+    public void DebugSessionTracksStructuredPauseAndLastNodeResult()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var session = FlowDebugSession.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), [], now);
+
+        session.MarkRunning(now.AddSeconds(1));
+        session.Pause(
+            new FlowDebugPauseState(
+                "node-a",
+                "Action",
+                3,
+                2,
+                Guid.NewGuid(),
+                11,
+                "{\"amount\":42}",
+                now.AddSeconds(2)),
+            now.AddSeconds(2));
+
+        Assert.Equal(2, session.StateRevision);
+        Assert.Equal("Action", session.PauseState!.NodeType);
+        Assert.Equal(3, session.PauseState.Step);
+        Assert.Equal(2, session.PauseState.FrameDepth);
+        Assert.Equal(11, session.PauseState.BoundarySequence);
+        Assert.Equal("{\"amount\":42}", session.PauseState.InputsJson);
+
+        session.Resume(now.AddSeconds(3));
+        Assert.Null(session.PauseState);
+        Assert.Equal(3, session.StateRevision);
+
+        session.RecordNodeResult(
+            new FlowDebugNodeResult(
+                "node-a",
+                12,
+                now.AddSeconds(4),
+                "completed",
+                "Success",
+                "{\"amount\":42}",
+                "{\"result\":84}",
+                null,
+                null),
+            now.AddSeconds(4));
+
+        Assert.Equal(4, session.StateRevision);
+        Assert.Equal("node-a", session.LastNodeResult!.NodeId);
+        Assert.Equal("{\"result\":84}", session.LastNodeResult.OutputsJson);
+
+        session.Complete(FlowRunStatus.Succeeded, null, now.AddSeconds(5));
+        Assert.Null(session.PauseState);
+        Assert.NotNull(session.LastNodeResult);
+        Assert.Equal(5, session.StateRevision);
+    }
+
+    [Fact]
+    public void DebugSessionRetainsFailureDetailsAsTheLastNodeResult()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var session = FlowDebugSession.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), [], now);
+        session.MarkRunning(now.AddSeconds(1));
+
+        session.Fail("The run failed.", now.AddSeconds(3));
+        session.RecordNodeResult(
+            new FlowDebugNodeResult(
+                "node-a",
+                2,
+                now.AddSeconds(2),
+                "error",
+                "Error",
+                "{\"input\":1}",
+                "{}",
+                "node.failed",
+                "The node failed."),
+            now.AddSeconds(2));
+
+        Assert.Equal(FlowDebugSessionStatus.Failed, session.Status);
+        Assert.Null(session.PauseState);
+        Assert.Equal("error", session.LastNodeResult!.Outcome);
+        Assert.Equal("node.failed", session.LastNodeResult.ErrorCode);
+        Assert.Equal("The node failed.", session.LastNodeResult.ErrorMessage);
+    }
 }

@@ -20,6 +20,8 @@ public sealed class SqlitePersistenceTests
         Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 9"));
         Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 15"));
         Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 17"));
+        Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 18"));
+        Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 25"));
         Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'FlowProductionHeads'"));
         Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'FlowVersionCounters'"));
         Assert.Equal(1L, database.Scalar<long>("PRAGMA foreign_keys"));
@@ -148,6 +150,54 @@ public sealed class SqlitePersistenceTests
     }
 
     [Fact]
+    public void MigrationFromSchema18AddsMcpSecurityAndAuditColumns()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"sereinflow-schema18-{Guid.NewGuid():N}.db");
+        try
+        {
+            using (var connection = new SqliteConnection($"Data Source={databasePath}"))
+            {
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = """
+                    CREATE TABLE SchemaMigrations (Version INTEGER NOT NULL PRIMARY KEY, AppliedAt TEXT NOT NULL, Checksum TEXT NOT NULL);
+                    CREATE TABLE Projects (Id TEXT NOT NULL PRIMARY KEY);
+                    CREATE TABLE Libraries (Id TEXT NOT NULL PRIMARY KEY);
+                    """;
+                command.ExecuteNonQuery();
+
+                for (var version = 1; version <= 18; version++)
+                {
+                    command.CommandText = "INSERT INTO SchemaMigrations (Version, AppliedAt, Checksum) VALUES ($version, $now, 'schema18');";
+                    command.Parameters.Clear();
+                    command.Parameters.AddWithValue("$version", version);
+                    command.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToString("O"));
+                    command.ExecuteNonQuery();
+                }
+            }
+
+            using var database = new SqliteDatabase(new SqliteDatabaseOptions(databasePath));
+            database.Initialize();
+
+            foreach (var version in Enumerable.Range(19, 7))
+                Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM SchemaMigrations WHERE Version = @version", new SqlSugar.SugarParameter("@version", version)));
+            Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'McpApiKeys'"));
+            Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'McpMutationPreviews'"));
+            Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'McpIdempotencyRecords'"));
+            Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'McpAuditEntries'"));
+            Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM pragma_table_info('McpAuditEntries') WHERE name = 'InputBytes'"));
+            Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM pragma_table_info('McpAuditEntries') WHERE name = 'OutputBytes'"));
+            Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM pragma_table_info('McpAuditEntries') WHERE name = 'Track'"));
+            Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM pragma_table_info('McpAuditEntries') WHERE name = 'FlowVersion'"));
+            Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM pragma_table_info('Libraries') WHERE name = 'DllSha256'"));
+        }
+        finally
+        {
+            DeleteSqliteFiles(databasePath);
+        }
+    }
+
+    [Fact]
     public void EventStorePreservesSequenceOrderAndRejectsDuplicateSequence()
     {
         using var database = CreateDatabase();
@@ -256,7 +306,29 @@ public sealed class SqlitePersistenceTests
         var session = FlowDebugSession.Create(runId, projectId, flowId, ["second", "first", "first"], now);
         await store.CreateAsync(session);
         session.MarkRunning(now.AddSeconds(1));
-        session.Pause("first", now.AddSeconds(2));
+        session.Pause(
+            new FlowDebugPauseState(
+                "first",
+                "Action",
+                8,
+                1,
+                Guid.NewGuid(),
+                12,
+                "{\"input\":true}",
+                now.AddSeconds(2)),
+            now.AddSeconds(2));
+        session.RecordNodeResult(
+            new FlowDebugNodeResult(
+                "first",
+                13,
+                now.AddSeconds(3),
+                "completed",
+                "Success",
+                "{\"input\":true}",
+                "{\"output\":\"ok\"}",
+                null,
+                null),
+            now.AddSeconds(3));
         session.AcceptCommand(7, now.AddSeconds(3));
         Assert.True(await store.SaveAsync(session));
 
@@ -268,6 +340,13 @@ public sealed class SqlitePersistenceTests
         Assert.Equal(["first", "second"], restored.BreakpointNodeIds);
         Assert.Equal(runId, restored.RunId);
         Assert.Equal(7, restored.LastCommandSequence);
+        Assert.Equal(4, restored.StateRevision);
+        Assert.Equal("Action", restored.PauseState!.NodeType);
+        Assert.Equal(8, restored.PauseState.Step);
+        Assert.Equal(1, restored.PauseState.FrameDepth);
+        Assert.Equal(12, restored.PauseState.BoundarySequence);
+        Assert.Equal("{\"input\":true}", restored.PauseState.InputsJson);
+        Assert.Equal("{\"output\":\"ok\"}", restored.LastNodeResult!.OutputsJson);
     }
 
     [Fact]

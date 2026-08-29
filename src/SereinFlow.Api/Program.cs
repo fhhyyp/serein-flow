@@ -42,6 +42,7 @@ builder.Services.AddScoped<RunSubmissionService>();
 builder.Services.AddScoped<RunInterruptionService>();
 builder.Services.AddScoped<ProjectArchiveService>();
 builder.Services.AddScoped<ProjectLibraryService>();
+builder.Services.AddScoped<FlowDefinitionWriteService>();
 builder.Services.AddSingleton<ILibraryCompatibilityAnalyzer, LibraryCompatibilityAnalyzer>();
 builder.Services.AddScoped<LibraryUpgradeService>();
 builder.Services.AddSingleton<IBuiltinNodeCatalog, BuiltinNodeCatalog>();
@@ -343,6 +344,7 @@ projects.MapPost("/{projectId:guid}/flows/{flowId:guid}/publish", async (
         flowId,
         request.ExpectedDevelopmentVersion,
         request.Remark,
+        await versionRepository.FindProductionVersionAsync(projectId, flowId, cancellationToken),
         cancellationToken);
     return published.IsCommitted
         ? Results.Ok(published.Version)
@@ -400,7 +402,7 @@ projects.MapPost("/{projectId:guid}/flows/{flowId:guid}/versions/{version:long}/
             extensions: new Dictionary<string, object?> { ["currentVersion"] = rolledBack.CurrentHeadVersion });
 });
 
-projects.MapPut("/{projectId:guid}/flows/{flowId:guid}", async (Guid projectId, Guid flowId, UpdateFlowDefinitionRequestDto request, IProjectRepository projectRepository, IFlowDefinitionRepository flowRepository, ProjectLibraryService projectLibraries, CancellationToken cancellationToken) =>
+projects.MapPut("/{projectId:guid}/flows/{flowId:guid}", async (Guid projectId, Guid flowId, UpdateFlowDefinitionRequestDto request, IProjectRepository projectRepository, IFlowDefinitionRepository flowRepository, FlowDefinitionWriteService flowWriter, CancellationToken cancellationToken) =>
 {
     if (request.ExpectedVersion < 1 || request.Definition.Id != flowId)
     {
@@ -417,29 +419,26 @@ projects.MapPut("/{projectId:guid}/flows/{flowId:guid}", async (Guid projectId, 
         return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Archived projects cannot save flow definitions. 已归档项目不能保存流程定义。");
     }
 
-    var validation = FlowDefinitionContractValidator.ValidateForPersistence(request.Definition);
-    if (!validation.IsValid)
+    var result = await flowWriter.WriteAsync(
+        projectId,
+        flowId,
+        request.Definition,
+        request.ExpectedVersion,
+        cancellationToken);
+    return result.Status switch
     {
-        return Results.BadRequest(validation);
-    }
-
-    var libraryValidation = await projectLibraries.ValidateFlowLibrariesAsync(projectId, request.Definition, cancellationToken);
-    if (!libraryValidation.IsValid)
-    {
-        return Results.BadRequest(libraryValidation);
-    }
-
-    var normalizedDefinition = FlowDefinitionContractNormalizer.NormalizeForPersistence(request.Definition);
-    var saved = await flowRepository.TryUpdateAsync(projectId, normalizedDefinition, request.ExpectedVersion, cancellationToken);
-    return saved is null
-        ? Results.Problem(
-            statusCode: StatusCodes.Status409Conflict,
-            title: "Flow definition was changed by another editor. 流程定义已被其他编辑器修改。",
-            extensions: new Dictionary<string, object?>
-            {
-                ["currentVersion"] = (await flowRepository.FindAsync(projectId, flowId, cancellationToken))?.Version
-            })
-        : Results.Ok(saved);
+        FlowDefinitionWriteStatus.Saved or FlowDefinitionWriteStatus.NoChange => Results.Ok(result.Saved),
+        FlowDefinitionWriteStatus.Invalid when result.Preparation is not null
+            => Results.BadRequest(result.Preparation.Validation),
+        FlowDefinitionWriteStatus.Archived
+            => Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Archived projects cannot save flow definitions. 已归档项目不能保存流程定义。"),
+        FlowDefinitionWriteStatus.Conflict
+            => Results.Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Flow definition was changed by another editor. 流程定义已被其他编辑器修改。",
+                extensions: new Dictionary<string, object?> { ["currentVersion"] = result.CurrentVersion }),
+        _ => Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The flow definition is invalid. 流程定义无效。")
+    };
 });
 
 projects.MapGet("/{projectId:guid}/libraries", async (
@@ -968,6 +967,44 @@ app.MapGet("/api/debug-sessions/{sessionId:guid}", async (
         : Results.Ok(ToFlowDebugSessionDto(session));
 });
 
+app.MapGet("/api/debug-sessions/{sessionId:guid}/wait", async (
+    Guid sessionId,
+    long? afterRevision,
+    int? timeoutSeconds,
+    FlowDebugSessionService debugSessions,
+    CancellationToken cancellationToken) =>
+{
+    var revision = afterRevision ?? -1;
+    if (afterRevision is not null && revision < 0)
+    {
+        return Results.Problem(
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "The debug state revision cannot be negative. 调试状态修订号不能为负数。",
+            extensions: new Dictionary<string, object?> { ["code"] = "debug.invalid_state_revision" });
+    }
+
+    var seconds = timeoutSeconds ?? 15;
+    if (seconds is < 0 or > 60)
+    {
+        return Results.Problem(
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "The debug wait timeout must be between 0 and 60 seconds. 调试等待超时必须在 0 到 60 秒之间。",
+            extensions: new Dictionary<string, object?> { ["code"] = "debug.invalid_wait_timeout" });
+    }
+
+    var result = await debugSessions.WaitForChangeAsync(
+        sessionId,
+        revision,
+        TimeSpan.FromSeconds(seconds),
+        cancellationToken);
+    return result.Session is null
+        ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Debug session not found. 未找到调试会话。")
+        : Results.Ok(new FlowDebugWaitResultDto(
+            result.HasChanged,
+            result.TimedOut,
+            ToFlowDebugSessionDto(result.Session)));
+});
+
 app.MapPost("/api/debug-sessions/{sessionId:guid}/continue", async (
     Guid sessionId,
     FlowDebugCommandRequestDto request,
@@ -1165,7 +1202,51 @@ static FlowDebugSessionDto ToFlowDebugSessionDto(FlowDebugSession session)
         session.LastCommandSequence,
         session.FailureMessage,
         session.CreatedAt,
-        session.UpdatedAt);
+        session.UpdatedAt,
+        session.StateRevision,
+        session.PauseState is null
+            ? null
+            : new FlowDebugPauseStateDto(
+                session.PauseState.NodeId,
+                session.PauseState.NodeType,
+                session.PauseState.Step,
+                session.PauseState.FrameDepth,
+                session.PauseState.InvocationId,
+                session.PauseState.BoundarySequence,
+                ParseDebugJson(session.PauseState.InputsJson),
+                session.PauseState.PausedAt),
+        session.LastNodeResult is null
+            ? null
+            : new FlowDebugNodeResultDto(
+                session.LastNodeResult.NodeId,
+                session.LastNodeResult.Sequence,
+                session.LastNodeResult.CompletedAt,
+                session.LastNodeResult.Outcome,
+                session.LastNodeResult.Branch,
+                ParseDebugJson(session.LastNodeResult.InputsJson),
+                ParseDebugJson(session.LastNodeResult.OutputsJson),
+                session.LastNodeResult.ErrorCode,
+                session.LastNodeResult.ErrorMessage));
+
+static JsonElement ParseDebugJson(string? json)
+{
+    if (string.IsNullOrWhiteSpace(json))
+        return JsonSerializer.SerializeToElement(new { });
+
+    try
+    {
+        using var document = JsonDocument.Parse(json);
+        return document.RootElement.Clone();
+    }
+    catch (JsonException)
+    {
+        return JsonSerializer.SerializeToElement(new
+        {
+            malformed = true,
+            raw = json
+        });
+    }
+}
 
 static IResult ToDebugCommandResponse(FlowDebugSessionCommandResult result)
     => result.IsAccepted

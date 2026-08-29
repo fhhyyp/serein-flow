@@ -1,0 +1,4 @@
+interface:
+  display_name: "SereinFlow"
+  short_description: "Design and safely change SereinFlow flows"
+  default_prompt: "Use $sereinflow to inspect, validate, preview, and safely update a SereinFlow flow."

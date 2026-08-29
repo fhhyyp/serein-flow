@@ -18,19 +18,19 @@ public sealed class LibraryCatalogTests
             database.Initialize();
             var catalog = new SqliteLibraryCatalogService(database, new LibraryCatalogOptions(libraryRoot));
 
-            await using var package = CreatePackage("DemoLibrary-1.2.3.zip", "DemoLibrary.dll", typeof(object).Assembly.Location);
+            await using var package = CreatePackage("SereinFlow.TestLibrary-1.2.3.zip", "SereinFlow.TestLibrary.dll", typeof(生产线节点).Assembly.Location);
             var packageBytes = package.ToArray();
             package.Position = 0;
-            var first = await catalog.UploadAsync(package, "DemoLibrary-1.2.3.zip");
+            var first = await catalog.UploadAsync(package, "SereinFlow.TestLibrary-1.2.3.zip");
 
             Assert.False(first.AlreadyExists);
-            Assert.Equal("DemoLibrary", first.Library.Name);
+            Assert.Equal("SereinFlow.TestLibrary", first.Library.Name);
             Assert.Equal("1.2.3", first.Library.Version);
             Assert.Equal(64, first.Library.Sha256.Length);
             Assert.Single(catalog.List());
 
             await using var duplicate = new MemoryStream(packageBytes);
-            var second = await catalog.UploadAsync(duplicate, "DemoLibrary-1.2.3.zip");
+            var second = await catalog.UploadAsync(duplicate, "SereinFlow.TestLibrary-1.2.3.zip");
 
             Assert.True(second.AlreadyExists);
             Assert.Equal(first.Library.Id, second.Library.Id);
@@ -58,6 +58,66 @@ public sealed class LibraryCatalogTests
 
             Assert.Equal(422, error.StatusCode);
             Assert.Empty(catalog.List());
+        }
+        finally
+        {
+            TryDelete(databasePath);
+            TryDeleteDirectory(libraryRoot);
+        }
+    }
+
+    [Fact]
+    public async Task UploadRejectsDllWhenAssemblyNameDoesNotMatchPackageName()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"sereinflow-library-{Guid.NewGuid():N}.db");
+        var libraryRoot = Path.Combine(Path.GetTempPath(), $"sereinflow-library-{Guid.NewGuid():N}");
+        try
+        {
+            using var database = new SqliteDatabase(new SqliteDatabaseOptions(databasePath));
+            database.Initialize();
+            var catalog = new SqliteLibraryCatalogService(database, new LibraryCatalogOptions(libraryRoot));
+            await using var package = CreatePackage(
+                "RenamedLibrary-1.0.0.zip",
+                "RenamedLibrary.dll",
+                typeof(生产线节点).Assembly.Location);
+
+            var error = await Assert.ThrowsAsync<LibraryUploadException>(() =>
+                catalog.UploadAsync(package, "RenamedLibrary-1.0.0.zip"));
+
+            Assert.Equal(422, error.StatusCode);
+            Assert.Contains("does not match", error.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Empty(catalog.List());
+            Assert.Empty(Directory.EnumerateFiles(Path.Combine(libraryRoot, "packages"), "*.zip"));
+        }
+        finally
+        {
+            TryDelete(databasePath);
+            TryDeleteDirectory(libraryRoot);
+        }
+    }
+
+    [Fact]
+    public async Task UploadRejectsDuplicateExpectedPdbEntries()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"sereinflow-library-{Guid.NewGuid():N}.db");
+        var libraryRoot = Path.Combine(Path.GetTempPath(), $"sereinflow-library-{Guid.NewGuid():N}");
+        try
+        {
+            using var database = new SqliteDatabase(new SqliteDatabaseOptions(databasePath));
+            database.Initialize();
+            var catalog = new SqliteLibraryCatalogService(database, new LibraryCatalogOptions(libraryRoot));
+            await using var package = CreatePackageWithDuplicateSymbols(
+                "SereinFlow.TestLibrary-1.7.0.zip",
+                "SereinFlow.TestLibrary.dll",
+                typeof(生产线节点).Assembly.Location);
+
+            var error = await Assert.ThrowsAsync<LibraryUploadException>(() =>
+                catalog.UploadAsync(package, "SereinFlow.TestLibrary-1.7.0.zip"));
+
+            Assert.Equal(422, error.StatusCode);
+            Assert.Contains("more than one", error.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Empty(catalog.List());
+            Assert.Empty(Directory.EnumerateFiles(Path.Combine(libraryRoot, "packages"), "*.zip"));
         }
         finally
         {
@@ -209,6 +269,53 @@ public sealed class LibraryCatalogTests
                     .Select(node => $"{node.ContractId}:{string.Join(",", node.Parameters.Select(parameter => parameter.Id))}"));
             Assert.All(source.Library.Nodes, node => Assert.Equal(SereinFlow.Contracts.LibraryContractIdentityConfidenceDto.Explicit, node.IdentityConfidence));
             Assert.All(target.Library.Nodes, node => Assert.Equal(SereinFlow.Contracts.LibraryContractIdentityConfidenceDto.Explicit, node.IdentityConfidence));
+        }
+        finally
+        {
+            TryDelete(databasePath);
+            TryDeleteDirectory(libraryRoot);
+        }
+    }
+
+    [Fact]
+    public async Task InspectionCanCompareAgainstFamilyBaselineWithoutPersistingPackage()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"sereinflow-library-{Guid.NewGuid():N}.db");
+        var libraryRoot = Path.Combine(Path.GetTempPath(), $"sereinflow-library-{Guid.NewGuid():N}");
+        try
+        {
+            using var database = new SqliteDatabase(new SqliteDatabaseOptions(databasePath));
+            database.Initialize();
+            var catalog = new SqliteLibraryCatalogService(database, new LibraryCatalogOptions(libraryRoot));
+            await using var sourcePackage = CreatePackage(
+                "SereinFlow.TestLibrary-1.6.0.zip",
+                "SereinFlow.TestLibrary.dll",
+                typeof(生产线节点).Assembly.Location,
+                marker: "baseline");
+            var source = await catalog.UploadAsync(sourcePackage, "SereinFlow.TestLibrary-1.6.0.zip");
+            var family = await catalog.AssignFamilyAsync(
+                source.Library.Id,
+                new SereinFlow.Contracts.AssignLibraryFamilyRequestDto(null, "生产线兼容性测试"));
+
+            await using var targetPackage = CreatePackage(
+                "SereinFlow.TestLibrary-1.6.1.zip",
+                "SereinFlow.TestLibrary.dll",
+                typeof(生产线节点).Assembly.Location,
+                marker: "candidate");
+            var inspection = await catalog.InspectAsync(
+                targetPackage,
+                "SereinFlow.TestLibrary-1.6.1.zip",
+                familyId: family!.Id);
+
+            Assert.NotNull(inspection);
+            Assert.False(inspection!.AlreadyExists);
+            Assert.NotNull(inspection.Compatibility);
+            Assert.True(inspection.Compatibility!.IsCompatible);
+            Assert.Contains(
+                inspection.Compatibility.Issues,
+                issue => issue.Classification == SereinFlow.Contracts.LibraryCompatibilityClassificationDto.Exact);
+            Assert.Null(await catalog.FindAsync(inspection.Library.Id));
+            Assert.Empty(Directory.EnumerateFiles(libraryRoot, ".inspect-*", SearchOption.TopDirectoryOnly));
         }
         finally
         {
@@ -388,7 +495,11 @@ public sealed class LibraryCatalogTests
             }
             if (!string.IsNullOrWhiteSpace(marker))
             {
-                using var markerWriter = new StreamWriter(archive.CreateEntry("package-marker.txt").Open());
+                var stem = Path.GetFileNameWithoutExtension(archiveName);
+                var separator = stem.LastIndexOf('-');
+                var libraryName = separator > 0 ? stem[..separator] : stem;
+                using var markerWriter = new StreamWriter(
+                    archive.CreateEntry($"{libraryName}.pdb").Open());
                 markerWriter.Write(marker);
             }
         }
@@ -403,6 +514,29 @@ public sealed class LibraryCatalogTests
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
         {
             archive.CreateEntry("../outside.dll");
+        }
+
+        stream.Position = 0;
+        return stream;
+    }
+
+    private static MemoryStream CreatePackageWithDuplicateSymbols(string archiveName, string dllName, string dllPath)
+    {
+        var stream = new MemoryStream();
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            var dllEntry = archive.CreateEntry($"{Path.GetFileNameWithoutExtension(archiveName)}/{dllName}");
+            using (var target = dllEntry.Open())
+            using (var source = File.OpenRead(dllPath))
+            {
+                source.CopyTo(target);
+            }
+
+            var stem = Path.GetFileNameWithoutExtension(archiveName);
+            var separator = stem.LastIndexOf('-');
+            var libraryName = separator > 0 ? stem[..separator] : stem;
+            archive.CreateEntry($"{libraryName}.pdb");
+            archive.CreateEntry($"symbols/{libraryName}.pdb");
         }
 
         stream.Position = 0;

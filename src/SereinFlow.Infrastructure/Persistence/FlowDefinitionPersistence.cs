@@ -276,6 +276,7 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
         Guid flowId,
         long expectedDevelopmentVersion,
         string? remark,
+        long? expectedProductionVersion = null,
         CancellationToken cancellationToken = default)
     {
         if (expectedDevelopmentVersion < 1)
@@ -292,6 +293,9 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
                 return new FlowVersionMutationResult(null, null, current.Version);
 
             var previousHead = await _productionHeads.GetByIdAsync(flowId.ToString("D"), token);
+            if (previousHead?.Version != expectedProductionVersion)
+                return new FlowVersionMutationResult(null, null, previousHead?.Version);
+
             var published = Deserialize(source) with { Version = await AllocateVersionAsync(flowId, token) };
             var serialized = Serialize(published);
             var createdAt = DateTimeOffset.UtcNow;

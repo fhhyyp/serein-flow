@@ -31,6 +31,7 @@ public interface IFlowVersionRepository
         Guid flowId,
         long expectedDevelopmentVersion,
         string? remark,
+        long? expectedProductionVersion = null,
         CancellationToken cancellationToken = default);
 
     Task<FlowVersionMutationResult> RollbackAsync(

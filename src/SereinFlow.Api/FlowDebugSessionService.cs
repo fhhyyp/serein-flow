@@ -261,6 +261,22 @@ public sealed class FlowDebugSessionService : IHostedService
         return await store.FindAsync(sessionId, cancellationToken);
     }
 
+    public async Task<FlowDebugStateWaitResult> WaitForChangeAsync(
+        Guid sessionId,
+        long afterRevision,
+        TimeSpan timeout,
+        CancellationToken cancellationToken = default)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var store = scope.ServiceProvider.GetRequiredService<IFlowDebugSessionStore>();
+        return await FlowDebugSessionWaiter.WaitAsync(
+            store,
+            sessionId,
+            afterRevision,
+            timeout,
+            cancellationToken);
+    }
+
     public Task<FlowDebugSessionCommandResult> ContinueAsync(Guid sessionId, long commandSequence, CancellationToken cancellationToken = default)
         => SendCommandAsync(
             sessionId,
@@ -502,8 +518,16 @@ public sealed class FlowDebugSessionService : IHostedService
             using var payload = JsonDocument.Parse(workerEvent.PayloadJson);
             var invocationId = ReadPayloadGuid(payload.RootElement, "triggerInvocationId");
             session.Pause(
-                workerEvent.NodeId ?? string.Empty,
-                DateTimeOffset.UtcNow,
+                new FlowDebugPauseState(
+                    workerEvent.NodeId ?? string.Empty,
+                    ReadPayloadString(payload.RootElement, "nodeType") ?? string.Empty,
+                    ReadPayloadInt(payload.RootElement, "step"),
+                    ReadPayloadInt(payload.RootElement, "frameDepth"),
+                    invocationId,
+                    workerEvent.Sequence,
+                    ReadPayloadJson(payload.RootElement, "inputs"),
+                    workerEvent.Timestamp),
+                workerEvent.Timestamp,
                 invocationId,
                 invocationId is null ? null : session.ActiveFlipflopNodeId ?? workerEvent.NodeId);
             await debugStore.SaveAsync(session, cancellationToken);
@@ -560,7 +584,22 @@ public sealed class FlowDebugSessionService : IHostedService
         await eventStore.AppendAsync([item], cancellationToken);
         var output = CreateNodeOutput(workerEvent);
         if (output is not null)
+        {
             await outputStore.AppendAsync([output], cancellationToken);
+            session.RecordNodeResult(
+                new FlowDebugNodeResult(
+                    output.NodeId,
+                    output.Sequence,
+                    output.Timestamp,
+                    output.Outcome,
+                    output.Branch,
+                    output.InputsJson,
+                    output.OutputsJson,
+                    output.ErrorCode,
+                    output.ErrorMessage),
+                output.Timestamp);
+            await debugStore.SaveAsync(session, cancellationToken);
+        }
         await PublishLiveAsync(new FlowRunEventDto(
             item.RunId,
             item.Sequence,
@@ -699,6 +738,18 @@ public sealed class FlowDebugSessionService : IHostedService
             && Guid.TryParse(value.GetString(), out var parsed)
             ? parsed
             : null;
+
+    private static int ReadPayloadInt(JsonElement payload, string name)
+        => payload.TryGetProperty(name, out var value)
+            && value.ValueKind == JsonValueKind.Number
+            && value.TryGetInt32(out var parsed)
+            ? Math.Max(0, parsed)
+            : 0;
+
+    private static string ReadPayloadJson(JsonElement payload, string name)
+        => payload.TryGetProperty(name, out var value)
+            ? value.GetRawText()
+            : "{}";
 
 
     private static string ResolvePath(string value, string root)

@@ -1,4 +1,5 @@
 using SereinFlow.Domain;
+using SereinFlow.Contracts;
 using SereinFlow.Runtime.Abstractions;
 using SereinFlow.ScriptAdapter;
 using ScriptLang.Runtime;
@@ -7,6 +8,50 @@ namespace SereinFlow.ScriptAdapter.Tests;
 
 public sealed class ScriptAdapterTests
 {
+    [Fact]
+    public async Task CompilerReturnsSuccessWithoutPersistingOrExecutingScript()
+    {
+        var result = await new SereinLangCompiler().CompileAsync(
+            new ScriptCompileRequestDto(
+                "return amount + 1",
+                "mcp-test.serein",
+                SereinLangCompiler.SupportedLanguageVersion,
+                [new ScriptValueContractDto("amount", "number", true)]));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("mcp-test.serein", result.SourceName);
+        Assert.Equal(SereinLangCompiler.SupportedLanguageVersion, result.LanguageVersion);
+        Assert.Empty(result.Diagnostics);
+    }
+
+    [Fact]
+    public async Task CompilerReturnsStructuredSyntaxDiagnostics()
+    {
+        var result = await new SereinLangCompiler().CompileAsync(
+            new ScriptCompileRequestDto(
+                "return (",
+                null,
+                SereinLangCompiler.SupportedLanguageVersion,
+                []));
+
+        Assert.False(result.IsSuccess);
+        Assert.NotEmpty(result.Diagnostics);
+        Assert.All(result.Diagnostics, diagnostic => Assert.Equal("error", diagnostic.Severity));
+    }
+
+    [Fact]
+    public async Task CompilerRejectsOversizedSourceBeforeInvokingCompiler()
+    {
+        var result = await new SereinLangCompiler().CompileAsync(
+            new ScriptCompileRequestDto(
+                new string('x', SereinLangCompiler.MaxSourceBytes + 1),
+                null,
+                SereinLangCompiler.SupportedLanguageVersion,
+                []));
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "script.source_too_large");
+    }
     [Fact]
     public void ConverterRoundTripsJsonCompatibleValues()
     {

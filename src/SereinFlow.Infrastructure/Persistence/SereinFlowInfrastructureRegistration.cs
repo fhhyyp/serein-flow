@@ -94,6 +94,23 @@ public static class SereinFlowInfrastructureRegistration
                 serviceProvider.GetRequiredService<IRepository<LibraryRecord>>(),
                 serviceProvider.GetRequiredService<IRepository<FlowLibraryBindingRecord>>(),
                 serviceProvider.GetRequiredService<IUnitOfWork>()));
+        services.AddScoped<IMcpApiKeyStore>(serviceProvider =>
+            new SqlSugarMcpApiKeyStore(
+                serviceProvider.GetRequiredService<IRepository<McpApiKeyRecord>>()));
+        services.AddScoped<IMcpPreviewStore>(serviceProvider =>
+            new SqlSugarMcpPreviewStore(
+                serviceProvider.GetRequiredService<IRepository<McpPreviewRecord>>()));
+        services.AddScoped<IMcpAuditStore>(serviceProvider =>
+            new SqlSugarMcpAuditStore(
+                serviceProvider.GetRequiredService<IRepository<McpAuditRecord>>()));
+        services.AddScoped<IMcpIdempotencyStore>(serviceProvider =>
+            new SqlSugarMcpIdempotencyStore(
+                serviceProvider.GetRequiredService<IRepository<McpIdempotencyRecord>>()));
+        var stagingDirectory = configuration["SereinFlow:Mcp:PackageStagingDirectory"] ?? "data/mcp-staging";
+        stagingDirectory = Path.IsPathRooted(stagingDirectory)
+            ? stagingDirectory
+            : Path.Combine(contentRootPath, stagingDirectory);
+        services.AddSingleton(new McpPackageStagingService(stagingDirectory));
 
         var configuredLibraryDirectory = configuration["SereinFlow:LibraryDirectory"] ?? "data/libraries";
         var libraryDirectory = Path.IsPathRooted(configuredLibraryDirectory)

@@ -81,6 +81,9 @@ public sealed class SqlSugarFlowDebugSessionStore : IFlowDebugSessionStore
             ActiveFlipflopNodeId = session.ActiveFlipflopNodeId,
             QueuedTriggerCount = session.QueuedTriggerCount,
             LastCommandSequence = session.LastCommandSequence,
+            StateRevision = session.StateRevision,
+            PauseStateJson = session.PauseState is null ? null : JsonSerializer.Serialize(session.PauseState, JsonOptions),
+            LastNodeResultJson = session.LastNodeResult is null ? null : JsonSerializer.Serialize(session.LastNodeResult, JsonOptions),
             FailureMessage = session.FailureMessage,
             CreatedAt = session.CreatedAt.ToString("O"),
             UpdatedAt = session.UpdatedAt.ToString("O")
@@ -91,6 +94,8 @@ public sealed class SqlSugarFlowDebugSessionStore : IFlowDebugSessionStore
         var breakpoints = string.IsNullOrWhiteSpace(row.BreakpointsJson)
             ? []
             : JsonSerializer.Deserialize<string[]>(row.BreakpointsJson, JsonOptions) ?? [];
+        var pauseState = DeserializeOrNull<FlowDebugPauseState>(row.PauseStateJson);
+        var lastNodeResult = DeserializeOrNull<FlowDebugNodeResult>(row.LastNodeResultJson);
         return FlowDebugSession.Rehydrate(
             Guid.Parse(row.Id),
             Guid.Parse(row.RunId),
@@ -107,6 +112,24 @@ public sealed class SqlSugarFlowDebugSessionStore : IFlowDebugSessionStore
             row.LastCommandSequence,
             row.FailureMessage,
             DateTimeOffset.Parse(row.CreatedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
-            DateTimeOffset.Parse(row.UpdatedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind));
+            DateTimeOffset.Parse(row.UpdatedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+            row.StateRevision,
+            pauseState,
+            lastNodeResult);
+    }
+
+    private static T? DeserializeOrNull<T>(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return default;
+
+        try
+        {
+            return JsonSerializer.Deserialize<T>(json, JsonOptions);
+        }
+        catch (JsonException)
+        {
+            return default;
+        }
     }
 }

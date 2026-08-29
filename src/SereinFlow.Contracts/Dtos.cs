@@ -385,7 +385,8 @@ public sealed record LibraryDto(
     string? FamilyId = null,
     string? SemanticVersion = null,
     LibraryArtifactManifestDto? CompatibilityManifest = null,
-    string? FamilyName = null);
+    string? FamilyName = null,
+    string? DllSha256 = null);
 
 public sealed record LibraryNodeDto(
     string Id,
@@ -432,6 +433,43 @@ public sealed record LibraryArtifactManifestDto(
     string AssemblyVersion,
     string SemanticVersion,
     IReadOnlyList<LibraryManifestNodeDto> Nodes);
+
+/// <summary>
+/// Contract-level compatibility information produced while a completed ZIP
+/// package is being previewed. It does not imply that the target artifact has
+/// been imported or attached to a project.
+/// 类库 ZIP 预览期间生成的契约级兼容性信息。不表示目标工件已经导入或接入项目。
+/// </summary>
+public sealed record LibraryArtifactCompatibilityDto(
+    string BaselineArtifactId,
+    string BaselineVersion,
+    string TargetArtifactId,
+    string TargetVersion,
+    bool IsCompatible,
+    IReadOnlyList<LibraryArtifactCompatibilityIssueDto> Issues);
+
+public sealed record LibraryArtifactCompatibilityIssueDto(
+    string Id,
+    LibraryCompatibilityClassificationDto Classification,
+    string Code,
+    string Message,
+    string? SourceNodeContractId = null,
+    string? TargetNodeContractId = null,
+    string? SourceParameterId = null,
+    string? TargetParameterId = null,
+    bool BlocksApplication = false);
+
+/// <summary>
+/// Bounded impact counts for a package replacement candidate. The package is
+/// not persisted when this information is produced.
+/// 候选类库替换包的有界影响统计。生成该信息时不会持久化类库包。
+/// </summary>
+public sealed record LibraryPackageProjectImpactDto(
+    Guid ProjectId,
+    string? BaselineArtifactId,
+    int AffectedFlowCount,
+    int AffectedNodeCount,
+    IReadOnlyList<Guid> AffectedFlowIds);
 
 /// <summary>
 /// A logical product line containing immutable library artifacts. The family
@@ -643,7 +681,36 @@ public sealed record FlowDebugSessionDto(
     long LastCommandSequence,
     string? FailureMessage,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    long StateRevision = 0,
+    FlowDebugPauseStateDto? PauseState = null,
+    FlowDebugNodeResultDto? LastNodeResult = null);
+
+public sealed record FlowDebugPauseStateDto(
+    string NodeId,
+    string NodeType,
+    int Step,
+    int FrameDepth,
+    Guid? InvocationId,
+    long BoundarySequence,
+    JsonElement Inputs,
+    DateTimeOffset PausedAt);
+
+public sealed record FlowDebugNodeResultDto(
+    string NodeId,
+    long Sequence,
+    DateTimeOffset CompletedAt,
+    string Outcome,
+    string? Branch,
+    JsonElement Inputs,
+    JsonElement Outputs,
+    string? ErrorCode,
+    string? ErrorMessage);
+
+public sealed record FlowDebugWaitResultDto(
+    bool HasChanged,
+    bool TimedOut,
+    FlowDebugSessionDto Session);
 
 public sealed record FlowDebugCommandRequestDto(long CommandSequence);
 

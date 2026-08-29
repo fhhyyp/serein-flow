@@ -99,9 +99,6 @@
           "xunit.extensibility.core": "[2.9.3]"
         }
       },
-      "Serein.ScriptLang": {
-        "type": "Project"
-      },
       "sereinflow.contracts": {
         "type": "Project"
       },
@@ -124,7 +121,7 @@
       "sereinflow.scriptadapter": {
         "type": "Project",
         "dependencies": {
-          "Serein.ScriptLang": "[0.1.0, )",
+          "SereinFlow.Contracts": "[1.0.0, )",
           "SereinFlow.Runtime.Abstractions": "[1.0.0, )",
           "SereinFlow.ScriptModules": "[1.0.0, )"
         }
@@ -132,7 +129,6 @@
       "sereinflow.scriptmodules": {
         "type": "Project",
         "dependencies": {
-          "Serein.ScriptLang": "[0.1.0, )",
           "SereinFlow.Runtime.Abstractions": "[1.0.0, )"
         }
       },

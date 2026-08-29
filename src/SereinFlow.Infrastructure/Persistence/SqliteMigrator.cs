@@ -22,6 +22,14 @@ public sealed class SqliteMigrator
     private const int AddFlowDebugSessionsVersion = 15;
     private const int AddFlowDebugCommandSequenceVersion = 16;
     private const int AddFlowVersionManagementVersion = 17;
+    private const int AddStructuredDebugStateVersion = 18;
+    private const int AddMcpSecurityVersion = 19;
+    private const int AddMcpIdempotencyVersion = 20;
+    private const int AddMcpAuditSizesVersion = 21;
+    private const int AddMcpIdempotencyRequestHashVersion = 22;
+    private const int AddMcpApiKeyRoleVersion = 23;
+    private const int AddLibraryDllHashVersion = 24;
+    private const int AddMcpAuditFlowVersionVersion = 25;
     private readonly SqlSugarClient _client;
 
     public SqliteMigrator(SqlSugarClient client)
@@ -659,6 +667,228 @@ public sealed class SqliteMigrator
                 throw;
             }
         }
+
+        applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
+        if (!applied.Contains(AddStructuredDebugStateVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                if (HasTable("FlowDebugSessions"))
+                {
+                    _client.Ado.ExecuteCommand("""
+                        ALTER TABLE FlowDebugSessions ADD COLUMN StateRevision INTEGER NOT NULL DEFAULT 0;
+                        ALTER TABLE FlowDebugSessions ADD COLUMN PauseStateJson TEXT NULL;
+                        ALTER TABLE FlowDebugSessions ADD COLUMN LastNodeResultJson TEXT NULL;
+                        UPDATE FlowDebugSessions
+                        SET StateRevision = 1
+                        WHERE StateRevision = 0 AND Status <> 'Pending';
+                        """);
+                }
+                RecordMigration(AddStructuredDebugStateVersion, "flow-debug-structured-state-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
+
+        applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
+        if (!applied.Contains(AddMcpSecurityVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                _client.Ado.ExecuteCommand("""
+                    CREATE TABLE IF NOT EXISTS McpApiKeys (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        ProjectId TEXT NULL,
+                        Name TEXT NOT NULL,
+                        KeyPrefix TEXT NOT NULL,
+                        SecretHash TEXT NOT NULL,
+                        Salt TEXT NOT NULL,
+                        PermissionsJson TEXT NOT NULL,
+                        CreatedAt TEXT NOT NULL,
+                        ExpiresAt TEXT NULL,
+                        RevokedAt TEXT NULL,
+                        LastUsedAt TEXT NULL,
+                        IsAdministrator INTEGER NOT NULL DEFAULT 0,
+                        FOREIGN KEY (ProjectId) REFERENCES Projects(Id)
+                    );
+                    CREATE INDEX IF NOT EXISTS IX_McpApiKeys_Project
+                    ON McpApiKeys(ProjectId);
+                    CREATE TABLE IF NOT EXISTS McpMutationPreviews (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        Operation TEXT NOT NULL,
+                        PrincipalId TEXT NOT NULL,
+                        ProjectId TEXT NULL,
+                        FlowId TEXT NULL,
+                        ExpectedVersion INTEGER NULL,
+                        PayloadJson TEXT NOT NULL,
+                        PreviewFingerprint TEXT NOT NULL,
+                        Status TEXT NOT NULL,
+                        CreatedAt TEXT NOT NULL,
+                        ExpiresAt TEXT NOT NULL,
+                        AppliedAt TEXT NULL
+                    );
+                    CREATE INDEX IF NOT EXISTS IX_McpMutationPreviews_Expires
+                    ON McpMutationPreviews(ExpiresAt);
+                    CREATE TABLE IF NOT EXISTS McpAuditEntries (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        PrincipalId TEXT NOT NULL,
+                        Operation TEXT NOT NULL,
+                        ProjectId TEXT NULL,
+                        FlowId TEXT NULL,
+                        PreviewId TEXT NULL,
+                        Outcome TEXT NOT NULL,
+                        RequestHash TEXT NULL,
+                        Summary TEXT NULL,
+                        CreatedAt TEXT NOT NULL,
+                        DurationMilliseconds INTEGER NOT NULL
+                    );
+                    CREATE INDEX IF NOT EXISTS IX_McpAuditEntries_Created
+                    ON McpAuditEntries(CreatedAt DESC);
+                    """);
+                RecordMigration(AddMcpSecurityVersion, "mcp-security-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
+
+        applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
+        if (!applied.Contains(AddMcpIdempotencyVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                _client.Ado.ExecuteCommand("""
+                    CREATE TABLE IF NOT EXISTS McpIdempotencyRecords (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        PrincipalId TEXT NOT NULL,
+                        Operation TEXT NOT NULL,
+                        KeyHash TEXT NOT NULL,
+                        ResponseJson TEXT NOT NULL,
+                        CreatedAt TEXT NOT NULL,
+                        UNIQUE (PrincipalId, Operation, KeyHash)
+                    );
+                    CREATE INDEX IF NOT EXISTS IX_McpIdempotencyRecords_Lookup
+                    ON McpIdempotencyRecords(PrincipalId, Operation, KeyHash);
+                    """);
+                RecordMigration(AddMcpIdempotencyVersion, "mcp-idempotency-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
+
+        applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
+        if (!applied.Contains(AddMcpAuditSizesVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                if (HasTable("McpAuditEntries"))
+                {
+                    _client.Ado.ExecuteCommand("""
+                        ALTER TABLE McpAuditEntries ADD COLUMN InputBytes INTEGER NOT NULL DEFAULT 0;
+                        ALTER TABLE McpAuditEntries ADD COLUMN OutputBytes INTEGER NOT NULL DEFAULT 0;
+                        """);
+                }
+                RecordMigration(AddMcpAuditSizesVersion, "mcp-audit-sizes-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
+
+        applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
+        if (!applied.Contains(AddMcpIdempotencyRequestHashVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                if (HasTable("McpIdempotencyRecords"))
+                    _client.Ado.ExecuteCommand("ALTER TABLE McpIdempotencyRecords ADD COLUMN RequestHash TEXT NOT NULL DEFAULT '';");
+                RecordMigration(AddMcpIdempotencyRequestHashVersion, "mcp-idempotency-request-hash-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
+
+        applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
+        if (!applied.Contains(AddMcpApiKeyRoleVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                if (HasTable("McpApiKeys") && !HasColumn("McpApiKeys", "IsAdministrator"))
+                    _client.Ado.ExecuteCommand("ALTER TABLE McpApiKeys ADD COLUMN IsAdministrator INTEGER NOT NULL DEFAULT 0;");
+                RecordMigration(AddMcpApiKeyRoleVersion, "mcp-api-key-role-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
+
+        applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
+        if (!applied.Contains(AddLibraryDllHashVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                if (HasTable("Libraries") && !HasColumn("Libraries", "DllSha256"))
+                    _client.Ado.ExecuteCommand("ALTER TABLE Libraries ADD COLUMN DllSha256 TEXT NULL;");
+                RecordMigration(AddLibraryDllHashVersion, "library-dll-hash-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
+
+        applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
+        if (!applied.Contains(AddMcpAuditFlowVersionVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                if (HasTable("McpAuditEntries"))
+                {
+                    if (!HasColumn("McpAuditEntries", "Track"))
+                        _client.Ado.ExecuteCommand("ALTER TABLE McpAuditEntries ADD COLUMN Track TEXT NULL;");
+                    if (!HasColumn("McpAuditEntries", "FlowVersion"))
+                        _client.Ado.ExecuteCommand("ALTER TABLE McpAuditEntries ADD COLUMN FlowVersion INTEGER NULL;");
+                }
+                RecordMigration(AddMcpAuditFlowVersionVersion, "mcp-audit-flow-version-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
     }
 
     /// <summary>
@@ -878,6 +1108,11 @@ public sealed class SqliteMigrator
         => _client.Ado.GetInt(
             "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = @tableName",
             new SugarParameter("@tableName", tableName)) > 0;
+
+    private bool HasColumn(string tableName, string columnName)
+        => _client.Ado.GetInt(
+            $"SELECT COUNT(*) FROM pragma_table_info('{tableName.Replace("'", "''", StringComparison.Ordinal)}') WHERE name = @columnName",
+            new SugarParameter("@columnName", columnName)) > 0;
 
     private sealed class FlowDefinitionLibraryReferenceMigrationRow
     {

@@ -62,6 +62,13 @@ public sealed record AiFlowTopologyDto(
     string ConcurrencyMode,
     IReadOnlyList<AiCanvasDto> Canvases);
 
+public sealed record AiFlowEditModelDto(
+    Guid ProjectId,
+    Guid FlowId,
+    AiFlowTopologyDto Flow,
+    IReadOnlyList<NodeCreationDescriptorDto> BuiltinNodes,
+    IReadOnlyList<AiLibrarySummaryDto> Libraries);
+
 public sealed record AiCanvasDto(
     string Id,
     string Lifecycle,
@@ -78,7 +85,9 @@ public sealed record AiNodeContractDto(
     IReadOnlyList<AiPortContractDto> Ports,
     IReadOnlyList<AiParameterContractDto> Parameters,
     AiNodeRuntimeDto? Runtime,
-    AiScriptContractDto? Script);
+    AiScriptContractDto? Script,
+    double X = 0,
+    double Y = 0);
 
 public sealed record AiPortContractDto(
     string Id,
@@ -242,7 +251,36 @@ public sealed record AiDebugStateDto(
     long LastCommandSequence,
     string? FailureMessage,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    long StateRevision = 0,
+    AiDebugPauseStateDto? PauseState = null,
+    AiDebugNodeResultDto? LastNodeResult = null);
+
+public sealed record AiDebugPauseStateDto(
+    string NodeId,
+    string NodeType,
+    int Step,
+    int FrameDepth,
+    Guid? InvocationId,
+    long BoundarySequence,
+    JsonElement Inputs,
+    DateTimeOffset PausedAt);
+
+public sealed record AiDebugNodeResultDto(
+    string NodeId,
+    long Sequence,
+    DateTimeOffset CompletedAt,
+    string Outcome,
+    string? Branch,
+    JsonElement Inputs,
+    JsonElement Outputs,
+    string? ErrorCode,
+    string? ErrorMessage);
+
+public sealed record AiDebugStateWaitResultDto(
+    bool HasChanged,
+    bool TimedOut,
+    AiDebugStateDto State);
 
 public sealed record AiRunInspectionDto(
     AiRunSummaryDto Run,

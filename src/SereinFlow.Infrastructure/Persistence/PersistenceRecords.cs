@@ -97,6 +97,9 @@ public sealed class FlowDebugSessionRecord
     public string? ActiveFlipflopNodeId { get; set; }
     public int QueuedTriggerCount { get; set; }
     public long LastCommandSequence { get; set; }
+    public long StateRevision { get; set; }
+    public string? PauseStateJson { get; set; }
+    public string? LastNodeResultJson { get; set; }
     public string? FailureMessage { get; set; }
     public string CreatedAt { get; set; } = string.Empty;
     public string UpdatedAt { get; set; } = string.Empty;
@@ -149,6 +152,7 @@ public sealed class LibraryRecord
     public string FileName { get; set; } = string.Empty;
     public long SizeBytes { get; set; }
     public string Sha256 { get; set; } = string.Empty;
+    public string? DllSha256 { get; set; }
     public string UploadedAt { get; set; } = string.Empty;
     public string PackagePath { get; set; } = string.Empty;
     public string NodeCatalogJson { get; set; } = "[]";
@@ -226,6 +230,72 @@ public sealed class RunEnvironmentSettingsRecord
     public int ShutdownGracePeriodSeconds { get; set; }
     public int SynchronousInvocationTimeoutSeconds { get; set; }
     public string UpdatedAt { get; set; } = string.Empty;
+}
+
+[SugarTable("McpApiKeys")]
+public sealed class McpApiKeyRecord
+{
+    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    public string? ProjectId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string KeyPrefix { get; set; } = string.Empty;
+    public string SecretHash { get; set; } = string.Empty;
+    public string Salt { get; set; } = string.Empty;
+    public string PermissionsJson { get; set; } = "[]";
+    public string CreatedAt { get; set; } = string.Empty;
+    public string? ExpiresAt { get; set; }
+    public string? RevokedAt { get; set; }
+    public string? LastUsedAt { get; set; }
+    public bool IsAdministrator { get; set; }
+}
+
+[SugarTable("McpMutationPreviews")]
+public sealed class McpPreviewRecord
+{
+    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    public string Operation { get; set; } = string.Empty;
+    public string PrincipalId { get; set; } = string.Empty;
+    public string? ProjectId { get; set; }
+    public string? FlowId { get; set; }
+    public long? ExpectedVersion { get; set; }
+    public string PayloadJson { get; set; } = string.Empty;
+    public string PreviewFingerprint { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string CreatedAt { get; set; } = string.Empty;
+    public string ExpiresAt { get; set; } = string.Empty;
+    public string? AppliedAt { get; set; }
+}
+
+[SugarTable("McpAuditEntries")]
+public sealed class McpAuditRecord
+{
+    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    public string PrincipalId { get; set; } = string.Empty;
+    public string Operation { get; set; } = string.Empty;
+    public string? ProjectId { get; set; }
+    public string? FlowId { get; set; }
+    public string? Track { get; set; }
+    public long? FlowVersion { get; set; }
+    public string? PreviewId { get; set; }
+    public string Outcome { get; set; } = string.Empty;
+    public string? RequestHash { get; set; }
+    public string? Summary { get; set; }
+    public string CreatedAt { get; set; } = string.Empty;
+    public long DurationMilliseconds { get; set; }
+    public long InputBytes { get; set; }
+    public long OutputBytes { get; set; }
+}
+
+[SugarTable("McpIdempotencyRecords")]
+public sealed class McpIdempotencyRecord
+{
+    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    public string PrincipalId { get; set; } = string.Empty;
+    public string Operation { get; set; } = string.Empty;
+    public string KeyHash { get; set; } = string.Empty;
+    public string RequestHash { get; set; } = string.Empty;
+    public string ResponseJson { get; set; } = string.Empty;
+    public string CreatedAt { get; set; } = string.Empty;
 }
 
 [SugarTable("FlowInterfaces")]

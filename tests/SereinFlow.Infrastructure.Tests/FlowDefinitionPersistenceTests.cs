@@ -77,6 +77,16 @@ public sealed class FlowDefinitionPersistenceTests
         Assert.NotNull(developmentV4);
         Assert.Equal(4, developmentV4!.Version);
 
+        var rejectedPublish = await repository.PublishAsync(
+            project.Id,
+            initial.Id,
+            expectedDevelopmentVersion: developmentV4.Version,
+            remark: null,
+            expectedProductionVersion: null);
+        Assert.False(rejectedPublish.IsCommitted);
+        Assert.Equal(published.Version.Version, rejectedPublish.CurrentHeadVersion);
+        Assert.Equal(published.Version.Version, await repository.FindProductionVersionAsync(project.Id, initial.Id));
+
         var productionRollback = await repository.RollbackAsync(
             project.Id,
             initial.Id,

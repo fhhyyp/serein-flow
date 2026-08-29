@@ -267,6 +267,7 @@ public static class FlowDefinitionContractNormalizer
                 }).ToArray(),
             })
             .ToArray();
-        return definition with { Canvases = normalizedCanvases };
+        var normalized = definition with { Canvases = normalizedCanvases };
+        return normalized with { Checksum = FlowDiffService.GetChecksum(normalized) };
     }
 }

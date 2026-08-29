@@ -189,6 +189,19 @@ public sealed class ProjectLibraryService
                     continue;
                 }
 
+                if (!string.IsNullOrWhiteSpace(runtime.LibraryNodeContractId)
+                    && !string.Equals(
+                        runtime.LibraryNodeContractId,
+                        catalogNode.ContractId ?? catalogNode.Id,
+                        StringComparison.Ordinal))
+                {
+                    diagnostics.Add(new ValidationDiagnosticDto(
+                        "project_library.node_contract_invalid",
+                        "The node contract ID does not match the referenced library artifact. 节点契约 ID 与已引用的类库制品不匹配。",
+                        path));
+                    continue;
+                }
+
                 if (node.Type == NodeTypeDto.Flipflop && !catalogNode.IsAwaitable)
                 {
                     diagnostics.Add(new ValidationDiagnosticDto(

@@ -22,6 +22,7 @@ public sealed class AiReadModelService
     private readonly IFlowRunEventStore _events;
     private readonly IFlowRunOutputStore _outputs;
     private readonly IFlowDebugSessionStore _debugSessions;
+    private readonly IProjectLibraryReferenceRepository? _projectLibraryReferences;
 
     public AiReadModelService(
         IProjectRepository projects,
@@ -31,7 +32,8 @@ public sealed class AiReadModelService
         IFlowRunStore runs,
         IFlowRunEventStore events,
         IFlowRunOutputStore outputs,
-        IFlowDebugSessionStore debugSessions)
+        IFlowDebugSessionStore debugSessions,
+        IProjectLibraryReferenceRepository? projectLibraryReferences = null)
     {
         _projects = projects ?? throw new ArgumentNullException(nameof(projects));
         _flows = flows ?? throw new ArgumentNullException(nameof(flows));
@@ -41,6 +43,7 @@ public sealed class AiReadModelService
         _events = events ?? throw new ArgumentNullException(nameof(events));
         _outputs = outputs ?? throw new ArgumentNullException(nameof(outputs));
         _debugSessions = debugSessions ?? throw new ArgumentNullException(nameof(debugSessions));
+        _projectLibraryReferences = projectLibraryReferences;
     }
 
     public async Task<AiPageDto<AiProjectSummaryDto>> ListProjectsAsync(
@@ -139,6 +142,55 @@ public sealed class AiReadModelService
             ? null
             : MapTopology(projectId, definition, track, (options ?? new()).Normalize());
     }
+
+    public Task<IReadOnlyList<FlowVersionSummaryDto>> GetFlowVersionHistoryAsync(
+        Guid projectId,
+        Guid flowId,
+        FlowVersionTrackDto track,
+        CancellationToken cancellationToken = default)
+        => _versions.ListVersionsAsync(projectId, flowId, track, cancellationToken);
+
+    public async Task<AiFlowEditModelDto?> GetFlowEditModelAsync(
+        Guid projectId,
+        Guid flowId,
+        BuiltinNodeCatalogDto builtinNodes,
+        AiReadModelOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(builtinNodes);
+        var flow = await GetFlowTopologyAsync(
+            projectId,
+            flowId,
+            FlowVersionTrackDto.Development,
+            null,
+            options,
+            cancellationToken);
+        if (flow is null)
+            return null;
+
+        var libraries = await _libraries.ListAsync(false, cancellationToken);
+        if (_projectLibraryReferences is not null)
+        {
+            var references = await _projectLibraryReferences.ListByProjectAsync(projectId, cancellationToken);
+            var referencedIds = references.Select(static item => item.LibraryId)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            libraries = libraries.Where(item => referencedIds.Contains(item.Id)).ToArray();
+        }
+
+        return new(
+            projectId,
+            flowId,
+            flow,
+            builtinNodes.Nodes,
+            libraries.Select(static item => MapLibrary(item, includeNodes: true)).ToArray());
+    }
+
+    public Task<FlowVersionDetailDto?> GetFlowVersionAsync(
+        Guid projectId,
+        Guid flowId,
+        long version,
+        CancellationToken cancellationToken = default)
+        => _versions.FindVersionAsync(projectId, flowId, version, cancellationToken);
 
     public async Task<AiPageDto<AiLibrarySummaryDto>> ListLibrariesAsync(
         bool includeArchived = false,
@@ -249,6 +301,23 @@ public sealed class AiReadModelService
         return session is null ? null : MapDebugState(session);
     }
 
+    public async Task<AiDebugStateWaitResultDto?> WaitForDebugStateChangeAsync(
+        Guid sessionId,
+        long afterRevision,
+        TimeSpan timeout,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await FlowDebugSessionWaiter.WaitAsync(
+            _debugSessions,
+            sessionId,
+            afterRevision,
+            timeout,
+            cancellationToken);
+        return result.Session is null
+            ? null
+            : new(result.HasChanged, result.TimedOut, MapDebugState(result.Session));
+    }
+
     private static AiFlowTopologyDto MapTopology(
         Guid projectId,
         FlowDefinitionDto definition,
@@ -309,7 +378,9 @@ public sealed class AiReadModelService
                     node.Script.SourceHash,
                     options.IncludeScriptSource ? LimitText(node.Script.Source, options.MaxJsonBytes) : null,
                     node.Script.Inputs.Select(MapScriptValue).ToArray(),
-                    node.Script.Outputs.Select(MapScriptValue).ToArray()));
+                    node.Script.Outputs.Select(MapScriptValue).ToArray()),
+            node.X,
+            node.Y);
 
     private static AiParameterContractDto MapParameter(NodeParameterDto parameter, AiReadModelOptions options)
         => new(
@@ -325,8 +396,8 @@ public sealed class AiReadModelService
             options.IncludeFlowLiteralValues && parameter.Source == DataSourceDto.Literal
                 ? LimitText(parameter.ValueJson, options.MaxJsonBytes)
                 : null,
-            parameter.Ui?.ProjectInputKey,
-            parameter.Ui?.Expression,
+            options.IncludeFlowLiteralValues ? parameter.Ui?.ProjectInputKey : null,
+            options.IncludeFlowLiteralValues ? parameter.Ui?.Expression : null,
             parameter.Ui?.SourceNodeId,
             parameter.Ui?.SourcePortId,
             parameter.Ui?.IsVariadic ?? false,
@@ -449,7 +520,31 @@ public sealed class AiReadModelService
             session.LastCommandSequence,
             session.FailureMessage,
             session.CreatedAt,
-            session.UpdatedAt);
+            session.UpdatedAt,
+            session.StateRevision,
+            session.PauseState is null
+                ? null
+                : new AiDebugPauseStateDto(
+                    session.PauseState.NodeId,
+                    session.PauseState.NodeType,
+                    session.PauseState.Step,
+                    session.PauseState.FrameDepth,
+                    session.PauseState.InvocationId,
+                    session.PauseState.BoundarySequence,
+                    ParsePayload(session.PauseState.InputsJson, 64 * 1024).Payload,
+                    session.PauseState.PausedAt),
+            session.LastNodeResult is null
+                ? null
+                : new AiDebugNodeResultDto(
+                    session.LastNodeResult.NodeId,
+                    session.LastNodeResult.Sequence,
+                    session.LastNodeResult.CompletedAt,
+                    session.LastNodeResult.Outcome,
+                    session.LastNodeResult.Branch,
+                    ParsePayload(session.LastNodeResult.InputsJson, 64 * 1024).Payload,
+                    ParsePayload(session.LastNodeResult.OutputsJson, 64 * 1024).Payload,
+                    session.LastNodeResult.ErrorCode,
+                    session.LastNodeResult.ErrorMessage));
 
     private static (JsonElement Payload, bool Malformed, bool Truncated) ParsePayload(string? json, int maxJsonBytes)
     {

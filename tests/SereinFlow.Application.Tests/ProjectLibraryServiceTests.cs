@@ -112,6 +112,45 @@ public sealed class ProjectLibraryServiceTests
     }
 
     [Fact]
+    public async Task ValidationRejectsTamperedLibraryContractId()
+    {
+        var project = Project.Create("Contract validation project");
+        var projects = new InMemoryProjectRepository(project);
+        var references = new InMemoryProjectLibraryReferenceRepository();
+        var service = CreateService(
+            projects,
+            new InMemoryFlowDefinitionRepository(),
+            references,
+            CreateLibrary());
+        await service.AddAsync(project.Id, LibraryId);
+
+        var flow = CreateExternalLibraryFlow() with
+        {
+            Canvases =
+            [
+                CreateExternalLibraryFlow().Canvases[0] with
+                {
+                    Nodes =
+                    [
+                        CreateExternalLibraryFlow().Canvases[0].Nodes[0] with
+                        {
+                            Ui = CreateExternalLibraryFlow().Canvases[0].Nodes[0].Ui! with
+                            {
+                                LibraryNodeContractId = "different-contract"
+                            }
+                        }
+                    ]
+                }
+            ]
+        };
+
+        var validation = await service.ValidateFlowLibrariesAsync(project.Id, flow);
+
+        Assert.False(validation.IsValid);
+        Assert.Contains(validation.Diagnostics, diagnostic => diagnostic.Code == "project_library.node_contract_invalid");
+    }
+
+    [Fact]
     public void NewProjectValidationRejectsExternalLibraryNodesUntilTheyAreExplicitlyReferenced()
     {
         var validation = ProjectLibraryService.ValidateNewProjectFlowLibraries(CreateExternalLibraryFlow());
@@ -153,7 +192,8 @@ public sealed class ProjectLibraryServiceTests
             "1.0.0",
             "System.Decimal",
             [],
-            false);
+            false,
+            ContractId: "quality-rate");
 
     private static FlowDefinitionDto CreateExternalLibraryFlow(string dllVersion = "1.0.0")
     {
@@ -323,7 +363,7 @@ public sealed class ProjectLibraryServiceTests
         public Task<long?> FindProductionVersionAsync(Guid projectId, Guid flowId, CancellationToken cancellationToken = default)
             => Task.FromResult<long?>(null);
 
-        public Task<FlowVersionMutationResult> PublishAsync(Guid projectId, Guid flowId, long expectedDevelopmentVersion, string? remark, CancellationToken cancellationToken = default)
+        public Task<FlowVersionMutationResult> PublishAsync(Guid projectId, Guid flowId, long expectedDevelopmentVersion, string? remark, long? expectedProductionVersion = null, CancellationToken cancellationToken = default)
             => Task.FromResult(new FlowVersionMutationResult(null, null));
 
         public Task<FlowVersionMutationResult> RollbackAsync(Guid projectId, Guid flowId, long sourceVersion, FlowVersionTrackDto track, long expectedHeadVersion, CancellationToken cancellationToken = default)

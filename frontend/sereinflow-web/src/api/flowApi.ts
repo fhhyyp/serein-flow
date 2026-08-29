@@ -292,6 +292,38 @@ export interface FlowDebugSessionDto {
   failureMessage?: string
   createdAt: string
   updatedAt: string
+  stateRevision?: number
+  pauseState?: FlowDebugPauseStateDto
+  lastNodeResult?: FlowDebugNodeResultDto
+}
+
+export interface FlowDebugPauseStateDto {
+  nodeId: string
+  nodeType: string
+  step: number
+  frameDepth: number
+  invocationId?: string
+  boundarySequence: number
+  inputs: unknown
+  pausedAt: string
+}
+
+export interface FlowDebugNodeResultDto {
+  nodeId: string
+  sequence: number
+  completedAt: string
+  outcome: string
+  branch?: string
+  inputs: unknown
+  outputs: unknown
+  errorCode?: string
+  errorMessage?: string
+}
+
+export interface FlowDebugWaitResultDto {
+  hasChanged: boolean
+  timedOut: boolean
+  session: FlowDebugSessionDto
 }
 
 export interface FlowRunOverviewDto {
@@ -473,6 +505,18 @@ export async function getFlowDebugSession(sessionId: string): Promise<FlowDebugS
 
 export async function getDebugSessionForRun(runId: string): Promise<FlowDebugSessionDto> {
   return request<FlowDebugSessionDto>(`/api/runs/${runId}/debug-session`)
+}
+
+export async function waitForFlowDebugSession(
+  sessionId: string,
+  afterRevision: number,
+  timeoutSeconds = 15,
+): Promise<FlowDebugWaitResultDto> {
+  const query = new URLSearchParams({
+    afterRevision: String(afterRevision),
+    timeoutSeconds: String(timeoutSeconds),
+  })
+  return request<FlowDebugWaitResultDto>(`/api/debug-sessions/${sessionId}/wait?${query.toString()}`)
 }
 
 export async function continueFlowDebugSession(sessionId: string, commandSequence: number): Promise<void> {

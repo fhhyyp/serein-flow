@@ -29,6 +29,20 @@ public interface ILibraryCatalogService
         long? declaredLength = null,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Inspects a package without persisting it. MCP may retain the original
+    /// bytes only in a bounded, controlled staging area until preview expiry.
+    /// 仅扫描而不持久化类库包；MCP 仅可在预览过期前将原始字节保存在受限暂存区。
+    /// </summary>
+    Task<LibraryPackageInspectionDto?> InspectAsync(
+        Stream package,
+        string fileName,
+        long? declaredLength = null,
+        string? familyId = null,
+        string? baselineArtifactId = null,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult<LibraryPackageInspectionDto?>(null);
+
     bool Delete(string libraryId);
 
     Task<bool> ArchiveAsync(
@@ -95,3 +109,9 @@ public sealed class LibraryUploadException : Exception
 
     public int StatusCode { get; }
 }
+
+public sealed record LibraryPackageInspectionDto(
+    LibraryDto Library,
+    bool AlreadyExists,
+    LibraryArtifactCompatibilityDto? Compatibility = null,
+    LibraryPackageProjectImpactDto? ProjectImpact = null);
