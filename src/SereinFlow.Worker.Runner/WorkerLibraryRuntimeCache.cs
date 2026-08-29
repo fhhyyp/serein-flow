@@ -131,7 +131,7 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
 
     private static bool IsCandidateCompatible(
         MethodInfo method,
-        IReadOnlyList<string> expectedNames,
+        string[] expectedNames,
         bool hasVariadicDefinitions)
     {
         var parameters = method.GetParameters();
@@ -140,7 +140,7 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         if (methodHasVariadic != hasVariadicDefinitions)
             return false;
         var ordinary = methodHasVariadic ? visible[..^1] : visible;
-        return ordinary.Length == expectedNames.Count
+        return ordinary.Length == expectedNames.Length
             && ordinary.Select(static parameter => parameter.Name ?? string.Empty)
                 .SequenceEqual(expectedNames, StringComparer.Ordinal);
     }

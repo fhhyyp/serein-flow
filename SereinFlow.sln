@@ -1,11 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.31903.59
+# Visual Studio Version 18
+VisualStudioVersion = 18.6.11819.183 stable
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SereinFlow.Domain", "src\SereinFlow.Domain\SereinFlow.Domain.csproj", "{6BE661F9-3296-49D1-AC5D-3D0EAEF02E45}"
+	ProjectSection(ProjectDependencies) = postProject
+		{32919E28-4166-441C-A34B-CF00DA1F29BB} = {32919E28-4166-441C-A34B-CF00DA1F29BB}
+		{B77C7960-7457-4DAE-9CAF-260D9B6B9A5B} = {B77C7960-7457-4DAE-9CAF-260D9B6B9A5B}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SereinFlow.Contracts", "src\SereinFlow.Contracts\SereinFlow.Contracts.csproj", "{2826BADC-3A25-4644-AD1E-C742A65285FF}"
 EndProject
@@ -30,6 +34,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SereinFlow.Worker.Runner", "src\SereinFlow.Worker.Runner\SereinFlow.Worker.Runner.csproj", "{A79521AA-67E0-4EB9-92B9-4311E379AE0E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SereinFlow.Api", "src\SereinFlow.Api\SereinFlow.Api.csproj", "{109E4C36-DCD3-4C72-BB8C-32A23D8A9507}"
+	ProjectSection(ProjectDependencies) = postProject
+		{B77C7960-7457-4DAE-9CAF-260D9B6B9A5B} = {B77C7960-7457-4DAE-9CAF-260D9B6B9A5B}
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
 EndProject
@@ -54,6 +61,14 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SereinFlow.McpServer", "src\SereinFlow.McpServer\SereinFlow.McpServer.csproj", "{BBFC7A9B-7858-49AF-8B78-FC521807498F}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SereinFlow.McpServer.Tests", "tests\SereinFlow.McpServer.Tests\SereinFlow.McpServer.Tests.csproj", "{FEDF8C32-AB44-42B3-8BE9-005C111A0CAA}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ThirdParty", "ThirdParty", "{4FF576D6-A636-5E44-C28B-D3D72D2C829A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SereinScript", "SereinScript", "{35926B53-341E-1124-996F-A0C01D12301D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ScriptLang", "src\ThirdParty\SereinScript\ScriptLang\ScriptLang.csproj", "{B77C7960-7457-4DAE-9CAF-260D9B6B9A5B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ScriptLang.Generator", "src\ThirdParty\SereinScript\ScriptLang.Generator\ScriptLang.Generator.csproj", "{32919E28-4166-441C-A34B-CF00DA1F29BB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -353,6 +368,30 @@ Global
 		{FEDF8C32-AB44-42B3-8BE9-005C111A0CAA}.Release|x64.Build.0 = Release|Any CPU
 		{FEDF8C32-AB44-42B3-8BE9-005C111A0CAA}.Release|x86.ActiveCfg = Release|Any CPU
 		{FEDF8C32-AB44-42B3-8BE9-005C111A0CAA}.Release|x86.Build.0 = Release|Any CPU
+		{B77C7960-7457-4DAE-9CAF-260D9B6B9A5B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B77C7960-7457-4DAE-9CAF-260D9B6B9A5B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B77C7960-7457-4DAE-9CAF-260D9B6B9A5B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B77C7960-7457-4DAE-9CAF-260D9B6B9A5B}.Debug|x64.Build.0 = Debug|Any CPU
+		{B77C7960-7457-4DAE-9CAF-260D9B6B9A5B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B77C7960-7457-4DAE-9CAF-260D9B6B9A5B}.Debug|x86.Build.0 = Debug|Any CPU
+		{B77C7960-7457-4DAE-9CAF-260D9B6B9A5B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B77C7960-7457-4DAE-9CAF-260D9B6B9A5B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B77C7960-7457-4DAE-9CAF-260D9B6B9A5B}.Release|x64.ActiveCfg = Release|Any CPU
+		{B77C7960-7457-4DAE-9CAF-260D9B6B9A5B}.Release|x64.Build.0 = Release|Any CPU
+		{B77C7960-7457-4DAE-9CAF-260D9B6B9A5B}.Release|x86.ActiveCfg = Release|Any CPU
+		{B77C7960-7457-4DAE-9CAF-260D9B6B9A5B}.Release|x86.Build.0 = Release|Any CPU
+		{32919E28-4166-441C-A34B-CF00DA1F29BB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{32919E28-4166-441C-A34B-CF00DA1F29BB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{32919E28-4166-441C-A34B-CF00DA1F29BB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{32919E28-4166-441C-A34B-CF00DA1F29BB}.Debug|x64.Build.0 = Debug|Any CPU
+		{32919E28-4166-441C-A34B-CF00DA1F29BB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{32919E28-4166-441C-A34B-CF00DA1F29BB}.Debug|x86.Build.0 = Debug|Any CPU
+		{32919E28-4166-441C-A34B-CF00DA1F29BB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{32919E28-4166-441C-A34B-CF00DA1F29BB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{32919E28-4166-441C-A34B-CF00DA1F29BB}.Release|x64.ActiveCfg = Release|Any CPU
+		{32919E28-4166-441C-A34B-CF00DA1F29BB}.Release|x64.Build.0 = Release|Any CPU
+		{32919E28-4166-441C-A34B-CF00DA1F29BB}.Release|x86.ActiveCfg = Release|Any CPU
+		{32919E28-4166-441C-A34B-CF00DA1F29BB}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -382,5 +421,9 @@ Global
 		{04D280B8-12CC-4BB4-8857-A86033767DDF} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{BBFC7A9B-7858-49AF-8B78-FC521807498F} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{FEDF8C32-AB44-42B3-8BE9-005C111A0CAA} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{4FF576D6-A636-5E44-C28B-D3D72D2C829A} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{35926B53-341E-1124-996F-A0C01D12301D} = {4FF576D6-A636-5E44-C28B-D3D72D2C829A}
+		{B77C7960-7457-4DAE-9CAF-260D9B6B9A5B} = {35926B53-341E-1124-996F-A0C01D12301D}
+		{32919E28-4166-441C-A34B-CF00DA1F29BB} = {35926B53-341E-1124-996F-A0C01D12301D}
 	EndGlobalSection
 EndGlobal

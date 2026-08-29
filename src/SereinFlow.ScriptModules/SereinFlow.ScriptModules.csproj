@@ -6,12 +6,14 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SereinFlow.Runtime.Abstractions\SereinFlow.Runtime.Abstractions.csproj" />
-    <ProjectReference Include="$(SereinScriptRuntimeProject)" Condition="'$(SereinScriptRuntimeProject)' != ''" />
-    <ProjectReference Include="$(SereinScriptGeneratorProject)" Condition="'$(SereinScriptGeneratorProject)' != ''" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\ThirdParty\SereinScript\ScriptLang.Generator\ScriptLang.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
+    <ProjectReference Include="..\ThirdParty\SereinScript\ScriptLang\ScriptLang.csproj" />
+    <!--<ProjectReference Include="$(SereinScriptRuntimeProject)" Condition="'$(SereinScriptRuntimeProject)' != ''" />-->
+    <!--<ProjectReference Include="$(SereinScriptGeneratorProject)" Condition="'$(SereinScriptGeneratorProject)' != ''" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />-->
   </ItemGroup>
 
-  <Target Name="ValidateSereinScriptSource" BeforeTargets="CoreCompile" Condition="'$(SereinScriptRuntimeProject)' == '' Or '$(SereinScriptGeneratorProject)' == '' Or !Exists('$(SereinScriptRuntimeProject)') Or !Exists('$(SereinScriptGeneratorProject)')">
+  <!--<Target Name="ValidateSereinScriptSource" BeforeTargets="CoreCompile" Condition="'$(SereinScriptRuntimeProject)' == '' Or '$(SereinScriptGeneratorProject)' == '' Or !Exists('$(SereinScriptRuntimeProject)') Or !Exists('$(SereinScriptGeneratorProject)')">
     <Error Text="SereinScript source projects were not found. Set SereinScriptSourceRoot or SEREINFLOW_SEREINSCRIPT_SOURCE_ROOT to the SereinScript checkout root. 未找到 SereinScript 源码项目，请设置 SereinScriptSourceRoot 或 SEREINFLOW_SEREINSCRIPT_SOURCE_ROOT 为 SereinScript 源码根目录。" />
-  </Target>
+  </Target>-->
 
 </Project>

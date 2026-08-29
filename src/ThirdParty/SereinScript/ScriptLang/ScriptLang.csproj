@@ -1,0 +1,48 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<LangVersion>latest</LangVersion>
+		<!--OutputItemType="Analyzer" ReferenceOutputAssembly="false"-->
+		<SatelliteResourceLanguages>false</SatelliteResourceLanguages>
+		<PackageId>Serein.ScriptLang</PackageId>
+		<PackageVersion Condition="'$(PackageVersion)' == ''">0.1.0</PackageVersion>
+		<Authors>SereinFlow</Authors>
+		<Description>Isolated SereinScript runtime for SereinFlow Worker processes.</Description>
+		<PackageTags>sereinflow;script;worker;runtime</PackageTags>
+		<RepositoryUrl>https://local.invalid/SereinFlow</RepositoryUrl>
+		<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <Compile Remove="Samples\**" />
+	  <EmbeddedResource Remove="Samples\**" />
+	  <None Remove="Samples\**" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Compile Remove="Prototype\Network.cs" />
+		<Compile Remove="Prototype\ScriptIO.cs" />
+		<Compile Remove="Runtime\ByteCode\Compiler_backup_001.cs" />
+		<Compile Remove="Runtime\ByteCode\ValueStack.cs" />
+		<Compile Remove="Runtime\ByteCode\VariableBinding.cs" />
+		<Compile Remove="Runtime\EvalResult.cs" />
+		<Compile Remove="Runtime\FreeVariableAnalyzer.cs" />
+		<Compile Remove="Runtime\FunctionValueExtensions.cs" />
+		<Compile Remove="Runtime\Interpreter.cs" />
+		<Compile Remove="Runtime\ModuleInjector.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\ScriptLang.Generator\ScriptLang.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+	</ItemGroup>
+
+	<!---->
+	<!--<ItemGroup>
+		<ProjectReference Include="..\..\..\..\dotnet\GeneratorToolkits\GeneratorToolkits.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+	</ItemGroup>-->
+	<!--<ProjectReference Include="..\..\..\..\dotnet\GeneratorToolkits\GeneratorToolkits.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />-->
+
+</Project>

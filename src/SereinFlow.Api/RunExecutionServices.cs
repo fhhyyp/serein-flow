@@ -851,7 +851,7 @@ public sealed class RunExecutionHostedService : BackgroundService
         }
     }
 
-    private TimeSpan? GetNextPendingExpiry(IReadOnlyCollection<RunWorkItem> pending)
+    private TimeSpan? GetNextPendingExpiry(List<RunWorkItem> pending)
     {
         if (pending.Count == 0)
             return null;

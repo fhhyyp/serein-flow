@@ -719,7 +719,7 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
         };
     }
 
-    private static object ReadFlowPatchPreview(McpPreviewEntry entry, McpPreviewDescriptorDto descriptor)
+    private static FlowPatchPreviewDto ReadFlowPatchPreview(McpPreviewEntry entry, McpPreviewDescriptorDto descriptor)
     {
         var stored = McpPreviewService.Deserialize<StoredFlowPatchPreview>(entry);
         return new FlowPatchPreviewDto(
@@ -770,7 +770,7 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
         };
     }
 
-    private static object ReadLibraryPackagePreview(McpPreviewEntry entry, McpPreviewDescriptorDto descriptor)
+    private static LibraryPackagePreviewDto ReadLibraryPackagePreview(McpPreviewEntry entry, McpPreviewDescriptorDto descriptor)
     {
         var stored = McpPreviewService.Deserialize<StoredLibraryPackagePreview>(entry);
         return new LibraryPackagePreviewDto(
@@ -789,7 +789,7 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
             stored.ProjectImpact);
     }
 
-    private static object ReadProjectLibraryAttachPreview(McpPreviewEntry entry, McpPreviewDescriptorDto descriptor)
+    private static ProjectLibraryAttachPreviewDto ReadProjectLibraryAttachPreview(McpPreviewEntry entry, McpPreviewDescriptorDto descriptor)
     {
         var stored = McpPreviewService.Deserialize<StoredProjectLibraryAttachPreview>(entry);
         return new ProjectLibraryAttachPreviewDto(

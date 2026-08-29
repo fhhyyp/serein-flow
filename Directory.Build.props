@@ -8,10 +8,11 @@
     <Deterministic>true</Deterministic>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <RestoreLockedMode Condition="'$(CI)' == 'true'">true</RestoreLockedMode>
-    <!-- The module bridge uses the ScriptLang prototype source generator. The
-         checkout root must be supplied by the build environment; never infer a
-         developer-machine path. -->
+    <!-- The module bridge uses the ScriptLang prototype source generator. An
+         explicitly supplied checkout wins; the pinned source snapshot shipped
+         in this repository is the portable default. -->
     <SereinScriptSourceRoot Condition="'$(SereinScriptSourceRoot)' == '' and '$(SEREINFLOW_SEREINSCRIPT_SOURCE_ROOT)' != ''">$(SEREINFLOW_SEREINSCRIPT_SOURCE_ROOT)</SereinScriptSourceRoot>
+    <SereinScriptSourceRoot Condition="'$(SereinScriptSourceRoot)' == '' and Exists('$(MSBuildThisFileDirectory)src\ThirdParty\SereinScript\ScriptLang\ScriptLang.csproj')">$(MSBuildThisFileDirectory)src\ThirdParty\SereinScript</SereinScriptSourceRoot>
     <SereinScriptRuntimeProject Condition="'$(SereinScriptSourceRoot)' != ''">$(SereinScriptSourceRoot)\ScriptLang\ScriptLang.csproj</SereinScriptRuntimeProject>
     <SereinScriptGeneratorProject Condition="'$(SereinScriptSourceRoot)' != ''">$(SereinScriptSourceRoot)\ScriptLang.Generator\ScriptLang.Generator.csproj</SereinScriptGeneratorProject>
   </PropertyGroup>

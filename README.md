@@ -18,12 +18,7 @@ npm run build
 
 Use .NET SDK `10.0.300`, Node.js `24.19.0`, and npm `11.6.2`. `global.json` and `.node-version` are the canonical local and CI toolchain definitions.
 
-Projects that include SereinLang integration require an explicit SereinScript checkout root. Set the MSBuild property or environment variable in the build environment; no developer-machine path is inferred:
-
-```powershell
-dotnet build src\SereinFlow.McpServer\SereinFlow.McpServer.csproj --no-restore -p:SereinScriptSourceRoot='D:\path\to\SereinScript'
-# or set SEREINFLOW_SEREINSCRIPT_SOURCE_ROOT before building
-```
+Projects that include SereinLang integration use the pinned SereinScript source snapshot under `src/ThirdParty/SereinScript`. No external SereinScript checkout or path environment variable is required for a normal SereinFlow build.
 
 ## Upload-library smoke test
 

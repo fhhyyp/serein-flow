@@ -253,6 +253,12 @@
         "resolved": "8.0.0",
         "contentHash": "+TUFINV2q2ifyXauQXRwy4CiBhqvDEDZeVJU7qfxya4aRYOKzVBpN+4acx25VcPB9ywUN6C0n8drWl110PhZEg=="
       },
+      "scriptlang.generator": {
+        "type": "Project"
+      },
+      "Serein.ScriptLang": {
+        "type": "Project"
+      },
       "sereinflow.application": {
         "type": "Project",
         "dependencies": {
@@ -295,6 +301,7 @@
       "sereinflow.scriptadapter": {
         "type": "Project",
         "dependencies": {
+          "Serein.ScriptLang": "[0.1.0, )",
           "SereinFlow.Contracts": "[1.0.0, )",
           "SereinFlow.Runtime.Abstractions": "[1.0.0, )",
           "SereinFlow.ScriptModules": "[1.0.0, )"
@@ -303,6 +310,8 @@
       "sereinflow.scriptmodules": {
         "type": "Project",
         "dependencies": {
+          "ScriptLang.Generator": "[0.1.0, )",
+          "Serein.ScriptLang": "[0.1.0, )",
           "SereinFlow.Runtime.Abstractions": "[1.0.0, )"
         }
       },

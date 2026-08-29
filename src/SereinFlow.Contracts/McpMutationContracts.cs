@@ -30,7 +30,7 @@ public enum McpPermissionDto
 /// </summary>
 public static class McpPermissionNames
 {
-    private static readonly IReadOnlyDictionary<McpPermissionDto, string> Names =
+    private static readonly Dictionary<McpPermissionDto, string> Names =
         new Dictionary<McpPermissionDto, string>
         {
             [McpPermissionDto.ProjectRead] = "project.read",

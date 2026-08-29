@@ -207,7 +207,7 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
         NodeExecutionRequest request,
         ParameterInfo parameter,
         NodeParameterDefinition? representative,
-        IDictionary<string, object?> auditInputs)
+        Dictionary<string, object?> auditInputs)
     {
         var arrayType = parameter.ParameterType;
         var elementType = arrayType.GetElementType()
