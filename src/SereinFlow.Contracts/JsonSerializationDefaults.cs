@@ -1,5 +1,6 @@
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace SereinFlow.Contracts;
 
@@ -21,4 +22,18 @@ public static class SereinJsonSerialization
         configure?.Invoke(options);
         return options;
     }
+
+    /// <summary>
+    /// JSON options for public SereinFlow contracts. Enum values use stable
+    /// camelCase strings on the wire while the built-in converter still accepts
+    /// numeric values for backward compatibility.
+    /// 面向公开 SereinFlow 合同的 JSON 选项。枚举在传输层使用稳定的 camelCase
+    /// 字符串，同时保留内置转换器对旧版数值枚举的读取兼容性。
+    /// </summary>
+    public static JsonSerializerOptions CreateContractOptions(Action<JsonSerializerOptions>? configure = null)
+        => CreateWebOptions(options =>
+        {
+            options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+            configure?.Invoke(options);
+        });
 }

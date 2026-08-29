@@ -1,12 +1,24 @@
 using System.IO.Compression;
 using SereinFlow.Application;
+using SereinFlow.Core.Api;
 using SereinFlow.Infrastructure.Persistence;
+using SereinFlow.Runtime.Abstractions;
 using SereinFlow.TestLibrary;
 
 namespace SereinFlow.Infrastructure.Tests;
 
 public sealed class LibraryCatalogTests
 {
+    [Fact]
+    public void StandaloneLibrarySdkOwnsPublicMetadataAndContextContracts()
+    {
+        Assert.Equal("SereinFlow.Library", typeof(FlowLibraryAttribute).Assembly.GetName().Name);
+        Assert.Equal("SereinFlow.Library", typeof(IFlowContext).Assembly.GetName().Name);
+        Assert.DoesNotContain(
+            typeof(FlowLibraryAttribute).Assembly.GetReferencedAssemblies(),
+            reference => reference.Name is "SereinFlow.Domain" or "SereinFlow.Application" or "SereinFlow.Runtime.Abstractions");
+    }
+
     [Fact]
     public async Task UploadPersistsSafePackageMetadataAndIsIdempotent()
     {
@@ -118,6 +130,73 @@ public sealed class LibraryCatalogTests
             Assert.Contains("more than one", error.Message, StringComparison.OrdinalIgnoreCase);
             Assert.Empty(catalog.List());
             Assert.Empty(Directory.EnumerateFiles(Path.Combine(libraryRoot, "packages"), "*.zip"));
+        }
+        finally
+        {
+            TryDelete(databasePath);
+            TryDeleteDirectory(libraryRoot);
+        }
+    }
+
+    [Fact]
+    public async Task UploadAcceptsPublishDependenciesAndNativeRuntimeAssets()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"sereinflow-library-{Guid.NewGuid():N}.db");
+        var libraryRoot = Path.Combine(Path.GetTempPath(), $"sereinflow-library-{Guid.NewGuid():N}");
+        try
+        {
+            using var database = new SqliteDatabase(new SqliteDatabaseOptions(databasePath));
+            database.Initialize();
+            var catalog = new SqliteLibraryCatalogService(database, new LibraryCatalogOptions(libraryRoot));
+            await using var package = CreatePackageWithPublishOutputs(
+                "SereinFlow.TestLibrary-1.8.0.zip",
+                "SereinFlow.TestLibrary.dll",
+                typeof(生产线节点).Assembly.Location,
+                typeof(FlowLibraryAttribute).Assembly.Location);
+
+            var uploaded = await catalog.UploadAsync(package, "SereinFlow.TestLibrary-1.8.0.zip");
+
+            Assert.Equal("SereinFlow.TestLibrary", uploaded.Library.Name);
+            var storedPackagePath = Path.Combine(libraryRoot, "packages", $"{uploaded.Library.Id}.zip");
+            using var archive = ZipFile.OpenRead(storedPackagePath);
+            var entries = archive.Entries
+                .Where(entry => !string.IsNullOrEmpty(entry.Name))
+                .Select(entry => entry.FullName.Replace('\\', '/'))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("SereinFlow.TestLibrary-1.8.0/SereinFlow.TestLibrary.dll", entries);
+            Assert.Contains("SereinFlow.TestLibrary-1.8.0/dependencies/SereinFlow.Library.dll", entries);
+            Assert.Contains("SereinFlow.TestLibrary-1.8.0/SereinFlow.TestLibrary.deps.json", entries);
+            Assert.Contains("SereinFlow.TestLibrary-1.8.0/SereinFlow.TestLibrary.runtimeconfig.json", entries);
+            Assert.Contains("SereinFlow.TestLibrary-1.8.0/runtimes/win-x64/native/OpenCvSharpExtern.dll", entries);
+        }
+        finally
+        {
+            TryDelete(databasePath);
+            TryDeleteDirectory(libraryRoot);
+        }
+    }
+
+    [Fact]
+    public async Task UploadRejectsSourceFilesEvenWhenTheMainDllIsValid()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"sereinflow-library-{Guid.NewGuid():N}.db");
+        var libraryRoot = Path.Combine(Path.GetTempPath(), $"sereinflow-library-{Guid.NewGuid():N}");
+        try
+        {
+            using var database = new SqliteDatabase(new SqliteDatabaseOptions(databasePath));
+            database.Initialize();
+            var catalog = new SqliteLibraryCatalogService(database, new LibraryCatalogOptions(libraryRoot));
+            await using var package = CreatePackageWithUnsupportedFile(
+                "SereinFlow.TestLibrary-1.8.1.zip",
+                "SereinFlow.TestLibrary.dll",
+                typeof(生产线节点).Assembly.Location);
+
+            var error = await Assert.ThrowsAsync<LibraryUploadException>(() =>
+                catalog.UploadAsync(package, "SereinFlow.TestLibrary-1.8.1.zip"));
+
+            Assert.Equal(422, error.StatusCode);
+            Assert.Contains("source", error.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Empty(catalog.List());
         }
         finally
         {
@@ -499,7 +578,7 @@ public sealed class LibraryCatalogTests
                 var separator = stem.LastIndexOf('-');
                 var libraryName = separator > 0 ? stem[..separator] : stem;
                 using var markerWriter = new StreamWriter(
-                    archive.CreateEntry($"{libraryName}.pdb").Open());
+                    archive.CreateEntry($"{stem}/{libraryName}.pdb").Open());
                 markerWriter.Write(marker);
             }
         }
@@ -535,12 +614,64 @@ public sealed class LibraryCatalogTests
             var stem = Path.GetFileNameWithoutExtension(archiveName);
             var separator = stem.LastIndexOf('-');
             var libraryName = separator > 0 ? stem[..separator] : stem;
-            archive.CreateEntry($"{libraryName}.pdb");
-            archive.CreateEntry($"symbols/{libraryName}.pdb");
+            archive.CreateEntry($"{stem}/{libraryName}.pdb");
+            archive.CreateEntry($"{stem}/symbols/{libraryName}.pdb");
         }
 
         stream.Position = 0;
         return stream;
+    }
+
+    private static MemoryStream CreatePackageWithPublishOutputs(
+        string archiveName,
+        string dllName,
+        string dllPath,
+        string dependencyPath)
+    {
+        var stream = new MemoryStream();
+        var stem = Path.GetFileNameWithoutExtension(archiveName);
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            AddFile(archive, $"{stem}/{dllName}", dllPath);
+            AddFile(archive, $"{stem}/dependencies/{Path.GetFileName(dependencyPath)}", dependencyPath);
+            WriteEntry(archive, $"{stem}/{Path.GetFileNameWithoutExtension(dllName)}.deps.json", "{}");
+            WriteEntry(archive, $"{stem}/{Path.GetFileNameWithoutExtension(dllName)}.runtimeconfig.json", "{\"runtimeOptions\":{}}" );
+            WriteEntry(archive, $"{stem}/runtimes/win-x64/native/OpenCvSharpExtern.dll", "native-placeholder");
+        }
+
+        stream.Position = 0;
+        return stream;
+    }
+
+    private static MemoryStream CreatePackageWithUnsupportedFile(
+        string archiveName,
+        string dllName,
+        string dllPath)
+    {
+        var stream = new MemoryStream();
+        var stem = Path.GetFileNameWithoutExtension(archiveName);
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            AddFile(archive, $"{stem}/{dllName}", dllPath);
+            WriteEntry(archive, $"{stem}/source.cs", "public sealed class UnexpectedSourceFile { }");
+        }
+
+        stream.Position = 0;
+        return stream;
+    }
+
+    private static void AddFile(ZipArchive archive, string entryName, string sourcePath)
+    {
+        var entry = archive.CreateEntry(entryName);
+        using var target = entry.Open();
+        using var source = File.OpenRead(sourcePath);
+        source.CopyTo(target);
+    }
+
+    private static void WriteEntry(ZipArchive archive, string entryName, string content)
+    {
+        using var writer = new StreamWriter(archive.CreateEntry(entryName).Open());
+        writer.Write(content);
     }
 
     private static void TryDelete(string path)

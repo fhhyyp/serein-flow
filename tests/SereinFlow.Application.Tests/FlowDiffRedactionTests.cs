@@ -39,6 +39,16 @@ public sealed class FlowDiffRedactionTests
         Assert.Contains("isSensitive", serialized, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void ChecksumIgnoresVersionHistoryMetadata()
+    {
+        var definition = CreateDefinition("source", "value");
+
+        Assert.Equal(
+            FlowDiffService.GetChecksum(definition),
+            FlowDiffService.GetChecksum(definition with { Version = definition.Version + 1 }));
+    }
+
     private static FlowDefinitionDto CreateDefinition(string source, string value)
     {
         var node = new NodeDto(

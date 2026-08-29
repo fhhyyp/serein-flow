@@ -8,7 +8,7 @@ namespace SereinFlow.Application;
 
 public sealed class FlowDiffService
 {
-    private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateWebOptions();
+    private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateContractOptions();
 
     public FlowDiffDto Compare(FlowDefinitionDto before, FlowDefinitionDto after)
     {
@@ -82,7 +82,12 @@ public sealed class FlowDiffService
 
     public static string GetChecksum(FlowDefinitionDto definition)
     {
-        var canonical = definition with { Checksum = string.Empty };
+        // Version is history metadata, not flow content. Keeping it out of the
+        // checksum lets an unchanged definition compare equal across version
+        // allocation, publish and rollback operations.
+        // 版本是历史元数据而不是流程内容。排除版本后，同一流程在分配版本、发布和
+        // 回滚过程中仍可通过校验和判断内容是否真正发生变化。
+        var canonical = definition with { Version = 0, Checksum = string.Empty };
         var bytes = Encoding.UTF8.GetBytes(Serialize(canonical));
         return Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
     }
@@ -237,7 +242,7 @@ public sealed class FlowDiffService
 
 public sealed class FlowPatchService
 {
-    private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateWebOptions();
+    private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateContractOptions();
 
     public FlowDefinitionDto Apply(FlowDefinitionDto definition, IReadOnlyList<FlowPatchOperationDto> operations)
     {

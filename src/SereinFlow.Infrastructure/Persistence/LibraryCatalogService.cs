@@ -7,6 +7,7 @@ using System.Reflection.PortableExecutable;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using SereinFlow.Application;
 using SereinFlow.Contracts;
@@ -69,6 +70,18 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
         options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
     });
+    private static readonly string[] DisallowedPackageExtensions =
+    [
+        ".cs", ".csx", ".fs", ".fsx", ".vb", ".vbs", ".py", ".ps1", ".psm1", ".psd1",
+        ".cmd", ".bat", ".sh", ".bash", ".zsh", ".fish", ".js", ".mjs", ".cjs",
+        ".sln", ".slnx", ".csproj", ".fsproj", ".vbproj", ".props", ".targets", ".user",
+        ".zip", ".nupkg", ".exe", ".com"
+    ];
+    private static readonly string[] DisallowedPackageFileNames =
+    [
+        "Dockerfile", "Makefile", "NuGet.Config", "global.json", "Directory.Build.props",
+        "Directory.Build.targets", "Directory.Packages.props", "packages.lock.json"
+    ];
 
     private readonly IRepository<LibraryRecord> _libraries;
     private readonly IRepository<LibraryFamilyRecord> _families;
@@ -738,16 +751,34 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             throw new LibraryUploadException($"The library package must contain between 1 and {_options.MaxEntries} files. 类库压缩包必须包含 1 到 {_options.MaxEntries} 个文件。", 422);
         }
 
-            long uncompressedBytes = 0;
-            ZipArchiveEntry? dllEntry = null;
-            ZipArchiveEntry? symbolsEntry = null;
-            var dllEntries = new List<ZipArchiveEntry>();
+        long uncompressedBytes = 0;
+        ZipArchiveEntry? dllEntry = null;
+        ZipArchiveEntry? symbolsEntry = null;
+        var dllEntries = new List<ZipArchiveEntry>();
+        var seenEntries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var packageDirectoryName = $"{libraryName}-{version}";
+        var expectedDllPath = $"{packageDirectoryName}/{libraryName}.dll";
         foreach (var entry in archive.Entries)
         {
             var normalizedName = entry.FullName.Replace('\\', '/');
-            if (Path.IsPathRooted(normalizedName) || normalizedName.Split('/').Any(static segment => segment is ".."))
+            var isDirectory = string.IsNullOrEmpty(entry.Name);
+            var isLegacyRootSymbols = !isDirectory
+                && string.Equals(normalizedName, $"{libraryName}.pdb", StringComparison.OrdinalIgnoreCase);
+            if (!isLegacyRootSymbols)
             {
-                throw new LibraryUploadException("The library package contains an unsafe path. 类库压缩包包含不安全的路径。", 422);
+                ValidatePackageEntryPath(normalizedName, packageDirectoryName, isDirectory);
+            }
+
+            if (isDirectory)
+            {
+                continue;
+            }
+
+            if (!seenEntries.Add(normalizedName))
+            {
+                throw new LibraryUploadException(
+                    $"The library package contains a duplicate file entry '{normalizedName}'. 类库压缩包包含重复的文件条目“{normalizedName}”。",
+                    422);
             }
 
             if (entry.Length > _options.MaxUncompressedBytes || (uncompressedBytes += entry.Length) > _options.MaxUncompressedBytes)
@@ -755,16 +786,24 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
                 throw new LibraryUploadException("The uncompressed library content exceeds the safety limit. 类库解压后的内容超过安全大小限制。", 422);
             }
 
-            if (string.IsNullOrEmpty(entry.Name))
-                continue;
-
             var entryFileName = Path.GetFileName(normalizedName);
-            var isExpectedDll = string.Equals(entryFileName, $"{libraryName}.dll", StringComparison.OrdinalIgnoreCase);
-            var isExpectedSymbols = string.Equals(entryFileName, $"{libraryName}.pdb", StringComparison.OrdinalIgnoreCase);
-            if (!isExpectedDll && !isExpectedSymbols)
+            if (IsDisallowedPackageFile(normalizedName))
             {
                 throw new LibraryUploadException(
-                    $"The library package contains an unsupported file '{entryFileName}'. Only {libraryName}.dll and its PDB symbols are allowed. 类库包包含不受支持的文件；只允许 {libraryName}.dll 及其 PDB 符号文件。",
+                    $"The library package contains a source, build, script, archive, or executable file '{entryFileName}'. 类库包不能包含源代码、构建文件、脚本、压缩包或可执行文件“{entryFileName}”。",
+                    422);
+            }
+
+            var isExpectedDll = string.Equals(normalizedName, expectedDllPath, StringComparison.OrdinalIgnoreCase);
+            var isLibraryNamedDll = string.Equals(entryFileName, $"{libraryName}.dll", StringComparison.OrdinalIgnoreCase);
+            if (isLibraryNamedDll && !isExpectedDll)
+            {
+                if (dllEntry is not null)
+                {
+                    throw new LibraryUploadException($"The package contains more than one {libraryName}.dll. 压缩包中包含多个 {libraryName}.dll。", 422);
+                }
+                throw new LibraryUploadException(
+                    $"The library-matching file must be exactly '{expectedDllPath}'. 与类库匹配的程序集必须位于“{expectedDllPath}”。",
                     422);
             }
 
@@ -775,10 +814,13 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
                 dllEntry = entry;
             }
 
-            if (isExpectedSymbols)
+            var isLibraryNamedSymbols = string.Equals(entryFileName, $"{libraryName}.pdb", StringComparison.OrdinalIgnoreCase);
+            if (isLibraryNamedSymbols)
             {
                 if (symbolsEntry is not null)
+                {
                     throw new LibraryUploadException($"The package contains more than one {libraryName}.pdb. 压缩包中包含多个 {libraryName}.pdb。", 422);
+                }
                 symbolsEntry = entry;
             }
 
@@ -849,18 +891,62 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         }
     }
 
+    private static void ValidatePackageEntryPath(string normalizedName, string packageDirectoryName, bool isDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(normalizedName)
+            || normalizedName.StartsWith('/')
+            || Regex.IsMatch(normalizedName, "^[A-Za-z]:", RegexOptions.CultureInvariant))
+        {
+            throw new LibraryUploadException("The library package contains an unsafe path. 类库压缩包包含不安全的路径。", 422);
+        }
+
+        var segments = normalizedName.Split('/');
+        if (isDirectory && segments[^1].Length == 0)
+        {
+            segments = segments[..^1];
+        }
+
+        if (segments.Length == 0
+            || !string.Equals(segments[0], packageDirectoryName, StringComparison.OrdinalIgnoreCase)
+            || (!isDirectory && segments.Length < 2)
+            || segments.Any(static segment =>
+                segment.Length == 0
+                || segment is "." or ".."
+                || segment.Contains(':')
+                || segment.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0))
+        {
+            throw new LibraryUploadException(
+                $"The library package contains an unsafe or misplaced path '{normalizedName}'. 类库压缩包包含不安全或位置错误的路径“{normalizedName}”。",
+                422);
+        }
+    }
+
+    private static bool IsDisallowedPackageFile(string normalizedName)
+    {
+        var fileName = Path.GetFileName(normalizedName);
+        var extension = Path.GetExtension(fileName);
+        return DisallowedPackageFileNames.Contains(fileName, StringComparer.OrdinalIgnoreCase)
+            || DisallowedPackageExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
+    }
+
     private static (string Name, string Version) ParsePackageName(string fileName)
     {
         var stem = Path.GetFileNameWithoutExtension(fileName).Trim();
-        var separator = stem.LastIndexOf('-');
-        if (separator <= 0 || separator == stem.Length - 1)
+        var match = Regex.Match(
+            stem,
+            "^(?<name>.+)-(?<version>\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.-]+)?)$",
+            RegexOptions.CultureInvariant);
+        if (!match.Success)
         {
             throw new LibraryUploadException("The filename must use the format [library-name]-[version].zip. 文件名格式不正确，应为：[类库名称]-[版本号].zip。", 422);
         }
 
-        var name = stem[..separator].Trim();
-        var version = stem[(separator + 1)..].Trim();
-        if (name.Length == 0 || version.Length == 0 || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+        var name = match.Groups["name"].Value.Trim();
+        var version = match.Groups["version"].Value.Trim();
+        if (name.Length == 0
+            || version.Length == 0
+            || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
+            || version.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
         {
             throw new LibraryUploadException("The library name or version is invalid. 类库名称或版本号无效。", 422);
         }

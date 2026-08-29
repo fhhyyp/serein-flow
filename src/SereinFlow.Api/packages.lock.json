@@ -263,7 +263,10 @@
         }
       },
       "sereinflow.contracts": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "SereinFlow.Library": "[1.0.0, )"
+        }
       },
       "sereinflow.domain": {
         "type": "Project"
@@ -279,6 +282,9 @@
           "SqlSugarCore": "[5.1.4.217, )"
         }
       },
+      "sereinflow.library": {
+        "type": "Project"
+      },
       "sereinflow.runtime": {
         "type": "Project",
         "dependencies": {
@@ -289,7 +295,8 @@
       "sereinflow.runtime.abstractions": {
         "type": "Project",
         "dependencies": {
-          "SereinFlow.Domain": "[1.0.0, )"
+          "SereinFlow.Domain": "[1.0.0, )",
+          "SereinFlow.Library": "[1.0.0, )"
         }
       },
       "sereinflow.worker.client": {

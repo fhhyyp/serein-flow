@@ -8,7 +8,7 @@ namespace SereinFlow.Application;
 
 public sealed class McpPreviewService
 {
-    private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateWebOptions();
+    private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateContractOptions();
     private readonly IMcpPreviewStore _store;
 
     public McpPreviewService(IMcpPreviewStore store) => _store = store;

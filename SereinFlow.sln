@@ -70,6 +70,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ScriptLang", "src\ThirdPart
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ScriptLang.Generator", "src\ThirdParty\SereinScript\ScriptLang.Generator\ScriptLang.Generator.csproj", "{32919E28-4166-441C-A34B-CF00DA1F29BB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SereinFlow.Library", "src\SereinFlow.Library\SereinFlow.Library.csproj", "{064E4754-B590-4219-8944-93E7DC5183CB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -392,6 +394,18 @@ Global
 		{32919E28-4166-441C-A34B-CF00DA1F29BB}.Release|x64.Build.0 = Release|Any CPU
 		{32919E28-4166-441C-A34B-CF00DA1F29BB}.Release|x86.ActiveCfg = Release|Any CPU
 		{32919E28-4166-441C-A34B-CF00DA1F29BB}.Release|x86.Build.0 = Release|Any CPU
+		{064E4754-B590-4219-8944-93E7DC5183CB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{064E4754-B590-4219-8944-93E7DC5183CB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{064E4754-B590-4219-8944-93E7DC5183CB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{064E4754-B590-4219-8944-93E7DC5183CB}.Debug|x64.Build.0 = Debug|Any CPU
+		{064E4754-B590-4219-8944-93E7DC5183CB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{064E4754-B590-4219-8944-93E7DC5183CB}.Debug|x86.Build.0 = Debug|Any CPU
+		{064E4754-B590-4219-8944-93E7DC5183CB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{064E4754-B590-4219-8944-93E7DC5183CB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{064E4754-B590-4219-8944-93E7DC5183CB}.Release|x64.ActiveCfg = Release|Any CPU
+		{064E4754-B590-4219-8944-93E7DC5183CB}.Release|x64.Build.0 = Release|Any CPU
+		{064E4754-B590-4219-8944-93E7DC5183CB}.Release|x86.ActiveCfg = Release|Any CPU
+		{064E4754-B590-4219-8944-93E7DC5183CB}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -425,5 +439,6 @@ Global
 		{35926B53-341E-1124-996F-A0C01D12301D} = {4FF576D6-A636-5E44-C28B-D3D72D2C829A}
 		{B77C7960-7457-4DAE-9CAF-260D9B6B9A5B} = {35926B53-341E-1124-996F-A0C01D12301D}
 		{32919E28-4166-441C-A34B-CF00DA1F29BB} = {35926B53-341E-1124-996F-A0C01D12301D}
+		{064E4754-B590-4219-8944-93E7DC5183CB} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

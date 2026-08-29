@@ -1,93 +1,11 @@
-using System;
+using System.Runtime.CompilerServices;
+using SereinFlow.Core.Api;
 
-// These attributes are part of the public library metadata contract. They
-// live in the shared contracts assembly so uploaded node libraries do not need
-// to duplicate (and potentially drift from) the host's definitions.
-// 这些 Attributes 属于公开的类库元数据契约，统一放在共享 Contracts 程序集中，避免上传类库重复定义并与宿主产生偏差。
-namespace SereinFlow.Core.Api;
-
-[AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-public sealed class FlowLibraryAttribute : Attribute
-{
-    public FlowLibraryAttribute()
-    {
-    }
-
-    public FlowLibraryAttribute(string name) => Name = name;
-
-    public string? Name { get; }
-}
-
-[AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
-public sealed class FlowNodeAttribute : Attribute
-{
-    /// <summary>
-    /// Stable node contract identifier shared by compatible versions of the
-    /// same library family. When omitted, the metadata scanner derives it
-    /// from the FlowLibrary name and CLR method name.
-    /// 同一类库族兼容版本之间共享的稳定节点契约标识。未指定时，元数据扫描器会
-    /// 根据 FlowLibrary 名称和 CLR 方法名派生该标识。
-    /// </summary>
-    public string? Id { get; set; }
-
-    public NodeType NodeType { get; set; } = NodeType.Action;
-
-    public string? AnotherName { get; set; }
-
-    public string? Desc { get; set; }
-}
-
-[AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false, Inherited = false)]
-public sealed class NodeParamAttribute : Attribute
-{
-    /// <summary>
-    /// Stable parameter contract identifier. When omitted, the metadata
-    /// scanner uses the CLR parameter name. Reordering parameters therefore
-    /// does not change the derived value.
-    /// 稳定参数契约标识。未指定时，元数据扫描器使用 CLR 参数名；因此调整参数
-    /// 顺序不会改变派生值。
-    /// </summary>
-    public string? Id { get; set; }
-
-    /// <summary>
-    /// Previous stable IDs accepted when a parameter is intentionally renamed.
-    /// 参数有意改名时可接受的旧稳定 ID。
-    /// </summary>
-    public string[]? Aliases { get; set; }
-
-    public string? Name { get; set; }
-
-    public bool IsExplicit { get; set; } = true;
-}
-
-public enum NodeType
-{
-    Action = 0,
-    Flipflop = 1,
-}
-
-/// <summary>
-/// Names used by the metadata-only library scanner. The scanner consumes this
-/// contract instead of embedding attribute type/property names as strings.
-/// 供仅元数据扫描器使用的名称；扫描器使用该契约，避免把 Attribute 类型名和属性名直接写成字符串。
-/// </summary>
-public static class LibraryAttributeContract
-{
-    public static readonly string FlowLibraryAttributeFullName = GetFullName<FlowLibraryAttribute>();
-    public static readonly string FlowNodeAttributeFullName = GetFullName<FlowNodeAttribute>();
-    public static readonly string NodeParamAttributeFullName = GetFullName<NodeParamAttribute>();
-    public static readonly string ParamArrayAttributeFullName = typeof(ParamArrayAttribute).FullName ?? nameof(ParamArrayAttribute);
-
-    public const string LibraryNamePropertyName = nameof(FlowLibraryAttribute.Name);
-    public const string NodeContractIdPropertyName = nameof(FlowNodeAttribute.Id);
-    public const string NodeTypePropertyName = nameof(FlowNodeAttribute.NodeType);
-    public const string DisplayNamePropertyName = nameof(FlowNodeAttribute.AnotherName);
-    public const string DescriptionPropertyName = nameof(FlowNodeAttribute.Desc);
-    public const string ParameterContractIdPropertyName = nameof(NodeParamAttribute.Id);
-    public const string ParameterAliasesPropertyName = nameof(NodeParamAttribute.Aliases);
-    public const string ParameterNamePropertyName = nameof(NodeParamAttribute.Name);
-    public const string IsExplicitPropertyName = nameof(NodeParamAttribute.IsExplicit);
-
-    private static string GetFullName<T>()
-        => typeof(T).FullName ?? typeof(T).Name;
-}
+// Keep the original Contracts assembly as a binary-compatible forwarding
+// facade. New libraries should reference SereinFlow.Library directly.
+// 保留原 Contracts 程序集作为二进制兼容的转发外观；新类库应直接引用 SereinFlow.Library。
+[assembly: TypeForwardedTo(typeof(FlowLibraryAttribute))]
+[assembly: TypeForwardedTo(typeof(FlowNodeAttribute))]
+[assembly: TypeForwardedTo(typeof(NodeParamAttribute))]
+[assembly: TypeForwardedTo(typeof(NodeType))]
+[assembly: TypeForwardedTo(typeof(LibraryAttributeContract))]

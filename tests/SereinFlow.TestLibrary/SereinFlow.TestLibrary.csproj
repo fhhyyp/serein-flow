@@ -13,7 +13,7 @@
     <!-- 节点方法采用实例类库形式，运行宿主执行节点时会创建对应的类型实例。 -->
     <NoWarn>$(NoWarn);CA1822</NoWarn>
 
-    <!-- API 接收“类库名-版本号.zip”格式的上传包；匹配 DLL 位于压缩包根目录下一层。 -->
+    <!-- API 接收“类库名-版本号.zip”格式的上传包；发布目录中的运行时文件保持原始相对路径。 -->
     <TestLibraryPackageName>$(AssemblyName)-$(Version)</TestLibraryPackageName>
     <TestLibraryStagingRoot>$(BaseIntermediateOutputPath)test-library-package\</TestLibraryStagingRoot>
     <TestLibraryStagingDirectory>$(TestLibraryStagingRoot)$(TestLibraryPackageName)\</TestLibraryStagingDirectory>
@@ -22,14 +22,19 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\SereinFlow.Contracts\SereinFlow.Contracts.csproj" />
-    <ProjectReference Include="..\..\src\SereinFlow.Runtime.Abstractions\SereinFlow.Runtime.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\SereinFlow.Library\SereinFlow.Library.csproj" />
   </ItemGroup>
 
-  <Target Name="CreateTestLibraryUploadPackage" AfterTargets="Build" Condition="'$(DesignTimeBuild)' != 'true'">
+  <Target Name="CreateTestLibraryUploadPackage" AfterTargets="Publish" Condition="'$(DesignTimeBuild)' != 'true'">
     <RemoveDir Directories="$(TestLibraryStagingRoot)" />
     <MakeDir Directories="$(TestLibraryStagingDirectory);$(TestLibraryArtifactDirectory)" />
-    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(TestLibraryStagingDirectory)" />
+    <ItemGroup>
+      <!-- Publish output is the complete runtime closure; preserve its relative layout for AssemblyDependencyResolver. -->
+      <TestLibraryPublishedFiles Include="$(PublishDir)**\*" />
+    </ItemGroup>
+    <Copy
+      SourceFiles="@(TestLibraryPublishedFiles)"
+      DestinationFiles="@(TestLibraryPublishedFiles->'$(TestLibraryStagingDirectory)%(RecursiveDir)%(Filename)%(Extension)')" />
     <Delete Files="$(TestLibraryZipPath)" />
     <ZipDirectory
       SourceDirectory="$(TestLibraryStagingRoot)"

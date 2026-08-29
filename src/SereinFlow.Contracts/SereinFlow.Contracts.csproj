@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\SereinFlow.Library\SereinFlow.Library.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -3,6 +3,12 @@
   "dependencies": {
     "net10.0": {
       "sereinflow.contracts": {
+        "type": "Project",
+        "dependencies": {
+          "SereinFlow.Library": "[1.0.0, )"
+        }
+      },
+      "sereinflow.library": {
         "type": "Project"
       }
     }

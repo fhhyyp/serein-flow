@@ -138,7 +138,7 @@ FlowCall 执行时：
 
 ### 3.5 受限 `IFlowContext`
 
-不复制旧版暴露环境、任意数据和 `NextOrientation` 可写属性的宽泛接口。新增供类库作者引用的 `SereinFlow.Runtime.Abstractions.IFlowContext`：
+不复制旧版暴露环境、任意数据和 `NextOrientation` 可写属性的宽泛接口。通过独立的 `SereinFlow.Library` SDK 提供供类库作者引用的 `SereinFlow.Runtime.Abstractions.IFlowContext`：
 
 ```csharp
 public interface IFlowContext
@@ -237,7 +237,7 @@ public interface IFlowContext
 
 ### Phase 9：`IFlowContext` 反射注入
 
-1. 在 `SereinFlow.Runtime.Abstractions` 定义并打包公开 `IFlowContext`；更新测试类库和类库作者文档的引用方式。
+1. 在独立的 `SereinFlow.Library` SDK 中定义并打包公开 `IFlowContext`；`SereinFlow.Runtime.Abstractions` 通过类型转发保持旧类库二进制兼容，更新测试类库和类库作者文档的引用方式。
 2. PE Metadata 扫描识别此精确全名的参数，不把它生成普通 `LibraryParameterDto` 或前端连接器。
 3. `WorkerLibraryRuntimeCache` 的可收集 `AssemblyLoadContext` 必须回退到默认上下文中的 Abstractions 程序集，保证 DLL 看到的接口类型与 Worker 注入实例类型一致。
 4. `LibraryNodeExecutor` 为每次调用创建上下文、注入它、await 方法完成，再安全采纳分支请求。捕获到 CLR 异常时保持 `Error` 优先。
@@ -285,7 +285,7 @@ public interface IFlowContext
 | Contracts | `Dtos.cs`、节点类型 JSON 转换器、新基础目录 DTO | 契约、参数元数据、基础节点目录、已删除类型诊断 |
 | Application | `FlowDefinitionValidation.cs`、目录服务 | 规范化、输入/公开目标/FlowCall 约束校验 |
 | Runtime | `FlowRunner.cs`、`FlowExecutionSession.cs`、`DataConnectionResolver.cs`、`BuiltInNodeExecutors.cs` | 删除 Condition、调用帧、ID 参数解析、安全事件投影 |
-| Runtime.Abstractions | `RuntimeContracts.cs` 或新 `FlowContext.cs` | 受限 `IFlowContext`、节点调用分支意图 |
+| Library SDK / Runtime.Abstractions | `SereinFlow.Library/FlowContext.cs`、类型转发文件、`RuntimeContracts.cs` | 独立 NuGet 中的受限 `IFlowContext`；运行时兼容转发与节点调用分支意图 |
 | ScriptAdapter | `SereinScriptNodeExecutor.cs`、`ScriptValueConverter.cs`、新 `ScriptValueTypeConverter.cs`、`ScriptArtifactStore.cs` | 原始 Value、审计投影、十类转换、缓存指纹 |
 | Worker Runner | `Program.cs`、`LibraryNodeExecutor.cs`、`LibraryArgumentConverter.cs`、`WorkerLibraryRuntimeCache.cs` | Executor 注册、参数注入、params 打包、ALC 契约共享 |
 | Infrastructure | `LibraryCatalogService.cs` | `ParamArrayAttribute` 扫描与目录元数据 |

@@ -1,8 +1,10 @@
 [CmdletBinding()]
 param(
     [string] $ProjectPath,
+    [string] $RepositoryRoot,
     [ValidateSet('Debug', 'Release')]
     [string] $Configuration = 'Release',
+    [string] $RuntimeIdentifier,
     [switch] $SkipBuild
 )
 
@@ -47,7 +49,19 @@ function Resolve-LibraryProject {
 }
 
 function Find-RepositoryRoot {
-    param([System.IO.DirectoryInfo] $ProjectDirectory)
+    param(
+        [System.IO.DirectoryInfo] $ProjectDirectory,
+        [string] $RequestedRoot
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($RequestedRoot)) {
+        $resolved = Resolve-Path -LiteralPath $RequestedRoot -ErrorAction Stop
+        $item = Get-Item -LiteralPath $resolved.Path
+        if (-not $item.PSIsContainer) {
+            throw "RepositoryRoot must point to an existing directory: $($item.FullName)"
+        }
+        return $item.FullName
+    }
 
     $current = $ProjectDirectory
     while ($null -ne $current) {
@@ -72,7 +86,7 @@ function Get-EvaluatedProperties {
     $arguments = @(
         'msbuild',
         $Path,
-        '-getProperty:AssemblyName,Version,TargetFramework,TargetPath,EnableDynamicLoading',
+    '-getProperty:AssemblyName,Version,TargetFramework,TargetPath,EnableDynamicLoading,RuntimeIdentifier',
         "-property:Configuration=$BuildConfiguration",
         '-nologo'
     )
@@ -93,20 +107,15 @@ function Get-EvaluatedProperties {
 
 $project = Resolve-LibraryProject -RequestedPath $ProjectPath
 $projectDirectory = $project.Directory
-$repositoryRoot = Find-RepositoryRoot -ProjectDirectory $projectDirectory
-
-if (-not $SkipBuild) {
-    & dotnet build $project.FullName '--configuration' $Configuration '--nologo'
-    if ($LASTEXITCODE -ne 0) {
-        throw "dotnet build failed for '$($project.FullName)'."
-    }
-}
+$repositoryRoot = Find-RepositoryRoot -ProjectDirectory $projectDirectory -RequestedRoot $RepositoryRoot
 
 $properties = Get-EvaluatedProperties -Path $project.FullName -BuildConfiguration $Configuration
 $assemblyName = [string] $properties.AssemblyName
 $version = [string] $properties.Version
 $targetPath = [string] $properties.TargetPath
 $enableDynamicLoading = [string] $properties.EnableDynamicLoading
+$evaluatedRuntimeIdentifier = [string] $properties.RuntimeIdentifier
+$runtimeIdentifier = if ([string]::IsNullOrWhiteSpace($RuntimeIdentifier)) { $evaluatedRuntimeIdentifier } else { $RuntimeIdentifier.Trim() }
 
 if ([string]::IsNullOrWhiteSpace($assemblyName) -or [string]::IsNullOrWhiteSpace($version)) {
     throw "AssemblyName and Version must be defined by the project or its evaluated build properties."
@@ -120,6 +129,9 @@ if ($assemblyName -match '[\\/:*?"<>|]' -or $version -match '[\\/:*?"<>|]') {
 if ($version -notmatch '^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$') {
     throw "Version '$version' is not a supported package version. Use a three-part SemVer value."
 }
+if (-not [string]::IsNullOrWhiteSpace($runtimeIdentifier) -and $runtimeIdentifier -notmatch '^[A-Za-z0-9][A-Za-z0-9_.-]*$') {
+    throw "RuntimeIdentifier '$runtimeIdentifier' contains invalid characters."
+}
 
 $packageName = "$assemblyName-$version"
 $expectedDllName = "$assemblyName.dll"
@@ -127,35 +139,148 @@ $targetFileName = [IO.Path]::GetFileName($targetPath)
 if ($targetFileName -cne $expectedDllName) {
     throw "TargetPath '$targetPath' does not produce the expected DLL '$expectedDllName'."
 }
-if (-not (Test-Path -LiteralPath $targetPath -PathType Leaf)) {
-    throw "The evaluated TargetPath does not exist: $targetPath"
-}
 
 $artifactDirectory = Join-Path $repositoryRoot 'artifacts\libraries'
 $stagingRoot = Join-Path $projectDirectory.FullName 'obj\sereinflow-library-package'
+$publishDirectory = Join-Path $stagingRoot 'publish'
 $stagingDirectory = Join-Path $stagingRoot $packageName
 $zipPath = Join-Path $artifactDirectory "$packageName.zip"
 
 New-Item -ItemType Directory -Path $artifactDirectory -Force | Out-Null
-if (Test-Path -LiteralPath $stagingRoot) {
-    Remove-Item -LiteralPath $stagingRoot -Recurse -Force
+$artifactDirectory = (Resolve-Path -LiteralPath $artifactDirectory).Path
+if (-not $SkipBuild) {
+    if (Test-Path -LiteralPath $stagingRoot) {
+        Remove-Item -LiteralPath $stagingRoot -Recurse -Force
+    }
+    New-Item -ItemType Directory -Path $publishDirectory -Force | Out-Null
+
+    $publishArguments = @(
+        'publish',
+        $project.FullName,
+        '--configuration',
+        $Configuration,
+        '--nologo',
+        ("-property:PublishDir={0}" -f ((Resolve-Path -LiteralPath $publishDirectory).Path + [IO.Path]::DirectorySeparatorChar))
+    )
+    if (-not [string]::IsNullOrWhiteSpace($runtimeIdentifier)) {
+        $publishArguments += @(
+            '--runtime',
+            $runtimeIdentifier,
+            "-property:RuntimeIdentifier=$runtimeIdentifier",
+            "-property:RuntimeIdentifiers=$runtimeIdentifier"
+        )
+    }
+    & dotnet @publishArguments 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw "dotnet publish failed for '$($project.FullName)'."
+    }
+}
+elseif (-not (Test-Path -LiteralPath $publishDirectory -PathType Container)) {
+    throw "SkipBuild requires an existing publish directory: $publishDirectory"
+}
+
+if (-not (Test-Path -LiteralPath $targetPath -PathType Leaf)) {
+    throw "The evaluated TargetPath does not exist after publishing: $targetPath"
+}
+
+$publishFiles = @(
+    Get-ChildItem -LiteralPath $publishDirectory -Recurse -File |
+        Sort-Object FullName
+)
+if ($publishFiles.Count -eq 0) {
+    throw "The publish directory contains no output files: $publishDirectory"
+}
+
+$publishedDllPath = Join-Path $publishDirectory $expectedDllName
+if (-not (Test-Path -LiteralPath $publishedDllPath -PathType Leaf)) {
+    throw "The publish directory does not contain the expected library DLL '$expectedDllName'."
+}
+if ((Get-Item -LiteralPath $publishedDllPath).Attributes -band [IO.FileAttributes]::ReparsePoint) {
+    throw "The published library DLL must not be a symbolic link or reparse point: $publishedDllPath"
+}
+
+if (Test-Path -LiteralPath $stagingDirectory) {
+    Remove-Item -LiteralPath $stagingDirectory -Recurse -Force
 }
 New-Item -ItemType Directory -Path $stagingDirectory -Force | Out-Null
-Copy-Item -LiteralPath $targetPath -Destination (Join-Path $stagingDirectory $expectedDllName)
+foreach ($file in $publishFiles) {
+    if (($file.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw "The publish output must not contain symbolic links or reparse points: $($file.FullName)"
+    }
 
-Compress-Archive -LiteralPath $stagingDirectory -DestinationPath $zipPath -CompressionLevel Optimal -Force
+    $relativePath = [IO.Path]::GetRelativePath($publishDirectory, $file.FullName).Replace('\', '/')
+    if ([IO.Path]::IsPathRooted($relativePath) -or $relativePath -match '(^|/)\.\.(/|$)|(^|/):|\\') {
+        throw "The publish output contains an unsafe relative path: $relativePath"
+    }
+
+    $destination = Join-Path $stagingDirectory ($relativePath.Replace('/', [IO.Path]::DirectorySeparatorChar))
+    $destinationDirectory = Split-Path -Parent $destination
+    New-Item -ItemType Directory -Path $destinationDirectory -Force | Out-Null
+    Copy-Item -LiteralPath $file.FullName -Destination $destination -Force
+}
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
+if (Test-Path -LiteralPath $zipPath) {
+    Remove-Item -LiteralPath $zipPath -Force
+}
+
+$archive = [IO.Compression.ZipFile]::Open($zipPath, [IO.Compression.ZipArchiveMode]::Create)
+try {
+    foreach ($file in $publishFiles) {
+        $relativePath = [IO.Path]::GetRelativePath($publishDirectory, $file.FullName).Replace('\', '/')
+        $sourcePath = Join-Path $stagingDirectory ($relativePath.Replace('/', [IO.Path]::DirectorySeparatorChar))
+        $entry = $archive.CreateEntry("$packageName/$relativePath", [IO.Compression.CompressionLevel]::Optimal)
+        $source = [IO.File]::OpenRead($sourcePath)
+        $destination = $null
+        try {
+            $destination = $entry.Open()
+            $source.CopyTo($destination)
+        }
+        finally {
+            if ($null -ne $destination) {
+                $destination.Dispose()
+            }
+            $source.Dispose()
+        }
+    }
+}
+finally {
+    $archive.Dispose()
+}
+
 $archive = [IO.Compression.ZipFile]::OpenRead($zipPath)
 try {
+    $seenEntries = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     $fileEntries = @($archive.Entries | Where-Object { -not [string]::IsNullOrEmpty($_.Name) })
     $expectedEntry = "$packageName/$expectedDllName"
     $entryNames = @($fileEntries | ForEach-Object { $_.FullName.Replace('\', '/') })
-    if ($fileEntries.Count -ne 1 -or $entryNames[0] -cne $expectedEntry) {
-        throw "ZIP layout is invalid. Expected only '$expectedEntry', found: $($entryNames -join ', ')"
+    $expectedEntryNames = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($file in $publishFiles) {
+        $relativePath = [IO.Path]::GetRelativePath($publishDirectory, $file.FullName).Replace('\', '/')
+        [void] $expectedEntryNames.Add("$packageName/$relativePath")
     }
-    if ($entryNames[0] -match '(^/|^[A-Za-z]:|\.\.|[\\])') {
-        throw "ZIP contains an unsafe entry name: $($entryNames[0])"
+    foreach ($entryName in $entryNames) {
+        if ([IO.Path]::IsPathRooted($entryName) -or $entryName -match '(^|/)\.\.(/|$)|(^|/):|\\') {
+            throw "ZIP contains an unsafe entry name: $entryName"
+        }
+        if (-not $entryName.StartsWith("$packageName/", [StringComparison]::Ordinal)) {
+            throw "ZIP contains a file outside the package directory '$packageName': $entryName"
+        }
+        if (-not $seenEntries.Add($entryName)) {
+            throw "ZIP contains a duplicate file entry: $entryName"
+        }
+        $extension = [IO.Path]::GetExtension($entryName).ToLowerInvariant()
+        if ($extension -in @('.cs', '.csx', '.fs', '.fsx', '.vb', '.vbs', '.py', '.ps1', '.psm1', '.psd1', '.cmd', '.bat', '.sh', '.bash', '.zsh', '.fish', '.js', '.mjs', '.cjs', '.sln', '.slnx', '.csproj', '.fsproj', '.vbproj', '.props', '.targets', '.user', '.zip', '.nupkg', '.exe', '.com')) {
+            throw "ZIP contains a source, build, script, archive, or executable file: $entryName"
+        }
+    }
+    $unexpectedEntries = @($entryNames | Where-Object { -not $expectedEntryNames.Contains($_) })
+    $missingEntries = @($expectedEntryNames | Where-Object { -not $seenEntries.Contains($_) })
+    if ($unexpectedEntries.Count -gt 0 -or $missingEntries.Count -gt 0 -or $entryNames.Count -ne $expectedEntryNames.Count) {
+        throw "ZIP entries do not exactly match the clean publish output. Missing: $($missingEntries -join ', '); unexpected: $($unexpectedEntries -join ', ')"
+    }
+    if (-not $seenEntries.Contains($expectedEntry)) {
+        throw "ZIP does not contain the expected library DLL '$expectedEntry'."
     }
 }
 finally {
@@ -163,15 +288,17 @@ finally {
 }
 
 $zipHash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
-$dllHash = (Get-FileHash -LiteralPath $targetPath -Algorithm SHA256).Hash
 [pscustomobject]@{
     ProjectPath = $project.FullName
     AssemblyName = $assemblyName
     Version = $version
     TargetFramework = [string] $properties.TargetFramework
+    RuntimeIdentifier = $runtimeIdentifier
     EnableDynamicLoading = $enableDynamicLoading
-    DllPath = $targetPath
-    DllSha256 = $dllHash
+    DllPath = $publishedDllPath
+    DllSha256 = (Get-FileHash -LiteralPath $publishedDllPath -Algorithm SHA256).Hash
+    PublishDirectory = $publishDirectory
+    PublishedFileCount = $publishFiles.Count
     ZipPath = $zipPath
     ZipSha256 = $zipHash
     ZipLength = (Get-Item -LiteralPath $zipPath).Length

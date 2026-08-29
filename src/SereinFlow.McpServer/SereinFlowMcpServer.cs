@@ -140,6 +140,7 @@ public sealed class SereinFlowMcpServer
         }
 
         var method = methodValue.GetString()!;
+        var diagnosticId = Guid.NewGuid().ToString("N");
         var previousContext = _requestContextAccessor?.Current;
         if (previousContext is not null)
         {
@@ -184,14 +185,17 @@ public sealed class SereinFlowMcpServer
             // Exception messages can contain user-controlled script or literal
             // data. Keep diagnostics useful without writing that data to logs.
             // 异常消息可能包含用户脚本或字面量，只记录类型，避免敏感数据进入日志。
-            await _diagnostics.WriteLineAsync($"MCP request '{method}' failed internally ({exception.GetType().Name}).");
+            await _diagnostics.WriteLineAsync($"MCP request '{method}' failed internally; diagnosticId={diagnosticId} ({exception.GetType().Name}).");
             if (hasId)
             {
                 await WriteResponseAsync(
                     output,
                     id,
                     null,
-                    new McpProtocolException(-32603, "The MCP request failed internally."),
+                    new McpProtocolException(
+                        -32603,
+                        "The MCP request failed internally.",
+                        new { code = "mcp.internal_error", diagnosticId }),
                     cancellationToken);
             }
         }

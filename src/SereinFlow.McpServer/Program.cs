@@ -110,7 +110,19 @@ if (args.Any(static argument => string.Equals(argument, "--http", StringComparis
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
-                return Results.Json(new { error = new { code = "mcp.tool_timeout", message = "The MCP tool exceeded the configured execution time limit." } }, statusCode: StatusCodes.Status504GatewayTimeout);
+                var diagnosticId = Guid.NewGuid().ToString("N");
+                Console.Error.WriteLine($"MCP request exceeded its execution time limit; diagnosticId={diagnosticId}.");
+                return Results.Json(
+                    new
+                    {
+                        error = new
+                        {
+                            code = "mcp.tool_timeout",
+                            message = "The MCP tool exceeded the configured execution time limit.",
+                            data = new { code = "mcp.tool_timeout", diagnosticId }
+                        }
+                    },
+                    statusCode: StatusCodes.Status504GatewayTimeout);
             }
             finally
             {

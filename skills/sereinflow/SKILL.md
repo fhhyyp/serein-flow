@@ -12,7 +12,7 @@ Use the sibling Skill files only when the request enters their capability:
 
 | Request intent | Skill to load | First action |
 | --- | --- | --- |
-| Projects, flows, nodes, runs, debugging, versions, publishing, rollback, MCP resources or tools | `$sereinflow` (this file) | Read the project and flow state |
+| Projects, flows, nodes, runs, debugging, versions, publishing, rollback, MCP resources or tools | `$sereinflow` (this file) | Read state through the connected MCP server |
 | Write, explain, repair, or compile a SereinLang script | `$sereinlang` at `../sereinlang/SKILL.md` | Read the target script node contract and its syntax guide |
 | Build a C# library and create the upload ZIP | `$sereinflow-library-package` at `../sereinflow-library-package/SKILL.md` | Discover the `.csproj` and evaluate its MSBuild metadata |
 
@@ -80,6 +80,36 @@ Use the SereinFlow MCP server as the source of truth for project, flow, run,
 debug, library, version, and preview state. Keep every response bounded and
 avoid requesting sensitive source or values unless the task and permission
 explicitly require them.
+
+### Production Black-Box Boundary
+
+Treat the connected SereinFlow service as a remote production black box. The
+client may be running in Codex, OpenCode, Claude Code, or another host that
+does not have the SereinFlow repository, solution, source tree, database, or
+server-local package directory. Never search for `SereinFlow.sln`, browse
+server source code, inspect server-local files, or decompile uploaded binaries
+to diagnose an MCP or production-run error.
+The presence of a similarly named local checkout, a fixed development path, or
+an available `cwd` does not establish that it is the service being diagnosed.
+
+When an MCP operation fails, use only the returned MCP error code, stable
+machine-readable error data, bounded diagnostics, and the affected resource's
+public read model. Do not invent a source-level cause from a generic message.
+For an insufficient diagnostic, report the exact tool, error code, message,
+and safe diagnostic fields, then request the server operator's correlated
+server log or a user-provided correction. Do not substitute a local source
+search for a missing production diagnostic.
+
+Local source and project inspection is permitted only for an explicitly local
+authoring or packaging task, and only for the user-selected project path. It
+must not be used to explain a remote service error. A fixed development path
+such as `D:\Project\dotnet\SereinFlow` is never a production prerequisite.
+
+Preview IDs are transaction-scoped handles, not proof that a project, flow, or
+library already exists. Do not pass a project or library preview ID into a
+later attach or read operation; apply the preview first, reread the real
+resource, and use the returned persisted ID. The preview resource itself is
+readable for diagnostics but remains `isPreviewOnly: true`.
 
 ## Create A Project
 
@@ -160,6 +190,12 @@ Do not create a version for an empty or normalized no-op patch. After a
 successful apply, reread the development version and topology and report the
 new version and checksum.
 
+Treat an apply response as an acknowledgement, not the authoritative resource
+projection. The server may redact literal values and script source in that
+response. Completion requires a successful reread of the affected resource and
+matching version/checksum/counts; if the reread does not match, report
+`mcp.post_apply_verification_failed` and stop.
+
 ## Publish Or Roll Back
 
 Use `sereinflow_preview_publish_flow` and
@@ -185,13 +221,24 @@ structured changes.
 ## Libraries
 
 The server accepts only a completed ZIP named
-`[LibraryName]-[Version].zip`, containing a matching
-`[LibraryName].dll`. The user or local VS/.NET toolchain must create the C#
-source, project, DLL, and ZIP. Do not ask the SereinFlow server to run
+`[LibraryName]-[Version].zip`, containing a matching main
+`[LibraryName].dll` and the complete `dotnet publish` runtime closure. The
+user or local VS/.NET toolchain must create the C# source, project, published
+output, and ZIP. Preserve dependency-relative paths so Worker
+`AssemblyDependencyResolver` can resolve managed and native assets. Do not ask
+the SereinFlow server to run
 `dotnet build`, MSBuild, a `.csproj`, `.props`, `.targets`, or any build
 script, and do not submit a server-local path over remote HTTP.
 
-Use `sereinflow_preview_library_package` first. Review ZIP and DLL hashes,
+New node libraries must reference the standalone `SereinFlow.Library` NuGet
+SDK for `SereinFlow.Core.Api` metadata attributes and the restricted
+`SereinFlow.Runtime.Abstractions.IFlowContext`. Do not define local
+`DynamicFlow`/`NodeAction` compatibility attributes or copy the SereinFlow
+contracts into the library. Read `$sereinflow-library-package` for the exact
+project, metadata, and ZIP rules.
+
+Use `sereinflow_preview_library_package` first. Review ZIP and main-DLL hashes,
+publish dependencies and native assets,
 PE scan diagnostics, FlowLibrary/FlowNode/NodeParam contracts, stable ID
 confidence, compatibility analysis, duplicate IDs, Flipflop return type,
 and project impact. The scan must not load or execute the uploaded assembly.
@@ -207,7 +254,11 @@ mutation because it changes the set of contracts available to a project.
 ## Errors And Audit
 
 For authorization, preview, version, validation, or resource errors, report
-the stable MCP error code and stop. Do not retry a rejected mutation blindly.
+the stable MCP error code and stop. Do not retry a rejected mutation blindly,
+and do not browse local or server source code to explain it. For a transient
+read-only transport failure, one bounded retry is acceptable; for apply,
+reuse the original idempotency key or create a fresh preview instead of
+guessing whether the mutation succeeded.
 Expect mutation operations to be audited with principal, project, flow,
 track, version, tool, preview, idempotency digest, outcome, size, and
 duration, while secrets, full scripts, sensitive literals, and full stacks

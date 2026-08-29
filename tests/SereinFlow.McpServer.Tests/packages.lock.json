@@ -345,9 +345,6 @@
           "xunit.extensibility.core": "[2.9.3]"
         }
       },
-      "scriptlang.generator": {
-        "type": "Project"
-      },
       "Serein.ScriptLang": {
         "type": "Project"
       },
@@ -361,7 +358,10 @@
         }
       },
       "sereinflow.contracts": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "SereinFlow.Library": "[1.0.0, )"
+        }
       },
       "sereinflow.domain": {
         "type": "Project"
@@ -376,6 +376,9 @@
           "SereinFlow.Runtime.Abstractions": "[1.0.0, )",
           "SqlSugarCore": "[5.1.4.217, )"
         }
+      },
+      "sereinflow.library": {
+        "type": "Project"
       },
       "sereinflow.mcpserver": {
         "type": "Project",
@@ -396,7 +399,8 @@
       "sereinflow.runtime.abstractions": {
         "type": "Project",
         "dependencies": {
-          "SereinFlow.Domain": "[1.0.0, )"
+          "SereinFlow.Domain": "[1.0.0, )",
+          "SereinFlow.Library": "[1.0.0, )"
         }
       },
       "sereinflow.scriptadapter": {
@@ -411,7 +415,6 @@
       "sereinflow.scriptmodules": {
         "type": "Project",
         "dependencies": {
-          "ScriptLang.Generator": "[0.1.0, )",
           "Serein.ScriptLang": "[0.1.0, )",
           "SereinFlow.Runtime.Abstractions": "[1.0.0, )"
         }

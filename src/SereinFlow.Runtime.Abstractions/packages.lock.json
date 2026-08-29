@@ -4,6 +4,9 @@
     "net10.0": {
       "sereinflow.domain": {
         "type": "Project"
+      },
+      "sereinflow.library": {
+        "type": "Project"
       }
     }
   }

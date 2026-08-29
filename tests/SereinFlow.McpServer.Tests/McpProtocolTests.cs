@@ -80,6 +80,24 @@ public sealed class McpProtocolTests
     }
 
     [Fact]
+    public async Task InternalErrorsReturnAStableDiagnosticIdWithoutExceptionDetails()
+    {
+        var server = new SereinFlowMcpServer(new ThrowingBackend());
+
+        var response = await server.HandleRequestAsync(
+            "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"tools/call\",\"params\":{\"name\":\"boom\"}}");
+
+        using var document = JsonDocument.Parse(response!);
+        var error = document.RootElement.GetProperty("error");
+        Assert.Equal(-32603, error.GetProperty("code").GetInt32());
+        Assert.Equal("The MCP request failed internally.", error.GetProperty("message").GetString());
+        var data = error.GetProperty("data");
+        Assert.Equal("mcp.internal_error", data.GetProperty("code").GetString());
+        Assert.Matches("^[0-9a-f]{32}$", data.GetProperty("diagnosticId").GetString());
+        Assert.DoesNotContain("secret", response!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task DispatcherAddsRequestIdToSharedContextAndRestoresTransportContext()
     {
         var accessor = new McpRequestContextAccessor();
@@ -144,5 +162,23 @@ public sealed class McpProtocolTests
             RequestId = accessor.Current?.RequestId;
             return Task.FromResult(new McpToolCallResult(new { accepted = true }));
         }
+    }
+
+    private sealed class ThrowingBackend : ISereinFlowMcpBackend
+    {
+        public Task<IReadOnlyList<McpResourceDescriptor>> ListResourcesAsync(CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<McpResourceDescriptor>>([]);
+
+        public Task<IReadOnlyList<McpResourceTemplateDescriptor>> ListResourceTemplatesAsync(CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<McpResourceTemplateDescriptor>>([]);
+
+        public Task<IReadOnlyList<McpToolDescriptor>> ListToolsAsync(CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<McpToolDescriptor>>([]);
+
+        public Task<McpResourceReadResult> ReadResourceAsync(string uri, CancellationToken cancellationToken)
+            => throw new InvalidOperationException("secret backend failure");
+
+        public Task<McpToolCallResult> CallToolAsync(string name, JsonElement arguments, CancellationToken cancellationToken)
+            => throw new InvalidOperationException("secret backend failure");
     }
 }

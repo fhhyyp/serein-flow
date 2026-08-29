@@ -13,6 +13,111 @@ namespace SereinFlow.McpServer.Tests;
 public sealed class McpBackendIntegrationTests
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+    [Fact]
+    public async Task FlowPatchToolPublishesTypedOperationSchema()
+    {
+        using var host = CreateHost();
+        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
+
+        var tool = (await backend.ListToolsAsync(CancellationToken.None))
+            .Single(item => item.Name == "sereinflow_preview_flow_patch");
+        var operations = tool.InputSchema.GetProperty("properties").GetProperty("operations");
+        var alternatives = operations.GetProperty("items").GetProperty("oneOf");
+
+        Assert.Equal(13, alternatives.GetArrayLength());
+        Assert.Contains(
+            alternatives.EnumerateArray(),
+            item => item.GetProperty("properties").GetProperty("operation").GetProperty("enum")[0].GetString() == "setRunPolicy");
+        var runPolicy = alternatives.EnumerateArray()
+            .Single(item => item.GetProperty("properties").GetProperty("operation").GetProperty("enum")[0].GetString() == "setRunPolicy");
+        Assert.Equal("string", runPolicy.GetProperty("properties").GetProperty("value").GetProperty("properties").GetProperty("concurrencyMode").GetProperty("oneOf")[0].GetProperty("type").GetString());
+    }
+
+    [Fact]
+    public async Task FlowPatchAcceptsStringEnumsAndApplyReadsBackAuthoritativeState()
+    {
+        using var host = CreateHost();
+        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
+        accessor.Current = new McpPrincipal(
+            "integration-admin",
+            null,
+            Enum.GetValues<McpPermissionDto>().ToHashSet(),
+            IsAdministrator: true);
+
+        using var dataScope = host.Services.CreateScope();
+        var project = Project.Create("MCP enum patch project");
+        await dataScope.ServiceProvider.GetRequiredService<IProjectRepository>().AddAsync(project);
+        var flow = CreateFlow();
+        await dataScope.ServiceProvider.GetRequiredService<IFlowDefinitionRepository>().AddAsync(project.Id, flow);
+
+        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
+        var previewResult = await backend.CallToolAsync(
+            "sereinflow_preview_flow_patch",
+            JsonSerializer.SerializeToElement(new
+            {
+                projectId = project.Id,
+                flowId = flow.Id,
+                expectedDevelopmentVersion = flow.Version,
+                operations = new[]
+                {
+                    new
+                    {
+                        operation = "setRunPolicy",
+                        value = new { concurrencyMode = "exclusiveReject" },
+                    },
+                },
+            }),
+            CancellationToken.None);
+        using var previewDocument = JsonDocument.Parse(JsonSerializer.Serialize(previewResult.Value, JsonOptions));
+        var previewId = previewDocument.RootElement.GetProperty("previewId").GetGuid();
+        var fingerprint = previewDocument.RootElement.GetProperty("previewFingerprint").GetString()!;
+
+        await backend.CallToolAsync(
+            "sereinflow_apply_flow_patch",
+            JsonSerializer.SerializeToElement(new
+            {
+                previewId,
+                previewFingerprint = fingerprint,
+                confirmation = "APPLY",
+                idempotencyKey = "enum-patch-once",
+            }),
+            CancellationToken.None);
+
+        var persisted = await dataScope.ServiceProvider.GetRequiredService<IFlowDefinitionRepository>()
+            .FindAsync(project.Id, flow.Id);
+        Assert.NotNull(persisted);
+        Assert.Equal(2, persisted!.Version);
+        Assert.Equal(FlowConcurrencyModeDto.ExclusiveReject, persisted.RunPolicy!.ConcurrencyMode);
+        Assert.Equal(FlowDiffService.GetChecksum(persisted), persisted.Checksum);
+    }
+
+    [Fact]
+    public async Task MalformedContractArgumentsReturnInvalidParamsInsteadOfInternalError()
+    {
+        using var host = CreateHost();
+        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
+        accessor.Current = new McpPrincipal(
+            "integration-admin",
+            null,
+            Enum.GetValues<McpPermissionDto>().ToHashSet(),
+            IsAdministrator: true);
+        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
+
+        var exception = await Assert.ThrowsAsync<McpProtocolException>(() => backend.CallToolAsync(
+            "sereinflow_preview_flow_patch",
+            JsonSerializer.SerializeToElement(new
+            {
+                projectId = Guid.NewGuid(),
+                flowId = Guid.NewGuid(),
+                expectedDevelopmentVersion = "one",
+                operations = Array.Empty<object>(),
+            }),
+            CancellationToken.None));
+
+        Assert.Equal(-32602, exception.Code);
+        Assert.Equal("mcp.invalid_arguments", ((JsonElement)JsonSerializer.SerializeToElement(exception.ErrorData, JsonOptions)).GetProperty("code").GetString());
+    }
     private static readonly string[] ProjectReadPermissionNames = ["project.read"];
 
     [Fact]

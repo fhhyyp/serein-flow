@@ -4,6 +4,8 @@
 
 MCP Server 位于 `src/SereinFlow.McpServer`，提供本地 stdio 和可选的 Streamable HTTP 两种传输。它复用 `AiReadModelService`，不直接访问数据库记录，不启动流程 Worker。流程修改、发布、回滚、SereinLang 编译和类库导入都经过权限检查、预览确认、幂等控制和审计。
 
+本文中的仓库路径、构建命令和 stdio 配置仅用于 SereinFlow 开发者在本地启动服务。连接已部署服务的 Codex、OpenCode、Claude Code 或其他 MCP 客户端不需要拥有本仓库，也不应假设存在某个固定的解决方案、源码、数据库或类库目录。
+
 ## 启动
 
 先构建 Server，再在仓库根目录执行：
@@ -33,7 +35,7 @@ SereinFlow__Mcp__Http__AllowedOrigins=https://automation.example.com,https://adm
 
 只有通过该配置明确列出的 `http`/`https` 来源会获得 CORS 响应头；TLS 证书和反向代理仍由宿主或部署层配置。
 
-使用 MCP 客户端配置时，应将 `command` 设为 `dotnet`，将项目路径、`--no-build` 和 `--no-restore` 作为参数，并通过客户端支持的环境变量配置数据库路径。不同版本的 Codex、OpenCode 或其他 MCP 客户端配置键名可能不同，具体以客户端文档为准。
+在本地开发模式配置 MCP 客户端时，应将 `command` 设为 `dotnet`，将项目路径、`--no-build` 和 `--no-restore` 作为参数，并通过客户端支持的环境变量配置数据库路径。不同版本的 Codex、OpenCode 或其他 MCP 客户端配置键名可能不同，具体以客户端文档为准。生产或远程模式应连接已部署的 MCP HTTP 地址，或直接启动已发布的 `SereinFlow.McpServer.dll`；不要把下面的开发机路径复制到生产环境。
 
 一个使用仓库绝对路径的 stdio 配置值如下。配置文件的外层字段名按客户端要求调整：
 
@@ -144,3 +146,9 @@ stdio 默认用于本机受信任进程，并使用本地管理员主体。受�
 - 创建项目使用 `sereinflow_preview_create_project` 和 `sereinflow_apply_create_project`，需要管理员主体和 `project.write` 权限；预览会生成一个空的 Draft 项目及 `main` 流程。
 - `project.write` 仅用于创建项目，创建操作仍要求管理员主体；项目级 Key 不能借此创建其他项目。
 - HTTP 默认只监听本机地址；远程监听、TLS、反向代理和 CORS 必须通过显式部署配置启用。
+
+## 错误诊断
+
+MCP 客户端应把连接中的 SereinFlow 服务视为黑盒，只使用 JSON-RPC 错误、稳定错误码、结构化 `data`、公开资源读模型和有界诊断信息定位问题。不得因为工具返回错误而搜索 `SereinFlow.sln`、翻阅服务端源码、读取服务端数据库或类库目录，也不得反编译上传程序集来推测生产原因。
+
+未预期的服务端异常返回 JSON-RPC `-32603`，并带有 `data.code = "mcp.internal_error"` 和 `data.diagnosticId`；HTTP 工具超时返回 `mcp.tool_timeout`，同样带有 `data.diagnosticId`。服务端标准错误会记录同一个 `diagnosticId`，但不会向客户端泄漏堆栈、源码或用户输入。客户端应把该 ID 提供给服务运维人员。如果公开诊断不足，应请求关联服务端日志或补充可复现请求，不应改用本地源代码搜索。

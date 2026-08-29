@@ -100,9 +100,15 @@
         }
       },
       "sereinflow.contracts": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "SereinFlow.Library": "[1.0.0, )"
+        }
       },
       "sereinflow.domain": {
+        "type": "Project"
+      },
+      "sereinflow.library": {
         "type": "Project"
       }
     }

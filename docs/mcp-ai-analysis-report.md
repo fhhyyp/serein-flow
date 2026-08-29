@@ -91,7 +91,7 @@ sereinflow://projects/{projectId}/flows/{flowId}/versions/{version}
 相关实现：
 
 - `src/SereinFlow.Infrastructure/Persistence/LibraryCatalogService.cs`
-- `src/SereinFlow.Contracts/LibraryAttributes.cs`
+- `src/SereinFlow.Library/LibraryAttributes.cs` and `src/SereinFlow.Library/FlowContext.cs`
 
 ## 3. 必须补齐的功能
 

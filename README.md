@@ -4,7 +4,12 @@ SereinFlow is a web-first workflow orchestration system. The ASP.NET Core API co
 
 The versioned API-to-Worker IPC contract is documented in [docs/worker-protocol-v1.md](docs/worker-protocol-v1.md).
 
-## Local verification
+## Local verification (repository checkout only)
+
+The commands in this section require a local SereinFlow source checkout. They
+are not a production or remote MCP incident-diagnosis procedure; for a
+connected service, use the public MCP diagnostics and the operator's
+correlated server logs described in [docs/mcp-readonly-server.md](docs/mcp-readonly-server.md).
 
 ```powershell
 dotnet restore SereinFlow.sln
@@ -22,8 +27,8 @@ Projects that include SereinLang integration use the pinned SereinScript source 
 
 ## Upload-library smoke test
 
-The repository includes [`tests/SereinFlow.TestLibrary`](tests/SereinFlow.TestLibrary/README.md), a dependency-free class library that exercises the upload endpoint and PE metadata node scanner. Build it to create `artifacts/libraries/SereinFlow.TestLibrary-1.0.0.zip` with the required archive layout:
+The repository includes [`tests/SereinFlow.TestLibrary`](tests/SereinFlow.TestLibrary/README.md), a class library that exercises the upload endpoint, PE metadata node scanner, and Worker dependency loading. Publish it to create `artifacts/libraries/SereinFlow.TestLibrary-1.6.1.zip` with the complete publish output and required archive layout:
 
 ```powershell
-dotnet build tests\SereinFlow.TestLibrary\SereinFlow.TestLibrary.csproj
+dotnet publish tests\SereinFlow.TestLibrary\SereinFlow.TestLibrary.csproj -c Release
 ```

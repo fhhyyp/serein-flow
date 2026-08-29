@@ -160,7 +160,8 @@ public sealed record ProjectCreatePreviewDto(
     string PreviewFingerprint,
     bool CanApply,
     FlowValidationResultDto Validation,
-    ProjectWorkspaceDto Workspace);
+    ProjectWorkspaceDto Workspace,
+    bool IsPreviewOnly = true);
 
 public sealed record FlowDiffItemDto(
     string Kind,
@@ -193,7 +194,8 @@ public sealed record FlowPatchPreviewDto(
     bool CanApply,
     FlowValidationResultDto Validation,
     FlowDiffDto Diff,
-    FlowDefinitionDto? CandidateDefinition = null);
+    FlowDefinitionDto? CandidateDefinition = null,
+    bool IsPreviewOnly = true);
 
 public sealed record FlowVersionComparisonDto(
     FlowVersionDetailDto From,
@@ -213,7 +215,8 @@ public sealed record McpPreviewDescriptorDto(
     Guid? FlowId,
     McpMutationPreviewStatusDto Status,
     DateTimeOffset ExpiresAt,
-    string PreviewFingerprint);
+    string PreviewFingerprint,
+    bool IsPreviewOnly = true);
 
 public sealed record PublishFlowPreviewRequestDto(
     Guid ProjectId,
@@ -268,7 +271,8 @@ public sealed record LibraryPackagePreviewDto(
     bool AlreadyExists,
     string? DllSha256 = null,
     LibraryArtifactCompatibilityDto? Compatibility = null,
-    LibraryPackageProjectImpactDto? ProjectImpact = null);
+    LibraryPackageProjectImpactDto? ProjectImpact = null,
+    bool IsPreviewOnly = true);
 
 public sealed record ProjectLibraryAttachPreviewDto(
     Guid PreviewId,
@@ -277,7 +281,8 @@ public sealed record ProjectLibraryAttachPreviewDto(
     DateTimeOffset ExpiresAt,
     string PreviewFingerprint,
     bool CanApply,
-    IReadOnlyList<ValidationDiagnosticDto> Diagnostics);
+    IReadOnlyList<ValidationDiagnosticDto> Diagnostics,
+    bool IsPreviewOnly = true);
 
 public sealed record ProjectLibraryAttachRequestDto(
     Guid ProjectId,

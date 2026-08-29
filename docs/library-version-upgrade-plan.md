@@ -152,7 +152,7 @@ Archived -> Active            允许恢复
 
 ### 4.1 扩展公共特性
 
-在 `src/SereinFlow.Contracts/LibraryAttributes.cs` 为现有特性增加向后兼容的可选成员：
+在独立的 `src/SereinFlow.Library/LibraryAttributes.cs` SDK 中定义稳定特性，并通过 `SereinFlow.Contracts` 类型转发保持旧类库兼容：
 
 ```csharp
 public sealed class FlowNodeAttribute : Attribute

@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.Loader;
+using SereinFlow.Contracts;
 using SereinFlow.Domain;
 using SereinFlow.Runtime.Abstractions;
 
@@ -179,16 +180,25 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
 
         var extractRoot = Path.Combine(_runRoot, key.LibraryId);
         Directory.CreateDirectory(extractRoot);
-        ZipFile.ExtractToDirectory(packagePath, extractRoot, overwriteFiles: true);
-        var dllPath = Directory
-            .EnumerateFiles(extractRoot, key.DllName, SearchOption.AllDirectories)
-            .FirstOrDefault();
-        if (dllPath is null)
+        ExtractPackage(packagePath, extractRoot);
+        var dllPaths = Directory
+            .EnumerateFiles(extractRoot, "*", SearchOption.AllDirectories)
+            .Where(path => string.Equals(Path.GetFileName(path), key.DllName, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (dllPaths.Length == 0)
         {
             throw new LibraryRuntimeCacheException(
                 "library.assembly_not_found",
                 "The library assembly was not found. 未找到类库程序集。");
         }
+        if (dllPaths.Length > 1)
+        {
+            throw new LibraryRuntimeCacheException(
+                "library.assembly_ambiguous",
+                "The library package contains more than one matching assembly. 类库包包含多个匹配的程序集。");
+        }
+
+        var dllPath = dllPaths[0];
 
         var loadContext = new LibraryLoadContext($"sereinflow-{Path.GetFileName(_runRoot)}-{key.LibraryId}", dllPath);
         try
@@ -200,6 +210,89 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         {
             loadContext.Unload();
             throw;
+        }
+    }
+
+    private static void ExtractPackage(string packagePath, string extractRoot)
+    {
+        using var archive = ZipFile.OpenRead(packagePath);
+        if (archive.Entries.Count == 0)
+        {
+            throw new LibraryRuntimeCacheException(
+                "library.package_empty",
+                "The library package is empty. 类库包为空。");
+        }
+
+        var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in archive.Entries)
+        {
+            var normalizedName = entry.FullName.Replace('\\', '/');
+            var isDirectory = string.IsNullOrEmpty(entry.Name);
+            ValidateArchivePath(normalizedName, isDirectory);
+
+            var pathKey = normalizedName.TrimEnd('/');
+            if (!seenPaths.Add(pathKey))
+            {
+                throw new LibraryRuntimeCacheException(
+                    "library.package_duplicate_entry",
+                    "The library package contains duplicate entries. 类库包包含重复条目。");
+            }
+
+            var relativePath = normalizedName.Replace('/', Path.DirectorySeparatorChar);
+            var destinationPath = Path.GetFullPath(Path.Combine(extractRoot, relativePath));
+            if (!IsWithinRoot(destinationPath, extractRoot))
+            {
+                throw new LibraryRuntimeCacheException(
+                    "library.package_path_invalid",
+                    "The library package contains a path outside its extraction directory. 类库包包含超出解压目录的路径。");
+            }
+
+            if (isDirectory)
+            {
+                Directory.CreateDirectory(destinationPath);
+                continue;
+            }
+
+            var destinationDirectory = Path.GetDirectoryName(destinationPath);
+            if (string.IsNullOrWhiteSpace(destinationDirectory))
+            {
+                throw new LibraryRuntimeCacheException(
+                    "library.package_path_invalid",
+                    "The library package entry has no valid parent directory. 类库包条目没有有效的父目录。");
+            }
+
+            Directory.CreateDirectory(destinationDirectory);
+            entry.ExtractToFile(destinationPath, overwrite: false);
+        }
+    }
+
+    private static void ValidateArchivePath(string normalizedName, bool isDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(normalizedName)
+            || normalizedName.StartsWith('/')
+            || (normalizedName.Length >= 2 && normalizedName[1] == ':'))
+        {
+            throw new LibraryRuntimeCacheException(
+                "library.package_path_invalid",
+                "The library package contains an unsafe path. 类库包包含不安全的路径。");
+        }
+
+        var segments = normalizedName.Split('/');
+        if (isDirectory && segments[^1].Length == 0)
+        {
+            segments = segments[..^1];
+        }
+
+        if (segments.Length == 0
+            || segments.Any(static segment =>
+                segment.Length == 0
+                || segment is "." or ".."
+                || segment.Contains(':')
+                || segment.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0))
+        {
+            throw new LibraryRuntimeCacheException(
+                "library.package_path_invalid",
+                "The library package contains an unsafe path. 类库包包含不安全的路径。");
         }
     }
 
@@ -247,6 +340,10 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         {
             if (string.Equals(assemblyName.Name, typeof(IFlowContext).Assembly.GetName().Name, StringComparison.Ordinal))
                 return typeof(IFlowContext).Assembly;
+            if (string.Equals(assemblyName.Name, typeof(IExecutionContext).Assembly.GetName().Name, StringComparison.Ordinal))
+                return typeof(IExecutionContext).Assembly;
+            if (string.Equals(assemblyName.Name, typeof(WorkerProtocol).Assembly.GetName().Name, StringComparison.Ordinal))
+                return typeof(WorkerProtocol).Assembly;
             var path = _resolver.ResolveAssemblyToPath(assemblyName);
             return path is null ? null : LoadFromAssemblyPath(path);
         }

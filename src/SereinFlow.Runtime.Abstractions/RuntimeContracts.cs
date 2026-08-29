@@ -11,38 +11,6 @@ public interface IExecutionContext
     IReadOnlyDictionary<string, object?> Snapshot();
 }
 
-/// <summary>
-/// A per-node, restricted control surface injected into trusted node-library
-/// methods. It exposes no environment or arbitrary flow data APIs, so a node
-/// can choose its branch without relying on exception control flow.
-/// 每次节点调用注入的受限控制面。它不暴露环境或任意流程数据 API，使节点方法可在
-/// 不依赖异常控制流的情况下选择分支。
-/// </summary>
-public interface IFlowContext
-{
-    Guid RunId { get; }
-
-    string NodeId { get; }
-
-    CancellationToken CancellationToken { get; }
-
-    void SelectSuccess();
-
-    void SelectFailure(string? code = null, string? message = null);
-
-    void SelectError(string? code = null, string? message = null);
-}
-
-/// <summary>
-/// Metadata identity used by safe PE scanning. Keeping it beside the public
-/// interface avoids handwritten type-name literals in scanner code.
-/// 供安全 PE 扫描使用的元数据身份。它与公开接口放在一起，避免扫描器手写类型名称。
-/// </summary>
-public static class FlowContextContract
-{
-    public static readonly string FullName = typeof(IFlowContext).FullName ?? nameof(IFlowContext);
-}
-
 public sealed record NodeExecutionRequest(
     NodeDefinition Node,
     IExecutionContext Context,

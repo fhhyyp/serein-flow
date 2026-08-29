@@ -12,9 +12,8 @@ namespace SereinFlow.McpServer;
 
 public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
 {
-    private static readonly JsonSerializerOptions ContractJsonOptions = SereinJsonSerialization.CreateWebOptions(options =>
+    private static readonly JsonSerializerOptions ContractJsonOptions = SereinJsonSerialization.CreateContractOptions(options =>
     {
-        options.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
         // The dotted permission names are a public MCP contract. Keep the
         // dedicated converter ahead of the generic enum converter so replayed
         // idempotency responses accept those names as well.
@@ -122,11 +121,11 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
                     ["projectId"] = StringSchema(), ["flowId"] = StringSchema(),
                     ["includeScriptSource"] = BooleanSchema(), ["includeFlowLiteralValues"] = BooleanSchema()
                 }, required: ["projectId", "flowId"])),
-            Tool("sereinflow_preview_flow_patch", "Validate a structured development-flow patch and return its diff.", Schema(
+            Tool("sereinflow_preview_flow_patch", "Validate a structured development-flow patch and return its diff. Use camelCase enum strings; nested DTO enums also accept legacy numeric values.", Schema(
                 properties: new Dictionary<string, object?>
                 {
                     ["projectId"] = StringSchema(), ["flowId"] = StringSchema(),
-                    ["expectedDevelopmentVersion"] = NumberSchema(), ["operations"] = ArraySchema(), ["remark"] = StringSchema()
+                    ["expectedDevelopmentVersion"] = NumberSchema(), ["operations"] = FlowPatchOperationsSchema(), ["remark"] = StringSchema()
                 }, required: ["projectId", "flowId", "expectedDevelopmentVersion", "operations"])),
             Tool("sereinflow_apply_flow_patch", "Apply a previously previewed flow patch after explicit confirmation.", Schema(
                 properties: ApplySchemaProperties(), required: ["previewId", "previewFingerprint", "confirmation", "idempotencyKey"])),
@@ -156,7 +155,7 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
                 {
                     ["source"] = StringSchema(), ["sourceName"] = StringSchema(), ["languageVersion"] = StringSchema(), ["inputs"] = ArraySchema()
                 }, required: ["source", "languageVersion", "inputs"])),
-            Tool("sereinflow_preview_library_package", "Inspect a completed library ZIP without persisting it.", Schema(
+            Tool("sereinflow_preview_library_package", "Inspect a completed library publish ZIP, including its managed and native dependencies, without persisting it.", Schema(
                 properties: new Dictionary<string, object?>
                 {
                     ["fileName"] = StringSchema(), ["packageBase64"] = StringSchema(), ["projectId"] = StringSchema(),
@@ -867,7 +866,7 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
             throw new McpProtocolException(-32011, "The project creation preview cannot be applied.");
 
         var response = CreateWorkspace(candidate);
-        await previews.MarkAppliedAsync(entry, cancellationToken);
+        await MarkPreviewAppliedAsync(previews, entry, cancellationToken);
         await idempotency.SaveAsync(
             principal.Id,
             entry.Operation,
@@ -1025,7 +1024,11 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
         {
             candidate = scope.ServiceProvider.GetRequiredService<FlowPatchService>().Apply(current, request.Operations);
         }
-        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or JsonException)
+        catch (JsonException exception)
+        {
+            throw InvalidPatchValue(exception);
+        }
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
         {
             throw new McpProtocolException(-32602, $"The flow patch is invalid: {exception.Message}");
         }
@@ -1108,8 +1111,22 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
         if (write.Status != FlowDefinitionWriteStatus.Saved || write.Saved is null)
             throw new McpProtocolException(-32011, "The flow patch preview cannot be applied.");
         var saved = write.Saved;
-        await previews.MarkAppliedAsync(entry, cancellationToken);
-        var response = FlowDiffService.RedactSensitive(saved);
+        await MarkPreviewAppliedAsync(previews, entry, cancellationToken);
+        var persisted = await flows.FindAsync(
+            stored.Request.ProjectId,
+            stored.Request.FlowId,
+            cancellationToken);
+        if (persisted is null
+            || persisted.Version != saved.Version
+            || !string.Equals(persisted.Checksum, saved.Checksum, StringComparison.Ordinal)
+            || !string.Equals(persisted.Checksum, FlowDiffService.GetChecksum(persisted), StringComparison.Ordinal))
+        {
+            throw new McpProtocolException(
+                -32603,
+                "The flow patch was committed but authoritative verification failed.",
+                new { code = "mcp.post_apply_verification_failed" });
+        }
+        var response = FlowDiffService.RedactSensitive(persisted);
         await idempotency.SaveAsync(principal.Id, entry.Operation, request.IdempotencyKey, response, requestPayload, cancellationToken);
         return response;
     }
@@ -1180,6 +1197,7 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
             previewId = entry.Id,
             entry.ExpiresAt,
             entry.PreviewFingerprint,
+            isPreviewOnly = true,
             expectedProductionVersion,
             canApply = result.Validation.IsValid && (production is null || diff.Changes.Count > 0),
             validation = result.Validation,
@@ -1229,7 +1247,7 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
             cancellationToken: cancellationToken);
         if (!result.IsCommitted)
             throw VersionConflict(result.CurrentHeadVersion);
-        await preview.MarkAppliedAsync(entry, cancellationToken);
+        await MarkPreviewAppliedAsync(preview, entry, cancellationToken);
         var response = new FlowVersionMutationDto(
             result.Version!,
             FlowDiffService.RedactSensitive(stored.Diff),
@@ -1275,6 +1293,7 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
             previewId = entry.Id,
             entry.ExpiresAt,
             entry.PreviewFingerprint,
+            isPreviewOnly = true,
             canApply = stored.Validation.IsValid,
             validation = stored.Validation,
             diff = FlowDiffService.RedactSensitive(diff),
@@ -1324,7 +1343,7 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
             stored.Request.ProjectId, stored.Request.FlowId, stored.Request.SourceVersion, stored.Request.Track, stored.Request.ExpectedHeadVersion, cancellationToken);
         if (!result.IsCommitted)
             throw VersionConflict(result.CurrentHeadVersion);
-        await preview.MarkAppliedAsync(entry, cancellationToken);
+        await MarkPreviewAppliedAsync(preview, entry, cancellationToken);
         var response = new FlowVersionMutationDto(
             result.Version!,
             FlowDiffService.RedactSensitive(stored.Diff),
@@ -1586,7 +1605,7 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
             package.Position = 0;
             var result = await scope.ServiceProvider.GetRequiredService<ILibraryCatalogService>().UploadAsync(
                 package, stored.FileName, stored.SizeBytes, cancellationToken);
-            await preview.MarkAppliedAsync(entry, cancellationToken);
+            await MarkPreviewAppliedAsync(preview, entry, cancellationToken);
             await idempotency.SaveAsync(principal.Id, entry.Operation, request.IdempotencyKey, result, requestPayload, cancellationToken);
             return result;
         }
@@ -1722,7 +1741,7 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
             stored.Request.ProjectId, stored.Request.LibraryId, cancellationToken);
         if (!result.IsSuccess)
             throw new McpProtocolException(-32011, result.Message ?? "The project library attachment failed.", result.Code);
-        await preview.MarkAppliedAsync(entry, cancellationToken);
+        await MarkPreviewAppliedAsync(preview, entry, cancellationToken);
         await idempotency.SaveAsync(principal.Id, entry.Operation, request.IdempotencyKey, result, requestPayload, cancellationToken);
         return result;
     }
@@ -1865,12 +1884,200 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
         {
             ["previewId"] = StringSchema(),
             ["previewFingerprint"] = StringSchema(),
-            ["confirmation"] = StringSchema(),
-            ["idempotencyKey"] = StringSchema()
+            ["confirmation"] = new { type = "string", @enum = new[] { "APPLY" } },
+            ["idempotencyKey"] = StringSchema("A fresh key for this exact apply request.")
         };
 
-    private static object ArraySchema()
-        => new { type = "array", items = new { } };
+    private static object ArraySchema(object? items = null, int? minItems = null)
+    {
+        var schema = new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["type"] = "array",
+            ["items"] = items ?? new Dictionary<string, object?>(),
+        };
+        if (minItems is not null)
+            schema["minItems"] = minItems.Value;
+        return schema;
+    }
+
+    private static object FlowPatchOperationsSchema()
+        => ArraySchema(
+            new
+            {
+                oneOf = new object[]
+                {
+                    PatchOperationSchema("addCanvas", CanvasValueSchema(), ["value"]),
+                    PatchOperationSchema("updateCanvas", CanvasValueSchema(), ["canvasId", "value"], ("canvasId", StringSchema())),
+                    PatchOperationSchema("removeCanvas", null, ["canvasId"], ("canvasId", StringSchema())),
+                    PatchOperationSchema("addNode", NodeValueSchema(), ["canvasId", "value"], ("canvasId", StringSchema())),
+                    PatchOperationSchema("replaceNode", NodeValueSchema(), ["canvasId", "nodeId", "value"], ("canvasId", StringSchema()), ("nodeId", StringSchema())),
+                    PatchOperationSchema("removeNode", null, ["canvasId", "nodeId"], ("canvasId", StringSchema()), ("nodeId", StringSchema())),
+                    PatchOperationSchema("setNodeParameter", NodeParameterValueSchema(), ["canvasId", "nodeId", "parameterId", "value"], ("canvasId", StringSchema()), ("nodeId", StringSchema()), ("parameterId", StringSchema())),
+                    PatchOperationSchema("addConnection", ConnectionValueSchema(), ["canvasId", "value"], ("canvasId", StringSchema())),
+                    PatchOperationSchema("replaceConnection", ConnectionValueSchema(), ["canvasId", "connectionId", "value"], ("canvasId", StringSchema()), ("connectionId", StringSchema())),
+                    PatchOperationSchema("removeConnection", null, ["canvasId", "connectionId"], ("canvasId", StringSchema()), ("connectionId", StringSchema())),
+                    PatchOperationSchema("setEntryNode", StringSchema(), ["value"]),
+                    PatchOperationSchema("setRunPolicy", RunPolicyValueSchema(), ["value"]),
+                    PatchOperationSchema("replaceScriptSource", StringSchema(), ["canvasId", "nodeId", "value"], ("canvasId", StringSchema()), ("nodeId", StringSchema()))
+                }
+            },
+            minItems: 1);
+
+    private static object PatchOperationSchema(
+        string operation,
+        object? valueSchema,
+        string[] required,
+        params (string Name, object Schema)[] fields)
+    {
+        var properties = new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["operation"] = new { type = "string", @enum = new[] { operation } },
+        };
+        foreach (var (name, schema) in fields)
+            properties[name] = schema;
+        if (valueSchema is not null)
+            properties["value"] = valueSchema;
+        return ObjectSchema(properties, required);
+    }
+
+    private static object CanvasValueSchema()
+        => ObjectSchema(
+            new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["id"] = StringSchema("Stable canvas ID."),
+                ["lifecycle"] = EnumSchema<CanvasLifecycleDto>(),
+                ["nodes"] = ArraySchema(NodeValueSchema()),
+                ["connections"] = ArraySchema(ConnectionValueSchema()),
+                ["name"] = NullableSchema(StringSchema()),
+            },
+            ["id", "lifecycle", "nodes", "connections"]);
+
+    private static object NodeValueSchema()
+        => ObjectSchema(
+            new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["id"] = StringSchema("Stable node ID."),
+                ["type"] = EnumSchema<NodeTypeDto>(),
+                ["displayName"] = StringSchema(),
+                ["x"] = RealSchema(),
+                ["y"] = RealSchema(),
+                ["ports"] = ArraySchema(PortValueSchema()),
+                ["parameters"] = ArraySchema(NodeParameterValueSchema()),
+                ["script"] = NullableSchema(ScriptValueSchema()),
+                ["ui"] = NullableSchema(ObjectSchema(additionalProperties: true)),
+            },
+            ["id", "type", "displayName", "x", "y", "ports", "parameters", "script"]);
+
+    private static object PortValueSchema()
+        => ObjectSchema(
+            new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["id"] = StringSchema(),
+                ["name"] = StringSchema(),
+                ["direction"] = StringSchema(),
+                ["required"] = BooleanSchema(),
+            },
+            ["id", "name", "direction", "required"]);
+
+    private static object NodeParameterValueSchema()
+        => ObjectSchema(
+            new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["name"] = StringSchema(),
+                ["valueJson"] = NullableSchema(StringSchema()),
+                ["source"] = EnumSchema<DataSourceDto>(),
+                ["required"] = BooleanSchema(),
+                ["ui"] = NullableSchema(ParameterUiValueSchema()),
+            },
+            ["name", "source", "required"]);
+
+    private static object ConnectionValueSchema()
+        => ObjectSchema(
+            new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["id"] = StringSchema("Stable connection ID."),
+                ["fromNodeId"] = StringSchema(),
+                ["fromPortId"] = StringSchema(),
+                ["toNodeId"] = StringSchema(),
+                ["toPortId"] = StringSchema(),
+                ["kind"] = EnumSchema<ConnectionKindDto>(),
+                ["branch"] = NullableSchema(EnumSchema<ExecutionBranchDto>()),
+                ["dataSource"] = NullableSchema(EnumSchema<DataSourceDto>()),
+                ["priority"] = NumberSchema(),
+            },
+            ["id", "fromNodeId", "fromPortId", "toNodeId", "toPortId", "kind", "branch", "dataSource", "priority"]);
+
+    private static object ScriptValueSchema()
+        => ObjectSchema(
+            new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["nodeId"] = StringSchema(),
+                ["source"] = StringSchema(),
+                ["languageVersion"] = StringSchema(),
+                ["sourceHash"] = StringSchema(),
+                ["inputs"] = ArraySchema(ScriptContractValueSchema()),
+                ["outputs"] = ArraySchema(ScriptContractValueSchema()),
+            },
+            ["nodeId", "source", "languageVersion", "sourceHash", "inputs", "outputs"]);
+
+    private static object RunPolicyValueSchema()
+        => ObjectSchema(
+            new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["concurrencyMode"] = EnumSchema<FlowConcurrencyModeDto>(),
+            },
+            ["concurrencyMode"]);
+
+    private static object ParameterUiValueSchema()
+        => ObjectSchema(additionalProperties: true);
+
+    private static object ScriptContractValueSchema()
+        => ObjectSchema(
+            new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["name"] = StringSchema(),
+                ["valueKind"] = StringSchema(),
+                ["required"] = BooleanSchema(),
+                ["id"] = NullableSchema(StringSchema()),
+                ["description"] = NullableSchema(StringSchema()),
+            },
+            ["name", "valueKind", "required"]);
+
+    private static object ObjectSchema(
+        Dictionary<string, object?>? properties = null,
+        string[]? required = null,
+        bool additionalProperties = false)
+        => new
+        {
+            type = "object",
+            properties = properties ?? new Dictionary<string, object?>(),
+            required = required ?? [],
+            additionalProperties,
+        };
+
+    private static object NullableSchema(object schema)
+        => new { oneOf = new object[] { schema, new { type = "null" } } };
+
+    private static object RealSchema()
+        => new { type = "number" };
+
+    private static object EnumSchema<TEnum>() where TEnum : struct, Enum
+        => new
+        {
+            oneOf = new object[]
+            {
+                new
+                {
+                    type = "string",
+                    @enum = Enum.GetNames<TEnum>().Select(JsonNamingPolicy.CamelCase.ConvertName).ToArray(),
+                },
+                new
+                {
+                    type = "integer",
+                    @enum = Enum.GetValues<TEnum>().Select(value => Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture)).ToArray(),
+                }
+            }
+        };
 
     private static McpPermissionDto[] ReadPermissions(JsonElement arguments)
     {
@@ -1897,8 +2104,44 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
     }
 
     private static T Deserialize<T>(JsonElement arguments)
-        => arguments.Deserialize<T>(ContractJsonOptions)
-            ?? throw new McpProtocolException(-32602, "MCP arguments are invalid.");
+    {
+        try
+        {
+            return arguments.Deserialize<T>(ContractJsonOptions)
+                ?? throw new McpProtocolException(-32602, "MCP arguments cannot be null.");
+        }
+        catch (JsonException exception)
+        {
+            throw InvalidArguments(exception);
+        }
+        catch (NotSupportedException)
+        {
+            throw new McpProtocolException(
+                -32602,
+                "MCP arguments contain an unsupported contract value.",
+                new { code = "mcp.invalid_arguments" });
+        }
+    }
+
+    private static McpProtocolException InvalidArguments(JsonException exception)
+    {
+        var path = string.IsNullOrWhiteSpace(exception.Path) ? null : exception.Path;
+        var location = path is null ? string.Empty : $" at '{path}'";
+        return new McpProtocolException(
+            -32602,
+            $"MCP arguments are invalid{location}.",
+            new { code = "mcp.invalid_arguments", path });
+    }
+
+    private static McpProtocolException InvalidPatchValue(JsonException exception)
+    {
+        var path = string.IsNullOrWhiteSpace(exception.Path) ? null : exception.Path;
+        var location = path is null ? string.Empty : $" at '{path}'";
+        return new McpProtocolException(
+            -32602,
+            $"The flow patch value is invalid{location}. Use camelCase enum strings such as 'action' and 'data'; legacy numeric enum values are also accepted.",
+            new { code = "mcp.invalid_patch_value", path });
+    }
 
     private static Guid? TryGetGuid(JsonElement arguments, string name)
     {
@@ -1953,6 +2196,20 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
             -32011,
             message,
             new { code = "mcp.validation_failed", diagnostics = validation.Diagnostics });
+    }
+
+    private static async Task MarkPreviewAppliedAsync(
+        McpPreviewService previews,
+        McpPreviewEntry entry,
+        CancellationToken cancellationToken)
+    {
+        if (await previews.MarkAppliedAsync(entry, cancellationToken))
+            return;
+
+        throw new McpProtocolException(
+            -32603,
+            "The mutation was committed but its MCP preview state could not be recorded.",
+            new { code = "mcp.preview_state_persist_failed" });
     }
 
     private static async Task<SereinFlow.Domain.Project> RequireActiveProjectAsync(
@@ -2125,7 +2382,8 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
         {
             type = "object",
             properties = properties ?? new Dictionary<string, object?>(),
-            required = required ?? []
+            required = required ?? [],
+            additionalProperties = false
         });
 
     private static object StringSchema(string? description = null)

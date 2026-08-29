@@ -7,20 +7,24 @@
 在仓库根目录执行：
 
 ```powershell
-dotnet build tests\SereinFlow.TestLibrary\SereinFlow.TestLibrary.csproj
+dotnet publish tests\SereinFlow.TestLibrary\SereinFlow.TestLibrary.csproj -c Release
 ```
 
 构建完成后，上传包会生成到：
 
 ```text
-artifacts\libraries\SereinFlow.TestLibrary-1.5.0.zip
+artifacts\libraries\SereinFlow.TestLibrary-1.6.1.zip
 ```
 
-压缩包结构固定为：
+压缩包结构以发布目录为准，显式包含主程序集、托管依赖、运行时配置和原生运行时文件；相对目录不能扁平化：
 
 ```text
-SereinFlow.TestLibrary-1.5.0\
-└── SereinFlow.TestLibrary.dll
+SereinFlow.TestLibrary-1.6.1\
+├── SereinFlow.TestLibrary.dll
+├── SereinFlow.Library.dll
+├── SereinFlow.TestLibrary.deps.json
+├── SereinFlow.TestLibrary.runtimeconfig.json
+└── runtimes\<rid>\native\<native-library>
 ```
 
 其中包含 11 个面向生产线业务的节点，覆盖数值、布尔、可变参数、流程上下文、结构化输出、普通枚举和 Flags 枚举：
@@ -37,4 +41,9 @@ SereinFlow.TestLibrary-1.5.0\
 - `生成设备配置摘要`：Action，同时接收普通枚举与 Flags 枚举，返回 `设备配置摘要`，适合验证保存、重载和数据输出。
 - `监听设备配置变更`：Flipflop，返回 `Task<设备配置摘要>`，用于验证 Flipflop 的枚举参数转换和异步输出。
 
-属性由共享的 `SereinFlow.Contracts` 程序集提供，命名空间仍为 `SereinFlow.Core.Api`，以保持类库元数据契约稳定。服务端通过该契约提供的完整类型名读取 PE 元数据，不使用属性名后缀匹配，也不需要在 API 进程加载 DLL。
+类库源码通过独立的 `SereinFlow.Library` NuGet SDK 使用
+`SereinFlow.Core.Api` 下的 `FlowLibrary`、`FlowNode`、`NodeParam` 和
+`NodeType`，以及 `SereinFlow.Runtime.Abstractions.IFlowContext`。该 SDK
+不依赖 SereinFlow Domain、Application 或 Worker；类库不应复制这些特性，
+也不应继续使用旧版 `DynamicFlow`/`NodeAction` 标注。服务端通过稳定的完整
+类型名读取 PE 元数据，不使用属性名后缀匹配，也不需要在 API 进程加载 DLL。

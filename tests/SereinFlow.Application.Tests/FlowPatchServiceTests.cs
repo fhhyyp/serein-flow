@@ -167,6 +167,19 @@ public sealed class FlowPatchServiceTests
         Assert.Contains("Connections", exception.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void NestedDtoEnumsAcceptCanonicalCamelCaseStrings()
+    {
+        using var document = JsonDocument.Parse("{\"concurrencyMode\":\"exclusiveReject\"}");
+        var operation = new FlowPatchOperationDto(
+            FlowPatchOperationKindDto.SetRunPolicy,
+            Value: document.RootElement.Clone());
+
+        var result = new FlowPatchService().Apply(CreateDefinition(), [operation]);
+
+        Assert.Equal(FlowConcurrencyModeDto.ExclusiveReject, result.RunPolicy!.ConcurrencyMode);
+    }
+
     private static FlowPatchOperationDto Operation(
         FlowPatchOperationKindDto kind,
         JsonElement value,
