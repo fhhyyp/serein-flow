@@ -1,0 +1,4 @@
+interface:
+  display_name: "SereinFlow Library ZIP"
+  short_description: "Build and package validated SereinFlow library ZIPs"
+  default_prompt: "Use $sereinflow-library-package to build and package a SereinFlow class library ZIP."

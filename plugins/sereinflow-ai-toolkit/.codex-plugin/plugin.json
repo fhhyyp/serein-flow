@@ -1,0 +1,35 @@
+{
+  "name": "sereinflow-ai-toolkit",
+  "version": "0.1.0+codex.20260829084730",
+  "description": "SereinFlow AI skills for safe flow inspection, debugging, version operations, SereinLang diagnostics, and local C# library ZIP packaging.",
+  "author": {
+    "name": "SereinFlow"
+  },
+  "keywords": [
+    "sereinflow",
+    "sereinlang",
+    "mcp",
+    "workflow",
+    "debugging",
+    "dotnet"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "SereinFlow AI Toolkit",
+    "shortDescription": "Safely operate SereinFlow with AI",
+    "longDescription": "Routes SereinFlow, SereinLang, and C# library packaging tasks to focused Skills with read-only discovery, preview gates, explicit confirmation, and local toolchain boundaries.",
+    "developerName": "SereinFlow",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Inspect this SereinFlow project and suggest the safest next step.",
+      "Use the SereinFlow skills to diagnose this flow without writing changes.",
+      "Build and validate a SereinFlow library ZIP from its C# project."
+    ],
+    "brandColor": "#0F766E"
+  }
+}
