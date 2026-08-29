@@ -81,6 +81,19 @@ debug, library, version, and preview state. Keep every response bounded and
 avoid requesting sensitive source or values unless the task and permission
 explicitly require them.
 
+## Create A Project
+
+When no suitable project exists, use `sereinflow_preview_create_project` with
+the requested project name and optional main-flow name. The preview generates
+the project and flow IDs and creates a Draft project with an empty `main`
+canvas. Show those IDs and the validation result, then apply only after the
+user explicitly confirms with `APPLY` through
+`sereinflow_apply_create_project`. Project creation is administrator-only and
+requires `project.write`; a project-scoped key cannot create a project outside
+its own scope. After creation, reread the project, attach libraries through
+their separate preview/apply pair, and use the flow edit model before drawing
+the flow.
+
 ## Operating Rules
 
 - Authenticate with the configured MCP API key and work only within the

@@ -42,6 +42,7 @@ builder.Services.AddScoped<RunSubmissionService>();
 builder.Services.AddScoped<RunInterruptionService>();
 builder.Services.AddScoped<ProjectArchiveService>();
 builder.Services.AddScoped<ProjectLibraryService>();
+builder.Services.AddScoped<ProjectCreationService>();
 builder.Services.AddScoped<FlowDefinitionWriteService>();
 builder.Services.AddSingleton<ILibraryCompatibilityAnalyzer, LibraryCompatibilityAnalyzer>();
 builder.Services.AddScoped<LibraryUpgradeService>();
@@ -145,28 +146,37 @@ projects.MapGet("", async (
     return Results.Ok(workspaces);
 });
 
-projects.MapPost("", async (CreateProjectRequestDto request, IProjectRepository projectRepository, IFlowDefinitionRepository flowRepository, CancellationToken cancellationToken) =>
+projects.MapPost("", async (CreateProjectRequestDto request, ProjectCreationService projectCreation, CancellationToken cancellationToken) =>
 {
-    var validation = FlowDefinitionContractValidator.ValidateForPersistence(request.Definition);
-    if (!validation.IsValid)
+    if (request is null || request.Definition is null)
     {
-        return Results.BadRequest(validation);
+        return Results.BadRequest(new { message = "A project name and initial flow definition are required. 项目名称和初始流程定义不能为空。" });
     }
 
-    var libraryValidation = ProjectLibraryService.ValidateNewProjectFlowLibraries(request.Definition);
-    if (!libraryValidation.IsValid)
+    ProjectCreationCandidate candidate;
+    try
     {
-        return Results.BadRequest(libraryValidation);
+        candidate = projectCreation.Prepare(request.Name, request.Definition);
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.BadRequest(new { message = exception.Message });
     }
 
-    var normalizedDefinition = FlowDefinitionContractNormalizer.NormalizeForPersistence(request.Definition);
-    var project = Project.Create(request.Name);
-    await projectRepository.AddAsync(project, cancellationToken);
-    await flowRepository.AddAsync(project.Id, normalizedDefinition, cancellationToken);
+    if (!candidate.Validation.IsValid)
+        return Results.BadRequest(candidate.Validation);
+
+    var result = await projectCreation.CreateAsync(candidate, cancellationToken);
+    if (result.Status == ProjectCreationStatus.Conflict)
+        return Results.Conflict(new { code = result.ErrorCode, message = result.ErrorMessage });
+
+    if (result.Status != ProjectCreationStatus.Created)
+        return Results.BadRequest(candidate.Validation);
+
     var workspace = new ProjectWorkspaceDto(
-        ToProjectDto(project),
-        [ToFlowSummaryDto(normalizedDefinition)]);
-    return Results.Created($"/api/projects/{project.Id:D}/flows/{request.Definition.Id:D}", workspace);
+        ToProjectDto(candidate.Project),
+        [ToFlowSummaryDto(candidate.Definition)]);
+    return Results.Created($"/api/projects/{candidate.Project.Id:D}/flows/{candidate.Definition.Id:D}", workspace);
 });
 
 projects.MapPut("/{projectId:guid}", async (

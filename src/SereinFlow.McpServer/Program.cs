@@ -165,6 +165,7 @@ static void ConfigureMcpServices(IServiceCollection services, IConfiguration con
     services.AddSereinFlowInfrastructure(configuration, contentRootPath);
     services.AddScoped<AiReadModelService>();
     services.AddScoped<ProjectLibraryService>();
+    services.AddScoped<ProjectCreationService>();
     services.AddScoped<FlowDefinitionWriteService>();
     services.AddScoped<FlowDiffService>();
     services.AddScoped<FlowPatchService>();

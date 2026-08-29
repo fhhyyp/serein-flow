@@ -16,6 +16,95 @@ public sealed class McpBackendIntegrationTests
     private static readonly string[] ProjectReadPermissionNames = ["project.read"];
 
     [Fact]
+    public async Task ProjectCreatePreviewApplyCreatesEmptyDraftProjectAndIsIdempotent()
+    {
+        using var host = CreateHost();
+        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
+        accessor.Current = new McpPrincipal(
+            "project-admin",
+            null,
+            Enum.GetValues<McpPermissionDto>().ToHashSet(),
+            IsAdministrator: true);
+
+        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
+        var preview = Deserialize<ProjectCreatePreviewDto>(
+            (await backend.CallToolAsync(
+                "sereinflow_preview_create_project",
+                JsonSerializer.SerializeToElement(new { name = "OpenCV demo", flowName = "Main flow" }),
+                CancellationToken.None)).Value);
+
+        Assert.True(preview.CanApply);
+        Assert.True(preview.Validation.IsValid);
+        Assert.Equal("draft", preview.Workspace.Project.Status);
+        Assert.Equal("Main flow", preview.FlowName);
+        Assert.Equal(preview.ProjectId, preview.Workspace.Project.Id);
+        Assert.Equal(preview.FlowId, preview.Workspace.Flows.Single().Id);
+
+        var previewResource = Deserialize<ProjectCreatePreviewDto>(
+            (await backend.ReadResourceAsync(
+                $"sereinflow://mcp-previews/{preview.PreviewId:D}",
+                CancellationToken.None)).Value);
+        Assert.Equal(preview.PreviewFingerprint, previewResource.PreviewFingerprint);
+        Assert.Equal(preview.ProjectId, previewResource.ProjectId);
+
+        using (var dataScope = host.Services.CreateScope())
+        {
+            Assert.Null(await dataScope.ServiceProvider.GetRequiredService<IProjectRepository>()
+                .FindAsync(preview.ProjectId));
+        }
+
+        var applyArguments = JsonSerializer.SerializeToElement(new
+        {
+            previewId = preview.PreviewId,
+            previewFingerprint = preview.PreviewFingerprint,
+            confirmation = "APPLY",
+            idempotencyKey = "create-project-once",
+        });
+        var created = Deserialize<ProjectWorkspaceDto>(
+            (await backend.CallToolAsync("sereinflow_apply_create_project", applyArguments, CancellationToken.None)).Value);
+
+        Assert.Equal(preview.ProjectId, created.Project.Id);
+        Assert.Equal("OpenCV demo", created.Project.Name);
+        Assert.Equal(preview.FlowId, created.Flows.Single().Id);
+        Assert.Equal(0, created.Flows.Single().NodeCount);
+        Assert.Equal(string.Empty, created.Flows.Single().EntryNodeId);
+
+        var replay = Deserialize<ProjectWorkspaceDto>(
+            (await backend.CallToolAsync("sereinflow_apply_create_project", applyArguments, CancellationToken.None)).Value);
+        Assert.True(JsonElement.DeepEquals(
+            JsonSerializer.SerializeToElement(created, JsonOptions),
+            JsonSerializer.SerializeToElement(replay, JsonOptions)));
+
+        using var verifyScope = host.Services.CreateScope();
+        var project = await verifyScope.ServiceProvider.GetRequiredService<IProjectRepository>()
+            .FindAsync(preview.ProjectId);
+        var flow = await verifyScope.ServiceProvider.GetRequiredService<IFlowDefinitionRepository>()
+            .FindAsync(preview.ProjectId, preview.FlowId);
+        Assert.NotNull(project);
+        Assert.NotNull(flow);
+        Assert.Equal(1, flow!.Version);
+    }
+
+    [Fact]
+    public async Task ProjectCreateRequiresAnAdministratorEvenWhenProjectWriteIsGranted()
+    {
+        using var host = CreateHost();
+        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
+        accessor.Current = new McpPrincipal(
+            "project-scoped-key",
+            Guid.NewGuid(),
+            new[] { McpPermissionDto.ProjectWrite }.ToHashSet());
+
+        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
+        var exception = await Assert.ThrowsAsync<McpProtocolException>(() => backend.CallToolAsync(
+            "sereinflow_preview_create_project",
+            JsonSerializer.SerializeToElement(new { name = "Not allowed" }),
+            CancellationToken.None));
+
+        Assert.Equal(-32003, exception.Code);
+    }
+
+    [Fact]
     public async Task ApiKeyLifecycleIsIdempotentAndReturnsSecretsOnlyOnce()
     {
         using var host = CreateHost();
@@ -336,6 +425,7 @@ public sealed class McpBackendIntegrationTests
         services.AddSereinFlowInfrastructure(configuration, root);
         services.AddScoped<AiReadModelService>();
         services.AddScoped<ProjectLibraryService>();
+        services.AddScoped<ProjectCreationService>();
         services.AddScoped<FlowDefinitionWriteService>();
         services.AddScoped<FlowDiffService>();
         services.AddScoped<FlowPatchService>();

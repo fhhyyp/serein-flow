@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
+using SereinFlow.Domain;
 
 namespace SereinFlow.McpServer;
 
@@ -59,6 +60,14 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
         [
             Tool("sereinflow_list_projects", "List bounded project and flow summaries.", Schema(
                 properties: new Dictionary<string, object?> { ["maxItems"] = NumberSchema() })),
+            Tool("sereinflow_preview_create_project", "Preview creating a new draft project with an empty main flow.", Schema(
+                properties: new Dictionary<string, object?>
+                {
+                    ["name"] = StringSchema(),
+                    ["flowName"] = StringSchema()
+                }, required: ["name"])),
+            Tool("sereinflow_apply_create_project", "Create a previously previewed draft project after explicit confirmation.", Schema(
+                properties: ApplySchemaProperties(), required: ["previewId", "previewFingerprint", "confirmation", "idempotencyKey"])),
             Tool("sereinflow_get_project", "Get one project and its flow summaries.", Schema(
                 properties: new Dictionary<string, object?> { ["projectId"] = StringSchema() },
                 required: ["projectId"])),
@@ -315,6 +324,10 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
         {
             "sereinflow_list_projects"
                 => await ReadProjectsAsync(scope, service, security, principal, cancellationToken, options),
+            "sereinflow_preview_create_project"
+                => await PreviewCreateProjectAsync(scope, principal!, arguments, cancellationToken),
+            "sereinflow_apply_create_project"
+                => await ApplyCreateProjectAsync(scope, principal!, arguments, cancellationToken),
             "sereinflow_get_project"
                 => await ReadProjectAsync(
                     service,
@@ -710,6 +723,7 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
         var descriptor = new McpPreviewDescriptorDto(entry.Id, entry.Operation, entry.ProjectId, entry.FlowId, entry.Status, entry.ExpiresAt, entry.PreviewFingerprint);
         return entry.Operation switch
         {
+            "project.create" => ReadProjectCreatePreview(entry, descriptor),
             "flow.patch" => ReadFlowPatchPreview(entry, descriptor),
             "flow.publish" => ReadPublishPreview(entry, descriptor),
             "flow.rollback" => ReadRollbackPreview(entry, descriptor),
@@ -736,6 +750,188 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
             FlowDiffService.RedactSensitive(stored.Diff),
             FlowDiffService.RedactSensitive(stored.CandidateDefinition));
     }
+
+    private static ProjectCreatePreviewDto ReadProjectCreatePreview(
+        McpPreviewEntry entry,
+        McpPreviewDescriptorDto descriptor)
+    {
+        var stored = McpPreviewService.Deserialize<StoredProjectCreatePreview>(entry);
+        var project = RehydrateProject(stored);
+        var candidate = new ProjectCreationCandidate(project, stored.Definition, stored.Validation);
+        return ToProjectCreatePreview(descriptor, candidate);
+    }
+
+    private static async Task<object> PreviewCreateProjectAsync(
+        IServiceScope scope,
+        McpPrincipal principal,
+        JsonElement arguments,
+        CancellationToken cancellationToken)
+    {
+        var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
+        security.RequireAdministrator(principal);
+        var request = Deserialize<CreateProjectMcpRequestDto>(arguments);
+        if (string.IsNullOrWhiteSpace(request.Name))
+            throw new McpProtocolException(-32602, "MCP parameter 'name' is required.");
+
+        ProjectCreationCandidate candidate;
+        try
+        {
+            candidate = scope.ServiceProvider.GetRequiredService<ProjectCreationService>()
+                .PrepareEmpty(request.Name, request.FlowName);
+        }
+        catch (ArgumentException exception)
+        {
+            throw new McpProtocolException(-32602, exception.Message);
+        }
+
+        var stored = new StoredProjectCreatePreview(
+            new CreateProjectMcpRequestDto(candidate.Project.Name, GetFlowName(candidate.Definition)),
+            candidate.Project.Id,
+            candidate.Definition.Id,
+            candidate.Project.CreatedAt,
+            candidate.Definition,
+            candidate.Validation);
+        var preview = await scope.ServiceProvider.GetRequiredService<McpPreviewService>().CreateAsync(
+            "project.create",
+            principal,
+            candidate.Project.Id,
+            candidate.Definition.Id,
+            expectedVersion: null,
+            stored,
+            cancellationToken);
+        return ToProjectCreatePreview(
+            new McpPreviewDescriptorDto(
+                preview.Id,
+                preview.Operation,
+                preview.ProjectId,
+                preview.FlowId,
+                preview.Status,
+                preview.ExpiresAt,
+                preview.PreviewFingerprint),
+            candidate);
+    }
+
+    private static async Task<object> ApplyCreateProjectAsync(
+        IServiceScope scope,
+        McpPrincipal principal,
+        JsonElement arguments,
+        CancellationToken cancellationToken)
+    {
+        var request = Deserialize<McpMutationApplyRequestDto>(arguments);
+        RequireConfirmation(request);
+        var requestPayload = Serialize(request);
+        var idempotency = scope.ServiceProvider.GetRequiredService<McpIdempotencyService>();
+        var replay = await idempotency.FindAsync(
+            principal.Id,
+            "project.create",
+            request.IdempotencyKey,
+            requestPayload,
+            cancellationToken);
+        if (replay is not null)
+            return DeserializeStoredResponse(replay.ResponseJson);
+
+        var previews = scope.ServiceProvider.GetRequiredService<McpPreviewService>();
+        var entry = await previews.RequireAsync(
+            request.PreviewId,
+            request.PreviewFingerprint,
+            principal,
+            cancellationToken);
+        if (!string.Equals(entry.Operation, "project.create", StringComparison.Ordinal))
+            throw new McpProtocolException(-32602, "The preview does not describe project creation.");
+
+        var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
+        security.RequireAdministrator(principal);
+        security.Require(principal, McpPermissionDto.ProjectWrite);
+        var stored = McpPreviewService.Deserialize<StoredProjectCreatePreview>(entry);
+        var project = RehydrateProject(stored);
+        var candidate = scope.ServiceProvider.GetRequiredService<ProjectCreationService>()
+            .Prepare(project, stored.Definition);
+        if (!candidate.Validation.IsValid)
+        {
+            throw new McpProtocolException(
+                -32011,
+                "The project creation preview is no longer valid.",
+                new { code = "mcp.validation_failed", diagnostics = candidate.Validation.Diagnostics });
+        }
+
+        var result = await scope.ServiceProvider.GetRequiredService<ProjectCreationService>()
+            .CreateAsync(candidate, cancellationToken);
+        if (result.Status == ProjectCreationStatus.Conflict)
+        {
+            throw new McpProtocolException(
+                -32010,
+                result.ErrorMessage ?? "The project already exists.",
+                new { code = result.ErrorCode });
+        }
+        if (result.Status != ProjectCreationStatus.Created)
+            throw new McpProtocolException(-32011, "The project creation preview cannot be applied.");
+
+        var response = CreateWorkspace(candidate);
+        await previews.MarkAppliedAsync(entry, cancellationToken);
+        await idempotency.SaveAsync(
+            principal.Id,
+            entry.Operation,
+            request.IdempotencyKey,
+            response,
+            requestPayload,
+            cancellationToken);
+        return response;
+    }
+
+    private static Project RehydrateProject(StoredProjectCreatePreview stored)
+        => Project.Rehydrate(
+            stored.ProjectId,
+            stored.Request.Name,
+            version: 1,
+            SereinFlow.Domain.ProjectStatus.Draft,
+            stored.CreatedAt,
+            stored.CreatedAt);
+
+    private static ProjectCreatePreviewDto ToProjectCreatePreview(
+        McpPreviewDescriptorDto descriptor,
+        ProjectCreationCandidate candidate)
+        => new(
+            descriptor.PreviewId,
+            candidate.Project.Id,
+            candidate.Definition.Id,
+            candidate.Project.Name,
+            GetFlowName(candidate.Definition),
+            descriptor.ExpiresAt,
+            descriptor.PreviewFingerprint,
+            descriptor.Status == McpMutationPreviewStatusDto.Pending
+                && descriptor.ExpiresAt > DateTimeOffset.UtcNow
+                && candidate.Validation.IsValid,
+            candidate.Validation,
+            CreateWorkspace(candidate));
+
+    private static ProjectWorkspaceDto CreateWorkspace(ProjectCreationCandidate candidate)
+        => new(
+            new ProjectDto(
+                candidate.Project.Id,
+                candidate.Project.Name,
+                candidate.Project.Version,
+                ToProjectStatusValue(candidate.Project.Status),
+                candidate.Project.CreatedAt,
+                candidate.Project.UpdatedAt),
+            [new FlowDefinitionSummaryDto(
+                candidate.Definition.Id,
+                candidate.Definition.Version,
+                candidate.Definition.EntryNodeId,
+                candidate.Definition.Canvases.Count,
+                candidate.Definition.Canvases.Sum(static canvas => canvas.Nodes.Count))]);
+
+    private static string GetFlowName(FlowDefinitionDto definition)
+        => definition.Canvases.FirstOrDefault()?.Name ?? "Main";
+
+    private static string ToProjectStatusValue(SereinFlow.Domain.ProjectStatus status)
+        => status switch
+        {
+            SereinFlow.Domain.ProjectStatus.Draft => "draft",
+            SereinFlow.Domain.ProjectStatus.Ready => "ready",
+            SereinFlow.Domain.ProjectStatus.ScriptInvalid => "scriptInvalid",
+            SereinFlow.Domain.ProjectStatus.Archived => "archived",
+            _ => status.ToString()
+        };
 
     private static object ReadPublishPreview(McpPreviewEntry entry, McpPreviewDescriptorDto descriptor)
     {
@@ -1156,6 +1352,7 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
     {
         var permission = entry.Operation switch
         {
+            "project.create" => McpPermissionDto.ProjectWrite,
             "flow.patch" => McpPermissionDto.FlowWrite,
             "flow.publish" => McpPermissionDto.FlowPublish,
             "flow.rollback" => McpPermissionDto.FlowRollback,
@@ -1183,6 +1380,7 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
         var permission = name switch
         {
             "sereinflow_list_projects" or "sereinflow_get_project" or "sereinflow_get_flow_topology" or "sereinflow_get_flow_edit_model" or "sereinflow_compare_flow_versions" => McpPermissionDto.ProjectRead,
+            "sereinflow_preview_create_project" or "sereinflow_apply_create_project" => McpPermissionDto.ProjectWrite,
             "sereinflow_list_libraries" or "sereinflow_get_library" => McpPermissionDto.LibraryRead,
             "sereinflow_get_run_inspection" => McpPermissionDto.RunRead,
             "sereinflow_get_debug_state" or "sereinflow_wait_debug_state" => McpPermissionDto.DebugRead,
@@ -1220,6 +1418,7 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
 
     private static bool IsIdempotentMutation(string name)
         => name is "sereinflow_apply_flow_patch"
+            or "sereinflow_apply_create_project"
             or "sereinflow_apply_publish_flow"
             or "sereinflow_apply_rollback_flow"
             or "sereinflow_apply_library_package"
@@ -1877,6 +2076,13 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
             ?? GetOptionalLong(arguments, "sourceVersion")
             ?? GetOptionalLong(arguments, "version");
 
+    private sealed record StoredProjectCreatePreview(
+        CreateProjectMcpRequestDto Request,
+        Guid ProjectId,
+        Guid FlowId,
+        DateTimeOffset CreatedAt,
+        FlowDefinitionDto Definition,
+        FlowValidationResultDto Validation);
     private sealed record StoredFlowPatchPreview(FlowPatchRequestDto Request, FlowDefinitionDto CandidateDefinition, FlowValidationResultDto Validation, FlowDiffDto Diff);
     private sealed record StoredPublishPreview(
         PublishFlowPreviewRequestDto Request,

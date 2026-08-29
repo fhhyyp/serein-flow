@@ -7,6 +7,7 @@ namespace SereinFlow.Contracts;
 public enum McpPermissionDto
 {
     ProjectRead,
+    ProjectWrite,
     LibraryRead,
     RunRead,
     DebugRead,
@@ -34,6 +35,7 @@ public static class McpPermissionNames
         new Dictionary<McpPermissionDto, string>
         {
             [McpPermissionDto.ProjectRead] = "project.read",
+            [McpPermissionDto.ProjectWrite] = "project.write",
             [McpPermissionDto.LibraryRead] = "library.read",
             [McpPermissionDto.RunRead] = "run.read",
             [McpPermissionDto.DebugRead] = "debug.read",
@@ -143,6 +145,22 @@ public sealed record FlowPatchRequestDto(
     long ExpectedDevelopmentVersion,
     IReadOnlyList<FlowPatchOperationDto> Operations,
     string? Remark = null);
+
+public sealed record CreateProjectMcpRequestDto(
+    string Name,
+    string? FlowName = null);
+
+public sealed record ProjectCreatePreviewDto(
+    Guid PreviewId,
+    Guid ProjectId,
+    Guid FlowId,
+    string Name,
+    string FlowName,
+    DateTimeOffset ExpiresAt,
+    string PreviewFingerprint,
+    bool CanApply,
+    FlowValidationResultDto Validation,
+    ProjectWorkspaceDto Workspace);
 
 public sealed record FlowDiffItemDto(
     string Kind,

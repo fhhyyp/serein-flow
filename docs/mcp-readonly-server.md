@@ -104,6 +104,8 @@ sereinflow://mcp-previews/{previewId}
 
 ```text
 sereinflow_list_projects
+sereinflow_preview_create_project
+sereinflow_apply_create_project
 sereinflow_get_project
 sereinflow_get_flow_topology
 sereinflow_list_libraries
@@ -139,4 +141,6 @@ stdio 默认用于本机受信任进程，并使用本地管理员主体。受�
 - C# 源码生成、项目创建和 DLL 编译由用户本地 VS/.NET 工具链完成，服务端不执行 `dotnet build`、MSBuild 或用户构建脚本。
 - 类库 Tool 只接收符合 `[类库名称]-[版本号].zip` 规则的已构建 ZIP，并在受控目录中校验、PE 扫描、分析和导入，不加载或执行上传程序集。
 - 所有状态变更 Tool 都必须先预览，再使用 `APPLY`、预览指纹和幂等键确认；类库项目引用与类库工件导入是两个独立操作。
+- 创建项目使用 `sereinflow_preview_create_project` 和 `sereinflow_apply_create_project`，需要管理员主体和 `project.write` 权限；预览会生成一个空的 Draft 项目及 `main` 流程。
+- `project.write` 仅用于创建项目，创建操作仍要求管理员主体；项目级 Key 不能借此创建其他项目。
 - HTTP 默认只监听本机地址；远程监听、TLS、反向代理和 CORS 必须通过显式部署配置启用。
