@@ -1,19 +1,8 @@
 {
   "mcpServers": {
     "sereinflow": {
-      "type": "stdio",
-      "command": "dotnet",
-      "args": [
-        "run",
-        "--project",
-        "D:/Project/dotnet/SereinFlow/src/SereinFlow.McpServer/SereinFlow.McpServer.csproj",
-        "--no-build",
-        "--no-restore"
-      ],
-      "env": {
-        "SereinFlow__DatabasePath": "D:/Project/dotnet/SereinFlow/src/SereinFlow.Api/data/sereinflow.db",
-        "SereinFlow__LibraryDirectory": "D:/Project/dotnet/SereinFlow/src/SereinFlow.Api/data/libraries"
-      }
+      "type": "http",
+      "url": "http://127.0.0.1:5178/mcp"
     }
   }
 }

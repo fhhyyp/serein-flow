@@ -3,7 +3,7 @@ using System.Text.Json;
 using SereinFlow.Application;
 using SereinFlow.Contracts;
 
-namespace SereinFlow.McpServer;
+namespace SereinFlow.Mcp;
 
 /// <summary>
 /// Minimal MCP stdio transport. Keeping the transport independent from the

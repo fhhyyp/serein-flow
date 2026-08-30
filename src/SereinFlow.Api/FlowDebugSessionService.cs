@@ -75,8 +75,7 @@ public sealed class FlowDebugSessionService : IHostedService
         RunEventBroadcaster broadcaster,
         IHubContext<RunEventsHub> hub,
         ILogger<FlowDebugSessionService> logger,
-        IConfiguration configuration,
-        IWebHostEnvironment environment)
+        SereinFlow.Infrastructure.Configuration.SereinFlowStorageOptions storage)
     {
         _scopeFactory = scopeFactory;
         _workerClient = workerClient;
@@ -84,12 +83,8 @@ public sealed class FlowDebugSessionService : IHostedService
         _broadcaster = broadcaster;
         _hub = hub;
         _logger = logger;
-        _scriptRoot = ResolvePath(
-            configuration["SereinFlow:ScriptArtifactRoot"] ?? "data/script-artifacts",
-            environment.ContentRootPath);
-        _libraryRoot = ResolvePath(
-            configuration["SereinFlow:LibraryDirectory"] ?? "data/libraries",
-            environment.ContentRootPath);
+        _scriptRoot = storage.ScriptArtifactRoot;
+        _libraryRoot = storage.LibraryDirectory;
     }
 
     public async Task<FlowDebugSessionStartResult> CreateAsync(
@@ -751,9 +746,6 @@ public sealed class FlowDebugSessionService : IHostedService
             ? value.GetRawText()
             : "{}";
 
-
-    private static string ResolvePath(string value, string root)
-        => Path.IsPathRooted(value) ? value : Path.Combine(root, value);
 
     private sealed class ActiveDebugSession(IWorkerDebugRunHandle handle, RunExecutionQueue.RunExecutionLease lease)
     {

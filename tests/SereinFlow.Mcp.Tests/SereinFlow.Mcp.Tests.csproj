@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\SereinFlow.McpServer\SereinFlow.McpServer.csproj" />
+    <ProjectReference Include="..\..\src\SereinFlow.Mcp\SereinFlow.Mcp.csproj" />
   </ItemGroup>
 
   <ItemGroup>

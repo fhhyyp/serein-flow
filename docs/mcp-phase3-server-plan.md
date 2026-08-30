@@ -1,69 +1,56 @@
-# MCP 第三阶段开发计划：只读 Server 适配层
+# MCP 第三阶段计划：统一宿主适配层
 
 ## 执行记录
 
-2026-08-29：本计划中的只读版本已完成。后续实现已扩展为统一 stdio/Streamable HTTP MCP 宿主，包含认证、项目授权、预览后写入、发布、回滚、SereinLang 仅编译诊断，以及预构建 DLL ZIP 的 PE 扫描和不可变导入。服务端不生成 C# 源码、不创建项目、不运行 `dotnet build` 或 MSBuild。
+2026-08-30：本计划已按 Web API 与 MCP 单宿主方案完成改造。正式入口只有
+`SereinFlow.Api`；MCP 协议、Backend、HTTP transport、stdio transport、认证
+上下文、限流和诊断逻辑位于 `src/SereinFlow.Mcp` 类库。
 
 ## 目标
 
-将已经完成的 `AiReadModelService` 和结构化调试状态能力暴露为标准 MCP Server，使支持 MCP 的 Codex、OpenCode 和其他本地 AI 客户端可以读取 SereinFlow 流程与运行状态，并等待调试状态变化。
+让支持 MCP 的 Codex、OpenCode 和其他客户端安全读取 SereinFlow 项目、流程、
+类库、运行与调试状态，并通过受控的预览/apply 合同执行允许的流程和类库操作。
+Web API 与 MCP 必须共享同一 Application 服务、Storage options、数据库、类库
+目录和配置解析结果。
 
-## 本阶段范围
+## 入口
 
-1. 新增独立 `SereinFlow.McpServer` 进程，避免把 MCP 协议细节混入 API 或 Application 项目。
-2. 支持 MCP stdio JSON-RPC 消息：`initialize`、`ping`、`tools/list`、`tools/call`、`resources/list`、`resources/templates/list`、`resources/read` 和 `shutdown`。
-3. 暴露流程、类库、运行检查和结构化调试状态的只读 Resource。
-4. 暴露项目、流程拓扑、类库、运行检查和调试状态查询 Tool。
-5. 暴露 `sereinflow_wait_debug_state`，基于持久化 `StateRevision` 等待状态变化或终态。
-6. 统一 JSON-RPC 错误码，非法参数使用 `-32602`，不支持的方法使用 `-32601`，资源不存在使用 `-32004`。
-7. 通过 Application 服务和 DI Scope 访问业务数据，不直接引用 SQLite 表、SqlSugar Repository 或 Worker 句柄。
-8. 增加协议测试、构建验证和本地配置说明。
+- Web 模式：`SereinFlow.Api` 同时提供普通 API 和 `/mcp`，开发地址为
+  `http://127.0.0.1:5178/mcp`。
+- stdio 模式：显式运行 `SereinFlow.Api --mcp-stdio`，只启用 MCP、Application、
+  Storage 和 stdio 所需服务。
+- HTTP 和 stdio 使用同一个 `SereinFlowMcpBackend` 与
+  `SereinFlowMcpServer`，不通过 REST 回调，也不维护第二份 Backend。
 
-## 暴露能力
+## 配置与安全
 
-### Resources
+服务器只从统一 `SereinFlowStorageOptions` 读取 `DataRoot`、数据库文件名、类库
+目录名、脚本 artifact 目录名和 MCP staging 目录名。客户端不能通过参数或环境
+变量注入 `DatabasePath`、`LibraryDirectory` 或其他服务器绝对路径。
 
-```text
-sereinflow://projects
-sereinflow://libraries
-sereinflow://projects/{projectId}
-sereinflow://projects/{projectId}/flows/{flowId}/topology
-sereinflow://libraries/{libraryId}
-sereinflow://runs/{runId}
-sereinflow://debug-sessions/{sessionId}
-```
+HTTP 必须使用 `Authorization: Bearer <api-key>` 和有效 `Mcp-Session-Id`；loopback
+也不提供免认证回退。stdio 必须使用显式
+`SereinFlow:Mcp:Stdio:ApiKey`。stdout 保持纯 JSON-RPC，错误和日志写入 stderr。
 
-### Tools
+## 能力边界
 
-```text
-sereinflow_list_projects
-sereinflow_get_project
-sereinflow_get_flow_topology
-sereinflow_list_libraries
-sereinflow_get_library
-sereinflow_get_run_inspection
-sereinflow_get_debug_state
-sereinflow_wait_debug_state
-```
+- Resource 和只读 Tool 通过 Application read model 提供有界数据。
+- 流程 patch 使用 v2 typed union 合同，同时兼容流程公共合同的 legacy v1 输入；
+  attach/detach library 继续是独立 preview/apply 操作。
+- `sereinflow_create_library_node_template` 是无副作用的合同读取与节点组装能力，
+  只接受已扫描并已附加的 Action/Flipflop 合同，不创建版本、预览或资源。
+- 类库 ZIP 由用户本地工具链构建，服务端只做受控检查和显式导入。
+- 服务端不执行用户构建脚本，不提供任意命令执行，不加载或执行上传程序集。
 
-所有查询继续使用 AI 只读模型的边界、脱敏和大小限制。默认不返回脚本源码和流程字面量值。
+## 测试关注点
 
-## 安全边界
+测试覆盖 Storage/path resolver、DI composition、Web/stdio 传输、认证、会话、
+限流、大小和超时边界，以及 HTTP/stdio parity。还需验证 v2 flow patch、legacy
+v1 normalization、normalized preview、library node template、节点布局规则和
+旧入口架构约束。
 
-- 当前传输仅面向受信任本地进程的 stdio；不能直接作为远程服务部署。
-- Server 不提供流程定义修改、版本发布、回滚、类库上传或任意命令执行。
-- Server 不启动调试 Worker，也不持有可执行程序集。
-- 远程部署前必须增加认证、项目级授权、审计、请求超时、并发限制和输出配额。
-- 流程写入 Tool 必须先经过校验和差异预览，并要求用户确认后才允许应用。
+## 后续维护
 
-## 验收标准
-
-1. MCP 客户端可以完成初始化、枚举 Tools/Resources 并读取结构化 JSON。
-2. 调试客户端可以读取暂停节点、输入、步骤、调用帧深度和最近节点结果。
-3. 客户端可以用状态修订号等待断点、节点结果或调试终态。
-4. 协议错误不会泄露数据库路径、Worker 细节或完整异常堆栈。
-5. Server 项目可以独立构建，协议测试稳定通过。
-
-## 后续入口
-
-后续演进应继续强化请求配额、审计检索、ZIP 兼容性分析和本地客户端 Skill；不得把 C# 构建或任意 shell 执行开放给 SereinFlow 服务端。
+任何新 MCP Tool 都必须通过 `AddSereinFlowMcp` 注册，Backend 必须复用 Application
+服务，不得新增独立 MCP executable、REST 回调或第二份权限/诊断实现。客户端文档
+只能指导 `SereinFlow.Api` 的 HTTP URL 或显式 `--mcp-stdio` 入口。

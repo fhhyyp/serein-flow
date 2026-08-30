@@ -6,9 +6,9 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
 using SereinFlow.Infrastructure.Persistence;
-using SereinFlow.McpServer;
+using SereinFlow.Mcp;
 
-namespace SereinFlow.McpServer.Tests;
+namespace SereinFlow.Mcp.Tests;
 
 public sealed class McpBackendIntegrationTests
 {
@@ -645,28 +645,14 @@ public sealed class McpBackendIntegrationTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["SereinFlow:DatabasePath"] = Path.Combine(root, "sereinflow.db"),
-                ["SereinFlow:LibraryDirectory"] = Path.Combine(root, "libraries"),
-                ["SereinFlow:Mcp:PackageStagingDirectory"] = Path.Combine(root, "staging"),
+                ["SereinFlow:DataRoot"] = root,
             })
             .Build();
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddSereinFlowInfrastructure(configuration, root);
-        services.AddScoped<AiReadModelService>();
-        services.AddScoped<ProjectLibraryService>();
-        services.AddScoped<ProjectCreationService>();
-        services.AddScoped<FlowDefinitionWriteService>();
-        services.AddScoped<FlowDiffService>();
-        services.AddScoped<FlowPatchService>();
-        services.AddScoped<FlowPatchContractNormalizer>();
-        services.AddScoped<LibraryNodeTemplateService>();
-        services.AddSingleton<IBuiltinNodeCatalog, BuiltinNodeCatalog>();
-        services.AddScoped<McpPreviewService>();
-        services.AddScoped<McpIdempotencyService>();
-        services.AddScoped<McpSecurityService>();
-        services.AddSingleton<IMcpPrincipalAccessor, McpPrincipalAccessor>();
-        services.AddSingleton<ISereinFlowMcpBackend, SereinFlowMcpBackend>();
+        services.AddSereinFlowStorage(configuration, root);
+        services.AddSereinFlowApplication();
+        services.AddSereinFlowMcp(configuration);
         services.AddSingleton<SereinFlowMcpBackend>(provider =>
             (SereinFlowMcpBackend)provider.GetRequiredService<ISereinFlowMcpBackend>());
         return new TestHost(

@@ -6,8 +6,16 @@ using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
+using SereinFlow.Infrastructure.Configuration;
 using SereinFlow.Infrastructure.Persistence;
+using SereinFlow.Mcp;
 using SereinFlow.Worker.Client;
+
+if (args.Any(static argument => string.Equals(argument, "--mcp-stdio", StringComparison.OrdinalIgnoreCase)))
+{
+    await RunMcpStdioAsync(args);
+    return;
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,53 +41,26 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 builder.Services.AddSignalR();
 
-builder.Services.AddSereinFlowInfrastructure(
+var storageOptions = SereinFlowStorageOptions.FromConfiguration(
     builder.Configuration,
     builder.Environment.ContentRootPath);
-builder.Services.AddScoped<RunApplicationService>();
-builder.Services.AddScoped<AiReadModelService>();
-builder.Services.AddScoped<RunSubmissionService>();
-builder.Services.AddScoped<RunInterruptionService>();
-builder.Services.AddScoped<ProjectArchiveService>();
-builder.Services.AddScoped<ProjectLibraryService>();
-builder.Services.AddScoped<ProjectCreationService>();
-builder.Services.AddScoped<FlowDefinitionWriteService>();
-builder.Services.AddSingleton<ILibraryCompatibilityAnalyzer, LibraryCompatibilityAnalyzer>();
-builder.Services.AddScoped<LibraryUpgradeService>();
-builder.Services.AddSingleton<IBuiltinNodeCatalog, BuiltinNodeCatalog>();
-builder.Services.Configure<RunExecutionOptions>(builder.Configuration.GetSection("SereinFlow:RunExecution"));
-
-var workerRunnerPath = ResolveWorkerRunnerPath(
-    builder.Configuration["SereinFlow:WorkerRunnerPath"],
+builder.Services.AddSereinFlowStorage(storageOptions);
+builder.Services.AddSereinFlowApplication();
+var mcpOptions = SereinFlowMcpOptions.FromConfiguration(builder.Configuration);
+builder.Services.AddSereinFlowMcp(builder.Configuration);
+builder.Services.AddSereinFlowExecution(
+    builder.Configuration,
     builder.Environment.ContentRootPath);
-var workerRunnerFileName = IsManagedWorkerAssembly(workerRunnerPath) ? "dotnet" : workerRunnerPath;
-builder.Services.AddSingleton<SupervisorWorkerRunClient>(serviceProvider =>
+builder.WebHost.ConfigureKestrel(options =>
 {
-    var logger = serviceProvider.GetRequiredService<ILogger<SupervisorWorkerRunClient>>();
-    return new SupervisorWorkerRunClient(
-        new SupervisorWorkerRunClientOptions(
-            workerRunnerPath,
-            RunnerFileName: workerRunnerFileName,
-            WorkingDirectory: Path.GetDirectoryName(workerRunnerPath),
-            AllowedScriptArtifactRoot: ResolveServicePath(builder.Configuration["SereinFlow:ScriptArtifactRoot"] ?? "data/script-artifacts", builder.Environment.ContentRootPath),
-            AllowedLibraryPackageRoot: ResolveServicePath(builder.Configuration["SereinFlow:LibraryDirectory"] ?? "data/libraries", builder.Environment.ContentRootPath),
-            DiagnosticLogger: message => WorkerLog.WorkerDiagnostic(logger, message, null)));
+    options.Limits.MaxRequestBodySize = mcpOptions.MaxRequestBytes;
 });
-builder.Services.AddSingleton<IWorkerRunClient>(serviceProvider =>
-    serviceProvider.GetRequiredService<SupervisorWorkerRunClient>());
-builder.Services.AddSingleton<IWorkerDebugRunClient>(serviceProvider =>
-    serviceProvider.GetRequiredService<SupervisorWorkerRunClient>());
-builder.Services.AddSingleton<RunExecutionQueue>();
-builder.Services.AddSingleton<RunEventBroadcaster>();
-builder.Services.AddSingleton<FlowDebugSessionService>();
-builder.Services.AddHostedService<RunExecutionHostedService>();
-builder.Services.AddHostedService(serviceProvider => serviceProvider.GetRequiredService<FlowDebugSessionService>());
-builder.Services.AddHostedService<LibraryCatalogReindexHostedService>();
 
 var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseCors();
+app.MapSereinFlowMcp();
 
 app.MapGet("/healthz", () => Results.Ok(new HealthCheckResponse("Healthy")))
     .WithName("GetHealth")
@@ -1389,46 +1370,48 @@ static async Task WriteSseAsync(HttpContext context, FlowRunEventDto item)
     await context.Response.Body.FlushAsync(context.RequestAborted);
 }
 
-static string ResolveServicePath(string value, string root)
-    => Path.IsPathRooted(value) ? Path.GetFullPath(value) : Path.GetFullPath(Path.Combine(root, value));
-
-static string ResolveWorkerRunnerPath(string? configuredPath, string contentRootPath)
+static async Task RunMcpStdioAsync(string[] args)
 {
-    var candidates = new List<string>();
-    if (!string.IsNullOrWhiteSpace(configuredPath))
+    var builder = Host.CreateApplicationBuilder(args);
+    builder.Logging.ClearProviders();
+    var storageOptions = SereinFlowStorageOptions.FromConfiguration(
+        builder.Configuration,
+        builder.Environment.ContentRootPath);
+    builder.Services.AddSereinFlowStorage(storageOptions);
+    builder.Services.AddSereinFlowApplication();
+    builder.Services.AddSereinFlowMcp(builder.Configuration);
+
+    var apiKey = builder.Configuration["SereinFlow:Mcp:Stdio:ApiKey"];
+    if (string.IsNullOrWhiteSpace(apiKey))
     {
-        candidates.Add(Path.IsPathRooted(configuredPath)
-            ? Path.GetFullPath(configuredPath)
-            : Path.GetFullPath(Path.Combine(contentRootPath, configuredPath)));
+        throw new InvalidOperationException(
+            "SereinFlow:Mcp:Stdio:ApiKey must be configured explicitly for --mcp-stdio.");
     }
 
-    var contentRoot = new DirectoryInfo(contentRootPath);
-    for (var ancestor = contentRoot; ancestor is not null; ancestor = ancestor.Parent)
+    using var host = builder.Build();
+    var principalAccessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
+    var requestContextAccessor = host.Services.GetRequiredService<IMcpRequestContextAccessor>();
+    var security = host.Services.GetRequiredService<McpSecurityService>();
+    var principal = await security.AuthenticateAsync(apiKey, CancellationToken.None);
+    if (principal is null)
     {
-        foreach (var configuration in new[] { "Debug", "Release" })
-        {
-            var outputRoot = Path.Combine(ancestor.FullName, "SereinFlow.Worker.Runner", "bin", configuration, "net10.0");
-            candidates.Add(Path.Combine(outputRoot, "SereinFlow.Worker.Runner.exe"));
-            candidates.Add(Path.Combine(outputRoot, "SereinFlow.Worker.Runner"));
-            candidates.Add(Path.Combine(outputRoot, "SereinFlow.Worker.Runner.dll"));
-        }
+        throw new InvalidOperationException(
+            "The configured stdio MCP API key is invalid, expired or revoked.");
     }
 
-    candidates.Add(Path.Combine(AppContext.BaseDirectory, "SereinFlow.Worker.Runner.exe"));
-    candidates.Add(Path.Combine(AppContext.BaseDirectory, "SereinFlow.Worker.Runner"));
-    candidates.Add(Path.Combine(AppContext.BaseDirectory, "SereinFlow.Worker.Runner.dll"));
-
-    var existing = candidates.FirstOrDefault(File.Exists);
-    if (existing is not null)
-        return existing;
-
-    var requested = candidates.FirstOrDefault() ?? Path.Combine(AppContext.BaseDirectory, "SereinFlow.Worker.Runner.dll");
-    throw new InvalidOperationException(
-        $"Worker Runner executable was not found. Worker Runner 可执行文件不存在。 Configure SereinFlow:WorkerRunnerPath. 请配置 SereinFlow:WorkerRunnerPath。 Requested path: '{requested}'.");
+    principalAccessor.Current = principal;
+    requestContextAccessor.Current = new McpRequestContext(principal, "stdio");
+    try
+    {
+        await host.Services.GetRequiredService<SereinFlowMcpServer>()
+            .RunAsync(Console.In, Console.Out);
+    }
+    finally
+    {
+        requestContextAccessor.Current = null;
+        principalAccessor.Current = null;
+    }
 }
-
-static bool IsManagedWorkerAssembly(string path)
-    => string.Equals(Path.GetExtension(path), ".dll", StringComparison.OrdinalIgnoreCase);
 
 public partial class Program;
 

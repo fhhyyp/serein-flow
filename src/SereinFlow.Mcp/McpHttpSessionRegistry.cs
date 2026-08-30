@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace SereinFlow.McpServer;
+namespace SereinFlow.Mcp;
 
 public sealed class McpHttpSessionRegistry
 {

@@ -662,8 +662,7 @@ public sealed class RunExecutionHostedService : BackgroundService
         RunEventBroadcaster broadcaster,
         IHubContext<RunEventsHub> hub,
         ILogger<RunExecutionHostedService> logger,
-        IConfiguration configuration,
-        IWebHostEnvironment environment)
+        SereinFlow.Infrastructure.Configuration.SereinFlowStorageOptions storage)
     {
         _queue = queue;
         _scopeFactory = scopeFactory;
@@ -671,8 +670,8 @@ public sealed class RunExecutionHostedService : BackgroundService
         _broadcaster = broadcaster;
         _hub = hub;
         _logger = logger;
-        _scriptRoot = ResolvePath(configuration["SereinFlow:ScriptArtifactRoot"] ?? "data/script-artifacts", environment.ContentRootPath);
-        _libraryRoot = ResolvePath(configuration["SereinFlow:LibraryDirectory"] ?? "data/libraries", environment.ContentRootPath);
+        _scriptRoot = storage.ScriptArtifactRoot;
+        _libraryRoot = storage.LibraryDirectory;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -1200,6 +1199,4 @@ public sealed class RunExecutionHostedService : BackgroundService
             _ => FlowRunStatus.Failed
         };
 
-    private static string ResolvePath(string value, string root)
-        => Path.IsPathRooted(value) ? value : Path.Combine(root, value);
 }

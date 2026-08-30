@@ -4,23 +4,30 @@ using Microsoft.Extensions.Logging;
 using SqlSugar;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Application;
+using SereinFlow.Infrastructure.Configuration;
 
 namespace SereinFlow.Infrastructure.Persistence;
 
 public static class SereinFlowInfrastructureRegistration
 {
-    public static IServiceCollection AddSereinFlowInfrastructure(
+    public static IServiceCollection AddSereinFlowStorage(
         this IServiceCollection services,
         IConfiguration configuration,
         string contentRootPath)
     {
-        var configuredDatabasePath = configuration["SereinFlow:DatabasePath"] ?? "data/sereinflow.db";
-        var databasePath = Path.IsPathRooted(configuredDatabasePath)
-            ? configuredDatabasePath
-            : Path.Combine(contentRootPath, configuredDatabasePath);
-        var database = new SqliteDatabase(new SqliteDatabaseOptions(databasePath));
+        var options = SereinFlowStorageOptions.FromConfiguration(configuration, contentRootPath);
+        return services.AddSereinFlowStorage(options);
+    }
+
+    public static IServiceCollection AddSereinFlowStorage(
+        this IServiceCollection services,
+        SereinFlowStorageOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        var database = new SqliteDatabase(new SqliteDatabaseOptions(options.DatabasePath));
         database.Initialize();
 
+        services.AddSingleton(options);
         services.AddSingleton(database);
         // SqlSugarClient contains mutable connection/transaction state. Use a
         // scoped client so concurrent API requests cannot share one ADO reader
@@ -106,22 +113,14 @@ public static class SereinFlowInfrastructureRegistration
         services.AddScoped<IMcpIdempotencyStore>(serviceProvider =>
             new SqlSugarMcpIdempotencyStore(
                 serviceProvider.GetRequiredService<IRepository<McpIdempotencyRecord>>()));
-        var stagingDirectory = configuration["SereinFlow:Mcp:PackageStagingDirectory"] ?? "data/mcp-staging";
-        stagingDirectory = Path.IsPathRooted(stagingDirectory)
-            ? stagingDirectory
-            : Path.Combine(contentRootPath, stagingDirectory);
-        services.AddSingleton(new McpPackageStagingService(stagingDirectory));
+        services.AddSingleton(new McpPackageStagingService(options.McpPackageStagingDirectory));
 
-        var configuredLibraryDirectory = configuration["SereinFlow:LibraryDirectory"] ?? "data/libraries";
-        var libraryDirectory = Path.IsPathRooted(configuredLibraryDirectory)
-            ? configuredLibraryDirectory
-            : Path.Combine(contentRootPath, configuredLibraryDirectory);
         services.AddScoped<ILibraryCatalogService>(serviceProvider =>
             new SqliteLibraryCatalogService(
                 serviceProvider.GetRequiredService<IRepository<LibraryRecord>>(),
                 serviceProvider.GetRequiredService<IRepository<LibraryFamilyRecord>>(),
                 serviceProvider.GetRequiredService<IUnitOfWork>(),
-                new LibraryCatalogOptions(libraryDirectory),
+                new LibraryCatalogOptions(options.LibraryDirectory),
                 serviceProvider.GetRequiredService<ILogger<SqliteLibraryCatalogService>>()));
         return services;
     }

@@ -8,7 +8,7 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
 
-namespace SereinFlow.McpServer;
+namespace SereinFlow.Mcp;
 
 public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
 {

@@ -351,12 +351,16 @@
           "xunit.extensibility.core": "[2.9.3]"
         }
       },
+      "Serein.ScriptLang": {
+        "type": "Project"
+      },
       "sereinflow.api": {
         "type": "Project",
         "dependencies": {
           "SereinFlow.Application": "[1.0.0, )",
           "SereinFlow.Contracts": "[1.0.0, )",
           "SereinFlow.Infrastructure": "[1.0.0, )",
+          "SereinFlow.Mcp": "[1.0.0, )",
           "SereinFlow.Worker.Client": "[1.0.0, )"
         }
       },
@@ -392,6 +396,15 @@
       "sereinflow.library": {
         "type": "Project"
       },
+      "sereinflow.mcp": {
+        "type": "Project",
+        "dependencies": {
+          "SereinFlow.Application": "[1.0.0, )",
+          "SereinFlow.Contracts": "[1.0.0, )",
+          "SereinFlow.Infrastructure": "[1.0.0, )",
+          "SereinFlow.ScriptAdapter": "[1.0.0, )"
+        }
+      },
       "sereinflow.runtime": {
         "type": "Project",
         "dependencies": {
@@ -404,6 +417,22 @@
         "dependencies": {
           "SereinFlow.Domain": "[1.0.0, )",
           "SereinFlow.Library": "[1.0.0, )"
+        }
+      },
+      "sereinflow.scriptadapter": {
+        "type": "Project",
+        "dependencies": {
+          "Serein.ScriptLang": "[0.1.0, )",
+          "SereinFlow.Contracts": "[1.0.0, )",
+          "SereinFlow.Runtime.Abstractions": "[1.0.0, )",
+          "SereinFlow.ScriptModules": "[1.0.0, )"
+        }
+      },
+      "sereinflow.scriptmodules": {
+        "type": "Project",
+        "dependencies": {
+          "Serein.ScriptLang": "[0.1.0, )",
+          "SereinFlow.Runtime.Abstractions": "[1.0.0, )"
         }
       },
       "sereinflow.worker.client": {

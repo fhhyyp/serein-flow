@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace SereinFlow.McpServer;
+namespace SereinFlow.Mcp;
 
 /// <summary>
 /// Bounds remote MCP work per authenticated principal. The limiter is kept in

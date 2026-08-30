@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace SereinFlow.McpServer;
+namespace SereinFlow.Mcp;
 
 public static class McpProtocolConstants
 {

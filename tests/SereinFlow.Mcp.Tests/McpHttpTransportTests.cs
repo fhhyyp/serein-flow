@@ -1,9 +1,27 @@
-using SereinFlow.McpServer;
+using SereinFlow.Mcp;
+using Microsoft.Extensions.Configuration;
 
-namespace SereinFlow.McpServer.Tests;
+namespace SereinFlow.Mcp.Tests;
 
 public sealed class McpHttpTransportTests
 {
+    [Fact]
+    public void ParsesAndRetainsTheConfiguredMcpCorsOrigins()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["SereinFlow:Mcp:Http:AllowedOrigins"] = "https://trusted.example, https://console.example, invalid-origin",
+            })
+            .Build();
+
+        var options = SereinFlowMcpOptions.FromConfiguration(configuration);
+
+        Assert.Equal(
+            ["https://trusted.example", "https://console.example"],
+            options.AllowedOrigins);
+    }
+
     [Fact]
     public void SessionIsBoundToTheAuthenticatingPrincipal()
     {

@@ -11,6 +11,7 @@
     <ProjectReference Include="..\SereinFlow.Application\SereinFlow.Application.csproj" />
     <ProjectReference Include="..\SereinFlow.Contracts\SereinFlow.Contracts.csproj" />
     <ProjectReference Include="..\SereinFlow.Infrastructure\SereinFlow.Infrastructure.csproj" />
+    <ProjectReference Include="..\SereinFlow.Mcp\SereinFlow.Mcp.csproj" />
     <ProjectReference Include="..\SereinFlow.Worker.Client\SereinFlow.Worker.Client.csproj" />
   </ItemGroup>
 

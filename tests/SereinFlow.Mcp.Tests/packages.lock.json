@@ -380,7 +380,7 @@
       "sereinflow.library": {
         "type": "Project"
       },
-      "sereinflow.mcpserver": {
+      "sereinflow.mcp": {
         "type": "Project",
         "dependencies": {
           "SereinFlow.Application": "[1.0.0, )",

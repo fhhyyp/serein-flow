@@ -1,154 +1,144 @@
-# SereinFlow MCP Server
+# SereinFlow MCP
 
 ## 状态
 
-MCP Server 位于 `src/SereinFlow.McpServer`，提供本地 stdio 和可选的 Streamable HTTP 两种传输。它复用 `AiReadModelService`，不直接访问数据库记录，不启动流程 Worker。流程修改、发布、回滚、SereinLang 编译和类库导入都经过权限检查、预览确认、幂等控制和审计。
+MCP 由 `SereinFlow.Api` 唯一宿主承载。Web 模式在同一 API 进程挂载
+`/mcp`，与普通 Web API、Application 服务、数据库、类库目录和执行服务共用
+同一个 DI 容器；本地自动化可以显式使用 `SereinFlow.Api --mcp-stdio`。
 
-本文中的仓库路径、构建命令和 stdio 配置仅用于 SereinFlow 开发者在本地启动服务。连接已部署服务的 Codex、OpenCode、Claude Code 或其他 MCP 客户端不需要拥有本仓库，也不应假设存在某个固定的解决方案、源码、数据库或类库目录。
+MCP Backend 只通过 Application 服务和受控 DI Scope 访问业务数据，不通过本机
+REST 回调 API，也不直接访问 SQLite、SqlSugar Repository 或 Worker 句柄。流程
+修改、发布、回滚、SereinLang 编译和类库导入继续经过权限检查、预览确认、幂等
+控制和审计。
 
 ## 启动
 
-先构建 Server，再在仓库根目录执行：
+### Web API 与 HTTP MCP
+
+构建并启动 API：
 
 ```text
-dotnet build src/SereinFlow.McpServer/SereinFlow.McpServer.csproj --no-restore
-dotnet run --project src/SereinFlow.McpServer/SereinFlow.McpServer.csproj --no-build --no-restore
-
-# 远程 Streamable HTTP
-dotnet run --project src/SereinFlow.McpServer/SereinFlow.McpServer.csproj --no-build --no-restore -- --http
+dotnet build src/SereinFlow.Api/SereinFlow.Api.csproj
+dotnet run --project src/SereinFlow.Api/SereinFlow.Api.csproj
 ```
 
-MCP 客户端配置必须使用 `--no-build`，避免 `dotnet run` 的构建日志混入标准输出。生产部署也可以直接使用构建后的 `SereinFlow.McpServer.dll` 运行。
-
-stdio 模式从标准输入读取 JSON-RPC 消息，将响应写入标准输出。HTTP 模式默认监听 `http://127.0.0.1:5187/mcp`，要求 `Authorization: Bearer <api-key>`，并通过 `Mcp-Session-Id` 绑定 MCP 会话。日志和错误只写入标准错误。数据库和类库目录通过现有配置键读取：
+开发配置的 MCP 地址是 `http://127.0.0.1:5178/mcp`。请求必须携带：
 
 ```text
-SereinFlow__DatabasePath
-SereinFlow__LibraryDirectory
+Authorization: Bearer <api-key>
 ```
 
-HTTP 默认不启用跨域请求。需要由浏览器或跨域代理访问时，可显式配置逗号分隔的来源列表：
+首次请求 `initialize` 会建立 `Mcp-Session-Id`，后续请求必须回传同一会话 ID。
+HTTP transport 继续执行请求体大小、响应大小、并发、每主体速率和工具超时限制。
+未认证、无效会话、超限、超时和内部异常均返回稳定的 `mcp.*` 诊断；loopback
+地址不提供免认证管理员绕过。
 
-```text
-SereinFlow__Mcp__Http__AllowedOrigins=https://automation.example.com,https://admin.example.com
-```
-
-只有通过该配置明确列出的 `http`/`https` 来源会获得 CORS 响应头；TLS 证书和反向代理仍由宿主或部署层配置。
-
-在本地开发模式配置 MCP 客户端时，应将 `command` 设为 `dotnet`，将项目路径、`--no-build` 和 `--no-restore` 作为参数，并通过客户端支持的环境变量配置数据库路径。不同版本的 Codex、OpenCode 或其他 MCP 客户端配置键名可能不同，具体以客户端文档为准。生产或远程模式应连接已部署的 MCP HTTP 地址，或直接启动已发布的 `SereinFlow.McpServer.dll`；不要把下面的开发机路径复制到生产环境。
-
-一个使用仓库绝对路径的 stdio 配置值如下。配置文件的外层字段名按客户端要求调整：
+Git 中的 MCP 客户端配置只保存 URL，不保存 API key、数据库路径或类库目录：
 
 ```json
 {
-  "command": "dotnet",
-  "args": [
-    "run",
-    "--project",
-    "D:/Project/dotnet/SereinFlow/src/SereinFlow.McpServer/SereinFlow.McpServer.csproj",
-    "--no-build",
-    "--no-restore"
-  ],
-  "env": {
-    "SereinFlow__DatabasePath": "D:/Project/dotnet/SereinFlow/data/sereinflow.db",
-    "SereinFlow__LibraryDirectory": "D:/Project/dotnet/SereinFlow/data/libraries"
-  }
-}
-```
-
-如果客户端支持 MCP 的标准 stdio Server 配置，可以将上述值放入 `sereinflow` Server 条目，例如：
-
-```json
-{
-  "servers": {
+  "mcpServers": {
     "sereinflow": {
-      "type": "stdio",
-      "command": "dotnet",
-      "args": [
-        "run",
-        "--project",
-        "D:/Project/dotnet/SereinFlow/src/SereinFlow.McpServer/SereinFlow.McpServer.csproj",
-        "--no-build",
-        "--no-restore"
-      ],
-      "env": {
-        "SereinFlow__DatabasePath": "D:/Project/dotnet/SereinFlow/data/sereinflow.db",
-        "SereinFlow__LibraryDirectory": "D:/Project/dotnet/SereinFlow/data/libraries"
-      }
+      "type": "http",
+      "url": "http://127.0.0.1:5178/mcp"
     }
   }
 }
 ```
 
-## Resources
+API key 应由 MCP 客户端的安全凭据、外部密钥注入或凭据存储提供。不要在仓库、
+插件配置、日志或流程内容中写入 key。
 
-静态资源：
+### 本地 stdio
+
+stdio 是 API executable 的显式入口：
+
+```text
+dotnet run --project src/SereinFlow.Api/SereinFlow.Api.csproj -- --mcp-stdio
+```
+
+stdio 模式只注册 MCP、Application、Storage 和 stdio 所需服务，不启动 HTTP
+listener、SignalR 或 API-only hosted services。必须显式设置
+`SereinFlow:Mcp:Stdio:ApiKey`（环境变量形式为
+`SereinFlow__Mcp__Stdio__ApiKey`）；缺少、无效、过期或撤销的 key 会使进程以
+非零状态退出。stdout 只输出 JSON-RPC，启动错误、日志和内部诊断写入 stderr。
+正常 EOF 会清理并正常退出。
+
+## 数据路径配置
+
+数据库和类库目录属于服务器宿主配置，不是 MCP 客户端参数。统一配置位于
+`SereinFlow`：
+
+```json
+{
+  "SereinFlow": {
+    "DataRoot": "data",
+    "DatabaseFileName": "sereinflow.db",
+    "LibraryDirectoryName": "libraries",
+    "ScriptArtifactDirectoryName": "script-artifacts",
+    "McpStagingDirectoryName": "mcp-staging"
+  }
+}
+```
+
+相对 `DataRoot` 名称只在服务器宿主内部相对于 `ContentRootPath` 解析，并由
+统一的 `SereinFlowStorageOptions` 解析一次。旧的 `DatabasePath`、
+`LibraryDirectory`、`ScriptArtifactRoot` 和 MCP staging 路径键不应继续配置；
+没有显式 `DataRoot` 时检测到这些键会直接失败，并给出安全迁移诊断，不会静默
+切换数据库。
+
+## Resources
 
 ```text
 sereinflow://projects
 sereinflow://libraries
-```
-
-资源模板：
-
-```text
 sereinflow://projects/{projectId}
 sereinflow://projects/{projectId}/flows/{flowId}/topology
+sereinflow://projects/{projectId}/flows/{flowId}/versions/{track}
+sereinflow://projects/{projectId}/flows/{flowId}/versions/{track}/{version}
 sereinflow://libraries/{libraryId}
 sereinflow://runs/{runId}
 sereinflow://debug-sessions/{sessionId}
-sereinflow://projects/{projectId}/flows/{flowId}/versions/{track}
-sereinflow://projects/{projectId}/flows/{flowId}/versions/{track}/{version}
 sereinflow://mcp-previews/{previewId}
 ```
 
 ## Tools
 
-```text
-sereinflow_list_projects
-sereinflow_preview_create_project
-sereinflow_apply_create_project
-sereinflow_get_project
-sereinflow_get_flow_topology
-sereinflow_list_libraries
-sereinflow_get_library
-sereinflow_get_run_inspection
-sereinflow_get_debug_state
-sereinflow_wait_debug_state
-sereinflow_get_flow_edit_model
-sereinflow_preview_flow_patch
-sereinflow_apply_flow_patch
-sereinflow_compare_flow_versions
-sereinflow_preview_publish_flow
-sereinflow_apply_publish_flow
-sereinflow_preview_rollback_flow
-sereinflow_apply_rollback_flow
-sereinflow_compile_sereinlang
-sereinflow_preview_library_package
-sereinflow_apply_library_package
-sereinflow_preview_project_library_attach
-sereinflow_apply_project_library_attach
-sereinflow_list_mcp_api_keys
-sereinflow_create_mcp_api_key
-sereinflow_revoke_mcp_api_key
-sereinflow_rotate_mcp_api_key
-```
+工具清单由 `tools/list` 返回，包含项目、流程、运行、调试、类库和 API key
+管理能力。流程修改使用 `sereinflow_preview_flow_patch` 后再由显式确认的
+apply Tool 执行；v2 请求使用 `schemaVersion: "2.0"`、`op` discriminator、
+具名 payload 和 canonical camelCase 枚举。兼容期仍接受流程公共合同的 legacy
+v1 输入，但响应始终返回 v2 `normalizedOperations` 与
+`normalizationWarnings`。
 
-所有结果默认受 AI 只读模型的数量、JSON 大小和脚本源码策略限制。`includeScriptSource` 和 `includeFlowLiteralValues` 必须由调用方显式传入才会启用。
+类库节点必须先调用只读的
+`sereinflow_create_library_node_template`。它只接受已扫描并已附加项目的真实
+Action/Flipflop 合同，返回完整 canonical `NodeDto`、runtime library metadata、
+参数端口、默认 literal、枚举/variadic 元数据、包 SHA-256 和
+`contractRevision`。将返回的 node 原样放进 v2 `addNode`；类库 attach/detach
+仍是独立的 preview/apply 操作，不属于 flow patch。
 
-stdio 默认用于本机受信任进程，并使用本地管理员主体。受控部署可以配置 `SereinFlow:Mcp:Stdio:ApiKey`（或 `SereinFlow:Mcp:StdioApiKey`）；配置后 stdio 会先验证该 Key，并使用其项目范围和权限，不再自动授予管理员权限。
+## 节点绘制约束
 
-## 当前边界
+绘制前先读取 `sereinflow_get_flow_edit_model`，依据实际节点位置、尺寸、端口、
+连接和画布边界布局。每个节点必须有不重叠的 bounding box，并与现有节点、其他
+新节点和画布边界保持安全间距。通常约 `260 px` 宽的节点，列间距使用约
+`340-420 px`；参数较多时增加间距，横向至少保留 `80 px` 清晰区，分支行至少
+保留 `64 px`。
 
-- C# 源码生成、项目创建和 DLL 编译由用户本地 VS/.NET 工具链完成，服务端不执行 `dotnet build`、MSBuild 或用户构建脚本。
-- 类库 Tool 只接收符合 `[类库名称]-[版本号].zip` 规则的已构建 ZIP，并在受控目录中校验、PE 扫描、分析和导入，不加载或执行上传程序集。
-- 所有状态变更 Tool 都必须先预览，再使用 `APPLY`、预览指纹和幂等键确认；类库项目引用与类库工件导入是两个独立操作。
-- 创建项目使用 `sereinflow_preview_create_project` 和 `sereinflow_apply_create_project`，需要管理员主体和 `project.write` 权限；预览会生成一个空的 Draft 项目及 `main` 流程。
-- `project.write` 仅用于创建项目，创建操作仍要求管理员主体；项目级 Key 不能借此创建其他项目。
-- HTTP 默认只监听本机地址；远程监听、TLS、反向代理和 CORS 必须通过显式部署配置启用。
+主执行路径从左向右，同一执行阶段对齐；成功、失败、错误分支使用独立行并向
+右侧展开。连接尽量短且少交叉；数据连接不能穿过节点主体或端口列表，必要时
+使用节点上下方的专用通道。新增节点造成重叠时只移动受影响节点，并在同一个
+preview 中包含坐标变化；提交 preview 前检查所有节点是否越界、重叠以及连接
+是否穿过节点。
 
-## 错误诊断
+## 安全与诊断
 
-MCP 客户端应把连接中的 SereinFlow 服务视为黑盒，只使用 JSON-RPC 错误、稳定错误码、结构化 `data`、公开资源读模型和有界诊断信息定位问题。不得因为工具返回错误而搜索 `SereinFlow.sln`、翻阅服务端源码、读取服务端数据库或类库目录，也不得反编译上传程序集来推测生产原因。
+客户端应把已连接的 SereinFlow 服务视为黑盒，只使用 MCP 错误码、结构化
+`data`、公开资源和有界诊断。不得通过客户端参数或环境变量改变服务器的
+数据库、类库或 staging 路径，也不得搜索服务源码、读取服务器数据库或反编译
+上传程序集来解释远程错误。
 
-未预期的服务端异常返回 JSON-RPC `-32603`，并带有 `data.code = "mcp.internal_error"` 和 `data.diagnosticId`；HTTP 工具超时返回 `mcp.tool_timeout`，同样带有 `data.diagnosticId`。服务端标准错误会记录同一个 `diagnosticId`，但不会向客户端泄漏堆栈、源码或用户输入。客户端应把该 ID 提供给服务运维人员。如果公开诊断不足，应请求关联服务端日志或补充可复现请求，不应改用本地源代码搜索。
+未预期异常返回 JSON-RPC `-32603`，带有 `data.code = "mcp.internal_error"`
+和 `diagnosticId`；HTTP 工具超时返回 `mcp.tool_timeout` 和同样的诊断 ID。
+客户端应将诊断 ID 提供给服务运维人员。

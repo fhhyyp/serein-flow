@@ -1,9 +1,9 @@
 using System.Text.Json;
 using SereinFlow.Application;
 using SereinFlow.Contracts;
-using SereinFlow.McpServer;
+using SereinFlow.Mcp;
 
-namespace SereinFlow.McpServer.Tests;
+namespace SereinFlow.Mcp.Tests;
 
 public sealed class McpProtocolTests
 {

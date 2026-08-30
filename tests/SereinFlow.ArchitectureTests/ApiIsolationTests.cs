@@ -51,6 +51,35 @@ public sealed class ApiIsolationTests
         }
     }
 
+    [Fact]
+    public void McpHasOneLibraryAndNoRetiredExecutableHost()
+    {
+        var root = FindRepositoryRoot();
+        var sourceProjectFiles = Directory
+            .EnumerateFiles(root, "*.csproj", SearchOption.AllDirectories)
+            .Where(static path => !path.Contains("\\bin\\", StringComparison.OrdinalIgnoreCase))
+            .Where(static path => !path.Contains("\\obj\\", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        Assert.Single(sourceProjectFiles, path =>
+            string.Equals(Path.GetFileName(path), "SereinFlow.Mcp.csproj", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(sourceProjectFiles, path =>
+            path.Contains("SereinFlow.McpServer", StringComparison.OrdinalIgnoreCase));
+
+        var backendFiles = Directory
+            .EnumerateFiles(Path.Combine(root, "src"), "*SereinFlowMcpBackend.cs", SearchOption.AllDirectories)
+            .Where(static path => !path.Contains("\\bin\\", StringComparison.OrdinalIgnoreCase))
+            .Where(static path => !path.Contains("\\obj\\", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        Assert.Single(backendFiles);
+
+        var pluginConfig = File.ReadAllText(Path.Combine(root, "plugins", "sereinflow-ai-toolkit", ".mcp.json"));
+        Assert.DoesNotContain("DatabasePath", pluginConfig, StringComparison.Ordinal);
+        Assert.DoesNotContain("LibraryDirectory", pluginConfig, StringComparison.Ordinal);
+        Assert.DoesNotContain("McpServer", pluginConfig, StringComparison.Ordinal);
+        Assert.Contains("http://127.0.0.1:5178/mcp", pluginConfig, StringComparison.Ordinal);
+    }
+
     private static string FindRepositoryRoot()
     {
         for (var current = new DirectoryInfo(AppContext.BaseDirectory); current is not null; current = current.Parent)
