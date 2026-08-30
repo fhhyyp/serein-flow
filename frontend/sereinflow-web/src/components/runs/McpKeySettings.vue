@@ -22,15 +22,18 @@ import { t } from '../../i18n'
 
 const props = defineProps<{ projectWorkspaces: ProjectWorkspaceDto[] }>()
 
-const managementSecret = ref(getMcpManagementCredential())
+const initialCredential = getMcpManagementCredential()
+const managementSecret = ref(initialCredential)
+const credentialInput = ref(initialCredential ?? '')
 const rememberCredential = ref(hasRememberedMcpManagementCredential())
 const keys = ref<McpApiKeyDto[]>([])
 const isLoading = ref(false)
 const isSaving = ref(false)
+const isAuthenticated = ref(false)
 const error = ref('')
 const notice = ref('')
 const revealedSecret = ref('')
-const connected = computed(() => Boolean(managementSecret.value))
+const connected = computed(() => isAuthenticated.value)
 const projectOptions = computed(() => mcpKeyProjectOptions(props.projectWorkspaces))
 
 const createForm = reactive<CreateMcpApiKeyRequestDto>({
@@ -56,12 +59,15 @@ const permissionOptions: Array<{ value: McpPermission; label: string; hint: stri
   { value: 'sensitive.read', label: '敏感内容读取', hint: '读取脚本源码或流程字面量' },
 ]
 
-async function loadKeys(): Promise<void> {
-  if (!managementSecret.value) return
+async function loadKeys(secret = managementSecret.value): Promise<boolean> {
+  if (!secret) return false
   isLoading.value = true
   error.value = ''
   try {
-    keys.value = await listMcpApiKeys(managementSecret.value)
+    keys.value = await listMcpApiKeys(secret)
+    managementSecret.value = secret
+    isAuthenticated.value = true
+    return true
   } catch (exception) {
     if (exception instanceof McpApiError && exception.status === 401) {
       clearCredential()
@@ -69,6 +75,7 @@ async function loadKeys(): Promise<void> {
     } else {
       error.value = errorMessage(exception)
     }
+    return false
   } finally {
     isLoading.value = false
   }
@@ -81,6 +88,8 @@ async function setupKey(): Promise<void> {
   try {
     const created = await setupMcpApiKey()
     managementSecret.value = created.secret
+    credentialInput.value = created.secret
+    isAuthenticated.value = true
     storeMcpManagementCredential(created.secret, rememberCredential.value)
     revealedSecret.value = created.secret
     notice.value = t('console.mcpKeyCreated')
@@ -93,14 +102,17 @@ async function setupKey(): Promise<void> {
 }
 
 async function connectKey(): Promise<void> {
-  const candidate = managementSecret.value?.trim()
+  if (isLoading.value || isSaving.value) return
+  const candidate = credentialInput.value.trim()
   if (!candidate) {
     error.value = t('console.mcpKeyRequired')
     return
   }
-  storeMcpManagementCredential(candidate, rememberCredential.value)
-  managementSecret.value = candidate
-  await loadKeys()
+  notice.value = ''
+  if (await loadKeys(candidate)) {
+    storeMcpManagementCredential(candidate, rememberCredential.value)
+    notice.value = t('console.mcpKeyConnected')
+  }
 }
 
 async function createKey(): Promise<void> {
@@ -189,6 +201,8 @@ async function copySecret(): Promise<void> {
 function clearCredential(): void {
   clearMcpManagementCredential()
   managementSecret.value = undefined
+  credentialInput.value = ''
+  isAuthenticated.value = false
   keys.value = []
   revealedSecret.value = ''
 }
@@ -225,7 +239,7 @@ onMounted(() => { void loadKeys() })
         <h2 id="mcp-key-settings-title"><KeyRound :size="17" />{{ t('console.mcpKeyTitle') }}</h2>
         <p>{{ t('console.mcpKeyHint') }}</p>
       </div>
-      <button v-if="connected" class="icon-button" type="button" :title="t('console.mcpKeyRefresh')" :aria-label="t('console.mcpKeyRefresh')" :disabled="isLoading" @click="loadKeys"><RefreshCw :size="15" :class="{ 'is-spinning': isLoading }" /></button>
+      <button v-if="connected" class="icon-button" type="button" :title="t('console.mcpKeyRefresh')" :aria-label="t('console.mcpKeyRefresh')" :disabled="isLoading" @click="loadKeys()"><RefreshCw :size="15" :class="{ 'is-spinning': isLoading }" /></button>
     </div>
 
     <p v-if="error" class="mcp-key-settings__message mcp-key-settings__message--error" role="alert">{{ error }}</p>
@@ -240,9 +254,9 @@ onMounted(() => { void loadKeys() })
 
     <div v-if="!connected" class="mcp-key-settings__connect">
       <div class="mcp-key-settings__empty"><LockKeyhole :size="20" /><div><strong>{{ t('console.mcpKeyConnectTitle') }}</strong><p>{{ t('console.mcpKeyConnectHint') }}</p></div></div>
-      <label class="mcp-key-settings__credential"><span>{{ t('console.mcpKeySecretLabel') }}</span><input v-model="managementSecret" type="password" autocomplete="off" :placeholder="t('console.mcpKeySecretPlaceholder')" @keyup.enter="connectKey" /></label>
+      <label class="mcp-key-settings__credential"><span>{{ t('console.mcpKeySecretLabel') }}</span><input v-model="credentialInput" type="password" autocomplete="off" :placeholder="t('console.mcpKeySecretPlaceholder')" @keyup.enter="connectKey" /></label>
       <label class="mcp-key-settings__remember"><input v-model="rememberCredential" type="checkbox" /><span>{{ t('console.mcpKeyRemember') }}</span></label>
-      <div class="mcp-key-settings__actions"><button class="command-button run" type="button" :disabled="isSaving" @click="connectKey"><ShieldCheck :size="15" /><span>{{ t('console.mcpKeyConnect') }}</span></button><button class="command-button quiet" type="button" :disabled="isSaving" @click="setupKey"><Plus :size="15" /><span>{{ t('console.mcpKeySetup') }}</span></button></div>
+      <div class="mcp-key-settings__actions"><button class="command-button run" type="button" :disabled="isSaving || isLoading" @click="connectKey"><ShieldCheck :size="15" /><span>{{ t('console.mcpKeyConnect') }}</span></button><button class="command-button quiet" type="button" :disabled="isSaving || isLoading" @click="setupKey"><Plus :size="15" /><span>{{ t('console.mcpKeySetup') }}</span></button></div>
     </div>
 
     <template v-else>
