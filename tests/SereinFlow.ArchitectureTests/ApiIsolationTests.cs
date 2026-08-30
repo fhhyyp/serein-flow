@@ -77,7 +77,7 @@ public sealed class ApiIsolationTests
         Assert.DoesNotContain("DatabasePath", pluginConfig, StringComparison.Ordinal);
         Assert.DoesNotContain("LibraryDirectory", pluginConfig, StringComparison.Ordinal);
         Assert.DoesNotContain("McpServer", pluginConfig, StringComparison.Ordinal);
-        Assert.Contains("http://127.0.0.1:5178/mcp", pluginConfig, StringComparison.Ordinal);
+        Assert.Contains("http://127.0.0.1:8188/mcp", pluginConfig, StringComparison.Ordinal);
     }
 
     [Fact]

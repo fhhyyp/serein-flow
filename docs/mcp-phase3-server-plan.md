@@ -16,7 +16,7 @@ Web API 与 MCP 必须共享同一 Application 服务、Storage options、数据
 ## 入口
 
 - Web 模式：`SereinFlow.Api` 同时提供普通 API 和 `/mcp`，开发地址为
-  `http://127.0.0.1:5178/mcp`。
+  `http://127.0.0.1:8188/mcp`。
 - stdio 模式：显式运行 `SereinFlow.Api --mcp-stdio`，只启用 MCP、Application、
   Storage 和 stdio 所需服务。
 - HTTP 和 stdio 使用同一个 `SereinFlowMcpBackend` 与

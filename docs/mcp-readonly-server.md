@@ -22,7 +22,7 @@ dotnet build src/SereinFlow.Api/SereinFlow.Api.csproj
 dotnet run --project src/SereinFlow.Api/SereinFlow.Api.csproj
 ```
 
-开发配置的 MCP 地址是 `http://127.0.0.1:5178/mcp`。请求必须携带：
+开发配置的 MCP 地址是 `http://127.0.0.1:8188/mcp`。请求必须携带：
 
 ```text
 Authorization: Bearer <api-key>
@@ -40,7 +40,7 @@ Git 中的 MCP 客户端配置只保存 URL，不保存 API key、数据库路�
   "mcpServers": {
     "sereinflow": {
       "type": "http",
-      "url": "http://127.0.0.1:5178/mcp"
+      "url": "http://127.0.0.1:8188/mcp"
     }
   }
 }
