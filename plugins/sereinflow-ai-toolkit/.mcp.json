@@ -2,7 +2,8 @@
   "mcpServers": {
     "sereinflow": {
       "type": "http",
-      "url": "http://127.0.0.1:8188/mcp"
+      "url": "http://127.0.0.1:8188/mcp",
+      "bearerTokenEnvVar": "SEREINFLOW_MCP_API_KEY"
     }
   }
 }

@@ -49,6 +49,25 @@ Git 中的 MCP 客户端配置只保存 URL，不保存 API key、数据库路�
 API key 应由 MCP 客户端的安全凭据、外部密钥注入或凭据存储提供。不要在仓库、
 插件配置、日志或流程内容中写入 key。
 
+SereinFlow AI Toolkit 将 `SEREINFLOW_MCP_API_KEY` 作为 HTTP Bearer token 的
+环境变量名；插件只声明变量名，不存储或传输密钥值。开发环境首次启用时，服务运维者
+应为 `SereinFlow:Mcp:BootstrapAdminKey` 配置一个随机临时密钥，并在运行 Codex 的
+同一用户环境中把相同值设置为 `SEREINFLOW_MCP_API_KEY`。连接后，使用管理员 MCP
+工具创建一个专用 API key，把客户端环境变量替换为该专用 key，随后移除 Bootstrap
+配置。生产环境不应长期保留 Bootstrap key。
+
+例如，PowerShell 中可在启动 API 与 Codex 前分别设置服务器和客户端环境变量；尖括号
+内容是同一段随机密钥，不能提交或记录：
+
+```powershell
+[Environment]::SetEnvironmentVariable('SereinFlow__Mcp__BootstrapAdminKey', '<temporary-random-secret>', 'User')
+[Environment]::SetEnvironmentVariable('SEREINFLOW_MCP_API_KEY', '<temporary-random-secret>', 'User')
+```
+
+修改用户环境变量后，必须重启正在运行的 `SereinFlow.Api` 和 Codex，令两个进程读取
+新的环境。若返回 HTTP `401`，表示地址和 MCP 路由可达，但 Bearer key 缺失、无效、
+过期或已撤销；这不是端口或 Resource 清单错误。
+
 ### 本地 stdio
 
 stdio 是 API executable 的显式入口：

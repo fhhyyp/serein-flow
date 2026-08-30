@@ -26,6 +26,13 @@ subscription updates or list-change notifications; discover the current
 catalog when needed. The plugin manifest's `Interactive` and `Write` values
 are UI metadata, not MCP protocol capability declarations.
 
+The HTTP connection obtains its bearer token only from the
+`SEREINFLOW_MCP_API_KEY` environment variable. Never put an API key in the
+plugin, repository, task text, tool arguments, or client-local project files.
+If initialization cannot authenticate, report that the SereinFlow MCP API key
+is absent, invalid, expired, or revoked; do not treat it as a missing Skill or
+attempt to bypass server authentication.
+
 At the beginning of a task:
 
 1. Read `initialize.instructions` from the MCP server.

@@ -31,6 +31,7 @@ public sealed class McpHostIntegrationTests : IClassFixture<McpHostIntegrationTe
         using var unauthenticatedRequest = CreateMcpRequest("initialize", 1);
         var unauthenticated = await client.SendAsync(unauthenticatedRequest);
         Assert.Equal(HttpStatusCode.Unauthorized, unauthenticated.StatusCode);
+        Assert.Contains("Bearer", unauthenticated.Headers.WwwAuthenticate.Select(static value => value.Scheme));
         using (var unauthenticatedDocument = JsonDocument.Parse(await unauthenticated.Content.ReadAsStringAsync()))
         {
             Assert.Equal("mcp.unauthenticated", unauthenticatedDocument.RootElement.GetProperty("error").GetProperty("code").GetString());

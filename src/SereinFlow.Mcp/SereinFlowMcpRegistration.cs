@@ -131,7 +131,7 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
         {
             var principal = await AuthenticateAsync(context, security, cancellationToken);
             if (principal is null)
-                return Results.Json(new { error = new { code = "mcp.unauthenticated", message = "MCP authentication is required." } }, statusCode: StatusCodes.Status401Unauthorized);
+                return Unauthorized(context);
             var sessionId = context.Request.Headers["Mcp-Session-Id"].FirstOrDefault();
             if (string.IsNullOrWhiteSpace(sessionId) || !sessions.Remove(sessionId, principal.Id))
                 return Results.StatusCode(StatusCodes.Status404NotFound);
@@ -152,7 +152,7 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
 
             var principal = await AuthenticateAsync(context, security, cancellationToken);
             if (principal is null)
-                return Results.Json(new { error = new { code = "mcp.unauthenticated", message = "MCP authentication is required." } }, statusCode: StatusCodes.Status401Unauthorized);
+                return Unauthorized(context);
             if (!limiter.TryAcquire(principal.Id, out var limiterLease))
                 return Results.StatusCode(StatusCodes.Status429TooManyRequests);
 
@@ -233,6 +233,14 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
             return null;
         var secret = header["Bearer ".Length..].Trim();
         return await security.AuthenticateAsync(secret, cancellationToken);
+    }
+
+    private static IResult Unauthorized(HttpContext context)
+    {
+        context.Response.Headers.WWWAuthenticate = "Bearer";
+        return Results.Json(
+            new { error = new { code = "mcp.unauthenticated", message = "MCP authentication is required." } },
+            statusCode: StatusCodes.Status401Unauthorized);
     }
 
     private static async Task<string> ReadBodyAsync(Stream body, long maxBytes, CancellationToken cancellationToken)
