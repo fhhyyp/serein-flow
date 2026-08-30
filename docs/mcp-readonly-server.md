@@ -50,13 +50,19 @@ API key 应由 MCP 客户端的安全凭据、外部密钥注入或凭据存储�
 插件配置、日志或流程内容中写入 key。
 
 SereinFlow AI Toolkit 将 `SEREINFLOW_MCP_API_KEY` 作为 HTTP Bearer token 的
-环境变量名；插件只声明变量名，不存储或传输密钥值。开发环境首次启用时，服务运维者
-应为 `SereinFlow:Mcp:BootstrapAdminKey` 配置一个随机临时密钥，并在运行 Codex 的
-同一用户环境中把相同值设置为 `SEREINFLOW_MCP_API_KEY`。连接后，使用管理员 MCP
-工具创建一个专用 API key，把客户端环境变量替换为该专用 key，随后移除 Bootstrap
-配置。生产环境不应长期保留 Bootstrap key。
+环境变量名；插件只声明变量名，不存储或传输密钥值。推荐在 Web Console 的“环境设置”
+中完成密钥管理：第一次打开时点击“生成首个密钥”，随后为 Codex 创建项目范围的
+客户端 key。完整 `sfk_...` Secret 只在生成或轮换后显示一次，服务端数据库只保存
+哈希和盐。初始化接口仅接受本机 loopback 请求；如果服务器和浏览器不在同一台机器，
+请先由服务器管理员通过受控配置完成首次初始化，再在 Web Console 中继续管理密钥。
 
-例如，PowerShell 中可在启动 API 与 Codex 前分别设置服务器和客户端环境变量；尖括号
+生成的 Secret 需要填入 Codex 的 MCP 凭据配置中，变量名填写
+`SEREINFLOW_MCP_API_KEY`，变量值粘贴 Web Console 显示的完整 Secret。浏览器出于
+安全边界不能直接修改已经运行的 Codex 进程环境变量，因此服务端可以负责生成和持久化
+密钥，但客户端仍需要这一步凭据绑定。不要把 Secret 写入仓库、插件源文件、日志或流程
+内容。
+
+只有在无法访问 Web Console 时，才使用 PowerShell 配置首次 bootstrap key；尖括号
 内容是同一段随机密钥，不能提交或记录：
 
 ```powershell

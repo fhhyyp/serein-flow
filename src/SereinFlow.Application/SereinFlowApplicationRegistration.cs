@@ -23,6 +23,7 @@ public static class SereinFlowApplicationRegistration
         services.AddScoped<LibraryNodeTemplateService>();
         services.AddScoped<McpPreviewService>();
         services.AddScoped<McpIdempotencyService>();
+        services.AddScoped<McpApiKeyManagementService>();
 
         return services;
     }

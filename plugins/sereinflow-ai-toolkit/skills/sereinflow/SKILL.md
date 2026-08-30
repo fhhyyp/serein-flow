@@ -33,6 +33,22 @@ If initialization cannot authenticate, report that the SereinFlow MCP API key
 is absent, invalid, expired, or revoked; do not treat it as a missing Skill or
 attempt to bypass server authentication.
 
+## Configure the client key
+
+The SereinFlow Web Console can generate and persist MCP keys. Open the
+environment settings, use the local-only first-key setup when no key exists,
+then create a project-scoped client key with the smallest required permissions.
+The complete `sfk_...` Secret is returned only once after creation or rotation.
+
+In the Codex MCP credential configuration, set the variable named
+`SEREINFLOW_MCP_API_KEY` to that complete Secret. The variable name is already
+declared by this plugin; the plugin never contains the Secret value. A browser
+cannot change the environment of an already running Codex process, so the
+Secret must be entered through the client's supported credential UI or secure
+environment/secret injection mechanism. Use the server bootstrap setting only
+for first-time recovery when the Web Console is unavailable, and remove it
+after a dedicated client key has been created.
+
 At the beginning of a task:
 
 1. Read `initialize.instructions` from the MCP server.

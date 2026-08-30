@@ -204,12 +204,18 @@ public sealed class McpHostIntegrationTests : IClassFixture<McpHostIntegrationTe
         {
             builder.UseEnvironment("Testing");
             builder.UseSetting(WebHostDefaults.PreventHostingStartupKey, "true");
-            builder.ConfigureAppConfiguration(configuration => configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            builder.UseSetting("SereinFlow:DataRoot", _storage.Path);
+            builder.UseSetting("SereinFlow:Mcp:BootstrapAdminKey", BootstrapKey);
+            builder.ConfigureAppConfiguration(configuration =>
             {
-                ["SereinFlow:DataRoot"] = _storage.Path,
-                ["SereinFlow:Mcp:BootstrapAdminKey"] = BootstrapKey,
-                ["SereinFlow:ApiDocumentation:Enabled"] = "true",
-            }));
+                configuration.Sources.Clear();
+                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["SereinFlow:DataRoot"] = _storage.Path,
+                    ["SereinFlow:Mcp:BootstrapAdminKey"] = BootstrapKey,
+                    ["SereinFlow:ApiDocumentation:Enabled"] = "true",
+                });
+            });
         }
 
         protected override void Dispose(bool disposing)

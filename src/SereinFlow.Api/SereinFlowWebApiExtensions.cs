@@ -2,6 +2,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
+using SereinFlow.Contracts;
 
 namespace SereinFlow.Api;
 
@@ -49,6 +50,7 @@ internal static class SereinFlowWebApiExtensions
     private static void ConfigureJson(JsonSerializerOptions options)
     {
         options.Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
+        options.Converters.Insert(0, new McpPermissionJsonConverter());
         options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
     }
 }
