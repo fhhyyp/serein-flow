@@ -72,6 +72,27 @@ public sealed class McpHostIntegrationTests : IClassFixture<McpHostIntegrationTe
     }
 
     [Fact]
+    public async Task WebHostExposesControllerOpenApiWithoutProtocolTransports()
+    {
+        using var client = _factory.CreateClient();
+
+        var swagger = await client.GetAsync("/swagger");
+        Assert.Equal(HttpStatusCode.OK, swagger.StatusCode);
+        Assert.Contains("swagger-ui", await swagger.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+
+        var openApi = await client.GetAsync("/openapi/v1.json");
+        Assert.Equal(HttpStatusCode.OK, openApi.StatusCode);
+        using var document = JsonDocument.Parse(await openApi.Content.ReadAsStringAsync());
+        var paths = document.RootElement.GetProperty("paths");
+        Assert.True(paths.TryGetProperty("/api/projects", out _));
+        Assert.True(paths.TryGetProperty("/api/projects/{projectId}/flows/{flowId}", out _));
+        Assert.True(paths.TryGetProperty("/api/runs/{runId}", out _));
+        Assert.False(paths.TryGetProperty("/mcp", out _));
+        Assert.False(paths.TryGetProperty("/hubs/runs", out _));
+        Assert.False(paths.EnumerateObject().Any(path => path.Name.EndsWith("/events/stream", StringComparison.Ordinal)));
+    }
+
+    [Fact]
     public async Task StdioModeRequiresAnExplicitKeyAndOnlyWritesJsonRpcToStandardOutput()
     {
         using var reservedEndpoint = new TcpListener(IPAddress.Loopback, 0);
@@ -186,6 +207,7 @@ public sealed class McpHostIntegrationTests : IClassFixture<McpHostIntegrationTe
             {
                 ["SereinFlow:DataRoot"] = _storage.Path,
                 ["SereinFlow:Mcp:BootstrapAdminKey"] = BootstrapKey,
+                ["SereinFlow:ApiDocumentation:Enabled"] = "true",
             }));
         }
 

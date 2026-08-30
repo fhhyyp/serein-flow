@@ -80,6 +80,43 @@ public sealed class ApiIsolationTests
         Assert.Contains("http://127.0.0.1:5178/mcp", pluginConfig, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void RestSurfaceUsesControllersWithoutMinimalApiMappingFiles()
+    {
+        var root = FindRepositoryRoot();
+        var apiRoot = Path.Combine(root, "src", "SereinFlow.Api");
+        var mappingFiles = Directory.EnumerateFiles(apiRoot, "*EndpointMapping.cs", SearchOption.AllDirectories);
+        Assert.Empty(mappingFiles);
+
+        var controllerFiles = Directory
+            .EnumerateFiles(Path.Combine(apiRoot, "Controllers"), "*Controller.cs", SearchOption.TopDirectoryOnly)
+            .Where(path => !path.EndsWith("ApiControllerBase.cs", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        Assert.NotEmpty(controllerFiles);
+        foreach (var controllerFile in controllerFiles)
+        {
+            var source = File.ReadAllText(controllerFile);
+            Assert.Contains("ControllerBase", source, StringComparison.Ordinal);
+            Assert.Contains("[Route(", source, StringComparison.Ordinal);
+            Assert.Contains("[Http", source, StringComparison.Ordinal);
+        }
+
+        var apiSources = Directory.EnumerateFiles(apiRoot, "*.cs", SearchOption.AllDirectories);
+        foreach (var sourceFile in apiSources)
+        {
+            if (sourceFile.Contains("\\bin\\", StringComparison.OrdinalIgnoreCase)
+                || sourceFile.Contains("\\obj\\", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var source = File.ReadAllText(sourceFile);
+            Assert.DoesNotContain(".MapGet(\"/api/", source, StringComparison.Ordinal);
+            Assert.DoesNotContain(".MapPost(\"/api/", source, StringComparison.Ordinal);
+            Assert.DoesNotContain(".MapPut(\"/api/", source, StringComparison.Ordinal);
+            Assert.DoesNotContain(".MapPatch(\"/api/", source, StringComparison.Ordinal);
+            Assert.DoesNotContain(".MapDelete(\"/api/", source, StringComparison.Ordinal);
+        }
+    }
+
     private static string FindRepositoryRoot()
     {
         for (var current = new DirectoryInfo(AppContext.BaseDirectory); current is not null; current = current.Parent)

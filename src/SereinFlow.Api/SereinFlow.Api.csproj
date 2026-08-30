@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" />
     <ProjectReference Include="..\SereinFlow.Application\SereinFlow.Application.csproj" />
     <ProjectReference Include="..\SereinFlow.Contracts\SereinFlow.Contracts.csproj" />
     <ProjectReference Include="..\SereinFlow.Infrastructure\SereinFlow.Infrastructure.csproj" />

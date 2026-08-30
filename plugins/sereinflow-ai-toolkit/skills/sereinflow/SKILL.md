@@ -20,6 +20,12 @@ fallback. stdout is reserved for JSON-RPC; logs and startup diagnostics go to
 stderr. HTTP requests require the secure API key supplied by the MCP client's
 credential store or external secret injection, including on loopback.
 
+The same `SereinFlow.Api` executable provides the REST API through MVC
+Controllers. Its machine-readable documentation is `/openapi/v1.json` and its
+interactive documentation is `/swagger` when server-side documentation is
+enabled. Swagger describes REST controllers only; MCP JSON-RPC, stdio, SignalR,
+and SSE are separate protocol surfaces and must not be treated as REST actions.
+
 Library attachment remains a separate confirmed
 `sereinflow_preview_project_library_attach` /
 `sereinflow_apply_project_library_attach` workflow. After a library is attached,

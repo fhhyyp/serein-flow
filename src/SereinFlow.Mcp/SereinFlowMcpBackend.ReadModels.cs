@@ -1,0 +1,337 @@
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Text;
+using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using SereinFlow.Application;
+using SereinFlow.Application.Persistence;
+using SereinFlow.Contracts;
+using SereinFlow.Domain;
+
+namespace SereinFlow.Mcp;
+
+public sealed partial class SereinFlowMcpBackend
+{
+    private static async Task<AiDebugStateWaitResultDto?> WaitForDebugStateAsync(
+        IServiceScope scope,
+        AiReadModelService service,
+        McpSecurityService security,
+        McpPrincipal? principal,
+        JsonElement arguments,
+        CancellationToken cancellationToken)
+    {
+        var afterRevision = GetOptionalLong(arguments, "afterRevision")
+            ?? throw new McpProtocolException(-32602, "MCP parameter 'afterRevision' is required.");
+        var timeoutSeconds = GetOptionalInt(arguments, "timeoutSeconds") ?? 15;
+        if (afterRevision < 0)
+            throw new McpProtocolException(-32602, "MCP parameter 'afterRevision' cannot be negative.");
+        if (timeoutSeconds is < 0 or > 60)
+            throw new McpProtocolException(-32602, "MCP parameter 'timeoutSeconds' must be between 0 and 60.");
+
+        var result = await service.WaitForDebugStateChangeAsync(
+            GetGuid(arguments, "sessionId"),
+            afterRevision,
+            TimeSpan.FromSeconds(timeoutSeconds),
+            cancellationToken);
+        if (result is not null)
+            security.Require(principal, McpPermissionDto.DebugRead, result.State.ProjectId);
+        return result;
+    }
+
+    private static async Task<object> ReadProjectsAsync(
+        IServiceScope scope,
+        AiReadModelService service,
+        McpSecurityService security,
+        McpPrincipal? principal,
+        CancellationToken cancellationToken,
+        AiReadModelOptions? options = null)
+    {
+        security.Require(principal, McpPermissionDto.ProjectRead);
+        if (IsProjectScoped(principal))
+        {
+            var project = await service.GetProjectAsync(principal!.ProjectId!.Value, cancellationToken);
+            return new AiPageDto<AiProjectSummaryDto>(
+                AiReadModelContract.SchemaVersion,
+                project is null ? [] : [project],
+                false,
+                null);
+        }
+
+        var page = await service.ListProjectsAsync(options, cancellationToken);
+        return page;
+    }
+
+    private static async Task<object?> ReadProjectAsync(
+        AiReadModelService service,
+        McpSecurityService security,
+        McpPrincipal? principal,
+        Guid projectId,
+        CancellationToken cancellationToken)
+    {
+        security.Require(principal, McpPermissionDto.ProjectRead, projectId);
+        return await service.GetProjectAsync(projectId, cancellationToken);
+    }
+
+    private static async Task<object?> ReadFlowTopologyAsync(
+        AiReadModelService service,
+        McpSecurityService security,
+        McpPrincipal? principal,
+        Guid projectId,
+        Guid flowId,
+        FlowVersionTrackDto track,
+        long? version,
+        AiReadModelOptions? options,
+        CancellationToken cancellationToken)
+    {
+        security.Require(principal, McpPermissionDto.ProjectRead, projectId);
+        RequireSensitiveRead(security, principal, projectId, options);
+        return await service.GetFlowTopologyAsync(projectId, flowId, track, version, options, cancellationToken);
+    }
+
+    private static async Task<object?> ReadFlowEditModelAsync(
+        IServiceScope scope,
+        AiReadModelService service,
+        McpSecurityService security,
+        McpPrincipal? principal,
+        Guid projectId,
+        Guid flowId,
+        AiReadModelOptions options,
+        CancellationToken cancellationToken)
+    {
+        security.Require(principal, McpPermissionDto.ProjectRead, projectId);
+        RequireSensitiveRead(security, principal, projectId, options);
+        return await service.GetFlowEditModelAsync(
+            projectId,
+            flowId,
+            scope.ServiceProvider.GetRequiredService<IBuiltinNodeCatalog>().GetCatalog(),
+            options,
+            cancellationToken);
+    }
+
+    private static async Task<object> ReadLibrariesAsync(
+        IServiceScope scope,
+        AiReadModelService service,
+        McpSecurityService security,
+        McpPrincipal? principal,
+        CancellationToken cancellationToken,
+        bool includeArchived = false,
+        AiReadModelOptions? options = null)
+    {
+        security.Require(principal, McpPermissionDto.LibraryRead);
+        if (!IsProjectScoped(principal))
+            return await service.ListLibrariesAsync(includeArchived, options, cancellationToken);
+
+        var references = await scope.ServiceProvider.GetRequiredService<IProjectLibraryReferenceRepository>()
+            .ListByProjectAsync(principal!.ProjectId!.Value, cancellationToken);
+        var maxItems = (options ?? new()).Normalize().MaxItems;
+        var items = new List<AiLibrarySummaryDto>(maxItems + 1);
+        foreach (var libraryId in references
+            .Select(static item => item.LibraryId)
+            .Where(static id => !string.IsNullOrWhiteSpace(id))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static id => id, StringComparer.Ordinal))
+        {
+            var library = await service.GetLibraryAsync(libraryId, cancellationToken);
+            if (library is null || (!includeArchived && !string.Equals(library.Lifecycle, LibraryLifecycleDto.Available.ToString(), StringComparison.OrdinalIgnoreCase)))
+                continue;
+
+            items.Add(library with { Nodes = null });
+            if (items.Count > maxItems)
+                break;
+        }
+
+        var hasMore = items.Count > maxItems;
+        var visible = hasMore ? items.Take(maxItems).ToArray() : items.ToArray();
+        return new AiPageDto<AiLibrarySummaryDto>(
+            AiReadModelContract.SchemaVersion,
+            visible,
+            hasMore,
+            hasMore && visible.Length > 0 ? visible[^1].Id : null);
+    }
+
+    private static async Task<object?> ReadLibraryAsync(
+        IServiceScope scope,
+        AiReadModelService service,
+        McpSecurityService security,
+        McpPrincipal? principal,
+        string libraryId,
+        CancellationToken cancellationToken)
+    {
+        security.Require(principal, McpPermissionDto.LibraryRead);
+        var library = await service.GetLibraryAsync(libraryId, cancellationToken);
+        if (library is not null && IsProjectScoped(principal))
+        {
+            var referenced = await scope.ServiceProvider.GetRequiredService<IProjectLibraryReferenceRepository>()
+                .IsReferencedAsync(principal!.ProjectId!.Value, library.Id, cancellationToken);
+            if (!referenced)
+                throw new McpSecurityException("mcp.library_access_denied", "The MCP caller cannot access this library artifact.", 403);
+        }
+        return library;
+    }
+
+    private static async Task<object?> ReadRunAsync(
+        IServiceScope scope,
+        AiReadModelService service,
+        McpSecurityService security,
+        McpPrincipal? principal,
+        Guid runId,
+        CancellationToken cancellationToken,
+        FlowVersionTrackDto? definitionTrack = null,
+        AiReadModelOptions? options = null,
+        long afterEventSequence = 0)
+    {
+        security.Require(principal, McpPermissionDto.RunRead);
+        var inspection = await service.GetRunInspectionAsync(runId, definitionTrack, options, afterEventSequence, cancellationToken);
+        if (inspection is not null)
+        {
+            security.Require(principal, McpPermissionDto.RunRead, inspection.Run.ProjectId);
+            RequireSensitiveRead(security, principal, inspection.Run.ProjectId, options);
+        }
+        return inspection;
+    }
+
+    private static async Task<object?> ReadDebugAsync(
+        IServiceScope scope,
+        AiReadModelService service,
+        McpSecurityService security,
+        McpPrincipal? principal,
+        Guid sessionId,
+        CancellationToken cancellationToken)
+    {
+        security.Require(principal, McpPermissionDto.DebugRead);
+        var state = await service.GetDebugStateAsync(sessionId, cancellationToken);
+        if (state is not null)
+            security.Require(principal, McpPermissionDto.DebugRead, state.ProjectId);
+        return state;
+    }
+
+    private static async Task<object> ReadVersionsAsync(
+        McpSecurityService security,
+        McpPrincipal? principal,
+        Guid projectId,
+        Guid flowId,
+        string trackText,
+        IServiceScope scope,
+        CancellationToken cancellationToken)
+    {
+        security.Require(principal, McpPermissionDto.ProjectRead, projectId);
+        var track = ParseTrack(trackText);
+        var service = scope.ServiceProvider.GetRequiredService<AiReadModelService>();
+        return await service.GetFlowVersionHistoryAsync(projectId, flowId, track, cancellationToken);
+    }
+
+    private static async Task<object?> ReadVersionAsync(
+        McpSecurityService security,
+        McpPrincipal? principal,
+        Guid projectId,
+        Guid flowId,
+        string trackText,
+        long version,
+        IServiceScope scope,
+        CancellationToken cancellationToken)
+    {
+        security.Require(principal, McpPermissionDto.ProjectRead, projectId);
+        var track = ParseTrack(trackText);
+        var detail = await scope.ServiceProvider.GetRequiredService<AiReadModelService>()
+            .GetFlowVersionAsync(projectId, flowId, version, cancellationToken);
+        if (detail is null || detail.Version.Track != track)
+            return null;
+        return detail with { Definition = FlowDiffService.RedactSensitive(detail.Definition) };
+    }
+
+    private static async Task<object> ReadPreviewAsync(
+        IServiceScope scope,
+        McpSecurityService security,
+        McpPrincipal? principal,
+        Guid previewId,
+        CancellationToken cancellationToken)
+    {
+        security.Require(principal, McpPermissionDto.ProjectRead);
+        var entry = await scope.ServiceProvider.GetRequiredService<IMcpPreviewStore>().FindAsync(previewId, cancellationToken)
+            ?? throw new McpProtocolException(-32004, "The MCP preview was not found.");
+        if (principal is not null
+            && !principal.IsLocal
+            && !principal.IsAdministrator
+            && !string.Equals(entry.PrincipalId, principal.Id, StringComparison.Ordinal))
+        {
+            throw new McpSecurityException(
+                "mcp.preview_owner_mismatch",
+                "The MCP preview belongs to another caller.",
+                403);
+        }
+        if (entry.ProjectId is null && principal is not null && !principal.IsLocal && !principal.IsAdministrator)
+            throw new McpSecurityException("mcp.preview_access_denied", "The MCP caller cannot access this global preview.", 403);
+        if (entry.ProjectId is not null && principal is not null && !principal.CanAccess(entry.ProjectId.Value))
+            throw new McpSecurityException("mcp.project_access_denied", "The MCP caller cannot access this preview.", 403);
+        RequirePreviewPermission(security, principal, entry);
+        var descriptor = new McpPreviewDescriptorDto(entry.Id, entry.Operation, entry.ProjectId, entry.FlowId, entry.Status, entry.ExpiresAt, entry.PreviewFingerprint);
+        return entry.Operation switch
+        {
+            "project.create" => ReadProjectCreatePreview(entry, descriptor),
+            "flow.patch" => ReadFlowPatchPreview(entry, descriptor),
+            "flow.publish" => ReadPublishPreview(entry, descriptor),
+            "flow.rollback" => ReadRollbackPreview(entry, descriptor),
+            "library.package" => ReadLibraryPackagePreview(entry, descriptor),
+            "project.library.attach" => ReadProjectLibraryAttachPreview(entry, descriptor),
+            _ => descriptor,
+        };
+    }
+
+    private static FlowPatchPreviewDto ReadFlowPatchPreview(McpPreviewEntry entry, McpPreviewDescriptorDto descriptor)
+    {
+        var stored = McpPreviewService.Deserialize<StoredFlowPatchPreview>(entry);
+        return ToFlowPatchPreview(entry, descriptor, stored);
+    }
+
+    private static FlowPatchPreviewDto ToFlowPatchPreview(McpPreviewEntry preview, StoredFlowPatchPreview stored)
+        => ToFlowPatchPreview(
+            preview.Id,
+            preview.ExpiresAt,
+            preview.PreviewFingerprint,
+            IsPreviewPending(preview),
+            stored);
+
+    private static FlowPatchPreviewDto ToFlowPatchPreview(
+        McpPreviewEntry entry,
+        McpPreviewDescriptorDto descriptor,
+        StoredFlowPatchPreview stored)
+        => ToFlowPatchPreview(
+            descriptor.PreviewId,
+            descriptor.ExpiresAt,
+            descriptor.PreviewFingerprint,
+            IsPreviewPending(entry),
+            stored);
+
+    private static FlowPatchPreviewDto ToFlowPatchPreview(
+        Guid previewId,
+        DateTimeOffset expiresAt,
+        string previewFingerprint,
+        bool isPending,
+        StoredFlowPatchPreview stored)
+    {
+        var normalized = stored.CanonicalRequest is null
+            ? new FlowPatchContractNormalizer().NormalizeLegacyRequest(stored.Request)
+            : new NormalizedFlowPatchRequest(
+                stored.CanonicalRequest,
+                stored.Request,
+                stored.NormalizationWarnings ?? []);
+        return new FlowPatchPreviewDto(
+            previewId,
+            stored.Request.ProjectId,
+            stored.Request.FlowId,
+            stored.Request.ExpectedDevelopmentVersion,
+            expiresAt,
+            previewFingerprint,
+            isPending
+                && stored.Validation.IsValid
+                && stored.Diff.Changes.Count > 0,
+            stored.Validation,
+            FlowDiffService.RedactSensitive(stored.Diff),
+            FlowDiffService.RedactSensitive(stored.CandidateDefinition),
+            SchemaVersion: FlowPatchContract.CurrentSchemaVersion,
+            EnumEncoding: FlowPatchContract.EnumEncoding,
+            NormalizedOperations: normalized.Request.Operations,
+            NormalizationWarnings: normalized.Warnings);
+    }
+
+}
