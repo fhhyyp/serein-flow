@@ -13,18 +13,18 @@ Storage, database, library directory, and configuration. The plugin's checked-in
 `.mcp.json` contains only this URL; never add a database path, library path,
 staging path, API key, or other server-local absolute path to client configuration.
 
+The same `SereinFlow.Api` executable provides the REST API through MVC
+Controllers. Its machine-readable documentation is `/openapi/v1.json` and its
+interactive documentation is `/swagger` when server-side documentation is
+enabled. Swagger describes REST controllers only; MCP JSON-RPC, stdio, SignalR,
+and SSE are separate protocol surfaces and must not be treated as REST actions.
+
 For a local process transport, start the same executable explicitly with
 `SereinFlow.Api --mcp-stdio`. stdio requires the explicitly configured
 `SereinFlow:Mcp:Stdio:ApiKey` and does not grant an implicit local administrator
 fallback. stdout is reserved for JSON-RPC; logs and startup diagnostics go to
 stderr. HTTP requests require the secure API key supplied by the MCP client's
 credential store or external secret injection, including on loopback.
-
-The same `SereinFlow.Api` executable provides the REST API through MVC
-Controllers. Its machine-readable documentation is `/openapi/v1.json` and its
-interactive documentation is `/swagger` when server-side documentation is
-enabled. Swagger describes REST controllers only; MCP JSON-RPC, stdio, SignalR,
-and SSE are separate protocol surfaces and must not be treated as REST actions.
 
 Library attachment remains a separate confirmed
 `sereinflow_preview_project_library_attach` /
