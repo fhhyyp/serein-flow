@@ -76,6 +76,12 @@ public sealed class McpHttpTransportTests
         public Task<IReadOnlyList<McpResourceTemplateDescriptor>> ListResourceTemplatesAsync(CancellationToken cancellationToken)
             => Task.FromResult<IReadOnlyList<McpResourceTemplateDescriptor>>([]);
 
+        public Task<IReadOnlyList<McpPromptDescriptor>> ListPromptsAsync(CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<McpPromptDescriptor>>([]);
+
+        public Task<McpPromptResult> GetPromptAsync(string name, System.Text.Json.JsonElement arguments, CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
         public Task<IReadOnlyList<McpToolDescriptor>> ListToolsAsync(CancellationToken cancellationToken)
             => Task.FromResult<IReadOnlyList<McpToolDescriptor>>([]);
 

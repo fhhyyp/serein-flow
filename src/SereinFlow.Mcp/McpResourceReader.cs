@@ -12,17 +12,23 @@ public sealed class McpResourceReader
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IMcpPrincipalAccessor _principalAccessor;
+    private readonly McpAiGuidanceProvider _aiGuidanceProvider;
 
     public McpResourceReader(
         IServiceScopeFactory scopeFactory,
-        IMcpPrincipalAccessor principalAccessor)
+        IMcpPrincipalAccessor principalAccessor,
+        McpAiGuidanceProvider aiGuidanceProvider)
     {
         _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
         _principalAccessor = principalAccessor ?? throw new ArgumentNullException(nameof(principalAccessor));
+        _aiGuidanceProvider = aiGuidanceProvider ?? throw new ArgumentNullException(nameof(aiGuidanceProvider));
     }
 
     public async Task<McpResourceReadResult> ReadAsync(string uri, CancellationToken cancellationToken)
     {
+        if (McpAiGuidance.IsGuidanceUri(uri))
+            return await _aiGuidanceProvider.ReadAsync(uri, cancellationToken);
+
         if (!Uri.TryCreate(uri, UriKind.Absolute, out var parsed)
             || !string.Equals(parsed.Scheme, "sereinflow", StringComparison.OrdinalIgnoreCase))
         {

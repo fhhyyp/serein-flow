@@ -12,6 +12,10 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
 {
     private static readonly IReadOnlyList<McpResourceDescriptor> Resources =
     [
+        new(McpAiGuidance.ResourceUri, McpAiGuidance.ResourceName, "Compact capability index for SereinFlow AI guidance", McpAiGuidance.MimeType),
+        new(McpAiGuidance.SereinFlowResourceUri, "sereinflow", "SereinFlow project, flow and runtime operating rules", McpAiGuidance.MimeType),
+        new(McpAiGuidance.SereinLangResourceUri, "sereinlang", "SereinLang authoring and compilation rules", McpAiGuidance.MimeType),
+        new(McpAiGuidance.LibraryPackageResourceUri, "sereinflow-library-package", "C# library package and attachment rules", McpAiGuidance.MimeType),
         new("sereinflow://projects", "projects", "SereinFlow project summaries"),
         new("sereinflow://libraries", "libraries", "Available SereinFlow library artifacts")
     ];
@@ -29,15 +33,18 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
     ];
 
     private readonly McpResourceReader _resourceReader;
+    private readonly McpAiGuidanceProvider _aiGuidanceProvider;
     private readonly McpToolCatalog _toolCatalog;
     private readonly McpToolExecutor _toolExecutor;
 
     public SereinFlowMcpBackend(
         McpResourceReader resourceReader,
+        McpAiGuidanceProvider aiGuidanceProvider,
         McpToolCatalog toolCatalog,
         McpToolExecutor toolExecutor)
     {
         _resourceReader = resourceReader ?? throw new ArgumentNullException(nameof(resourceReader));
+        _aiGuidanceProvider = aiGuidanceProvider ?? throw new ArgumentNullException(nameof(aiGuidanceProvider));
         _toolCatalog = toolCatalog ?? throw new ArgumentNullException(nameof(toolCatalog));
         _toolExecutor = toolExecutor ?? throw new ArgumentNullException(nameof(toolExecutor));
     }
@@ -47,6 +54,12 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
 
     public Task<IReadOnlyList<McpResourceTemplateDescriptor>> ListResourceTemplatesAsync(CancellationToken cancellationToken)
         => Task.FromResult(ResourceTemplates);
+
+    public Task<IReadOnlyList<McpPromptDescriptor>> ListPromptsAsync(CancellationToken cancellationToken)
+        => Task.FromResult(McpPromptCatalog.Descriptors);
+
+    public Task<McpPromptResult> GetPromptAsync(string name, JsonElement arguments, CancellationToken cancellationToken)
+        => McpPromptCatalog.GetAsync(name, arguments, _aiGuidanceProvider, cancellationToken);
 
     public Task<IReadOnlyList<McpToolDescriptor>> ListToolsAsync(CancellationToken cancellationToken)
         => Task.FromResult(_toolCatalog.Descriptors);

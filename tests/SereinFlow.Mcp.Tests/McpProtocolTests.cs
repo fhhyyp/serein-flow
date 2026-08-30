@@ -17,8 +17,13 @@ public sealed class McpProtocolTests
             "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}",
             "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}",
             "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"resources/list\"}",
-            "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"resources/read\",\"params\":{\"uri\":\"sereinflow://projects\"}}",
-            "{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"tools/call\",\"params\":{\"name\":\"example\",\"arguments\":{\"value\":42}}}"));
+            "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"resources/read\",\"params\":{\"uri\":\"sereinflow://ai/guide\"}}",
+            "{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"resources/read\",\"params\":{\"uri\":\"sereinflow://ai/skills/sereinlang\"}}",
+            "{\"jsonrpc\":\"2.0\",\"id\":6,\"method\":\"resources/read\",\"params\":{\"uri\":\"sereinflow://projects\"}}",
+            "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"prompts/list\"}",
+            "{\"jsonrpc\":\"2.0\",\"id\":8,\"method\":\"prompts/get\",\"params\":{\"name\":\"sereinflow.inspect\",\"arguments\":{\"request\":\"show projects\"}}}",
+            "{\"jsonrpc\":\"2.0\",\"id\":9,\"method\":\"tools/call\",\"params\":{\"name\":\"example\",\"arguments\":{\"value\":42}}}",
+            "{\"jsonrpc\":\"2.0\",\"id\":10,\"method\":\"resources/templates/list\"}"));
         var output = new StringWriter();
 
         await server.RunAsync(input, output);
@@ -27,34 +32,80 @@ public sealed class McpProtocolTests
             .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
             .Select(static line => JsonDocument.Parse(line))
             .ToArray();
-        Assert.Equal(5, responses.Length);
+        Assert.Equal(10, responses.Length);
 
         var initialize = responses[0].RootElement;
         Assert.Equal("2.0", initialize.GetProperty("jsonrpc").GetString());
         Assert.Equal("2025-06-18", initialize.GetProperty("result").GetProperty("protocolVersion").GetString());
         Assert.False(initialize.TryGetProperty("error", out _));
-        Assert.True(initialize.GetProperty("result").GetProperty("capabilities").GetProperty("tools").ValueKind == JsonValueKind.Object);
+        var capabilities = initialize.GetProperty("result").GetProperty("capabilities");
+        Assert.Equal(JsonValueKind.Object, capabilities.GetProperty("tools").ValueKind);
+        Assert.Equal(JsonValueKind.Object, capabilities.GetProperty("resources").ValueKind);
+        Assert.Equal(JsonValueKind.Object, capabilities.GetProperty("prompts").ValueKind);
+        Assert.False(capabilities.GetProperty("resources").GetProperty("subscribe").GetBoolean());
+        Assert.False(capabilities.GetProperty("resources").GetProperty("listChanged").GetBoolean());
+        Assert.False(capabilities.GetProperty("tools").GetProperty("listChanged").GetBoolean());
+        Assert.False(capabilities.GetProperty("prompts").GetProperty("listChanged").GetBoolean());
+        var instructions = initialize.GetProperty("result").GetProperty("instructions").GetString();
+        Assert.Contains("sereinflow://ai/guide", instructions, StringComparison.Ordinal);
+        Assert.Contains("sereinflow://ai/skills/sereinlang", instructions, StringComparison.Ordinal);
+        Assert.DoesNotContain("# SereinFlow", instructions, StringComparison.Ordinal);
 
         var tools = responses[1].RootElement.GetProperty("result").GetProperty("tools");
         Assert.Equal("example", tools[0].GetProperty("name").GetString());
 
         var resources = responses[2].RootElement.GetProperty("result").GetProperty("resources");
-        Assert.Equal("sereinflow://projects", resources[0].GetProperty("uri").GetString());
+        Assert.Equal("sereinflow://ai/guide", resources[0].GetProperty("uri").GetString());
+        Assert.Equal("sereinflow://ai/skills/sereinflow", resources[1].GetProperty("uri").GetString());
+        Assert.Equal("sereinflow://ai/skills/sereinlang", resources[2].GetProperty("uri").GetString());
+        Assert.Equal("sereinflow://ai/skills/sereinflow-library-package", resources[3].GetProperty("uri").GetString());
 
-        var resourceText = responses[3].RootElement
+        var guideText = responses[3].RootElement
+            .GetProperty("result")
+            .GetProperty("contents")[0]
+            .GetProperty("text")
+            .GetString();
+        Assert.StartsWith("# SereinFlow MCP AI Guide", guideText, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"# SereinFlow MCP AI Guide", guideText, StringComparison.Ordinal);
+
+        var skillText = responses[4].RootElement
+            .GetProperty("result")
+            .GetProperty("contents")[0]
+            .GetProperty("text")
+            .GetString();
+        Assert.StartsWith("# SereinLang MCP Skill", skillText, StringComparison.Ordinal);
+        Assert.DoesNotContain("# SereinFlow MCP Skill", skillText, StringComparison.Ordinal);
+
+        var resourceText = responses[5].RootElement
             .GetProperty("result")
             .GetProperty("contents")[0]
             .GetProperty("text")
             .GetString();
         Assert.Contains("project", resourceText, StringComparison.Ordinal);
 
-        var toolText = responses[4].RootElement
+        var prompts = responses[6].RootElement.GetProperty("result").GetProperty("prompts");
+        Assert.Equal("sereinflow.inspect", prompts[0].GetProperty("name").GetString());
+
+        var promptText = responses[7].RootElement
+            .GetProperty("result")
+            .GetProperty("messages")[0]
+            .GetProperty("content")
+            .GetProperty("text")
+            .GetString();
+        Assert.Contains("show projects", promptText, StringComparison.Ordinal);
+
+        var toolText = responses[8].RootElement
             .GetProperty("result")
             .GetProperty("structuredContent")
             .GetProperty("accepted")
             .GetBoolean();
         Assert.True(toolText);
         Assert.Equal(1, backend.CallCount);
+
+        var templates = responses[9].RootElement
+            .GetProperty("result")
+            .GetProperty("resourceTemplates");
+        Assert.Equal("sereinflow://projects/{projectId}", templates[0].GetProperty("uriTemplate").GetString());
 
         foreach (var response in responses)
             response.Dispose();
@@ -121,18 +172,37 @@ public sealed class McpProtocolTests
 
         public Task<IReadOnlyList<McpResourceDescriptor>> ListResourcesAsync(CancellationToken cancellationToken)
             => Task.FromResult<IReadOnlyList<McpResourceDescriptor>>([
+                new("sereinflow://ai/guide", "ai-guide", "AI guide", "text/markdown"),
+                new("sereinflow://ai/skills/sereinflow", "sereinflow", "SereinFlow skill", "text/markdown"),
+                new("sereinflow://ai/skills/sereinlang", "sereinlang", "SereinLang skill", "text/markdown"),
+                new("sereinflow://ai/skills/sereinflow-library-package", "sereinflow-library-package", "Library skill", "text/markdown"),
                 new("sereinflow://projects", "projects", "Projects")]);
 
         public Task<IReadOnlyList<McpResourceTemplateDescriptor>> ListResourceTemplatesAsync(CancellationToken cancellationToken)
             => Task.FromResult<IReadOnlyList<McpResourceTemplateDescriptor>>([
                 new("sereinflow://projects/{projectId}", "project", "Project")]);
 
+        public Task<IReadOnlyList<McpPromptDescriptor>> ListPromptsAsync(CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<McpPromptDescriptor>>([
+                new("sereinflow.inspect", "Inspect", [new("request", "Request")])]);
+
+        public Task<McpPromptResult> GetPromptAsync(string name, JsonElement arguments, CancellationToken cancellationToken)
+            => Task.FromResult(new McpPromptResult(
+                "Inspection",
+                [new McpPromptMessage("user", new McpPromptContent("text", $"Inspect: {arguments.GetProperty("request").GetString()}"))]));
+
         public Task<IReadOnlyList<McpToolDescriptor>> ListToolsAsync(CancellationToken cancellationToken)
             => Task.FromResult<IReadOnlyList<McpToolDescriptor>>([
                 new("example", "Example", JsonSerializer.SerializeToElement(new { type = "object" }))]);
 
         public Task<McpResourceReadResult> ReadResourceAsync(string uri, CancellationToken cancellationToken)
-            => Task.FromResult(new McpResourceReadResult(uri, new { project = "demo" }));
+            => Task.FromResult(
+                uri switch
+                {
+                    "sereinflow://ai/guide" => new McpResourceReadResult(uri, "# SereinFlow MCP AI Guide\n", "text/markdown"),
+                    "sereinflow://ai/skills/sereinlang" => new McpResourceReadResult(uri, "# SereinLang MCP Skill\n", "text/markdown"),
+                    _ => new McpResourceReadResult(uri, new { project = "demo" })
+                });
 
         public Task<McpToolCallResult> CallToolAsync(string name, JsonElement arguments, CancellationToken cancellationToken)
         {
@@ -150,6 +220,12 @@ public sealed class McpProtocolTests
 
         public Task<IReadOnlyList<McpResourceTemplateDescriptor>> ListResourceTemplatesAsync(CancellationToken cancellationToken)
             => Task.FromResult<IReadOnlyList<McpResourceTemplateDescriptor>>([]);
+
+        public Task<IReadOnlyList<McpPromptDescriptor>> ListPromptsAsync(CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<McpPromptDescriptor>>([]);
+
+        public Task<McpPromptResult> GetPromptAsync(string name, JsonElement arguments, CancellationToken cancellationToken)
+            => throw new NotSupportedException();
 
         public Task<IReadOnlyList<McpToolDescriptor>> ListToolsAsync(CancellationToken cancellationToken)
             => Task.FromResult<IReadOnlyList<McpToolDescriptor>>([]);
@@ -171,6 +247,12 @@ public sealed class McpProtocolTests
 
         public Task<IReadOnlyList<McpResourceTemplateDescriptor>> ListResourceTemplatesAsync(CancellationToken cancellationToken)
             => Task.FromResult<IReadOnlyList<McpResourceTemplateDescriptor>>([]);
+
+        public Task<IReadOnlyList<McpPromptDescriptor>> ListPromptsAsync(CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<McpPromptDescriptor>>([]);
+
+        public Task<McpPromptResult> GetPromptAsync(string name, JsonElement arguments, CancellationToken cancellationToken)
+            => throw new NotSupportedException();
 
         public Task<IReadOnlyList<McpToolDescriptor>> ListToolsAsync(CancellationToken cancellationToken)
             => Task.FromResult<IReadOnlyList<McpToolDescriptor>>([]);

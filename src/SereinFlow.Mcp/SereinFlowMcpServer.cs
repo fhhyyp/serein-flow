@@ -221,7 +221,9 @@ public sealed class SereinFlowMcpServer
             "tools/list" => new { tools = await _backend.ListToolsAsync(cancellationToken) },
             "resources/list" => new { resources = await _backend.ListResourcesAsync(cancellationToken) },
             "resources/templates/list" => new { resourceTemplates = await _backend.ListResourceTemplatesAsync(cancellationToken) },
+            "prompts/list" => new { prompts = await _backend.ListPromptsAsync(cancellationToken) },
             "resources/read" => await ReadResourceAsync(parameters, cancellationToken),
+            "prompts/get" => await GetPromptAsync(parameters, cancellationToken),
             "tools/call" => await CallToolAsync(parameters, cancellationToken),
             "shutdown" => RequestShutdown(),
             _ => throw new McpProtocolException(-32601, $"MCP method '{method}' is not supported.")
@@ -238,6 +240,10 @@ public sealed class SereinFlowMcpServer
     {
         var uri = GetRequiredString(parameters, "uri");
         var resource = await _backend.ReadResourceAsync(uri, cancellationToken);
+        var text = resource.Value is string stringValue
+            && resource.MimeType.StartsWith("text/", StringComparison.OrdinalIgnoreCase)
+            ? stringValue
+            : JsonSerializer.Serialize(resource.Value, JsonOptions);
         return new
         {
             contents = new[]
@@ -246,10 +252,19 @@ public sealed class SereinFlowMcpServer
                 {
                     uri = resource.Uri,
                     mimeType = resource.MimeType,
-                    text = JsonSerializer.Serialize(resource.Value, JsonOptions)
+                    text
                 }
             }
         };
+    }
+
+    private async Task<object> GetPromptAsync(JsonElement parameters, CancellationToken cancellationToken)
+    {
+        var name = GetRequiredString(parameters, "name");
+        var arguments = parameters.TryGetProperty("arguments", out var value)
+            ? value
+            : JsonSerializer.SerializeToElement(new { });
+        return await _backend.GetPromptAsync(name, arguments, cancellationToken);
     }
 
     private async Task<object> CallToolAsync(JsonElement parameters, CancellationToken cancellationToken)
@@ -275,14 +290,15 @@ public sealed class SereinFlowMcpServer
             capabilities = new
             {
                 resources = new { subscribe = false, listChanged = false },
-                tools = new { listChanged = false }
+                tools = new { listChanged = false },
+                prompts = new { listChanged = false }
             },
             serverInfo = new
             {
                 name = McpProtocolConstants.ServerName,
                 version = McpProtocolConstants.ServerVersion
             },
-            instructions = "SereinFlow resources, debugging inspection, validated mutation previews, publishing, rollback, script compilation and library package inspection."
+            instructions = "SereinFlow MCP exposes project, flow, runtime, SereinLang and library capabilities. Read the compact index at sereinflow://ai/guide, then read only the relevant skill Resource: sereinflow://ai/skills/sereinflow, sereinflow://ai/skills/sereinlang, or sereinflow://ai/skills/sereinflow-library-package. Discover current tools, resources and prompts before acting. Mutations require preview, explicit confirmation, apply and post-apply reread."
         };
 
     private static string GetRequiredString(JsonElement parameters, string name)

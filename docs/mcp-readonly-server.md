@@ -89,6 +89,35 @@ listener、SignalR 或 API-only hosted services。必须显式设置
 
 ## Resources
 
+The server exposes a compact routing index at `sereinflow://ai/guide` and
+three capability-specific AI Resources:
+
+```text
+sereinflow://ai/guide
+sereinflow://ai/skills/sereinflow
+sereinflow://ai/skills/sereinlang
+sereinflow://ai/skills/sereinflow-library-package
+```
+
+The index is intentionally short. A client should read only the capability
+Resource matching the current request, so a syntax check does not load flow,
+release and C# packaging rules. The former local Skills are represented by
+these separate server Resources; they are not copied into the client plugin.
+
+Each Resource is loaded from the server deployment at every read, so an
+operator can update one Markdown file without rebuilding or reinstalling the
+client plugin. The backing files are selected only by server configuration and
+are constrained to remain under the server ContentRoot. The MCP caller
+supplies only fixed Resource URIs and cannot select an arbitrary local file.
+The default files are `mcp/sereinflow-ai-guide.md`,
+`mcp/sereinflow-skill.md`, `mcp/sereinlang-skill.md`, and
+`mcp/sereinflow-library-package-skill.md`. Deployments can override the four
+paths with `SereinFlow:Mcp:AiGuidance:FilePath`,
+`SereinFlow:Mcp:AiGuidance:SereinFlowFilePath`,
+`SereinFlow:Mcp:AiGuidance:SereinLangFilePath`, and
+`SereinFlow:Mcp:AiGuidance:LibraryPackageFilePath`; each file uses the shared
+`SereinFlow:Mcp:AiGuidance:MaxBytes` limit.
+
 ```text
 sereinflow://projects
 sereinflow://libraries
@@ -101,6 +130,36 @@ sereinflow://runs/{runId}
 sereinflow://debug-sessions/{sessionId}
 sereinflow://mcp-previews/{previewId}
 ```
+
+## Prompts
+
+MCP clients that support the standard Prompt capability can discover these
+workflow entry points through `prompts/list` and request a prepared instruction
+through `prompts/get`:
+
+```text
+sereinflow.inspect
+sereinflow.edit-flow
+sereinflow.debug-run
+sereinflow.publish-flow
+sereinflow.package-library
+sereinlang.compile
+```
+
+Each Prompt returns a bounded workflow message and injects only its selected
+capability Resource. `sereinflow.inspect` accepts an optional `request`
+argument; the other Prompts require a non-empty `request` argument. Prompt
+messages guide the client toward the corresponding read-only inspection,
+preview, explicit confirmation, apply, and verification steps; a Prompt does
+not authorize a mutation by itself.
+
+Clients that do not automatically read MCP resources or invoke Prompts still
+receive only the compact routing and safety rules through
+`initialize.instructions` and the individual tool descriptions. The detailed
+capability text is never appended to initialization, which keeps unrelated
+rules out of the initial context. The Resources and Prompt catalog do not
+contain API keys, server absolute paths, client-local build paths, database
+names, or server-local library directories.
 
 ## Tools
 

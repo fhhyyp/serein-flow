@@ -37,7 +37,7 @@ var storageOptions = SereinFlowStorageOptions.FromConfiguration(
 builder.Services.AddSereinFlowStorage(storageOptions);
 builder.Services.AddSereinFlowApplication();
 var mcpOptions = SereinFlowMcpOptions.FromConfiguration(builder.Configuration);
-builder.Services.AddSereinFlowMcp(builder.Configuration);
+builder.Services.AddSereinFlowMcp(builder.Configuration, builder.Environment.ContentRootPath);
 builder.Services.AddSereinFlowExecution(
     builder.Configuration,
     builder.Environment.ContentRootPath);

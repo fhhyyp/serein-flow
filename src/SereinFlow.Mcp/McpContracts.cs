@@ -22,6 +22,28 @@ public sealed record McpResourceTemplateDescriptor(
     string? Description,
     string MimeType = "application/json");
 
+public sealed record McpPromptArgumentDescriptor(
+    string Name,
+    string? Description,
+    bool Required = false);
+
+public sealed record McpPromptDescriptor(
+    string Name,
+    string? Description,
+    IReadOnlyList<McpPromptArgumentDescriptor> Arguments);
+
+public sealed record McpPromptContent(
+    string Type,
+    string Text);
+
+public sealed record McpPromptMessage(
+    string Role,
+    McpPromptContent Content);
+
+public sealed record McpPromptResult(
+    string? Description,
+    IReadOnlyList<McpPromptMessage> Messages);
+
 public sealed record McpToolDescriptor(
     string Name,
     string Description,
@@ -39,6 +61,10 @@ public interface ISereinFlowMcpBackend
     Task<IReadOnlyList<McpResourceDescriptor>> ListResourcesAsync(CancellationToken cancellationToken);
 
     Task<IReadOnlyList<McpResourceTemplateDescriptor>> ListResourceTemplatesAsync(CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<McpPromptDescriptor>> ListPromptsAsync(CancellationToken cancellationToken);
+
+    Task<McpPromptResult> GetPromptAsync(string name, JsonElement arguments, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<McpToolDescriptor>> ListToolsAsync(CancellationToken cancellationToken);
 

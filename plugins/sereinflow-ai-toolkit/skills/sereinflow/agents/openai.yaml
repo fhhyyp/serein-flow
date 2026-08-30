@@ -1,4 +1,0 @@
-interface:
-  display_name: "SereinFlow"
-  short_description: "Route and safely operate SereinFlow"
-  default_prompt: "Use $sereinflow to identify the SereinFlow task, load the right Skill, inspect state, and preview any change."

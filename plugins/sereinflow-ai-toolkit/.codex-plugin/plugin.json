@@ -1,24 +1,20 @@
 {
   "name": "sereinflow-ai-toolkit",
-  "version": "0.1.0+codex.20260830081507",
-  "description": "SereinFlow AI skills for safe flow inspection, debugging, version operations, SereinLang diagnostics, and local C# library ZIP packaging.",
+  "version": "0.1.0+codex.20260830103628",
+  "description": "Minimal SereinFlow MCP client configuration for tools, resources, and prompts with server-provided guidance.",
   "author": {
     "name": "SereinFlow"
   },
   "keywords": [
     "sereinflow",
-    "sereinlang",
-    "mcp",
-    "workflow",
-    "debugging",
-    "dotnet"
+    "mcp"
   ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "SereinFlow AI Toolkit",
     "shortDescription": "Safely operate SereinFlow with AI",
-    "longDescription": "Routes SereinFlow, SereinLang, and C# library packaging tasks to focused Skills with read-only discovery, preview gates, explicit confirmation, and local toolchain boundaries.",
+    "longDescription": "Connects external AI tools to the SereinFlow MCP API. It supports live tools, resources, resource templates, and prompts; operating rules are loaded from the server on demand.",
     "developerName": "SereinFlow",
     "category": "Productivity",
     "capabilities": [
@@ -26,9 +22,9 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Inspect this SereinFlow project and suggest the safest next step.",
-      "Use the SereinFlow skills to diagnose this flow without writing changes.",
-      "Build and validate a SereinFlow library ZIP from its C# project."
+      "Connect to the SereinFlow MCP service and load its current operating guide.",
+      "Discover the live MCP tools, resources, resource templates, and prompts, then load only the relevant capability resource.",
+      "Inspect SereinFlow state through the live MCP tools without writing changes."
     ],
     "brandColor": "#0F766E"
   }

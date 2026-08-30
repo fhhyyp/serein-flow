@@ -24,7 +24,7 @@ internal static class McpStdioHost
             builder.Environment.ContentRootPath);
         builder.Services.AddSereinFlowStorage(storageOptions);
         builder.Services.AddSereinFlowApplication();
-        builder.Services.AddSereinFlowMcp(builder.Configuration);
+        builder.Services.AddSereinFlowMcp(builder.Configuration, builder.Environment.ContentRootPath);
 
         var apiKey = builder.Configuration["SereinFlow:Mcp:Stdio:ApiKey"];
         if (string.IsNullOrWhiteSpace(apiKey))

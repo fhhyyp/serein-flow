@@ -24,6 +24,7 @@ public sealed class SereinFlowMcpOptions
     public int MaxRequestsPerMinute { get; init; } = 120;
     public int MaxToolExecutionSeconds { get; init; } = 60;
     public string[] AllowedOrigins { get; init; } = [];
+    public McpAiGuidanceOptions AiGuidance { get; init; } = new();
 
     public static SereinFlowMcpOptions FromConfiguration(IConfiguration configuration)
     {
@@ -35,7 +36,8 @@ public sealed class SereinFlowMcpOptions
             MaxConcurrentRequests = ReadPositiveInt(configuration["SereinFlow:Mcp:Http:MaxConcurrentRequests"], 16),
             MaxRequestsPerMinute = ReadPositiveInt(configuration["SereinFlow:Mcp:Http:MaxRequestsPerMinute"], 120),
             MaxToolExecutionSeconds = ReadPositiveInt(configuration["SereinFlow:Mcp:Http:MaxToolExecutionSeconds"], 60),
-            AllowedOrigins = ReadAllowedOrigins(configuration["SereinFlow:Mcp:Http:AllowedOrigins"])
+            AllowedOrigins = ReadAllowedOrigins(configuration["SereinFlow:Mcp:Http:AllowedOrigins"]),
+            AiGuidance = McpAiGuidanceOptions.FromConfiguration(configuration)
         };
     }
 
@@ -60,13 +62,17 @@ public static class SereinFlowMcpServiceCollectionExtensions
 {
     public static IServiceCollection AddSereinFlowMcp(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        string? contentRootPath = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
         var options = SereinFlowMcpOptions.FromConfiguration(configuration);
         services.AddSingleton(options);
+        services.TryAddSingleton<McpAiGuidanceProvider>(_ => new McpAiGuidanceProvider(
+            options.AiGuidance,
+            contentRootPath ?? AppContext.BaseDirectory));
 
         services.AddCors(cors => cors.AddPolicy("sereinflow-mcp", policy =>
         {
