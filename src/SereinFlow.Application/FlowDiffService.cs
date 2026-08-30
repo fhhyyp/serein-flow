@@ -244,6 +244,19 @@ public sealed class FlowPatchService
 {
     private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateContractOptions();
 
+    /// <summary>
+    /// The MCP boundary supplies only canonical v2 operations. The established
+    /// mutation implementation still uses the legacy internal envelope, which
+    /// is created here after the contract normalizer has completed validation.
+    /// </summary>
+    public FlowDefinitionDto Apply(
+        FlowDefinitionDto definition,
+        IReadOnlyList<FlowPatchCanonicalOperationDto> operations)
+    {
+        ArgumentNullException.ThrowIfNull(operations);
+        return Apply(definition, operations.Select(FlowPatchContractNormalizer.ToLegacyOperation).ToArray());
+    }
+
     public FlowDefinitionDto Apply(FlowDefinitionDto definition, IReadOnlyList<FlowPatchOperationDto> operations)
     {
         ArgumentNullException.ThrowIfNull(definition);

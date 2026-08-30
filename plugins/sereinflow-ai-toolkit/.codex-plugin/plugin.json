@@ -1,6 +1,6 @@
 {
   "name": "sereinflow-ai-toolkit",
-  "version": "0.1.0+codex.20260829095710",
+  "version": "0.1.0+codex.20260830023652",
   "description": "SereinFlow AI skills for safe flow inspection, debugging, version operations, SereinLang diagnostics, and local C# library ZIP packaging.",
   "author": {
     "name": "SereinFlow"

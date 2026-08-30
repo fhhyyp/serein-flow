@@ -12,7 +12,7 @@ namespace SereinFlow.McpServer.Tests;
 
 public sealed class McpBackendIntegrationTests
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateContractOptions();
 
     [Fact]
     public async Task FlowPatchToolPublishesTypedOperationSchema()
@@ -25,13 +25,138 @@ public sealed class McpBackendIntegrationTests
         var operations = tool.InputSchema.GetProperty("properties").GetProperty("operations");
         var alternatives = operations.GetProperty("items").GetProperty("oneOf");
 
-        Assert.Equal(13, alternatives.GetArrayLength());
+        Assert.Equal(26, alternatives.GetArrayLength());
         Assert.Contains(
             alternatives.EnumerateArray(),
-            item => item.GetProperty("properties").GetProperty("operation").GetProperty("enum")[0].GetString() == "setRunPolicy");
+            item => item.GetProperty("properties").TryGetProperty("op", out var op)
+                && op.GetProperty("enum")[0].GetString() == "setRunPolicy");
         var runPolicy = alternatives.EnumerateArray()
-            .Single(item => item.GetProperty("properties").GetProperty("operation").GetProperty("enum")[0].GetString() == "setRunPolicy");
-        Assert.Equal("string", runPolicy.GetProperty("properties").GetProperty("value").GetProperty("properties").GetProperty("concurrencyMode").GetProperty("oneOf")[0].GetProperty("type").GetString());
+            .Single(item => item.GetProperty("properties").TryGetProperty("op", out var op)
+                && op.GetProperty("enum")[0].GetString() == "setRunPolicy");
+        Assert.Equal("string", runPolicy.GetProperty("properties").GetProperty("runPolicy").GetProperty("properties").GetProperty("concurrencyMode").GetProperty("oneOf")[0].GetProperty("type").GetString());
+        Assert.False(runPolicy.GetProperty("additionalProperties").GetBoolean());
+    }
+
+    [Fact]
+    public async Task FlowPatchV2NormalizesLegacySnakeCaseAndNumericEnums()
+    {
+        using var host = CreateHost();
+        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
+        accessor.Current = new McpPrincipal(
+            "integration-admin",
+            null,
+            Enum.GetValues<McpPermissionDto>().ToHashSet(),
+            IsAdministrator: true);
+
+        using var dataScope = host.Services.CreateScope();
+        var project = Project.Create("MCP canonical patch project");
+        await dataScope.ServiceProvider.GetRequiredService<IProjectRepository>().AddAsync(project);
+        var flow = CreateFlow();
+        await dataScope.ServiceProvider.GetRequiredService<IFlowDefinitionRepository>().AddAsync(project.Id, flow);
+        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
+
+        var canonical = await backend.CallToolAsync(
+            "sereinflow_preview_flow_patch",
+            JsonSerializer.SerializeToElement(new
+            {
+                projectId = project.Id,
+                flowId = flow.Id,
+                expectedDevelopmentVersion = flow.Version,
+                schemaVersion = "2.0",
+                operations = new[]
+                {
+                    new
+                    {
+                        op = "setRunPolicy",
+                        runPolicy = new { concurrencyMode = "exclusiveReject" },
+                    },
+                },
+            }),
+            CancellationToken.None);
+        var legacy = await backend.CallToolAsync(
+            "sereinflow_preview_flow_patch",
+            JsonSerializer.SerializeToElement(new
+            {
+                projectId = project.Id,
+                flowId = flow.Id,
+                expectedDevelopmentVersion = flow.Version,
+                schemaVersion = "1.0",
+                operations = new[]
+                {
+                    new
+                    {
+                        operation = "set_run_policy",
+                        value = new { concurrencyMode = 1 },
+                    },
+                },
+            }),
+            CancellationToken.None);
+
+        using var canonicalDocument = JsonDocument.Parse(JsonSerializer.Serialize(canonical.Value, JsonOptions));
+        using var legacyDocument = JsonDocument.Parse(JsonSerializer.Serialize(legacy.Value, JsonOptions));
+        var canonicalRoot = canonicalDocument.RootElement;
+        var legacyRoot = legacyDocument.RootElement;
+        Assert.Equal("2.0", canonicalRoot.GetProperty("schemaVersion").GetString());
+        Assert.Equal("camelCase", canonicalRoot.GetProperty("enumEncoding").GetString());
+        Assert.Equal("setRunPolicy", canonicalRoot.GetProperty("normalizedOperations")[0].GetProperty("op").GetString());
+        Assert.Equal("exclusiveReject", canonicalRoot.GetProperty("normalizedOperations")[0].GetProperty("runPolicy").GetProperty("concurrencyMode").GetString());
+        Assert.Equal(
+            canonicalRoot.GetProperty("diff").GetProperty("candidateChecksum").GetString(),
+            legacyRoot.GetProperty("diff").GetProperty("candidateChecksum").GetString());
+        Assert.True(legacyRoot.GetProperty("normalizationWarnings").GetArrayLength() > 0);
+    }
+
+    [Fact]
+    public async Task FlowPatchV2RejectsUnknownFieldsWithStructuredDiagnostic()
+    {
+        using var host = CreateHost();
+        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
+        accessor.Current = new McpPrincipal(
+            "integration-admin",
+            null,
+            Enum.GetValues<McpPermissionDto>().ToHashSet(),
+            IsAdministrator: true);
+        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
+
+        var exception = await Assert.ThrowsAsync<McpProtocolException>(() => backend.CallToolAsync(
+            "sereinflow_preview_flow_patch",
+            JsonSerializer.SerializeToElement(new
+            {
+                projectId = Guid.NewGuid(),
+                flowId = Guid.NewGuid(),
+                expectedDevelopmentVersion = 1,
+                schemaVersion = "2.0",
+                operations = new[]
+                {
+                    new
+                    {
+                        op = "setRunPolicy",
+                        runPolicy = new { concurrencyMode = "exclusiveReject" },
+                        ignored = true,
+                    },
+                },
+            }),
+            CancellationToken.None));
+
+        Assert.Equal(-32602, exception.Code);
+        var diagnostic = JsonSerializer.SerializeToElement(exception.ErrorData, JsonOptions);
+        Assert.Equal("mcp.flow_patch.unexpected_field", diagnostic.GetProperty("code").GetString());
+        Assert.Equal("$.operations[0].ignored", diagnostic.GetProperty("fieldPath").GetString());
+        Assert.Equal("2.0", diagnostic.GetProperty("schemaVersion").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(diagnostic.GetProperty("diagnosticId").GetString()));
+    }
+
+    [Fact]
+    public async Task LibraryNodeTemplateToolPublishesAReadOnlyTypedSchema()
+    {
+        using var host = CreateHost();
+        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
+        var tool = (await backend.ListToolsAsync(CancellationToken.None))
+            .Single(item => item.Name == "sereinflow_create_library_node_template");
+        var properties = tool.InputSchema.GetProperty("properties");
+        Assert.Equal("object", properties.GetProperty("position").GetProperty("type").GetString());
+        Assert.Equal("number", properties.GetProperty("position").GetProperty("properties").GetProperty("x").GetProperty("type").GetString());
+        Assert.Contains("projectId", tool.InputSchema.GetProperty("required").EnumerateArray().Select(static item => item.GetString()));
     }
 
     [Fact]
@@ -116,7 +241,7 @@ public sealed class McpBackendIntegrationTests
             CancellationToken.None));
 
         Assert.Equal(-32602, exception.Code);
-        Assert.Equal("mcp.invalid_arguments", ((JsonElement)JsonSerializer.SerializeToElement(exception.ErrorData, JsonOptions)).GetProperty("code").GetString());
+        Assert.Equal("mcp.flow_patch.field_invalid", ((JsonElement)JsonSerializer.SerializeToElement(exception.ErrorData, JsonOptions)).GetProperty("code").GetString());
     }
     private static readonly string[] ProjectReadPermissionNames = ["project.read"];
 
@@ -534,6 +659,8 @@ public sealed class McpBackendIntegrationTests
         services.AddScoped<FlowDefinitionWriteService>();
         services.AddScoped<FlowDiffService>();
         services.AddScoped<FlowPatchService>();
+        services.AddScoped<FlowPatchContractNormalizer>();
+        services.AddScoped<LibraryNodeTemplateService>();
         services.AddSingleton<IBuiltinNodeCatalog, BuiltinNodeCatalog>();
         services.AddScoped<McpPreviewService>();
         services.AddScoped<McpIdempotencyService>();

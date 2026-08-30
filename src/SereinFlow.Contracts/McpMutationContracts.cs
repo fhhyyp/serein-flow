@@ -146,6 +146,64 @@ public sealed record FlowPatchRequestDto(
     IReadOnlyList<FlowPatchOperationDto> Operations,
     string? Remark = null);
 
+/// <summary>
+/// Public flow-patch wire contract versions. Version 1 remains input-only
+/// compatibility for previews persisted or produced before the typed v2 union.
+/// </summary>
+public static class FlowPatchContract
+{
+    public const string LegacySchemaVersion = "1.0";
+    public const string CurrentSchemaVersion = "2.0";
+    public const string EnumEncoding = "camelCase";
+}
+
+/// <summary>
+/// Canonical v2 flow operation. The normalizer constructs only the fields
+/// allowed by the selected <see cref="Op"/> discriminator.
+/// </summary>
+public sealed record FlowPatchCanonicalOperationDto(
+    string Op,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? CanvasId = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? NodeId = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ConnectionId = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ParameterId = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CanvasDto? Canvas = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] NodeDto? Node = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] NodeParameterDto? Parameter = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ConnectionDto? Connection = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? EntryNodeId = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FlowRunPolicyDto? RunPolicy = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Source = null);
+
+public sealed record FlowPatchCanonicalRequestDto(
+    Guid ProjectId,
+    Guid FlowId,
+    long ExpectedDevelopmentVersion,
+    string SchemaVersion,
+    IReadOnlyList<FlowPatchCanonicalOperationDto> Operations,
+    string? Remark = null);
+
+public sealed record FlowPatchNormalizationWarningDto(
+    string Code,
+    string FieldPath,
+    string Message);
+
+public sealed record NodeTemplatePositionDto(double X, double Y);
+
+public sealed record LibraryNodeTemplateRequestDto(
+    Guid ProjectId,
+    string LibraryId,
+    string LibraryNodeContractId,
+    NodeTemplatePositionDto Position);
+
+public sealed record LibraryNodeTemplateDto(
+    NodeDto Node,
+    string TemplateSource,
+    string LibraryId,
+    string LibraryVersion,
+    string LibrarySha256,
+    string ContractRevision);
+
 public sealed record CreateProjectMcpRequestDto(
     string Name,
     string? FlowName = null);
@@ -195,7 +253,11 @@ public sealed record FlowPatchPreviewDto(
     FlowValidationResultDto Validation,
     FlowDiffDto Diff,
     FlowDefinitionDto? CandidateDefinition = null,
-    bool IsPreviewOnly = true);
+    bool IsPreviewOnly = true,
+    string SchemaVersion = FlowPatchContract.CurrentSchemaVersion,
+    string EnumEncoding = FlowPatchContract.EnumEncoding,
+    IReadOnlyList<FlowPatchCanonicalOperationDto>? NormalizedOperations = null,
+    IReadOnlyList<FlowPatchNormalizationWarningDto>? NormalizationWarnings = null);
 
 public sealed record FlowVersionComparisonDto(
     FlowVersionDetailDto From,

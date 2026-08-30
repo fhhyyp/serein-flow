@@ -60,7 +60,7 @@ public sealed class McpIdempotencyService
         var entry = await FindAsync(principalId, operation, key, cancellationToken);
         return entry is null
             ? default
-            : JsonSerializer.Deserialize<T>(entry.ResponseJson, SereinJsonSerialization.CreateWebOptions());
+            : JsonSerializer.Deserialize<T>(entry.ResponseJson, SereinJsonSerialization.CreateContractOptions());
     }
 
     public Task SaveAsync<T>(
@@ -94,7 +94,12 @@ public sealed class McpIdempotencyService
                 operation,
                 HashKey(key),
                 requestPayload is null ? string.Empty : HashKey(requestPayload),
-                JsonSerializer.Serialize(response, SereinJsonSerialization.CreateWebOptions()),
+                // Persist the same public JSON contract used by the MCP
+                // transport so an idempotent replay is byte-for-shape
+                // compatible with the original response. Existing records
+                // remain readable because the contract enum converters accept
+                // legacy numeric values.
+                JsonSerializer.Serialize(response, SereinJsonSerialization.CreateContractOptions()),
                 DateTimeOffset.UtcNow),
             cancellationToken);
 }

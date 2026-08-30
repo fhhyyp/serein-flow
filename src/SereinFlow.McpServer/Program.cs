@@ -181,6 +181,8 @@ static void ConfigureMcpServices(IServiceCollection services, IConfiguration con
     services.AddScoped<FlowDefinitionWriteService>();
     services.AddScoped<FlowDiffService>();
     services.AddScoped<FlowPatchService>();
+    services.AddScoped<FlowPatchContractNormalizer>();
+    services.AddScoped<LibraryNodeTemplateService>();
     services.AddSingleton<IBuiltinNodeCatalog, BuiltinNodeCatalog>();
     services.AddScoped<McpPreviewService>();
     services.AddScoped<McpIdempotencyService>();

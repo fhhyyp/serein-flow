@@ -121,11 +121,18 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
                     ["projectId"] = StringSchema(), ["flowId"] = StringSchema(),
                     ["includeScriptSource"] = BooleanSchema(), ["includeFlowLiteralValues"] = BooleanSchema()
                 }, required: ["projectId", "flowId"])),
-            Tool("sereinflow_preview_flow_patch", "Validate a structured development-flow patch and return its diff. Use camelCase enum strings; nested DTO enums also accept legacy numeric values.", Schema(
+            Tool("sereinflow_create_library_node_template", "Create a read-only Action or Flipflop node template from a library contract already attached to the project.", Schema(
+                properties: new Dictionary<string, object?>
+                {
+                    ["projectId"] = StringSchema(), ["libraryId"] = StringSchema(),
+                    ["libraryNodeContractId"] = StringSchema(), ["position"] = PositionSchema()
+                }, required: ["projectId", "libraryId", "libraryNodeContractId", "position"])),
+            Tool("sereinflow_preview_flow_patch", "Validate a structured development-flow patch and return its diff. New requests use schemaVersion 2.0, canonical camelCase enums, an op discriminator, and named payload fields. Legacy operation/value input remains read-compatible.", Schema(
                 properties: new Dictionary<string, object?>
                 {
                     ["projectId"] = StringSchema(), ["flowId"] = StringSchema(),
-                    ["expectedDevelopmentVersion"] = NumberSchema(), ["operations"] = FlowPatchOperationsSchema(), ["remark"] = StringSchema()
+                    ["expectedDevelopmentVersion"] = NumberSchema(), ["schemaVersion"] = StringSchema(),
+                    ["operations"] = FlowPatchOperationsSchema(), ["remark"] = StringSchema()
                 }, required: ["projectId", "flowId", "expectedDevelopmentVersion", "operations"])),
             Tool("sereinflow_apply_flow_patch", "Apply a previously previewed flow patch after explicit confirmation.", Schema(
                 properties: ApplySchemaProperties(), required: ["previewId", "previewFingerprint", "confirmation", "idempotencyKey"])),
@@ -369,6 +376,8 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
                     GetGuid(arguments, "flowId"),
                     ReadAuthorizedOptions(arguments, security, principal, GetGuid(arguments, "projectId")),
                     cancellationToken),
+            "sereinflow_create_library_node_template"
+                => await CreateLibraryNodeTemplateAsync(scope, principal!, arguments, cancellationToken),
             "sereinflow_preview_flow_patch"
                 => await PreviewFlowPatchAsync(scope, principal!, arguments, cancellationToken),
             "sereinflow_apply_flow_patch"
@@ -735,19 +744,58 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
     private static FlowPatchPreviewDto ReadFlowPatchPreview(McpPreviewEntry entry, McpPreviewDescriptorDto descriptor)
     {
         var stored = McpPreviewService.Deserialize<StoredFlowPatchPreview>(entry);
-        return new FlowPatchPreviewDto(
+        return ToFlowPatchPreview(entry, descriptor, stored);
+    }
+
+    private static FlowPatchPreviewDto ToFlowPatchPreview(McpPreviewEntry preview, StoredFlowPatchPreview stored)
+        => ToFlowPatchPreview(
+            preview.Id,
+            preview.ExpiresAt,
+            preview.PreviewFingerprint,
+            IsPreviewPending(preview),
+            stored);
+
+    private static FlowPatchPreviewDto ToFlowPatchPreview(
+        McpPreviewEntry entry,
+        McpPreviewDescriptorDto descriptor,
+        StoredFlowPatchPreview stored)
+        => ToFlowPatchPreview(
             descriptor.PreviewId,
+            descriptor.ExpiresAt,
+            descriptor.PreviewFingerprint,
+            IsPreviewPending(entry),
+            stored);
+
+    private static FlowPatchPreviewDto ToFlowPatchPreview(
+        Guid previewId,
+        DateTimeOffset expiresAt,
+        string previewFingerprint,
+        bool isPending,
+        StoredFlowPatchPreview stored)
+    {
+        var normalized = stored.CanonicalRequest is null
+            ? new FlowPatchContractNormalizer().NormalizeLegacyRequest(stored.Request)
+            : new NormalizedFlowPatchRequest(
+                stored.CanonicalRequest,
+                stored.Request,
+                stored.NormalizationWarnings ?? []);
+        return new FlowPatchPreviewDto(
+            previewId,
             stored.Request.ProjectId,
             stored.Request.FlowId,
             stored.Request.ExpectedDevelopmentVersion,
-            descriptor.ExpiresAt,
-            descriptor.PreviewFingerprint,
-            IsPreviewPending(entry)
+            expiresAt,
+            previewFingerprint,
+            isPending
                 && stored.Validation.IsValid
                 && stored.Diff.Changes.Count > 0,
             stored.Validation,
             FlowDiffService.RedactSensitive(stored.Diff),
-            FlowDiffService.RedactSensitive(stored.CandidateDefinition));
+            FlowDiffService.RedactSensitive(stored.CandidateDefinition),
+            SchemaVersion: FlowPatchContract.CurrentSchemaVersion,
+            EnumEncoding: FlowPatchContract.EnumEncoding,
+            NormalizedOperations: normalized.Request.Operations,
+            NormalizationWarnings: normalized.Warnings);
     }
 
     private static ProjectCreatePreviewDto ReadProjectCreatePreview(
@@ -1003,7 +1051,17 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
         JsonElement arguments,
         CancellationToken cancellationToken)
     {
-        var request = Deserialize<FlowPatchRequestDto>(arguments);
+        NormalizedFlowPatchRequest normalized;
+        try
+        {
+            normalized = scope.ServiceProvider.GetRequiredService<FlowPatchContractNormalizer>().Normalize(arguments);
+        }
+        catch (FlowPatchContractException exception)
+        {
+            throw InvalidFlowPatchContract(exception);
+        }
+
+        var request = normalized.Request;
         if (request.ProjectId == Guid.Empty || request.FlowId == Guid.Empty || request.ExpectedDevelopmentVersion < 1)
             throw new McpProtocolException(-32602, "The flow patch request is invalid.");
         await RequireActiveProjectAsync(
@@ -1022,7 +1080,13 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
         FlowDefinitionDto candidate;
         try
         {
+            scope.ServiceProvider.GetRequiredService<FlowPatchContractNormalizer>()
+                .ValidateReferences(current, request.Operations);
             candidate = scope.ServiceProvider.GetRequiredService<FlowPatchService>().Apply(current, request.Operations);
+        }
+        catch (FlowPatchContractException exception)
+        {
+            throw InvalidFlowPatchContract(exception);
         }
         catch (JsonException exception)
         {
@@ -1030,17 +1094,30 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
         }
         catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
         {
-            throw new McpProtocolException(-32602, $"The flow patch is invalid: {exception.Message}");
+            throw new McpProtocolException(
+                -32602,
+                "The flow patch references are invalid.",
+                new
+                {
+                    code = "mcp.flow_patch.reference_invalid",
+                    diagnosticId = Guid.NewGuid().ToString("N"),
+                    fieldPath = "$.operations",
+                    expected = "a valid operation sequence for the current flow",
+                    schemaVersion = FlowPatchContract.CurrentSchemaVersion,
+                    remediation = "Read the current flow edit model and create a new typed patch."
+                });
         }
 
         var preparation = await scope.ServiceProvider.GetRequiredService<FlowDefinitionWriteService>()
             .PrepareAsync(request.ProjectId, request.FlowId, candidate, cancellationToken)
             ?? throw new McpProtocolException(-32004, "The flow definition was not found.");
         var stored = new StoredFlowPatchPreview(
-            request,
+            normalized.LegacyRequest,
             preparation.Candidate,
             preparation.Validation,
-            scope.ServiceProvider.GetRequiredService<FlowDiffService>().Compare(preparation.Current, preparation.Candidate));
+            scope.ServiceProvider.GetRequiredService<FlowDiffService>().Compare(preparation.Current, preparation.Candidate),
+            normalized.Request,
+            normalized.Warnings);
         var preview = await scope.ServiceProvider.GetRequiredService<McpPreviewService>().CreateAsync(
             "flow.patch",
             principal,
@@ -1049,17 +1126,34 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
             request.ExpectedDevelopmentVersion,
             stored,
             cancellationToken);
-        return new FlowPatchPreviewDto(
-            preview.Id,
+        return ToFlowPatchPreview(preview, stored);
+    }
+
+    private static async Task<object> CreateLibraryNodeTemplateAsync(
+        IServiceScope scope,
+        McpPrincipal principal,
+        JsonElement arguments,
+        CancellationToken cancellationToken)
+    {
+        var request = Deserialize<LibraryNodeTemplateRequestDto>(arguments);
+        if (request.ProjectId == Guid.Empty)
+            throw new McpProtocolException(-32602, "The library node template request is invalid.");
+        await RequireActiveProjectAsync(
+            scope,
+            scope.ServiceProvider.GetRequiredService<McpSecurityService>(),
+            principal,
             request.ProjectId,
-            request.FlowId,
-            request.ExpectedDevelopmentVersion,
-            preview.ExpiresAt,
-            preview.PreviewFingerprint,
-            IsPreviewPending(preview) && stored.Validation.IsValid && stored.Diff.Changes.Count > 0,
-            stored.Validation,
-            FlowDiffService.RedactSensitive(stored.Diff),
-            FlowDiffService.RedactSensitive(stored.CandidateDefinition));
+            McpPermissionDto.ProjectRead,
+            cancellationToken);
+        try
+        {
+            return await scope.ServiceProvider.GetRequiredService<LibraryNodeTemplateService>()
+                .CreateAsync(request, cancellationToken);
+        }
+        catch (LibraryNodeTemplateException exception)
+        {
+            throw InvalidLibraryNodeTemplate(exception);
+        }
     }
 
     private static async Task<object> ApplyFlowPatchAsync(
@@ -1377,6 +1471,7 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
             "flow.rollback" => McpPermissionDto.FlowRollback,
             "library.package" => McpPermissionDto.LibraryImport,
             "project.library.attach" => McpPermissionDto.LibraryManage,
+            "sereinflow_create_library_node_template" => McpPermissionDto.ProjectRead,
             _ => McpPermissionDto.ProjectRead,
         };
         security.Require(principal, permission, entry.ProjectId);
@@ -1398,7 +1493,7 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
         var projectId = TryGetGuid(arguments, "projectId");
         var permission = name switch
         {
-            "sereinflow_list_projects" or "sereinflow_get_project" or "sereinflow_get_flow_topology" or "sereinflow_get_flow_edit_model" or "sereinflow_compare_flow_versions" => McpPermissionDto.ProjectRead,
+            "sereinflow_list_projects" or "sereinflow_get_project" or "sereinflow_get_flow_topology" or "sereinflow_get_flow_edit_model" or "sereinflow_create_library_node_template" or "sereinflow_compare_flow_versions" => McpPermissionDto.ProjectRead,
             "sereinflow_preview_create_project" or "sereinflow_apply_create_project" => McpPermissionDto.ProjectWrite,
             "sereinflow_list_libraries" or "sereinflow_get_library" => McpPermissionDto.LibraryRead,
             "sereinflow_get_run_inspection" => McpPermissionDto.RunRead,
@@ -1906,24 +2001,55 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
             {
                 oneOf = new object[]
                 {
-                    PatchOperationSchema("addCanvas", CanvasValueSchema(), ["value"]),
-                    PatchOperationSchema("updateCanvas", CanvasValueSchema(), ["canvasId", "value"], ("canvasId", StringSchema())),
-                    PatchOperationSchema("removeCanvas", null, ["canvasId"], ("canvasId", StringSchema())),
-                    PatchOperationSchema("addNode", NodeValueSchema(), ["canvasId", "value"], ("canvasId", StringSchema())),
-                    PatchOperationSchema("replaceNode", NodeValueSchema(), ["canvasId", "nodeId", "value"], ("canvasId", StringSchema()), ("nodeId", StringSchema())),
-                    PatchOperationSchema("removeNode", null, ["canvasId", "nodeId"], ("canvasId", StringSchema()), ("nodeId", StringSchema())),
-                    PatchOperationSchema("setNodeParameter", NodeParameterValueSchema(), ["canvasId", "nodeId", "parameterId", "value"], ("canvasId", StringSchema()), ("nodeId", StringSchema()), ("parameterId", StringSchema())),
-                    PatchOperationSchema("addConnection", ConnectionValueSchema(), ["canvasId", "value"], ("canvasId", StringSchema())),
-                    PatchOperationSchema("replaceConnection", ConnectionValueSchema(), ["canvasId", "connectionId", "value"], ("canvasId", StringSchema()), ("connectionId", StringSchema())),
-                    PatchOperationSchema("removeConnection", null, ["canvasId", "connectionId"], ("canvasId", StringSchema()), ("connectionId", StringSchema())),
-                    PatchOperationSchema("setEntryNode", StringSchema(), ["value"]),
-                    PatchOperationSchema("setRunPolicy", RunPolicyValueSchema(), ["value"]),
-                    PatchOperationSchema("replaceScriptSource", StringSchema(), ["canvasId", "nodeId", "value"], ("canvasId", StringSchema()), ("nodeId", StringSchema()))
+                    CanonicalPatchOperationSchema("addCanvas", "canvas", CanvasValueSchema(), ["canvas"]),
+                    CanonicalPatchOperationSchema("updateCanvas", "canvas", CanvasValueSchema(), ["canvasId", "canvas"], ("canvasId", StringSchema())),
+                    CanonicalPatchOperationSchema("removeCanvas", null, null, ["canvasId"], ("canvasId", StringSchema())),
+                    CanonicalPatchOperationSchema("addNode", "node", NodeValueSchema(), ["canvasId", "node"], ("canvasId", StringSchema())),
+                    CanonicalPatchOperationSchema("replaceNode", "node", NodeValueSchema(), ["canvasId", "nodeId", "node"], ("canvasId", StringSchema()), ("nodeId", StringSchema())),
+                    CanonicalPatchOperationSchema("removeNode", null, null, ["canvasId", "nodeId"], ("canvasId", StringSchema()), ("nodeId", StringSchema())),
+                    CanonicalPatchOperationSchema("setNodeParameter", "parameter", NodeParameterValueSchema(), ["canvasId", "nodeId", "parameterId", "parameter"], ("canvasId", StringSchema()), ("nodeId", StringSchema()), ("parameterId", StringSchema())),
+                    CanonicalPatchOperationSchema("addConnection", "connection", ConnectionValueSchema(), ["canvasId", "connection"], ("canvasId", StringSchema())),
+                    CanonicalPatchOperationSchema("replaceConnection", "connection", ConnectionValueSchema(), ["canvasId", "connectionId", "connection"], ("canvasId", StringSchema()), ("connectionId", StringSchema())),
+                    CanonicalPatchOperationSchema("removeConnection", null, null, ["canvasId", "connectionId"], ("canvasId", StringSchema()), ("connectionId", StringSchema())),
+                    CanonicalPatchOperationSchema("setEntryNode", "entryNodeId", StringSchema(), ["entryNodeId"]),
+                    CanonicalPatchOperationSchema("setRunPolicy", "runPolicy", RunPolicyValueSchema(), ["runPolicy"]),
+                    CanonicalPatchOperationSchema("replaceScriptSource", "source", StringSchema(), ["canvasId", "nodeId", "source"], ("canvasId", StringSchema()), ("nodeId", StringSchema())),
+                    LegacyPatchOperationSchema("addCanvas", CanvasValueSchema(), ["value"]),
+                    LegacyPatchOperationSchema("updateCanvas", CanvasValueSchema(), ["canvasId", "value"], ("canvasId", StringSchema())),
+                    LegacyPatchOperationSchema("removeCanvas", null, ["canvasId"], ("canvasId", StringSchema())),
+                    LegacyPatchOperationSchema("addNode", NodeValueSchema(), ["canvasId", "value"], ("canvasId", StringSchema())),
+                    LegacyPatchOperationSchema("replaceNode", NodeValueSchema(), ["canvasId", "nodeId", "value"], ("canvasId", StringSchema()), ("nodeId", StringSchema())),
+                    LegacyPatchOperationSchema("removeNode", null, ["canvasId", "nodeId"], ("canvasId", StringSchema()), ("nodeId", StringSchema())),
+                    LegacyPatchOperationSchema("setNodeParameter", NodeParameterValueSchema(), ["canvasId", "nodeId", "parameterId", "value"], ("canvasId", StringSchema()), ("nodeId", StringSchema()), ("parameterId", StringSchema())),
+                    LegacyPatchOperationSchema("addConnection", ConnectionValueSchema(), ["canvasId", "value"], ("canvasId", StringSchema())),
+                    LegacyPatchOperationSchema("replaceConnection", ConnectionValueSchema(), ["canvasId", "connectionId", "value"], ("canvasId", StringSchema()), ("connectionId", StringSchema())),
+                    LegacyPatchOperationSchema("removeConnection", null, ["canvasId", "connectionId"], ("canvasId", StringSchema()), ("connectionId", StringSchema())),
+                    LegacyPatchOperationSchema("setEntryNode", StringSchema(), ["value"]),
+                    LegacyPatchOperationSchema("setRunPolicy", RunPolicyValueSchema(), ["value"]),
+                    LegacyPatchOperationSchema("replaceScriptSource", StringSchema(), ["canvasId", "nodeId", "value"], ("canvasId", StringSchema()), ("nodeId", StringSchema()))
                 }
             },
             minItems: 1);
 
-    private static object PatchOperationSchema(
+    private static object CanonicalPatchOperationSchema(
+        string operation,
+        string? payloadName,
+        object? payloadSchema,
+        string[] required,
+        params (string Name, object Schema)[] fields)
+    {
+        var properties = new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["op"] = new { type = "string", @enum = new[] { operation } },
+        };
+        foreach (var (name, schema) in fields)
+            properties[name] = schema;
+        if (payloadName is not null && payloadSchema is not null)
+            properties[payloadName] = payloadSchema;
+        return ObjectSchema(properties, ["op", .. required]);
+    }
+
+    private static object LegacyPatchOperationSchema(
         string operation,
         object? valueSchema,
         string[] required,
@@ -1953,18 +2079,30 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
             ["id", "lifecycle", "nodes", "connections"]);
 
     private static object NodeValueSchema()
+        => new
+        {
+            oneOf = new object[]
+            {
+                TypedNodeValueSchema("action", NullSchema()),
+                TypedNodeValueSchema("flipflop", NullSchema()),
+                TypedNodeValueSchema("script", ScriptValueSchema()),
+                TypedNodeValueSchema("flowCall", NullSchema())
+            }
+        };
+
+    private static object TypedNodeValueSchema(string type, object scriptSchema)
         => ObjectSchema(
             new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["id"] = StringSchema("Stable node ID."),
-                ["type"] = EnumSchema<NodeTypeDto>(),
+                ["type"] = new { type = "string", @enum = new[] { type } },
                 ["displayName"] = StringSchema(),
                 ["x"] = RealSchema(),
                 ["y"] = RealSchema(),
                 ["ports"] = ArraySchema(PortValueSchema()),
                 ["parameters"] = ArraySchema(NodeParameterValueSchema()),
-                ["script"] = NullableSchema(ScriptValueSchema()),
-                ["ui"] = NullableSchema(ObjectSchema(additionalProperties: true)),
+                ["script"] = scriptSchema,
+                ["ui"] = NullableSchema(NodeUiValueSchema()),
             },
             ["id", "type", "displayName", "x", "y", "ports", "parameters", "script"]);
 
@@ -1987,9 +2125,9 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
                 ["valueJson"] = NullableSchema(StringSchema()),
                 ["source"] = EnumSchema<DataSourceDto>(),
                 ["required"] = BooleanSchema(),
-                ["ui"] = NullableSchema(ParameterUiValueSchema()),
+                ["ui"] = ParameterUiValueSchema(),
             },
-            ["name", "source", "required"]);
+            ["name", "valueJson", "source", "required", "ui"]);
 
     private static object ConnectionValueSchema()
         => ObjectSchema(
@@ -2029,7 +2167,98 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
             ["concurrencyMode"]);
 
     private static object ParameterUiValueSchema()
-        => ObjectSchema(additionalProperties: true);
+        => ObjectSchema(
+            new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["id"] = StringSchema(),
+                ["nameKey"] = StringSchema(),
+                ["valueKind"] = StringSchema(),
+                ["literalValue"] = NullableSchema(StringSchema()),
+                ["projectInputKey"] = NullableSchema(StringSchema()),
+                ["expression"] = NullableSchema(StringSchema()),
+                ["sourceNodeId"] = NullableSchema(StringSchema()),
+                ["sourcePortId"] = NullableSchema(StringSchema()),
+                ["type"] = NullableSchema(StringSchema()),
+                ["description"] = NullableSchema(StringSchema()),
+                ["inputMode"] = NullableSchema(StringSchema()),
+                ["isVariadic"] = NullableSchema(BooleanSchema()),
+                ["variadicGroupId"] = NullableSchema(StringSchema()),
+                ["elementType"] = NullableSchema(StringSchema()),
+                ["variadicMode"] = NullableSchema(StringSchema()),
+                ["enumMetadata"] = NullableSchema(EnumMetadataValueSchema())
+            },
+            ["id", "nameKey", "valueKind"]);
+
+    private static object NodeUiValueSchema()
+        => ObjectSchema(
+            new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["kind"] = StringSchema(),
+                ["titleKey"] = StringSchema(),
+                ["subtitleKey"] = StringSchema(),
+                ["description"] = NullableSchema(StringSchema()),
+                ["status"] = StringSchema(),
+                ["hasDataOutput"] = BooleanSchema(),
+                ["width"] = NullableSchema(RealSchema()),
+                ["category"] = NullableSchema(StringSchema()),
+                ["libraryId"] = NullableSchema(StringSchema()),
+                ["className"] = NullableSchema(StringSchema()),
+                ["methodName"] = NullableSchema(StringSchema()),
+                ["dllName"] = NullableSchema(StringSchema()),
+                ["dllVersion"] = NullableSchema(StringSchema()),
+                ["returnType"] = NullableSchema(StringSchema()),
+                ["targetNodeId"] = NullableSchema(StringSchema()),
+                ["targetFlowId"] = NullableSchema(StringSchema()),
+                ["isAwaitable"] = NullableSchema(BooleanSchema()),
+                ["staticReturnType"] = NullableSchema(StringSchema()),
+                ["isDynamicReturnType"] = NullableSchema(BooleanSchema()),
+                ["targetCanvasId"] = NullableSchema(StringSchema()),
+                ["isPublic"] = NullableSchema(BooleanSchema()),
+                ["flowCallParameterBindings"] = NullableSchema(ArraySchema(FlowCallParameterBindingValueSchema())),
+                ["libraryNodeContractId"] = NullableSchema(StringSchema()),
+                ["flowLibraryName"] = NullableSchema(StringSchema())
+            },
+            ["kind", "titleKey", "subtitleKey", "description", "status", "hasDataOutput", "width"]);
+
+    private static object FlowCallParameterBindingValueSchema()
+        => ObjectSchema(
+            new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["callParameterId"] = StringSchema(),
+                ["targetParameterId"] = StringSchema()
+            },
+            ["callParameterId", "targetParameterId"]);
+
+    private static object EnumMetadataValueSchema()
+        => ObjectSchema(
+            new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["typeName"] = StringSchema(),
+                ["isFlags"] = BooleanSchema(),
+                ["underlyingType"] = StringSchema(),
+                ["options"] = ArraySchema(EnumOptionValueSchema())
+            },
+            ["typeName", "isFlags", "underlyingType", "options"]);
+
+    private static object EnumOptionValueSchema()
+        => ObjectSchema(
+            new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["name"] = StringSchema(),
+                ["numericValue"] = StringSchema()
+            },
+            ["name", "numericValue"]);
+
+    private static object PositionSchema()
+        => ObjectSchema(
+            new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["x"] = RealSchema(),
+                ["y"] = RealSchema()
+            },
+            ["x", "y"]);
+
+    private static object NullSchema() => new { type = "null" };
 
     private static object ScriptContractValueSchema()
         => ObjectSchema(
@@ -2142,6 +2371,34 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
             $"The flow patch value is invalid{location}. Use camelCase enum strings such as 'action' and 'data'; legacy numeric enum values are also accepted.",
             new { code = "mcp.invalid_patch_value", path });
     }
+
+    private static McpProtocolException InvalidFlowPatchContract(FlowPatchContractException exception)
+        => new(
+            -32602,
+            "The flow patch contract is invalid.",
+            new
+            {
+                code = exception.Code,
+                diagnosticId = exception.DiagnosticId,
+                fieldPath = exception.FieldPath,
+                expected = exception.Expected,
+                schemaVersion = FlowPatchContract.CurrentSchemaVersion,
+                remediation = exception.Remediation
+            });
+
+    private static McpProtocolException InvalidLibraryNodeTemplate(LibraryNodeTemplateException exception)
+        => new(
+            -32602,
+            "The library node template request is invalid.",
+            new
+            {
+                code = exception.Code,
+                diagnosticId = exception.DiagnosticId,
+                fieldPath = exception.FieldPath,
+                expected = exception.Expected,
+                remediation = exception.Remediation,
+                statusCode = exception.StatusCode
+            });
 
     private static Guid? TryGetGuid(JsonElement arguments, string name)
     {
@@ -2340,7 +2597,13 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
         DateTimeOffset CreatedAt,
         FlowDefinitionDto Definition,
         FlowValidationResultDto Validation);
-    private sealed record StoredFlowPatchPreview(FlowPatchRequestDto Request, FlowDefinitionDto CandidateDefinition, FlowValidationResultDto Validation, FlowDiffDto Diff);
+    private sealed record StoredFlowPatchPreview(
+        FlowPatchRequestDto Request,
+        FlowDefinitionDto CandidateDefinition,
+        FlowValidationResultDto Validation,
+        FlowDiffDto Diff,
+        FlowPatchCanonicalRequestDto? CanonicalRequest = null,
+        IReadOnlyList<FlowPatchNormalizationWarningDto>? NormalizationWarnings = null);
     private sealed record StoredPublishPreview(
         PublishFlowPreviewRequestDto Request,
         FlowValidationResultDto Validation,

@@ -162,14 +162,48 @@ state. Do not claim a node completed from a stale snapshot.
 
 ## Change A Flow
 
-Represent changes only with the typed operations accepted by
-`sereinflow_preview_flow_patch`:
+For every new request to `sereinflow_preview_flow_patch`, use the v2 envelope:
+`schemaVersion: "2.0"`, a camelCase `op` discriminator, and the named typed
+payload belonging to that operation. New requests must never use the legacy
+`operation` / `value` envelope. Version 1 (an omitted or `"1.0"`
+`schemaVersion`) is compatibility input only; preserve a returned v2
+`normalizedOperations` array as-is and do not reconstruct DTOs from a legacy
+payload.
 
-- `add_canvas`, `update_canvas`, `remove_canvas`
-- `add_node`, `replace_node`, `remove_node`
-- `set_node_parameter`
-- `add_connection`, `replace_connection`, `remove_connection`
-- `set_entry_node`, `set_run_policy`, `replace_script_source`
+The allowed v2 `op` values are:
+
+- `addCanvas`, `updateCanvas`, `removeCanvas`
+- `addNode`, `replaceNode`, `removeNode`
+- `setNodeParameter`
+- `addConnection`, `replaceConnection`, `removeConnection`
+- `setEntryNode`, `setRunPolicy`, `replaceScriptSource`
+
+For example, `setRunPolicy` carries a `runPolicy` object, while `addNode`
+carries a complete `node` object; do not put either value inside a generic
+wrapper:
+
+```json
+{
+  "projectId": "<project-id>",
+  "flowId": "<flow-id>",
+  "expectedDevelopmentVersion": 12,
+  "schemaVersion": "2.0",
+  "operations": [
+    {
+      "op": "setRunPolicy",
+      "runPolicy": { "concurrencyMode": "exclusiveReject" }
+    }
+  ]
+}
+```
+
+All enum values in v2 are canonical camelCase strings. Treat
+`schemaVersion: "2.0"`, `enumEncoding: "camelCase"`,
+`normalizedOperations`, and `normalizationWarnings` in the preview response
+as the authoritative client contract. A field, discriminator, enum, ID, or
+reference diagnostic is a hard stop: report its stable `mcp.flow_patch.*`
+code with `diagnosticId`, `fieldPath`, `expected`, and remediation; do not
+retry with guessed casing or a reconstructed payload.
 
 All newly added canvases, nodes, and connections must have explicit stable
 IDs. Remove a node only after explicitly removing its connections. Handle all
@@ -177,6 +211,43 @@ contents before removing a canvas. Change only known fields in the structured
 contract; never submit arbitrary JSON paths or an untyped document merge.
 Keep the expected development version from the latest read model in the
 preview request.
+
+### Node Layout Constraints
+
+Before drawing or placing nodes, call `sereinflow_get_flow_edit_model` and use
+the returned canvas bounds, node positions, node dimensions, ports, and
+connections as the layout baseline. Never guess coordinates from node names or
+place several nodes at the same default position.
+
+Every node must have a non-overlapping bounding box. Keep a clear safety gap
+between each new node, every existing node, the canvas boundary, and other new
+nodes. Calculate horizontal steps from the actual node width; for the usual
+approximately `260 px` node width, use roughly `340-420 px` between columns,
+and increase the step for nodes with many parameters or wider UI content. As a
+baseline, keep at least `80 px` of horizontal clearance between adjacent nodes
+and at least `64 px` between branch rows. Enlarge the canvas when required;
+do not shrink nodes to make a crowded layout fit.
+
+Lay out the main execution path from left to right, keeping nodes in the same
+execution stage on a common `y` coordinate. Put success, failure, and error
+branches on separate rows, expanding them to the right of their parent. When
+multiple outputs share a parent, order their rows deterministically and leave
+enough right-side space for the parent's fan-out. Reserve left-side space for
+high-merge nodes and group large flows into execution-stage columns or lanes.
+
+Keep execution connections short, directional, and with as few crossings as
+possible. Route data connections so they do not pass through node bodies or
+port lists; when a cross-stage route is unavoidable, use a dedicated channel
+above or below the nodes. Do not solve connection collisions by moving nodes
+closer together.
+
+When changing an existing flow, do not rearrange all existing nodes without a
+clear reason. Move only the affected nodes when a new node would overlap an
+existing node or make a connection unreadable, and include those coordinate
+changes in the same preview. Before presenting the preview, check every node
+bounding box for overlap and canvas overflow, then check connection crossings
+and routes through node bodies. A layout is not ready when nodes are merely
+valid; it must remain readable at the returned node dimensions.
 
 Present the preview's validation diagnostics and structured diff before
 applying it. Check the candidate checksum, affected node and library counts,
@@ -250,6 +321,19 @@ Attach an existing immutable artifact only through
 `sereinflow_preview_project_library_attach` followed by
 `sereinflow_apply_project_library_attach`. Treat this as a separate confirmed
 mutation because it changes the set of contracts available to a project.
+
+To place an Action or Flipflop class-library node after a library is attached,
+first call the read-only `sereinflow_create_library_node_template` with the
+persisted `projectId`, `libraryId`, `libraryNodeContractId`, and
+`position: { x, y }`. It requires `project.read` and an already attached,
+scanned library; it does not create a preview, flow version, or resource.
+Use the returned canonical `node` unchanged as the `node` payload of a v2
+`addNode` operation for a canvas already known from the flow edit model. Do
+not manually assemble runtime library metadata, parameter ports, parameter
+IDs, default literals, enum/variadic data, or execution ports. Record the
+returned library version/package SHA-256 and `contractRevision` alongside the
+proposed patch for review. Library attachment itself remains the separate
+preview/apply operation above; it is never represented in a flow patch.
 
 ## Errors And Audit
 

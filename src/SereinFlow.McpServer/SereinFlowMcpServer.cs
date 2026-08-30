@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using SereinFlow.Application;
+using SereinFlow.Contracts;
 
 namespace SereinFlow.McpServer;
 
@@ -13,11 +14,8 @@ namespace SereinFlow.McpServer;
 /// </summary>
 public sealed class SereinFlowMcpServer
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-        WriteIndented = false
-    };
+    private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateContractOptions(options =>
+        options.WriteIndented = false);
 
     private readonly ISereinFlowMcpBackend _backend;
     private readonly TextWriter _diagnostics;
