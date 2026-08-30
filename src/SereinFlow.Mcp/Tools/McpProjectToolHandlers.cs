@@ -7,12 +7,22 @@ using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
+using static SereinFlow.Mcp.McpToolSupport;
 
 namespace SereinFlow.Mcp;
 
-public sealed partial class SereinFlowMcpBackend
+/// <summary>
+/// Project lifecycle MCP tools, including their preview payload projection.
+/// </summary>
+internal static class McpProjectToolHandlers
 {
-    private static ProjectCreatePreviewDto ReadProjectCreatePreview(
+    internal static Task<object> PreviewCreateAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => PreviewCreateProjectAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
+
+    internal static Task<object> ApplyCreateAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => ApplyCreateProjectAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
+
+    internal static ProjectCreatePreviewDto ReadProjectCreatePreview(
         McpPreviewEntry entry,
         McpPreviewDescriptorDto descriptor)
     {

@@ -1,0 +1,88 @@
+using Microsoft.Extensions.DependencyInjection;
+using SereinFlow.Application;
+using SereinFlow.Contracts;
+
+namespace SereinFlow.Mcp;
+
+/// <summary>
+/// Resolves SereinFlow resource URIs through the same scoped read handlers
+/// used by MCP tools. URI syntax belongs here, not in the backend facade.
+/// </summary>
+public sealed class McpResourceReader
+{
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IMcpPrincipalAccessor _principalAccessor;
+
+    public McpResourceReader(
+        IServiceScopeFactory scopeFactory,
+        IMcpPrincipalAccessor principalAccessor)
+    {
+        _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
+        _principalAccessor = principalAccessor ?? throw new ArgumentNullException(nameof(principalAccessor));
+    }
+
+    public async Task<McpResourceReadResult> ReadAsync(string uri, CancellationToken cancellationToken)
+    {
+        if (!Uri.TryCreate(uri, UriKind.Absolute, out var parsed)
+            || !string.Equals(parsed.Scheme, "sereinflow", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new McpProtocolException(-32602, "The SereinFlow resource URI is invalid.");
+        }
+
+        var collection = parsed.Host.ToLowerInvariant();
+        var segments = parsed.AbsolutePath
+            .Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .Select(Uri.UnescapeDataString)
+            .ToArray();
+
+        using var scope = _scopeFactory.CreateScope();
+        var context = new McpToolContext(
+            scope,
+            scope.ServiceProvider.GetRequiredService<McpSecurityService>(),
+            _principalAccessor.Current);
+        object? value = collection switch
+        {
+            "projects" when segments.Length == 0
+                => await McpReadModelToolHandlers.ReadProjectsResourceAsync(context, cancellationToken),
+            "projects" when segments.Length == 1 && Guid.TryParse(segments[0], out var projectId)
+                => await McpReadModelToolHandlers.ReadProjectResourceAsync(context, projectId, cancellationToken),
+            "projects" when segments.Length == 4
+                && Guid.TryParse(segments[0], out var topologyProjectId)
+                && string.Equals(segments[1], "flows", StringComparison.OrdinalIgnoreCase)
+                && Guid.TryParse(segments[2], out var topologyFlowId)
+                && string.Equals(segments[3], "topology", StringComparison.OrdinalIgnoreCase)
+                => await McpReadModelToolHandlers.ReadTopologyResourceAsync(context, topologyProjectId, topologyFlowId, cancellationToken),
+            "libraries" when segments.Length == 0
+                => await McpReadModelToolHandlers.ReadLibrariesResourceAsync(context, cancellationToken),
+            "libraries" when segments.Length == 1
+                => await McpReadModelToolHandlers.ReadLibraryResourceAsync(context, segments[0], cancellationToken),
+            "runs" when segments.Length == 1 && Guid.TryParse(segments[0], out var runId)
+                => await McpReadModelToolHandlers.ReadRunResourceAsync(context, runId, cancellationToken),
+            "debug-sessions" when segments.Length == 1 && Guid.TryParse(segments[0], out var sessionId)
+                => await McpReadModelToolHandlers.ReadDebugResourceAsync(context, sessionId, cancellationToken),
+            "projects" when segments.Length == 5
+                && Guid.TryParse(segments[0], out var versionsProjectId)
+                && string.Equals(segments[1], "flows", StringComparison.OrdinalIgnoreCase)
+                && Guid.TryParse(segments[2], out var versionsFlowId)
+                && string.Equals(segments[3], "versions", StringComparison.OrdinalIgnoreCase)
+                => await McpReadModelToolHandlers.ReadVersionsResourceAsync(
+                    context, versionsProjectId, versionsFlowId, segments[4], cancellationToken),
+            "projects" when segments.Length == 6
+                && Guid.TryParse(segments[0], out var versionProjectId)
+                && string.Equals(segments[1], "flows", StringComparison.OrdinalIgnoreCase)
+                && Guid.TryParse(segments[2], out var versionFlowId)
+                && string.Equals(segments[3], "versions", StringComparison.OrdinalIgnoreCase)
+                && long.TryParse(segments[5], out var version)
+                => await McpReadModelToolHandlers.ReadVersionResourceAsync(
+                    context, versionProjectId, versionFlowId, segments[4], version, cancellationToken),
+            "mcp-previews" when segments.Length == 1 && Guid.TryParse(segments[0], out var previewId)
+                => await McpReadModelToolHandlers.ReadPreviewResourceAsync(context, previewId, cancellationToken),
+            _ => throw new McpProtocolException(-32602, "The SereinFlow resource URI is not supported.")
+        };
+
+        if (value is null)
+            throw new McpProtocolException(-32004, "The requested SereinFlow resource was not found.");
+
+        return new McpResourceReadResult(uri, value);
+    }
+}

@@ -7,12 +7,13 @@ using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
+using static SereinFlow.Mcp.McpToolSupport;
 
 namespace SereinFlow.Mcp;
 
-public sealed partial class SereinFlowMcpBackend
+internal static class McpPreviewPayloadReaders
 {
-    private static object ReadPublishPreview(McpPreviewEntry entry, McpPreviewDescriptorDto descriptor)
+    internal static object ReadPublishPreview(McpPreviewEntry entry, McpPreviewDescriptorDto descriptor)
     {
         var stored = McpPreviewService.Deserialize<StoredPublishPreview>(entry);
         return new
@@ -29,7 +30,7 @@ public sealed partial class SereinFlowMcpBackend
         };
     }
 
-    private static object ReadRollbackPreview(McpPreviewEntry entry, McpPreviewDescriptorDto descriptor)
+    internal static object ReadRollbackPreview(McpPreviewEntry entry, McpPreviewDescriptorDto descriptor)
     {
         var stored = McpPreviewService.Deserialize<StoredRollbackPreview>(entry);
         return new
@@ -45,7 +46,7 @@ public sealed partial class SereinFlowMcpBackend
         };
     }
 
-    private static LibraryPackagePreviewDto ReadLibraryPackagePreview(McpPreviewEntry entry, McpPreviewDescriptorDto descriptor)
+    internal static LibraryPackagePreviewDto ReadLibraryPackagePreview(McpPreviewEntry entry, McpPreviewDescriptorDto descriptor)
     {
         var stored = McpPreviewService.Deserialize<StoredLibraryPackagePreview>(entry);
         return new LibraryPackagePreviewDto(
@@ -64,7 +65,7 @@ public sealed partial class SereinFlowMcpBackend
             stored.ProjectImpact);
     }
 
-    private static ProjectLibraryAttachPreviewDto ReadProjectLibraryAttachPreview(McpPreviewEntry entry, McpPreviewDescriptorDto descriptor)
+    internal static ProjectLibraryAttachPreviewDto ReadProjectLibraryAttachPreview(McpPreviewEntry entry, McpPreviewDescriptorDto descriptor)
     {
         var stored = McpPreviewService.Deserialize<StoredProjectLibraryAttachPreview>(entry);
         return new ProjectLibraryAttachPreviewDto(

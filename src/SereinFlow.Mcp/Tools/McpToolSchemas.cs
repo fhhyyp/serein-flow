@@ -7,12 +7,13 @@ using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
+using static SereinFlow.Mcp.McpToolSupport;
 
 namespace SereinFlow.Mcp;
 
-public sealed partial class SereinFlowMcpBackend
+internal static class McpToolSchemas
 {
-    private static Dictionary<string, object?> ApplySchemaProperties()
+    internal static Dictionary<string, object?> ApplySchemaProperties()
         => new(StringComparer.Ordinal)
         {
             ["previewId"] = StringSchema(),
@@ -21,7 +22,7 @@ public sealed partial class SereinFlowMcpBackend
             ["idempotencyKey"] = StringSchema("A fresh key for this exact apply request.")
         };
 
-    private static object ArraySchema(object? items = null, int? minItems = null)
+    internal static object ArraySchema(object? items = null, int? minItems = null)
     {
         var schema = new Dictionary<string, object?>(StringComparer.Ordinal)
         {
@@ -33,7 +34,7 @@ public sealed partial class SereinFlowMcpBackend
         return schema;
     }
 
-    private static object FlowPatchOperationsSchema()
+    internal static object FlowPatchOperationsSchema()
         => ArraySchema(
             new
             {
@@ -287,7 +288,7 @@ public sealed partial class SereinFlowMcpBackend
             },
             ["name", "numericValue"]);
 
-    private static object PositionSchema()
+    internal static object PositionSchema()
         => ObjectSchema(
             new Dictionary<string, object?>(StringComparer.Ordinal)
             {

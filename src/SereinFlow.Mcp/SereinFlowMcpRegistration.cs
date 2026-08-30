@@ -88,6 +88,11 @@ public static class SereinFlowMcpServiceCollectionExtensions
         services.TryAddSingleton<McpRequestLimiter>(_ => new McpRequestLimiter(
             options.MaxConcurrentRequests,
             options.MaxRequestsPerMinute));
+        services.TryAddSingleton<McpMutationGate>();
+        services.TryAddSingleton<McpToolAuditService>();
+        services.TryAddSingleton<McpToolExecutor>();
+        services.TryAddSingleton<McpResourceReader>();
+        services.TryAddSingleton<McpToolCatalog>(_ => SereinFlowMcpToolCatalogFactory.Create());
         services.TryAddSingleton<ISereinFlowMcpBackend, SereinFlowMcpBackend>();
         services.TryAddSingleton<SereinFlowMcpServer>(serviceProvider =>
             new SereinFlowMcpServer(

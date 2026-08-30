@@ -7,11 +7,36 @@ using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
+using static SereinFlow.Mcp.McpToolSupport;
 
 namespace SereinFlow.Mcp;
 
-public sealed partial class SereinFlowMcpBackend
+/// <summary>
+/// Flow patch, publish, rollback and version comparison MCP tools.
+/// </summary>
+internal static class McpFlowToolHandlers
 {
+    internal static Task<object> PreviewPatchAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => PreviewFlowPatchAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
+
+    internal static Task<object> ApplyPatchAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => ApplyFlowPatchAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
+
+    internal static Task<object> CompareVersionsAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => CompareFlowVersionsAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
+
+    internal static Task<object> PreviewPublishAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => PreviewPublishAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
+
+    internal static Task<object> ApplyPublishAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => ApplyPublishAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
+
+    internal static Task<object> PreviewRollbackAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => PreviewRollbackAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
+
+    internal static Task<object> ApplyRollbackAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => ApplyRollbackAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
+
     private static async Task<object> PreviewFlowPatchAsync(
         IServiceScope scope,
         McpPrincipal principal,
@@ -93,7 +118,7 @@ public sealed partial class SereinFlowMcpBackend
             request.ExpectedDevelopmentVersion,
             stored,
             cancellationToken);
-        return ToFlowPatchPreview(preview, stored);
+        return McpReadModelToolHandlers.ToFlowPatchPreview(preview, stored);
     }
 
     private static async Task<object> ApplyFlowPatchAsync(

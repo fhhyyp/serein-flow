@@ -7,11 +7,28 @@ using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
+using static SereinFlow.Mcp.McpToolSupport;
 
 namespace SereinFlow.Mcp;
 
-public sealed partial class SereinFlowMcpBackend
+/// <summary>
+/// Admin-only API key MCP tools. The executor still owns authorization,
+/// idempotency serialization and audit; this class only owns tool behavior.
+/// </summary>
+internal static class McpApiKeyToolHandlers
 {
+    internal static Task<object> ListAsync(McpToolContext context, CancellationToken cancellationToken)
+        => ListApiKeysAsync(context.Scope, context.RequirePrincipal(), cancellationToken);
+
+    internal static Task<object> CreateAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => CreateApiKeyAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
+
+    internal static Task<object> RevokeAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => RevokeApiKeyAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
+
+    internal static Task<object> RotateAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => RotateApiKeyAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
+
     private static async Task<object> ListApiKeysAsync(IServiceScope scope, McpPrincipal principal, CancellationToken cancellationToken)
     {
         scope.ServiceProvider.GetRequiredService<McpSecurityService>().RequireAdministrator(principal);

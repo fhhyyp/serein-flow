@@ -7,11 +7,34 @@ using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
+using static SereinFlow.Mcp.McpToolSupport;
 
 namespace SereinFlow.Mcp;
 
-public sealed partial class SereinFlowMcpBackend
+/// <summary>
+/// Library contracts, package staging and project attachment MCP tools.
+/// Attachment remains an explicit preview/apply workflow.
+/// </summary>
+internal static class McpLibraryToolHandlers
 {
+    internal static Task<object> CreateNodeTemplateAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => CreateLibraryNodeTemplateAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
+
+    internal static Task<object> CompileScriptAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => CompileScriptAsync(context.Scope, arguments, cancellationToken);
+
+    internal static Task<object> PreviewPackageAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => PreviewLibraryPackageAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
+
+    internal static Task<object> ApplyPackageAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => ApplyLibraryPackageAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
+
+    internal static Task<object> PreviewProjectAttachAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => PreviewProjectLibraryAttachAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
+
+    internal static Task<object> ApplyProjectAttachAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => ApplyProjectLibraryAttachAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
+
     private static async Task<object> CreateLibraryNodeTemplateAsync(
         IServiceScope scope,
         McpPrincipal principal,

@@ -10,9 +10,19 @@ using SereinFlow.Domain;
 
 namespace SereinFlow.Mcp;
 
-public sealed partial class SereinFlowMcpBackend
+/// <summary>
+/// Shared parsing, protocol conversion and mutation helpers used by MCP tool
+/// handlers. This module deliberately owns no tool routing or resource URI
+/// dispatch.
+/// </summary>
+internal static class McpToolSupport
 {
-    private static McpPermissionDto[] ReadPermissions(JsonElement arguments)
+    internal static readonly JsonSerializerOptions ContractJsonOptions = SereinJsonSerialization.CreateContractOptions(options =>
+    {
+        options.Converters.Insert(0, new McpPermissionJsonConverter());
+    });
+
+    internal static McpPermissionDto[] ReadPermissions(JsonElement arguments)
     {
         if (!arguments.TryGetProperty("permissions", out var value) || value.ValueKind != JsonValueKind.Array)
             throw new McpProtocolException(-32602, "MCP parameter 'permissions' must be an array.");
@@ -26,7 +36,7 @@ public sealed partial class SereinFlowMcpBackend
         return permissions.Distinct().ToArray();
     }
 
-    private static DateTimeOffset? ReadOptionalDate(JsonElement arguments, string name)
+    internal static DateTimeOffset? ReadOptionalDate(JsonElement arguments, string name)
     {
         var value = GetOptionalString(arguments, name);
         return string.IsNullOrWhiteSpace(value)
@@ -36,7 +46,7 @@ public sealed partial class SereinFlowMcpBackend
                 : throw new McpProtocolException(-32602, $"MCP parameter '{name}' must be an ISO date.");
     }
 
-    private static T Deserialize<T>(JsonElement arguments)
+    internal static T Deserialize<T>(JsonElement arguments)
     {
         try
         {
@@ -56,7 +66,7 @@ public sealed partial class SereinFlowMcpBackend
         }
     }
 
-    private static McpProtocolException InvalidArguments(JsonException exception)
+    internal static McpProtocolException InvalidArguments(JsonException exception)
     {
         var path = string.IsNullOrWhiteSpace(exception.Path) ? null : exception.Path;
         var location = path is null ? string.Empty : $" at '{path}'";
@@ -66,7 +76,7 @@ public sealed partial class SereinFlowMcpBackend
             new { code = "mcp.invalid_arguments", path });
     }
 
-    private static McpProtocolException InvalidPatchValue(JsonException exception)
+    internal static McpProtocolException InvalidPatchValue(JsonException exception)
     {
         var path = string.IsNullOrWhiteSpace(exception.Path) ? null : exception.Path;
         var location = path is null ? string.Empty : $" at '{path}'";
@@ -76,7 +86,7 @@ public sealed partial class SereinFlowMcpBackend
             new { code = "mcp.invalid_patch_value", path });
     }
 
-    private static McpProtocolException InvalidFlowPatchContract(FlowPatchContractException exception)
+    internal static McpProtocolException InvalidFlowPatchContract(FlowPatchContractException exception)
         => new(
             -32602,
             "The flow patch contract is invalid.",
@@ -90,7 +100,7 @@ public sealed partial class SereinFlowMcpBackend
                 remediation = exception.Remediation
             });
 
-    private static McpProtocolException InvalidLibraryNodeTemplate(LibraryNodeTemplateException exception)
+    internal static McpProtocolException InvalidLibraryNodeTemplate(LibraryNodeTemplateException exception)
         => new(
             -32602,
             "The library node template request is invalid.",
@@ -104,7 +114,7 @@ public sealed partial class SereinFlowMcpBackend
                 statusCode = exception.StatusCode
             });
 
-    private static Guid? TryGetGuid(JsonElement arguments, string name)
+    internal static Guid? TryGetGuid(JsonElement arguments, string name)
     {
         var value = GetOptionalString(arguments, name);
         return string.IsNullOrWhiteSpace(value)
@@ -114,16 +124,16 @@ public sealed partial class SereinFlowMcpBackend
                 : throw new McpProtocolException(-32602, $"MCP parameter '{name}' must be a GUID.");
     }
 
-    private static long GetLong(JsonElement arguments, string name)
+    internal static long GetLong(JsonElement arguments, string name)
         => GetOptionalLong(arguments, name)
             ?? throw new McpProtocolException(-32602, $"MCP parameter '{name}' is required.");
 
-    private static FlowVersionTrackDto ParseTrack(string value)
+    internal static FlowVersionTrackDto ParseTrack(string value)
         => Enum.TryParse<FlowVersionTrackDto>(value, true, out var track) && Enum.IsDefined(track)
             ? track
             : throw new McpProtocolException(-32602, "The flow version track must be development or production.");
 
-    private static void RequireConfirmation(McpMutationApplyRequestDto request)
+    internal static void RequireConfirmation(McpMutationApplyRequestDto request)
     {
         if (!string.Equals(request.Confirmation, "APPLY", StringComparison.Ordinal))
             throw new McpProtocolException(-32602, "The confirmation value must be APPLY.");
@@ -131,10 +141,10 @@ public sealed partial class SereinFlowMcpBackend
             throw new McpProtocolException(-32602, "The idempotency key is required.");
     }
 
-    private static McpProtocolException VersionConflict(long? currentVersion)
+    internal static McpProtocolException VersionConflict(long? currentVersion)
         => new(-32010, "The flow version changed before the MCP mutation was applied.", new { currentVersion });
 
-    private static async Task<FlowValidationResultDto> ValidateExecutableFlowAsync(
+    internal static async Task<FlowValidationResultDto> ValidateExecutableFlowAsync(
         IServiceScope scope,
         Guid projectId,
         FlowDefinitionDto definition,
@@ -148,7 +158,7 @@ public sealed partial class SereinFlowMcpBackend
             validation.Diagnostics.Concat(libraryValidation.Diagnostics).ToArray());
     }
 
-    private static void RequireValidMutation(FlowValidationResultDto validation, string message)
+    internal static void RequireValidMutation(FlowValidationResultDto validation, string message)
     {
         if (validation.IsValid)
             return;
@@ -159,7 +169,7 @@ public sealed partial class SereinFlowMcpBackend
             new { code = "mcp.validation_failed", diagnostics = validation.Diagnostics });
     }
 
-    private static async Task MarkPreviewAppliedAsync(
+    internal static async Task MarkPreviewAppliedAsync(
         McpPreviewService previews,
         McpPreviewEntry entry,
         CancellationToken cancellationToken)
@@ -173,7 +183,7 @@ public sealed partial class SereinFlowMcpBackend
             new { code = "mcp.preview_state_persist_failed" });
     }
 
-    private static async Task<SereinFlow.Domain.Project> RequireActiveProjectAsync(
+    internal static async Task<SereinFlow.Domain.Project> RequireActiveProjectAsync(
         IServiceScope scope,
         McpSecurityService security,
         McpPrincipal principal,
@@ -195,10 +205,10 @@ public sealed partial class SereinFlowMcpBackend
         return project;
     }
 
-    private static string Serialize<T>(T value)
+    internal static string Serialize<T>(T value)
         => JsonSerializer.Serialize(value, ContractJsonOptions);
 
-    private static async Task<string> ComputeSha256Async(Stream stream, CancellationToken cancellationToken)
+    internal static async Task<string> ComputeSha256Async(Stream stream, CancellationToken cancellationToken)
     {
         using var hash = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
         var buffer = new byte[64 * 1024];
@@ -212,137 +222,20 @@ public sealed partial class SereinFlowMcpBackend
         return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
     }
 
-    private static JsonElement DeserializeStoredResponse(string responseJson)
+    internal static JsonElement DeserializeStoredResponse(string responseJson)
         => JsonSerializer.Deserialize<JsonElement>(responseJson, ContractJsonOptions);
 
-    private static bool IsProjectScoped(McpPrincipal? principal)
+    internal static bool IsProjectScoped(McpPrincipal? principal)
         => principal?.ProjectId is not null && !principal.IsLocal && !principal.IsAdministrator;
 
-    private static bool IsPreviewPending(McpPreviewEntry entry)
+    internal static bool IsPreviewPending(McpPreviewEntry entry)
         => entry.Status == McpMutationPreviewStatusDto.Pending
             && entry.ExpiresAt > DateTimeOffset.UtcNow;
 
-    private static Guid? TryGetGuidSilently(JsonElement arguments, string name)
-    {
-        if (arguments.ValueKind != JsonValueKind.Object
-            || !arguments.TryGetProperty(name, out var value)
-            || value.ValueKind != JsonValueKind.String)
-            return null;
-        return Guid.TryParse(value.GetString(), out var parsed) ? parsed : null;
-    }
-
-    private static string? TryGetStringSilently(JsonElement arguments, string name)
-    {
-        if (arguments.ValueKind != JsonValueKind.Object
-            || !arguments.TryGetProperty(name, out var value)
-            || value.ValueKind != JsonValueKind.String)
-            return null;
-        return value.GetString();
-    }
-
-    private static FlowVersionTrackDto? GetAuditTrack(string operation, JsonElement arguments)
-    {
-        var value = GetOptionalString(arguments, "track");
-        if (!string.IsNullOrWhiteSpace(value)
-            && Enum.TryParse<FlowVersionTrackDto>(value, true, out var track)
-            && Enum.IsDefined(track))
-        {
-            return track;
-        }
-
-        return operation is "sereinflow_preview_flow_patch"
-            or "sereinflow_apply_flow_patch"
-            or "sereinflow_preview_publish_flow"
-            or "sereinflow_apply_publish_flow"
-            ? FlowVersionTrackDto.Development
-            : null;
-    }
-
-    private static FlowVersionTrackDto? GetPreviewAuditTrack(McpPreviewEntry entry)
-    {
-        if (string.Equals(entry.Operation, "flow.patch", StringComparison.Ordinal)
-            || string.Equals(entry.Operation, "flow.publish", StringComparison.Ordinal))
-        {
-            return FlowVersionTrackDto.Development;
-        }
-
-        if (!string.Equals(entry.Operation, "flow.rollback", StringComparison.Ordinal))
-            return null;
-
-        try
-        {
-            using var document = JsonDocument.Parse(entry.PayloadJson);
-            if (document.RootElement.TryGetProperty("request", out var request)
-                && request.TryGetProperty("track", out var track)
-                && track.ValueKind == JsonValueKind.String
-                && Enum.TryParse<FlowVersionTrackDto>(track.GetString(), true, out var parsed)
-                && Enum.IsDefined(parsed))
-            {
-                return parsed;
-            }
-        }
-        catch (JsonException)
-        {
-        }
-
-        return null;
-    }
-
-    private static long? GetAuditFlowVersion(JsonElement arguments)
-        => GetOptionalLong(arguments, "expectedDevelopmentVersion")
-            ?? GetOptionalLong(arguments, "expectedHeadVersion")
-            ?? GetOptionalLong(arguments, "sourceVersion")
-            ?? GetOptionalLong(arguments, "version");
-
-    private sealed record StoredProjectCreatePreview(
-        CreateProjectMcpRequestDto Request,
-        Guid ProjectId,
-        Guid FlowId,
-        DateTimeOffset CreatedAt,
-        FlowDefinitionDto Definition,
-        FlowValidationResultDto Validation);
-    private sealed record StoredFlowPatchPreview(
-        FlowPatchRequestDto Request,
-        FlowDefinitionDto CandidateDefinition,
-        FlowValidationResultDto Validation,
-        FlowDiffDto Diff,
-        FlowPatchCanonicalRequestDto? CanonicalRequest = null,
-        IReadOnlyList<FlowPatchNormalizationWarningDto>? NormalizationWarnings = null);
-    private sealed record StoredPublishPreview(
-        PublishFlowPreviewRequestDto Request,
-        FlowValidationResultDto Validation,
-        FlowDiffDto Diff,
-        bool HasProductionVersion = true,
-        long? ExpectedProductionVersion = null);
-    private sealed record StoredRollbackPreview(RollbackFlowPreviewRequestDto Request, FlowValidationResultDto Validation, FlowDiffDto Diff);
-    private sealed record StoredLibraryPackagePreview(
-        string FileName,
-        Guid? ProjectId,
-        string StagingPath,
-        long SizeBytes,
-        string PackageSha256,
-        LibraryPackageInspectionDto Inspection,
-        LibraryArtifactCompatibilityDto? Compatibility = null,
-        LibraryPackageProjectImpactDto? ProjectImpact = null);
-    private sealed record StoredProjectLibraryAttachPreview(
-        ProjectLibraryAttachRequestDto Request,
-        IReadOnlyList<ValidationDiagnosticDto> Diagnostics);
-
-    private sealed class SemaphoreLease(SemaphoreSlim semaphore) : IDisposable
-    {
-        private int _released;
-
-        public void Dispose()
-        {
-            if (Interlocked.Exchange(ref _released, 1) == 0)
-                semaphore.Release();
-        }
-    }
-
-    private static McpToolDescriptor Tool(string name, string description, JsonElement inputSchema)
+    internal static McpToolDescriptor Tool(string name, string description, JsonElement inputSchema)
         => new(name, description, inputSchema);
 
-    private static JsonElement Schema(
+    internal static JsonElement Schema(
         Dictionary<string, object?>? properties = null,
         string[]? required = null)
         => JsonSerializer.SerializeToElement(new
@@ -353,23 +246,23 @@ public sealed partial class SereinFlowMcpBackend
             additionalProperties = false
         });
 
-    private static object StringSchema(string? description = null)
+    internal static object StringSchema(string? description = null)
         => description is null ? new { type = "string" } : new { type = "string", description };
 
-    private static object NumberSchema()
+    internal static object NumberSchema()
         => new { type = "integer" };
 
-    private static object BooleanSchema()
+    internal static object BooleanSchema()
         => new { type = "boolean" };
 
-    private static AiReadModelOptions ReadOptions(JsonElement arguments)
+    internal static AiReadModelOptions ReadOptions(JsonElement arguments)
         => new(
             GetOptionalInt(arguments, "maxItems") ?? 200,
             GetOptionalInt(arguments, "maxJsonBytes") ?? 64 * 1024,
             GetOptionalBool(arguments, "includeFlowLiteralValues") ?? false,
             GetOptionalBool(arguments, "includeScriptSource") ?? false);
 
-    private static FlowVersionTrackDto ReadTrack(JsonElement arguments)
+    internal static FlowVersionTrackDto ReadTrack(JsonElement arguments)
     {
         var value = GetOptionalString(arguments, "track");
         return string.IsNullOrWhiteSpace(value)
@@ -379,7 +272,7 @@ public sealed partial class SereinFlowMcpBackend
                 : throw new McpProtocolException(-32602, "The flow version track must be development or production.");
     }
 
-    private static FlowVersionTrackDto? ReadOptionalTrack(JsonElement arguments)
+    internal static FlowVersionTrackDto? ReadOptionalTrack(JsonElement arguments)
     {
         var value = GetOptionalString(arguments, "track");
         return string.IsNullOrWhiteSpace(value)
@@ -389,7 +282,7 @@ public sealed partial class SereinFlowMcpBackend
                 : throw new McpProtocolException(-32602, "The flow version track must be development or production.");
     }
 
-    private static Guid GetGuid(JsonElement arguments, string name)
+    internal static Guid GetGuid(JsonElement arguments, string name)
     {
         var value = GetRequiredString(arguments, name);
         return Guid.TryParse(value, out var parsed)
@@ -397,7 +290,7 @@ public sealed partial class SereinFlowMcpBackend
             : throw new McpProtocolException(-32602, $"MCP parameter '{name}' must be a GUID.");
     }
 
-    private static string GetRequiredString(JsonElement arguments, string name)
+    internal static string GetRequiredString(JsonElement arguments, string name)
     {
         var value = GetOptionalString(arguments, name);
         return string.IsNullOrWhiteSpace(value)
@@ -405,7 +298,7 @@ public sealed partial class SereinFlowMcpBackend
             : value.Trim();
     }
 
-    private static string? GetOptionalString(JsonElement arguments, string name)
+    internal static string? GetOptionalString(JsonElement arguments, string name)
     {
         if (arguments.ValueKind != JsonValueKind.Object
             || !arguments.TryGetProperty(name, out var value))
@@ -415,7 +308,7 @@ public sealed partial class SereinFlowMcpBackend
         return value.GetString();
     }
 
-    private static int? GetOptionalInt(JsonElement arguments, string name)
+    internal static int? GetOptionalInt(JsonElement arguments, string name)
     {
         if (arguments.ValueKind != JsonValueKind.Object
             || !arguments.TryGetProperty(name, out var value))
@@ -425,7 +318,7 @@ public sealed partial class SereinFlowMcpBackend
         return parsed;
     }
 
-    private static long? GetOptionalLong(JsonElement arguments, string name)
+    internal static long? GetOptionalLong(JsonElement arguments, string name)
     {
         if (arguments.ValueKind != JsonValueKind.Object
             || !arguments.TryGetProperty(name, out var value))
@@ -435,7 +328,7 @@ public sealed partial class SereinFlowMcpBackend
         return parsed;
     }
 
-    private static bool? GetOptionalBool(JsonElement arguments, string name)
+    internal static bool? GetOptionalBool(JsonElement arguments, string name)
     {
         if (arguments.ValueKind != JsonValueKind.Object
             || !arguments.TryGetProperty(name, out var value))

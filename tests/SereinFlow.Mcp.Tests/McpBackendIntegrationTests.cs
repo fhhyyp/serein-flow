@@ -15,6 +15,22 @@ public sealed class McpBackendIntegrationTests
     private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateContractOptions();
 
     [Fact]
+    public async Task ToolListIsServedFromTheRegisteredCatalog()
+    {
+        using var host = CreateHost();
+        var catalog = host.Services.GetRequiredService<McpToolCatalog>();
+        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
+
+        var tools = await backend.ListToolsAsync(CancellationToken.None);
+
+        Assert.Equal(
+            catalog.Descriptors.Select(static item => item.Name),
+            tools.Select(static item => item.Name));
+        Assert.True(catalog.TryGet("sereinflow_preview_flow_patch", out var flowPatch));
+        Assert.NotNull(flowPatch);
+    }
+
+    [Fact]
     public async Task FlowPatchToolPublishesTypedOperationSchema()
     {
         using var host = CreateHost();

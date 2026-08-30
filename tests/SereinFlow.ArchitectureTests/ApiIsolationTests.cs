@@ -81,6 +81,51 @@ public sealed class ApiIsolationTests
     }
 
     [Fact]
+    public void McpBackendFacadeIsNotSplitAcrossPartialClasses()
+    {
+        var mcpRoot = Path.Combine(FindRepositoryRoot(), "src", "SereinFlow.Mcp");
+        var sourceFiles = Directory
+            .EnumerateFiles(mcpRoot, "*.cs", SearchOption.AllDirectories)
+            .Where(static path => !path.Contains("\\bin\\", StringComparison.OrdinalIgnoreCase))
+            .Where(static path => !path.Contains("\\obj\\", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        Assert.DoesNotContain(sourceFiles, path =>
+            Path.GetFileNameWithoutExtension(path).StartsWith("SereinFlowMcpBackend.", StringComparison.Ordinal));
+        Assert.DoesNotContain(sourceFiles, path =>
+            File.ReadAllText(path).Contains("partial class SereinFlowMcpBackend", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void McpToolImplementationsAreKeptInTheToolsFolder()
+    {
+        var mcpRoot = Path.Combine(FindRepositoryRoot(), "src", "SereinFlow.Mcp");
+        var toolsRoot = Path.Combine(mcpRoot, "Tools");
+        var toolFiles = new[]
+        {
+            "McpApiKeyToolHandlers.cs",
+            "McpFlowToolHandlers.cs",
+            "McpLibraryToolHandlers.cs",
+            "McpProjectToolHandlers.cs",
+            "McpReadModelToolHandlers.cs",
+            "McpPreviewPayloadReaders.cs",
+            "McpStoredPreviewPayloads.cs",
+            "McpToolAuthorization.cs",
+            "McpToolSchemas.cs",
+            "McpToolSupport.cs",
+            "SereinFlowMcpToolCatalogFactory.cs"
+        };
+
+        Assert.All(toolFiles, fileName =>
+        {
+            Assert.True(File.Exists(Path.Combine(toolsRoot, fileName)),
+                $"MCP tool implementation must be located in Tools: {fileName}");
+            Assert.False(File.Exists(Path.Combine(mcpRoot, fileName)),
+                $"MCP tool implementation must not be located in the MCP root: {fileName}");
+        });
+    }
+
+    [Fact]
     public void RestSurfaceUsesControllersWithoutMinimalApiMappingFiles()
     {
         var root = FindRepositoryRoot();

@@ -7,11 +7,96 @@ using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
+using static SereinFlow.Mcp.McpPreviewPayloadReaders;
+using static SereinFlow.Mcp.McpToolAuthorization;
+using static SereinFlow.Mcp.McpToolSupport;
 
 namespace SereinFlow.Mcp;
 
-public sealed partial class SereinFlowMcpBackend
+/// <summary>
+/// Bounded read-model tools and the read projections shared by MCP resources.
+/// </summary>
+internal static class McpReadModelToolHandlers
 {
+    internal static Task<object> ListProjectsAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => ReadProjectsAsync(context.Scope, ReadModels(context), context.Security, context.Principal, cancellationToken, ReadOptions(arguments));
+
+    internal static Task<object?> GetProjectAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => ReadProjectAsync(ReadModels(context), context.Security, context.Principal, GetGuid(arguments, "projectId"), cancellationToken);
+
+    internal static Task<object?> GetFlowTopologyAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    {
+        var projectId = GetGuid(arguments, "projectId");
+        return ReadFlowTopologyAsync(
+            ReadModels(context), context.Security, context.Principal, projectId, GetGuid(arguments, "flowId"),
+            ReadTrack(arguments), GetOptionalLong(arguments, "version"),
+            ReadAuthorizedOptions(arguments, context.Security, context.Principal, projectId), cancellationToken);
+    }
+
+    internal static Task<object> ListLibrariesAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => ReadLibrariesAsync(
+            context.Scope, ReadModels(context), context.Security, context.Principal, cancellationToken,
+            GetOptionalBool(arguments, "includeArchived") ?? false, ReadOptions(arguments));
+
+    internal static Task<object?> GetLibraryAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => ReadLibraryAsync(context.Scope, ReadModels(context), context.Security, context.Principal, GetRequiredString(arguments, "libraryId"), cancellationToken);
+
+    internal static Task<object?> GetRunInspectionAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => ReadRunAsync(
+            context.Scope, ReadModels(context), context.Security, context.Principal, GetGuid(arguments, "runId"),
+            cancellationToken, ReadOptionalTrack(arguments), ReadOptions(arguments), GetOptionalLong(arguments, "afterEventSequence") ?? 0);
+
+    internal static Task<object?> GetDebugStateAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => ReadDebugAsync(context.Scope, ReadModels(context), context.Security, context.Principal, GetGuid(arguments, "sessionId"), cancellationToken);
+
+    internal static Task<AiDebugStateWaitResultDto?> WaitForDebugStateAsync(
+        McpToolContext context,
+        JsonElement arguments,
+        CancellationToken cancellationToken)
+        => WaitForDebugStateAsync(context.Scope, ReadModels(context), context.Security, context.Principal, arguments, cancellationToken);
+
+    internal static Task<object?> GetFlowEditModelAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    {
+        var projectId = GetGuid(arguments, "projectId");
+        return ReadFlowEditModelAsync(
+            context.Scope, ReadModels(context), context.Security, context.Principal,
+            projectId, GetGuid(arguments, "flowId"),
+            ReadAuthorizedOptions(arguments, context.Security, context.Principal, projectId), cancellationToken);
+    }
+
+    internal static Task<object> ReadProjectsResourceAsync(McpToolContext context, CancellationToken cancellationToken)
+        => ReadProjectsAsync(context.Scope, ReadModels(context), context.Security, context.Principal, cancellationToken);
+
+    internal static Task<object?> ReadProjectResourceAsync(McpToolContext context, Guid projectId, CancellationToken cancellationToken)
+        => ReadProjectAsync(ReadModels(context), context.Security, context.Principal, projectId, cancellationToken);
+
+    internal static Task<object?> ReadTopologyResourceAsync(McpToolContext context, Guid projectId, Guid flowId, CancellationToken cancellationToken)
+        => ReadFlowTopologyAsync(ReadModels(context), context.Security, context.Principal, projectId, flowId, FlowVersionTrackDto.Development, null, null, cancellationToken);
+
+    internal static Task<object> ReadLibrariesResourceAsync(McpToolContext context, CancellationToken cancellationToken)
+        => ReadLibrariesAsync(context.Scope, ReadModels(context), context.Security, context.Principal, cancellationToken);
+
+    internal static Task<object?> ReadLibraryResourceAsync(McpToolContext context, string libraryId, CancellationToken cancellationToken)
+        => ReadLibraryAsync(context.Scope, ReadModels(context), context.Security, context.Principal, libraryId, cancellationToken);
+
+    internal static Task<object?> ReadRunResourceAsync(McpToolContext context, Guid runId, CancellationToken cancellationToken)
+        => ReadRunAsync(context.Scope, ReadModels(context), context.Security, context.Principal, runId, cancellationToken);
+
+    internal static Task<object?> ReadDebugResourceAsync(McpToolContext context, Guid sessionId, CancellationToken cancellationToken)
+        => ReadDebugAsync(context.Scope, ReadModels(context), context.Security, context.Principal, sessionId, cancellationToken);
+
+    internal static Task<object> ReadVersionsResourceAsync(McpToolContext context, Guid projectId, Guid flowId, string track, CancellationToken cancellationToken)
+        => ReadVersionsAsync(context.Security, context.Principal, projectId, flowId, track, context.Scope, cancellationToken);
+
+    internal static Task<object?> ReadVersionResourceAsync(McpToolContext context, Guid projectId, Guid flowId, string track, long version, CancellationToken cancellationToken)
+        => ReadVersionAsync(context.Security, context.Principal, projectId, flowId, track, version, context.Scope, cancellationToken);
+
+    internal static Task<object> ReadPreviewResourceAsync(McpToolContext context, Guid previewId, CancellationToken cancellationToken)
+        => ReadPreviewAsync(context.Scope, context.Security, context.Principal, previewId, cancellationToken);
+
+    private static AiReadModelService ReadModels(McpToolContext context)
+        => context.Services.GetRequiredService<AiReadModelService>();
+
     private static async Task<AiDebugStateWaitResultDto?> WaitForDebugStateAsync(
         IServiceScope scope,
         AiReadModelService service,
@@ -267,7 +352,7 @@ public sealed partial class SereinFlowMcpBackend
         var descriptor = new McpPreviewDescriptorDto(entry.Id, entry.Operation, entry.ProjectId, entry.FlowId, entry.Status, entry.ExpiresAt, entry.PreviewFingerprint);
         return entry.Operation switch
         {
-            "project.create" => ReadProjectCreatePreview(entry, descriptor),
+            "project.create" => McpProjectToolHandlers.ReadProjectCreatePreview(entry, descriptor),
             "flow.patch" => ReadFlowPatchPreview(entry, descriptor),
             "flow.publish" => ReadPublishPreview(entry, descriptor),
             "flow.rollback" => ReadRollbackPreview(entry, descriptor),
@@ -283,7 +368,7 @@ public sealed partial class SereinFlowMcpBackend
         return ToFlowPatchPreview(entry, descriptor, stored);
     }
 
-    private static FlowPatchPreviewDto ToFlowPatchPreview(McpPreviewEntry preview, StoredFlowPatchPreview stored)
+    internal static FlowPatchPreviewDto ToFlowPatchPreview(McpPreviewEntry preview, StoredFlowPatchPreview stored)
         => ToFlowPatchPreview(
             preview.Id,
             preview.ExpiresAt,
