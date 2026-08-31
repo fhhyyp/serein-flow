@@ -131,6 +131,60 @@ public sealed class AiReadModelServiceTests
         Assert.Equal(42, debug.PauseState.Inputs.GetProperty("amount").GetInt32());
     }
 
+    [Fact]
+    public async Task ProjectCatalogSeparatesArchivedItemsBeforePagination()
+    {
+        var archived = Project.Create(
+            "Archived project",
+            id: Guid.Parse("00000000-0000-0000-0000-000000000001"));
+        archived.Archive();
+        var firstActive = Project.Create(
+            "First active project",
+            id: Guid.Parse("00000000-0000-0000-0000-000000000002"));
+        var secondActive = Project.Create(
+            "Second active project",
+            id: Guid.Parse("00000000-0000-0000-0000-000000000003"));
+        var service = CreateCatalogService([archived, firstActive, secondActive], []);
+
+        var activePage = await service.ListProjectsAsync(new AiReadModelOptions(MaxItems: 1));
+        var archivedPage = await service.ListArchivedProjectsAsync(new AiReadModelOptions(MaxItems: 1));
+
+        Assert.Equal(firstActive.Id, Assert.Single(activePage.Items).Id);
+        Assert.True(activePage.HasMore);
+        Assert.Equal(firstActive.Id.ToString("D"), activePage.NextCursor);
+        Assert.Equal(archived.Id, Assert.Single(archivedPage.Items).Id);
+        Assert.False(archivedPage.HasMore);
+        Assert.Null(archivedPage.NextCursor);
+    }
+
+    [Fact]
+    public async Task LibraryCatalogSeparatesLifecycleBeforePaginationAndPreservesAllView()
+    {
+        var archived = CreateLibrary("000-archived", LibraryLifecycleDto.Archived);
+        var firstAvailable = CreateLibrary("100-available", LibraryLifecycleDto.Available);
+        var secondAvailable = CreateLibrary("200-available", LibraryLifecycleDto.Available);
+        var service = CreateCatalogService(
+            [Project.Create("Catalog project")],
+            [archived, firstAvailable, secondAvailable]);
+
+        var activePage = await service.ListLibrariesAsync(
+            options: new AiReadModelOptions(MaxItems: 1));
+        var archivedPage = await service.ListArchivedLibrariesAsync(
+            new AiReadModelOptions(MaxItems: 1));
+        var allPage = await service.ListLibrariesAsync(
+            includeArchived: true,
+            options: new AiReadModelOptions(MaxItems: 10));
+
+        Assert.Equal(firstAvailable.Id, Assert.Single(activePage.Items).Id);
+        Assert.True(activePage.HasMore);
+        Assert.Equal(firstAvailable.Id, activePage.NextCursor);
+        Assert.Equal(archived.Id, Assert.Single(archivedPage.Items).Id);
+        Assert.False(archivedPage.HasMore);
+        Assert.Equal(3, allPage.Items.Count);
+        Assert.Contains(allPage.Items, item => item.Lifecycle == LibraryLifecycleDto.Available.ToString());
+        Assert.Contains(allPage.Items, item => item.Lifecycle == LibraryLifecycleDto.Archived.ToString());
+    }
+
     private static AiReadModelService CreateService(
         Project project,
         FlowDefinitionDto definition,
@@ -147,6 +201,34 @@ public sealed class AiReadModelServiceTests
             events ?? new InMemoryEventStore(),
             outputs ?? new InMemoryOutputStore(),
             debugStore ?? new EmptyDebugSessionStore());
+
+    private static AiReadModelService CreateCatalogService(
+        IReadOnlyList<Project> projects,
+        IReadOnlyList<LibraryDto> libraries)
+    {
+        var placeholderDefinition = CreateDefinition(projects[0].Id);
+        return new(
+            new ProjectListRepository(projects),
+            new EmptyFlowRepository(),
+            new SingleVersionRepository(),
+            new TestLibraryCatalog(libraries),
+            new InMemoryRunStore(null, placeholderDefinition),
+            new InMemoryEventStore(),
+            new InMemoryOutputStore(),
+            new EmptyDebugSessionStore());
+    }
+
+    private static LibraryDto CreateLibrary(string id, LibraryLifecycleDto lifecycle)
+        => new(
+            id,
+            id,
+            "1.0.0",
+            $"{id}.zip",
+            1,
+            id,
+            DateTimeOffset.UtcNow,
+            [],
+            lifecycle);
 
     private static FlowDefinitionDto CreateDefinition(Guid projectId)
     {
@@ -193,6 +275,18 @@ public sealed class AiReadModelServiceTests
         public bool TryUpdate(Project value, long expectedVersion) => throw new NotSupportedException();
     }
 
+    private sealed class ProjectListRepository(IReadOnlyList<Project> projects) : IProjectRepository
+    {
+        public Task<IReadOnlyList<Project>> ListAsync(CancellationToken cancellationToken = default) => Task.FromResult(projects);
+        public Task<Project?> FindAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult(projects.SingleOrDefault(project => project.Id == id));
+        public Task AddAsync(Project value, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<bool> TryUpdateAsync(Project value, long expectedVersion, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public IReadOnlyList<Project> List() => projects;
+        public Project? Find(Guid id) => projects.SingleOrDefault(project => project.Id == id);
+        public void Add(Project value) => throw new NotSupportedException();
+        public bool TryUpdate(Project value, long expectedVersion) => throw new NotSupportedException();
+    }
+
     private sealed class SingleFlowRepository(Guid projectId, FlowDefinitionDto definition) : IFlowDefinitionRepository
     {
         public Task<IReadOnlyList<FlowDefinitionDto>> ListByProjectAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<FlowDefinitionDto>>(id == projectId ? [definition] : []);
@@ -201,6 +295,18 @@ public sealed class AiReadModelServiceTests
         public Task<FlowDefinitionDto?> TryUpdateAsync(Guid id, FlowDefinitionDto value, long expectedVersion, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public IReadOnlyList<FlowDefinitionDto> ListByProject(Guid id) => id == projectId ? [definition] : [];
         public FlowDefinitionDto? Find(Guid id, Guid flowId) => id == projectId && flowId == definition.Id ? definition : null;
+        public void Add(Guid id, FlowDefinitionDto value) => throw new NotSupportedException();
+        public FlowDefinitionDto? TryUpdate(Guid id, FlowDefinitionDto value, long expectedVersion) => throw new NotSupportedException();
+    }
+
+    private sealed class EmptyFlowRepository : IFlowDefinitionRepository
+    {
+        public Task<IReadOnlyList<FlowDefinitionDto>> ListByProjectAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<FlowDefinitionDto>>([]);
+        public Task<FlowDefinitionDto?> FindAsync(Guid id, Guid flowId, CancellationToken cancellationToken = default) => Task.FromResult<FlowDefinitionDto?>(null);
+        public Task AddAsync(Guid id, FlowDefinitionDto value, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<FlowDefinitionDto?> TryUpdateAsync(Guid id, FlowDefinitionDto value, long expectedVersion, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public IReadOnlyList<FlowDefinitionDto> ListByProject(Guid id) => [];
+        public FlowDefinitionDto? Find(Guid id, Guid flowId) => null;
         public void Add(Guid id, FlowDefinitionDto value) => throw new NotSupportedException();
         public FlowDefinitionDto? TryUpdate(Guid id, FlowDefinitionDto value, long expectedVersion) => throw new NotSupportedException();
     }
@@ -226,6 +332,22 @@ public sealed class AiReadModelServiceTests
         public bool Delete(string libraryId) => false;
         public Task<bool> ArchiveAsync(string libraryId, CancellationToken cancellationToken = default) => Task.FromResult(false);
         public Task<LibraryDto?> ReindexAsync(string libraryId, CancellationToken cancellationToken = default) => Task.FromResult<LibraryDto?>(null);
+        public Task<int> ReindexOutdatedAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
+    }
+
+    private sealed class TestLibraryCatalog(IReadOnlyList<LibraryDto> libraries) : ILibraryCatalogService
+    {
+        public IReadOnlyList<LibraryDto> List() => libraries;
+        public LibraryDto? Find(string libraryId) => libraries.SingleOrDefault(library => library.Id == libraryId);
+        public Task<IReadOnlyList<LibraryDto>> ListAsync(bool includeArchived = false, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<LibraryDto>>(libraries
+                .Where(library => includeArchived || library.Lifecycle == LibraryLifecycleDto.Available)
+                .ToArray());
+        public Task<LibraryDto?> FindAsync(string libraryId, CancellationToken cancellationToken = default) => Task.FromResult(Find(libraryId));
+        public Task<LibraryUploadResultDto> UploadAsync(Stream package, string fileName, long? declaredLength = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public bool Delete(string libraryId) => false;
+        public Task<bool> ArchiveAsync(string libraryId, CancellationToken cancellationToken = default) => Task.FromResult(false);
+        public Task<LibraryDto?> ReindexAsync(string libraryId, CancellationToken cancellationToken = default) => Task.FromResult(Find(libraryId));
         public Task<int> ReindexOutdatedAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
     }
 

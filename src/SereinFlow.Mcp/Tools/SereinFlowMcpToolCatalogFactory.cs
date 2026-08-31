@@ -17,7 +17,9 @@ internal static class SereinFlowMcpToolCatalogFactory
 {
     private static readonly IReadOnlyList<McpToolDescriptor> ToolDescriptors =
     [
-        Tool("sereinflow_list_projects", "List bounded project and flow summaries.", Schema(
+        Tool("sereinflow_list_projects", "List bounded non-archived project and flow summaries.", Schema(
+            properties: new Dictionary<string, object?> { ["maxItems"] = NumberSchema() })),
+        Tool("sereinflow_list_archived_projects", "List bounded archived project and flow summaries.", Schema(
             properties: new Dictionary<string, object?> { ["maxItems"] = NumberSchema() })),
         Tool("sereinflow_preview_create_project", "Preview creating a new draft project with an empty main flow.", Schema(
             properties: new Dictionary<string, object?> { ["name"] = StringSchema(), ["flowName"] = StringSchema() }, required: ["name"])),
@@ -34,6 +36,8 @@ internal static class SereinFlowMcpToolCatalogFactory
             }, required: ["projectId", "flowId"])),
         Tool("sereinflow_list_libraries", "List bounded available library artifact summaries. Set includeArchived only for the legacy all-lifecycles view; use sereinflow_list_archived_libraries for archived artifacts.", Schema(
             properties: new Dictionary<string, object?> { ["includeArchived"] = BooleanSchema(), ["maxItems"] = NumberSchema() })),
+        Tool("sereinflow_list_archived_libraries", "List bounded archived library artifact summaries.", Schema(
+            properties: new Dictionary<string, object?> { ["maxItems"] = NumberSchema() })),
         Tool("sereinflow_get_library", "Read one library's scanned node and parameter contracts.", Schema(
             properties: new Dictionary<string, object?> { ["libraryId"] = StringSchema() }, required: ["libraryId"])),
         Tool("sereinflow_get_run_inspection", "Read a bounded run snapshot, timeline, node outputs and debug state.", Schema(
@@ -127,6 +131,8 @@ internal static class SereinFlowMcpToolCatalogFactory
         [
             Read("sereinflow_list_projects", McpPermissionDto.ProjectRead,
                 static (context, arguments, cancellationToken) => McpReadModelToolHandlers.ListProjectsAsync(context, arguments, cancellationToken)),
+            Read("sereinflow_list_archived_projects", McpPermissionDto.ProjectRead,
+                static (context, arguments, cancellationToken) => McpReadModelToolHandlers.ListArchivedProjectsAsync(context, arguments, cancellationToken)),
             Mutation("sereinflow_preview_create_project", McpPermissionDto.ProjectWrite,
                 static (context, arguments, cancellationToken) => McpProjectToolHandlers.PreviewCreateAsync(context, arguments, cancellationToken)),
             Mutation("sereinflow_apply_create_project", McpPermissionDto.ProjectWrite,
@@ -138,6 +144,8 @@ internal static class SereinFlowMcpToolCatalogFactory
                 static (context, arguments, cancellationToken) => McpReadModelToolHandlers.GetFlowTopologyAsync(context, arguments, cancellationToken)),
             Read("sereinflow_list_libraries", McpPermissionDto.LibraryRead,
                 static (context, arguments, cancellationToken) => McpReadModelToolHandlers.ListLibrariesAsync(context, arguments, cancellationToken)),
+            Read("sereinflow_list_archived_libraries", McpPermissionDto.LibraryRead,
+                static (context, arguments, cancellationToken) => McpReadModelToolHandlers.ListArchivedLibrariesAsync(context, arguments, cancellationToken)),
             Read("sereinflow_get_library", McpPermissionDto.LibraryRead,
                 static (context, arguments, cancellationToken) => McpReadModelToolHandlers.GetLibraryAsync(context, arguments, cancellationToken)),
             Read("sereinflow_get_run_inspection", McpPermissionDto.RunRead,

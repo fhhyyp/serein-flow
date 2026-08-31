@@ -99,6 +99,39 @@ public sealed class FlowPatchContractNormalizerTests
         Assert.Equal("$.operations[0].connection.fromPortId", exception.FieldPath);
     }
 
+    [Fact]
+    public void ValidatesDataConnectionTargetAgainstParameterId()
+    {
+        var normalizer = new FlowPatchContractNormalizer();
+        var normalized = normalizer.Normalize(Request(new
+        {
+            op = "addConnection",
+            canvasId = "main",
+            connection = DataConnection("data-connection", "amount")
+        }));
+
+        normalizer.ValidateReferences(CurrentDefinition(), normalized.Request.Operations);
+    }
+
+    [Fact]
+    public void RejectsDataConnectionTargetingParameterPortId()
+    {
+        var normalizer = new FlowPatchContractNormalizer();
+        var normalized = normalizer.Normalize(Request(new
+        {
+            op = "addConnection",
+            canvasId = "main",
+            connection = DataConnection("data-connection", "param-amount")
+        }));
+
+        var exception = Assert.Throws<FlowPatchContractException>(() =>
+            normalizer.ValidateReferences(CurrentDefinition(), normalized.Request.Operations));
+
+        Assert.Equal("mcp.flow_patch.reference_invalid", exception.Code);
+        Assert.Equal("$.operations[0].connection.toPortId", exception.FieldPath);
+        Assert.Equal("a parameter ID on toNodeId", exception.Expected);
+    }
+
     public static IEnumerable<object[]> V2Operations()
     {
         yield return ["addCanvas", new { op = "addCanvas", canvas = Canvas("extra") }];
@@ -190,6 +223,20 @@ public sealed class FlowPatchContractNormalizerTests
             priority = 0
         };
 
+    private static object DataConnection(string id, string targetParameterId)
+        => new
+        {
+            id,
+            fromNodeId = "node-existing",
+            fromPortId = "data-out",
+            toNodeId = "node-existing",
+            toPortId = targetParameterId,
+            kind = "data",
+            branch = (string?)null,
+            dataSource = (string?)null,
+            priority = 0
+        };
+
     private static object Script(string nodeId)
         => new
         {
@@ -219,7 +266,9 @@ public sealed class FlowPatchContractNormalizerTests
                             0,
                             [
                                 new NodePortDto("exec-in", "Input", "input", false),
-                                new NodePortDto("exec-success", "Success", "output", false)
+                                new NodePortDto("exec-success", "Success", "output", false),
+                                new NodePortDto("data-out", "Data output", "output", false),
+                                new NodePortDto("param-amount", "amount", "input", false)
                             ],
                             [new NodeParameterDto("amount", "1", DataSourceDto.Literal, true, new NodeParameterUiMetadataDto("amount", "amount", "System.Int32", "1", null, null, null, null))],
                             null)

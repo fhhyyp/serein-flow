@@ -49,11 +49,31 @@ public sealed class AiReadModelService
     public async Task<AiPageDto<AiProjectSummaryDto>> ListProjectsAsync(
         AiReadModelOptions? options = null,
         CancellationToken cancellationToken = default)
+        => await ListProjectsAsync(
+            static project => project.Status != ProjectStatus.Archived,
+            options,
+            cancellationToken);
+
+    public async Task<AiPageDto<AiProjectSummaryDto>> ListArchivedProjectsAsync(
+        AiReadModelOptions? options = null,
+        CancellationToken cancellationToken = default)
+        => await ListProjectsAsync(
+            static project => project.Status == ProjectStatus.Archived,
+            options,
+            cancellationToken);
+
+    private async Task<AiPageDto<AiProjectSummaryDto>> ListProjectsAsync(
+        Func<Project, bool> predicate,
+        AiReadModelOptions? options,
+        CancellationToken cancellationToken)
     {
         var normalized = (options ?? new()).Normalize();
         var projects = await _projects.ListAsync(cancellationToken);
         var items = new List<AiProjectSummaryDto>(Math.Min(normalized.MaxItems, projects.Count));
-        foreach (var project in projects.OrderBy(static item => item.Id).Take(normalized.MaxItems + 1))
+        foreach (var project in projects
+            .Where(predicate)
+            .OrderBy(static item => item.Id)
+            .Take(normalized.MaxItems + 1))
         {
             var flows = await _flows.ListByProjectAsync(project.Id, cancellationToken);
             var summaries = new List<AiFlowSummaryDto>(flows.Count);
@@ -196,10 +216,31 @@ public sealed class AiReadModelService
         bool includeArchived = false,
         AiReadModelOptions? options = null,
         CancellationToken cancellationToken = default)
+        => await ListLibrariesAsync(
+            includeArchived ? null : LibraryLifecycleDto.Available,
+            includeArchived,
+            options,
+            cancellationToken);
+
+    public async Task<AiPageDto<AiLibrarySummaryDto>> ListArchivedLibrariesAsync(
+        AiReadModelOptions? options = null,
+        CancellationToken cancellationToken = default)
+        => await ListLibrariesAsync(
+            LibraryLifecycleDto.Archived,
+            includeArchived: true,
+            options,
+            cancellationToken);
+
+    private async Task<AiPageDto<AiLibrarySummaryDto>> ListLibrariesAsync(
+        LibraryLifecycleDto? lifecycle,
+        bool includeArchived,
+        AiReadModelOptions? options,
+        CancellationToken cancellationToken)
     {
         var normalized = (options ?? new()).Normalize();
         var libraries = await _libraries.ListAsync(includeArchived, cancellationToken);
         var items = libraries
+            .Where(item => lifecycle is null || item.Lifecycle == lifecycle)
             .OrderBy(static item => item.Id, StringComparer.Ordinal)
             .Take(normalized.MaxItems + 1)
             .Select(static item => MapLibrary(item, includeNodes: false))

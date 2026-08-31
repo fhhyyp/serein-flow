@@ -1,6 +1,6 @@
 {
   "name": "sereinflow-ai-toolkit",
-  "version": "0.1.0+codex.20260830124854",
+  "version": "0.1.0+codex.20260830151116",
   "description": "Minimal SereinFlow MCP client configuration for tools, resources, and prompts with server-provided guidance.",
   "author": {
     "name": "SereinFlow"

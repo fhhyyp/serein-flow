@@ -1073,6 +1073,12 @@ public sealed class FlowPatchContractNormalizer
             if (!fromNode.PortIds.Contains(connection.FromPortId))
                 throw ReferenceInvalid($"{path}.fromPortId", "a port on fromNodeId");
             var toNode = RequireNode(canvas, connection.ToNodeId, $"{path}.toNodeId");
+            if (connection.Kind == ConnectionKindDto.Data)
+            {
+                if (!toNode.ParameterIds.Contains(connection.ToPortId))
+                    throw ReferenceInvalid($"{path}.toPortId", "a parameter ID on toNodeId");
+                return;
+            }
             if (!toNode.PortIds.Contains(connection.ToPortId))
                 throw ReferenceInvalid($"{path}.toPortId", "a port on toNodeId");
         }

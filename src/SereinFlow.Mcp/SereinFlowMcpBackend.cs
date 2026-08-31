@@ -16,8 +16,10 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
         new(McpAiGuidance.SereinFlowResourceUri, "sereinflow", "SereinFlow project, flow and runtime operating rules", McpAiGuidance.MimeType),
         new(McpAiGuidance.SereinLangResourceUri, "sereinlang", "SereinLang authoring and compilation rules", McpAiGuidance.MimeType),
         new(McpAiGuidance.LibraryPackageResourceUri, "sereinflow-library-package", "C# library package and attachment rules", McpAiGuidance.MimeType),
-        new("sereinflow://projects", "projects", "SereinFlow project summaries"),
-        new("sereinflow://libraries", "libraries", "Available SereinFlow library artifacts")
+        new("sereinflow://projects", "projects", "Non-archived SereinFlow project summaries"),
+        new("sereinflow://archived-projects", "archived-projects", "Archived SereinFlow project summaries"),
+        new("sereinflow://libraries", "libraries", "Available SereinFlow library artifacts"),
+        new("sereinflow://archived-libraries", "archived-libraries", "Archived SereinFlow library artifacts")
     ];
 
     private static readonly IReadOnlyList<McpResourceTemplateDescriptor> ResourceTemplates =

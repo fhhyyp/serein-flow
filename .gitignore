@@ -40,3 +40,5 @@ frontend/sereinflow-web/dist/
 frontend/sereinflow-web/.vite/
 frontend/sereinflow-web/coverage/
 frontend/sereinflow-web/output-vite.err
+/.artifacts
+/NuGet/Migrations

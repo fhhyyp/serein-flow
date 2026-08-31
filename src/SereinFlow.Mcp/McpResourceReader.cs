@@ -50,6 +50,8 @@ public sealed class McpResourceReader
         {
             "projects" when segments.Length == 0
                 => await McpReadModelToolHandlers.ReadProjectsResourceAsync(context, cancellationToken),
+            "archived-projects" when segments.Length == 0
+                => await McpReadModelToolHandlers.ReadArchivedProjectsResourceAsync(context, cancellationToken),
             "projects" when segments.Length == 1 && Guid.TryParse(segments[0], out var projectId)
                 => await McpReadModelToolHandlers.ReadProjectResourceAsync(context, projectId, cancellationToken),
             "projects" when segments.Length == 4
@@ -60,6 +62,8 @@ public sealed class McpResourceReader
                 => await McpReadModelToolHandlers.ReadTopologyResourceAsync(context, topologyProjectId, topologyFlowId, cancellationToken),
             "libraries" when segments.Length == 0
                 => await McpReadModelToolHandlers.ReadLibrariesResourceAsync(context, cancellationToken),
+            "archived-libraries" when segments.Length == 0
+                => await McpReadModelToolHandlers.ReadArchivedLibrariesResourceAsync(context, cancellationToken),
             "libraries" when segments.Length == 1
                 => await McpReadModelToolHandlers.ReadLibraryResourceAsync(context, segments[0], cancellationToken),
             "runs" when segments.Length == 1 && Guid.TryParse(segments[0], out var runId)

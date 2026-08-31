@@ -31,6 +31,146 @@ public sealed class McpBackendIntegrationTests
     }
 
     [Fact]
+    public async Task CatalogToolsAndResourcesSeparateActiveAndArchivedRecords()
+    {
+        var availableLibrary = CreateLibrary("available-library", LibraryLifecycleDto.Available);
+        var archivedLibrary = CreateLibrary("archived-library", LibraryLifecycleDto.Archived);
+        using var host = CreateHost(services => services.AddSingleton<ILibraryCatalogService>(
+            new TestLibraryCatalog(availableLibrary, archivedLibrary)));
+        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
+        accessor.Current = new McpPrincipal(
+            "catalog-admin",
+            null,
+            Enum.GetValues<McpPermissionDto>().ToHashSet(),
+            IsAdministrator: true);
+
+        var activeProject = Project.Create("Active MCP project");
+        var archivedProject = Project.Create("Archived MCP project");
+        archivedProject.Archive();
+        using (var dataScope = host.Services.CreateScope())
+        {
+            var projects = dataScope.ServiceProvider.GetRequiredService<IProjectRepository>();
+            await projects.AddAsync(activeProject);
+            await projects.AddAsync(archivedProject);
+        }
+
+        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
+        var toolNames = (await backend.ListToolsAsync(CancellationToken.None))
+            .Select(static tool => tool.Name)
+            .ToArray();
+        var resourceUris = (await backend.ListResourcesAsync(CancellationToken.None))
+            .Select(static resource => resource.Uri)
+            .ToArray();
+
+        Assert.Contains("sereinflow_list_archived_projects", toolNames);
+        Assert.Contains("sereinflow_list_archived_libraries", toolNames);
+        Assert.Contains("sereinflow://archived-projects", resourceUris);
+        Assert.Contains("sereinflow://archived-libraries", resourceUris);
+
+        var activeProjects = Deserialize<AiPageDto<AiProjectSummaryDto>>(
+            (await backend.CallToolAsync("sereinflow_list_projects", JsonSerializer.SerializeToElement(new { }), CancellationToken.None)).Value);
+        var archivedProjects = Deserialize<AiPageDto<AiProjectSummaryDto>>(
+            (await backend.CallToolAsync("sereinflow_list_archived_projects", JsonSerializer.SerializeToElement(new { }), CancellationToken.None)).Value);
+        var activeLibraries = Deserialize<AiPageDto<AiLibrarySummaryDto>>(
+            (await backend.CallToolAsync("sereinflow_list_libraries", JsonSerializer.SerializeToElement(new { }), CancellationToken.None)).Value);
+        var archivedLibraries = Deserialize<AiPageDto<AiLibrarySummaryDto>>(
+            (await backend.CallToolAsync("sereinflow_list_archived_libraries", JsonSerializer.SerializeToElement(new { }), CancellationToken.None)).Value);
+        var allLibraries = Deserialize<AiPageDto<AiLibrarySummaryDto>>(
+            (await backend.CallToolAsync(
+                "sereinflow_list_libraries",
+                JsonSerializer.SerializeToElement(new { includeArchived = true }),
+                CancellationToken.None)).Value);
+
+        Assert.Equal(activeProject.Id, Assert.Single(activeProjects.Items).Id);
+        Assert.Equal(archivedProject.Id, Assert.Single(archivedProjects.Items).Id);
+        Assert.Equal(availableLibrary.Id, Assert.Single(activeLibraries.Items).Id);
+        Assert.Equal(archivedLibrary.Id, Assert.Single(archivedLibraries.Items).Id);
+        Assert.Equal(2, allLibraries.Items.Count);
+
+        var activeProjectResource = Deserialize<AiPageDto<AiProjectSummaryDto>>(
+            (await backend.ReadResourceAsync("sereinflow://projects", CancellationToken.None)).Value);
+        var archivedProjectResource = Deserialize<AiPageDto<AiProjectSummaryDto>>(
+            (await backend.ReadResourceAsync("sereinflow://archived-projects", CancellationToken.None)).Value);
+        var activeLibraryResource = Deserialize<AiPageDto<AiLibrarySummaryDto>>(
+            (await backend.ReadResourceAsync("sereinflow://libraries", CancellationToken.None)).Value);
+        var archivedLibraryResource = Deserialize<AiPageDto<AiLibrarySummaryDto>>(
+            (await backend.ReadResourceAsync("sereinflow://archived-libraries", CancellationToken.None)).Value);
+
+        Assert.Equal(activeProject.Id, Assert.Single(activeProjectResource.Items).Id);
+        Assert.Equal(archivedProject.Id, Assert.Single(archivedProjectResource.Items).Id);
+        Assert.Equal(availableLibrary.Id, Assert.Single(activeLibraryResource.Items).Id);
+        Assert.Equal(archivedLibrary.Id, Assert.Single(archivedLibraryResource.Items).Id);
+
+        var directProject = Deserialize<AiProjectSummaryDto>(
+            (await backend.CallToolAsync(
+                "sereinflow_get_project",
+                JsonSerializer.SerializeToElement(new { projectId = archivedProject.Id }),
+                CancellationToken.None)).Value);
+        var directLibrary = Deserialize<AiLibrarySummaryDto>(
+            (await backend.CallToolAsync(
+                "sereinflow_get_library",
+                JsonSerializer.SerializeToElement(new { libraryId = archivedLibrary.Id }),
+                CancellationToken.None)).Value);
+
+        Assert.Equal(ProjectStatus.Archived.ToString(), directProject.Status);
+        Assert.Equal(LibraryLifecycleDto.Archived.ToString(), directLibrary.Lifecycle);
+    }
+
+    [Fact]
+    public async Task ProjectScopedCatalogCallsDoNotExpandProjectOrLibraryVisibility()
+    {
+        var availableLibrary = CreateLibrary("scoped-available", LibraryLifecycleDto.Available);
+        var archivedLibrary = CreateLibrary("scoped-archived", LibraryLifecycleDto.Archived);
+        var unreferencedArchivedLibrary = CreateLibrary("unreferenced-archived", LibraryLifecycleDto.Archived);
+        var references = new TestProjectLibraryReferenceRepository();
+        using var host = CreateHost(services =>
+        {
+            services.AddSingleton<ILibraryCatalogService>(new TestLibraryCatalog(
+                availableLibrary,
+                archivedLibrary,
+                unreferencedArchivedLibrary));
+            services.AddSingleton<IProjectLibraryReferenceRepository>(references);
+        });
+
+        var project = Project.Create("Archived scoped MCP project");
+        project.Archive();
+        using (var dataScope = host.Services.CreateScope())
+        {
+            await dataScope.ServiceProvider.GetRequiredService<IProjectRepository>().AddAsync(project);
+        }
+        await references.AddAsync(project.Id, availableLibrary.Id);
+        await references.AddAsync(project.Id, archivedLibrary.Id);
+
+        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
+        accessor.Current = new McpPrincipal(
+            "catalog-project-key",
+            project.Id,
+            new[] { McpPermissionDto.ProjectRead, McpPermissionDto.LibraryRead }.ToHashSet());
+        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
+
+        var activeProjects = Deserialize<AiPageDto<AiProjectSummaryDto>>(
+            (await backend.CallToolAsync("sereinflow_list_projects", JsonSerializer.SerializeToElement(new { }), CancellationToken.None)).Value);
+        var archivedProjects = Deserialize<AiPageDto<AiProjectSummaryDto>>(
+            (await backend.CallToolAsync("sereinflow_list_archived_projects", JsonSerializer.SerializeToElement(new { }), CancellationToken.None)).Value);
+        var activeLibraries = Deserialize<AiPageDto<AiLibrarySummaryDto>>(
+            (await backend.CallToolAsync("sereinflow_list_libraries", JsonSerializer.SerializeToElement(new { }), CancellationToken.None)).Value);
+        var archivedLibraries = Deserialize<AiPageDto<AiLibrarySummaryDto>>(
+            (await backend.CallToolAsync("sereinflow_list_archived_libraries", JsonSerializer.SerializeToElement(new { }), CancellationToken.None)).Value);
+        var allLibraries = Deserialize<AiPageDto<AiLibrarySummaryDto>>(
+            (await backend.CallToolAsync(
+                "sereinflow_list_libraries",
+                JsonSerializer.SerializeToElement(new { includeArchived = true }),
+                CancellationToken.None)).Value);
+
+        Assert.Empty(activeProjects.Items);
+        Assert.Equal(project.Id, Assert.Single(archivedProjects.Items).Id);
+        Assert.Equal(availableLibrary.Id, Assert.Single(activeLibraries.Items).Id);
+        Assert.Equal(archivedLibrary.Id, Assert.Single(archivedLibraries.Items).Id);
+        Assert.Equal(2, allLibraries.Items.Count);
+        Assert.DoesNotContain(allLibraries.Items, library => library.Id == unreferencedArchivedLibrary.Id);
+    }
+
+    [Fact]
     public async Task FlowPatchToolPublishesTypedOperationSchema()
     {
         using var host = CreateHost();
@@ -655,7 +795,7 @@ public sealed class McpBackendIntegrationTests
         Assert.Equal("mcp.preview_owner_mismatch", exception.Code);
     }
 
-    private static TestHost CreateHost()
+    private static TestHost CreateHost(Action<IServiceCollection>? configureServices = null)
     {
         var root = Path.Combine(Path.GetTempPath(), $"sereinflow-mcp-test-{Guid.NewGuid():N}");
         var configuration = new ConfigurationBuilder()
@@ -669,6 +809,7 @@ public sealed class McpBackendIntegrationTests
         services.AddSereinFlowStorage(configuration, root);
         services.AddSereinFlowApplication();
         services.AddSereinFlowMcp(configuration);
+        configureServices?.Invoke(services);
         services.AddSingleton<SereinFlowMcpBackend>(provider =>
             (SereinFlowMcpBackend)provider.GetRequiredService<ISereinFlowMcpBackend>());
         return new TestHost(
@@ -706,9 +847,67 @@ public sealed class McpBackendIntegrationTests
             RunPolicy: new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel));
     }
 
+    private static LibraryDto CreateLibrary(string id, LibraryLifecycleDto lifecycle)
+        => new(
+            id,
+            id,
+            "1.0.0",
+            $"{id}.zip",
+            1,
+            id,
+            DateTimeOffset.UtcNow,
+            [],
+            lifecycle);
+
     private static T Deserialize<T>(object? value)
         => JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value, JsonOptions), JsonOptions)
             ?? throw new InvalidOperationException("The integration response could not be deserialized.");
+
+    private sealed class TestLibraryCatalog(params LibraryDto[] libraries) : ILibraryCatalogService
+    {
+        public IReadOnlyList<LibraryDto> List() => libraries;
+        public LibraryDto? Find(string libraryId) => libraries.SingleOrDefault(library => library.Id == libraryId);
+        public Task<IReadOnlyList<LibraryDto>> ListAsync(bool includeArchived = false, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<LibraryDto>>(libraries
+                .Where(library => includeArchived || library.Lifecycle == LibraryLifecycleDto.Available)
+                .ToArray());
+        public Task<LibraryDto?> FindAsync(string libraryId, CancellationToken cancellationToken = default) => Task.FromResult(Find(libraryId));
+        public Task<LibraryUploadResultDto> UploadAsync(Stream package, string fileName, long? declaredLength = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public bool Delete(string libraryId) => false;
+        public Task<bool> ArchiveAsync(string libraryId, CancellationToken cancellationToken = default) => Task.FromResult(false);
+        public Task<LibraryDto?> ReindexAsync(string libraryId, CancellationToken cancellationToken = default) => Task.FromResult(Find(libraryId));
+        public Task<int> ReindexOutdatedAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
+    }
+
+    private sealed class TestProjectLibraryReferenceRepository : IProjectLibraryReferenceRepository
+    {
+        private readonly List<ProjectLibraryReference> _references = [];
+
+        public Task<IReadOnlyList<ProjectLibraryReference>> ListByProjectAsync(Guid projectId, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<ProjectLibraryReference>>(_references
+                .Where(reference => reference.ProjectId == projectId)
+                .ToArray());
+
+        public Task<bool> IsReferencedAsync(Guid projectId, string libraryId, CancellationToken cancellationToken = default)
+            => Task.FromResult(_references.Any(reference =>
+                reference.ProjectId == projectId
+                && string.Equals(reference.LibraryId, libraryId, StringComparison.OrdinalIgnoreCase)));
+
+        public Task<ProjectLibraryReference> AddAsync(Guid projectId, string libraryId, CancellationToken cancellationToken = default)
+        {
+            var reference = new ProjectLibraryReference(projectId, libraryId, DateTimeOffset.UtcNow);
+            _references.Add(reference);
+            return Task.FromResult(reference);
+        }
+
+        public Task<bool> RemoveAsync(Guid projectId, string libraryId, CancellationToken cancellationToken = default)
+        {
+            var removed = _references.RemoveAll(reference =>
+                reference.ProjectId == projectId
+                && string.Equals(reference.LibraryId, libraryId, StringComparison.OrdinalIgnoreCase));
+            return Task.FromResult(removed > 0);
+        }
+    }
 
     private sealed class TestHost(ServiceProvider provider, string root) : IDisposable
     {

@@ -78,7 +78,7 @@ public sealed class ApiIsolationTests
         Assert.DoesNotContain("LibraryDirectory", pluginConfig, StringComparison.Ordinal);
         Assert.DoesNotContain("McpServer", pluginConfig, StringComparison.Ordinal);
         Assert.Contains("http://127.0.0.1:8188/mcp", pluginConfig, StringComparison.Ordinal);
-        Assert.Contains("\"bearerTokenEnvVar\": \"SEREINFLOW_MCP_API_KEY\"", pluginConfig, StringComparison.Ordinal);
+        Assert.Contains("\"bearer_token_env_var\": \"SEREINFLOW_MCP_API_KEY\"", pluginConfig, StringComparison.Ordinal);
     }
 
     [Fact]

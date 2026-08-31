@@ -145,7 +145,9 @@ paths with `SereinFlow:Mcp:AiGuidance:FilePath`,
 
 ```text
 sereinflow://projects
+sereinflow://archived-projects
 sereinflow://libraries
+sereinflow://archived-libraries
 sereinflow://projects/{projectId}
 sereinflow://projects/{projectId}/flows/{flowId}/topology
 sereinflow://projects/{projectId}/flows/{flowId}/versions/{track}
@@ -155,6 +157,13 @@ sereinflow://runs/{runId}
 sereinflow://debug-sessions/{sessionId}
 sereinflow://mcp-previews/{previewId}
 ```
+
+The default project and library collection Resources are the active working
+set: `sereinflow://projects` excludes archived projects and
+`sereinflow://libraries` contains only available library artifacts. Their
+archived counterparts return only archived records, so the default and
+archived collections are mutually exclusive. Direct project and library
+Resources remain readable by ID for audit and existing-reference inspection.
 
 ## Prompts
 

@@ -1,4 +1,0 @@
-interface:
-  display_name: "SereinLang"
-  short_description: "Author and compile SereinLang scripts"
-  default_prompt: "Use $sereinlang to author a SereinLang script from its flow contract and iterate from compiler diagnostics."

@@ -9,10 +9,10 @@ Use the configured `sereinflow` MCP server as the only source of truth for
 SereinFlow projects, flows, runs, debugging, versions, SereinLang compilation,
 and library package workflows.
 
-## Declared MCP capabilities
+## MCP capability contract
 
-The connected server currently declares and implements these protocol
-capabilities:
+When the connection is authenticated, the SereinFlow MCP server declares and
+implements these protocol capabilities:
 
 - `tools`: discover with `tools/list` and invoke with `tools/call`.
 - `resources`: discover fixed resources with `resources/list`, URI templates
@@ -20,11 +20,11 @@ capabilities:
 - `prompts`: discover workflow prompts with `prompts/list` and retrieve one
   with `prompts/get`.
 
-The server declares `resources.subscribe: false` and
-`listChanged: false` for resources, tools, and prompts. Do not wait for
-subscription updates or list-change notifications; discover the current
-catalog when needed. The plugin manifest's `Interactive` and `Write` values
-are UI metadata, not MCP protocol capability declarations.
+The server declares `resources.subscribe: false` and `listChanged: false` for
+resources, tools, and prompts. Do not wait for subscription updates or
+list-change notifications; discover the current catalog when needed. The
+plugin manifest's `Interactive` and `Write` values are UI metadata, not MCP
+protocol capability declarations.
 
 The HTTP connection obtains its bearer token only from the
 `SEREINFLOW_MCP_API_KEY` environment variable. Never put an API key in the
@@ -32,6 +32,41 @@ plugin, repository, task text, tool arguments, or client-local project files.
 If initialization cannot authenticate, report that the SereinFlow MCP API key
 is absent, invalid, expired, or revoked; do not treat it as a missing Skill or
 attempt to bypass server authentication.
+
+`bearer_token_env_var` is read by the Codex host that owns the MCP client. A
+PowerShell `$env:SEREINFLOW_MCP_API_KEY` value proves only that the current
+PowerShell process has the variable; it does not update an already-running
+Codex desktop process. `shell_environment_policy` controls Shell subprocesses,
+and `mcp_servers.<id>.env_vars` is for stdio servers; neither is a replacement
+for the HTTP bearer-token setting. Use the Codex credential/environment
+injection supported by the host, then restart Codex or start a new task.
+
+## Connection diagnostics
+
+Only an authenticated MCP session can provide a meaningful live catalog.
+An empty `resources/list` or `resources/templates/list` result from a client
+session that did not complete `initialize` is not evidence that the server has
+no resources. Do not infer the server's listening state from those lists.
+
+Use these bounded distinctions when diagnosing the configured HTTP endpoint:
+
+- `GET /mcp` returning `405 Method Not Allowed` means the listener and route
+  are reachable; MCP requests use `POST`.
+- `POST initialize` returning `401` with `WWW-Authenticate: Bearer` means the
+  listener and route are reachable but the key is missing, invalid, expired,
+  or revoked.
+- Connection refused or a timeout means the configured host/port is not
+  reachable from the Codex process, or the API is not running there.
+- `502` or `503` from a client transport is a gateway, connector, or startup
+  failure. It is not proof that a local port has no listener; retry after the
+  API is ready and report the transport status separately.
+
+After creating, rotating, or changing `SEREINFLOW_MCP_API_KEY`, restart the
+Codex process or start a new task so the MCP client reloads its credentials.
+The Web Console cannot mutate the environment of an already running Codex
+process. Once connected, repeat `initialize`, then discover `tools/list`,
+`resources/list`, `resources/templates/list`, and `prompts/list` before
+reporting actual server capabilities.
 
 ## Configure the client key
 

@@ -19,7 +19,14 @@ namespace SereinFlow.Mcp;
 internal static class McpReadModelToolHandlers
 {
     internal static Task<object> ListProjectsAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
-        => ReadProjectsAsync(context.Scope, ReadModels(context), context.Security, context.Principal, cancellationToken, ReadOptions(arguments));
+        => ReadProjectsAsync(
+            context.Scope, ReadModels(context), context.Security, context.Principal,
+            archivedOnly: false, cancellationToken, ReadOptions(arguments));
+
+    internal static Task<object> ListArchivedProjectsAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => ReadProjectsAsync(
+            context.Scope, ReadModels(context), context.Security, context.Principal,
+            archivedOnly: true, cancellationToken, ReadOptions(arguments));
 
     internal static Task<object?> GetProjectAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
         => ReadProjectAsync(ReadModels(context), context.Security, context.Principal, GetGuid(arguments, "projectId"), cancellationToken);
@@ -36,7 +43,13 @@ internal static class McpReadModelToolHandlers
     internal static Task<object> ListLibrariesAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
         => ReadLibrariesAsync(
             context.Scope, ReadModels(context), context.Security, context.Principal, cancellationToken,
-            GetOptionalBool(arguments, "includeArchived") ?? false, ReadOptions(arguments));
+            GetOptionalBool(arguments, "includeArchived") == true ? LibraryListScope.All : LibraryListScope.Active,
+            ReadOptions(arguments));
+
+    internal static Task<object> ListArchivedLibrariesAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => ReadLibrariesAsync(
+            context.Scope, ReadModels(context), context.Security, context.Principal, cancellationToken,
+            LibraryListScope.Archived, ReadOptions(arguments));
 
     internal static Task<object?> GetLibraryAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
         => ReadLibraryAsync(context.Scope, ReadModels(context), context.Security, context.Principal, GetRequiredString(arguments, "libraryId"), cancellationToken);
@@ -65,7 +78,14 @@ internal static class McpReadModelToolHandlers
     }
 
     internal static Task<object> ReadProjectsResourceAsync(McpToolContext context, CancellationToken cancellationToken)
-        => ReadProjectsAsync(context.Scope, ReadModels(context), context.Security, context.Principal, cancellationToken);
+        => ReadProjectsAsync(
+            context.Scope, ReadModels(context), context.Security, context.Principal,
+            archivedOnly: false, cancellationToken);
+
+    internal static Task<object> ReadArchivedProjectsResourceAsync(McpToolContext context, CancellationToken cancellationToken)
+        => ReadProjectsAsync(
+            context.Scope, ReadModels(context), context.Security, context.Principal,
+            archivedOnly: true, cancellationToken);
 
     internal static Task<object?> ReadProjectResourceAsync(McpToolContext context, Guid projectId, CancellationToken cancellationToken)
         => ReadProjectAsync(ReadModels(context), context.Security, context.Principal, projectId, cancellationToken);
@@ -74,7 +94,14 @@ internal static class McpReadModelToolHandlers
         => ReadFlowTopologyAsync(ReadModels(context), context.Security, context.Principal, projectId, flowId, FlowVersionTrackDto.Development, null, null, cancellationToken);
 
     internal static Task<object> ReadLibrariesResourceAsync(McpToolContext context, CancellationToken cancellationToken)
-        => ReadLibrariesAsync(context.Scope, ReadModels(context), context.Security, context.Principal, cancellationToken);
+        => ReadLibrariesAsync(
+            context.Scope, ReadModels(context), context.Security, context.Principal,
+            cancellationToken, LibraryListScope.Active);
+
+    internal static Task<object> ReadArchivedLibrariesResourceAsync(McpToolContext context, CancellationToken cancellationToken)
+        => ReadLibrariesAsync(
+            context.Scope, ReadModels(context), context.Security, context.Principal,
+            cancellationToken, LibraryListScope.Archived);
 
     internal static Task<object?> ReadLibraryResourceAsync(McpToolContext context, string libraryId, CancellationToken cancellationToken)
         => ReadLibraryAsync(context.Scope, ReadModels(context), context.Security, context.Principal, libraryId, cancellationToken);
@@ -128,6 +155,7 @@ internal static class McpReadModelToolHandlers
         AiReadModelService service,
         McpSecurityService security,
         McpPrincipal? principal,
+        bool archivedOnly,
         CancellationToken cancellationToken,
         AiReadModelOptions? options = null)
     {
@@ -135,14 +163,21 @@ internal static class McpReadModelToolHandlers
         if (IsProjectScoped(principal))
         {
             var project = await service.GetProjectAsync(principal!.ProjectId!.Value, cancellationToken);
+            var matchesRequestedState = project is not null
+                && string.Equals(
+                    project.Status,
+                    ProjectStatus.Archived.ToString(),
+                    StringComparison.OrdinalIgnoreCase) == archivedOnly;
             return new AiPageDto<AiProjectSummaryDto>(
                 AiReadModelContract.SchemaVersion,
-                project is null ? [] : [project],
+                matchesRequestedState ? [project!] : [],
                 false,
                 null);
         }
 
-        var page = await service.ListProjectsAsync(options, cancellationToken);
+        var page = archivedOnly
+            ? await service.ListArchivedProjectsAsync(options, cancellationToken)
+            : await service.ListProjectsAsync(options, cancellationToken);
         return page;
     }
 
@@ -199,12 +234,16 @@ internal static class McpReadModelToolHandlers
         McpSecurityService security,
         McpPrincipal? principal,
         CancellationToken cancellationToken,
-        bool includeArchived = false,
+        LibraryListScope listScope = LibraryListScope.Active,
         AiReadModelOptions? options = null)
     {
         security.Require(principal, McpPermissionDto.LibraryRead);
         if (!IsProjectScoped(principal))
-            return await service.ListLibrariesAsync(includeArchived, options, cancellationToken);
+        {
+            return listScope == LibraryListScope.Archived
+                ? await service.ListArchivedLibrariesAsync(options, cancellationToken)
+                : await service.ListLibrariesAsync(listScope == LibraryListScope.All, options, cancellationToken);
+        }
 
         var references = await scope.ServiceProvider.GetRequiredService<IProjectLibraryReferenceRepository>()
             .ListByProjectAsync(principal!.ProjectId!.Value, cancellationToken);
@@ -217,7 +256,7 @@ internal static class McpReadModelToolHandlers
             .OrderBy(static id => id, StringComparer.Ordinal))
         {
             var library = await service.GetLibraryAsync(libraryId, cancellationToken);
-            if (library is null || (!includeArchived && !string.Equals(library.Lifecycle, LibraryLifecycleDto.Available.ToString(), StringComparison.OrdinalIgnoreCase)))
+            if (library is null || !MatchesScope(library, listScope))
                 continue;
 
             items.Add(library with { Nodes = null });
@@ -232,6 +271,27 @@ internal static class McpReadModelToolHandlers
             visible,
             hasMore,
             hasMore && visible.Length > 0 ? visible[^1].Id : null);
+    }
+
+    private static bool MatchesScope(AiLibrarySummaryDto library, LibraryListScope listScope)
+        => listScope switch
+        {
+            LibraryListScope.Active => string.Equals(
+                library.Lifecycle,
+                LibraryLifecycleDto.Available.ToString(),
+                StringComparison.OrdinalIgnoreCase),
+            LibraryListScope.Archived => string.Equals(
+                library.Lifecycle,
+                LibraryLifecycleDto.Archived.ToString(),
+                StringComparison.OrdinalIgnoreCase),
+            _ => true,
+        };
+
+    private enum LibraryListScope
+    {
+        Active,
+        Archived,
+        All,
     }
 
     private static async Task<object?> ReadLibraryAsync(
