@@ -1,20 +1,22 @@
 {
   "name": "sereinflow-ai-toolkit",
-  "version": "0.1.0+codex.20260830151116",
-  "description": "Minimal SereinFlow MCP client configuration for tools, resources, and prompts with server-provided guidance.",
+  "version": "0.1.0+codex.20260831143600",
+  "description": "Codex integration for safely discovering and operating live SereinFlow projects, flows, runs, SereinLang, and library packages through the SereinFlow MCP service.",
   "author": {
     "name": "SereinFlow"
   },
   "keywords": [
     "sereinflow",
-    "mcp"
+    "mcp",
+    "workflow-automation",
+    "sereinlang"
   ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "SereinFlow AI Toolkit",
-    "shortDescription": "Safely operate SereinFlow with AI",
-    "longDescription": "Connects external AI tools to the SereinFlow MCP API. It supports live tools, resources, resource templates, and prompts; operating rules are loaded from the server on demand.",
+    "shortDescription": "Operate live SereinFlow workflows",
+    "longDescription": "Connect Codex to the authenticated SereinFlow MCP API. Discover current server guidance, tools, resources, templates, and prompts before inspecting or changing projects, flows, runs, SereinLang, and library packages.",
     "developerName": "SereinFlow",
     "category": "Productivity",
     "capabilities": [
@@ -22,9 +24,9 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Connect to the SereinFlow MCP service and load its current operating guide.",
-      "Discover the live MCP tools, resources, resource templates, and prompts, then load only the relevant capability resource.",
-      "Inspect SereinFlow state through the live MCP tools without writing changes."
+      "Use SereinFlow to inspect the current projects, flows, and run state.",
+      "Use SereinFlow to create or update a flow after loading the live operating guide.",
+      "Use SereinFlow to compile SereinLang and report the diagnostics."
     ],
     "brandColor": "#0F766E"
   }

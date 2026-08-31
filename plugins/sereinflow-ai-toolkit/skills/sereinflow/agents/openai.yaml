@@ -1,0 +1,16 @@
+interface:
+  display_name: "SereinFlow"
+  short_description: "Operate live SereinFlow workflows"
+  brand_color: "#0F766E"
+  default_prompt: "Use $sereinflow to load the live SereinFlow guide and inspect the relevant project or flow."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "sereinflow"
+      description: "Authenticated SereinFlow MCP service"
+      transport: "streamable_http"
+      url: "http://127.0.0.1:8188/mcp"
+
+policy:
+  allow_implicit_invocation: true
