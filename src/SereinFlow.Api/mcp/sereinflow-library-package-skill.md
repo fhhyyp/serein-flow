@@ -184,14 +184,57 @@ public sealed class OpenCvImageNodes
 }
 ```
 
+## Metadata language and text safety
+
+When the user does not explicitly specify a language, infer the dominant
+language from the user's request and the surrounding conversation. Generate
+human-facing metadata in that language. Apply this rule to the values of
+`FlowLibraryAttribute.Name`, `FlowNodeAttribute.AnotherName`,
+`FlowNodeAttribute.Desc`, and `NodeParamAttribute.Name`. If the user explicitly
+specifies a language, follow that choice. Do not mix languages in newly
+generated metadata without a clear user requirement.
+
+Use concise, natural labels and descriptions that a user of that language
+would actually see in a flow editor. Do not copy raw CLR names such as
+`DecodeImage`, `source_name`, or compiler-generated text as the final display
+text when a localized phrase can be written. Display metadata must not contain
+emoji, control characters, replacement characters, mojibake, markdown, code
+syntax, decorative symbols, or unexplained punctuation. Use ordinary letters or
+ideographs, meaningful digits, spaces, and normal language punctuation only.
+Check that the generated text is readable and consistently encoded before
+building the package.
+
+For a new library, prefer an explicit localized `FlowLibraryAttribute.Name`.
+For an existing library upgrade, preserve the established library name and
+node identity unless the user explicitly requests a rename; changing a
+library name can change derived node IDs. Localization applies to new or
+intentionally changed display metadata, not to an accidental identity change.
+
 For ordinary nodes, prefer the SDK defaults so the scanner can derive stable
 IDs: node identity is based on `FlowLibrary.Name` (or the declaring class name
 when omitted) plus the CLR method name, and parameter identity is based on the
-CLR parameter name. Do not hand-write IDs that can change between builds.
-`AnotherName` and `Desc` are display metadata only. `IFlowContext` is an
-injected runtime parameter and is not a user-facing input. Preserve the
-project's instance-node convention; do not silently convert instance methods
-to static methods merely to silence an analyzer.
+CLR parameter name. C# does not allow duplicate parameter names in one method
+signature, so a normal parameter already has a unique CLR name within its
+node. Do not set `NodeParamAttribute.Id` or `NodeParamAttribute.Aliases` merely
+to avoid a duplicate name, localize `NodeParamAttribute.Name`, or make routine
+metadata more explicit.
+
+Normally omit `NodeParamAttribute.Id` and `NodeParamAttribute.Aliases`. Use
+them together only when an existing library upgrade must preserve compatibility
+after an exposed parameter is intentionally renamed: set `Id` to the new
+stable parameter contract ID and put the previous stable ID(s) that old flows
+may send in `Aliases`. Each alias must be a real historical ID, unique on that
+node, and different from every active parameter ID. Do not invent aliases,
+localize IDs, or use display names as IDs. An explicit `Id` is also required
+when the CLR parameter name is unavailable after compilation or metadata
+processing, as indicated by the scanner. In all other cases, let the SDK and
+scanner derive the ID from the CLR parameter name.
+
+Do not hand-write node IDs that can change between builds. `AnotherName`,
+`Desc`, and `NodeParamAttribute.Name` are display metadata only.
+`IFlowContext` is an injected runtime parameter and is not a user-facing
+input. Preserve the project's instance-node convention; do not silently
+convert instance methods to static methods merely to silence an analyzer.
 
 ## Flipflop asynchronous trigger contract
 
