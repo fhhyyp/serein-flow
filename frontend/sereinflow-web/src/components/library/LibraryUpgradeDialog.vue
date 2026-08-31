@@ -176,8 +176,10 @@ watch(() => props.flows, (flows) => {
         <button class="icon-button" type="button" :title="t('command.close')" :aria-label="t('command.close')" @click="emit('close')"><X :size="16" /></button>
       </header>
 
-      <p v-if="error" class="library-upgrade-dialog__message library-upgrade-dialog__message--error" role="alert"><CircleAlert :size="15" />{{ error }}</p>
-      <p v-else-if="notice" class="library-upgrade-dialog__message library-upgrade-dialog__message--success"><Check :size="15" />{{ notice }}</p>
+      <div class="library-upgrade-dialog__message-slot" aria-live="polite">
+        <p v-if="error" class="library-upgrade-dialog__message library-upgrade-dialog__message--error" role="alert"><CircleAlert :size="15" />{{ error }}</p>
+        <p v-else-if="notice" class="library-upgrade-dialog__message library-upgrade-dialog__message--success"><Check :size="15" />{{ notice }}</p>
+      </div>
 
       <div class="library-upgrade-dialog__content">
         <section class="library-upgrade-dialog__selection" :aria-label="t('libraryUpgrade.selectionTitle')">

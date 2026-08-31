@@ -501,7 +501,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .flow-version-detail__remark { display: grid; gap: 6px; border-top: 1px solid var(--line); padding-top: 13px; }
 .flow-version-detail__remark p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
 .library-upgrade-dialog-backdrop { position: fixed; z-index: 50; inset: 0; display: grid; place-items: center; padding: 18px; background: rgb(15 23 42 / 42%); }
-.library-upgrade-dialog { display: grid; width: min(1120px, 100%); max-height: min(780px, calc(100vh - 36px)); grid-template-rows: auto auto minmax(0, 1fr) auto; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); box-shadow: 0 28px 72px rgb(15 23 42 / 24%); }
+.library-upgrade-dialog { display: grid; width: min(1120px, 100%); height: min(780px, calc(100vh - 36px)); min-height: 0; grid-template-rows: auto auto minmax(0, 1fr) auto; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); box-shadow: 0 28px 72px rgb(15 23 42 / 24%); }
 .library-upgrade-dialog > header, .library-upgrade-dialog > footer { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; border-bottom: 1px solid var(--line); padding: 18px 20px; }
 .library-upgrade-dialog > header h2 { margin: 5px 0 2px; }
 .library-upgrade-dialog > header span { color: var(--muted); font-size: 12px; }
@@ -511,7 +511,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .library-upgrade-dialog__message--success { border-color: #b8dcc8; background: var(--success-soft); color: var(--success); }
 .library-upgrade-dialog__content { display: grid; min-height: 0; grid-template-columns: minmax(278px, 32%) minmax(0, 1fr); overflow: hidden; }
 .library-upgrade-dialog__selection { display: grid; align-content: start; gap: 14px; min-height: 0; border-right: 1px solid var(--line); padding: 18px 20px; overflow-y: auto; }
-.library-upgrade-dialog__report { display: grid; min-width: 0; min-height: 0; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 10px; padding: 18px 20px; overflow: hidden; }
+.library-upgrade-dialog__report { display: flex; min-width: 0; min-height: 0; flex-direction: column; gap: 10px; padding: 18px 20px; overflow: hidden; }
 .library-upgrade-dialog__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .library-upgrade-dialog__heading h3 { margin: 0; color: var(--ink); font-size: 13px; }
 .library-upgrade-dialog__heading p { margin: 4px 0 0; color: var(--subtle); font-size: 11px; line-height: 1.5; }
@@ -548,7 +548,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .library-upgrade-classification--requiresMapping { color: var(--data); background: var(--data-soft); }
 .library-upgrade-classification--requiresRewire { color: var(--warning); background: var(--warning-soft); }
 .library-upgrade-classification--unknown { color: var(--muted); background: var(--canvas); }
-.library-upgrade-table-wrap { min-width: 0; min-height: 0; overflow: auto; border: 1px solid var(--line); }
+.library-upgrade-table-wrap { min-width: 0; min-height: 0; flex: 1 1 0; overflow: auto; border: 1px solid var(--line); }
 .library-upgrade-table { width: 100%; min-width: 720px; border-collapse: collapse; text-align: left; }
 .library-upgrade-table th { position: sticky; z-index: 1; top: 0; border-bottom: 1px solid var(--line-strong); padding: 8px 9px; background: #f8fafc; color: var(--subtle); font-family: var(--mono); font-size: 9px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; }
 .library-upgrade-table td { vertical-align: top; border-bottom: 1px solid var(--line); padding: 9px; color: var(--muted); font-size: 10px; line-height: 1.5; }
