@@ -35,13 +35,12 @@ as the standalone public SDK package:
 The package supplies the public metadata attributes and restricted runtime
 context without referencing SereinFlow Domain, Application, or server
 implementation assemblies. Restore it from NuGet.org using the normal NuGet
-source. A library author does not need a repository-local feed, an
-`artifacts/nuget` directory, a checked-in package, or a pre-populated local
+source. A library author does not need a checked-in package or a pre-populated
 package cache as a prerequisite.
 
 Never replace the `PackageReference` with a DLL reference and never copy local
-definitions of the SDK contracts into the library. Do not build or add a local
-SDK package source merely to obtain `SereinFlow.Library`. If the caller
+definitions of the SDK contracts into the library. Do not add a custom SDK
+package source merely to obtain `SereinFlow.Library`. If the caller
 explicitly works offline or behind an approved package mirror, use their
 provided source only when it contains the published package version; report a
 missing source or unavailable package without silently modifying the user's

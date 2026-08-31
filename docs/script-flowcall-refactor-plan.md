@@ -15,7 +15,7 @@
 | 移除 `Condition` | 领域枚举、DTO、前端节点目录和 Worker 注册仍包含该类型 | 可移除；属于 Schema 破坏性变更 |
 | Script 节点 | 领域模型和 Worker 执行器已存在 | 缺少基础节点面板、脚本编辑器、输入行编辑、稳定参数 ID、原始 `Value` 保留及目标类型转换 |
 | FlowCall 节点 | 已支持同流程目标节点、调用图环检测和静态返回类型分析 | 缺少公开节点、画布/节点选择器、调用参数契约与隔离子上下文 |
-| ScriptLang 来源 | `Serein.ScriptLang` 通过本地 NuGet 包 `0.1.0-sf.3` 引用 | 不是到指定源码的可验证引用；需要建立制品溯源 |
+| ScriptLang 来源 | 通过仓库内 `src/ThirdParty/SereinScript` 的相对 `ProjectReference` 引用 | 需要记录并验证随仓库交付的源码修订与生成器输入 |
 | `IFlowContext` 注入 | 只有内部 `IExecutionContext`；反射调用把每个 CLR 参数当作普通节点输入 | 需要新增受限的公开契约和 Worker 注入逻辑 |
 | 可变参数 | 没有 `ParamArrayAttribute` 扫描结果、DTO、编辑器状态或运行时打包 | 需要从扫描、持久化、编辑器到执行器完整打通 |
 
@@ -172,10 +172,10 @@ public interface IFlowContext
 
 ### Phase 3：建立 ScriptLang 制品溯源
 
-1. 保持生产项目使用 NuGet 包，而不是加入不可移植的绝对路径 `ProjectReference`。
-2. 新增构建脚本或 CI 任务，从 `D:\Project\C#\SereinScript\SereinScript\ScriptLang` 的固定 commit 打包到 `artifacts/nuget`，并生成包含 commit、包版本和 SHA-256 的 provenance 文件。
-3. `Directory.Packages.props` 锁定由该任务生成的明确版本；构建/CI 校验包哈希与 provenance，不匹配即失败。
-4. Linux 部署只消费已验证的本地/内部 NuGet 制品，不依赖开发机盘符。更新依赖时必须同时更新固定 commit、包版本和验证记录。
+1. 保持生产项目使用仓库内可移植的相对 `ProjectReference`，不加入开发机绝对路径。
+2. 新增构建脚本或 CI 任务，记录 `src/ThirdParty/SereinScript` 的固定修订、生成器输入和 SHA-256 provenance；不再生成仓库本地 NuGet 源。
+3. 构建/CI 校验源码修订、生成器输入和 provenance；不匹配即失败。
+4. Linux 部署使用随仓库交付并已验证的源码工程，不依赖开发机盘符或额外的本地包源。更新依赖时必须同时更新固定修订和验证记录。
 
 ### Phase 4：重构 Script 定义、缓存与编辑器
 
@@ -290,7 +290,7 @@ public interface IFlowContext
 | Worker Runner | `Program.cs`、`LibraryNodeExecutor.cs`、`LibraryArgumentConverter.cs`、`WorkerLibraryRuntimeCache.cs` | Executor 注册、参数注入、params 打包、ALC 契约共享 |
 | Infrastructure | `LibraryCatalogService.cs` | `ParamArrayAttribute` 扫描与目录元数据 |
 | Frontend | `NodeLibraryPanel.vue`、`InspectorPanel.vue`、`ParameterEditor.vue`、`useNodeDrop.ts`、`useFlowGraph.ts`、`types.ts`、`flowDtoMapper.ts`、i18n | 基础节点、Script/FlowCall 检查器、可变参数、DTO 映射 |
-| Build | `Directory.Packages.props`、构建脚本、`artifacts/nuget` 的 provenance | ScriptLang 来源验证与可部署制品 |
+| Build | `Directory.Build.props`、构建脚本、`src/ThirdParty/SereinScript` 的 provenance | ScriptLang 来源验证与可部署源码工程 |
 | Tests | Domain/Application/Runtime/ScriptAdapter/Infrastructure/Worker/Frontend tests、`SereinFlow.TestLibrary` | 下文验收覆盖 |
 
 ## 7. 验收与测试矩阵
