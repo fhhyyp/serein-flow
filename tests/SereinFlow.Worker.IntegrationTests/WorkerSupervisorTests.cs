@@ -490,6 +490,107 @@ public sealed class WorkerSupervisorTests
         }
     }
 
+    [Fact]
+    public async Task SupervisorInjectsDeclaredLibraryServicesIntoNodeConstructors()
+    {
+        var packageRoot = CreateTestLibraryPackageRoot();
+        try
+        {
+            var events = new List<WorkerEventEnvelopeDto>();
+            var supervisor = CreateSupervisor(allowedLibraryPackageRoot: packageRoot);
+            var request = CreateLibraryServiceRequest(
+                DateTimeOffset.UtcNow.AddSeconds(15),
+                packageRoot,
+                typeof(ConstructorInjectionNodes),
+                nameof(ConstructorInjectionNodes.Describe));
+
+            var result = await supervisor.RunAsync(request, (workerEvent, _) =>
+            {
+                events.Add(workerEvent);
+                return ValueTask.CompletedTask;
+            });
+
+            Assert.Equal(FlowRunStatusDto.Succeeded, result.Status);
+            var completed = Assert.Single(events, workerEvent => workerEvent.EventType == WorkerEventType.NodeCompleted);
+            using var payload = JsonDocument.Parse(completed.PayloadJson);
+            var values = payload.RootElement
+                .GetProperty("outputs")
+                .GetProperty("result")
+                .GetString()!
+                .Split(';');
+
+            Assert.Equal(7, values.Length);
+            Assert.Equal(values[0], values[1]);
+            Assert.Equal("True", values[2]);
+            Assert.Equal(values[3], values[4]);
+            Assert.Equal("True", values[5]);
+            Assert.Equal("False", values[6]);
+        }
+        finally
+        {
+            TryDeleteDirectory(packageRoot);
+        }
+    }
+
+    [Fact]
+    public async Task SupervisorRejectsForbiddenWorkerObjectsInNodeConstructors()
+    {
+        var packageRoot = CreateTestLibraryPackageRoot();
+        try
+        {
+            var supervisor = CreateSupervisor(allowedLibraryPackageRoot: packageRoot);
+            var request = CreateLibraryServiceRequest(
+                DateTimeOffset.UtcNow.AddSeconds(15),
+                packageRoot,
+                typeof(ForbiddenProviderNode),
+                nameof(ForbiddenProviderNode.Execute));
+
+            var result = await supervisor.RunAsync(request, static (_, _) => ValueTask.CompletedTask);
+
+            Assert.Equal(FlowRunStatusDto.Failed, result.Status);
+            Assert.Equal("library.service_dependency_forbidden", result.ErrorCode);
+        }
+        finally
+        {
+            TryDeleteDirectory(packageRoot);
+        }
+    }
+
+    [Fact]
+    public async Task SupervisorScopesDeclaredLibraryServicesToOneWorkerRun()
+    {
+        var packageRoot = CreateTestLibraryPackageRoot();
+        try
+        {
+            var events = new List<WorkerEventEnvelopeDto>();
+            var supervisor = CreateSupervisor(allowedLibraryPackageRoot: packageRoot);
+            var request = CreateTwoNodeLibraryServiceRequest(
+                DateTimeOffset.UtcNow.AddSeconds(15),
+                packageRoot,
+                typeof(ConstructorInjectionNodes),
+                nameof(ConstructorInjectionNodes.DescribeRunAndInvocationScopes));
+
+            var result = await supervisor.RunAsync(request, (workerEvent, _) =>
+            {
+                events.Add(workerEvent);
+                return ValueTask.CompletedTask;
+            });
+
+            Assert.Equal(FlowRunStatusDto.Succeeded, result.Status);
+            var first = GetLibraryNodeResult(events, "library-service-first").Split(';');
+            var second = GetLibraryNodeResult(events, "library-service-second").Split(';');
+
+            Assert.Equal(2, first.Length);
+            Assert.Equal(2, second.Length);
+            Assert.Equal(first[0], second[0]);
+            Assert.NotEqual(first[1], second[1]);
+        }
+        finally
+        {
+            TryDeleteDirectory(packageRoot);
+        }
+    }
+
     private static WorkerSupervisor CreateSupervisor(
         Action<string>? diagnosticLogger = null,
         string? allowedLibraryPackageRoot = null)
@@ -603,6 +704,146 @@ public sealed class WorkerSupervisorTests
             []);
         var node = new NodeDto("script", NodeTypeDto.Script, "Script", 0, 0, [], [], script);
         return CreateRequest(flowId, node, deadline);
+    }
+
+    private static WorkerRunRequestDto CreateLibraryServiceRequest(
+        DateTimeOffset deadline,
+        string packageRoot,
+        Type nodeType,
+        string methodName)
+    {
+        var flowId = Guid.NewGuid();
+        var action = new NodeDto(
+            "library-service-action",
+            NodeTypeDto.Action,
+            "Library service action",
+            0,
+            0,
+            [],
+            [],
+            null,
+            new NodeUiMetadataDto(
+                "library-service-action",
+                "node.libraryService.title",
+                "node.libraryService.subtitle",
+                null,
+                "ready",
+                true,
+                null,
+                Category: "library",
+                LibraryId: TestLibraryArtifactId,
+                ClassName: nodeType.FullName,
+                MethodName: methodName,
+                DllName: Path.GetFileName(nodeType.Assembly.Location),
+                DllVersion: "1.0.0",
+                ReturnType: "System.String"));
+        var definition = new FlowDefinitionDto(
+            flowId,
+            5,
+            1,
+            [new CanvasDto("main", CanvasLifecycleDto.Main, [action], [])],
+            action.Id,
+            "test",
+            RunPolicy: new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel));
+        return new WorkerRunRequestDto(
+            WorkerProtocol.Version,
+            Guid.NewGuid(),
+            flowId,
+            1,
+            JsonSerializer.Serialize(definition),
+            deadline,
+            LibraryPackageRootPath: packageRoot,
+            AllowedLibraryIds: [TestLibraryArtifactId]);
+    }
+
+    private static WorkerRunRequestDto CreateTwoNodeLibraryServiceRequest(
+        DateTimeOffset deadline,
+        string packageRoot,
+        Type nodeType,
+        string methodName)
+    {
+        var flowId = Guid.NewGuid();
+        var first = CreateLibraryServiceNode(
+            "library-service-first",
+            "First library service action",
+            nodeType,
+            methodName);
+        var second = CreateLibraryServiceNode(
+            "library-service-second",
+            "Second library service action",
+            nodeType,
+            methodName);
+        var connection = new ConnectionDto(
+            "library-service-first:success->library-service-second:execute",
+            first.Id,
+            "success",
+            second.Id,
+            "execute",
+            ConnectionKindDto.Execution,
+            ExecutionBranchDto.Success,
+            null,
+            0);
+        var definition = new FlowDefinitionDto(
+            flowId,
+            5,
+            1,
+            [new CanvasDto("main", CanvasLifecycleDto.Main, [first, second], [connection])],
+            first.Id,
+            "test",
+            RunPolicy: new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel));
+        return new WorkerRunRequestDto(
+            WorkerProtocol.Version,
+            Guid.NewGuid(),
+            flowId,
+            1,
+            JsonSerializer.Serialize(definition),
+            deadline,
+            LibraryPackageRootPath: packageRoot,
+            AllowedLibraryIds: [TestLibraryArtifactId]);
+    }
+
+    private static NodeDto CreateLibraryServiceNode(
+        string id,
+        string name,
+        Type nodeType,
+        string methodName)
+        => new(
+            id,
+            NodeTypeDto.Action,
+            name,
+            0,
+            0,
+            [],
+            [],
+            null,
+            new NodeUiMetadataDto(
+                id,
+                "node.libraryService.title",
+                "node.libraryService.subtitle",
+                null,
+                "ready",
+                true,
+                null,
+                Category: "library",
+                LibraryId: TestLibraryArtifactId,
+                ClassName: nodeType.FullName,
+                MethodName: methodName,
+                DllName: Path.GetFileName(nodeType.Assembly.Location),
+                DllVersion: "1.0.0",
+                ReturnType: "System.String"));
+
+    private static string GetLibraryNodeResult(
+        IReadOnlyCollection<WorkerEventEnvelopeDto> events,
+        string nodeId)
+    {
+        var completed = Assert.Single(events, workerEvent =>
+            workerEvent.EventType == WorkerEventType.NodeCompleted
+            && workerEvent.NodeId == nodeId);
+        using var payload = JsonDocument.Parse(completed.PayloadJson);
+        return payload.RootElement
+            .GetProperty("outputs")
+            .GetProperty("result")
+            .GetString()!;
     }
 
     private static WorkerRunRequestDto CreateLibraryActionRequest(

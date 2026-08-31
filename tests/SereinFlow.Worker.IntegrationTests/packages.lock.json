@@ -40,6 +40,11 @@
         "resolved": "17.14.1",
         "contentHash": "pmTrhfFIoplzFVbhVwUquT+77CbGH+h4/3mBpdmIlYtBi9nAB+kKI6dN3A/nV4DFi3wLLx/BlHIPK+MkbQ6Tpg=="
       },
+      "Microsoft.Extensions.DependencyInjection.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.0.11",
+        "contentHash": "/a1aJz4m7ylhEDf25ugQChLQoN5XwoGjWw/BoR/ZWWKsO1v4DdJElS1uyngahz4B/eOzjFk1KNTkarRLE5wsIg=="
+      },
       "Microsoft.TestPlatform.ObjectModel": {
         "type": "Transitive",
         "resolved": "17.14.1",
@@ -168,6 +173,7 @@
       "sereinflow.worker.runner": {
         "type": "Project",
         "dependencies": {
+          "Microsoft.Extensions.DependencyInjection": "[10.0.11, )",
           "SereinFlow.Contracts": "[1.0.0, )",
           "SereinFlow.Runtime": "[1.0.0, )",
           "SereinFlow.ScriptAdapter": "[1.0.0, )",
@@ -179,6 +185,15 @@
         "dependencies": {
           "SereinFlow.Contracts": "[1.0.0, )",
           "SereinFlow.Worker.Protocol": "[1.0.0, )"
+        }
+      },
+      "Microsoft.Extensions.DependencyInjection": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.11, )",
+        "resolved": "10.0.11",
+        "contentHash": "PSmotV19c7E3lKed++uYo1kSiXFI+uTl37CBSrhq+CfLC3FCHjG7R91+xPnNehQfHS1b0Tzo/CCLPWH3qaEheg==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.11"
         }
       }
     }

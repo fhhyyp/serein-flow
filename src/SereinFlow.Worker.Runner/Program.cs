@@ -165,9 +165,10 @@ public static class RunnerHost
                 request.LibraryPackageRootPath,
                 request.RunId,
                 request.AllowedLibraryIds);
+            await using var libraryServiceRuntime = new WorkerLibraryServiceRuntime();
             var executors = new NodeExecutorRegistry([
-                new LibraryNodeExecutor(NodeType.Action, libraryRuntimeCache),
-                new LibraryNodeExecutor(NodeType.Flipflop, libraryRuntimeCache),
+                new LibraryNodeExecutor(NodeType.Action, libraryRuntimeCache, libraryServiceRuntime),
+                new LibraryNodeExecutor(NodeType.Flipflop, libraryRuntimeCache, libraryServiceRuntime),
                 new SereinScriptNodeExecutor(artifactStore, request.ProjectId ?? "default"),
                 new FlowCallNodeExecutor()]);
             var executionGate = debugController?.CreateGate(session, publisher);

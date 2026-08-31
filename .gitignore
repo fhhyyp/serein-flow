@@ -42,3 +42,7 @@ frontend/sereinflow-web/coverage/
 frontend/sereinflow-web/output-vite.err
 /.artifacts
 /NuGet/Migrations
+/.dotnet-cli/.dotnet
+/.build-temp
+/.dotnet-session
+/.compile-check

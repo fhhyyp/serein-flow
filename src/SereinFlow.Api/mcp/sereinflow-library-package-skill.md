@@ -22,15 +22,27 @@ output and its dependency closure first.
 
 Use an SDK-style C# class library targeting a runtime supported by the
 deployment. The current repository examples target `net10.0`.
-`SereinFlow.Library` version `1.0.0` is published on
+`SereinFlow.Library` is published on
 [NuGet.org](https://www.nuget.org/packages/SereinFlow.Library/). Reference it
-as the standalone public SDK package:
+as the standalone public SDK package with NuGet's floating version to use the
+latest stable release by default:
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="SereinFlow.Library" Version="1.0.0" />
+  <PackageReference Include="SereinFlow.Library" Version="*" />
 </ItemGroup>
 ```
+
+When the caller needs a specific compatible version for reproducible builds or
+deployment compatibility, they may replace `*` with the requested version:
+
+```xml
+<PackageReference Include="SereinFlow.Library" Version="x.y.z" />
+```
+
+For a project that uses Central Package Management, keep the project reference
+without a `Version` attribute and set either `*` or the caller's requested
+version in `Directory.Packages.props`.
 
 The package supplies the public metadata attributes and restricted runtime
 context without referencing SereinFlow Domain, Application, or server
@@ -42,9 +54,9 @@ Never replace the `PackageReference` with a DLL reference and never copy local
 definitions of the SDK contracts into the library. Do not add a custom SDK
 package source merely to obtain `SereinFlow.Library`. If the caller
 explicitly works offline or behind an approved package mirror, use their
-provided source only when it contains the published package version; report a
-missing source or unavailable package without silently modifying the user's
-global NuGet configuration.
+provided source only when it contains a suitable published package version;
+report a missing source or unavailable package without silently modifying the
+user's global NuGet configuration.
 
 Let MSBuild evaluate these properties; do not parse inherited build files by
 hand:

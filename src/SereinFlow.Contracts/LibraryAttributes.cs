@@ -8,4 +8,7 @@ using SereinFlow.Core.Api;
 [assembly: TypeForwardedTo(typeof(FlowNodeAttribute))]
 [assembly: TypeForwardedTo(typeof(NodeParamAttribute))]
 [assembly: TypeForwardedTo(typeof(NodeType))]
+[assembly: TypeForwardedTo(typeof(FlowServiceLifetime))]
+[assembly: TypeForwardedTo(typeof(FlowServiceAttribute))]
+[assembly: TypeForwardedTo(typeof(FlowServiceAttribute<>))]
 [assembly: TypeForwardedTo(typeof(LibraryAttributeContract))]

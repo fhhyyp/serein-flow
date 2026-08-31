@@ -1,4 +1,5 @@
 using System.Reflection;
+using Microsoft.Extensions.DependencyInjection;
 using SereinFlow.Domain;
 using SereinFlow.Runtime;
 using SereinFlow.Runtime.Abstractions;
@@ -10,11 +11,16 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
 {
     private readonly NodeType _nodeType;
     private readonly WorkerLibraryRuntimeCache _cache;
+    private readonly WorkerLibraryServiceRuntime _services;
 
-    public LibraryNodeExecutor(NodeType nodeType, WorkerLibraryRuntimeCache cache)
+    public LibraryNodeExecutor(
+        NodeType nodeType,
+        WorkerLibraryRuntimeCache cache,
+        WorkerLibraryServiceRuntime services)
     {
         _nodeType = nodeType;
         _cache = cache;
+        _services = services;
     }
 
     public NodeType NodeType => _nodeType;
@@ -26,6 +32,8 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
     {
         cancellationToken.ThrowIfCancellationRequested();
         var auditInputs = new Dictionary<string, object?>(StringComparer.Ordinal);
+        AsyncServiceScope? invocationScope = null;
+        object? target = null;
         if (request.Node.Runtime is null)
         {
             return _nodeType == NodeType.Action
@@ -44,7 +52,11 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
                     "Flipflop methods must return Task or Task<T>. Flipflop 方法必须返回 Task 或 Task<T>。");
             }
 
-            var target = method.IsStatic ? null : Activator.CreateInstance(resolved.DeclaringType);
+            if (!method.IsStatic)
+            {
+                invocationScope = _services.CreateInvocationScope(resolved.DeclaringType.Assembly);
+                target = _services.CreateNodeInstance(invocationScope.Value.ServiceProvider, resolved.DeclaringType);
+            }
             var parameters = method.GetParameters();
             var arguments = new object?[parameters.Length];
             var flowContext = new LibraryFlowContext(
@@ -156,6 +168,10 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
         {
             return NodeExecutionResult.Error(exception.Code, exception.Message) with { Inputs = SnapshotInputs(auditInputs) };
         }
+        catch (LibraryServiceException exception)
+        {
+            return NodeExecutionResult.Error(exception.Code, exception.Message) with { Inputs = SnapshotInputs(auditInputs) };
+        }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             // Cancellation is a run lifecycle signal, not a node error. Let
@@ -185,6 +201,12 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
                 ? NodeExecutionResult.Error("flipflop.execution_failed", $"Flipflop execution failed. Flipflop 执行失败。 {exception.Message}") with { Inputs = SnapshotInputs(auditInputs) }
                 : NodeExecutionResult.Error("library.invocation_failed", $"Library invocation failed. 类库调用失败。 {exception.Message}") with { Inputs = SnapshotInputs(auditInputs) };
         }
+        finally
+        {
+            await DisposeNodeInstanceAsync(target);
+            if (invocationScope is { } scope)
+                await scope.DisposeAsync();
+        }
     }
 
     private static bool IsTask(Type type)
@@ -202,6 +224,19 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
 
     private static Dictionary<string, object?> SnapshotInputs(IReadOnlyDictionary<string, object?> inputs)
         => new Dictionary<string, object?>(inputs, StringComparer.Ordinal);
+
+    private static async ValueTask DisposeNodeInstanceAsync(object? target)
+    {
+        switch (target)
+        {
+            case IAsyncDisposable asyncDisposable:
+                await asyncDisposable.DisposeAsync();
+                break;
+            case IDisposable disposable:
+                disposable.Dispose();
+                break;
+        }
+    }
 
     private static Array BuildVariadicArgument(
         NodeExecutionRequest request,

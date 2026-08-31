@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.Loader;
 using SereinFlow.Contracts;
+using SereinFlow.Core.Api;
 using SereinFlow.Domain;
 using SereinFlow.Runtime.Abstractions;
 
@@ -338,6 +339,8 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
 
         protected override Assembly? Load(AssemblyName assemblyName)
         {
+            if (string.Equals(assemblyName.Name, typeof(FlowServiceAttribute).Assembly.GetName().Name, StringComparison.Ordinal))
+                return typeof(FlowServiceAttribute).Assembly;
             if (string.Equals(assemblyName.Name, typeof(IFlowContext).Assembly.GetName().Name, StringComparison.Ordinal))
                 return typeof(IFlowContext).Assembly;
             if (string.Equals(assemblyName.Name, typeof(IExecutionContext).Assembly.GetName().Name, StringComparison.Ordinal))
