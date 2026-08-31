@@ -1,6 +1,6 @@
 ---
 name: sereinflow
-description: Connect to the SereinFlow MCP service and load its current operating guide and live capabilities.
+description: Connect to the SereinFlow MCP service, load its current operating guide and live capabilities, and diagnose transport, authentication, and session failures with evidence.
 ---
 
 # SereinFlow MCP
@@ -41,25 +41,157 @@ and `mcp_servers.<id>.env_vars` is for stdio servers; neither is a replacement
 for the HTTP bearer-token setting. Use the Codex credential/environment
 injection supported by the host, then restart Codex or start a new task.
 
-## Connection diagnostics
+## Connection lifecycle and diagnostics
 
-Only an authenticated MCP session can provide a meaningful live catalog.
-An empty `resources/list` or `resources/templates/list` result from a client
-session that did not complete `initialize` is not evidence that the server has
-no resources. Do not infer the server's listening state from those lists.
+Treat connection health as four separate layers. Do not collapse a transport
+error from the Codex MCP client into a conclusion about the SereinFlow service:
 
-Use these bounded distinctions when diagnosing the configured HTTP endpoint:
+1. **Transport**: can the configured host and route be reached?
+2. **Authentication**: does the endpoint accept the bearer token?
+3. **MCP session**: did `initialize` succeed, and are the returned session and
+   protocol headers used on follow-up requests?
+4. **Capabilities**: can the authenticated session read the guide and list the
+   current tools, resources, resource templates, and prompts?
 
-- `GET /mcp` returning `405 Method Not Allowed` means the listener and route
-  are reachable; MCP requests use `POST`.
+The normal connection sequence is:
+
+1. Use the configured `sereinflow` MCP server. Do not send an API key in tool
+   arguments or try to create a second authentication mechanism.
+2. Complete one fresh `initialize` handshake and record only non-secret
+   evidence: status, error body category, and whether `MCP-Session-Id` was
+   returned. Do not print the bearer token, full authorization header, or any
+   secret-bearing response fields.
+3. For every request after `initialize`, preserve the returned
+   `MCP-Session-Id` and send `MCP-Protocol-Version: 2025-03-26` (header names
+   are case-insensitive). If a session is stale or the server reports a
+   missing protocol/session header, create a fresh session and retry the
+   read-only request once.
+4. Read `initialize.instructions`, then `sereinflow://ai/guide`, and only the
+   relevant capability resource. A successful `initialize` alone proves only
+   that a session was created; it is not a full health check.
+5. Verify the session with the current capability catalogs: `tools/list`,
+   `resources/list`, `resources/templates/list`, and `prompts/list`. Record
+   successful result counts when available. An empty catalog is meaningful only
+   after a successful authenticated `initialize` and a successful catalog
+   response.
+
+When the MCP client reports an ambiguous failure, or when a user asks whether
+the service is connected, perform a bounded direct HTTP comparison against the
+same configured endpoint if shell/network diagnostics are available. Label
+every observation as either `Codex MCP client` or `direct probe`; a successful
+PowerShell probe proves the service and key work for that PowerShell process,
+not that an already-running Codex process has loaded the same environment.
+Keep the API key in the process environment and report only presence/absence
+and status classes.
+
+For a direct probe, use the configured URL and this sequence:
+
+1. `GET /mcp`: `405 Method Not Allowed` is expected and proves that the
+   listener and route are reachable; it is not an MCP failure. MCP requests
+   use `POST`.
+2. Unauthenticated `POST initialize`: `401` with
+   `WWW-Authenticate: Bearer` proves that the route is reachable and bearer
+   authentication is enforced. Never use this result alone to claim the key is
+   invalid.
+3. Authenticated `POST initialize`: `200` plus a session ID proves that the
+   endpoint accepted the key and created an MCP session. Capture the session ID
+   internally, but do not expose it as a credential or log it in full.
+4. Authenticated follow-up catalog requests with both the session ID and
+   `MCP-Protocol-Version: 2025-03-26`: successful `200` responses prove that
+   the session can use the MCP API. Read the guide resource as a final
+   application-level check.
+
+The diagnostic initialize payload must be a valid MCP JSON-RPC request, for
+example:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "diagnostic-initialize",
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2025-03-26",
+    "capabilities": {},
+    "clientInfo": {
+      "name": "codex-sereinflow-diagnostic",
+      "version": "1.0"
+    }
+  }
+}
+```
+
+For direct HTTP diagnostics, send `Content-Type: application/json` and an
+appropriate `Accept` header. Send `Authorization: Bearer <value>` only from
+the process environment; never put the value in this file, command output,
+task text, or a tool argument. Use the response session header on all
+subsequent requests. Handle either JSON or event-stream response framing when
+the transport allows both.
+
+Apply these bounded retry rules:
+
+- Retry connection resets, timeouts, and `502`/`503`/`504` only a small,
+  finite number of times with short backoff while the service may be starting.
+- Retry `initialize`, catalog reads, and resource reads safely. Do not blindly
+  retry a mutating `tools/call`; retry it only when the server contract says
+  the operation is idempotent and supplies an idempotency key.
+- After a failed initialization, do not reuse a partial or stale session. After
+  a client restart or server restart, establish a new session before listing
+  capabilities.
+- Do not make repeated probes indefinitely. Report the attempts and the last
+  observed status when the bounded check still fails.
+
+Use these evidence-based conclusions:
+
 - `POST initialize` returning `401` with `WWW-Authenticate: Bearer` means the
-  listener and route are reachable but the key is missing, invalid, expired,
+  listener and route are reachable, but the key is missing, invalid, expired,
   or revoked.
 - Connection refused or a timeout means the configured host/port is not
-  reachable from the Codex process, or the API is not running there.
+  reachable from the process performing the probe, or the API is not running
+  there.
 - `502` or `503` from a client transport is a gateway, connector, or startup
-  failure. It is not proof that a local port has no listener; retry after the
-  API is ready and report the transport status separately.
+  failure. It is not proof that a local port has no listener; report the
+  transport status separately.
+- If the direct probe reaches `GET /mcp` with `405`, gets `401` without a key,
+  gets `200` with the configured key, and completes the follow-up catalog
+  requests, the SereinFlow service and key are healthy. If the Codex MCP client
+  still reports `502`, the likely fault is the Codex client/connector state or
+  stale credential injection. Restart Codex or start a new task, then rerun the
+  MCP handshake.
+- If the direct authenticated initialize returns `401`, distinguish an absent
+  key from an invalid, expired, or revoked key without exposing the value. Do
+  not replace it with a key in the repository, task text, or tool arguments.
+- If direct requests return `502`/`503`/`504`, the failure is in the service
+  startup, gateway, or connector path. Do not state that authentication failed
+  unless an authenticated request actually returned `401`.
+- If `initialize` succeeds but follow-up requests fail, suspect a missing or
+  stale `MCP-Session-Id`, a missing `MCP-Protocol-Version`, an expired session,
+  or a protocol mismatch before suspecting the API key. Establish one fresh
+  session and retest a read-only catalog call.
+- If direct probing is unavailable, report the MCP client's exact observed
+  status/error and mark service health as unverified. Do not claim the local
+  service is down or the key is invalid based only on an unverified client
+  error.
+
+When reporting a connection test or failure, use this compact diagnostic
+record so the user can distinguish the failing layer:
+
+```text
+Connection status: healthy | client-path-failed | auth-failed | unreachable | unknown
+Endpoint: <configured endpoint, without credentials>
+Transport: <status and evidence>
+Authentication: <not tested | missing/invalid | accepted>
+Session/protocol: <not established | session established | follow-up headers verified>
+Capabilities: tools=<count or ?>, resources=<count or ?>,
+              templates=<count or ?>, prompts=<count or ?>
+Likely cause: <one evidence-based sentence>
+Next action: <one concrete action>
+```
+
+Never report "connected" after only seeing a client-side `200` or an
+`initialize` response. Report the layer that was verified and the layer that
+still failed. Preserve status codes and relevant safe response headers in the
+diagnostic notes, but redact authorization values, API keys, session IDs, and
+other secrets.
 
 After creating, rotating, or changing `SEREINFLOW_MCP_API_KEY`, restart the
 Codex process or start a new task so the MCP client reloads its credentials.

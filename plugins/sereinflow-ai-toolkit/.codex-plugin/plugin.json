@@ -1,6 +1,6 @@
 {
   "name": "sereinflow-ai-toolkit",
-  "version": "0.1.0+codex.20260831143600",
+  "version": "0.1.0+codex.20260831155037",
   "description": "Codex integration for safely discovering and operating live SereinFlow projects, flows, runs, SereinLang, and library packages through the SereinFlow MCP service.",
   "author": {
     "name": "SereinFlow"
