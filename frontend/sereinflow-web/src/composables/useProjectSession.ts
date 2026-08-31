@@ -3,6 +3,8 @@ import { FlowApiError, createProject, listProjects, loadFlow, renameProject, sav
 import { t } from '../i18n'
 import type { ConnectionLineSettings } from '../flow/connectionLine'
 import { normalizeConnectionLineTypes } from '../flow/connectionLine'
+import type { CanvasFocusSettings } from '../flow/canvasFocus'
+import { normalizeCanvasFocusSettings } from '../flow/canvasFocus'
 import { flowDefinitionToWorkspace, workspaceToFlowDefinition } from '../flow/flowDtoMapper'
 import { createInitialCanvases } from '../flow/initialCanvases'
 import type { CanvasState } from '../flow/types'
@@ -15,6 +17,7 @@ interface UseProjectSessionOptions {
   activeCanvasId: Ref<string>
   nextNodeNumber: Ref<number>
   connectionLineTypes: ConnectionLineSettings
+  canvasFocusSettings: CanvasFocusSettings
   projectId: Ref<string | undefined>
   flowId: Ref<string | undefined>
   projectWorkspaces: Ref<ProjectWorkspaceDto[]>
@@ -255,6 +258,7 @@ export function useProjectSession(options: UseProjectSessionOptions) {
       entryNodeId: '',
       projectName: options.projectName.value,
       connectionLineTypes: normalizeConnectionLineTypes(options.connectionLineTypes),
+      canvasFocusSettings: normalizeCanvasFocusSettings(options.canvasFocusSettings),
       runPolicy: { concurrencyMode: 'parallel' },
     }
     options.restoreWorkspace(initialSnapshot)
@@ -328,6 +332,7 @@ export function useProjectSession(options: UseProjectSessionOptions) {
         entryNodeId: '',
         projectName: options.projectName.value,
         connectionLineTypes: normalizeConnectionLineTypes(),
+        canvasFocusSettings: normalizeCanvasFocusSettings(),
         runPolicy: { concurrencyMode: 'parallel' },
       }
       options.restoreWorkspace(snapshot)

@@ -1,4 +1,5 @@
 import type { CanvasState } from './types'
+import type { CanvasFocusSettings } from './canvasFocus'
 import type { ConnectionLineSettings } from './connectionLine'
 import type { FlowConcurrencyMode } from '../api/flowApi'
 
@@ -9,6 +10,7 @@ export interface WorkspaceSnapshot {
   entryNodeId?: string
   projectName?: string
   connectionLineTypes?: ConnectionLineSettings
+  canvasFocusSettings?: CanvasFocusSettings
   runPolicy?: {
     concurrencyMode: FlowConcurrencyMode
   }

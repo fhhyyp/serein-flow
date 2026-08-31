@@ -1,6 +1,7 @@
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import { MarkerType, applyNodeChanges, type Connection, type EdgeChange, type NodeChange } from '@vue-flow/core'
 import { applyNodePositionChanges, cloneCanvasGraph, removeEdgesById } from '../flow/canvasGraph'
+import { canvasFocusState, type CanvasFocusSettingKey, type CanvasFocusSettings } from '../flow/canvasFocus'
 import { canonicalParameterId, executionBranchFromHandle, resolveConnectionSemantic } from '../flow/connectionSeats'
 import { connectionLineStyleFor, connectionLineTypeForEdge, connectionLineTypeOptions, type ConnectionLineSettings } from '../flow/connectionLine'
 import type { CanvasState, ConnectionSemantic, FlowEdge, FlowEdgeLineType, FlowNode, MethodParameter, NodeKind, NodeRuntimeMetadata, ParameterSource, ScriptNodeData } from '../flow/types'
@@ -10,6 +11,7 @@ interface UseFlowGraphOptions {
   currentCanvas: ComputedRef<CanvasState>
   nextNodeNumber: Ref<number>
   connectionLineTypes: ConnectionLineSettings
+  canvasFocusSettings: CanvasFocusSettings
   mobilePanel: Ref<'nodes' | 'inspector' | null>
   notice: Ref<string>
   isRestoringWorkspace: Ref<boolean>
@@ -34,6 +36,25 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
   })
   const renderedCanvas = computed(() => {
     const canvas = cloneCanvasGraph(currentCanvas.value)
+    // cloneCanvasGraph deliberately copies graph elements only; selection is
+    // editor state on CanvasState and must come from the original canvas.
+    const focus = canvasFocusState(
+      canvas.nodes,
+      canvas.edges,
+      currentCanvas.value.selectedNodeId,
+      currentCanvas.value.selectedEdgeId,
+      options.canvasFocusSettings,
+    )
+    canvas.nodes = canvas.nodes.map((node) => {
+      const focusClass = focus.active
+        ? focus.focusedNodeIds.has(node.id) ? 'canvas-focus-highlighted' : 'canvas-focus-dimmed'
+        : undefined
+      const existingClasses = Array.isArray(node.class) ? node.class : node.class ? [node.class] : []
+      return {
+        ...node,
+        class: focusClass ? [...existingClasses, focusClass].join(' ') : node.class,
+      }
+    })
     canvas.edges = canvas.edges.map((edge) => ({
       ...edge,
       type: connectionLineTypeForEdge(edge, options.connectionLineTypes),
@@ -41,6 +62,9 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
       labelShowBg: false,
       labelBgPadding: undefined,
       labelBgBorderRadius: undefined,
+      class: [edge.class, focus.active
+        ? focus.focusedEdgeIds.has(edge.id) ? 'canvas-focus-highlighted' : 'canvas-focus-dimmed'
+        : undefined].filter(Boolean).join(' '),
     }))
     return canvas
   })
@@ -128,6 +152,17 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
 
     options.recordWorkspaceMutation()
     options.connectionLineTypes[semantic] = value
+    options.markWorkspaceChanged()
+  }
+
+  function updateCanvasFocusSetting(setting: CanvasFocusSettingKey, event: Event): void {
+    const value = (event.target as HTMLInputElement | null)?.checked
+    if (typeof value !== 'boolean' || options.canvasFocusSettings[setting] === value) {
+      return
+    }
+
+    options.recordWorkspaceMutation()
+    options.canvasFocusSettings[setting] = value
     options.markWorkspaceChanged()
   }
 
@@ -331,6 +366,7 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
     clearSelection,
     isValidConnection,
     updateConnectionLineType,
+    updateCanvasFocusSetting,
     onConnect,
     onNodesChange,
     onEdgesChange,

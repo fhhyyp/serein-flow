@@ -14,6 +14,7 @@ import CanvasDeleteConfirmDialog from './CanvasDeleteConfirmDialog.vue'
 import { t } from '../../i18n'
 import type { CanvasState, ConnectionSemantic, FlowEdge, FlowNode } from '../../flow/types'
 import { connectionLineTypeOptions, type ConnectionLineSettings } from '../../flow/connectionLine'
+import type { CanvasFocusSettingKey, CanvasFocusSettings } from '../../flow/canvasFocus'
 
 const nodeTypes = markRaw({ workflow: FlowNodeCard })
 
@@ -31,6 +32,7 @@ const props = defineProps<{
   customCanvasNameDraft: string
   connectionSettingsOpen: boolean
   connectionLineTypes: ConnectionLineSettings
+  canvasFocusSettings: CanvasFocusSettings
   isDirty: boolean
   isSaving: boolean
   isWorkspaceLoading: boolean
@@ -54,6 +56,7 @@ const emit = defineEmits<{
   'update:customCanvasNameDraft': [value: string]
   'toggle-connection-settings': []
   'update-connection-line-type': [semantic: ConnectionSemantic, event: Event]
+  'update-canvas-focus-setting': [setting: CanvasFocusSettingKey, event: Event]
   'remove-selection': []
   'request-canvas-removal': []
   'cancel-canvas-removal': []
@@ -97,8 +100,30 @@ function updateCustomCanvasName(event: Event): void {
       <div class="canvas-tools">
         <span class="save-state" role="status"><Check v-if="!props.isDirty && !props.saveFailed && !props.saveConflict && !props.isSaving && !props.isWorkspaceLoading" :size="14" /><Save v-else :size="14" />{{ t(props.saveStateKey) }}</span>
         <div class="connection-settings">
-          <button class="icon-button compact" type="button" :title="t('canvas.connectionSettings')" :aria-label="t('canvas.connectionSettings')" :aria-expanded="props.connectionSettingsOpen" @click="emit('toggle-connection-settings')"><Settings2 :size="15" /></button>
-          <div v-if="props.connectionSettingsOpen" class="connection-settings-popover" role="dialog" :aria-label="t('canvas.connectionSettings')"><span class="connection-settings-popover__title">{{ t('canvas.connectionSettings') }}</span><p>{{ t('canvas.connectionSettingsHint') }}</p><label class="connection-settings-field">{{ t('canvas.executionLineType') }}<select :value="props.connectionLineTypes.execution" @change="emit('update-connection-line-type', 'execution', $event)"><option v-for="option in connectionLineTypeOptions" :key="option.value" :value="option.value">{{ t(option.labelKey) }}</option></select></label><label class="connection-settings-field">{{ t('canvas.dataLineType') }}<select :value="props.connectionLineTypes.data" @change="emit('update-connection-line-type', 'data', $event)"><option v-for="option in connectionLineTypeOptions" :key="option.value" :value="option.value">{{ t(option.labelKey) }}</option></select></label></div>
+          <button class="icon-button compact" type="button" :title="t('canvas.canvasSettings')" :aria-label="t('canvas.canvasSettings')" :aria-expanded="props.connectionSettingsOpen" @click="emit('toggle-connection-settings')"><Settings2 :size="15" /></button>
+          <div v-if="props.connectionSettingsOpen" class="connection-settings-popover" role="dialog" :aria-label="t('canvas.canvasSettings')">
+            <section class="connection-settings-panel" :aria-label="t('canvas.connectionSettings')">
+              <span class="connection-settings-popover__title">{{ t('canvas.connectionSettings') }}</span>
+              <p>{{ t('canvas.connectionSettingsHint') }}</p>
+              <label class="connection-settings-field">{{ t('canvas.executionLineType') }}<select :value="props.connectionLineTypes.execution" @change="emit('update-connection-line-type', 'execution', $event)"><option v-for="option in connectionLineTypeOptions" :key="option.value" :value="option.value">{{ t(option.labelKey) }}</option></select></label>
+              <label class="connection-settings-field">{{ t('canvas.dataLineType') }}<select :value="props.connectionLineTypes.data" @change="emit('update-connection-line-type', 'data', $event)"><option v-for="option in connectionLineTypeOptions" :key="option.value" :value="option.value">{{ t(option.labelKey) }}</option></select></label>
+            </section>
+            <section class="connection-settings-panel" :aria-label="t('canvas.focusSettings')">
+              <span class="connection-settings-popover__title">{{ t('canvas.focusSettings') }}</span>
+              <p>{{ t('canvas.focusSettingsHint') }}</p>
+              <label class="focus-settings-toggle">
+                <span>{{ t('canvas.focusEnabled') }}</span>
+                <input :checked="props.canvasFocusSettings.enabled" type="checkbox" role="switch" @change="emit('update-canvas-focus-setting', 'enabled', $event)" />
+                <span class="focus-settings-toggle__track" aria-hidden="true"><span></span></span>
+              </label>
+              <div class="focus-settings-relations" :aria-disabled="!props.canvasFocusSettings.enabled">
+                <label class="focus-settings-option"><input :checked="props.canvasFocusSettings.parameterSources" type="checkbox" :disabled="!props.canvasFocusSettings.enabled" @change="emit('update-canvas-focus-setting', 'parameterSources', $event)" /><span>{{ t('canvas.focusParameterSources') }}</span></label>
+                <label class="focus-settings-option"><input :checked="props.canvasFocusSettings.parameterConsumers" type="checkbox" :disabled="!props.canvasFocusSettings.enabled" @change="emit('update-canvas-focus-setting', 'parameterConsumers', $event)" /><span>{{ t('canvas.focusParameterConsumers') }}</span></label>
+                <label class="focus-settings-option"><input :checked="props.canvasFocusSettings.callers" type="checkbox" :disabled="!props.canvasFocusSettings.enabled" @change="emit('update-canvas-focus-setting', 'callers', $event)" /><span>{{ t('canvas.focusCallers') }}</span></label>
+                <label class="focus-settings-option"><input :checked="props.canvasFocusSettings.callees" type="checkbox" :disabled="!props.canvasFocusSettings.enabled" @change="emit('update-canvas-focus-setting', 'callees', $event)" /><span>{{ t('canvas.focusCallees') }}</span></label>
+              </div>
+            </section>
+          </div>
         </div>
         <button class="icon-button" type="button" :title="t('command.delete')" :aria-label="t('command.delete')" :disabled="!props.selectedNode && !props.selectedEdge" @click="emit('remove-selection')"><Trash2 :size="16" /></button>
         <button class="icon-button canvas-delete-button" type="button" :title="t('canvas.remove')" :aria-label="t('canvas.remove')" :disabled="props.currentCanvasLifecycle === 'main'" @click="emit('request-canvas-removal')"><X :size="16" /></button>

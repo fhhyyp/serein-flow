@@ -352,11 +352,19 @@ public sealed record FlowDefinitionDto(
 public sealed record FlowRunPolicyDto(FlowConcurrencyModeDto ConcurrencyMode);
 
 public sealed record FlowUiMetadataDto(
-    FlowConnectionLineTypesDto? ConnectionLineTypes = null);
+    FlowConnectionLineTypesDto? ConnectionLineTypes = null,
+    FlowCanvasFocusSettingsDto? CanvasFocusSettings = null);
 
 public sealed record FlowConnectionLineTypesDto(
     string? Execution = null,
     string? Data = null);
+
+public sealed record FlowCanvasFocusSettingsDto(
+    bool? Enabled = null,
+    bool? ParameterSources = null,
+    bool? ParameterConsumers = null,
+    bool? Callers = null,
+    bool? Callees = null);
 
 public sealed record PluginManifestDto(
     string AssemblyName,

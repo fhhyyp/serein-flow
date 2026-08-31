@@ -1,5 +1,6 @@
 import type { CanvasLifecycle, CanvasState, FlowEdge, FlowNode, MethodParameter } from './types'
 import { normalizeConnectionLineTypes } from './connectionLine'
+import { normalizeCanvasFocusSettings } from './canvasFocus'
 import type { WorkspaceSnapshot } from './workspaceHistory'
 import type { FlowConcurrencyMode } from '../api/flowApi'
 
@@ -30,6 +31,7 @@ export function loadWorkspace(): WorkspaceSnapshot | undefined {
       entryNodeId: typeof candidate.entryNodeId === 'string' ? candidate.entryNodeId : undefined,
       projectName: typeof candidate.projectName === 'string' ? candidate.projectName : undefined,
       connectionLineTypes: normalizeConnectionLineTypes(candidate.connectionLineTypes),
+      canvasFocusSettings: normalizeCanvasFocusSettings(candidate.canvasFocusSettings),
       runPolicy: isFlowConcurrencyMode(candidate.runPolicy?.concurrencyMode)
         ? { concurrencyMode: candidate.runPolicy.concurrencyMode }
         : undefined,

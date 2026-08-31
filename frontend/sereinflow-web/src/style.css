@@ -675,12 +675,27 @@ h2 { overflow-wrap: anywhere; }
 .canvas-custom-form > button { align-self: end; display: inline-grid; width: 30px; height: 27px; place-items: center; border: 1px solid var(--accent); border-radius: 3px; padding: 0; background: var(--accent); color: var(--surface); }
 .canvas-custom-form > button:hover { border-color: var(--accent-strong); background: var(--accent-strong); color: var(--surface); }
 .connection-settings { position: relative; }
-.connection-settings-popover { position: absolute; z-index: 20; top: 34px; right: 0; display: grid; width: 220px; gap: 10px; border: 1px solid var(--line-strong); border-radius: 4px; padding: 12px; background: var(--surface); box-shadow: 0 8px 20px rgba(15, 23, 42, .08); }
+.connection-settings-popover { position: absolute; z-index: 20; top: 34px; right: 0; display: grid; width: min(288px, calc(100vw - 24px)); overflow: hidden; border: 1px solid var(--line-strong); border-radius: 4px; background: var(--surface); box-shadow: 0 8px 20px rgba(15, 23, 42, .08); }
+.connection-settings-panel { display: grid; gap: 10px; padding: 12px; }
+.connection-settings-panel + .connection-settings-panel { border-top: 1px solid var(--line); }
 .connection-settings-popover__title { color: var(--ink); font-size: 13px; font-weight: 650; }
 .connection-settings-popover p { margin: -4px 0 1px; color: var(--muted); font-size: 11px; line-height: 1.45; }
 .connection-settings-field { display: grid; gap: 5px; color: var(--muted); font-size: 11px; }
 .connection-settings-field select { width: 100%; border: 1px solid var(--line-strong); border-radius: 3px; padding: 6px 7px; background: var(--surface); color: var(--ink); font-size: 12px; }
 .connection-settings-field select:focus { outline: 2px solid var(--accent-soft); outline-offset: 1px; border-color: var(--accent); }
+.focus-settings-toggle { display: flex; min-height: 28px; align-items: center; justify-content: space-between; gap: 12px; color: var(--ink); font-size: 12px; font-weight: 600; cursor: pointer; }
+.focus-settings-toggle input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+.focus-settings-toggle__track { display: inline-flex; width: 32px; height: 18px; flex: 0 0 auto; align-items: center; border: 1px solid var(--line-strong); border-radius: 9px; padding: 1px; background: #e2e8f0; transition: background-color 180ms ease, border-color 180ms ease; }
+.focus-settings-toggle__track span { width: 14px; height: 14px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 2px rgb(15 23 42 / 20%); transition: transform 180ms ease; }
+.focus-settings-toggle input:checked + .focus-settings-toggle__track { border-color: var(--accent); background: var(--accent); }
+.focus-settings-toggle input:checked + .focus-settings-toggle__track span { transform: translateX(14px); }
+.focus-settings-toggle input:focus-visible + .focus-settings-toggle__track { outline: 2px solid var(--accent-soft); outline-offset: 2px; }
+.focus-settings-relations { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 10px; }
+.focus-settings-relations[aria-disabled='true'] { opacity: .5; }
+.focus-settings-option { display: flex; min-width: 0; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; line-height: 1.35; cursor: pointer; }
+.focus-settings-option input { width: 14px; height: 14px; flex: 0 0 auto; margin: 0; accent-color: var(--accent); }
+.focus-settings-option input:disabled { cursor: not-allowed; }
+.focus-settings-option:has(input:disabled) { cursor: not-allowed; }
 .canvas-tools { height: 32px; flex: 0 0 auto; gap: 8px; }
 .save-state { gap: 5px; color: var(--success); font-size: 12px; white-space: nowrap; }
 .flow-validation-diagnostics { display: grid; min-height: 0; flex: 1; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; background: #fffaf9; }
@@ -715,8 +730,13 @@ h2 { overflow-wrap: anywhere; }
 .serein-flow .vue-flow__pane { cursor: grab; }
 .serein-flow .vue-flow__pane.dragging { cursor: grabbing; }
 .serein-flow .vue-flow__node { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.serein-flow .vue-flow__node.canvas-focus-dimmed { opacity: .18; transition: opacity 180ms ease; }
+.serein-flow .vue-flow__node.canvas-focus-highlighted { opacity: 1; transition: opacity 180ms ease; }
 .serein-flow .vue-flow__node.selected .workflow-node, .workflow-node.selected { border-color: var(--accent); outline: 2px solid var(--accent-soft); outline-offset: 2px; box-shadow: 0 0 0 1px var(--accent), 0 6px 16px rgb(3 105 161 / 14%); }
 .serein-flow .vue-flow__edge-path { stroke-width: 2; }
+.serein-flow .vue-flow__edge.canvas-focus-dimmed { opacity: .14; transition: opacity 180ms ease; }
+.serein-flow .vue-flow__edge.canvas-focus-highlighted { opacity: 1; transition: opacity 180ms ease; }
+.serein-flow .vue-flow__edge.canvas-focus-highlighted .vue-flow__edge-path { stroke-width: 2.75; }
 .serein-flow .vue-flow__connection-path { stroke-width: 2; }
 .serein-flow .serein-flow__connection-preview { opacity: .95; stroke-width: 2; stroke-dashoffset: 0; animation: serein-flow-connection-dash 520ms linear infinite; }
 .serein-flow .connection-preview-execution { filter: drop-shadow(0 0 2px rgba(3, 105, 161, .16)); }
@@ -733,7 +753,7 @@ h2 { overflow-wrap: anywhere; }
 .serein-flow .edge-execution.branch-failure .vue-flow__edge-path { stroke: #b45309; }
 .serein-flow .edge-execution.branch-error .vue-flow__edge-path { stroke: #dc2626; }
 @keyframes serein-flow-connection-dash { to { stroke-dashoffset: -24; } }
-@media (prefers-reduced-motion: reduce) { .serein-flow .serein-flow__connection-preview { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .serein-flow .serein-flow__connection-preview { animation: none; } .serein-flow .vue-flow__node.canvas-focus-dimmed, .serein-flow .vue-flow__node.canvas-focus-highlighted, .serein-flow .vue-flow__edge.canvas-focus-dimmed, .serein-flow .vue-flow__edge.canvas-focus-highlighted { transition: none; } }
 .workflow-node { position: relative; width: 296px; min-height: 132px; overflow: visible; border: 1px solid var(--line-strong); border-radius: 3px; background: var(--surface); color: var(--ink); cursor: default; transition: border-color 180ms ease, background-color 180ms ease; }
 .workflow-node:hover { border-color: var(--accent); background: #fbfdff; }
 .workflow-node__header { position: relative; display: flex; height: 34px; align-items: center; gap: 7px; border-bottom: 1px solid var(--line); padding: 0 11px; cursor: grab; }

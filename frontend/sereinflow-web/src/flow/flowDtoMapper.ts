@@ -26,6 +26,7 @@ import type {
 } from './types'
 import { allNodeKinds } from './nodeCatalog.ts'
 import { connectionLineStyleFor, defaultConnectionLineTypes, normalizeConnectionLineTypes } from './connectionLine.ts'
+import { defaultCanvasFocusSettings, normalizeCanvasFocusSettings } from './canvasFocus.ts'
 import { canonicalParameterId, executionBranchFromHandle, parameterHandleFor } from './connectionSeats.ts'
 import type { WorkspaceSnapshot } from './workspaceHistory'
 
@@ -57,6 +58,13 @@ export function workspaceToFlowDefinition(snapshot: WorkspaceSnapshot, identity:
         execution: snapshot.connectionLineTypes?.execution ?? defaultConnectionLineTypes.execution,
         data: snapshot.connectionLineTypes?.data ?? defaultConnectionLineTypes.data,
       },
+      canvasFocusSettings: {
+        enabled: snapshot.canvasFocusSettings?.enabled ?? defaultCanvasFocusSettings.enabled,
+        parameterSources: snapshot.canvasFocusSettings?.parameterSources ?? defaultCanvasFocusSettings.parameterSources,
+        parameterConsumers: snapshot.canvasFocusSettings?.parameterConsumers ?? defaultCanvasFocusSettings.parameterConsumers,
+        callers: snapshot.canvasFocusSettings?.callers ?? defaultCanvasFocusSettings.callers,
+        callees: snapshot.canvasFocusSettings?.callees ?? defaultCanvasFocusSettings.callees,
+      },
     },
   }
 }
@@ -70,6 +78,7 @@ export function flowDefinitionToWorkspace(definition: FlowDefinitionDto): Worksp
     nextNodeNumber: getNextNodeNumber(canvases),
     entryNodeId: definition.entryNodeId,
     connectionLineTypes: normalizeConnectionLineTypes(definition.ui?.connectionLineTypes),
+    canvasFocusSettings: normalizeCanvasFocusSettings(definition.ui?.canvasFocusSettings),
     runPolicy: definition.runPolicy ?? { concurrencyMode: 'parallel' },
   }
 }

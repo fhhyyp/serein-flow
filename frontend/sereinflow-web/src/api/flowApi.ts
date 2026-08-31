@@ -14,8 +14,17 @@ export interface FlowConnectionLineTypesDto {
   data?: FlowEdgeLineType
 }
 
+export interface FlowCanvasFocusSettingsDto {
+  enabled?: boolean
+  parameterSources?: boolean
+  parameterConsumers?: boolean
+  callers?: boolean
+  callees?: boolean
+}
+
 export interface FlowUiMetadataDto {
   connectionLineTypes?: FlowConnectionLineTypesDto
+  canvasFocusSettings?: FlowCanvasFocusSettingsDto
 }
 
 export interface FlowRunPolicyDto {

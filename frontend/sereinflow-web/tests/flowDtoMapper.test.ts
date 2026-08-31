@@ -119,6 +119,13 @@ test('the workbench DTO round trip retains user-created multi-canvas execution a
       execution: 'default',
       data: 'smoothstep',
     },
+    canvasFocusSettings: {
+      enabled: true,
+      parameterSources: true,
+      parameterConsumers: false,
+      callers: false,
+      callees: true,
+    },
   }
 
   const definition = workspaceToFlowDefinition(original, {
@@ -134,12 +141,15 @@ test('the workbench DTO round trip retains user-created multi-canvas execution a
   assert.equal(definition.canvases.find((canvas) => canvas.id === 'main')?.connections.length, 2)
   assert.equal(definition.ui?.connectionLineTypes?.execution, 'default')
   assert.equal(definition.ui?.connectionLineTypes?.data, 'smoothstep')
+  assert.equal(definition.ui?.canvasFocusSettings?.parameterConsumers, false)
+  assert.equal(definition.ui?.canvasFocusSettings?.callers, false)
   assert.equal(main?.edges.length, 2)
   assert.equal(main?.edges.filter((edge) => edge.data.semantic === 'execution').length, 1)
   assert.equal(main?.edges.filter((edge) => edge.data.semantic === 'data').length, 1)
   assert.equal(init?.edges[0]?.id, 'exec-prepare-catalog')
   assert.equal(main?.nodes.find((node) => node.id === 'normalize')?.data.parameters[0]?.sourceNodeId, 'flipflop')
   assert.equal(restored.entryNodeId, 'prepare')
+  assert.deepEqual(restored.canvasFocusSettings, original.canvasFocusSettings)
 })
 
 test('the empty default workspace round trips without an artificial entry node', () => {
@@ -161,7 +171,14 @@ test('the empty default workspace round trips without an artificial entry node',
   assert.deepEqual(definition.canvases[0]?.connections, [])
   assert.deepEqual(restored.canvases[0]?.nodes, [])
   assert.deepEqual(restored.canvases[0]?.edges, [])
-  assert.deepEqual(restored.connectionLineTypes, { execution: 'smoothstep', data: 'default' })
+  assert.deepEqual(restored.connectionLineTypes, { execution: 'smoothstep', data: 'smoothstep' })
+  assert.deepEqual(restored.canvasFocusSettings, {
+    enabled: true,
+    parameterSources: true,
+    parameterConsumers: true,
+    callers: true,
+    callees: true,
+  })
 })
 
 test('custom canvas names and lifecycle survive DTO round trips', () => {

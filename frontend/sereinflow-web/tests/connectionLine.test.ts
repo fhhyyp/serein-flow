@@ -13,7 +13,7 @@ test('semantic connection defaults expose distinct customizable line types', () 
   const data = connectionLineStyleFor('data')
 
   assert.equal(execution.lineType, ConnectionLineType.SmoothStep)
-  assert.equal(data.lineType, ConnectionLineType.Bezier)
+  assert.equal(data.lineType, ConnectionLineType.SmoothStep)
   assert.notEqual(execution.previewDashArray, data.previewDashArray)
 })
 
@@ -23,13 +23,16 @@ test('an edge can override its semantic line type without changing the default',
   }
 
   assert.equal(connectionLineTypeForEdge(edge), ConnectionLineType.SimpleBezier)
-  assert.equal(connectionLineTypeForEdge({ data: { semantic: 'data' as const } }), ConnectionLineType.Bezier)
+  assert.equal(connectionLineTypeForEdge({ data: { semantic: 'data' as const } }), ConnectionLineType.SmoothStep)
 })
 
 test('legacy straight settings migrate to the requested orthogonal segment style', () => {
-  assert.deepEqual(normalizeConnectionLineTypes({ execution: ConnectionLineType.Straight }), {
+  assert.deepEqual(normalizeConnectionLineTypes({
+    execution: ConnectionLineType.Straight,
+    data: ConnectionLineType.Straight,
+  }), {
     execution: ConnectionLineType.SmoothStep,
-    data: ConnectionLineType.Bezier,
+    data: ConnectionLineType.SmoothStep,
   })
 })
 

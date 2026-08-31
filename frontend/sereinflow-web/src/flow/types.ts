@@ -121,6 +121,7 @@ export interface FlowNode {
   id: string
   position: XYPosition
   width?: number
+  class?: string | string[]
   data: FlowNodeData
   type: 'workflow'
 }

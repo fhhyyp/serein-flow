@@ -22,7 +22,7 @@ export interface ConnectionLineStyle {
 
 export const defaultConnectionLineTypes: ConnectionLineSettings = {
   execution: ConnectionLineType.SmoothStep,
-  data: ConnectionLineType.Bezier,
+  data: ConnectionLineType.SmoothStep,
 }
 
 /** The console intentionally exposes only the two requested editor choices. */
@@ -64,6 +64,7 @@ export function connectionLineTypeForEdge(edge: Pick<FlowEdge, 'data'>, settings
 
 export function normalizeConnectionLineTypes(value?: Partial<ConnectionLineSettings> | null): ConnectionLineSettings {
   const configuredExecution = normalizeLineType(value?.execution)
+  const configuredData = normalizeLineType(value?.data)
   return {
     // `straight` was never exposed by the console; migrate any interim
     // preview setting to the requested orthogonal line-segment style.
@@ -71,7 +72,9 @@ export function normalizeConnectionLineTypes(value?: Partial<ConnectionLineSetti
     execution: configuredExecution === ConnectionLineType.Straight
       ? defaultConnectionLineTypes.execution
       : configuredExecution ?? defaultConnectionLineTypes.execution,
-    data: normalizeLineType(value?.data) ?? defaultConnectionLineTypes.data,
+    data: configuredData === ConnectionLineType.Straight
+      ? defaultConnectionLineTypes.data
+      : configuredData ?? defaultConnectionLineTypes.data,
   }
 }
 

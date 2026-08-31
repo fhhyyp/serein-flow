@@ -32,6 +32,10 @@ import {
   normalizeConnectionLineTypes,
   type ConnectionLineSettings,
 } from './flow/connectionLine'
+import {
+  normalizeCanvasFocusSettings,
+  type CanvasFocusSettings,
+} from './flow/canvasFocus'
 import { createInitialCanvases } from './flow/initialCanvases'
 import { parameterHandleFor } from './flow/connectionSeats'
 import { libraryNameResolverKey } from './flow/libraryNameResolver'
@@ -60,6 +64,7 @@ const { zoomIn, zoomOut, fitView, screenToFlowCoordinate } = useVueFlow('workspa
 const recoveryWorkspace = loadWorkspace()
 const canvases = ref<CanvasState[]>(createInitialCanvases())
 const connectionLineTypes = reactive<ConnectionLineSettings>(normalizeConnectionLineTypes(recoveryWorkspace?.connectionLineTypes))
+const canvasFocusSettings = reactive<CanvasFocusSettings>(normalizeCanvasFocusSettings(recoveryWorkspace?.canvasFocusSettings))
 const activeCanvasId = ref('main')
 const projectLibraryOpen = ref(false)
 const mobilePanel = ref<'nodes' | 'inspector' | null>(null)
@@ -191,6 +196,7 @@ function currentWorkspaceSnapshot(): WorkspaceSnapshot {
     entryNodeId: hasEntryNode ? entryNodeId.value : '',
     projectName: projectName.value,
     connectionLineTypes: { ...connectionLineTypes },
+    canvasFocusSettings: { ...canvasFocusSettings },
     runPolicy: { ...runPolicy.value },
   })
 }
@@ -217,6 +223,7 @@ function restoreWorkspace(snapshot: WorkspaceSnapshot): void {
     projectName.value = snapshot.projectName.trim()
   }
   Object.assign(connectionLineTypes, normalizeConnectionLineTypes(snapshot.connectionLineTypes))
+  Object.assign(canvasFocusSettings, normalizeCanvasFocusSettings(snapshot.canvasFocusSettings))
   runPolicy.value = snapshot.runPolicy ?? { concurrencyMode: 'parallel' }
   entryNodeId.value = snapshot.entryNodeId ?? ''
   activeCanvasId.value = snapshot.activeCanvasId
@@ -281,6 +288,7 @@ const {
   clearSelection,
   isValidConnection,
   updateConnectionLineType,
+  updateCanvasFocusSetting,
   onConnect,
   onNodesChange,
   onEdgesChange,
@@ -291,6 +299,7 @@ const {
   currentCanvas,
   nextNodeNumber,
   connectionLineTypes,
+  canvasFocusSettings,
   mobilePanel,
   notice,
   isRestoringWorkspace,
@@ -418,6 +427,7 @@ const {
   activeCanvasId,
   nextNodeNumber,
   connectionLineTypes,
+  canvasFocusSettings,
   projectId,
   flowId,
   projectWorkspaces,
@@ -901,6 +911,7 @@ function setLanguage(nextLocale: Locale): void {
         :custom-canvas-name-draft="customCanvasNameDraft"
         :connection-settings-open="connectionSettingsOpen"
         :connection-line-types="connectionLineTypes"
+        :canvas-focus-settings="canvasFocusSettings"
         :is-dirty="isDirty"
         :is-saving="isSaving"
         :is-workspace-loading="isWorkspaceLoading"
@@ -921,6 +932,7 @@ function setLanguage(nextLocale: Locale): void {
         @update:custom-canvas-name-draft="customCanvasNameDraft = $event"
         @toggle-connection-settings="connectionSettingsOpen = !connectionSettingsOpen"
         @update-connection-line-type="updateConnectionLineType"
+        @update-canvas-focus-setting="updateCanvasFocusSetting"
         @remove-selection="removeSelection"
         @request-canvas-removal="requestCanvasRemoval"
         @cancel-canvas-removal="cancelCanvasRemoval"
