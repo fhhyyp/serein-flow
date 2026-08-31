@@ -29,6 +29,10 @@ internal static class McpPromptCatalog
             "Prepare a SereinFlow library package using SereinFlow.Library from NuGet.org for server-side preview inspection.",
             [new("request", "The library or packaging request.", Required: true)]),
         new(
+            "sereinflow.upgrade-library",
+            "Inspect a project library family and prepare a compatible per-flow library upgrade through the preview gate.",
+            [new("request", "The requested project library upgrade.", Required: true)]),
+        new(
             "sereinlang.compile",
             "Compile a SereinLang source draft and inspect only its structured diagnostics.",
             [new("request", "The SereinLang authoring or compilation request.", Required: true)])
@@ -46,7 +50,7 @@ internal static class McpPromptCatalog
         {
             "sereinflow.inspect" or "sereinflow.edit-flow" or "sereinflow.debug-run" or "sereinflow.publish-flow"
                 => McpAiGuidance.SereinFlowResourceUri,
-            "sereinflow.package-library" => McpAiGuidance.LibraryPackageResourceUri,
+            "sereinflow.package-library" or "sereinflow.upgrade-library" => McpAiGuidance.LibraryPackageResourceUri,
             "sereinlang.compile" => McpAiGuidance.SereinLangResourceUri,
             _ => throw new McpProtocolException(-32602, $"The SereinFlow prompt '{name}' is not supported.")
         };
@@ -60,6 +64,7 @@ internal static class McpPromptCatalog
             "sereinflow.debug-run" => "SereinFlow run and debug inspection",
             "sereinflow.publish-flow" => "SereinFlow publish or rollback preview",
             "sereinflow.package-library" => "SereinFlow library package workflow",
+            "sereinflow.upgrade-library" => "SereinFlow project library upgrade workflow",
             "sereinlang.compile" => "SereinLang compilation workflow",
             _ => throw new McpProtocolException(-32602, $"The SereinFlow prompt '{name}' is not supported.")
         };

@@ -61,11 +61,26 @@ public sealed class McpBackendIntegrationTests
         var resourceUris = (await backend.ListResourcesAsync(CancellationToken.None))
             .Select(static resource => resource.Uri)
             .ToArray();
+        var resourceTemplates = (await backend.ListResourceTemplatesAsync(CancellationToken.None))
+            .Select(static resource => resource.UriTemplate)
+            .ToArray();
 
         Assert.Contains("sereinflow_list_archived_projects", toolNames);
         Assert.Contains("sereinflow_list_archived_libraries", toolNames);
+        Assert.Contains("sereinflow_list_library_families", toolNames);
+        Assert.Contains("sereinflow_get_library_family", toolNames);
+        Assert.Contains("sereinflow_get_project_libraries", toolNames);
+        Assert.Contains("sereinflow_get_library_upgrade", toolNames);
+        Assert.Contains("sereinflow_preview_library_family_assignment", toolNames);
+        Assert.Contains("sereinflow_apply_library_family_assignment", toolNames);
+        Assert.Contains("sereinflow_preview_library_upgrade", toolNames);
+        Assert.Contains("sereinflow_apply_library_upgrade", toolNames);
         Assert.Contains("sereinflow://archived-projects", resourceUris);
         Assert.Contains("sereinflow://archived-libraries", resourceUris);
+        Assert.Contains("sereinflow://library-families", resourceUris);
+        Assert.Contains("sereinflow://library-families/{familyId}", resourceTemplates);
+        Assert.Contains("sereinflow://projects/{projectId}/libraries", resourceTemplates);
+        Assert.Contains("sereinflow://projects/{projectId}/library-upgrades/{upgradeId}", resourceTemplates);
 
         var activeProjects = Deserialize<AiPageDto<AiProjectSummaryDto>>(
             (await backend.CallToolAsync("sereinflow_list_projects", JsonSerializer.SerializeToElement(new { }), CancellationToken.None)).Value);
@@ -168,6 +183,360 @@ public sealed class McpBackendIntegrationTests
         Assert.Equal(archivedLibrary.Id, Assert.Single(archivedLibraries.Items).Id);
         Assert.Equal(2, allLibraries.Items.Count);
         Assert.DoesNotContain(allLibraries.Items, library => library.Id == unreferencedArchivedLibrary.Id);
+    }
+
+    [Fact]
+    public async Task ProjectScopedFamilyReadsDoNotLeakUnreferencedArtifacts()
+    {
+        const string visibleFamilyId = "visible-family";
+        var visible = CreateLibrary("family-visible", LibraryLifecycleDto.Available) with
+        {
+            FamilyId = visibleFamilyId,
+            FamilyName = "Visible family",
+            SemanticVersion = "1.0.0",
+        };
+        var hiddenInSameFamily = CreateLibrary("family-hidden", LibraryLifecycleDto.Available) with
+        {
+            FamilyId = visibleFamilyId,
+            FamilyName = "Visible family",
+            SemanticVersion = "2.0.0",
+        };
+        var hiddenFamilyArtifact = CreateLibrary("family-other", LibraryLifecycleDto.Available) with
+        {
+            FamilyId = "hidden-family",
+            FamilyName = "Hidden family",
+        };
+        var references = new TestProjectLibraryReferenceRepository();
+        using var host = CreateHost(services =>
+        {
+            services.AddSingleton<ILibraryCatalogService>(new TestLibraryCatalog(
+                visible,
+                hiddenInSameFamily,
+                hiddenFamilyArtifact));
+            services.AddSingleton<IProjectLibraryReferenceRepository>(references);
+        });
+
+        var project = Project.Create("Scoped family reads");
+        using (var dataScope = host.Services.CreateScope())
+        {
+            await dataScope.ServiceProvider.GetRequiredService<IProjectRepository>().AddAsync(project);
+        }
+        await references.AddAsync(project.Id, visible.Id);
+
+        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
+        accessor.Current = new McpPrincipal(
+            "family-project-key",
+            project.Id,
+            new[] { McpPermissionDto.ProjectRead, McpPermissionDto.LibraryRead }.ToHashSet());
+        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
+
+        var families = Deserialize<AiPageDto<LibraryFamilyDto>>(
+            (await backend.CallToolAsync("sereinflow_list_library_families", JsonSerializer.SerializeToElement(new { }), CancellationToken.None)).Value);
+        var family = Assert.Single(families.Items);
+        Assert.Equal(visibleFamilyId, family.Id);
+        Assert.Equal(visible.Id, Assert.Single(family.Artifacts!).Id);
+        Assert.Equal(visible.Id, family.LatestArtifactId);
+
+        var direct = Deserialize<LibraryFamilyDto>(
+            (await backend.CallToolAsync(
+                "sereinflow_get_library_family",
+                JsonSerializer.SerializeToElement(new { familyId = visibleFamilyId }),
+                CancellationToken.None)).Value);
+        Assert.Equal(visible.Id, Assert.Single(direct.Artifacts!).Id);
+
+        var hidden = await backend.CallToolAsync(
+            "sereinflow_get_library_family",
+            JsonSerializer.SerializeToElement(new { familyId = "hidden-family" }),
+            CancellationToken.None);
+        Assert.Null(hidden.Value);
+
+        var resource = Deserialize<AiPageDto<LibraryFamilyDto>>(
+            (await backend.ReadResourceAsync("sereinflow://library-families", CancellationToken.None)).Value);
+        Assert.Equal(visible.Id, Assert.Single(Assert.Single(resource.Items).Artifacts!).Id);
+    }
+
+    [Fact]
+    public async Task LibraryFamilyAssignmentPreviewsWithoutMutationThenAppliesIdempotently()
+    {
+        var artifact = CreateLibrary("family-assignment-artifact", LibraryLifecycleDto.Available);
+        var catalog = new TestLibraryCatalog(artifact);
+        using var host = CreateHost(services => services.AddSingleton<ILibraryCatalogService>(catalog));
+        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
+        accessor.Current = new McpPrincipal(
+            "family-admin",
+            null,
+            Enum.GetValues<McpPermissionDto>().ToHashSet(),
+            IsAdministrator: true);
+        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
+
+        var preview = Deserialize<LibraryFamilyAssignmentMcpPreviewDto>(
+            (await backend.CallToolAsync(
+                "sereinflow_preview_library_family_assignment",
+                JsonSerializer.SerializeToElement(new
+                {
+                    libraryId = artifact.Id,
+                    name = "Image processing",
+                    description = "Immutable versions of the image processing package",
+                }),
+                CancellationToken.None)).Value);
+
+        Assert.True(preview.CanApply);
+        Assert.Null(catalog.Find(artifact.Id)!.FamilyId);
+        var previewResource = Deserialize<LibraryFamilyAssignmentMcpPreviewDto>(
+            (await backend.ReadResourceAsync($"sereinflow://mcp-previews/{preview.PreviewId:D}", CancellationToken.None)).Value);
+        Assert.True(previewResource.CanApply);
+
+        var applyArguments = JsonSerializer.SerializeToElement(new
+        {
+            previewId = preview.PreviewId,
+            previewFingerprint = preview.PreviewFingerprint,
+            confirmation = "APPLY",
+            idempotencyKey = "assign-library-family-once",
+        });
+        var assigned = Deserialize<LibraryFamilyDto>(
+            (await backend.CallToolAsync("sereinflow_apply_library_family_assignment", applyArguments, CancellationToken.None)).Value);
+        var replay = Deserialize<LibraryFamilyDto>(
+            (await backend.CallToolAsync("sereinflow_apply_library_family_assignment", applyArguments, CancellationToken.None)).Value);
+
+        Assert.Equal("Image processing", assigned.Name);
+        Assert.Equal(assigned.Id, catalog.Find(artifact.Id)!.FamilyId);
+        Assert.Equal(assigned.Id, replay.Id);
+        var appliedPreview = Deserialize<LibraryFamilyAssignmentMcpPreviewDto>(
+            (await backend.ReadResourceAsync($"sereinflow://mcp-previews/{preview.PreviewId:D}", CancellationToken.None)).Value);
+        Assert.False(appliedPreview.CanApply);
+    }
+
+    [Fact]
+    public async Task LibraryFamilyAssignmentRequiresAdministratorAndLibraryManage()
+    {
+        var artifact = CreateLibrary("family-permission-artifact", LibraryLifecycleDto.Available);
+        using var host = CreateHost(services => services.AddSingleton<ILibraryCatalogService>(new TestLibraryCatalog(artifact)));
+        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
+        accessor.Current = new McpPrincipal(
+            "family-project-key",
+            Guid.NewGuid(),
+            new[] { McpPermissionDto.LibraryManage }.ToHashSet());
+        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
+
+        var exception = await Assert.ThrowsAsync<McpProtocolException>(() => backend.CallToolAsync(
+            "sereinflow_preview_library_family_assignment",
+            JsonSerializer.SerializeToElement(new { libraryId = artifact.Id, name = "Denied" }),
+            CancellationToken.None));
+
+        Assert.Equal(-32003, exception.Code);
+    }
+
+    [Fact]
+    public async Task LibraryUpgradeRequiresBothFlowWriteAndLibraryManage()
+    {
+        var source = CreateUpgradeLibrary("upgrade-permission-source", "1.0.0");
+        var target = CreateUpgradeLibrary("upgrade-permission-target", "2.0.0");
+        var references = new TestProjectLibraryReferenceRepository();
+        using var host = CreateHost(services =>
+        {
+            services.AddSingleton<ILibraryCatalogService>(new TestLibraryCatalog(source, target));
+            services.AddSingleton<IProjectLibraryReferenceRepository>(references);
+        });
+        var project = Project.Create("Upgrade permissions");
+        var flow = CreateLibraryFlow(source.Id);
+        using (var dataScope = host.Services.CreateScope())
+        {
+            await dataScope.ServiceProvider.GetRequiredService<IProjectRepository>().AddAsync(project);
+            await dataScope.ServiceProvider.GetRequiredService<IFlowDefinitionRepository>().AddAsync(project.Id, flow);
+        }
+        await references.AddAsync(project.Id, source.Id);
+
+        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
+        accessor.Current = new McpPrincipal(
+            "upgrade-flow-only-key",
+            project.Id,
+            new[] { McpPermissionDto.FlowWrite }.ToHashSet());
+        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
+
+        var exception = await Assert.ThrowsAsync<McpProtocolException>(() => backend.CallToolAsync(
+            "sereinflow_preview_library_upgrade",
+            JsonSerializer.SerializeToElement(new
+            {
+                projectId = project.Id,
+                sourceArtifactId = source.Id,
+                targetArtifactId = target.Id,
+                flowIds = new[] { flow.Id },
+            }),
+            CancellationToken.None));
+
+        Assert.Equal(-32003, exception.Code);
+    }
+
+    [Fact]
+    public async Task LibraryUpgradePreviewBindsApplyAndPersistsTheResult()
+    {
+        var source = CreateUpgradeLibrary("upgrade-source", "1.0.0");
+        var target = CreateUpgradeLibrary("upgrade-target", "2.0.0");
+        var references = new TestProjectLibraryReferenceRepository();
+        using var host = CreateHost(services =>
+        {
+            services.AddSingleton<ILibraryCatalogService>(new TestLibraryCatalog(source, target));
+            services.AddSingleton<IProjectLibraryReferenceRepository>(references);
+        });
+        var project = Project.Create("Upgrade one flow");
+        var flow = CreateLibraryFlow(source.Id);
+        using (var dataScope = host.Services.CreateScope())
+        {
+            await dataScope.ServiceProvider.GetRequiredService<IProjectRepository>().AddAsync(project);
+            await dataScope.ServiceProvider.GetRequiredService<IFlowDefinitionRepository>().AddAsync(project.Id, flow);
+        }
+        await references.AddAsync(project.Id, source.Id);
+
+        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
+        accessor.Current = new McpPrincipal(
+            "upgrade-project-key",
+            project.Id,
+            new[]
+            {
+                McpPermissionDto.ProjectRead,
+                McpPermissionDto.LibraryRead,
+                McpPermissionDto.FlowWrite,
+                McpPermissionDto.LibraryManage,
+            }.ToHashSet());
+        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
+
+        var preview = Deserialize<McpLibraryUpgradePreviewDto>(
+            (await backend.CallToolAsync(
+                "sereinflow_preview_library_upgrade",
+                JsonSerializer.SerializeToElement(new
+                {
+                    projectId = project.Id,
+                    sourceArtifactId = source.Id,
+                    targetArtifactId = target.Id,
+                    flowIds = new[] { flow.Id },
+                }),
+                CancellationToken.None)).Value);
+        Assert.True(preview.CanApply);
+        Assert.Equal(source.Id, preview.Plan.SourceArtifactId);
+        Assert.Equal(target.Id, preview.Plan.TargetArtifactId);
+
+        var applyTool = (await backend.ListToolsAsync(CancellationToken.None))
+            .Single(tool => tool.Name == "sereinflow_apply_library_upgrade");
+        var applyProperties = applyTool.InputSchema.GetProperty("properties");
+        Assert.False(applyProperties.TryGetProperty("projectId", out _));
+        Assert.False(applyProperties.TryGetProperty("planId", out _));
+        Assert.False(applyProperties.TryGetProperty("sourceArtifactId", out _));
+        Assert.False(applyProperties.TryGetProperty("targetArtifactId", out _));
+
+        var applyArguments = JsonSerializer.SerializeToElement(new
+        {
+            previewId = preview.PreviewId,
+            previewFingerprint = preview.PreviewFingerprint,
+            confirmation = "APPLY",
+            idempotencyKey = "upgrade-one-flow-once",
+            flows = new[] { new { flowId = flow.Id, expectedFlowVersion = flow.Version } },
+        });
+        var applied = Deserialize<LibraryUpgradeApplyResultDto>(
+            (await backend.CallToolAsync("sereinflow_apply_library_upgrade", applyArguments, CancellationToken.None)).Value);
+        var replay = Deserialize<LibraryUpgradeApplyResultDto>(
+            (await backend.CallToolAsync("sereinflow_apply_library_upgrade", applyArguments, CancellationToken.None)).Value);
+
+        Assert.Equal(flow.Id, applied.FlowId);
+        Assert.Equal(applied.NewVersion, replay.NewVersion);
+        var persistedPlan = Deserialize<LibraryUpgradePlanDto>(
+            (await backend.CallToolAsync(
+                "sereinflow_get_library_upgrade",
+                JsonSerializer.SerializeToElement(new { projectId = project.Id, upgradeId = preview.Plan.Id }),
+                CancellationToken.None)).Value);
+        Assert.Equal(LibraryUpgradePlanStatusDto.Applied, persistedPlan.Status);
+        Assert.Equal(flow.Id, Assert.Single(persistedPlan.AppliedFlows!).FlowId);
+
+        FlowDefinitionDto? persistedFlow;
+        using (var readScope = host.Services.CreateScope())
+        {
+            persistedFlow = await readScope.ServiceProvider
+                .GetRequiredService<IFlowDefinitionRepository>()
+                .FindAsync(project.Id, flow.Id);
+        }
+        Assert.Equal(target.Id, persistedFlow!.Canvases.Single().Nodes.Single().Ui!.LibraryId);
+        Assert.False(await references.IsReferencedAsync(project.Id, source.Id));
+        Assert.True(await references.IsReferencedAsync(project.Id, target.Id));
+
+        var previewResource = Deserialize<McpLibraryUpgradePreviewDto>(
+            (await backend.ReadResourceAsync($"sereinflow://mcp-previews/{preview.PreviewId:D}", CancellationToken.None)).Value);
+        Assert.False(previewResource.CanApply);
+        var libraryReferences = Deserialize<AiPageDto<ProjectLibraryReferenceDto>>(
+            (await backend.ReadResourceAsync($"sereinflow://projects/{project.Id:D}/libraries", CancellationToken.None)).Value);
+        Assert.Equal(target.Id, Assert.Single(libraryReferences.Items).LibraryId);
+    }
+
+    [Fact]
+    public async Task LibraryUpgradeBatchReportsPartialResultsAndCompletesPreviewAfterDurableSuccess()
+    {
+        var source = CreateUpgradeLibrary("upgrade-batch-source", "1.0.0");
+        var target = CreateUpgradeLibrary("upgrade-batch-target", "2.0.0");
+        var references = new TestProjectLibraryReferenceRepository();
+        using var host = CreateHost(services =>
+        {
+            services.AddSingleton<ILibraryCatalogService>(new TestLibraryCatalog(source, target));
+            services.AddSingleton<IProjectLibraryReferenceRepository>(references);
+        });
+        var project = Project.Create("Upgrade batch");
+        var firstFlow = CreateLibraryFlow(source.Id);
+        var secondFlow = CreateLibraryFlow(source.Id);
+        using (var dataScope = host.Services.CreateScope())
+        {
+            var projects = dataScope.ServiceProvider.GetRequiredService<IProjectRepository>();
+            var flows = dataScope.ServiceProvider.GetRequiredService<IFlowDefinitionRepository>();
+            await projects.AddAsync(project);
+            await flows.AddAsync(project.Id, firstFlow);
+            await flows.AddAsync(project.Id, secondFlow);
+        }
+        await references.AddAsync(project.Id, source.Id);
+
+        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
+        accessor.Current = new McpPrincipal(
+            "upgrade-batch-key",
+            project.Id,
+            new[] { McpPermissionDto.FlowWrite, McpPermissionDto.LibraryManage }.ToHashSet());
+        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
+        var preview = Deserialize<McpLibraryUpgradePreviewDto>(
+            (await backend.CallToolAsync(
+                "sereinflow_preview_library_upgrade",
+                JsonSerializer.SerializeToElement(new
+                {
+                    projectId = project.Id,
+                    sourceArtifactId = source.Id,
+                    targetArtifactId = target.Id,
+                    flowIds = new[] { firstFlow.Id, secondFlow.Id },
+                }),
+                CancellationToken.None)).Value);
+
+        using (var dataScope = host.Services.CreateScope())
+        {
+            var flows = dataScope.ServiceProvider.GetRequiredService<IFlowDefinitionRepository>();
+            var changed = await flows.TryUpdateAsync(project.Id, secondFlow with { Checksum = "changed-after-preview" }, secondFlow.Version);
+            Assert.NotNull(changed);
+        }
+
+        var batch = Deserialize<LibraryUpgradeBatchApplyResultDto>(
+            (await backend.CallToolAsync(
+                "sereinflow_apply_library_upgrade",
+                JsonSerializer.SerializeToElement(new
+                {
+                    previewId = preview.PreviewId,
+                    previewFingerprint = preview.PreviewFingerprint,
+                    confirmation = "APPLY",
+                    idempotencyKey = "upgrade-batch-partial",
+                    flows = new[]
+                    {
+                        new { flowId = firstFlow.Id, expectedFlowVersion = firstFlow.Version },
+                        new { flowId = secondFlow.Id, expectedFlowVersion = secondFlow.Version },
+                    },
+                }),
+                CancellationToken.None)).Value);
+
+        Assert.Equal(firstFlow.Id, Assert.Single(batch.Succeeded).FlowId);
+        Assert.Equal(secondFlow.Id, Assert.Single(batch.Failed).FlowId);
+        Assert.Equal("flow.version_conflict", batch.Failed.Single().Code);
+        var previewResource = Deserialize<McpLibraryUpgradePreviewDto>(
+            (await backend.ReadResourceAsync($"sereinflow://mcp-previews/{preview.PreviewId:D}", CancellationToken.None)).Value);
+        Assert.False(previewResource.CanApply);
     }
 
     [Fact]
@@ -847,6 +1216,42 @@ public sealed class McpBackendIntegrationTests
             RunPolicy: new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel));
     }
 
+    private static FlowDefinitionDto CreateLibraryFlow(string artifactId)
+    {
+        var node = new NodeDto(
+            "image-transform-node",
+            NodeTypeDto.Action,
+            "Image transform",
+            0,
+            0,
+            [],
+            [],
+            null,
+            new NodeUiMetadataDto(
+                "action",
+                "Image transform",
+                string.Empty,
+                null,
+                "ready",
+                true,
+                null,
+                "image-library",
+                artifactId,
+                "Image.Nodes",
+                "Transform",
+                "Image.dll",
+                "1.0.0",
+                "System.String",
+                LibraryNodeContractId: "image-transform"));
+        return new FlowDefinitionDto(
+            Guid.NewGuid(),
+            FlowDefinition.CurrentSchemaVersion,
+            1,
+            [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])],
+            node.Id,
+            "initial");
+    }
+
     private static LibraryDto CreateLibrary(string id, LibraryLifecycleDto lifecycle)
         => new(
             id,
@@ -859,16 +1264,82 @@ public sealed class McpBackendIntegrationTests
             [],
             lifecycle);
 
+    private static LibraryDto CreateUpgradeLibrary(string artifactId, string version)
+    {
+        var manifestNode = new LibraryManifestNodeDto(
+            "image-transform",
+            LibraryContractIdentityConfidenceDto.Explicit,
+            NodeTypeDto.Action,
+            "Image.Nodes",
+            "Transform",
+            "Image.Nodes::Transform()",
+            "System.String",
+            false,
+            []);
+        var node = new LibraryNodeDto(
+            manifestNode.ContractId,
+            manifestNode.Type,
+            "Image transform",
+            null,
+            artifactId,
+            manifestNode.DeclaringType,
+            manifestNode.MethodName,
+            "Image.dll",
+            version,
+            manifestNode.ReturnType,
+            [],
+            manifestNode.IsAwaitable,
+            manifestNode.ContractId,
+            manifestNode.OverloadSignature,
+            manifestNode.IdentityConfidence,
+            "Image library");
+        return new LibraryDto(
+            artifactId,
+            "Image library",
+            version,
+            $"Image-{version}.zip",
+            1024,
+            artifactId,
+            DateTimeOffset.UtcNow,
+            [node],
+            LibraryLifecycleDto.Available,
+            "image-library-family",
+            version,
+            new LibraryArtifactManifestDto(artifactId, "Image", version, version, [manifestNode]),
+            "Image library");
+    }
+
     private static T Deserialize<T>(object? value)
         => JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value, JsonOptions), JsonOptions)
             ?? throw new InvalidOperationException("The integration response could not be deserialized.");
 
-    private sealed class TestLibraryCatalog(params LibraryDto[] libraries) : ILibraryCatalogService
+    private sealed class TestLibraryCatalog : ILibraryCatalogService
     {
-        public IReadOnlyList<LibraryDto> List() => libraries;
-        public LibraryDto? Find(string libraryId) => libraries.SingleOrDefault(library => library.Id == libraryId);
+        private readonly Dictionary<string, LibraryDto> _libraries;
+        private readonly Dictionary<string, LibraryFamilyDto> _families;
+
+        public TestLibraryCatalog(params LibraryDto[] libraries)
+        {
+            _libraries = libraries.ToDictionary(static library => library.Id, StringComparer.OrdinalIgnoreCase);
+            _families = libraries
+                .Where(static library => !string.IsNullOrWhiteSpace(library.FamilyId))
+                .GroupBy(static library => library.FamilyId!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    static group => group.Key,
+                    group => new LibraryFamilyDto(
+                        group.Key,
+                        group.First().FamilyName ?? group.Key,
+                        null,
+                        null,
+                        DateTimeOffset.UtcNow,
+                        DateTimeOffset.UtcNow),
+                    StringComparer.OrdinalIgnoreCase);
+        }
+
+        public IReadOnlyList<LibraryDto> List() => _libraries.Values.ToArray();
+        public LibraryDto? Find(string libraryId) => _libraries.GetValueOrDefault(libraryId);
         public Task<IReadOnlyList<LibraryDto>> ListAsync(bool includeArchived = false, CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<LibraryDto>>(libraries
+            => Task.FromResult<IReadOnlyList<LibraryDto>>(_libraries.Values
                 .Where(library => includeArchived || library.Lifecycle == LibraryLifecycleDto.Available)
                 .ToArray());
         public Task<LibraryDto?> FindAsync(string libraryId, CancellationToken cancellationToken = default) => Task.FromResult(Find(libraryId));
@@ -877,6 +1348,72 @@ public sealed class McpBackendIntegrationTests
         public Task<bool> ArchiveAsync(string libraryId, CancellationToken cancellationToken = default) => Task.FromResult(false);
         public Task<LibraryDto?> ReindexAsync(string libraryId, CancellationToken cancellationToken = default) => Task.FromResult(Find(libraryId));
         public Task<int> ReindexOutdatedAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
+
+        public Task<IReadOnlyList<LibraryFamilyDto>> ListFamiliesAsync(
+            bool includeArchivedArtifacts = true,
+            CancellationToken cancellationToken = default)
+        {
+            var families = _families.Values
+                .Select(family =>
+                {
+                    var artifacts = _libraries.Values
+                        .Where(library => string.Equals(library.FamilyId, family.Id, StringComparison.OrdinalIgnoreCase))
+                        .Where(library => includeArchivedArtifacts || library.Lifecycle == LibraryLifecycleDto.Available)
+                        .OrderByDescending(library => ParseVersion(library.SemanticVersion ?? library.Version))
+                        .ThenByDescending(static library => library.UploadedAt)
+                        .ThenBy(static library => library.Id, StringComparer.Ordinal)
+                        .ToArray();
+                    return family with
+                    {
+                        LatestArtifactId = artifacts.FirstOrDefault(static library => library.Lifecycle == LibraryLifecycleDto.Available)?.Id,
+                        Artifacts = artifacts,
+                    };
+                })
+                .OrderBy(static family => family.Name, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static family => family.Id, StringComparer.Ordinal)
+                .ToArray();
+            return Task.FromResult<IReadOnlyList<LibraryFamilyDto>>(families);
+        }
+
+        public async Task<LibraryFamilyDto?> AssignFamilyAsync(
+            string libraryId,
+            AssignLibraryFamilyRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
+            if (!_libraries.TryGetValue(libraryId, out var library))
+                return null;
+
+            LibraryFamilyDto family;
+            if (!string.IsNullOrWhiteSpace(request.FamilyId))
+            {
+                if (!_families.TryGetValue(request.FamilyId.Trim(), out var existingFamily))
+                    throw new ArgumentException("The requested library family does not exist.", nameof(request));
+                family = existingFamily;
+            }
+            else
+            {
+                var name = request.Name?.Trim();
+                if (string.IsNullOrWhiteSpace(name))
+                    throw new ArgumentException("A family name is required.", nameof(request));
+                family = _families.Values.SingleOrDefault(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase))
+                    ?? new LibraryFamilyDto(Guid.NewGuid().ToString("N"), name, request.Description?.Trim(), null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+                _families[family.Id] = family;
+            }
+
+            _libraries[libraryId] = library with
+            {
+                FamilyId = family.Id,
+                FamilyName = family.Name,
+                SemanticVersion = library.SemanticVersion ?? library.Version,
+            };
+            return (await ListFamiliesAsync(cancellationToken: cancellationToken))
+                .Single(item => string.Equals(item.Id, family.Id, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static Version ParseVersion(string value)
+            => Version.TryParse(value?.Trim().TrimStart('v', 'V'), out var parsed)
+                ? parsed
+                : new Version(0, 0);
     }
 
     private sealed class TestProjectLibraryReferenceRepository : IProjectLibraryReferenceRepository

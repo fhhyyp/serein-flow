@@ -19,7 +19,8 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
         new("sereinflow://projects", "projects", "Non-archived SereinFlow project summaries"),
         new("sereinflow://archived-projects", "archived-projects", "Archived SereinFlow project summaries"),
         new("sereinflow://libraries", "libraries", "Available SereinFlow library artifacts"),
-        new("sereinflow://archived-libraries", "archived-libraries", "Archived SereinFlow library artifacts")
+        new("sereinflow://archived-libraries", "archived-libraries", "Archived SereinFlow library artifacts"),
+        new("sereinflow://library-families", "library-families", "SereinFlow library families and immutable artifact versions")
     ];
 
     private static readonly IReadOnlyList<McpResourceTemplateDescriptor> ResourceTemplates =
@@ -30,6 +31,9 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
         new("sereinflow://projects/{projectId}/flows/{flowId}/versions/{track}/{version}", "flow version", "One immutable flow version"),
         new("sereinflow://mcp-previews/{previewId}", "MCP preview", "One pending or completed MCP mutation preview"),
         new("sereinflow://libraries/{libraryId}", "library", "One SereinFlow library contract"),
+        new("sereinflow://library-families/{familyId}", "library family", "One SereinFlow library family and its artifacts"),
+        new("sereinflow://projects/{projectId}/libraries", "project libraries", "Library artifacts referenced by one project"),
+        new("sereinflow://projects/{projectId}/library-upgrades/{upgradeId}", "library upgrade", "One persisted project library upgrade plan"),
         new("sereinflow://runs/{runId}", "run inspection", "A bounded run timeline, node output and debug inspection"),
         new("sereinflow://debug-sessions/{sessionId}", "debug session", "A structured debug session state")
     ];

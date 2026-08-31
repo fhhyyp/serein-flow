@@ -41,6 +41,18 @@ internal static class McpToolAuthorization
             "sereinflow_create_library_node_template" => McpPermissionDto.ProjectRead,
             _ => McpPermissionDto.ProjectRead,
         };
+        if (string.Equals(entry.Operation, "library.family.assign", StringComparison.Ordinal))
+        {
+            security.RequireAdministrator(principal);
+            security.Require(principal, McpPermissionDto.LibraryManage);
+            return;
+        }
+        if (string.Equals(entry.Operation, "library.upgrade", StringComparison.Ordinal))
+        {
+            security.Require(principal, McpPermissionDto.FlowWrite, entry.ProjectId);
+            security.Require(principal, McpPermissionDto.LibraryManage, entry.ProjectId);
+            return;
+        }
         security.Require(principal, permission, entry.ProjectId);
     }
 

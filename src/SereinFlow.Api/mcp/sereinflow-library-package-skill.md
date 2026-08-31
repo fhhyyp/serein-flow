@@ -245,6 +245,49 @@ task-level preview, apply, and post-apply verification gate. The apply tools'
 `confirmation: "APPLY"` field remains required by the protocol, but it does
 not require a duplicate user prompt within the same authorized task.
 
+## Library families and project upgrades
+
+A library family is an administrator-defined logical product line containing
+immutable artifacts. It is metadata for selecting a compatible upgrade path;
+flows and runs continue to store the exact source artifact ID. Do not infer a
+family from a package name or version. Use
+`sereinflow_preview_library_family_assignment`, inspect its diagnostics, then
+use `sereinflow_apply_library_family_assignment` with the preview fingerprint,
+`confirmation: "APPLY"`, and an idempotency key. This operation requires an
+administrator with `library.manage`; package preview metadata such as
+`familyId` or `baselineArtifactId` never assigns persistent membership.
+
+For a project library upgrade, preserve this order:
+
+```text
+sereinflow_get_project_libraries
+    -> sereinflow_list_library_families / sereinflow_get_library_family
+    -> sereinflow_preview_library_upgrade
+    -> inspect every per-flow issue and acknowledgement requirement
+    -> explicit confirmation of the requested upgrade scope
+    -> sereinflow_apply_library_upgrade
+    -> sereinflow_get_library_upgrade
+    -> sereinflow_get_project_libraries and sereinflow_get_flow_topology
+```
+
+The source artifact must already be referenced by the project, both artifacts
+must be in the same explicitly assigned family, and the target must be
+available. Project-scoped callers see only artifacts already referenced by
+their project; attach a target through the existing attachment preview/apply
+workflow before relying on project-scoped catalog reads for it. Upgrade preview
+requires both `flow.write` and `library.manage` for the project. Inspect
+blocking changes and acknowledgement-required mappings before applying. The
+apply request accepts only the preview identity, its fingerprint, the protocol
+confirmation, an idempotency key, and selected flow/version/acknowledgement
+items; it cannot select a different project, plan, source artifact, or target
+artifact.
+
+An upgrade batch is per-flow transactional rather than globally atomic. Its
+result can contain both `succeeded` and `failed` entries. Treat a successful
+preview as analysis only, never as permission to upgrade a different scope;
+after every apply, reread the persisted plan, project references, and affected
+flow before reporting completion.
+
 ## Safety and failure rules
 
 Hard-fail and report diagnostics when any of these occurs: missing `TargetPath`,

@@ -35,6 +35,314 @@ internal static class McpLibraryToolHandlers
     internal static Task<object> ApplyProjectAttachAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
         => ApplyProjectLibraryAttachAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
 
+    internal static Task<object> PreviewLibraryFamilyAssignmentAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => PreviewLibraryFamilyAssignmentAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
+
+    internal static Task<object> ApplyLibraryFamilyAssignmentAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => ApplyLibraryFamilyAssignmentAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
+
+    internal static Task<object> PreviewLibraryUpgradeAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => PreviewLibraryUpgradeAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
+
+    internal static Task<object> ApplyLibraryUpgradeAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => ApplyLibraryUpgradeAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
+
+    private static async Task<object> PreviewLibraryFamilyAssignmentAsync(
+        IServiceScope scope,
+        McpPrincipal principal,
+        JsonElement arguments,
+        CancellationToken cancellationToken)
+    {
+        var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
+        security.RequireAdministrator(principal);
+        security.Require(principal, McpPermissionDto.LibraryManage);
+        var validated = await ValidateLibraryFamilyAssignmentAsync(
+            scope,
+            Deserialize<LibraryFamilyAssignmentMcpRequestDto>(arguments),
+            cancellationToken);
+        var stored = new StoredLibraryFamilyAssignmentPreview(
+            validated.Request,
+            validated.Diagnostics,
+            validated.CurrentFamily,
+            validated.TargetFamily);
+        var entry = await scope.ServiceProvider.GetRequiredService<McpPreviewService>().CreateAsync(
+            "library.family.assign",
+            principal,
+            null,
+            null,
+            null,
+            stored,
+            cancellationToken);
+        return new LibraryFamilyAssignmentMcpPreviewDto(
+            entry.Id,
+            validated.Request,
+            entry.ExpiresAt,
+            entry.PreviewFingerprint,
+            validated.Diagnostics.Count == 0,
+            validated.Diagnostics,
+            validated.CurrentFamily,
+            validated.TargetFamily);
+    }
+
+    private static async Task<object> ApplyLibraryFamilyAssignmentAsync(
+        IServiceScope scope,
+        McpPrincipal principal,
+        JsonElement arguments,
+        CancellationToken cancellationToken)
+    {
+        var request = Deserialize<McpMutationApplyRequestDto>(arguments);
+        RequireConfirmation(request);
+        var requestPayload = Serialize(request);
+        var idempotency = scope.ServiceProvider.GetRequiredService<McpIdempotencyService>();
+        var replay = await idempotency.FindAsync(
+            principal.Id,
+            "library.family.assign",
+            request.IdempotencyKey,
+            requestPayload,
+            cancellationToken);
+        if (replay is not null)
+            return DeserializeStoredResponse(replay.ResponseJson);
+
+        var preview = scope.ServiceProvider.GetRequiredService<McpPreviewService>();
+        var entry = await preview.RequireAsync(request.PreviewId, request.PreviewFingerprint, principal, cancellationToken);
+        if (!string.Equals(entry.Operation, "library.family.assign", StringComparison.Ordinal))
+            throw new McpProtocolException(-32602, "The preview does not describe a library family assignment.");
+
+        var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
+        security.RequireAdministrator(principal);
+        security.Require(principal, McpPermissionDto.LibraryManage);
+        var stored = McpPreviewService.Deserialize<StoredLibraryFamilyAssignmentPreview>(entry);
+        var validated = await ValidateLibraryFamilyAssignmentAsync(scope, stored.Request, cancellationToken);
+        if (validated.Diagnostics.Count > 0)
+        {
+            throw new McpProtocolException(
+                -32011,
+                "The library family assignment is no longer valid. Create a new preview and review it again.",
+                new { code = "mcp.validation_failed", diagnostics = validated.Diagnostics });
+        }
+
+        LibraryFamilyDto? result;
+        try
+        {
+            result = await scope.ServiceProvider.GetRequiredService<ILibraryCatalogService>().AssignFamilyAsync(
+                validated.Request.LibraryId,
+                new AssignLibraryFamilyRequestDto(
+                    validated.Request.FamilyId,
+                    validated.Request.Name,
+                    validated.Request.Description),
+                cancellationToken);
+        }
+        catch (ArgumentException exception)
+        {
+            throw new McpProtocolException(
+                -32011,
+                "The library family assignment is no longer valid. Create a new preview and review it again.",
+                new { code = "mcp.validation_failed", message = exception.Message });
+        }
+
+        if (result is null)
+            throw new McpProtocolException(-32004, "The library artifact was not found.", new { code = "library.not_found" });
+
+        await MarkPreviewAppliedAsync(preview, entry, cancellationToken);
+        await idempotency.SaveAsync(
+            principal.Id,
+            entry.Operation,
+            request.IdempotencyKey,
+            result,
+            requestPayload,
+            cancellationToken);
+        return result;
+    }
+
+    private static async Task<object> PreviewLibraryUpgradeAsync(
+        IServiceScope scope,
+        McpPrincipal principal,
+        JsonElement arguments,
+        CancellationToken cancellationToken)
+    {
+        var request = Deserialize<McpLibraryUpgradePreviewRequestDto>(arguments);
+        request = request with
+        {
+            SourceArtifactId = request.SourceArtifactId?.Trim() ?? string.Empty,
+            TargetArtifactId = request.TargetArtifactId?.Trim() ?? string.Empty,
+            FlowIds = request.FlowIds ?? []
+        };
+        var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
+        await RequireActiveProjectAsync(
+            scope,
+            security,
+            principal,
+            request.ProjectId,
+            McpPermissionDto.FlowWrite,
+            cancellationToken);
+        security.Require(principal, McpPermissionDto.LibraryManage, request.ProjectId);
+
+        var upgradeRequest = new LibraryUpgradePreviewRequestDto(
+            request.SourceArtifactId,
+            request.TargetArtifactId,
+            request.FlowIds);
+        var result = await scope.ServiceProvider.GetRequiredService<LibraryUpgradeService>()
+            .PreviewAsync(request.ProjectId, upgradeRequest, cancellationToken);
+        if (!result.IsSuccess || result.Value is null)
+            throw LibraryUpgradeFailure(result);
+
+        var stored = new StoredLibraryUpgradePreview(upgradeRequest, result.Value);
+        var entry = await scope.ServiceProvider.GetRequiredService<McpPreviewService>().CreateAsync(
+            "library.upgrade",
+            principal,
+            result.Value.ProjectId,
+            null,
+            null,
+            stored,
+            cancellationToken);
+        return new McpLibraryUpgradePreviewDto(
+            entry.Id,
+            entry.ExpiresAt,
+            entry.PreviewFingerprint,
+            result.Value.Flows.Any(static flow => flow.CanApply),
+            result.Value);
+    }
+
+    private static async Task<object> ApplyLibraryUpgradeAsync(
+        IServiceScope scope,
+        McpPrincipal principal,
+        JsonElement arguments,
+        CancellationToken cancellationToken)
+    {
+        var request = Deserialize<McpLibraryUpgradeApplyRequestDto>(arguments);
+        var applyEnvelope = new McpMutationApplyRequestDto(
+            request.PreviewId,
+            request.PreviewFingerprint,
+            request.Confirmation,
+            request.IdempotencyKey);
+        RequireConfirmation(applyEnvelope);
+        if (request.Flows is null || request.Flows.Count == 0)
+            throw new McpProtocolException(-32602, "At least one flow must be selected for a library upgrade.");
+
+        var requestPayload = Serialize(request);
+        var idempotency = scope.ServiceProvider.GetRequiredService<McpIdempotencyService>();
+        var replay = await idempotency.FindAsync(
+            principal.Id,
+            "library.upgrade",
+            request.IdempotencyKey,
+            requestPayload,
+            cancellationToken);
+        if (replay is not null)
+            return DeserializeStoredResponse(replay.ResponseJson);
+
+        var preview = scope.ServiceProvider.GetRequiredService<McpPreviewService>();
+        var entry = await preview.RequireAsync(request.PreviewId, request.PreviewFingerprint, principal, cancellationToken);
+        if (!string.Equals(entry.Operation, "library.upgrade", StringComparison.Ordinal))
+            throw new McpProtocolException(-32602, "The preview does not describe a library upgrade.");
+
+        var stored = McpPreviewService.Deserialize<StoredLibraryUpgradePreview>(entry);
+        var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
+        await RequireActiveProjectAsync(
+            scope,
+            security,
+            principal,
+            stored.Plan.ProjectId,
+            McpPermissionDto.FlowWrite,
+            cancellationToken);
+        security.Require(principal, McpPermissionDto.LibraryManage, stored.Plan.ProjectId);
+
+        object response;
+        var hasDurableSuccess = false;
+        var upgrades = scope.ServiceProvider.GetRequiredService<LibraryUpgradeService>();
+        if (request.Flows.Count == 1)
+        {
+            var result = await upgrades.ApplyAsync(
+                stored.Plan.ProjectId,
+                stored.Plan.Id,
+                request.Flows[0],
+                cancellationToken);
+            if (!result.IsSuccess || result.Value is null)
+                throw LibraryUpgradeFailure(result);
+            response = result.Value;
+            hasDurableSuccess = true;
+        }
+        else
+        {
+            var result = await upgrades.ApplyBatchAsync(
+                stored.Plan.ProjectId,
+                stored.Plan.Id,
+                new ApplyLibraryUpgradeBatchRequestDto(request.Flows),
+                cancellationToken);
+            if (!result.IsSuccess || result.Value is null)
+                throw LibraryUpgradeFailure(result);
+            response = result.Value;
+            hasDurableSuccess = result.Value.Succeeded.Count > 0;
+        }
+
+        if (hasDurableSuccess)
+            await MarkPreviewAppliedAsync(preview, entry, cancellationToken);
+        await idempotency.SaveAsync(
+            principal.Id,
+            entry.Operation,
+            request.IdempotencyKey,
+            response,
+            requestPayload,
+            cancellationToken);
+        return response;
+    }
+
+    private static async Task<LibraryFamilyAssignmentValidation> ValidateLibraryFamilyAssignmentAsync(
+        IServiceScope scope,
+        LibraryFamilyAssignmentMcpRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        var libraryId = request.LibraryId?.Trim() ?? string.Empty;
+        var familyId = NormalizeOptional(request.FamilyId);
+        var name = NormalizeOptional(request.Name);
+        var description = NormalizeOptional(request.Description);
+        if (familyId is not null)
+            name = null;
+        var normalized = new LibraryFamilyAssignmentMcpRequestDto(libraryId, familyId, name, description);
+        var diagnostics = new List<ValidationDiagnosticDto>();
+        var catalog = scope.ServiceProvider.GetRequiredService<ILibraryCatalogService>();
+        var library = string.IsNullOrWhiteSpace(libraryId)
+            ? null
+            : await catalog.FindAsync(libraryId, cancellationToken);
+        if (string.IsNullOrWhiteSpace(libraryId))
+            diagnostics.Add(new("library.id_required", "The library ID is required.", "libraryId"));
+        else if (library is null)
+            diagnostics.Add(new("library.not_found", "The library artifact was not found.", "libraryId"));
+
+        var families = await catalog.ListFamiliesAsync(includeArchivedArtifacts: true, cancellationToken: cancellationToken);
+        var currentFamily = library is null || string.IsNullOrWhiteSpace(library.FamilyId)
+            ? null
+            : families.SingleOrDefault(item => string.Equals(item.Id, library.FamilyId, StringComparison.OrdinalIgnoreCase));
+        var targetFamily = familyId is null
+            ? null
+            : families.SingleOrDefault(item => string.Equals(item.Id, familyId, StringComparison.OrdinalIgnoreCase));
+        if (familyId is not null && targetFamily is null)
+            diagnostics.Add(new("library.family_not_found", "The requested library family was not found.", "familyId"));
+        if (familyId is null && string.IsNullOrWhiteSpace(name))
+            diagnostics.Add(new("library.family_name_required", "A family name is required when creating a library family.", "name"));
+
+        return new LibraryFamilyAssignmentValidation(normalized, diagnostics, currentFamily, targetFamily);
+    }
+
+    private static string? NormalizeOptional(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static McpProtocolException LibraryUpgradeFailure<T>(LibraryUpgradeOperationResult<T> result)
+        => new(
+            result.StatusCode switch
+            {
+                400 => -32602,
+                404 => -32004,
+                _ => -32011,
+            },
+            result.Message ?? "The library upgrade could not be completed.",
+            new { code = result.Code, statusCode = result.StatusCode, currentVersion = result.CurrentVersion });
+
+    private sealed record LibraryFamilyAssignmentValidation(
+        LibraryFamilyAssignmentMcpRequestDto Request,
+        IReadOnlyList<ValidationDiagnosticDto> Diagnostics,
+        LibraryFamilyDto? CurrentFamily,
+        LibraryFamilyDto? TargetFamily);
+
     private static async Task<object> CreateLibraryNodeTemplateAsync(
         IServiceScope scope,
         McpPrincipal principal,

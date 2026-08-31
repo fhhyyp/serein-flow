@@ -350,6 +350,44 @@ public sealed record ProjectLibraryAttachRequestDto(
     Guid ProjectId,
     string LibraryId);
 
+public sealed record LibraryFamilyAssignmentMcpRequestDto(
+    string LibraryId,
+    string? FamilyId,
+    string? Name,
+    string? Description = null);
+
+public sealed record LibraryFamilyAssignmentMcpPreviewDto(
+    Guid PreviewId,
+    LibraryFamilyAssignmentMcpRequestDto Request,
+    DateTimeOffset ExpiresAt,
+    string PreviewFingerprint,
+    bool CanApply,
+    IReadOnlyList<ValidationDiagnosticDto> Diagnostics,
+    LibraryFamilyDto? CurrentFamily,
+    LibraryFamilyDto? TargetFamily,
+    bool IsPreviewOnly = true);
+
+public sealed record McpLibraryUpgradePreviewRequestDto(
+    Guid ProjectId,
+    string SourceArtifactId,
+    string TargetArtifactId,
+    IReadOnlyList<Guid> FlowIds);
+
+public sealed record McpLibraryUpgradeApplyRequestDto(
+    Guid PreviewId,
+    string PreviewFingerprint,
+    string Confirmation,
+    string IdempotencyKey,
+    IReadOnlyList<ApplyLibraryUpgradeRequestDto> Flows);
+
+public sealed record McpLibraryUpgradePreviewDto(
+    Guid PreviewId,
+    DateTimeOffset ExpiresAt,
+    string PreviewFingerprint,
+    bool CanApply,
+    LibraryUpgradePlanDto Plan,
+    bool IsPreviewOnly = true);
+
 public sealed record McpApiKeyDto(
     string Id,
     Guid? ProjectId,

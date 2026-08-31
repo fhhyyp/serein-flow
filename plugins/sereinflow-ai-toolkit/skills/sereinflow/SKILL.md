@@ -123,3 +123,31 @@ rolls back production, changes permissions or secrets, encounters a version
 conflict, or would perform a materially different operation. A preview is not
 authorization for work outside the requested scope. Read-only inspection,
 compilation, package scanning, and post-apply rereads do not require a prompt.
+
+## Library family and upgrade workflow
+
+For library-family assignment or a project library version upgrade, read the
+`sereinflow://ai/skills/sereinflow-library-package` capability Resource and
+discover the current tool schemas. A family assignment is administrator-only
+and uses its own preview/apply pair. It changes catalog membership only; it
+never changes the immutable ZIP or an existing flow binding.
+
+For upgrades, follow this stateful sequence:
+
+```text
+read project library references
+-> read visible family/artifact candidates
+-> preview library upgrade
+-> inspect blockers and acknowledgements
+-> explicit user confirmation when the scoped request has not already authorized the apply
+-> apply with confirmation, fingerprint, and idempotency key
+-> reread persisted upgrade plan, project references, and flow
+```
+
+The source artifact must be referenced by the project; the source and target
+must be assigned to the same family; the target must be available. Project
+scoped callers can read only their project's referenced family artifacts. The
+apply contract is bound to the stored preview and does not permit replacing its
+project, source artifact, target artifact, or upgrade plan. Batch applies are
+per-flow transactional and may return both successful and failed entries; use
+the persisted readback before presenting a completed result.

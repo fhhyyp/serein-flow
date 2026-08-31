@@ -98,4 +98,37 @@ public sealed class McpAiGuidanceTests
             new McpAiGuidanceOptions { FilePath = Path.Combine(Path.GetTempPath(), "outside.md") },
             Path.GetTempPath()));
     }
+
+    [Fact]
+    public async Task LibraryUpgradePromptUsesTheLibraryPackageGuidance()
+    {
+        var root = Directory.CreateTempSubdirectory("sereinflow-mcp-upgrade-prompt-");
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(root.FullName, "library.md"), "# library upgrade guidance");
+            var provider = new McpAiGuidanceProvider(
+                new McpAiGuidanceOptions
+                {
+                    FilePath = "index.md",
+                    SereinFlowFilePath = "flow.md",
+                    SereinLangFilePath = "lang.md",
+                    LibraryPackageFilePath = "library.md",
+                    MaxBytes = 4096
+                },
+                root.FullName);
+
+            var result = await McpPromptCatalog.GetAsync(
+                "sereinflow.upgrade-library",
+                System.Text.Json.JsonSerializer.SerializeToElement(new { request = "Upgrade image library" }),
+                provider,
+                CancellationToken.None);
+
+            Assert.Equal("SereinFlow project library upgrade workflow", result.Description);
+            Assert.Contains("# library upgrade guidance", result.Messages.Single().Content.Text, StringComparison.Ordinal);
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
+    }
 }

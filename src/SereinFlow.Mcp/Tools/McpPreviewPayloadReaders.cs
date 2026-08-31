@@ -78,4 +78,33 @@ internal static class McpPreviewPayloadReaders
             stored.Diagnostics);
     }
 
+    internal static LibraryFamilyAssignmentMcpPreviewDto ReadLibraryFamilyAssignmentPreview(
+        McpPreviewEntry entry,
+        McpPreviewDescriptorDto descriptor)
+    {
+        var stored = McpPreviewService.Deserialize<StoredLibraryFamilyAssignmentPreview>(entry);
+        return new LibraryFamilyAssignmentMcpPreviewDto(
+            descriptor.PreviewId,
+            stored.Request,
+            descriptor.ExpiresAt,
+            descriptor.PreviewFingerprint,
+            IsPreviewPending(entry) && stored.Diagnostics.Count == 0,
+            stored.Diagnostics,
+            stored.CurrentFamily,
+            stored.TargetFamily);
+    }
+
+    internal static McpLibraryUpgradePreviewDto ReadLibraryUpgradePreview(
+        McpPreviewEntry entry,
+        McpPreviewDescriptorDto descriptor)
+    {
+        var stored = McpPreviewService.Deserialize<StoredLibraryUpgradePreview>(entry);
+        return new McpLibraryUpgradePreviewDto(
+            descriptor.PreviewId,
+            descriptor.ExpiresAt,
+            descriptor.PreviewFingerprint,
+            IsPreviewPending(entry) && stored.Plan.Flows.Any(static flow => flow.CanApply),
+            stored.Plan);
+    }
+
 }

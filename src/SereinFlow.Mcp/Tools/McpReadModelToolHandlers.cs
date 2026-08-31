@@ -54,6 +54,41 @@ internal static class McpReadModelToolHandlers
     internal static Task<object?> GetLibraryAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
         => ReadLibraryAsync(context.Scope, ReadModels(context), context.Security, context.Principal, GetRequiredString(arguments, "libraryId"), cancellationToken);
 
+    internal static Task<object> ListLibraryFamiliesAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => ReadLibraryFamiliesAsync(
+            context.Scope,
+            context.Security,
+            context.Principal,
+            GetOptionalBool(arguments, "includeArchivedArtifacts") ?? true,
+            ReadOptions(arguments),
+            cancellationToken);
+
+    internal static Task<object?> GetLibraryFamilyAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => ReadLibraryFamilyAsync(
+            context.Scope,
+            context.Security,
+            context.Principal,
+            GetRequiredString(arguments, "familyId"),
+            cancellationToken);
+
+    internal static Task<object> GetProjectLibrariesAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => ReadProjectLibrariesAsync(
+            context.Scope,
+            context.Security,
+            context.Principal,
+            GetGuid(arguments, "projectId"),
+            ReadOptions(arguments),
+            cancellationToken);
+
+    internal static Task<object> GetLibraryUpgradeAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+        => ReadLibraryUpgradeAsync(
+            context.Scope,
+            context.Security,
+            context.Principal,
+            GetGuid(arguments, "projectId"),
+            GetGuid(arguments, "upgradeId"),
+            cancellationToken);
+
     internal static Task<object?> GetRunInspectionAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
         => ReadRunAsync(
             context.Scope, ReadModels(context), context.Security, context.Principal, GetGuid(arguments, "runId"),
@@ -105,6 +140,22 @@ internal static class McpReadModelToolHandlers
 
     internal static Task<object?> ReadLibraryResourceAsync(McpToolContext context, string libraryId, CancellationToken cancellationToken)
         => ReadLibraryAsync(context.Scope, ReadModels(context), context.Security, context.Principal, libraryId, cancellationToken);
+
+    internal static Task<object> ReadLibraryFamiliesResourceAsync(McpToolContext context, CancellationToken cancellationToken)
+        => ReadLibraryFamiliesAsync(context.Scope, context.Security, context.Principal, includeArchivedArtifacts: true, new(), cancellationToken);
+
+    internal static Task<object?> ReadLibraryFamilyResourceAsync(McpToolContext context, string familyId, CancellationToken cancellationToken)
+        => ReadLibraryFamilyAsync(context.Scope, context.Security, context.Principal, familyId, cancellationToken);
+
+    internal static Task<object> ReadProjectLibrariesResourceAsync(McpToolContext context, Guid projectId, CancellationToken cancellationToken)
+        => ReadProjectLibrariesAsync(context.Scope, context.Security, context.Principal, projectId, new(), cancellationToken);
+
+    internal static Task<object> ReadLibraryUpgradeResourceAsync(
+        McpToolContext context,
+        Guid projectId,
+        Guid upgradeId,
+        CancellationToken cancellationToken)
+        => ReadLibraryUpgradeAsync(context.Scope, context.Security, context.Principal, projectId, upgradeId, cancellationToken);
 
     internal static Task<object?> ReadRunResourceAsync(McpToolContext context, Guid runId, CancellationToken cancellationToken)
         => ReadRunAsync(context.Scope, ReadModels(context), context.Security, context.Principal, runId, cancellationToken);
@@ -314,6 +365,143 @@ internal static class McpReadModelToolHandlers
         return library;
     }
 
+    private static async Task<object> ReadLibraryFamiliesAsync(
+        IServiceScope scope,
+        McpSecurityService security,
+        McpPrincipal? principal,
+        bool includeArchivedArtifacts,
+        AiReadModelOptions options,
+        CancellationToken cancellationToken)
+    {
+        security.Require(principal, McpPermissionDto.LibraryRead);
+        var normalized = options.Normalize();
+        var families = await scope.ServiceProvider.GetRequiredService<ILibraryCatalogService>()
+            .ListFamiliesAsync(includeArchivedArtifacts, cancellationToken);
+        var items = (IsProjectScoped(principal)
+                ? await ProjectVisibleFamiliesAsync(
+                    scope,
+                    principal!.ProjectId!.Value,
+                    families,
+                    cancellationToken)
+                : families)
+            .Take(normalized.MaxItems + 1)
+            .ToArray();
+        var hasMore = items.Length > normalized.MaxItems;
+        var visible = hasMore ? items.Take(normalized.MaxItems).ToArray() : items;
+        return new AiPageDto<LibraryFamilyDto>(
+            AiReadModelContract.SchemaVersion,
+            visible,
+            hasMore,
+            hasMore && visible.Length > 0 ? visible[^1].Id : null);
+    }
+
+    private static async Task<object?> ReadLibraryFamilyAsync(
+        IServiceScope scope,
+        McpSecurityService security,
+        McpPrincipal? principal,
+        string familyId,
+        CancellationToken cancellationToken)
+    {
+        security.Require(principal, McpPermissionDto.LibraryRead);
+        var families = await scope.ServiceProvider.GetRequiredService<ILibraryCatalogService>()
+            .ListFamiliesAsync(includeArchivedArtifacts: true, cancellationToken: cancellationToken);
+        var visible = IsProjectScoped(principal)
+            ? await ProjectVisibleFamiliesAsync(scope, principal!.ProjectId!.Value, families, cancellationToken)
+            : families;
+        return visible.SingleOrDefault(item => string.Equals(item.Id, familyId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static async Task<IReadOnlyList<LibraryFamilyDto>> ProjectVisibleFamiliesAsync(
+        IServiceScope scope,
+        Guid projectId,
+        IReadOnlyList<LibraryFamilyDto> families,
+        CancellationToken cancellationToken)
+    {
+        var references = await scope.ServiceProvider.GetRequiredService<IProjectLibraryReferenceRepository>()
+            .ListByProjectAsync(projectId, cancellationToken);
+        var referencedArtifactIds = references
+            .Select(static reference => reference.LibraryId)
+            .Where(static id => !string.IsNullOrWhiteSpace(id))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return families
+            .Select(family => ProjectVisibleFamily(family, referencedArtifactIds))
+            .Where(static family => family is not null)
+            .Select(static family => family!)
+            .ToArray();
+    }
+
+    private static LibraryFamilyDto? ProjectVisibleFamily(
+        LibraryFamilyDto family,
+        HashSet<string> referencedArtifactIds)
+    {
+        var artifacts = (family.Artifacts ?? [])
+            .Where(artifact => referencedArtifactIds.Contains(artifact.Id))
+            .OrderByDescending(artifact => ParseSemanticVersion(artifact.SemanticVersion ?? artifact.Version))
+            .ThenByDescending(static artifact => artifact.UploadedAt)
+            .ThenBy(static artifact => artifact.Id, StringComparer.Ordinal)
+            .ToArray();
+        if (artifacts.Length == 0)
+            return null;
+
+        var latestArtifactId = artifacts
+            .FirstOrDefault(static artifact => artifact.Lifecycle == LibraryLifecycleDto.Available)
+            ?.Id;
+        return family with
+        {
+            LatestArtifactId = latestArtifactId,
+            Artifacts = artifacts,
+        };
+    }
+
+    private static Version ParseSemanticVersion(string value)
+        => Version.TryParse(value?.Trim().TrimStart('v', 'V'), out var version)
+            ? version
+            : new Version(0, 0);
+
+    private static async Task<object> ReadProjectLibrariesAsync(
+        IServiceScope scope,
+        McpSecurityService security,
+        McpPrincipal? principal,
+        Guid projectId,
+        AiReadModelOptions options,
+        CancellationToken cancellationToken)
+    {
+        security.Require(principal, McpPermissionDto.LibraryRead, projectId);
+        var result = await scope.ServiceProvider.GetRequiredService<ProjectLibraryService>()
+            .ListAsync(projectId, cancellationToken);
+        if (!result.IsSuccess)
+            throw new McpProtocolException(-32004, result.Message ?? "The project was not found.", new { code = result.Code });
+        var normalized = options.Normalize();
+        var items = (result.References ?? [])
+            .OrderBy(static reference => reference.LibraryId, StringComparer.Ordinal)
+            .Take(normalized.MaxItems + 1)
+            .ToArray();
+        var hasMore = items.Length > normalized.MaxItems;
+        var visible = hasMore ? items.Take(normalized.MaxItems).ToArray() : items;
+        return new AiPageDto<ProjectLibraryReferenceDto>(
+            AiReadModelContract.SchemaVersion,
+            visible,
+            hasMore,
+            hasMore && visible.Length > 0 ? visible[^1].LibraryId : null);
+    }
+
+    private static async Task<object> ReadLibraryUpgradeAsync(
+        IServiceScope scope,
+        McpSecurityService security,
+        McpPrincipal? principal,
+        Guid projectId,
+        Guid upgradeId,
+        CancellationToken cancellationToken)
+    {
+        security.Require(principal, McpPermissionDto.LibraryRead, projectId);
+        var result = await scope.ServiceProvider.GetRequiredService<LibraryUpgradeService>()
+            .GetPlanAsync(projectId, upgradeId, cancellationToken);
+        if (!result.IsSuccess || result.Value is null)
+            throw new McpProtocolException(-32004, result.Message ?? "The library upgrade preview was not found.", new { code = result.Code });
+        return result.Value;
+    }
+
     private static async Task<object?> ReadRunAsync(
         IServiceScope scope,
         AiReadModelService service,
@@ -391,7 +579,6 @@ internal static class McpReadModelToolHandlers
         Guid previewId,
         CancellationToken cancellationToken)
     {
-        security.Require(principal, McpPermissionDto.ProjectRead);
         var entry = await scope.ServiceProvider.GetRequiredService<IMcpPreviewStore>().FindAsync(previewId, cancellationToken)
             ?? throw new McpProtocolException(-32004, "The MCP preview was not found.");
         if (principal is not null
@@ -418,6 +605,8 @@ internal static class McpReadModelToolHandlers
             "flow.rollback" => ReadRollbackPreview(entry, descriptor),
             "library.package" => ReadLibraryPackagePreview(entry, descriptor),
             "project.library.attach" => ReadProjectLibraryAttachPreview(entry, descriptor),
+            "library.family.assign" => ReadLibraryFamilyAssignmentPreview(entry, descriptor),
+            "library.upgrade" => ReadLibraryUpgradePreview(entry, descriptor),
             _ => descriptor,
         };
     }

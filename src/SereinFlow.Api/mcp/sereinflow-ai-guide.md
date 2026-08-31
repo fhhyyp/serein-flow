@@ -9,7 +9,7 @@ the current request:
 | --- | --- | --- |
 | `sereinflow` | `sereinflow://ai/skills/sereinflow` | Projects, flows, nodes, runs, debugging, versions, publishing, rollback and flow mutation previews |
 | `sereinlang` | `sereinflow://ai/skills/sereinlang` | SereinLang authoring, syntax and diagnostic compilation |
-| `sereinflow-library-package` | `sereinflow://ai/skills/sereinflow-library-package` | C# library authoring with `SereinFlow.Library` from NuGet.org, local publish/ZIP contract, package inspection and library attachment |
+| `sereinflow-library-package` | `sereinflow://ai/skills/sereinflow-library-package` | C# library authoring with `SereinFlow.Library` from NuGet.org, local publish/ZIP contract, package inspection, library families, project references and upgrades |
 
 The current MCP tool and resource schemas are authoritative. Discover them
 with `tools/list`, `resources/list`, and `prompts/list`; do not copy server
@@ -20,7 +20,7 @@ Use this routing rule:
 
 - Project, flow, runtime or release request: read the `sereinflow` Resource.
 - Script syntax or compilation request: read only the `sereinlang` Resource.
-- C# library, DLL, ZIP or attachment request: read only the
+- C# library, DLL, ZIP, family assignment, attachment or version-upgrade request: read only the
   `sereinflow-library-package` Resource.
 - A request spanning capabilities may read the smallest set of listed
   Resources needed, in the order implied by the task.
@@ -52,6 +52,28 @@ preview contains destructive or unexpected changes, the operation affects
 production publication or rollback, changes permissions or secrets, encounters
 a version conflict, or requires a materially different operation. A preview is
 never permission to perform an operation outside the user's requested scope.
+
+For a project library version upgrade, use the library-package capability and
+keep the persisted artifacts and flow definitions authoritative. The required
+sequence is:
+
+```text
+read project library references
+-> read visible family and artifact candidates
+-> preview the library upgrade
+-> inspect per-flow blockers and acknowledgement requirements
+-> obtain explicit user confirmation for the scoped upgrade when it is not already authorized
+-> apply with the preview fingerprint, confirmation: "APPLY", and an idempotency key
+-> reread the upgrade plan, project references, and affected flow
+```
+
+A library family groups immutable artifacts; it does not replace artifact IDs
+stored by flows and runs. Assigning an artifact to a family is a separate
+administrator-only preview/apply operation. An upgrade apply is bound to the
+stored preview's project and plan: clients cannot substitute another project,
+source artifact, target artifact, or plan at apply time. A batch can report
+both successful and failed flows, so inspect its complete result before any
+retry.
 
 The server reads this index and each capability file from its deployment at
 Resource or Prompt request time. Updating a Markdown file changes the guidance

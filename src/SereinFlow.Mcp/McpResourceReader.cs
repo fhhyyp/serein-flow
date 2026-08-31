@@ -66,6 +66,20 @@ public sealed class McpResourceReader
                 => await McpReadModelToolHandlers.ReadArchivedLibrariesResourceAsync(context, cancellationToken),
             "libraries" when segments.Length == 1
                 => await McpReadModelToolHandlers.ReadLibraryResourceAsync(context, segments[0], cancellationToken),
+            "library-families" when segments.Length == 0
+                => await McpReadModelToolHandlers.ReadLibraryFamiliesResourceAsync(context, cancellationToken),
+            "library-families" when segments.Length == 1
+                => await McpReadModelToolHandlers.ReadLibraryFamilyResourceAsync(context, segments[0], cancellationToken),
+            "projects" when segments.Length == 2
+                && Guid.TryParse(segments[0], out var librariesProjectId)
+                && string.Equals(segments[1], "libraries", StringComparison.OrdinalIgnoreCase)
+                => await McpReadModelToolHandlers.ReadProjectLibrariesResourceAsync(context, librariesProjectId, cancellationToken),
+            "projects" when segments.Length == 3
+                && Guid.TryParse(segments[0], out var libraryUpgradeProjectId)
+                && string.Equals(segments[1], "library-upgrades", StringComparison.OrdinalIgnoreCase)
+                && Guid.TryParse(segments[2], out var upgradeId)
+                => await McpReadModelToolHandlers.ReadLibraryUpgradeResourceAsync(
+                    context, libraryUpgradeProjectId, upgradeId, cancellationToken),
             "runs" when segments.Length == 1 && Guid.TryParse(segments[0], out var runId)
                 => await McpReadModelToolHandlers.ReadRunResourceAsync(context, runId, cancellationToken),
             "debug-sessions" when segments.Length == 1 && Guid.TryParse(segments[0], out var sessionId)

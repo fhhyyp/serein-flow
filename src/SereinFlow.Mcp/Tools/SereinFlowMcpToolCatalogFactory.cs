@@ -40,6 +40,14 @@ internal static class SereinFlowMcpToolCatalogFactory
             properties: new Dictionary<string, object?> { ["maxItems"] = NumberSchema() })),
         Tool("sereinflow_get_library", "Read one library's scanned node and parameter contracts.", Schema(
             properties: new Dictionary<string, object?> { ["libraryId"] = StringSchema() }, required: ["libraryId"])),
+        Tool("sereinflow_list_library_families", "List bounded library families and their immutable artifact versions.", Schema(
+            properties: new Dictionary<string, object?> { ["includeArchivedArtifacts"] = BooleanSchema(), ["maxItems"] = NumberSchema() })),
+        Tool("sereinflow_get_library_family", "Read one library family and its immutable artifact versions.", Schema(
+            properties: new Dictionary<string, object?> { ["familyId"] = StringSchema() }, required: ["familyId"])),
+        Tool("sereinflow_get_project_libraries", "Read bounded library artifacts referenced by one project.", Schema(
+            properties: new Dictionary<string, object?> { ["projectId"] = StringSchema(), ["maxItems"] = NumberSchema() }, required: ["projectId"])),
+        Tool("sereinflow_get_library_upgrade", "Read one persisted project library upgrade analysis and per-flow results.", Schema(
+            properties: new Dictionary<string, object?> { ["projectId"] = StringSchema(), ["upgradeId"] = StringSchema() }, required: ["projectId", "upgradeId"])),
         Tool("sereinflow_get_run_inspection", "Read a bounded run snapshot, timeline, node outputs and debug state.", Schema(
             properties: new Dictionary<string, object?>
             {
@@ -113,6 +121,36 @@ internal static class SereinFlowMcpToolCatalogFactory
             properties: new Dictionary<string, object?> { ["projectId"] = StringSchema(), ["libraryId"] = StringSchema() }, required: ["projectId", "libraryId"])),
         Tool("sereinflow_apply_project_library_attach", "Apply a previously previewed project library attachment within the requesting library task.", Schema(
             properties: ApplySchemaProperties(), required: ["previewId", "previewFingerprint", "confirmation", "idempotencyKey"])),
+        Tool("sereinflow_preview_library_family_assignment", "Preview assigning an immutable library artifact to an existing family or a new family.", Schema(
+            properties: new Dictionary<string, object?>
+            {
+                ["libraryId"] = StringSchema(), ["familyId"] = StringSchema(), ["name"] = StringSchema(), ["description"] = StringSchema()
+            }, required: ["libraryId"])),
+        Tool("sereinflow_apply_library_family_assignment", "Apply a previously previewed global library family assignment.", Schema(
+            properties: ApplySchemaProperties(), required: ["previewId", "previewFingerprint", "confirmation", "idempotencyKey"])),
+        Tool("sereinflow_preview_library_upgrade", "Analyze a same-family library upgrade for selected development flows without changing them.", Schema(
+            properties: new Dictionary<string, object?>
+            {
+                ["projectId"] = StringSchema(), ["sourceArtifactId"] = StringSchema(), ["targetArtifactId"] = StringSchema(),
+                ["flowIds"] = ArraySchema(StringSchema(), minItems: 1)
+            }, required: ["projectId", "sourceArtifactId", "targetArtifactId", "flowIds"])),
+        Tool("sereinflow_apply_library_upgrade", "Apply selected flows from a previously previewed library upgrade after explicit confirmation.", Schema(
+            properties: new Dictionary<string, object?>
+            {
+                ["previewId"] = StringSchema(), ["previewFingerprint"] = StringSchema(),
+                ["confirmation"] = new { type = "string", @enum = new[] { "APPLY" } }, ["idempotencyKey"] = StringSchema(),
+                ["flows"] = ArraySchema(new
+                {
+                    type = "object",
+                    properties = new Dictionary<string, object?>
+                    {
+                        ["flowId"] = StringSchema(), ["expectedFlowVersion"] = NumberSchema(),
+                        ["acknowledgedItemIds"] = ArraySchema(StringSchema())
+                    },
+                    required = new[] { "flowId", "expectedFlowVersion" },
+                    additionalProperties = false
+                }, minItems: 1)
+            }, required: ["previewId", "previewFingerprint", "confirmation", "idempotencyKey", "flows"])),
         Tool("sereinflow_list_mcp_api_keys", "List API keys visible to the administrator.", Schema()),
         Tool("sereinflow_create_mcp_api_key", "Create a project-scoped MCP API key; the secret is returned once.", Schema(
             properties: new Dictionary<string, object?>
@@ -148,6 +186,14 @@ internal static class SereinFlowMcpToolCatalogFactory
                 static (context, arguments, cancellationToken) => McpReadModelToolHandlers.ListArchivedLibrariesAsync(context, arguments, cancellationToken)),
             Read("sereinflow_get_library", McpPermissionDto.LibraryRead,
                 static (context, arguments, cancellationToken) => McpReadModelToolHandlers.GetLibraryAsync(context, arguments, cancellationToken)),
+            Read("sereinflow_list_library_families", McpPermissionDto.LibraryRead,
+                static (context, arguments, cancellationToken) => McpReadModelToolHandlers.ListLibraryFamiliesAsync(context, arguments, cancellationToken)),
+            Read("sereinflow_get_library_family", McpPermissionDto.LibraryRead,
+                static (context, arguments, cancellationToken) => McpReadModelToolHandlers.GetLibraryFamilyAsync(context, arguments, cancellationToken)),
+            Read("sereinflow_get_project_libraries", McpPermissionDto.LibraryRead,
+                static (context, arguments, cancellationToken) => McpReadModelToolHandlers.GetProjectLibrariesAsync(context, arguments, cancellationToken)),
+            Read("sereinflow_get_library_upgrade", McpPermissionDto.LibraryRead,
+                static (context, arguments, cancellationToken) => McpReadModelToolHandlers.GetLibraryUpgradeAsync(context, arguments, cancellationToken)),
             Read("sereinflow_get_run_inspection", McpPermissionDto.RunRead,
                 static (context, arguments, cancellationToken) => McpReadModelToolHandlers.GetRunInspectionAsync(context, arguments, cancellationToken)),
             Read("sereinflow_get_debug_state", McpPermissionDto.DebugRead,
@@ -190,6 +236,16 @@ internal static class SereinFlowMcpToolCatalogFactory
                 static (context, arguments, cancellationToken) => McpLibraryToolHandlers.PreviewProjectAttachAsync(context, arguments, cancellationToken)),
             Mutation("sereinflow_apply_project_library_attach", McpPermissionDto.LibraryManage,
                 static (context, arguments, cancellationToken) => McpLibraryToolHandlers.ApplyProjectAttachAsync(context, arguments, cancellationToken),
+                requiresIdempotencyKey: true),
+            Mutation("sereinflow_preview_library_family_assignment", McpPermissionDto.LibraryManage,
+                static (context, arguments, cancellationToken) => McpLibraryToolHandlers.PreviewLibraryFamilyAssignmentAsync(context, arguments, cancellationToken)),
+            Mutation("sereinflow_apply_library_family_assignment", McpPermissionDto.LibraryManage,
+                static (context, arguments, cancellationToken) => McpLibraryToolHandlers.ApplyLibraryFamilyAssignmentAsync(context, arguments, cancellationToken),
+                requiresIdempotencyKey: true),
+            Mutation("sereinflow_preview_library_upgrade", McpPermissionDto.FlowWrite,
+                static (context, arguments, cancellationToken) => McpLibraryToolHandlers.PreviewLibraryUpgradeAsync(context, arguments, cancellationToken)),
+            Mutation("sereinflow_apply_library_upgrade", McpPermissionDto.FlowWrite,
+                static (context, arguments, cancellationToken) => McpLibraryToolHandlers.ApplyLibraryUpgradeAsync(context, arguments, cancellationToken),
                 requiresIdempotencyKey: true),
             Read("sereinflow_list_mcp_api_keys", McpPermissionDto.McpKeysManage,
                 static (context, _, cancellationToken) => McpApiKeyToolHandlers.ListAsync(context, cancellationToken)),

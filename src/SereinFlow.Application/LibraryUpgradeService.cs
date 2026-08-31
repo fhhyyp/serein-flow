@@ -22,6 +22,7 @@ public sealed class LibraryUpgradeService
 {
     private readonly IProjectRepository _projects;
     private readonly IFlowDefinitionRepository _flows;
+    private readonly IProjectLibraryReferenceRepository _references;
     private readonly ILibraryCatalogService _catalog;
     private readonly ILibraryCompatibilityAnalyzer _analyzer;
     private readonly IFlowLibraryUpgradeStore _store;
@@ -29,12 +30,14 @@ public sealed class LibraryUpgradeService
     public LibraryUpgradeService(
         IProjectRepository projects,
         IFlowDefinitionRepository flows,
+        IProjectLibraryReferenceRepository references,
         ILibraryCatalogService catalog,
         ILibraryCompatibilityAnalyzer analyzer,
         IFlowLibraryUpgradeStore store)
     {
         _projects = projects;
         _flows = flows;
+        _references = references;
         _catalog = catalog;
         _analyzer = analyzer;
         _store = store;
@@ -46,8 +49,12 @@ public sealed class LibraryUpgradeService
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        if (await _projects.FindAsync(projectId, cancellationToken) is null)
+        var project = await _projects.FindAsync(projectId, cancellationToken);
+        if (project is null)
             return NotFound<LibraryUpgradePlanDto>("project.not_found", "Project was not found. 未找到项目。");
+
+        if (project.Status == SereinFlow.Domain.ProjectStatus.Archived)
+            return Conflict<LibraryUpgradePlanDto>("project.archived", "Archived projects cannot apply library upgrades.");
 
         var libraries = await ResolveLibrariesAsync(request.SourceArtifactId, request.TargetArtifactId, cancellationToken);
         if (libraries is not { } pair)
@@ -57,6 +64,18 @@ public sealed class LibraryUpgradeService
         var family = ValidateFamily(source, target);
         if (family is not null)
             return Conflict<LibraryUpgradePlanDto>(family.Value.Code, family.Value.Message);
+        if (target.Lifecycle != LibraryLifecycleDto.Available)
+        {
+            return Conflict<LibraryUpgradePlanDto>(
+                "library.archived",
+                "An archived library artifact cannot be used as an upgrade target.");
+        }
+        if (!await _references.IsReferencedAsync(projectId, source.Id, cancellationToken))
+        {
+            return Conflict<LibraryUpgradePlanDto>(
+                "library.upgrade_source_not_referenced",
+                "The project does not reference the source library artifact.");
+        }
 
         var requestedIds = request.FlowIds?.Distinct().ToArray() ?? [];
         if (requestedIds.Length == 0)
@@ -74,6 +93,12 @@ public sealed class LibraryUpgradeService
             var flow = await _flows.FindAsync(projectId, flowId, cancellationToken);
             if (flow is null)
                 return NotFound<LibraryUpgradePlanDto>("flow.not_found", "A selected flow definition was not found. 选定的流程定义不存在。");
+            if (!UsesArtifact(flow, source.Id))
+            {
+                return Conflict<LibraryUpgradePlanDto>(
+                    "library.upgrade_flow_not_using_source",
+                    "A selected flow does not use the source library artifact.");
+            }
             previews.Add(_analyzer.Analyze(flow, source, target));
         }
 
@@ -117,6 +142,12 @@ public sealed class LibraryUpgradeService
                 Code: "flow.version_invalid",
                 Message: "The expected flow version must be positive. 期望流程版本必须为正数。");
         }
+
+        var project = await _projects.FindAsync(projectId, cancellationToken);
+        if (project is null)
+            return NotFound<LibraryUpgradeApplyResultDto>("project.not_found", "Project was not found.");
+        if (project.Status == SereinFlow.Domain.ProjectStatus.Archived)
+            return Conflict<LibraryUpgradeApplyResultDto>("project.archived", "Archived projects cannot apply library upgrades.");
 
         var plan = await _store.FindPlanAsync(projectId, planId, cancellationToken);
         if (plan is null)
@@ -167,6 +198,19 @@ public sealed class LibraryUpgradeService
             return Conflict<LibraryUpgradeApplyResultDto>(
                 "library.archived",
                 "An archived library artifact cannot be used as an upgrade target. 已归档类库工件不能作为升级目标。");
+        }
+
+        if (!await _references.IsReferencedAsync(projectId, source.Id, cancellationToken))
+        {
+            return Conflict<LibraryUpgradeApplyResultDto>(
+                "library.upgrade_source_not_referenced",
+                "The project does not reference the source library artifact.");
+        }
+        if (!UsesArtifact(flow, source.Id))
+        {
+            return Conflict<LibraryUpgradeApplyResultDto>(
+                "library.upgrade_flow_not_using_source",
+                "The selected flow no longer uses the source library artifact.");
         }
 
         var analysis = _analyzer.Analyze(flow, source, target);
@@ -334,6 +378,12 @@ public sealed class LibraryUpgradeService
         }
         return null;
     }
+
+    private static bool UsesArtifact(FlowDefinitionDto flow, string artifactId)
+        => flow.Canvases
+            .SelectMany(static canvas => canvas.Nodes)
+            .Any(node => node.Type is NodeTypeDto.Action or NodeTypeDto.Flipflop
+                && string.Equals(node.Ui?.LibraryId, artifactId, StringComparison.OrdinalIgnoreCase));
 
     private static LibraryUpgradeOperationResult<T> NotFound<T>(string code, string message)
         => new(false, 404, Code: code, Message: message);

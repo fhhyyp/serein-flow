@@ -46,3 +46,13 @@ internal sealed record StoredLibraryPackagePreview(
 internal sealed record StoredProjectLibraryAttachPreview(
     ProjectLibraryAttachRequestDto Request,
     IReadOnlyList<ValidationDiagnosticDto> Diagnostics);
+
+internal sealed record StoredLibraryFamilyAssignmentPreview(
+    LibraryFamilyAssignmentMcpRequestDto Request,
+    IReadOnlyList<ValidationDiagnosticDto> Diagnostics,
+    LibraryFamilyDto? CurrentFamily,
+    LibraryFamilyDto? TargetFamily);
+
+internal sealed record StoredLibraryUpgradePreview(
+    LibraryUpgradePreviewRequestDto Request,
+    LibraryUpgradePlanDto Plan);
