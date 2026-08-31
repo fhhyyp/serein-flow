@@ -14,7 +14,7 @@ internal static class McpPromptCatalog
             [new("request", "Optional user intent to classify.")]),
         new(
             "sereinflow.edit-flow",
-            "Prepare a validated flow edit using the preview and confirmation gate.",
+            "Prepare and apply a validated flow edit using one task-level authorization and the preview gate.",
             [new("request", "The requested flow change.", Required: true)]),
         new(
             "sereinflow.debug-run",

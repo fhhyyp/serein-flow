@@ -21,7 +21,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             properties: new Dictionary<string, object?> { ["maxItems"] = NumberSchema() })),
         Tool("sereinflow_preview_create_project", "Preview creating a new draft project with an empty main flow.", Schema(
             properties: new Dictionary<string, object?> { ["name"] = StringSchema(), ["flowName"] = StringSchema() }, required: ["name"])),
-        Tool("sereinflow_apply_create_project", "Create a previously previewed draft project after explicit confirmation.", Schema(
+        Tool("sereinflow_apply_create_project", "Create a previously previewed draft project after task-level authorization.", Schema(
             properties: ApplySchemaProperties(), required: ["previewId", "previewFingerprint", "confirmation", "idempotencyKey"])),
         Tool("sereinflow_get_project", "Get one project and its flow summaries.", Schema(
             properties: new Dictionary<string, object?> { ["projectId"] = StringSchema() }, required: ["projectId"])),
@@ -32,7 +32,7 @@ internal static class SereinFlowMcpToolCatalogFactory
                 ["version"] = NumberSchema(), ["maxItems"] = NumberSchema(), ["maxJsonBytes"] = NumberSchema(),
                 ["includeFlowLiteralValues"] = BooleanSchema(), ["includeScriptSource"] = BooleanSchema()
             }, required: ["projectId", "flowId"])),
-        Tool("sereinflow_list_libraries", "List bounded library artifact summaries.", Schema(
+        Tool("sereinflow_list_libraries", "List bounded available library artifact summaries. Set includeArchived only for the legacy all-lifecycles view; use sereinflow_list_archived_libraries for archived artifacts.", Schema(
             properties: new Dictionary<string, object?> { ["includeArchived"] = BooleanSchema(), ["maxItems"] = NumberSchema() })),
         Tool("sereinflow_get_library", "Read one library's scanned node and parameter contracts.", Schema(
             properties: new Dictionary<string, object?> { ["libraryId"] = StringSchema() }, required: ["libraryId"])),
@@ -65,7 +65,7 @@ internal static class SereinFlowMcpToolCatalogFactory
                 ["projectId"] = StringSchema(), ["flowId"] = StringSchema(), ["expectedDevelopmentVersion"] = NumberSchema(),
                 ["schemaVersion"] = StringSchema(), ["operations"] = FlowPatchOperationsSchema(), ["remark"] = StringSchema()
             }, required: ["projectId", "flowId", "expectedDevelopmentVersion", "operations"])),
-        Tool("sereinflow_apply_flow_patch", "Apply a previously previewed flow patch after explicit confirmation.", Schema(
+        Tool("sereinflow_apply_flow_patch", "Apply a previously previewed flow patch after task-level authorization.", Schema(
             properties: ApplySchemaProperties(), required: ["previewId", "previewFingerprint", "confirmation", "idempotencyKey"])),
         Tool("sereinflow_compare_flow_versions", "Compare two immutable versions on the selected track.", Schema(
             properties: new Dictionary<string, object?>
@@ -99,7 +99,7 @@ internal static class SereinFlowMcpToolCatalogFactory
                 ["fileName"] = StringSchema(), ["packageBase64"] = StringSchema(), ["projectId"] = StringSchema(),
                 ["familyId"] = StringSchema(), ["baselineArtifactId"] = StringSchema()
             }, required: ["fileName", "packageBase64"])),
-        Tool("sereinflow_apply_library_package", "Import a previously inspected library ZIP after explicit confirmation.", Schema(
+        Tool("sereinflow_apply_library_package", "Import a previously inspected library ZIP after task-level authorization.", Schema(
             properties: new Dictionary<string, object?>
             {
                 ["previewId"] = StringSchema(), ["previewFingerprint"] = StringSchema(), ["confirmation"] = StringSchema(),
@@ -107,7 +107,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             }, required: ["previewId", "previewFingerprint", "confirmation", "idempotencyKey"])),
         Tool("sereinflow_preview_project_library_attach", "Preview adding an existing immutable library artifact to a project.", Schema(
             properties: new Dictionary<string, object?> { ["projectId"] = StringSchema(), ["libraryId"] = StringSchema() }, required: ["projectId", "libraryId"])),
-        Tool("sereinflow_apply_project_library_attach", "Apply a previously previewed project library attachment.", Schema(
+        Tool("sereinflow_apply_project_library_attach", "Apply a previously previewed project library attachment within the requesting library task.", Schema(
             properties: ApplySchemaProperties(), required: ["previewId", "previewFingerprint", "confirmation", "idempotencyKey"])),
         Tool("sereinflow_list_mcp_api_keys", "List API keys visible to the administrator.", Schema()),
         Tool("sereinflow_create_mcp_api_key", "Create a project-scoped MCP API key; the secret is returned once.", Schema(

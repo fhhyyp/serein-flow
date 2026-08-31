@@ -14,19 +14,33 @@ coordinates or connections. For execution problems, use run inspection or
 debug state resources and bounded diagnostics. Do not claim completion from a
 stale snapshot.
 
-## Mutation gate
+## Task-level mutation authorization
 
-Every write-capable operation follows this sequence:
+When the user explicitly asks to create a project, modify a flow, or upload or
+import a library, treat that request as authorization for the named logical
+task and its necessary dependent MCP calls. Do not ask for confirmation after
+each internal preview or between dependent writes.
+
+Use this sequence once per logical task:
 
 ```text
-read current state -> preview -> inspect diagnostics and diff
--> obtain explicit user confirmation -> apply with the preview fingerprint
--> reread the affected resource and verify version/checksum/counts
+read current state -> preview the logical change or dependent batch
+-> inspect diagnostics and diff -> apply each matching preview
+-> reread affected resources and verify version/checksum/counts
 ```
 
-Do not interpret a vague request such as "handle it", "fix it", or "publish
-it" as confirmation. A successful preview is not permission to apply,
-publish, rollback, import or attach anything.
+The apply tools still require `confirmation: "APPLY"`, the preview fingerprint,
+and an idempotency key. Populate those protocol fields after the user's
+task-level authorization without asking the user to repeat it. A request that
+combines library import, project attachment, and flow editing is one logical
+task, so it uses one authorization across the dependent steps.
+
+Pause for one concise confirmation only when the request is ambiguous, the
+preview reveals destructive or unexpected scope, the operation publishes or
+rolls back production, changes permissions or secrets, encounters a version
+conflict, or would perform a materially different operation. A preview is not
+authorization for work outside the requested scope. Read-only inspection and
+compilation never require confirmation.
 
 ## Flow patches
 
@@ -60,9 +74,10 @@ without crossing node bodies. Move only affected existing nodes when needed.
 ## Versions, execution and verification
 
 Development and production are separate tracks. Only the production head is
-eligible for environment execution. Publish and rollback require their own
-preview and explicit confirmation. Use version resources or comparison tools
-to verify the resulting track and checksum.
+eligible for environment execution. Publish and rollback remain high-impact
+operations: preview them separately and pause for one explicit confirmation
+before applying. Use version resources or comparison tools to verify the
+resulting track and checksum.
 
 After a successful apply, reread the affected resource and verify its version,
 checksum, counts and state. Treat an apply response as an acknowledgement,

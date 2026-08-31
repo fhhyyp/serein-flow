@@ -194,18 +194,26 @@ bounded result, including:
 - Flipflop return-type diagnostics and project impact.
 
 The scanner must inspect metadata without loading or executing the uploaded
-assembly. Wait for explicit user confirmation, then call
+assembly. An explicit user request to upload or import the library authorizes
+this named logical task. If the preview matches the request, call
 `sereinflow_apply_library_package` with the preview identity, fingerprint,
-confirmation, idempotency key, and the package data required by the API.
-Importing a library does not attach it to a project.
+`confirmation: "APPLY"`, idempotency key, and the package data required by the
+API without asking for a second confirmation. Importing a library does not
+attach it to a project unless that is part of the request.
 
-Attach an existing immutable imported artifact through this separate gate:
+When the same request includes attachment, keep the dependent writes in one
+task-level authorization and use this sequence:
 
 ```text
 sereinflow_preview_project_library_attach
-    -> explicit user confirmation
+    -> inspect the attachment diff
 sereinflow_apply_project_library_attach
 ```
+
+Do not ask separately between package import and project attachment when both
+were requested. Pause once only if a preview adds an unexpected project,
+changes production state, changes permissions or secrets, reports a conflict,
+or otherwise exceeds the requested scope.
 
 After attachment, call the read-only
 `sereinflow_create_library_node_template` with the persisted `projectId`,
@@ -215,7 +223,9 @@ unchanged as the `addNode.node` payload of a v2 flow patch. Do not manually
 assemble runtime library metadata, parameter ports, parameter IDs, default
 literals, enum or variadic metadata, or execution ports. Keep library
 attachment separate from the flow patch, then use the SereinFlow flow skill's
-preview, confirmation, apply, and post-apply verification gate.
+task-level preview, apply, and post-apply verification gate. The apply tools'
+`confirmation: "APPLY"` field remains required by the protocol, but it does
+not require a duplicate user prompt within the same authorized task.
 
 ## Safety and failure rules
 

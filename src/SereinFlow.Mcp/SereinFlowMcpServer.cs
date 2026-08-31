@@ -298,7 +298,7 @@ public sealed class SereinFlowMcpServer
                 name = McpProtocolConstants.ServerName,
                 version = McpProtocolConstants.ServerVersion
             },
-            instructions = "SereinFlow MCP exposes project, flow, runtime, SereinLang and library capabilities. Read the compact index at sereinflow://ai/guide, then read only the relevant skill Resource: sereinflow://ai/skills/sereinflow, sereinflow://ai/skills/sereinlang, or sereinflow://ai/skills/sereinflow-library-package. Discover current tools, resources and prompts before acting. Mutations require preview, explicit confirmation, apply and post-apply reread."
+            instructions = "SereinFlow MCP exposes project, flow, runtime, SereinLang and library capabilities. Read the compact index at sereinflow://ai/guide, then read only the relevant skill Resource: sereinflow://ai/skills/sereinflow, sereinflow://ai/skills/sereinlang, or sereinflow://ai/skills/sereinflow-library-package. Discover current tools, resources and prompts before acting. Mutations use task-level authorization: preview, inspect, apply with the protocol confirmation fields, and reread. Do not ask for duplicate confirmation between dependent calls; pause for unexpected, destructive, production, permission, secret, or conflicting changes."
         };
 
     private static string GetRequiredString(JsonElement parameters, string name)

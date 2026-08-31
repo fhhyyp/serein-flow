@@ -1,6 +1,6 @@
 # SereinFlow MCP AI Guide Index
 
-Guide version: 3
+Guide version: 4
 
 This is a compact routing index. Load only the capability Resource needed for
 the current request:
@@ -25,13 +25,33 @@ Use this routing rule:
 - A request spanning capabilities may read the smallest set of listed
   Resources needed, in the order implied by the task.
 
-All write-capable operations use this gate:
+## Task-level write authorization
+
+For an explicit user request to create a project, edit a flow, or upload/import
+a library, treat the request as authorization for that named logical task and
+the dependent steps needed to complete it. Do not ask for a separate approval
+after every preview or between dependent MCP calls.
+
+Use this compact gate:
 
 ```text
-read current state -> preview -> inspect diagnostics and diff
--> obtain explicit user confirmation -> apply with the preview fingerprint
--> reread the affected resource and verify the result
+read current state -> preview the logical change or dependent batch
+-> inspect diagnostics and diff -> apply each matching preview
+-> reread affected resources and verify versions/checksums/counts
 ```
+
+The apply tools still require their protocol fields, including
+`confirmation: "APPLY"`, the preview fingerprint, and an idempotency key. Once
+the user's request authorizes the scoped task and the preview matches it, fill
+those fields without asking the user to repeat the same confirmation. For a
+single request that includes library import, project attachment, and flow
+editing, treat those dependent writes as one task-level authorization.
+
+Pause and ask one concise question only when the request is ambiguous, the
+preview contains destructive or unexpected changes, the operation affects
+production publication or rollback, changes permissions or secrets, encounters
+a version conflict, or requires a materially different operation. A preview is
+never permission to perform an operation outside the user's requested scope.
 
 The server reads this index and each capability file from its deployment at
 Resource or Prompt request time. Updating a Markdown file changes the guidance

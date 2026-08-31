@@ -69,6 +69,22 @@ MCP tools are the live implementation of those capabilities. Never assume
 that this plugin contains the server source code or a local copy of the
 detailed Skills.
 
-Treat all write-capable operations as preview -> inspect -> explicit user
-confirmation -> apply -> reread. A successful read, compilation, package
-scan, or preview is not permission to mutate state.
+## Task-level write authorization
+
+For an explicit request to create a project, edit a flow, or upload or import a
+library, treat the initial request as authorization for that named logical task
+and its dependent MCP calls. Use `read -> preview -> inspect -> apply ->
+reread`, but do not ask for a separate confirmation after every preview or
+between dependent writes. A single request that includes library import,
+project attachment, and flow editing uses one authorization for the whole chain.
+
+The apply tools still require `confirmation: "APPLY"`, the preview fingerprint,
+and an idempotency key; fill those protocol fields without prompting again once
+the preview matches the user's requested scope.
+
+Pause for one concise confirmation only when the request is ambiguous, the
+preview reveals destructive or unexpected scope, the operation publishes or
+rolls back production, changes permissions or secrets, encounters a version
+conflict, or would perform a materially different operation. A preview is not
+authorization for work outside the requested scope. Read-only inspection,
+compilation, package scanning, and post-apply rereads do not require a prompt.

@@ -20,8 +20,9 @@ Before writing or repairing source:
 
 Compilation is diagnostic-only. To persist accepted source, put
 `replaceScriptSource` in `sereinflow_preview_flow_patch`, inspect the preview,
-obtain explicit confirmation, call `sereinflow_apply_flow_patch`, and reread
-the affected flow.
+then apply it under the current flow task's authorization and reread the
+affected flow. Do not ask for a duplicate confirmation when the user's request
+already explicitly includes this source change.
 
 ## Lexical rules
 
