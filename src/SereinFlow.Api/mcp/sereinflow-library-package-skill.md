@@ -21,8 +21,10 @@ output and its dependency closure first.
 ## Project requirements
 
 Use an SDK-style C# class library targeting a runtime supported by the
-deployment. The current repository examples target `net10.0`. Reference the
-standalone `SereinFlow.Library` NuGet package:
+deployment. The current repository examples target `net10.0`.
+`SereinFlow.Library` version `1.0.0` is published on
+[NuGet.org](https://www.nuget.org/packages/SereinFlow.Library/). Reference it
+as the standalone public SDK package:
 
 ```xml
 <ItemGroup>
@@ -32,16 +34,18 @@ standalone `SereinFlow.Library` NuGet package:
 
 The package supplies the public metadata attributes and restricted runtime
 context without referencing SereinFlow Domain, Application, or server
-implementation assemblies. Never replace the `PackageReference` with a DLL
-reference and never copy local definitions of the SDK contracts into the
-library.
+implementation assemblies. Restore it from NuGet.org using the normal NuGet
+source. A library author does not need a repository-local feed, an
+`artifacts/nuget` directory, a checked-in package, or a pre-populated local
+package cache as a prerequisite.
 
-If the repository's local feed is required, build the SDK package locally, for
-example with `dotnet pack` and an `artifacts/nuget` output, then restore using
-the repository `NuGet.config` or an explicitly supplied CI configuration. A
-user-level NuGet source that points to a missing directory is a local restore
-configuration problem: report it and repair the invocation or local config.
-Do not silently modify the user's global NuGet configuration.
+Never replace the `PackageReference` with a DLL reference and never copy local
+definitions of the SDK contracts into the library. Do not build or add a local
+SDK package source merely to obtain `SereinFlow.Library`. If the caller
+explicitly works offline or behind an approved package mirror, use their
+provided source only when it contains the published package version; report a
+missing source or unavailable package without silently modifying the user's
+global NuGet configuration.
 
 Let MSBuild evaluate these properties; do not parse inherited build files by
 hand:
@@ -177,6 +181,20 @@ CLR parameter name. Do not hand-write IDs that can change between builds.
 injected runtime parameter and is not a user-facing input. Preserve the
 project's instance-node convention; do not silently convert instance methods
 to static methods merely to silence an analyzer.
+
+## Flipflop asynchronous trigger contract
+
+A node declared with `NodeType = NodeType.Flipflop` is an asynchronous trigger
+or listener. Its method **must** return `Task` or `Task<T>`; synchronous
+returns, `void`, and other awaitable types are rejected during library
+inspection. Use the task to await the next external event, signal, polling
+result, or other trigger condition. Completion means that one trigger has been
+received and the flow can schedule its downstream path.
+
+Use `Task` when the trigger has no output value. Use `Task<T>` when the
+asynchronous trigger also produces a value for the node output. A Flipflop
+should model asynchronous waiting behavior rather than ordinary immediate work
+wrapped as a trigger.
 
 ## Preview, import, and attachment
 

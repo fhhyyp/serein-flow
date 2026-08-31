@@ -1,6 +1,6 @@
 # SereinFlow MCP AI Guide Index
 
-Guide version: 4
+Guide version: 5
 
 This is a compact routing index. Load only the capability Resource needed for
 the current request:
@@ -9,7 +9,7 @@ the current request:
 | --- | --- | --- |
 | `sereinflow` | `sereinflow://ai/skills/sereinflow` | Projects, flows, nodes, runs, debugging, versions, publishing, rollback and flow mutation previews |
 | `sereinlang` | `sereinflow://ai/skills/sereinlang` | SereinLang authoring, syntax and diagnostic compilation |
-| `sereinflow-library-package` | `sereinflow://ai/skills/sereinflow-library-package` | Local C# publish/ZIP contract, package inspection and library attachment |
+| `sereinflow-library-package` | `sereinflow://ai/skills/sereinflow-library-package` | C# library authoring with `SereinFlow.Library` from NuGet.org, local publish/ZIP contract, package inspection and library attachment |
 
 The current MCP tool and resource schemas are authoritative. Discover them
 with `tools/list`, `resources/list`, and `prompts/list`; do not copy server

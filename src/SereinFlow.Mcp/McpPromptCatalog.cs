@@ -26,7 +26,7 @@ internal static class McpPromptCatalog
             [new("request", "The requested release or rollback operation.", Required: true)]),
         new(
             "sereinflow.package-library",
-            "Prepare a local SereinFlow library package for server-side preview inspection.",
+            "Prepare a SereinFlow library package using SereinFlow.Library from NuGet.org for server-side preview inspection.",
             [new("request", "The library or packaging request.", Required: true)]),
         new(
             "sereinlang.compile",
