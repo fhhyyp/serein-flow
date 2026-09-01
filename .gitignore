@@ -46,3 +46,4 @@ frontend/sereinflow-web/output-vite.err
 /.build-temp
 /.dotnet-session
 /.compile-check
+/src/ThirdParty/SereinScript/ScriptLangTest

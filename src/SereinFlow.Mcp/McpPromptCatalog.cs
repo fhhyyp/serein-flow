@@ -10,8 +10,8 @@ internal static class McpPromptCatalog
     [
         new(
             "sereinflow.inspect",
-            "Inspect SereinFlow state and recommend the smallest safe next step.",
-            [new("request", "Optional user intent to classify.")]),
+            "Inspect project discovery and project-level read state.",
+            [new("request", "Optional project discovery or inspection request.")]),
         new(
             "sereinflow.edit-flow",
             "Prepare and apply a validated flow edit using one task-level authorization and the preview gate.",
@@ -26,16 +26,16 @@ internal static class McpPromptCatalog
             [new("request", "The requested release or rollback operation.", Required: true)]),
         new(
             "sereinflow.package-library",
-            "Prepare a SereinFlow library package using SereinFlow.Library from NuGet.org for server-side preview inspection.",
-            [new("request", "The library or packaging request.", Required: true)]),
+            "Prepare source code as a SereinFlow library package using SereinFlow.Library from NuGet.org.",
+            [new("request", "The source-to-package library request; excludes import or attachment.", Required: true)]),
         new(
             "sereinflow.upgrade-library",
             "Inspect a project library family and prepare a compatible per-flow library upgrade through the preview gate.",
             [new("request", "The requested project library upgrade.", Required: true)]),
         new(
             "sereinlang.compile",
-            "Compile a SereinLang source draft and inspect only its structured diagnostics.",
-            [new("request", "The SereinLang authoring or compilation request.", Required: true)])
+            "Compile a standalone SereinLang lexical or expression syntax draft and inspect its structured diagnostics.",
+            [new("request", "The SereinLang syntax compilation request; excludes imports and host APIs.", Required: true)])
     ];
 
     public static async Task<McpPromptResult> GetAsync(
@@ -46,26 +46,36 @@ internal static class McpPromptCatalog
     {
         ArgumentNullException.ThrowIfNull(guidanceProvider);
         var request = GetRequest(arguments, name);
-        var guidanceUri = name switch
+        IReadOnlyList<string> guidanceUris = name switch
         {
-            "sereinflow.inspect" or "sereinflow.edit-flow" or "sereinflow.debug-run" or "sereinflow.publish-flow"
-                => McpAiGuidance.SereinFlowResourceUri,
-            "sereinflow.package-library" or "sereinflow.upgrade-library" => McpAiGuidance.LibraryPackageResourceUri,
-            "sereinlang.compile" => McpAiGuidance.SereinLangResourceUri,
+            "sereinflow.inspect" => [McpAiGuidance.SereinFlowProjectsResourceUri],
+            "sereinflow.edit-flow" => [McpAiGuidance.SereinFlowFlowsResourceUri],
+            "sereinflow.debug-run" => [McpAiGuidance.SereinFlowRuntimeResourceUri],
+            "sereinflow.publish-flow" => [McpAiGuidance.SereinFlowReleaseResourceUri],
+            "sereinflow.package-library" =>
+            [
+                McpAiGuidance.LibraryBuildResourceUri,
+                McpAiGuidance.LibraryZipResourceUri,
+                McpAiGuidance.LibraryMetadataResourceUri
+            ],
+            "sereinflow.upgrade-library" => [McpAiGuidance.LibraryUpgradeResourceUri],
+            "sereinlang.compile" => [McpAiGuidance.SereinLangSyntaxResourceUri],
             _ => throw new McpProtocolException(-32602, $"The SereinFlow prompt '{name}' is not supported.")
         };
-        var guidance = await guidanceProvider.ReadAsync(guidanceUri, cancellationToken);
-        var guidanceText = guidance.Value as string
-            ?? throw new McpProtocolException(-32004, "The SereinFlow AI guidance is not available.");
+        var guidance = await Task.WhenAll(guidanceUris.Select(uri => guidanceProvider.ReadAsync(uri, cancellationToken)));
+        var guidanceText = string.Join(
+            "\n\n",
+            guidance.Select(resource => resource.Value as string
+                ?? throw new McpProtocolException(-32004, "The SereinFlow AI guidance is not available.")));
         var description = name switch
         {
-            "sereinflow.inspect" => "SereinFlow read-only inspection",
+            "sereinflow.inspect" => "SereinFlow project inspection",
             "sereinflow.edit-flow" => "SereinFlow flow edit preview",
             "sereinflow.debug-run" => "SereinFlow run and debug inspection",
             "sereinflow.publish-flow" => "SereinFlow publish or rollback preview",
-            "sereinflow.package-library" => "SereinFlow library package workflow",
+            "sereinflow.package-library" => "SereinFlow source-to-package library workflow",
             "sereinflow.upgrade-library" => "SereinFlow project library upgrade workflow",
-            "sereinlang.compile" => "SereinLang compilation workflow",
+            "sereinlang.compile" => "SereinLang standalone syntax compilation workflow",
             _ => throw new McpProtocolException(-32602, $"The SereinFlow prompt '{name}' is not supported.")
         };
 
@@ -75,9 +85,9 @@ internal static class McpPromptCatalog
             SereinFlow workflow: {name}
             User request: {request}
 
-            Apply the selected server-provided skill below to this request.
-            The skill is loaded from the SereinFlow service at prompt request
-            time and is authoritative for this capability. Unrelated skills
+            Apply the selected server-provided skills below to this request.
+            The skills are loaded from the SereinFlow service at prompt request
+            time and are authoritative for this capability. Unrelated skills
             are intentionally omitted.
 
             --- server-provided guidance ---

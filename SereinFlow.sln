@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.6.11819.183 stable
+VisualStudioVersion = 18.6.11819.183
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject
@@ -71,6 +71,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SereinFlow.Mcp", "src\SereinFlow.Mcp\SereinFlow.Mcp.csproj", "{22D050E6-81E6-4F82-9F38-3F3BFF409B0B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SereinFlow.Mcp.Tests", "tests\SereinFlow.Mcp.Tests\SereinFlow.Mcp.Tests.csproj", "{B7CF7B9C-E404-4B5B-BC24-127D48E67E6F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ScriptLangTest", "src\ThirdParty\SereinScript\ScriptLangTest\ScriptLangTest.csproj", "{C2F1644F-FC16-4626-B4DB-B27816A672FE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -406,6 +408,18 @@ Global
 		{B7CF7B9C-E404-4B5B-BC24-127D48E67E6F}.Release|x64.Build.0 = Release|Any CPU
 		{B7CF7B9C-E404-4B5B-BC24-127D48E67E6F}.Release|x86.ActiveCfg = Release|Any CPU
 		{B7CF7B9C-E404-4B5B-BC24-127D48E67E6F}.Release|x86.Build.0 = Release|Any CPU
+		{C2F1644F-FC16-4626-B4DB-B27816A672FE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C2F1644F-FC16-4626-B4DB-B27816A672FE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C2F1644F-FC16-4626-B4DB-B27816A672FE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C2F1644F-FC16-4626-B4DB-B27816A672FE}.Debug|x64.Build.0 = Debug|Any CPU
+		{C2F1644F-FC16-4626-B4DB-B27816A672FE}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C2F1644F-FC16-4626-B4DB-B27816A672FE}.Debug|x86.Build.0 = Debug|Any CPU
+		{C2F1644F-FC16-4626-B4DB-B27816A672FE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C2F1644F-FC16-4626-B4DB-B27816A672FE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C2F1644F-FC16-4626-B4DB-B27816A672FE}.Release|x64.ActiveCfg = Release|Any CPU
+		{C2F1644F-FC16-4626-B4DB-B27816A672FE}.Release|x64.Build.0 = Release|Any CPU
+		{C2F1644F-FC16-4626-B4DB-B27816A672FE}.Release|x86.ActiveCfg = Release|Any CPU
+		{C2F1644F-FC16-4626-B4DB-B27816A672FE}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -440,5 +454,9 @@ Global
 		{064E4754-B590-4219-8944-93E7DC5183CB} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{22D050E6-81E6-4F82-9F38-3F3BFF409B0B} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{B7CF7B9C-E404-4B5B-BC24-127D48E67E6F} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{C2F1644F-FC16-4626-B4DB-B27816A672FE} = {35926B53-341E-1124-996F-A0C01D12301D}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {8A326C1D-D9A0-4F92-A5F3-3E60A4968538}
 	EndGlobalSection
 EndGlobal

@@ -10,18 +10,7 @@ namespace SereinFlow.Mcp;
 /// </summary>
 public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
 {
-    private static readonly IReadOnlyList<McpResourceDescriptor> Resources =
-    [
-        new(McpAiGuidance.ResourceUri, McpAiGuidance.ResourceName, "Compact capability index for SereinFlow AI guidance", McpAiGuidance.MimeType),
-        new(McpAiGuidance.SereinFlowResourceUri, "sereinflow", "SereinFlow project, flow and runtime operating rules", McpAiGuidance.MimeType),
-        new(McpAiGuidance.SereinLangResourceUri, "sereinlang", "SereinLang authoring and compilation rules", McpAiGuidance.MimeType),
-        new(McpAiGuidance.LibraryPackageResourceUri, "sereinflow-library-package", "C# library package and attachment rules", McpAiGuidance.MimeType),
-        new("sereinflow://projects", "projects", "Non-archived SereinFlow project summaries"),
-        new("sereinflow://archived-projects", "archived-projects", "Archived SereinFlow project summaries"),
-        new("sereinflow://libraries", "libraries", "Available SereinFlow library artifacts"),
-        new("sereinflow://archived-libraries", "archived-libraries", "Archived SereinFlow library artifacts"),
-        new("sereinflow://library-families", "library-families", "SereinFlow library families and immutable artifact versions")
-    ];
+    private static readonly IReadOnlyList<McpResourceDescriptor> Resources = CreateResources();
 
     private static readonly IReadOnlyList<McpResourceTemplateDescriptor> ResourceTemplates =
     [
@@ -78,4 +67,31 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
         JsonElement arguments,
         CancellationToken cancellationToken)
         => _toolExecutor.ExecuteAsync(_toolCatalog, name, arguments, cancellationToken);
+
+    private static List<McpResourceDescriptor> CreateResources()
+    {
+        var resources = new List<McpResourceDescriptor>
+        {
+            new(McpAiGuidance.ResourceUri, McpAiGuidance.ResourceName, "Compact capability index for SereinFlow AI guidance", McpAiGuidance.MimeType),
+            new(McpAiGuidance.SereinFlowResourceUri, "sereinflow", "SereinFlow capability index", McpAiGuidance.MimeType),
+            new(McpAiGuidance.SereinLangResourceUri, "sereinlang", "SereinLang capability index", McpAiGuidance.MimeType),
+            new(McpAiGuidance.LibraryPackageResourceUri, "sereinflow-library-package", "Library package capability index", McpAiGuidance.MimeType)
+        };
+
+        resources.AddRange(McpAiGuidance.ModuleResources.Select(static resource =>
+            new McpResourceDescriptor(
+                resource.Uri,
+                resource.Name,
+                resource.Description,
+                McpAiGuidance.MimeType)));
+        resources.AddRange(
+        [
+            new("sereinflow://projects", "projects", "Non-archived SereinFlow project summaries"),
+            new("sereinflow://archived-projects", "archived-projects", "Archived SereinFlow project summaries"),
+            new("sereinflow://libraries", "libraries", "Available SereinFlow library artifacts"),
+            new("sereinflow://archived-libraries", "archived-libraries", "Archived SereinFlow library artifacts"),
+            new("sereinflow://library-families", "library-families", "SereinFlow library families and immutable artifact versions")
+        ]);
+        return resources;
+    }
 }

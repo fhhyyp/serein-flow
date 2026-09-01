@@ -3,6 +3,13 @@ using Microsoft.Extensions.Configuration;
 
 namespace SereinFlow.Mcp;
 
+public sealed record McpAiGuidanceResource(
+    string Key,
+    string Uri,
+    string Name,
+    string Description,
+    string DefaultFilePath);
+
 public static class McpAiGuidance
 {
     public const string ResourceUri = "sereinflow://ai/guide";
@@ -12,11 +19,41 @@ public static class McpAiGuidance
     public const string LibraryPackageResourceUri = "sereinflow://ai/skills/sereinflow-library-package";
     public const string MimeType = "text/markdown";
 
+    public const string SereinFlowProjectsResourceUri = "sereinflow://ai/skills/sereinflow/projects";
+    public const string SereinFlowFlowsResourceUri = "sereinflow://ai/skills/sereinflow/flows";
+    public const string SereinFlowRuntimeResourceUri = "sereinflow://ai/skills/sereinflow/runtime";
+    public const string SereinFlowReleaseResourceUri = "sereinflow://ai/skills/sereinflow/release";
+    public const string SereinLangSyntaxResourceUri = "sereinflow://ai/skills/sereinlang/syntax";
+    public const string SereinLangHostResourceUri = "sereinflow://ai/skills/sereinlang/host";
+    public const string SereinLangGrammarResourceUri = "sereinflow://ai/skills/sereinlang/grammar";
+    public const string LibraryBuildResourceUri = "sereinflow://ai/skills/sereinflow-library-package/build";
+    public const string LibraryZipResourceUri = "sereinflow://ai/skills/sereinflow-library-package/zip";
+    public const string LibraryMetadataResourceUri = "sereinflow://ai/skills/sereinflow-library-package/metadata";
+    public const string LibraryImportResourceUri = "sereinflow://ai/skills/sereinflow-library-package/import";
+    public const string LibraryUpgradeResourceUri = "sereinflow://ai/skills/sereinflow-library-package/upgrade";
+
+    public static IReadOnlyList<McpAiGuidanceResource> ModuleResources { get; } =
+    [
+        new("sereinflow.projects", SereinFlowProjectsResourceUri, "sereinflow-projects", "Project discovery and read-only project inspection", "mcp/sereinflow-projects-skill.md"),
+        new("sereinflow.flows", SereinFlowFlowsResourceUri, "sereinflow-flows", "Flow editing, patch and layout rules", "mcp/sereinflow-flows-skill.md"),
+        new("sereinflow.runtime", SereinFlowRuntimeResourceUri, "sereinflow-runtime", "Run, debug and post-change verification rules", "mcp/sereinflow-runtime-skill.md"),
+        new("sereinflow.release", SereinFlowReleaseResourceUri, "sereinflow-release", "Publishing and rollback rules", "mcp/sereinflow-release-skill.md"),
+        new("sereinlang.syntax", SereinLangSyntaxResourceUri, "sereinlang-syntax", "SereinLang lexical and expression rules", "mcp/sereinlang-syntax-skill.md"),
+        new("sereinlang.host", SereinLangHostResourceUri, "sereinlang-host", "SereinLang imports and host interoperation", "mcp/sereinlang-host-skill.md"),
+        new("sereinlang.grammar", SereinLangGrammarResourceUri, "sereinlang-grammar", "SereinLang formal grammar reference", "mcp/sereinlang-grammar-skill.md"),
+        new("library.build", LibraryBuildResourceUri, "library-build", "Local C# library build and publish boundary", "mcp/sereinflow-library-build-skill.md"),
+        new("library.zip", LibraryZipResourceUri, "library-zip", "SereinFlow library ZIP contract", "mcp/sereinflow-library-zip-skill.md"),
+        new("library.metadata", LibraryMetadataResourceUri, "library-metadata", "SereinFlow library metadata contract", "mcp/sereinflow-library-metadata-skill.md"),
+        new("library.import", LibraryImportResourceUri, "library-import", "Library package preview, import and attachment", "mcp/sereinflow-library-import-skill.md"),
+        new("library.upgrade", LibraryUpgradeResourceUri, "library-upgrade", "Library families and project upgrade workflow", "mcp/sereinflow-library-upgrade-skill.md")
+    ];
+
     public static bool IsGuidanceUri(string uri)
-        => uri is ResourceUri
+        => (uri is ResourceUri
             or SereinFlowResourceUri
             or SereinLangResourceUri
-            or LibraryPackageResourceUri;
+            or LibraryPackageResourceUri)
+            || ModuleResources.Any(resource => string.Equals(resource.Uri, uri, StringComparison.Ordinal));
 }
 
 public sealed class McpAiGuidanceOptions
@@ -30,6 +67,12 @@ public sealed class McpAiGuidanceOptions
     public string SereinLangFilePath { get; init; } = "mcp/sereinlang-skill.md";
 
     public string LibraryPackageFilePath { get; init; } = "mcp/sereinflow-library-package-skill.md";
+
+    public IReadOnlyDictionary<string, string> ModuleFilePaths { get; init; } =
+        McpAiGuidance.ModuleResources.ToDictionary(
+            static resource => resource.Key,
+            static resource => resource.DefaultFilePath,
+            StringComparer.Ordinal);
 
     public long MaxBytes { get; init; } = 512 * 1024;
 
@@ -47,6 +90,22 @@ public sealed class McpAiGuidanceOptions
             ?? "mcp/sereinlang-skill.md";
         var libraryPackageFilePath = configuration[$"{SectionName}:LibraryPackageFilePath"]
             ?? "mcp/sereinflow-library-package-skill.md";
+        var moduleFilePaths = McpAiGuidance.ModuleResources.ToDictionary(
+            static resource => resource.Key,
+            static resource => resource.DefaultFilePath,
+            StringComparer.Ordinal);
+        foreach (var child in configuration.GetSection($"{SectionName}:Modules").GetChildren())
+        {
+            var resource = McpAiGuidance.ModuleResources.FirstOrDefault(
+                resource => string.Equals(resource.Key, child.Key, StringComparison.Ordinal));
+            if (resource is null)
+            {
+                throw new InvalidOperationException(
+                    $"{SectionName}:Modules contains unsupported resource key '{child.Key}'.");
+            }
+
+            moduleFilePaths[resource.Key] = child.Value ?? string.Empty;
+        }
         var maxBytes = long.TryParse(configuration[$"{SectionName}:MaxBytes"], out var parsed)
             && parsed > 0
             ? parsed
@@ -56,12 +115,19 @@ public sealed class McpAiGuidanceOptions
         ValidateRelativeFilePath(sereinFlowFilePath);
         ValidateRelativeFilePath(sereinLangFilePath);
         ValidateRelativeFilePath(libraryPackageFilePath);
+        foreach (var moduleFilePath in moduleFilePaths.Values)
+            ValidateRelativeFilePath(moduleFilePath);
+
         return new McpAiGuidanceOptions
         {
             FilePath = filePath.Trim(),
             SereinFlowFilePath = sereinFlowFilePath.Trim(),
             SereinLangFilePath = sereinLangFilePath.Trim(),
             LibraryPackageFilePath = libraryPackageFilePath.Trim(),
+            ModuleFilePaths = moduleFilePaths.ToDictionary(
+                static pair => pair.Key,
+                static pair => pair.Value.Trim(),
+                StringComparer.Ordinal),
             MaxBytes = maxBytes
         };
     }
@@ -105,6 +171,13 @@ public sealed class McpAiGuidanceProvider
             [McpAiGuidance.SereinLangResourceUri] = options.SereinLangFilePath,
             [McpAiGuidance.LibraryPackageResourceUri] = options.LibraryPackageFilePath
         };
+        foreach (var resource in McpAiGuidance.ModuleResources)
+        {
+            var relativePath = options.ModuleFilePaths.TryGetValue(resource.Key, out var configuredPath)
+                ? configuredPath
+                : resource.DefaultFilePath;
+            configuredPaths[resource.Uri] = relativePath;
+        }
         var resolvedPaths = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var (uri, relativePath) in configuredPaths)
         {

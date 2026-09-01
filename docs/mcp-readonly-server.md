@@ -127,21 +127,24 @@ sereinflow://ai/skills/sereinflow-library-package
 The index is intentionally short. A client should read only the capability
 Resource matching the current request, so a syntax check does not load flow,
 release and C# packaging rules. The former local Skills are represented by
-these separate server Resources; they are not copied into the client plugin.
+separate server Resources; each capability also exposes smaller task modules,
+and none of them are copied into the client plugin.
 
 Each Resource is loaded from the server deployment at every read, so an
 operator can update one Markdown file without rebuilding or reinstalling the
 client plugin. The backing files are selected only by server configuration and
 are constrained to remain under the server ContentRoot. The MCP caller
 supplies only fixed Resource URIs and cannot select an arbitrary local file.
-The default files are `mcp/sereinflow-ai-guide.md`,
+The default index files are `mcp/sereinflow-ai-guide.md`,
 `mcp/sereinflow-skill.md`, `mcp/sereinlang-skill.md`, and
-`mcp/sereinflow-library-package-skill.md`. Deployments can override the four
-paths with `SereinFlow:Mcp:AiGuidance:FilePath`,
+`mcp/sereinflow-library-package-skill.md`. Focused module files use the
+`mcp/*-skill.md` defaults listed by `sereinflow://ai/guide`. Deployments can
+override the four index paths with `SereinFlow:Mcp:AiGuidance:FilePath`,
 `SereinFlow:Mcp:AiGuidance:SereinFlowFilePath`,
 `SereinFlow:Mcp:AiGuidance:SereinLangFilePath`, and
-`SereinFlow:Mcp:AiGuidance:LibraryPackageFilePath`; each file uses the shared
-`SereinFlow:Mcp:AiGuidance:MaxBytes` limit.
+`SereinFlow:Mcp:AiGuidance:LibraryPackageFilePath`. Focused module paths can
+be overridden under `SereinFlow:Mcp:AiGuidance:Modules:<resource-key>`; each
+file uses the shared `SereinFlow:Mcp:AiGuidance:MaxBytes` limit.
 
 ```text
 sereinflow://projects

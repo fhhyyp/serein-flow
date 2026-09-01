@@ -161,7 +161,7 @@ public class Lexer(string source, string filePath)
             default:
                 if (char.IsDigit(c))
                     ReadNumber(); // 解析数值
-                else if (char.IsLetter(c) || c == '_' || c == '@')
+                else if (char.IsLetter(c) || c == '_')
                     ReadIdentifier();
                 //else
                 //    AddToken(TokenType.Unknown, c.ToString()); 
@@ -191,13 +191,22 @@ public class Lexer(string source, string filePath)
 
         while (!IsAtEnd() && Peek() != '"')
         {
-            if (Peek() == '\n')
+            if (Peek() is '\r' or '\n')
                 break;
 
             if (Peek() == '\\' && PeekNext() != '\0')
             {
                 Advance();
-                sb.Append(Advance());
+                char escaped = Advance();
+                sb.Append(escaped switch
+                {
+                    'r' => '\r',
+                    'n' => '\n',
+                    't' => '\t',
+                    '"' => '"',
+                    '\\' => '\\',
+                    _ => escaped
+                });
             }
             else
             {
@@ -241,13 +250,20 @@ public class Lexer(string source, string filePath)
                 return;    // 注释正常结束
             }
 
-            if (Peek() == '\n')
+            char current = Advance();
+            if (current == '\r')
+            {
+                if (Peek() == '\n')
+                    Advance();
+
+                _line++;
+                _column = 1;
+            }
+            else if (current == '\n')
             {
                 _line++;
-                _column = 0;
+                _column = 1;
             }
-
-            Advance();
         }
 
         // EOF reached without closing */
@@ -258,40 +274,6 @@ public class Lexer(string source, string filePath)
             startColumn,
             _position - startPos
         ));
-    }
-
-    private void ReadString_v1()
-    {
-        StringBuilder sb = new();
-        
-        while (Peek() != '"' && !IsAtEnd())
-        {
-            if (Peek() == '\\' && PeekNext() != '\0')
-            {
-                Advance(); // 跳过反斜杠
-                char next = Advance();
-                sb.Append(next switch
-                {
-                    'n' => '\n',
-                    'r' => '\r',
-                    't' => '\t',
-                    '"' => '"',
-                    '\\' => '\\',
-                    _ => next
-                });
-            }
-            else
-            {
-                sb.Append(Advance());
-            }
-        }
-        
-        if (IsAtEnd())
-            throw new Exception($"Unterminated string at line {_line}, column {_column}");
-            
-        Advance(); // 跳过结束引号
-        
-        AddToken(TokenType.String, sb.ToString(), sb.ToString());
     }
 
     [Obsolete("已废弃", true)]

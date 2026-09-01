@@ -6,12 +6,57 @@ namespace SereinFlow.Mcp.Tests;
 public sealed class McpAiGuidanceTests
 {
     [Fact]
-    public void DefaultsToTheSingleAuthoritativeSereinLangSkillFile()
+    public void DefaultsToTheCapabilityIndexAndFocusedSereinLangModule()
     {
         var options = McpAiGuidanceOptions.FromConfiguration(
             new ConfigurationBuilder().Build());
 
         Assert.Equal("mcp/sereinlang-skill.md", options.SereinLangFilePath);
+        Assert.Equal(
+            "mcp/sereinlang-syntax-skill.md",
+            options.ModuleFilePaths["sereinlang.syntax"]);
+    }
+
+    [Fact]
+    public void AllowsFocusedModulePathOverrides()
+    {
+        var options = McpAiGuidanceOptions.FromConfiguration(
+            new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["SereinFlow:Mcp:AiGuidance:Modules:sereinlang.syntax"] = "custom/lang.md"
+                })
+                .Build());
+
+        Assert.Equal("custom/lang.md", options.ModuleFilePaths["sereinlang.syntax"]);
+    }
+
+    [Fact]
+    public void RejectsInvalidFocusedModulePathOverrides()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["SereinFlow:Mcp:AiGuidance:Modules:sereinlang.syntax"] = "../outside.md"
+            })
+            .Build();
+
+        Assert.Throws<InvalidOperationException>(() =>
+            McpAiGuidanceOptions.FromConfiguration(configuration));
+    }
+
+    [Fact]
+    public void RejectsUnknownFocusedModuleKeys()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["SereinFlow:Mcp:AiGuidance:Modules:unknown"] = "custom/unknown.md"
+            })
+            .Build();
+
+        Assert.Throws<InvalidOperationException>(() =>
+            McpAiGuidanceOptions.FromConfiguration(configuration));
     }
 
     [Fact]
@@ -62,17 +107,27 @@ public sealed class McpAiGuidanceTests
                     SereinFlowFilePath = "flow.md",
                     SereinLangFilePath = "lang.md",
                     LibraryPackageFilePath = "library.md",
+                    ModuleFilePaths = new Dictionary<string, string>
+                    {
+                        ["sereinlang.syntax"] = "lang-module.md",
+                        ["library.upgrade"] = "library-module.md"
+                    },
                     MaxBytes = 4096
                 },
                 root.FullName);
 
+            await File.WriteAllTextAsync(Path.Combine(root.FullName, "lang-module.md"), "# lang-module");
+            await File.WriteAllTextAsync(Path.Combine(root.FullName, "library-module.md"), "# library-module");
+
             var index = await provider.ReadAsync(McpAiGuidance.ResourceUri, CancellationToken.None);
             var lang = await provider.ReadAsync(McpAiGuidance.SereinLangResourceUri, CancellationToken.None);
             var library = await provider.ReadAsync(McpAiGuidance.LibraryPackageResourceUri, CancellationToken.None);
+            var langModule = await provider.ReadAsync(McpAiGuidance.SereinLangSyntaxResourceUri, CancellationToken.None);
 
             Assert.Equal("# index", index.Value);
             Assert.Equal("# lang-v1", lang.Value);
             Assert.Equal("# library-v1", library.Value);
+            Assert.Equal("# lang-module", langModule.Value);
 
             await File.WriteAllTextAsync(Path.Combine(root.FullName, "lang.md"), "# lang-v2");
             var updatedLang = await provider.ReadAsync(McpAiGuidance.SereinLangResourceUri, CancellationToken.None);
@@ -97,6 +152,16 @@ public sealed class McpAiGuidanceTests
         Assert.Throws<InvalidOperationException>(() => new McpAiGuidanceProvider(
             new McpAiGuidanceOptions { FilePath = Path.Combine(Path.GetTempPath(), "outside.md") },
             Path.GetTempPath()));
+
+        Assert.Throws<InvalidOperationException>(() => new McpAiGuidanceProvider(
+            new McpAiGuidanceOptions
+            {
+                ModuleFilePaths = new Dictionary<string, string>
+                {
+                    ["sereinlang.syntax"] = "..\\outside.md"
+                }
+            },
+            Path.GetTempPath()));
     }
 
     [Fact]
@@ -113,6 +178,10 @@ public sealed class McpAiGuidanceTests
                     SereinFlowFilePath = "flow.md",
                     SereinLangFilePath = "lang.md",
                     LibraryPackageFilePath = "library.md",
+                    ModuleFilePaths = new Dictionary<string, string>
+                    {
+                        ["library.upgrade"] = "library.md"
+                    },
                     MaxBytes = 4096
                 },
                 root.FullName);
@@ -125,6 +194,45 @@ public sealed class McpAiGuidanceTests
 
             Assert.Equal("SereinFlow project library upgrade workflow", result.Description);
             Assert.Contains("# library upgrade guidance", result.Messages.Single().Content.Text, StringComparison.Ordinal);
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task PackagePromptLoadsOnlyItsFocusedLibraryModules()
+    {
+        var root = Directory.CreateTempSubdirectory("sereinflow-mcp-package-prompt-");
+        try
+        {
+            var modulePaths = new Dictionary<string, string>
+            {
+                ["library.build"] = "build.md",
+                ["library.zip"] = "zip.md",
+                ["library.metadata"] = "metadata.md",
+                ["library.import"] = "import.md"
+            };
+            foreach (var (key, path) in modulePaths)
+                await File.WriteAllTextAsync(Path.Combine(root.FullName, path), $"#{key}");
+
+            var provider = new McpAiGuidanceProvider(
+                new McpAiGuidanceOptions { ModuleFilePaths = modulePaths, MaxBytes = 4096 },
+                root.FullName);
+
+            var result = await McpPromptCatalog.GetAsync(
+                "sereinflow.package-library",
+                System.Text.Json.JsonSerializer.SerializeToElement(new { request = "Package a library" }),
+                provider,
+                CancellationToken.None);
+            var text = result.Messages.Single().Content.Text;
+
+            Assert.Contains("#library.build", text, StringComparison.Ordinal);
+            Assert.Contains("#library.zip", text, StringComparison.Ordinal);
+            Assert.Contains("#library.metadata", text, StringComparison.Ordinal);
+            Assert.DoesNotContain("#library.import", text, StringComparison.Ordinal);
+            Assert.DoesNotContain("#library.upgrade", text, StringComparison.Ordinal);
         }
         finally
         {

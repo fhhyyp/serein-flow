@@ -1,80 +1,63 @@
-# SereinFlow MCP AI Guide Index
+# SereinFlow MCP Guide
 
-Guide version: 5
+Guide version: 6
 
-This is a compact routing index. Load only the capability Resource needed for
-the current request:
+This is the MCP entry point for AI guidance. After `initialize`, read this
+Resource and then read only the smallest module Resource needed for the
+request. Do not load every capability or copy local server files into a
+client. Current tool schemas and read Resources are authoritative.
 
-| Capability | Resource URI | Use for |
-| --- | --- | --- |
-| `sereinflow` | `sereinflow://ai/skills/sereinflow` | Projects, flows, nodes, runs, debugging, versions, publishing, rollback and flow mutation previews |
-| `sereinlang` | `sereinflow://ai/skills/sereinlang` | SereinLang authoring, syntax and diagnostic compilation |
-| `sereinflow-library-package` | `sereinflow://ai/skills/sereinflow-library-package` | C# library authoring with `SereinFlow.Library` from NuGet.org, local publish/ZIP contract, package inspection, library families, project references and upgrades |
+## Route by task
 
-The current MCP tool and resource schemas are authoritative. Discover them
-with `tools/list`, `resources/list`, and `prompts/list`; do not copy server
-source code, database paths, library directories, uploaded binaries or local
-repository assumptions into a client.
+| Request | Resource URI |
+| --- | --- |
+| Project discovery or inspection | `sereinflow://ai/skills/sereinflow/projects` |
+| Flow editing, nodes, connections or scripts | `sereinflow://ai/skills/sereinflow/flows` |
+| Runs, execution or debugging | `sereinflow://ai/skills/sereinflow/runtime` |
+| Publish or rollback | `sereinflow://ai/skills/sereinflow/release` |
+| SereinLang lexical or expression syntax | `sereinflow://ai/skills/sereinlang/syntax` |
+| SereinLang imports or host APIs | `sereinflow://ai/skills/sereinlang/host` |
+| SereinLang formal grammar | `sereinflow://ai/skills/sereinlang/grammar` |
+| C# library build and publish | `sereinflow://ai/skills/sereinflow-library-package/build` |
+| Library ZIP contract | `sereinflow://ai/skills/sereinflow-library-package/zip` |
+| Library SDK metadata | `sereinflow://ai/skills/sereinflow-library-package/metadata` |
+| Library preview, import or attachment | `sereinflow://ai/skills/sereinflow-library-package/import` |
+| Library family or project upgrade | `sereinflow://ai/skills/sereinflow-library-package/upgrade` |
 
-Use this routing rule:
+The three capability index Resources remain available for clients that need a
+second-level route:
 
-- Project, flow, runtime or release request: read the `sereinflow` Resource.
-- Script syntax or compilation request: read only the `sereinlang` Resource.
-- C# library, DLL, ZIP, family assignment, attachment or version-upgrade request: read only the
-  `sereinflow-library-package` Resource.
-- A request spanning capabilities may read the smallest set of listed
-  Resources needed, in the order implied by the task.
+- `sereinflow://ai/skills/sereinflow`
+- `sereinflow://ai/skills/sereinlang`
+- `sereinflow://ai/skills/sereinflow-library-package`
 
-## Task-level write authorization
+A request spanning capabilities may read the smallest set of modules in task
+order. For example, library attachment plus flow editing reads `import` and
+`flows`; source-to-package work reads `build`, `zip` and `metadata`.
 
-For an explicit user request to create a project, edit a flow, or upload/import
-a library, treat the request as authorization for that named logical task and
-the dependent steps needed to complete it. Do not ask for a separate approval
-after every preview or between dependent MCP calls.
+If workflow prompts are preferred, call `prompts/list` and then `prompts/get`.
+Each Prompt has a fixed scope; it does not classify free-text intent or add
+modules based on the request. `sereinflow.inspect` loads only project discovery
+and inspection guidance. `sereinlang.compile` loads only standalone lexical and
+expression syntax guidance; imports and host APIs require the `host` module.
+`sereinflow.package-library` is source-to-package only and composes build, ZIP
+and metadata guidance; preview, import and attachment require the `import`
+module. The other Prompts map to their corresponding single focused module. Do
+not request unrelated prompts or skills.
 
-Use this compact gate:
+## Shared mutation gate
 
-```text
-read current state -> preview the logical change or dependent batch
--> inspect diagnostics and diff -> apply each matching preview
--> reread affected resources and verify versions/checksums/counts
-```
-
-The apply tools still require their protocol fields, including
-`confirmation: "APPLY"`, the preview fingerprint, and an idempotency key. Once
-the user's request authorizes the scoped task and the preview matches it, fill
-those fields without asking the user to repeat the same confirmation. For a
-single request that includes library import, project attachment, and flow
-editing, treat those dependent writes as one task-level authorization.
-
-Pause and ask one concise question only when the request is ambiguous, the
-preview contains destructive or unexpected changes, the operation affects
-production publication or rollback, changes permissions or secrets, encounters
-a version conflict, or requires a materially different operation. A preview is
-never permission to perform an operation outside the user's requested scope.
-
-For a project library version upgrade, use the library-package capability and
-keep the persisted artifacts and flow definitions authoritative. The required
-sequence is:
+For an explicitly requested mutation, use one task-level authorization:
 
 ```text
-read project library references
--> read visible family and artifact candidates
--> preview the library upgrade
--> inspect per-flow blockers and acknowledgement requirements
--> obtain explicit user confirmation for the scoped upgrade when it is not already authorized
--> apply with the preview fingerprint, confirmation: "APPLY", and an idempotency key
--> reread the upgrade plan, project references, and affected flow
+read current state -> preview requested scope -> inspect diagnostics/diff
+-> apply the matching preview with confirmation, fingerprint and idempotency key
+-> reread affected resources and verify persisted state
 ```
 
-A library family groups immutable artifacts; it does not replace artifact IDs
-stored by flows and runs. Assigning an artifact to a family is a separate
-administrator-only preview/apply operation. An upgrade apply is bound to the
-stored preview's project and plan: clients cannot substitute another project,
-source artifact, target artifact, or plan at apply time. A batch can report
-both successful and failed flows, so inspect its complete result before any
-retry.
+Do not ask for duplicate confirmation between dependent calls. Pause once when
+the request is ambiguous, the preview is destructive or unexpected, production
+state, permissions or secrets change, or a version conflict occurs.
 
-The server reads this index and each capability file from its deployment at
-Resource or Prompt request time. Updating a Markdown file changes the guidance
-for new requests without embedding the content in MCP client code.
+The server reads these files at Resource or Prompt request time. Updating a
+module changes guidance for new requests without rebuilding the MCP client.
