@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.IO.Compression;
 using SereinFlow.Contracts;
 using SereinFlow.TestLibrary;
+using SereinFlow.Library;
 using SereinFlow.Worker.Client;
 using SereinFlow.Worker.Runner;
 using SereinFlow.Worker.Supervisor;
@@ -265,12 +266,15 @@ public sealed class WorkerSupervisorTests
     [Fact]
     public async Task SupervisorReportsTimedOutWhenAnActiveRunnerReachesItsDeadline()
     {
-        var supervisor = CreateSupervisor();
+        var diagnostics = new List<string>();
+        var supervisor = CreateSupervisor(diagnostics.Add);
         var request = CreateScriptRequest(DateTimeOffset.UtcNow.AddMilliseconds(150));
 
         var result = await supervisor.RunAsync(request, static (_, _) => ValueTask.CompletedTask);
 
-        Assert.Equal(FlowRunStatusDto.TimedOut, result.Status);
+        Assert.True(
+            result.Status == FlowRunStatusDto.TimedOut,
+            $"Expected TimedOut but got {result.Status}; code={result.ErrorCode}; message={result.ErrorMessage}; diagnostics={string.Join(" | ", diagnostics)}");
         Assert.Equal("worker.timed_out", result.ErrorCode);
     }
 
@@ -584,6 +588,110 @@ public sealed class WorkerSupervisorTests
             Assert.Equal(2, second.Length);
             Assert.Equal(first[0], second[0]);
             Assert.NotEqual(first[1], second[1]);
+        }
+        finally
+        {
+            TryDeleteDirectory(packageRoot);
+        }
+    }
+
+    [Fact]
+    public async Task SupervisorDeliversJsonMessageToRegisteredActiveFlipflopEndpoint()
+    {
+        var packageRoot = CreateTestLibraryPackageRoot();
+        using var cancellation = new CancellationTokenSource();
+        try
+        {
+            var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var supervisor = CreateSupervisor(allowedLibraryPackageRoot: packageRoot);
+            var request = CreateLibraryExternalMessageRequest(DateTimeOffset.UtcNow.AddSeconds(15), packageRoot);
+            var runTask = supervisor.RunAsync(
+                request,
+                (workerEvent, _) =>
+                {
+                    if (workerEvent.EventType == WorkerEventType.NodeStarted)
+                        started.TrySetResult();
+                    if (workerEvent.EventType == WorkerEventType.NodeCompleted)
+                        completed.TrySetResult();
+                    return ValueTask.CompletedTask;
+                },
+                cancellation.Token);
+
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            var messageId = Guid.NewGuid();
+            var delivery = new WorkerMessageDeliveryDto(
+                WorkerProtocol.Version,
+                request.RunId,
+                messageId,
+                "test.message.inbox",
+                WorkerMessageChannelKindDto.Queue,
+                WorkerMessageSerializationModeDto.Json,
+                "test.text",
+                JsonSerializer.Serialize("remote hello"),
+                DateTimeOffset.UtcNow);
+
+            WorkerMessageDeliveryResponseDto? response = null;
+            for (var attempt = 0; attempt < 100; attempt++)
+            {
+                response = await supervisor.DeliverMessageAsync(delivery);
+                if (response.Status != WorkerMessageDeliveryStatusDto.NotReady)
+                    break;
+                await Task.Delay(50);
+            }
+
+            Assert.NotNull(response);
+            Assert.Equal(WorkerMessageDeliveryStatusDto.Accepted, response!.Status);
+            await completed.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            cancellation.Cancel();
+
+            var result = await runTask.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Equal(FlowRunStatusDto.Cancelled, result.Status);
+        }
+        finally
+        {
+            TryDeleteDirectory(packageRoot);
+        }
+    }
+
+    [Fact]
+    public async Task SupervisorDebugSessionAcceptsMessageDeliveryThroughTheSameRunHandle()
+    {
+        var packageRoot = CreateTestLibraryPackageRoot();
+        try
+        {
+            var supervisor = CreateSupervisor(allowedLibraryPackageRoot: packageRoot);
+            var request = CreateLibraryExternalMessageRequest(DateTimeOffset.UtcNow.AddSeconds(15), packageRoot) with
+            {
+                Debug = new WorkerDebugOptionsDto(Guid.NewGuid(), [])
+            };
+            await using var debug = await supervisor.StartDebugAsync(request, static (_, _) => ValueTask.CompletedTask);
+            var messageId = Guid.NewGuid();
+            var delivery = new WorkerMessageDeliveryDto(
+                WorkerProtocol.Version,
+                request.RunId,
+                messageId,
+                "test.message.inbox",
+                WorkerMessageChannelKindDto.Queue,
+                WorkerMessageSerializationModeDto.Json,
+                "test.text",
+                JsonSerializer.Serialize("debug hello"),
+                DateTimeOffset.UtcNow);
+
+            WorkerMessageDeliveryResponseDto? response = null;
+            for (var attempt = 0; attempt < 100; attempt++)
+            {
+                response = await supervisor.DeliverMessageAsync(delivery);
+                if (response.Status != WorkerMessageDeliveryStatusDto.NotReady)
+                    break;
+                await Task.Delay(50);
+            }
+
+            Assert.NotNull(response);
+            Assert.Equal(WorkerMessageDeliveryStatusDto.Accepted, response!.Status);
+            await debug.StopAsync(1);
+            var result = await debug.Completion.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Equal(FlowRunStatusDto.Cancelled, result.Status);
         }
         finally
         {
@@ -955,6 +1063,55 @@ public sealed class WorkerSupervisorTests
             LibraryPackageRootPath: packageRoot,
             AllowedLibraryIds: [TestLibraryArtifactId],
             Debug: new WorkerDebugOptionsDto(Guid.NewGuid(), breakpointNodeIds));
+    }
+
+    private static WorkerRunRequestDto CreateLibraryExternalMessageRequest(
+        DateTimeOffset deadline,
+        string packageRoot)
+    {
+        var flowId = Guid.NewGuid();
+        var flipflop = new NodeDto(
+            "message-flipflop",
+            NodeTypeDto.Flipflop,
+            "External message listener",
+            0,
+            0,
+            [],
+            [],
+            null,
+            new NodeUiMetadataDto(
+                "message-flipflop",
+                "node.message.title",
+                "node.message.subtitle",
+                null,
+                "ready",
+                true,
+                null,
+                Category: "library",
+                LibraryId: TestLibraryArtifactId,
+                ClassName: typeof(MessageNodes).FullName,
+                MethodName: nameof(MessageNodes.ReceiveExternal),
+                DllName: Path.GetFileName(typeof(MessageNodes).Assembly.Location),
+                DllVersion: "1.0.0",
+                ReturnType: "System.String",
+                IsAwaitable: true));
+        var definition = new FlowDefinitionDto(
+            flowId,
+            5,
+            1,
+            [new CanvasDto("main", CanvasLifecycleDto.Main, [flipflop], [])],
+            string.Empty,
+            "test",
+            RunPolicy: new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel));
+        return new WorkerRunRequestDto(
+            WorkerProtocol.Version,
+            Guid.NewGuid(),
+            flowId,
+            1,
+            JsonSerializer.Serialize(definition),
+            deadline,
+            LibraryPackageRootPath: packageRoot,
+            AllowedLibraryIds: [TestLibraryArtifactId]);
     }
 
     private static NodeParameterDto CreateVariadicParameter(

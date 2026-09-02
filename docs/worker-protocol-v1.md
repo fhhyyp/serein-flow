@@ -1,6 +1,6 @@
-# SereinFlow Worker Protocol v1
+# SereinFlow Worker Protocol v1 (历史版本)
 
-> 状态：当前生产协议，由 `SereinFlow.Worker.IntegrationTests` 覆盖。Supervisor 与一次性 Runner 使用受限标准输入/输出 JSON Lines；部署环境可在不改变本信封或 DTO 的前提下，为 API 与 Supervisor 增加 Linux UDS 传输适配。
+> 本文保留 v1 的历史约定。当前实现和维护中的协议是 [Worker Protocol v2](worker-protocol-v2.md)；v2 在此基础上增加了活动运行的消息入口和注册/应答消息。
 
 ## 1. 边界
 

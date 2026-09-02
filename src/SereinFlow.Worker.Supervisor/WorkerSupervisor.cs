@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Collections.Concurrent;
 using System.Text;
 using SereinFlow.Contracts;
 using SereinFlow.Worker.Protocol;
@@ -14,18 +15,22 @@ public sealed record RunnerLaunchOptions(
     TimeSpan? CancellationGracePeriod = null,
     string? AllowedScriptArtifactRoot = null,
     string? AllowedLibraryPackageRoot = null,
-    Action<string>? DiagnosticLogger = null)
+    Action<string>? DiagnosticLogger = null,
+    TimeSpan? MessageDeliveryTimeout = null)
 {
     public TimeSpan EffectiveHandshakeTimeout => HandshakeTimeout ?? TimeSpan.FromSeconds(5);
 
     public TimeSpan EffectiveHeartbeatInterval => HeartbeatInterval ?? TimeSpan.FromSeconds(2);
 
     public TimeSpan EffectiveCancellationGracePeriod => CancellationGracePeriod ?? TimeSpan.FromSeconds(3);
+
+    public TimeSpan EffectiveMessageDeliveryTimeout => MessageDeliveryTimeout ?? TimeSpan.FromSeconds(5);
 }
 
 public sealed class WorkerSupervisor
 {
     private readonly RunnerLaunchOptions _launchOptions;
+    private readonly ConcurrentDictionary<Guid, WorkerMessageSession> _messageSessions = new();
 
     public WorkerSupervisor(RunnerLaunchOptions launchOptions)
     {
@@ -63,48 +68,66 @@ public sealed class WorkerSupervisor
             return new WorkerRunResultDto(WorkerProtocolConstants.Version, request.RunId, FlowRunStatusDto.TimedOut, "worker.timed_out", "The run deadline elapsed before the runner started. Worker Runner 启动前运行截止时间已到。");
 
         using var process = StartProcess();
-        using var stdout = process.StandardOutput;
-        await using var writer = new WorkerMessageWriter(process.StandardInput.BaseStream);
+        await using var transport = new StdioWorkerTransport(
+            process.StandardOutput.BaseStream,
+            process.StandardInput.BaseStream,
+            line => RecordDiagnostic(request.RunId, "runner.stdout_noise", line));
         var stderrTask = process.StandardError.ReadToEndAsync(CancellationToken.None);
         using var deadlineCancellation = new CancellationTokenSource(request.Deadline - DateTimeOffset.UtcNow);
         using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadlineCancellation.Token);
+        var runStarted = false;
 
         try
         {
-            var ready = await WorkerProtocolCodec.ReadAsync(
-                stdout,
-                line => RecordDiagnostic(request.RunId, "runner.stdout_noise", line),
-                runCancellation.Token).AsTask()
+            var ready = await transport.ReceiveAsync(runCancellation.Token).AsTask()
                 .WaitAsync(_launchOptions.EffectiveHandshakeTimeout, runCancellation.Token);
             if (ready is null)
                 return await TerminateAndReturnAsync(process, request.RunId, "worker.crashed", "Runner closed its protocol stream before announcing readiness. Worker Runner 在宣布就绪前关闭了协议流。", FlowRunStatusDto.Failed);
             if (ready.Kind != WorkerProtocolConstants.ReadyKind)
                 return await TerminateAndReturnAsync(process, request.RunId, "worker.handshake_failed", "Runner did not announce readiness. Worker Runner 未宣布就绪。", FlowRunStatusDto.Failed);
 
-            await writer.WriteAsync(WorkerMessage.Create(WorkerProtocolConstants.HandshakeKind), runCancellation.Token);
-            var accepted = await WorkerProtocolCodec.ReadAsync(
-                stdout,
-                line => RecordDiagnostic(request.RunId, "runner.stdout_noise", line),
-                runCancellation.Token).AsTask()
+            await transport.SendAsync(WorkerMessage.Create(WorkerProtocolConstants.HandshakeKind), runCancellation.Token);
+            var accepted = await transport.ReceiveAsync(runCancellation.Token).AsTask()
                 .WaitAsync(_launchOptions.EffectiveHandshakeTimeout, runCancellation.Token);
             if (accepted is null)
                 return await TerminateAndReturnAsync(process, request.RunId, "worker.crashed", "Runner closed its protocol stream during the handshake. Worker Runner 在握手期间关闭了协议流。", FlowRunStatusDto.Failed);
             if (accepted.Kind != WorkerProtocolConstants.HandshakeAcceptedKind)
                 return await TerminateAndReturnAsync(process, request.RunId, "worker.protocol_mismatch", "Runner rejected the worker protocol handshake. Worker Runner 拒绝了 Worker 协议握手。", FlowRunStatusDto.Failed);
 
-            await writer.WriteAsync(
+            await transport.SendAsync(
                 WorkerMessage.Create(WorkerProtocolConstants.RunKind, WorkerProtocolCodec.SerializePayload(request), request.RunId, request.Deadline),
                 runCancellation.Token);
+            runStarted = true;
 
-            return await MonitorRunAsync(process, stdout, writer, request, publishEvent, deadlineCancellation, cancellationToken);
+            var messageSession = new WorkerMessageSession(transport, request, _launchOptions.EffectiveMessageDeliveryTimeout);
+            _messageSessions[request.RunId] = messageSession;
+            try
+            {
+                return await MonitorRunAsync(process, transport, request, publishEvent, deadlineCancellation, cancellationToken, messageSession);
+            }
+            finally
+            {
+                _messageSessions.TryRemove(new KeyValuePair<Guid, WorkerMessageSession>(request.RunId, messageSession));
+                messageSession.Complete();
+            }
         }
         catch (OperationCanceledException)
         {
             var timedOut = deadlineCancellation.IsCancellationRequested;
+            if (!runStarted)
+            {
+                return await TerminateAndReturnAsync(
+                    process,
+                    request.RunId,
+                    timedOut ? "worker.timed_out" : "worker.cancelled",
+                    timedOut
+                        ? "The run deadline elapsed before the Worker run started. Worker 运行在启动前已达到截止时间。"
+                        : "The Worker run was cancelled before it started. Worker 运行在启动前已取消。",
+                    timedOut ? FlowRunStatusDto.TimedOut : FlowRunStatusDto.Cancelled);
+            }
             return await CancelAndReturnAsync(
                 process,
-                stdout,
-                writer,
+                transport,
                 request,
                 publishEvent,
                 timedOut ? FlowRunStatusDto.TimedOut : FlowRunStatusDto.Cancelled,
@@ -131,12 +154,12 @@ public sealed class WorkerSupervisor
     }
 
     /// <summary>
-    /// Starts a Worker process whose stdin remains owned by the supervisor for
-    /// the lifetime of the returned debug session. This is deliberately a
-    /// distinct API from RunAsync so a caller cannot write directly to Worker
-    /// stdin or compete with its sole stdout reader.
-    /// 启动调试 Worker，并在返回会话的生命周期内由 Supervisor 独占其 stdin。它与
-    /// RunAsync 分开，避免调用方直接写 Worker stdin 或与唯一 stdout 读取器竞争。
+    /// Starts a Worker process whose transport remains owned by the supervisor
+    /// for the lifetime of the returned debug session. This is deliberately a
+    /// distinct API from RunAsync so a caller cannot compete with its command
+    /// writer or receive loop.
+    /// 启动调试 Worker，并在返回会话的生命周期内由 Supervisor 独占其传输；它与
+    /// RunAsync 分开，避免调用方竞争命令写入器或唯一接收循环。
     /// </summary>
     public async Task<DebugRunSession> StartDebugAsync(
         WorkerRunRequestDto request,
@@ -174,17 +197,16 @@ public sealed class WorkerSupervisor
         }
 
         var process = StartProcess();
-        var stdout = process.StandardOutput;
-        var writer = new WorkerMessageWriter(process.StandardInput.BaseStream);
+        var transport = new StdioWorkerTransport(
+            process.StandardOutput.BaseStream,
+            process.StandardInput.BaseStream,
+            line => RecordDiagnostic(request.RunId, "runner.stdout_noise", line));
         var stderrTask = process.StandardError.ReadToEndAsync(CancellationToken.None);
         var deadlineCancellation = new CancellationTokenSource(request.Deadline - DateTimeOffset.UtcNow);
         var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadlineCancellation.Token);
         try
         {
-            var ready = await WorkerProtocolCodec.ReadAsync(
-                stdout,
-                line => RecordDiagnostic(request.RunId, "runner.stdout_noise", line),
-                runCancellation.Token).AsTask()
+            var ready = await transport.ReceiveAsync(runCancellation.Token).AsTask()
                 .WaitAsync(_launchOptions.EffectiveHandshakeTimeout, runCancellation.Token);
             if (ready is null || ready.Kind != WorkerProtocolConstants.ReadyKind)
             {
@@ -193,11 +215,8 @@ public sealed class WorkerSupervisor
                     "Runner did not announce readiness. Worker Runner 未宣布就绪。");
             }
 
-            await writer.WriteAsync(WorkerMessage.Create(WorkerProtocolConstants.HandshakeKind), runCancellation.Token);
-            var accepted = await WorkerProtocolCodec.ReadAsync(
-                stdout,
-                line => RecordDiagnostic(request.RunId, "runner.stdout_noise", line),
-                runCancellation.Token).AsTask()
+            await transport.SendAsync(WorkerMessage.Create(WorkerProtocolConstants.HandshakeKind), runCancellation.Token);
+            var accepted = await transport.ReceiveAsync(runCancellation.Token).AsTask()
                 .WaitAsync(_launchOptions.EffectiveHandshakeTimeout, runCancellation.Token);
             if (accepted is null || accepted.Kind != WorkerProtocolConstants.HandshakeAcceptedKind)
             {
@@ -206,20 +225,20 @@ public sealed class WorkerSupervisor
                     "Runner rejected the worker protocol handshake. Worker Runner 拒绝了 Worker 协议握手。");
             }
 
-            await writer.WriteAsync(
+            await transport.SendAsync(
                 WorkerMessage.Create(WorkerProtocolConstants.RunKind, WorkerProtocolCodec.SerializePayload(request), request.RunId, request.Deadline),
                 runCancellation.Token);
 
             var session = new DebugRunSession(
                 this,
                 process,
-                stdout,
-                writer,
+                transport,
                 stderrTask,
                 request,
                 publishEvent,
                 deadlineCancellation,
                 runCancellation);
+            _messageSessions[request.RunId] = session.MessageSession;
             session.Start();
             return session;
         }
@@ -228,8 +247,7 @@ public sealed class WorkerSupervisor
             runCancellation.Cancel();
             deadlineCancellation.Dispose();
             runCancellation.Dispose();
-            await writer.DisposeAsync();
-            stdout.Dispose();
+            await transport.CloseAsync(CancellationToken.None);
             if (!process.HasExited)
                 TerminateProcessTree(process);
             process.Dispose();
@@ -237,12 +255,33 @@ public sealed class WorkerSupervisor
         }
     }
 
+    /// <summary>
+    /// Delivers a JSON message to an explicitly registered endpoint in an active Worker run.
+    /// 向活动 Worker 运行中已显式注册的入口投递 JSON 消息。
+    /// </summary>
+    public Task<WorkerMessageDeliveryResponseDto> DeliverMessageAsync(
+        WorkerMessageDeliveryDto delivery,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(delivery);
+        return _messageSessions.TryGetValue(delivery.RunId, out var session)
+            ? session.DeliverAsync(delivery, cancellationToken)
+            : Task.FromResult(new WorkerMessageDeliveryResponseDto(
+                WorkerMessageDeliveryStatusDto.NotFound,
+                WorkerProtocolConstants.Version,
+                delivery.RunId,
+                delivery.MessageId,
+                delivery.Topic,
+                "worker.not_found",
+                "The Worker run is not active. Worker 运行当前不活动。"));
+    }
+
     public sealed class DebugRunSession : IAsyncDisposable
     {
         private readonly WorkerSupervisor _supervisor;
         private readonly Process _process;
-        private readonly StreamReader _stdout;
-        private readonly WorkerMessageWriter _writer;
+        private readonly IWorkerTransport _transport;
+        internal WorkerMessageSession MessageSession { get; }
         private readonly Task<string> _stderrTask;
         private readonly WorkerRunRequestDto _request;
         private readonly Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> _publishEvent;
@@ -256,8 +295,7 @@ public sealed class WorkerSupervisor
         internal DebugRunSession(
             WorkerSupervisor supervisor,
             Process process,
-            StreamReader stdout,
-            WorkerMessageWriter writer,
+            IWorkerTransport transport,
             Task<string> stderrTask,
             WorkerRunRequestDto request,
             Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent,
@@ -266,8 +304,8 @@ public sealed class WorkerSupervisor
         {
             _supervisor = supervisor;
             _process = process;
-            _stdout = stdout;
-            _writer = writer;
+            _transport = transport;
+            MessageSession = new WorkerMessageSession(transport, request, supervisor._launchOptions.EffectiveMessageDeliveryTimeout);
             _stderrTask = stderrTask;
             _request = request;
             _publishEvent = publishEvent;
@@ -364,7 +402,7 @@ public sealed class WorkerSupervisor
                     RunId,
                     DebugSessionId,
                     commandSequence);
-                await _writer.WriteAsync(
+                await _transport.SendAsync(
                     WorkerMessage.Create(
                         kind,
                         WorkerProtocolCodec.SerializePayload(command),
@@ -395,12 +433,12 @@ public sealed class WorkerSupervisor
             {
                 return await _supervisor.MonitorRunAsync(
                     _process,
-                    _stdout,
-                    _writer,
+                    _transport,
                     _request,
                     _publishEvent,
                     _deadlineCancellation,
-                    _runCancellation.Token).ConfigureAwait(false);
+                    _runCancellation.Token,
+                    MessageSession).ConfigureAwait(false);
             }
             catch (WorkerProtocolException exception)
             {
@@ -431,8 +469,9 @@ public sealed class WorkerSupervisor
                 if (!string.IsNullOrWhiteSpace(stderr))
                     _supervisor.RecordDiagnostic(RunId, "runner.stderr", stderr);
 
-                await _writer.DisposeAsync().ConfigureAwait(false);
-                _stdout.Dispose();
+                await _transport.CloseAsync().ConfigureAwait(false);
+                _supervisor._messageSessions.TryRemove(new KeyValuePair<Guid, WorkerMessageSession>(RunId, MessageSession));
+                MessageSession.Complete();
                 _process.Dispose();
                 _deadlineCancellation.Dispose();
                 _runCancellation.Dispose();
@@ -442,18 +481,15 @@ public sealed class WorkerSupervisor
 
     private async Task<WorkerRunResultDto> MonitorRunAsync(
         Process process,
-        StreamReader stdout,
-        WorkerMessageWriter writer,
+        IWorkerTransport transport,
         WorkerRunRequestDto request,
         Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent,
         CancellationTokenSource deadlineCancellation,
-        CancellationToken callerCancellationToken)
+        CancellationToken callerCancellationToken,
+        WorkerMessageSession? messageSession = null)
     {
         using var heartbeatCancellation = new CancellationTokenSource();
-        var readTask = WorkerProtocolCodec.ReadAsync(
-            stdout,
-            line => RecordDiagnostic(request.RunId, "runner.stdout_noise", line),
-            CancellationToken.None).AsTask();
+        var readTask = transport.ReceiveAsync(CancellationToken.None).AsTask();
         var heartbeatTask = Task.Delay(_launchOptions.EffectiveHeartbeatInterval, heartbeatCancellation.Token);
         var callerCancellationTask = Task.Delay(Timeout.InfiniteTimeSpan, callerCancellationToken);
         var deadlineTask = Task.Delay(Timeout.InfiniteTimeSpan, deadlineCancellation.Token);
@@ -466,12 +502,12 @@ public sealed class WorkerSupervisor
             {
                 var status = deadlineCancellation.IsCancellationRequested ? FlowRunStatusDto.TimedOut : FlowRunStatusDto.Cancelled;
                 var code = status == FlowRunStatusDto.TimedOut ? "worker.timed_out" : "worker.cancelled";
-                return await CancelAndReturnAsync(process, stdout, writer, request, publishEvent, status, code, readTask, lastSequence);
+                return await CancelAndReturnAsync(process, transport, request, publishEvent, status, code, readTask, lastSequence, messageSession);
             }
 
             if (completed == heartbeatTask)
             {
-                await writer.WriteAsync(WorkerMessage.Create(WorkerProtocolConstants.HeartbeatKind, runId: request.RunId), CancellationToken.None);
+                await transport.SendAsync(WorkerMessage.Create(WorkerProtocolConstants.HeartbeatKind, runId: request.RunId), CancellationToken.None);
                 heartbeatTask = Task.Delay(_launchOptions.EffectiveHeartbeatInterval, heartbeatCancellation.Token);
                 continue;
             }
@@ -480,31 +516,34 @@ public sealed class WorkerSupervisor
             if (message is null)
                 return Failure(request.RunId, "worker.crashed", "The runner closed its protocol stream without a result. Worker Runner 在返回结果前关闭了协议流。");
 
+            if (messageSession?.HandleControlMessage(message) == true)
+            {
+                readTask = transport.ReceiveAsync(CancellationToken.None).AsTask();
+                continue;
+            }
+
             var completion = await HandleMessageAsync(message, request, publishEvent, lastSequence, CancellationToken.None);
             if (completion.Result is not null)
                 return completion.Result;
             lastSequence = completion.LastSequence;
-            readTask = WorkerProtocolCodec.ReadAsync(
-                stdout,
-                line => RecordDiagnostic(request.RunId, "runner.stdout_noise", line),
-                CancellationToken.None).AsTask();
+            readTask = transport.ReceiveAsync(CancellationToken.None).AsTask();
         }
     }
 
     private async Task<WorkerRunResultDto> CancelAndReturnAsync(
         Process process,
-        StreamReader stdout,
-        WorkerMessageWriter writer,
+        IWorkerTransport transport,
         WorkerRunRequestDto request,
         Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent,
         FlowRunStatusDto fallbackStatus,
         string fallbackCode,
         Task<WorkerMessage?>? existingReadTask = null,
-        long lastSequence = 0)
+        long lastSequence = 0,
+        WorkerMessageSession? messageSession = null)
     {
         try
         {
-            await writer.WriteAsync(
+            await transport.SendAsync(
                 WorkerMessage.Create(
                     WorkerProtocolConstants.CancelKind,
                     WorkerProtocolCodec.SerializePayload(new WorkerCancelRequestDto(WorkerProtocolConstants.Version, request.RunId, fallbackCode)),
@@ -515,10 +554,7 @@ public sealed class WorkerSupervisor
             return await TerminateAndReturnAsync(process, request.RunId, fallbackCode, "Runner could not be reached for cancellation. 无法连接 Worker Runner 以取消运行。", fallbackStatus);
         }
 
-        var readTask = existingReadTask ?? WorkerProtocolCodec.ReadAsync(
-            stdout,
-            line => RecordDiagnostic(request.RunId, "runner.stdout_noise", line),
-            CancellationToken.None).AsTask();
+        var readTask = existingReadTask ?? transport.ReceiveAsync(CancellationToken.None).AsTask();
         var graceDeadline = DateTimeOffset.UtcNow + _launchOptions.EffectiveCancellationGracePeriod;
         while (DateTimeOffset.UtcNow < graceDeadline)
         {
@@ -531,14 +567,17 @@ public sealed class WorkerSupervisor
             if (message is null)
                 break;
 
+            if (messageSession?.HandleControlMessage(message) == true)
+            {
+                readTask = transport.ReceiveAsync(CancellationToken.None).AsTask();
+                continue;
+            }
+
             var completion = await HandleMessageAsync(message, request, publishEvent, lastSequence, CancellationToken.None);
             if (completion.Result is not null)
                 return NormalizeCancellationResult(completion.Result, request.RunId, fallbackStatus, fallbackCode);
             lastSequence = completion.LastSequence;
-            readTask = WorkerProtocolCodec.ReadAsync(
-                stdout,
-                line => RecordDiagnostic(request.RunId, "runner.stdout_noise", line),
-                CancellationToken.None).AsTask();
+            readTask = transport.ReceiveAsync(CancellationToken.None).AsTask();
         }
 
         return await TerminateAndReturnAsync(process, request.RunId, fallbackCode, "Runner did not stop before the cancellation grace period elapsed. Worker Runner 在取消宽限期结束前未停止。", fallbackStatus);
@@ -595,6 +634,9 @@ public sealed class WorkerSupervisor
             }
             case WorkerProtocolConstants.CancelAcknowledgedKind:
             case WorkerProtocolConstants.HeartbeatAcknowledgedKind:
+            case WorkerProtocolConstants.ReadyKind:
+            case WorkerProtocolConstants.HandshakeKind:
+            case WorkerProtocolConstants.HandshakeAcceptedKind:
                 return (null, lastSequence);
             default:
                 return (Failure(request.RunId, "worker.invalid_message", $"Runner sent unsupported message '{message.Kind}'. Worker Runner 发送了不支持的消息“{message.Kind}”。"), lastSequence);
@@ -761,4 +803,269 @@ public sealed class WorkerSupervisor
             return null;
         }
     }
+}
+
+internal sealed class WorkerMessageSession
+{
+    private readonly IWorkerTransport _transport;
+    private readonly WorkerRunRequestDto _request;
+    private readonly TimeSpan _deliveryTimeout;
+    private readonly ConcurrentDictionary<MessageEndpointKey, WorkerMessageEndpointDto> _endpoints = new();
+    private readonly ConcurrentDictionary<string, PendingDelivery> _pending = new(StringComparer.Ordinal);
+    private int _completed;
+
+    public WorkerMessageSession(
+        IWorkerTransport transport,
+        WorkerRunRequestDto request,
+        TimeSpan deliveryTimeout)
+    {
+        _transport = transport;
+        _request = request;
+        _deliveryTimeout = deliveryTimeout;
+    }
+
+    public async Task<WorkerMessageDeliveryResponseDto> DeliverAsync(
+        WorkerMessageDeliveryDto delivery,
+        CancellationToken cancellationToken)
+    {
+        if (Volatile.Read(ref _completed) == 1)
+            return NotFound(delivery);
+        if (delivery.ProtocolVersion != WorkerProtocolConstants.Version)
+            return Rejected(delivery, "message.protocol_mismatch", "The message protocol version is not supported. 消息协议版本不受支持。");
+        if (delivery.RunId != _request.RunId)
+            return Rejected(delivery, "message.run_mismatch", "The message belongs to another Worker run. 消息属于其他 Worker 运行。");
+        if (delivery.MessageId == Guid.Empty)
+            return Rejected(delivery, "message.id_required", "MessageId is required. MessageId 不能为空。");
+        if (string.IsNullOrWhiteSpace(delivery.Topic))
+            return Rejected(delivery, "message.topic_required", "Message topic is required. 消息主题不能为空。");
+        if (!Enum.IsDefined(delivery.ChannelKind))
+            return Rejected(delivery, "message.channel_invalid", "The message channel kind is not supported. 消息通道类型不受支持。");
+        if (delivery.SerializationMode != WorkerMessageSerializationModeDto.Json)
+            return Rejected(delivery, "message.external_json_required", "External ingress only accepts JSON messages. 外部入口只接受 JSON 消息。");
+
+        var key = new MessageEndpointKey(delivery.ChannelKind, delivery.Topic.Trim());
+        if (!_endpoints.TryGetValue(key, out var endpoint))
+            return new WorkerMessageDeliveryResponseDto(
+                WorkerMessageDeliveryStatusDto.NotReady,
+                WorkerProtocolConstants.Version,
+                delivery.RunId,
+                delivery.MessageId,
+                delivery.Topic,
+                "message.endpoint_not_ready",
+                "The message endpoint is not registered. 消息入口尚未注册。");
+        if (!endpoint.ExternalIngress)
+            return Rejected(delivery, "message.endpoint_forbidden", "The message endpoint is not open to external ingress. 消息入口未开放外部投递。");
+
+        var requestId = Guid.NewGuid().ToString("N");
+        var pending = new PendingDelivery(
+            delivery,
+            new TaskCompletionSource<WorkerMessageDeliveryResponseDto>(
+                TaskCreationOptions.RunContinuationsAsynchronously));
+        if (!_pending.TryAdd(requestId, pending))
+            return Rejected(delivery, "message.correlation_conflict", "The message correlation ID was already in use. 消息关联 ID 已被使用。");
+
+        try
+        {
+            await _transport.SendAsync(
+                WorkerMessage.Create(
+                    WorkerProtocolConstants.MessageDeliverKind,
+                    WorkerProtocolCodec.SerializePayload(delivery),
+                    delivery.RunId,
+                    requestId: requestId),
+                cancellationToken).ConfigureAwait(false);
+            return await pending.Completion.Task.WaitAsync(_deliveryTimeout, cancellationToken).ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            return new WorkerMessageDeliveryResponseDto(
+                WorkerMessageDeliveryStatusDto.TimedOut,
+                WorkerProtocolConstants.Version,
+                delivery.RunId,
+                delivery.MessageId,
+                delivery.Topic,
+                "message.delivery_timeout",
+                "The Worker did not acknowledge the message before the delivery timeout. Worker 未在投递超时前确认消息。");
+        }
+        catch (WorkerTransportException exception)
+        {
+            return new WorkerMessageDeliveryResponseDto(
+                WorkerMessageDeliveryStatusDto.NotFound,
+                WorkerProtocolConstants.Version,
+                delivery.RunId,
+                delivery.MessageId,
+                delivery.Topic,
+                exception.Code,
+                "The Worker transport is no longer available. Worker 传输已不可用。");
+        }
+        catch (IOException exception)
+        {
+            return new WorkerMessageDeliveryResponseDto(
+                WorkerMessageDeliveryStatusDto.NotFound,
+                WorkerProtocolConstants.Version,
+                delivery.RunId,
+                delivery.MessageId,
+                delivery.Topic,
+                "worker.transport_closed",
+                exception.Message);
+        }
+        finally
+        {
+            _pending.TryRemove(requestId, out _);
+        }
+    }
+
+    public bool HandleControlMessage(WorkerMessage message)
+    {
+        if (message.RunId != _request.RunId)
+        {
+            throw new WorkerProtocolException(
+                "message.run_mismatch",
+                "The Worker message belongs to another run. Worker 消息属于其他运行实例。");
+        }
+
+        switch (message.Kind)
+        {
+            case WorkerProtocolConstants.MessageRegisterKind:
+            {
+                var endpoint = WorkerProtocolCodec.DeserializePayload<WorkerMessageEndpointDto>(message);
+                ValidateEndpoint(endpoint);
+                _endpoints[new MessageEndpointKey(endpoint.ChannelKind, endpoint.Topic.Trim())] = endpoint with
+                {
+                    Topic = endpoint.Topic.Trim()
+                };
+                return true;
+            }
+            case WorkerProtocolConstants.MessageUnregisterKind:
+            {
+                var endpoint = WorkerProtocolCodec.DeserializePayload<WorkerMessageEndpointDto>(message);
+                ValidateEndpoint(endpoint);
+                _endpoints.TryRemove(new MessageEndpointKey(endpoint.ChannelKind, endpoint.Topic.Trim()), out _);
+                return true;
+            }
+            case WorkerProtocolConstants.MessageAcceptedKind:
+            {
+                var accepted = WorkerProtocolCodec.DeserializePayload<WorkerMessageAcceptedDto>(message);
+                ValidateReceipt(accepted.ProtocolVersion, accepted.RunId, accepted.MessageId, accepted.Topic);
+                if (_pending.TryGetValue(message.RequestId, out var pending))
+                {
+                    ValidateReceiptMatches(pending.Delivery, accepted.MessageId, accepted.Topic);
+                    pending.Completion.TrySetResult(new WorkerMessageDeliveryResponseDto(
+                        WorkerMessageDeliveryStatusDto.Accepted,
+                        accepted.ProtocolVersion,
+                        accepted.RunId,
+                        accepted.MessageId,
+                        accepted.Topic,
+                        null,
+                        "The message was accepted by the Worker. Worker 已接受消息。",
+                        accepted.Duplicate));
+                }
+                return true;
+            }
+            case WorkerProtocolConstants.MessageRejectedKind:
+            {
+                var rejected = WorkerProtocolCodec.DeserializePayload<WorkerMessageRejectedDto>(message);
+                ValidateReceipt(rejected.ProtocolVersion, rejected.RunId, rejected.MessageId, rejected.Topic);
+                if (_pending.TryGetValue(message.RequestId, out var pending))
+                {
+                    ValidateReceiptMatches(pending.Delivery, rejected.MessageId, rejected.Topic);
+                    pending.Completion.TrySetResult(new WorkerMessageDeliveryResponseDto(
+                        WorkerMessageDeliveryStatusDto.Rejected,
+                        rejected.ProtocolVersion,
+                        rejected.RunId,
+                        rejected.MessageId,
+                        rejected.Topic,
+                        rejected.Code,
+                        rejected.Message));
+                }
+                return true;
+            }
+            default:
+                return false;
+        }
+    }
+
+    public void Complete()
+    {
+        if (Interlocked.Exchange(ref _completed, 1) == 1)
+            return;
+        foreach (var pending in _pending.Values)
+        {
+            pending.Completion.TrySetResult(new WorkerMessageDeliveryResponseDto(
+                WorkerMessageDeliveryStatusDto.NotFound,
+                WorkerProtocolConstants.Version,
+                _request.RunId,
+                Guid.Empty,
+                string.Empty,
+                "worker.not_found",
+                "The Worker run is no longer active. Worker 运行已不再活动。"));
+        }
+        _pending.Clear();
+        _endpoints.Clear();
+    }
+
+    private void ValidateEndpoint(WorkerMessageEndpointDto endpoint)
+    {
+        if (endpoint.ProtocolVersion != WorkerProtocolConstants.Version
+            || endpoint.RunId != _request.RunId
+            || string.IsNullOrWhiteSpace(endpoint.Topic)
+            || !Enum.IsDefined(endpoint.ChannelKind)
+            || !Enum.IsDefined(endpoint.SerializationMode))
+        {
+            throw new WorkerProtocolException(
+                "message.endpoint_invalid",
+                "The Worker message endpoint registration is invalid. Worker 消息端点注册无效。");
+        }
+    }
+
+    private void ValidateReceipt(int protocolVersion, Guid runId, Guid messageId, string topic)
+    {
+        if (protocolVersion != WorkerProtocolConstants.Version
+            || runId != _request.RunId
+            || messageId == Guid.Empty
+            || string.IsNullOrWhiteSpace(topic))
+        {
+            throw new WorkerProtocolException(
+                "message.receipt_invalid",
+                "The Worker message receipt is invalid. Worker 消息应答无效。");
+        }
+    }
+
+    private static void ValidateReceiptMatches(WorkerMessageDeliveryDto delivery, Guid messageId, string topic)
+    {
+        if (delivery.MessageId != messageId
+            || !string.Equals(delivery.Topic.Trim(), topic.Trim(), StringComparison.Ordinal))
+        {
+            throw new WorkerProtocolException(
+                "message.receipt_mismatch",
+                "The Worker message receipt does not match the delivery request. Worker 消息应答与投递请求不匹配。");
+        }
+    }
+
+    private static WorkerMessageDeliveryResponseDto NotFound(WorkerMessageDeliveryDto delivery)
+        => new(
+            WorkerMessageDeliveryStatusDto.NotFound,
+            WorkerProtocolConstants.Version,
+            delivery.RunId,
+            delivery.MessageId,
+            delivery.Topic,
+            "worker.not_found",
+            "The Worker run is not active. Worker 运行当前不活动。");
+
+    private static WorkerMessageDeliveryResponseDto Rejected(WorkerMessageDeliveryDto delivery, string code, string message)
+        => new(
+            WorkerMessageDeliveryStatusDto.Rejected,
+            WorkerProtocolConstants.Version,
+            delivery.RunId,
+            delivery.MessageId,
+            delivery.Topic,
+            code,
+            message);
+
+    private readonly record struct MessageEndpointKey(
+        WorkerMessageChannelKindDto ChannelKind,
+        string Topic);
+
+    private sealed record PendingDelivery(
+        WorkerMessageDeliveryDto Delivery,
+        TaskCompletionSource<WorkerMessageDeliveryResponseDto> Completion);
 }

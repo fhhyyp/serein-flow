@@ -88,6 +88,7 @@ public sealed class McpHostIntegrationTests : IClassFixture<McpHostIntegrationTe
         Assert.True(paths.TryGetProperty("/api/projects", out _));
         Assert.True(paths.TryGetProperty("/api/projects/{projectId}/flows/{flowId}", out _));
         Assert.True(paths.TryGetProperty("/api/runs/{runId}", out _));
+        Assert.True(paths.TryGetProperty("/api/runs/{runId}/messages/{topic}", out _));
         Assert.False(paths.TryGetProperty("/mcp", out _));
         Assert.False(paths.TryGetProperty("/hubs/runs", out _));
         Assert.False(paths.EnumerateObject().Any(path => path.Name.EndsWith("/events/stream", StringComparison.Ordinal)));

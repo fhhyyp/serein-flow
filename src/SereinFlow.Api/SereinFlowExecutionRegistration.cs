@@ -43,6 +43,8 @@ public static class SereinFlowExecutionRegistration
             serviceProvider.GetRequiredService<SupervisorWorkerRunClient>());
         services.AddSingleton<IWorkerDebugRunClient>(serviceProvider =>
             serviceProvider.GetRequiredService<SupervisorWorkerRunClient>());
+        services.AddSingleton<IWorkerMessageRunClient>(serviceProvider =>
+            serviceProvider.GetRequiredService<SupervisorWorkerRunClient>());
         services.AddSingleton<RunExecutionQueue>();
         services.AddSingleton<RunEventBroadcaster>();
         services.AddSingleton<FlowDebugSessionService>();

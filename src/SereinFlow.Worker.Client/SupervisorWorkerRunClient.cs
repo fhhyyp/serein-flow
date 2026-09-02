@@ -19,9 +19,10 @@ public sealed record SupervisorWorkerRunClientOptions(
     string? AllowedScriptArtifactRoot = null,
     string? AllowedLibraryPackageRoot = null,
     string RunnerFileName = "dotnet",
-    Action<string>? DiagnosticLogger = null);
+    Action<string>? DiagnosticLogger = null,
+    TimeSpan? MessageDeliveryTimeout = null);
 
-public sealed class SupervisorWorkerRunClient : IWorkerDebugRunClient
+public sealed class SupervisorWorkerRunClient : IWorkerDebugRunClient, IWorkerMessageRunClient
 {
     private readonly WorkerSupervisor _supervisor;
 
@@ -51,7 +52,8 @@ public sealed class SupervisorWorkerRunClient : IWorkerDebugRunClient
             options.CancellationGracePeriod,
             options.AllowedScriptArtifactRoot,
             options.AllowedLibraryPackageRoot,
-            options.DiagnosticLogger));
+            options.DiagnosticLogger,
+            options.MessageDeliveryTimeout));
     }
 
     public Task<WorkerRunResultDto> RunAsync(
@@ -86,6 +88,11 @@ public sealed class SupervisorWorkerRunClient : IWorkerDebugRunClient
             cancellationToken);
         return new SupervisorDebugRunHandle(session);
     }
+
+    public Task<WorkerMessageDeliveryResponseDto> DeliverMessageAsync(
+        WorkerMessageDeliveryDto delivery,
+        CancellationToken cancellationToken = default)
+        => _supervisor.DeliverMessageAsync(delivery, cancellationToken);
 
     private sealed class SupervisorDebugRunHandle(WorkerSupervisor.DebugRunSession session) : IWorkerDebugRunHandle
     {

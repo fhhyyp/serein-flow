@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using SereinFlow.Contracts;
+using SereinFlow.Library;
 using SereinFlow.Domain;
 using SereinFlow.Runtime;
 using SereinFlow.Runtime.Abstractions;
@@ -11,36 +12,40 @@ namespace SereinFlow.Worker.Runner;
 
 internal static class Program
 {
-    private static Task<int> Main()
-        => RunnerHost.RunAsync(Console.OpenStandardInput(), Console.OpenStandardOutput());
+    private static async Task<int> Main()
+    {
+        await using var transport = new StdioWorkerTransport(
+            Console.OpenStandardInput(),
+            Console.OpenStandardOutput());
+        return await RunnerHost.RunAsync(transport);
+    }
 }
 
 public static class RunnerHost
 {
-    public static async Task<int> RunAsync(Stream input, Stream output, CancellationToken cancellationToken = default)
+    public static async Task<int> RunAsync(IWorkerTransport transport, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(transport);
         // stdout is the framed Worker protocol stream. Third-party DLLs and
         // script runtimes must never be able to write diagnostic text into it,
         // otherwise the supervisor will try to parse that text as JSON.
         // stdout 是 Worker 协议专用流；外部 DLL 或脚本不得向其中写入诊断文本，否则 Supervisor 会把文本误解析为 JSON。
         Console.SetOut(TextWriter.Null);
-        using var reader = new StreamReader(input, leaveOpen: true);
-        await using var writer = new WorkerMessageWriter(output);
-        await writer.WriteAsync(WorkerMessage.Create(WorkerProtocolConstants.ReadyKind), cancellationToken);
+        await transport.SendAsync(WorkerMessage.Create(WorkerProtocolConstants.ReadyKind), cancellationToken);
 
-        var handshake = await WorkerProtocolCodec.ReadAsync(reader, cancellationToken);
+        var handshake = await transport.ReceiveAsync(cancellationToken);
         if (handshake is null || handshake.Kind != WorkerProtocolConstants.HandshakeKind)
         {
-            await SendErrorAsync(writer, "worker.handshake_required", "The runner requires a handshake before a run. Worker Runner 必须先完成握手才能运行。", cancellationToken);
+            await SendErrorAsync(transport, "worker.handshake_required", "The runner requires a handshake before a run. Worker Runner 必须先完成握手才能运行。", cancellationToken);
             return 2;
         }
 
-        await writer.WriteAsync(WorkerMessage.Create(WorkerProtocolConstants.HandshakeAcceptedKind), cancellationToken);
+        await transport.SendAsync(WorkerMessage.Create(WorkerProtocolConstants.HandshakeAcceptedKind), cancellationToken);
 
-        var runMessage = await WorkerProtocolCodec.ReadAsync(reader, cancellationToken);
+        var runMessage = await transport.ReceiveAsync(cancellationToken);
         if (runMessage is null || runMessage.Kind != WorkerProtocolConstants.RunKind || runMessage.RunId is null)
         {
-            await SendErrorAsync(writer, "worker.run_required", "The runner requires one run request. Worker Runner 需要一个运行请求。", cancellationToken);
+            await SendErrorAsync(transport, "worker.run_required", "The runner requires one run request. Worker Runner 需要一个运行请求。", cancellationToken);
             return 2;
         }
 
@@ -53,11 +58,16 @@ public static class RunnerHost
             deadlineCancellation.CancelAfter(remaining);
         using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadlineCancellation.Token);
 
+        await using var messageService = new WorkerMessageService(
+            request.RunId,
+            endpoint => SendEndpointRegistrationAsync(transport, endpoint),
+            endpoint => SendEndpointUnregistrationAsync(transport, endpoint));
+
         var debugController = request.Debug is null
             ? null
             : new DebugRunController(request.RunId, request.Debug);
-        var runTask = ExecuteRunAsync(request, writer, runCancellation.Token, deadlineCancellation.Token, debugController);
-        var readTask = WorkerProtocolCodec.ReadAsync(reader, cancellationToken).AsTask();
+        var runTask = ExecuteRunAsync(request, transport, messageService, deadlineCancellation.Token, debugController, runCancellation.Token);
+        var readTask = transport.ReceiveAsync(cancellationToken).AsTask();
 
         while (!runTask.IsCompleted)
         {
@@ -75,7 +85,7 @@ public static class RunnerHost
             if (message.Kind == WorkerProtocolConstants.CancelKind && message.RunId == request.RunId)
             {
                 runCancellation.Cancel();
-                await writer.WriteAsync(
+                await transport.SendAsync(
                     WorkerMessage.Create(WorkerProtocolConstants.CancelAcknowledgedKind, runId: request.RunId),
                     cancellationToken);
             }
@@ -98,12 +108,38 @@ public static class RunnerHost
             }
             else if (message.Kind == WorkerProtocolConstants.HeartbeatKind)
             {
-                await writer.WriteAsync(
+                await transport.SendAsync(
                     WorkerMessage.Create(WorkerProtocolConstants.HeartbeatAcknowledgedKind, runId: request.RunId),
                     cancellationToken);
             }
+            else if (message.Kind == WorkerProtocolConstants.MessageDeliverKind
+                && message.RunId == request.RunId)
+            {
+                var delivery = WorkerProtocolCodec.DeserializePayload<WorkerMessageDeliveryDto>(message);
+                var outcome = messageService.TryDeliver(delivery);
+                var responseKind = outcome.Accepted
+                    ? WorkerProtocolConstants.MessageAcceptedKind
+                    : WorkerProtocolConstants.MessageRejectedKind;
+                var responsePayload = outcome.Accepted
+                    ? WorkerProtocolCodec.SerializePayload(new WorkerMessageAcceptedDto(
+                        WorkerProtocolConstants.Version,
+                        request.RunId,
+                        outcome.MessageId,
+                        outcome.Topic,
+                        outcome.Duplicate))
+                    : WorkerProtocolCodec.SerializePayload(new WorkerMessageRejectedDto(
+                        WorkerProtocolConstants.Version,
+                        request.RunId,
+                        outcome.MessageId,
+                        outcome.Topic,
+                        outcome.Code ?? "message.rejected",
+                        outcome.Message));
+                await transport.SendAsync(
+                    WorkerMessage.Create(responseKind, responsePayload, request.RunId, requestId: message.RequestId),
+                    cancellationToken);
+            }
 
-            readTask = WorkerProtocolCodec.ReadAsync(reader, cancellationToken).AsTask();
+            readTask = transport.ReceiveAsync(cancellationToken).AsTask();
         }
 
         await runTask;
@@ -112,10 +148,11 @@ public static class RunnerHost
 
     private static async Task ExecuteRunAsync(
         WorkerRunRequestDto request,
-        WorkerMessageWriter writer,
-        CancellationToken cancellationToken,
+        IWorkerTransport transport,
+        WorkerMessageService messageService,
         CancellationToken deadlineCancellationToken,
-        DebugRunController? debugController)
+        DebugRunController? debugController,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -130,7 +167,7 @@ public static class RunnerHost
                 foreach (var input in request.ProjectInputs)
                     session.Write($"project.{input.Key}", JsonElementToClr(input.Value));
             }
-            await writer.WriteAsync(
+            await transport.SendAsync(
                 WorkerMessage.Create(
                     WorkerProtocolConstants.EventKind,
                     WorkerProtocolCodec.SerializePayload(new WorkerEventEnvelopeDto(
@@ -144,7 +181,7 @@ public static class RunnerHost
                     request.RunId),
                 cancellationToken);
 
-            await using var publisher = new WorkerEventPublisher(writer, request.RunId);
+            await using var publisher = new WorkerEventPublisher(transport, request.RunId);
             ScriptArtifactStore? artifactStore = null;
             if (!string.IsNullOrWhiteSpace(request.ScriptArtifactRootPath))
             {
@@ -165,7 +202,7 @@ public static class RunnerHost
                 request.LibraryPackageRootPath,
                 request.RunId,
                 request.AllowedLibraryIds);
-            await using var libraryServiceRuntime = new WorkerLibraryServiceRuntime();
+            await using var libraryServiceRuntime = new WorkerLibraryServiceRuntime(messageService);
             var executors = new NodeExecutorRegistry([
                 new LibraryNodeExecutor(NodeType.Action, libraryRuntimeCache, libraryServiceRuntime),
                 new LibraryNodeExecutor(NodeType.Flipflop, libraryRuntimeCache, libraryServiceRuntime),
@@ -183,7 +220,7 @@ public static class RunnerHost
                 debugInvocationScheduler: invocationScheduler);
             var result = await runner.RunAsync(definition, session, cancellationToken);
             var status = result.IsSuccess ? FlowRunStatusDto.Succeeded : FlowRunStatusDto.Failed;
-            await writer.WriteAsync(
+            await transport.SendAsync(
                 WorkerMessage.Create(
                     WorkerProtocolConstants.ResultKind,
                     WorkerProtocolCodec.SerializePayload(new WorkerRunResultDto(
@@ -198,7 +235,7 @@ public static class RunnerHost
         catch (OperationCanceledException)
         {
             var timedOut = deadlineCancellationToken.IsCancellationRequested;
-            await writer.WriteAsync(
+            await transport.SendAsync(
                 WorkerMessage.Create(
                     WorkerProtocolConstants.ResultKind,
                     WorkerProtocolCodec.SerializePayload(new WorkerRunResultDto(
@@ -214,19 +251,57 @@ public static class RunnerHost
         }
         catch (Exception exception)
         {
-            await SendErrorAsync(writer, "worker.run_failed", $"The worker run failed. Worker 运行失败。 {exception.Message}", CancellationToken.None, request.RunId);
+            await SendErrorAsync(transport, "worker.run_failed", $"The worker run failed. Worker 运行失败。 {exception.Message}", CancellationToken.None, request.RunId);
         }
     }
 
-    private static ValueTask SendErrorAsync(WorkerMessageWriter writer, string code, string message, CancellationToken cancellationToken, Guid? runId = null)
-        => writer.WriteAsync(
+    private static async void SendEndpointRegistrationAsync(
+        IWorkerTransport transport,
+        WorkerMessageEndpointDto endpoint)
+    {
+        try
+        {
+            await transport.SendAsync(
+                WorkerMessage.Create(
+                    WorkerProtocolConstants.MessageRegisterKind,
+                    WorkerProtocolCodec.SerializePayload(endpoint),
+                    endpoint.RunId),
+                CancellationToken.None);
+        }
+        catch
+        {
+            // Registration is best effort while the run is shutting down.
+            // 运行关闭期间端点注册属于尽力而为。
+        }
+    }
+
+    private static async void SendEndpointUnregistrationAsync(
+        IWorkerTransport transport,
+        WorkerMessageEndpointDto endpoint)
+    {
+        try
+        {
+            await transport.SendAsync(
+                WorkerMessage.Create(
+                    WorkerProtocolConstants.MessageUnregisterKind,
+                    WorkerProtocolCodec.SerializePayload(endpoint),
+                    endpoint.RunId),
+                CancellationToken.None);
+        }
+        catch
+        {
+        }
+    }
+
+    private static ValueTask SendErrorAsync(IWorkerTransport transport, string code, string message, CancellationToken cancellationToken, Guid? runId = null)
+        => transport.SendAsync(
             WorkerMessage.Create(
                 WorkerProtocolConstants.ErrorKind,
                 WorkerProtocolCodec.SerializePayload(new WorkerErrorDto(code, message)),
                 runId),
             cancellationToken);
 
-    private sealed class WorkerEventPublisher(WorkerMessageWriter writer, Guid runId) : IRunEventPublisher, IAsyncDisposable
+    private sealed class WorkerEventPublisher(IWorkerTransport transport, Guid runId) : IRunEventPublisher, IAsyncDisposable
     {
         private readonly SemaphoreSlim _gate = new(1, 1);
         private readonly SortedDictionary<long, WorkerEventEnvelopeDto> _pending = [];
@@ -277,7 +352,7 @@ public static class RunnerHost
                 _pending[runtimeEvent.Sequence] = envelope;
                 while (_pending.Remove(_lastWrittenSequence + 1, out var next))
                 {
-                    await writer.WriteAsync(
+                    await transport.SendAsync(
                         WorkerMessage.Create(WorkerProtocolConstants.EventKind, WorkerProtocolCodec.SerializePayload(next), runId, sequence: next.Sequence),
                         cancellationToken);
                     _lastWrittenSequence = next.Sequence;
@@ -329,7 +404,7 @@ public static class RunnerHost
                 _pending[envelope.Sequence] = envelope;
                 while (_pending.Remove(_lastWrittenSequence + 1, out var next))
                 {
-                    await writer.WriteAsync(
+                    await transport.SendAsync(
                         WorkerMessage.Create(WorkerProtocolConstants.EventKind, WorkerProtocolCodec.SerializePayload(next), runId, sequence: next.Sequence),
                         cancellationToken);
                     _lastWrittenSequence = next.Sequence;

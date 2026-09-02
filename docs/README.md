@@ -11,8 +11,11 @@ find the current material.
 
 - [MCP service reference](mcp-readonly-server.md): HTTP and stdio transports,
   authentication, resources, prompts, tools, and operational boundaries.
-- [Worker protocol v1](worker-protocol-v1.md): the versioned JSON Lines
-  contract between the API supervisor and disposable Worker Runner processes.
+- [Worker protocol v2](worker-protocol-v2.md): the versioned JSON Lines
+  contract between the API supervisor and disposable Worker Runner processes,
+  including message delivery control frames.
+- [Worker message service](worker-message-service.zh-CN.md): the run-scoped
+  queue, event bus, DI, and controlled external-ingress behavior.
 
 For first-time local setup and the recommended MCP client workflow, start with
 the repository [README](../README.md).

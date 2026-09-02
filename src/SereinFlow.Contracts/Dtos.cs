@@ -837,6 +837,115 @@ public sealed record WorkerDebugOptionsDto(
     int MaxQueuedFlipflopTriggers = 64);
 
 /// <summary>
+/// Identifies the run-local message channel used by a Worker message endpoint.
+/// 标识 Worker 消息端点使用的运行内消息通道。
+/// </summary>
+public enum WorkerMessageChannelKindDto
+{
+    Queue = 0,
+    EventBus = 1,
+}
+
+/// <summary>
+/// Identifies the payload representation used at the Worker boundary.
+/// 标识 Worker 边界使用的载荷表示方式。
+/// </summary>
+public enum WorkerMessageSerializationModeDto
+{
+    DirectObject = 0,
+    Json = 1,
+}
+
+/// <summary>
+/// An external message sent to an active Worker run.
+/// 发送给活动 Worker 运行的外部消息。
+/// </summary>
+public sealed record WorkerMessageDeliveryDto(
+    int ProtocolVersion,
+    Guid RunId,
+    Guid MessageId,
+    string Topic,
+    WorkerMessageChannelKindDto ChannelKind,
+    WorkerMessageSerializationModeDto SerializationMode,
+    string? ContractId,
+    string PayloadJson,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? ExpiresAt = null);
+
+/// <summary>
+/// Acknowledges that an external message entered the Worker-local broker.
+/// 确认外部消息已进入 Worker 本地 Broker。
+/// </summary>
+public sealed record WorkerMessageAcceptedDto(
+    int ProtocolVersion,
+    Guid RunId,
+    Guid MessageId,
+    string Topic,
+    bool Duplicate = false);
+
+/// <summary>
+/// Describes the result of an API-to-Worker message delivery request.
+/// 描述 API 向 Worker 投递消息的结果。
+/// </summary>
+public enum WorkerMessageDeliveryStatusDto
+{
+    Accepted = 0,
+    Rejected = 1,
+    NotFound = 2,
+    NotReady = 3,
+    TimedOut = 4,
+}
+
+/// <summary>
+/// The bounded response returned by the Supervisor for message delivery.
+/// Supervisor 返回的有界消息投递结果。
+/// </summary>
+public sealed record WorkerMessageDeliveryResponseDto(
+    WorkerMessageDeliveryStatusDto Status,
+    int ProtocolVersion,
+    Guid RunId,
+    Guid MessageId,
+    string Topic,
+    string? Code,
+    string? Message,
+    bool Duplicate = false);
+
+/// <summary>
+/// Reports why an external message was rejected by the Worker boundary.
+/// 报告 Worker 边界拒绝外部消息的原因。
+/// </summary>
+public sealed record WorkerMessageRejectedDto(
+    int ProtocolVersion,
+    Guid RunId,
+    Guid MessageId,
+    string Topic,
+    string Code,
+    string Message);
+
+/// <summary>
+/// Announces a message endpoint explicitly exposed by a running Worker.
+/// 宣布运行中 Worker 显式开放的消息端点。
+/// </summary>
+public sealed record WorkerMessageEndpointDto(
+    int ProtocolVersion,
+    Guid RunId,
+    string Topic,
+    WorkerMessageChannelKindDto ChannelKind,
+    WorkerMessageSerializationModeDto SerializationMode,
+    string? ContractId,
+    bool ExternalIngress);
+
+/// <summary>
+/// JSON body accepted by the active-run message ingress endpoint.
+/// 活动运行消息入口接受的 JSON 请求体。
+/// </summary>
+public sealed record RunMessageIngressRequestDto(
+    JsonElement Payload,
+    string? MessageId = null,
+    string? ContractId = null,
+    WorkerMessageChannelKindDto ChannelKind = WorkerMessageChannelKindDto.Queue);
+
+/// <summary>
 /// A strictly increasing control command scoped to one debug session.
 /// 严格递增且仅作用于一个调试会话的控制命令。
 /// </summary>

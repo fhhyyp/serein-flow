@@ -23,6 +23,11 @@ public static class WorkerProtocolConstants
     public const string EventKind = "worker.event";
     public const string ResultKind = "worker.result";
     public const string ErrorKind = "worker.error";
+    public const string MessageDeliverKind = "message.deliver";
+    public const string MessageAcceptedKind = "message.accepted";
+    public const string MessageRejectedKind = "message.rejected";
+    public const string MessageRegisterKind = "message.register";
+    public const string MessageUnregisterKind = "message.unregister";
 }
 
 public sealed record WorkerMessage(
@@ -34,8 +39,14 @@ public sealed record WorkerMessage(
     DateTimeOffset? Deadline = null,
     string? PayloadJson = null)
 {
-    public static WorkerMessage Create(string kind, string? payloadJson = null, Guid? runId = null, DateTimeOffset? deadline = null, long? sequence = null)
-        => new(WorkerProtocolConstants.Version, kind, Guid.NewGuid().ToString("N"), runId, sequence, deadline, payloadJson);
+    public static WorkerMessage Create(
+        string kind,
+        string? payloadJson = null,
+        Guid? runId = null,
+        DateTimeOffset? deadline = null,
+        long? sequence = null,
+        string? requestId = null)
+        => new(WorkerProtocolConstants.Version, kind, requestId ?? Guid.NewGuid().ToString("N"), runId, sequence, deadline, payloadJson);
 }
 
 public sealed record WorkerErrorDto(string Code, string Message);
@@ -93,63 +104,6 @@ public static class WorkerProtocolCodec
         }
     }
 
-    public static async ValueTask WriteAsync(Stream stream, WorkerMessage message, CancellationToken cancellationToken = default)
-    {
-        if (stream is null)
-            throw new ArgumentNullException(nameof(stream), "The worker stream cannot be null. Worker 流不能为空。");
-        var line = Serialize(message) + "\n";
-        var bytes = Encoding.UTF8.GetBytes(line);
-        await stream.WriteAsync(bytes, cancellationToken);
-        await stream.FlushAsync(cancellationToken);
-    }
-
-    public static ValueTask<WorkerMessage?> ReadAsync(
-        StreamReader reader,
-        CancellationToken cancellationToken = default)
-        => ReadAsync(reader, diagnostic: null, cancellationToken);
-
-    public static async ValueTask<WorkerMessage?> ReadAsync(
-        StreamReader reader,
-        Action<string>? diagnostic,
-        CancellationToken cancellationToken = default)
-    {
-        if (reader is null)
-            throw new ArgumentNullException(nameof(reader), "The worker reader cannot be null. Worker 读取器不能为空。");
-        while (true)
-        {
-            var line = await reader.ReadLineAsync(cancellationToken);
-            if (line is null)
-                return null;
-            if (string.IsNullOrWhiteSpace(line))
-                continue;
-
-            try
-            {
-                return Deserialize(line);
-            }
-            catch (WorkerProtocolException exception)
-                when (exception.Code == "worker.invalid_message"
-                    && !line.TrimStart().StartsWith('{'))
-            {
-                // A third-party component may still write a plain-text
-                // diagnostic line to stdout despite the runner's Console.Out
-                // isolation. Ignore only non-JSON noise; malformed JSON that
-                // looks like a protocol object must still fail fast.
-                // 外部组件即使绕过 Console.Out 隔离，也可能向 stdout 写入纯文本诊断；仅忽略非 JSON 噪声，疑似协议对象的坏 JSON 仍立即失败。
-                try
-                {
-                    diagnostic?.Invoke(line);
-                }
-                catch
-                {
-                    // Diagnostics must never break protocol consumption.
-                    // 诊断记录失败时不能影响协议读取。
-                }
-                continue;
-            }
-        }
-    }
-
     public static string SerializePayload<T>(T payload)
         => JsonSerializer.Serialize(payload, JsonOptions);
 
@@ -166,36 +120,6 @@ public static class WorkerProtocolCodec
         {
             throw new WorkerProtocolException("worker.invalid_payload", $"Message '{message.Kind}' payload is invalid. 消息“{message.Kind}”的载荷无效。", exception);
         }
-    }
-}
-
-public sealed class WorkerMessageWriter : IAsyncDisposable
-{
-    private readonly Stream _stream;
-    private readonly SemaphoreSlim _gate = new(1, 1);
-
-    public WorkerMessageWriter(Stream stream)
-    {
-        _stream = stream ?? throw new ArgumentNullException(nameof(stream), "The worker stream cannot be null. Worker 流不能为空。");
-    }
-
-    public async ValueTask WriteAsync(WorkerMessage message, CancellationToken cancellationToken = default)
-    {
-        await _gate.WaitAsync(cancellationToken);
-        try
-        {
-            await WorkerProtocolCodec.WriteAsync(_stream, message, cancellationToken);
-        }
-        finally
-        {
-            _gate.Release();
-        }
-    }
-
-    public ValueTask DisposeAsync()
-    {
-        _gate.Dispose();
-        return ValueTask.CompletedTask;
     }
 }
 

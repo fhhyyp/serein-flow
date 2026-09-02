@@ -12,6 +12,39 @@ Use `SereinFlow.Core.Api` for `FlowLibrary`, `FlowNode`, `NodeParam`, and
 needs to select an execution branch. The SDK has no dependency on SereinFlow
 Domain or server implementation assemblies.
 
+## Run-local messaging
+
+Node libraries can use the same `IMessageService` instance during one Worker
+run. Queues are competing-consumer FIFO channels; event-bus subscriptions are
+independent broadcast cursors. JSON is the default representation and is
+recommended when more than one library participates:
+
+```csharp
+public sealed class DeviceNodes
+{
+    private readonly IMessageService _messages;
+
+    public DeviceNodes(IMessageService messages) => _messages = messages;
+
+    public async Task<string> WaitForDevice(IFlowContext context)
+    {
+        var queue = _messages.CreateMessageQueue(new MessageChannelOptions
+        {
+            ExternalIngress = true,
+            ContractId = "device.trigger.v1"
+        });
+        return await queue.ReceiveAsync<string>(
+            "device.trigger",
+            context.CancellationToken);
+    }
+}
+```
+
+`ExternalIngress` must be set explicitly; internal topics are not exposed to
+the API. `DirectObject` is limited to compatible CLR types in the same Worker
+process. Every wait and subscription should use the supplied cancellation
+token, and subscriptions should be disposed with `await using`.
+
 ## Constructor injection
 
 Node libraries can declare services with `FlowService`. Services are isolated

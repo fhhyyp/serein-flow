@@ -1,8 +1,13 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
+using SereinFlow.Worker.Client;
+using SereinFlow.Worker.Protocol;
 using static SereinFlow.Api.ApiEndpointHelpers;
 
 namespace SereinFlow.Api.Controllers;
@@ -17,6 +22,7 @@ public sealed class RunsController : ApiControllerBase
     private readonly RunInterruptionService _interruptions;
     private readonly IFlowDebugSessionStore _debugSessions;
     private readonly RunEventBroadcaster _eventBroadcaster;
+    private readonly IWorkerMessageRunClient _messageClient;
 
     public RunsController(
         IFlowRunStore runs,
@@ -25,7 +31,8 @@ public sealed class RunsController : ApiControllerBase
         RunExecutionQueue queue,
         RunInterruptionService interruptions,
         IFlowDebugSessionStore debugSessions,
-        RunEventBroadcaster eventBroadcaster)
+        RunEventBroadcaster eventBroadcaster,
+        IWorkerMessageRunClient messageClient)
     {
         _runs = runs;
         _outputs = outputs;
@@ -34,6 +41,7 @@ public sealed class RunsController : ApiControllerBase
         _interruptions = interruptions;
         _debugSessions = debugSessions;
         _eventBroadcaster = eventBroadcaster;
+        _messageClient = messageClient;
     }
 
     [HttpGet]
@@ -152,6 +160,103 @@ public sealed class RunsController : ApiControllerBase
             : ApiProblem(StatusCodes.Status409Conflict, "Run is not currently cancellable. 当前运行实例不可取消。");
     }
 
+    [HttpPost("{runId:guid}/messages/{topic}")]
+    [ProducesResponseType(typeof(WorkerMessageDeliveryResponseDto), StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(StatusCodes.Status504GatewayTimeout)]
+    public async Task<ActionResult> DeliverMessage(
+        [FromRoute] Guid runId,
+        [FromRoute] string topic,
+        [FromBody] RunMessageIngressRequestDto? request,
+        CancellationToken cancellationToken)
+    {
+        var run = await _runs.FindAsync(runId, cancellationToken);
+        if (run is null)
+            return ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
+        if (run.IsTerminal || run.Status != FlowRunStatus.Running)
+        {
+            return ApiProblem(
+                StatusCodes.Status409Conflict,
+                "The Worker run is not active. Worker 运行当前不活动。",
+                extensions: new Dictionary<string, object?> { ["code"] = "worker.not_active" });
+        }
+        if (string.IsNullOrWhiteSpace(topic) || topic.Length > 256 || topic.Contains('\r') || topic.Contains('\n'))
+        {
+            return ApiProblem(
+                StatusCodes.Status400BadRequest,
+                "The message topic is invalid. 消息主题无效。",
+                extensions: new Dictionary<string, object?> { ["code"] = "message.topic_invalid" });
+        }
+        if (request is null || request.Payload.ValueKind == JsonValueKind.Undefined)
+        {
+            return ApiProblem(
+                StatusCodes.Status400BadRequest,
+                "A JSON message payload is required. 必须提供 JSON 消息载荷。",
+                extensions: new Dictionary<string, object?> { ["code"] = "message.payload_required" });
+        }
+        if (!Enum.IsDefined(request.ChannelKind))
+        {
+            return ApiProblem(
+                StatusCodes.Status400BadRequest,
+                "The message channel kind is invalid. 消息通道类型无效。",
+                extensions: new Dictionary<string, object?> { ["code"] = "message.channel_invalid" });
+        }
+
+        var messageIdResult = ResolveMessageId(
+            runId,
+            topic.Trim(),
+            request.MessageId,
+            Request.Headers["Idempotency-Key"].FirstOrDefault());
+        if (!messageIdResult.IsSuccess)
+        {
+            return ApiProblem(
+                StatusCodes.Status400BadRequest,
+                "MessageId or Idempotency-Key must be a valid GUID. MessageId 或 Idempotency-Key 必须是有效 GUID。",
+                extensions: new Dictionary<string, object?> { ["code"] = "message.id_invalid" });
+        }
+
+        var delivery = new WorkerMessageDeliveryDto(
+            WorkerProtocol.Version,
+            runId,
+            messageIdResult.MessageId,
+            topic.Trim(),
+            request.ChannelKind,
+            WorkerMessageSerializationModeDto.Json,
+            request.ContractId,
+            JsonSerializer.Serialize(request.Payload, SereinJsonSerialization.CreateWebOptions()),
+            DateTimeOffset.UtcNow);
+        var response = await _messageClient.DeliverMessageAsync(delivery, cancellationToken);
+        return response.Status switch
+        {
+            WorkerMessageDeliveryStatusDto.Accepted
+                => Accepted($"/api/runs/{runId:D}/messages/{Uri.EscapeDataString(topic.Trim())}", response),
+            WorkerMessageDeliveryStatusDto.NotFound
+                => ApiProblem(
+                    StatusCodes.Status404NotFound,
+                    response.Message ?? "Worker run not found. 未找到 Worker 运行实例。",
+                    extensions: new Dictionary<string, object?> { ["code"] = response.Code ?? "worker.not_found" }),
+            WorkerMessageDeliveryStatusDto.NotReady
+                => ApiProblem(
+                    StatusCodes.Status409Conflict,
+                    response.Message ?? "Message endpoint is not ready. 消息入口尚未就绪。",
+                    extensions: new Dictionary<string, object?> { ["code"] = response.Code ?? "message.endpoint_not_ready" }),
+            WorkerMessageDeliveryStatusDto.TimedOut
+                => StatusCode(StatusCodes.Status504GatewayTimeout, response),
+            _ when string.Equals(response.Code, "message.endpoint_forbidden", StringComparison.Ordinal)
+                => StatusCode(StatusCodes.Status403Forbidden, response),
+            _ when string.Equals(response.Code, "message.channel_full", StringComparison.Ordinal)
+                => StatusCode(StatusCodes.Status429TooManyRequests, response),
+            _ => ApiProblem(
+                StatusCodes.Status400BadRequest,
+                response.Message ?? "The message was rejected. 消息被拒绝。",
+                extensions: new Dictionary<string, object?> { ["code"] = response.Code ?? "message.rejected" })
+        };
+    }
+
     [HttpPost("{runId:guid}/interrupt")]
     [ProducesResponseType(typeof(FlowRunDto), StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -251,4 +356,25 @@ public sealed class RunsController : ApiControllerBase
             lastEventId = item.Sequence;
         }
     }
+
+    private static MessageIdResolution ResolveMessageId(
+        Guid runId,
+        string topic,
+        string? requestedMessageId,
+        string? idempotencyKey)
+    {
+        if (!string.IsNullOrWhiteSpace(requestedMessageId))
+            return Guid.TryParse(requestedMessageId, out var parsed)
+                ? new MessageIdResolution(true, parsed)
+                : new MessageIdResolution(false, Guid.Empty);
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
+            return new MessageIdResolution(true, Guid.NewGuid());
+        if (Guid.TryParse(idempotencyKey, out var idempotencyGuid))
+            return new MessageIdResolution(true, idempotencyGuid);
+
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes($"{runId:D}:{topic}:{idempotencyKey}"));
+        return new MessageIdResolution(true, new Guid(bytes.AsSpan(0, 16)));
+    }
+
+    private readonly record struct MessageIdResolution(bool IsSuccess, Guid MessageId);
 }

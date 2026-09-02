@@ -16,6 +16,21 @@ public interface IWorkerRunClient
 }
 
 /// <summary>
+/// Optional Worker client port for delivering messages to active runs.
+/// 向活动运行投递消息的可选 Worker 客户端端口。
+/// </summary>
+public interface IWorkerMessageRunClient
+{
+    /// <summary>
+    /// Delivers a message and waits only for the Worker accepted/rejected acknowledgement.
+    /// 投递消息，并仅等待 Worker 的 accepted/rejected 接收应答。
+    /// </summary>
+    Task<WorkerMessageDeliveryResponseDto> DeliverMessageAsync(
+        WorkerMessageDeliveryDto delivery,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>
 /// Optional extension for Worker clients that support a long-lived debug
 /// session. Normal production execution continues to use <see cref="IWorkerRunClient"/>.
 /// 支持长寿命调试会话的 Worker 客户端可选扩展；普通生产运行仍使用 <see cref="IWorkerRunClient"/>。

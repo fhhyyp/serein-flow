@@ -1,4 +1,5 @@
 using SereinFlow.Core.Api;
+using SereinFlow.Library;
 using SereinFlow.Runtime.Abstractions;
 
 namespace SereinFlow.TestLibrary;
@@ -129,6 +130,31 @@ public sealed class 未命名类库节点
     [FlowNode(AnotherName = "读取默认类库名称")]
     public string 读取默认类库名称([NodeParam(Name = "输入值")] string 输入值)
         => 输入值;
+}
+
+[FlowLibrary("消息服务测试库")]
+public sealed class MessageNodes
+{
+    private readonly IMessageService _messageService;
+
+    public MessageNodes(IMessageService messageService)
+        => _messageService = messageService;
+
+    [FlowNode(
+        Id = "test.message.receive-external",
+        NodeType = NodeType.Flipflop,
+        AnotherName = "接收外部消息",
+        Desc = "接收显式开放的 JSON 消息入口。")]
+    public Task<string> ReceiveExternal(IFlowContext flowContext)
+    {
+        var queue = _messageService.CreateMessageQueue(new MessageChannelOptions
+        {
+            Capacity = 8,
+            ExternalIngress = true,
+            ContractId = "test.text"
+        });
+        return queue.ReceiveAsync<string>("test.message.inbox", flowContext.CancellationToken).AsTask();
+    }
 }
 
 public sealed record 批次质量结果(

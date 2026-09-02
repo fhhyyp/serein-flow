@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using SereinFlow.Core.Api;
+using SereinFlow.Library;
 using SereinFlow.Runtime.Abstractions;
 
 namespace SereinFlow.Worker.Runner;
@@ -14,6 +15,10 @@ namespace SereinFlow.Worker.Runner;
 internal sealed class WorkerLibraryServiceRuntime : IAsyncDisposable
 {
     private readonly ConcurrentDictionary<Assembly, Lazy<LibraryServiceProvider>> _providers = new();
+    private readonly IMessageService _messageService;
+
+    public WorkerLibraryServiceRuntime(IMessageService messageService)
+        => _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 
     public AsyncServiceScope CreateInvocationScope(Assembly libraryAssembly)
     {
@@ -22,8 +27,8 @@ internal sealed class WorkerLibraryServiceRuntime : IAsyncDisposable
         {
             var provider = _providers.GetOrAdd(
                 libraryAssembly,
-                static assembly => new Lazy<LibraryServiceProvider>(
-                    () => LibraryServiceProvider.Create(assembly),
+                assembly => new Lazy<LibraryServiceProvider>(
+                    () => LibraryServiceProvider.Create(assembly, _messageService),
                     LazyThreadSafetyMode.ExecutionAndPublication));
             return provider.Value.CreateInvocationScope();
         }
@@ -104,11 +109,12 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
         _provider = provider;
     }
 
-    public static LibraryServiceProvider Create(Assembly assembly)
+    public static LibraryServiceProvider Create(Assembly assembly, IMessageService messageService)
     {
         var serviceTypes = DiscoverServiceTypes(assembly);
         var registrations = BuildRegistrations(serviceTypes);
         IServiceCollection services = new ServiceCollection();
+        services.AddSingleton(messageService);
 
         foreach (var registration in registrations.Implementations)
         {
