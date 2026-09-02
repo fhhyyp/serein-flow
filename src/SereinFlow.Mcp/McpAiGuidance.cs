@@ -22,6 +22,7 @@ public static class McpAiGuidance
     public const string SereinFlowProjectsResourceUri = "sereinflow://ai/skills/sereinflow/projects";
     public const string SereinFlowFlowsResourceUri = "sereinflow://ai/skills/sereinflow/flows";
     public const string SereinFlowRuntimeResourceUri = "sereinflow://ai/skills/sereinflow/runtime";
+    public const string SereinFlowApiKeysResourceUri = "sereinflow://ai/skills/sereinflow/api-keys";
     public const string SereinFlowReleaseResourceUri = "sereinflow://ai/skills/sereinflow/release";
     public const string SereinLangSyntaxResourceUri = "sereinflow://ai/skills/sereinlang/syntax";
     public const string SereinLangHostResourceUri = "sereinflow://ai/skills/sereinlang/host";
@@ -37,6 +38,7 @@ public static class McpAiGuidance
         new("sereinflow.projects", SereinFlowProjectsResourceUri, "sereinflow-projects", "Project discovery and read-only project inspection", "mcp/sereinflow-projects-skill.md"),
         new("sereinflow.flows", SereinFlowFlowsResourceUri, "sereinflow-flows", "Flow editing, patch and layout rules", "mcp/sereinflow-flows-skill.md"),
         new("sereinflow.runtime", SereinFlowRuntimeResourceUri, "sereinflow-runtime", "Run, debug and post-change verification rules", "mcp/sereinflow-runtime-skill.md"),
+        new("sereinflow.api-keys", SereinFlowApiKeysResourceUri, "sereinflow-api-keys", "MCP API key lifecycle and secret handling rules", "mcp/sereinflow-api-keys-skill.md"),
         new("sereinflow.release", SereinFlowReleaseResourceUri, "sereinflow-release", "Publishing and rollback rules", "mcp/sereinflow-release-skill.md"),
         new("sereinlang.syntax", SereinLangSyntaxResourceUri, "sereinlang-syntax", "SereinLang lexical and expression rules", "mcp/sereinlang-syntax-skill.md"),
         new("sereinlang.host", SereinLangHostResourceUri, "sereinlang-host", "SereinLang imports and host interoperation", "mcp/sereinlang-host-skill.md"),

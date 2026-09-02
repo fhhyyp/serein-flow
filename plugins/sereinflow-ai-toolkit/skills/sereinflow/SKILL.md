@@ -6,8 +6,8 @@ description: Connect to SereinFlow MCP, load its live routing guide, and operate
 # SereinFlow MCP
 
 Use the configured `sereinflow` MCP server as the source of truth for
-SereinFlow projects, flows, runs, debugging, versions, SereinLang and library
-packages. Treat the service as a remote black box; do not use local source,
+SereinFlow projects, flows, runs, debugging, versions, run-message endpoints,
+SereinLang, library packages and MCP API-key administration. Treat the service as a remote black box; do not use local source,
 databases, library directories or uploaded binaries to explain a server result.
 
 ## Required loading order
@@ -137,8 +137,10 @@ literals and server-local absolute paths.
 
 ## Mutation gate
 
-For an explicit request to create a project, edit a flow, publish, attach or
-import a library, use one task-level authorization and this sequence:
+For an explicit request to create a project, edit a flow, publish, rollback,
+attach or import a library, assign or upgrade a library family, publish a
+run message, or manage an MCP API key, use one task-level authorization and
+this sequence:
 
 ```text
 read current state -> preview requested scope -> inspect diagnostics/diff
@@ -151,6 +153,13 @@ the request is ambiguous, the preview is destructive or unexpected, production
 state, permissions or secrets change, a version conflict occurs, or the scope
 materially differs from the request. Read-only inspection, compilation and
 post-apply rereads do not need confirmation.
+
+For `sereinflow_publish_run_message`, include a non-empty `idempotencyKey` and
+use the runtime skill. `accepted` only means Worker broker acceptance; verify
+downstream run state or outputs. For API-key tools, use the dedicated
+`sereinflow://ai/skills/sereinflow/api-keys` Resource, keep returned secrets
+out of logs and repository files, and never repeat a create or rotate call
+after an ambiguous response without first reading current key state.
 
 ## Debug workflow
 

@@ -1,4 +1,4 @@
-# SereinFlow MCP
+# SereinFlow MCP 服务
 
 ## 状态
 
@@ -182,6 +182,7 @@ sereinflow.edit-flow
 sereinflow.debug-run
 sereinflow.publish-flow
 sereinflow.package-library
+sereinflow.upgrade-library
 sereinlang.compile
 ```
 
@@ -240,6 +241,12 @@ JSON 值（包括数组、字符串、数值、布尔值和 `null`），`channel
 `worker.not_found`、`message.endpoint_not_ready`、`message.endpoint_forbidden`、
 `message.contract_mismatch`、`message.channel_full` 和
 `message.delivery_timeout`。
+
+MCP API key 管理工具仅限管理员使用。使用
+`sereinflow_list_mcp_api_keys` 读取当前状态后，再按明确请求调用创建、轮换或
+撤销工具；变更操作需要 `idempotencyKey`。项目级 key 必须绑定未归档项目，管理
+员 key 不能绑定项目。创建或轮换返回的 secret 只显示一次，不得写入日志、仓库、
+Prompt 或无关工具参数；发生不明确响应时先重新读取 key 列表，不要盲目重试。
 
 流程修改使用 `sereinflow_preview_flow_patch` 后再由显式确认的
 apply Tool 执行；v2 请求使用 `schemaVersion: "2.0"`、`op` discriminator、

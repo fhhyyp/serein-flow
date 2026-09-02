@@ -1,6 +1,6 @@
 # SereinFlow MCP Guide
 
-Guide version: 7
+Guide version: 8
 
 This is the MCP entry point for AI guidance. After `initialize`, read this
 Resource and then read only the smallest module Resource needed for the
@@ -14,6 +14,7 @@ client. Current tool schemas and read Resources are authoritative.
 | Project discovery or inspection | `sereinflow://ai/skills/sereinflow/projects` |
 | Flow editing, nodes, connections or scripts | `sereinflow://ai/skills/sereinflow/flows` |
 | Runs, execution or debugging | `sereinflow://ai/skills/sereinflow/runtime` |
+| MCP API key administration | `sereinflow://ai/skills/sereinflow/api-keys` |
 | Publish or rollback | `sereinflow://ai/skills/sereinflow/release` |
 | SereinLang lexical or expression syntax | `sereinflow://ai/skills/sereinlang/syntax` |
 | SereinLang imports or host APIs | `sereinflow://ai/skills/sereinlang/host` |
