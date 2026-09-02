@@ -132,6 +132,56 @@ public sealed class FlowPatchContractNormalizerTests
         Assert.Equal("a parameter ID on toNodeId", exception.Expected);
     }
 
+    [Fact]
+    public void ParameterCanBeAddedBeforeAConnectionTargetsIt()
+    {
+        var normalizer = new FlowPatchContractNormalizer();
+        var normalized = normalizer.Normalize(Request(
+            new
+            {
+                op = "addNodeParameter",
+                canvasId = "main",
+                nodeId = "node-existing",
+                parameter = Parameter("amount-2"),
+            },
+            new
+            {
+                op = "addConnection",
+                canvasId = "main",
+                connection = DataConnection("data-connection", "amount-2"),
+            }));
+
+        normalizer.ValidateReferences(CurrentDefinition(), normalized.Request.Operations);
+    }
+
+    [Fact]
+    public void ParameterCannotBeRemovedBeforeItsDataConnections()
+    {
+        var normalizer = new FlowPatchContractNormalizer();
+        var normalized = normalizer.Normalize(Request(new
+        {
+            op = "removeNodeParameter",
+            canvasId = "main",
+            nodeId = "node-existing",
+            parameterId = "amount",
+        }));
+        var current = CurrentDefinition();
+        var definition = current with
+        {
+            Canvases =
+            [current.Canvases[0] with
+            {
+                Connections = [DataConnectionDto("data-connection", "amount")],
+            }]
+        };
+
+        var exception = Assert.Throws<FlowPatchContractException>(() =>
+            normalizer.ValidateReferences(definition, normalized.Request.Operations));
+
+        Assert.Equal("mcp.flow_patch.reference_invalid", exception.Code);
+        Assert.Equal("$.operations[0].parameterId", exception.FieldPath);
+    }
+
     public static IEnumerable<object[]> V2Operations()
     {
         yield return ["addCanvas", new { op = "addCanvas", canvas = Canvas("extra") }];
@@ -141,6 +191,8 @@ public sealed class FlowPatchContractNormalizerTests
         yield return ["replaceNode", new { op = "replaceNode", canvasId = "main", nodeId = "node-existing", node = ActionNode("node-existing") }];
         yield return ["removeNode", new { op = "removeNode", canvasId = "main", nodeId = "node-existing" }];
         yield return ["setNodeParameter", new { op = "setNodeParameter", canvasId = "main", nodeId = "node-existing", parameterId = "amount", parameter = Parameter("amount") }];
+        yield return ["addNodeParameter", new { op = "addNodeParameter", canvasId = "main", nodeId = "node-existing", parameter = Parameter("amount-2") }];
+        yield return ["removeNodeParameter", new { op = "removeNodeParameter", canvasId = "main", nodeId = "node-existing", parameterId = "amount" }];
         yield return ["addConnection", new { op = "addConnection", canvasId = "main", connection = Connection("connection-added") }];
         yield return ["replaceConnection", new { op = "replaceConnection", canvasId = "main", connectionId = "connection-existing", connection = Connection("connection-existing") }];
         yield return ["removeConnection", new { op = "removeConnection", canvasId = "main", connectionId = "connection-existing" }];
@@ -149,14 +201,14 @@ public sealed class FlowPatchContractNormalizerTests
         yield return ["replaceScriptSource", new { op = "replaceScriptSource", canvasId = "main", nodeId = "node-script", source = "result = 1" }];
     }
 
-    private static JsonElement Request(object operation)
+    private static JsonElement Request(params object[] operations)
         => JsonSerializer.SerializeToElement(new
         {
             projectId = Guid.NewGuid(),
             flowId = Guid.NewGuid(),
             expectedDevelopmentVersion = 1,
             schemaVersion = "2.0",
-            operations = new[] { operation }
+            operations
         });
 
     private static object Canvas(string id)
@@ -236,6 +288,18 @@ public sealed class FlowPatchContractNormalizerTests
             dataSource = (string?)null,
             priority = 0
         };
+
+    private static ConnectionDto DataConnectionDto(string id, string targetParameterId)
+        => new(
+            id,
+            "node-existing",
+            "data-out",
+            "node-existing",
+            targetParameterId,
+            ConnectionKindDto.Data,
+            null,
+            DataSourceDto.PreviousNode,
+            0);
 
     private static object Script(string nodeId)
         => new

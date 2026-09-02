@@ -9,20 +9,6 @@ using SereinFlow.Worker.Client;
 
 namespace SereinFlow.Api;
 
-public sealed record FlowDebugSessionStartResult(
-    FlowDebugSession? Session,
-    int StatusCode,
-    string? ErrorTitle = null,
-    object? ErrorBody = null)
-{
-    public bool IsAccepted => Session is not null;
-}
-
-public sealed record FlowDebugSessionCommandResult(int StatusCode, string? ErrorTitle = null)
-{
-    public bool IsAccepted => StatusCode is >= 200 and < 300;
-}
-
 /// <summary>
 /// Owns API-side debug handles while keeping all executable code inside the
 /// Worker process. The durable session record is intentionally smaller than a
@@ -30,7 +16,7 @@ public sealed record FlowDebugSessionCommandResult(int StatusCode, string? Error
 /// 在 API 侧持有调试句柄，同时将所有可执行代码保留在 Worker 进程内。持久化会话记录
 /// 被刻意设计得比 Worker 会话更小，因此 API 重启后可安全对账。
 /// </summary>
-public sealed class FlowDebugSessionService : IHostedService
+public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionService
 {
     private const string DebugStoppedMessage = "The debug session was stopped. 调试会话已停止。";
     private static readonly Action<ILogger, Guid, Exception?> DebugWorkerStartupFailedLog = LoggerMessage.Define<Guid>(
@@ -106,7 +92,8 @@ public sealed class FlowDebugSessionService : IHostedService
                 null,
                 StatusCodes.Status422UnprocessableEntity,
                 "The debug trigger queue limit must be between 0 and 1024. 调试触发队列上限必须在 0 到 1024 之间。",
-                new { code = "debug.invalid_trigger_queue_limit" });
+                new { code = "debug.invalid_trigger_queue_limit" },
+                "debug.invalid_trigger_queue_limit");
         }
         var debugSessionId = Guid.NewGuid();
 
@@ -122,7 +109,8 @@ public sealed class FlowDebugSessionService : IHostedService
                 null,
                 StatusCodes.Status409Conflict,
                 "This flow already has an active debug session. 当前流程已有活动调试会话。",
-                new { code = "debug.session_already_active", sessionId = activeForFlow.Id });
+                new { code = "debug.session_already_active", sessionId = activeForFlow.Id },
+                "debug.session_already_active");
         }
         var preparation = await runService.PrepareAsync(
             projectId,
@@ -176,7 +164,8 @@ public sealed class FlowDebugSessionService : IHostedService
                 null,
                 StatusCodes.Status429TooManyRequests,
                 failure,
-                new { code = "debug.execution_capacity_full" });
+                new { code = "debug.execution_capacity_full" },
+                "debug.execution_capacity_full");
         }
 
         try
@@ -245,7 +234,8 @@ public sealed class FlowDebugSessionService : IHostedService
                 null,
                 StatusCodes.Status503ServiceUnavailable,
                 "The debug Worker could not start. 调试 Worker 无法启动。",
-                new { code = "debug.worker_start_failed" });
+                new { code = "debug.worker_start_failed" },
+                "debug.worker_start_failed");
         }
     }
 
@@ -367,13 +357,15 @@ public sealed class FlowDebugSessionService : IHostedService
         {
             return new FlowDebugSessionCommandResult(
                 StatusCodes.Status400BadRequest,
-                "The debug command sequence must be positive. 调试命令序号必须为正数。");
+                "The debug command sequence must be positive. 调试命令序号必须为正数。",
+                "debug.invalid_command_sequence");
         }
         if (!_active.TryGetValue(sessionId, out var active))
         {
             return new FlowDebugSessionCommandResult(
                 StatusCodes.Status409Conflict,
-                "The debug session is not active. 调试会话当前未处于活动状态。");
+                "The debug session is not active. 调试会话当前未处于活动状态。",
+                "debug.session_not_active");
         }
 
         await active.CommandGate.WaitAsync(cancellationToken);
@@ -383,14 +375,22 @@ public sealed class FlowDebugSessionService : IHostedService
             var store = scope.ServiceProvider.GetRequiredService<IFlowDebugSessionStore>();
             var session = await store.FindAsync(sessionId, cancellationToken);
             if (session is null)
-                return new FlowDebugSessionCommandResult(StatusCodes.Status404NotFound, "Debug session not found. 未找到调试会话。");
+                return new FlowDebugSessionCommandResult(StatusCodes.Status404NotFound, "Debug session not found. 未找到调试会话。", "debug.session_not_found");
             if (session.IsTerminal)
-                return new FlowDebugSessionCommandResult(StatusCodes.Status409Conflict, "The debug session is already complete. 调试会话已经完成。");
+                return new FlowDebugSessionCommandResult(StatusCodes.Status409Conflict, "The debug session is already complete. 调试会话已经完成。", "debug.session_terminal");
+            if (commandSequence <= session.LastCommandSequence)
+            {
+                return new FlowDebugSessionCommandResult(
+                    StatusCodes.Status409Conflict,
+                    "The debug command sequence must be strictly increasing. 调试命令序号必须严格递增。",
+                    "debug.command_sequence_conflict");
+            }
             if (requirePaused && session.Status != FlowDebugSessionStatus.Paused)
             {
                 return new FlowDebugSessionCommandResult(
                     StatusCodes.Status409Conflict,
-                    "The debug session is not paused. 调试会话当前未暂停。");
+                    "The debug session is not paused. 调试会话当前未暂停。",
+                    "debug.session_not_paused");
             }
 
             if (cancelRun)
@@ -421,9 +421,16 @@ public sealed class FlowDebugSessionService : IHostedService
             await store.SaveAsync(session, cancellationToken);
             return new FlowDebugSessionCommandResult(StatusCodes.Status202Accepted);
         }
+        catch (InvalidOperationException exception) when (exception.Message.Contains("strictly increasing", StringComparison.OrdinalIgnoreCase))
+        {
+            return new FlowDebugSessionCommandResult(
+                StatusCodes.Status409Conflict,
+                "The debug command sequence must be strictly increasing. 调试命令序号必须严格递增。",
+                "debug.command_sequence_conflict");
+        }
         catch (InvalidOperationException exception)
         {
-            return new FlowDebugSessionCommandResult(StatusCodes.Status409Conflict, exception.Message);
+            return new FlowDebugSessionCommandResult(StatusCodes.Status409Conflict, exception.Message, "debug.command_rejected");
         }
         finally
         {

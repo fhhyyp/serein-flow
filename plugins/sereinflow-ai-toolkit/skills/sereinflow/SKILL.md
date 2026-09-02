@@ -151,3 +151,17 @@ the request is ambiguous, the preview is destructive or unexpected, production
 state, permissions or secrets change, a version conflict occurs, or the scope
 materially differs from the request. Read-only inspection, compilation and
 post-apply rereads do not need confirmation.
+
+## Debug workflow
+
+For interactive debugging, use `sereinflow_list_debug_sessions` or
+`sereinflow_list_runs` to discover the target, then call
+`sereinflow_start_debug_session` with an `idempotencyKey`. Observe the
+session through `sereinflow_get_debug_state` or
+`sereinflow_wait_debug_state`. A paused session accepts
+`sereinflow_step_debug` or `sereinflow_continue_debug`; every command must use
+the next strictly increasing `commandSequence`. Use
+`sereinflow_stop_debug` to cancel an active session. Start and control require
+`debug.control`; discovery, state and wait reads accept `debug.read` or
+`run.read`. Do not blindly retry a control command after an ambiguous
+response—read the durable state first.

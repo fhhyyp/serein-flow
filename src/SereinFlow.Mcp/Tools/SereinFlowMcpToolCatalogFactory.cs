@@ -55,10 +55,38 @@ internal static class SereinFlowMcpToolCatalogFactory
                 ["maxItems"] = NumberSchema(), ["maxJsonBytes"] = NumberSchema(),
                 ["includeFlowLiteralValues"] = BooleanSchema(), ["includeScriptSource"] = BooleanSchema()
             }, required: ["runId"])),
+        Tool("sereinflow_list_runs", "List bounded run summaries, optionally filtered by project and status.", Schema(
+            properties: new Dictionary<string, object?>
+            {
+                ["projectId"] = StringSchema(), ["status"] = StringSchema(), ["maxItems"] = NumberSchema()
+            })),
+        Tool("sereinflow_list_debug_sessions", "List bounded active debug session summaries.", Schema(
+            properties: new Dictionary<string, object?>
+            {
+                ["projectId"] = StringSchema(), ["maxItems"] = NumberSchema()
+            })),
         Tool("sereinflow_get_debug_state", "Read the structured state of one debug session.", Schema(
             properties: new Dictionary<string, object?> { ["sessionId"] = StringSchema() }, required: ["sessionId"])),
         Tool("sereinflow_wait_debug_state", "Wait for a debug session state revision to change or reach a terminal state.", Schema(
             properties: new Dictionary<string, object?> { ["sessionId"] = StringSchema(), ["afterRevision"] = NumberSchema(), ["timeoutSeconds"] = NumberSchema() }, required: ["sessionId", "afterRevision"])),
+        Tool("sereinflow_start_debug_session", "Start a bounded debug Worker session for a saved flow.", Schema(
+            properties: new Dictionary<string, object?>
+            {
+                ["projectId"] = StringSchema(), ["flowId"] = StringSchema(),
+                ["breakpointNodeIds"] = ArraySchema(StringSchema()), ["projectInputs"] = new { type = "object" },
+                ["timeoutSeconds"] = NumberSchema(), ["maxSteps"] = NumberSchema(), ["maxNodeVisits"] = NumberSchema(),
+                ["expectedFlowVersion"] = NumberSchema(), ["maxQueuedFlipflopTriggers"] = NumberSchema(),
+                ["idempotencyKey"] = StringSchema("A fresh key for this exact debug start request.")
+            }, required: ["projectId", "flowId", "idempotencyKey"])),
+        Tool("sereinflow_continue_debug", "Continue a paused debug session.", Schema(
+            properties: new Dictionary<string, object?> { ["sessionId"] = StringSchema(), ["commandSequence"] = NumberSchema() },
+            required: ["sessionId", "commandSequence"])),
+        Tool("sereinflow_step_debug", "Execute one node boundary in a paused debug session.", Schema(
+            properties: new Dictionary<string, object?> { ["sessionId"] = StringSchema(), ["commandSequence"] = NumberSchema() },
+            required: ["sessionId", "commandSequence"])),
+        Tool("sereinflow_stop_debug", "Stop an active debug session.", Schema(
+            properties: new Dictionary<string, object?> { ["sessionId"] = StringSchema(), ["commandSequence"] = NumberSchema() },
+            required: ["sessionId", "commandSequence"])),
         Tool("sereinflow_get_flow_edit_model", "Read the development flow model used to create safe structured patches.", Schema(
             properties: new Dictionary<string, object?>
             {
@@ -196,10 +224,23 @@ internal static class SereinFlowMcpToolCatalogFactory
                 static (context, arguments, cancellationToken) => McpReadModelToolHandlers.GetLibraryUpgradeAsync(context, arguments, cancellationToken)),
             Read("sereinflow_get_run_inspection", McpPermissionDto.RunRead,
                 static (context, arguments, cancellationToken) => McpReadModelToolHandlers.GetRunInspectionAsync(context, arguments, cancellationToken)),
-            Read("sereinflow_get_debug_state", McpPermissionDto.DebugRead,
+            ReadAny("sereinflow_list_runs",
+                static (context, arguments, cancellationToken) => McpDebugToolHandlers.ListRunsAsync(context, arguments, cancellationToken)),
+            ReadAny("sereinflow_list_debug_sessions",
+                static (context, arguments, cancellationToken) => McpDebugToolHandlers.ListDebugSessionsAsync(context, arguments, cancellationToken)),
+            ReadAny("sereinflow_get_debug_state",
                 static (context, arguments, cancellationToken) => McpReadModelToolHandlers.GetDebugStateAsync(context, arguments, cancellationToken)),
-            Read("sereinflow_wait_debug_state", McpPermissionDto.DebugRead,
+            ReadAny("sereinflow_wait_debug_state",
                 static (context, arguments, cancellationToken) => McpReadModelToolHandlers.WaitForDebugStateAsync(context, arguments, cancellationToken)),
+            Mutation("sereinflow_start_debug_session", McpPermissionDto.DebugControl,
+                static (context, arguments, cancellationToken) => McpDebugToolHandlers.StartAsync(context, arguments, cancellationToken),
+                requiresIdempotencyKey: true),
+            Mutation("sereinflow_continue_debug", McpPermissionDto.DebugControl,
+                static (context, arguments, cancellationToken) => McpDebugToolHandlers.ContinueAsync(context, arguments, cancellationToken)),
+            Mutation("sereinflow_step_debug", McpPermissionDto.DebugControl,
+                static (context, arguments, cancellationToken) => McpDebugToolHandlers.StepAsync(context, arguments, cancellationToken)),
+            Mutation("sereinflow_stop_debug", McpPermissionDto.DebugControl,
+                static (context, arguments, cancellationToken) => McpDebugToolHandlers.StopAsync(context, arguments, cancellationToken)),
             Read("sereinflow_get_flow_edit_model", McpPermissionDto.ProjectRead,
                 static (context, arguments, cancellationToken) => McpReadModelToolHandlers.GetFlowEditModelAsync(context, arguments, cancellationToken)),
             Read("sereinflow_create_library_node_template", McpPermissionDto.ProjectRead,
@@ -271,6 +312,19 @@ internal static class SereinFlowMcpToolCatalogFactory
             async (context, arguments, cancellationToken) => (object?)await execute(context, arguments, cancellationToken),
             false,
             null);
+
+    private static McpToolDefinition ReadAny<T>(
+        string name,
+        Func<McpToolContext, JsonElement, CancellationToken, Task<T>> execute)
+        => new(
+            GetToolDescriptor(name),
+            McpToolExecutionKind.Read,
+            async (context, arguments, cancellationToken) => (object?)await execute(context, arguments, cancellationToken),
+            (context, arguments) => context.Security.RequireAny(
+                context.Principal,
+                TryGetGuid(arguments, "projectId"),
+                McpPermissionDto.DebugRead,
+                McpPermissionDto.RunRead));
 
     private static McpToolDefinition Mutation<T>(
         string name,

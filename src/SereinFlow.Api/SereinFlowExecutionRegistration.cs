@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using SereinFlow.Application;
 using SereinFlow.Contracts;
 using SereinFlow.Worker.Client;
 
@@ -45,6 +46,8 @@ public static class SereinFlowExecutionRegistration
         services.AddSingleton<RunExecutionQueue>();
         services.AddSingleton<RunEventBroadcaster>();
         services.AddSingleton<FlowDebugSessionService>();
+        services.AddSingleton<IFlowDebugSessionService>(serviceProvider =>
+            serviceProvider.GetRequiredService<FlowDebugSessionService>());
         services.AddHostedService<RunExecutionHostedService>();
         services.AddHostedService(serviceProvider => serviceProvider.GetRequiredService<FlowDebugSessionService>());
         services.AddHostedService<LibraryCatalogReindexHostedService>();
@@ -64,12 +67,15 @@ public static class SereinFlowExecutionRegistration
         var contentRoot = new DirectoryInfo(contentRootPath);
         for (var ancestor = contentRoot; ancestor is not null; ancestor = ancestor.Parent)
         {
-            foreach (var configuration in new[] { "Debug", "Release" })
+            foreach (var projectRoot in new[] { ancestor.FullName, Path.Combine(ancestor.FullName, "src") })
             {
-                var outputRoot = Path.Combine(ancestor.FullName, "SereinFlow.Worker.Runner", "bin", configuration, "net10.0");
-                candidates.Add(Path.Combine(outputRoot, "SereinFlow.Worker.Runner.exe"));
-                candidates.Add(Path.Combine(outputRoot, "SereinFlow.Worker.Runner"));
-                candidates.Add(Path.Combine(outputRoot, "SereinFlow.Worker.Runner.dll"));
+                foreach (var configuration in new[] { "Debug", "Release" })
+                {
+                    var outputRoot = Path.Combine(projectRoot, "SereinFlow.Worker.Runner", "bin", configuration, "net10.0");
+                    candidates.Add(Path.Combine(outputRoot, "SereinFlow.Worker.Runner.exe"));
+                    candidates.Add(Path.Combine(outputRoot, "SereinFlow.Worker.Runner"));
+                    candidates.Add(Path.Combine(outputRoot, "SereinFlow.Worker.Runner.dll"));
+                }
             }
         }
 

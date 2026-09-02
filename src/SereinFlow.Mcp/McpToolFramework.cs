@@ -251,7 +251,13 @@ public sealed class McpToolExecutor
             stopwatch.Stop();
             await _audit.RecordAsync(tool.Descriptor.Name, tool.DefaultAuditTrack, arguments, principal, "denied", exception.Code, null, stopwatch.Elapsed);
             throw new McpProtocolException(
-                exception.StatusCode == 401 ? -32001 : -32003,
+                exception.StatusCode switch
+                {
+                    401 => -32001,
+                    403 => -32003,
+                    409 => -32010,
+                    _ => -32000
+                },
                 exception.Message,
                 new { code = exception.Code });
         }

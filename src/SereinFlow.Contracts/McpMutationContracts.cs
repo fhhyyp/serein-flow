@@ -129,6 +129,8 @@ public enum FlowPatchOperationKindDto
     SetEntryNode,
     SetRunPolicy,
     ReplaceScriptSource,
+    AddNodeParameter,
+    RemoveNodeParameter,
 }
 
 public sealed record FlowPatchOperationDto(
@@ -414,3 +416,36 @@ public sealed record RotatedMcpApiKeyDto(
     McpApiKeyDto Key,
     string? Secret,
     bool Replayed = false);
+
+/// <summary>
+/// MCP-only start contract. The HTTP API keeps using
+/// <see cref="StartFlowDebugSessionRequestDto"/> without an idempotency key.
+/// </summary>
+public sealed record McpStartFlowDebugSessionRequestDto(
+    Guid ProjectId,
+    Guid FlowId,
+    IReadOnlyList<string>? BreakpointNodeIds,
+    IReadOnlyDictionary<string, JsonElement>? ProjectInputs = null,
+    int? TimeoutSeconds = null,
+    int? MaxSteps = null,
+    int? MaxNodeVisits = null,
+    long? ExpectedFlowVersion = null,
+    int? MaxQueuedFlipflopTriggers = null,
+    string? IdempotencyKey = null);
+
+public sealed record McpDebugSessionStartedDto(
+    Guid SessionId,
+    Guid RunId,
+    Guid ProjectId,
+    Guid FlowId,
+    FlowDebugSessionStatusDto Status,
+    long StateRevision);
+
+public sealed record McpDebugCommandAcceptedDto(
+    Guid SessionId,
+    Guid RunId,
+    string Command,
+    long CommandSequence,
+    FlowDebugSessionStatusDto Status,
+    long StateRevision,
+    bool Accepted = true);

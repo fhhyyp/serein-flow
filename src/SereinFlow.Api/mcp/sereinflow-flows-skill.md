@@ -7,10 +7,17 @@ as the edit contract.
 Flow changes start with `sereinflow_preview_flow_patch` using schema version
 `2.0`, camelCase enum values and typed operations. Allowed operations are
 `addCanvas`, `updateCanvas`, `removeCanvas`, `addNode`, `replaceNode`,
-`removeNode`, `setNodeParameter`, `addConnection`, `replaceConnection`,
-`removeConnection`, `setEntryNode`, `setRunPolicy` and `replaceScriptSource`.
+`removeNode`, `setNodeParameter`, `addNodeParameter`, `removeNodeParameter`,
+`addConnection`, `replaceConnection`, `removeConnection`, `setEntryNode`,
+`setRunPolicy` and `replaceScriptSource`.
 Do not use the legacy `operation` / `value` envelope. Remove connections before
-removing nodes and handle canvas contents before removing a canvas.
+removing parameters or nodes, and handle canvas contents before removing a
+canvas. `addNodeParameter` appends one complete parameter contract; use it for
+an additional variadic member with a unique `ui.id` in the existing
+`variadicGroupId`. `removeNodeParameter` requires its incoming data connections
+to be removed first. The operation is applied through the same preview/apply
+flow-version workflow and can be combined with `addConnection` in one ordered
+patch after the parameter has been added.
 
 New nodes, canvases and connections need stable IDs. For an attached library,
 use the canonical node template returned by

@@ -132,6 +132,8 @@ public sealed class FlowPatchContractNormalizer
             "replaceNode" => Legacy(FlowPatchOperationKindDto.ReplaceNode, operation.CanvasId, operation.NodeId, value: operation.Node),
             "removeNode" => Legacy(FlowPatchOperationKindDto.RemoveNode, operation.CanvasId, operation.NodeId),
             "setNodeParameter" => Legacy(FlowPatchOperationKindDto.SetNodeParameter, operation.CanvasId, operation.NodeId, parameterId: operation.ParameterId, value: operation.Parameter),
+            "addNodeParameter" => Legacy(FlowPatchOperationKindDto.AddNodeParameter, operation.CanvasId, operation.NodeId, value: operation.Parameter),
+            "removeNodeParameter" => Legacy(FlowPatchOperationKindDto.RemoveNodeParameter, operation.CanvasId, operation.NodeId, parameterId: operation.ParameterId),
             "addConnection" => Legacy(FlowPatchOperationKindDto.AddConnection, operation.CanvasId, value: operation.Connection),
             "replaceConnection" => Legacy(FlowPatchOperationKindDto.ReplaceConnection, operation.CanvasId, connectionId: operation.ConnectionId, value: operation.Connection),
             "removeConnection" => Legacy(FlowPatchOperationKindDto.RemoveConnection, operation.CanvasId, connectionId: operation.ConnectionId),
@@ -229,6 +231,8 @@ public sealed class FlowPatchContractNormalizer
             "replaceNode" => new(op, ReadRequiredString(operation, "canvasId", $"{path}.canvasId"), ReadRequiredString(operation, "nodeId", $"{path}.nodeId"), Node: ReadNode(operation, "node", path, legacyEnums: false, ["op", "canvasId", "nodeId", "node"])),
             "removeNode" => ReadV2RemoveNode(operation, path, op),
             "setNodeParameter" => new(op, ReadRequiredString(operation, "canvasId", $"{path}.canvasId"), ReadRequiredString(operation, "nodeId", $"{path}.nodeId"), ParameterId: ReadRequiredString(operation, "parameterId", $"{path}.parameterId"), Parameter: ReadParameter(operation, "parameter", path, legacyEnums: false, ["op", "canvasId", "nodeId", "parameterId", "parameter"])),
+            "addNodeParameter" => new(op, ReadRequiredString(operation, "canvasId", $"{path}.canvasId"), ReadRequiredString(operation, "nodeId", $"{path}.nodeId"), Parameter: ReadParameter(operation, "parameter", path, legacyEnums: false, ["op", "canvasId", "nodeId", "parameter"])),
+            "removeNodeParameter" => ReadV2RemoveNodeParameter(operation, path, op),
             "addConnection" => new(op, ReadRequiredString(operation, "canvasId", $"{path}.canvasId"), Connection: ReadConnection(operation, "connection", path, legacyEnums: false, ["op", "canvasId", "connection"])),
             "replaceConnection" => new(op, ReadRequiredString(operation, "canvasId", $"{path}.canvasId"), ConnectionId: ReadRequiredString(operation, "connectionId", $"{path}.connectionId"), Connection: ReadConnection(operation, "connection", path, legacyEnums: false, ["op", "canvasId", "connectionId", "connection"])),
             "removeConnection" => ReadV2RemoveConnection(operation, path, op),
@@ -238,7 +242,7 @@ public sealed class FlowPatchContractNormalizer
             _ => throw Invalid(
                 "mcp.flow_patch.operation_unknown",
                 $"{path}.op",
-                "one of the 13 schema 2.0 operation names",
+                "one of the 15 schema 2.0 operation names",
                 "Use the operation names exposed by sereinflow_preview_flow_patch.")
         };
     }
@@ -253,6 +257,16 @@ public sealed class FlowPatchContractNormalizer
     {
         EnsureKnownProperties(operation, path, ["op", "canvasId", "nodeId"]);
         return new(op, ReadRequiredString(operation, "canvasId", $"{path}.canvasId"), ReadRequiredString(operation, "nodeId", $"{path}.nodeId"));
+    }
+
+    private static FlowPatchCanonicalOperationDto ReadV2RemoveNodeParameter(JsonElement operation, string path, string op)
+    {
+        EnsureKnownProperties(operation, path, ["op", "canvasId", "nodeId", "parameterId"]);
+        return new(
+            op,
+            ReadRequiredString(operation, "canvasId", $"{path}.canvasId"),
+            ReadRequiredString(operation, "nodeId", $"{path}.nodeId"),
+            ParameterId: ReadRequiredString(operation, "parameterId", $"{path}.parameterId"));
     }
 
     private static FlowPatchCanonicalOperationDto ReadV2RemoveConnection(JsonElement operation, string path, string op)
@@ -290,6 +304,8 @@ public sealed class FlowPatchContractNormalizer
             "replaceNode" => new(op, ReadLegacyIdentifier(operation, "canvasId", path), ReadLegacyIdentifier(operation, "nodeId", path), Node: ReadLegacyPayload<NodeDto>(operation, path, legacyEnums: true)),
             "removeNode" => new(op, ReadLegacyIdentifier(operation, "canvasId", path), ReadLegacyIdentifier(operation, "nodeId", path)),
             "setNodeParameter" => new(op, ReadLegacyIdentifier(operation, "canvasId", path), ReadLegacyIdentifier(operation, "nodeId", path), ParameterId: ReadLegacyIdentifier(operation, "parameterId", path), Parameter: ReadLegacyPayload<NodeParameterDto>(operation, path, legacyEnums: true)),
+            "addNodeParameter" => new(op, ReadLegacyIdentifier(operation, "canvasId", path), ReadLegacyIdentifier(operation, "nodeId", path), Parameter: ReadLegacyPayload<NodeParameterDto>(operation, path, legacyEnums: true)),
+            "removeNodeParameter" => new(op, ReadLegacyIdentifier(operation, "canvasId", path), ReadLegacyIdentifier(operation, "nodeId", path), ParameterId: ReadLegacyIdentifier(operation, "parameterId", path)),
             "addConnection" => new(op, ReadLegacyIdentifier(operation, "canvasId", path), Connection: ReadLegacyPayload<ConnectionDto>(operation, path, legacyEnums: true)),
             "replaceConnection" => new(op, ReadLegacyIdentifier(operation, "canvasId", path), ConnectionId: ReadLegacyIdentifier(operation, "connectionId", path), Connection: ReadLegacyPayload<ConnectionDto>(operation, path, legacyEnums: true)),
             "removeConnection" => new(op, ReadLegacyIdentifier(operation, "canvasId", path), ConnectionId: ReadLegacyIdentifier(operation, "connectionId", path)),
@@ -317,6 +333,8 @@ public sealed class FlowPatchContractNormalizer
             FlowPatchOperationKindDto.ReplaceNode => new("replaceNode", Required(operation.CanvasId, $"{path}.canvasId"), Required(operation.NodeId, $"{path}.nodeId"), Node: ReadPersistedPayload<NodeDto>(value, path, legacyEnums: true)),
             FlowPatchOperationKindDto.RemoveNode => new("removeNode", Required(operation.CanvasId, $"{path}.canvasId"), Required(operation.NodeId, $"{path}.nodeId")),
             FlowPatchOperationKindDto.SetNodeParameter => new("setNodeParameter", Required(operation.CanvasId, $"{path}.canvasId"), Required(operation.NodeId, $"{path}.nodeId"), ParameterId: Required(operation.ParameterId, $"{path}.parameterId"), Parameter: ReadPersistedPayload<NodeParameterDto>(value, path, legacyEnums: true)),
+            FlowPatchOperationKindDto.AddNodeParameter => new("addNodeParameter", Required(operation.CanvasId, $"{path}.canvasId"), Required(operation.NodeId, $"{path}.nodeId"), Parameter: ReadPersistedPayload<NodeParameterDto>(value, path, legacyEnums: true)),
+            FlowPatchOperationKindDto.RemoveNodeParameter => new("removeNodeParameter", Required(operation.CanvasId, $"{path}.canvasId"), Required(operation.NodeId, $"{path}.nodeId"), ParameterId: Required(operation.ParameterId, $"{path}.parameterId")),
             FlowPatchOperationKindDto.AddConnection => new("addConnection", Required(operation.CanvasId, $"{path}.canvasId"), Connection: ReadPersistedPayload<ConnectionDto>(value, path, legacyEnums: true)),
             FlowPatchOperationKindDto.ReplaceConnection => new("replaceConnection", Required(operation.CanvasId, $"{path}.canvasId"), ConnectionId: Required(operation.ConnectionId, $"{path}.connectionId"), Connection: ReadPersistedPayload<ConnectionDto>(value, path, legacyEnums: true)),
             FlowPatchOperationKindDto.RemoveConnection => new("removeConnection", Required(operation.CanvasId, $"{path}.canvasId"), ConnectionId: Required(operation.ConnectionId, $"{path}.connectionId")),
@@ -725,6 +743,8 @@ public sealed class FlowPatchContractNormalizer
                 10 => "setEntryNode",
                 11 => "setRunPolicy",
                 12 => "replaceScriptSource",
+                13 => "addNodeParameter",
+                14 => "removeNodeParameter",
                 _ => throw Invalid("mcp.flow_patch.operation_unknown", path, "a known legacy operation number", "Use a schema 2.0 op string.")
             };
         }
@@ -741,6 +761,8 @@ public sealed class FlowPatchContractNormalizer
             "replaceNode" or "ReplaceNode" or "replace_node" => "replaceNode",
             "removeNode" or "RemoveNode" or "remove_node" => "removeNode",
             "setNodeParameter" or "SetNodeParameter" or "set_node_parameter" => "setNodeParameter",
+            "addNodeParameter" or "AddNodeParameter" or "add_node_parameter" => "addNodeParameter",
+            "removeNodeParameter" or "RemoveNodeParameter" or "remove_node_parameter" => "removeNodeParameter",
             "addConnection" or "AddConnection" or "add_connection" => "addConnection",
             "replaceConnection" or "ReplaceConnection" or "replace_connection" => "replaceConnection",
             "removeConnection" or "RemoveConnection" or "remove_connection" => "removeConnection",
@@ -988,6 +1010,38 @@ public sealed class FlowPatchContractNormalizer
                         throw ReferenceInvalid($"{path}.parameterId", "an existing parameter ID on the node");
                     return;
                 }
+                case "addNodeParameter":
+                {
+                    var canvas = RequireCanvas(RequireId(operation.CanvasId, $"{path}.canvasId"), $"{path}.canvasId");
+                    var node = RequireNode(canvas, RequireId(operation.NodeId, $"{path}.nodeId"), $"{path}.nodeId");
+                    var parameter = RequireValue(operation.Parameter, $"{path}.parameter");
+                    var parameterId = RequireId(parameter.Ui?.Id, $"{path}.parameter.ui.id");
+                    if (!node.ParameterIds.Add(parameterId))
+                        throw Duplicate($"{path}.parameter.ui.id", "parameter ID");
+                    return;
+                }
+                case "removeNodeParameter":
+                {
+                    var canvas = RequireCanvas(RequireId(operation.CanvasId, $"{path}.canvasId"), $"{path}.canvasId");
+                    var nodeId = RequireId(operation.NodeId, $"{path}.nodeId");
+                    var node = RequireNode(canvas, nodeId, $"{path}.nodeId");
+                    var parameterId = RequireId(operation.ParameterId, $"{path}.parameterId");
+                    if (!node.ParameterIds.Contains(parameterId))
+                        throw ReferenceInvalid($"{path}.parameterId", "an existing parameter ID on the node");
+                    if (canvas.Connections.Values.Any(connection =>
+                            connection.Kind == ConnectionKindDto.Data
+                            && connection.ToNodeId == nodeId
+                            && connection.ToPortId == parameterId))
+                    {
+                        throw Invalid(
+                            "mcp.flow_patch.reference_invalid",
+                            $"{path}.parameterId",
+                            "a parameter without incoming data connections",
+                            "Remove the parameter's data connections before removing the parameter.");
+                    }
+                    node.ParameterIds.Remove(parameterId);
+                    return;
+                }
                 case "addConnection":
                 {
                     var canvas = RequireCanvas(RequireId(operation.CanvasId, $"{path}.canvasId"), $"{path}.canvasId");
@@ -1046,7 +1100,7 @@ public sealed class FlowPatchContractNormalizer
                     throw Invalid(
                         "mcp.flow_patch.operation_unknown",
                         $"{path}.op",
-                        "one of the 13 schema 2.0 operation names",
+                        "one of the 15 schema 2.0 operation names",
                         "Use the operation names exposed by sereinflow_preview_flow_patch.");
             }
         }

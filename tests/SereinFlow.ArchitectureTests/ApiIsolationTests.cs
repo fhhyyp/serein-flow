@@ -111,6 +111,7 @@ public sealed class ApiIsolationTests
             "McpReadModelToolHandlers.cs",
             "McpPreviewPayloadReaders.cs",
             "McpStoredPreviewPayloads.cs",
+            "McpDebugToolHandlers.cs",
             "McpToolAuthorization.cs",
             "McpToolSchemas.cs",
             "McpToolSupport.cs",

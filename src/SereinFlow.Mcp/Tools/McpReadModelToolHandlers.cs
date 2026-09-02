@@ -183,6 +183,11 @@ internal static class McpReadModelToolHandlers
         JsonElement arguments,
         CancellationToken cancellationToken)
     {
+        security.RequireAny(
+            principal,
+            null,
+            McpPermissionDto.DebugRead,
+            McpPermissionDto.RunRead);
         var afterRevision = GetOptionalLong(arguments, "afterRevision")
             ?? throw new McpProtocolException(-32602, "MCP parameter 'afterRevision' is required.");
         var timeoutSeconds = GetOptionalInt(arguments, "timeoutSeconds") ?? 15;
@@ -197,7 +202,11 @@ internal static class McpReadModelToolHandlers
             TimeSpan.FromSeconds(timeoutSeconds),
             cancellationToken);
         if (result is not null)
-            security.Require(principal, McpPermissionDto.DebugRead, result.State.ProjectId);
+            security.RequireAny(
+                principal,
+                result.State.ProjectId,
+                McpPermissionDto.DebugRead,
+                McpPermissionDto.RunRead);
         return result;
     }
 
@@ -531,10 +540,18 @@ internal static class McpReadModelToolHandlers
         Guid sessionId,
         CancellationToken cancellationToken)
     {
-        security.Require(principal, McpPermissionDto.DebugRead);
+        security.RequireAny(
+            principal,
+            null,
+            McpPermissionDto.DebugRead,
+            McpPermissionDto.RunRead);
         var state = await service.GetDebugStateAsync(sessionId, cancellationToken);
         if (state is not null)
-            security.Require(principal, McpPermissionDto.DebugRead, state.ProjectId);
+            security.RequireAny(
+                principal,
+                state.ProjectId,
+                McpPermissionDto.DebugRead,
+                McpPermissionDto.RunRead);
         return state;
     }
 

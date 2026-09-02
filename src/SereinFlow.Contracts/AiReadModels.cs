@@ -256,6 +256,27 @@ public sealed record AiDebugStateDto(
     AiDebugPauseStateDto? PauseState = null,
     AiDebugNodeResultDto? LastNodeResult = null);
 
+/// <summary>
+/// Bounded discovery projection for active debug sessions. Detailed pause
+/// inputs and node outputs remain available only through the single-session
+/// debug state projection.
+/// </summary>
+public sealed record AiDebugSessionSummaryDto(
+    Guid Id,
+    Guid RunId,
+    Guid ProjectId,
+    Guid FlowId,
+    string Status,
+    IReadOnlyList<string> BreakpointNodeIds,
+    string? CurrentNodeId,
+    Guid? ActiveInvocationId,
+    string? ActiveFlipflopNodeId,
+    int QueuedTriggerCount,
+    long LastCommandSequence,
+    long StateRevision,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
+
 public sealed record AiDebugPauseStateDto(
     string NodeId,
     string NodeType,

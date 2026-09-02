@@ -156,6 +156,8 @@ sereinflow://projects/{projectId}/flows/{flowId}/topology
 sereinflow://projects/{projectId}/flows/{flowId}/versions/{track}
 sereinflow://projects/{projectId}/flows/{flowId}/versions/{track}/{version}
 sereinflow://libraries/{libraryId}
+sereinflow://runs
+sereinflow://debug-sessions
 sereinflow://runs/{runId}
 sereinflow://debug-sessions/{sessionId}
 sereinflow://mcp-previews/{previewId}
@@ -201,7 +203,16 @@ names, or server-local library directories.
 ## Tools
 
 工具清单由 `tools/list` 返回，包含项目、流程、运行、调试、类库和 API key
-管理能力。流程修改使用 `sereinflow_preview_flow_patch` 后再由显式确认的
+管理能力。调试闭环使用 `sereinflow_list_runs` 或
+`sereinflow_list_debug_sessions` 发现目标，使用
+`sereinflow_start_debug_session` 启动，再通过
+`sereinflow_wait_debug_state`、`sereinflow_get_debug_state`、
+`sereinflow_continue_debug`、`sereinflow_step_debug` 和
+`sereinflow_stop_debug` 控制。启动调试要求 `debug.control` 和
+`idempotencyKey`；列表、状态和等待读取接受 `debug.read` 或 `run.read`，
+控制命令要求严格递增的 `commandSequence`。
+
+流程修改使用 `sereinflow_preview_flow_patch` 后再由显式确认的
 apply Tool 执行；v2 请求使用 `schemaVersion: "2.0"`、`op` discriminator、
 具名 payload 和 canonical camelCase 枚举。兼容期仍接受流程公共合同的 legacy
 v1 输入，但响应始终返回 v2 `normalizedOperations` 与
@@ -213,6 +224,13 @@ Action/Flipflop 合同，返回完整 canonical `NodeDto`、runtime library meta
 参数端口、默认 literal、枚举/variadic 元数据、包 SHA-256 和
 `contractRevision`。将返回的 node 原样放进 v2 `addNode`；类库 attach/detach
 仍是独立的 preview/apply 操作，不属于 flow patch。
+
+Flow patch also exposes `addNodeParameter` and `removeNodeParameter` for
+parameter-level edits. Use `addNodeParameter` with a complete parameter
+contract and a unique `ui.id`; this is the MCP operation for adding another
+member of a variadic group. Remove incoming data connections before using
+`removeNodeParameter`. The operations are ordered within the preview, so a
+new parameter can be added before an `addConnection` targets its ID.
 
 ## 节点绘制约束
 

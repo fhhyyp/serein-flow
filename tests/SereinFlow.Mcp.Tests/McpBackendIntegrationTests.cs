@@ -553,16 +553,137 @@ public sealed class McpBackendIntegrationTests
         var operations = tool.InputSchema.GetProperty("properties").GetProperty("operations");
         var alternatives = operations.GetProperty("items").GetProperty("oneOf");
 
-        Assert.Equal(26, alternatives.GetArrayLength());
+        Assert.Equal(30, alternatives.GetArrayLength());
         Assert.Contains(
             alternatives.EnumerateArray(),
             item => item.GetProperty("properties").TryGetProperty("op", out var op)
                 && op.GetProperty("enum")[0].GetString() == "setRunPolicy");
+        Assert.Contains(
+            alternatives.EnumerateArray(),
+            item => item.GetProperty("properties").TryGetProperty("op", out var op)
+                && op.GetProperty("enum")[0].GetString() == "addNodeParameter");
+        Assert.Contains(
+            alternatives.EnumerateArray(),
+            item => item.GetProperty("properties").TryGetProperty("op", out var op)
+                && op.GetProperty("enum")[0].GetString() == "removeNodeParameter");
         var runPolicy = alternatives.EnumerateArray()
             .Single(item => item.GetProperty("properties").TryGetProperty("op", out var op)
                 && op.GetProperty("enum")[0].GetString() == "setRunPolicy");
         Assert.Equal("string", runPolicy.GetProperty("properties").GetProperty("runPolicy").GetProperty("properties").GetProperty("concurrencyMode").GetProperty("oneOf")[0].GetProperty("type").GetString());
         Assert.False(runPolicy.GetProperty("additionalProperties").GetBoolean());
+    }
+
+    [Fact]
+    public async Task FlowPatchCanAddAndRemoveAParameterThroughMcp()
+    {
+        using var host = CreateHost();
+        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
+        accessor.Current = new McpPrincipal(
+            "parameter-patch-admin",
+            null,
+            Enum.GetValues<McpPermissionDto>().ToHashSet(),
+            IsAdministrator: true);
+
+        using var dataScope = host.Services.CreateScope();
+        var project = Project.Create("MCP parameter patch project");
+        await dataScope.ServiceProvider.GetRequiredService<IProjectRepository>().AddAsync(project);
+        var flow = CreateFlow();
+        await dataScope.ServiceProvider.GetRequiredService<IFlowDefinitionRepository>().AddAsync(project.Id, flow);
+        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
+        var parameter = new
+        {
+            name = "values",
+            valueJson = "",
+            source = "literal",
+            required = false,
+            ui = new
+            {
+                id = "values",
+                nameKey = "values",
+                valueKind = "System.Int32",
+                literalValue = "",
+                isVariadic = true,
+                variadicGroupId = "values",
+                elementType = "System.Int32",
+                variadicMode = "expanded",
+            },
+        };
+
+        var addPreview = await backend.CallToolAsync(
+            "sereinflow_preview_flow_patch",
+            JsonSerializer.SerializeToElement(new
+            {
+                projectId = project.Id,
+                flowId = flow.Id,
+                expectedDevelopmentVersion = flow.Version,
+                schemaVersion = "2.0",
+                operations = new[]
+                {
+                    new
+                    {
+                        op = "addNodeParameter",
+                        canvasId = "main",
+                        nodeId = "script-node",
+                        parameter,
+                    },
+                },
+            }),
+            CancellationToken.None);
+        using var addDocument = JsonDocument.Parse(JsonSerializer.Serialize(addPreview.Value, JsonOptions));
+        var addPreviewId = addDocument.RootElement.GetProperty("previewId").GetGuid();
+        var addFingerprint = addDocument.RootElement.GetProperty("previewFingerprint").GetString();
+
+        await backend.CallToolAsync(
+            "sereinflow_apply_flow_patch",
+            JsonSerializer.SerializeToElement(new
+            {
+                previewId = addPreviewId,
+                previewFingerprint = addFingerprint,
+                confirmation = "APPLY",
+                idempotencyKey = "parameter-add-once",
+            }),
+            CancellationToken.None);
+
+        var afterAdd = await dataScope.ServiceProvider.GetRequiredService<IFlowDefinitionRepository>()
+            .FindAsync(project.Id, flow.Id);
+        Assert.Contains(Assert.Single(afterAdd!.Canvases).Nodes.Single().Parameters, item => item.Ui!.Id == "values");
+
+        var removePreview = await backend.CallToolAsync(
+            "sereinflow_preview_flow_patch",
+            JsonSerializer.SerializeToElement(new
+            {
+                projectId = project.Id,
+                flowId = flow.Id,
+                expectedDevelopmentVersion = afterAdd.Version,
+                schemaVersion = "2.0",
+                operations = new[]
+                {
+                    new
+                    {
+                        op = "removeNodeParameter",
+                        canvasId = "main",
+                        nodeId = "script-node",
+                        parameterId = "values",
+                    },
+                },
+            }),
+            CancellationToken.None);
+        using var removeDocument = JsonDocument.Parse(JsonSerializer.Serialize(removePreview.Value, JsonOptions));
+
+        await backend.CallToolAsync(
+            "sereinflow_apply_flow_patch",
+            JsonSerializer.SerializeToElement(new
+            {
+                previewId = removeDocument.RootElement.GetProperty("previewId").GetGuid(),
+                previewFingerprint = removeDocument.RootElement.GetProperty("previewFingerprint").GetString(),
+                confirmation = "APPLY",
+                idempotencyKey = "parameter-remove-once",
+            }),
+            CancellationToken.None);
+
+        var afterRemove = await dataScope.ServiceProvider.GetRequiredService<IFlowDefinitionRepository>()
+            .FindAsync(project.Id, flow.Id);
+        Assert.DoesNotContain(Assert.Single(afterRemove!.Canvases).Nodes.Single().Parameters, item => item.Ui!.Id == "values");
     }
 
     [Fact]

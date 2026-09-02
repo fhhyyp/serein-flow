@@ -1,6 +1,6 @@
 # SereinFlow MCP Guide
 
-Guide version: 6
+Guide version: 7
 
 This is the MCP entry point for AI guidance. After `initialize`, read this
 Resource and then read only the smallest module Resource needed for the

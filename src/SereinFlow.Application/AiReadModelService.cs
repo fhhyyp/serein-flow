@@ -273,6 +273,23 @@ public sealed class AiReadModelService
         return CreatePage(items, normalized.MaxItems, static item => item.Id.ToString("D"));
     }
 
+    public async Task<AiPageDto<AiDebugSessionSummaryDto>> ListActiveDebugSessionsAsync(
+        Guid? projectId = null,
+        AiReadModelOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = (options ?? new()).Normalize();
+        var sessions = await _debugSessions.ListActiveAsync(cancellationToken);
+        var items = sessions
+            .Where(session => projectId is null || session.ProjectId == projectId.Value)
+            .OrderByDescending(static session => session.UpdatedAt)
+            .ThenBy(static session => session.Id)
+            .Take(normalized.MaxItems + 1)
+            .Select(MapDebugSessionSummary)
+            .ToArray();
+        return CreatePage(items, normalized.MaxItems, static item => item.Id.ToString("D"));
+    }
+
     public async Task<AiRunInspectionDto?> GetRunInspectionAsync(
         Guid runId,
         FlowVersionTrackDto? definitionTrack = null,
@@ -586,6 +603,23 @@ public sealed class AiReadModelService
                     ParsePayload(session.LastNodeResult.OutputsJson, 64 * 1024).Payload,
                     session.LastNodeResult.ErrorCode,
                     session.LastNodeResult.ErrorMessage));
+
+    private static AiDebugSessionSummaryDto MapDebugSessionSummary(FlowDebugSession session)
+        => new(
+            session.Id,
+            session.RunId,
+            session.ProjectId,
+            session.FlowId,
+            session.Status.ToString(),
+            session.BreakpointNodeIds,
+            session.CurrentNodeId,
+            session.ActiveInvocationId,
+            session.ActiveFlipflopNodeId,
+            session.QueuedTriggerCount,
+            session.LastCommandSequence,
+            session.StateRevision,
+            session.CreatedAt,
+            session.UpdatedAt);
 
     private static (JsonElement Payload, bool Malformed, bool Truncated) ParsePayload(string? json, int maxJsonBytes)
     {

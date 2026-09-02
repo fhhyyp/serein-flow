@@ -159,9 +159,10 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
     {
         ArgumentNullException.ThrowIfNull(query);
         var statuses = query.Statuses?.Select(static item => item.ToString()).ToHashSet(StringComparer.Ordinal);
+        var projectId = query.ProjectId?.ToString("D");
         var rows = await _runs.ListAsync(
-            query.ProjectId is { } projectId
-                ? row => row.ProjectId == projectId.ToString("D")
+            projectId is not null
+                ? row => row.ProjectId == projectId
                 : null,
             cancellationToken);
         return rows

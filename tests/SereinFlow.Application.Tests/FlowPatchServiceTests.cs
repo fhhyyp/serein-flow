@@ -124,6 +124,58 @@ public sealed class FlowPatchServiceTests
     }
 
     [Fact]
+    public void AddAndRemoveNodeParameterMutateOneParameterWithoutReplacingTheNode()
+    {
+        var addedParameter = Parameter("value-2");
+        var added = new FlowPatchService().Apply(
+            CreateDefinition(),
+            [Operation(
+                FlowPatchOperationKindDto.AddNodeParameter,
+                JsonSerializer.SerializeToElement(addedParameter),
+                canvasId: "main",
+                nodeId: "node-a")]);
+
+        var addedNode = Assert.Single(added.Canvases).Nodes.Single();
+        Assert.Equal(["value", "value-2"], addedNode.Parameters.Select(parameter => parameter.Ui!.Id));
+
+        var removed = new FlowPatchService().Apply(
+            added,
+            [new FlowPatchOperationDto(
+                FlowPatchOperationKindDto.RemoveNodeParameter,
+                CanvasId: "main",
+                NodeId: "node-a",
+                ParameterId: "value-2")]);
+
+        Assert.Equal(["value"], Assert.Single(removed.Canvases).Nodes.Single().Parameters.Select(parameter => parameter.Ui!.Id));
+    }
+
+    [Fact]
+    public void RemoveNodeParameterRequiresIncomingDataConnectionsRemovedFirst()
+    {
+        var definition = CreateDefinition() with
+        {
+            Canvases =
+            [
+                new CanvasDto(
+                    "main",
+                    CanvasLifecycleDto.Main,
+                    [CreateNode("node-a"), CreateNode("source")],
+                    [new ConnectionDto("data", "source", "data-out", "node-a", "value", ConnectionKindDto.Data, null, DataSourceDto.PreviousNode, 0)])
+            ]
+        };
+        var operation = new FlowPatchOperationDto(
+            FlowPatchOperationKindDto.RemoveNodeParameter,
+            CanvasId: "main",
+            NodeId: "node-a",
+            ParameterId: "value");
+
+        var exception = Assert.Throws<InvalidOperationException>(() => new FlowPatchService().Apply(definition, [operation]));
+
+        Assert.Contains("Data connections", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("must be removed first", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void NewCanvasRejectsDuplicateNodeConnectionAndParameterIds()
     {
         var node = CreateNode("node-a");

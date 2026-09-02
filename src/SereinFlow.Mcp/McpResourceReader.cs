@@ -80,8 +80,12 @@ public sealed class McpResourceReader
                 && Guid.TryParse(segments[2], out var upgradeId)
                 => await McpReadModelToolHandlers.ReadLibraryUpgradeResourceAsync(
                     context, libraryUpgradeProjectId, upgradeId, cancellationToken),
+            "runs" when segments.Length == 0
+                => await McpDebugToolHandlers.ReadRunsResourceAsync(context, cancellationToken),
             "runs" when segments.Length == 1 && Guid.TryParse(segments[0], out var runId)
                 => await McpReadModelToolHandlers.ReadRunResourceAsync(context, runId, cancellationToken),
+            "debug-sessions" when segments.Length == 0
+                => await McpDebugToolHandlers.ReadDebugSessionsResourceAsync(context, cancellationToken),
             "debug-sessions" when segments.Length == 1 && Guid.TryParse(segments[0], out var sessionId)
                 => await McpReadModelToolHandlers.ReadDebugResourceAsync(context, sessionId, cancellationToken),
             "projects" when segments.Length == 5

@@ -119,11 +119,20 @@ public sealed class McpHostIntegrationTests : IClassFixture<McpHostIntegrationTe
             method = "tools/list",
             @params = new { },
         }));
+        await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new
+        {
+            jsonrpc = "2.0",
+            id = 3,
+            method = "resources/list",
+            @params = new { },
+        }));
 
         var initializeLine = await process.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(15));
         var toolsLine = await process.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(15));
+        var resourcesLine = await process.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(15));
         Assert.False(string.IsNullOrWhiteSpace(initializeLine));
         Assert.False(string.IsNullOrWhiteSpace(toolsLine));
+        Assert.False(string.IsNullOrWhiteSpace(resourcesLine));
         using (var initialize = JsonDocument.Parse(initializeLine))
         {
             Assert.Equal("2.0", initialize.RootElement.GetProperty("jsonrpc").GetString());
@@ -134,6 +143,24 @@ public sealed class McpHostIntegrationTests : IClassFixture<McpHostIntegrationTe
             Assert.Contains(
                 tools.RootElement.GetProperty("result").GetProperty("tools").EnumerateArray(),
                 tool => tool.GetProperty("name").GetString() == "sereinflow_list_projects");
+            Assert.Contains(
+                tools.RootElement.GetProperty("result").GetProperty("tools").EnumerateArray(),
+                tool => tool.GetProperty("name").GetString() == "sereinflow_start_debug_session");
+            Assert.Contains(
+                tools.RootElement.GetProperty("result").GetProperty("tools").EnumerateArray(),
+                tool => tool.GetProperty("name").GetString() == "sereinflow_step_debug");
+            Assert.Contains(
+                tools.RootElement.GetProperty("result").GetProperty("tools").EnumerateArray(),
+                tool => tool.GetProperty("name").GetString() == "sereinflow_stop_debug");
+        }
+        using (var resources = JsonDocument.Parse(resourcesLine))
+        {
+            Assert.Contains(
+                resources.RootElement.GetProperty("result").GetProperty("resources").EnumerateArray(),
+                resource => resource.GetProperty("uri").GetString() == "sereinflow://runs");
+            Assert.Contains(
+                resources.RootElement.GetProperty("result").GetProperty("resources").EnumerateArray(),
+                resource => resource.GetProperty("uri").GetString() == "sereinflow://debug-sessions");
         }
 
         process.StandardInput.Close();

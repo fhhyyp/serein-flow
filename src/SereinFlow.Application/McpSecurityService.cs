@@ -124,6 +124,19 @@ public sealed class McpSecurityService
             throw new McpSecurityException("mcp.project_access_denied", "The MCP caller cannot access this project.", 403);
     }
 
+    public void RequireAny(
+        McpPrincipal? principal,
+        Guid? projectId,
+        params McpPermissionDto[] permissions)
+    {
+        if (principal is null)
+            throw new McpSecurityException("mcp.unauthenticated", "MCP authentication is required.", 401);
+        if (permissions is null || permissions.Length == 0 || !permissions.Any(principal.Has))
+            throw new McpSecurityException("mcp.permission_denied", "The MCP caller does not have the required permission.", 403);
+        if (projectId is not null && !principal.CanAccess(projectId.Value))
+            throw new McpSecurityException("mcp.project_access_denied", "The MCP caller cannot access this project.", 403);
+    }
+
     public void RequireAdministrator(McpPrincipal? principal)
     {
         if (principal is null)

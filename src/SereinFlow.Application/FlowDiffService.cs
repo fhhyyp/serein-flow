@@ -303,6 +303,20 @@ public sealed class FlowPatchService
                         Required(operation.ParameterId, "parameterId"),
                         ReadValue<NodeParameterDto>(operation));
                     break;
+                case FlowPatchOperationKindDto.AddNodeParameter:
+                    AddNodeParameter(
+                        canvases,
+                        Required(operation.CanvasId, "canvasId"),
+                        Required(operation.NodeId, "nodeId"),
+                        ReadValue<NodeParameterDto>(operation));
+                    break;
+                case FlowPatchOperationKindDto.RemoveNodeParameter:
+                    RemoveNodeParameter(
+                        canvases,
+                        Required(operation.CanvasId, "canvasId"),
+                        Required(operation.NodeId, "nodeId"),
+                        Required(operation.ParameterId, "parameterId"));
+                    break;
                 case FlowPatchOperationKindDto.AddConnection:
                     AddConnection(canvases, Required(operation.CanvasId, "canvasId"), null, ReadValue<ConnectionDto>(operation), false);
                     break;
@@ -431,6 +445,61 @@ public sealed class FlowPatchService
         if (index < 0)
             throw new InvalidOperationException($"Parameter '{parameterId}' does not exist on node '{nodeId}'.");
         parameters[index] = parameter;
+        nodes[nodeIndex] = node with { Parameters = parameters };
+        canvases[canvasIndex] = canvas with { Nodes = nodes };
+    }
+
+    private static void AddNodeParameter(
+        List<CanvasDto> canvases,
+        string canvasId,
+        string nodeId,
+        NodeParameterDto parameter)
+    {
+        var parameterId = parameter.Ui?.Id;
+        RequireObjectId(parameterId, "parameter.ui.id");
+        var canvasIndex = FindCanvas(canvases, canvasId);
+        var canvas = canvases[canvasIndex];
+        var nodeIndex = canvas.Nodes.ToList().FindIndex(node => node.Id == nodeId);
+        if (nodeIndex < 0)
+            throw new InvalidOperationException($"Node '{nodeId}' does not exist.");
+
+        var nodes = canvas.Nodes.ToList();
+        var node = nodes[nodeIndex];
+        if (node.Parameters.Any(item => string.Equals(item.Ui?.Id, parameterId, StringComparison.Ordinal)))
+            throw new InvalidOperationException($"Parameter '{parameterId}' already exists on node '{nodeId}'.");
+        var parameters = node.Parameters.ToList();
+        parameters.Add(parameter);
+        nodes[nodeIndex] = node with { Parameters = parameters };
+        canvases[canvasIndex] = canvas with { Nodes = nodes };
+    }
+
+    private static void RemoveNodeParameter(
+        List<CanvasDto> canvases,
+        string canvasId,
+        string nodeId,
+        string parameterId)
+    {
+        var canvasIndex = FindCanvas(canvases, canvasId);
+        var canvas = canvases[canvasIndex];
+        var nodeIndex = canvas.Nodes.ToList().FindIndex(node => node.Id == nodeId);
+        if (nodeIndex < 0)
+            throw new InvalidOperationException($"Node '{nodeId}' does not exist.");
+        if (canvas.Connections.Any(connection =>
+                connection.Kind == ConnectionKindDto.Data
+                && connection.ToNodeId == nodeId
+                && connection.ToPortId == parameterId))
+        {
+            throw new InvalidOperationException(
+                $"Data connections for parameter '{parameterId}' on node '{nodeId}' must be removed first.");
+        }
+
+        var nodes = canvas.Nodes.ToList();
+        var node = nodes[nodeIndex];
+        var parameters = node.Parameters.ToList();
+        var parameterIndex = parameters.FindIndex(item => string.Equals(item.Ui?.Id, parameterId, StringComparison.Ordinal));
+        if (parameterIndex < 0)
+            throw new InvalidOperationException($"Parameter '{parameterId}' does not exist on node '{nodeId}'.");
+        parameters.RemoveAt(parameterIndex);
         nodes[nodeIndex] = node with { Parameters = parameters };
         canvases[canvasIndex] = canvas with { Nodes = nodes };
     }
