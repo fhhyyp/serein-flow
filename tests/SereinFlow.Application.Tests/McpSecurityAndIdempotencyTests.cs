@@ -17,6 +17,7 @@ public sealed class McpSecurityAndIdempotencyTests
         Assert.NotNull(principal);
         Assert.True(principal.IsAdministrator);
         Assert.Null(principal.ProjectId);
+        Assert.Contains(McpPermissionDto.RunMessagePublish, principal.Permissions);
         security.Require(principal, McpPermissionDto.SensitiveRead, Guid.NewGuid());
     }
 

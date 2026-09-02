@@ -20,6 +20,7 @@ public enum McpPermissionDto
     LibraryManage,
     McpKeysManage,
     SensitiveRead,
+    RunMessagePublish,
 }
 
 /// <summary>
@@ -48,6 +49,7 @@ public static class McpPermissionNames
             [McpPermissionDto.LibraryManage] = "library.manage",
             [McpPermissionDto.McpKeysManage] = "mcp.keys.manage",
             [McpPermissionDto.SensitiveRead] = "sensitive.read",
+            [McpPermissionDto.RunMessagePublish] = "run.message.publish",
         };
 
     public static string ToName(McpPermissionDto permission)

@@ -212,6 +212,35 @@ names, or server-local library directories.
 `idempotencyKey`；列表、状态和等待读取接受 `debug.read` 或 `run.read`，
 控制命令要求严格递增的 `commandSequence`。
 
+活动运行消息发布使用独立的 mutation 工具
+`sereinflow_publish_run_message`，不属于 `debug.control`。工具需要
+`run.message.publish` 权限和必填的 `idempotencyKey`，输入的 `payload` 是任意
+JSON 值（包括数组、字符串、数值、布尔值和 `null`），`channelKind` 使用稳定的
+`queue` 或 `eventBus` 字符串。工具按 `runId` 查找活动运行并执行项目范围检查，
+因此普通运行和调试运行使用同一入口；它不接受 `flowId`，也不会按消息重新加载
+流程。
+
+```json
+{
+  "runId": "8e0f2b1e-7e9c-4e8e-b5d0-2f4d8d6f21a8",
+  "topic": "order.created",
+  "payload": { "orderId": "A10001", "amount": 99.5 },
+  "channelKind": "queue",
+  "contractId": "order.created.v1",
+  "messageId": "af46ef89-5712-4dff-a6df-bf4e57f80a7d",
+  "idempotencyKey": "agent-call-20260902-001"
+}
+```
+
+成功结果是结构化的 Worker 消息接收结果；`status: "accepted"` 只代表消息进入
+运行级 Broker。MCP 应通过运行详情、事件、输出和调试状态观察 Flipflop 后继节点
+以及整个流程。MCP 幂等结果按主体、工具和请求内容持久化，重试同一个
+`idempotencyKey` 返回原结果而不再次投递；Worker 仍按稳定 `messageId` 防止 Broker
+内的重复消息。常见业务错误码包括 `run.not_found`、`worker.not_active`、
+`worker.not_found`、`message.endpoint_not_ready`、`message.endpoint_forbidden`、
+`message.contract_mismatch`、`message.channel_full` 和
+`message.delivery_timeout`。
+
 流程修改使用 `sereinflow_preview_flow_patch` 后再由显式确认的
 apply Tool 执行；v2 请求使用 `schemaVersion: "2.0"`、`op` discriminator、
 具名 payload 和 canonical camelCase 枚举。兼容期仍接受流程公共合同的 legacy

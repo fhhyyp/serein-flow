@@ -155,6 +155,30 @@ public sealed class MessageNodes
         });
         return queue.ReceiveAsync<string>("test.message.inbox", flowContext.CancellationToken).AsTask();
     }
+
+    [FlowNode(
+        Id = "test.message.receive-external-event",
+        NodeType = NodeType.Flipflop,
+        AnotherName = "接收外部事件",
+        Desc = "接收显式开放的 JSON EventBus 入口。")]
+    public async Task<string> ReceiveExternalEvent(IFlowContext flowContext)
+    {
+        var eventBus = _messageService.CreateEventBus(new MessageChannelOptions
+        {
+            Capacity = 8,
+            ExternalIngress = true,
+            ContractId = "test.text"
+        });
+        await using var subscription = eventBus.Subscribe<string>("test.message.events", flowContext.CancellationToken);
+        return await subscription.NextAsync(flowContext.CancellationToken);
+    }
+
+    [FlowNode(
+        Id = "test.message.process-external",
+        AnotherName = "处理外部消息",
+        Desc = "把 Flipflop 的 data-out 传递到后继 Action，验证后继节点确实执行。")]
+    public string ProcessExternal([NodeParam(Name = "message")] string message)
+        => $"processed:{message}";
 }
 
 public sealed record 批次质量结果(

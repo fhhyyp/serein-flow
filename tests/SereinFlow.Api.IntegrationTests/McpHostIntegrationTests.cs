@@ -62,6 +62,9 @@ public sealed class McpHostIntegrationTests : IClassFixture<McpHostIntegrationTe
             Assert.Contains(
                 toolsDocument.RootElement.GetProperty("result").GetProperty("tools").EnumerateArray(),
                 tool => tool.GetProperty("name").GetString() == "sereinflow_create_library_node_template");
+            Assert.Contains(
+                toolsDocument.RootElement.GetProperty("result").GetProperty("tools").EnumerateArray(),
+                tool => tool.GetProperty("name").GetString() == "sereinflow_publish_run_message");
         }
 
         using var rejectedOriginRequest = CreateMcpRequest("initialize", 4);

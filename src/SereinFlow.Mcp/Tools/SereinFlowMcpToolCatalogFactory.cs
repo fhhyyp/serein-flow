@@ -55,6 +55,17 @@ internal static class SereinFlowMcpToolCatalogFactory
                 ["maxItems"] = NumberSchema(), ["maxJsonBytes"] = NumberSchema(),
                 ["includeFlowLiteralValues"] = BooleanSchema(), ["includeScriptSource"] = BooleanSchema()
             }, required: ["runId"])),
+        Tool("sereinflow_publish_run_message", "Publish an arbitrary JSON value to an explicitly exposed endpoint in an active run. The result acknowledges Worker broker acceptance, not downstream business completion.", Schema(
+            properties: new Dictionary<string, object?>
+            {
+                ["runId"] = StringSchema(),
+                ["topic"] = StringSchema(),
+                ["payload"] = new { },
+                ["channelKind"] = new { type = "string", @enum = new[] { "queue", "eventBus" } },
+                ["contractId"] = StringSchema(),
+                ["messageId"] = StringSchema(),
+                ["idempotencyKey"] = StringSchema("A fresh key for this exact message publish request.")
+            }, required: ["runId", "topic", "payload", "idempotencyKey"])),
         Tool("sereinflow_list_runs", "List bounded run summaries, optionally filtered by project and status.", Schema(
             properties: new Dictionary<string, object?>
             {
@@ -224,6 +235,9 @@ internal static class SereinFlowMcpToolCatalogFactory
                 static (context, arguments, cancellationToken) => McpReadModelToolHandlers.GetLibraryUpgradeAsync(context, arguments, cancellationToken)),
             Read("sereinflow_get_run_inspection", McpPermissionDto.RunRead,
                 static (context, arguments, cancellationToken) => McpReadModelToolHandlers.GetRunInspectionAsync(context, arguments, cancellationToken)),
+            Mutation("sereinflow_publish_run_message", McpPermissionDto.RunMessagePublish,
+                static (context, arguments, cancellationToken) => McpRunMessageToolHandlers.PublishAsync(context, arguments, cancellationToken),
+                requiresIdempotencyKey: true),
             ReadAny("sereinflow_list_runs",
                 static (context, arguments, cancellationToken) => McpDebugToolHandlers.ListRunsAsync(context, arguments, cancellationToken)),
             ReadAny("sereinflow_list_debug_sessions",

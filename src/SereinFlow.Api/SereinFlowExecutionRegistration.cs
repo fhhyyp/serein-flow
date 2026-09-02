@@ -21,6 +21,7 @@ public static class SereinFlowExecutionRegistration
         services.Configure<RunExecutionOptions>(configuration.GetSection("SereinFlow:RunExecution"));
         services.AddScoped<RunSubmissionService>();
         services.AddScoped<RunInterruptionService>();
+        services.AddScoped<IRunMessageDeliveryService, RunMessageDeliveryService>();
 
         var workerRunnerPath = ResolveWorkerRunnerPath(
             configuration["SereinFlow:WorkerRunnerPath"],
