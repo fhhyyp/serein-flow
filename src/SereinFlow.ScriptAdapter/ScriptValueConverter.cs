@@ -118,7 +118,10 @@ public static class ScriptValueConverter
             // JsonElement 可以安全写入协议，并保留普通类库节点 DTO 返回值。
             return JsonSerializer.SerializeToElement(value);
         }
-        catch (Exception exception) when (exception is NotSupportedException or JsonException)
+        catch (Exception exception) when (
+            exception is NotSupportedException
+            or JsonException
+            or InvalidOperationException)
         {
             return new Dictionary<string, object?>
             {

@@ -18,3 +18,8 @@ Included nodes include:
 
 The package includes the OpenCvSharp managed assembly and Windows x64 native
 runtime assets required by the Worker.
+
+The assembly declares `runtimes/{rid}/native` as a required native dependency
+directory. The Worker loads the matching OpenCvSharp native shim before the
+first node instance is invoked; the declaration is run-scoped and does not
+load the x86 and x64 directories together.

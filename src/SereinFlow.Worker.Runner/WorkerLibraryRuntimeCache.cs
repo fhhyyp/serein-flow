@@ -5,6 +5,7 @@ using System.Runtime.Loader;
 using SereinFlow.Contracts;
 using SereinFlow.Core.Api;
 using SereinFlow.Domain;
+using SereinFlow.Library;
 using SereinFlow.Runtime.Abstractions;
 
 namespace SereinFlow.Worker.Runner;
@@ -70,7 +71,10 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         {
             if (!lazy.IsValueCreated || !lazy.Value.IsCompletedSuccessfully)
                 continue;
-            lazy.Value.Result.LoadContext.Unload();
+
+            var loaded = lazy.Value.Result;
+            loaded.NativeLibraryLoader.Dispose();
+            loaded.LoadContext.Unload();
         }
 
         try
@@ -156,10 +160,40 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
             () => LoadLibraryCoreAsync(key),
             LazyThreadSafetyMode.ExecutionAndPublication));
         var library = await libraryLazy.Value;
-        return library.Assembly.GetType(className, throwOnError: false, ignoreCase: false)
+        var type = library.Assembly.GetType(className, throwOnError: false, ignoreCase: false)
             ?? throw new LibraryRuntimeCacheException(
                 "library.type_not_found",
                 "The library type was not found. 未找到类库类型。");
+
+        try
+        {
+            library.NativeLibraryLoader.LoadDeclaredDirectories(
+                type.GetCustomAttributes<NativeLibraryDirectoryAttribute>(inherit: false));
+        }
+        catch (FlowNativeLibraryException exception)
+        {
+            throw new LibraryRuntimeCacheException(exception.Code, exception.Message, exception);
+        }
+
+        return type;
+    }
+
+    internal IFlowNativeLibraryLoader GetNativeLibraryLoader(Assembly libraryAssembly)
+    {
+        ArgumentNullException.ThrowIfNull(libraryAssembly);
+        foreach (var lazy in _libraries.Values)
+        {
+            if (!lazy.IsValueCreated || !lazy.Value.IsCompletedSuccessfully)
+                continue;
+
+            var loaded = lazy.Value.Result;
+            if (ReferenceEquals(loaded.Assembly, libraryAssembly))
+                return loaded.NativeLibraryLoader;
+        }
+
+        throw new LibraryRuntimeCacheException(
+            "library.native_loader_unavailable",
+            "The native library loader was not available for the loaded assembly. 已加载程序集没有可用的 Native 类库加载器。");
     }
 
     private Task<LoadedLibrary> LoadLibraryCoreAsync(LibraryKey key)
@@ -202,13 +236,29 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         var dllPath = dllPaths[0];
 
         var loadContext = new LibraryLoadContext($"sereinflow-{Path.GetFileName(_runRoot)}-{key.LibraryId}", dllPath);
+        var libraryRoot = Path.GetDirectoryName(dllPath)
+            ?? throw new LibraryRuntimeCacheException(
+                "library.assembly_path_invalid",
+                "The library assembly directory could not be determined. 无法确定类库程序集目录。");
+        var nativeLibraryLoader = new WorkerNativeLibraryLoader(
+            libraryRoot,
+            loadContext.LoadNativeLibraryFromPath);
         try
         {
             var assembly = loadContext.LoadFromAssemblyPath(dllPath);
-            return Task.FromResult(new LoadedLibrary(loadContext, assembly));
+            nativeLibraryLoader.LoadDeclaredDirectories(
+                assembly.GetCustomAttributes<NativeLibraryDirectoryAttribute>());
+            return Task.FromResult(new LoadedLibrary(loadContext, assembly, nativeLibraryLoader));
+        }
+        catch (FlowNativeLibraryException exception)
+        {
+            nativeLibraryLoader.Dispose();
+            loadContext.Unload();
+            throw new LibraryRuntimeCacheException(exception.Code, exception.Message, exception);
         }
         catch
         {
+            nativeLibraryLoader.Dispose();
             loadContext.Unload();
             throw;
         }
@@ -336,6 +386,8 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
     private sealed class LibraryLoadContext(string name, string assemblyPath) : AssemblyLoadContext(name, isCollectible: true)
     {
         private readonly AssemblyDependencyResolver _resolver = new(assemblyPath);
+        private readonly Dictionary<string, nint> _nativeLibraries = new(StringComparer.OrdinalIgnoreCase);
+        private readonly object _nativeGate = new();
 
         protected override Assembly? Load(AssemblyName assemblyName)
         {
@@ -354,19 +406,40 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         protected override nint LoadUnmanagedDll(string unmanagedDllName)
         {
             var path = _resolver.ResolveUnmanagedDllToPath(unmanagedDllName);
-            return path is null ? nint.Zero : LoadUnmanagedDllFromPath(path);
+            return path is null ? nint.Zero : LoadNativeLibraryFromPath(path);
+        }
+
+        internal nint LoadNativeLibraryFromPath(string path)
+        {
+            var normalizedPath = Path.GetFullPath(path);
+            lock (_nativeGate)
+            {
+                if (_nativeLibraries.TryGetValue(normalizedPath, out var handle))
+                    return handle;
+
+                handle = LoadUnmanagedDllFromPath(normalizedPath);
+                if (handle != nint.Zero)
+                    _nativeLibraries[normalizedPath] = handle;
+                return handle;
+            }
         }
     }
 
     private sealed record LibraryKey(string LibraryId, string DllName);
     private sealed record TypeKey(string LibraryId, string DllName, string ClassName);
     private sealed record MethodKey(string LibraryId, string DllName, string ClassName, string MethodName, string Signature);
-    private sealed record LoadedLibrary(AssemblyLoadContext LoadContext, Assembly Assembly);
+    private sealed record LoadedLibrary(
+        AssemblyLoadContext LoadContext,
+        Assembly Assembly,
+        WorkerNativeLibraryLoader NativeLibraryLoader);
 }
 
 internal sealed record ResolvedLibraryMethod(Type DeclaringType, MethodInfo Method);
 
-internal sealed class LibraryRuntimeCacheException(string code, string message) : Exception(message)
+internal sealed class LibraryRuntimeCacheException(
+    string code,
+    string message,
+    Exception? innerException = null) : Exception(message, innerException)
 {
     public string Code { get; } = code;
 }

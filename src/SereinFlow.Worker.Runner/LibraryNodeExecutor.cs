@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using SereinFlow.Core.Api;
 using SereinFlow.Domain;
+using SereinFlow.Library;
 using SereinFlow.Runtime;
 using SereinFlow.Runtime.Abstractions;
 using SereinFlow.ScriptAdapter;
@@ -217,6 +218,16 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
         }
         catch (TargetInvocationException exception)
         {
+            if (exception.InnerException is FlowNativeLibraryException nativeLibraryException)
+            {
+                return NodeExecutionResult.Error(
+                    nativeLibraryException.Code,
+                    nativeLibraryException.Message) with
+                {
+                    Inputs = SnapshotInputs(auditInputs)
+                };
+            }
+
             if (exception.InnerException is FlowWorkpieceException workpieceException)
             {
                 return NodeExecutionResult.Error(workpieceException.Code, workpieceException.Message) with

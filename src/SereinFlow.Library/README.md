@@ -100,6 +100,32 @@ accepts a byte array or stream. File names are restricted to a single file
 name, streams remain owned by the caller, and each workpiece is stored under
 the current run's server-managed workpiece directory.
 
+## Native library dependencies
+
+Native dependencies can be loaded explicitly from a path relative to the
+uploaded library assembly. The loader is run-scoped and idempotent, so it is
+safe to request the same dependency from more than one node constructor:
+
+```csharp
+public ImageNodes(IFlowWorkpiece workpiece, IFlowNativeLibraryLoader native)
+{
+    _workpiece = workpiece;
+    native.LoadNativeLibraryDirectory("vendor/native/{rid}");
+}
+```
+
+For fixed dependencies, declare the directory once at assembly or node-class
+level. `{rid}` selects the current runtime, such as `win-x64`:
+
+```csharp
+[assembly: NativeLibraryDirectory("runtimes/{rid}/native", Recursive = false)]
+```
+
+Directories and files must remain inside the uploaded package. Use the
+correct runtime-specific directory instead of loading both x86 and x64
+variants. `FlowNativeLibraryException` reports a machine-readable failure
+code when a required native dependency cannot be loaded.
+
 ## Constructor injection
 
 Node libraries can declare services with `FlowService`. Services are isolated

@@ -140,6 +140,46 @@ public sealed class NodeResultAttribute<TConverter> : NodeResultAttribute
 }
 
 /// <summary>
+/// Declares a package-relative directory containing native libraries required by a node library.
+/// 声明节点类库所需 Native 类库所在的、相对于类库包的目录。
+/// </summary>
+[AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
+public sealed class NativeLibraryDirectoryAttribute : Attribute
+{
+    /// <summary>
+    /// Initializes a native-library directory declaration.
+    /// 初始化 Native 类库目录声明。
+    /// </summary>
+    /// <param name="relativePath">
+    /// A package-relative directory. The <c>{rid}</c> token is replaced with the current runtime
+    /// identifier, such as <c>win-x64</c>.
+    /// 相对于类库包的目录；<c>{rid}</c> 会替换为当前运行时标识，例如 <c>win-x64</c>。
+    /// </param>
+    public NativeLibraryDirectoryAttribute(string relativePath)
+        => RelativePath = string.IsNullOrWhiteSpace(relativePath)
+            ? throw new ArgumentException("A native library directory is required.", nameof(relativePath))
+            : relativePath;
+
+    /// <summary>
+    /// Gets the package-relative directory.
+    /// 获取相对于类库包的目录。
+    /// </summary>
+    public string RelativePath { get; }
+
+    /// <summary>
+    /// Gets or sets whether nested directories are scanned.
+    /// 获取或设置是否扫描嵌套目录。
+    /// </summary>
+    public bool Recursive { get; init; } = true;
+
+    /// <summary>
+    /// Gets or sets whether the directory and its native libraries are required.
+    /// 获取或设置目录及其 Native 类库是否为必需依赖。
+    /// </summary>
+    public bool Required { get; init; } = true;
+}
+
+/// <summary>
 /// Supplies metadata for a parameter exposed as an input of a SereinFlow node.
 /// 为作为 SereinFlow 节点输入公开的参数提供元数据。
 /// </summary>

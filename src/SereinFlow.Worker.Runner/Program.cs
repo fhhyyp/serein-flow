@@ -203,7 +203,10 @@ public static class RunnerHost
                 request.RunId,
                 request.AllowedLibraryIds);
             var flowWorkpiece = new FileFlowWorkpiece(request.WorkpieceRootPath, request.RunId);
-            await using var libraryServiceRuntime = new WorkerLibraryServiceRuntime(messageService, flowWorkpiece);
+            await using var libraryServiceRuntime = new WorkerLibraryServiceRuntime(
+                messageService,
+                flowWorkpiece,
+                libraryRuntimeCache.GetNativeLibraryLoader);
             var executors = new NodeExecutorRegistry([
                 new LibraryNodeExecutor(NodeType.Action, libraryRuntimeCache, libraryServiceRuntime),
                 new LibraryNodeExecutor(NodeType.Flipflop, libraryRuntimeCache, libraryServiceRuntime),

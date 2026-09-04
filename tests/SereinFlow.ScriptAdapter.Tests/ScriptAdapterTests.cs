@@ -407,6 +407,16 @@ public sealed class ScriptAdapterTests
         Assert.Contains("无法转换", error.Message);
     }
 
+    [Fact]
+    public void AuditProjectionSummarizesPointerBasedClrValues()
+    {
+        var summary = Assert.IsType<Dictionary<string, object?>>(ScriptValueConverter.ToAuditValue(new PointerPayload()));
+
+        Assert.Equal("ClrValue", summary["$kind"]);
+        Assert.Equal(typeof(PointerPayload).FullName, summary["clrType"]);
+        Assert.False(Assert.IsType<bool>(summary["serializable"]));
+    }
+
     private static async Task<NodeExecutionResult> Execute(NodeDefinition node, IReadOnlyDictionary<string, object?> inputs, CancellationToken cancellationToken = default)
     {
         var executor = new SereinScriptNodeExecutor();
@@ -449,6 +459,11 @@ public sealed class ScriptAdapterTests
         public string? Name { get; set; }
 
         public int Count { get; set; }
+    }
+
+    private sealed unsafe class PointerPayload
+    {
+        public byte* DataPointer => null;
     }
 
     private sealed class RecordingEventSink : INodeExecutionEventSink

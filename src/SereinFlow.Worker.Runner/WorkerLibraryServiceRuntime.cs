@@ -16,13 +16,19 @@ internal sealed class WorkerLibraryServiceRuntime : IAsyncDisposable
 {
     private readonly ConcurrentDictionary<Assembly, Lazy<LibraryServiceProvider>> _providers = new();
     private readonly IMessageService _messageService;
+    private readonly Func<Assembly, IFlowNativeLibraryLoader> _nativeLibraryLoaderFactory;
 
     private readonly IFlowWorkpiece _workpiece;
 
-    public WorkerLibraryServiceRuntime(IMessageService messageService, IFlowWorkpiece workpiece)
+    public WorkerLibraryServiceRuntime(
+        IMessageService messageService,
+        IFlowWorkpiece workpiece,
+        Func<Assembly, IFlowNativeLibraryLoader> nativeLibraryLoaderFactory)
     {
         _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
         _workpiece = workpiece ?? throw new ArgumentNullException(nameof(workpiece));
+        _nativeLibraryLoaderFactory = nativeLibraryLoaderFactory
+            ?? throw new ArgumentNullException(nameof(nativeLibraryLoaderFactory));
     }
 
     public AsyncServiceScope CreateInvocationScope(Assembly libraryAssembly)
@@ -33,7 +39,11 @@ internal sealed class WorkerLibraryServiceRuntime : IAsyncDisposable
             var provider = _providers.GetOrAdd(
                 libraryAssembly,
                 assembly => new Lazy<LibraryServiceProvider>(
-                    () => LibraryServiceProvider.Create(assembly, _messageService, _workpiece),
+                    () => LibraryServiceProvider.Create(
+                        assembly,
+                        _messageService,
+                        _workpiece,
+                        _nativeLibraryLoaderFactory(assembly)),
                     LazyThreadSafetyMode.ExecutionAndPublication));
             return provider.Value.CreateInvocationScope();
         }
@@ -62,6 +72,10 @@ internal sealed class WorkerLibraryServiceRuntime : IAsyncDisposable
         catch (LibraryServiceException)
         {
             throw;
+        }
+        catch (FlowNativeLibraryException exception)
+        {
+            throw new LibraryServiceException(exception.Code, exception.Message, exception);
         }
         catch (Exception exception)
         {
@@ -134,13 +148,15 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
     public static LibraryServiceProvider Create(
         Assembly assembly,
         IMessageService messageService,
-        IFlowWorkpiece workpiece)
+        IFlowWorkpiece workpiece,
+        IFlowNativeLibraryLoader nativeLibraryLoader)
     {
         var serviceTypes = DiscoverServiceTypes(assembly);
         var registrations = BuildRegistrations(serviceTypes);
         IServiceCollection services = new ServiceCollection();
         services.AddSingleton(messageService);
         services.AddSingleton(workpiece);
+        services.AddSingleton(nativeLibraryLoader);
 
         foreach (var registration in registrations.Implementations)
         {
