@@ -387,7 +387,8 @@ internal static class McpLibraryToolHandlers
     {
         var fileName = GetRequiredString(arguments, "fileName");
         var packageBase64 = GetRequiredString(arguments, "packageBase64");
-        if (packageBase64.Length > 140 * 1024 * 1024)
+        var fileUploadSettings = scope.ServiceProvider.GetRequiredService<IFileUploadSettings>();
+        if (packageBase64.Length > FileUploadLimits.GetBase64EncodedLimit(fileUploadSettings.MaxLibraryUploadBytes))
             throw new McpProtocolException(-32012, "The library package request is too large.");
         byte[] bytes;
         try

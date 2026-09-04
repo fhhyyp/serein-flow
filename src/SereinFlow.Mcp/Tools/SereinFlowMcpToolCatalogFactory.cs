@@ -55,6 +55,10 @@ internal static class SereinFlowMcpToolCatalogFactory
                 ["maxItems"] = NumberSchema(), ["maxJsonBytes"] = NumberSchema(),
                 ["includeFlowLiteralValues"] = BooleanSchema(), ["includeScriptSource"] = BooleanSchema()
             }, required: ["runId"])),
+        Tool("sereinflow_list_run_workpieces", "List image and file workpieces uploaded by nodes in one run.", Schema(
+            properties: new Dictionary<string, object?> { ["runId"] = StringSchema() }, required: ["runId"])),
+        Tool("sereinflow_get_run_workpiece", "Read metadata and the API download URL for one run workpiece.", Schema(
+            properties: new Dictionary<string, object?> { ["runId"] = StringSchema(), ["workpieceId"] = StringSchema() }, required: ["runId", "workpieceId"])),
         Tool("sereinflow_publish_run_message", "Publish an arbitrary JSON value to an explicitly exposed endpoint in an active run. The result acknowledges Worker broker acceptance, not downstream business completion.", Schema(
             properties: new Dictionary<string, object?>
             {
@@ -235,6 +239,10 @@ internal static class SereinFlowMcpToolCatalogFactory
                 static (context, arguments, cancellationToken) => McpReadModelToolHandlers.GetLibraryUpgradeAsync(context, arguments, cancellationToken)),
             Read("sereinflow_get_run_inspection", McpPermissionDto.RunRead,
                 static (context, arguments, cancellationToken) => McpReadModelToolHandlers.GetRunInspectionAsync(context, arguments, cancellationToken)),
+            ReadAny("sereinflow_list_run_workpieces",
+                static (context, arguments, cancellationToken) => McpReadModelToolHandlers.ListRunWorkpiecesAsync(context, arguments, cancellationToken)),
+            ReadAny("sereinflow_get_run_workpiece",
+                static (context, arguments, cancellationToken) => McpReadModelToolHandlers.GetRunWorkpieceAsync(context, arguments, cancellationToken)),
             Mutation("sereinflow_publish_run_message", McpPermissionDto.RunMessagePublish,
                 static (context, arguments, cancellationToken) => McpRunMessageToolHandlers.PublishAsync(context, arguments, cancellationToken),
                 requiresIdempotencyKey: true),

@@ -45,6 +45,61 @@ the API. `DirectObject` is limited to compatible CLR types in the same Worker
 process. Every wait and subscription should use the supplied cancellation
 token, and subscriptions should be disposed with `await using`.
 
+## Non-JSON node results
+
+Use a result converter when a node returns an in-process value such as a
+`Bitmap`, `Mat`, serial-port handle, or HTTP object. The node keeps the
+original value for downstream nodes; the converter only supplies the value
+written to events and exposed to JSON clients:
+
+```csharp
+public sealed class MatConverter : INodeResultConverter<Mat, object>
+{
+    public object Transfer(Mat primitive) => new
+    {
+        type = "mat",
+        width = primitive.Width,
+        height = primitive.Height
+    };
+}
+
+[NodeResult<MatConverter>]
+public Mat CaptureFrame() => ...;
+```
+
+The non-generic form is available for older C# versions:
+`[NodeResultAttribute(typeof(MatConverter))]`. Converters are discovered and
+registered automatically from the uploaded library. `TTransfer` should be a
+JSON-safe value; use a workpiece for the binary image or file itself.
+
+## Images and files (workpieces)
+
+Inject `IFlowWorkpiece` into a node constructor to store binary data once per
+run without embedding it in JSON. The returned `FlowWorkpieceInfo` contains a
+stable ID and metadata; the API and MCP expose the corresponding listing and
+download URL:
+
+```csharp
+public sealed class ImageNodes
+{
+    private readonly IFlowWorkpiece _flowWorkpiece;
+
+    public ImageNodes(IFlowWorkpiece flowWorkpiece)
+        => _flowWorkpiece = flowWorkpiece;
+
+    public FlowWorkpieceInfo SaveImage(byte[] png)
+        => _flowWorkpiece.UploadImage("inspection.png", png, "image/png");
+
+    public FlowWorkpieceInfo SaveReport(Stream report)
+        => _flowWorkpiece.UploadFile("report.txt", report, "text/plain");
+}
+```
+
+`UploadImage` accepts a byte array, stream, or base64/data URI. `UploadFile`
+accepts a byte array or stream. File names are restricted to a single file
+name, streams remain owned by the caller, and each workpiece is stored under
+the current run's server-managed workpiece directory.
+
 ## Constructor injection
 
 Node libraries can declare services with `FlowService`. Services are isolated

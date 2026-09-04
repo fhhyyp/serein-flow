@@ -26,6 +26,8 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
         new("sereinflow://runs", "runs", "Bounded SereinFlow run summaries"),
         new("sereinflow://debug-sessions", "debug sessions", "Bounded active debug session summaries"),
         new("sereinflow://runs/{runId}", "run inspection", "A bounded run timeline, node output and debug inspection"),
+        new("sereinflow://runs/{runId}/workpieces", "run workpieces", "Metadata for image and file workpieces uploaded by a run"),
+        new("sereinflow://runs/{runId}/workpieces/{workpieceId}", "run workpiece", "One image or file workpiece uploaded by a run"),
         new("sereinflow://debug-sessions/{sessionId}", "debug session", "A structured debug session state")
     ];
 

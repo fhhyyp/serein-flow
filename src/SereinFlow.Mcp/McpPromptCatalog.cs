@@ -50,7 +50,7 @@ internal static class McpPromptCatalog
         {
             "sereinflow.inspect" => [McpAiGuidance.SereinFlowProjectsResourceUri],
             "sereinflow.edit-flow" => [McpAiGuidance.SereinFlowFlowsResourceUri],
-            "sereinflow.debug-run" => [McpAiGuidance.SereinFlowRuntimeResourceUri],
+            "sereinflow.debug-run" => [McpAiGuidance.SereinFlowRuntimeResourceUri, McpAiGuidance.SereinFlowWorkpiecesResourceUri],
             "sereinflow.publish-flow" => [McpAiGuidance.SereinFlowReleaseResourceUri],
             "sereinflow.package-library" =>
             [

@@ -350,7 +350,6 @@ public sealed class WorkerSupervisorTests
             TryDeleteDirectory(packageRoot);
         }
     }
-
     [Fact]
     public async Task SupervisorInjectsFlowContextAndForwardsTheFailureBranch()
     {
@@ -804,7 +803,8 @@ public sealed class WorkerSupervisorTests
 
     private static WorkerSupervisor CreateSupervisor(
         Action<string>? diagnosticLogger = null,
-        string? allowedLibraryPackageRoot = null)
+        string? allowedLibraryPackageRoot = null,
+        string? allowedWorkpieceRoot = null)
         => new(new RunnerLaunchOptions(
             "dotnet",
             [typeof(RunnerHost).Assembly.Location],
@@ -812,7 +812,8 @@ public sealed class WorkerSupervisorTests
             HeartbeatInterval: TimeSpan.FromMilliseconds(100),
             CancellationGracePeriod: TimeSpan.FromSeconds(2),
             AllowedLibraryPackageRoot: allowedLibraryPackageRoot,
-            DiagnosticLogger: diagnosticLogger));
+            DiagnosticLogger: diagnosticLogger,
+            AllowedWorkpieceRoot: allowedWorkpieceRoot));
 
     private static WorkerRunRequestDto CreateActionRequest(DateTimeOffset deadline)
     {
@@ -1063,7 +1064,8 @@ public sealed class WorkerSupervisorTests
         IReadOnlyList<string> allowedLibraryIds,
         string methodName = "计算合格率",
         IReadOnlyList<NodeParameterDto>? parameters = null,
-        string returnType = "System.Decimal")
+        string returnType = "System.Decimal",
+        string? workpieceRoot = null)
     {
         var flowId = Guid.NewGuid();
         var action = new NodeDto(
@@ -1110,7 +1112,8 @@ public sealed class WorkerSupervisorTests
             JsonSerializer.Serialize(definition),
             deadline,
             LibraryPackageRootPath: packageRoot,
-            AllowedLibraryIds: allowedLibraryIds);
+            AllowedLibraryIds: allowedLibraryIds,
+            WorkpieceRootPath: workpieceRoot);
     }
 
     private static WorkerRunRequestDto CreateLibraryGlobalFlipflopDebugRequest(

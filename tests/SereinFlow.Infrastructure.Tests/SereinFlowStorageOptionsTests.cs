@@ -22,10 +22,12 @@ public sealed class SereinFlowStorageOptionsTests
         Assert.Equal(Path.Combine(expectedRoot, "libraries"), options.LibraryDirectory);
         Assert.Equal(Path.Combine(expectedRoot, "script-artifacts"), options.ScriptArtifactRoot);
         Assert.Equal(Path.Combine(expectedRoot, "mcp-staging"), options.McpPackageStagingDirectory);
+        Assert.Equal(Path.Combine(expectedRoot, "workpieces"), options.WorkpieceDirectory);
         Assert.True(Directory.Exists(options.DataRoot));
         Assert.True(Directory.Exists(options.LibraryDirectory));
         Assert.True(Directory.Exists(options.ScriptArtifactRoot));
         Assert.True(Directory.Exists(options.McpPackageStagingDirectory));
+        Assert.True(Directory.Exists(options.WorkpieceDirectory));
     }
 
     [Theory]
@@ -72,6 +74,7 @@ public sealed class SereinFlowStorageOptionsTests
     [InlineData("SereinFlow:LibraryDirectoryName", "nested/libraries")]
     [InlineData("SereinFlow:ScriptArtifactDirectoryName", ".")]
     [InlineData("SereinFlow:McpStagingDirectoryName", "..")]
+    [InlineData("SereinFlow:WorkpieceDirectoryName", "nested/workpieces")]
     public void RejectsChildStorageNamesThatCanEscapeDataRoot(string key, string value)
     {
         using var directory = new TemporaryDirectory();

@@ -6,7 +6,7 @@ build C# source or execute caller files.
 
 | Work | Resource URI |
 | --- | --- |
-| Local C# build and publish | `sereinflow://ai/skills/sereinflow-library-package/build` |
+| Local C# build and ZIP packaging | `sereinflow://ai/skills/sereinflow-library-package/build` |
 | ZIP layout and validation | `sereinflow://ai/skills/sereinflow-library-package/zip` |
 | SDK metadata and node contracts | `sereinflow://ai/skills/sereinflow-library-package/metadata` |
 | Preview, import and project attachment | `sereinflow://ai/skills/sereinflow-library-package/import` |

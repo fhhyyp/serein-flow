@@ -38,6 +38,7 @@ public static class SereinFlowExecutionRegistration
                     WorkingDirectory: Path.GetDirectoryName(workerRunnerPath),
                     AllowedScriptArtifactRoot: storage.ScriptArtifactRoot,
                     AllowedLibraryPackageRoot: storage.LibraryDirectory,
+                    AllowedWorkpieceRoot: storage.WorkpieceDirectory,
                     DiagnosticLogger: message => WorkerLog.WorkerDiagnostic(logger, message, null)));
         });
         services.AddSingleton<IWorkerRunClient>(serviceProvider =>

@@ -101,7 +101,8 @@ listener、SignalR 或 API-only hosted services。必须显式设置
     "DatabaseFileName": "sereinflow.db",
     "LibraryDirectoryName": "libraries",
     "ScriptArtifactDirectoryName": "script-artifacts",
-    "McpStagingDirectoryName": "mcp-staging"
+    "McpStagingDirectoryName": "mcp-staging",
+    "WorkpieceDirectoryName": "workpieces"
   }
 }
 ```
@@ -120,6 +121,7 @@ three capability-specific AI Resources:
 ```text
 sereinflow://ai/guide
 sereinflow://ai/skills/sereinflow
+sereinflow://ai/skills/sereinflow/workpieces
 sereinflow://ai/skills/sereinlang
 sereinflow://ai/skills/sereinflow-library-package
 ```
@@ -128,6 +130,7 @@ The index is intentionally short. A client should read only the capability
 Resource matching the current request, so a syntax check does not load flow,
 release and C# packaging rules. The former local Skills are represented by
 separate server Resources; each capability also exposes smaller task modules,
+including the run workpiece module for image preview and file download rules,
 and none of them are copied into the client plugin.
 
 Each Resource is loaded from the server deployment at every read, so an

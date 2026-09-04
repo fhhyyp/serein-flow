@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using SqlSugar;
 using SereinFlow.Application.Persistence;
@@ -24,10 +25,12 @@ public static class SereinFlowInfrastructureRegistration
         SereinFlowStorageOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
+        services.TryAddSingleton<IFileUploadSettings, FileUploadSettings>();
         var database = new SqliteDatabase(new SqliteDatabaseOptions(options.DatabasePath));
         database.Initialize();
 
         services.AddSingleton(options);
+        services.AddSingleton<IFlowWorkpieceStore, FileFlowWorkpieceStore>();
         services.AddSingleton(database);
         // SqlSugarClient contains mutable connection/transaction state. Use a
         // scoped client so concurrent API requests cannot share one ADO reader
@@ -113,7 +116,9 @@ public static class SereinFlowInfrastructureRegistration
         services.AddScoped<IMcpIdempotencyStore>(serviceProvider =>
             new SqlSugarMcpIdempotencyStore(
                 serviceProvider.GetRequiredService<IRepository<McpIdempotencyRecord>>()));
-        services.AddSingleton(new McpPackageStagingService(options.McpPackageStagingDirectory));
+        services.AddSingleton(serviceProvider => new McpPackageStagingService(
+            options.McpPackageStagingDirectory,
+            fileUploadSettings: serviceProvider.GetRequiredService<IFileUploadSettings>()));
 
         services.AddScoped<ILibraryCatalogService>(serviceProvider =>
             new SqliteLibraryCatalogService(
@@ -121,7 +126,8 @@ public static class SereinFlowInfrastructureRegistration
                 serviceProvider.GetRequiredService<IRepository<LibraryFamilyRecord>>(),
                 serviceProvider.GetRequiredService<IUnitOfWork>(),
                 new LibraryCatalogOptions(options.LibraryDirectory),
-                serviceProvider.GetRequiredService<ILogger<SqliteLibraryCatalogService>>()));
+                serviceProvider.GetRequiredService<ILogger<SqliteLibraryCatalogService>>(),
+                serviceProvider.GetRequiredService<IFileUploadSettings>()));
         return services;
     }
 }

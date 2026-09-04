@@ -88,17 +88,22 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
     private readonly IUnitOfWork _unitOfWork;
     private readonly LibraryCatalogOptions _options;
     private readonly ILogger<SqliteLibraryCatalogService>? _logger;
+    private readonly IFileUploadSettings? _fileUploadSettings;
     // The catalog is scoped because it consumes scoped repository services,
     // while uploads must still be serialized across concurrent HTTP requests.
     // Keep the gate process-wide instead of tying it to one request scope.
     private static readonly SemaphoreSlim UploadGate = new(1, 1);
 
-    public SqliteLibraryCatalogService(SqliteDatabase database, LibraryCatalogOptions options)
+    public SqliteLibraryCatalogService(
+        SqliteDatabase database,
+        LibraryCatalogOptions options,
+        IFileUploadSettings? fileUploadSettings = null)
         : this(
             new SqlSugarRepository<LibraryRecord>(database?.Client ?? throw new ArgumentNullException(nameof(database), "The database cannot be null. 数据库不能为空。")),
             new SqlSugarRepository<LibraryFamilyRecord>(database.Client),
             new SqlSugarUnitOfWork(database.Client),
-            options)
+            options,
+            fileUploadSettings: fileUploadSettings)
     {
     }
 
@@ -107,18 +112,22 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         IRepository<LibraryFamilyRecord> families,
         IUnitOfWork unitOfWork,
         LibraryCatalogOptions options,
-        ILogger<SqliteLibraryCatalogService>? logger = null)
+        ILogger<SqliteLibraryCatalogService>? logger = null,
+        IFileUploadSettings? fileUploadSettings = null)
     {
         _libraries = libraries ?? throw new ArgumentNullException(nameof(libraries), "The library repository cannot be null. 类库仓储不能为空。");
         _families = families ?? throw new ArgumentNullException(nameof(families), "The library family repository cannot be null. 类库族仓储不能为空。");
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork), "The unit of work cannot be null. 工作单元不能为空。");
         _options = options ?? throw new ArgumentNullException(nameof(options), "Library catalog options cannot be null. 类库目录选项不能为空。");
         _logger = logger;
+        _fileUploadSettings = fileUploadSettings;
         Directory.CreateDirectory(_options.RootPath);
         Directory.CreateDirectory(PackagesPath);
     }
 
     private string PackagesPath => Path.Combine(_options.RootPath, "packages");
+
+    private long MaxPackageBytes => _fileUploadSettings?.MaxLibraryUploadBytes ?? _options.MaxPackageBytes;
 
     public IReadOnlyList<LibraryDto> List()
         => ListAsync(includeArchived: true, cancellationToken: CancellationToken.None).GetAwaiter().GetResult();
@@ -170,9 +179,9 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         if (package is null)
             throw new ArgumentNullException(nameof(package), "The library package stream cannot be null. 类库包流不能为空。");
         ValidateFileName(fileName);
-        if (declaredLength is > 0 && declaredLength > _options.MaxPackageBytes)
+        if (declaredLength is > 0 && declaredLength > MaxPackageBytes)
         {
-            throw new LibraryUploadException($"The library package cannot exceed {_options.MaxPackageBytes / (1024 * 1024)} MB. 类库压缩包不能超过 {_options.MaxPackageBytes / (1024 * 1024)} MB。", 413);
+            throw new LibraryUploadException($"The library package cannot exceed {MaxPackageBytes / (1024 * 1024)} MB. 类库压缩包不能超过 {MaxPackageBytes / (1024 * 1024)} MB。", 413);
         }
 
         await UploadGate.WaitAsync(cancellationToken);
@@ -258,8 +267,8 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
     {
         ArgumentNullException.ThrowIfNull(package);
         ValidateFileName(fileName);
-        if (declaredLength is > 0 && declaredLength > _options.MaxPackageBytes)
-            throw new LibraryUploadException($"The library package cannot exceed {_options.MaxPackageBytes / (1024 * 1024)} MB. 类库压缩包不能超过 {_options.MaxPackageBytes / (1024 * 1024)} MB。", 413);
+        if (declaredLength is > 0 && declaredLength > MaxPackageBytes)
+            throw new LibraryUploadException($"The library package cannot exceed {MaxPackageBytes / (1024 * 1024)} MB. 类库压缩包不能超过 {MaxPackageBytes / (1024 * 1024)} MB。", 413);
 
         await UploadGate.WaitAsync(cancellationToken);
         var temporaryPath = Path.Combine(_options.RootPath, $".inspect-{Guid.NewGuid():N}.tmp");
@@ -723,9 +732,9 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             }
 
             total += read;
-            if (total > _options.MaxPackageBytes)
+            if (total > MaxPackageBytes)
             {
-                throw new LibraryUploadException($"The library package cannot exceed {_options.MaxPackageBytes / (1024 * 1024)} MB. 类库压缩包不能超过 {_options.MaxPackageBytes / (1024 * 1024)} MB。", 413);
+                throw new LibraryUploadException($"The library package cannot exceed {MaxPackageBytes / (1024 * 1024)} MB. 类库压缩包不能超过 {MaxPackageBytes / (1024 * 1024)} MB。", 413);
             }
 
             hash.AppendData(buffer, 0, read);
@@ -1100,6 +1109,14 @@ internal static class LibraryMetadataScanner
 
                     var signature = method.DecodeSignature(provider, null);
                     var nodeMetadata = ReadNodeMetadata(reader, nodeAttribute.Value, provider);
+                    var hasResultConverter = FindAttribute(
+                            reader,
+                            method.GetCustomAttributes(),
+                            LibraryAttributeContract.NodeResultAttributeFullName).HasValue
+                        || FindAttribute(
+                            reader,
+                            method.GetCustomAttributes(),
+                            LibraryAttributeContract.NodeResultGenericAttributeFullName).HasValue;
                     var parameterDefinitions = method.GetParameters()
                         .Select(reader.GetParameter)
                         .Where(static parameter => parameter.SequenceNumber > 0)
@@ -1215,7 +1232,8 @@ internal static class LibraryMetadataScanner
                         nodeContractId,
                         overloadSignature,
                         nodeIdentityConfidence,
-                        libraryName));
+                        libraryName,
+                        hasResultConverter));
                     manifestNodes.Add(new LibraryManifestNodeDto(
                         nodeContractId,
                         nodeIdentityConfidence,
@@ -1225,7 +1243,8 @@ internal static class LibraryMetadataScanner
                         overloadSignature,
                         signature.ReturnType,
                         IsAwaitableReturnType(signature.ReturnType),
-                        manifestParameters));
+                        manifestParameters,
+                        hasResultConverter));
                 }
             }
 

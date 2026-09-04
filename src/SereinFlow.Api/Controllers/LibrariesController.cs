@@ -10,11 +10,16 @@ public sealed class LibrariesController : ApiControllerBase
 {
     private readonly ILibraryCatalogService _catalog;
     private readonly ILibraryArtifactUsageStore _usage;
+    private readonly IFileUploadSettings _fileUploadSettings;
 
-    public LibrariesController(ILibraryCatalogService catalog, ILibraryArtifactUsageStore usage)
+    public LibrariesController(
+        ILibraryCatalogService catalog,
+        ILibraryArtifactUsageStore usage,
+        IFileUploadSettings fileUploadSettings)
     {
         _catalog = catalog;
         _usage = usage;
+        _fileUploadSettings = fileUploadSettings;
     }
 
     [HttpGet]
@@ -173,6 +178,14 @@ public sealed class LibrariesController : ApiControllerBase
     {
         if (!Request.HasFormContentType)
             return ApiProblem(StatusCodes.Status400BadRequest, "A multipart form upload is required. 必须使用 multipart 表单上传文件。");
+
+        var maxRequestBytes = FileUploadLimits.GetApiRequestBodyLimit(_fileUploadSettings.MaxLibraryUploadBytes);
+        if (Request.ContentLength is > 0 && Request.ContentLength > maxRequestBytes)
+        {
+            return ApiProblem(
+                StatusCodes.Status413PayloadTooLarge,
+                $"The upload request cannot exceed {_fileUploadSettings.MaxLibraryUploadBytes / (1024 * 1024)} MB plus multipart overhead. 上传请求不能超过 {_fileUploadSettings.MaxLibraryUploadBytes / (1024 * 1024)} MB（另含 multipart 开销）。");
+        }
 
         var form = await Request.ReadFormAsync(cancellationToken);
         var file = form.Files.GetFile("file") ?? (form.Files.Count > 0 ? form.Files[0] : null);

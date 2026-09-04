@@ -412,7 +412,8 @@ public sealed record LibraryNodeDto(
     string? ContractId = null,
     string? OverloadSignature = null,
     LibraryContractIdentityConfidenceDto IdentityConfidence = LibraryContractIdentityConfidenceDto.Legacy,
-    string? FlowLibraryName = null);
+    string? FlowLibraryName = null,
+    bool HasResultConverter = false);
 
 public sealed record LibraryParameterDto(
     string Id,
@@ -619,7 +620,8 @@ public sealed record LibraryManifestNodeDto(
     string OverloadSignature,
     string ReturnType,
     bool IsAwaitable,
-    IReadOnlyList<LibraryManifestParameterDto> Parameters);
+    IReadOnlyList<LibraryManifestParameterDto> Parameters,
+    bool HasResultConverter = false);
 
 public sealed record LibraryManifestParameterDto(
     string ContractId,
@@ -741,7 +743,8 @@ public sealed record RunExecutionSettingsDto(
     int MaxConcurrentRunsPerProject,
     int QueueWaitTimeoutSeconds = 60,
     int ShutdownGracePeriodSeconds = 10,
-    int SynchronousInvocationTimeoutSeconds = 30);
+    int SynchronousInvocationTimeoutSeconds = 30,
+    long MaxLibraryUploadBytes = 100 * 1024 * 1024);
 
 public sealed record FlowInterfaceDto(
     Guid Id,
@@ -823,7 +826,23 @@ public sealed record WorkerRunRequestDto(
     string? LibraryPackageRootPath = null,
     int MaxNodeVisits = 1_000,
     IReadOnlyList<string>? AllowedLibraryIds = null,
-    WorkerDebugOptionsDto? Debug = null);
+    WorkerDebugOptionsDto? Debug = null,
+    string? WorkpieceRootPath = null);
+
+/// <summary>
+/// Metadata for one run-local workpiece. The API exposes the download URL but never exposes the
+/// server-side storage path.
+/// 单个运行级工件的元数据。API 只公开下载地址，不公开服务端存储路径。
+/// </summary>
+public sealed record FlowWorkpieceDto(
+    Guid RunId,
+    string Id,
+    string Kind,
+    string Name,
+    string ContentType,
+    long Length,
+    DateTimeOffset CreatedAt,
+    string DownloadUrl);
 
 /// <summary>
 /// Immutable debug settings captured when a worker run starts. Breakpoints are

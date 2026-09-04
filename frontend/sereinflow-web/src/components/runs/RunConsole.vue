@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { Archive, CircleOff, Copy, Eye, FilePenLine, FolderKanban, LayoutDashboard, ListOrdered, PackagePlus, Plus, RadioTower, RefreshCw, Save, Settings2, SlidersHorizontal, Square, Trash2, X } from 'lucide-vue-next'
+import { Archive, CircleOff, Copy, Eye, FilePenLine, FolderKanban, LayoutDashboard, ListOrdered, PackageOpen, PackagePlus, Plus, RadioTower, RefreshCw, Save, Settings2, SlidersHorizontal, Square, Trash2, X } from 'lucide-vue-next'
 import {
   FlowApiError,
   archiveProject as archiveProjectRequest,
@@ -45,6 +45,7 @@ import LibraryFamilyDialog from '../library/LibraryFamilyDialog.vue'
 import LibraryUploadDialog from '../library/LibraryUploadDialog.vue'
 import McpKeySettings from './McpKeySettings.vue'
 import RunSnapshotViewer from './RunSnapshotViewer.vue'
+import RunWorkpiecePanel from './RunWorkpiecePanel.vue'
 
 type ConsoleView = 'overview' | 'projects' | 'queue' | 'settings' | 'interfaces' | 'libraries' | 'archives'
 
@@ -75,6 +76,7 @@ const snapshotEventsError = ref('')
 const snapshotRun = ref<FlowRunDto>()
 const isSnapshotLoading = ref(false)
 const snapshotError = ref('')
+const workpieceRun = ref<FlowRunDto>()
 const environmentLibraries = ref<LibraryDto[]>([])
 const libraryFamilies = ref<LibraryFamilyDto[]>([])
 const libraryArtifactUsages = ref<LibraryArtifactUsageDto[]>([])
@@ -97,6 +99,7 @@ const settingsForm = reactive<RunExecutionSettingsDto>({
   queueWaitTimeoutSeconds: 60,
   shutdownGracePeriodSeconds: 10,
   synchronousInvocationTimeoutSeconds: 30,
+  maxLibraryUploadBytes: 100 * 1024 * 1024,
 })
 const interfaceForm = reactive({
   name: '',
@@ -104,6 +107,13 @@ const interfaceForm = reactive({
   flowId: '',
   invocationMode: 'asynchronous' as FlowInvocationMode,
   isEnabled: true,
+})
+
+const maxLibraryUploadMegabytes = computed({
+  get: () => Math.round(settingsForm.maxLibraryUploadBytes / (1024 * 1024)),
+  set: (value: number) => {
+    settingsForm.maxLibraryUploadBytes = Math.round(value) * 1024 * 1024
+  },
 })
 
 const selectedInterfaceProject = computed(() => activeWorkspaces.value.find((item) => item.project.id === interfaceForm.projectId))
@@ -165,6 +175,9 @@ const activeViewTitleKey = computed(() => ({
   libraries: 'console.environmentLibrariesTitle',
   archives: 'console.archivesTitle',
 } as const)[activeView.value])
+const selectedWorkpieceRun = computed(() => workpieceRun.value
+  ? runs.value.find((run) => run.id === workpieceRun.value?.id) ?? workpieceRun.value
+  : undefined)
 
 watch(() => props.projectWorkspaces, (nextWorkspaces) => {
   const activeIds = new Set(nextWorkspaces.map((workspace) => workspace.project.id))
@@ -221,7 +234,10 @@ async function refreshDirectoryData(): Promise<void> {
   ])
   workspaces.value = nextWorkspaces
   interfaces.value = nextInterfaces
-  Object.assign(settingsForm, nextSettings)
+  Object.assign(settingsForm, {
+    ...nextSettings,
+    maxLibraryUploadBytes: nextSettings.maxLibraryUploadBytes ?? 100 * 1024 * 1024,
+  })
   environmentLibraries.value = nextLibraries
   libraryFamilies.value = nextFamilies
   libraryArtifactUsages.value = nextUsages
@@ -283,6 +299,7 @@ function runKindKey(run: FlowRunDto): string {
 }
 function isCancellable(run: FlowRunDto): boolean { return run.status === 'pending' || run.status === 'running' }
 function isInterruptible(run: FlowRunDto): boolean { return run.status === 'running' }
+function isWorkpieceLive(run: FlowRunDto): boolean { return run.status === 'pending' || run.status === 'running' }
 
 async function cancelRun(run: FlowRunDto): Promise<void> {
   if (!isCancellable(run) || cancellingRunIds.value.has(run.id)) return
@@ -342,6 +359,8 @@ async function openSnapshot(run: FlowRunDto): Promise<void> {
   }
 }
 function closeSnapshot(): void { snapshotRun.value = undefined; snapshot.value = undefined; snapshotOutputs.value = []; snapshotOutputsError.value = ''; snapshotEvents.value = []; snapshotEventsError.value = ''; snapshotError.value = '' }
+function openWorkpieces(run: FlowRunDto): void { workpieceRun.value = run }
+function closeWorkpieces(): void { workpieceRun.value = undefined }
 function openFlow(workspace: ProjectWorkspaceDto, flowId?: string): void {
   if (isArchivedProjectStatus(workspace.project.status)) return
   emit('open-flow', workspace, flowId)
@@ -544,7 +563,8 @@ onBeforeUnmount(() => {
       <template v-if="activeView === 'overview'">
         <p class="operations-console__intro">{{ t('console.quickPreviewHint') }}</p>
         <dl class="operations-console__metrics"><div><dt>{{ t('runs.queueCapacity') }}</dt><dd>{{ overview?.queuedCount ?? 0 }} <span>/ {{ overview?.queueCapacity ?? '—' }}</span></dd></div><div><dt>{{ t('runs.activeWorkers') }}</dt><dd>{{ overview?.activeRunCount ?? 0 }} <span>/ {{ overview?.maxConcurrentRuns ?? '—' }}</span></dd></div><div><dt>{{ t('runs.listenerWorkers') }}</dt><dd>{{ overview?.activeListenerRunCount ?? 0 }} <span>/ {{ overview?.maxConcurrentListenerRuns ?? '—' }}</span></dd></div><div><dt>{{ t('runs.projectLimit') }}</dt><dd>{{ overview?.maxConcurrentRunsPerProject ?? '—' }}</dd></div></dl>
-        <section class="operations-console__section"><div class="operations-console__section-heading"><h2>{{ t('console.queue') }}</h2><button class="text-button text-button--with-icon" type="button" @click="selectView('queue')"><ListOrdered :size="14" /><span>{{ t('console.viewQueue') }}</span></button></div><div class="operations-table-wrap"><table class="operations-table operations-table--overview"><thead><tr><th>{{ t('runs.project') }}</th><th>{{ t('runs.flow') }}</th><th>{{ t('runs.kind') }}</th><th>{{ t('runs.status') }}</th><th>{{ t('runs.queuedAt') }}</th><th>{{ t('runs.actions') }}</th></tr></thead><tbody v-if="latestRuns.length"><tr v-for="run in latestRuns" :key="run.id"><td>{{ projectNameFor(run) }}</td><td><code>{{ flowNameFor(run) }}</code></td><td>{{ t(runKindKey(run)) }}</td><td><span :class="['run-status', `run-status--${queueStatusClass(run)}`]">{{ t(queueStatusKey(run)) }}</span></td><td>{{ formatDate(run.createdAt) }}</td><td class="operations-table__actions"><button class="icon-button" type="button" :title="t('console.snapshot')" :aria-label="t('console.snapshot')" @click="openSnapshot(run)"><Eye :size="16" /></button><button v-if="isInterruptible(run)" class="icon-button icon-button--warning" type="button" :title="t('runs.interrupt')" :aria-label="t('runs.interrupt')" :disabled="interruptingRunIds.has(run.id)" @click="interruptRun(run)"><CircleOff :size="15" /></button><button v-if="isCancellable(run)" class="icon-button icon-button--danger" type="button" :title="t('runs.cancel')" :aria-label="t('runs.cancel')" :disabled="cancellingRunIds.has(run.id)" @click="cancelRun(run)"><Square :size="14" fill="currentColor" /></button></td></tr></tbody><tbody v-else><tr><td class="operations-table__empty" colspan="6">{{ t('runs.emptyRecent') }}</td></tr></tbody></table></div></section>
+        <section class="operations-console__section"><div class="operations-console__section-heading"><h2>{{ t('runs.running') }}</h2><span>{{ overview?.activeRuns.length ?? 0 }}</span></div><div class="operations-table-wrap"><table class="operations-table operations-table--active"><thead><tr><th>{{ t('runs.project') }}</th><th>{{ t('runs.flow') }}</th><th>{{ t('runs.kind') }}</th><th>{{ t('runs.startedAt') }}</th><th>{{ t('runs.actions') }}</th></tr></thead><tbody v-if="overview?.activeRuns.length"><tr v-for="run in overview.activeRuns" :key="run.id"><td>{{ projectNameFor(run) }}</td><td><code>{{ flowNameFor(run) }}</code></td><td>{{ t(runKindKey(run)) }}</td><td>{{ formatDate(run.startedAt ?? run.createdAt) }}</td><td class="operations-table__actions"><button class="icon-button" type="button" :title="t('workpiece.open')" :aria-label="t('workpiece.open')" @click="openWorkpieces(run)"><PackageOpen :size="16" /></button><button v-if="isCancellable(run)" class="icon-button icon-button--danger" type="button" :title="t('runs.cancel')" :aria-label="t('runs.cancel')" :disabled="cancellingRunIds.has(run.id)" @click="cancelRun(run)"><Square :size="14" fill="currentColor" /></button></td></tr></tbody><tbody v-else><tr><td class="operations-table__empty" colspan="5">{{ t('runs.emptyActive') }}</td></tr></tbody></table></div></section>
+         <section class="operations-console__section"><div class="operations-console__section-heading"><h2>{{ t('console.queue') }}</h2><button class="text-button text-button--with-icon" type="button" @click="selectView('queue')"><ListOrdered :size="14" /><span>{{ t('console.viewQueue') }}</span></button></div><div class="operations-table-wrap"><table class="operations-table operations-table--overview"><thead><tr><th>{{ t('runs.project') }}</th><th>{{ t('runs.flow') }}</th><th>{{ t('runs.kind') }}</th><th>{{ t('runs.status') }}</th><th>{{ t('runs.queuedAt') }}</th><th>{{ t('runs.actions') }}</th></tr></thead><tbody v-if="latestRuns.length"><tr v-for="run in latestRuns" :key="run.id"><td>{{ projectNameFor(run) }}</td><td><code>{{ flowNameFor(run) }}</code></td><td>{{ t(runKindKey(run)) }}</td><td><span :class="['run-status', `run-status--${queueStatusClass(run)}`]">{{ t(queueStatusKey(run)) }}</span></td><td>{{ formatDate(run.createdAt) }}</td><td class="operations-table__actions"><button class="icon-button" type="button" :title="t('console.snapshot')" :aria-label="t('console.snapshot')" @click="openSnapshot(run)"><Eye :size="16" /></button><button class="icon-button" type="button" :title="t('workpiece.open')" :aria-label="t('workpiece.open')" @click="openWorkpieces(run)"><PackageOpen :size="16" /></button><button v-if="isInterruptible(run)" class="icon-button icon-button--warning" type="button" :title="t('runs.interrupt')" :aria-label="t('runs.interrupt')" :disabled="interruptingRunIds.has(run.id)" @click="interruptRun(run)"><CircleOff :size="15" /></button><button v-if="isCancellable(run)" class="icon-button icon-button--danger" type="button" :title="t('runs.cancel')" :aria-label="t('runs.cancel')" :disabled="cancellingRunIds.has(run.id)" @click="cancelRun(run)"><Square :size="14" fill="currentColor" /></button></td></tr></tbody><tbody v-else><tr><td class="operations-table__empty" colspan="6">{{ t('runs.emptyRecent') }}</td></tr></tbody></table></div></section>
       </template>
 
       <template v-else-if="activeView === 'projects'">
@@ -555,12 +575,12 @@ onBeforeUnmount(() => {
 
       <template v-else-if="activeView === 'queue'">
         <p class="operations-console__intro">{{ t('console.queueHint') }}</p>
-        <div class="operations-table-wrap"><table class="operations-table operations-table--queue"><thead><tr><th>{{ t('runs.project') }}</th><th>{{ t('runs.flow') }}</th><th>{{ t('runs.kind') }}</th><th>{{ t('runs.status') }}</th><th>{{ t('runs.policy') }}</th><th>{{ t('runs.queuedAt') }}</th><th>{{ t('runs.actions') }}</th></tr></thead><tbody v-if="runs.length"><tr v-for="run in runs" :key="run.id"><td>{{ projectNameFor(run) }}</td><td><code>{{ flowNameFor(run) }}</code></td><td>{{ t(runKindKey(run)) }}</td><td><span :class="['run-status', `run-status--${queueStatusClass(run)}`]">{{ t(queueStatusKey(run)) }}</span></td><td>{{ t(`runs.policy.${run.concurrencyMode ?? 'parallel'}`) }}</td><td>{{ formatDate(run.createdAt) }}</td><td class="operations-table__actions"><button class="icon-button" type="button" :title="t('console.snapshot')" :aria-label="t('console.snapshot')" @click="openSnapshot(run)"><FilePenLine :size="15" /></button><button v-if="isInterruptible(run)" class="icon-button icon-button--warning" type="button" :title="t('runs.interrupt')" :aria-label="t('runs.interrupt')" :disabled="interruptingRunIds.has(run.id)" @click="interruptRun(run)"><CircleOff :size="15" /></button><button v-if="isCancellable(run)" class="icon-button icon-button--danger" type="button" :title="t('runs.cancel')" :aria-label="t('runs.cancel')" :disabled="cancellingRunIds.has(run.id)" @click="cancelRun(run)"><Square :size="14" fill="currentColor" /></button></td></tr></tbody><tbody v-else><tr><td class="operations-table__empty" colspan="7">{{ t('runs.emptyRecent') }}</td></tr></tbody></table></div>
+         <div class="operations-table-wrap"><table class="operations-table operations-table--queue"><thead><tr><th>{{ t('runs.project') }}</th><th>{{ t('runs.flow') }}</th><th>{{ t('runs.kind') }}</th><th>{{ t('runs.status') }}</th><th>{{ t('runs.policy') }}</th><th>{{ t('runs.queuedAt') }}</th><th>{{ t('runs.actions') }}</th></tr></thead><tbody v-if="runs.length"><tr v-for="run in runs" :key="run.id"><td>{{ projectNameFor(run) }}</td><td><code>{{ flowNameFor(run) }}</code></td><td>{{ t(runKindKey(run)) }}</td><td><span :class="['run-status', `run-status--${queueStatusClass(run)}`]">{{ t(queueStatusKey(run)) }}</span></td><td>{{ t(`runs.policy.${run.concurrencyMode ?? 'parallel'}`) }}</td><td>{{ formatDate(run.createdAt) }}</td><td class="operations-table__actions"><button class="icon-button" type="button" :title="t('console.snapshot')" :aria-label="t('console.snapshot')" @click="openSnapshot(run)"><FilePenLine :size="15" /></button><button class="icon-button" type="button" :title="t('workpiece.open')" :aria-label="t('workpiece.open')" @click="openWorkpieces(run)"><PackageOpen :size="15" /></button><button v-if="isInterruptible(run)" class="icon-button icon-button--warning" type="button" :title="t('runs.interrupt')" :aria-label="t('runs.interrupt')" :disabled="interruptingRunIds.has(run.id)" @click="interruptRun(run)"><CircleOff :size="15" /></button><button v-if="isCancellable(run)" class="icon-button icon-button--danger" type="button" :title="t('runs.cancel')" :aria-label="t('runs.cancel')" :disabled="cancellingRunIds.has(run.id)" @click="cancelRun(run)"><Square :size="14" fill="currentColor" /></button></td></tr></tbody><tbody v-else><tr><td class="operations-table__empty" colspan="7">{{ t('runs.emptyRecent') }}</td></tr></tbody></table></div>
       </template>
 
-      <template v-else-if="activeView === 'settings'">
-        <p class="operations-console__intro">{{ t('console.environmentSettingsHint') }}</p>
-        <form class="environment-settings" @submit.prevent="saveSettings"><label><span>{{ t('runs.queueCapacity') }}</span><input v-model.number="settingsForm.queueCapacity" type="number" min="1" max="10000" required /></label><label><span>{{ t('runs.activeWorkers') }}</span><input v-model.number="settingsForm.maxConcurrentRuns" type="number" min="1" max="1024" required /></label><label><span>{{ t('runs.listenerWorkers') }}</span><input v-model.number="settingsForm.maxConcurrentListenerRuns" type="number" min="0" max="1024" required /></label><label><span>{{ t('runs.projectLimit') }}</span><input v-model.number="settingsForm.maxConcurrentRunsPerProject" type="number" min="1" max="1024" required /></label><label><span>{{ t('console.queueWaitTimeout') }}</span><input v-model.number="settingsForm.queueWaitTimeoutSeconds" type="number" min="1" max="86400" required /></label><label><span>{{ t('console.shutdownGrace') }}</span><input v-model.number="settingsForm.shutdownGracePeriodSeconds" type="number" min="1" max="300" required /></label><label><span>{{ t('console.syncTimeout') }}</span><input v-model.number="settingsForm.synchronousInvocationTimeoutSeconds" type="number" min="1" max="300" required /></label><div class="environment-settings__actions"><button class="command-button run" type="submit" :disabled="isSettingsSaving"><Save :size="15" /><span>{{ t('console.saveSettings') }}</span></button></div></form>
+       <template v-else-if="activeView === 'settings'">
+         <p class="operations-console__intro">{{ t('console.environmentSettingsHint') }}</p>
+         <form class="environment-settings" @submit.prevent="saveSettings"><label><span>{{ t('runs.queueCapacity') }}</span><input v-model.number="settingsForm.queueCapacity" type="number" min="1" max="10000" required /></label><label><span>{{ t('runs.activeWorkers') }}</span><input v-model.number="settingsForm.maxConcurrentRuns" type="number" min="1" max="1024" required /></label><label><span>{{ t('runs.listenerWorkers') }}</span><input v-model.number="settingsForm.maxConcurrentListenerRuns" type="number" min="0" max="1024" required /></label><label><span>{{ t('runs.projectLimit') }}</span><input v-model.number="settingsForm.maxConcurrentRunsPerProject" type="number" min="1" max="1024" required /></label><label><span>{{ t('console.queueWaitTimeout') }}</span><input v-model.number="settingsForm.queueWaitTimeoutSeconds" type="number" min="1" max="86400" required /></label><label><span>{{ t('console.shutdownGrace') }}</span><input v-model.number="settingsForm.shutdownGracePeriodSeconds" type="number" min="1" max="300" required /></label><label><span>{{ t('console.syncTimeout') }}</span><input v-model.number="settingsForm.synchronousInvocationTimeoutSeconds" type="number" min="1" max="300" required /></label><label><span>{{ t('console.maxLibraryUploadSize') }}</span><input v-model.number="maxLibraryUploadMegabytes" type="number" min="1" max="512" step="1" required /><small>{{ t('console.maxLibraryUploadSizeHint') }}</small></label><div class="environment-settings__actions"><button class="command-button run" type="submit" :disabled="isSettingsSaving"><Save :size="15" /><span>{{ t('console.saveSettings') }}</span></button></div></form>
         <McpKeySettings :project-workspaces="activeWorkspaces" />
       </template>
 
@@ -618,8 +638,9 @@ onBeforeUnmount(() => {
       </template>
     </section>
 
-    <LibraryUploadDialog v-if="libraryUploadOpen" @close="libraryUploadOpen = false" @uploaded="handleLibraryUploaded" />
+     <LibraryUploadDialog v-if="libraryUploadOpen" :max-file-bytes="settingsForm.maxLibraryUploadBytes" @close="libraryUploadOpen = false" @uploaded="handleLibraryUploaded" />
     <LibraryFamilyDialog v-if="libraryFamilyAssignment" :library="libraryFamilyAssignment" @close="libraryFamilyAssignment = undefined" @assigned="handleLibraryFamilyAssigned" />
     <div v-if="snapshotRun" class="snapshot-dialog-backdrop" role="presentation" @click.self="closeSnapshot"><section class="snapshot-dialog" role="dialog" aria-modal="true" :aria-label="t('console.snapshotTitle')"><header><div><p class="operations-console__eyebrow">{{ shortId(snapshotRun.id) }}</p><h2>{{ t('console.snapshotTitle') }}</h2></div><button class="icon-button" type="button" :title="t('command.close')" :aria-label="t('command.close')" @click="closeSnapshot"><X :size="16" /></button></header><p>{{ t('console.snapshotReadonly') }}</p><div v-if="isSnapshotLoading" class="snapshot-dialog__status">{{ t('console.snapshotLoading') }}</div><div v-else-if="snapshotError" class="snapshot-dialog__status snapshot-dialog__status--error">{{ snapshotError }}</div><RunSnapshotViewer v-else :definition="snapshot" :outputs="snapshotOutputs" :outputs-error="snapshotOutputsError" :events="snapshotEvents" :events-error="snapshotEventsError" :is-debug-run="snapshotRun.executionKind === 'debug'" /></section></div>
+    <div v-if="selectedWorkpieceRun" class="workpiece-dialog-backdrop" role="presentation" @click.self="closeWorkpieces"><section class="workpiece-dialog" role="dialog" aria-modal="true" :aria-label="t('workpiece.title')"><header><div><p class="operations-console__eyebrow">{{ shortId(selectedWorkpieceRun.id) }}</p><h2>{{ t('workpiece.title') }}</h2><span>{{ projectNameFor(selectedWorkpieceRun) }} · {{ flowNameFor(selectedWorkpieceRun) }}</span></div><button class="icon-button" type="button" :title="t('command.close')" :aria-label="t('command.close')" @click="closeWorkpieces"><X :size="16" /></button></header><RunWorkpiecePanel :run-id="selectedWorkpieceRun.id" :live="isWorkpieceLive(selectedWorkpieceRun)" /></section></div>
   </main>
 </template>

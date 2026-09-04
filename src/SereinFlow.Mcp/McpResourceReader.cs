@@ -84,6 +84,14 @@ public sealed class McpResourceReader
                 => await McpDebugToolHandlers.ReadRunsResourceAsync(context, cancellationToken),
             "runs" when segments.Length == 1 && Guid.TryParse(segments[0], out var runId)
                 => await McpReadModelToolHandlers.ReadRunResourceAsync(context, runId, cancellationToken),
+            "runs" when segments.Length == 2
+                && Guid.TryParse(segments[0], out var workpiecesRunId)
+                && string.Equals(segments[1], "workpieces", StringComparison.OrdinalIgnoreCase)
+                => await McpReadModelToolHandlers.ReadRunWorkpiecesResourceAsync(context, workpiecesRunId, cancellationToken),
+            "runs" when segments.Length == 3
+                && Guid.TryParse(segments[0], out var workpieceRunId)
+                && string.Equals(segments[1], "workpieces", StringComparison.OrdinalIgnoreCase)
+                => await McpReadModelToolHandlers.ReadRunWorkpieceResourceAsync(context, workpieceRunId, segments[2], cancellationToken),
             "debug-sessions" when segments.Length == 0
                 => await McpDebugToolHandlers.ReadDebugSessionsResourceAsync(context, cancellationToken),
             "debug-sessions" when segments.Length == 1 && Guid.TryParse(segments[0], out var sessionId)

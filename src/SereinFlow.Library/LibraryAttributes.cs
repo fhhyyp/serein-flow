@@ -82,6 +82,64 @@ public sealed class FlowNodeAttribute : Attribute
 }
 
 /// <summary>
+/// Converts a node's CLR result into a value that can cross the SereinFlow JSON boundary.
+/// 节点结果转换为可以跨越 SereinFlow JSON 边界的传输值。
+/// </summary>
+/// <typeparam name="TPrimitive">The in-process result type returned by the node.</typeparam>
+/// <typeparam name="TTransfer">The JSON-safe transfer type exposed to clients.</typeparam>
+public interface INodeResultConverter<in TPrimitive, out TTransfer>
+{
+    /// <summary>
+    /// Converts one in-process node result into its external representation.
+    /// 将一个进程内节点结果转换为对外表示。
+    /// </summary>
+    TTransfer Transfer(TPrimitive primitive);
+}
+
+/// <summary>
+/// Associates a node method with its result converter. The converter is used only for event,
+/// output and API projections; the original result remains available to downstream nodes in the
+/// current Worker run.
+/// 将节点方法与结果转换器关联。转换器只用于事件、输出和 API 投影；原始结果仍可在当前 Worker
+/// 运行中供下游节点使用。
+/// </summary>
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
+public class NodeResultAttribute : Attribute
+{
+    /// <summary>
+    /// Initializes the result converter declaration.
+    /// 初始化结果转换器声明。
+    /// </summary>
+    /// <param name="converterType">A concrete type implementing one closed converter contract.</param>
+    public NodeResultAttribute(Type converterType)
+        => ConverterType = converterType ?? throw new ArgumentNullException(nameof(converterType));
+
+    /// <summary>
+    /// Gets the converter type declared by the node method.
+    /// 获取节点方法声明的转换器类型。
+    /// </summary>
+    public Type ConverterType { get; }
+}
+
+/// <summary>
+/// Generic C# 11 form of <see cref="NodeResultAttribute"/>.
+/// <see cref="NodeResultAttribute"/> 的 C# 11 泛型形式。
+/// </summary>
+/// <typeparam name="TConverter">The concrete result converter type.</typeparam>
+public sealed class NodeResultAttribute<TConverter> : NodeResultAttribute
+    where TConverter : class
+{
+    /// <summary>
+    /// Initializes a declaration for <typeparamref name="TConverter"/>.
+    /// 初始化声明，使用 <typeparamref name="TConverter"/> 作为转换器。
+    /// </summary>
+    public NodeResultAttribute()
+        : base(typeof(TConverter))
+    {
+    }
+}
+
+/// <summary>
 /// Supplies metadata for a parameter exposed as an input of a SereinFlow node.
 /// 为作为 SereinFlow 节点输入公开的参数提供元数据。
 /// </summary>
@@ -268,6 +326,18 @@ public static class LibraryAttributeContract
     public static readonly string FlowNodeAttributeFullName = GetFullName<FlowNodeAttribute>();
 
     /// <summary>
+    /// Gets the fully qualified metadata name of <see cref="NodeResultAttribute"/>.
+    /// 获取 <see cref="NodeResultAttribute"/> 的完全限定元数据名称。
+    /// </summary>
+    public static readonly string NodeResultAttributeFullName = GetFullName<NodeResultAttribute>();
+
+    /// <summary>
+    /// Gets the metadata name of the generic <see cref="NodeResultAttribute{TConverter}"/> definition.
+    /// 获取泛型 <see cref="NodeResultAttribute{TConverter}"/> 定义的元数据名称。
+    /// </summary>
+    public static readonly string NodeResultGenericAttributeFullName = GetGenericDefinitionFullName<NodeResultAttribute<object>>();
+
+    /// <summary>
     /// Gets the fully qualified metadata name of <see cref="NodeParamAttribute"/>.
     /// 获取 <see cref="NodeParamAttribute"/> 的完全限定元数据名称。
     /// </summary>
@@ -284,7 +354,7 @@ public static class LibraryAttributeContract
     /// <see cref="FlowServiceAttribute{TContract}"/> definition.
     /// 获取泛型 <see cref="FlowServiceAttribute{TContract}"/> 定义的完全限定元数据名称。
     /// </summary>
-    public static readonly string FlowServiceGenericAttributeFullName = GetFullName<FlowServiceAttribute<object>>();
+    public static readonly string FlowServiceGenericAttributeFullName = GetGenericDefinitionFullName<FlowServiceAttribute<object>>();
 
     /// <summary>
     /// Gets the fully qualified metadata name of <see cref="ParamArrayAttribute"/>.
@@ -373,4 +443,8 @@ public static class LibraryAttributeContract
     /// </returns>
     private static string GetFullName<T>()
         => typeof(T).FullName ?? typeof(T).Name;
+
+    private static string GetGenericDefinitionFullName<T>()
+        => (typeof(T).IsGenericType ? typeof(T).GetGenericTypeDefinition() : typeof(T)).FullName
+            ?? typeof(T).Name;
 }

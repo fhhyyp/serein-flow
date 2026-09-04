@@ -53,7 +53,8 @@ public sealed class SqlSugarRunEnvironmentSettingsStore : IRunEnvironmentSetting
             record.MaxConcurrentRunsPerProject,
             record.QueueWaitTimeoutSeconds,
             record.ShutdownGracePeriodSeconds,
-            record.SynchronousInvocationTimeoutSeconds);
+            record.SynchronousInvocationTimeoutSeconds,
+            record.MaxLibraryUploadBytes);
 
     private static void Apply(RunEnvironmentSettingsRecord record, RunExecutionSettingsDto settings)
     {
@@ -64,6 +65,7 @@ public sealed class SqlSugarRunEnvironmentSettingsStore : IRunEnvironmentSetting
         record.QueueWaitTimeoutSeconds = settings.QueueWaitTimeoutSeconds;
         record.ShutdownGracePeriodSeconds = settings.ShutdownGracePeriodSeconds;
         record.SynchronousInvocationTimeoutSeconds = settings.SynchronousInvocationTimeoutSeconds;
+        record.MaxLibraryUploadBytes = settings.MaxLibraryUploadBytes;
         record.UpdatedAt = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
     }
 }

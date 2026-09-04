@@ -8,6 +8,7 @@ const emit = defineEmits<{
   close: []
   uploaded: [library: LibraryDto]
 }>()
+const props = defineProps<{ maxFileBytes: number }>()
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const selectedFile = ref<File | null>(null)
@@ -15,8 +16,6 @@ const isDragOver = ref(false)
 const isUploading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
-
-const maxFileBytes = 100 * 1024 * 1024
 
 function openFilePicker(): void {
   if (!isUploading.value) {
@@ -55,9 +54,9 @@ function chooseFile(file: File): void {
     return
   }
 
-  if (file.size > maxFileBytes) {
+  if (file.size > props.maxFileBytes) {
     selectedFile.value = null
-    errorMessage.value = t('libraryUpload.tooLarge')
+    errorMessage.value = t('libraryUpload.tooLarge', { size: formatFileSize(props.maxFileBytes) })
     return
   }
 
@@ -124,7 +123,7 @@ function formatFileSize(bytes: number): string {
         <button class="library-upload-dropzone" :class="{ 'library-upload-dropzone--active': isDragOver }" type="button" :disabled="isUploading" @click="openFilePicker" @dragover.prevent="isDragOver = true" @dragleave.prevent="isDragOver = false" @drop.prevent="handleDrop">
           <UploadCloud :size="22" />
           <strong>{{ t('libraryUpload.dropTitle') }}</strong>
-          <span>{{ t('libraryUpload.dropHint') }}</span>
+          <span>{{ t('libraryUpload.dropHint', { size: formatFileSize(props.maxFileBytes) }) }}</span>
         </button>
 
         <div v-if="selectedFile" class="library-upload-file">

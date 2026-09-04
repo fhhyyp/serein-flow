@@ -47,3 +47,6 @@ frontend/sereinflow-web/output-vite.err
 /.dotnet-session
 /.compile-check
 /src/ThirdParty/SereinScript/ScriptLangTest
+
+# Generated library packages
+src/SereinFlow.OpenCvLibrary/*.zip

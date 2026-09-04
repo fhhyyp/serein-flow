@@ -90,7 +90,8 @@ public sealed record NodeExecutionResult(
     ExecutionBranch NextBranch = ExecutionBranch.Success,
     string? ErrorCode = null,
     string? ErrorMessage = null,
-    IReadOnlyDictionary<string, object?>? Inputs = null)
+    IReadOnlyDictionary<string, object?>? Inputs = null,
+    IReadOnlyDictionary<string, object?>? TransferOutputs = null)
 {
     public static NodeExecutionResult Success(IReadOnlyDictionary<string, object?>? outputs = null)
         => new(true, outputs ?? new Dictionary<string, object?>(), ExecutionBranch.Success);

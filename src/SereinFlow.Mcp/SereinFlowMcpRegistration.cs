@@ -106,7 +106,8 @@ public static class SereinFlowMcpServiceCollectionExtensions
                 Console.Error,
                 checked((int)options.MaxRequestBytes),
                 checked((int)options.MaxResponseBytes),
-                serviceProvider.GetRequiredService<IMcpRequestContextAccessor>()));
+                serviceProvider.GetRequiredService<IMcpRequestContextAccessor>(),
+                serviceProvider.GetRequiredService<IFileUploadSettings>()));
 
         return services;
     }
@@ -120,6 +121,7 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(endpoints);
         var options = endpoints.ServiceProvider.GetRequiredService<SereinFlowMcpOptions>();
+        var fileUploadSettings = endpoints.ServiceProvider.GetRequiredService<IFileUploadSettings>();
 
         var getEndpoint = endpoints.MapMethods(pattern, ["GET"], static () => Results.StatusCode(StatusCodes.Status405MethodNotAllowed))
             .RequireCors("sereinflow-mcp");
@@ -147,7 +149,10 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
             McpRequestLimiter limiter,
             CancellationToken cancellationToken) =>
         {
-            if (context.Request.ContentLength is > 0 && context.Request.ContentLength > options.MaxRequestBytes)
+            var maxRequestBytes = FileUploadLimits.GetMcpRequestBodyLimit(
+                fileUploadSettings.MaxLibraryUploadBytes,
+                options.MaxRequestBytes);
+            if (context.Request.ContentLength is > 0 && context.Request.ContentLength > maxRequestBytes)
                 return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
 
             var principal = await AuthenticateAsync(context, security, cancellationToken);
@@ -161,7 +166,7 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
                 string body;
                 try
                 {
-                    body = await ReadBodyAsync(context.Request.Body, options.MaxRequestBytes, cancellationToken);
+                    body = await ReadBodyAsync(context.Request.Body, maxRequestBytes, cancellationToken);
                 }
                 catch (InvalidOperationException)
                 {

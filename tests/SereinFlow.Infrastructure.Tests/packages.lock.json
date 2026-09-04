@@ -374,7 +374,7 @@
       "sereinflow.contracts": {
         "type": "Project",
         "dependencies": {
-          "SereinFlow.Library": "[1.0.0, )"
+          "SereinFlow.Library": "[1.0.1, )"
         }
       },
       "sereinflow.domain": {
@@ -405,13 +405,14 @@
         "type": "Project",
         "dependencies": {
           "SereinFlow.Domain": "[1.0.0, )",
-          "SereinFlow.Library": "[1.0.0, )"
+          "SereinFlow.Library": "[1.0.1, )"
         }
       },
       "sereinflow.testlibrary": {
         "type": "Project",
         "dependencies": {
-          "SereinFlow.Library": "[1.0.0, )"
+          "SereinFlow.Library": "[1.0.1, )",
+          "SereinFlow.Runtime.Abstractions": "[1.0.0, )"
         }
       },
       "SqlSugarCore": {

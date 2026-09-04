@@ -7,8 +7,25 @@ public sealed record SereinFlowStorageOptions(
     string DatabasePath,
     string LibraryDirectory,
     string ScriptArtifactRoot,
-    string McpPackageStagingDirectory)
+    string McpPackageStagingDirectory,
+    string WorkpieceDirectory)
 {
+    public SereinFlowStorageOptions(
+        string dataRoot,
+        string databasePath,
+        string libraryDirectory,
+        string scriptArtifactRoot,
+        string mcpPackageStagingDirectory)
+        : this(
+            dataRoot,
+            databasePath,
+            libraryDirectory,
+            scriptArtifactRoot,
+            mcpPackageStagingDirectory,
+            Path.Combine(dataRoot, "workpieces"))
+    {
+    }
+
     public static SereinFlowStorageOptions FromConfiguration(
         IConfiguration configuration,
         string contentRootPath)
@@ -28,23 +45,27 @@ public sealed record SereinFlowStorageOptions(
         var libraryDirectoryName = ReadName(configuration["SereinFlow:LibraryDirectoryName"], "libraries", "LibraryDirectoryName");
         var scriptDirectoryName = ReadName(configuration["SereinFlow:ScriptArtifactDirectoryName"], "script-artifacts", "ScriptArtifactDirectoryName");
         var stagingDirectoryName = ReadName(configuration["SereinFlow:McpStagingDirectoryName"], "mcp-staging", "McpStagingDirectoryName");
+        var workpieceDirectoryName = ReadName(configuration["SereinFlow:WorkpieceDirectoryName"], "workpieces", "WorkpieceDirectoryName");
 
         var databasePath = ResolveChildFile(dataRoot, databaseFileName, "DatabaseFileName");
         var libraryDirectory = ResolveChildDirectory(dataRoot, libraryDirectoryName, "LibraryDirectoryName");
         var scriptArtifactRoot = ResolveChildDirectory(dataRoot, scriptDirectoryName, "ScriptArtifactDirectoryName");
         var stagingDirectory = ResolveChildDirectory(dataRoot, stagingDirectoryName, "McpStagingDirectoryName");
+        var workpieceDirectory = ResolveChildDirectory(dataRoot, workpieceDirectoryName, "WorkpieceDirectoryName");
 
         Directory.CreateDirectory(dataRoot);
         Directory.CreateDirectory(libraryDirectory);
         Directory.CreateDirectory(scriptArtifactRoot);
         Directory.CreateDirectory(stagingDirectory);
+        Directory.CreateDirectory(workpieceDirectory);
 
         return new(
             dataRoot,
             databasePath,
             libraryDirectory,
             scriptArtifactRoot,
-            stagingDirectory);
+            stagingDirectory,
+            workpieceDirectory);
     }
 
     private static bool HasLegacyPathSettings(IConfiguration configuration)

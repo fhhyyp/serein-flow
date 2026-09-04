@@ -14,11 +14,13 @@ public sealed class McpPackageStagingService : IDisposable
     private readonly string _rootPath;
     private readonly long _maxBytes;
     private readonly TimeSpan _maxAge;
+    private readonly IFileUploadSettings? _fileUploadSettings;
 
     public McpPackageStagingService(
         string rootPath,
-        long maxBytes = 100 * 1024 * 1024,
-        TimeSpan? maxAge = null)
+        long maxBytes = FileUploadLimits.DefaultMaxFileSizeBytes,
+        TimeSpan? maxAge = null,
+        IFileUploadSettings? fileUploadSettings = null)
     {
         if (string.IsNullOrWhiteSpace(rootPath))
             throw new ArgumentException("The MCP package staging root is required.", nameof(rootPath));
@@ -26,6 +28,7 @@ public sealed class McpPackageStagingService : IDisposable
         _rootPath = Path.GetFullPath(rootPath);
         _maxBytes = maxBytes;
         _maxAge = maxAge ?? TimeSpan.FromMinutes(30);
+        _fileUploadSettings = fileUploadSettings;
         if (_maxAge <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(maxAge));
         Directory.CreateDirectory(_rootPath);
@@ -38,6 +41,7 @@ public sealed class McpPackageStagingService : IDisposable
     {
         ArgumentNullException.ThrowIfNull(source);
         CleanupStaleFiles();
+        var maxBytes = _fileUploadSettings?.MaxLibraryUploadBytes ?? _maxBytes;
         var path = Path.Combine(_rootPath, $"mcp-{Guid.NewGuid():N}.zip");
         long size = 0;
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
@@ -57,7 +61,7 @@ public sealed class McpPackageStagingService : IDisposable
                 if (read == 0)
                     break;
                 size += read;
-                if (size > _maxBytes)
+                if (size > maxBytes)
                     throw new InvalidOperationException("The staged MCP package exceeds the configured size limit.");
                 hash.AppendData(buffer, 0, read);
                 await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);

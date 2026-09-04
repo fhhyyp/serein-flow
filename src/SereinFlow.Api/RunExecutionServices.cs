@@ -40,6 +40,8 @@ public sealed class RunExecutionOptions
 
     public int SynchronousInvocationTimeoutSeconds { get; init; } = 30;
 
+    public long MaxLibraryUploadBytes { get; init; } = FileUploadLimits.DefaultMaxFileSizeBytes;
+
     internal RunExecutionOptions Normalize()
         => new()
         {
@@ -49,7 +51,8 @@ public sealed class RunExecutionOptions
             MaxConcurrentRunsPerProject = Math.Clamp(MaxConcurrentRunsPerProject, 1, 1_024),
             QueueWaitTimeoutSeconds = Math.Clamp(QueueWaitTimeoutSeconds, 1, 86_400),
             ShutdownGracePeriodSeconds = Math.Clamp(ShutdownGracePeriodSeconds, 1, 300),
-            SynchronousInvocationTimeoutSeconds = Math.Clamp(SynchronousInvocationTimeoutSeconds, 1, 300)
+            SynchronousInvocationTimeoutSeconds = Math.Clamp(SynchronousInvocationTimeoutSeconds, 1, 300),
+            MaxLibraryUploadBytes = FileUploadLimits.Normalize(MaxLibraryUploadBytes)
         };
 
     public RunExecutionSettingsDto ToDto()
@@ -60,7 +63,8 @@ public sealed class RunExecutionOptions
             MaxConcurrentRunsPerProject,
             QueueWaitTimeoutSeconds,
             ShutdownGracePeriodSeconds,
-            SynchronousInvocationTimeoutSeconds);
+            SynchronousInvocationTimeoutSeconds,
+            MaxLibraryUploadBytes);
 
     public static RunExecutionOptions FromDto(RunExecutionSettingsDto settings)
     {
@@ -74,6 +78,7 @@ public sealed class RunExecutionOptions
             QueueWaitTimeoutSeconds = settings.QueueWaitTimeoutSeconds,
             ShutdownGracePeriodSeconds = settings.ShutdownGracePeriodSeconds,
             SynchronousInvocationTimeoutSeconds = settings.SynchronousInvocationTimeoutSeconds,
+            MaxLibraryUploadBytes = settings.MaxLibraryUploadBytes,
         }.Normalize();
     }
 }
@@ -201,9 +206,13 @@ public sealed class RunExecutionQueue
     private int _queuedCount;
     private bool _accepting = true;
 
-    public RunExecutionQueue(IOptions<RunExecutionOptions> options)
+    private readonly IFileUploadSettings _fileUploadSettings;
+
+    public RunExecutionQueue(IOptions<RunExecutionOptions> options, IFileUploadSettings? fileUploadSettings = null)
     {
         _options = (options?.Value ?? new RunExecutionOptions()).Normalize();
+        _fileUploadSettings = fileUploadSettings ?? new FileUploadSettings();
+        _fileUploadSettings.Configure(_options.MaxLibraryUploadBytes);
         // Capacity is enforced by a reservation counter so operators can
         // safely change it without replacing a channel containing work.
         // 容量通过预留计数器限制，使运维人员调整上限时无需替换仍有任务的通道。
@@ -228,6 +237,7 @@ public sealed class RunExecutionQueue
         lock (_gate)
         {
             _options = RunExecutionOptions.FromDto(settings);
+            _fileUploadSettings.Configure(_options.MaxLibraryUploadBytes);
         }
         SignalScheduler();
         return Options.ToDto();
@@ -653,6 +663,7 @@ public sealed class RunExecutionHostedService : BackgroundService
     private readonly ILogger<RunExecutionHostedService> _logger;
     private readonly string _scriptRoot;
     private readonly string _libraryRoot;
+    private readonly string _workpieceRoot;
     private readonly ConcurrentDictionary<Guid, Task> _activeTasks = new();
 
     public RunExecutionHostedService(
@@ -672,6 +683,7 @@ public sealed class RunExecutionHostedService : BackgroundService
         _logger = logger;
         _scriptRoot = storage.ScriptArtifactRoot;
         _libraryRoot = storage.LibraryDirectory;
+        _workpieceRoot = storage.WorkpieceDirectory;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -947,7 +959,8 @@ public sealed class RunExecutionHostedService : BackgroundService
                 _scriptRoot,
                 _libraryRoot,
                 item.MaxNodeVisits,
-                ProjectLibraryService.GetLibraryIds(item.Definition));
+                ProjectLibraryService.GetLibraryIds(item.Definition),
+                WorkpieceRootPath: _workpieceRoot);
 
             var result = await _workerClient.RunAsync(
                 request,

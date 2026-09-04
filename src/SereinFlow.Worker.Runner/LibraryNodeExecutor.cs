@@ -1,9 +1,11 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
+using SereinFlow.Core.Api;
 using SereinFlow.Domain;
 using SereinFlow.Runtime;
 using SereinFlow.Runtime.Abstractions;
 using SereinFlow.ScriptAdapter;
+using NodeType = SereinFlow.Domain.NodeType;
 
 namespace SereinFlow.Worker.Runner;
 
@@ -45,6 +47,7 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
         {
             var resolved = await _cache.ResolveMethodAsync(request.Node, cancellationToken);
             var method = resolved.Method;
+            var resultAttribute = method.GetCustomAttribute<NodeResultAttribute>(inherit: false);
             if (_nodeType == NodeType.Flipflop && !IsTask(method.ReturnType))
             {
                 return NodeExecutionResult.Error(
@@ -52,10 +55,11 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
                     "Flipflop methods must return Task or Task<T>. Flipflop 方法必须返回 Task 或 Task<T>。");
             }
 
-            if (!method.IsStatic)
+            if (!method.IsStatic || resultAttribute is not null)
             {
                 invocationScope = _services.CreateInvocationScope(resolved.DeclaringType.Assembly);
-                target = _services.CreateNodeInstance(invocationScope.Value.ServiceProvider, resolved.DeclaringType);
+                if (!method.IsStatic)
+                    target = _services.CreateNodeInstance(invocationScope.Value.ServiceProvider, resolved.DeclaringType);
             }
             var parameters = method.GetParameters();
             var arguments = new object?[parameters.Length];
@@ -159,9 +163,24 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
 
             var invocationResult = method.Invoke(target, arguments);
             var valueResult = await AwaitResultAsync(invocationResult, method.ReturnType, cancellationToken);
-            var result = valueResult is null
-                ? NodeExecutionResult.Success()
-                : NodeExecutionResult.Success(new Dictionary<string, object?> { ["result"] = valueResult });
+            var outputs = valueResult is null
+                ? new Dictionary<string, object?>()
+                : new Dictionary<string, object?> { ["result"] = valueResult };
+            var result = NodeExecutionResult.Success(outputs);
+            if (resultAttribute is not null)
+            {
+                var transfer = TransferResult(
+                    invocationScope?.ServiceProvider
+                        ?? throw new LibraryResultConverterException(
+                            "library.result_converter_scope_missing",
+                            "A result converter requires an invocation scope. 节点结果转换器需要调用作用域。"),
+                    resultAttribute.ConverterType,
+                    valueResult);
+                result = result with
+                {
+                    TransferOutputs = new Dictionary<string, object?> { ["result"] = transfer }
+                };
+            }
             return flowContext.Apply(result) with { Inputs = SnapshotInputs(auditInputs) };
         }
         catch (LibraryRuntimeCacheException exception)
@@ -169,6 +188,14 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
             return NodeExecutionResult.Error(exception.Code, exception.Message) with { Inputs = SnapshotInputs(auditInputs) };
         }
         catch (LibraryServiceException exception)
+        {
+            return NodeExecutionResult.Error(exception.Code, exception.Message) with { Inputs = SnapshotInputs(auditInputs) };
+        }
+        catch (LibraryResultConverterException exception)
+        {
+            return NodeExecutionResult.Error(exception.Code, exception.Message) with { Inputs = SnapshotInputs(auditInputs) };
+        }
+        catch (FlowWorkpieceException exception)
         {
             return NodeExecutionResult.Error(exception.Code, exception.Message) with { Inputs = SnapshotInputs(auditInputs) };
         }
@@ -190,6 +217,13 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
         }
         catch (TargetInvocationException exception)
         {
+            if (exception.InnerException is FlowWorkpieceException workpieceException)
+            {
+                return NodeExecutionResult.Error(workpieceException.Code, workpieceException.Message) with
+                {
+                    Inputs = SnapshotInputs(auditInputs)
+                };
+            }
             var detail = exception.InnerException?.Message ?? exception.Message;
             return _nodeType == NodeType.Flipflop
                 ? NodeExecutionResult.Error("flipflop.execution_failed", $"Flipflop method invocation failed. Flipflop 方法调用失败。 {detail}") with { Inputs = SnapshotInputs(auditInputs) }
@@ -220,6 +254,62 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
             return null;
         await task.WaitAsync(cancellationToken);
         return returnType.IsGenericType ? returnType.GetProperty("Result")?.GetValue(task) : null;
+    }
+
+    private object? TransferResult(IServiceProvider services, Type converterType, object? primitive)
+    {
+        try
+        {
+            var converter = _services.CreateNodeResultConverter(services, converterType);
+            var contract = converterType.GetInterfaces()
+                .SingleOrDefault(static item => item.IsGenericType
+                    && item.GetGenericTypeDefinition() == typeof(INodeResultConverter<,>))
+                ?? throw new LibraryResultConverterException(
+                    "library.result_converter_invalid",
+                    $"Result converter '{converterType.FullName ?? converterType.Name}' does not implement a closed converter contract. 节点结果转换器未实现闭合的转换器合同。");
+            var primitiveType = contract.GetGenericArguments()[0];
+            if (primitive is null && primitiveType.IsValueType && Nullable.GetUnderlyingType(primitiveType) is null)
+            {
+                throw new LibraryResultConverterException(
+                    "library.result_converter_input_invalid",
+                    $"The result converter '{converterType.FullName ?? converterType.Name}' cannot receive a null value of '{primitiveType.FullName}'. 节点结果转换器无法接收“{primitiveType.FullName}”的 null 值。");
+            }
+            if (primitive is not null && !primitiveType.IsInstanceOfType(primitive))
+            {
+                throw new LibraryResultConverterException(
+                    "library.result_converter_input_invalid",
+                    $"The node returned '{primitive.GetType().FullName}' but converter '{converterType.FullName ?? converterType.Name}' expects '{primitiveType.FullName}'. 节点返回类型与结果转换器输入类型不匹配。");
+            }
+
+            var transferMethod = contract.GetMethod(nameof(INodeResultConverter<object, object>.Transfer))
+                ?? throw new LibraryResultConverterException(
+                    "library.result_converter_invalid",
+                    $"Result converter '{converterType.FullName ?? converterType.Name}' has no Transfer method. 节点结果转换器缺少 Transfer 方法。");
+            return transferMethod.Invoke(converter, [primitive]);
+        }
+        catch (LibraryServiceException)
+        {
+            throw;
+        }
+        catch (LibraryResultConverterException)
+        {
+            throw;
+        }
+        catch (TargetInvocationException exception)
+        {
+            var detail = exception.InnerException?.Message ?? exception.Message;
+            throw new LibraryResultConverterException(
+                "library.result_conversion_failed",
+                $"The node result could not be converted by '{converterType.FullName ?? converterType.Name}'. 节点结果无法由转换器转换。 {detail}",
+                exception.InnerException ?? exception);
+        }
+        catch (Exception exception)
+        {
+            throw new LibraryResultConverterException(
+                "library.result_conversion_failed",
+                $"The node result could not be converted by '{converterType.FullName ?? converterType.Name}'. 节点结果无法由转换器转换。 {exception.Message}",
+                exception);
+        }
     }
 
     private static Dictionary<string, object?> SnapshotInputs(IReadOnlyDictionary<string, object?> inputs)
@@ -333,6 +423,18 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
         public NodeExecutionResult Apply(NodeExecutionResult result)
             => _branch == ExecutionBranch.Success
                 ? result
-                : new NodeExecutionResult(false, result.Outputs, _branch, _code, _message);
+                : result with
+                {
+                    IsSuccess = false,
+                    NextBranch = _branch,
+                    ErrorCode = _code,
+                    ErrorMessage = _message
+                };
     }
+}
+
+internal sealed class LibraryResultConverterException(string code, string message, Exception? innerException = null)
+    : Exception(message, innerException)
+{
+    public string Code { get; } = code;
 }

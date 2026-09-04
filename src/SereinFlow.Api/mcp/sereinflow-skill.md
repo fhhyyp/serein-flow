@@ -9,6 +9,7 @@ read resources are authoritative; treat the service as a remote black box.
 | Project discovery and inspection | `sereinflow://ai/skills/sereinflow/projects` |
 | Flow editing, patches and layout | `sereinflow://ai/skills/sereinflow/flows` |
 | Runs, debugging and verification | `sereinflow://ai/skills/sereinflow/runtime` |
+| Run images, files and uploaded workpieces | `sereinflow://ai/skills/sereinflow/workpieces` |
 | Run-message endpoints | `sereinflow://ai/skills/sereinflow/runtime` |
 | MCP API key administration | `sereinflow://ai/skills/sereinflow/api-keys` |
 | Publishing and rollback | `sereinflow://ai/skills/sereinflow/release` |

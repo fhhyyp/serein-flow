@@ -20,7 +20,8 @@ public sealed record SupervisorWorkerRunClientOptions(
     string? AllowedLibraryPackageRoot = null,
     string RunnerFileName = "dotnet",
     Action<string>? DiagnosticLogger = null,
-    TimeSpan? MessageDeliveryTimeout = null);
+    TimeSpan? MessageDeliveryTimeout = null,
+    string? AllowedWorkpieceRoot = null);
 
 public sealed class SupervisorWorkerRunClient : IWorkerDebugRunClient, IWorkerMessageRunClient
 {
@@ -53,7 +54,8 @@ public sealed class SupervisorWorkerRunClient : IWorkerDebugRunClient, IWorkerMe
             options.AllowedScriptArtifactRoot,
             options.AllowedLibraryPackageRoot,
             options.DiagnosticLogger,
-            options.MessageDeliveryTimeout));
+            options.MessageDeliveryTimeout,
+            options.AllowedWorkpieceRoot));
     }
 
     public Task<WorkerRunResultDto> RunAsync(

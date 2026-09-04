@@ -19,7 +19,8 @@ public sealed class EnvironmentConsolePersistenceTests
             MaxConcurrentRunsPerProject: 4,
             QueueWaitTimeoutSeconds: 75,
             ShutdownGracePeriodSeconds: 15,
-            SynchronousInvocationTimeoutSeconds: 25);
+            SynchronousInvocationTimeoutSeconds: 25,
+            MaxLibraryUploadBytes: 128 * 1024 * 1024);
 
         var saved = await store.SaveAsync(configured);
         var loaded = await store.GetAsync();

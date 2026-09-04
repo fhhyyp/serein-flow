@@ -6,6 +6,7 @@ import type { FlowDebugSessionDto } from '../../api/flowApi'
 import type { DebugPauseBoundary } from '../../composables/useFlowDebugger'
 import type { NodeExecutionState } from '../../flow/nodeExecutionState'
 import NodeExecutionInspector from '../debug/NodeExecutionInspector.vue'
+import RunWorkpiecePanel from '../runs/RunWorkpiecePanel.vue'
 
 const props = defineProps<{
   session?: FlowDebugSessionDto
@@ -27,6 +28,7 @@ const emit = defineEmits<{
 
 const isPaused = computed(() => props.session?.status === 'paused' && !props.isStopping)
 const invocationShortId = computed(() => props.session?.activeInvocationId?.slice(0, 8))
+const isWorkpieceLive = computed(() => props.session?.status === 'pending' || props.session?.status === 'running')
 </script>
 
 <template>
@@ -53,6 +55,8 @@ const invocationShortId = computed(() => props.session?.activeInvocationId?.slic
     </dl>
 
     <NodeExecutionInspector :executions="props.executions" :node-names="props.nodeNames" compact @select-node="emit('selectNode', $event)" />
+
+    <RunWorkpiecePanel :run-id="props.session.runId" :live="isWorkpieceLive" compact />
 
     <footer class="flow-debug-panel__controls">
       <button class="flow-debug-panel__control" type="button" :title="t('debug.continue')" :aria-label="t('debug.continue')" :disabled="!isPaused || props.isControlling || props.isStopping" @click="emit('continue')"><Play :size="16" fill="currentColor" /></button>

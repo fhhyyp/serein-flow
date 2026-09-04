@@ -79,6 +79,7 @@ public sealed class McpBackendIntegrationTests
         Assert.Contains("sereinflow://archived-libraries", resourceUris);
         Assert.Contains("sereinflow://library-families", resourceUris);
         Assert.Contains(McpAiGuidance.SereinFlowFlowsResourceUri, resourceUris);
+        Assert.Contains(McpAiGuidance.SereinFlowWorkpiecesResourceUri, resourceUris);
         Assert.Contains(McpAiGuidance.SereinLangSyntaxResourceUri, resourceUris);
         Assert.Contains(McpAiGuidance.LibraryImportResourceUri, resourceUris);
         Assert.Contains("sereinflow://library-families/{familyId}", resourceTemplates);

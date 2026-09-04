@@ -52,6 +52,7 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
     private readonly ILogger<FlowDebugSessionService> _logger;
     private readonly string _scriptRoot;
     private readonly string _libraryRoot;
+    private readonly string _workpieceRoot;
     private readonly ConcurrentDictionary<Guid, ActiveDebugSession> _active = new();
 
     public FlowDebugSessionService(
@@ -71,6 +72,7 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
         _logger = logger;
         _scriptRoot = storage.ScriptArtifactRoot;
         _libraryRoot = storage.LibraryDirectory;
+        _workpieceRoot = storage.WorkpieceDirectory;
     }
 
     public async Task<FlowDebugSessionStartResult> CreateAsync(
@@ -193,7 +195,8 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
                 new WorkerDebugOptionsDto(
                     session.Id,
                     session.BreakpointNodeIds,
-                    request.MaxQueuedFlipflopTriggers ?? 64));
+                    request.MaxQueuedFlipflopTriggers ?? 64),
+                _workpieceRoot);
             var handle = await _workerClient.StartDebugAsync(
                 workerRequest,
                 new DelegateWorkerRunEventSink((workerEvent, token) => HandleWorkerEventAsync(session.Id, workerEvent, token)),

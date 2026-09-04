@@ -22,6 +22,7 @@ public sealed class SereinFlowMcpServer
     private readonly int _maxRequestBytes;
     private readonly int _maxResponseBytes;
     private readonly IMcpRequestContextAccessor? _requestContextAccessor;
+    private readonly IFileUploadSettings? _fileUploadSettings;
     private bool _shutdownRequested;
 
     public SereinFlowMcpServer(
@@ -29,7 +30,8 @@ public sealed class SereinFlowMcpServer
         TextWriter? diagnostics = null,
         int maxRequestBytes = 16 * 1024 * 1024,
         int maxResponseBytes = 4 * 1024 * 1024,
-        IMcpRequestContextAccessor? requestContextAccessor = null)
+        IMcpRequestContextAccessor? requestContextAccessor = null,
+        IFileUploadSettings? fileUploadSettings = null)
     {
         _backend = backend ?? throw new ArgumentNullException(nameof(backend));
         _diagnostics = diagnostics ?? TextWriter.Null;
@@ -38,6 +40,7 @@ public sealed class SereinFlowMcpServer
         _maxRequestBytes = maxRequestBytes;
         _maxResponseBytes = maxResponseBytes;
         _requestContextAccessor = requestContextAccessor;
+        _fileUploadSettings = fileUploadSettings;
     }
 
     public async Task RunAsync(
@@ -85,7 +88,7 @@ public sealed class SereinFlowMcpServer
         TextWriter output,
         CancellationToken cancellationToken)
     {
-        if (Encoding.UTF8.GetByteCount(line) > _maxRequestBytes)
+        if (Encoding.UTF8.GetByteCount(line) > GetMaxRequestBytes())
         {
             await WriteResponseAsync(
                 output,
@@ -203,6 +206,13 @@ public sealed class SereinFlowMcpServer
                 _requestContextAccessor.Current = previousContext;
         }
     }
+
+    private long GetMaxRequestBytes()
+        => _fileUploadSettings is null
+            ? _maxRequestBytes
+            : FileUploadLimits.GetMcpRequestBodyLimit(
+                _fileUploadSettings.MaxLibraryUploadBytes,
+                _maxRequestBytes);
 
     private async Task<object?> DispatchAsync(
         string method,

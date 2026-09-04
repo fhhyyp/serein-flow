@@ -1,6 +1,6 @@
 # SereinFlow MCP Guide
 
-Guide version: 8
+Guide version: 9
 
 This is the MCP entry point for AI guidance. After `initialize`, read this
 Resource and then read only the smallest module Resource needed for the
@@ -14,12 +14,13 @@ client. Current tool schemas and read Resources are authoritative.
 | Project discovery or inspection | `sereinflow://ai/skills/sereinflow/projects` |
 | Flow editing, nodes, connections or scripts | `sereinflow://ai/skills/sereinflow/flows` |
 | Runs, execution or debugging | `sereinflow://ai/skills/sereinflow/runtime` |
+| Run images, files or other uploaded workpieces | `sereinflow://ai/skills/sereinflow/workpieces` |
 | MCP API key administration | `sereinflow://ai/skills/sereinflow/api-keys` |
 | Publish or rollback | `sereinflow://ai/skills/sereinflow/release` |
 | SereinLang lexical or expression syntax | `sereinflow://ai/skills/sereinlang/syntax` |
 | SereinLang imports or host APIs | `sereinflow://ai/skills/sereinlang/host` |
 | SereinLang formal grammar | `sereinflow://ai/skills/sereinlang/grammar` |
-| C# library build and publish | `sereinflow://ai/skills/sereinflow-library-package/build` |
+| C# library build and ZIP packaging | `sereinflow://ai/skills/sereinflow-library-package/build` |
 | Library ZIP contract | `sereinflow://ai/skills/sereinflow-library-package/zip` |
 | Library SDK metadata | `sereinflow://ai/skills/sereinflow-library-package/metadata` |
 | Library preview, import or attachment | `sereinflow://ai/skills/sereinflow-library-package/import` |

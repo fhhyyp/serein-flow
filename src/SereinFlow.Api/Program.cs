@@ -41,9 +41,18 @@ builder.Services.AddSereinFlowMcp(builder.Configuration, builder.Environment.Con
 builder.Services.AddSereinFlowExecution(
     builder.Configuration,
     builder.Environment.ContentRootPath);
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = FileUploadLimits.GetApiRequestBodyLimit(
+        FileUploadLimits.MaximumMaxFileSizeBytes);
+});
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.Limits.MaxRequestBodySize = mcpOptions.MaxRequestBytes;
+    options.Limits.MaxRequestBodySize = Math.Max(
+        FileUploadLimits.GetApiRequestBodyLimit(FileUploadLimits.MaximumMaxFileSizeBytes),
+        FileUploadLimits.GetMcpRequestBodyLimit(
+            FileUploadLimits.MaximumMaxFileSizeBytes,
+            mcpOptions.MaxRequestBytes));
 });
 
 var app = builder.Build();

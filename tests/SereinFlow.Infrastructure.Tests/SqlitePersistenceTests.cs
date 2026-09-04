@@ -29,6 +29,54 @@ public sealed class SqlitePersistenceTests
     }
 
     [Fact]
+    public void MigratorRepairsEnvironmentSettingsColumnWhenMigrationVersionAlreadyExists()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"sereinflow-upload-settings-{Guid.NewGuid():N}.db");
+        try
+        {
+            using (var connection = new SqliteConnection($"Data Source={databasePath}"))
+            {
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = """
+                    CREATE TABLE SchemaMigrations (Version INTEGER NOT NULL PRIMARY KEY, AppliedAt TEXT NOT NULL, Checksum TEXT NOT NULL);
+                    CREATE TABLE RunEnvironmentSettings (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        QueueCapacity INTEGER NOT NULL,
+                        MaxConcurrentRuns INTEGER NOT NULL,
+                        MaxConcurrentListenerRuns INTEGER NOT NULL,
+                        MaxConcurrentRunsPerProject INTEGER NOT NULL,
+                        QueueWaitTimeoutSeconds INTEGER NOT NULL,
+                        ShutdownGracePeriodSeconds INTEGER NOT NULL,
+                        SynchronousInvocationTimeoutSeconds INTEGER NOT NULL,
+                        UpdatedAt TEXT NOT NULL
+                    );
+                    """;
+                command.ExecuteNonQuery();
+
+                for (var version = 1; version <= 27; version++)
+                {
+                    command.CommandText = "INSERT INTO SchemaMigrations (Version, AppliedAt, Checksum) VALUES ($version, $now, 'legacy');";
+                    command.Parameters.Clear();
+                    command.Parameters.AddWithValue("$version", version);
+                    command.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToString("O"));
+                    command.ExecuteNonQuery();
+                }
+            }
+
+            using var database = new SqliteDatabase(new SqliteDatabaseOptions(databasePath));
+            database.Initialize();
+
+            Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM pragma_table_info('RunEnvironmentSettings') WHERE name = 'MaxLibraryUploadBytes'"));
+            Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 28"));
+        }
+        finally
+        {
+            DeleteSqliteFiles(databasePath);
+        }
+    }
+
+    [Fact]
     public void ProjectRepositorySupportsOptimisticVersionUpdates()
     {
         using var database = CreateDatabase();

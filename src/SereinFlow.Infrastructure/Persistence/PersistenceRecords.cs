@@ -229,6 +229,7 @@ public sealed class RunEnvironmentSettingsRecord
     public int QueueWaitTimeoutSeconds { get; set; }
     public int ShutdownGracePeriodSeconds { get; set; }
     public int SynchronousInvocationTimeoutSeconds { get; set; }
+    public long MaxLibraryUploadBytes { get; set; }
     public string UpdatedAt { get; set; } = string.Empty;
 }
 

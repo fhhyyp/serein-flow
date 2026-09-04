@@ -30,6 +30,7 @@ public sealed class SqliteMigrator
     private const int AddMcpApiKeyRoleVersion = 23;
     private const int AddLibraryDllHashVersion = 24;
     private const int AddMcpAuditFlowVersionVersion = 25;
+    private const int AddEnvironmentFileUploadSettingsVersion = 28;
     private readonly SqlSugarClient _client;
 
     public SqliteMigrator(SqlSugarClient client)
@@ -301,6 +302,7 @@ public sealed class SqliteMigrator
                         QueueWaitTimeoutSeconds INTEGER NOT NULL,
                         ShutdownGracePeriodSeconds INTEGER NOT NULL,
                         SynchronousInvocationTimeoutSeconds INTEGER NOT NULL,
+                        MaxLibraryUploadBytes INTEGER NOT NULL DEFAULT 104857600,
                         UpdatedAt TEXT NOT NULL
                     );
                     CREATE TABLE IF NOT EXISTS FlowInterfaces (
@@ -881,6 +883,27 @@ public sealed class SqliteMigrator
                         _client.Ado.ExecuteCommand("ALTER TABLE McpAuditEntries ADD COLUMN FlowVersion INTEGER NULL;");
                 }
                 RecordMigration(AddMcpAuditFlowVersionVersion, "mcp-audit-flow-version-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
+
+        applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
+        var hasEnvironmentFileUploadColumn = HasTable("RunEnvironmentSettings")
+            && HasColumn("RunEnvironmentSettings", "MaxLibraryUploadBytes");
+        if (!applied.Contains(AddEnvironmentFileUploadSettingsVersion) || !hasEnvironmentFileUploadColumn)
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                if (HasTable("RunEnvironmentSettings") && !HasColumn("RunEnvironmentSettings", "MaxLibraryUploadBytes"))
+                    _client.Ado.ExecuteCommand("ALTER TABLE RunEnvironmentSettings ADD COLUMN MaxLibraryUploadBytes INTEGER NOT NULL DEFAULT 104857600;");
+                if (!applied.Contains(AddEnvironmentFileUploadSettingsVersion))
+                    RecordMigration(AddEnvironmentFileUploadSettingsVersion, "environment-file-upload-settings-v1");
                 _client.Ado.CommitTran();
             }
             catch

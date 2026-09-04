@@ -207,7 +207,7 @@ public sealed class FlowRunner
                     ["errorCode"] = lastResult.ErrorCode,
                     ["errorMessage"] = lastResult.ErrorMessage,
                     ["inputs"] = lastResult.Inputs ?? inputs,
-                    ["outputs"] = lastResult.Outputs,
+                    ["outputs"] = lastResult.TransferOutputs ?? lastResult.Outputs,
                     ["triggerInvocationId"] = session.InvocationId
                 });
 
@@ -298,7 +298,7 @@ public sealed class FlowRunner
                         ["errorCode"] = result.ErrorCode,
                         ["errorMessage"] = result.ErrorMessage,
                         ["inputs"] = result.Inputs ?? inputs,
-                        ["outputs"] = result.Outputs,
+                        ["outputs"] = result.TransferOutputs ?? result.Outputs,
                         ["triggerInvocationId"] = invocationId
                     });
 
@@ -488,7 +488,13 @@ public sealed class FlowRunner
         await using var callFrame = session.CreateFlowCallFrame(target, callInputs);
         var result = await RunFromNodeAsync(target, callFrame, cancellationToken);
         if (!result.IsSuccess)
-            return new NodeExecutionResult(false, result.Outputs, result.NextBranch, result.ErrorCode, result.ErrorMessage);
+            return new NodeExecutionResult(
+                false,
+                result.Outputs,
+                result.NextBranch,
+                result.ErrorCode,
+                result.ErrorMessage,
+                TransferOutputs: result.TransferOutputs);
 
         var staticType = request.Node.Runtime?.StaticReturnType;
         if (!string.IsNullOrWhiteSpace(staticType)
@@ -502,7 +508,10 @@ public sealed class FlowRunner
                 $"FlowCall returned '{actual.GetType().FullName}' but the static return type is '{staticType}'. FlowCall 返回类型与静态返回类型不一致。");
         }
 
-        return NodeExecutionResult.Success(result.Outputs);
+        return NodeExecutionResult.Success(result.Outputs) with
+        {
+            TransferOutputs = result.TransferOutputs
+        };
     }
 
     private static IReadOnlyDictionary<string, object?> ResolveFlowCallInputs(

@@ -370,6 +370,17 @@ export interface FlowRunOutputDto {
   errorMessage?: string
 }
 
+export interface FlowWorkpieceDto {
+  runId: string
+  id: string
+  kind: 'Image' | 'File' | string
+  name: string
+  contentType: string
+  length: number
+  createdAt: string
+  downloadUrl: string
+}
+
 export interface RunExecutionSettingsDto {
   queueCapacity: number
   maxConcurrentRuns: number
@@ -378,6 +389,7 @@ export interface RunExecutionSettingsDto {
   queueWaitTimeoutSeconds: number
   shutdownGracePeriodSeconds: number
   synchronousInvocationTimeoutSeconds: number
+  maxLibraryUploadBytes: number
 }
 
 export type FlowInvocationMode = 'asynchronous' | 'synchronous'
@@ -577,6 +589,15 @@ export async function getFlowRunSnapshot(runId: string): Promise<FlowDefinitionD
 
 export async function listFlowRunOutputs(runId: string): Promise<FlowRunOutputDto[]> {
   return request<FlowRunOutputDto[]>(`/api/runs/${runId}/outputs`)
+}
+
+export async function listFlowRunWorkpieces(runId: string): Promise<FlowWorkpieceDto[]> {
+  return request<FlowWorkpieceDto[]>(`/api/runs/${runId}/workpieces`)
+}
+
+export function getFlowWorkpieceUrl(runId: string, workpieceId: string, download = false): string {
+  const query = download ? '?download=true' : ''
+  return `${apiBaseUrl}/api/runs/${encodeURIComponent(runId)}/workpieces/${encodeURIComponent(workpieceId)}${query}`
 }
 
 export async function getRunExecutionSettings(): Promise<RunExecutionSettingsDto> {

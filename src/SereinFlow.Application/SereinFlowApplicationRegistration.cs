@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace SereinFlow.Application;
 
@@ -8,6 +9,7 @@ public static class SereinFlowApplicationRegistration
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.TryAddSingleton<IFileUploadSettings, FileUploadSettings>();
         services.AddScoped<RunApplicationService>();
         services.AddScoped<AiReadModelService>();
         services.AddScoped<ProjectArchiveService>();

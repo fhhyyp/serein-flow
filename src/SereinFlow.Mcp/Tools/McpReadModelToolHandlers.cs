@@ -94,6 +94,45 @@ internal static class McpReadModelToolHandlers
             context.Scope, ReadModels(context), context.Security, context.Principal, GetGuid(arguments, "runId"),
             cancellationToken, ReadOptionalTrack(arguments), ReadOptions(arguments), GetOptionalLong(arguments, "afterEventSequence") ?? 0);
 
+    internal static async Task<object?> ListRunWorkpiecesAsync(
+        McpToolContext context,
+        JsonElement arguments,
+        CancellationToken cancellationToken)
+    {
+        var runId = GetGuid(arguments, "runId");
+        var run = await context.Services.GetRequiredService<IFlowRunStore>().FindAsync(runId, cancellationToken);
+        if (run is null)
+            return null;
+
+        context.Security.RequireAny(
+            context.Principal,
+            run.ProjectId,
+            McpPermissionDto.DebugRead,
+            McpPermissionDto.RunRead);
+        var items = await context.Services.GetRequiredService<IFlowWorkpieceStore>().ListAsync(runId, cancellationToken);
+        return items.Select(ToWorkpieceDto).ToArray();
+    }
+
+    internal static async Task<object?> GetRunWorkpieceAsync(
+        McpToolContext context,
+        JsonElement arguments,
+        CancellationToken cancellationToken)
+    {
+        var runId = GetGuid(arguments, "runId");
+        var workpieceId = GetRequiredString(arguments, "workpieceId");
+        var run = await context.Services.GetRequiredService<IFlowRunStore>().FindAsync(runId, cancellationToken);
+        if (run is null)
+            return null;
+
+        context.Security.RequireAny(
+            context.Principal,
+            run.ProjectId,
+            McpPermissionDto.DebugRead,
+            McpPermissionDto.RunRead);
+        var item = await context.Services.GetRequiredService<IFlowWorkpieceStore>().FindAsync(runId, workpieceId, cancellationToken);
+        return item is null ? null : ToWorkpieceDto(item);
+    }
+
     internal static Task<object?> GetDebugStateAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
         => ReadDebugAsync(context.Scope, ReadModels(context), context.Security, context.Principal, GetGuid(arguments, "sessionId"), cancellationToken);
 
@@ -160,6 +199,25 @@ internal static class McpReadModelToolHandlers
     internal static Task<object?> ReadRunResourceAsync(McpToolContext context, Guid runId, CancellationToken cancellationToken)
         => ReadRunAsync(context.Scope, ReadModels(context), context.Security, context.Principal, runId, cancellationToken);
 
+    internal static Task<object?> ReadRunWorkpiecesResourceAsync(
+        McpToolContext context,
+        Guid runId,
+        CancellationToken cancellationToken)
+        => ListRunWorkpiecesAsync(
+            context,
+            JsonSerializer.SerializeToElement(new { runId }),
+            cancellationToken);
+
+    internal static Task<object?> ReadRunWorkpieceResourceAsync(
+        McpToolContext context,
+        Guid runId,
+        string workpieceId,
+        CancellationToken cancellationToken)
+        => GetRunWorkpieceAsync(
+            context,
+            JsonSerializer.SerializeToElement(new { runId, workpieceId }),
+            cancellationToken);
+
     internal static Task<object?> ReadDebugResourceAsync(McpToolContext context, Guid sessionId, CancellationToken cancellationToken)
         => ReadDebugAsync(context.Scope, ReadModels(context), context.Security, context.Principal, sessionId, cancellationToken);
 
@@ -174,6 +232,17 @@ internal static class McpReadModelToolHandlers
 
     private static AiReadModelService ReadModels(McpToolContext context)
         => context.Services.GetRequiredService<AiReadModelService>();
+
+    private static FlowWorkpieceDto ToWorkpieceDto(FlowWorkpieceRecord item)
+        => new(
+            item.RunId,
+            item.Id,
+            item.Kind,
+            item.Name,
+            item.ContentType,
+            item.Length,
+            item.CreatedAt,
+            $"/api/runs/{item.RunId:D}/workpieces/{item.Id}");
 
     private static async Task<AiDebugStateWaitResultDto?> WaitForDebugStateAsync(
         IServiceScope scope,

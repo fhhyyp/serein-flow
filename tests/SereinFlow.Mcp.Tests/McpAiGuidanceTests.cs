@@ -15,6 +15,9 @@ public sealed class McpAiGuidanceTests
         Assert.Equal(
             "mcp/sereinlang-syntax-skill.md",
             options.ModuleFilePaths["sereinlang.syntax"]);
+        Assert.Equal(
+            "mcp/sereinflow-workpieces-skill.md",
+            options.ModuleFilePaths["sereinflow.workpieces"]);
     }
 
     [Fact]
@@ -233,6 +236,42 @@ public sealed class McpAiGuidanceTests
             Assert.Contains("#library.metadata", text, StringComparison.Ordinal);
             Assert.DoesNotContain("#library.import", text, StringComparison.Ordinal);
             Assert.DoesNotContain("#library.upgrade", text, StringComparison.Ordinal);
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task DebugPromptLoadsRuntimeAndWorkpieceGuidance()
+    {
+        var root = Directory.CreateTempSubdirectory("sereinflow-mcp-workpiece-prompt-");
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(root.FullName, "runtime.md"), "# runtime guidance");
+            await File.WriteAllTextAsync(Path.Combine(root.FullName, "workpieces.md"), "# workpiece guidance");
+            var provider = new McpAiGuidanceProvider(
+                new McpAiGuidanceOptions
+                {
+                    ModuleFilePaths = new Dictionary<string, string>
+                    {
+                        ["sereinflow.runtime"] = "runtime.md",
+                        ["sereinflow.workpieces"] = "workpieces.md"
+                    },
+                    MaxBytes = 4096
+                },
+                root.FullName);
+
+            var result = await McpPromptCatalog.GetAsync(
+                "sereinflow.debug-run",
+                System.Text.Json.JsonSerializer.SerializeToElement(new { request = "Inspect uploaded images" }),
+                provider,
+                CancellationToken.None);
+            var text = result.Messages.Single().Content.Text;
+
+            Assert.Contains("# runtime guidance", text, StringComparison.Ordinal);
+            Assert.Contains("# workpiece guidance", text, StringComparison.Ordinal);
         }
         finally
         {

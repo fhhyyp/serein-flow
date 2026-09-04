@@ -16,7 +16,8 @@ public sealed record RunnerLaunchOptions(
     string? AllowedScriptArtifactRoot = null,
     string? AllowedLibraryPackageRoot = null,
     Action<string>? DiagnosticLogger = null,
-    TimeSpan? MessageDeliveryTimeout = null)
+    TimeSpan? MessageDeliveryTimeout = null,
+    string? AllowedWorkpieceRoot = null)
 {
     public TimeSpan EffectiveHandshakeTimeout => HandshakeTimeout ?? TimeSpan.FromSeconds(5);
 
@@ -53,9 +54,10 @@ public sealed class WorkerSupervisor
         if (request.ProtocolVersion != WorkerProtocolConstants.Version)
             return Failure(request.RunId, "worker.protocol_mismatch", "The requested worker protocol version is not supported. 请求的 Worker 协议版本不受支持。");
         if (!IsAllowedPath(request.ScriptArtifactRootPath, _launchOptions.AllowedScriptArtifactRoot)
-            || !IsAllowedPath(request.LibraryPackageRootPath, _launchOptions.AllowedLibraryPackageRoot))
+            || !IsAllowedPath(request.LibraryPackageRootPath, _launchOptions.AllowedLibraryPackageRoot)
+            || !IsAllowedPath(request.WorkpieceRootPath, _launchOptions.AllowedWorkpieceRoot))
         {
-                return Failure(request.RunId, "worker.path_outside_root", "Worker artifact paths are outside the configured service roots. Worker 缓存路径超出了服务端允许的根目录。");
+            return Failure(request.RunId, "worker.path_outside_root", "Worker artifact paths are outside the configured service roots. Worker 缓存路径超出了服务端允许的根目录。");
         }
         var runnerPath = ResolveRunnerPath();
         if (runnerPath is not null && !File.Exists(runnerPath))
@@ -179,7 +181,8 @@ public sealed class WorkerSupervisor
         if (request.ProtocolVersion != WorkerProtocolConstants.Version)
             throw new WorkerProtocolException("worker.protocol_mismatch", "The requested worker protocol version is not supported. 请求的 Worker 协议版本不受支持。");
         if (!IsAllowedPath(request.ScriptArtifactRootPath, _launchOptions.AllowedScriptArtifactRoot)
-            || !IsAllowedPath(request.LibraryPackageRootPath, _launchOptions.AllowedLibraryPackageRoot))
+            || !IsAllowedPath(request.LibraryPackageRootPath, _launchOptions.AllowedLibraryPackageRoot)
+            || !IsAllowedPath(request.WorkpieceRootPath, _launchOptions.AllowedWorkpieceRoot))
         {
             throw new WorkerProtocolException("worker.path_outside_root", "Worker artifact paths are outside the configured service roots. Worker 缓存路径超出了服务端允许的根目录。");
         }

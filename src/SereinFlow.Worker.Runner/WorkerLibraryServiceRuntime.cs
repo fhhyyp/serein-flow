@@ -17,8 +17,13 @@ internal sealed class WorkerLibraryServiceRuntime : IAsyncDisposable
     private readonly ConcurrentDictionary<Assembly, Lazy<LibraryServiceProvider>> _providers = new();
     private readonly IMessageService _messageService;
 
-    public WorkerLibraryServiceRuntime(IMessageService messageService)
-        => _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
+    private readonly IFlowWorkpiece _workpiece;
+
+    public WorkerLibraryServiceRuntime(IMessageService messageService, IFlowWorkpiece workpiece)
+    {
+        _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
+        _workpiece = workpiece ?? throw new ArgumentNullException(nameof(workpiece));
+    }
 
     public AsyncServiceScope CreateInvocationScope(Assembly libraryAssembly)
     {
@@ -28,7 +33,7 @@ internal sealed class WorkerLibraryServiceRuntime : IAsyncDisposable
             var provider = _providers.GetOrAdd(
                 libraryAssembly,
                 assembly => new Lazy<LibraryServiceProvider>(
-                    () => LibraryServiceProvider.Create(assembly, _messageService),
+                    () => LibraryServiceProvider.Create(assembly, _messageService, _workpiece),
                     LazyThreadSafetyMode.ExecutionAndPublication));
             return provider.Value.CreateInvocationScope();
         }
@@ -63,6 +68,23 @@ internal sealed class WorkerLibraryServiceRuntime : IAsyncDisposable
             throw new LibraryServiceException(
                 "library.service_activation_failed",
                 $"The library node type '{nodeType.FullName ?? nodeType.Name}' could not be activated from declared FlowService dependencies. {exception.Message}",
+                exception);
+        }
+    }
+
+    public object CreateNodeResultConverter(IServiceProvider services, Type converterType)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(converterType);
+        try
+        {
+            return services.GetRequiredService(converterType);
+        }
+        catch (Exception exception)
+        {
+            throw new LibraryServiceException(
+                "library.result_converter_activation_failed",
+                $"The result converter '{converterType.FullName ?? converterType.Name}' could not be activated. 节点结果转换器无法激活。 {exception.Message}",
                 exception);
         }
     }
@@ -109,12 +131,16 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
         _provider = provider;
     }
 
-    public static LibraryServiceProvider Create(Assembly assembly, IMessageService messageService)
+    public static LibraryServiceProvider Create(
+        Assembly assembly,
+        IMessageService messageService,
+        IFlowWorkpiece workpiece)
     {
         var serviceTypes = DiscoverServiceTypes(assembly);
         var registrations = BuildRegistrations(serviceTypes);
         IServiceCollection services = new ServiceCollection();
         services.AddSingleton(messageService);
+        services.AddSingleton(workpiece);
 
         foreach (var registration in registrations.Implementations)
         {
@@ -135,6 +161,12 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
                 contractType,
                 provider => provider.GetRequiredService(implementation.ImplementationType),
                 ToServiceLifetime(implementation.Lifetime)));
+        }
+
+        foreach (var converterType in DiscoverResultConverterTypes(assembly))
+        {
+            ValidateResultConverter(converterType, assembly);
+            services.AddTransient(converterType);
         }
 
         ServiceProvider? provider = null;
@@ -201,6 +233,56 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
                 "library.service_discovery_failed",
                 $"FlowService types could not be discovered from '{assembly.GetName().Name}'. {exception.Message}",
                 exception);
+        }
+    }
+
+    private static Type[] DiscoverResultConverterTypes(Assembly assembly)
+    {
+        try
+        {
+            return assembly.GetTypes()
+                .SelectMany(static type => type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance))
+                .SelectMany(static method => method.GetCustomAttributes<NodeResultAttribute>(inherit: false))
+                .Select(static attribute => attribute.ConverterType)
+                .Distinct()
+                .ToArray();
+        }
+        catch (ReflectionTypeLoadException exception)
+        {
+            var details = string.Join(
+                " ",
+                exception.LoaderExceptions
+                    .Where(static item => item is not null)
+                    .Select(static item => item!.Message));
+            throw new LibraryServiceException(
+                "library.result_converter_discovery_failed",
+                $"Node result converters could not be discovered from '{assembly.GetName().Name}'. 节点结果转换器无法从类库中发现。 {details}",
+                exception);
+        }
+        catch (Exception exception)
+        {
+            throw new LibraryServiceException(
+                "library.result_converter_discovery_failed",
+                $"Node result converters could not be discovered from '{assembly.GetName().Name}'. 节点结果转换器无法从类库中发现。 {exception.Message}",
+                exception);
+        }
+    }
+
+    private static void ValidateResultConverter(Type converterType, Assembly assembly)
+    {
+        var contracts = converterType.GetInterfaces()
+            .Where(static item => item.IsGenericType
+                && item.GetGenericTypeDefinition() == typeof(INodeResultConverter<,>))
+            .ToArray();
+        if (!converterType.IsClass
+            || converterType.IsAbstract
+            || converterType.ContainsGenericParameters
+            || converterType.Assembly != assembly
+            || contracts.Length != 1)
+        {
+            throw new LibraryServiceException(
+                "library.result_converter_invalid",
+                $"Result converter '{converterType.FullName ?? converterType.Name}' must be a concrete class from the library assembly implementing exactly one closed INodeResultConverter<TPrimitive, TTransfer> contract. 节点结果转换器必须是类库程序集中的具体类，并且恰好实现一个闭合的转换器合同。");
         }
     }
 
