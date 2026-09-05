@@ -2,6 +2,7 @@ using System;
 using OpenCvSharp;
 using SereinFlow.Core.Api;
 using SereinFlow.Library;
+using SereinFlow.Runtime.Abstractions;
 
 namespace SereinFlow.OpenCvLibrary;
 
@@ -54,6 +55,7 @@ public sealed class OpenCvNodes
     [FlowNode(AnotherName = "生成示例图像", Desc = "生成可直接用于 OpenCV 处理节点的彩色示例图像。")]
     [NodeResult<MatConverter>]
     public Mat 生成示例图像(
+        IFlowContext flowContext,
         [NodeParam(Name = "图像宽度", IsExplicit = false)] int width = 640,
         [NodeParam(Name = "图像高度", IsExplicit = false)] int height = 480)
     {
@@ -68,7 +70,7 @@ public sealed class OpenCvNodes
         Cv2.Line(image, new Point(width / 8, height * 3 / 4), new Point(width * 7 / 8, height / 4), new Scalar(80, 220, 90), 8);
         Cv2.PutText(image, "OpenCV", new Point(width / 5, height * 9 / 10), HersheyFonts.HersheySimplex, 1.2, Scalar.White, 2);
 
-        return Publish(image, "opencv-sample.png");
+        return Publish(image, "opencv-sample.png", flowContext);
     }
 
     /// <summary>
@@ -77,7 +79,7 @@ public sealed class OpenCvNodes
     /// </summary>
     [FlowNode(AnotherName = "读取图像", Desc = "将 PNG、JPEG 等编码图像字节读取为 OpenCV Mat。")]
     [NodeResult<MatConverter>]
-    public Mat 读取图像([NodeParam(Name = "图像字节")] byte[] imageBytes)
+    public Mat 读取图像([NodeParam(Name = "图像字节")] byte[] imageBytes, IFlowContext flowContext)
     {
         ArgumentNullException.ThrowIfNull(imageBytes);
         if (imageBytes.Length == 0)
@@ -90,7 +92,7 @@ public sealed class OpenCvNodes
             throw new ArgumentException("图像字节不是受支持的 PNG、JPEG 或其他编码图像。", nameof(imageBytes));
         }
 
-        return Publish(image, "opencv-decoded.png");
+        return Publish(image, "opencv-decoded.png", flowContext);
     }
 
     /// <summary>
@@ -99,17 +101,17 @@ public sealed class OpenCvNodes
     /// </summary>
     [FlowNode(AnotherName = "灰度化", Desc = "将彩色图像转换为单通道灰度图。")]
     [NodeResult<MatConverter>]
-    public Mat 灰度化([NodeParam(Name = "输入图像")] Mat image)
+    public Mat 灰度化([NodeParam(Name = "输入图像")] Mat image, IFlowContext flowContext)
     {
         EnsureImage(image);
         if (image.Channels() == 1)
-            return Publish(image.Clone(), "opencv-grayscale.png");
+            return Publish(image.Clone(), "opencv-grayscale.png", flowContext);
 
         var result = new Mat();
         try
         {
             Cv2.CvtColor(image, result, image.Channels() == 4 ? ColorConversionCodes.BGRA2GRAY : ColorConversionCodes.BGR2GRAY);
-            return Publish(result, "opencv-grayscale.png");
+            return Publish(result, "opencv-grayscale.png", flowContext);
         }
         catch
         {
@@ -126,6 +128,7 @@ public sealed class OpenCvNodes
     [NodeResult<MatConverter>]
     public Mat 二值化(
         [NodeParam(Name = "输入图像")] Mat image,
+        IFlowContext flowContext,
         [NodeParam(Name = "阈值", IsExplicit = false)] double threshold = 127,
         [NodeParam(Name = "最大值", IsExplicit = false)] double maxValue = 255)
     {
@@ -138,7 +141,7 @@ public sealed class OpenCvNodes
         try
         {
             Cv2.Threshold(grayscale, result, threshold, maxValue, ThresholdTypes.Binary);
-            return Publish(result, "opencv-threshold.png");
+            return Publish(result, "opencv-threshold.png", flowContext);
         }
         catch
         {
@@ -155,9 +158,10 @@ public sealed class OpenCvNodes
     [NodeResult<MatConverter>]
     public Mat 膨胀(
         [NodeParam(Name = "输入图像")] Mat image,
+        IFlowContext flowContext,
         [NodeParam(Name = "核尺寸", IsExplicit = false)] int kernelSize = 3,
         [NodeParam(Name = "迭代次数", IsExplicit = false)] int iterations = 1)
-        => Morphology(image, kernelSize, iterations, MorphTypes.Dilate, "opencv-dilate.png");
+        => Morphology(image, kernelSize, iterations, MorphTypes.Dilate, "opencv-dilate.png", flowContext);
 
     /// <summary>
     /// Erodes foreground regions using a rectangular kernel.
@@ -167,9 +171,10 @@ public sealed class OpenCvNodes
     [NodeResult<MatConverter>]
     public Mat 腐蚀(
         [NodeParam(Name = "输入图像")] Mat image,
+        IFlowContext flowContext,
         [NodeParam(Name = "核尺寸", IsExplicit = false)] int kernelSize = 3,
         [NodeParam(Name = "迭代次数", IsExplicit = false)] int iterations = 1)
-        => Morphology(image, kernelSize, iterations, MorphTypes.Erode, "opencv-erode.png");
+        => Morphology(image, kernelSize, iterations, MorphTypes.Erode, "opencv-erode.png", flowContext);
 
     /// <summary>
     /// Removes small foreground noise using morphological opening.
@@ -179,9 +184,10 @@ public sealed class OpenCvNodes
     [NodeResult<MatConverter>]
     public Mat 开运算(
         [NodeParam(Name = "输入图像")] Mat image,
+        IFlowContext flowContext,
         [NodeParam(Name = "核尺寸", IsExplicit = false)] int kernelSize = 3,
         [NodeParam(Name = "迭代次数", IsExplicit = false)] int iterations = 1)
-        => Morphology(image, kernelSize, iterations, MorphTypes.Open, "opencv-open.png");
+        => Morphology(image, kernelSize, iterations, MorphTypes.Open, "opencv-open.png", flowContext);
 
     /// <summary>
     /// Fills small holes using morphological closing.
@@ -191,9 +197,10 @@ public sealed class OpenCvNodes
     [NodeResult<MatConverter>]
     public Mat 闭运算(
         [NodeParam(Name = "输入图像")] Mat image,
+        IFlowContext flowContext,
         [NodeParam(Name = "核尺寸", IsExplicit = false)] int kernelSize = 3,
         [NodeParam(Name = "迭代次数", IsExplicit = false)] int iterations = 1)
-        => Morphology(image, kernelSize, iterations, MorphTypes.Close, "opencv-close.png");
+        => Morphology(image, kernelSize, iterations, MorphTypes.Close, "opencv-close.png", flowContext);
 
     /// <summary>
     /// Applies Gaussian blur with an odd square kernel.
@@ -203,6 +210,7 @@ public sealed class OpenCvNodes
     [NodeResult<MatConverter>]
     public Mat 高斯模糊(
         [NodeParam(Name = "输入图像")] Mat image,
+        IFlowContext flowContext,
         [NodeParam(Name = "核尺寸", IsExplicit = false)] int kernelSize = 5,
         [NodeParam(Name = "X 方向标准差", IsExplicit = false)] double sigmaX = 0)
     {
@@ -215,7 +223,7 @@ public sealed class OpenCvNodes
         try
         {
             Cv2.GaussianBlur(image, result, new Size(kernelSize, kernelSize), sigmaX);
-            return Publish(result, "opencv-gaussian-blur.png");
+            return Publish(result, "opencv-gaussian-blur.png", flowContext);
         }
         catch
         {
@@ -232,6 +240,7 @@ public sealed class OpenCvNodes
     [NodeResult<MatConverter>]
     public Mat Canny边缘检测(
         [NodeParam(Name = "输入图像")] Mat image,
+        IFlowContext flowContext,
         [NodeParam(Name = "低阈值", IsExplicit = false)] double lowThreshold = 50,
         [NodeParam(Name = "高阈值", IsExplicit = false)] double highThreshold = 150)
     {
@@ -244,7 +253,7 @@ public sealed class OpenCvNodes
         try
         {
             Cv2.Canny(grayscale, result, lowThreshold, highThreshold);
-            return Publish(result, "opencv-canny.png");
+            return Publish(result, "opencv-canny.png", flowContext);
         }
         catch
         {
@@ -261,6 +270,7 @@ public sealed class OpenCvNodes
     [NodeResult<MatConverter>]
     public Mat 缩放图像(
         [NodeParam(Name = "输入图像")] Mat image,
+        IFlowContext flowContext,
         [NodeParam(Name = "宽度")] int width,
         [NodeParam(Name = "高度")] int height)
     {
@@ -271,7 +281,7 @@ public sealed class OpenCvNodes
         try
         {
             Cv2.Resize(image, result, new Size(width, height), 0, 0, InterpolationFlags.Area);
-            return Publish(result, "opencv-resized.png");
+            return Publish(result, "opencv-resized.png", flowContext);
         }
         catch
         {
@@ -286,7 +296,7 @@ public sealed class OpenCvNodes
     /// </summary>
     [FlowNode(AnotherName = "反色", Desc = "对图像执行逐像素反色处理。")]
     [NodeResult<MatConverter>]
-    public Mat 反色([NodeParam(Name = "输入图像")] Mat image)
+    public Mat 反色([NodeParam(Name = "输入图像")] Mat image, IFlowContext flowContext)
     {
         EnsureImage(image);
 
@@ -294,7 +304,7 @@ public sealed class OpenCvNodes
         try
         {
             Cv2.BitwiseNot(image, result);
-            return Publish(result, "opencv-inverted.png");
+            return Publish(result, "opencv-inverted.png", flowContext);
         }
         catch
         {
@@ -303,7 +313,7 @@ public sealed class OpenCvNodes
         }
     }
 
-    private Mat Morphology(Mat image, int kernelSize, int iterations, MorphTypes operation, string fileName)
+    private Mat Morphology(Mat image, int kernelSize, int iterations, MorphTypes operation, string fileName, IFlowContext flowContext)
     {
         EnsureImage(image);
         ValidateKernel(kernelSize);
@@ -315,7 +325,7 @@ public sealed class OpenCvNodes
         try
         {
             Cv2.MorphologyEx(image, result, operation, kernel, iterations: iterations);
-            return Publish(result, fileName);
+            return Publish(result, fileName, flowContext);
         }
         catch
         {
@@ -324,7 +334,7 @@ public sealed class OpenCvNodes
         }
     }
 
-    private Mat Publish(Mat result, string fileName)
+    private Mat Publish(Mat result, string fileName, IFlowContext flowContext)
     {
         if (result.Empty())
         {
@@ -335,7 +345,7 @@ public sealed class OpenCvNodes
         try
         {
             Cv2.ImEncode(".png", result, out var encoded);
-            _ = _flowWorkpiece.UploadImage(fileName, encoded, "image/png");
+            _ = _flowWorkpiece.UploadNodeOutput(flowContext.NodeId, fileName, encoded, "image/png");
             return result;
         }
         catch

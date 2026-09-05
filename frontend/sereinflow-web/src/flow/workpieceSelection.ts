@@ -12,6 +12,14 @@ export function latestFlowWorkpiece(workpieces: readonly FlowWorkpieceDto[]): Fl
   }, undefined)
 }
 
+export function latestFlowWorkpieceForNode(
+  workpieces: readonly FlowWorkpieceDto[],
+  nodeId?: string,
+): FlowWorkpieceDto | undefined {
+  if (!nodeId) return undefined
+  return latestFlowWorkpiece(workpieces.filter((workpiece) => workpiece.nodeId === nodeId))
+}
+
 export function selectFlowWorkpieceId(
   previous: readonly FlowWorkpieceDto[],
   next: readonly FlowWorkpieceDto[],

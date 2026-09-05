@@ -6,7 +6,7 @@ import {
   createDebugDockableWorkspaceLayout,
   normalizeDockableWorkspaceLayout,
 } from '../src/flow/dockableWorkspace.ts'
-import { selectFlowWorkpieceId } from '../src/flow/workpieceSelection.ts'
+import { latestFlowWorkpieceForNode, selectFlowWorkpieceId } from '../src/flow/workpieceSelection.ts'
 
 function workpiece(id: string, createdAt: string): FlowWorkpieceDto {
   return {
@@ -91,4 +91,16 @@ test('live workpiece refresh selects only newly arrived workpieces', () => {
   assert.equal(selectFlowWorkpieceId([first, second], [first, second], 'first', true), 'first')
   assert.equal(selectFlowWorkpieceId([first, second], [first, second, third], 'first', true), 'third')
   assert.equal(selectFlowWorkpieceId([first, second, third], [first, second, third], 'second', true), 'second')
+})
+
+test('workpiece focus selects the latest matching node output without filtering the list', () => {
+  const source = workpiece('source', '2026-09-05T09:00:00.000Z')
+  const output = workpiece('output', '2026-09-05T09:01:00.000Z')
+  const latestOutput = workpiece('output-latest', '2026-09-05T09:02:00.000Z')
+  source.nodeId = 'opencv-source'
+  output.nodeId = 'opencv-gray'
+  latestOutput.nodeId = 'opencv-gray'
+
+  assert.equal(latestFlowWorkpieceForNode([source, output, latestOutput], 'opencv-gray')?.id, 'output-latest')
+  assert.equal(latestFlowWorkpieceForNode([source, output, latestOutput], 'missing'), undefined)
 })

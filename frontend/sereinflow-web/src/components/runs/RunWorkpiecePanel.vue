@@ -2,12 +2,14 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Download, FileText, Image as ImageIcon, PackageOpen, RefreshCw } from 'lucide-vue-next'
 import { getFlowWorkpieceUrl, listFlowRunWorkpieces, type FlowWorkpieceDto } from '../../api/flowApi'
-import { selectFlowWorkpieceId } from '../../flow/workpieceSelection'
+import { latestFlowWorkpiece, latestFlowWorkpieceForNode, selectFlowWorkpieceId } from '../../flow/workpieceSelection'
 import { locale, t } from '../../i18n'
 
 const props = withDefaults(defineProps<{
   embedded?: boolean
   runId: string
+  focusNodeId?: string
+  refreshSignal?: number
   live?: boolean
   compact?: boolean
 }>(), {
@@ -62,7 +64,7 @@ function formatDate(value: string): string {
   return new Intl.DateTimeFormat(locale.value, { dateStyle: 'short', timeStyle: 'short' }).format(date)
 }
 
-async function refreshWorkpieces(background = false): Promise<void> {
+async function refreshWorkpieces(background = false, selectLatest = false): Promise<void> {
   if (!props.runId) return
   const revision = ++loadRevision
   if (background) isRefreshing.value = true
@@ -72,7 +74,14 @@ async function refreshWorkpieces(background = false): Promise<void> {
     if (revision !== loadRevision) return
     const previous = workpieces.value
     workpieces.value = next
-    selectedId.value = selectFlowWorkpieceId(previous, next, selectedId.value, props.live && background)
+    const focusedWorkpiece = latestFlowWorkpieceForNode(next, props.focusNodeId)
+    if (focusedWorkpiece) {
+      selectedId.value = focusedWorkpiece.id
+    } else if (!props.focusNodeId) {
+      selectedId.value = selectLatest
+        ? latestFlowWorkpiece(next)?.id ?? ''
+        : selectFlowWorkpieceId(previous, next, selectedId.value, props.live && background)
+    }
     errorKey.value = ''
   } catch {
     if (revision !== loadRevision) return
@@ -101,6 +110,9 @@ watch(() => props.runId, () => {
   selectedId.value = ''
   void refreshWorkpieces()
 })
+watch([() => props.focusNodeId, () => props.refreshSignal], ([focusNodeId, refreshSignal], [, previousRefreshSignal]) => {
+  void refreshWorkpieces(true, refreshSignal !== previousRefreshSignal && focusNodeId === undefined)
+})
 watch(() => props.live, syncAutoRefresh)
 onMounted(() => {
   void refreshWorkpieces()
@@ -124,7 +136,7 @@ onBeforeUnmount(stopAutoRefresh)
       </div>
     </header>
 
-    <p class="run-workpiece-panel__hint">{{ t('workpiece.hint') }}</p>
+    <!-- <p class="run-workpiece-panel__hint">{{ t('workpiece.hint') }}</p> -->
 
     <div v-if="isLoading" class="run-workpiece-panel__status">{{ t('workpiece.loading') }}</div>
     <div v-else-if="errorKey" class="run-workpiece-panel__status run-workpiece-panel__status--error" role="alert">{{ t(errorKey) }}</div>

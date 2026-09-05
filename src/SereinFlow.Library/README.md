@@ -92,13 +92,18 @@ public sealed class ImageNodes
 
     public FlowWorkpieceInfo SaveReport(Stream report)
         => _flowWorkpiece.UploadFile("report.txt", report, "text/plain");
+
+    public FlowWorkpieceInfo SaveNodeOutput(IFlowContext context, byte[] json)
+        => _flowWorkpiece.UploadNodeOutput(context.NodeId, "result.json", json, "application/json");
 }
 ```
 
 `UploadImage` accepts a byte array, stream, or base64/data URI. `UploadFile`
-accepts a byte array or stream. File names are restricted to a single file
-name, streams remain owned by the caller, and each workpiece is stored under
-the current run's server-managed workpiece directory.
+and `UploadNodeOutput` accept a byte array or stream. `UploadNodeOutput` stores
+the supplied node ID in the workpiece metadata so the debugger can select the
+node's latest output while keeping all run workpieces visible. File names are
+restricted to a single file name, streams remain owned by the caller, and each
+workpiece is stored under the current run's server-managed workpiece directory.
 
 ## Native library dependencies
 

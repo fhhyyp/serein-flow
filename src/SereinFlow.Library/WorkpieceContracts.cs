@@ -23,7 +23,8 @@ public sealed record FlowWorkpieceInfo(
     string Name,
     string ContentType,
     long Length,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    string? NodeId = null);
 
 /// <summary>
 /// Stores non-JSON node data in the current flow run and exposes a small reference that can be
@@ -46,4 +47,16 @@ public interface IFlowWorkpiece
 
     /// <summary>Uploads file data from the current stream position.</summary>
     FlowWorkpieceInfo UploadFile(string fileName, Stream content, string? contentType = null);
+
+    /// <summary>
+    /// Uploads a file and associates it with the currently executing flow node.
+    /// The node ID is persisted with the workpiece so the debugger can select
+    /// the artifact produced by the selected execution step.
+    /// 上传文件并将其绑定到当前执行的流程节点；节点 ID 会随工件元数据保存，
+    /// 供调试器按执行步骤自动选中节点产出的工件。
+    /// </summary>
+    FlowWorkpieceInfo UploadNodeOutput(string nodeId, string fileName, byte[] content, string? contentType = null);
+
+    /// <summary>Uploads node output data from the current stream position.</summary>
+    FlowWorkpieceInfo UploadNodeOutput(string nodeId, string fileName, Stream content, string? contentType = null);
 }

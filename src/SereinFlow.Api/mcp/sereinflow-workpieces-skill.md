@@ -11,8 +11,8 @@ Resources apply to both production runs and debug runs.
 1. Confirm the run with `sereinflow_list_runs`, `sereinflow_get_run_inspection`
    or the current debug state.
 2. Call `sereinflow_list_run_workpieces` with the confirmed `runId` to receive
-   bounded metadata: ID, kind, name, content type, size, creation time and a
-   safe API download URL.
+   bounded metadata: ID, optional producing node ID, kind, name, content type,
+   size, creation time and a safe API download URL.
 3. Use `sereinflow_get_run_workpiece` for one selected item. It returns the
    same metadata and a content URL; it does not inline base64 or binary bytes
    into the MCP JSON response.

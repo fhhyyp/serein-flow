@@ -348,11 +348,23 @@ const {
   lastRunId,
 } = useFlowRunner({ nodes, notice, projectId, flowId, flowVersion })
 
-function locateDebugPause(nodeId: string): void {
+function focusDebugCanvasNode(nodeId: string): void {
+  showDockablePanel('workpieces')
   const canvas = canvases.value.find((candidate) => candidate.nodes.some((node) => node.id === nodeId))
   if (!canvas) return
   if (canvas.id !== activeCanvasId.value) selectCanvas(canvas.id)
   void nextTick().then(() => selectNode(nodeId))
+}
+
+function focusDebugWorkpieceNode(nodeId: string): void {
+  selectedDebugNodeId.value = nodeId
+  focusDebugCanvasNode(nodeId)
+}
+
+function handleDebugPause(nodeId: string): void {
+  selectedDebugNodeId.value = undefined
+  focusDebugCanvasNode(nodeId)
+  workpieceRefreshRevision.value += 1
 }
 
 const {
@@ -382,7 +394,7 @@ const {
   isWorkspaceLoading,
   isNormalRunActive: isRunning,
   notice,
-  onPauseNode: locateDebugPause,
+  onPauseNode: handleDebugPause,
 })
 
 const debugNodeNames = computed<Record<string, string>>(() => Object.fromEntries(
@@ -401,6 +413,8 @@ const visibleActiveOutput = computed({
 })
 
 const activeWorkpieceRunId = computed(() => debugSession.value?.runId ?? lastRunId.value ?? '')
+const selectedDebugNodeId = ref<string>()
+const workpieceRefreshRevision = ref(0)
 const canUseDebugDisplayMode = computed(() => Boolean(debugSession.value))
 const panelDefinitions = computed<WorkspacePanelTab[]>(() => [
   { id: 'canvas', label: t('panel.canvas'), icon: markRaw(LayoutGrid), closable: false },
@@ -792,6 +806,18 @@ watch([isDebugActive, () => workspaceView.value, () => debugSession.value?.id], 
     setDockableDisplayMode('edit')
   }
 }, { immediate: true })
+
+watch(() => debugSession.value?.id, (sessionId, previousSessionId) => {
+  if (sessionId !== previousSessionId)
+    selectedDebugNodeId.value = undefined
+})
+
+watch(() => debugSession.value?.status, (status, previousStatus) => {
+  if (previousStatus && status !== previousStatus && ['completed', 'cancelled', 'failed'].includes(status)) {
+    selectedDebugNodeId.value = undefined
+    workpieceRefreshRevision.value += 1
+  }
+})
 
 const debugRenderedElements = computed(() => renderedElements.value.map((element) => {
   if (!('data' in element) || !('position' in element)) return element
@@ -1445,12 +1471,14 @@ function setLanguage(nextLocale: Locale): void {
               @step="stepDebug"
               @stop="stopDebug"
               @inspect="inspectDebugNode"
-              @select-node="locateDebugPause"
+              @select-node="focusDebugWorkpieceNode"
               @close="closeWorkspacePanel('debug')"
             />
             <RunWorkpiecePanel
               v-else-if="panelId === 'workpieces' && activeWorkpieceRunId"
               :run-id="activeWorkpieceRunId"
+              :focus-node-id="debugSession ? selectedDebugNodeId : undefined"
+              :refresh-signal="workpieceRefreshRevision"
               :live="isRunning || isDebugActive"
               :embedded="true"
             />

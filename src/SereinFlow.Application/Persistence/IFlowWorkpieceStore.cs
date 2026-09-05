@@ -20,4 +20,5 @@ public sealed record FlowWorkpieceRecord(
     string Name,
     string ContentType,
     long Length,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    string? NodeId = null);

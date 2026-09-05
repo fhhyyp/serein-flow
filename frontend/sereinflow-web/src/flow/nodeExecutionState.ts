@@ -22,6 +22,24 @@ export interface NodeExecutionState {
   isGlobal?: boolean
 }
 
+/**
+ * Orders execution entries from the first executed step to the latest one.
+ * The step number is the primary order because it is assigned by the flow
+ * runner at node start; event sequence is used for legacy entries without a
+ * step number and as a deterministic tie-breaker.
+ */
+export function sortNodeExecutionStates(states: readonly NodeExecutionState[]): NodeExecutionState[] {
+  return [...states].sort((left, right) => {
+    if (left.step !== undefined && right.step !== undefined && left.step !== right.step)
+      return left.step - right.step
+
+    const sequenceDifference = sequenceFor(left) - sequenceFor(right)
+    return sequenceDifference !== 0
+      ? sequenceDifference
+      : left.id.localeCompare(right.id)
+  })
+}
+
 type EventPayload = Record<string, unknown>
 
 const terminalStatuses: Record<string, Extract<NodeExecutionStatus, 'completed' | 'failed' | 'error'>> = {
@@ -140,6 +158,10 @@ function updateContext(state: NodeExecutionState, payload: EventPayload | undefi
 
 function executionId(nodeId: string, sequence: number, step?: number, invocationId?: string): string {
   return `${nodeId}:${invocationId ?? 'root'}:${step === undefined ? `event-${sequence}` : `step-${step}`}`
+}
+
+function sequenceFor(state: NodeExecutionState): number {
+  return state.terminalSequence ?? state.pauseSequence ?? state.startSequence ?? 0
 }
 
 function isTerminal(status: NodeExecutionStatus): boolean {

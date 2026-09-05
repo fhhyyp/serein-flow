@@ -842,7 +842,8 @@ public sealed record FlowWorkpieceDto(
     string ContentType,
     long Length,
     DateTimeOffset CreatedAt,
-    string DownloadUrl);
+    string DownloadUrl,
+    string? NodeId = null);
 
 /// <summary>
 /// Immutable debug settings captured when a worker run starts. Breakpoints are

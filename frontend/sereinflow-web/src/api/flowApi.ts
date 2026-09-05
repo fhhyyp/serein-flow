@@ -379,6 +379,7 @@ export interface FlowWorkpieceDto {
   length: number
   createdAt: string
   downloadUrl: string
+  nodeId?: string
 }
 
 export interface RunExecutionSettingsDto {

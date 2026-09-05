@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildNodeExecutionStates } from '../src/flow/nodeExecutionState.ts'
+import { buildNodeExecutionStates, sortNodeExecutionStates } from '../src/flow/nodeExecutionState.ts'
 import type { FlowRunEventDto } from '../src/api/flowApi.ts'
 
 function event(
@@ -78,4 +78,14 @@ test('accepts legacy events and ignores malformed payloads without throwing', ()
   assert.deepEqual(states[0].outputs, { done: true })
   assert.equal(states[1].status, 'completed')
   assert.equal(states[2].status, 'paused')
+})
+
+test('orders execution steps in ascending flow step order', () => {
+  const states = buildNodeExecutionStates([
+    event(1, 'node.started', { step: 3 }, 'node-c'),
+    event(2, 'node.started', { step: 1 }, 'node-a'),
+    event(3, 'node.started', { step: 2 }, 'node-b'),
+  ])
+
+  assert.deepEqual(sortNodeExecutionStates(states).map((state) => state.step), [1, 2, 3])
 })

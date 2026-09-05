@@ -79,12 +79,28 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
     public FlowWorkpieceInfo UploadFile(string fileName, Stream content, string? contentType = null)
         => UploadCore(FlowWorkpieceKind.File, fileName, content, contentType, inferredContentType: null);
 
+    public FlowWorkpieceInfo UploadNodeOutput(string nodeId, string fileName, byte[] content, string? contentType = null)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        return UploadNodeOutput(nodeId, fileName, new MemoryStream(content, writable: false), contentType);
+    }
+
+    public FlowWorkpieceInfo UploadNodeOutput(string nodeId, string fileName, Stream content, string? contentType = null)
+    {
+        var kind = contentType?.StartsWith("image/", StringComparison.OrdinalIgnoreCase) == true
+            ? FlowWorkpieceKind.Image
+            : FlowWorkpieceKind.File;
+        var inferredContentType = kind == FlowWorkpieceKind.Image ? InferImageContentType(fileName) : null;
+        return UploadCore(kind, fileName, content, contentType, inferredContentType, RequireNodeId(nodeId));
+    }
+
     private FlowWorkpieceInfo UploadCore(
         FlowWorkpieceKind kind,
         string name,
         Stream content,
         string? contentType,
-        string? inferredContentType)
+        string? inferredContentType,
+        string? nodeId = null)
     {
         ArgumentNullException.ThrowIfNull(content);
         var normalizedName = RequireFileName(name);
@@ -128,7 +144,8 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
                     normalizedName,
                     normalizedContentType,
                     length,
-                    DateTimeOffset.UtcNow);
+                    DateTimeOffset.UtcNow,
+                    nodeId);
                 File.WriteAllText(temporaryMetadataPath, JsonSerializer.Serialize(info, MetadataOptions));
                 File.Move(temporaryMetadataPath, metadataPath);
                 return info;
@@ -184,6 +201,16 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
             throw new FlowWorkpieceException("workpiece.name_invalid", "The workpiece name must be a file name without a path. 流程工件名称必须是不含路径的文件名。");
         }
         return name;
+    }
+
+    private static string RequireNodeId(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            throw new FlowWorkpieceException("workpiece.node_id_required", "The node ID is required. 节点 ID 不能为空。");
+        var nodeId = value.Trim();
+        if (nodeId.Length > 256 || nodeId.Contains('\r') || nodeId.Contains('\n'))
+            throw new FlowWorkpieceException("workpiece.node_id_invalid", "The node ID is invalid. 节点 ID 无效。");
+        return nodeId;
     }
 
     private static string RequireContentType(string? explicitType, string? inferredType, string fallback)

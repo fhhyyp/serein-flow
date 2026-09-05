@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { AlertCircle, CheckCircle2, CircleDashed, CirclePause, GitBranch, Layers3, ListTree } from 'lucide-vue-next'
 import { t, locale } from '../../i18n'
-import type { NodeExecutionState } from '../../flow/nodeExecutionState'
+import { sortNodeExecutionStates, type NodeExecutionState } from '../../flow/nodeExecutionState'
 import StructuredValueTree from './StructuredValueTree.vue'
 
 const props = withDefaults(defineProps<{
@@ -19,7 +19,7 @@ const emit = defineEmits<{
 }>()
 
 const selectedExecutionId = ref('')
-const timeline = computed(() => [...props.executions].sort((left, right) => sequenceFor(right) - sequenceFor(left)))
+const timeline = computed(() => sortNodeExecutionStates(props.executions))
 const selectedExecution = computed(() => timeline.value.find((state) => state.id === selectedExecutionId.value) ?? timeline.value[0])
 
 watch(timeline, (states) => {
@@ -27,10 +27,6 @@ watch(timeline, (states) => {
     selectedExecutionId.value = states[0]?.id ?? ''
   }
 }, { immediate: true })
-
-function sequenceFor(state: NodeExecutionState): number {
-  return state.terminalSequence ?? state.pauseSequence ?? state.startSequence ?? 0
-}
 
 function selectExecution(state: NodeExecutionState): void {
   selectedExecutionId.value = state.id
