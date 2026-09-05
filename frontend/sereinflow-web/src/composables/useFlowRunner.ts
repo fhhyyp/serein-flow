@@ -39,6 +39,7 @@ export function useFlowRunner(options: UseFlowRunnerOptions) {
   const runEvents = ref<RunEvent[]>([])
   const runPayload = ref('')
   const hasRunOutput = computed(() => runEvents.value.length > 0)
+  const lastRunId = ref<string>()
   let activeRunId: string | undefined
   let unsubscribe: (() => void) | undefined
   let eventPollTimer: ReturnType<typeof setTimeout> | undefined
@@ -130,6 +131,7 @@ export function useFlowRunner(options: UseFlowRunnerOptions) {
         expectedFlowVersion: options.flowVersion.value,
       })
       activeRunId = run.id
+      lastRunId.value = run.id
       isRunning.value = true
       isCancelling.value = false
       lastEventSequence = 0
@@ -192,6 +194,7 @@ export function useFlowRunner(options: UseFlowRunnerOptions) {
     runEvents,
     runPayload,
     hasRunOutput,
+    lastRunId,
     runFlow,
   }
 }

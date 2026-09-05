@@ -5,12 +5,14 @@ import { getFlowWorkpieceUrl, listFlowRunWorkpieces, type FlowWorkpieceDto } fro
 import { locale, t } from '../../i18n'
 
 const props = withDefaults(defineProps<{
+  embedded?: boolean
   runId: string
   live?: boolean
   compact?: boolean
 }>(), {
   live: false,
   compact: false,
+  embedded: false,
 })
 
 const workpieces = ref<FlowWorkpieceDto[]>([])
@@ -108,7 +110,7 @@ onBeforeUnmount(stopAutoRefresh)
 </script>
 
 <template>
-  <section class="run-workpiece-panel" :class="{ 'run-workpiece-panel--compact': props.compact }" :aria-label="t('workpiece.title')">
+  <section class="run-workpiece-panel" :class="{ 'run-workpiece-panel--compact': props.compact, 'run-workpiece-panel--embedded': props.embedded }" :aria-label="t('workpiece.title')">
     <header class="run-workpiece-panel__header">
       <div class="run-workpiece-panel__heading">
         <span class="run-workpiece-panel__eyebrow"><PackageOpen :size="13" />{{ t('workpiece.eyebrow') }}</span>

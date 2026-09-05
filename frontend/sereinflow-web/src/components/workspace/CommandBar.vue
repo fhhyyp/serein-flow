@@ -21,6 +21,7 @@ import {
 } from 'lucide-vue-next'
 import { t, type Locale } from '../../i18n'
 import type { FlowConcurrencyMode, ProjectWorkspaceDto } from '../../api/flowApi'
+import WorkspacePanelSwitcher, { type WorkspacePanelItem } from './WorkspacePanelSwitcher.vue'
 
 const policyMenuOpen = ref(false)
 
@@ -53,6 +54,7 @@ const props = defineProps<{
   nodeCount: number
   workspaceView: 'console' | 'editor'
   concurrencyMode: FlowConcurrencyMode
+  workspacePanelItems: WorkspacePanelItem[]
 }>()
 
 const emit = defineEmits<{
@@ -77,6 +79,8 @@ const emit = defineEmits<{
   'show-version-history': []
   'publish-version': []
   'update-concurrency-mode': [mode: FlowConcurrencyMode]
+  'toggle-workspace-panel': [panelId: WorkspacePanelItem['id']]
+  'reset-workspace-layout': []
 }>()
 
 function updateProjectNameDraft(event: Event): void {
@@ -141,6 +145,11 @@ function selectConcurrencyMode(mode: FlowConcurrencyMode): void {
           <button class="icon-button icon-button--danger" type="button" :title="t('debug.stop')" :aria-label="t('debug.stop')" :disabled="props.isDebugControlling || props.isDebugStopping" @click="emit('debug-stop')"><Square :size="14" fill="currentColor" /></button>
         </template>
         <button v-else class="command-button debug" type="button" :disabled="!props.canStartDebug || props.isDebugStarting" @click="emit('debug')"><Bug :size="15" /><span>{{ t('command.debug') }}</span></button>
+        <WorkspacePanelSwitcher
+          :items="props.workspacePanelItems"
+          @toggle="emit('toggle-workspace-panel', $event)"
+          @reset="emit('reset-workspace-layout')"
+        />
         <div class="workspace-settings">
           <button class="icon-button" type="button" :title="t('command.workspaceSettings')" :aria-label="t('command.workspaceSettings')" :aria-expanded="policyMenuOpen" @click="policyMenuOpen = !policyMenuOpen"><Settings :size="16" /></button>
           <div v-if="policyMenuOpen" class="workspace-settings__popover" role="menu">

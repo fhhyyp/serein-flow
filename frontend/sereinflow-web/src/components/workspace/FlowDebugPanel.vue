@@ -6,16 +6,18 @@ import type { FlowDebugSessionDto } from '../../api/flowApi'
 import type { DebugPauseBoundary } from '../../composables/useFlowDebugger'
 import type { NodeExecutionState } from '../../flow/nodeExecutionState'
 import NodeExecutionInspector from '../debug/NodeExecutionInspector.vue'
-import RunWorkpiecePanel from '../runs/RunWorkpiecePanel.vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
+  embedded?: boolean
   session?: FlowDebugSessionDto
   boundary?: DebugPauseBoundary
   executions: readonly NodeExecutionState[]
   nodeNames?: Record<string, string>
   isControlling: boolean
   isStopping: boolean
-}>()
+}>(), {
+  embedded: false,
+})
 
 const emit = defineEmits<{
   continue: []
@@ -28,11 +30,10 @@ const emit = defineEmits<{
 
 const isPaused = computed(() => props.session?.status === 'paused' && !props.isStopping)
 const invocationShortId = computed(() => props.session?.activeInvocationId?.slice(0, 8))
-const isWorkpieceLive = computed(() => props.session?.status === 'pending' || props.session?.status === 'running')
 </script>
 
 <template>
-  <section v-if="props.session" class="flow-debug-panel" :class="`flow-debug-panel--${props.isStopping ? 'running' : props.session.status}`" :aria-label="t('debug.panelTitle')">
+  <section v-if="props.session" class="flow-debug-panel" :class="[`flow-debug-panel--${props.isStopping ? 'running' : props.session.status}`, { 'flow-debug-panel--embedded': props.embedded }]" :aria-label="t('debug.panelTitle')">
     <header class="flow-debug-panel__header">
       <div>
         <span class="flow-debug-panel__eyebrow"><Bug :size="13" />{{ t('debug.panelEyebrow') }}</span>
@@ -41,7 +42,7 @@ const isWorkpieceLive = computed(() => props.session?.status === 'pending' || pr
       <div class="flow-debug-panel__header-actions">
         <span v-if="isPaused" class="flow-debug-panel__paused"><CirclePause :size="14" />{{ t('debug.paused') }}</span>
         <button class="icon-button compact" type="button" :title="t('debug.showInspector')" :aria-label="t('debug.showInspector')" @click="emit('inspect')"><Settings2 :size="15" /></button>
-        <button class="icon-button compact" type="button" :title="t('panel.collapseInspector')" :aria-label="t('panel.collapseInspector')" @click="emit('close')"><PanelRightClose :size="15" /></button>
+        <button v-if="!props.embedded" class="icon-button compact" type="button" :title="t('panel.collapseDebug')" :aria-label="t('panel.collapseDebug')" @click="emit('close')"><PanelRightClose :size="15" /></button>
       </div>
     </header>
 
@@ -55,8 +56,6 @@ const isWorkpieceLive = computed(() => props.session?.status === 'pending' || pr
     </dl>
 
     <NodeExecutionInspector :executions="props.executions" :node-names="props.nodeNames" compact @select-node="emit('selectNode', $event)" />
-
-    <RunWorkpiecePanel :run-id="props.session.runId" :live="isWorkpieceLive" compact />
 
     <footer class="flow-debug-panel__controls">
       <button class="flow-debug-panel__control" type="button" :title="t('debug.continue')" :aria-label="t('debug.continue')" :disabled="!isPaused || props.isControlling || props.isStopping" @click="emit('continue')"><Play :size="16" fill="currentColor" /></button>

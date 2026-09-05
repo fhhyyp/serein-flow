@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, provide, reactive, ref, watch } from 'vue'
+import { computed, markRaw, nextTick, onMounted, provide, reactive, ref, watch } from 'vue'
 import {
   Activity,
+  AlertTriangle,
+  Bug,
   Code2,
   Database,
-  PanelLeftOpen,
-  PanelRightOpen,
+  LayoutGrid,
+  PackageOpen,
+  PanelLeft,
+  PanelRight,
+  Terminal,
   Zap,
 } from 'lucide-vue-next'
 import { useVueFlow } from '@vue-flow/core'
@@ -14,12 +19,15 @@ import '@vue-flow/core/dist/theme-default.css'
 import NodeLibraryPanel from './components/library/NodeLibraryPanel.vue'
 import ProjectLibraryDialog from './components/library/ProjectLibraryDialog.vue'
 import CommandBar from './components/workspace/CommandBar.vue'
+import DockablePanelGroup from './components/workspace/DockablePanelGroup.vue'
 import FlowVersionHistoryDialog from './components/workspace/FlowVersionHistoryDialog.vue'
-import MobileWorkspaceTabs from './components/workspace/MobileWorkspaceTabs.vue'
 import OutputPanel from './components/workspace/OutputPanel.vue'
 import CanvasPanel from './components/canvas/CanvasPanel.vue'
+import FlowValidationDiagnostics from './components/canvas/FlowValidationDiagnostics.vue'
 import InspectorPanel from './components/inspector/InspectorPanel.vue'
 import RunConsole from './components/runs/RunConsole.vue'
+import FlowDebugPanel from './components/workspace/FlowDebugPanel.vue'
+import RunWorkpiecePanel from './components/runs/RunWorkpiecePanel.vue'
 import {
   publishFlowVersion,
   type FlowConcurrencyMode,
@@ -52,6 +60,13 @@ import { useProjectSession } from './composables/useProjectSession'
 import { useFlowGraph } from './composables/useFlowGraph'
 import { useNodeDrop } from './composables/useNodeDrop'
 import { useWorkspaceShortcuts } from './composables/useWorkspaceShortcuts'
+import { useDockableWorkspace } from './composables/useDockableWorkspace'
+import type {
+  DockablePanelGroupState,
+  DockPosition,
+  WorkspacePanelId,
+  WorkspacePanelTab,
+} from './flow/dockableWorkspace'
 import type {
   CanvasState,
   FlowNode,
@@ -68,8 +83,6 @@ const canvasFocusSettings = reactive<CanvasFocusSettings>(normalizeCanvasFocusSe
 const activeCanvasId = ref('main')
 const projectLibraryOpen = ref(false)
 const mobilePanel = ref<'nodes' | 'inspector' | null>(null)
-const isNodeLibraryCollapsed = ref(false)
-const isInspectorCollapsed = ref(false)
 const languageMenuOpen = ref(false)
 const projectMenuOpen = ref(false)
 const connectionSettingsOpen = ref(false)
@@ -124,6 +137,21 @@ const savedWorkspaceFingerprint = ref('')
 const isRestoringWorkspace = ref(false)
 const isSwitchingCanvas = ref(false)
 const workspaceView = ref<'console' | 'editor'>('console')
+const workspaceRoot = ref<HTMLElement>()
+const {
+  layout: dockableLayout,
+  groups: dockableGroups,
+  workspaceSize: dockableWorkspaceSize,
+  updateGroup: updateDockableGroup,
+  activatePanel: activateDockablePanel,
+  showPanel: showDockablePanel,
+  hidePanel: hideDockablePanel,
+  dockGroup: dockDockableGroup,
+  combinePanel: combineDockablePanel,
+  detachPanel: detachDockablePanel,
+  resetLayout: resetDockableLayout,
+  focusGroup: focusDockableGroup,
+} = useDockableWorkspace(workspaceRoot)
 const runPolicy = ref<{ concurrencyMode: FlowConcurrencyMode }>({ concurrencyMode: 'parallel' })
 const flowVersionHistoryOpen = ref(false)
 const isVersionPublishing = ref(false)
@@ -314,6 +342,7 @@ const {
   runEvents,
   runPayload,
   runFlow,
+  lastRunId,
 } = useFlowRunner({ nodes, notice, projectId, flowId, flowVersion })
 
 function locateDebugPause(nodeId: string): void {
@@ -360,34 +389,388 @@ const debugNodeNames = computed<Record<string, string>>(() => Object.fromEntries
   ])),
 ))
 
-watch(mobilePanel, (panel) => {
-  if (panel === 'nodes') {
-    isNodeLibraryCollapsed.value = false
-  } else if (panel === 'inspector') {
-    isInspectorCollapsed.value = false
-  }
-})
-
-watch(() => debugSession.value?.id, (sessionId) => {
-  if (sessionId) isInspectorCollapsed.value = false
-})
-
-function collapseNodeLibrary(): void {
-  isNodeLibraryCollapsed.value = true
-  mobilePanel.value = null
-}
-
-function collapseInspector(): void {
-  isInspectorCollapsed.value = true
-  mobilePanel.value = null
-}
-
 const visibleRunEvents = computed(() => isDebugActive.value || (!isRunning.value && debugSession.value) ? debugRunEvents.value : runEvents.value)
 const visibleRunPayload = computed(() => isDebugActive.value || (!isRunning.value && debugSession.value) ? debugRunPayload.value : runPayload.value)
 const visibleHasRunOutput = computed(() => visibleRunEvents.value.length > 0)
 const visibleActiveOutput = computed({
   get: () => activeOutput.value,
   set: (value: 'events' | 'payload') => { activeOutput.value = value },
+})
+
+const activeWorkpieceRunId = computed(() => debugSession.value?.runId ?? lastRunId.value ?? '')
+const panelDefinitions = computed<WorkspacePanelTab[]>(() => [
+  { id: 'canvas', label: t('panel.canvas'), icon: markRaw(LayoutGrid), closable: false },
+  { id: 'nodes', label: t('panel.nodes'), icon: markRaw(PanelLeft) },
+  { id: 'inspector', label: t('panel.inspector'), icon: markRaw(PanelRight) },
+  { id: 'output', label: t('panel.output'), icon: markRaw(Terminal) },
+  { id: 'diagnostics', label: t('panel.diagnostics'), icon: markRaw(AlertTriangle) },
+  { id: 'debug', label: t('panel.debug'), icon: markRaw(Bug) },
+  { id: 'workpieces', label: t('panel.workpieces'), icon: markRaw(PackageOpen) },
+])
+
+function isPanelAvailable(panelId: WorkspacePanelId): boolean {
+  if (panelId === 'debug') return Boolean(debugSession.value)
+  if (panelId === 'workpieces') return Boolean(activeWorkpieceRunId.value)
+  return true
+}
+
+function tabsForGroup(group: DockablePanelGroupState): WorkspacePanelTab[] {
+  return group.panelIds
+    .filter((panelId) => dockableLayout.panels[panelId].visible && isPanelAvailable(panelId))
+    .map((panelId) => panelDefinitions.value.find((definition) => definition.id === panelId))
+    .filter((definition): definition is WorkspacePanelTab => Boolean(definition))
+}
+
+function groupOptionsFor(groupId: string): Array<{ id: string; label: string }> {
+  return dockableGroups.value
+    .filter((group) => group.id !== groupId && tabsForGroup(group).length > 0)
+    .map((group) => ({
+      id: group.id,
+      label: panelDefinitions.value.find((definition) => definition.id === group.activePanelId)?.label
+        ?? t('panel.emptyGroup'),
+    }))
+}
+
+type EdgeDockPosition = Exclude<DockPosition, 'free' | 'fill'>
+type WorkspaceDropZone = EdgeDockPosition | 'fill'
+
+interface WorkspaceRect {
+  left: number
+  top: number
+  right: number
+  bottom: number
+}
+
+interface WorkspaceSnapPreview {
+  groupId: string
+  dock?: EdgeDockPosition
+  targetGroupId?: string
+  region?: WorkspaceRect
+  zone?: WorkspaceDropZone
+}
+
+function isEdgeDockPosition(dock: DockPosition): dock is EdgeDockPosition {
+  return dock === 'left' || dock === 'right' || dock === 'top' || dock === 'bottom'
+}
+
+function desiredEdgeGroupExtent(group: DockablePanelGroupState, dock: EdgeDockPosition): number {
+  if (group.collapsed) return 76
+  const raw = dock === 'left' || dock === 'right' ? group.width : group.height
+  const maximum = dock === 'left' || dock === 'right'
+    ? dockableWorkspaceSize.width
+    : dockableWorkspaceSize.height
+  return Math.max(0, Math.min(raw, maximum))
+}
+
+const renderedEdgeGroups = computed(() => dockableGroups.value.filter((group) =>
+  isEdgeDockPosition(group.dock) && tabsForGroup(group).length > 0))
+
+const dockedLayoutPriority = computed<'full-row' | 'center-column'>(() =>
+  renderedEdgeGroups.value.some((group) => group.dock === 'top' || group.dock === 'bottom')
+    ? 'full-row'
+    : 'center-column')
+
+function dockedExtentFor(group: DockablePanelGroupState): number | undefined {
+  if (!isEdgeDockPosition(group.dock)) return undefined
+  const dock = group.dock
+  const peers = renderedEdgeGroups.value.filter((candidate) => candidate.dock === dock)
+  const total = peers.reduce((sum, candidate) => sum + desiredEdgeGroupExtent(candidate, dock), 0)
+  const capacity = dock === 'left' || dock === 'right'
+    ? dockableWorkspaceSize.width
+    : dockableWorkspaceSize.height
+  const scale = total > capacity && total > 0 ? capacity / total : 1
+  return desiredEdgeGroupExtent(group, dock) * scale
+}
+
+function dockedOffsetFor(group: DockablePanelGroupState): number {
+  if (!isEdgeDockPosition(group.dock)) return 0
+  const dock = group.dock
+  const peers = renderedEdgeGroups.value.filter((candidate) => candidate.dock === dock)
+  const groupIndex = peers.findIndex((candidate) => candidate.id === group.id)
+  return peers.slice(0, Math.max(0, groupIndex)).reduce(
+    (offset, candidate) => offset + (dockedExtentFor(candidate) ?? 0),
+    0,
+  )
+}
+
+const workspaceInsets = computed(() => renderedEdgeGroups.value.reduce((insets, group) => {
+  const extent = dockedExtentFor(group) ?? 0
+  if (group.dock === 'left') insets.left += extent
+  if (group.dock === 'right') insets.right += extent
+  if (group.dock === 'top') insets.top += extent
+  if (group.dock === 'bottom') insets.bottom += extent
+  return insets
+}, { top: 0, right: 0, bottom: 0, left: 0 }))
+
+function workspaceRectForGroup(group: DockablePanelGroupState): WorkspaceRect {
+  const width = Math.max(240, Math.min(group.width, dockableWorkspaceSize.width))
+  const height = Math.max(160, Math.min(group.height, dockableWorkspaceSize.height))
+  return {
+    left: group.x,
+    top: group.y,
+    right: group.x + width,
+    bottom: group.y + height,
+  }
+}
+
+function rectArea(rect: WorkspaceRect): number {
+  return Math.max(0, rect.right - rect.left) * Math.max(0, rect.bottom - rect.top)
+}
+
+function rectOverlap(first: WorkspaceRect, second: WorkspaceRect): number {
+  return Math.max(0, Math.min(first.right, second.right) - Math.max(first.left, second.left))
+    * Math.max(0, Math.min(first.bottom, second.bottom) - Math.max(first.top, second.top))
+}
+
+function containsPoint(rect: WorkspaceRect, clientX: number, clientY: number): boolean {
+  return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom
+}
+
+function blankRegionForPointer(groupId: string, clientX: number, clientY: number): WorkspaceRect | undefined {
+  const base: WorkspaceRect = {
+    left: workspaceInsets.value.left,
+    top: workspaceInsets.value.top,
+    right: dockableWorkspaceSize.width - workspaceInsets.value.right,
+    bottom: dockableWorkspaceSize.height - workspaceInsets.value.bottom,
+  }
+  if (!containsPoint(base, clientX, clientY) || base.right - base.left < 240 || base.bottom - base.top < 160) return undefined
+
+  const blockers = dockableGroups.value
+    .filter((group) => group.id !== groupId && group.dock === 'free' && tabsForGroup(group).length > 0)
+    .map((group) => workspaceRectForGroup(group))
+    .map((rect) => ({
+      left: Math.max(base.left, rect.left),
+      top: Math.max(base.top, rect.top),
+      right: Math.min(base.right, rect.right),
+      bottom: Math.min(base.bottom, rect.bottom),
+    }))
+    .filter((rect) => rect.right > rect.left && rect.bottom > rect.top)
+  const xLines = Array.from(new Set([base.left, base.right, ...blockers.flatMap((rect) => [rect.left, rect.right])])).sort((a, b) => a - b)
+  const yLines = Array.from(new Set([base.top, base.bottom, ...blockers.flatMap((rect) => [rect.top, rect.bottom])])).sort((a, b) => a - b)
+  let best: WorkspaceRect | undefined
+  for (let xIndex = 0; xIndex < xLines.length - 1; xIndex += 1) {
+    for (let nextXIndex = xIndex + 1; nextXIndex < xLines.length; nextXIndex += 1) {
+      for (let yIndex = 0; yIndex < yLines.length - 1; yIndex += 1) {
+        for (let nextYIndex = yIndex + 1; nextYIndex < yLines.length; nextYIndex += 1) {
+          const candidate = { left: xLines[xIndex]!, top: yLines[yIndex]!, right: xLines[nextXIndex]!, bottom: yLines[nextYIndex]! }
+          if (!containsPoint(candidate, clientX, clientY)
+            || candidate.right - candidate.left < 240
+            || candidate.bottom - candidate.top < 160
+            || blockers.some((blocker) => rectOverlap(candidate, blocker) > 0)) continue
+          if (!best || rectArea(candidate) > rectArea(best)) best = candidate
+        }
+      }
+    }
+  }
+  return best
+}
+
+function blankDropZone(region: WorkspaceRect, clientX: number, clientY: number): WorkspaceDropZone {
+  const edgeWidth = Math.min(132, Math.max(56, Math.round((region.right - region.left) * .24)))
+  const edgeHeight = Math.min(108, Math.max(48, Math.round((region.bottom - region.top) * .2)))
+  if (clientX <= region.left + edgeWidth) return 'left'
+  if (clientX >= region.right - edgeWidth) return 'right'
+  if (clientY <= region.top + edgeHeight) return 'top'
+  if (clientY >= region.bottom - edgeHeight) return 'bottom'
+  return 'fill'
+}
+
+function dropRectForZone(region: WorkspaceRect, zone: WorkspaceDropZone): WorkspaceRect {
+  const width = region.right - region.left
+  const height = region.bottom - region.top
+  const splitWidth = Math.min(width, Math.max(240, Math.round(width * .34)))
+  const splitHeight = Math.min(height, Math.max(160, Math.round(height * .34)))
+  if (zone === 'left') return { left: region.left, top: region.top, right: region.left + splitWidth, bottom: region.bottom }
+  if (zone === 'right') return { left: region.right - splitWidth, top: region.top, right: region.right, bottom: region.bottom }
+  if (zone === 'top') return { left: region.left, top: region.top, right: region.right, bottom: region.top + splitHeight }
+  if (zone === 'bottom') return { left: region.left, top: region.bottom - splitHeight, right: region.right, bottom: region.bottom }
+  return region
+}
+
+const workspaceSnapPreview = ref<WorkspaceSnapPreview>()
+const workspaceDropZones = computed(() => {
+  const region = workspaceSnapPreview.value?.region
+  if (!region || workspaceSnapPreview.value?.targetGroupId) return []
+  const width = region.right - region.left
+  const height = region.bottom - region.top
+  const edgeWidth = Math.min(132, Math.max(56, Math.round(width * .24)))
+  const edgeHeight = Math.min(108, Math.max(48, Math.round(height * .2)))
+  return [
+    { id: 'left' as const, style: { left: `${region.left}px`, top: `${region.top}px`, width: `${edgeWidth}px`, height: `${height}px` } },
+    { id: 'right' as const, style: { left: `${region.right - edgeWidth}px`, top: `${region.top}px`, width: `${edgeWidth}px`, height: `${height}px` } },
+    { id: 'top' as const, style: { left: `${region.left + edgeWidth}px`, top: `${region.top}px`, width: `${Math.max(0, width - edgeWidth * 2)}px`, height: `${edgeHeight}px` } },
+    { id: 'bottom' as const, style: { left: `${region.left + edgeWidth}px`, top: `${region.bottom - edgeHeight}px`, width: `${Math.max(0, width - edgeWidth * 2)}px`, height: `${edgeHeight}px` } },
+    { id: 'fill' as const, style: { left: `${region.left + edgeWidth}px`, top: `${region.top + edgeHeight}px`, width: `${Math.max(0, width - edgeWidth * 2)}px`, height: `${Math.max(0, height - edgeHeight * 2)}px` } },
+  ]
+})
+
+const snapPreviewLabel = computed(() => {
+  const preview = workspaceSnapPreview.value
+  if (!preview) return ''
+  if (preview.targetGroupId) return t('panel.combineHint')
+  if (preview.dock) return t('panel.dockHint')
+  if (preview.zone === 'fill') return t('panel.fillHint')
+  return preview.zone ? t('panel.splitHint') : ''
+})
+
+function previewWorkspaceMove(groupId: string, event?: { dock?: DockPosition; targetGroupId?: string; clientX?: number; clientY?: number }): void {
+  if (!event?.dock && !event?.targetGroupId && (event?.clientX === undefined || event.clientY === undefined)) {
+    workspaceSnapPreview.value = undefined
+    return
+  }
+  if (event.targetGroupId) {
+    workspaceSnapPreview.value = {
+      groupId,
+      targetGroupId: event.targetGroupId,
+    }
+    return
+  }
+  if (event.dock && isEdgeDockPosition(event.dock)) {
+    const region: WorkspaceRect = event.dock === 'left' || event.dock === 'right'
+      ? {
+          left: 0,
+          top: dockedLayoutPriority.value === 'full-row' ? workspaceInsets.value.top : 0,
+          right: dockableWorkspaceSize.width,
+          bottom: dockedLayoutPriority.value === 'full-row' ? dockableWorkspaceSize.height - workspaceInsets.value.bottom : dockableWorkspaceSize.height,
+        }
+      : {
+          left: 0,
+          top: 0,
+          right: dockableWorkspaceSize.width,
+          bottom: dockableWorkspaceSize.height,
+        }
+    workspaceSnapPreview.value = {
+      groupId,
+      dock: event.dock,
+      region,
+      zone: event.dock,
+    }
+    return
+  }
+  if (event.clientX === undefined || event.clientY === undefined) {
+    workspaceSnapPreview.value = undefined
+    return
+  }
+  const bounds = workspaceRoot.value?.getBoundingClientRect()
+  if (!bounds) {
+    workspaceSnapPreview.value = undefined
+    return
+  }
+  const localX = event.clientX - bounds.left
+  const localY = event.clientY - bounds.top
+  const region = blankRegionForPointer(groupId, localX, localY)
+  workspaceSnapPreview.value = region ? {
+    groupId,
+    region,
+    zone: blankDropZone(region, localX, localY),
+  } : undefined
+}
+
+const panelSwitcherItems = computed(() => panelDefinitions.value.map((definition) => ({
+  ...definition,
+  visible: dockableLayout.panels[definition.id].visible,
+  available: isPanelAvailable(definition.id),
+  required: definition.id === 'canvas',
+})))
+
+function toggleWorkspacePanel(panelId: WorkspacePanelId): void {
+  if (panelId === 'canvas' || !isPanelAvailable(panelId)) return
+  if (dockableLayout.panels[panelId].visible) hideDockablePanel(panelId)
+  else showDockablePanel(panelId)
+}
+
+function updateWorkspaceGroup(groupId: string, patch: Partial<DockablePanelGroupState>): void {
+  updateDockableGroup(groupId, patch)
+}
+
+function activateWorkspacePanel(groupId: string, panelId: WorkspacePanelId): void {
+  activateDockablePanel(groupId, panelId)
+}
+
+function inspectDebugNode(): void {
+  showDockablePanel('inspector')
+  activateDockablePanel(dockableLayout.panels.inspector.groupId, 'inspector')
+}
+
+function dockForPointer(clientX: number, clientY: number): 'left' | 'right' | 'top' | 'bottom' | undefined {
+  const bounds = workspaceRoot.value?.getBoundingClientRect()
+  if (!bounds) return undefined
+  const distances: Array<{ dock: 'left' | 'right' | 'top' | 'bottom'; distance: number }> = [
+    { dock: 'left', distance: clientX - bounds.left },
+    { dock: 'right', distance: bounds.right - clientX },
+    { dock: 'top', distance: clientY - bounds.top },
+    { dock: 'bottom', distance: bounds.bottom - clientY },
+  ]
+  const nearest = distances.sort((a, b) => a.distance - b.distance)[0]
+  return nearest && nearest.distance <= 52 ? nearest.dock : undefined
+}
+
+function applyBlankWorkspaceDrop(groupId: string, panelId: WorkspacePanelId, region: WorkspaceRect, zone: WorkspaceDropZone): void {
+  const sourceGroup = dockableGroups.value.find((group) => group.id === groupId)
+  if (!sourceGroup) return
+  let targetGroupId = groupId
+  if (sourceGroup.panelIds.length > 1) targetGroupId = detachDockablePanel(panelId) ?? groupId
+  const targetGroup = dockableGroups.value.find((group) => group.id === targetGroupId)
+  if (!targetGroup) return
+  const rect = dropRectForZone(region, zone)
+  updateDockableGroup(targetGroupId, {
+    dock: 'free',
+    x: rect.left,
+    y: rect.top,
+    width: rect.right - rect.left,
+    height: rect.bottom - rect.top,
+  })
+  focusDockableGroup(targetGroupId)
+}
+
+function finishWorkspaceMove(groupId: string, event: { panelId: WorkspacePanelId; targetGroupId?: string; dockTarget?: DockPosition; clientX: number; clientY: number; moved: boolean; interaction: 'move' | 'resize' }): void {
+  const preview = workspaceSnapPreview.value?.groupId === groupId ? workspaceSnapPreview.value : undefined
+  workspaceSnapPreview.value = undefined
+  if (event.interaction === 'resize') {
+    focusDockableGroup(groupId)
+    return
+  }
+  if (event.targetGroupId && event.targetGroupId !== groupId && event.moved) {
+    combineDockablePanel(event.panelId, event.targetGroupId)
+    return
+  }
+  const dock = event.moved
+    ? (event.dockTarget && isEdgeDockPosition(event.dockTarget) ? event.dockTarget : dockForPointer(event.clientX, event.clientY))
+    : undefined
+  if (dock) dockDockableGroup(groupId, dock)
+  else if (event.moved && preview?.region && preview.zone) applyBlankWorkspaceDrop(groupId, event.panelId, preview.region, preview.zone)
+  else focusDockableGroup(groupId)
+}
+
+function dockWorkspacePanel(panelId: WorkspacePanelId, dock: DockPosition): void {
+  const group = dockableGroups.value.find((candidate) => candidate.panelIds.includes(panelId))
+  if (!group) return
+  if (group.panelIds.length > 1) {
+    const groupId = detachDockablePanel(panelId)
+    if (groupId) dockDockableGroup(groupId, dock)
+    return
+  }
+  dockDockableGroup(group.id, dock)
+}
+
+function combineWorkspacePanel(panelId: WorkspacePanelId, targetGroupId: string): void {
+  combineDockablePanel(panelId, targetGroupId)
+}
+
+function detachWorkspacePanel(panelId: WorkspacePanelId): void {
+  detachDockablePanel(panelId)
+}
+
+function closeWorkspacePanel(panelId: WorkspacePanelId): void {
+  hideDockablePanel(panelId)
+}
+
+watch(() => saveDiagnostics.value.length, (count) => {
+  if (count > 0) showDockablePanel('diagnostics')
+})
+
+watch(() => debugSession.value?.id, (sessionId) => {
+  if (sessionId) showDockablePanel('debug')
 })
 
 const debugRenderedElements = computed(() => renderedElements.value.map((element) => {
@@ -845,6 +1228,7 @@ function setLanguage(nextLocale: Locale): void {
       :node-count="nodes.length"
       :workspace-view="workspaceView"
       :concurrency-mode="runPolicy.concurrencyMode"
+      :workspace-panel-items="panelSwitcherItems"
       @toggle-project-menu="projectMenuOpen = !projectMenuOpen"
       @begin-project-rename="beginProjectRename"
       @cancel-project-rename="cancelProjectRename"
@@ -866,6 +1250,8 @@ function setLanguage(nextLocale: Locale): void {
       @show-version-history="flowVersionHistoryOpen = true"
       @publish-version="publishCurrentFlowVersion"
       @update-concurrency-mode="updateConcurrencyMode"
+      @toggle-workspace-panel="toggleWorkspacePanel"
+      @reset-workspace-layout="resetDockableLayout"
     />
 
     <RunConsole
@@ -876,118 +1262,178 @@ function setLanguage(nextLocale: Locale): void {
       @project-directory-changed="updateActiveProjectDirectory"
     />
 
-    <MobileWorkspaceTabs v-if="workspaceView === 'editor'" v-model:mobile-panel="mobilePanel" />
-
-    <main v-if="workspaceView === 'editor'" class="workspace-grid" :class="{ 'workspace-grid--inspector-collapsed': isInspectorCollapsed }">
-      <NodeLibraryPanel
-        v-if="!isNodeLibraryCollapsed"
-        :mobile-visible="mobilePanel === 'nodes'"
-        :library-search="librarySearch"
-        :is-loading="isLibraryCatalogLoading"
-        :error="libraryCatalogError"
-        :visible-libraries="visibleLibraries"
-        :visible-builtin-nodes="visibleBuiltinNodes"
-        :catalog-node-count="catalogNodeCount"
-        @update:library-search="librarySearch = $event"
-        @manage="projectLibraryOpen = true"
-        @retry="refreshProjectLibraryCatalog"
-        @node-pointer-down="handleLibraryNodePointerDown"
-        @builtin-node-pointer-down="handleBuiltinNodePointerDown"
-        @collapse="collapseNodeLibrary"
-      />
-      <button v-else class="workspace-panel-launcher workspace-panel-launcher--library" type="button" :title="t('panel.expandLibrary')" :aria-label="t('panel.expandLibrary')" @click="isNodeLibraryCollapsed = false"><PanelLeftOpen :size="17" /></button>
-
-      <CanvasPanel
-        :canvases="canvases"
-        :active-canvas-id="activeCanvasId"
-        :current-canvas-lifecycle="currentCanvas.lifecycle"
-        :current-canvas-node-count="currentCanvas.nodes.length"
-        :current-canvas-edge-count="currentCanvas.edges.length"
-        :rendered-elements="debugRenderedElements"
-        :is-valid-connection="isValidConnection"
-        :canvas-render-key="canvasRenderKey"
-        :canvas-menu-open="canvasMenuOpen"
-        :available-canvas-lifecycles="availableCanvasLifecycles"
-        :custom-canvas-name-draft="customCanvasNameDraft"
-        :connection-settings-open="connectionSettingsOpen"
-        :connection-line-types="connectionLineTypes"
-        :canvas-focus-settings="canvasFocusSettings"
-        :is-dirty="isDirty"
-        :is-saving="isSaving"
-        :is-workspace-loading="isWorkspaceLoading"
-        :save-failed="saveFailed"
-        :save-conflict="saveConflict"
-        :save-state-key="saveStateKey"
-        :selected-node="selectedNode"
-        :selected-edge="selectedEdge"
-        :is-canvas-drop-active="isCanvasDropActive"
-        :notice="notice"
-        :pending-canvas-delete="pendingCanvasDelete"
-        :canvas-delete-confirm-open="canvasDeleteConfirmOpen"
-        :canvas-label="canvasLabel"
-        @select-canvas="selectCanvas"
-        @toggle-canvas-menu="toggleCanvasMenu"
-        @add-canvas="addCanvas"
-        @add-custom-canvas="addCustomCanvas"
-        @update:custom-canvas-name-draft="customCanvasNameDraft = $event"
-        @toggle-connection-settings="connectionSettingsOpen = !connectionSettingsOpen"
-        @update-connection-line-type="updateConnectionLineType"
-        @update-canvas-focus-setting="updateCanvasFocusSetting"
-        @remove-selection="removeSelection"
-        @request-canvas-removal="requestCanvasRemoval"
-        @cancel-canvas-removal="cancelCanvasRemoval"
-        @confirm-canvas-removal="confirmCanvasRemoval"
-        @canvas-dragenter="handleCanvasDragOver"
-        @canvas-dragover="handleCanvasDragOver"
-        @canvas-dragleave="handleCanvasDragLeave"
-        @canvas-drop="handleCanvasDrop"
-        @connect="onConnect"
-        @nodes-change="onNodesChange"
-        @edges-change="onEdgesChange"
-        @node-click="onNodeClick"
-        @edge-click="onEdgeClick"
-        @pane-click="clearSelection"
-        @zoom-in="zoomIn"
-        @zoom-out="zoomOut"
-        @fit-view="fitView"
-      />
-
-      <InspectorPanel
-        v-if="!isInspectorCollapsed"
-        :mobile-visible="mobilePanel === 'inspector'"
-        :selected-node="selectedNode"
-        :selected-edge="selectedEdge"
-        :icon-for-node-kind="iconForNodeKind"
-        :node-title="nodeTitle"
-        :source-node-title="sourceNodeTitle"
-        :canvases="canvases"
-        :entry-node-id="entryNodeId"
-        :debug-session="debugSession"
-        :debug-boundary="pauseBoundary"
-        :debug-executions="debugExecutionStates"
-        :debug-node-names="debugNodeNames"
-        :debug-is-controlling="isDebugControlling"
-        :debug-is-stopping="isDebugStopping"
-        @close="collapseInspector"
-        @delete="removeSelection"
-        @continue-debug="continueDebug"
-        @step-debug="stepDebug"
-        @stop-debug="stopDebug"
-        @select-debug-node="locateDebugPause"
-        @update-parameter-source="updateParameterSource"
-        @begin-text-edit="beginTextEdit"
-        @commit-text-edit="commitTextEdit"
-        @discard-text-edit="discardTextEdit"
-        @set-node-public="setNodePublic"
-        @set-flow-entry="setFlowEntry"
-        @set-flowcall-target="setFlowCallTarget"
-        @add-script-input="addScriptInput"
-        @remove-script-input="removeScriptInput"
-        @set-variadic-mode="setVariadicMode"
-        @add-variadic-input="addVariadicInput"
-        @remove-variadic-input="removeVariadicInput"
-      />
-      <button v-else class="workspace-panel-launcher workspace-panel-launcher--inspector" type="button" :title="t('panel.expandInspector')" :aria-label="t('panel.expandInspector')" @click="isInspectorCollapsed = false"><PanelRightOpen :size="17" /></button>
+    <main v-if="workspaceView === 'editor'" ref="workspaceRoot" class="workspace-grid">
+      <div v-if="workspaceSnapPreview" class="workspace-docking-preview" aria-hidden="true">
+        <div v-if="workspaceSnapPreview.targetGroupId && snapPreviewLabel" class="workspace-docking-preview__label workspace-docking-preview__label--combine">{{ snapPreviewLabel }}</div>
+        <template v-else>
+          <div
+            v-for="zone in workspaceDropZones"
+            :key="zone.id"
+            class="workspace-docking-preview__zone"
+            :class="[`workspace-docking-preview__zone--${zone.id}`, { active: workspaceSnapPreview.zone === zone.id }]"
+            :style="zone.style"
+          ></div>
+          <div v-if="snapPreviewLabel" class="workspace-docking-preview__label">{{ snapPreviewLabel }}</div>
+        </template>
+      </div>
+      <template v-for="group in dockableGroups" :key="group.id">
+        <DockablePanelGroup
+          v-if="tabsForGroup(group).length > 0"
+          :group="group"
+          :tabs="tabsForGroup(group)"
+          :group-options="groupOptionsFor(group.id)"
+          :workspace-size="dockableWorkspaceSize"
+          :canvas-group="group.panelIds.includes('canvas')"
+          :docked-offset="dockedOffsetFor(group)"
+          :docked-size="dockedExtentFor(group)"
+          :layout-priority="dockedLayoutPriority"
+          :canvas-insets="workspaceInsets"
+          :drop-targeted="workspaceSnapPreview?.targetGroupId === group.id"
+          @update:group="updateWorkspaceGroup(group.id, $event)"
+          @activate="activateWorkspacePanel"
+          @drag-preview="previewWorkspaceMove(group.id, $event)"
+          @move-end="finishWorkspaceMove(group.id, $event)"
+          @dock="dockWorkspacePanel"
+          @combine="combineWorkspacePanel"
+          @detach="detachWorkspacePanel"
+          @close="closeWorkspacePanel"
+        >
+          <template #default="{ panelId }">
+            <NodeLibraryPanel
+              v-if="panelId === 'nodes'"
+              :embedded="true"
+              :mobile-visible="false"
+              :library-search="librarySearch"
+              :is-loading="isLibraryCatalogLoading"
+              :error="libraryCatalogError"
+              :visible-libraries="visibleLibraries"
+              :visible-builtin-nodes="visibleBuiltinNodes"
+              :catalog-node-count="catalogNodeCount"
+              @update:library-search="librarySearch = $event"
+              @manage="projectLibraryOpen = true"
+              @retry="refreshProjectLibraryCatalog"
+              @node-pointer-down="handleLibraryNodePointerDown"
+              @builtin-node-pointer-down="handleBuiltinNodePointerDown"
+              @collapse="closeWorkspacePanel('nodes')"
+            />
+            <CanvasPanel
+              v-else-if="panelId === 'canvas'"
+              :canvases="canvases"
+              :active-canvas-id="activeCanvasId"
+              :current-canvas-lifecycle="currentCanvas.lifecycle"
+              :current-canvas-node-count="currentCanvas.nodes.length"
+              :current-canvas-edge-count="currentCanvas.edges.length"
+              :rendered-elements="debugRenderedElements"
+              :is-valid-connection="isValidConnection"
+              :canvas-render-key="canvasRenderKey"
+              :canvas-menu-open="canvasMenuOpen"
+              :available-canvas-lifecycles="availableCanvasLifecycles"
+              :custom-canvas-name-draft="customCanvasNameDraft"
+              :connection-settings-open="connectionSettingsOpen"
+              :connection-line-types="connectionLineTypes"
+              :canvas-focus-settings="canvasFocusSettings"
+              :is-dirty="isDirty"
+              :is-saving="isSaving"
+              :is-workspace-loading="isWorkspaceLoading"
+              :save-failed="saveFailed"
+              :save-conflict="saveConflict"
+              :save-state-key="saveStateKey"
+              :selected-node="selectedNode"
+              :selected-edge="selectedEdge"
+              :is-canvas-drop-active="isCanvasDropActive"
+              :notice="notice"
+              :pending-canvas-delete="pendingCanvasDelete"
+              :canvas-delete-confirm-open="canvasDeleteConfirmOpen"
+              :canvas-label="canvasLabel"
+              @select-canvas="selectCanvas"
+              @toggle-canvas-menu="toggleCanvasMenu"
+              @add-canvas="addCanvas"
+              @add-custom-canvas="addCustomCanvas"
+              @update:custom-canvas-name-draft="customCanvasNameDraft = $event"
+              @toggle-connection-settings="connectionSettingsOpen = !connectionSettingsOpen"
+              @update-connection-line-type="updateConnectionLineType"
+              @update-canvas-focus-setting="updateCanvasFocusSetting"
+              @remove-selection="removeSelection"
+              @request-canvas-removal="requestCanvasRemoval"
+              @cancel-canvas-removal="cancelCanvasRemoval"
+              @confirm-canvas-removal="confirmCanvasRemoval"
+              @canvas-dragenter="handleCanvasDragOver"
+              @canvas-dragover="handleCanvasDragOver"
+              @canvas-dragleave="handleCanvasDragLeave"
+              @canvas-drop="handleCanvasDrop"
+              @connect="onConnect"
+              @nodes-change="onNodesChange"
+              @edges-change="onEdgesChange"
+              @node-click="onNodeClick"
+              @edge-click="onEdgeClick"
+              @pane-click="clearSelection"
+              @zoom-in="zoomIn"
+              @zoom-out="zoomOut"
+              @fit-view="fitView"
+            />
+            <InspectorPanel
+              v-else-if="panelId === 'inspector'"
+              :embedded="true"
+              :mobile-visible="false"
+              :selected-node="selectedNode"
+              :selected-edge="selectedEdge"
+              :icon-for-node-kind="iconForNodeKind"
+              :node-title="nodeTitle"
+              :source-node-title="sourceNodeTitle"
+              :canvases="canvases"
+              :entry-node-id="entryNodeId"
+              @close="closeWorkspacePanel('inspector')"
+              @delete="removeSelection"
+              @update-parameter-source="updateParameterSource"
+              @begin-text-edit="beginTextEdit"
+              @commit-text-edit="commitTextEdit"
+              @discard-text-edit="discardTextEdit"
+              @set-node-public="setNodePublic"
+              @set-flow-entry="setFlowEntry"
+              @set-flowcall-target="setFlowCallTarget"
+              @add-script-input="addScriptInput"
+              @remove-script-input="removeScriptInput"
+              @set-variadic-mode="setVariadicMode"
+              @add-variadic-input="addVariadicInput"
+              @remove-variadic-input="removeVariadicInput"
+            />
+            <OutputPanel
+              v-else-if="panelId === 'output'"
+              v-model:active-output="visibleActiveOutput"
+              :embedded="true"
+              :run-events="visibleRunEvents"
+              :run-payload="visibleRunPayload"
+              :has-run-output="visibleHasRunOutput"
+            />
+            <div v-else-if="panelId === 'diagnostics'" class="workspace-panel-content workspace-panel-content--diagnostics">
+              <FlowValidationDiagnostics v-if="saveDiagnostics.length" :diagnostics="saveDiagnostics" :canvases="canvases" @dismiss="dismissSaveDiagnostics" @locate="locateSaveDiagnostic" />
+              <div v-else class="workspace-panel-empty"><AlertTriangle :size="18" /><strong>{{ t('diagnostics.empty') }}</strong></div>
+            </div>
+            <FlowDebugPanel
+              v-else-if="panelId === 'debug' && debugSession"
+              :session="debugSession"
+              :boundary="pauseBoundary"
+              :executions="debugExecutionStates"
+              :node-names="debugNodeNames"
+              :is-controlling="isDebugControlling"
+              :is-stopping="isDebugStopping"
+              :embedded="true"
+              @continue="continueDebug"
+              @step="stepDebug"
+              @stop="stopDebug"
+              @inspect="inspectDebugNode"
+              @select-node="locateDebugPause"
+              @close="closeWorkspacePanel('debug')"
+            />
+            <RunWorkpiecePanel
+              v-else-if="panelId === 'workpieces' && activeWorkpieceRunId"
+              :run-id="activeWorkpieceRunId"
+              :live="isRunning || isDebugActive"
+              :embedded="true"
+            />
+          </template>
+        </DockablePanelGroup>
+      </template>
     </main>
 
     <ProjectLibraryDialog
@@ -1007,17 +1453,6 @@ function setLanguage(nextLocale: Locale): void {
       :can-mutate="canMutateVersions"
       @close="flowVersionHistoryOpen = false"
       @changed="handleFlowVersionChanged"
-    />
-    <OutputPanel
-      v-if="workspaceView === 'editor'"
-      v-model:active-output="visibleActiveOutput"
-      :run-events="visibleRunEvents"
-      :run-payload="visibleRunPayload"
-      :has-run-output="visibleHasRunOutput"
-      :diagnostics="saveDiagnostics"
-      :canvases="canvases"
-      @dismiss-diagnostics="dismissSaveDiagnostics"
-      @locate-diagnostic="locateSaveDiagnostic"
     />
   </div>
 </template>

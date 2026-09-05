@@ -1,26 +1,16 @@
 <script setup lang="ts">
-import { Bug, Maximize2, PanelRightClose, Plus, Settings2, Trash2 } from 'lucide-vue-next'
-import { computed, defineAsyncComponent, inject, onBeforeUnmount, ref, watch } from 'vue'
+import { Maximize2, PanelRightClose, Plus, Settings2, Trash2 } from 'lucide-vue-next'
+import { computed, defineAsyncComponent, inject, ref } from 'vue'
 import { t } from '../../i18n'
 import ParameterEditor from './ParameterEditor.vue'
-import FlowDebugPanel from '../workspace/FlowDebugPanel.vue'
 import { libraryNameResolverKey } from '../../flow/libraryNameResolver'
 import { formatNodeType } from '../../flow/typeDisplay'
 import type { CanvasState, FlowEdge, FlowNode, MethodParameter, NodeKind } from '../../flow/types'
-import type { FlowDebugSessionDto } from '../../api/flowApi'
-import type { DebugPauseBoundary } from '../../composables/useFlowDebugger'
-import type { NodeExecutionState } from '../../flow/nodeExecutionState'
-import {
-  clampInspectorPanelWidth,
-  defaultInspectorPanelWidth,
-  maximumInspectorPanelWidth,
-  minimumInspectorPanelWidth,
-  parseStoredInspectorPanelWidth,
-} from '../../flow/inspectorPanelWidth'
 
 const ScriptEditorDialog = defineAsyncComponent(() => import('../editor/ScriptEditorDialog.vue'))
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
+  embedded?: boolean
   mobileVisible: boolean
   selectedNode: FlowNode | undefined
   selectedEdge: FlowEdge | undefined
@@ -29,13 +19,9 @@ const props = defineProps<{
   sourceNodeTitle: (parameter: MethodParameter) => string
   canvases: CanvasState[]
   entryNodeId: string
-  debugSession?: FlowDebugSessionDto
-  debugBoundary?: DebugPauseBoundary
-  debugExecutions: readonly NodeExecutionState[]
-  debugNodeNames?: Record<string, string>
-  debugIsControlling: boolean
-  debugIsStopping: boolean
-}>()
+}>(), {
+  embedded: false,
+})
 
 const emit = defineEmits<{
   close: []
@@ -62,12 +48,6 @@ const scriptEditorOpen = ref(false)
 const scriptEditorSource = ref('')
 const scriptEditorNodeId = ref('')
 const scriptEditorNodeTitle = ref('')
-const isDebugView = ref(false)
-const inspectorWidthStorageKey = 'sereinflow.inspector-panel-width.v1'
-const viewportWidth = ref(typeof window === 'undefined' ? 1_920 : window.innerWidth)
-const panelWidth = ref(loadPanelWidth())
-const isResizing = ref(false)
-let stopResize: (() => void) | undefined
 const libraryNameFor = inject(libraryNameResolverKey, () => undefined)
 const runtime = computed(() => props.selectedNode?.data.runtime)
 const runtimeLibraryName = computed(() => libraryNameFor(runtime.value))
@@ -82,83 +62,6 @@ const hasRuntimeMetadata = computed(() => Boolean(
   || runtimeReturnType.value
   || runtimeIsAwaitable.value !== undefined,
 ))
-const maximumPanelWidth = computed(() => maximumInspectorPanelWidth(viewportWidth.value))
-const panelStyle = computed(() => panelWidth.value === defaultInspectorPanelWidth
-  ? undefined
-  : { '--inspector-width': `${panelWidth.value}px` })
-
-watch(() => props.debugSession?.id, (sessionId) => {
-  isDebugView.value = Boolean(sessionId)
-}, { immediate: true })
-
-function showDebugView(): void {
-  if (props.debugSession) isDebugView.value = true
-}
-
-function loadPanelWidth(): number {
-  if (typeof window === 'undefined') return defaultInspectorPanelWidth
-  try {
-    return parseStoredInspectorPanelWidth(window.localStorage.getItem(inspectorWidthStorageKey), window.innerWidth)
-  } catch {
-    return defaultInspectorPanelWidth
-  }
-}
-
-function setPanelWidth(width: number): void {
-  const nextWidth = clampInspectorPanelWidth(width, viewportWidth.value)
-  panelWidth.value = nextWidth
-  if (typeof window === 'undefined') return
-  try {
-    if (nextWidth === defaultInspectorPanelWidth) window.localStorage.removeItem(inspectorWidthStorageKey)
-    else window.localStorage.setItem(inspectorWidthStorageKey, String(nextWidth))
-  } catch {
-    // Local layout preferences must not block use of the inspector.
-  }
-}
-
-function beginResize(event: PointerEvent): void {
-  if (typeof window === 'undefined' || window.innerWidth <= 760) return
-  event.preventDefault()
-  isResizing.value = true
-  const startX = event.clientX
-  const startWidth = panelWidth.value
-  const onMove = (moveEvent: PointerEvent) => {
-    setPanelWidth(startWidth + startX - moveEvent.clientX)
-  }
-  const onUp = () => {
-    isResizing.value = false
-    window.removeEventListener('pointermove', onMove)
-    window.removeEventListener('pointerup', onUp)
-    if (stopResize === onUp) stopResize = undefined
-  }
-  stopResize?.()
-  stopResize = onUp
-  window.addEventListener('pointermove', onMove)
-  window.addEventListener('pointerup', onUp)
-}
-
-function resizeWithKeyboard(event: KeyboardEvent): void {
-  if (typeof window === 'undefined' || window.innerWidth <= 760) return
-  const step = event.shiftKey ? 64 : 24
-  if (event.key === 'ArrowLeft') setPanelWidth(panelWidth.value + step)
-  else if (event.key === 'ArrowRight') setPanelWidth(panelWidth.value - step)
-  else if (event.key === 'Home') setPanelWidth(minimumInspectorPanelWidth)
-  else if (event.key === 'End') setPanelWidth(maximumPanelWidth.value)
-  else return
-  event.preventDefault()
-}
-
-function handleViewportResize(): void {
-  viewportWidth.value = typeof window === 'undefined' ? viewportWidth.value : window.innerWidth
-  if (viewportWidth.value > 760) setPanelWidth(panelWidth.value)
-}
-
-if (typeof window !== 'undefined') window.addEventListener('resize', handleViewportResize)
-
-onBeforeUnmount(() => {
-  stopResize?.()
-  if (typeof window !== 'undefined') window.removeEventListener('resize', handleViewportResize)
-})
 
 function updateParameterSource(nodeId: string, parameter: MethodParameter, event: Event): void {
   emit('update-parameter-source', nodeId, parameter, event)
@@ -238,27 +141,9 @@ function applyScriptSource(source: string): void {
 </script>
 
 <template>
-  <aside class="inspector-panel" :class="{ 'mobile-visible': props.mobileVisible, 'inspector-panel--empty': !props.selectedNode && !props.selectedEdge && !props.debugSession, 'inspector-panel--debug': isDebugView, 'inspector-panel--resizing': isResizing }" :style="panelStyle">
-    <div class="inspector-resize-grip" role="separator" aria-orientation="vertical" :aria-label="t('panel.resizeInspector')" :aria-valuemin="minimumInspectorPanelWidth" :aria-valuemax="maximumPanelWidth" :aria-valuenow="panelWidth" tabindex="0" @pointerdown="beginResize" @keydown="resizeWithKeyboard"><span></span></div>
-    <FlowDebugPanel
-      v-if="isDebugView && props.debugSession"
-      :session="props.debugSession"
-      :boundary="props.debugBoundary"
-      :executions="props.debugExecutions"
-      :node-names="props.debugNodeNames"
-      :is-controlling="props.debugIsControlling"
-      :is-stopping="props.debugIsStopping"
-      @continue="emit('continue-debug')"
-      @step="emit('step-debug')"
-      @stop="emit('stop-debug')"
-      @inspect="isDebugView = false"
-      @select-node="emit('select-debug-node', $event)"
-      @close="emit('close')"
-    />
-    <template v-else>
-      <button v-if="props.debugSession" class="inspector-debug-switch" type="button" :title="t('debug.panelTitle')" :aria-label="t('debug.panelTitle')" @click="showDebugView"><Bug :size="15" /><span>{{ t('debug.panelEyebrow') }}</span><strong>{{ t(`debug.status.${props.debugSession.status}`) }}</strong></button>
+  <aside class="inspector-panel" :class="{ 'mobile-visible': props.mobileVisible, 'inspector-panel--empty': !props.selectedNode && !props.selectedEdge, 'inspector-panel--embedded': props.embedded }">
     <template v-if="props.selectedNode">
-      <div class="inspector-heading"><div><span class="eyebrow">{{ t('inspector.title') }}</span><h2>{{ props.nodeTitle(props.selectedNode) }}</h2></div><button class="icon-button" type="button" :title="t('panel.collapseInspector')" :aria-label="t('panel.collapseInspector')" @click="emit('close')"><PanelRightClose :size="16" /></button></div>
+      <div class="inspector-heading"><div><span class="eyebrow">{{ t('inspector.title') }}</span><h2>{{ props.nodeTitle(props.selectedNode) }}</h2></div><button v-if="!props.embedded" class="icon-button" type="button" :title="t('panel.collapseInspector')" :aria-label="t('panel.collapseInspector')" @click="emit('close')"><PanelRightClose :size="16" /></button></div>
       <div class="inspector-type"><span class="node-icon" :class="`kind-${props.selectedNode.data.kind}`"><component :is="props.iconForNodeKind(props.selectedNode.data.kind)" :size="15" /></span><span>{{ t('inspector.nodeType', { kind: t(`node.kind.${props.selectedNode.data.kind}`) }) }}</span><span class="inspector-id mono">#{{ props.selectedNode.id }}</span></div>
       <div class="inspector-section"><span class="section-label">{{ t('inspector.general') }}</span><label class="field-label">{{ t('inspector.displayName') }}<input v-model="props.selectedNode.data.displayName" type="text" :placeholder="t(props.selectedNode.data.titleKey)" @focus="emit('begin-text-edit')" @input="emit('commit-text-edit')" @blur="emit('discard-text-edit')" /></label><label class="field-label">{{ t('inspector.description') }}<textarea v-model="props.selectedNode.data.description" rows="2" :placeholder="t(props.selectedNode.data.subtitleKey)" @focus="emit('begin-text-edit')" @input="emit('commit-text-edit')" @blur="emit('discard-text-edit')"></textarea></label><label class="toggle-field"><input type="checkbox" :checked="props.entryNodeId === props.selectedNode.id" @change="onFlowEntryChange" /><span>{{ t('inspector.flowEntry') }}</span><small>{{ t('inspector.flowEntryHint') }}</small></label><label class="toggle-field"><input type="checkbox" :checked="props.selectedNode.data.runtime?.isPublic === true" @change="onPublicChange" /><span>{{ t('inspector.publicNode') }}</span><small>{{ t('inspector.publicNodeHint') }}</small></label></div>
 
@@ -274,7 +159,6 @@ function applyScriptSource(source: string): void {
       <div class="inspector-heading"><div><span class="eyebrow">{{ t('inspector.title') }}</span><h2>{{ t('inspector.edgeSelected') }}</h2></div><div class="inspector-heading__actions"><button class="icon-button" type="button" :title="t('command.delete')" :aria-label="t('command.delete')" @click="emit('delete')"><Trash2 :size="16" /></button><button class="icon-button" type="button" :title="t('panel.collapseInspector')" :aria-label="t('panel.collapseInspector')" @click="emit('close')"><PanelRightClose :size="16" /></button></div></div><div class="edge-summary" :class="[props.selectedEdge.data?.semantic, props.selectedEdge.data?.semantic === 'execution' ? `branch-${props.selectedEdge.data?.branch ?? 'success'}` : undefined]"><span class="edge-sample"></span><strong>{{ props.selectedEdge.data?.semantic === 'execution' ? `${t('inspector.executionEdge')} · ${t(`branch.${props.selectedEdge.data?.branch ?? 'success'}`)}` : t('inspector.dataEdge') }}</strong><p>{{ props.selectedEdge.data?.semantic === 'execution' ? t('edge.executionDescription') : t('edge.dataDescription') }}</p></div>
     </template>
     <template v-else><div class="inspector-heading"><div><span class="eyebrow">{{ t('inspector.title') }}</span><h2>{{ t('canvas.emptySelection') }}</h2></div><button class="icon-button" type="button" :title="t('panel.collapseInspector')" :aria-label="t('panel.collapseInspector')" @click="emit('close')"><PanelRightClose :size="16" /></button></div><div class="inspector-empty"><Settings2 :size="20" /><p>{{ t('inspector.selectNode') }}</p></div></template>
-    </template>
   </aside>
   <ScriptEditorDialog v-if="scriptEditorOpen" :open="scriptEditorOpen" :source="scriptEditorSource" :node-title="scriptEditorNodeTitle" @close="closeScriptEditor" @apply="applyScriptSource" />
 </template>
