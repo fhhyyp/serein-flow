@@ -51,6 +51,47 @@ public sealed class AiReadModelServiceTests
     }
 
     [Fact]
+    public async Task FlowTopologyTreatsIncomingDataConnectionAsNodeInputForDiagnostics()
+    {
+        var project = Project.Create("AI project", id: Guid.NewGuid());
+        var baseDefinition = CreateDefinition(project.Id);
+        var definition = baseDefinition with
+        {
+            Canvases =
+            [
+                baseDefinition.Canvases[0] with
+                {
+                    Connections =
+                    [
+                        new ConnectionDto(
+                            "data",
+                            "upstream",
+                            "result",
+                            "node",
+                            "amount",
+                            ConnectionKindDto.Data,
+                            null,
+                            null,
+                            0)
+                    ]
+                }
+            ]
+        };
+        var service = CreateService(project, definition);
+
+        var topology = await service.GetFlowTopologyAsync(project.Id, definition.Id);
+
+        var canvas = Assert.Single(topology!.Canvases);
+        var parameter = Assert.Single(Assert.Single(canvas.Nodes).Parameters);
+        var connection = Assert.Single(canvas.Connections);
+        Assert.Equal(DataSourceDto.PreviousNode.ToString(), parameter.Source);
+        Assert.Equal("upstream", parameter.SourceNodeId);
+        Assert.Equal("result", parameter.SourcePortId);
+        Assert.Null(parameter.ValueJson);
+        Assert.Equal(DataSourceDto.PreviousNode.ToString(), connection.DataSource);
+    }
+
+    [Fact]
     public async Task RunInspectionParsesEventsAndMarksMalformedOrTruncatedPayloads()
     {
         var project = Project.Create("AI project", id: Guid.NewGuid());

@@ -19,6 +19,13 @@ to be removed first. The operation is applied through the same preview/apply
 flow-version workflow and can be combined with `addConnection` in one ordered
 patch after the parameter has been added.
 
+Data connections are persisted as `previousNode` bindings. Adding or replacing
+a data connection synchronizes the target parameter's `source`,
+`sourceNodeId`, and `sourcePortId`; removing that connection restores the
+parameter's literal fallback when it still points at that connection. The
+connection payload should still declare `dataSource: "previousNode"` for clear
+readback and diagnostics.
+
 New nodes, canvases and connections need stable IDs. For an attached library,
 use the canonical node template returned by
 `sereinflow_create_library_node_template`; do not rebuild its ports, parameter

@@ -232,6 +232,107 @@ public sealed class FlowPatchServiceTests
         Assert.Equal(FlowConcurrencyModeDto.ExclusiveReject, result.RunPolicy!.ConcurrencyMode);
     }
 
+    [Fact]
+    public void DataConnectionSynchronizesTargetParameterSourceAndMetadata()
+    {
+        var definition = CreateDefinition() with
+        {
+            Canvases =
+            [
+                new CanvasDto(
+                    "main",
+                    CanvasLifecycleDto.Main,
+                    [
+                        CreateNode("source") with
+                        {
+                            Ports = [new NodePortDto("data-out", "Data", "output", false)],
+                        },
+                        CreateNode("target"),
+                    ],
+                    [],
+                    "Main")
+            ]
+        };
+        var connection = new ConnectionDto(
+            "data",
+            "source",
+            "data-out",
+            "target",
+            "value",
+            ConnectionKindDto.Data,
+            null,
+            null,
+            0);
+
+        var result = new FlowPatchService().Apply(
+            definition,
+            [Operation(
+                FlowPatchOperationKindDto.AddConnection,
+                JsonSerializer.SerializeToElement(connection),
+                canvasId: "main")]);
+
+        var canvas = Assert.Single(result.Canvases);
+        var target = canvas.Nodes.Single(node => node.Id == "target");
+        var parameter = Assert.Single(target.Parameters);
+        var savedConnection = Assert.Single(canvas.Connections);
+
+        Assert.Equal(DataSourceDto.PreviousNode, parameter.Source);
+        Assert.Equal("source", parameter.Ui!.SourceNodeId);
+        Assert.Equal("data-out", parameter.Ui.SourcePortId);
+        Assert.Equal(DataSourceDto.PreviousNode, savedConnection.DataSource);
+    }
+
+    [Fact]
+    public void RemovingDataConnectionRestoresItsLiteralFallback()
+    {
+        var targetUi = Parameter("value").Ui! with
+        {
+            SourceNodeId = "source",
+            SourcePortId = "data-out",
+        };
+        var targetParameter = Parameter("value") with
+        {
+            Source = DataSourceDto.PreviousNode,
+            Ui = targetUi,
+        };
+        var definition = CreateDefinition() with
+        {
+            Canvases =
+            [
+                new CanvasDto(
+                    "main",
+                    CanvasLifecycleDto.Main,
+                    [
+                        CreateNode("source") with
+                        {
+                            Ports = [new NodePortDto("data-out", "Data", "output", false)],
+                        },
+                        CreateNode("target") with
+                        {
+                            Parameters = [targetParameter],
+                        },
+                    ],
+                    [new ConnectionDto("data", "source", "data-out", "target", "value", ConnectionKindDto.Data, null, DataSourceDto.PreviousNode, 0)],
+                    "Main")
+            ]
+        };
+
+        var result = new FlowPatchService().Apply(
+            definition,
+            [Operation(
+                FlowPatchOperationKindDto.RemoveConnection,
+                JsonSerializer.SerializeToElement("data"),
+                canvasId: "main",
+                connectionId: "data")]);
+
+        var canvas = Assert.Single(result.Canvases);
+        var parameter = Assert.Single(canvas.Nodes.Single(node => node.Id == "target").Parameters);
+        Assert.Equal(DataSourceDto.Literal, parameter.Source);
+        Assert.Null(parameter.Ui!.SourceNodeId);
+        Assert.Null(parameter.Ui.SourcePortId);
+        Assert.Empty(canvas.Connections);
+    }
+
     private static FlowPatchOperationDto Operation(
         FlowPatchOperationKindDto kind,
         JsonElement value,

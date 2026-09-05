@@ -394,24 +394,36 @@ public sealed class AiReadModelService
             {
                 var nodes = canvas.Nodes.Take(options.MaxItems + 1).ToArray();
                 var connections = canvas.Connections.Take(options.MaxItems + 1).ToArray();
+                var dataConnections = canvas.Connections
+                    .Where(static connection => connection.Kind == ConnectionKindDto.Data)
+                    .ToArray();
                 var truncated = nodes.Length > options.MaxItems || connections.Length > options.MaxItems;
                 return new AiCanvasDto(
                     canvas.Id,
                     canvas.Lifecycle.ToString(),
                     canvas.Name,
-                    nodes.Take(options.MaxItems).Select(node => MapNode(canvas.Id, node, options)).ToArray(),
+                    nodes.Take(options.MaxItems).Select(node => MapNode(canvas.Id, node, dataConnections, options)).ToArray(),
                     connections.Take(options.MaxItems).Select(MapConnection).ToArray(),
                     truncated);
             }).ToArray());
 
-    private static AiNodeContractDto MapNode(string canvasId, NodeDto node, AiReadModelOptions options)
+    private static AiNodeContractDto MapNode(
+        string canvasId,
+        NodeDto node,
+        IReadOnlyList<ConnectionDto> dataConnections,
+        AiReadModelOptions options)
         => new(
             node.Id,
             node.Type.ToString(),
             node.DisplayName,
             canvasId,
             node.Ports.Select(port => new AiPortContractDto(port.Id, port.Name, port.Direction, port.Required)).ToArray(),
-            node.Parameters.Select(parameter => MapParameter(parameter, options)).ToArray(),
+            node.Parameters.Select(parameter => MapParameter(
+                parameter,
+                options,
+                dataConnections.FirstOrDefault(connection =>
+                    connection.ToNodeId == node.Id
+                    && connection.ToPortId == (parameter.Ui?.Id ?? parameter.Name)))).ToArray(),
             node.Ui is null
                 ? null
                 : new AiNodeRuntimeDto(
@@ -440,29 +452,42 @@ public sealed class AiReadModelService
             node.X,
             node.Y);
 
-    private static AiParameterContractDto MapParameter(NodeParameterDto parameter, AiReadModelOptions options)
-        => new(
+    private static AiParameterContractDto MapParameter(
+        NodeParameterDto parameter,
+        AiReadModelOptions options,
+        ConnectionDto? dataConnection = null)
+    {
+        // Runtime data connections are authoritative. This fallback keeps
+        // topology and run-snapshot diagnostics accurate for older flows that
+        // persisted the connection but left the parameter source as literal.
+        // 运行时数据连接优先；兼容旧流程中“连接已保存但参数来源仍为字面量”的诊断展示。
+        var source = dataConnection is null ? parameter.Source : DataSourceDto.PreviousNode;
+        var sourceNodeId = dataConnection?.FromNodeId ?? parameter.Ui?.SourceNodeId;
+        var sourcePortId = dataConnection?.FromPortId ?? parameter.Ui?.SourcePortId;
+
+        return new(
             parameter.Ui?.Id ?? parameter.Name,
             parameter.Name,
             parameter.Ui?.Type ?? parameter.Ui?.ValueKind,
-            parameter.Source.ToString(),
+            source.ToString(),
             parameter.Required,
             !string.IsNullOrWhiteSpace(parameter.ValueJson)
                 || parameter.Ui?.ProjectInputKey is not null
                 || parameter.Ui?.Expression is not null
-                || parameter.Ui?.SourceNodeId is not null,
-            options.IncludeFlowLiteralValues && parameter.Source == DataSourceDto.Literal
+                || sourceNodeId is not null,
+            options.IncludeFlowLiteralValues && source == DataSourceDto.Literal
                 ? LimitText(parameter.ValueJson, options.MaxJsonBytes)
                 : null,
             options.IncludeFlowLiteralValues ? parameter.Ui?.ProjectInputKey : null,
             options.IncludeFlowLiteralValues ? parameter.Ui?.Expression : null,
-            parameter.Ui?.SourceNodeId,
-            parameter.Ui?.SourcePortId,
+            sourceNodeId,
+            sourcePortId,
             parameter.Ui?.IsVariadic ?? false,
             parameter.Ui?.VariadicGroupId,
             parameter.Ui?.ElementType,
             parameter.Ui?.Description,
             parameter.Ui?.EnumMetadata);
+    }
 
     private static AiScriptValueContractDto MapScriptValue(ScriptValueContractDto value)
         => new(value.Id ?? value.Name, value.Name, value.ValueKind, value.Required, value.Description);
@@ -476,7 +501,9 @@ public sealed class AiReadModelService
             connection.ToPortId,
             connection.Kind.ToString(),
             connection.Branch?.ToString(),
-            connection.DataSource?.ToString(),
+            connection.Kind == ConnectionKindDto.Data
+                ? (connection.DataSource ?? DataSourceDto.PreviousNode).ToString()
+                : connection.DataSource?.ToString(),
             connection.Priority);
 
     private static AiLibrarySummaryDto MapLibrary(LibraryDto library, bool includeNodes)

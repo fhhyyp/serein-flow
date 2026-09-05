@@ -306,8 +306,8 @@ public sealed class FlowPatchContractNormalizer
             "setNodeParameter" => new(op, ReadLegacyIdentifier(operation, "canvasId", path), ReadLegacyIdentifier(operation, "nodeId", path), ParameterId: ReadLegacyIdentifier(operation, "parameterId", path), Parameter: ReadLegacyPayload<NodeParameterDto>(operation, path, legacyEnums: true)),
             "addNodeParameter" => new(op, ReadLegacyIdentifier(operation, "canvasId", path), ReadLegacyIdentifier(operation, "nodeId", path), Parameter: ReadLegacyPayload<NodeParameterDto>(operation, path, legacyEnums: true)),
             "removeNodeParameter" => new(op, ReadLegacyIdentifier(operation, "canvasId", path), ReadLegacyIdentifier(operation, "nodeId", path), ParameterId: ReadLegacyIdentifier(operation, "parameterId", path)),
-            "addConnection" => new(op, ReadLegacyIdentifier(operation, "canvasId", path), Connection: ReadLegacyPayload<ConnectionDto>(operation, path, legacyEnums: true)),
-            "replaceConnection" => new(op, ReadLegacyIdentifier(operation, "canvasId", path), ConnectionId: ReadLegacyIdentifier(operation, "connectionId", path), Connection: ReadLegacyPayload<ConnectionDto>(operation, path, legacyEnums: true)),
+            "addConnection" => new(op, ReadLegacyIdentifier(operation, "canvasId", path), Connection: NormalizeConnection(ReadLegacyPayload<ConnectionDto>(operation, path, legacyEnums: true))),
+            "replaceConnection" => new(op, ReadLegacyIdentifier(operation, "canvasId", path), ConnectionId: ReadLegacyIdentifier(operation, "connectionId", path), Connection: NormalizeConnection(ReadLegacyPayload<ConnectionDto>(operation, path, legacyEnums: true))),
             "removeConnection" => new(op, ReadLegacyIdentifier(operation, "canvasId", path), ConnectionId: ReadLegacyIdentifier(operation, "connectionId", path)),
             "setEntryNode" => new(op, EntryNodeId: ReadLegacyPayload<string>(operation, path, legacyEnums: true)),
             "setRunPolicy" => new(op, RunPolicy: ReadLegacyPayload<FlowRunPolicyDto>(operation, path, legacyEnums: true)),
@@ -335,8 +335,8 @@ public sealed class FlowPatchContractNormalizer
             FlowPatchOperationKindDto.SetNodeParameter => new("setNodeParameter", Required(operation.CanvasId, $"{path}.canvasId"), Required(operation.NodeId, $"{path}.nodeId"), ParameterId: Required(operation.ParameterId, $"{path}.parameterId"), Parameter: ReadPersistedPayload<NodeParameterDto>(value, path, legacyEnums: true)),
             FlowPatchOperationKindDto.AddNodeParameter => new("addNodeParameter", Required(operation.CanvasId, $"{path}.canvasId"), Required(operation.NodeId, $"{path}.nodeId"), Parameter: ReadPersistedPayload<NodeParameterDto>(value, path, legacyEnums: true)),
             FlowPatchOperationKindDto.RemoveNodeParameter => new("removeNodeParameter", Required(operation.CanvasId, $"{path}.canvasId"), Required(operation.NodeId, $"{path}.nodeId"), ParameterId: Required(operation.ParameterId, $"{path}.parameterId")),
-            FlowPatchOperationKindDto.AddConnection => new("addConnection", Required(operation.CanvasId, $"{path}.canvasId"), Connection: ReadPersistedPayload<ConnectionDto>(value, path, legacyEnums: true)),
-            FlowPatchOperationKindDto.ReplaceConnection => new("replaceConnection", Required(operation.CanvasId, $"{path}.canvasId"), ConnectionId: Required(operation.ConnectionId, $"{path}.connectionId"), Connection: ReadPersistedPayload<ConnectionDto>(value, path, legacyEnums: true)),
+            FlowPatchOperationKindDto.AddConnection => new("addConnection", Required(operation.CanvasId, $"{path}.canvasId"), Connection: NormalizeConnection(ReadPersistedPayload<ConnectionDto>(value, path, legacyEnums: true))),
+            FlowPatchOperationKindDto.ReplaceConnection => new("replaceConnection", Required(operation.CanvasId, $"{path}.canvasId"), ConnectionId: Required(operation.ConnectionId, $"{path}.connectionId"), Connection: NormalizeConnection(ReadPersistedPayload<ConnectionDto>(value, path, legacyEnums: true))),
             FlowPatchOperationKindDto.RemoveConnection => new("removeConnection", Required(operation.CanvasId, $"{path}.canvasId"), ConnectionId: Required(operation.ConnectionId, $"{path}.connectionId")),
             FlowPatchOperationKindDto.SetEntryNode => new("setEntryNode", EntryNodeId: ReadPersistedPayload<string>(value, path, legacyEnums: true)),
             FlowPatchOperationKindDto.SetRunPolicy => new("setRunPolicy", RunPolicy: ReadPersistedPayload<FlowRunPolicyDto>(value, path, legacyEnums: true)),
@@ -380,8 +380,13 @@ public sealed class FlowPatchContractNormalizer
     private static ConnectionDto ReadConnection(JsonElement operation, string name, string path, bool legacyEnums, string[] allowed)
     {
         EnsureKnownProperties(operation, path, allowed);
-        return ReadPayload<ConnectionDto>(RequireProperty(operation, name, $"{path}.{name}"), $"{path}.{name}", legacyEnums);
+        return NormalizeConnection(ReadPayload<ConnectionDto>(RequireProperty(operation, name, $"{path}.{name}"), $"{path}.{name}", legacyEnums));
     }
+
+    private static ConnectionDto NormalizeConnection(ConnectionDto connection)
+        => connection.Kind == ConnectionKindDto.Data
+            ? connection with { DataSource = DataSourceDto.PreviousNode }
+            : connection;
 
     private static FlowRunPolicyDto ReadRunPolicy(JsonElement operation, string name, string path, bool legacyEnums, string[] allowed)
     {

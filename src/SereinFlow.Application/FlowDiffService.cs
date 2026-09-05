@@ -514,6 +514,15 @@ public sealed class FlowPatchService
         RequireObjectId(connection.Id, "connectionId");
         if (replace)
             RequireMatchingId(expectedConnectionId, connection.Id, "connectionId");
+
+        // A data connection is the persisted source binding for its target
+        // parameter. Keep the connection metadata and the parameter source in
+        // sync so MCP patches have the same observable contract as editor
+        // connections.
+        // 数据连接就是目标参数的持久化来源绑定。保持连接元数据和参数来源一致，
+        // 使 MCP 补丁与编辑器创建的连接具有相同的可观察契约。
+        connection = NormalizeDataConnection(connection);
+
         var canvasIndex = FindCanvas(canvases, canvasId);
         var connections = canvases[canvasIndex].Connections.ToList();
         var index = connections.FindIndex(item => item.Id == connection.Id);
@@ -522,19 +531,119 @@ public sealed class FlowPatchService
         if (index < 0 && replace)
             throw new InvalidOperationException($"Connection '{connection.Id}' does not exist.");
         if (index >= 0)
+        {
+            ResetDataConnectionTargetParameter(canvases, canvasId, connections[index]);
             connections[index] = connection;
+        }
         else
             connections.Add(connection);
         canvases[canvasIndex] = canvases[canvasIndex] with { Connections = connections };
+        ApplyDataConnectionTargetParameter(canvases, canvasId, connection);
     }
 
     private static void RemoveConnection(List<CanvasDto> canvases, string canvasId, string connectionId)
     {
         var canvasIndex = FindCanvas(canvases, canvasId);
         var canvas = canvases[canvasIndex];
-        if (!canvas.Connections.Any(connection => connection.Id == connectionId))
+        var connection = canvas.Connections.FirstOrDefault(item => item.Id == connectionId);
+        if (connection is null)
             throw new InvalidOperationException($"Connection '{connectionId}' does not exist.");
-        canvases[canvasIndex] = canvas with { Connections = canvas.Connections.Where(connection => connection.Id != connectionId).ToArray() };
+        ResetDataConnectionTargetParameter(canvases, canvasId, connection);
+        var updatedCanvas = canvases[canvasIndex];
+        canvases[canvasIndex] = updatedCanvas with
+        {
+            Connections = updatedCanvas.Connections.Where(connection => connection.Id != connectionId).ToArray(),
+        };
+    }
+
+    private static ConnectionDto NormalizeDataConnection(ConnectionDto connection)
+        => connection.Kind == ConnectionKindDto.Data
+            ? connection with { DataSource = DataSourceDto.PreviousNode }
+            : connection;
+
+    private static void ApplyDataConnectionTargetParameter(
+        List<CanvasDto> canvases,
+        string canvasId,
+        ConnectionDto connection)
+    {
+        if (connection.Kind != ConnectionKindDto.Data)
+            return;
+
+        var canvasIndex = FindCanvas(canvases, canvasId);
+        var canvas = canvases[canvasIndex];
+        var nodeIndex = canvas.Nodes.ToList().FindIndex(node => node.Id == connection.ToNodeId);
+        if (nodeIndex < 0)
+            return;
+
+        var nodes = canvas.Nodes.ToList();
+        var node = nodes[nodeIndex];
+        var parameterIndex = node.Parameters.ToList().FindIndex(parameter =>
+            string.Equals(parameter.Ui?.Id, connection.ToPortId, StringComparison.Ordinal));
+        if (parameterIndex < 0)
+            return;
+
+        var parameters = node.Parameters.ToList();
+        var parameter = parameters[parameterIndex];
+        var ui = parameter.Ui;
+        if (ui is null)
+            return;
+
+        parameters[parameterIndex] = parameter with
+        {
+            Source = DataSourceDto.PreviousNode,
+            Ui = ui with
+            {
+                SourceNodeId = connection.FromNodeId,
+                SourcePortId = connection.FromPortId,
+            },
+        };
+        nodes[nodeIndex] = node with { Parameters = parameters };
+        canvases[canvasIndex] = canvas with { Nodes = nodes };
+    }
+
+    private static void ResetDataConnectionTargetParameter(
+        List<CanvasDto> canvases,
+        string canvasId,
+        ConnectionDto connection)
+    {
+        if (connection.Kind != ConnectionKindDto.Data)
+            return;
+
+        var canvasIndex = FindCanvas(canvases, canvasId);
+        var canvas = canvases[canvasIndex];
+        var nodeIndex = canvas.Nodes.ToList().FindIndex(node => node.Id == connection.ToNodeId);
+        if (nodeIndex < 0)
+            return;
+
+        var nodes = canvas.Nodes.ToList();
+        var node = nodes[nodeIndex];
+        var parameterIndex = node.Parameters.ToList().FindIndex(parameter =>
+            string.Equals(parameter.Ui?.Id, connection.ToPortId, StringComparison.Ordinal));
+        if (parameterIndex < 0)
+            return;
+
+        var parameters = node.Parameters.ToList();
+        var parameter = parameters[parameterIndex];
+        var ui = parameter.Ui;
+        if (ui is null
+            || parameter.Source != DataSourceDto.PreviousNode
+            || !string.Equals(ui.SourceNodeId, connection.FromNodeId, StringComparison.Ordinal)
+            || !string.Equals(ui.SourcePortId, connection.FromPortId, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        parameters[parameterIndex] = parameter with
+        {
+            Source = DataSourceDto.Literal,
+            Ui = ui with
+            {
+                SourceNodeId = null,
+                SourcePortId = null,
+            },
+        };
+        nodes[nodeIndex] = node with { Parameters = parameters };
+        canvases[canvasIndex] = canvas with { Nodes = nodes };
     }
 
     private static void ReplaceScriptSource(List<CanvasDto> canvases, string canvasId, string nodeId, string source)

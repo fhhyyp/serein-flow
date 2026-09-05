@@ -114,6 +114,19 @@ public sealed class FlowPatchContractNormalizerTests
     }
 
     [Fact]
+    public void NormalizesDataConnectionSourceToPreviousNode()
+    {
+        var normalized = new FlowPatchContractNormalizer().Normalize(Request(new
+        {
+            op = "addConnection",
+            canvasId = "main",
+            connection = DataConnection("data-connection", "amount")
+        }));
+
+        Assert.Equal(DataSourceDto.PreviousNode, Assert.Single(normalized.Request.Operations).Connection!.DataSource);
+    }
+
+    [Fact]
     public void RejectsDataConnectionTargetingParameterPortId()
     {
         var normalizer = new FlowPatchContractNormalizer();
