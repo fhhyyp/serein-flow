@@ -10,12 +10,14 @@ export interface WorkspacePanelItem extends WorkspacePanelTab {
   required?: boolean
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   items: WorkspacePanelItem[]
   displayMode: DockableWorkspaceMode
   debugModeAvailable: boolean
   showDisplayModes?: boolean
-}>()
+}>(), {
+  showDisplayModes: true,
+})
 
 const emit = defineEmits<{
   toggle: [panelId: WorkspacePanelId]
@@ -71,7 +73,7 @@ onBeforeUnmount(() => {
     </button>
     <aside v-if="open" class="workspace-panel-switcher" :aria-label="t('panel.workspacePanels')" @keydown.esc="open = false">
       <div class="workspace-panel-switcher__heading"><span>{{ t('panel.workspacePanels') }}</span><button type="button" :title="t('panel.resetLayout')" :aria-label="t('panel.resetLayout')" @click="emit('reset')"><Settings2 :size="14" /></button></div>
-      <template v-if="props.showDisplayModes !== false">
+      <template v-if="props.showDisplayModes">
         <div class="workspace-panel-switcher__mode-label">{{ t('panel.displayMode') }}</div>
         <div class="workspace-panel-switcher__modes" role="radiogroup" :aria-label="t('panel.displayMode')">
           <button type="button" role="radio" class="workspace-panel-switcher__mode" :class="{ active: props.displayMode === 'edit' }" :aria-checked="props.displayMode === 'edit'" @click="selectMode('edit')">

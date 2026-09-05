@@ -14,8 +14,15 @@ import { reflowDockableResize } from '../flow/dockableResize'
 
 const storageKey = 'sereinflow.canvas-dock-layout.v3'
 const legacyStorageKey = 'sereinflow.canvas-dock-layout.v2'
+const storageVersion = 3
 
 type WorkspaceModeLayouts = Record<DockableWorkspaceMode, DockableWorkspaceLayout>
+type WorkspaceModeGeometry = Record<DockableWorkspaceMode, boolean>
+
+interface LoadedModeLayouts {
+  layouts: WorkspaceModeLayouts
+  geometryCustomized: WorkspaceModeGeometry
+}
 
 function createModeLayout(mode: DockableWorkspaceMode, size: WorkspaceSize): DockableWorkspaceLayout {
   return mode === 'debug'
@@ -36,24 +43,44 @@ function migrateEditLayoutForCollapsedDiagnostics(layout: DockableWorkspaceLayou
   return layout
 }
 
-function loadModeLayouts(size: WorkspaceSize): WorkspaceModeLayouts {
+function loadModeLayouts(size: WorkspaceSize): LoadedModeLayouts {
   const defaults: WorkspaceModeLayouts = {
     edit: createModeLayout('edit', size),
     debug: createModeLayout('debug', size),
   }
-  if (typeof window === 'undefined') return defaults
+  const defaultGeometryCustomized: WorkspaceModeGeometry = { edit: false, debug: false }
+  if (typeof window === 'undefined') return { layouts: defaults, geometryCustomized: defaultGeometryCustomized }
 
   try {
     const raw = window.localStorage.getItem(storageKey)
     if (raw) {
-      const stored = JSON.parse(raw) as { storageVersion?: number; layouts?: Partial<Record<DockableWorkspaceMode, unknown>> }
-      if ((stored.storageVersion === 1 || stored.storageVersion === 2) && stored.layouts) {
-        const editLayout = normalizeDockableWorkspaceLayout(stored.layouts.edit, size) ?? defaults.edit
+      const stored = JSON.parse(raw) as {
+        storageVersion?: number
+        layouts?: Partial<Record<DockableWorkspaceMode, unknown>>
+        geometryCustomized?: Partial<WorkspaceModeGeometry>
+      }
+      if ((stored.storageVersion === 1 || stored.storageVersion === 2 || stored.storageVersion === storageVersion) && stored.layouts) {
+        const editLayout = normalizeDockableWorkspaceLayout(stored.layouts.edit, size, defaults.edit) ?? defaults.edit
+        const debugLayout = stored.storageVersion === storageVersion
+          ? normalizeDockableWorkspaceLayout(stored.layouts.debug, size, defaults.debug) ?? defaults.debug
+          : defaults.debug
         return {
-          edit: stored.storageVersion === 1
-            ? migrateEditLayoutForCollapsedDiagnostics(editLayout)
-            : editLayout,
-          debug: normalizeDockableWorkspaceLayout(stored.layouts.debug, size) ?? defaults.debug,
+          layouts: {
+            edit: stored.storageVersion === 1
+              ? migrateEditLayoutForCollapsedDiagnostics(editLayout)
+              : editLayout,
+            // Version 3 is the first cache version with the corrected 50/50 debug split.
+            debug: debugLayout,
+          },
+          geometryCustomized: stored.storageVersion === storageVersion
+            ? {
+              edit: stored.geometryCustomized?.edit === true,
+              debug: stored.geometryCustomized?.debug === true,
+            }
+            : {
+              edit: true,
+              debug: false,
+            },
         }
       }
     }
@@ -61,12 +88,17 @@ function loadModeLayouts(size: WorkspaceSize): WorkspaceModeLayouts {
     // Keep the user's pre-display-mode layout as the edit-mode starting point.
     const legacyRaw = window.localStorage.getItem(legacyStorageKey)
     const legacyLayout = legacyRaw
-      ? normalizeDockableWorkspaceLayout(JSON.parse(legacyRaw) as unknown, size)
+      ? normalizeDockableWorkspaceLayout(JSON.parse(legacyRaw) as unknown, size, defaults.edit)
       : undefined
-    if (legacyLayout) return { edit: migrateEditLayoutForCollapsedDiagnostics(legacyLayout), debug: defaults.debug }
-    return defaults
+    if (legacyLayout) {
+      return {
+        layouts: { edit: migrateEditLayoutForCollapsedDiagnostics(legacyLayout), debug: defaults.debug },
+        geometryCustomized: { edit: true, debug: false },
+      }
+    }
+    return { layouts: defaults, geometryCustomized: defaultGeometryCustomized }
   } catch {
-    return defaults
+    return { layouts: defaults, geometryCustomized: defaultGeometryCustomized }
   }
 }
 
@@ -97,7 +129,9 @@ function overlapArea(first: LayoutRect, second: LayoutRect): number {
 export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefined>) {
   const workspaceSize = reactive<WorkspaceSize>({ width: 1_920, height: 980 })
   const displayMode = ref<DockableWorkspaceMode>('edit')
-  const modeLayouts = reactive<WorkspaceModeLayouts>(loadModeLayouts(workspaceSize))
+  const loadedLayouts = loadModeLayouts(workspaceSize)
+  const modeLayouts = reactive<WorkspaceModeLayouts>(loadedLayouts.layouts)
+  const geometryCustomized = reactive<WorkspaceModeGeometry>(loadedLayouts.geometryCustomized)
   const layout = reactive<DockableWorkspaceLayout>(cloneLayout(modeLayouts.edit))
   let resizeObserver: ResizeObserver | undefined
   let saveTimer: number | undefined
@@ -119,7 +153,8 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
       try {
         syncActiveModeLayout()
         window.localStorage.setItem(storageKey, JSON.stringify({
-          storageVersion: 2,
+          storageVersion,
+          geometryCustomized: { ...geometryCustomized },
           layouts: {
             edit: cloneLayout(modeLayouts.edit),
             debug: cloneLayout(modeLayouts.debug),
@@ -142,6 +177,9 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
       dock: group.dock,
     }
     Object.assign(group, patch)
+    if ('x' in patch || 'y' in patch || 'width' in patch || 'height' in patch || 'dock' in patch || 'collapsed' in patch) {
+      geometryCustomized[displayMode.value] = true
+    }
     const visibleGroupIds = new Set(layout.groups
       .filter((candidate) => candidate.panelIds.some((panelId) => layout.panels[panelId].visible))
       .map((candidate) => candidate.id))
@@ -170,6 +208,7 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
   function setPanelVisible(panelId: WorkspacePanelId, visible: boolean): void {
     if (panelId === 'canvas' && !visible) return
     layout.panels[panelId].visible = visible
+    geometryCustomized[displayMode.value] = true
     const group = groupForPanel(panelId)
     if (group) {
       const visibleTab = group.panelIds.find((id) => layout.panels[id].visible)
@@ -195,7 +234,9 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
   function setDisplayMode(nextMode: DockableWorkspaceMode): void {
     if (displayMode.value === nextMode) return
     syncActiveModeLayout()
-    const nextLayout = cloneLayout(modeLayouts[nextMode] ?? createModeLayout(nextMode, workspaceSize))
+    const nextLayout = geometryCustomized[nextMode]
+      ? cloneLayout(modeLayouts[nextMode] ?? createModeLayout(nextMode, workspaceSize))
+      : createModeLayout(nextMode, workspaceSize)
     displayMode.value = nextMode
     layout.groups = nextLayout.groups
     layout.panels = nextLayout.panels
@@ -216,6 +257,8 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
     const targetGroup = layout.groups.find((item) => item.id === targetGroupId)
     if (!sourceGroup || !targetGroup || sourceGroup.id === targetGroup.id) return
 
+    geometryCustomized[displayMode.value] = true
+
     sourceGroup.panelIds = sourceGroup.panelIds.filter((id) => id !== panelId)
     if (!targetGroup.panelIds.includes(panelId)) targetGroup.panelIds.push(panelId)
     layout.panels[panelId].groupId = targetGroup.id
@@ -233,6 +276,8 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
   function detachPanel(panelId: WorkspacePanelId): string | undefined {
     const sourceGroup = groupForPanel(panelId)
     if (!sourceGroup || sourceGroup.panelIds.length <= 1) return sourceGroup?.id
+
+    geometryCustomized[displayMode.value] = true
 
     const groupId = `${panelId}-${layout.nextGroupNumber++}`
     const detachedWidth = clamp(sourceGroup.width, 240, Math.max(240, workspaceSize.width - 24))
@@ -265,6 +310,8 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
     layout.groups = next.groups
     layout.panels = next.panels
     layout.nextGroupNumber = next.nextGroupNumber
+    geometryCustomized[displayMode.value] = false
+    syncActiveModeLayout()
     scheduleSave()
   }
 
@@ -385,9 +432,21 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
   }
 
   function updateWorkspaceSize(element: HTMLElement): void {
-    workspaceSize.width = Math.max(1, element.clientWidth)
-    workspaceSize.height = Math.max(1, element.clientHeight)
-    clampGroupsToWorkspace()
+    const nextSize = {
+      width: Math.max(1, element.clientWidth),
+      height: Math.max(1, element.clientHeight),
+    }
+    const sizeChanged = nextSize.width !== workspaceSize.width || nextSize.height !== workspaceSize.height
+    workspaceSize.width = nextSize.width
+    workspaceSize.height = nextSize.height
+    if (sizeChanged && !geometryCustomized[displayMode.value]) {
+      const next = createModeLayout(displayMode.value, workspaceSize)
+      layout.groups = next.groups
+      layout.panels = next.panels
+      layout.nextGroupNumber = next.nextGroupNumber
+    } else {
+      clampGroupsToWorkspace()
+    }
     for (const group of layout.groups) {
       if (group.dock === 'free' && group.panelIds.some((panelId) => layout.panels[panelId].visible)) placeFreeGroup(group)
     }

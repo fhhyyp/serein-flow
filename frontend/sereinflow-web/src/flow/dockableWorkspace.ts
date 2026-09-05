@@ -80,12 +80,11 @@ export function createDefaultDockableWorkspaceLayout(size: WorkspaceSize = { wid
   const height = Math.max(480, size.height)
   const sideWidth = Math.round(width * .2)
   const diagnosticsHeight = Math.min(220, Math.max(150, Math.round(height * .16)))
-  const panelHeight = Math.max(260, height - diagnosticsHeight)
 
   const groups = [
     group('canvas', ['canvas'], { x: 0, y: 0, width, height, dock: 'fill' }, 1),
-    group('nodes', ['nodes'], { x: 0, y: 0, width: sideWidth, height: panelHeight, dock: 'left' }, 10),
-    group('inspector', ['inspector'], { x: 0, y: 0, width: sideWidth, height: panelHeight, dock: 'right' }, 11),
+    group('nodes', ['nodes'], { x: 0, y: 0, width: sideWidth, height, dock: 'left' }, 10),
+    group('inspector', ['inspector'], { x: 0, y: 0, width: sideWidth, height, dock: 'right' }, 11),
     group('output', ['output'], { x: 0, y: 0, width, height: 220, dock: 'bottom' }, 12),
     group('diagnostics', ['diagnostics'], { x: 0, y: 0, width, height: diagnosticsHeight, dock: 'bottom' }, 13),
     group('debug', ['debug'], { x: Math.max(320, Math.round(width * .32)), y: 96, width: Math.min(520, Math.max(380, Math.round(width * .38))), height: Math.min(620, height - 32), dock: 'free' }, 14),
@@ -101,7 +100,7 @@ export function createDefaultDockableWorkspaceLayout(size: WorkspaceSize = { wid
       nodes: { visible: true, groupId: 'nodes' },
       inspector: { visible: true, groupId: 'inspector' },
       output: { visible: false, groupId: 'output' },
-      diagnostics: { visible: true, groupId: 'diagnostics' },
+      diagnostics: { visible: false, groupId: 'diagnostics' },
       debug: { visible: false, groupId: 'debug' },
       workpieces: { visible: false, groupId: 'workpieces' },
     },
@@ -114,8 +113,8 @@ export function createDebugDockableWorkspaceLayout(size: WorkspaceSize = { width
   const width = Math.max(720, size.width)
   const height = Math.max(480, size.height)
   const leftWidth = Math.round(width * .5)
-  const canvasHeight = Math.max(260, Math.round(height * .62))
-  const workpiecesHeight = Math.max(160, height - canvasHeight)
+  const canvasHeight = Math.round(height * .5)
+  const workpiecesHeight = height - canvasHeight
   const canvasGroup = layout.groups.find((item) => item.id === 'canvas')!
   const workpiecesGroup = layout.groups.find((item) => item.id === 'workpieces')!
   const debugGroup = layout.groups.find((item) => item.id === 'debug')!
@@ -226,14 +225,18 @@ function isGroup(value: unknown): value is DockablePanelGroupState {
     && typeof candidate.collapsed === 'boolean'
 }
 
-export function normalizeDockableWorkspaceLayout(value: unknown, size: WorkspaceSize): DockableWorkspaceLayout | undefined {
+export function normalizeDockableWorkspaceLayout(
+  value: unknown,
+  size: WorkspaceSize,
+  fallback = createDefaultDockableWorkspaceLayout(size),
+): DockableWorkspaceLayout | undefined {
   if (!value || typeof value !== 'object') return undefined
   const candidate = value as Partial<DockableWorkspaceLayout>
   if (candidate.formatVersion !== 1 || !Array.isArray(candidate.groups) || !candidate.panels || typeof candidate.panels !== 'object') {
     return undefined
   }
 
-  const defaults = createDefaultDockableWorkspaceLayout(size)
+  const defaults = fallback
   const validGroups = candidate.groups.filter(isGroup)
   if (validGroups.length === 0) return undefined
 

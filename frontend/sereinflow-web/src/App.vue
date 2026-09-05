@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, markRaw, nextTick, onMounted, provide, reactive, ref, watch } from 'vue'
+import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, provide, reactive, ref, watch } from 'vue'
 import {
   Activity,
   AlertTriangle,
@@ -90,6 +90,21 @@ const projectMenuOpen = ref(false)
 const connectionSettingsOpen = ref(false)
 const isCanvasDropActive = ref(false)
 const notice = ref('')
+let noticeTimer: number | undefined
+watch(notice, (message) => {
+  if (noticeTimer !== undefined) {
+    window.clearTimeout(noticeTimer)
+    noticeTimer = undefined
+  }
+  if (!message) return
+  noticeTimer = window.setTimeout(() => {
+    if (notice.value === message) notice.value = ''
+    noticeTimer = undefined
+  }, 3_500)
+})
+onBeforeUnmount(() => {
+  if (noticeTimer !== undefined) window.clearTimeout(noticeTimer)
+})
 const {
   librarySearch,
   libraries,
@@ -424,7 +439,7 @@ const visibleActiveOutput = computed({
 const activeWorkpieceRunId = computed(() => debugSession.value?.runId ?? lastRunId.value ?? '')
 const selectedDebugNodeId = ref<string>()
 const workpieceRefreshRevision = ref(0)
-const canUseDebugDisplayMode = computed(() => Boolean(debugSession.value))
+const canUseDebugDisplayMode = computed(() => Boolean(flowId.value))
 const panelDefinitions = computed<WorkspacePanelTab[]>(() => [
   { id: 'canvas', label: t('panel.canvas'), icon: markRaw(LayoutGrid), closable: false },
   { id: 'nodes', label: t('panel.nodes'), icon: markRaw(PanelLeft) },

@@ -30,6 +30,7 @@ const emit = defineEmits<{
 }>()
 
 const isPaused = computed(() => props.session?.status === 'paused' && !props.isStopping)
+const showLiveFacts = computed(() => Boolean(props.session && !['completed', 'cancelled', 'failed'].includes(props.session.status)))
 const invocationShortId = computed(() => props.session?.activeInvocationId?.slice(0, 8))
 </script>
 
@@ -48,9 +49,11 @@ const invocationShortId = computed(() => props.session?.activeInvocationId?.slic
     </header>
 
     <dl class="flow-debug-panel__facts">
-      <div><dt>{{ t('debug.currentNode') }}</dt><dd><code>{{ props.boundary?.nodeId ?? props.session.currentNodeId ?? '—' }}</code></dd></div>
-      <div><dt>{{ t('debug.stepCount') }}</dt><dd>{{ props.boundary?.step ?? '—' }}</dd></div>
-      <div><dt>{{ t('debug.frameDepth') }}</dt><dd>{{ props.boundary?.frameDepth ?? '—' }}</dd></div>
+      <template v-if="showLiveFacts">
+        <div><dt>{{ t('debug.currentNode') }}</dt><dd><code>{{ props.boundary?.nodeId ?? props.session.currentNodeId ?? '—' }}</code></dd></div>
+        <div><dt>{{ t('debug.stepCount') }}</dt><dd>{{ props.boundary?.step ?? '—' }}</dd></div>
+        <div><dt>{{ t('debug.frameDepth') }}</dt><dd>{{ props.boundary?.frameDepth ?? '—' }}</dd></div>
+      </template>
       <div v-if="invocationShortId"><dt>{{ t('debug.invocation') }}</dt><dd><code>{{ invocationShortId }}</code></dd></div>
       <div v-if="props.session.activeFlipflopNodeId"><dt>{{ t('debug.flipflop') }}</dt><dd><code>{{ props.session.activeFlipflopNodeId }}</code></dd></div>
       <div v-if="props.session.queuedTriggerCount > 0"><dt>{{ t('debug.queuedTriggers') }}</dt><dd><ListOrdered :size="13" />{{ props.session.queuedTriggerCount }}</dd></div>

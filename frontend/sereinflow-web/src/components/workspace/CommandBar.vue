@@ -153,6 +153,7 @@ function selectConcurrencyMode(mode: FlowConcurrencyMode): void {
           :items="props.workspacePanelItems"
           :display-mode="props.workspaceDisplayMode"
           :debug-mode-available="props.debugDisplayModeAvailable"
+          :show-display-modes="true"
           @toggle="emit('toggle-workspace-panel', $event)"
           @reset="emit('reset-workspace-layout')"
           @change-mode="emit('change-workspace-mode', $event)"
