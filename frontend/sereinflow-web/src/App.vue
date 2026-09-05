@@ -372,15 +372,24 @@ function focusDebugCanvasNode(nodeId: string): void {
   void nextTick().then(() => selectNode(nodeId))
 }
 
+function handleCanvasNodeClick(event: { node: { id: string } }): void {
+  onNodeClick(event)
+  if (!debugSession.value) return
+  selectedDebugNodeId.value = event.node.id
+  workpieceFocusNodeId.value = event.node.id
+}
+
 function focusDebugWorkpieceNode(nodeId: string): void {
   if (!debugSession.value) return
   selectedDebugNodeId.value = nodeId
+  workpieceFocusNodeId.value = nodeId
   showDockablePanel('debug')
   focusDebugCanvasNode(nodeId)
 }
 
 function handleDebugPause(nodeId: string): void {
   selectedDebugNodeId.value = nodeId
+  workpieceFocusNodeId.value = undefined
   focusDebugCanvasNode(nodeId)
   workpieceRefreshRevision.value += 1
 }
@@ -438,6 +447,7 @@ const visibleActiveOutput = computed({
 
 const activeWorkpieceRunId = computed(() => debugSession.value?.runId ?? lastRunId.value ?? '')
 const selectedDebugNodeId = ref<string>()
+const workpieceFocusNodeId = ref<string>()
 const workpieceRefreshRevision = ref(0)
 const canUseDebugDisplayMode = computed(() => Boolean(flowId.value))
 const panelDefinitions = computed<WorkspacePanelTab[]>(() => [
@@ -832,22 +842,24 @@ watch([isDebugActive, () => workspaceView.value, () => debugSession.value?.id], 
 }, { immediate: true })
 
 watch(() => debugSession.value?.id, (sessionId, previousSessionId) => {
-  if (sessionId !== previousSessionId)
+  if (sessionId !== previousSessionId) {
     selectedDebugNodeId.value = undefined
+    workpieceFocusNodeId.value = undefined
+  }
 })
 
-// The canvas is the only source that can change its selection without going
-// through the debug panels. Propagating this one-way into the debug selection
-// state keeps the canvas, execution list, and workpieces synchronized without
-// bouncing selection events back and forth between panels.
+// Keep canvas-driven selections in sync with the debug execution list. The
+// explicit canvas click handler separately marks manual selections as eligible
+// to focus the matching workpiece.
 watch(() => selectedNode.value?.id, (nodeId) => {
   if (!debugSession.value || !nodeId || selectedDebugNodeId.value === nodeId) return
   selectedDebugNodeId.value = nodeId
 })
 
 watch(() => debugSession.value?.status, (status, previousStatus) => {
-  if (previousStatus && status !== previousStatus && ['completed', 'cancelled', 'failed'].includes(status)) {
+  if (previousStatus && status && status !== previousStatus && ['completed', 'cancelled', 'failed'].includes(status)) {
     selectedDebugNodeId.value = undefined
+    workpieceFocusNodeId.value = undefined
     workpieceRefreshRevision.value += 1
   }
 })
@@ -1446,7 +1458,7 @@ function setLanguage(nextLocale: Locale): void {
               @connect="onConnect"
               @nodes-change="onNodesChange"
               @edges-change="onEdgesChange"
-              @node-click="onNodeClick"
+              @node-click="handleCanvasNodeClick"
               @edge-click="onEdgeClick"
               @pane-click="clearSelection"
               @zoom-in="zoomIn"
@@ -1511,7 +1523,7 @@ function setLanguage(nextLocale: Locale): void {
             <RunWorkpiecePanel
               v-else-if="panelId === 'workpieces' && activeWorkpieceRunId"
               :run-id="activeWorkpieceRunId"
-              :focus-node-id="debugSession ? selectedDebugNodeId : undefined"
+              :focus-node-id="debugSession ? workpieceFocusNodeId : undefined"
               :refresh-signal="workpieceRefreshRevision"
               :live="isRunning || isDebugActive"
               :embedded="true"
