@@ -10,6 +10,7 @@ export type WorkspacePanelId =
   | 'workpieces'
 
 export type DockPosition = 'free' | 'left' | 'right' | 'top' | 'bottom' | 'fill'
+export type DockableWorkspaceMode = 'edit' | 'debug'
 
 export interface WorkspaceSize {
   width: number
@@ -77,17 +78,20 @@ function group(
 export function createDefaultDockableWorkspaceLayout(size: WorkspaceSize = { width: 1_920, height: 980 }): DockableWorkspaceLayout {
   const width = Math.max(720, size.width)
   const height = Math.max(480, size.height)
-  const panelHeight = Math.max(260, height - 32)
+  const sideWidth = Math.round(width * .2)
+  const diagnosticsHeight = Math.min(220, Math.max(150, Math.round(height * .16)))
+  const panelHeight = Math.max(260, height - diagnosticsHeight)
 
   const groups = [
     group('canvas', ['canvas'], { x: 0, y: 0, width, height, dock: 'fill' }, 1),
-  group('nodes', ['nodes'], { x: 0, y: 0, width: 286, height: panelHeight, dock: 'left' }, 10),
-  group('inspector', ['inspector'], { x: 0, y: 0, width: 334, height: Math.min(panelHeight, 620), dock: 'right' }, 11),
-  group('output', ['output'], { x: 0, y: 0, width: Math.min(720, Math.max(420, Math.round(width * .48))), height: 276, dock: 'bottom' }, 12),
-    group('diagnostics', ['diagnostics'], { x: Math.max(320, Math.round(width * .36)), y: 86, width: Math.min(520, Math.max(360, Math.round(width * .34))), height: 330, dock: 'free' }, 13),
+    group('nodes', ['nodes'], { x: 0, y: 0, width: sideWidth, height: panelHeight, dock: 'left' }, 10),
+    group('inspector', ['inspector'], { x: 0, y: 0, width: sideWidth, height: panelHeight, dock: 'right' }, 11),
+    group('output', ['output'], { x: 0, y: 0, width, height: 220, dock: 'bottom' }, 12),
+    group('diagnostics', ['diagnostics'], { x: 0, y: 0, width, height: diagnosticsHeight, dock: 'bottom' }, 13),
     group('debug', ['debug'], { x: Math.max(320, Math.round(width * .32)), y: 96, width: Math.min(520, Math.max(380, Math.round(width * .38))), height: Math.min(620, height - 32), dock: 'free' }, 14),
     group('workpieces', ['workpieces'], { x: Math.max(320, Math.round(width * .38)), y: 118, width: Math.min(600, Math.max(420, Math.round(width * .42))), height: Math.min(520, height - 40), dock: 'free' }, 15),
   ]
+  groups.find((item) => item.id === 'diagnostics')!.collapsed = true
 
   return {
     formatVersion: 1,
@@ -96,13 +100,55 @@ export function createDefaultDockableWorkspaceLayout(size: WorkspaceSize = { wid
       canvas: { visible: true, groupId: 'canvas' },
       nodes: { visible: true, groupId: 'nodes' },
       inspector: { visible: true, groupId: 'inspector' },
-      output: { visible: true, groupId: 'output' },
-      diagnostics: { visible: false, groupId: 'diagnostics' },
+      output: { visible: false, groupId: 'output' },
+      diagnostics: { visible: true, groupId: 'diagnostics' },
       debug: { visible: false, groupId: 'debug' },
       workpieces: { visible: false, groupId: 'workpieces' },
     },
     nextGroupNumber: 1,
   }
+}
+
+export function createDebugDockableWorkspaceLayout(size: WorkspaceSize = { width: 1_920, height: 980 }): DockableWorkspaceLayout {
+  const layout = createDefaultDockableWorkspaceLayout(size)
+  const width = Math.max(720, size.width)
+  const height = Math.max(480, size.height)
+  const leftWidth = Math.round(width * .5)
+  const canvasHeight = Math.max(260, Math.round(height * .62))
+  const workpiecesHeight = Math.max(160, height - canvasHeight)
+  const canvasGroup = layout.groups.find((item) => item.id === 'canvas')!
+  const workpiecesGroup = layout.groups.find((item) => item.id === 'workpieces')!
+  const debugGroup = layout.groups.find((item) => item.id === 'debug')!
+
+  Object.assign(canvasGroup, {
+    x: 0,
+    y: 0,
+    width: leftWidth,
+    height: canvasHeight,
+    dock: 'free' as const,
+  })
+  Object.assign(workpiecesGroup, {
+    x: 0,
+    y: canvasHeight,
+    width: leftWidth,
+    height: workpiecesHeight,
+    dock: 'free' as const,
+  })
+  Object.assign(debugGroup, {
+    x: leftWidth,
+    y: 0,
+    width: width - leftWidth,
+    height,
+    dock: 'right' as const,
+  })
+
+  for (const panelId of ['nodes', 'inspector', 'output', 'diagnostics'] as const) {
+    layout.panels[panelId].visible = false
+  }
+  layout.panels.canvas.visible = true
+  layout.panels.workpieces.visible = true
+  layout.panels.debug.visible = true
+  return layout
 }
 
 function isPanelId(value: unknown): value is WorkspacePanelId {

@@ -1,25 +1,71 @@
-import { computed, onBeforeUnmount, onMounted, reactive, type Ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, type Ref, watch } from 'vue'
 import {
   createDefaultDockableWorkspaceLayout,
+  createDebugDockableWorkspaceLayout,
   normalizeDockableWorkspaceLayout,
   type DockablePanelGroupState,
+  type DockableWorkspaceMode,
   type DockableWorkspaceLayout,
   type DockPosition,
   type WorkspacePanelId,
   type WorkspaceSize,
 } from '../flow/dockableWorkspace'
 
-const storageKey = 'sereinflow.canvas-dock-layout.v2'
+const storageKey = 'sereinflow.canvas-dock-layout.v3'
+const legacyStorageKey = 'sereinflow.canvas-dock-layout.v2'
 
-function loadLayout(size: WorkspaceSize): DockableWorkspaceLayout {
-  if (typeof window === 'undefined') return createDefaultDockableWorkspaceLayout(size)
+type WorkspaceModeLayouts = Record<DockableWorkspaceMode, DockableWorkspaceLayout>
+
+function createModeLayout(mode: DockableWorkspaceMode, size: WorkspaceSize): DockableWorkspaceLayout {
+  return mode === 'debug'
+    ? createDebugDockableWorkspaceLayout(size)
+    : createDefaultDockableWorkspaceLayout(size)
+}
+
+function migrateEditLayoutForCollapsedDiagnostics(layout: DockableWorkspaceLayout): DockableWorkspaceLayout {
+  layout.panels.output.visible = false
+  layout.panels.diagnostics.visible = true
+  const diagnosticsGroup = layout.groups.find((group) => group.id === layout.panels.diagnostics.groupId)
+    ?? layout.groups.find((group) => group.panelIds.includes('diagnostics'))
+  if (diagnosticsGroup) {
+    diagnosticsGroup.dock = 'bottom'
+    diagnosticsGroup.collapsed = true
+    diagnosticsGroup.activePanelId = 'diagnostics'
+  }
+  return layout
+}
+
+function loadModeLayouts(size: WorkspaceSize): WorkspaceModeLayouts {
+  const defaults: WorkspaceModeLayouts = {
+    edit: createModeLayout('edit', size),
+    debug: createModeLayout('debug', size),
+  }
+  if (typeof window === 'undefined') return defaults
+
   try {
     const raw = window.localStorage.getItem(storageKey)
-    if (!raw) return createDefaultDockableWorkspaceLayout(size)
-    return normalizeDockableWorkspaceLayout(JSON.parse(raw) as unknown, size)
-      ?? createDefaultDockableWorkspaceLayout(size)
+    if (raw) {
+      const stored = JSON.parse(raw) as { storageVersion?: number; layouts?: Partial<Record<DockableWorkspaceMode, unknown>> }
+      if ((stored.storageVersion === 1 || stored.storageVersion === 2) && stored.layouts) {
+        const editLayout = normalizeDockableWorkspaceLayout(stored.layouts.edit, size) ?? defaults.edit
+        return {
+          edit: stored.storageVersion === 1
+            ? migrateEditLayoutForCollapsedDiagnostics(editLayout)
+            : editLayout,
+          debug: normalizeDockableWorkspaceLayout(stored.layouts.debug, size) ?? defaults.debug,
+        }
+      }
+    }
+
+    // Keep the user's pre-display-mode layout as the edit-mode starting point.
+    const legacyRaw = window.localStorage.getItem(legacyStorageKey)
+    const legacyLayout = legacyRaw
+      ? normalizeDockableWorkspaceLayout(JSON.parse(legacyRaw) as unknown, size)
+      : undefined
+    if (legacyLayout) return { edit: migrateEditLayoutForCollapsedDiagnostics(legacyLayout), debug: defaults.debug }
+    return defaults
   } catch {
-    return createDefaultDockableWorkspaceLayout(size)
+    return defaults
   }
 }
 
@@ -49,7 +95,9 @@ function overlapArea(first: LayoutRect, second: LayoutRect): number {
 
 export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefined>) {
   const workspaceSize = reactive<WorkspaceSize>({ width: 1_920, height: 980 })
-  const layout = reactive<DockableWorkspaceLayout>(loadLayout(workspaceSize))
+  const displayMode = ref<DockableWorkspaceMode>('edit')
+  const modeLayouts = reactive<WorkspaceModeLayouts>(loadModeLayouts(workspaceSize))
+  const layout = reactive<DockableWorkspaceLayout>(cloneLayout(modeLayouts.edit))
   let resizeObserver: ResizeObserver | undefined
   let saveTimer: number | undefined
 
@@ -58,13 +106,24 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
     group.panelIds.some((panelId) => layout.panels[panelId].visible)))
   let fallbackResizeHandler: (() => void) | undefined
 
+  function syncActiveModeLayout(): void {
+    modeLayouts[displayMode.value] = cloneLayout(layout)
+  }
+
   function scheduleSave(): void {
     if (typeof window === 'undefined') return
     if (saveTimer !== undefined) window.clearTimeout(saveTimer)
     saveTimer = window.setTimeout(() => {
       saveTimer = undefined
       try {
-        window.localStorage.setItem(storageKey, JSON.stringify(cloneLayout(layout)))
+        syncActiveModeLayout()
+        window.localStorage.setItem(storageKey, JSON.stringify({
+          storageVersion: 2,
+          layouts: {
+            edit: cloneLayout(modeLayouts.edit),
+            debug: cloneLayout(modeLayouts.debug),
+          },
+        }))
       } catch {
         // Layout preferences are optional and must never block editing.
       }
@@ -119,6 +178,18 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
 
   function hidePanel(panelId: WorkspacePanelId): void {
     setPanelVisible(panelId, false)
+  }
+
+  function setDisplayMode(nextMode: DockableWorkspaceMode): void {
+    if (displayMode.value === nextMode) return
+    syncActiveModeLayout()
+    const nextLayout = cloneLayout(modeLayouts[nextMode] ?? createModeLayout(nextMode, workspaceSize))
+    displayMode.value = nextMode
+    layout.groups = nextLayout.groups
+    layout.panels = nextLayout.panels
+    layout.nextGroupNumber = nextLayout.nextGroupNumber
+    clampGroupsToWorkspace()
+    scheduleSave()
   }
 
   function dockGroup(groupId: string, dock: DockPosition): void {
@@ -178,7 +249,7 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
   }
 
   function resetLayout(): void {
-    const next = createDefaultDockableWorkspaceLayout(workspaceSize)
+    const next = createModeLayout(displayMode.value, workspaceSize)
     layout.groups = next.groups
     layout.panels = next.panels
     layout.nextGroupNumber = next.nextGroupNumber
@@ -341,6 +412,7 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
 
   return {
     layout,
+    displayMode,
     groups,
     visibleGroups,
     workspaceSize,
@@ -355,5 +427,6 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
     detachPanel,
     focusGroup,
     resetLayout,
+    setDisplayMode,
   }
 }

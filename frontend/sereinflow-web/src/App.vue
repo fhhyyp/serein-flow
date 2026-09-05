@@ -63,6 +63,7 @@ import { useWorkspaceShortcuts } from './composables/useWorkspaceShortcuts'
 import { useDockableWorkspace } from './composables/useDockableWorkspace'
 import type {
   DockablePanelGroupState,
+  DockableWorkspaceMode,
   DockPosition,
   WorkspacePanelId,
   WorkspacePanelTab,
@@ -140,6 +141,7 @@ const workspaceView = ref<'console' | 'editor'>('console')
 const workspaceRoot = ref<HTMLElement>()
 const {
   layout: dockableLayout,
+  displayMode: dockableDisplayMode,
   groups: dockableGroups,
   workspaceSize: dockableWorkspaceSize,
   updateGroup: updateDockableGroup,
@@ -150,6 +152,7 @@ const {
   combinePanel: combineDockablePanel,
   detachPanel: detachDockablePanel,
   resetLayout: resetDockableLayout,
+  setDisplayMode: setDockableDisplayMode,
   focusGroup: focusDockableGroup,
 } = useDockableWorkspace(workspaceRoot)
 const runPolicy = ref<{ concurrencyMode: FlowConcurrencyMode }>({ concurrencyMode: 'parallel' })
@@ -766,12 +769,18 @@ function closeWorkspacePanel(panelId: WorkspacePanelId): void {
 }
 
 watch(() => saveDiagnostics.value.length, (count) => {
-  if (count > 0) showDockablePanel('diagnostics')
+  if (count > 0 && dockableDisplayMode.value === 'edit') showDockablePanel('diagnostics')
 })
 
-watch(() => debugSession.value?.id, (sessionId) => {
-  if (sessionId) showDockablePanel('debug')
-})
+watch([isDebugActive, () => workspaceView.value], ([active, view]) => {
+  if (view !== 'editor') return
+  const targetMode: DockableWorkspaceMode = active ? 'debug' : 'edit'
+  if (dockableDisplayMode.value !== targetMode) setDockableDisplayMode(targetMode)
+  if (active) {
+    showDockablePanel('debug')
+    if (activeWorkpieceRunId.value) showDockablePanel('workpieces')
+  }
+}, { immediate: true })
 
 const debugRenderedElements = computed(() => renderedElements.value.map((element) => {
   if (!('data' in element) || !('position' in element)) return element
