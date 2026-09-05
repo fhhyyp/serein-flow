@@ -149,6 +149,105 @@ public sealed class RuntimeSessionTests
     }
 
     [Fact]
+    public async Task DataConnectionReadsTheConnectedNodeOutputInsteadOfTheMostRecentlyExecutedNode()
+    {
+        var producer = NodeDefinition.Create("producer", NodeType.Action, "Producer");
+        var consumer = NodeDefinition.Create(
+            "consumer",
+            NodeType.Action,
+            "Consumer",
+            parameters:
+            [
+                new NodeParameterDefinition(
+                    "value",
+                    null,
+                    DataSource.PreviousNode,
+                    sourceNodeId: "other",
+                    sourcePortId: "data-out")
+            ]);
+        var definition = FlowDefinition.Create(
+            Guid.NewGuid(),
+            1,
+            [CanvasDefinition.Create(
+                "main",
+                CanvasLifecycle.Main,
+                [producer, consumer],
+                [ConnectionDefinition.Data(
+                    producer.Id,
+                    "data-out",
+                    consumer.Id,
+                    "value",
+                    DataSource.PreviousNode)])],
+            producer.Id);
+        var plan = new ExecutionPlanBuilder().Build(definition);
+
+        await using var session = new FlowExecutionSession();
+        session.Write("producer.data-out", "connected-output");
+        session.Write("other.data-out", "configured-fallback");
+
+        var inputs = new DataConnectionResolver().Resolve(consumer, plan, session);
+
+        Assert.Equal("connected-output", inputs["value"]);
+    }
+
+    [Fact]
+    public async Task ProjectInputReadsTheValueSuppliedForTheCurrentRun()
+    {
+        var parameter = new NodeParameterDefinition(
+            "userId",
+            null,
+            DataSource.ProjectInput,
+            required: true,
+            projectInputKey: "request.userId");
+        var node = NodeDefinition.Create("consumer", NodeType.Action, "Consumer", parameters: [parameter]);
+        var definition = FlowDefinition.Create(
+            Guid.NewGuid(),
+            1,
+            [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])],
+            node.Id);
+        var plan = new ExecutionPlanBuilder().Build(definition);
+
+        await using var session = new FlowExecutionSession();
+        session.Write("project.request.userId", 42L);
+
+        var inputs = new DataConnectionResolver().Resolve(node, plan, session);
+
+        Assert.Equal(42L, inputs[parameter.Id]);
+    }
+
+    [Fact]
+    public async Task DynamicReferenceParsesJsonBeforeResolvingContextReferences()
+    {
+        var node = NodeDefinition.Create(
+            "consumer",
+            NodeType.Action,
+            "Consumer",
+            parameters:
+            [
+                new NodeParameterDefinition("decimal", null, DataSource.Expression, expression: "1.5"),
+                new NodeParameterDefinition("quoted", null, DataSource.Expression, expression: "\"a.b\""),
+                new NodeParameterDefinition("reference", null, DataSource.Expression, expression: "producer.data-out"),
+                new NodeParameterDefinition("jsonNull", null, DataSource.Expression, expression: "null")
+            ]);
+        var definition = FlowDefinition.Create(
+            Guid.NewGuid(),
+            1,
+            [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])],
+            node.Id);
+        var plan = new ExecutionPlanBuilder().Build(definition);
+
+        await using var session = new FlowExecutionSession();
+        session.Write("producer.data-out", "producer-output");
+
+        var inputs = new DataConnectionResolver().Resolve(node, plan, session);
+
+        Assert.Equal(1.5m, Assert.IsType<decimal>(inputs["decimal"]));
+        Assert.Equal("a.b", inputs["quoted"]);
+        Assert.Equal("producer-output", inputs["reference"]);
+        Assert.Null(inputs["jsonNull"]);
+    }
+
+    [Fact]
     public async Task NodeLogIsPublishedBetweenNodeStartAndCompletionWithRuntimeMetadata()
     {
         var node = NodeDefinition.Create("action", NodeType.Action, "Action");

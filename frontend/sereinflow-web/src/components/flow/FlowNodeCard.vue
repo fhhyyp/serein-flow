@@ -104,8 +104,8 @@ function isTargetSeat(seat: ConnectionSeatLayout | undefined): boolean {
         />
         <span class="workflow-node__seat-dot parameter-seat-dot" aria-hidden="true"></span>
         <span class="workflow-node__parameter-name" :title="parameter.description || parameter.name || t(parameter.nameKey)">{{ parameter.name || t(parameter.nameKey) }}</span>
-        <span class="workflow-node__parameter-type">{{ formatNodeType(parameter.type) || parameter.valueKind }}</span>
-        <span class="workflow-node__parameter-source">{{ t(`parameter.${parameter.source}`) }}</span>
+        <span class="workflow-node__parameter-type" :title="parameter.type || parameter.valueKind">{{ formatNodeType(parameter.type) || parameter.valueKind }}</span>
+        <span class="workflow-node__parameter-source" :title="t(`parameter.${parameter.source}`)">{{ t(`parameter.${parameter.source}`) }}</span>
       </div>
     </div>
 

@@ -49,7 +49,7 @@ public sealed class DataConnectionResolver
                                     DataSource.PreviousNode)],
                             session),
                         DataSource.ProjectInput => ReadProjectInput(parameter.ProjectInputKey ?? parameter.Name, session),
-                        DataSource.Expression => EvaluateExpression(parameter.Expression, session),
+                        DataSource.Expression => ResolveDynamicReference(parameter.Expression, session),
                         _ => null
                     };
             }
@@ -99,34 +99,56 @@ public sealed class DataConnectionResolver
     private static object? ReadProjectInput(string key, FlowExecutionSession session)
         => session.Read($"project.{key}");
 
-    private static object? EvaluateExpression(string? expression, FlowExecutionSession session)
+    /// <summary>
+    /// Resolves the deliberately small dynamic-value syntax used by parameter
+    /// bindings. This is not SereinLang evaluation: JSON values are parsed
+    /// first, then supported execution-context references are looked up.
+    /// </summary>
+    private static object? ResolveDynamicReference(string? expression, FlowExecutionSession session)
     {
         if (string.IsNullOrWhiteSpace(expression))
             return null;
 
         var trimmed = expression.Trim();
+
+        // Parse JSON before looking for a dot. Otherwise decimal literals and
+        // quoted strings such as "a.b" are incorrectly treated as context
+        // references and resolve to null.
+        if (TryParseJson(trimmed, out var jsonValue))
+            return jsonValue;
+
         if (trimmed.StartsWith("project.", StringComparison.Ordinal))
             return session.Read(trimmed);
 
-        if (trimmed.Count(static c => c == '.') == 1)
+        var separator = trimmed.IndexOf('.');
+        if (separator > 0
+            && separator == trimmed.LastIndexOf('.')
+            && separator < trimmed.Length - 1)
             return session.Read(trimmed);
 
-        return ParseJson(trimmed) ?? trimmed;
+        return trimmed;
     }
 
     private static object? ParseJson(string? valueJson)
     {
+        return TryParseJson(valueJson, out var value) ? value : valueJson;
+    }
+
+    private static bool TryParseJson(string? valueJson, out object? value)
+    {
+        value = null;
         if (string.IsNullOrWhiteSpace(valueJson))
-            return null;
+            return false;
 
         try
         {
             using var document = JsonDocument.Parse(valueJson);
-            return ConvertJson(document.RootElement);
+            value = ConvertJson(document.RootElement);
+            return true;
         }
         catch (JsonException)
         {
-            return valueJson;
+            return false;
         }
     }
 
