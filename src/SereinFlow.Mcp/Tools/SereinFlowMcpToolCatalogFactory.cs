@@ -27,10 +27,10 @@ internal static class SereinFlowMcpToolCatalogFactory
             properties: ApplySchemaProperties(), required: ["previewId", "previewFingerprint", "confirmation", "idempotencyKey"])),
         Tool("sereinflow_get_project", "Get one project and its flow summaries.", Schema(
             properties: new Dictionary<string, object?> { ["projectId"] = StringSchema() }, required: ["projectId"])),
-        Tool("sereinflow_get_flow_topology", "Read a bounded flow topology for development or production.", Schema(
+        Tool("sereinflow_get_flow_topology", "Read a bounded flow topology. track defaults to development and accepts development or production.", Schema(
             properties: new Dictionary<string, object?>
             {
-                ["projectId"] = StringSchema(), ["flowId"] = StringSchema(), ["track"] = StringSchema("development or production"),
+                ["projectId"] = StringSchema(), ["flowId"] = StringSchema(), ["track"] = StringEnumSchema("development or production", "development", "production"),
                 ["version"] = NumberSchema(), ["maxItems"] = NumberSchema(), ["maxJsonBytes"] = NumberSchema(),
                 ["includeFlowLiteralValues"] = BooleanSchema(), ["includeScriptSource"] = BooleanSchema()
             }, required: ["projectId", "flowId"])),
@@ -48,10 +48,10 @@ internal static class SereinFlowMcpToolCatalogFactory
             properties: new Dictionary<string, object?> { ["projectId"] = StringSchema(), ["maxItems"] = NumberSchema() }, required: ["projectId"])),
         Tool("sereinflow_get_library_upgrade", "Read one persisted project library upgrade analysis and per-flow results.", Schema(
             properties: new Dictionary<string, object?> { ["projectId"] = StringSchema(), ["upgradeId"] = StringSchema() }, required: ["projectId", "upgradeId"])),
-        Tool("sereinflow_get_run_inspection", "Read a bounded run snapshot, timeline, node outputs and debug state.", Schema(
+        Tool("sereinflow_get_run_inspection", "Read a bounded run snapshot, timeline, node outputs and debug state. track accepts development or production when supplied.", Schema(
             properties: new Dictionary<string, object?>
             {
-                ["runId"] = StringSchema(), ["afterEventSequence"] = NumberSchema(), ["track"] = StringSchema("development or production"),
+                ["runId"] = StringSchema(), ["afterEventSequence"] = NumberSchema(), ["track"] = StringEnumSchema("development or production", "development", "production"),
                 ["maxItems"] = NumberSchema(), ["maxJsonBytes"] = NumberSchema(),
                 ["includeFlowLiteralValues"] = BooleanSchema(), ["includeScriptSource"] = BooleanSchema()
             }, required: ["runId"])),
@@ -59,7 +59,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             properties: new Dictionary<string, object?> { ["runId"] = StringSchema() }, required: ["runId"])),
         Tool("sereinflow_get_run_workpiece", "Read metadata and the API download URL for one run workpiece.", Schema(
             properties: new Dictionary<string, object?> { ["runId"] = StringSchema(), ["workpieceId"] = StringSchema() }, required: ["runId", "workpieceId"])),
-        Tool("sereinflow_publish_run_message", "Publish an arbitrary JSON value to an explicitly exposed endpoint in an active run. The result acknowledges Worker broker acceptance, not downstream business completion.", Schema(
+        Tool("sereinflow_publish_run_message", "Publish an arbitrary JSON value to an explicitly exposed endpoint in an active run. channelKind is optional and defaults to queue; canonical values are queue or eventBus. The result acknowledges Worker broker acceptance, not downstream business completion.", Schema(
             properties: new Dictionary<string, object?>
             {
                 ["runId"] = StringSchema(),
@@ -70,10 +70,12 @@ internal static class SereinFlowMcpToolCatalogFactory
                 ["messageId"] = StringSchema(),
                 ["idempotencyKey"] = StringSchema("A fresh key for this exact message publish request.")
             }, required: ["runId", "topic", "payload", "idempotencyKey"])),
-        Tool("sereinflow_list_runs", "List bounded run summaries, optionally filtered by project and status.", Schema(
+        Tool("sereinflow_list_runs", "List bounded run summaries, optionally filtered by project and status. status accepts pending, running, succeeded, failed, cancelled, timedOut or interrupted.", Schema(
             properties: new Dictionary<string, object?>
             {
-                ["projectId"] = StringSchema(), ["status"] = StringSchema(), ["maxItems"] = NumberSchema()
+                ["projectId"] = StringSchema(),
+                ["status"] = StringEnumSchema("Run status filter.", "pending", "running", "succeeded", "failed", "cancelled", "timedOut", "interrupted"),
+                ["maxItems"] = NumberSchema()
             })),
         Tool("sereinflow_list_debug_sessions", "List bounded active debug session summaries.", Schema(
             properties: new Dictionary<string, object?>
@@ -114,7 +116,7 @@ internal static class SereinFlowMcpToolCatalogFactory
                 ["projectId"] = StringSchema(), ["libraryId"] = StringSchema(),
                 ["libraryNodeContractId"] = StringSchema(), ["position"] = PositionSchema()
             }, required: ["projectId", "libraryId", "libraryNodeContractId", "position"])),
-        Tool("sereinflow_preview_flow_patch", "Validate a structured development-flow patch and return its diff. New requests use schemaVersion 2.0, canonical camelCase enums, an op discriminator, and named payload fields. Legacy operation/value input remains read-compatible.", Schema(
+        Tool("sereinflow_preview_flow_patch", "Validate a structured development-flow patch and return its diff. New requests use schemaVersion 2.0, canonical camelCase enums, an op discriminator, and named payload fields. For connection payloads, kind=execution uses branch=success/failure/error and dataSource=null; kind=data uses branch=null and dataSource=previousNode. The dataSource field is required but nullable in schema 2.0. Legacy operation/value input remains read-compatible.", Schema(
             properties: new Dictionary<string, object?>
             {
                 ["projectId"] = StringSchema(), ["flowId"] = StringSchema(), ["expectedDevelopmentVersion"] = NumberSchema(),
@@ -122,10 +124,10 @@ internal static class SereinFlowMcpToolCatalogFactory
             }, required: ["projectId", "flowId", "expectedDevelopmentVersion", "operations"])),
         Tool("sereinflow_apply_flow_patch", "Apply a previously previewed flow patch after task-level authorization.", Schema(
             properties: ApplySchemaProperties(), required: ["previewId", "previewFingerprint", "confirmation", "idempotencyKey"])),
-        Tool("sereinflow_compare_flow_versions", "Compare two immutable versions on the selected track.", Schema(
+        Tool("sereinflow_compare_flow_versions", "Compare two immutable versions on the selected track. track accepts development or production.", Schema(
             properties: new Dictionary<string, object?>
             {
-                ["projectId"] = StringSchema(), ["flowId"] = StringSchema(), ["track"] = StringSchema(),
+                ["projectId"] = StringSchema(), ["flowId"] = StringSchema(), ["track"] = StringEnumSchema("development or production", "development", "production"),
                 ["fromVersion"] = NumberSchema(), ["toVersion"] = NumberSchema()
             }, required: ["projectId", "flowId", "track", "fromVersion", "toVersion"])),
         Tool("sereinflow_preview_publish_flow", "Validate and preview publishing the current development flow.", Schema(
@@ -135,10 +137,10 @@ internal static class SereinFlowMcpToolCatalogFactory
             }, required: ["projectId", "flowId", "expectedDevelopmentVersion"])),
         Tool("sereinflow_apply_publish_flow", "Publish a previously previewed development version.", Schema(
             properties: ApplySchemaProperties(), required: ["previewId", "previewFingerprint", "confirmation", "idempotencyKey"])),
-        Tool("sereinflow_preview_rollback_flow", "Preview rollback of a selected development or production version.", Schema(
+        Tool("sereinflow_preview_rollback_flow", "Preview rollback of a selected development or production version. track accepts development or production.", Schema(
             properties: new Dictionary<string, object?>
             {
-                ["projectId"] = StringSchema(), ["flowId"] = StringSchema(), ["track"] = StringSchema(),
+                ["projectId"] = StringSchema(), ["flowId"] = StringSchema(), ["track"] = StringEnumSchema("development or production", "development", "production"),
                 ["sourceVersion"] = NumberSchema(), ["expectedHeadVersion"] = NumberSchema()
             }, required: ["projectId", "flowId", "track", "sourceVersion", "expectedHeadVersion"])),
         Tool("sereinflow_apply_rollback_flow", "Rollback a previously previewed flow version.", Schema(
@@ -195,10 +197,13 @@ internal static class SereinFlowMcpToolCatalogFactory
                 }, minItems: 1)
             }, required: ["previewId", "previewFingerprint", "confirmation", "idempotencyKey", "flows"])),
         Tool("sereinflow_list_mcp_api_keys", "List API keys visible to the administrator.", Schema()),
-        Tool("sereinflow_create_mcp_api_key", "Create a project-scoped MCP API key; the secret is returned once.", Schema(
+        Tool("sereinflow_create_mcp_api_key", "Create a project-scoped or administrator MCP API key; permissions use stable dotted names and the secret is returned once.", Schema(
             properties: new Dictionary<string, object?>
             {
-                ["projectId"] = StringSchema(), ["name"] = StringSchema(), ["permissions"] = ArraySchema(),
+                ["projectId"] = StringSchema(), ["name"] = StringSchema(),
+                ["permissions"] = ArraySchema(StringEnumSchema(
+                    "Stable dotted MCP permission name.",
+                    Enum.GetValues<McpPermissionDto>().Select(McpPermissionNames.ToName).ToArray())),
                 ["expiresAt"] = StringSchema(), ["idempotencyKey"] = StringSchema(), ["isAdministrator"] = BooleanSchema()
             }, required: ["name", "permissions", "idempotencyKey"])),
         Tool("sereinflow_revoke_mcp_api_key", "Revoke an MCP API key.", Schema(

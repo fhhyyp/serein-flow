@@ -5,6 +5,14 @@ MCP API-key administration is an administrator-only capability. Use
 Project-scoped keys must name an existing non-archived project; administrator
 keys cannot be project-scoped.
 
+`permissions` is a required array of stable dotted names. Valid names are
+`project.read`, `project.write`, `library.read`, `run.read`, `debug.read`,
+`flow.write`, `debug.control`, `flow.publish`, `flow.rollback`,
+`script.compile`, `library.import`, `library.manage`, `mcp.keys.manage`,
+`sensitive.read` and `run.message.publish`. A project-scoped key supplies
+`projectId` with `isAdministrator: false` (or omits that optional flag); an
+administrator key supplies `isAdministrator: true` and omits `projectId`.
+
 Use `sereinflow_create_mcp_api_key`, `sereinflow_rotate_mcp_api_key`, or
 `sereinflow_revoke_mcp_api_key` only for the explicitly requested key and
 confirm the target, permissions and expiration before applying the mutation.

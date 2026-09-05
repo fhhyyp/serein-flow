@@ -10,11 +10,18 @@ When the state is paused, send `sereinflow_step_debug` or
 production head is eligible for environment execution; development and
 production tracks are separate.
 
+Use these canonical parameter values in new calls: `track`, when supplied to a
+topology, run-inspection, version-comparison or rollback tool, is
+`development` or `production`; the topology tool defaults to `development`.
+The optional `status` filter for `sereinflow_list_runs` is one of `pending`,
+`running`, `succeeded`, `failed`, `cancelled`, `timedOut` or `interrupted`.
+
 To inject an external event into an active ordinary or debug run, first confirm
 the run and its exposed endpoint from current run state, then call
 `sereinflow_publish_run_message` with the `runId`, topic, arbitrary JSON
-`payload`, `channelKind` (`queue` or `eventBus`) and a non-empty
-`idempotencyKey`. An optional `contractId` documents the endpoint contract and
+`payload` and a non-empty `idempotencyKey`. Optional `channelKind` uses the
+canonical values `queue` or `eventBus` and defaults to `queue`. An optional
+`contractId` documents the endpoint contract and
 an optional `messageId` controls Worker-level deduplication. The tool requires
 `run.message.publish` and project scope. `accepted` means only that the run's
 Worker broker accepted the message; reread run inspection and downstream

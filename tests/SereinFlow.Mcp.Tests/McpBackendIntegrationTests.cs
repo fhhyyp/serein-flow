@@ -325,11 +325,50 @@ public sealed class McpBackendIntegrationTests
             alternatives.EnumerateArray(),
             item => item.GetProperty("properties").TryGetProperty("op", out var op)
                 && op.GetProperty("enum")[0].GetString() == "removeNodeParameter");
+        var addConnection = alternatives.EnumerateArray()
+            .Single(item => item.GetProperty("properties").TryGetProperty("op", out var op)
+                && op.GetProperty("enum")[0].GetString() == "addConnection");
+        var connection = addConnection.GetProperty("properties").GetProperty("connection");
+        var connectionRequired = connection.GetProperty("required").EnumerateArray().Select(item => item.GetString()!).ToArray();
+        Assert.Contains("dataSource", connectionRequired);
+        Assert.Contains("branch", connectionRequired);
+        var dataSourceEnum = connection.GetProperty("properties").GetProperty("dataSource")
+            .GetProperty("oneOf")[0].GetProperty("oneOf")[0].GetProperty("enum");
+        Assert.Equal(["literal", "previousNode", "projectInput", "expression"], dataSourceEnum.EnumerateArray().Select(item => item.GetString()!).ToArray());
+        Assert.Equal("null", connection.GetProperty("properties").GetProperty("dataSource")
+            .GetProperty("oneOf")[1].GetProperty("type").GetString());
         var runPolicy = alternatives.EnumerateArray()
             .Single(item => item.GetProperty("properties").TryGetProperty("op", out var op)
                 && op.GetProperty("enum")[0].GetString() == "setRunPolicy");
         Assert.Equal("string", runPolicy.GetProperty("properties").GetProperty("runPolicy").GetProperty("properties").GetProperty("concurrencyMode").GetProperty("oneOf")[0].GetProperty("type").GetString());
         Assert.False(runPolicy.GetProperty("additionalProperties").GetBoolean());
+    }
+
+    [Fact]
+    public async Task ToolCatalogPublishesCanonicalScalarAndPermissionEnums()
+    {
+        using var host = CreateHost();
+        var tools = await host.Services.GetRequiredService<SereinFlowMcpBackend>()
+            .ListToolsAsync(CancellationToken.None);
+
+        var topology = tools.Single(item => item.Name == "sereinflow_get_flow_topology");
+        Assert.Equal(
+            ["development", "production"],
+            topology.InputSchema.GetProperty("properties").GetProperty("track").GetProperty("enum")
+                .EnumerateArray().Select(item => item.GetString()!));
+
+        var runList = tools.Single(item => item.Name == "sereinflow_list_runs");
+        Assert.Equal(
+            ["pending", "running", "succeeded", "failed", "cancelled", "timedOut", "interrupted"],
+            runList.InputSchema.GetProperty("properties").GetProperty("status").GetProperty("enum")
+                .EnumerateArray().Select(item => item.GetString()!));
+
+        var apiKey = tools.Single(item => item.Name == "sereinflow_create_mcp_api_key");
+        Assert.Equal(
+            Enum.GetValues<McpPermissionDto>().Select(McpPermissionNames.ToName),
+            apiKey.InputSchema.GetProperty("properties").GetProperty("permissions")
+                .GetProperty("items").GetProperty("enum")
+                .EnumerateArray().Select(item => item.GetString()!));
     }
 
     [Fact]

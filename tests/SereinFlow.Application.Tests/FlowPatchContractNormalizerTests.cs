@@ -127,6 +127,30 @@ public sealed class FlowPatchContractNormalizerTests
     }
 
     [Fact]
+    public void NormalizesExecutionConnectionSourceToNull()
+    {
+        var normalized = new FlowPatchContractNormalizer().Normalize(Request(new
+        {
+            op = "addConnection",
+            canvasId = "main",
+            connection = new
+            {
+                id = "execution-connection",
+                fromNodeId = "node-existing",
+                fromPortId = "exec-success",
+                toNodeId = "node-existing",
+                toPortId = "exec-in",
+                kind = "execution",
+                branch = "success",
+                dataSource = "literal",
+                priority = 0
+            }
+        }));
+
+        Assert.Null(Assert.Single(normalized.Request.Operations).Connection!.DataSource);
+    }
+
+    [Fact]
     public void RejectsDataConnectionTargetingParameterPortId()
     {
         var normalizer = new FlowPatchContractNormalizer();

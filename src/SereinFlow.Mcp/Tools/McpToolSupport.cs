@@ -249,6 +249,9 @@ internal static class McpToolSupport
     internal static object StringSchema(string? description = null)
         => description is null ? new { type = "string" } : new { type = "string", description };
 
+    internal static object StringEnumSchema(string? description, params string[] values)
+        => new { type = "string", @enum = values, description };
+
     internal static object NumberSchema()
         => new { type = "integer" };
 

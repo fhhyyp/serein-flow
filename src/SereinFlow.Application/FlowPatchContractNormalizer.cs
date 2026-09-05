@@ -384,9 +384,12 @@ public sealed class FlowPatchContractNormalizer
     }
 
     private static ConnectionDto NormalizeConnection(ConnectionDto connection)
-        => connection.Kind == ConnectionKindDto.Data
-            ? connection with { DataSource = DataSourceDto.PreviousNode }
-            : connection;
+        => connection with
+        {
+            DataSource = connection.Kind == ConnectionKindDto.Data
+                ? DataSourceDto.PreviousNode
+                : null,
+        };
 
     private static FlowRunPolicyDto ReadRunPolicy(JsonElement operation, string name, string path, bool legacyEnums, string[] allowed)
     {

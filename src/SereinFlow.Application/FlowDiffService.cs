@@ -557,9 +557,12 @@ public sealed class FlowPatchService
     }
 
     private static ConnectionDto NormalizeDataConnection(ConnectionDto connection)
-        => connection.Kind == ConnectionKindDto.Data
-            ? connection with { DataSource = DataSourceDto.PreviousNode }
-            : connection;
+        => connection with
+        {
+            DataSource = connection.Kind == ConnectionKindDto.Data
+                ? DataSourceDto.PreviousNode
+                : null,
+        };
 
     private static void ApplyDataConnectionTargetParameter(
         List<CanvasDto> canvases,

@@ -19,6 +19,50 @@ to be removed first. The operation is applied through the same preview/apply
 flow-version workflow and can be combined with `addConnection` in one ordered
 patch after the parameter has been added.
 
+### Connection payload contract
+
+For schema `2.0`, `addConnection` and `replaceConnection` require every field
+in the connection object, including `branch` and `dataSource`; both fields are
+nullable. `kind` and `dataSource` are different enums: `execution` is a
+`kind`, never a `dataSource`.
+
+| Connection | `kind` | `branch` | `dataSource` | `toPortId` |
+| --- | --- | --- | --- | --- |
+| Execution | `execution` | `success`, `failure` or `error` | `null` | An execution port, normally `exec-in` |
+| Data | `data` | `null` | `previousNode` | The target parameter ID, not its `param-*` UI port ID |
+
+Example execution connection:
+
+```json
+{
+  "id": "exec-1",
+  "fromNodeId": "source-node",
+  "fromPortId": "exec-success",
+  "toNodeId": "target-node",
+  "toPortId": "exec-in",
+  "kind": "execution",
+  "branch": "success",
+  "dataSource": null,
+  "priority": 0
+}
+```
+
+Example data connection:
+
+```json
+{
+  "id": "data-1",
+  "fromNodeId": "source-node",
+  "fromPortId": "data-out",
+  "toNodeId": "target-node",
+  "toPortId": "image",
+  "kind": "data",
+  "branch": null,
+  "dataSource": "previousNode",
+  "priority": 0
+}
+```
+
 Data connections are persisted as `previousNode` bindings. Adding or replacing
 a data connection synchronizes the target parameter's `source`,
 `sourceNodeId`, and `sourcePortId`; removing that connection restores the

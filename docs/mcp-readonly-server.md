@@ -216,11 +216,16 @@ names, or server-local library directories.
 `idempotencyKey`；列表、状态和等待读取接受 `debug.read` 或 `run.read`，
 控制命令要求严格递增的 `commandSequence`。
 
+运行查询的 `track` 使用 `development` 或 `production` 字符串；拓扑查询
+省略时默认为 `development`。`sereinflow_list_runs` 的可选 `status` 过滤值为
+`pending`、`running`、`succeeded`、`failed`、`cancelled`、`timedOut` 或
+`interrupted`。
+
 活动运行消息发布使用独立的 mutation 工具
 `sereinflow_publish_run_message`，不属于 `debug.control`。工具需要
 `run.message.publish` 权限和必填的 `idempotencyKey`，输入的 `payload` 是任意
 JSON 值（包括数组、字符串、数值、布尔值和 `null`），`channelKind` 使用稳定的
-`queue` 或 `eventBus` 字符串。工具按 `runId` 查找活动运行并执行项目范围检查，
+`queue` 或 `eventBus` 字符串，省略时默认为 `queue`。工具按 `runId` 查找活动运行并执行项目范围检查，
 因此普通运行和调试运行使用同一入口；它不接受 `flowId`，也不会按消息重新加载
 流程。
 
@@ -251,11 +256,27 @@ MCP API key 管理工具仅限管理员使用。使用
 员 key 不能绑定项目。创建或轮换返回的 secret 只显示一次，不得写入日志、仓库、
 Prompt 或无关工具参数；发生不明确响应时先重新读取 key 列表，不要盲目重试。
 
+创建 key 时 `permissions` 必须使用稳定的点号名称：`project.read`、
+`project.write`、`library.read`、`run.read`、`debug.read`、`flow.write`、
+`debug.control`、`flow.publish`、`flow.rollback`、`script.compile`、
+`library.import`、`library.manage`、`mcp.keys.manage`、`sensitive.read` 或
+`run.message.publish`。项目级 key 提供 `projectId` 且不得设置
+`isAdministrator: true`；管理员 key 设置 `isAdministrator: true` 且不得提供
+`projectId`。
+
 流程修改使用 `sereinflow_preview_flow_patch` 后再由显式确认的
 apply Tool 执行；v2 请求使用 `schemaVersion: "2.0"`、`op` discriminator、
 具名 payload 和 canonical camelCase 枚举。兼容期仍接受流程公共合同的 legacy
 v1 输入，但响应始终返回 v2 `normalizedOperations` 与
 `normalizationWarnings`。
+
+`addConnection` 和 `replaceConnection` 的 v2 connection payload 必须同时
+提供 `branch` 与 `dataSource`，两者都可以为 `null`。`kind` 与
+`dataSource` 是两个独立枚举：执行连线使用
+`kind: "execution"`、`branch: "success"|"failure"|"error"`、
+`dataSource: null`；数据连线使用 `kind: "data"`、`branch: null`、
+`dataSource: "previousNode"`。`dataSource` 不能填写 `"execution"`；
+`toPortId` 对数据连线必须是目标参数 ID，而不是 `param-*` UI 端口 ID。
 
 类库节点必须先调用只读的
 `sereinflow_create_library_node_template`。它只接受已扫描并已附加项目的真实
