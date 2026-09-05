@@ -4,8 +4,10 @@ import type { FlowWorkpieceDto } from '../src/api/flowApi.ts'
 import {
   createDefaultDockableWorkspaceLayout,
   createDebugDockableWorkspaceLayout,
+  createSnapshotDockableWorkspaceLayout,
   normalizeDockableWorkspaceLayout,
 } from '../src/flow/dockableWorkspace.ts'
+import { reflowDockableResize } from '../src/flow/dockableResize.ts'
 import { latestFlowWorkpieceForNode, selectFlowWorkpieceId } from '../src/flow/workpieceSelection.ts'
 
 function workpiece(id: string, createdAt: string): FlowWorkpieceDto {
@@ -76,6 +78,61 @@ test('debug layout keeps the canvas and workpieces on the left and debugger on t
   assert.equal(layout.panels.debug.visible, true)
   assert.equal(layout.panels.nodes.visible, false)
   assert.equal(layout.panels.output.visible, false)
+})
+
+test('snapshot layout keeps all run-session panels available in the debugger group', () => {
+  const layout = createSnapshotDockableWorkspaceLayout({ width: 1_200, height: 720 })
+  const canvasGroup = layout.groups.find((group) => group.id === 'snapshot-canvas')!
+  const workpiecesGroup = layout.groups.find((group) => group.id === 'snapshot-workpieces')!
+  const sessionGroup = layout.groups.find((group) => group.id === 'snapshot-session')!
+
+  assert.equal(canvasGroup.x, 0)
+  assert.equal(canvasGroup.y, 0)
+  assert.equal(workpiecesGroup.x, 0)
+  assert.equal(workpiecesGroup.y, canvasGroup.height)
+  assert.equal(sessionGroup.dock, 'right')
+  assert.deepEqual(sessionGroup.panelIds, ['debug', 'inspector', 'output'])
+  assert.equal(layout.panels.canvas.visible, true)
+  assert.equal(layout.panels.workpieces.visible, true)
+  assert.equal(layout.panels.debug.visible, true)
+  assert.equal(layout.panels.inspector.visible, true)
+  assert.equal(layout.panels.output.visible, true)
+})
+
+test('resizing a shared free-panel boundary propagates through adjacent rows', () => {
+  const groups = [
+    { id: 'a', x: 0, y: 0, width: 400, height: 300, dock: 'free' as const, panelIds: ['canvas' as const], activePanelId: 'canvas' as const, zIndex: 1, collapsed: false },
+    { id: 'b', x: 400, y: 0, width: 400, height: 300, dock: 'free' as const, panelIds: ['nodes' as const], activePanelId: 'nodes' as const, zIndex: 2, collapsed: false },
+    { id: 'c', x: 0, y: 300, width: 400, height: 300, dock: 'free' as const, panelIds: ['inspector' as const], activePanelId: 'inspector' as const, zIndex: 3, collapsed: false },
+    { id: 'd', x: 400, y: 300, width: 400, height: 300, dock: 'free' as const, panelIds: ['output' as const], activePanelId: 'output' as const, zIndex: 4, collapsed: false },
+  ]
+  const source = groups[0]!
+  const previous = { ...source }
+  source.width = 500
+
+  reflowDockableResize(groups, source.id, previous, source, new Set(groups.map((group) => group.id)), { width: 800, height: 600 })
+
+  assert.equal(groups[1]!.x, 500)
+  assert.equal(groups[1]!.width, 300)
+  assert.equal(groups[2]!.width, 500)
+  assert.equal(groups[3]!.x, 500)
+  assert.equal(groups[3]!.width, 300)
+})
+
+test('resizing an edge-docked panel reflows free peers on the shared boundary', () => {
+  const groups = [
+    { id: 'a', x: 0, y: 0, width: 400, height: 300, dock: 'free' as const, panelIds: ['canvas' as const], activePanelId: 'canvas' as const, zIndex: 1, collapsed: false },
+    { id: 'b', x: 0, y: 300, width: 400, height: 300, dock: 'free' as const, panelIds: ['workpieces' as const], activePanelId: 'workpieces' as const, zIndex: 2, collapsed: false },
+    { id: 'session', x: 400, y: 0, width: 400, height: 600, dock: 'right' as const, panelIds: ['debug' as const], activePanelId: 'debug' as const, zIndex: 3, collapsed: false },
+  ]
+  const source = groups[2]!
+  const previous = { ...source }
+  source.width = 500
+  reflowDockableResize(groups, source.id, previous, source, new Set(groups.map((group) => group.id)), { width: 800, height: 600 })
+
+  assert.equal(groups[0]!.width, 300)
+  assert.equal(groups[1]!.width, 300)
+  assert.equal(groups[2]!.width, 500)
 })
 
 test('invalid persisted layout is rejected', () => {

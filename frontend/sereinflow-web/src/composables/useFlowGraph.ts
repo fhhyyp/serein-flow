@@ -52,6 +52,7 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
       const existingClasses = Array.isArray(node.class) ? node.class : node.class ? [node.class] : []
       return {
         ...node,
+        selected: node.id === currentCanvas.value.selectedNodeId,
         class: focusClass ? [...existingClasses, focusClass].join(' ') : node.class,
       }
     })

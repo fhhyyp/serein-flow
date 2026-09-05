@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Download, FileText, Image as ImageIcon, PackageOpen, RefreshCw } from 'lucide-vue-next'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { Download, FileText, Image as ImageIcon, Maximize2, PackageOpen, RefreshCw, X } from 'lucide-vue-next'
 import { getFlowWorkpieceUrl, listFlowRunWorkpieces, type FlowWorkpieceDto } from '../../api/flowApi'
 import { latestFlowWorkpiece, latestFlowWorkpieceForNode, selectFlowWorkpieceId } from '../../flow/workpieceSelection'
 import { locale, t } from '../../i18n'
@@ -18,11 +18,18 @@ const props = withDefaults(defineProps<{
   embedded: false,
 })
 
+const emit = defineEmits<{
+  'select-node': [nodeId: string]
+}>()
+
 const workpieces = ref<FlowWorkpieceDto[]>([])
 const selectedId = ref('')
 const isLoading = ref(true)
 const isRefreshing = ref(false)
 const errorKey = ref('')
+const imagePreviewWorkpiece = ref<FlowWorkpieceDto>()
+const imagePreviewDialog = ref<HTMLElement>()
+let previousImagePreviewTrigger: HTMLElement | null = null
 let refreshTimer: number | undefined
 let loadRevision = 0
 
@@ -32,6 +39,9 @@ const selectedUrl = computed(() => selectedWorkpiece.value
   : '')
 const selectedDownloadUrl = computed(() => selectedWorkpiece.value
   ? getFlowWorkpieceUrl(props.runId, selectedWorkpiece.value.id, true)
+  : '')
+const imagePreviewUrl = computed(() => imagePreviewWorkpiece.value
+  ? getFlowWorkpieceUrl(props.runId, imagePreviewWorkpiece.value.id)
   : '')
 
 function isImage(workpiece: FlowWorkpieceDto): boolean {
@@ -62,6 +72,34 @@ function formatDate(value: string): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat(locale.value, { dateStyle: 'short', timeStyle: 'short' }).format(date)
+}
+
+function openImagePreview(workpiece: FlowWorkpieceDto | undefined): void {
+  if (!workpiece || !isImage(workpiece)) return
+  previousImagePreviewTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  imagePreviewWorkpiece.value = workpiece
+  void nextTick(() => imagePreviewDialog.value?.focus())
+}
+
+function closeImagePreview(restoreFocus = true): void {
+  const wasOpen = imagePreviewWorkpiece.value !== undefined
+  imagePreviewWorkpiece.value = undefined
+  const trigger = previousImagePreviewTrigger
+  previousImagePreviewTrigger = null
+  if (!restoreFocus || !wasOpen) return
+  void nextTick(() => trigger?.focus())
+}
+
+function handleImagePreviewKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeImagePreview()
+  }
+}
+
+function selectWorkpiece(workpiece: FlowWorkpieceDto): void {
+  selectedId.value = workpiece.id
+  if (workpiece.nodeId) emit('select-node', workpiece.nodeId)
 }
 
 async function refreshWorkpieces(background = false, selectLatest = false): Promise<void> {
@@ -107,6 +145,7 @@ function syncAutoRefresh(): void {
 }
 
 watch(() => props.runId, () => {
+  closeImagePreview()
   selectedId.value = ''
   void refreshWorkpieces()
 })
@@ -118,7 +157,10 @@ onMounted(() => {
   void refreshWorkpieces()
   syncAutoRefresh()
 })
-onBeforeUnmount(stopAutoRefresh)
+onBeforeUnmount(() => {
+  stopAutoRefresh()
+  closeImagePreview(false)
+})
 </script>
 
 <template>
@@ -153,7 +195,7 @@ onBeforeUnmount(stopAutoRefresh)
           type="button"
           role="option"
           :aria-selected="workpiece.id === selectedId"
-          @click="selectedId = workpiece.id"
+          @click="selectWorkpiece(workpiece)"
         >
           <span class="run-workpiece-panel__item-icon"><ImageIcon v-if="isImage(workpiece)" :size="15" /><FileText v-else :size="15" /></span>
           <span class="run-workpiece-panel__item-copy">
@@ -175,7 +217,16 @@ onBeforeUnmount(stopAutoRefresh)
           </a>
         </header>
         <div v-if="isImage(selectedWorkpiece)" class="run-workpiece-panel__image-stage">
-          <img :src="selectedUrl" :alt="selectedWorkpiece.name" />
+          <button
+            class="run-workpiece-panel__image-trigger"
+            type="button"
+            :aria-label="t('workpiece.openImage')"
+            :title="t('workpiece.openImage')"
+            @click="openImagePreview(selectedWorkpiece)"
+          >
+            <img :src="selectedUrl" :alt="selectedWorkpiece.name" />
+            <span class="run-workpiece-panel__image-action" aria-hidden="true"><Maximize2 :size="14" />{{ t('workpiece.openImage') }}</span>
+          </button>
         </div>
         <iframe v-else-if="isInlinePreview(selectedWorkpiece)" class="run-workpiece-panel__iframe" :src="selectedUrl" :title="selectedWorkpiece.name"></iframe>
         <div v-else class="run-workpiece-panel__unavailable">
@@ -186,5 +237,36 @@ onBeforeUnmount(stopAutoRefresh)
         </div>
       </article>
     </div>
+
+    <Teleport to="body">
+      <div
+        v-if="imagePreviewWorkpiece"
+        class="run-workpiece-image-lightbox"
+        @mousedown.self="closeImagePreview"
+      >
+        <section
+          ref="imagePreviewDialog"
+          class="run-workpiece-image-lightbox__dialog"
+          role="dialog"
+          aria-modal="true"
+          :aria-label="imagePreviewWorkpiece.name"
+          tabindex="-1"
+          @keydown.capture="handleImagePreviewKeydown"
+        >
+          <header>
+            <div>
+              <span>{{ t('workpiece.preview') }}</span>
+              <strong :title="imagePreviewWorkpiece.name">{{ imagePreviewWorkpiece.name }}</strong>
+            </div>
+            <button class="icon-button" type="button" :title="t('command.close')" :aria-label="t('command.close')" @click="closeImagePreview">
+              <X :size="17" />
+            </button>
+          </header>
+          <div class="run-workpiece-image-lightbox__body">
+            <img :src="imagePreviewUrl" :alt="imagePreviewWorkpiece.name" />
+          </div>
+        </section>
+      </div>
+    </Teleport>
   </section>
 </template>

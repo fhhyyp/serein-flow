@@ -284,6 +284,7 @@ export interface StartFlowDebugSessionRequestDto {
   maxNodeVisits?: number
   expectedFlowVersion?: number
   maxQueuedFlipflopTriggers?: number
+  definition?: FlowDefinitionDto
 }
 
 export interface FlowDebugSessionDto {

@@ -52,12 +52,18 @@ public sealed class RunApplicationService
         if (definitionOverride is not null && definitionOverride.Id != flowId)
             return RunPreparationResult.FlowNotFound;
 
-        var definition = definitionOverride ?? await _flows.FindAsync(projectId, flowId, cancellationToken);
-        if (definition is null)
+        var persistedDefinition = definitionOverride is null || request.ExpectedFlowVersion is not null
+            ? await _flows.FindAsync(projectId, flowId, cancellationToken)
+            : null;
+        if (definitionOverride is null && persistedDefinition is null)
             return RunPreparationResult.FlowNotFound;
 
-        if (request.ExpectedFlowVersion is not null && request.ExpectedFlowVersion != definition.Version)
-            return RunPreparationResult.VersionConflict(definition.Version);
+        if (request.ExpectedFlowVersion is not null && persistedDefinition is null)
+            return RunPreparationResult.FlowNotFound;
+        if (request.ExpectedFlowVersion is not null && request.ExpectedFlowVersion != persistedDefinition!.Version)
+            return RunPreparationResult.VersionConflict(persistedDefinition!.Version);
+
+        var definition = definitionOverride ?? persistedDefinition!;
 
         var validation = FlowDefinitionContractValidator.ValidateForExecution(definition);
         if (!validation.IsValid)

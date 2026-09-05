@@ -14,6 +14,7 @@ const props = defineProps<{
   items: WorkspacePanelItem[]
   displayMode: DockableWorkspaceMode
   debugModeAvailable: boolean
+  showDisplayModes?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -70,15 +71,17 @@ onBeforeUnmount(() => {
     </button>
     <aside v-if="open" class="workspace-panel-switcher" :aria-label="t('panel.workspacePanels')" @keydown.esc="open = false">
       <div class="workspace-panel-switcher__heading"><span>{{ t('panel.workspacePanels') }}</span><button type="button" :title="t('panel.resetLayout')" :aria-label="t('panel.resetLayout')" @click="emit('reset')"><Settings2 :size="14" /></button></div>
-      <div class="workspace-panel-switcher__mode-label">{{ t('panel.displayMode') }}</div>
-      <div class="workspace-panel-switcher__modes" role="radiogroup" :aria-label="t('panel.displayMode')">
-        <button type="button" role="radio" class="workspace-panel-switcher__mode" :class="{ active: props.displayMode === 'edit' }" :aria-checked="props.displayMode === 'edit'" @click="selectMode('edit')">
-          <LayoutGrid :size="14" /><span>{{ t('panel.editMode') }}</span>
-        </button>
-        <button type="button" role="radio" class="workspace-panel-switcher__mode" :class="{ active: props.displayMode === 'debug' }" :aria-checked="props.displayMode === 'debug'" :disabled="!props.debugModeAvailable" :title="!props.debugModeAvailable ? t('panel.debugModeUnavailable') : undefined" @click="selectMode('debug')">
-          <Bug :size="14" /><span>{{ t('panel.debugMode') }}</span>
-        </button>
-      </div>
+      <template v-if="props.showDisplayModes !== false">
+        <div class="workspace-panel-switcher__mode-label">{{ t('panel.displayMode') }}</div>
+        <div class="workspace-panel-switcher__modes" role="radiogroup" :aria-label="t('panel.displayMode')">
+          <button type="button" role="radio" class="workspace-panel-switcher__mode" :class="{ active: props.displayMode === 'edit' }" :aria-checked="props.displayMode === 'edit'" @click="selectMode('edit')">
+            <LayoutGrid :size="14" /><span>{{ t('panel.editMode') }}</span>
+          </button>
+          <button type="button" role="radio" class="workspace-panel-switcher__mode" :class="{ active: props.displayMode === 'debug' }" :aria-checked="props.displayMode === 'debug'" :disabled="!props.debugModeAvailable" :title="!props.debugModeAvailable ? t('panel.debugModeUnavailable') : undefined" @click="selectMode('debug')">
+            <Bug :size="14" /><span>{{ t('panel.debugMode') }}</span>
+          </button>
+        </div>
+      </template>
       <button v-for="item in props.items" :key="item.id" type="button" class="workspace-panel-switcher__item" :class="{ active: item.visible, required: item.required }" :disabled="!item.available || item.required" :aria-pressed="item.visible" @click="emit('toggle', item.id)">
         <component :is="item.icon" :size="14" />
         <span>{{ item.label }}</span>

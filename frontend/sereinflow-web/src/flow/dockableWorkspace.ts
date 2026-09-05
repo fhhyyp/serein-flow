@@ -151,6 +151,47 @@ export function createDebugDockableWorkspaceLayout(size: WorkspaceSize = { width
   return layout
 }
 
+export function createSnapshotDockableWorkspaceLayout(size: WorkspaceSize = { width: 1_920, height: 980 }): DockableWorkspaceLayout {
+  const width = Math.max(240, size.width)
+  const height = Math.max(480, size.height)
+  const groups = width < 900
+    ? (() => {
+      const canvasHeight = Math.max(200, Math.round(height * .44))
+      const workpiecesHeight = Math.max(150, Math.round(height * .24))
+      return [
+        group('snapshot-canvas', ['canvas'], { x: 0, y: 0, width, height: canvasHeight, dock: 'free' }, 10),
+        group('snapshot-workpieces', ['workpieces'], { x: 0, y: canvasHeight, width, height: workpiecesHeight, dock: 'free' }, 11),
+        group('snapshot-session', ['debug', 'inspector', 'output'], { x: 0, y: canvasHeight + workpiecesHeight, width, height: Math.max(160, height - canvasHeight - workpiecesHeight), dock: 'free' }, 12),
+      ]
+    })()
+    : (() => {
+      const leftWidth = Math.max(360, Math.round(width * .52))
+      const canvasHeight = Math.max(240, Math.round(height * .62))
+      const workpiecesHeight = Math.max(160, height - canvasHeight)
+      const sessionWidth = Math.max(320, width - leftWidth)
+      return [
+        group('snapshot-canvas', ['canvas'], { x: 0, y: 0, width: leftWidth, height: canvasHeight, dock: 'free' }, 10),
+        group('snapshot-workpieces', ['workpieces'], { x: 0, y: canvasHeight, width: leftWidth, height: workpiecesHeight, dock: 'free' }, 11),
+        group('snapshot-session', ['debug', 'inspector', 'output'], { x: leftWidth, y: 0, width: sessionWidth, height, dock: 'right' }, 12),
+      ]
+    })()
+
+  return {
+    formatVersion: 1,
+    groups,
+    panels: {
+      canvas: { visible: true, groupId: 'snapshot-canvas' },
+      nodes: { visible: false, groupId: 'nodes' },
+      inspector: { visible: true, groupId: 'snapshot-session' },
+      output: { visible: true, groupId: 'snapshot-session' },
+      diagnostics: { visible: false, groupId: 'diagnostics' },
+      debug: { visible: true, groupId: 'snapshot-session' },
+      workpieces: { visible: true, groupId: 'snapshot-workpieces' },
+    },
+    nextGroupNumber: 1,
+  }
+}
+
 function isPanelId(value: unknown): value is WorkspacePanelId {
   return typeof value === 'string' && workspacePanelIds.includes(value as WorkspacePanelId)
 }

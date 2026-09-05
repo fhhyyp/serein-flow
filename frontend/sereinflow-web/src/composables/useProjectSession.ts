@@ -202,12 +202,12 @@ export function useProjectSession(options: UseProjectSessionOptions) {
     const workspace = { ...flowDefinitionToWorkspace(definition), projectName: options.projectName.value }
     options.restoreWorkspace(workspace)
     options.clearHistory()
-    options.savedWorkspaceFingerprint.value = JSON.stringify(workspace)
+    options.localizeEdges()
+    options.savedWorkspaceFingerprint.value = JSON.stringify(options.currentWorkspaceSnapshot())
     options.isDirty.value = false
     options.saveFailed.value = false
     options.saveConflict.value = false
     clearSaveDiagnostics()
-    options.localizeEdges()
   }
 
   async function openProject(workspace: ProjectWorkspaceDto, requestedFlowId?: string): Promise<void> {

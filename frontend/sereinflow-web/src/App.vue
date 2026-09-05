@@ -61,6 +61,7 @@ import { useFlowGraph } from './composables/useFlowGraph'
 import { useNodeDrop } from './composables/useNodeDrop'
 import { useWorkspaceShortcuts } from './composables/useWorkspaceShortcuts'
 import { useDockableWorkspace } from './composables/useDockableWorkspace'
+import { workspaceToFlowDefinition } from './flow/flowDtoMapper'
 import type {
   DockablePanelGroupState,
   DockableWorkspaceMode,
@@ -357,12 +358,14 @@ function focusDebugCanvasNode(nodeId: string): void {
 }
 
 function focusDebugWorkpieceNode(nodeId: string): void {
+  if (!debugSession.value) return
   selectedDebugNodeId.value = nodeId
+  showDockablePanel('debug')
   focusDebugCanvasNode(nodeId)
 }
 
 function handleDebugPause(nodeId: string): void {
-  selectedDebugNodeId.value = undefined
+  selectedDebugNodeId.value = nodeId
   focusDebugCanvasNode(nodeId)
   workpieceRefreshRevision.value += 1
 }
@@ -390,7 +393,13 @@ const {
   projectId,
   flowId,
   flowVersion,
-  isDirty,
+  getCurrentDefinition: () => {
+    if (!flowId.value) return undefined
+    return workspaceToFlowDefinition(currentWorkspaceSnapshot(), {
+      id: flowId.value,
+      version: flowVersion.value,
+    })
+  },
   isWorkspaceLoading,
   isNormalRunActive: isRunning,
   notice,
@@ -810,6 +819,15 @@ watch([isDebugActive, () => workspaceView.value, () => debugSession.value?.id], 
 watch(() => debugSession.value?.id, (sessionId, previousSessionId) => {
   if (sessionId !== previousSessionId)
     selectedDebugNodeId.value = undefined
+})
+
+// The canvas is the only source that can change its selection without going
+// through the debug panels. Propagating this one-way into the debug selection
+// state keeps the canvas, execution list, and workpieces synchronized without
+// bouncing selection events back and forth between panels.
+watch(() => selectedNode.value?.id, (nodeId) => {
+  if (!debugSession.value || !nodeId || selectedDebugNodeId.value === nodeId) return
+  selectedDebugNodeId.value = nodeId
 })
 
 watch(() => debugSession.value?.status, (status, previousStatus) => {
@@ -1464,6 +1482,7 @@ function setLanguage(nextLocale: Locale): void {
               :boundary="pauseBoundary"
               :executions="debugExecutionStates"
               :node-names="debugNodeNames"
+              :selected-node-id="selectedDebugNodeId"
               :is-controlling="isDebugControlling"
               :is-stopping="isDebugStopping"
               :embedded="true"
@@ -1481,6 +1500,7 @@ function setLanguage(nextLocale: Locale): void {
               :refresh-signal="workpieceRefreshRevision"
               :live="isRunning || isDebugActive"
               :embedded="true"
+              @select-node="focusDebugWorkpieceNode"
             />
           </template>
         </DockablePanelGroup>

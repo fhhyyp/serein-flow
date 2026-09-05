@@ -34,6 +34,31 @@ public sealed class RunApplicationServiceTests
         Assert.Equal("breakpointNodeIds.missing-node", diagnostic.Path);
     }
 
+    [Fact]
+    public async Task LocalDebugDefinitionStillChecksThePersistedFlowVersion()
+    {
+        var project = Project.Create("Debug version check", id: Guid.NewGuid());
+        var definition = CreateDefinition();
+        var service = new RunApplicationService(
+            new SingleProjectRepository(project),
+            new SingleFlowDefinitionRepository(project.Id, definition),
+            null!,
+            new ProjectLibraryService(null!, null!, null!, null!));
+
+        var localDefinition = definition with { EntryNodeId = "local-entry-node" };
+        var result = await service.PrepareAsync(
+            project.Id,
+            definition.Id,
+            new RunFlowRequestDto(2, null, null, null, null),
+            FlowRunExecutionKind.Debug,
+            Guid.NewGuid(),
+            definitionOverride: localDefinition);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(409, result.StatusCode);
+        Assert.Equal(definition.Version, result.CurrentVersion);
+    }
+
     private static FlowDefinitionDto CreateDefinition()
     {
         var node = new NodeDto(

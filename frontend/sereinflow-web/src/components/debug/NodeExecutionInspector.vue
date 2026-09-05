@@ -8,6 +8,7 @@ import StructuredValueTree from './StructuredValueTree.vue'
 const props = withDefaults(defineProps<{
   executions: readonly NodeExecutionState[]
   nodeNames?: Record<string, string>
+  selectedNodeId?: string
   compact?: boolean
 }>(), {
   nodeNames: () => ({}),
@@ -20,10 +21,28 @@ const emit = defineEmits<{
 
 const selectedExecutionId = ref('')
 const timeline = computed(() => sortNodeExecutionStates(props.executions))
-const selectedExecution = computed(() => timeline.value.find((state) => state.id === selectedExecutionId.value) ?? timeline.value[0])
+const selectedExecution = computed(() => {
+  if (props.selectedNodeId) {
+    const selectedState = timeline.value.find((state) => state.id === selectedExecutionId.value)
+    if (selectedState?.nodeId === props.selectedNodeId) return selectedState
+    return [...timeline.value].reverse().find((state) => state.nodeId === props.selectedNodeId)
+  }
 
-watch(timeline, (states) => {
-  if (!states.some((state) => state.id === selectedExecutionId.value)) {
+  return timeline.value.find((state) => state.id === selectedExecutionId.value) ?? timeline.value[0]
+})
+
+watch([timeline, () => props.selectedNodeId], ([states, selectedNodeId]) => {
+  const selectedState = states.find((state) => state.id === selectedExecutionId.value)
+  if (selectedNodeId && selectedState?.nodeId === selectedNodeId) return
+
+  const selectedNodeExecution = selectedNodeId
+    ? [...states].reverse().find((state) => state.nodeId === selectedNodeId)
+    : undefined
+  if (selectedNodeExecution) {
+    selectedExecutionId.value = selectedNodeExecution.id
+  } else if (selectedNodeId) {
+    selectedExecutionId.value = ''
+  } else if (!states.some((state) => state.id === selectedExecutionId.value)) {
     selectedExecutionId.value = states[0]?.id ?? ''
   }
 }, { immediate: true })

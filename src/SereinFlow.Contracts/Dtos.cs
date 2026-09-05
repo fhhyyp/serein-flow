@@ -675,7 +675,8 @@ public sealed record StartFlowDebugSessionRequestDto(
     int? MaxSteps = null,
     int? MaxNodeVisits = null,
     long? ExpectedFlowVersion = null,
-    int? MaxQueuedFlipflopTriggers = null);
+    int? MaxQueuedFlipflopTriggers = null,
+    FlowDefinitionDto? Definition = null);
 
 public sealed record FlowDebugSessionDto(
     Guid Id,

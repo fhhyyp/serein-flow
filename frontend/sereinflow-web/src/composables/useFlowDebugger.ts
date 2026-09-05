@@ -8,6 +8,7 @@ import {
   stopFlowDebugSession,
   subscribeFlowRunEvents,
   type FlowDebugSessionDto,
+  type FlowDefinitionDto,
   type FlowRunEventDto,
 } from '../api/flowApi'
 import { t, locale } from '../i18n'
@@ -38,7 +39,7 @@ interface UseFlowDebuggerOptions {
   projectId: Ref<string | undefined>
   flowId: Ref<string | undefined>
   flowVersion: Ref<number>
-  isDirty: Ref<boolean>
+  getCurrentDefinition: () => FlowDefinitionDto | undefined
   isWorkspaceLoading: Ref<boolean>
   isNormalRunActive: Ref<boolean>
   notice: Ref<string>
@@ -81,7 +82,6 @@ export function useFlowDebugger(options: UseFlowDebuggerOptions) {
     options.projectId.value
     && options.flowId.value
     && currentNodeIds.value.size > 0
-    && !options.isDirty.value
     && !options.isWorkspaceLoading.value
     && !options.isNormalRunActive.value
     && !isDebugActive.value
@@ -317,7 +317,7 @@ export function useFlowDebugger(options: UseFlowDebuggerOptions) {
 
   async function startDebug(): Promise<void> {
     if (!canStartDebug.value) {
-      options.notice.value = options.isDirty.value ? t('debug.saveBeforeStart') : t('debug.cannotStart')
+      options.notice.value = t('debug.cannotStart')
       return
     }
     const projectId = options.projectId.value
@@ -332,6 +332,7 @@ export function useFlowDebugger(options: UseFlowDebuggerOptions) {
       const session = await startFlowDebugSession(projectId, flowId, {
         breakpointNodeIds: breakpointNodeIds.value,
         expectedFlowVersion: options.flowVersion.value,
+        definition: options.getCurrentDefinition(),
       })
       debugSession.value = session
       saveStoredDebugSessionId(projectId, flowId, session.id)

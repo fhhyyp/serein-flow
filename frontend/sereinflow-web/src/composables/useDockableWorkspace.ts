@@ -10,6 +10,7 @@ import {
   type WorkspacePanelId,
   type WorkspaceSize,
 } from '../flow/dockableWorkspace'
+import { reflowDockableResize } from '../flow/dockableResize'
 
 const storageKey = 'sereinflow.canvas-dock-layout.v3'
 const legacyStorageKey = 'sereinflow.canvas-dock-layout.v2'
@@ -133,7 +134,18 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
   function updateGroup(groupId: string, patch: Partial<DockablePanelGroupState>): void {
     const group = layout.groups.find((item) => item.id === groupId)
     if (!group) return
+    const previous = {
+      x: group.x,
+      y: group.y,
+      width: group.width,
+      height: group.height,
+      dock: group.dock,
+    }
     Object.assign(group, patch)
+    const visibleGroupIds = new Set(layout.groups
+      .filter((candidate) => candidate.panelIds.some((panelId) => layout.panels[panelId].visible))
+      .map((candidate) => candidate.id))
+    reflowDockableResize(layout.groups, groupId, previous, group, visibleGroupIds, workspaceSize)
     scheduleSave()
   }
 
