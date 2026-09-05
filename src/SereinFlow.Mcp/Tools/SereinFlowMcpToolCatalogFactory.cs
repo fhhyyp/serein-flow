@@ -116,7 +116,7 @@ internal static class SereinFlowMcpToolCatalogFactory
                 ["projectId"] = StringSchema(), ["libraryId"] = StringSchema(),
                 ["libraryNodeContractId"] = StringSchema(), ["position"] = PositionSchema()
             }, required: ["projectId", "libraryId", "libraryNodeContractId", "position"])),
-        Tool("sereinflow_preview_flow_patch", "Validate a structured development-flow patch and return its diff. New requests use schemaVersion 2.0, canonical camelCase enums, an op discriminator, and named payload fields. For connection payloads, kind=execution uses branch=success/failure/error and dataSource=null; kind=data uses branch=null and dataSource=previousNode. The dataSource field is required but nullable in schema 2.0. Legacy operation/value input remains read-compatible.", Schema(
+        Tool("sereinflow_preview_flow_patch", "Validate a structured development-flow patch and return its diff. New requests use schemaVersion 2.0, canonical camelCase enums, an op discriminator, and named payload fields. For connection payloads, kind=execution uses branch=success/failure/error and dataSource=null; kind=data uses branch=null and dataSource=previousNode. The dataSource field is required but nullable in schema 2.0. Removing the current entry node automatically clears entryNodeId when that node is absent from the final canvas, so removing the last node produces a savable empty draft. Legacy operation/value input remains read-compatible.", Schema(
             properties: new Dictionary<string, object?>
             {
                 ["projectId"] = StringSchema(), ["flowId"] = StringSchema(), ["expectedDevelopmentVersion"] = NumberSchema(),

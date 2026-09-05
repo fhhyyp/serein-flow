@@ -220,6 +220,86 @@ public sealed class FlowPatchServiceTests
     }
 
     [Fact]
+    public void RemovingTheEntryNodeClearsTheEntryForAnEmptyDraft()
+    {
+        var result = new FlowPatchService().Apply(
+            CreateDefinition(),
+            [new FlowPatchOperationDto(
+                FlowPatchOperationKindDto.RemoveNode,
+                CanvasId: "main",
+                NodeId: "node-a")]);
+
+        Assert.Empty(result.EntryNodeId);
+        Assert.Empty(Assert.Single(result.Canvases).Nodes);
+    }
+
+    [Fact]
+    public void RemovingTheEntryNodeClearsTheEntryWhenOtherNodesRemain()
+    {
+        var definition = CreateDefinition() with
+        {
+            Canvases =
+            [
+                new CanvasDto(
+                    "main",
+                    CanvasLifecycleDto.Main,
+                    [CreateNode("node-a"), CreateNode("node-b")],
+                    [],
+                    "Main")
+            ]
+        };
+
+        var result = new FlowPatchService().Apply(
+            definition,
+            [new FlowPatchOperationDto(
+                FlowPatchOperationKindDto.RemoveNode,
+                CanvasId: "main",
+                NodeId: "node-a")]);
+
+        Assert.Empty(result.EntryNodeId);
+        Assert.Equal("node-b", Assert.Single(Assert.Single(result.Canvases).Nodes).Id);
+    }
+
+    [Fact]
+    public void RemovingAllNodesAfterTheirConnectionsClearsTheEntry()
+    {
+        var definition = CreateDefinition() with
+        {
+            Canvases =
+            [
+                new CanvasDto(
+                    "main",
+                    CanvasLifecycleDto.Main,
+                    [CreateNode("node-a"), CreateNode("node-b")],
+                    [new ConnectionDto("edge", "node-a", "out", "node-b", "in", ConnectionKindDto.Execution, null, null, 0)],
+                    "Main")
+            ]
+        };
+
+        var result = new FlowPatchService().Apply(
+            definition,
+            [
+                new FlowPatchOperationDto(
+                    FlowPatchOperationKindDto.RemoveConnection,
+                    CanvasId: "main",
+                    ConnectionId: "edge"),
+                new FlowPatchOperationDto(
+                    FlowPatchOperationKindDto.RemoveNode,
+                    CanvasId: "main",
+                    NodeId: "node-a"),
+                new FlowPatchOperationDto(
+                    FlowPatchOperationKindDto.RemoveNode,
+                    CanvasId: "main",
+                    NodeId: "node-b")
+            ]);
+
+        Assert.Empty(result.EntryNodeId);
+        var canvas = Assert.Single(result.Canvases);
+        Assert.Empty(canvas.Nodes);
+        Assert.Empty(canvas.Connections);
+    }
+
+    [Fact]
     public void NestedDtoEnumsAcceptCanonicalCamelCaseStrings()
     {
         using var document = JsonDocument.Parse("{\"concurrencyMode\":\"exclusiveReject\"}");

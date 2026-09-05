@@ -184,10 +184,11 @@ dotnet publish tests\SereinFlow.TestLibrary\SereinFlow.TestLibrary.csproj -c Rel
 
 ## Documentation
 
-- [Documentation index](docs/README.md)
-- [MCP service reference](docs/mcp-readonly-server.md)
-- [Worker protocol v1](docs/worker-protocol-v1.md)
-- [中文文档索引 | Chinese documentation index](docs/README.zh-CN.md)
+- [Documentation index](docs/en/README.md)
+- [MCP service reference](docs/en/mcp-readonly-server.md)
+- [Worker protocol v2](docs/en/worker-protocol-v2.md)
+- [Worker protocol v1 (historical)](docs/en/worker-protocol-v1.md)
+- [中文文档索引 | Chinese documentation index](docs/zh-CN/README.md)
 
 ## Security Notes
 

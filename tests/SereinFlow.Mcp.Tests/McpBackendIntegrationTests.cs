@@ -485,6 +485,68 @@ public sealed class McpBackendIntegrationTests
     }
 
     [Fact]
+    public async Task FlowPatchCanRemoveTheEntryNodeAndPersistAnEmptyDraftThroughMcp()
+    {
+        using var host = CreateHost();
+        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
+        accessor.Current = new McpPrincipal(
+            "empty-draft-admin",
+            null,
+            Enum.GetValues<McpPermissionDto>().ToHashSet(),
+            IsAdministrator: true);
+
+        using var dataScope = host.Services.CreateScope();
+        var project = Project.Create("MCP empty draft project");
+        await dataScope.ServiceProvider.GetRequiredService<IProjectRepository>().AddAsync(project);
+        var flow = CreateFlow();
+        await dataScope.ServiceProvider.GetRequiredService<IFlowDefinitionRepository>().AddAsync(project.Id, flow);
+        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
+
+        var preview = await backend.CallToolAsync(
+            "sereinflow_preview_flow_patch",
+            JsonSerializer.SerializeToElement(new
+            {
+                projectId = project.Id,
+                flowId = flow.Id,
+                expectedDevelopmentVersion = flow.Version,
+                schemaVersion = "2.0",
+                operations = new[]
+                {
+                    new
+                    {
+                        op = "removeNode",
+                        canvasId = "main",
+                        nodeId = "script-node",
+                    },
+                },
+            }),
+            CancellationToken.None);
+        using var previewDocument = JsonDocument.Parse(JsonSerializer.Serialize(preview.Value, JsonOptions));
+        var previewRoot = previewDocument.RootElement;
+
+        Assert.True(previewRoot.GetProperty("canApply").GetBoolean());
+        Assert.Equal("", previewRoot.GetProperty("candidateDefinition").GetProperty("entryNodeId").GetString());
+        Assert.Empty(previewRoot.GetProperty("candidateDefinition").GetProperty("canvases")[0].GetProperty("nodes").EnumerateArray());
+
+        await backend.CallToolAsync(
+            "sereinflow_apply_flow_patch",
+            JsonSerializer.SerializeToElement(new
+            {
+                previewId = previewRoot.GetProperty("previewId").GetGuid(),
+                previewFingerprint = previewRoot.GetProperty("previewFingerprint").GetString(),
+                confirmation = "APPLY",
+                idempotencyKey = "empty-draft-remove-entry-once",
+            }),
+            CancellationToken.None);
+
+        var saved = await dataScope.ServiceProvider.GetRequiredService<IFlowDefinitionRepository>()
+            .FindAsync(project.Id, flow.Id);
+        Assert.NotNull(saved);
+        Assert.Empty(saved!.EntryNodeId);
+        Assert.Empty(Assert.Single(saved.Canvases).Nodes);
+    }
+
+    [Fact]
     public async Task FlowPatchV2NormalizesLegacySnakeCaseAndNumericEnums()
     {
         using var host = CreateHost();

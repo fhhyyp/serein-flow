@@ -72,4 +72,4 @@ sequenceDiagram
 | `message.expired` | 消息已超过 TTL |
 | `message.delivery_timeout` | Worker 未在投递超时内应答 |
 
-消息服务的 SDK、入口声明和 HTTP API 见 [Worker 消息服务](worker-message-service.zh-CN.md)。
+消息服务的 SDK、入口声明和 HTTP API 见 [Worker 消息服务](worker-message-service.md)。

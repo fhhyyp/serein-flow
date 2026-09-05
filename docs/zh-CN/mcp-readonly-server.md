@@ -6,7 +6,7 @@ MCP 由 `SereinFlow.Api` 唯一宿主承载。Web 模式在同一 API 进程挂�
 `/mcp`，与普通 Web API、Application 服务、数据库、类库目录和执行服务共用
 同一个 DI 容器；本地自动化可以显式使用 `SereinFlow.Api --mcp-stdio`。
 
-MCP Backend 只通过 Application 服务和受控 DI Scope 访问业务数据，不通过本机
+MCP 后端只通过 Application 服务和受控 DI Scope 访问业务数据，不通过本机
 REST 回调 API，也不直接访问 SQLite、SqlSugar Repository 或 Worker 句柄。流程
 修改、发布、回滚、SereinLang 编译和类库导入继续经过权限检查、预览确认、幂等
 控制和审计。
@@ -29,7 +29,7 @@ Authorization: Bearer <api-key>
 ```
 
 首次请求 `initialize` 会建立 `Mcp-Session-Id`，后续请求必须回传同一会话 ID。
-HTTP transport 继续执行请求体大小、响应大小、并发、每主体速率和工具超时限制。
+HTTP 传输继续执行请求体大小、响应大小、并发、每主体速率和工具超时限制。
 未认证、无效会话、超限、超时和内部异常均返回稳定的 `mcp.*` 诊断；loopback
 地址不提供免认证管理员绕过。
 
@@ -72,18 +72,18 @@ SereinFlow AI Toolkit 将 `SEREINFLOW_MCP_API_KEY` 作为 HTTP Bearer token 的
 
 修改用户环境变量后，必须重启正在运行的 `SereinFlow.Api` 和 Codex，令两个进程读取
 新的环境。若返回 HTTP `401`，表示地址和 MCP 路由可达，但 Bearer key 缺失、无效、
-过期或已撤销；这不是端口或 Resource 清单错误。
+过期或已撤销；这不是端口或资源清单错误。
 
 ### 本地 stdio
 
-stdio 是 API executable 的显式入口：
+stdio 是 API 可执行文件的显式入口：
 
 ```text
 dotnet run --project src/SereinFlow.Api/SereinFlow.Api.csproj -- --mcp-stdio
 ```
 
 stdio 模式只注册 MCP、Application、Storage 和 stdio 所需服务，不启动 HTTP
-listener、SignalR 或 API-only hosted services。必须显式设置
+监听器、SignalR 或仅限 API 的托管服务。必须显式设置
 `SereinFlow:Mcp:Stdio:ApiKey`（环境变量形式为
 `SereinFlow__Mcp__Stdio__ApiKey`）；缺少、无效、过期或撤销的 key 会使进程以
 非零状态退出。stdout 只输出 JSON-RPC，启动错误、日志和内部诊断写入 stderr。
@@ -113,41 +113,32 @@ listener、SignalR 或 API-only hosted services。必须显式设置
 没有显式 `DataRoot` 时检测到这些键会直接失败，并给出安全迁移诊断，不会静默
 切换数据库。
 
-## Resources
+## 资源
 
-The server exposes a compact routing index at `sereinflow://ai/guide` and
-three capability-specific AI Resources:
+服务器在 `sereinflow://ai/guide` 提供简短的路由索引，并提供三个能力索引资源：
 
 ```text
 sereinflow://ai/guide
 sereinflow://ai/skills/sereinflow
-sereinflow://ai/skills/sereinflow/workpieces
 sereinflow://ai/skills/sereinlang
 sereinflow://ai/skills/sereinflow-library-package
 ```
 
-The index is intentionally short. A client should read only the capability
-Resource matching the current request, so a syntax check does not load flow,
-release and C# packaging rules. The former local Skills are represented by
-separate server Resources; each capability also exposes smaller task modules,
-including the run workpiece module for image preview and file download rules,
-and none of them are copied into the client plugin.
+路由索引刻意保持简短。客户端只应读取与当前请求匹配的能力资源，因此语法检查不必
+加载流程、发布和 C# 打包规则。原先的本地 Skill 已由服务器资源替代；每个能力还提供
+更小的任务模块，包括用于图像预览和文件下载的运行工件模块，客户端不会复制这些内容。
 
-Each Resource is loaded from the server deployment at every read, so an
-operator can update one Markdown file without rebuilding or reinstalling the
-client plugin. The backing files are selected only by server configuration and
-are constrained to remain under the server ContentRoot. The MCP caller
-supplies only fixed Resource URIs and cannot select an arbitrary local file.
-The default index files are `mcp/sereinflow-ai-guide.md`,
-`mcp/sereinflow-skill.md`, `mcp/sereinlang-skill.md`, and
-`mcp/sereinflow-library-package-skill.md`. Focused module files use the
-`mcp/*-skill.md` defaults listed by `sereinflow://ai/guide`. Deployments can
-override the four index paths with `SereinFlow:Mcp:AiGuidance:FilePath`,
-`SereinFlow:Mcp:AiGuidance:SereinFlowFilePath`,
-`SereinFlow:Mcp:AiGuidance:SereinLangFilePath`, and
-`SereinFlow:Mcp:AiGuidance:LibraryPackageFilePath`. Focused module paths can
-be overridden under `SereinFlow:Mcp:AiGuidance:Modules:<resource-key>`; each
-file uses the shared `SereinFlow:Mcp:AiGuidance:MaxBytes` limit.
+每次读取资源时，服务器都会从部署目录加载对应文件，因此运维人员更新单个 Markdown
+文件后，无需重建或重新安装客户端插件。文件路径只由服务器配置选择，并限制在服务器
+ContentRoot 下。MCP 调用方只能请求固定的资源 URI，不能选择任意本地文件。默认索引文件
+为 `mcp/sereinflow-ai-guide.md`、`mcp/sereinflow-skill.md`、
+`mcp/sereinlang-skill.md` 和 `mcp/sereinflow-library-package-skill.md`。任务模块文件
+使用 `sereinflow://ai/guide` 中列出的 `mcp/*-skill.md` 默认路径。部署时可以通过
+`SereinFlow:Mcp:AiGuidance:FilePath`、`SereinFlow:Mcp:AiGuidance:SereinFlowFilePath`、
+`SereinFlow:Mcp:AiGuidance:SereinLangFilePath` 和
+`SereinFlow:Mcp:AiGuidance:LibraryPackageFilePath` 覆盖四个索引路径；任务模块路径
+可以在 `SereinFlow:Mcp:AiGuidance:Modules:<resource-key>` 下覆盖。每个文件都受共享的
+`SereinFlow:Mcp:AiGuidance:MaxBytes` 大小限制。
 
 ```text
 sereinflow://projects
@@ -166,18 +157,14 @@ sereinflow://debug-sessions/{sessionId}
 sereinflow://mcp-previews/{previewId}
 ```
 
-The default project and library collection Resources are the active working
-set: `sereinflow://projects` excludes archived projects and
-`sereinflow://libraries` contains only available library artifacts. Their
-archived counterparts return only archived records, so the default and
-archived collections are mutually exclusive. Direct project and library
-Resources remain readable by ID for audit and existing-reference inspection.
+默认的项目和类库集合资源表示当前工作集：`sereinflow://projects` 不包含已归档项目，
+`sereinflow://libraries` 只包含可用的类库制品。对应的归档集合只返回已归档记录，因此
+默认集合与归档集合互斥。项目和类库的按 ID 资源仍可读取，用于审计和检查现有引用。
 
-## Prompts
+## 提示词
 
-MCP clients that support the standard Prompt capability can discover these
-workflow entry points through `prompts/list` and request a prepared instruction
-through `prompts/get`:
+支持标准 Prompt 能力的 MCP 客户端可以通过 `prompts/list` 发现以下工作流入口，并通过
+`prompts/get` 请求准备好的指令：
 
 ```text
 sereinflow.inspect
@@ -189,24 +176,18 @@ sereinflow.upgrade-library
 sereinlang.compile
 ```
 
-Each Prompt returns a bounded workflow message and injects only its selected
-capability Resource. `sereinflow.inspect` accepts an optional `request`
-argument; the other Prompts require a non-empty `request` argument. Prompt
-messages guide the client toward the corresponding read-only inspection,
-preview, explicit confirmation, apply, and verification steps; a Prompt does
-not authorize a mutation by itself.
+每个提示词返回有界的工作流消息，只注入所选的能力资源。`sereinflow.inspect` 的
+`request` 参数可选；其他提示词都要求 `request` 非空。提示词消息会引导客户端完成
+相应的只读检查、预览、显式确认、应用和验证步骤；提示词本身不会授权任何变更。
 
-Clients that do not automatically read MCP resources or invoke Prompts still
-receive only the compact routing and safety rules through
-`initialize.instructions` and the individual tool descriptions. The detailed
-capability text is never appended to initialization, which keeps unrelated
-rules out of the initial context. The Resources and Prompt catalog do not
-contain API keys, server absolute paths, client-local build paths, database
-names, or server-local library directories.
+即使客户端不会自动读取 MCP 资源或调用提示词，也只能通过 `initialize.instructions`
+和单个工具描述获得简短的路由及安全规则。详细能力文本不会追加到初始化消息中，
+以避免无关规则进入初始上下文。资源和提示词目录不包含 API key、服务器绝对路径、
+客户端本地构建路径、数据库名称或服务器本地类库目录。
 
-## Tools
+## 工具
 
-工具清单由 `tools/list` 返回，包含项目、流程、运行、调试、类库和 API key
+工具清单由 `tools/list` 返回，包含项目、流程、运行、调试、类库和 API 密钥
 管理能力。调试闭环使用 `sereinflow_list_runs` 或
 `sereinflow_list_debug_sessions` 发现目标，使用
 `sereinflow_start_debug_session` 启动，再通过
@@ -221,7 +202,7 @@ names, or server-local library directories.
 `pending`、`running`、`succeeded`、`failed`、`cancelled`、`timedOut` 或
 `interrupted`。
 
-活动运行消息发布使用独立的 mutation 工具
+活动运行消息发布使用独立的变更工具
 `sereinflow_publish_run_message`，不属于 `debug.control`。工具需要
 `run.message.publish` 权限和必填的 `idempotencyKey`，输入的 `payload` 是任意
 JSON 值（包括数组、字符串、数值、布尔值和 `null`），`channelKind` 使用稳定的
@@ -250,11 +231,11 @@ JSON 值（包括数组、字符串、数值、布尔值和 `null`），`channel
 `message.contract_mismatch`、`message.channel_full` 和
 `message.delivery_timeout`。
 
-MCP API key 管理工具仅限管理员使用。使用
+MCP API 密钥管理工具仅限管理员使用。使用
 `sereinflow_list_mcp_api_keys` 读取当前状态后，再按明确请求调用创建、轮换或
-撤销工具；变更操作需要 `idempotencyKey`。项目级 key 必须绑定未归档项目，管理
-员 key 不能绑定项目。创建或轮换返回的 secret 只显示一次，不得写入日志、仓库、
-Prompt 或无关工具参数；发生不明确响应时先重新读取 key 列表，不要盲目重试。
+撤销工具；变更操作需要 `idempotencyKey`。项目级密钥必须绑定未归档项目，管理员
+密钥不能绑定项目。创建或轮换返回的 secret 只显示一次，不得写入日志、仓库、
+提示词或无关工具参数；发生不明确响应时先重新读取密钥列表，不要盲目重试。
 
 创建 key 时 `permissions` 必须使用稳定的点号名称：`project.read`、
 `project.write`、`library.read`、`run.read`、`debug.read`、`flow.write`、
@@ -264,33 +245,37 @@ Prompt 或无关工具参数；发生不明确响应时先重新读取 key 列�
 `isAdministrator: true`；管理员 key 设置 `isAdministrator: true` 且不得提供
 `projectId`。
 
-流程修改使用 `sereinflow_preview_flow_patch` 后再由显式确认的
-apply Tool 执行；v2 请求使用 `schemaVersion: "2.0"`、`op` discriminator、
-具名 payload 和 canonical camelCase 枚举。兼容期仍接受流程公共合同的 legacy
-v1 输入，但响应始终返回 v2 `normalizedOperations` 与
+流程修改使用 `sereinflow_preview_flow_patch` 预览，再由显式确认的对应应用工具执行；
+v2 请求使用 `schemaVersion: "2.0"`、`op` 判别字段、具名 payload 和规范的 camelCase
+枚举值。兼容期仍接受流程公共合同的旧版 v1 输入，但响应始终返回 v2 的
+`normalizedOperations` 与
 `normalizationWarnings`。
 
-`addConnection` 和 `replaceConnection` 的 v2 connection payload 必须同时
+`addConnection` 和 `replaceConnection` 的 v2 连接载荷必须同时
 提供 `branch` 与 `dataSource`，两者都可以为 `null`。`kind` 与
 `dataSource` 是两个独立枚举：执行连线使用
 `kind: "execution"`、`branch: "success"|"failure"|"error"`、
 `dataSource: null`；数据连线使用 `kind: "data"`、`branch: null`、
 `dataSource: "previousNode"`。`dataSource` 不能填写 `"execution"`；
-`toPortId` 对数据连线必须是目标参数 ID，而不是 `param-*` UI 端口 ID。
+`toPortId` 对数据连线必须是目标参数 ID，而不是 `param-*` 用户界面端口 ID。
 
 类库节点必须先调用只读的
-`sereinflow_create_library_node_template`。它只接受已扫描并已附加项目的真实
-Action/Flipflop 合同，返回完整 canonical `NodeDto`、runtime library metadata、
-参数端口、默认 literal、枚举/variadic 元数据、包 SHA-256 和
-`contractRevision`。将返回的 node 原样放进 v2 `addNode`；类库 attach/detach
-仍是独立的 preview/apply 操作，不属于 flow patch。
+`sereinflow_create_library_node_template`。它只接受已扫描并已附加到项目的真实
+Action/Flipflop 合同，返回完整的规范 `NodeDto`、运行时类库元数据、参数端口、默认
+字面量、枚举/可变参数元数据、包 SHA-256 和 `contractRevision`。将返回的节点原样
+放进 v2 `addNode`；类库 attach/detach 仍是独立的预览/应用操作，不属于流程补丁。
 
-Flow patch also exposes `addNodeParameter` and `removeNodeParameter` for
-parameter-level edits. Use `addNodeParameter` with a complete parameter
-contract and a unique `ui.id`; this is the MCP operation for adding another
-member of a variadic group. Remove incoming data connections before using
-`removeNodeParameter`. The operations are ordered within the preview, so a
-new parameter can be added before an `addConnection` targets its ID.
+流程补丁还支持 `addNodeParameter` 和 `removeNodeParameter` 进行参数级编辑。使用
+`addNodeParameter` 时必须提供完整的参数合同和唯一的 `ui.id`；向可变参数组添加
+成员时应使用此 MCP 操作。使用 `removeNodeParameter` 前，必须先移除传入该参数的
+数据连线。预览中的操作按顺序执行，因此可以先添加参数，再让 `addConnection` 指向
+该参数 ID。
+
+删除节点时，如果 `removeNode` 删除的是当前入口节点，流程补丁会依据补丁完成后的
+最终画布内容自动清空 `entryNodeId`。因此删除最后一个节点会得到
+`entryNodeId: ""` 的空白编辑草稿，并可正常保存；如果同一补丁最终仍保留相同
+ID 的节点，则入口引用会保留。若要改用其他入口节点，请先按连接、节点顺序删除
+旧入口，再在同一个有序补丁中使用目标节点 ID 调用 `setEntryNode`。
 
 ## 节点绘制约束
 
@@ -303,7 +288,7 @@ new parameter can be added before an `addConnection` targets its ID.
 主执行路径从左向右，同一执行阶段对齐；成功、失败、错误分支使用独立行并向
 右侧展开。连接尽量短且少交叉；数据连接不能穿过节点主体或端口列表，必要时
 使用节点上下方的专用通道。新增节点造成重叠时只移动受影响节点，并在同一个
-preview 中包含坐标变化；提交 preview 前检查所有节点是否越界、重叠以及连接
+预览中包含坐标变化；提交预览前检查所有节点是否越界、重叠以及连接
 是否穿过节点。
 
 ## 安全与诊断

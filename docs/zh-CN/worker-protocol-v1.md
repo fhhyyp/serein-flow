@@ -85,6 +85,9 @@ sequenceDiagram
 
 协议诊断不得包含 API secret、SQLite 路径、完整脚本源码、进程环境或 CLR 堆栈。
 
-## 6. 已验证范围与剩余项
+## 6. 历史验证范围
 
-已验证：v1 往返、版本/长度拒绝、Action 流程执行、ScriptLang 取消、事件 sequence、过期 deadline 和 Runner 异常退出分类。待后续 T7/T12 验证：Linux UDS ACL、独立 UID/mount/namespace、cgroup 限制、心跳失联时钟、外部 DLL/`Environment.Exit`/不合作 CLR 调用及进程树的黑盒隔离测试。
+以下内容仅记录 v1 时代的验证范围，不构成当前实现的待办事项：已验证 v1 往返、
+版本/长度拒绝、Action 流程执行、ScriptLang 取消、事件 sequence、过期 deadline 和
+Runner 异常退出分类。当前实现和维护中的协议是 [Worker Protocol v2](worker-protocol-v2.md)，
+后续协议行为和测试范围以 v2 文档及当前测试项目为准。

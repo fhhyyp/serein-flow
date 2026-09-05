@@ -19,6 +19,14 @@ to be removed first. The operation is applied through the same preview/apply
 flow-version workflow and can be combined with `addConnection` in one ordered
 patch after the parameter has been added.
 
+When `removeNode` removes the current entry node, the patch service clears
+`entryNodeId` if that ID is absent from the final canvas contents. This is
+intentional editor-draft behavior: removing the last node produces an empty
+draft that can be saved with `entryNodeId: ""`. If the same patch creates or
+retains a node with that ID, the entry reference is preserved. To choose a
+different entry node in the same patch, remove its connections and node first,
+then issue `setEntryNode` with the ID of another remaining node.
+
 ### Connection payload contract
 
 For schema `2.0`, `addConnection` and `replaceConnection` require every field

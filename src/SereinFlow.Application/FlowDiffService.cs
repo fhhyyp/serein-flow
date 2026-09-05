@@ -345,6 +345,13 @@ public sealed class FlowPatchService
             }
         }
 
+        // Deleting the entry node is valid for an editor draft. Keep the
+        // flow metadata consistent with the final canvas contents so the
+        // persistence validator can accept an intentionally empty draft.
+        // 删除入口节点对编辑器草稿是合法的。依据最终画布内容同步流程元数据，
+        // 这样持久化校验才能接受刻意保留的空白草稿。
+        entryNodeId = NormalizeEntryNodeId(canvases, entryNodeId);
+
         return definition with
         {
             Canvases = canvases,
@@ -420,6 +427,12 @@ public sealed class FlowPatchService
             throw new InvalidOperationException($"Connections for node '{nodeId}' must be removed first.");
         canvases[canvasIndex] = canvas with { Nodes = canvas.Nodes.Where(node => node.Id != nodeId).ToArray() };
     }
+
+    private static string NormalizeEntryNodeId(IReadOnlyList<CanvasDto> canvases, string entryNodeId)
+        => string.IsNullOrWhiteSpace(entryNodeId)
+            || canvases.Any(canvas => canvas.Nodes.Any(node => node.Id == entryNodeId))
+            ? entryNodeId ?? string.Empty
+            : string.Empty;
 
     private static void SetNodeParameter(
         List<CanvasDto> canvases,
