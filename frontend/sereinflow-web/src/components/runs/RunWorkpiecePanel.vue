@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Download, FileText, Image as ImageIcon, PackageOpen, RefreshCw } from 'lucide-vue-next'
 import { getFlowWorkpieceUrl, listFlowRunWorkpieces, type FlowWorkpieceDto } from '../../api/flowApi'
+import { selectFlowWorkpieceId } from '../../flow/workpieceSelection'
 import { locale, t } from '../../i18n'
 
 const props = withDefaults(defineProps<{
@@ -69,10 +70,9 @@ async function refreshWorkpieces(background = false): Promise<void> {
   try {
     const next = await listFlowRunWorkpieces(props.runId)
     if (revision !== loadRevision) return
+    const previous = workpieces.value
     workpieces.value = next
-    if (!next.some((item) => item.id === selectedId.value)) {
-      selectedId.value = next[0]?.id ?? ''
-    }
+    selectedId.value = selectFlowWorkpieceId(previous, next, selectedId.value, props.live && background)
     errorKey.value = ''
   } catch {
     if (revision !== loadRevision) return

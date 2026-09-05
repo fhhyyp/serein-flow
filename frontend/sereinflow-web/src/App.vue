@@ -401,6 +401,7 @@ const visibleActiveOutput = computed({
 })
 
 const activeWorkpieceRunId = computed(() => debugSession.value?.runId ?? lastRunId.value ?? '')
+const canUseDebugDisplayMode = computed(() => Boolean(debugSession.value))
 const panelDefinitions = computed<WorkspacePanelTab[]>(() => [
   { id: 'canvas', label: t('panel.canvas'), icon: markRaw(LayoutGrid), closable: false },
   { id: 'nodes', label: t('panel.nodes'), icon: markRaw(PanelLeft) },
@@ -682,6 +683,15 @@ function toggleWorkspacePanel(panelId: WorkspacePanelId): void {
   else showDockablePanel(panelId)
 }
 
+function changeWorkspaceDisplayMode(mode: DockableWorkspaceMode): void {
+  if (mode === 'debug' && !canUseDebugDisplayMode.value) return
+  setDockableDisplayMode(mode)
+  if (mode === 'debug') {
+    showDockablePanel('debug')
+    if (activeWorkpieceRunId.value) showDockablePanel('workpieces')
+  }
+}
+
 function updateWorkspaceGroup(groupId: string, patch: Partial<DockablePanelGroupState>): void {
   updateDockableGroup(groupId, patch)
 }
@@ -772,13 +782,14 @@ watch(() => saveDiagnostics.value.length, (count) => {
   if (count > 0 && dockableDisplayMode.value === 'edit') showDockablePanel('diagnostics')
 })
 
-watch([isDebugActive, () => workspaceView.value], ([active, view]) => {
+watch([isDebugActive, () => workspaceView.value, () => debugSession.value?.id], ([active, view, sessionId]) => {
   if (view !== 'editor') return
-  const targetMode: DockableWorkspaceMode = active ? 'debug' : 'edit'
-  if (dockableDisplayMode.value !== targetMode) setDockableDisplayMode(targetMode)
   if (active) {
+    if (dockableDisplayMode.value !== 'debug') setDockableDisplayMode('debug')
     showDockablePanel('debug')
     if (activeWorkpieceRunId.value) showDockablePanel('workpieces')
+  } else if (!sessionId && dockableDisplayMode.value === 'debug') {
+    setDockableDisplayMode('edit')
   }
 }, { immediate: true })
 
@@ -1238,6 +1249,8 @@ function setLanguage(nextLocale: Locale): void {
       :workspace-view="workspaceView"
       :concurrency-mode="runPolicy.concurrencyMode"
       :workspace-panel-items="panelSwitcherItems"
+      :workspace-display-mode="dockableDisplayMode"
+      :debug-display-mode-available="canUseDebugDisplayMode"
       @toggle-project-menu="projectMenuOpen = !projectMenuOpen"
       @begin-project-rename="beginProjectRename"
       @cancel-project-rename="cancelProjectRename"
@@ -1261,6 +1274,7 @@ function setLanguage(nextLocale: Locale): void {
       @update-concurrency-mode="updateConcurrencyMode"
       @toggle-workspace-panel="toggleWorkspacePanel"
       @reset-workspace-layout="resetDockableLayout"
+      @change-workspace-mode="changeWorkspaceDisplayMode"
     />
 
     <RunConsole

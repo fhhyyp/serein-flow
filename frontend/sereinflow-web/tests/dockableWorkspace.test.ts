@@ -1,10 +1,25 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import type { FlowWorkpieceDto } from '../src/api/flowApi.ts'
 import {
   createDefaultDockableWorkspaceLayout,
   createDebugDockableWorkspaceLayout,
   normalizeDockableWorkspaceLayout,
 } from '../src/flow/dockableWorkspace.ts'
+import { selectFlowWorkpieceId } from '../src/flow/workpieceSelection.ts'
+
+function workpiece(id: string, createdAt: string): FlowWorkpieceDto {
+  return {
+    runId: 'run-1',
+    id,
+    kind: 'File',
+    name: `${id}.txt`,
+    contentType: 'text/plain',
+    length: 12,
+    createdAt,
+    downloadUrl: `/workpieces/${id}`,
+  }
+}
 
 test('dockable layout keeps panel groups and active tabs across normalization', () => {
   const initial = createDefaultDockableWorkspaceLayout({ width: 1_200, height: 720 })
@@ -65,4 +80,15 @@ test('debug layout keeps the canvas and workpieces on the left and debugger on t
 
 test('invalid persisted layout is rejected', () => {
   assert.equal(normalizeDockableWorkspaceLayout({ formatVersion: 99 }, { width: 1_200, height: 720 }), undefined)
+})
+
+test('live workpiece refresh selects only newly arrived workpieces', () => {
+  const first = workpiece('first', '2026-09-05T09:00:00.000Z')
+  const second = workpiece('second', '2026-09-05T09:01:00.000Z')
+  const third = workpiece('third', '2026-09-05T09:02:00.000Z')
+
+  assert.equal(selectFlowWorkpieceId([], [first, second], '', false), 'second')
+  assert.equal(selectFlowWorkpieceId([first, second], [first, second], 'first', true), 'first')
+  assert.equal(selectFlowWorkpieceId([first, second], [first, second, third], 'first', true), 'third')
+  assert.equal(selectFlowWorkpieceId([first, second, third], [first, second, third], 'second', true), 'second')
 })
