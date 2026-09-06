@@ -66,83 +66,15 @@ public static class RunnerHost
         var debugController = request.Debug is null
             ? null
             : new DebugRunController(request.RunId, request.Debug);
-        var runTask = ExecuteRunAsync(request, transport, messageService, deadlineCancellation.Token, debugController, runCancellation.Token);
-        var readTask = transport.ReceiveAsync(cancellationToken).AsTask();
-
-        while (!runTask.IsCompleted)
-        {
-            var completed = await Task.WhenAny(runTask, readTask);
-            if (completed == runTask)
-                break;
-
-            var message = await readTask;
-            if (message is null)
-            {
-                runCancellation.Cancel();
-                break;
-            }
-
-            if (message.Kind == WorkerProtocolConstants.CancelKind && message.RunId == request.RunId)
-            {
-                runCancellation.Cancel();
-                await transport.SendAsync(
-                    WorkerMessage.Create(WorkerProtocolConstants.CancelAcknowledgedKind, runId: request.RunId),
-                    cancellationToken);
-            }
-            else if (debugController is not null
-                && message.RunId == request.RunId
-                && message.Kind is WorkerProtocolConstants.DebugContinueKind
-                    or WorkerProtocolConstants.DebugStepKind
-                    or WorkerProtocolConstants.DebugStopKind)
-            {
-                var command = WorkerProtocolCodec.DeserializePayload<WorkerDebugCommandDto>(message);
-                var accepted = message.Kind switch
-                {
-                    WorkerProtocolConstants.DebugContinueKind => debugController.TryContinue(command),
-                    WorkerProtocolConstants.DebugStepKind => debugController.TryStep(command),
-                    WorkerProtocolConstants.DebugStopKind => debugController.TryStop(command),
-                    _ => false
-                };
-                if (accepted && message.Kind == WorkerProtocolConstants.DebugStopKind)
-                    runCancellation.Cancel();
-            }
-            else if (message.Kind == WorkerProtocolConstants.HeartbeatKind)
-            {
-                await transport.SendAsync(
-                    WorkerMessage.Create(WorkerProtocolConstants.HeartbeatAcknowledgedKind, runId: request.RunId),
-                    cancellationToken);
-            }
-            else if (message.Kind == WorkerProtocolConstants.MessageDeliverKind
-                && message.RunId == request.RunId)
-            {
-                var delivery = WorkerProtocolCodec.DeserializePayload<WorkerMessageDeliveryDto>(message);
-                var outcome = messageService.TryDeliver(delivery);
-                var responseKind = outcome.Accepted
-                    ? WorkerProtocolConstants.MessageAcceptedKind
-                    : WorkerProtocolConstants.MessageRejectedKind;
-                var responsePayload = outcome.Accepted
-                    ? WorkerProtocolCodec.SerializePayload(new WorkerMessageAcceptedDto(
-                        WorkerProtocolConstants.Version,
-                        request.RunId,
-                        outcome.MessageId,
-                        outcome.Topic,
-                        outcome.Duplicate))
-                    : WorkerProtocolCodec.SerializePayload(new WorkerMessageRejectedDto(
-                        WorkerProtocolConstants.Version,
-                        request.RunId,
-                        outcome.MessageId,
-                        outcome.Topic,
-                        outcome.Code ?? MessageErrorCodes.Rejected,
-                        outcome.Message));
-                await transport.SendAsync(
-                    WorkerMessage.Create(responseKind, responsePayload, request.RunId, requestId: message.RequestId),
-                    cancellationToken);
-            }
-
-            readTask = transport.ReceiveAsync(cancellationToken).AsTask();
-        }
-
-        await runTask;
+        var runTask = ExecuteRunAsync(request, transport, messageService,  debugController, deadlineCancellation.Token, runCancellation.Token);
+        await WorkerRunMessageLoop.RunAsync(
+            request,
+            transport,
+            messageService,
+            runTask,
+            debugController,
+            runCancellation,
+            cancellationToken);
         return 0;
     }
 
@@ -150,8 +82,8 @@ public static class RunnerHost
         WorkerRunRequestDto request,
         IWorkerTransport transport,
         WorkerMessageService messageService,
-        CancellationToken deadlineCancellationToken,
         DebugRunController? debugController,
+        CancellationToken deadlineCancellationToken,
         CancellationToken cancellationToken)
     {
         try
@@ -259,7 +191,12 @@ public static class RunnerHost
         }
     }
 
-    private static async void SendEndpointRegistrationAsync(
+    private static void SendEndpointRegistrationAsync(
+        IWorkerTransport transport,
+        WorkerMessageEndpointDto endpoint)
+        => _ = SendEndpointRegistrationCoreAsync(transport, endpoint);
+
+    private static async Task SendEndpointRegistrationCoreAsync(
         IWorkerTransport transport,
         WorkerMessageEndpointDto endpoint)
     {
@@ -279,7 +216,12 @@ public static class RunnerHost
         }
     }
 
-    private static async void SendEndpointUnregistrationAsync(
+    private static void SendEndpointUnregistrationAsync(
+        IWorkerTransport transport,
+        WorkerMessageEndpointDto endpoint)
+        => _ = SendEndpointUnregistrationCoreAsync(transport, endpoint);
+
+    private static async Task SendEndpointUnregistrationCoreAsync(
         IWorkerTransport transport,
         WorkerMessageEndpointDto endpoint)
     {
@@ -305,227 +247,6 @@ public static class RunnerHost
                 runId),
             cancellationToken);
 
-    private sealed class WorkerEventPublisher(IWorkerTransport transport, Guid runId) : IRunEventPublisher, IAsyncDisposable
-    {
-        private readonly SemaphoreSlim _gate = new(1, 1);
-        private readonly SortedDictionary<long, WorkerEventEnvelopeDto> _pending = [];
-        // RunStarted is written by ExecuteRunAsync before this publisher is
-        // created, so the first runtime event has sequence 2. Keep the
-        // already-emitted sequence as the initial cursor.
-        // RunStarted 在创建发布器前写出，因此第一个运行时事件通常是 2；
-        // 以已写出的序列作为初始游标，避免等待不存在的序列 1。
-        private long _lastWrittenSequence = 1;
-
-        public async ValueTask PublishAsync(RuntimeEvent runtimeEvent, CancellationToken cancellationToken)
-        {
-            var eventType = runtimeEvent.Type switch
-            {
-                RunErrorCodes.Started => WorkerEventType.RunStarted,
-                NodeErrorCodes.Started => WorkerEventType.NodeStarted,
-                NodeErrorCodes.Completed => WorkerEventType.NodeCompleted,
-                NodeErrorCodes.Failed => WorkerEventType.NodeFailed,
-                NodeErrorCodes.Error => WorkerEventType.NodeErrored,
-                DebugErrorCodes.Paused => WorkerEventType.DebugPaused,
-                DebugErrorCodes.TriggerReceived => WorkerEventType.DebugTriggerReceived,
-                DebugErrorCodes.TriggerQueued => WorkerEventType.DebugTriggerQueued,
-                DebugErrorCodes.TriggerAdmitted => WorkerEventType.DebugTriggerAdmitted,
-                DebugErrorCodes.TriggerRejected => WorkerEventType.DebugTriggerRejected,
-                DebugErrorCodes.TriggerCompleted => WorkerEventType.DebugTriggerCompleted,
-                DebugErrorCodes.TriggerFailed => WorkerEventType.DebugTriggerFailed,
-                _ => WorkerEventType.Log
-            };
-            // Runtime sessions can retain ScriptLang.Value instances so a
-            // following DLL node can convert them against its declared type.
-            // The protocol boundary must receive only a safe audit projection.
-            // 运行会话可保留 ScriptLang.Value 供后续 DLL 节点按声明类型转换；
-            // 协议边界只能接收安全的审计投影。
-            var payload = JsonSerializer.Serialize(
-                ScriptValueConverter.ToAuditValue(runtimeEvent.Payload),
-                SereinJsonSerialization.CreateWebOptions());
-            var envelope = new WorkerEventEnvelopeDto(
-                WorkerProtocolConstants.Version,
-                runId,
-                runtimeEvent.Sequence,
-                runtimeEvent.Timestamp,
-                eventType,
-                runtimeEvent.NodeId,
-                payload);
-            await _gate.WaitAsync(cancellationToken);
-            try
-            {
-                _pending[runtimeEvent.Sequence] = envelope;
-                while (_pending.Remove(_lastWrittenSequence + 1, out var next))
-                {
-                    await transport.SendAsync(
-                        WorkerMessage.Create(WorkerProtocolConstants.EventKind, WorkerProtocolCodec.SerializePayload(next), runId, sequence: next.Sequence),
-                        cancellationToken);
-                    _lastWrittenSequence = next.Sequence;
-                }
-            }
-            finally
-            {
-                _gate.Release();
-            }
-        }
-
-        public ValueTask PublishDebugPausedAsync(
-            WorkerDebugPauseDto pause,
-            long sequence,
-            CancellationToken cancellationToken)
-        {
-            var payload = new Dictionary<string, object?>(StringComparer.Ordinal)
-            {
-                ["debugSessionId"] = pause.DebugSessionId,
-                ["runId"] = pause.RunId,
-                ["nodeId"] = pause.NodeId,
-                ["nodeType"] = pause.NodeType,
-                ["step"] = pause.Step,
-                ["inputs"] = ScriptValueConverter.ToAuditValue(pause.Inputs),
-                ["frameDepth"] = pause.FrameDepth,
-                ["triggerInvocationId"] = pause.TriggerInvocationId,
-                ["executionId"] = pause.ExecutionId
-            };
-            return PublishEnvelopeAsync(
-                new WorkerEventEnvelopeDto(
-                    WorkerProtocolConstants.Version,
-                    runId,
-                    sequence,
-                    DateTimeOffset.UtcNow,
-                    WorkerEventType.DebugPaused,
-                    pause.NodeId,
-                    JsonSerializer.Serialize(
-                        payload,
-                        SereinJsonSerialization.CreateWebOptions())),
-                cancellationToken);
-        }
-
-        private async ValueTask PublishEnvelopeAsync(
-            WorkerEventEnvelopeDto envelope,
-            CancellationToken cancellationToken)
-        {
-            await _gate.WaitAsync(cancellationToken);
-            try
-            {
-                _pending[envelope.Sequence] = envelope;
-                while (_pending.Remove(_lastWrittenSequence + 1, out var next))
-                {
-                    await transport.SendAsync(
-                        WorkerMessage.Create(WorkerProtocolConstants.EventKind, WorkerProtocolCodec.SerializePayload(next), runId, sequence: next.Sequence),
-                        cancellationToken);
-                    _lastWrittenSequence = next.Sequence;
-                }
-            }
-            finally
-            {
-                _gate.Release();
-            }
-        }
-
-        public ValueTask DisposeAsync()
-        {
-            _gate.Dispose();
-            return ValueTask.CompletedTask;
-        }
-    }
-
-    private sealed class DebugRunController
-    {
-        private readonly Guid _runId;
-        private readonly WorkerDebugOptionsDto _options;
-        private readonly object _sync = new();
-        private DebugExecutionGate? _gate;
-        private long _lastCommandSequence;
-
-        public DebugRunController(Guid runId, WorkerDebugOptionsDto options)
-        {
-            if (options.DebugSessionId == Guid.Empty)
-            {
-                throw new ArgumentException(
-                    "The debug session ID cannot be empty. 调试会话 ID 不能为空。",
-                    nameof(options));
-            }
-
-            _runId = runId;
-            _options = options;
-        }
-
-        public DebugExecutionGate CreateGate(FlowExecutionSession session, WorkerEventPublisher publisher)
-        {
-            var gate = new DebugExecutionGate(_options.BreakpointNodeIds, (boundary, token) =>
-            {
-                var pause = new WorkerDebugPauseDto(
-                    _options.DebugSessionId,
-                    boundary.RunId,
-                    boundary.NodeId,
-                    boundary.NodeType.ToString(),
-                    boundary.Step,
-                    boundary.Inputs,
-                    boundary.FrameDepth,
-                    boundary.InvocationId,
-                    boundary.ExecutionId);
-                return publisher.PublishDebugPausedAsync(pause, session.NextSequence(), token);
-            });
-            lock (_sync)
-                _gate = gate;
-            return gate;
-        }
-
-        public bool TryContinue(WorkerDebugCommandDto command)
-            => TryApply(command, static gate => gate.TryContinue());
-
-        public bool TryStep(WorkerDebugCommandDto command)
-            => TryApply(command, static gate => gate.TryStep());
-
-        public bool TryStop(WorkerDebugCommandDto command)
-        {
-            if (command.ProtocolVersion != WorkerProtocolConstants.Version
-                || command.RunId != _runId
-                || command.DebugSessionId != _options.DebugSessionId
-                || command.CommandSequence < 1)
-            {
-                return false;
-            }
-
-            lock (_sync)
-            {
-                if (command.CommandSequence <= _lastCommandSequence)
-                    return false;
-
-                // A listener may be blocked in WaitForTriggerAsync and have
-                // no current boundary. Accepting Stop still lets the Runner
-                // cancel that wait; if a boundary exists, release it too.
-                // 监听器可能阻塞在 WaitForTriggerAsync 且不存在当前断点边界。Stop
-                // 仍必须被接受以取消该等待；若边界存在，也一并释放。
-                _gate?.TryCancel();
-                _lastCommandSequence = command.CommandSequence;
-                return true;
-            }
-        }
-
-        private bool TryApply(WorkerDebugCommandDto command, Func<DebugExecutionGate, bool> apply)
-        {
-            if (command.ProtocolVersion != WorkerProtocolConstants.Version
-                || command.RunId != _runId
-                || command.DebugSessionId != _options.DebugSessionId
-                || command.CommandSequence < 1)
-            {
-                return false;
-            }
-
-            lock (_sync)
-            {
-                if (command.CommandSequence <= _lastCommandSequence || _gate is null)
-                    return false;
-
-                if (!apply(_gate))
-                    return false;
-
-                _lastCommandSequence = command.CommandSequence;
-                return true;
-            }
-        }
-    }
-
     private static object? JsonElementToClr(JsonElement element)
         => element.ValueKind switch
         {
@@ -539,117 +260,4 @@ public static class RunnerHost
             JsonValueKind.Object => element.EnumerateObject().ToDictionary(item => item.Name, item => JsonElementToClr(item.Value), StringComparer.Ordinal),
             _ => null
         };
-}
-
-public static class FlowDefinitionMapper
-{
-    private static readonly JsonSerializerOptions Options = SereinJsonSerialization.CreateWebOptions(options =>
-    {
-        options.PropertyNameCaseInsensitive = true;
-        options.Converters.Add(new JsonStringEnumConverter());
-    });
-
-    public static FlowDefinition Map(string definitionJson)
-    {
-        var dto = JsonSerializer.Deserialize<FlowDefinitionDto>(definitionJson, Options)
-            ?? throw new InvalidOperationException("Flow definition payload is empty. 流程定义载荷为空。");
-        return FlowDefinition.Create(
-            dto.Id,
-            dto.Version,
-            dto.Canvases.Select(MapCanvas),
-            dto.EntryNodeId,
-            dto.SchemaVersion,
-            dto.Checksum,
-            dto.RunPolicy is null ? null : new FlowRunPolicy((FlowConcurrencyMode)dto.RunPolicy.ConcurrencyMode));
-    }
-
-    private static CanvasDefinition MapCanvas(CanvasDto dto)
-        => CanvasDefinition.Create(dto.Id, (CanvasLifecycle)dto.Lifecycle, dto.Nodes.Select(MapNode), dto.Connections.Select(MapConnection));
-
-    private static NodeDefinition MapNode(NodeDto dto)
-        => NodeDefinition.Create(
-            dto.Id,
-            (NodeType)dto.Type,
-            dto.DisplayName,
-            new NodePosition(dto.X, dto.Y),
-            dto.Ports.Select(port => new PortDefinition(port.Id, port.Name, Enum.Parse<PortDirection>(port.Direction, true), port.Required)),
-            dto.Parameters.Select(parameter => new NodeParameterDefinition(
-                parameter.Name,
-                parameter.ValueJson,
-                (DataSource)parameter.Source,
-                parameter.Required,
-                parameter.Ui?.Id,
-                parameter.Ui?.ProjectInputKey,
-                parameter.Ui?.Expression,
-                parameter.Ui?.SourceNodeId,
-                parameter.Ui?.SourcePortId,
-                parameter.Ui?.ValueKind,
-                parameter.Ui?.Description,
-                parameter.Ui?.IsVariadic ?? false,
-                parameter.Ui?.VariadicGroupId,
-                parameter.Ui?.ElementType,
-                ParseVariadicMode(parameter.Ui?.VariadicMode))),
-            dto.Script is null ? null : ScriptNodeDefinition.Create(
-                dto.Script.NodeId,
-                dto.Script.Source,
-                dto.Script.LanguageVersion,
-                // SourceHash is presentation/cache metadata. The Worker must
-                // derive it from the immutable source rather than reject a run
-                // whose persisted DTO predates the server-side normalization.
-                // SourceHash 是展示/缓存元数据；Worker 必须从不可变源代码重新计算它，
-                // 不能因运行快照早于服务端规范化逻辑而拒绝执行。
-                null,
-                dto.Script.Inputs.Select(input => new ScriptValueContract(input.Name, input.ValueKind, input.Required, input.Id, input.Description)),
-                dto.Script.Outputs.Select(output => new ScriptValueContract(output.Name, output.ValueKind, output.Required, output.Id, output.Description))),
-            dto.Ui is null
-                ? null
-                : new NodeRuntimeDefinition(
-                    dto.Ui.LibraryId,
-                    dto.Ui.ClassName,
-                    dto.Ui.MethodName,
-                    dto.Ui.DllName,
-                    dto.Ui.DllVersion,
-                    dto.Ui.ReturnType,
-                    dto.Ui.TargetNodeId,
-                    Guid.TryParse(dto.Ui.TargetFlowId, out var targetFlowId) ? targetFlowId : null,
-                    dto.Ui.IsAwaitable ?? false,
-                    dto.Ui.StaticReturnType,
-                    dto.Ui.IsDynamicReturnType ?? false,
-                    dto.Ui.TargetCanvasId,
-                    dto.Ui.IsPublic ?? false,
-                    dto.Ui.FlowCallParameterBindings?.Select(item => new FlowCallParameterBinding(item.CallParameterId, item.TargetParameterId)).ToArray(),
-                    dto.Ui.LibraryNodeContractId));
-
-    private static VariadicParameterMode? ParseVariadicMode(string? value)
-        => Enum.TryParse<VariadicParameterMode>(value, ignoreCase: true, out var mode) ? mode : null;
-
-    private static ConnectionDefinition MapConnection(ConnectionDto dto)
-    {
-        if (dto.Kind == ConnectionKindDto.Execution)
-        {
-            if (dto.Branch is null)
-                throw new ArgumentException("Execution connections must declare Success, Failure, or Error. 流程连接必须声明 Success、Failure 或 Error 分支。", nameof(dto));
-
-            if (!Enum.IsDefined(dto.Branch.Value))
-                throw new ArgumentException("Execution connection branch is invalid. 流程连接分支无效。", nameof(dto));
-
-            return ConnectionDefinition.Execution(
-                dto.FromNodeId,
-                dto.FromPortId,
-                dto.ToNodeId,
-                dto.ToPortId,
-                (ExecutionBranch)dto.Branch.Value,
-                dto.Priority,
-                dto.Id);
-        }
-
-        return ConnectionDefinition.Data(
-            dto.FromNodeId,
-            dto.FromPortId,
-            dto.ToNodeId,
-            dto.ToPortId,
-            (DataSource)(dto.DataSource ?? DataSourceDto.Literal),
-            dto.Priority,
-            dto.Id);
-    }
 }

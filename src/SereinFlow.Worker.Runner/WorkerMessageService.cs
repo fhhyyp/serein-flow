@@ -15,7 +15,7 @@ namespace SereinFlow.Worker.Runner;
 /// 运行级内存消息服务；由此服务创建的所有队列和事件总线视图共享同一个 Broker，
 /// 并随 Worker 运行一起释放。
 /// </summary>
-public sealed class WorkerMessageService : IMessageService, IAsyncDisposable
+public sealed partial class WorkerMessageService : IMessageService, IAsyncDisposable
 {
     private const int MaximumDeduplicationEntries = 4096;
     private static readonly TimeSpan DeduplicationTtl = TimeSpan.FromMinutes(10);
@@ -59,49 +59,24 @@ public sealed class WorkerMessageService : IMessageService, IAsyncDisposable
     public WorkerMessageDeliveryResult TryDeliver(WorkerMessageDeliveryDto delivery)
     {
         ArgumentNullException.ThrowIfNull(delivery);
-        if (delivery.ProtocolVersion != WorkerProtocolConstants.Version)
-            return Reject(delivery, MessageErrorCodes.ProtocolMismatch, "The message protocol version is not supported. 消息协议版本不受支持。");
-        if (delivery.RunId != _runId)
-            return Reject(delivery, MessageErrorCodes.RunMismatch, "The message belongs to another Worker run. 消息属于其他 Worker 运行。");
-        if (delivery.MessageId == Guid.Empty)
-            return Reject(delivery, MessageErrorCodes.IdRequired, "MessageId is required. MessageId 不能为空。");
-        if (string.IsNullOrWhiteSpace(delivery.Topic))
-            return Reject(delivery, MessageErrorCodes.TopicRequired, "Message topic is required. 消息主题不能为空。");
-        if (delivery.SerializationMode != WorkerMessageSerializationModeDto.Json)
-            return Reject(delivery, MessageErrorCodes.ExternalJsonRequired, "External ingress only accepts JSON messages. 外部入口只接受 JSON 消息。");
-        if (!Enum.IsDefined(delivery.ChannelKind))
-            return Reject(delivery, MessageErrorCodes.ChannelInvalid, "The message channel kind is invalid. 消息通道类型无效。");
+        var headerRejection = ValidateDeliveryHeader(delivery);
+        if (headerRejection is not null)
+            return headerRejection;
 
         var topic = NormalizeTopic(delivery.Topic);
-        var endpoint = delivery.ChannelKind switch
-        {
-            WorkerMessageChannelKindDto.Queue => _queues.TryGetValue(topic, out var queue) ? (IEndpointTopic)queue : null,
-            WorkerMessageChannelKindDto.EventBus => _events.TryGetValue(topic, out var bus) ? (IEndpointTopic)bus : null,
-            _ => null
-        };
+        var endpoint = FindEndpoint(delivery.ChannelKind, topic);
         if (endpoint is null)
             return Reject(delivery, MessageErrorCodes.EndpointNotReady, "The message endpoint is not registered. 消息入口尚未注册。");
 
+        var endpointRejection = ValidateEndpoint(delivery, endpoint);
+        if (endpointRejection is not null)
+            return endpointRejection;
+
+        var payloadRejection = ValidatePayload(delivery, endpoint.Options);
+        if (payloadRejection is not null)
+            return payloadRejection;
+
         var options = endpoint.Options;
-        if (!options.ExternalIngress)
-            return Reject(delivery, MessageErrorCodes.EndpointForbidden, "The message endpoint is not open to external ingress. 消息入口未开放外部投递。");
-        if (options.SerializationMode != MessageSerializationMode.Json)
-            return Reject(delivery, MessageErrorCodes.EndpointJsonRequired, "The external endpoint must use JSON serialization. 外部入口必须使用 JSON 序列化。");
-        if (!string.Equals(options.ContractId, delivery.ContractId, StringComparison.Ordinal))
-            return Reject(delivery, MessageErrorCodes.ContractMismatch, "The message contract does not match the registered endpoint. 消息合同与已注册入口不匹配。");
-
-        var payloadBytes = Encoding.UTF8.GetByteCount(delivery.PayloadJson ?? string.Empty);
-        if (payloadBytes > options.MaxPayloadBytes)
-            return Reject(delivery, MessageErrorCodes.PayloadTooLarge, $"Message payloads are limited to {options.MaxPayloadBytes} bytes. 消息载荷不能超过 {options.MaxPayloadBytes} 字节。");
-        try
-        {
-            using var document = JsonDocument.Parse(delivery.PayloadJson ?? string.Empty);
-        }
-        catch (JsonException exception)
-        {
-            return Reject(delivery, MessageErrorCodes.PayloadInvalid, $"The message payload is not valid JSON. 消息载荷不是有效 JSON。 {exception.Message}");
-        }
-
         var createdAt = delivery.CreatedAt == default ? DateTimeOffset.UtcNow : delivery.CreatedAt;
         DateTimeOffset? expiresAt = delivery.ExpiresAt;
         if (expiresAt is null && options.MessageTtl is { } ttl)
@@ -115,6 +90,74 @@ public sealed class WorkerMessageService : IMessageService, IAsyncDisposable
             delivery.PayloadJson ?? string.Empty,
             createdAt,
             expiresAt);
+        return AcceptDelivery(delivery, endpoint, envelope, topic);
+    }
+
+    private WorkerMessageDeliveryResult? ValidateDeliveryHeader(WorkerMessageDeliveryDto delivery)
+    {
+        if (delivery.ProtocolVersion != WorkerProtocolConstants.Version)
+            return Reject(delivery, MessageErrorCodes.ProtocolMismatch, "The message protocol version is not supported. 消息协议版本不受支持。");
+        if (delivery.RunId != _runId)
+            return Reject(delivery, MessageErrorCodes.RunMismatch, "The message belongs to another Worker run. 消息属于其他 Worker 运行。");
+        if (delivery.MessageId == Guid.Empty)
+            return Reject(delivery, MessageErrorCodes.IdRequired, "MessageId is required. MessageId 不能为空。");
+        if (string.IsNullOrWhiteSpace(delivery.Topic))
+            return Reject(delivery, MessageErrorCodes.TopicRequired, "Message topic is required. 消息主题不能为空。");
+        if (delivery.SerializationMode != WorkerMessageSerializationModeDto.Json)
+            return Reject(delivery, MessageErrorCodes.ExternalJsonRequired, "External ingress only accepts JSON messages. 外部入口只接受 JSON 消息。");
+        if (!Enum.IsDefined(delivery.ChannelKind))
+            return Reject(delivery, MessageErrorCodes.ChannelInvalid, "The message channel kind is invalid. 消息通道类型无效。");
+        return null;
+    }
+
+    private IEndpointTopic? FindEndpoint(WorkerMessageChannelKindDto kind, string topic)
+        => kind switch
+        {
+            WorkerMessageChannelKindDto.Queue => _queues.TryGetValue(topic, out var queue) ? queue : null,
+            WorkerMessageChannelKindDto.EventBus => _events.TryGetValue(topic, out var bus) ? bus : null,
+            _ => null
+        };
+
+    private static WorkerMessageDeliveryResult? ValidateEndpoint(
+        WorkerMessageDeliveryDto delivery,
+        IEndpointTopic endpoint)
+    {
+        var options = endpoint.Options;
+        if (!options.ExternalIngress)
+            return Reject(delivery, MessageErrorCodes.EndpointForbidden, "The message endpoint is not open to external ingress. 消息入口未开放外部投递。");
+        if (options.SerializationMode != MessageSerializationMode.Json)
+            return Reject(delivery, MessageErrorCodes.EndpointJsonRequired, "The external endpoint must use JSON serialization. 外部入口必须使用 JSON 序列化。");
+        if (!string.Equals(options.ContractId, delivery.ContractId, StringComparison.Ordinal))
+            return Reject(delivery, MessageErrorCodes.ContractMismatch, "The message contract does not match the registered endpoint. 消息合同与已注册入口不匹配。");
+        return null;
+    }
+
+    private static WorkerMessageDeliveryResult? ValidatePayload(
+        WorkerMessageDeliveryDto delivery,
+        MessageChannelOptions options)
+    {
+        var payloadBytes = Encoding.UTF8.GetByteCount(delivery.PayloadJson ?? string.Empty);
+        if (payloadBytes > options.MaxPayloadBytes)
+            return Reject(delivery, MessageErrorCodes.PayloadTooLarge, $"Message payloads are limited to {options.MaxPayloadBytes} bytes. 消息载荷不能超过 {options.MaxPayloadBytes} 字节。");
+
+        try
+        {
+            using var document = JsonDocument.Parse(delivery.PayloadJson ?? string.Empty);
+        }
+        catch (JsonException exception)
+        {
+            return Reject(delivery, MessageErrorCodes.PayloadInvalid, $"The message payload is not valid JSON. 消息载荷不是有效 JSON。 {exception.Message}");
+        }
+
+        return null;
+    }
+
+    private WorkerMessageDeliveryResult AcceptDelivery(
+        WorkerMessageDeliveryDto delivery,
+        IEndpointTopic endpoint,
+        MessageEnvelope envelope,
+        string topic)
+    {
         lock (_deduplicationGate)
         {
             PruneAcceptedMessageIds(DateTimeOffset.UtcNow);
@@ -138,16 +181,22 @@ public sealed class WorkerMessageService : IMessageService, IAsyncDisposable
             if (!accepted)
                 return Reject(delivery, MessageErrorCodes.ChannelFull, "The message channel is full. 消息通道已满。");
 
-            if (_acceptedMessageIds.Count >= MaximumDeduplicationEntries)
-            {
-                var oldest = _acceptedMessageIds.MinBy(static item => item.Value);
-                if (oldest.Key != Guid.Empty)
-                    _acceptedMessageIds.Remove(oldest.Key);
-            }
-            _acceptedMessageIds[delivery.MessageId] = DateTimeOffset.UtcNow + DeduplicationTtl;
+            RememberAcceptedMessage(delivery.MessageId);
         }
 
         return new WorkerMessageDeliveryResult(true, false, null, "The message was accepted. 消息已接受。", delivery.MessageId, topic);
+    }
+
+    private void RememberAcceptedMessage(Guid messageId)
+    {
+        if (_acceptedMessageIds.Count >= MaximumDeduplicationEntries)
+        {
+            var oldest = _acceptedMessageIds.MinBy(static item => item.Value);
+            if (oldest.Key != Guid.Empty)
+                _acceptedMessageIds.Remove(oldest.Key);
+        }
+
+        _acceptedMessageIds[messageId] = DateTimeOffset.UtcNow + DeduplicationTtl;
     }
 
     internal async ValueTask SendQueueAsync(
@@ -444,231 +493,6 @@ public sealed class WorkerMessageService : IMessageService, IAsyncDisposable
             _acceptedMessageIds.Remove(item.Key);
     }
 
-    private interface IEndpointTopic
-    {
-        MessageChannelOptions Options { get; }
-
-        bool TryMarkRegistered();
-    }
-
-    private sealed class QueueTopic : IEndpointTopic
-    {
-        private readonly Channel<MessageEnvelope> _channel;
-        private int _registered;
-
-        public QueueTopic(MessageChannelOptions options)
-        {
-            Options = options;
-            _channel = Channel.CreateBounded<MessageEnvelope>(new BoundedChannelOptions(options.Capacity)
-            {
-                FullMode = ToFullMode(options.OverflowStrategy),
-                SingleReader = false,
-                SingleWriter = false,
-                AllowSynchronousContinuations = false
-            });
-        }
-
-        public MessageChannelOptions Options { get; }
-
-        public ChannelReader<MessageEnvelope> Reader => _channel.Reader;
-
-        public bool TryWrite(MessageEnvelope envelope) => _channel.Writer.TryWrite(envelope);
-
-        public void Complete() => _channel.Writer.TryComplete();
-
-        public bool TryMarkRegistered() => Interlocked.Exchange(ref _registered, 1) == 0;
-    }
-
-    private sealed class EventTopic : IEndpointTopic
-    {
-        private readonly ConcurrentDictionary<Guid, EventSubscriptionCore> _subscriptions = new();
-        private int _registered;
-
-        public EventTopic(MessageChannelOptions options) => Options = options;
-
-        public MessageChannelOptions Options { get; }
-
-        public bool TryPublish(MessageEnvelope envelope)
-        {
-            var accepted = true;
-            foreach (var subscription in _subscriptions.Values)
-            {
-                if (!subscription.TryWrite(envelope))
-                    accepted = false;
-            }
-            return accepted;
-        }
-
-        public IEventSubscription<T> Subscribe<T>(WorkerMessageService owner, string topic, CancellationToken cancellationToken)
-        {
-            var subscription = new EventSubscription<T>(owner, topic, Options, cancellationToken);
-            _subscriptions[subscription.Id] = subscription.Core;
-            return subscription;
-        }
-
-        public void Remove(Guid id, EventSubscriptionCore subscription)
-        {
-            if (_subscriptions.TryRemove(new KeyValuePair<Guid, EventSubscriptionCore>(id, subscription)))
-                subscription.Complete();
-        }
-
-        public void Complete()
-        {
-            foreach (var subscription in _subscriptions.Values)
-                subscription.Complete();
-            _subscriptions.Clear();
-        }
-
-        public bool TryMarkRegistered() => Interlocked.Exchange(ref _registered, 1) == 0;
-    }
-
-    private sealed class QueueView(WorkerMessageService owner, MessageChannelOptions options) : IMessageQueue
-    {
-        public ValueTask SendAsync(string topic, object message, CancellationToken cancellationToken = default)
-            => owner.SendQueueAsync(topic, message, options, cancellationToken);
-
-        public ValueTask<T> ReceiveAsync<T>(string topic, CancellationToken cancellationToken = default)
-            => owner.ReceiveQueueAsync<T>(topic, options, cancellationToken);
-    }
-
-    private sealed class EventBusView(WorkerMessageService owner, MessageChannelOptions options) : IEventBus
-    {
-        public ValueTask PublishAsync(string topic, object message, CancellationToken cancellationToken = default)
-            => owner.PublishEventAsync(topic, message, options, cancellationToken);
-
-        public IEventSubscription<T> Subscribe<T>(string topic, CancellationToken cancellationToken = default)
-            => owner.SubscribeEvent<T>(topic, options, cancellationToken);
-    }
-
-    private sealed class EventSubscription<T> : IEventSubscription<T>
-    {
-        private readonly WorkerMessageService _owner;
-        private readonly string _topic;
-        private readonly CancellationTokenRegistration _cancellationRegistration;
-        private int _disposed;
-
-        public EventSubscription(
-            WorkerMessageService owner,
-            string topic,
-            MessageChannelOptions options,
-            CancellationToken cancellationToken)
-        {
-            _owner = owner;
-            _topic = topic;
-            Id = Guid.NewGuid();
-            Core = new EventSubscriptionCore(options);
-            if (cancellationToken.CanBeCanceled)
-                _cancellationRegistration = cancellationToken.Register(static state => ((EventSubscription<T>)state!).DisposeCore(), this);
-        }
-
-        public Guid Id { get; }
-
-        public EventSubscriptionCore Core { get; }
-
-        public async IAsyncEnumerable<T> ReadAllAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
-        {
-            while (true)
-            {
-                MessageEnvelope envelope;
-                try
-                {
-                    envelope = await Core.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
-                }
-                catch (ChannelClosedException)
-                {
-                    yield break;
-                }
-
-                if (envelope.IsExpired(DateTimeOffset.UtcNow))
-                    continue;
-                yield return Deserialize<T>(envelope, _topic);
-            }
-        }
-
-        public async ValueTask<T> NextAsync(CancellationToken cancellationToken = default)
-        {
-            MessageEnvelope envelope;
-            try
-            {
-                envelope = await Core.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
-            }
-            catch (ChannelClosedException exception)
-            {
-                throw new MessageServiceException(
-                    MessageErrorCodes.SubscriptionClosed,
-                    "The event subscription is closed. 事件订阅已关闭。",
-                    _topic,
-                    exception);
-            }
-
-            if (envelope.IsExpired(DateTimeOffset.UtcNow))
-                return await NextAsync(cancellationToken).ConfigureAwait(false);
-            return Deserialize<T>(envelope, _topic);
-        }
-
-        public ValueTask DisposeAsync()
-        {
-            DisposeCore();
-            return ValueTask.CompletedTask;
-        }
-
-        private void DisposeCore()
-        {
-            if (Interlocked.Exchange(ref _disposed, 1) == 1)
-                return;
-            _cancellationRegistration.Dispose();
-            _owner.RemoveSubscription(_topic, Id, Core);
-        }
-    }
-
-    private sealed class EventSubscriptionCore
-    {
-        private readonly Channel<MessageEnvelope> _channel;
-
-        public EventSubscriptionCore(MessageChannelOptions options)
-        {
-            _channel = Channel.CreateBounded<MessageEnvelope>(new BoundedChannelOptions(options.Capacity)
-            {
-                FullMode = ToFullMode(options.OverflowStrategy),
-                SingleReader = false,
-                SingleWriter = false,
-                AllowSynchronousContinuations = false
-            });
-        }
-
-        public ChannelReader<MessageEnvelope> Reader => _channel.Reader;
-
-        public bool TryWrite(MessageEnvelope envelope) => _channel.Writer.TryWrite(envelope);
-
-        public void Complete() => _channel.Writer.TryComplete();
-    }
-
-    private sealed record MessageEnvelope(
-        Guid MessageId,
-        string Topic,
-        MessageSerializationMode Mode,
-        object? Value,
-        string? JsonPayload,
-        DateTimeOffset CreatedAt,
-        DateTimeOffset? ExpiresAt)
-    {
-        public static MessageEnvelope Direct(Guid id, string topic, object value, DateTimeOffset createdAt, DateTimeOffset? expiresAt)
-            => new(id, topic, MessageSerializationMode.DirectObject, value, null, createdAt, expiresAt);
-
-        public static MessageEnvelope Json(Guid id, string topic, string json, DateTimeOffset createdAt, DateTimeOffset? expiresAt)
-            => new(id, topic, MessageSerializationMode.Json, null, json, createdAt, expiresAt);
-
-        public bool IsExpired(DateTimeOffset now) => ExpiresAt is { } expiresAt && expiresAt <= now;
-    }
-
-    private static BoundedChannelFullMode ToFullMode(MessageOverflowStrategy strategy)
-        => strategy switch
-        {
-            MessageOverflowStrategy.Reject => BoundedChannelFullMode.Wait,
-            MessageOverflowStrategy.DropOldest => BoundedChannelFullMode.DropOldest,
-            MessageOverflowStrategy.DropNewest => BoundedChannelFullMode.DropWrite,
-            _ => throw new ArgumentOutOfRangeException(nameof(strategy), strategy, "Unsupported message overflow strategy.")
-        };
 }
 
 public sealed record WorkerMessageDeliveryResult(
