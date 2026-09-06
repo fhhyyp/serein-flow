@@ -36,7 +36,7 @@ public sealed class FlowPatchContractNormalizerTests
                 script = (object?)null
             }
         })));
-        Assert.Equal("mcp.flow_patch.field_required", missingField.Code);
+        Assert.Equal(McpErrorCodes.FlowPatchFieldRequired, missingField.Code);
         Assert.Equal("$.operations[0].node.displayName", missingField.FieldPath);
 
         var wrongEnum = Assert.Throws<FlowPatchContractException>(() => normalizer.Normalize(Request(new
@@ -44,7 +44,7 @@ public sealed class FlowPatchContractNormalizerTests
             op = "setRunPolicy",
             runPolicy = new { concurrencyMode = "Parallel" }
         })));
-        Assert.Equal("mcp.flow_patch.enum_encoding_invalid", wrongEnum.Code);
+        Assert.Equal(McpErrorCodes.FlowPatchEnumEncodingInvalid, wrongEnum.Code);
         Assert.Equal("$.operations[0].runPolicy.concurrencyMode", wrongEnum.FieldPath);
 
         var wrongTypePayload = Assert.Throws<FlowPatchContractException>(() => normalizer.Normalize(Request(new
@@ -53,7 +53,7 @@ public sealed class FlowPatchContractNormalizerTests
             canvasId = "main",
             node = ActionNode("node-action", script: Script("node-action"))
         })));
-        Assert.Equal("mcp.flow_patch.unexpected_field", wrongTypePayload.Code);
+        Assert.Equal(McpErrorCodes.FlowPatchUnexpectedField, wrongTypePayload.Code);
         Assert.Equal("$.operations[0].node.script", wrongTypePayload.FieldPath);
     }
 
@@ -73,7 +73,7 @@ public sealed class FlowPatchContractNormalizerTests
                     new { id = "exec-in", name = "Input again", direction = "input", required = false }
                 ])
         })));
-        Assert.Equal("mcp.flow_patch.duplicate_id", duplicatePort.Code);
+        Assert.Equal(McpErrorCodes.FlowPatchDuplicateId, duplicatePort.Code);
         Assert.Equal("$.operations[0].node.ports[1].id", duplicatePort.FieldPath);
 
         var normalized = normalizer.Normalize(Request(new
@@ -95,7 +95,7 @@ public sealed class FlowPatchContractNormalizerTests
         }));
 
         var exception = Assert.Throws<FlowPatchContractException>(() => normalizer.ValidateReferences(CurrentDefinition(), normalized.Request.Operations));
-        Assert.Equal("mcp.flow_patch.reference_invalid", exception.Code);
+        Assert.Equal(McpErrorCodes.FlowPatchReferenceInvalid, exception.Code);
         Assert.Equal("$.operations[0].connection.fromPortId", exception.FieldPath);
     }
 
@@ -164,7 +164,7 @@ public sealed class FlowPatchContractNormalizerTests
         var exception = Assert.Throws<FlowPatchContractException>(() =>
             normalizer.ValidateReferences(CurrentDefinition(), normalized.Request.Operations));
 
-        Assert.Equal("mcp.flow_patch.reference_invalid", exception.Code);
+        Assert.Equal(McpErrorCodes.FlowPatchReferenceInvalid, exception.Code);
         Assert.Equal("$.operations[0].connection.toPortId", exception.FieldPath);
         Assert.Equal("a parameter ID on toNodeId", exception.Expected);
     }
@@ -215,7 +215,7 @@ public sealed class FlowPatchContractNormalizerTests
         var exception = Assert.Throws<FlowPatchContractException>(() =>
             normalizer.ValidateReferences(definition, normalized.Request.Operations));
 
-        Assert.Equal("mcp.flow_patch.reference_invalid", exception.Code);
+        Assert.Equal(McpErrorCodes.FlowPatchReferenceInvalid, exception.Code);
         Assert.Equal("$.operations[0].parameterId", exception.FieldPath);
     }
 

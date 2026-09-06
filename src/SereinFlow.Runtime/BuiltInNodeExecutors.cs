@@ -1,3 +1,4 @@
+using SereinFlow.Contracts;
 using SereinFlow.Domain;
 using SereinFlow.Runtime.Abstractions;
 
@@ -15,7 +16,7 @@ public sealed class FlowCallNodeExecutor : INodeExecutor, IFlowCallExecutorConfi
     public ValueTask<NodeExecutionResult> ExecuteAsync(NodeExecutionRequest request, CancellationToken cancellationToken)
         => _execute is null
             ? ValueTask.FromResult(NodeExecutionResult.Error(
-                "flowcall.executor_not_configured",
+                FlowCallErrorCodes.ExecutorNotConfigured,
                 "FlowCall executor is not configured. FlowCall 执行器尚未配置。"))
             : _execute(request, cancellationToken);
 }

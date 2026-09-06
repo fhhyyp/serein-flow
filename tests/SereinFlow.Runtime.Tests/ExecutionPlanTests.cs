@@ -1,3 +1,4 @@
+using SereinFlow.Contracts;
 using SereinFlow.Domain;
 using SereinFlow.Runtime;
 
@@ -31,7 +32,7 @@ public sealed class ExecutionPlanTests
         var exception = Assert.Throws<DomainValidationException>(() => new ExecutionPlanBuilder().Build(definition));
 
         Assert.Contains(exception.Diagnostics, diagnostic =>
-            diagnostic.Code == DomainErrorCodes.UnknownEntryNode && diagnostic.Path == "entryNodeId");
+            diagnostic.Code == SereinFlow.Domain.DomainErrorCodes.UnknownEntryNode && diagnostic.Path == "entryNodeId");
     }
 
     [Fact]
@@ -82,7 +83,7 @@ public sealed class ExecutionPlanTests
 
         var exception = Assert.Throws<DomainValidationException>(() => new ExecutionPlanBuilder().Build(flow));
 
-        Assert.Contains(exception.Diagnostics, diagnostic => diagnostic.Code == "flowcall.target_flow_unavailable");
+        Assert.Contains(exception.Diagnostics, diagnostic => diagnostic.Code == FlowCallErrorCodes.TargetFlowUnavailable);
     }
 
     [Fact]
@@ -102,7 +103,7 @@ public sealed class ExecutionPlanTests
 
         var exception = Assert.Throws<DomainValidationException>(() => new ExecutionPlanBuilder().Build(flow));
 
-        Assert.Contains(exception.Diagnostics, diagnostic => diagnostic.Code == "flow.cycle_detected");
+        Assert.Contains(exception.Diagnostics, diagnostic => diagnostic.Code == FlowErrorCodes.CycleDetected);
     }
 
     [Fact]
@@ -122,7 +123,7 @@ public sealed class ExecutionPlanTests
 
         var exception = Assert.Throws<DomainValidationException>(() => new ExecutionPlanBuilder().Build(definition));
 
-        Assert.Contains(exception.Diagnostics, diagnostic => diagnostic.Code == "flowcall.target_not_public");
+        Assert.Contains(exception.Diagnostics, diagnostic => diagnostic.Code == FlowCallErrorCodes.TargetNotPublic);
     }
 
     [Fact]
@@ -146,7 +147,7 @@ public sealed class ExecutionPlanTests
 
         var exception = Assert.Throws<DomainValidationException>(() => new ExecutionPlanBuilder().Build(definition));
 
-        Assert.Contains(exception.Diagnostics, diagnostic => diagnostic.Code == "flowcall.target_canvas_mismatch");
+        Assert.Contains(exception.Diagnostics, diagnostic => diagnostic.Code == FlowCallErrorCodes.TargetCanvasMismatch);
     }
 
     [Fact]
@@ -172,7 +173,7 @@ public sealed class ExecutionPlanTests
 
         var exception = Assert.Throws<DomainValidationException>(() => new ExecutionPlanBuilder().Build(definition));
 
-        Assert.Contains(exception.Diagnostics, diagnostic => diagnostic.Code == "flowcall.parameter_binding_missing");
+        Assert.Contains(exception.Diagnostics, diagnostic => diagnostic.Code == FlowCallErrorCodes.ParameterBindingMissing);
     }
 
     [Fact]
@@ -191,6 +192,6 @@ public sealed class ExecutionPlanTests
 
         var exception = Assert.Throws<DomainValidationException>(() => new ExecutionPlanBuilder().Build(definition));
 
-        Assert.Contains(exception.Diagnostics, diagnostic => diagnostic.Code == "flowcall.cycle_detected");
+        Assert.Contains(exception.Diagnostics, diagnostic => diagnostic.Code == FlowCallErrorCodes.CycleDetected);
     }
 }

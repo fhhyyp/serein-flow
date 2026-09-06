@@ -1,3 +1,4 @@
+using SereinFlow.Contracts;
 using SereinFlow.Domain;
 using SereinFlow.Infrastructure.Persistence;
 using Microsoft.Data.Sqlite;
@@ -310,7 +311,7 @@ public sealed class SqlitePersistenceTests
         await store.AppendAsync(
         [
             new FlowRunOutput(runId, 3, now, "node-1", "completed", "Success", "{\"result\":42}", null, null, "{\"left\":10,\"right\":20}"),
-            new FlowRunOutput(runId, 5, now.AddSeconds(1), "node-2", "error", "Error", "{}", "node.input_missing", "Input is missing. 缺少输入。", "{\"value\":null}")
+        new FlowRunOutput(runId, 5, now.AddSeconds(1), "node-2", "error", "Error", "{}", NodeErrorCodes.InputMissing, "Input is missing. 缺少输入。", "{\"value\":null}")
         ]);
         await store.AppendAsync(
         [
@@ -323,7 +324,7 @@ public sealed class SqlitePersistenceTests
         Assert.Equal("node-1", outputs[0].NodeId);
         Assert.Equal("{\"left\":10,\"right\":20}", outputs[0].InputsJson);
         Assert.Equal("{\"result\":42}", outputs[0].OutputsJson);
-        Assert.Equal("node.input_missing", outputs[1].ErrorCode);
+        Assert.Equal(NodeErrorCodes.InputMissing, outputs[1].ErrorCode);
     }
 
     [Fact]

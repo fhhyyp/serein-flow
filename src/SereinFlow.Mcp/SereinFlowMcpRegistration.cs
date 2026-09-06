@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
+using SereinFlow.Contracts;
 using SereinFlow.ScriptAdapter;
 using System.Text;
 using System.Text.Json;
@@ -184,7 +185,7 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
                 }
                 else if (string.IsNullOrWhiteSpace(sessionId) || !sessions.Validate(sessionId, principal.Id))
                 {
-                    return Results.Json(new { error = new { code = "mcp.session_required", message = "A valid Mcp-Session-Id is required." } }, statusCode: StatusCodes.Status400BadRequest);
+                    return Results.Json(new { error = new { code = McpErrorCodes.SessionRequired, message = "A valid Mcp-Session-Id is required." } }, statusCode: StatusCodes.Status400BadRequest);
                 }
 
                 principalAccessor.Current = principal;
@@ -210,9 +211,9 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
                     {
                         error = new
                         {
-                            code = "mcp.tool_timeout",
+                            code = McpErrorCodes.ToolTimeout,
                             message = "The MCP tool exceeded the configured execution time limit.",
-                            data = new { code = "mcp.tool_timeout", diagnosticId }
+                            data = new { code = McpErrorCodes.ToolTimeout, diagnosticId }
                         }
                     }, statusCode: StatusCodes.Status504GatewayTimeout);
                 }
@@ -244,7 +245,7 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
     {
         context.Response.Headers.WWWAuthenticate = "Bearer";
         return Results.Json(
-            new { error = new { code = "mcp.unauthenticated", message = "MCP authentication is required." } },
+            new { error = new { code = McpErrorCodes.Unauthenticated, message = "MCP authentication is required." } },
             statusCode: StatusCodes.Status401Unauthorized);
     }
 

@@ -117,11 +117,11 @@ public sealed class McpSecurityService
     public void Require(McpPrincipal? principal, McpPermissionDto permission, Guid? projectId = null)
     {
         if (principal is null)
-            throw new McpSecurityException("mcp.unauthenticated", "MCP authentication is required.", 401);
+            throw new McpSecurityException(McpErrorCodes.Unauthenticated, "MCP authentication is required.", 401);
         if (!principal.Has(permission))
-            throw new McpSecurityException("mcp.permission_denied", "The MCP caller does not have the required permission.", 403);
+            throw new McpSecurityException(McpErrorCodes.PermissionDenied, "The MCP caller does not have the required permission.", 403);
         if (projectId is not null && !principal.CanAccess(projectId.Value))
-            throw new McpSecurityException("mcp.project_access_denied", "The MCP caller cannot access this project.", 403);
+            throw new McpSecurityException(McpErrorCodes.ProjectAccessDenied, "The MCP caller cannot access this project.", 403);
     }
 
     public void RequireAny(
@@ -130,19 +130,19 @@ public sealed class McpSecurityService
         params McpPermissionDto[] permissions)
     {
         if (principal is null)
-            throw new McpSecurityException("mcp.unauthenticated", "MCP authentication is required.", 401);
+            throw new McpSecurityException(McpErrorCodes.Unauthenticated, "MCP authentication is required.", 401);
         if (permissions is null || permissions.Length == 0 || !permissions.Any(principal.Has))
-            throw new McpSecurityException("mcp.permission_denied", "The MCP caller does not have the required permission.", 403);
+            throw new McpSecurityException(McpErrorCodes.PermissionDenied, "The MCP caller does not have the required permission.", 403);
         if (projectId is not null && !principal.CanAccess(projectId.Value))
-            throw new McpSecurityException("mcp.project_access_denied", "The MCP caller cannot access this project.", 403);
+            throw new McpSecurityException(McpErrorCodes.ProjectAccessDenied, "The MCP caller cannot access this project.", 403);
     }
 
     public void RequireAdministrator(McpPrincipal? principal)
     {
         if (principal is null)
-            throw new McpSecurityException("mcp.unauthenticated", "MCP authentication is required.", 401);
+            throw new McpSecurityException(McpErrorCodes.Unauthenticated, "MCP authentication is required.", 401);
         if (!principal.IsLocal && !principal.IsAdministrator)
-            throw new McpSecurityException("mcp.administrator_required", "Administrator permission is required for this MCP operation.", 403);
+            throw new McpSecurityException(McpErrorCodes.AdministratorRequired, "Administrator permission is required for this MCP operation.", 403);
     }
 
     public static CreatedMcpApiKeyDto CreateKey(CreateMcpApiKeyRequestDto request)

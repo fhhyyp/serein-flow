@@ -196,7 +196,7 @@ public sealed class SereinFlowMcpServer
                     new McpProtocolException(
                         -32603,
                         "The MCP request failed internally.",
-                        new { code = "mcp.internal_error", diagnosticId }),
+                        new { code = McpErrorCodes.InternalError, diagnosticId }),
                     cancellationToken);
             }
         }

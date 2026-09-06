@@ -1,4 +1,5 @@
 using SereinFlow.Domain;
+using SereinFlow.Contracts;
 
 namespace SereinFlow.Runtime;
 
@@ -62,7 +63,7 @@ public sealed class ExecutionPlanBuilder
         if (string.IsNullOrWhiteSpace(definition.EntryNodeId) && !hasGlobalFlipflop)
         {
             diagnostics.Add(new DomainDiagnostic(
-                DomainErrorCodes.UnknownEntryNode,
+                SereinFlow.Domain.DomainErrorCodes.UnknownEntryNode,
                 "A flow must have an entry node before it can be executed. 流程必须包含入口节点才能执行。",
                 "entryNodeId"));
         }
@@ -137,7 +138,7 @@ public sealed class ExecutionPlanBuilder
             {
                 throw new DomainValidationException([
                     new DomainDiagnostic(
-                        "flow.cycle_detected",
+                        FlowErrorCodes.CycleDetected,
                         "Execution connections must form a directed acyclic graph. 执行连接必须构成有向无环图。",
                         $"nodes.{nodeId}")]);
             }
@@ -155,7 +156,7 @@ public sealed class ExecutionPlanBuilder
             {
                 throw new DomainValidationException([
                     new DomainDiagnostic(
-                        "flowcall.target_missing",
+                        FlowCallErrorCodes.TargetMissing,
                         $"FlowCall node '{node.Id}' must define a target node. FlowCall 节点“{node.Id}”必须定义目标节点。",
                         $"nodes.{node.Id}.runtime.targetNodeId")]);
             }
@@ -164,7 +165,7 @@ public sealed class ExecutionPlanBuilder
             {
                 throw new DomainValidationException([
                     new DomainDiagnostic(
-                        "flowcall.target_missing",
+                        FlowCallErrorCodes.TargetMissing,
                         $"FlowCall target node '{node.Runtime.TargetNodeId}' does not exist. FlowCall 目标节点“{node.Runtime.TargetNodeId}”不存在。",
                         $"nodes.{node.Id}.runtime.targetNodeId")]);
             }
@@ -173,7 +174,7 @@ public sealed class ExecutionPlanBuilder
             {
                 throw new DomainValidationException([
                     new DomainDiagnostic(
-                        "flowcall.target_flow_unavailable",
+                        FlowCallErrorCodes.TargetFlowUnavailable,
                         "The target flow is not part of the current immutable run snapshot. 目标流程不在当前不可变运行快照中。",
                         $"nodes.{node.Id}.runtime.targetFlowId")]);
             }
@@ -183,7 +184,7 @@ public sealed class ExecutionPlanBuilder
             {
                 throw new DomainValidationException([
                     new DomainDiagnostic(
-                        "flowcall.target_not_public",
+                        FlowCallErrorCodes.TargetNotPublic,
                         $"FlowCall target node '{target.Id}' is not public. FlowCall 目标节点“{target.Id}”不是公开节点。",
                         $"nodes.{node.Id}.runtime.targetNodeId")]);
             }
@@ -194,7 +195,7 @@ public sealed class ExecutionPlanBuilder
             {
                 throw new DomainValidationException([
                     new DomainDiagnostic(
-                        "flowcall.target_canvas_mismatch",
+                        FlowCallErrorCodes.TargetCanvasMismatch,
                         "The FlowCall target canvas does not match the target node. FlowCall 目标画布与目标节点不匹配。",
                         $"nodes.{node.Id}.runtime.targetCanvasId")]);
             }
@@ -219,7 +220,7 @@ public sealed class ExecutionPlanBuilder
             {
                 throw new DomainValidationException([
                     new DomainDiagnostic(
-                        "flowcall.parameter_binding_invalid",
+                    FlowCallErrorCodes.ParameterBindingInvalid,
                         "The FlowCall parameter binding is invalid. FlowCall 参数映射无效。",
                         $"nodes.{callNode.Id}.runtime.flowCallParameterBindings")]);
             }
@@ -234,7 +235,7 @@ public sealed class ExecutionPlanBuilder
         {
             throw new DomainValidationException([
                 new DomainDiagnostic(
-                    "flowcall.parameter_binding_missing",
+                    FlowCallErrorCodes.ParameterBindingMissing,
                     $"Required target parameter '{missing.Name}' has no FlowCall input mapping. 目标必需参数“{missing.Name}”没有 FlowCall 输入映射。",
                     $"nodes.{callNode.Id}.runtime.flowCallParameterBindings")]);
         }
@@ -292,7 +293,7 @@ public sealed class ExecutionPlanBuilder
             {
                 throw new DomainValidationException([
                     new DomainDiagnostic(
-                        "flowcall.cycle_detected",
+                        FlowCallErrorCodes.CycleDetected,
                         "FlowCall invocation graph must be acyclic. FlowCall 调用图必须无环。",
                         $"nodes.{nodeId}")]);
             }
@@ -314,7 +315,7 @@ public static class FlowCallReturnTypeAnalyzer
         if (string.IsNullOrWhiteSpace(targetNodeId) || !plan.Nodes.ContainsKey(targetNodeId))
             throw new DomainValidationException([
                 new DomainDiagnostic(
-                    "flowcall.target_missing",
+                        FlowCallErrorCodes.TargetMissing,
                     $"FlowCall target node '{targetNodeId}' does not exist. FlowCall 目标节点“{targetNodeId}”不存在。",
                     "targetNodeId")]);
 

@@ -268,7 +268,7 @@ public sealed class McpDebugToolTests
             }
             catch (InvalidOperationException exception)
             {
-                return Task.FromResult(new FlowDebugSessionCommandResult(409, exception.Message, "debug.command_sequence_conflict"));
+                return Task.FromResult(new FlowDebugSessionCommandResult(409, exception.Message, DebugErrorCodes.CommandSequenceConflict));
             }
         }
     }

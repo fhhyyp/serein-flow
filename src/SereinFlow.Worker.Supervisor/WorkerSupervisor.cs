@@ -63,7 +63,7 @@ public sealed class WorkerSupervisor
         if (runnerPath is not null && !File.Exists(runnerPath))
         {
             var message = $"Worker Runner executable was not found at '{runnerPath}'. Worker Runner 可执行文件不存在：'{runnerPath}'。";
-            RecordDiagnostic(request.RunId, "runner.path", message);
+            RecordDiagnostic(request.RunId, WorkerDiagnosticCodes.RunnerPath, message);
             return Failure(request.RunId, WorkerErrorCodes.RunnerNotFound, message);
         }
         if (request.Deadline <= DateTimeOffset.UtcNow)
@@ -73,7 +73,7 @@ public sealed class WorkerSupervisor
         await using var transport = new StdioWorkerTransport(
             process.StandardOutput.BaseStream,
             process.StandardInput.BaseStream,
-            line => RecordDiagnostic(request.RunId, "runner.stdout_noise", line));
+            line => RecordDiagnostic(request.RunId, WorkerDiagnosticCodes.RunnerStdoutNoise, line));
         var stderrTask = process.StandardError.ReadToEndAsync(CancellationToken.None);
         using var deadlineCancellation = new CancellationTokenSource(request.Deadline - DateTimeOffset.UtcNow);
         using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadlineCancellation.Token);
@@ -151,7 +151,7 @@ public sealed class WorkerSupervisor
                 TerminateProcessTree(process);
             var stderr = await ReadDiagnosticsAsync(stderrTask);
             if (!string.IsNullOrWhiteSpace(stderr))
-                RecordDiagnostic(request.RunId, "runner.stderr", stderr);
+                RecordDiagnostic(request.RunId, WorkerDiagnosticCodes.RunnerStderr, stderr);
         }
     }
 
@@ -203,7 +203,7 @@ public sealed class WorkerSupervisor
         var transport = new StdioWorkerTransport(
             process.StandardOutput.BaseStream,
             process.StandardInput.BaseStream,
-            line => RecordDiagnostic(request.RunId, "runner.stdout_noise", line));
+            line => RecordDiagnostic(request.RunId, WorkerDiagnosticCodes.RunnerStdoutNoise, line));
         var stderrTask = process.StandardError.ReadToEndAsync(CancellationToken.None);
         var deadlineCancellation = new CancellationTokenSource(request.Deadline - DateTimeOffset.UtcNow);
         var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadlineCancellation.Token);
@@ -445,7 +445,7 @@ public sealed class WorkerSupervisor
             }
             catch (WorkerProtocolException exception)
             {
-                _supervisor.RecordProtocolDiagnostic(RunId, "debug.protocol", exception);
+                _supervisor.RecordProtocolDiagnostic(RunId, WorkerDiagnosticCodes.DebugProtocol, exception);
                 return Failure(RunId, exception.Code, exception.Message);
             }
             catch (Exception exception)
@@ -470,7 +470,7 @@ public sealed class WorkerSupervisor
 
                 var stderr = await ReadDiagnosticsAsync(_stderrTask).ConfigureAwait(false);
                 if (!string.IsNullOrWhiteSpace(stderr))
-                    _supervisor.RecordDiagnostic(RunId, "runner.stderr", stderr);
+                    _supervisor.RecordDiagnostic(RunId, WorkerDiagnosticCodes.RunnerStderr, stderr);
 
                 await _transport.CloseAsync().ConfigureAwait(false);
                 _supervisor._messageSessions.TryRemove(new KeyValuePair<Guid, WorkerMessageSession>(RunId, MessageSession));

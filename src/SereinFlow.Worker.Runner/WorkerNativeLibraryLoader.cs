@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
+using SereinFlow.Contracts;
 using SereinFlow.Core.Api;
 using SereinFlow.Library;
 
@@ -28,7 +29,7 @@ internal sealed class WorkerNativeLibraryLoader : IFlowNativeLibraryLoader, IDis
     /// <inheritdoc />
     public bool LoadNativeLibrary(string relativeFile)
     {
-        var path = ResolvePath(relativeFile, "library.native_path_invalid");
+        var path = ResolvePath(relativeFile, LibraryErrorCodes.NativePathInvalid);
         if (!File.Exists(path))
             return false;
 
@@ -42,13 +43,13 @@ internal sealed class WorkerNativeLibraryLoader : IFlowNativeLibraryLoader, IDis
         bool recursive = true,
         bool required = true)
     {
-        var directory = ResolvePath(relativeDirectory, "library.native_directory_invalid");
+        var directory = ResolvePath(relativeDirectory, LibraryErrorCodes.NativeDirectoryInvalid);
         if (!Directory.Exists(directory))
         {
             if (required)
             {
                 throw new FlowNativeLibraryException(
-                    "library.native_directory_missing",
+                    LibraryErrorCodes.NativeDirectoryMissing,
                     $"The native library directory '{relativeDirectory}' was not found. 未找到 Native 类库目录“{relativeDirectory}”。",
                     relativeDirectory);
             }
@@ -71,7 +72,7 @@ internal sealed class WorkerNativeLibraryLoader : IFlowNativeLibraryLoader, IDis
         catch (Exception exception)
         {
             var failure = new FlowNativeLibraryException(
-                "library.native_directory_scan_failed",
+                LibraryErrorCodes.NativeDirectoryScanFailed,
                 $"The native library directory '{relativeDirectory}' could not be scanned. 无法扫描 Native 类库目录“{relativeDirectory}”。 {exception.Message}",
                 relativeDirectory,
                 exception);
@@ -88,7 +89,7 @@ internal sealed class WorkerNativeLibraryLoader : IFlowNativeLibraryLoader, IDis
             if (required)
             {
                 throw new FlowNativeLibraryException(
-                    "library.native_directory_empty",
+                LibraryErrorCodes.NativeDirectoryEmpty,
                     $"The native library directory '{relativeDirectory}' contains no native libraries. Native 类库目录“{relativeDirectory}”中没有 Native 类库。",
                     relativeDirectory);
             }
@@ -162,7 +163,7 @@ internal sealed class WorkerNativeLibraryLoader : IFlowNativeLibraryLoader, IDis
             catch (Exception exception)
             {
                 throw new FlowNativeLibraryException(
-                    "library.native_load_failed",
+                LibraryErrorCodes.NativeLoadFailed,
                     $"The native library '{relativePath}' could not be loaded for runtime '{RuntimeInformation.RuntimeIdentifier}'. Native 类库“{relativePath}”无法在运行时“{RuntimeInformation.RuntimeIdentifier}”中加载。 {exception.Message}",
                     relativePath,
                     exception);

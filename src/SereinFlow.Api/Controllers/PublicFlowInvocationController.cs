@@ -56,7 +56,7 @@ public sealed class PublicFlowInvocationController : ApiControllerBase
             return ApiProblem(
                 StatusCodes.Status409Conflict,
                 "The flow interface requires a published production version. 流程接口需要已发布的生产版本。",
-                extensions: new Dictionary<string, object?> { ["code"] = "flow.production_version_required" });
+                extensions: new Dictionary<string, object?> { ["code"] = FlowErrorCodes.ProductionVersionRequired });
         }
 
         var submission = await _submissions.SubmitDefinitionAsync(

@@ -30,7 +30,7 @@ public sealed class RunApplicationServiceTests
         Assert.Equal(400, result.StatusCode);
         var validation = Assert.IsType<FlowValidationResultDto>(result.ErrorBody);
         var diagnostic = Assert.Single(validation.Diagnostics);
-        Assert.Equal("debug.breakpoint_node_missing", diagnostic.Code);
+        Assert.Equal(DebugErrorCodes.BreakpointNodeMissing, diagnostic.Code);
         Assert.Equal("breakpointNodeIds.missing-node", diagnostic.Path);
     }
 

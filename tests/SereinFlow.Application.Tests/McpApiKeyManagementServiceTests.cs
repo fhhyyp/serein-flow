@@ -23,7 +23,7 @@ public sealed class McpApiKeyManagementServiceTests
 
         var secondAttempt = await Assert.ThrowsAsync<McpSecurityException>(
             () => service.CreateInitialAdministratorAsync());
-        Assert.Equal("mcp.key_setup_already_completed", secondAttempt.Code);
+        Assert.Equal(McpErrorCodes.KeySetupAlreadyCompleted, secondAttempt.Code);
         Assert.Equal(409, secondAttempt.StatusCode);
         Assert.Single(await store.ListAsync());
     }

@@ -64,7 +64,7 @@ public sealed class RunEventBroadcasterTests
             runId,
             1,
             DateTimeOffset.UtcNow,
-            "run.interrupted",
+            RunErrorCodes.Interrupted,
             null,
             "{}"));
 
@@ -95,19 +95,19 @@ public sealed class RunEventBroadcasterTests
         var first = await service.InterruptAsync(
             run.Id,
             "engine_restart",
-            "run.worker_lost",
+            RunErrorCodes.WorkerLost,
             "The worker was lost. Worker 已丢失。");
         var second = await service.InterruptAsync(
             run.Id,
             "engine_restart",
-            "run.worker_lost",
+            RunErrorCodes.WorkerLost,
             "The worker was lost. Worker 已丢失。");
 
         Assert.True(first.IsInterrupted);
         Assert.Equal(RunInterruptionDisposition.AlreadyTerminal, second.Disposition);
         Assert.Equal(FlowRunStatus.Interrupted, run.Status);
         var audit = Assert.Single(eventStore.Events);
-        Assert.Equal("run.interrupted", audit.Type);
+        Assert.Equal(RunErrorCodes.Interrupted, audit.Type);
         Assert.Equal(1, audit.Sequence);
     }
 

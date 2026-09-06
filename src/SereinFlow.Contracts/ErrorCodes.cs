@@ -59,6 +59,14 @@ public static class WorkerErrorCodes
     public const string InvalidPayload = "worker.invalid_payload";
 }
 
+public static class WorkerDiagnosticCodes
+{
+    public const string RunnerPath = "runner.path";
+    public const string RunnerStdoutNoise = "runner.stdout_noise";
+    public const string RunnerStderr = "runner.stderr";
+    public const string DebugProtocol = "debug.protocol";
+}
+
 public static class MessageErrorCodes
 {
     public const string TopicInvalid = "message.topic_invalid";
@@ -97,6 +105,7 @@ public static class MessageErrorCodes
     public const string Accepted = "message.accepted";
     public const string Register = "message.register";
     public const string Unregister = "message.unregister";
+    public const string TypeMismatch = "message.type_mismatch";
 }
 
 public static class DebugErrorCodes
@@ -226,6 +235,37 @@ public static class LibraryErrorCodes
     public const string Package = "library.package";
     public const string Read = "library.read";
     public const string Manage = "library.manage";
+    public const string NativePathInvalid = "library.native_path_invalid";
+    public const string NativeDirectoryInvalid = "library.native_directory_invalid";
+    public const string NativeDirectoryMissing = "library.native_directory_missing";
+    public const string NativeDirectoryScanFailed = "library.native_directory_scan_failed";
+    public const string NativeDirectoryEmpty = "library.native_directory_empty";
+    public const string NativeLoadFailed = "library.native_load_failed";
+    public const string PackageManifestMissing = "library.package_manifest_missing";
+    public const string PackageNodeRemoved = "library.package_node_removed";
+    public const string PackageNodeMatchUnknown = "library.package_node_match_unknown";
+    public const string PackageNodeExact = "library.package_node_exact";
+    public const string PackageRequiredParameterAdded = "library.package_required_parameter_added";
+    public const string PackageExact = "library.package_exact";
+    public const string PackageNodeExecutionChanged = "library.package_node_execution_changed";
+    public const string PackageReturnTypeChanged = "library.package_return_type_changed";
+    public const string PackageParameterRemoved = "library.package_parameter_removed";
+    public const string PackageParameterTypeChanged = "library.package_parameter_type_changed";
+    public const string PackageParameterMappingRequired = "library.package_parameter_mapping_required";
+    public const string PackageParameterMetadataChanged = "library.package_parameter_metadata_changed";
+    public const string ServiceProviderFailed = "library.service_provider_failed";
+    public const string ServiceActivationFailed = "library.service_activation_failed";
+    public const string ResultConverterActivationFailed = "library.result_converter_activation_failed";
+    public const string ServiceValidationFailed = "library.service_validation_failed";
+    public const string ServiceNodeTypeInvalid = "library.service_node_type_invalid";
+    public const string ServiceDiscoveryFailed = "library.service_discovery_failed";
+    public const string ResultConverterDiscoveryFailed = "library.result_converter_discovery_failed";
+    public const string ServiceLifetimeInvalid = "library.service_lifetime_invalid";
+    public const string ServiceLifetimeConflict = "library.service_lifetime_conflict";
+    public const string ServiceContractDuplicate = "library.service_contract_duplicate";
+    public const string ServiceImplementationInvalid = "library.service_implementation_invalid";
+    public const string ServiceConstructorInvalid = "library.service_constructor_invalid";
+    public const string ServiceContractInvalid = "library.service_contract_invalid";
 }
 
 public static class DeviceErrorCodes
@@ -283,6 +323,9 @@ public static class FlowErrorCodes
     public const string UnknownConnectionEndpoint = "flow.unknown_connection_endpoint";
     public const string DuplicateConnectionId = "flow.duplicate_connection_id";
     public const string Write = "flow.write";
+    public const string StepLimitExceeded = "flow.step_limit_exceeded";
+    public const string CycleDetected = "flow.cycle_detected";
+    public const string ProductionVersionRequired = "flow.production_version_required";
 }
 
 public static class ScriptErrorCodes
@@ -301,6 +344,11 @@ public static class ScriptErrorCodes
     public const string NodeIdInvalid = "script.node_id_invalid";
     public const string InvalidSourceHash = "script.invalid_source_hash";
     public const string Compile = "script.compile";
+    public const string CompileTimeout = "script.compile_timeout";
+    public const string LanguageVersionUnsupported = "script.language_version_unsupported";
+    public const string InputsTooMany = "script.inputs_too_many";
+    public const string InputNameInvalid = "script.input_name_invalid";
+    public const string CompileDiagnostic = "script.compile_diagnostic";
 }
 
 public static class FlowCallErrorCodes
@@ -308,6 +356,13 @@ public static class FlowCallErrorCodes
     public const string ReturnTypeMismatch = "flowcall.return_type_mismatch";
     public const string ContextInvalid = "flowcall.context_invalid";
     public const string TargetMissing = "flowcall.target_missing";
+    public const string ExecutorNotConfigured = "flowcall.executor_not_configured";
+    public const string TargetFlowUnavailable = "flowcall.target_flow_unavailable";
+    public const string TargetNotPublic = "flowcall.target_not_public";
+    public const string TargetCanvasMismatch = "flowcall.target_canvas_mismatch";
+    public const string ParameterBindingInvalid = "flowcall.parameter_binding_invalid";
+    public const string ParameterBindingMissing = "flowcall.parameter_binding_missing";
+    public const string CycleDetected = "flowcall.cycle_detected";
 }
 
 public static class FlipFlopErrorCodes
@@ -350,6 +405,41 @@ public static class McpErrorCodes
     public const string InvalidPatchValue = "mcp.invalid_patch_value";
     public const string PreviewStatePersistFailed = "mcp.preview_state_persist_failed";
     public const string KeysManage = "mcp.keys.manage";
+    public const string SessionRequired = "mcp.session_required";
+    public const string ToolTimeout = "mcp.tool_timeout";
+    public const string InternalError = "mcp.internal_error";
+    public const string KeySetupAlreadyCompleted = "mcp.key_setup_already_completed";
+    public const string KeyAlreadyRevoked = "mcp.key_already_revoked";
+    public const string KeyNotFound = "mcp.key_not_found";
+    public const string ProjectNotFound = "mcp.project_not_found";
+    public const string ProjectArchived = "mcp.project_archived";
+    public const string AdministratorRequired = "mcp.administrator_required";
+    public const string PermissionDenied = "mcp.permission_denied";
+    public const string PreviewNotFound = "mcp.preview_not_found";
+    public const string PreviewFingerprintMismatch = "mcp.preview_fingerprint_mismatch";
+    public const string PreviewNotPending = "mcp.preview_not_pending";
+    public const string PreviewExpired = "mcp.preview_expired";
+    public const string LibraryNodeTemplateProjectInvalid = "mcp.library_node_template.project_invalid";
+    public const string LibraryNodeTemplateLibraryInvalid = "mcp.library_node_template.library_invalid";
+    public const string LibraryNodeTemplateContractInvalid = "mcp.library_node_template.contract_invalid";
+    public const string LibraryNodeTemplatePositionInvalid = "mcp.library_node_template.position_invalid";
+    public const string LibraryNodeTemplateLibraryNotAttached = "mcp.library_node_template.library_not_attached";
+    public const string LibraryNodeTemplateLibraryNotFound = "mcp.library_node_template.library_not_found";
+    public const string LibraryNodeTemplateContractNotFound = "mcp.library_node_template.contract_not_found";
+    public const string LibraryNodeTemplateNodeTypeUnsupported = "mcp.library_node_template.node_type_unsupported";
+    public const string FlowPatchOperationsInvalid = "mcp.flow_patch.operations_invalid";
+    public const string FlowPatchOperationRequired = "mcp.flow_patch.operation_required";
+    public const string FlowPatchLegacyInput = "mcp.flow_patch.legacy_input";
+    public const string FlowPatchOperationUnknown = "mcp.flow_patch.operation_unknown";
+    public const string FlowPatchSchemaVersionInvalid = "mcp.flow_patch.schema_version_invalid";
+    public const string FlowPatchSchemaVersionUnsupported = "mcp.flow_patch.schema_version_unsupported";
+    public const string FlowPatchFieldRequired = "mcp.flow_patch.field_required";
+    public const string FlowPatchPayloadInvalid = "mcp.flow_patch.payload_invalid";
+    public const string FlowPatchDuplicateId = "mcp.flow_patch.duplicate_id";
+    public const string FlowPatchUnexpectedField = "mcp.flow_patch.unexpected_field";
+    public const string FlowPatchEnumEncodingInvalid = "mcp.flow_patch.enum_encoding_invalid";
+    public const string FlowPatchFieldInvalid = "mcp.flow_patch.field_invalid";
+    public const string IdempotencyConflict = "mcp.idempotency_conflict";
 }
 
 public static class DomainErrorCodes

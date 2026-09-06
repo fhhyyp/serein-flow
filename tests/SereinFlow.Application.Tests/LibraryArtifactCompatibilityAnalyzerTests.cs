@@ -28,7 +28,7 @@ public sealed class LibraryArtifactCompatibilityAnalyzerTests
         var issue = Assert.Single(result.Issues);
         Assert.Equal(LibraryCompatibilityClassificationDto.Breaking, issue.Classification);
         Assert.True(issue.BlocksApplication);
-        Assert.Equal("library.package_node_removed", issue.Code);
+        Assert.Equal(LibraryErrorCodes.PackageNodeRemoved, issue.Code);
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public sealed class LibraryArtifactCompatibilityAnalyzerTests
 
         var result = LibraryArtifactCompatibilityAnalyzer.Analyze(baseline, target);
 
-        var issue = Assert.Single(result.Issues, item => item.Code == "library.package_parameter_mapping_required");
+        var issue = Assert.Single(result.Issues, item => item.Code == LibraryErrorCodes.PackageParameterMappingRequired);
         Assert.Equal(LibraryCompatibilityClassificationDto.RequiresMapping, issue.Classification);
         Assert.True(issue.BlocksApplication);
         Assert.Equal("old-name", issue.SourceParameterId);
@@ -72,7 +72,7 @@ public sealed class LibraryArtifactCompatibilityAnalyzerTests
         var result = LibraryArtifactCompatibilityAnalyzer.Analyze(baseline, target);
 
         Assert.False(result.IsCompatible);
-        Assert.Contains(result.Issues, issue => issue.Code == "library.package_manifest_missing");
+        Assert.Contains(result.Issues, issue => issue.Code == LibraryErrorCodes.PackageManifestMissing);
     }
 
     private static LibraryDto CreateLibrary(string id, string version, params LibraryManifestNodeDto[] nodes)

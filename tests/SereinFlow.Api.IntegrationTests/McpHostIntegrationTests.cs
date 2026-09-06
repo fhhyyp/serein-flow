@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using SereinFlow.Api;
+using SereinFlow.Contracts;
 
 namespace SereinFlow.Api.IntegrationTests;
 
@@ -34,7 +35,7 @@ public sealed class McpHostIntegrationTests : IClassFixture<McpHostIntegrationTe
         Assert.Contains("Bearer", unauthenticated.Headers.WwwAuthenticate.Select(static value => value.Scheme));
         using (var unauthenticatedDocument = JsonDocument.Parse(await unauthenticated.Content.ReadAsStringAsync()))
         {
-            Assert.Equal("mcp.unauthenticated", unauthenticatedDocument.RootElement.GetProperty("error").GetProperty("code").GetString());
+        Assert.Equal(McpErrorCodes.Unauthenticated, unauthenticatedDocument.RootElement.GetProperty("error").GetProperty("code").GetString());
         }
 
         using var initializeRequest = CreateMcpRequest("initialize", 2);

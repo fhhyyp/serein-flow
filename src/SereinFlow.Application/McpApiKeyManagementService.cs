@@ -46,7 +46,7 @@ public sealed class McpApiKeyManagementService
             if (existing.Count > 0)
             {
                 throw new McpSecurityException(
-                    "mcp.key_setup_already_completed",
+                    McpErrorCodes.KeySetupAlreadyCompleted,
                     "MCP API key setup has already been completed.",
                     409);
             }
@@ -83,7 +83,7 @@ public sealed class McpApiKeyManagementService
         if (existing.RevokedAt is not null)
         {
             throw new McpSecurityException(
-                "mcp.key_already_revoked",
+                McpErrorCodes.KeyAlreadyRevoked,
                 "The MCP API key has already been revoked.",
                 409);
         }
@@ -96,7 +96,7 @@ public sealed class McpApiKeyManagementService
 
     private async Task<McpApiKeyEntry> FindAsync(string id, CancellationToken cancellationToken)
         => await _keys.FindAsync(id, cancellationToken)
-            ?? throw new McpSecurityException("mcp.key_not_found", "The MCP API key was not found.", 404);
+            ?? throw new McpSecurityException(McpErrorCodes.KeyNotFound, "The MCP API key was not found.", 404);
 
     private async Task ValidateProjectAsync(Guid? projectId, CancellationToken cancellationToken)
     {
@@ -105,11 +105,11 @@ public sealed class McpApiKeyManagementService
 
         var project = await _projects.FindAsync(projectId.Value, cancellationToken);
         if (project is null)
-            throw new McpSecurityException("mcp.project_not_found", "The API key project was not found.", 404);
+            throw new McpSecurityException(McpErrorCodes.ProjectNotFound, "The API key project was not found.", 404);
         if (project.Status == ProjectStatus.Archived)
         {
             throw new McpSecurityException(
-                "mcp.project_archived",
+                McpErrorCodes.ProjectArchived,
                 "An API key cannot be bound to an archived project.",
                 409);
         }

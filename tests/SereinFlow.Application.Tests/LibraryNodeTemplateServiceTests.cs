@@ -77,14 +77,14 @@ public sealed class LibraryNodeTemplateServiceTests
 
         var missingReference = await Assert.ThrowsAsync<LibraryNodeTemplateException>(() => unattached.CreateAsync(
             new LibraryNodeTemplateRequestDto(projectId, library.Id, "quality-rate", new NodeTemplatePositionDto(0, 0))));
-        Assert.Equal("mcp.library_node_template.library_not_attached", missingReference.Code);
+        Assert.Equal(McpErrorCodes.LibraryNodeTemplateLibraryNotAttached, missingReference.Code);
 
         var attached = new LibraryNodeTemplateService(
             new ReferenceRepository((projectId, library.Id)),
             new CatalogService(library));
         var missingContract = await Assert.ThrowsAsync<LibraryNodeTemplateException>(() => attached.CreateAsync(
             new LibraryNodeTemplateRequestDto(projectId, library.Id, "missing", new NodeTemplatePositionDto(0, 0))));
-        Assert.Equal("mcp.library_node_template.contract_not_found", missingContract.Code);
+        Assert.Equal(McpErrorCodes.LibraryNodeTemplateContractNotFound, missingContract.Code);
     }
 
     private static LibraryDto CreateLibrary()

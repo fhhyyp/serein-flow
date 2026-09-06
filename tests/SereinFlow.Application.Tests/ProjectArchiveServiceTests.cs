@@ -18,7 +18,7 @@ public sealed class ProjectArchiveServiceTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(409, result.StatusCode);
-        Assert.Equal("project.archive_environment_interface_exists", result.Code);
+        Assert.Equal(ProjectErrorCodes.ArchiveEnvironmentInterfaceExists, result.Code);
         Assert.NotEqual(ProjectStatus.Archived, (await projects.FindAsync(project.Id))!.Status);
     }
 

@@ -48,18 +48,18 @@ public sealed class McpPreviewService
         CancellationToken cancellationToken = default)
     {
         var entry = await _store.FindAsync(id, cancellationToken)
-            ?? throw new McpSecurityException("mcp.preview_not_found", "The MCP preview was not found.", 404);
+            ?? throw new McpSecurityException(McpErrorCodes.PreviewNotFound, "The MCP preview was not found.", 404);
         if (!string.Equals(entry.PrincipalId, principal.Id, StringComparison.Ordinal))
-            throw new McpSecurityException("mcp.preview_owner_mismatch", "The MCP preview belongs to another caller.", 403);
+            throw new McpSecurityException(McpErrorCodes.PreviewOwnerMismatch, "The MCP preview belongs to another caller.", 403);
         if (!string.Equals(entry.PreviewFingerprint, fingerprint, StringComparison.Ordinal))
-            throw new McpSecurityException("mcp.preview_fingerprint_mismatch", "The MCP preview fingerprint is invalid.", 409);
+            throw new McpSecurityException(McpErrorCodes.PreviewFingerprintMismatch, "The MCP preview fingerprint is invalid.", 409);
         if (entry.Status != McpMutationPreviewStatusDto.Pending)
-            throw new McpSecurityException("mcp.preview_not_pending", "The MCP preview is no longer pending.", 409);
+            throw new McpSecurityException(McpErrorCodes.PreviewNotPending, "The MCP preview is no longer pending.", 409);
         if (entry.ExpiresAt <= DateTimeOffset.UtcNow)
         {
             var expired = entry with { Status = McpMutationPreviewStatusDto.Expired };
             await _store.UpdateAsync(expired, cancellationToken);
-            throw new McpSecurityException("mcp.preview_expired", "The MCP preview has expired.", 409);
+            throw new McpSecurityException(McpErrorCodes.PreviewExpired, "The MCP preview has expired.", 409);
         }
         return entry;
     }

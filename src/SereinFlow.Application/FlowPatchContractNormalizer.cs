@@ -30,12 +30,12 @@ public sealed class FlowPatchContractNormalizer
         var remark = ReadOptionalString(arguments, "remark", "$.remark");
         var operationElement = RequireProperty(arguments, "operations", "$.operations");
         if (operationElement.ValueKind != JsonValueKind.Array)
-            throw Invalid("mcp.flow_patch.operations_invalid", "$.operations", "an array", "Provide a typed operations array.");
+            throw Invalid(McpErrorCodes.FlowPatchOperationsInvalid, "$.operations", "an array", "Provide a typed operations array.");
 
         if (isV2 && operationElement.GetArrayLength() == 0)
         {
             throw Invalid(
-                "mcp.flow_patch.operation_required",
+                McpErrorCodes.FlowPatchOperationRequired,
                 "$.operations",
                 "at least one typed operation",
                 "Add an operation or omit the preview request.");
@@ -80,7 +80,7 @@ public sealed class FlowPatchContractNormalizer
             canonical,
             request,
             [new FlowPatchNormalizationWarningDto(
-                "mcp.flow_patch.legacy_input",
+                McpErrorCodes.FlowPatchLegacyInput,
                 "$.operations",
                 "The stored preview uses the legacy flow-patch representation and was normalized to schema 2.0.")]);
     }
@@ -141,7 +141,7 @@ public sealed class FlowPatchContractNormalizer
             "setRunPolicy" => Legacy(FlowPatchOperationKindDto.SetRunPolicy, value: operation.RunPolicy),
             "replaceScriptSource" => Legacy(FlowPatchOperationKindDto.ReplaceScriptSource, operation.CanvasId, operation.NodeId, value: operation.Source),
             _ => throw Invalid(
-                "mcp.flow_patch.operation_unknown",
+                McpErrorCodes.FlowPatchOperationUnknown,
                 "$.operations",
                 "a supported schema 2.0 operation",
                 "Use the operation names published by sereinflow_preview_flow_patch.")
@@ -174,7 +174,7 @@ public sealed class FlowPatchContractNormalizer
             warnings =
             [
                 new FlowPatchNormalizationWarningDto(
-                    "mcp.flow_patch.legacy_input",
+                    McpErrorCodes.FlowPatchLegacyInput,
                     "$.schemaVersion",
                     "Schema version 1.0 was inferred because schemaVersion was omitted.")
             ];
@@ -184,7 +184,7 @@ public sealed class FlowPatchContractNormalizer
         if (value.ValueKind != JsonValueKind.String)
         {
             throw Invalid(
-                "mcp.flow_patch.schema_version_invalid",
+                McpErrorCodes.FlowPatchSchemaVersionInvalid,
                 "$.schemaVersion",
                 $"'{FlowPatchContract.LegacySchemaVersion}' or '{FlowPatchContract.CurrentSchemaVersion}'",
                 $"Use schemaVersion '{FlowPatchContract.CurrentSchemaVersion}' for new requests.");
@@ -204,7 +204,7 @@ public sealed class FlowPatchContractNormalizer
             warnings =
             [
                 new FlowPatchNormalizationWarningDto(
-                    "mcp.flow_patch.legacy_input",
+                    McpErrorCodes.FlowPatchLegacyInput,
                     "$.schemaVersion",
                     "Schema version 1.0 is deprecated; the preview response uses schema 2.0.")
             ];
@@ -212,7 +212,7 @@ public sealed class FlowPatchContractNormalizer
         }
 
         throw Invalid(
-            "mcp.flow_patch.schema_version_unsupported",
+            McpErrorCodes.FlowPatchSchemaVersionUnsupported,
             "$.schemaVersion",
             $"'{FlowPatchContract.LegacySchemaVersion}' or '{FlowPatchContract.CurrentSchemaVersion}'",
             $"Upgrade the request to schemaVersion '{FlowPatchContract.CurrentSchemaVersion}'.");
@@ -240,7 +240,7 @@ public sealed class FlowPatchContractNormalizer
             "setRunPolicy" => new(op, RunPolicy: ReadRunPolicy(operation, "runPolicy", path, legacyEnums: false, ["op", "runPolicy"])),
             "replaceScriptSource" => ReadV2ReplaceScriptSource(operation, path, op),
             _ => throw Invalid(
-                "mcp.flow_patch.operation_unknown",
+                McpErrorCodes.FlowPatchOperationUnknown,
                 $"{path}.op",
                 "one of the 15 schema 2.0 operation names",
                 "Use the operation names exposed by sereinflow_preview_flow_patch.")
@@ -313,7 +313,7 @@ public sealed class FlowPatchContractNormalizer
             "setRunPolicy" => new(op, RunPolicy: ReadLegacyPayload<FlowRunPolicyDto>(operation, path, legacyEnums: true)),
             "replaceScriptSource" => new(op, ReadLegacyIdentifier(operation, "canvasId", path), ReadLegacyIdentifier(operation, "nodeId", path), Source: ReadLegacyPayload<string>(operation, path, legacyEnums: true)),
             _ => throw Invalid(
-                "mcp.flow_patch.operation_unknown",
+                McpErrorCodes.FlowPatchOperationUnknown,
                 $"{path}.operation",
                 "a supported legacy operation name",
                 "Use schemaVersion 2.0 and the canonical op names.")
@@ -342,7 +342,7 @@ public sealed class FlowPatchContractNormalizer
             FlowPatchOperationKindDto.SetRunPolicy => new("setRunPolicy", RunPolicy: ReadPersistedPayload<FlowRunPolicyDto>(value, path, legacyEnums: true)),
             FlowPatchOperationKindDto.ReplaceScriptSource => new("replaceScriptSource", Required(operation.CanvasId, $"{path}.canvasId"), Required(operation.NodeId, $"{path}.nodeId"), Source: ReadPersistedPayload<string>(value, path, legacyEnums: true)),
             _ => throw Invalid(
-                "mcp.flow_patch.operation_unknown",
+                McpErrorCodes.FlowPatchOperationUnknown,
                 path,
                 "a supported legacy operation",
                 "Create a new schema 2.0 preview.")
@@ -355,7 +355,7 @@ public sealed class FlowPatchContractNormalizer
     private static T ReadPersistedPayload<T>(JsonElement? value, string path, bool legacyEnums)
     {
         if (value is not { } payload)
-            throw Invalid("mcp.flow_patch.field_required", $"{path}.value", "a value", "Provide the operation payload.");
+            throw Invalid(McpErrorCodes.FlowPatchFieldRequired, $"{path}.value", "a value", "Provide the operation payload.");
         return ReadPayload<T>(payload, $"{path}.value", legacyEnums);
     }
 
@@ -403,15 +403,15 @@ public sealed class FlowPatchContractNormalizer
         try
         {
             return payload.Deserialize<T>(JsonOptions)
-                ?? throw Invalid("mcp.flow_patch.payload_invalid", path, typeof(T).Name, "Provide a valid typed payload.");
+                ?? throw Invalid(McpErrorCodes.FlowPatchPayloadInvalid, path, typeof(T).Name, "Provide a valid typed payload.");
         }
         catch (JsonException)
         {
-            throw Invalid("mcp.flow_patch.payload_invalid", path, typeof(T).Name, "Provide a valid typed payload.");
+            throw Invalid(McpErrorCodes.FlowPatchPayloadInvalid, path, typeof(T).Name, "Provide a valid typed payload.");
         }
         catch (NotSupportedException)
         {
-            throw Invalid("mcp.flow_patch.payload_invalid", path, typeof(T).Name, "Provide a supported typed payload.");
+            throw Invalid(McpErrorCodes.FlowPatchPayloadInvalid, path, typeof(T).Name, "Provide a supported typed payload.");
         }
     }
 
@@ -481,7 +481,7 @@ public sealed class FlowPatchContractNormalizer
                 EnsureKnownProperties(port, $"{path}.ports[{index}]", ["id", "name", "direction", "required"]);
                 var portId = ReadRequiredString(port, "id", $"{path}.ports[{index}].id");
                 if (!portIds.Add(portId))
-                    throw Invalid("mcp.flow_patch.duplicate_id", $"{path}.ports[{index}].id", "a unique port ID", "Use a unique port ID on the node.");
+                    throw Invalid(McpErrorCodes.FlowPatchDuplicateId, $"{path}.ports[{index}].id", "a unique port ID", "Use a unique port ID on the node.");
                 _ = ReadRequiredString(port, "name", $"{path}.ports[{index}].name");
                 _ = ReadRequiredString(port, "direction", $"{path}.ports[{index}].direction");
                 RequireBoolean(port, "required", $"{path}.ports[{index}].required");
@@ -498,10 +498,10 @@ public sealed class FlowPatchContractNormalizer
                 var parameterPath = $"{path}.parameters[{index - 1}].ui";
                 var parameterUi = RequireProperty(parameter, "ui", parameterPath);
                 if (parameterUi.ValueKind == JsonValueKind.Null)
-                    throw Invalid("mcp.flow_patch.field_required", parameterPath, "parameter UI metadata", "Provide the parameter contract ID in ui.id.");
+                    throw Invalid(McpErrorCodes.FlowPatchFieldRequired, parameterPath, "parameter UI metadata", "Provide the parameter contract ID in ui.id.");
                 var parameterId = ReadRequiredString(parameterUi, "id", $"{parameterPath}.id");
                 if (!parameterIds.Add(parameterId))
-                    throw Invalid("mcp.flow_patch.duplicate_id", $"{parameterPath}.id", "a unique parameter ID", "Use a unique parameter ID on the node.");
+                    throw Invalid(McpErrorCodes.FlowPatchDuplicateId, $"{parameterPath}.id", "a unique parameter ID", "Use a unique parameter ID on the node.");
             }
         }
 
@@ -509,16 +509,16 @@ public sealed class FlowPatchContractNormalizer
         if (nodeType == "script")
         {
             if (!hasScript)
-                throw Invalid("mcp.flow_patch.field_required", $"{path}.script", "a script payload for a script node", "Provide the script contract for a script node.");
+                throw Invalid(McpErrorCodes.FlowPatchFieldRequired, $"{path}.script", "a script payload for a script node", "Provide the script contract for a script node.");
             ValidateScriptPayload(script, $"{path}.script", legacyEnums);
             if (!legacyEnums && !string.Equals(nodeId, ReadRequiredString(script, "nodeId", $"{path}.script.nodeId"), StringComparison.Ordinal))
             {
-                throw Invalid("mcp.flow_patch.reference_invalid", $"{path}.script.nodeId", $"the node ID '{nodeId}'", "Make script.nodeId match node.id.");
+                throw Invalid(McpErrorCodes.FlowPatchReferenceInvalid, $"{path}.script.nodeId", $"the node ID '{nodeId}'", "Make script.nodeId match node.id.");
             }
         }
         else if (hasScript)
         {
-            throw Invalid("mcp.flow_patch.unexpected_field", $"{path}.script", "null for action, flipflop, or flowCall nodes", "Remove the script payload or use a script node type.");
+            throw Invalid(McpErrorCodes.FlowPatchUnexpectedField, $"{path}.script", "null for action, flipflop, or flowCall nodes", "Remove the script payload or use a script node type.");
         }
         if (payload.TryGetProperty("ui", out var ui) && ui.ValueKind != JsonValueKind.Null)
             ValidateNodeUiPayload(ui, $"{path}.ui", legacyEnums, nodeType);
@@ -625,9 +625,9 @@ public sealed class FlowPatchContractNormalizer
             var flowCallFields = new[] { "targetNodeId", "targetFlowId", "targetCanvasId", "isPublic", "flowCallParameterBindings" };
             var libraryFields = new[] { "libraryId", "className", "methodName", "dllName", "dllVersion", "returnType", "isAwaitable", "libraryNodeContractId", "flowLibraryName" };
             if (nodeType != "flowCall" && HasAnyProperty(payload, flowCallFields))
-                throw Invalid("mcp.flow_patch.unexpected_field", path, "flow-call metadata only on a flowCall node", "Remove flow-call metadata or use a flowCall node type.");
+                throw Invalid(McpErrorCodes.FlowPatchUnexpectedField, path, "flow-call metadata only on a flowCall node", "Remove flow-call metadata or use a flowCall node type.");
             if (nodeType is not ("action" or "flipflop") && HasAnyProperty(payload, libraryFields))
-                throw Invalid("mcp.flow_patch.unexpected_field", path, "library runtime metadata only on an action or flipflop node", "Remove library metadata or use an action or flipflop node type.");
+                throw Invalid(McpErrorCodes.FlowPatchUnexpectedField, path, "library runtime metadata only on an action or flipflop node", "Remove library metadata or use an action or flipflop node type.");
         }
         if (payload.TryGetProperty("flowCallParameterBindings", out var bindings) && bindings.ValueKind != JsonValueKind.Null)
         {
@@ -714,7 +714,7 @@ public sealed class FlowPatchContractNormalizer
 
         var expected = string.Join(", ", allowed.Select(static item => $"'{item.Canonical}'"));
         throw Invalid(
-            "mcp.flow_patch.enum_encoding_invalid",
+            McpErrorCodes.FlowPatchEnumEncodingInvalid,
             path,
             expected,
             $"Use canonical {FlowPatchContract.EnumEncoding} enum strings for schema {FlowPatchContract.CurrentSchemaVersion}.");
@@ -753,12 +753,12 @@ public sealed class FlowPatchContractNormalizer
                 12 => "replaceScriptSource",
                 13 => "addNodeParameter",
                 14 => "removeNodeParameter",
-                _ => throw Invalid("mcp.flow_patch.operation_unknown", path, "a known legacy operation number", "Use a schema 2.0 op string.")
+                _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, path, "a known legacy operation number", "Use a schema 2.0 op string.")
             };
         }
 
         if (value.ValueKind != JsonValueKind.String)
-            throw Invalid("mcp.flow_patch.operation_unknown", path, "a legacy operation string", "Use a schema 2.0 op string.");
+            throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, path, "a legacy operation string", "Use a schema 2.0 op string.");
 
         return value.GetString() switch
         {
@@ -777,7 +777,7 @@ public sealed class FlowPatchContractNormalizer
             "setEntryNode" or "SetEntryNode" or "set_entry_node" => "setEntryNode",
             "setRunPolicy" or "SetRunPolicy" or "set_run_policy" => "setRunPolicy",
             "replaceScriptSource" or "ReplaceScriptSource" or "replace_script_source" => "replaceScriptSource",
-            _ => throw Invalid("mcp.flow_patch.operation_unknown", path, "a supported legacy operation name", "Use a schema 2.0 op string.")
+            _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, path, "a supported legacy operation name", "Use a schema 2.0 op string.")
         };
     }
 
@@ -786,7 +786,7 @@ public sealed class FlowPatchContractNormalizer
         var value = RequireProperty(source, name, path);
         if (value.ValueKind == JsonValueKind.String && Guid.TryParse(value.GetString(), out var parsed) && parsed != Guid.Empty)
             return parsed;
-        throw Invalid("mcp.flow_patch.field_invalid", path, "a non-empty GUID", "Provide the project or flow ID from the read model.");
+        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a non-empty GUID", "Provide the project or flow ID from the read model.");
     }
 
     private static long ReadPositiveLong(JsonElement source, string name, string path)
@@ -794,7 +794,7 @@ public sealed class FlowPatchContractNormalizer
         var value = RequireProperty(source, name, path);
         if (value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var parsed) && parsed >= 1)
             return parsed;
-        throw Invalid("mcp.flow_patch.field_invalid", path, "a positive integer", "Use the latest development version from the flow read model.");
+        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a positive integer", "Use the latest development version from the flow read model.");
     }
 
     private static string? ReadOptionalString(JsonElement source, string name, string path)
@@ -803,7 +803,7 @@ public sealed class FlowPatchContractNormalizer
             return null;
         if (value.ValueKind == JsonValueKind.String)
             return value.GetString();
-        throw Invalid("mcp.flow_patch.field_invalid", path, "a string or null", "Use a string value for this field.");
+        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a string or null", "Use a string value for this field.");
     }
 
     private static string ReadLegacyIdentifier(JsonElement source, string name, string path)
@@ -814,7 +814,7 @@ public sealed class FlowPatchContractNormalizer
         var value = RequireProperty(source, name, path);
         if (value.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(value.GetString()))
             return value.GetString()!.Trim();
-        throw Invalid("mcp.flow_patch.field_invalid", path, "a non-empty string", "Provide the required field value.");
+        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a non-empty string", "Provide the required field value.");
     }
 
     private static void RequireNullableString(JsonElement source, string name, string path)
@@ -822,7 +822,7 @@ public sealed class FlowPatchContractNormalizer
         var value = RequireProperty(source, name, path);
         if (value.ValueKind is JsonValueKind.Null or JsonValueKind.String)
             return;
-        throw Invalid("mcp.flow_patch.field_invalid", path, "a string or null", "Provide a string value or null.");
+        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a string or null", "Provide a string value or null.");
     }
 
     private static void RequireBoolean(JsonElement source, string name, string path)
@@ -830,7 +830,7 @@ public sealed class FlowPatchContractNormalizer
         var value = RequireProperty(source, name, path);
         if (value.ValueKind is JsonValueKind.True or JsonValueKind.False)
             return;
-        throw Invalid("mcp.flow_patch.field_invalid", path, "a boolean", "Provide true or false.");
+        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a boolean", "Provide true or false.");
     }
 
     private static void RequireInteger(JsonElement source, string name, string path)
@@ -838,7 +838,7 @@ public sealed class FlowPatchContractNormalizer
         var value = RequireProperty(source, name, path);
         if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out _))
             return;
-        throw Invalid("mcp.flow_patch.field_invalid", path, "an integer", "Provide an integer value.");
+        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "an integer", "Provide an integer value.");
     }
 
     private static void RequireFiniteNumber(JsonElement source, string name, string path)
@@ -846,7 +846,7 @@ public sealed class FlowPatchContractNormalizer
         var value = RequireProperty(source, name, path);
         if (value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var numeric) && double.IsFinite(numeric))
             return;
-        throw Invalid("mcp.flow_patch.field_invalid", path, "a finite number", "Provide a finite numeric value.");
+        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a finite number", "Provide a finite numeric value.");
     }
 
     private static void RequireNullableFiniteNumber(JsonElement source, string name, string path)
@@ -856,7 +856,7 @@ public sealed class FlowPatchContractNormalizer
             return;
         if (value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var numeric) && double.IsFinite(numeric))
             return;
-        throw Invalid("mcp.flow_patch.field_invalid", path, "a finite number or null", "Provide a finite numeric value or null.");
+        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a finite number or null", "Provide a finite numeric value or null.");
     }
 
     private static bool HasAnyProperty(JsonElement source, IReadOnlyCollection<string> names)
@@ -867,14 +867,14 @@ public sealed class FlowPatchContractNormalizer
     {
         if (!string.IsNullOrWhiteSpace(value))
             return value.Trim();
-        throw Invalid("mcp.flow_patch.field_required", path, "a non-empty string", "Provide the required field value.");
+        throw Invalid(McpErrorCodes.FlowPatchFieldRequired, path, "a non-empty string", "Provide the required field value.");
     }
 
     private static JsonElement RequireProperty(JsonElement source, string name, string path)
     {
         if (source.TryGetProperty(name, out var value))
             return value;
-        throw Invalid("mcp.flow_patch.field_required", path, $"required property '{name}'", "Provide the required field.");
+        throw Invalid(McpErrorCodes.FlowPatchFieldRequired, path, $"required property '{name}'", "Provide the required field.");
     }
 
     private static void EnsureKnownProperties(JsonElement source, string path, IReadOnlyCollection<string> allowed)
@@ -884,7 +884,7 @@ public sealed class FlowPatchContractNormalizer
             if (!allowed.Contains(property.Name, StringComparer.Ordinal))
             {
                 throw Invalid(
-                    "mcp.flow_patch.unexpected_field",
+                    McpErrorCodes.FlowPatchUnexpectedField,
                     $"{path}.{property.Name}",
                     string.Join(", ", allowed.Select(static item => $"'{item}'")),
                     "Remove fields that are not defined by this operation schema.");
@@ -895,13 +895,13 @@ public sealed class FlowPatchContractNormalizer
     private static void RequireObject(JsonElement value, string path, string message)
     {
         if (value.ValueKind != JsonValueKind.Object)
-            throw Invalid("mcp.flow_patch.payload_invalid", path, "an object", message);
+            throw Invalid(McpErrorCodes.FlowPatchPayloadInvalid, path, "an object", message);
     }
 
     private static void RequireArray(JsonElement value, string path)
     {
         if (value.ValueKind != JsonValueKind.Array)
-            throw Invalid("mcp.flow_patch.payload_invalid", path, "an array", "Provide an array value.");
+            throw Invalid(McpErrorCodes.FlowPatchPayloadInvalid, path, "an array", "Provide an array value.");
     }
 
     private static FlowPatchContractException Invalid(string code, string fieldPath, string expected, string remediation)
@@ -921,7 +921,7 @@ public sealed class FlowPatchContractNormalizer
                 if (!canvases.TryAdd(canvas.Id, CanvasReferenceState.FromCanvas(canvas, "$.current.canvases")))
                 {
                     throw Invalid(
-                        "mcp.flow_patch.duplicate_id",
+                        McpErrorCodes.FlowPatchDuplicateId,
                         "$.current.canvases",
                         "unique canvas IDs",
                         "Repair the current flow before submitting a patch.");
@@ -961,7 +961,7 @@ public sealed class FlowPatchContractNormalizer
                     if (canvas.Nodes.Count != 0 || canvas.Connections.Count != 0)
                     {
                         throw Invalid(
-                            "mcp.flow_patch.reference_invalid",
+                            McpErrorCodes.FlowPatchReferenceInvalid,
                             $"{path}.canvasId",
                             "an empty canvas",
                             "Remove the canvas connections and nodes before removing the canvas.");
@@ -998,7 +998,7 @@ public sealed class FlowPatchContractNormalizer
                     if (canvas.Connections.Values.Any(connection => connection.FromNodeId == nodeId || connection.ToNodeId == nodeId))
                     {
                         throw Invalid(
-                            "mcp.flow_patch.reference_invalid",
+                            McpErrorCodes.FlowPatchReferenceInvalid,
                             $"{path}.nodeId",
                             "a node without connections",
                             "Remove the node connections before removing the node.");
@@ -1042,7 +1042,7 @@ public sealed class FlowPatchContractNormalizer
                             && connection.ToPortId == parameterId))
                     {
                         throw Invalid(
-                            "mcp.flow_patch.reference_invalid",
+                            McpErrorCodes.FlowPatchReferenceInvalid,
                             $"{path}.parameterId",
                             "a parameter without incoming data connections",
                             "Remove the parameter's data connections before removing the parameter.");
@@ -1097,7 +1097,7 @@ public sealed class FlowPatchContractNormalizer
                     if (!node.HasScript)
                     {
                         throw Invalid(
-                            "mcp.flow_patch.reference_invalid",
+                            McpErrorCodes.FlowPatchReferenceInvalid,
                             $"{path}.nodeId",
                             "an existing script node",
                             "Use replaceScriptSource only with a script node.");
@@ -1106,7 +1106,7 @@ public sealed class FlowPatchContractNormalizer
                 }
                 default:
                     throw Invalid(
-                        "mcp.flow_patch.operation_unknown",
+                            McpErrorCodes.FlowPatchOperationUnknown,
                         $"{path}.op",
                         "one of the 15 schema 2.0 operation names",
                         "Use the operation names exposed by sereinflow_preview_flow_patch.");
@@ -1147,14 +1147,14 @@ public sealed class FlowPatchContractNormalizer
 
         private static T RequireValue<T>(T? value, string path) where T : class
             => value ?? throw Invalid(
-                "mcp.flow_patch.field_required",
+                McpErrorCodes.FlowPatchFieldRequired,
                 path,
                 "the operation payload",
                 "Provide the payload required by the selected operation.");
 
         private static string RequireId(string? value, string path)
             => string.IsNullOrWhiteSpace(value)
-                ? throw Invalid("mcp.flow_patch.field_required", path, "a non-empty ID", "Provide an ID from the flow edit model.")
+                ? throw Invalid(McpErrorCodes.FlowPatchFieldRequired, path, "a non-empty ID", "Provide an ID from the flow edit model.")
                 : value.Trim();
 
         private static void RequireMatchingId(string expected, string actual, string path)
@@ -1162,7 +1162,7 @@ public sealed class FlowPatchContractNormalizer
             if (!string.Equals(expected, actual, StringComparison.Ordinal))
             {
                 throw Invalid(
-                    "mcp.flow_patch.reference_invalid",
+                    McpErrorCodes.FlowPatchReferenceInvalid,
                     path,
                     $"the ID '{expected}'",
                     "Make the payload ID match the operation target ID.");
@@ -1171,14 +1171,14 @@ public sealed class FlowPatchContractNormalizer
 
         private static FlowPatchContractException Duplicate(string path, string kind)
             => Invalid(
-                "mcp.flow_patch.duplicate_id",
+                McpErrorCodes.FlowPatchDuplicateId,
                 path,
                 $"a unique {kind}",
                 "Use an ID that is not already present in the target canvas.");
 
         private static FlowPatchContractException ReferenceInvalid(string path, string expected)
             => Invalid(
-                "mcp.flow_patch.reference_invalid",
+                McpErrorCodes.FlowPatchReferenceInvalid,
                 path,
                 expected,
                 "Read the current flow edit model and use an existing ID and port.");

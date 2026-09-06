@@ -649,7 +649,7 @@ public sealed class McpBackendIntegrationTests
 
         Assert.Equal(-32602, exception.Code);
         var diagnostic = JsonSerializer.SerializeToElement(exception.ErrorData, JsonOptions);
-        Assert.Equal("mcp.flow_patch.unexpected_field", diagnostic.GetProperty("code").GetString());
+        Assert.Equal(McpErrorCodes.FlowPatchUnexpectedField, diagnostic.GetProperty("code").GetString());
         Assert.Equal("$.operations[0].ignored", diagnostic.GetProperty("fieldPath").GetString());
         Assert.Equal("2.0", diagnostic.GetProperty("schemaVersion").GetString());
         Assert.False(string.IsNullOrWhiteSpace(diagnostic.GetProperty("diagnosticId").GetString()));
@@ -750,7 +750,7 @@ public sealed class McpBackendIntegrationTests
             CancellationToken.None));
 
         Assert.Equal(-32602, exception.Code);
-        Assert.Equal("mcp.flow_patch.field_invalid", ((JsonElement)JsonSerializer.SerializeToElement(exception.ErrorData, JsonOptions)).GetProperty("code").GetString());
+        Assert.Equal(McpErrorCodes.FlowPatchFieldInvalid, ((JsonElement)JsonSerializer.SerializeToElement(exception.ErrorData, JsonOptions)).GetProperty("code").GetString());
     }
     private static readonly string[] ProjectReadPermissionNames = ["project.read"];
 
@@ -1145,7 +1145,7 @@ public sealed class McpBackendIntegrationTests
             $"sereinflow://mcp-previews/{previewId:D}",
             CancellationToken.None));
 
-        Assert.Equal("mcp.preview_owner_mismatch", exception.Code);
+        Assert.Equal(McpErrorCodes.PreviewOwnerMismatch, exception.Code);
     }
 
     private static TestHost CreateHost(Action<IServiceCollection>? configureServices = null)

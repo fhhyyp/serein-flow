@@ -32,18 +32,18 @@ public sealed class LibraryNodeTemplateService
     {
         ArgumentNullException.ThrowIfNull(request);
         if (request.ProjectId == Guid.Empty)
-            throw Invalid("mcp.library_node_template.project_invalid", "$.projectId", "a non-empty project GUID", "Read the project before requesting a template.");
+            throw Invalid(McpErrorCodes.LibraryNodeTemplateProjectInvalid, "$.projectId", "a non-empty project GUID", "Read the project before requesting a template.");
         if (string.IsNullOrWhiteSpace(request.LibraryId))
-            throw Invalid("mcp.library_node_template.library_invalid", "$.libraryId", "a non-empty library ID", "Use a library ID from the project edit model.");
+            throw Invalid(McpErrorCodes.LibraryNodeTemplateLibraryInvalid, "$.libraryId", "a non-empty library ID", "Use a library ID from the project edit model.");
         if (string.IsNullOrWhiteSpace(request.LibraryNodeContractId))
-            throw Invalid("mcp.library_node_template.contract_invalid", "$.libraryNodeContractId", "a non-empty contract ID", "Use a contract ID from the project edit model.");
+            throw Invalid(McpErrorCodes.LibraryNodeTemplateContractInvalid, "$.libraryNodeContractId", "a non-empty contract ID", "Use a contract ID from the project edit model.");
         if (!double.IsFinite(request.Position.X) || !double.IsFinite(request.Position.Y))
-            throw Invalid("mcp.library_node_template.position_invalid", "$.position", "finite x and y values", "Provide a finite canvas position.");
+            throw Invalid(McpErrorCodes.LibraryNodeTemplatePositionInvalid, "$.position", "finite x and y values", "Provide a finite canvas position.");
 
         if (!await _references.IsReferencedAsync(request.ProjectId, request.LibraryId, cancellationToken))
         {
             throw Invalid(
-                "mcp.library_node_template.library_not_attached",
+                McpErrorCodes.LibraryNodeTemplateLibraryNotAttached,
                 "$.libraryId",
                 "a library attached to this project",
                 "Attach the library through the separate preview/apply workflow before creating a node template.",
@@ -54,7 +54,7 @@ public sealed class LibraryNodeTemplateService
         if (library is null)
         {
             throw Invalid(
-                "mcp.library_node_template.library_not_found",
+                McpErrorCodes.LibraryNodeTemplateLibraryNotFound,
                 "$.libraryId",
                 "an existing library artifact",
                 "Read the project edit model and select an available library.",
@@ -68,7 +68,7 @@ public sealed class LibraryNodeTemplateService
         if (contract is null)
         {
             throw Invalid(
-                "mcp.library_node_template.contract_not_found",
+                McpErrorCodes.LibraryNodeTemplateContractNotFound,
                 "$.libraryNodeContractId",
                 "a contract ID published by the selected library",
                 "Read the library contract from the project edit model.",
@@ -78,7 +78,7 @@ public sealed class LibraryNodeTemplateService
         if (contract.Type is not (NodeTypeDto.Action or NodeTypeDto.Flipflop))
         {
             throw Invalid(
-                "mcp.library_node_template.node_type_unsupported",
+                McpErrorCodes.LibraryNodeTemplateNodeTypeUnsupported,
                 "$.libraryNodeContractId",
                 "an action or flipflop library contract",
                 "Only scanned method-node contracts can produce a library node template.",

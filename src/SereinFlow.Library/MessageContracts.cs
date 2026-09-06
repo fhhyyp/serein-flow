@@ -223,7 +223,7 @@ public sealed class MessageTypeMismatchException : MessageServiceException
     /// </summary>
     public MessageTypeMismatchException(string topic, Type expectedType, Type? actualType)
         : base(
-            "message.type_mismatch",
+            MessageContractErrorCodes.TypeMismatch,
             $"Message on topic '{topic}' is not assignable to '{expectedType.FullName}'. Actual type: '{actualType?.FullName ?? "null"}'. 主题“{topic}”上的消息无法赋值给“{expectedType.FullName}”，实际类型为“{actualType?.FullName ?? "null"}”。",
             topic)
     {
@@ -242,6 +242,16 @@ public sealed class MessageTypeMismatchException : MessageServiceException
     /// 获取消息实际类型；消息为 null 时返回 <see langword="null"/>。
     /// </summary>
     public Type? ActualType { get; }
+}
+
+/// <summary>
+/// Error codes emitted by the SDK message-contract layer.
+/// 消息契约层产生的错误码。
+/// </summary>
+public static class MessageContractErrorCodes
+{
+    /// <summary>Message value type does not match the requested type. 消息值类型与请求类型不匹配。</summary>
+    public const string TypeMismatch = "message.type_mismatch";
 }
 
 /// <summary>

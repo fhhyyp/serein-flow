@@ -1,4 +1,5 @@
 using System.Text.Json;
+using SereinFlow.Contracts;
 using SereinFlow.Domain;
 using SereinFlow.Runtime.Abstractions;
 
@@ -57,7 +58,7 @@ public sealed class DataConnectionResolver
             if (value is null && parameter.Required)
             {
                 throw new FlowDataBindingException(
-                    "node.input_missing",
+                    NodeErrorCodes.InputMissing,
                     $"Required input '{parameter.Name}' on node '{node.Id}' is missing. 节点“{node.Id}”缺少必需输入“{parameter.Name}”。",
                     values);
             }

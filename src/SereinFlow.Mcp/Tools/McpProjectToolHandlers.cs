@@ -122,7 +122,7 @@ internal static class McpProjectToolHandlers
             throw new McpProtocolException(
                 -32011,
                 "The project creation preview is no longer valid.",
-                new { code = "mcp.validation_failed", diagnostics = candidate.Validation.Diagnostics });
+                new { code = McpErrorCodes.ValidationFailed, diagnostics = candidate.Validation.Diagnostics });
         }
 
         var result = await scope.ServiceProvider.GetRequiredService<ProjectCreationService>()

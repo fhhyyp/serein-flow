@@ -121,7 +121,7 @@ public sealed class RunInterruptionService
                 run.Id,
                 sequence,
                 interruptedAt,
-                "run.interrupted",
+                RunErrorCodes.Interrupted,
                 null,
                 payload);
 

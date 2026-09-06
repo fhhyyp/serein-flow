@@ -24,7 +24,7 @@ public static class LibraryArtifactCompatibilityAnalyzer
             issues.Add(Issue(
                 "manifest-missing",
                 LibraryCompatibilityClassificationDto.Unknown,
-                "library.package_manifest_missing",
+                LibraryErrorCodes.PackageManifestMissing,
                 "A compatibility manifest is unavailable for the baseline or target artifact. 基线或目标工件缺少兼容性 Manifest。",
                 blocks: true));
         }
@@ -59,8 +59,8 @@ public static class LibraryArtifactCompatibilityAnalyzer
                     $"node:{source.ContractId}:removed",
                     classification,
                     classification == LibraryCompatibilityClassificationDto.Breaking
-                        ? "library.package_node_removed"
-                        : "library.package_node_match_unknown",
+                        ? LibraryErrorCodes.PackageNodeRemoved
+                        : LibraryErrorCodes.PackageNodeMatchUnknown,
                     classification == LibraryCompatibilityClassificationDto.Breaking
                         ? "The baseline node contract is missing from the target artifact. 基线节点契约在目标工件中不存在。"
                         : "The baseline node contract cannot be uniquely matched in the target artifact. 基线节点契约无法在目标工件中唯一匹配。",
@@ -82,7 +82,7 @@ public static class LibraryArtifactCompatibilityAnalyzer
                 issues.Add(Issue(
                     $"node:{target.ContractId}:required:{parameter.ContractId}",
                     LibraryCompatibilityClassificationDto.RequiresRewire,
-                    "library.package_required_parameter_added",
+                    LibraryErrorCodes.PackageRequiredParameterAdded,
                     "The target artifact adds a required parameter without a default value. 目标工件新增了没有默认值的必需参数。",
                     targetNodeContractId: target.ContractId,
                     targetParameterId: parameter.ContractId,
@@ -95,7 +95,7 @@ public static class LibraryArtifactCompatibilityAnalyzer
             issues.Add(Issue(
                 "exact",
                 LibraryCompatibilityClassificationDto.Exact,
-                "library.package_exact",
+                    LibraryErrorCodes.PackageExact,
                 "The target artifact exposes the same node and parameter contracts. 目标工件提供相同的节点和参数契约。"));
         }
     }
@@ -110,7 +110,7 @@ public static class LibraryArtifactCompatibilityAnalyzer
             issues.Add(Issue(
                 $"node:{source.ContractId}:execution",
                 LibraryCompatibilityClassificationDto.Breaking,
-                "library.package_node_execution_changed",
+                    LibraryErrorCodes.PackageNodeExecutionChanged,
                 "The target node changes its node type or awaitable contract. 目标节点更改了节点类型或可等待契约。",
                 source.ContractId,
                 target.ContractId,
@@ -122,7 +122,7 @@ public static class LibraryArtifactCompatibilityAnalyzer
             issues.Add(Issue(
                 $"node:{source.ContractId}:return-type",
                 LibraryCompatibilityClassificationDto.Breaking,
-                "library.package_return_type_changed",
+                    LibraryErrorCodes.PackageReturnTypeChanged,
                 "The target node changes its return type. 目标节点更改了返回类型。",
                 source.ContractId,
                 target.ContractId,
@@ -137,7 +137,7 @@ public static class LibraryArtifactCompatibilityAnalyzer
                 issues.Add(Issue(
                     $"node:{source.ContractId}:parameter:{sourceParameter.ContractId}:removed",
                     LibraryCompatibilityClassificationDto.Breaking,
-                    "library.package_parameter_removed",
+                    LibraryErrorCodes.PackageParameterRemoved,
                     "The target artifact removes a baseline parameter contract. 目标工件移除了基线参数契约。",
                     source.ContractId,
                     target.ContractId,
@@ -153,7 +153,7 @@ public static class LibraryArtifactCompatibilityAnalyzer
                 issues.Add(Issue(
                     $"node:{source.ContractId}:parameter:{sourceParameter.ContractId}:type",
                     LibraryCompatibilityClassificationDto.Breaking,
-                    "library.package_parameter_type_changed",
+                    LibraryErrorCodes.PackageParameterTypeChanged,
                     "The target parameter changes its CLR or variadic type contract. 目标参数更改了 CLR 或可变参数类型契约。",
                     source.ContractId,
                     target.ContractId,
@@ -166,7 +166,7 @@ public static class LibraryArtifactCompatibilityAnalyzer
                 issues.Add(Issue(
                     $"node:{source.ContractId}:parameter:{sourceParameter.ContractId}:mapping",
                     LibraryCompatibilityClassificationDto.RequiresMapping,
-                    "library.package_parameter_mapping_required",
+                    LibraryErrorCodes.PackageParameterMappingRequired,
                     "The target parameter uses a new ID and declares the baseline ID as an alias. 目标参数使用新 ID，并将基线 ID 声明为别名。",
                     source.ContractId,
                     target.ContractId,
@@ -180,7 +180,7 @@ public static class LibraryArtifactCompatibilityAnalyzer
                 issues.Add(Issue(
                     $"node:{source.ContractId}:parameter:{sourceParameter.ContractId}:metadata",
                     LibraryCompatibilityClassificationDto.Compatible,
-                    "library.package_parameter_metadata_changed",
+                    LibraryErrorCodes.PackageParameterMetadataChanged,
                     "The target parameter changes optionality or its default value without changing its type. 目标参数更改了可选性或默认值，但类型未变。"));
             }
         }
@@ -194,7 +194,7 @@ public static class LibraryArtifactCompatibilityAnalyzer
                 issues.Add(Issue(
                     $"node:{target.ContractId}:required:{targetParameter.ContractId}",
                     LibraryCompatibilityClassificationDto.RequiresRewire,
-                    "library.package_required_parameter_added",
+                    LibraryErrorCodes.PackageRequiredParameterAdded,
                     "The target artifact adds a required parameter without a default value. 目标工件新增了没有默认值的必需参数。",
                     source.ContractId,
                     target.ContractId,
@@ -208,7 +208,7 @@ public static class LibraryArtifactCompatibilityAnalyzer
             issues.Add(Issue(
                 $"node:{source.ContractId}:exact",
                 LibraryCompatibilityClassificationDto.Exact,
-                "library.package_node_exact",
+                    LibraryErrorCodes.PackageNodeExact,
                 "The node contract is unchanged. 节点契约未发生变化。",
                 source.ContractId,
                 target.ContractId));

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using SereinFlow.Contracts;
 using SereinFlow.Runtime.Abstractions;
 
 namespace SereinFlow.Runtime;
@@ -94,14 +95,14 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
         executionId = Guid.NewGuid();
         if (step > MaxSteps)
         {
-            errorCode = "flow.step_limit_exceeded";
+            errorCode = FlowErrorCodes.StepLimitExceeded;
             return false;
         }
 
         var visits = _sharedState.NodeVisits.AddOrUpdate(nodeId, 1, static (_, count) => count + 1);
         if (visits > MaxNodeVisits)
         {
-            errorCode = "flow.cycle_detected";
+            errorCode = FlowErrorCodes.CycleDetected;
             return false;
         }
 

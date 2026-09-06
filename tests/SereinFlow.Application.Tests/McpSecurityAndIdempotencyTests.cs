@@ -92,7 +92,7 @@ public sealed class McpSecurityAndIdempotencyTests
             preview.PreviewFingerprint,
             principal));
 
-        Assert.Equal("mcp.preview_expired", exception.Code);
+        Assert.Equal(McpErrorCodes.PreviewExpired, exception.Code);
         Assert.Equal(McpMutationPreviewStatusDto.Expired, (await store.FindAsync(preview.Id))!.Status);
     }
 
@@ -135,7 +135,7 @@ public sealed class McpSecurityAndIdempotencyTests
         var exception = await Assert.ThrowsAsync<McpSecurityException>(() =>
             service.FindAsync("principal", "flow.patch", "request-1", "{\"value\":2}"));
 
-        Assert.Equal("mcp.idempotency_conflict", exception.Code);
+        Assert.Equal(McpErrorCodes.IdempotencyConflict, exception.Code);
     }
 
     private sealed class InMemoryApiKeyStore(params McpApiKeyEntry[] entries) : IMcpApiKeyStore

@@ -18,7 +18,7 @@ public sealed class FlowDefinitionValidationTests
         Assert.True(persistence.IsValid);
         Assert.Same(definition, normalized);
         Assert.False(execution.IsValid);
-        Assert.Contains(execution.Diagnostics, diagnostic => diagnostic.Code == "flow.unknown_entry_node");
+        Assert.Contains(execution.Diagnostics, diagnostic => diagnostic.Code == SereinFlow.Domain.DomainErrorCodes.UnknownEntryNode);
     }
 
     [Fact]
@@ -27,7 +27,7 @@ public sealed class FlowDefinitionValidationTests
         var validation = FlowDefinitionContractValidator.Validate(CreateBlankDraft());
 
         Assert.False(validation.IsValid);
-        Assert.Contains(validation.Diagnostics, diagnostic => diagnostic.Code == "flow.unknown_entry_node");
+        Assert.Contains(validation.Diagnostics, diagnostic => diagnostic.Code == SereinFlow.Domain.DomainErrorCodes.UnknownEntryNode);
     }
 
     [Theory]
@@ -41,7 +41,7 @@ public sealed class FlowDefinitionValidationTests
         Assert.Equal(expectedValid, validation.IsValid);
         if (!expectedValid)
         {
-            Assert.Contains(validation.Diagnostics, diagnostic => diagnostic.Code == "node.enum_literal_invalid");
+        Assert.Contains(validation.Diagnostics, diagnostic => diagnostic.Code == SereinFlow.Domain.DomainErrorCodes.InvalidEnumLiteral);
         }
     }
 
@@ -58,7 +58,7 @@ public sealed class FlowDefinitionValidationTests
         Assert.Equal(expectedValid, validation.IsValid);
         if (!expectedValid)
         {
-            Assert.Contains(validation.Diagnostics, diagnostic => diagnostic.Code == "node.enum_literal_invalid");
+        Assert.Contains(validation.Diagnostics, diagnostic => diagnostic.Code == SereinFlow.Domain.DomainErrorCodes.InvalidEnumLiteral);
         }
     }
 

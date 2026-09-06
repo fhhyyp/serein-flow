@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
+using SereinFlow.Contracts;
 using SereinFlow.Core.Api;
 using SereinFlow.Library;
 using SereinFlow.Runtime.Abstractions;
@@ -54,7 +55,7 @@ internal sealed class WorkerLibraryServiceRuntime : IAsyncDisposable
         catch (Exception exception)
         {
             throw new LibraryServiceException(
-                "library.service_provider_failed",
+                LibraryErrorCodes.ServiceProviderFailed,
                 $"The library service provider could not be created. Library DI service provider creation failed. {exception.Message}",
                 exception);
         }
@@ -80,7 +81,7 @@ internal sealed class WorkerLibraryServiceRuntime : IAsyncDisposable
         catch (Exception exception)
         {
             throw new LibraryServiceException(
-                "library.service_activation_failed",
+                LibraryErrorCodes.ServiceActivationFailed,
                 $"The library node type '{nodeType.FullName ?? nodeType.Name}' could not be activated from declared FlowService dependencies. {exception.Message}",
                 exception);
         }
@@ -97,7 +98,7 @@ internal sealed class WorkerLibraryServiceRuntime : IAsyncDisposable
         catch (Exception exception)
         {
             throw new LibraryServiceException(
-                "library.result_converter_activation_failed",
+                LibraryErrorCodes.ResultConverterActivationFailed,
                 $"The result converter '{converterType.FullName ?? converterType.Name}' could not be activated. 节点结果转换器无法激活。 {exception.Message}",
                 exception);
         }
@@ -199,7 +200,7 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
         {
             provider?.Dispose();
             throw new LibraryServiceException(
-                "library.service_validation_failed",
+                LibraryErrorCodes.ServiceValidationFailed,
                 $"The declared FlowService dependency graph is invalid. {exception.Message}",
                 exception);
         }
@@ -216,7 +217,7 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
         if (!nodeType.IsClass || nodeType.IsAbstract || nodeType.ContainsGenericParameters)
         {
             throw new LibraryServiceException(
-                "library.service_node_type_invalid",
+                LibraryErrorCodes.ServiceNodeTypeInvalid,
                 $"The library node type '{nodeType.FullName ?? nodeType.Name}' cannot be constructed by the Worker service runtime.");
         }
 
@@ -239,14 +240,14 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
                     .Where(static item => item is not null)
                     .Select(static item => item!.Message));
             throw new LibraryServiceException(
-                "library.service_discovery_failed",
+                LibraryErrorCodes.ServiceDiscoveryFailed,
                 $"FlowService types could not be loaded from '{assembly.GetName().Name}'. {details}",
                 exception);
         }
         catch (Exception exception)
         {
             throw new LibraryServiceException(
-                "library.service_discovery_failed",
+                LibraryErrorCodes.ServiceDiscoveryFailed,
                 $"FlowService types could not be discovered from '{assembly.GetName().Name}'. {exception.Message}",
                 exception);
         }
@@ -271,14 +272,14 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
                     .Where(static item => item is not null)
                     .Select(static item => item!.Message));
             throw new LibraryServiceException(
-                "library.result_converter_discovery_failed",
+                LibraryErrorCodes.ResultConverterDiscoveryFailed,
                 $"Node result converters could not be discovered from '{assembly.GetName().Name}'. 节点结果转换器无法从类库中发现。 {details}",
                 exception);
         }
         catch (Exception exception)
         {
             throw new LibraryServiceException(
-                "library.result_converter_discovery_failed",
+                LibraryErrorCodes.ResultConverterDiscoveryFailed,
                 $"Node result converters could not be discovered from '{assembly.GetName().Name}'. 节点结果转换器无法从类库中发现。 {exception.Message}",
                 exception);
         }
@@ -297,7 +298,7 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
             || contracts.Length != 1)
         {
             throw new LibraryServiceException(
-                "library.result_converter_invalid",
+                LibraryErrorCodes.ResultConverterInvalid,
                 $"Result converter '{converterType.FullName ?? converterType.Name}' must be a concrete class from the library assembly implementing exactly one closed INodeResultConverter<TPrimitive, TTransfer> contract. 节点结果转换器必须是类库程序集中的具体类，并且恰好实现一个闭合的转换器合同。");
         }
     }
@@ -316,7 +317,7 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
                 if (!Enum.IsDefined(attribute.Lifetime))
                 {
                     throw new LibraryServiceException(
-                        "library.service_lifetime_invalid",
+                        LibraryErrorCodes.ServiceLifetimeInvalid,
                         $"FlowService '{implementationType.FullName}' declares an unsupported lifetime.");
                 }
 
@@ -324,7 +325,7 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
                     && previousLifetime != attribute.Lifetime)
                 {
                     throw new LibraryServiceException(
-                        "library.service_lifetime_conflict",
+                        LibraryErrorCodes.ServiceLifetimeConflict,
                         $"FlowService '{implementationType.FullName}' declares more than one lifetime.");
                 }
                 implementations[implementationType] = attribute.Lifetime;
@@ -336,7 +337,7 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
                     && existing != registration)
                 {
                     throw new LibraryServiceException(
-                        "library.service_contract_duplicate",
+                        LibraryErrorCodes.ServiceContractDuplicate,
                         $"More than one FlowService declares the contract '{contractType.FullName ?? contractType.Name}'.");
                 }
                 contracts[contractType] = registration;
@@ -359,7 +360,7 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
             || implementationType.IsByRef)
         {
             throw new LibraryServiceException(
-                "library.service_implementation_invalid",
+                LibraryErrorCodes.ServiceImplementationInvalid,
                 $"FlowService '{implementationType.FullName ?? implementationType.Name}' must be a concrete, closed class.");
         }
 
@@ -367,7 +368,7 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
         if (constructors.Length != 1)
         {
             throw new LibraryServiceException(
-                "library.service_constructor_invalid",
+                LibraryErrorCodes.ServiceConstructorInvalid,
                 $"FlowService '{implementationType.FullName ?? implementationType.Name}' must have exactly one public constructor.");
         }
 
@@ -383,7 +384,7 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
             || !contractType.IsAssignableFrom(implementationType))
         {
             throw new LibraryServiceException(
-                "library.service_contract_invalid",
+                LibraryErrorCodes.ServiceContractInvalid,
                 $"FlowService '{implementationType.FullName ?? implementationType.Name}' cannot expose the contract '{contractType.FullName ?? contractType.Name}'.");
         }
     }
@@ -398,7 +399,7 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
                     continue;
 
                 throw new LibraryServiceException(
-                    "library.service_dependency_forbidden",
+                    LibraryErrorCodes.ServiceDependencyForbidden,
                     $"The {kind} type '{type.FullName ?? type.Name}' cannot request '{parameter.ParameterType.FullName}' through constructor injection.");
             }
         }

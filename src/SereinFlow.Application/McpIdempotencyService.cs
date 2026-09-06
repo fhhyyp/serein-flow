@@ -44,7 +44,7 @@ public sealed class McpIdempotencyService
             && !string.Equals(entry.RequestHash, HashKey(requestPayload), StringComparison.Ordinal))
         {
             throw new McpSecurityException(
-                "mcp.idempotency_conflict",
+                McpErrorCodes.IdempotencyConflict,
                 "The idempotency key was already used for a different MCP request.",
                 409);
         }

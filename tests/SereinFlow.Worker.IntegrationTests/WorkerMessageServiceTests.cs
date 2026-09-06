@@ -63,7 +63,7 @@ public sealed class WorkerMessageServiceTests
 
         var mismatch = await Assert.ThrowsAsync<MessageTypeMismatchException>(
             () => direct.ReceiveAsync<int>("direct").AsTask());
-        Assert.Equal("message.type_mismatch", mismatch.Code);
+        Assert.Equal(MessageContractErrorCodes.TypeMismatch, mismatch.Code);
 
         var json = service.CreateMessageQueue(MessageChannelOptions.Json);
         await json.SendAsync("json", new MessageDto("hello", 3));
@@ -91,7 +91,7 @@ public sealed class WorkerMessageServiceTests
         var waiting = queue.ReceiveAsync<string>("shutdown").AsTask();
         await service.DisposeAsync();
         var closed = await Assert.ThrowsAsync<MessageServiceException>(() => waiting);
-        Assert.Equal("message.queue_closed", closed.Code);
+        Assert.Equal(MessageErrorCodes.QueueClosed, closed.Code);
     }
 
     [Fact]

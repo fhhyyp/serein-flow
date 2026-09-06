@@ -90,7 +90,7 @@ public sealed class FlowInterfacesController : ApiControllerBase
             return ApiProblem(
                 StatusCodes.Status409Conflict,
                 "A production flow version is required before creating an environment interface. 创建环境接口前必须先发布生产流程版本。",
-                extensions: new Dictionary<string, object?> { ["code"] = "flow.production_version_required" });
+                extensions: new Dictionary<string, object?> { ["code"] = FlowErrorCodes.ProductionVersionRequired });
         }
 
         var now = DateTimeOffset.UtcNow;

@@ -68,7 +68,7 @@ public sealed class SereinLangCompiler : ISereinLangCompiler
             stopwatch.Stop();
             return Result(false, sourceHash, sourceName, languageVersion, stopwatch.Elapsed,
                 [new ScriptCompileDiagnosticDto(
-                    "script.compile_timeout",
+                    ScriptErrorCodes.CompileTimeout,
                     $"SereinLang compilation exceeded {DefaultTimeout.TotalSeconds:0} seconds. SereinLang 编译超过 {DefaultTimeout.TotalSeconds:0} 秒。",
                     "error",
                     sourceName)]);
@@ -159,7 +159,7 @@ public sealed class SereinLangCompiler : ISereinLangCompiler
         if (Encoding.UTF8.GetByteCount(source) > MaxSourceBytes)
         {
             diagnostics.Add(new ScriptCompileDiagnosticDto(
-                "script.source_too_large",
+                ScriptErrorCodes.SourceTooLarge,
                 $"SereinLang source cannot exceed {MaxSourceBytes} bytes. SereinLang 源码不能超过 {MaxSourceBytes} 字节。",
                 "error"));
         }
@@ -167,7 +167,7 @@ public sealed class SereinLangCompiler : ISereinLangCompiler
         if (!string.Equals(languageVersion, SupportedLanguageVersion, StringComparison.Ordinal))
         {
             diagnostics.Add(new ScriptCompileDiagnosticDto(
-                "script.language_version_unsupported",
+                ScriptErrorCodes.LanguageVersionUnsupported,
                 $"Only SereinLang version {SupportedLanguageVersion} is supported. 仅支持 SereinLang {SupportedLanguageVersion}。",
                 "error"));
         }
@@ -175,7 +175,7 @@ public sealed class SereinLangCompiler : ISereinLangCompiler
         if (inputs is null || inputs.Count > MaxInputs)
         {
             diagnostics.Add(new ScriptCompileDiagnosticDto(
-                "script.inputs_too_many",
+                ScriptErrorCodes.InputsTooMany,
                 $"A script may declare at most {MaxInputs} inputs. 脚本最多声明 {MaxInputs} 个输入。",
                 "error"));
         }
@@ -189,7 +189,7 @@ public sealed class SereinLangCompiler : ISereinLangCompiler
                     || !names.Add(input.Name))
                 {
                     diagnostics.Add(new ScriptCompileDiagnosticDto(
-                        "script.input_name_invalid",
+                        ScriptErrorCodes.InputNameInvalid,
                         $"Script input name '{input.Name}' must be a unique SereinLang identifier. 脚本输入名称必须是唯一的 SereinLang 标识符。",
                         "error"));
                 }
@@ -220,7 +220,7 @@ public sealed class SereinLangCompiler : ISereinLangCompiler
                 ? int.Parse(match.Groups["column"].Success ? match.Groups["column"].Value : match.Groups["columnEn"].Value, CultureInfo.InvariantCulture)
                 : (int?)null;
             return new ScriptCompileDiagnosticDto(
-                index == 0 ? "script.compile_failed" : "script.compile_diagnostic",
+                index == 0 ? ScriptErrorCodes.CompileFailed : ScriptErrorCodes.CompileDiagnostic,
                 line,
                 "error",
                 sourceName,

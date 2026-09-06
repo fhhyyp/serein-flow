@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using SereinFlow.Contracts;
 using SereinFlow.Library;
 using SereinFlow.Worker.Runner;
 
@@ -54,11 +55,11 @@ public sealed class WorkerNativeLibraryLoaderTests
 
             var missing = Assert.Throws<FlowNativeLibraryException>(() =>
                 loader.LoadNativeLibraryDirectory("missing", required: true));
-            Assert.Equal("library.native_directory_missing", missing.Code);
+            Assert.Equal(LibraryErrorCodes.NativeDirectoryMissing, missing.Code);
 
             var unsafePath = Assert.Throws<FlowNativeLibraryException>(() =>
                 loader.LoadNativeLibraryDirectory("../outside", required: true));
-            Assert.Equal("library.native_directory_invalid", unsafePath.Code);
+            Assert.Equal(LibraryErrorCodes.NativeDirectoryInvalid, unsafePath.Code);
         }
         finally
         {

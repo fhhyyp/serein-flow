@@ -143,7 +143,7 @@ public sealed class McpProtocolTests
         Assert.Equal(-32603, error.GetProperty("code").GetInt32());
         Assert.Equal("The MCP request failed internally.", error.GetProperty("message").GetString());
         var data = error.GetProperty("data");
-        Assert.Equal("mcp.internal_error", data.GetProperty("code").GetString());
+        Assert.Equal(McpErrorCodes.InternalError, data.GetProperty("code").GetString());
         Assert.Matches("^[0-9a-f]{32}$", data.GetProperty("diagnosticId").GetString());
         Assert.DoesNotContain("secret", response!, StringComparison.OrdinalIgnoreCase);
     }
