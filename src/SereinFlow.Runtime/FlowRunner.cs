@@ -552,9 +552,43 @@ public sealed class FlowRunner
     }
 
     private static bool IsCompatibleReturnType(object value, string staticType)
-        => string.Equals(value.GetType().FullName, staticType, StringComparison.Ordinal)
-            || string.Equals(value.GetType().Name, staticType, StringComparison.Ordinal)
-            || (staticType.Equals("System.Object", StringComparison.Ordinal) && value is not null);
+    {
+        var actualType = value.GetType();
+        var expectedType = ResolveReturnType(staticType, actualType);
+        if (expectedType is not null)
+            return expectedType.IsAssignableFrom(actualType);
+
+        // Keep compatibility with older or external type names that cannot be
+        // resolved from the current AppDomain. The metadata still commonly
+        // exposes the full name of a base type or interface.
+        // 对于当前 AppDomain 无法解析的旧版或外部类型名，保留基于类型层级名称的兼容判断。
+        for (var type = actualType; type is not null; type = type.BaseType)
+        {
+            if (string.Equals(type.FullName, staticType, StringComparison.Ordinal)
+                || string.Equals(type.Name, staticType, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return actualType.GetInterfaces().Any(type =>
+            string.Equals(type.FullName, staticType, StringComparison.Ordinal)
+            || string.Equals(type.Name, staticType, StringComparison.Ordinal));
+    }
+
+    private static Type? ResolveReturnType(string staticType, Type actualType)
+    {
+        if (actualType.Assembly.GetType(staticType, throwOnError: false, ignoreCase: false) is { } type)
+            return type;
+
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            if (assembly.GetType(staticType, throwOnError: false, ignoreCase: false) is { } loadedType)
+                return loadedType;
+        }
+
+        return null;
+    }
 
     private static void PushReverse(Stack<string> stack, IReadOnlyList<ConnectionDefinition> connections)
     {

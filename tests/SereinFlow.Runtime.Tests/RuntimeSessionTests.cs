@@ -398,6 +398,37 @@ public sealed class RuntimeSessionTests
     }
 
     [Fact]
+    public async Task FlowCallAcceptsAValueAssignableToTheStaticReturnType()
+    {
+        var target = NodeDefinition.Create(
+            "target",
+            NodeType.Action,
+            "Target",
+            runtime: new NodeRuntimeDefinition(
+                IsPublic: true,
+                ReturnType: typeof(BaseReturnValue).FullName));
+        var call = NodeDefinition.Create(
+            "call",
+            NodeType.FlowCall,
+            "Call",
+            runtime: new NodeRuntimeDefinition(TargetNodeId: target.Id));
+        var definition = FlowDefinition.Create(
+            Guid.NewGuid(),
+            1,
+            [CanvasDefinition.Create("main", CanvasLifecycle.Main, [call, target], [])],
+            call.Id);
+        var runner = new FlowRunner(
+            new ExecutionPlanBuilder(),
+            new NodeExecutorRegistry([new AssignableReturnActionExecutor(), new FlowCallNodeExecutor()]));
+
+        await using var session = new FlowExecutionSession();
+        var result = await runner.RunAsync(definition, session);
+
+        Assert.True(result.IsSuccess);
+        Assert.IsType<DerivedReturnValue>(result.Outputs["result"]);
+    }
+
+    [Fact]
     public async Task CancellingAGlobalFlipflopPropagatesTheRunCancellationWithoutNodeError()
     {
         var trigger = NodeDefinition.Create("trigger", NodeType.Flipflop, "Trigger");
@@ -496,6 +527,19 @@ public sealed class RuntimeSessionTests
             => ValueTask.FromResult(NodeExecutionResult.Success(
                 new Dictionary<string, object?> { ["result"] = "not-an-int" }));
     }
+
+    private sealed class AssignableReturnActionExecutor : INodeExecutor
+    {
+        public NodeType NodeType => NodeType.Action;
+
+        public ValueTask<NodeExecutionResult> ExecuteAsync(NodeExecutionRequest request, CancellationToken cancellationToken)
+            => ValueTask.FromResult(NodeExecutionResult.Success(
+                new Dictionary<string, object?> { ["result"] = new DerivedReturnValue() }));
+    }
+
+    private abstract class BaseReturnValue;
+
+    private sealed class DerivedReturnValue : BaseReturnValue;
 
     private sealed class WaitingFlipflopExecutor : INodeExecutor, IGlobalFlipflopExecutor
     {
