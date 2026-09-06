@@ -33,13 +33,13 @@ public sealed class RunMessageDeliveryService : IRunMessageDeliveryService
     {
         var run = await _runs.FindAsync(command.RunId, cancellationToken);
         if (run is null)
-            return Failure(RunMessageDeliveryDisposition.RunNotFound, "run.not_found", "Run not found. 未找到运行实例。", 404);
+            return Failure(RunMessageDeliveryDisposition.RunNotFound, RunErrorCodes.NotFound, "Run not found. 未找到运行实例。", 404);
 
         if (run.IsTerminal || run.Status != FlowRunStatus.Running)
         {
             return Failure(
                 RunMessageDeliveryDisposition.WorkerNotActive,
-                "worker.not_active",
+                WorkerErrorCodes.NotActive,
                 "The Worker run is not active. Worker 运行当前不活动。",
                 409);
         }
@@ -49,7 +49,7 @@ public sealed class RunMessageDeliveryService : IRunMessageDeliveryService
         {
             return Failure(
                 RunMessageDeliveryDisposition.InvalidRequest,
-                "message.topic_invalid",
+                MessageErrorCodes.TopicInvalid,
                 "The message topic is invalid. 消息主题无效。",
                 400);
         }
@@ -58,7 +58,7 @@ public sealed class RunMessageDeliveryService : IRunMessageDeliveryService
         {
             return Failure(
                 RunMessageDeliveryDisposition.InvalidRequest,
-                "message.payload_required",
+                MessageErrorCodes.PayloadRequired,
                 "A JSON message payload is required. 必须提供 JSON 消息载荷。",
                 400);
         }
@@ -67,7 +67,7 @@ public sealed class RunMessageDeliveryService : IRunMessageDeliveryService
         {
             return Failure(
                 RunMessageDeliveryDisposition.InvalidRequest,
-                "message.channel_invalid",
+                MessageErrorCodes.ChannelInvalid,
                 "The message channel kind is invalid. 消息通道类型无效。",
                 400);
         }
@@ -81,7 +81,7 @@ public sealed class RunMessageDeliveryService : IRunMessageDeliveryService
         {
             return Failure(
                 RunMessageDeliveryDisposition.InvalidRequest,
-                "message.id_invalid",
+                MessageErrorCodes.IdInvalid,
                 "MessageId must be a valid GUID. MessageId 必须是有效 GUID。",
                 400);
         }
@@ -104,7 +104,7 @@ public sealed class RunMessageDeliveryService : IRunMessageDeliveryService
         {
             return Failure(
                 RunMessageDeliveryDisposition.InvalidRequest,
-                "message.payload_invalid",
+                MessageErrorCodes.PayloadInvalid,
                 "The message payload is not valid JSON. 消息载荷不是有效 JSON。",
                 400);
         }
@@ -142,7 +142,7 @@ public sealed class RunMessageDeliveryService : IRunMessageDeliveryService
         var message = GetSafeMessage(code, response.Status);
         var normalizedResponse = response.Status == WorkerMessageDeliveryStatusDto.Accepted
             ? response
-            : response with { Code = code ?? "message.rejected", Message = message };
+            : response with { Code = code ?? MessageErrorCodes.Rejected, Message = message };
 
         return response.Status switch
         {
@@ -152,36 +152,36 @@ public sealed class RunMessageDeliveryService : IRunMessageDeliveryService
                 null,
                 response.Message ?? "The message was accepted. 消息已接受。",
                 202),
-            WorkerMessageDeliveryStatusDto.NotFound when string.Equals(code, "worker.not_active", StringComparison.Ordinal)
+            WorkerMessageDeliveryStatusDto.NotFound when string.Equals(code, WorkerErrorCodes.NotActive, StringComparison.Ordinal)
                 => new(RunMessageDeliveryDisposition.WorkerNotFound, normalizedResponse, code, message, 404),
             WorkerMessageDeliveryStatusDto.NotFound
-                => new(RunMessageDeliveryDisposition.WorkerNotFound, normalizedResponse, code ?? "worker.not_found", message, 404),
+                => new(RunMessageDeliveryDisposition.WorkerNotFound, normalizedResponse, code ?? WorkerErrorCodes.NotFound, message, 404),
             WorkerMessageDeliveryStatusDto.NotReady
-                => new(RunMessageDeliveryDisposition.EndpointNotReady, normalizedResponse, code ?? "message.endpoint_not_ready", message, 409),
+                => new(RunMessageDeliveryDisposition.EndpointNotReady, normalizedResponse, code ?? MessageErrorCodes.EndpointNotReady, message, 409),
             WorkerMessageDeliveryStatusDto.TimedOut
-                => new(RunMessageDeliveryDisposition.TimedOut, normalizedResponse, code ?? "message.delivery_timeout", message, 504),
-            _ when string.Equals(code, "message.endpoint_forbidden", StringComparison.Ordinal)
+                => new(RunMessageDeliveryDisposition.TimedOut, normalizedResponse, code ?? MessageErrorCodes.DeliveryTimeout, message, 504),
+            _ when string.Equals(code, MessageErrorCodes.EndpointForbidden, StringComparison.Ordinal)
                 => new(RunMessageDeliveryDisposition.EndpointForbidden, normalizedResponse, code, message, 403),
-            _ when string.Equals(code, "message.channel_full", StringComparison.Ordinal)
+            _ when string.Equals(code, MessageErrorCodes.ChannelFull, StringComparison.Ordinal)
                 => new(RunMessageDeliveryDisposition.ChannelFull, normalizedResponse, code, message, 429),
-            _ => new(RunMessageDeliveryDisposition.Rejected, normalizedResponse, code ?? "message.rejected", message, 400),
+            _ => new(RunMessageDeliveryDisposition.Rejected, normalizedResponse, code ?? MessageErrorCodes.Rejected, message, 400),
         };
     }
 
     private static string GetSafeMessage(string? code, WorkerMessageDeliveryStatusDto status)
         => code switch
         {
-            "message.endpoint_not_ready" => "The message endpoint is not ready. 消息入口尚未就绪。",
-            "message.endpoint_forbidden" => "The message endpoint is not open to external ingress. 消息入口未开放外部投递。",
-            "message.contract_mismatch" => "The message contract does not match the registered endpoint. 消息合同与已注册入口不匹配。",
-            "message.channel_full" => "The message channel is full. 消息通道已满。",
-            "message.delivery_timeout" => "The Worker did not acknowledge the message before the delivery timeout. Worker 未在投递超时前确认消息。",
-            "message.channel_invalid" => "The message channel kind is invalid. 消息通道类型无效。",
-            "message.external_json_required" or "message.endpoint_json_required" => "External ingress only accepts JSON messages. 外部入口只接受 JSON 消息。",
-            "message.payload_invalid" => "The message payload is not valid JSON. 消息载荷不是有效 JSON。",
-            "message.payload_too_large" => "The message payload is too large. 消息载荷过大。",
-            "message.expired" => "The message has expired. 消息已过期。",
-            "worker.not_found" or "worker.transport_closed" => "The Worker run is not active in the Supervisor. Supervisor 中不存在活动 Worker 会话。",
+            MessageErrorCodes.EndpointNotReady => "The message endpoint is not ready. 消息入口尚未就绪。",
+            MessageErrorCodes.EndpointForbidden => "The message endpoint is not open to external ingress. 消息入口未开放外部投递。",
+            MessageErrorCodes.ContractMismatch => "The message contract does not match the registered endpoint. 消息合同与已注册入口不匹配。",
+            MessageErrorCodes.ChannelFull => "The message channel is full. 消息通道已满。",
+            MessageErrorCodes.DeliveryTimeout => "The Worker did not acknowledge the message before the delivery timeout. Worker 未在投递超时前确认消息。",
+            MessageErrorCodes.ChannelInvalid => "The message channel kind is invalid. 消息通道类型无效。",
+            MessageErrorCodes.ExternalJsonRequired or MessageErrorCodes.EndpointJsonRequired => "External ingress only accepts JSON messages. 外部入口只接受 JSON 消息。",
+            MessageErrorCodes.PayloadInvalid => "The message payload is not valid JSON. 消息载荷不是有效 JSON。",
+            MessageErrorCodes.PayloadTooLarge => "The message payload is too large. 消息载荷过大。",
+            MessageErrorCodes.Expired => "The message has expired. 消息已过期。",
+            WorkerErrorCodes.NotFound or WorkerErrorCodes.TransportClosed => "The Worker run is not active in the Supervisor. Supervisor 中不存在活动 Worker 会话。",
             _ when status == WorkerMessageDeliveryStatusDto.NotFound => "The Worker run is not active in the Supervisor. Supervisor 中不存在活动 Worker 会话。",
             _ => "The message was rejected. 消息被拒绝。",
         };

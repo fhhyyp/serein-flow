@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using SereinFlow.Contracts;
 using SereinFlow.Mcp;
 
 namespace SereinFlow.Mcp.Tests;
@@ -99,17 +100,17 @@ public sealed class McpAiGuidanceTests
         try
         {
             await File.WriteAllTextAsync(Path.Combine(root.FullName, "index.md"), "# index");
-            await File.WriteAllTextAsync(Path.Combine(root.FullName, "flow.md"), "# flow-v1");
+            await File.WriteAllTextAsync(Path.Combine(root.FullName, FlowErrorCodes.Md), "# flow-v1");
             await File.WriteAllTextAsync(Path.Combine(root.FullName, "lang.md"), "# lang-v1");
-            await File.WriteAllTextAsync(Path.Combine(root.FullName, "library.md"), "# library-v1");
+            await File.WriteAllTextAsync(Path.Combine(root.FullName, LibraryErrorCodes.Md), "# library-v1");
 
             var provider = new McpAiGuidanceProvider(
                 new McpAiGuidanceOptions
                 {
                     FilePath = "index.md",
-                    SereinFlowFilePath = "flow.md",
+                    SereinFlowFilePath = FlowErrorCodes.Md,
                     SereinLangFilePath = "lang.md",
-                    LibraryPackageFilePath = "library.md",
+                    LibraryPackageFilePath = LibraryErrorCodes.Md,
                     ModuleFilePaths = new Dictionary<string, string>
                     {
                         ["sereinlang.syntax"] = "lang-module.md",
@@ -173,17 +174,17 @@ public sealed class McpAiGuidanceTests
         var root = Directory.CreateTempSubdirectory("sereinflow-mcp-upgrade-prompt-");
         try
         {
-            await File.WriteAllTextAsync(Path.Combine(root.FullName, "library.md"), "# library upgrade guidance");
+            await File.WriteAllTextAsync(Path.Combine(root.FullName, LibraryErrorCodes.Md), "# library upgrade guidance");
             var provider = new McpAiGuidanceProvider(
                 new McpAiGuidanceOptions
                 {
                     FilePath = "index.md",
-                    SereinFlowFilePath = "flow.md",
+                    SereinFlowFilePath = FlowErrorCodes.Md,
                     SereinLangFilePath = "lang.md",
-                    LibraryPackageFilePath = "library.md",
+                    LibraryPackageFilePath = LibraryErrorCodes.Md,
                     ModuleFilePaths = new Dictionary<string, string>
                     {
-                        ["library.upgrade"] = "library.md"
+                        ["library.upgrade"] = LibraryErrorCodes.Md
                     },
                     MaxBytes = 4096
                 },
@@ -212,10 +213,10 @@ public sealed class McpAiGuidanceTests
         {
             var modulePaths = new Dictionary<string, string>
             {
-                ["library.build"] = "build.md",
-                ["library.zip"] = "zip.md",
-                ["library.metadata"] = "metadata.md",
-                ["library.import"] = "import.md"
+                [LibraryErrorCodes.Build] = "build.md",
+                [LibraryErrorCodes.Zip] = "zip.md",
+                [LibraryErrorCodes.Metadata] = "metadata.md",
+                [LibraryErrorCodes.Import] = "import.md"
             };
             foreach (var (key, path) in modulePaths)
                 await File.WriteAllTextAsync(Path.Combine(root.FullName, path), $"#{key}");

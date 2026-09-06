@@ -82,7 +82,7 @@ public sealed class RunApplicationService
             return RunPreparationResult.Invalid(new FlowValidationResultDto(
                 false,
                 unknownBreakpoints.Select(nodeId => new ValidationDiagnosticDto(
-                    "debug.breakpoint_node_missing",
+                    DebugErrorCodes.BreakpointNodeMissing,
                     $"Breakpoint node '{nodeId}' does not exist in the saved flow. 断点节点“{nodeId}”不存在于已保存流程中。",
                     $"breakpointNodeIds.{nodeId}"))
                     .ToArray()));
@@ -165,7 +165,7 @@ public sealed record RunPreparationResult(
         "Archived projects cannot start new runs. 已归档项目不能启动新的运行实例。",
         new
         {
-            code = "project.archived",
+            code = ProjectErrorCodes.Archived,
             message = "Archived projects cannot start new runs. 已归档项目不能启动新的运行实例。"
         });
 
@@ -184,7 +184,7 @@ public sealed record RunPreparationResult(
             "The flow already has an active run and does not allow concurrent execution. 该流程已有活动运行实例，不允许并发执行。",
             new
             {
-                code = "flow.run_already_active",
+                code = FlowErrorCodes.RunAlreadyActive,
                 message = "The flow already has an active run and does not allow concurrent execution. 该流程已有活动运行实例，不允许并发执行。",
                 activeRunId
             });

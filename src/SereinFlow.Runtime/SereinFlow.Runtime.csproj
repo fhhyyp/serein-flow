@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SereinFlow.Domain\SereinFlow.Domain.csproj" />
+    <ProjectReference Include="..\SereinFlow.Contracts\SereinFlow.Contracts.csproj" />
     <ProjectReference Include="..\SereinFlow.Runtime.Abstractions\SereinFlow.Runtime.Abstractions.csproj" />
   </ItemGroup>
 

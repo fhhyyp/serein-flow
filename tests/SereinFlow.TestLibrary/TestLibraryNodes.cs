@@ -1,4 +1,5 @@
 using SereinFlow.Core.Api;
+using SereinFlow.Contracts;
 using SereinFlow.Library;
 using SereinFlow.Runtime.Abstractions;
 
@@ -113,13 +114,13 @@ public sealed class 生产线节点
 
     private static string 选择失败(IFlowContext 流程上下文)
     {
-        流程上下文.SelectFailure("device.not_ready", "Device is not ready. 设备未就绪。");
+        流程上下文.SelectFailure(DeviceErrorCodes.NotReady, "Device is not ready. 设备未就绪。");
         return "设备未就绪";
     }
 
     private static string 选择错误(IFlowContext 流程上下文)
     {
-        流程上下文.SelectError("device.faulted", "Device faulted. 设备发生故障。");
+        流程上下文.SelectError(DeviceErrorCodes.Faulted, "Device faulted. 设备发生故障。");
         return "设备故障";
     }
 }

@@ -42,7 +42,7 @@ public sealed class DebugSessionsController : ApiControllerBase
             return ApiProblem(
                 StatusCodes.Status400BadRequest,
                 "The debug state revision cannot be negative. 调试状态修订号不能为负数。",
-                extensions: new Dictionary<string, object?> { ["code"] = "debug.invalid_state_revision" });
+                extensions: new Dictionary<string, object?> { ["code"] = DebugErrorCodes.InvalidStateRevision });
         }
 
         var seconds = timeoutSeconds ?? 15;
@@ -51,7 +51,7 @@ public sealed class DebugSessionsController : ApiControllerBase
             return ApiProblem(
                 StatusCodes.Status400BadRequest,
                 "The debug wait timeout must be between 0 and 60 seconds. 调试等待超时必须在 0 到 60 秒之间。",
-                extensions: new Dictionary<string, object?> { ["code"] = "debug.invalid_wait_timeout" });
+                extensions: new Dictionary<string, object?> { ["code"] = DebugErrorCodes.InvalidWaitTimeout });
         }
 
         var result = await _sessions.WaitForChangeAsync(

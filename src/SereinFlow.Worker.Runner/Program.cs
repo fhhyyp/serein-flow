@@ -36,7 +36,7 @@ public static class RunnerHost
         var handshake = await transport.ReceiveAsync(cancellationToken);
         if (handshake is null || handshake.Kind != WorkerProtocolConstants.HandshakeKind)
         {
-            await SendErrorAsync(transport, "worker.handshake_required", "The runner requires a handshake before a run. Worker Runner 必须先完成握手才能运行。", cancellationToken);
+            await SendErrorAsync(transport, WorkerErrorCodes.HandshakeRequired, "The runner requires a handshake before a run. Worker Runner 必须先完成握手才能运行。", cancellationToken);
             return 2;
         }
 
@@ -45,7 +45,7 @@ public static class RunnerHost
         var runMessage = await transport.ReceiveAsync(cancellationToken);
         if (runMessage is null || runMessage.Kind != WorkerProtocolConstants.RunKind || runMessage.RunId is null)
         {
-            await SendErrorAsync(transport, "worker.run_required", "The runner requires one run request. Worker Runner 需要一个运行请求。", cancellationToken);
+            await SendErrorAsync(transport, WorkerErrorCodes.RunRequired, "The runner requires one run request. Worker Runner 需要一个运行请求。", cancellationToken);
             return 2;
         }
 
@@ -132,7 +132,7 @@ public static class RunnerHost
                         request.RunId,
                         outcome.MessageId,
                         outcome.Topic,
-                        outcome.Code ?? "message.rejected",
+                        outcome.Code ?? MessageErrorCodes.Rejected,
                         outcome.Message));
                 await transport.SendAsync(
                     WorkerMessage.Create(responseKind, responsePayload, request.RunId, requestId: message.RequestId),
@@ -246,7 +246,7 @@ public static class RunnerHost
                         WorkerProtocolConstants.Version,
                         request.RunId,
                         timedOut ? FlowRunStatusDto.TimedOut : FlowRunStatusDto.Cancelled,
-                        timedOut ? "worker.timed_out" : "worker.cancelled",
+                        timedOut ? WorkerErrorCodes.TimedOut : WorkerErrorCodes.Cancelled,
                         timedOut
                             ? "The worker run timed out. Worker 运行已超时。"
                             : "The worker run was cancelled. Worker 运行已取消。")),
@@ -255,7 +255,7 @@ public static class RunnerHost
         }
         catch (Exception exception)
         {
-            await SendErrorAsync(transport, "worker.run_failed", $"The worker run failed. Worker 运行失败。 {exception.Message}", CancellationToken.None, request.RunId);
+            await SendErrorAsync(transport, WorkerErrorCodes.RunFailed, $"The worker run failed. Worker 运行失败。 {exception.Message}", CancellationToken.None, request.RunId);
         }
     }
 
@@ -320,18 +320,18 @@ public static class RunnerHost
         {
             var eventType = runtimeEvent.Type switch
             {
-                "run.started" => WorkerEventType.RunStarted,
-                "node.started" => WorkerEventType.NodeStarted,
-                "node.completed" => WorkerEventType.NodeCompleted,
-                "node.failed" => WorkerEventType.NodeFailed,
-                "node.error" => WorkerEventType.NodeErrored,
-                "debug.paused" => WorkerEventType.DebugPaused,
-                "debug.trigger.received" => WorkerEventType.DebugTriggerReceived,
-                "debug.trigger.queued" => WorkerEventType.DebugTriggerQueued,
-                "debug.trigger.admitted" => WorkerEventType.DebugTriggerAdmitted,
-                "debug.trigger.rejected" => WorkerEventType.DebugTriggerRejected,
-                "debug.trigger.completed" => WorkerEventType.DebugTriggerCompleted,
-                "debug.trigger.failed" => WorkerEventType.DebugTriggerFailed,
+                RunErrorCodes.Started => WorkerEventType.RunStarted,
+                NodeErrorCodes.Started => WorkerEventType.NodeStarted,
+                NodeErrorCodes.Completed => WorkerEventType.NodeCompleted,
+                NodeErrorCodes.Failed => WorkerEventType.NodeFailed,
+                NodeErrorCodes.Error => WorkerEventType.NodeErrored,
+                DebugErrorCodes.Paused => WorkerEventType.DebugPaused,
+                DebugErrorCodes.TriggerReceived => WorkerEventType.DebugTriggerReceived,
+                DebugErrorCodes.TriggerQueued => WorkerEventType.DebugTriggerQueued,
+                DebugErrorCodes.TriggerAdmitted => WorkerEventType.DebugTriggerAdmitted,
+                DebugErrorCodes.TriggerRejected => WorkerEventType.DebugTriggerRejected,
+                DebugErrorCodes.TriggerCompleted => WorkerEventType.DebugTriggerCompleted,
+                DebugErrorCodes.TriggerFailed => WorkerEventType.DebugTriggerFailed,
                 _ => WorkerEventType.Log
             };
             // Runtime sessions can retain ScriptLang.Value instances so a

@@ -106,7 +106,7 @@ public sealed class McpToolContext
 
     public McpPrincipal RequirePrincipal()
         => Principal
-            ?? throw new McpSecurityException("mcp.unauthenticated", "MCP authentication is required.", 401);
+            ?? throw new McpSecurityException(McpErrorCodes.Unauthenticated, "MCP authentication is required.", 401);
 }
 
 /// <summary>
@@ -451,7 +451,7 @@ public sealed class McpToolAuditService
     {
         if (preview is null)
             return null;
-        if (string.Equals(preview.Operation, "flow.patch", StringComparison.Ordinal)
+        if (string.Equals(preview.Operation, FlowErrorCodes.Patch, StringComparison.Ordinal)
             || string.Equals(preview.Operation, "flow.publish", StringComparison.Ordinal))
         {
             return FlowVersionTrackDto.Development;

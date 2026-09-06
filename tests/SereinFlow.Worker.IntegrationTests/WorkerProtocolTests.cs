@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using SereinFlow.Worker.Protocol;
 
+using SereinFlow.Contracts;
 namespace SereinFlow.Worker.IntegrationTests;
 
 public sealed class WorkerProtocolTests
@@ -46,8 +47,8 @@ public sealed class WorkerProtocolTests
         var mismatchError = Assert.Throws<WorkerProtocolException>(() => WorkerProtocolCodec.Serialize(mismatch));
         var oversizedError = Assert.Throws<WorkerProtocolException>(() => WorkerProtocolCodec.Deserialize(oversized));
 
-        Assert.Equal("worker.protocol_mismatch", mismatchError.Code);
-        Assert.Equal("worker.message_too_large", oversizedError.Code);
+        Assert.Equal(WorkerErrorCodes.ProtocolMismatch, mismatchError.Code);
+        Assert.Equal(WorkerErrorCodes.MessageTooLarge, oversizedError.Code);
     }
 
     [Fact]
@@ -124,7 +125,7 @@ public sealed class WorkerProtocolTests
 
         var exception = Assert.Throws<WorkerProtocolException>(() => WorkerProtocolCodec.Deserialize(raw));
 
-        Assert.Equal("worker.invalid_message", exception.Code);
+        Assert.Equal(WorkerErrorCodes.InvalidMessage, exception.Code);
         Assert.Equal(raw, exception.RawMessage);
         Assert.NotNull(exception.JsonBytePositionInLine);
         Assert.IsType<JsonException>(exception.InnerException);

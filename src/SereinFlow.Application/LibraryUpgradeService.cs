@@ -54,14 +54,14 @@ public sealed class LibraryUpgradeService
         ArgumentNullException.ThrowIfNull(request);
         var project = await _projects.FindAsync(projectId, cancellationToken);
         if (project is null)
-            return NotFound<LibraryUpgradePlanDto>("project.not_found", "Project was not found. 未找到项目。");
+            return NotFound<LibraryUpgradePlanDto>(ProjectErrorCodes.NotFound, "Project was not found. 未找到项目。");
 
         if (project.Status == SereinFlow.Domain.ProjectStatus.Archived)
-            return Conflict<LibraryUpgradePlanDto>("project.archived", "Archived projects cannot apply library upgrades.");
+            return Conflict<LibraryUpgradePlanDto>(ProjectErrorCodes.Archived, "Archived projects cannot apply library upgrades.");
 
         var libraries = await ResolveLibrariesAsync(request.SourceArtifactId, request.TargetArtifactId, cancellationToken);
         if (libraries is not { } pair)
-            return Conflict<LibraryUpgradePlanDto>("library.not_found", "One or both library artifacts were not found. 一个或两个类库工件不存在。");
+            return Conflict<LibraryUpgradePlanDto>(LibraryErrorCodes.NotFound, "One or both library artifacts were not found. 一个或两个类库工件不存在。");
         var (source, target) = pair;
 
         var family = ValidateFamily(source, target);
@@ -70,13 +70,13 @@ public sealed class LibraryUpgradeService
         if (target.Lifecycle != LibraryLifecycleDto.Available)
         {
             return Conflict<LibraryUpgradePlanDto>(
-                "library.archived",
+                LibraryErrorCodes.Archived,
                 "An archived library artifact cannot be used as an upgrade target.");
         }
         if (!await _references.IsReferencedAsync(projectId, source.Id, cancellationToken))
         {
             return Conflict<LibraryUpgradePlanDto>(
-                "library.upgrade_source_not_referenced",
+                LibraryErrorCodes.UpgradeSourceNotReferenced,
                 "The project does not reference the source library artifact.");
         }
 
@@ -86,7 +86,7 @@ public sealed class LibraryUpgradeService
             return new LibraryUpgradeOperationResult<LibraryUpgradePlanDto>(
                 false,
                 400,
-                Code: "library.upgrade_flow_required",
+                Code: LibraryErrorCodes.UpgradeFlowRequired,
                 Message: "At least one flow must be selected for a library upgrade preview. 类库升级预览至少需要选择一个流程。");
         }
 
@@ -95,11 +95,11 @@ public sealed class LibraryUpgradeService
         {
             var flow = await _flows.FindAsync(projectId, flowId, cancellationToken);
             if (flow is null)
-                return NotFound<LibraryUpgradePlanDto>("flow.not_found", "A selected flow definition was not found. 选定的流程定义不存在。");
+                return NotFound<LibraryUpgradePlanDto>(FlowErrorCodes.NotFound, "A selected flow definition was not found. 选定的流程定义不存在。");
             if (!UsesArtifact(flow, source.Id))
             {
                 return Conflict<LibraryUpgradePlanDto>(
-                    "library.upgrade_flow_not_using_source",
+                    LibraryErrorCodes.UpgradeFlowNotUsingSource,
                     "A selected flow does not use the source library artifact.");
             }
             previews.Add(_analyzer.Analyze(flow, source, target));
@@ -126,7 +126,7 @@ public sealed class LibraryUpgradeService
     {
         var plan = await _store.FindPlanAsync(projectId, planId, cancellationToken);
         return plan is null
-            ? NotFound<LibraryUpgradePlanDto>("library.upgrade_not_found", "The library upgrade preview was not found. 未找到类库升级预览。")
+            ? NotFound<LibraryUpgradePlanDto>(LibraryErrorCodes.UpgradeNotFound, "The library upgrade preview was not found. 未找到类库升级预览。")
             : new LibraryUpgradeOperationResult<LibraryUpgradePlanDto>(true, 200, plan);
     }
 
@@ -143,23 +143,23 @@ public sealed class LibraryUpgradeService
             return new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(
                 false,
                 400,
-                Code: "flow.version_invalid",
+                Code: FlowErrorCodes.VersionInvalid,
                 Message: "The expected flow version must be positive. 期望流程版本必须为正数。");
         }
 
         var project = await _projects.FindAsync(projectId, cancellationToken);
         if (project is null)
-            return NotFound<LibraryUpgradeApplyResultDto>("project.not_found", "Project was not found.");
+            return NotFound<LibraryUpgradeApplyResultDto>(ProjectErrorCodes.NotFound, "Project was not found.");
         if (project.Status == SereinFlow.Domain.ProjectStatus.Archived)
-            return Conflict<LibraryUpgradeApplyResultDto>("project.archived", "Archived projects cannot apply library upgrades.");
+            return Conflict<LibraryUpgradeApplyResultDto>(ProjectErrorCodes.Archived, "Archived projects cannot apply library upgrades.");
 
         var plan = await _store.FindPlanAsync(projectId, planId, cancellationToken);
         if (plan is null)
-            return NotFound<LibraryUpgradeApplyResultDto>("library.upgrade_not_found", "The library upgrade preview was not found. 未找到类库升级预览。");
+            return NotFound<LibraryUpgradeApplyResultDto>(LibraryErrorCodes.UpgradeNotFound, "The library upgrade preview was not found. 未找到类库升级预览。");
         if (plan.Status is not (LibraryUpgradePlanStatusDto.Analyzed or LibraryUpgradePlanStatusDto.Applied))
         {
             return Conflict<LibraryUpgradeApplyResultDto>(
-                "library.upgrade_not_applicable",
+                LibraryErrorCodes.UpgradeNotApplicable,
                 "Only an active library upgrade preview can be applied. 只有活动的类库升级预览可以应用。");
         }
         if (!plan.Flows.Any(flow => flow.FlowId == request.FlowId))
@@ -167,32 +167,32 @@ public sealed class LibraryUpgradeService
             return new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(
                 false,
                 400,
-                Code: "library.upgrade_flow_not_in_plan",
+                Code: LibraryErrorCodes.UpgradeFlowNotInPlan,
                 Message: "The selected flow is not included in this upgrade preview. 选定流程不在此升级预览中。");
         }
         if ((plan.AppliedFlows ?? []).Any(result => result.FlowId == request.FlowId))
         {
             return Conflict<LibraryUpgradeApplyResultDto>(
-                "library.upgrade_flow_already_applied",
+                LibraryErrorCodes.UpgradeFlowAlreadyApplied,
                 "The selected flow has already been upgraded by this plan. 选定流程已通过此计划完成升级。");
         }
 
         var flow = await _flows.FindAsync(projectId, request.FlowId, cancellationToken);
         if (flow is null)
-            return NotFound<LibraryUpgradeApplyResultDto>("flow.not_found", "The selected flow definition was not found. 选定的流程定义不存在。");
+            return NotFound<LibraryUpgradeApplyResultDto>(FlowErrorCodes.NotFound, "The selected flow definition was not found. 选定的流程定义不存在。");
         if (flow.Version != request.ExpectedFlowVersion)
         {
             return new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(
                 false,
                 409,
-                Code: "flow.version_conflict",
+                Code: FlowErrorCodes.VersionConflict,
                 Message: "The flow version changed before the library upgrade could be applied. 类库升级应用前流程版本已发生变化。",
                 CurrentVersion: flow.Version);
         }
 
         var libraries = await ResolveLibrariesAsync(plan.SourceArtifactId, plan.TargetArtifactId, cancellationToken);
         if (libraries is not { } pair)
-            return Conflict<LibraryUpgradeApplyResultDto>("library.not_found", "One or both library artifacts were not found. 一个或两个类库工件不存在。");
+            return Conflict<LibraryUpgradeApplyResultDto>(LibraryErrorCodes.NotFound, "One or both library artifacts were not found. 一个或两个类库工件不存在。");
         var (source, target) = pair;
         var family = ValidateFamily(source, target);
         if (family is not null)
@@ -200,20 +200,20 @@ public sealed class LibraryUpgradeService
         if (target.Lifecycle != LibraryLifecycleDto.Available)
         {
             return Conflict<LibraryUpgradeApplyResultDto>(
-                "library.archived",
+                LibraryErrorCodes.Archived,
                 "An archived library artifact cannot be used as an upgrade target. 已归档类库工件不能作为升级目标。");
         }
 
         if (!await _references.IsReferencedAsync(projectId, source.Id, cancellationToken))
         {
             return Conflict<LibraryUpgradeApplyResultDto>(
-                "library.upgrade_source_not_referenced",
+                LibraryErrorCodes.UpgradeSourceNotReferenced,
                 "The project does not reference the source library artifact.");
         }
         if (!UsesArtifact(flow, source.Id))
         {
             return Conflict<LibraryUpgradeApplyResultDto>(
-                "library.upgrade_flow_not_using_source",
+                LibraryErrorCodes.UpgradeFlowNotUsingSource,
                 "The selected flow no longer uses the source library artifact.");
         }
 
@@ -224,7 +224,7 @@ public sealed class LibraryUpgradeService
             return new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(
                 false,
                 409,
-                Code: "library.upgrade_blocked",
+                Code: LibraryErrorCodes.UpgradeBlocked,
                 Message: "The library upgrade contains blocking compatibility changes. 类库升级包含阻断性兼容性变更。");
         }
 
@@ -239,7 +239,7 @@ public sealed class LibraryUpgradeService
             return new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(
                 false,
                 409,
-                Code: "library.upgrade_confirmation_required",
+                Code: LibraryErrorCodes.UpgradeConfirmationRequired,
                 Message: "All parameter mappings that require confirmation must be acknowledged. 必须确认所有需要确认的参数映射。");
         }
 
@@ -259,7 +259,7 @@ public sealed class LibraryUpgradeService
             return new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(
                 false,
                 409,
-                Code: "library.upgrade_flow_invalid",
+                Code: LibraryErrorCodes.UpgradeFlowInvalid,
                 Message: validation.Diagnostics.Count > 0
                     ? validation.Diagnostics[0].Message
                     : "The upgraded flow is invalid. 升级后的流程无效。");
@@ -279,7 +279,7 @@ public sealed class LibraryUpgradeService
             return new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(
                 false,
                 409,
-                Code: "flow.version_conflict",
+                Code: FlowErrorCodes.VersionConflict,
                 Message: "The flow version changed before the library upgrade could be applied. 类库升级应用前流程版本已发生变化。",
                 CurrentVersion: commit.CurrentVersion);
         }
@@ -291,7 +291,7 @@ public sealed class LibraryUpgradeService
                 new WorkspaceChangeEventDto(
                     Guid.NewGuid(),
                     DateTimeOffset.UtcNow,
-                    "flow.changed",
+                    FlowErrorCodes.Changed,
                     projectId,
                     saved.Id,
                     saved.Version,
@@ -337,7 +337,7 @@ public sealed class LibraryUpgradeService
             return new LibraryUpgradeOperationResult<LibraryUpgradeBatchApplyResultDto>(
                 false,
                 400,
-                Code: "library.upgrade_flow_required",
+                Code: LibraryErrorCodes.UpgradeFlowRequired,
                 Message: "At least one flow must be selected for a library upgrade. 类库升级至少需要选择一个流程。");
         }
         if (requests.Select(item => item.FlowId).Distinct().Count() != requests.Length)
@@ -345,7 +345,7 @@ public sealed class LibraryUpgradeService
             return new LibraryUpgradeOperationResult<LibraryUpgradeBatchApplyResultDto>(
                 false,
                 400,
-                Code: "library.upgrade_duplicate_flow",
+                Code: LibraryErrorCodes.UpgradeDuplicateFlow,
                 Message: "Each flow can appear only once in a library upgrade batch. 类库升级批次中每个流程只能出现一次。");
         }
 
@@ -390,13 +390,13 @@ public sealed class LibraryUpgradeService
         if (string.IsNullOrWhiteSpace(source.FamilyId) || string.IsNullOrWhiteSpace(target.FamilyId))
         {
             return (
-                "library.upgrade_family_unassigned",
+                LibraryErrorCodes.UpgradeFamilyUnassigned,
                 "Both library artifacts must be explicitly assigned to the same library family before an upgrade. 两个类库工件必须先显式归入同一个类库族，才能升级。");
         }
         if (!string.Equals(source.FamilyId, target.FamilyId, StringComparison.OrdinalIgnoreCase))
         {
             return (
-                "library.upgrade_family_mismatch",
+                LibraryErrorCodes.UpgradeFamilyMismatch,
                 "Library artifacts from different families cannot be upgraded together. 不同类库族的工件不能一起升级。");
         }
         return null;
@@ -421,11 +421,11 @@ public sealed class LibraryUpgradeService
     {
         var sourceManifest = sourceLibrary.CompatibilityManifest
             ?? throw new LibraryUpgradeTransformationException(
-                "library.upgrade_manifest_missing",
+                LibraryErrorCodes.UpgradeManifestMissing,
                 "The source compatibility manifest is unavailable. 源兼容性 Manifest 不可用。");
         var targetManifest = targetLibrary.CompatibilityManifest
             ?? throw new LibraryUpgradeTransformationException(
-                "library.upgrade_manifest_missing",
+                LibraryErrorCodes.UpgradeManifestMissing,
                 "The target compatibility manifest is unavailable. 目标兼容性 Manifest 不可用。");
         var parameterMaps = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal);
         var canvases = sourceDefinition.Canvases.Select(canvas =>
@@ -465,11 +465,11 @@ public sealed class LibraryUpgradeService
     {
         var sourceManifestNode = LibraryCompatibilityAnalyzer.FindSourceNode(sourceManifest, node.Ui)
             ?? throw new LibraryUpgradeTransformationException(
-                "library.upgrade_source_contract_unknown",
+                LibraryErrorCodes.UpgradeSourceContractUnknown,
                 "The source node cannot be resolved for upgrade. 无法解析要升级的源节点。");
         var targetManifestNode = LibraryCompatibilityAnalyzer.FindTargetNode(sourceManifestNode, targetManifest)
             ?? throw new LibraryUpgradeTransformationException(
-                "library.upgrade_target_contract_unknown",
+                LibraryErrorCodes.UpgradeTargetContractUnknown,
                 "The target node cannot be resolved for upgrade. 无法解析要升级的目标节点。");
         var targetCatalogNode = targetLibrary.Nodes.SingleOrDefault(candidate =>
             string.Equals(candidate.ContractId, targetManifestNode.ContractId, StringComparison.Ordinal)
@@ -477,7 +477,7 @@ public sealed class LibraryUpgradeService
         if (targetCatalogNode is null)
         {
             throw new LibraryUpgradeTransformationException(
-                "library.upgrade_target_catalog_invalid",
+                LibraryErrorCodes.UpgradeTargetCatalogInvalid,
                 "The target node is missing from the safe library catalog. 目标节点缺少安全类库目录元数据。");
         }
 
@@ -494,7 +494,7 @@ public sealed class LibraryUpgradeService
             if (targetCatalogParameter is null)
             {
                 throw new LibraryUpgradeTransformationException(
-                    "library.upgrade_target_catalog_invalid",
+                    LibraryErrorCodes.UpgradeTargetCatalogInvalid,
                     "The target parameter is missing from the safe library catalog. 目标参数缺少安全类库目录元数据。");
             }
 

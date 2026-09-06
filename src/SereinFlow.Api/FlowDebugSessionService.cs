@@ -94,8 +94,8 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
                 null,
                 StatusCodes.Status422UnprocessableEntity,
                 "The debug trigger queue limit must be between 0 and 1024. 调试触发队列上限必须在 0 到 1024 之间。",
-                new { code = "debug.invalid_trigger_queue_limit" },
-                "debug.invalid_trigger_queue_limit");
+                new { code = DebugErrorCodes.InvalidTriggerQueueLimit },
+                DebugErrorCodes.InvalidTriggerQueueLimit);
         }
         var debugSessionId = Guid.NewGuid();
 
@@ -111,8 +111,8 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
                 null,
                 StatusCodes.Status409Conflict,
                 "This flow already has an active debug session. 当前流程已有活动调试会话。",
-                new { code = "debug.session_already_active", sessionId = activeForFlow.Id },
-                "debug.session_already_active");
+                new { code = DebugErrorCodes.SessionAlreadyActive, sessionId = activeForFlow.Id },
+                DebugErrorCodes.SessionAlreadyActive);
         }
         var preparation = await runService.PrepareAsync(
             projectId,
@@ -167,8 +167,8 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
                 null,
                 StatusCodes.Status429TooManyRequests,
                 failure,
-                new { code = "debug.execution_capacity_full" },
-                "debug.execution_capacity_full");
+                new { code = DebugErrorCodes.ExecutionCapacityFull },
+                DebugErrorCodes.ExecutionCapacityFull);
         }
 
         try
@@ -238,8 +238,8 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
                 null,
                 StatusCodes.Status503ServiceUnavailable,
                 "The debug Worker could not start. 调试 Worker 无法启动。",
-                new { code = "debug.worker_start_failed" },
-                "debug.worker_start_failed");
+                new { code = DebugErrorCodes.WorkerStartFailed },
+                DebugErrorCodes.WorkerStartFailed);
         }
     }
 
@@ -313,7 +313,7 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
 
             if (run.Status == FlowRunStatus.Running)
             {
-                run.Interrupt("debug.api_restart", message, now);
+                run.Interrupt(DebugErrorCodes.ApiRestart, message, now);
             }
             else
             {
@@ -326,7 +326,7 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
                     WorkerProtocol.Version,
                     run.Id,
                     FlowRunStatusDto.Failed,
-                    "debug.api_restart",
+                    DebugErrorCodes.ApiRestart,
                     message),
                 eventStore,
                 cancellationToken);
@@ -362,14 +362,14 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
             return new FlowDebugSessionCommandResult(
                 StatusCodes.Status400BadRequest,
                 "The debug command sequence must be positive. 调试命令序号必须为正数。",
-                "debug.invalid_command_sequence");
+                DebugErrorCodes.InvalidCommandSequence);
         }
         if (!_active.TryGetValue(sessionId, out var active))
         {
             return new FlowDebugSessionCommandResult(
                 StatusCodes.Status409Conflict,
                 "The debug session is not active. 调试会话当前未处于活动状态。",
-                "debug.session_not_active");
+                DebugErrorCodes.SessionNotActive);
         }
 
         await active.CommandGate.WaitAsync(cancellationToken);
@@ -379,22 +379,22 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
             var store = scope.ServiceProvider.GetRequiredService<IFlowDebugSessionStore>();
             var session = await store.FindAsync(sessionId, cancellationToken);
             if (session is null)
-                return new FlowDebugSessionCommandResult(StatusCodes.Status404NotFound, "Debug session not found. 未找到调试会话。", "debug.session_not_found");
+                return new FlowDebugSessionCommandResult(StatusCodes.Status404NotFound, "Debug session not found. 未找到调试会话。", DebugErrorCodes.SessionNotFound);
             if (session.IsTerminal)
-                return new FlowDebugSessionCommandResult(StatusCodes.Status409Conflict, "The debug session is already complete. 调试会话已经完成。", "debug.session_terminal");
+                return new FlowDebugSessionCommandResult(StatusCodes.Status409Conflict, "The debug session is already complete. 调试会话已经完成。", DebugErrorCodes.SessionTerminal);
             if (commandSequence <= session.LastCommandSequence)
             {
                 return new FlowDebugSessionCommandResult(
                     StatusCodes.Status409Conflict,
                     "The debug command sequence must be strictly increasing. 调试命令序号必须严格递增。",
-                    "debug.command_sequence_conflict");
+                    DebugErrorCodes.CommandSequenceConflict);
             }
             if (requirePaused && session.Status != FlowDebugSessionStatus.Paused)
             {
                 return new FlowDebugSessionCommandResult(
                     StatusCodes.Status409Conflict,
                     "The debug session is not paused. 调试会话当前未暂停。",
-                    "debug.session_not_paused");
+                    DebugErrorCodes.SessionNotPaused);
             }
 
             if (cancelRun)
@@ -413,7 +413,7 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
                 }
                 finally
                 {
-                    _queue.Cancel(session.RunId, "debug.stop");
+                    _queue.Cancel(session.RunId, DebugErrorCodes.Stop);
                 }
                 return new FlowDebugSessionCommandResult(StatusCodes.Status202Accepted);
             }
@@ -430,11 +430,11 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
             return new FlowDebugSessionCommandResult(
                 StatusCodes.Status409Conflict,
                 "The debug command sequence must be strictly increasing. 调试命令序号必须严格递增。",
-                "debug.command_sequence_conflict");
+                DebugErrorCodes.CommandSequenceConflict);
         }
         catch (InvalidOperationException exception)
         {
-            return new FlowDebugSessionCommandResult(StatusCodes.Status409Conflict, exception.Message, "debug.command_rejected");
+            return new FlowDebugSessionCommandResult(StatusCodes.Status409Conflict, exception.Message, DebugErrorCodes.CommandRejected);
         }
         finally
         {
@@ -456,7 +456,7 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
                 WorkerProtocol.Version,
                 active.Handle.RunId,
                 FlowRunStatusDto.Failed,
-                "debug.worker_monitor_failed",
+                DebugErrorCodes.WorkerMonitorFailed,
                 exception.Message);
         }
 
@@ -470,7 +470,7 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
             if (run is not null && !run.IsTerminal)
             {
                 if (result.Status == FlowRunStatusDto.Cancelled)
-                    run.Cancel("debug.stop", DateTimeOffset.UtcNow);
+                    run.Cancel(DebugErrorCodes.Stop, DateTimeOffset.UtcNow);
                 else
                     run.Complete(ToDomainStatus(result.Status), DateTimeOffset.UtcNow, result.ErrorMessage);
                 await runStore.SaveAsync(run, CancellationToken.None);
@@ -625,13 +625,13 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
     {
         var type = result.Status switch
         {
-            FlowRunStatusDto.Cancelled => "run.cancelled",
-            FlowRunStatusDto.TimedOut => "run.timed_out",
-            FlowRunStatusDto.Failed => "run.failed",
-            _ => "run.completed"
+            FlowRunStatusDto.Cancelled => RunErrorCodes.Cancelled,
+            FlowRunStatusDto.TimedOut => RunErrorCodes.TimedOut,
+            FlowRunStatusDto.Failed => RunErrorCodes.Failed,
+            _ => RunErrorCodes.Completed
         };
         if (run.Status == FlowRunStatus.Interrupted)
-            type = "run.interrupted";
+            type = RunErrorCodes.Interrupted;
         var item = new FlowRunEvent(
             run.Id,
             await eventStore.GetLastSequenceAsync(run.Id, cancellationToken) + 1,
@@ -675,20 +675,20 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
     private static string ToEventType(WorkerEventType eventType)
         => eventType switch
         {
-            WorkerEventType.RunStarted => "run.started",
-            WorkerEventType.NodeStarted => "node.started",
-            WorkerEventType.NodeCompleted => "node.completed",
-            WorkerEventType.NodeFailed => "node.failed",
-            WorkerEventType.NodeErrored => "node.error",
-            WorkerEventType.RunCompleted => "run.completed",
-            WorkerEventType.RunCancelled => "run.cancelled",
-            WorkerEventType.DebugPaused => "debug.paused",
-            WorkerEventType.DebugTriggerReceived => "debug.trigger.received",
-            WorkerEventType.DebugTriggerQueued => "debug.trigger.queued",
-            WorkerEventType.DebugTriggerAdmitted => "debug.trigger.admitted",
-            WorkerEventType.DebugTriggerRejected => "debug.trigger.rejected",
-            WorkerEventType.DebugTriggerCompleted => "debug.trigger.completed",
-            WorkerEventType.DebugTriggerFailed => "debug.trigger.failed",
+            WorkerEventType.RunStarted => RunErrorCodes.Started,
+            WorkerEventType.NodeStarted => NodeErrorCodes.Started,
+            WorkerEventType.NodeCompleted => NodeErrorCodes.Completed,
+            WorkerEventType.NodeFailed => NodeErrorCodes.Failed,
+            WorkerEventType.NodeErrored => NodeErrorCodes.Error,
+            WorkerEventType.RunCompleted => RunErrorCodes.Completed,
+            WorkerEventType.RunCancelled => RunErrorCodes.Cancelled,
+            WorkerEventType.DebugPaused => DebugErrorCodes.Paused,
+            WorkerEventType.DebugTriggerReceived => DebugErrorCodes.TriggerReceived,
+            WorkerEventType.DebugTriggerQueued => DebugErrorCodes.TriggerQueued,
+            WorkerEventType.DebugTriggerAdmitted => DebugErrorCodes.TriggerAdmitted,
+            WorkerEventType.DebugTriggerRejected => DebugErrorCodes.TriggerRejected,
+            WorkerEventType.DebugTriggerCompleted => DebugErrorCodes.TriggerCompleted,
+            WorkerEventType.DebugTriggerFailed => DebugErrorCodes.TriggerFailed,
             _ => "log"
         };
 

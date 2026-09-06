@@ -62,7 +62,7 @@ internal static class McpToolSupport
             throw new McpProtocolException(
                 -32602,
                 "MCP arguments contain an unsupported contract value.",
-                new { code = "mcp.invalid_arguments" });
+                new { code = McpErrorCodes.InvalidArguments });
         }
     }
 
@@ -73,7 +73,7 @@ internal static class McpToolSupport
         return new McpProtocolException(
             -32602,
             $"MCP arguments are invalid{location}.",
-            new { code = "mcp.invalid_arguments", path });
+            new { code = McpErrorCodes.InvalidArguments, path });
     }
 
     internal static McpProtocolException InvalidPatchValue(JsonException exception)
@@ -83,7 +83,7 @@ internal static class McpToolSupport
         return new McpProtocolException(
             -32602,
             $"The flow patch value is invalid{location}. Use camelCase enum strings such as 'action' and 'data'; legacy numeric enum values are also accepted.",
-            new { code = "mcp.invalid_patch_value", path });
+            new { code = McpErrorCodes.InvalidPatchValue, path });
     }
 
     internal static McpProtocolException InvalidFlowPatchContract(FlowPatchContractException exception)
@@ -166,7 +166,7 @@ internal static class McpToolSupport
         throw new McpProtocolException(
             -32011,
             message,
-            new { code = "mcp.validation_failed", diagnostics = validation.Diagnostics });
+            new { code = McpErrorCodes.ValidationFailed, diagnostics = validation.Diagnostics });
     }
 
     internal static async Task MarkPreviewAppliedAsync(
@@ -180,7 +180,7 @@ internal static class McpToolSupport
         throw new McpProtocolException(
             -32603,
             "The mutation was committed but its MCP preview state could not be recorded.",
-            new { code = "mcp.preview_state_persist_failed" });
+            new { code = McpErrorCodes.PreviewStatePersistFailed });
     }
 
     internal static async Task<SereinFlow.Domain.Project> RequireActiveProjectAsync(
@@ -200,7 +200,7 @@ internal static class McpToolSupport
             throw new McpProtocolException(
                 -32011,
                 "Archived projects cannot be changed by this MCP operation.",
-                new { code = "project.archived" });
+                new { code = ProjectErrorCodes.Archived });
         }
         return project;
     }

@@ -1,3 +1,4 @@
+using SereinFlow.Contracts;
 using SereinFlow.Domain;
 using SereinFlow.Runtime;
 using SereinFlow.Runtime.Abstractions;
@@ -82,7 +83,7 @@ public sealed class RuntimeSessionTests
         await using var session = new FlowExecutionSession();
         await runner.RunAsync(definition, session);
 
-        var terminal = Assert.Single(publisher.Events, item => item.Type == "node.completed");
+        var terminal = Assert.Single(publisher.Events, item => item.Type == NodeErrorCodes.Completed);
         var inputs = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object?>>(terminal.Payload["inputs"]);
 
         Assert.Equal(42L, inputs["count"]);
@@ -107,8 +108,8 @@ public sealed class RuntimeSessionTests
         await using var session = new FlowExecutionSession();
         await runner.RunAsync(definition, session);
 
-        var started = Assert.Single(publisher.Events, item => item.Type == "node.started");
-        var terminal = Assert.Single(publisher.Events, item => item.Type == "node.completed");
+        var started = Assert.Single(publisher.Events, item => item.Type == NodeErrorCodes.Started);
+        var terminal = Assert.Single(publisher.Events, item => item.Type == NodeErrorCodes.Completed);
         var startedId = Assert.IsType<Guid>(started.Payload["executionId"]);
         var terminalId = Assert.IsType<Guid>(terminal.Payload["executionId"]);
 
@@ -165,7 +166,7 @@ public sealed class RuntimeSessionTests
         await using var session = new FlowExecutionSession();
         await runner.RunAsync(definition, session);
 
-        var terminal = Assert.Single(publisher.Events, item => item.Type == "node.failed");
+        var terminal = Assert.Single(publisher.Events, item => item.Type == NodeErrorCodes.Failed);
         var inputs = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object?>>(terminal.Payload["inputs"]);
 
         Assert.Equal(10L, inputs["first"]);
@@ -311,10 +312,10 @@ public sealed class RuntimeSessionTests
         await using var session = new FlowExecutionSession();
         await runner.RunAsync(definition, session);
 
-        var startedIndex = publisher.Events.FindIndex(item => item.Type == "node.started");
-        var logIndex = publisher.Events.FindIndex(item => item.Type == "node.log");
-        var completedIndex = publisher.Events.FindIndex(item => item.Type == "node.completed");
-        var log = Assert.Single(publisher.Events, item => item.Type == "node.log");
+        var startedIndex = publisher.Events.FindIndex(item => item.Type == NodeErrorCodes.Started);
+        var logIndex = publisher.Events.FindIndex(item => item.Type == NodeErrorCodes.Log);
+        var completedIndex = publisher.Events.FindIndex(item => item.Type == NodeErrorCodes.Completed);
+        var log = Assert.Single(publisher.Events, item => item.Type == NodeErrorCodes.Log);
 
         Assert.True(startedIndex >= 0);
         Assert.True(startedIndex < logIndex);
@@ -394,7 +395,7 @@ public sealed class RuntimeSessionTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ExecutionBranch.Error, result.NextBranch);
-        Assert.Equal("flowcall.return_type_mismatch", result.ErrorCode);
+        Assert.Equal(FlowCallErrorCodes.ReturnTypeMismatch, result.ErrorCode);
     }
 
     [Fact]
@@ -451,8 +452,8 @@ public sealed class RuntimeSessionTests
         cancellation.Cancel();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => runTask);
-        Assert.Contains(publisher.Events, item => item.Type == "node.started" && item.NodeId == trigger.Id);
-        Assert.DoesNotContain(publisher.Events, item => item.Type is "node.error" or "node.failed");
+        Assert.Contains(publisher.Events, item => item.Type == NodeErrorCodes.Started && item.NodeId == trigger.Id);
+        Assert.DoesNotContain(publisher.Events, item => item.Type is NodeErrorCodes.Error or NodeErrorCodes.Failed);
     }
 
     private sealed class ContextWritingExecutor : INodeExecutor

@@ -42,7 +42,7 @@ public sealed class FlowVersionsController : ApiControllerBase
             return ApiProblem(
                 StatusCodes.Status400BadRequest,
                 "The flow version track is invalid. 流程版本轨道无效。",
-                extensions: new Dictionary<string, object?> { ["code"] = "flow.version_track_invalid" });
+                extensions: new Dictionary<string, object?> { ["code"] = FlowErrorCodes.VersionTrackInvalid });
         }
 
         if (await _projects.FindAsync(projectId, cancellationToken) is null

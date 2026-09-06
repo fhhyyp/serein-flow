@@ -78,7 +78,7 @@ public sealed class ProjectLibraryService
             return new ProjectLibraryOperationResult(
                 false,
                 404,
-                "library.not_found",
+                LibraryErrorCodes.NotFound,
                 "Library artifact was not found. 未找到类库制品。");
         }
         if (library.Lifecycle != LibraryLifecycleDto.Available)
@@ -86,13 +86,13 @@ public sealed class ProjectLibraryService
             return new ProjectLibraryOperationResult(
                 false,
                 409,
-                "library.archived",
+                LibraryErrorCodes.Archived,
                 "Archived library artifacts cannot be referenced by a new project. 已归档类库制品不能被新项目引用。");
         }
 
         await _references.AddAsync(projectId, library.Id, cancellationToken);
         var result = await ListAsync(projectId, cancellationToken);
-        await PublishLibraryChangeAsync(projectId, library.Id, "project.library.changed", "project.library.attach", origin);
+        await PublishLibraryChangeAsync(projectId, library.Id, ProjectErrorCodes.LibraryChanged, ProjectErrorCodes.LibraryAttach, origin);
         return result;
     }
 
@@ -112,7 +112,7 @@ public sealed class ProjectLibraryService
             return new ProjectLibraryOperationResult(
                 false,
                 404,
-                "project_library.not_referenced",
+                ProjectLibraryErrorCodes.NotReferenced,
                 "The project does not reference this library artifact. 项目未引用该类库制品。");
         }
 
@@ -122,7 +122,7 @@ public sealed class ProjectLibraryService
             return new ProjectLibraryOperationResult(
                 false,
                 409,
-                "project_library.in_use",
+                ProjectLibraryErrorCodes.InUse,
                 "The library is used by a current project flow and cannot be removed. 该类库仍被当前项目流程使用，不能取消引用。");
         }
 
@@ -132,13 +132,13 @@ public sealed class ProjectLibraryService
             return new ProjectLibraryOperationResult(
                 false,
                 409,
-                "project_library.in_use_by_production_history",
+                ProjectLibraryErrorCodes.InUseByProductionHistory,
                 "The library is retained by production flow history and cannot be removed. 该类库仍被生产流程历史使用，不能取消引用。");
         }
 
         await _references.RemoveAsync(projectId, libraryId, cancellationToken);
         var result = await ListAsync(projectId, cancellationToken);
-        await PublishLibraryChangeAsync(projectId, libraryId, "project.library.changed", "project.library.detach", origin);
+        await PublishLibraryChangeAsync(projectId, libraryId, ProjectErrorCodes.LibraryChanged, ProjectErrorCodes.LibraryDetach, origin);
         return result;
     }
 
@@ -167,7 +167,7 @@ public sealed class ProjectLibraryService
                 if (!referenceIds.Contains(runtime.LibraryId))
                 {
                     diagnostics.Add(new ValidationDiagnosticDto(
-                        "project_library.not_referenced",
+                        ProjectLibraryErrorCodes.NotReferenced,
                         "The project does not reference the library required by this node. 项目未引用该节点所需的类库。",
                         path));
                     continue;
@@ -177,7 +177,7 @@ public sealed class ProjectLibraryService
                 if (library is null)
                 {
                     diagnostics.Add(new ValidationDiagnosticDto(
-                        "project_library.artifact_missing",
+                        ProjectLibraryErrorCodes.ArtifactMissing,
                         "The library artifact required by this node is unavailable. 该节点所需的类库制品不可用。",
                         path));
                     continue;
@@ -192,7 +192,7 @@ public sealed class ProjectLibraryService
                 if (catalogNode is null)
                 {
                     diagnostics.Add(new ValidationDiagnosticDto(
-                        "project_library.node_metadata_invalid",
+                        ProjectLibraryErrorCodes.NodeMetadataInvalid,
                         "The node metadata does not match the referenced library artifact. 节点元数据与已引用的类库制品不匹配。",
                         path));
                     continue;
@@ -205,7 +205,7 @@ public sealed class ProjectLibraryService
                         StringComparison.Ordinal))
                 {
                     diagnostics.Add(new ValidationDiagnosticDto(
-                        "project_library.node_contract_invalid",
+                        ProjectLibraryErrorCodes.NodeContractInvalid,
                         "The node contract ID does not match the referenced library artifact. 节点契约 ID 与已引用的类库制品不匹配。",
                         path));
                     continue;
@@ -214,7 +214,7 @@ public sealed class ProjectLibraryService
                 if (node.Type == NodeTypeDto.Flipflop && !catalogNode.IsAwaitable)
                 {
                     diagnostics.Add(new ValidationDiagnosticDto(
-                        "library.flipflop_return_type_invalid",
+                        LibraryErrorCodes.FlipflopReturnTypeInvalid,
                         "Flipflop methods must return Task or Task<T>. Flipflop 方法必须返回 Task 或 Task<T>。",
                         path));
                 }
@@ -238,7 +238,7 @@ public sealed class ProjectLibraryService
             .Where(static item => item.Node.Type is NodeTypeDto.Action or NodeTypeDto.Flipflop)
             .Where(static item => !string.IsNullOrWhiteSpace(item.Node.Ui?.LibraryId))
             .Select(static item => new ValidationDiagnosticDto(
-                "project_library.not_referenced",
+                ProjectLibraryErrorCodes.NotReferenced,
                 "A new project cannot contain external library nodes before the library is explicitly referenced. 新项目尚未显式引用类库，不能包含外部类库节点。",
                 $"canvases.{item.Id}.nodes.{item.Node.Id}.ui.libraryId"))
             .ToArray();
@@ -258,10 +258,10 @@ public sealed class ProjectLibraryService
             .ToArray();
 
     private static ProjectLibraryOperationResult ProjectNotFound()
-        => new(false, 404, "project.not_found", "Project was not found. 未找到项目。");
+        => new(false, 404, ProjectErrorCodes.NotFound, "Project was not found. 未找到项目。");
 
     private static ProjectLibraryOperationResult ProjectArchived()
-        => new(false, 409, "project.archived", "Archived projects cannot change library references. 已归档项目不能修改类库引用。");
+        => new(false, 409, ProjectErrorCodes.Archived, "Archived projects cannot change library references. 已归档项目不能修改类库引用。");
 
     private async Task PublishLibraryChangeAsync(
         Guid projectId,

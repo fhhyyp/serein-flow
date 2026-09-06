@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.Extensions.Configuration;
 
+using SereinFlow.Contracts;
 namespace SereinFlow.Mcp;
 
 public sealed record McpAiGuidanceResource(
@@ -45,10 +46,10 @@ public static class McpAiGuidance
         new("sereinlang.syntax", SereinLangSyntaxResourceUri, "sereinlang-syntax", "SereinLang lexical and expression rules", "mcp/sereinlang-syntax-skill.md"),
         new("sereinlang.host", SereinLangHostResourceUri, "sereinlang-host", "SereinLang imports and host interoperation", "mcp/sereinlang-host-skill.md"),
         new("sereinlang.grammar", SereinLangGrammarResourceUri, "sereinlang-grammar", "SereinLang formal grammar reference", "mcp/sereinlang-grammar-skill.md"),
-        new("library.build", LibraryBuildResourceUri, "library-build", "Local C# library build and publish boundary", "mcp/sereinflow-library-build-skill.md"),
-        new("library.zip", LibraryZipResourceUri, "library-zip", "SereinFlow library ZIP contract", "mcp/sereinflow-library-zip-skill.md"),
-        new("library.metadata", LibraryMetadataResourceUri, "library-metadata", "SereinFlow library metadata contract", "mcp/sereinflow-library-metadata-skill.md"),
-        new("library.import", LibraryImportResourceUri, "library-import", "Library package preview, import and attachment", "mcp/sereinflow-library-import-skill.md"),
+        new(LibraryErrorCodes.Build, LibraryBuildResourceUri, "library-build", "Local C# library build and publish boundary", "mcp/sereinflow-library-build-skill.md"),
+        new(LibraryErrorCodes.Zip, LibraryZipResourceUri, "library-zip", "SereinFlow library ZIP contract", "mcp/sereinflow-library-zip-skill.md"),
+        new(LibraryErrorCodes.Metadata, LibraryMetadataResourceUri, "library-metadata", "SereinFlow library metadata contract", "mcp/sereinflow-library-metadata-skill.md"),
+        new(LibraryErrorCodes.Import, LibraryImportResourceUri, "library-import", "Library package preview, import and attachment", "mcp/sereinflow-library-import-skill.md"),
         new("library.upgrade", LibraryUpgradeResourceUri, "library-upgrade", "Library families and project upgrade workflow", "mcp/sereinflow-library-upgrade-skill.md")
     ];
 
@@ -213,7 +214,7 @@ public sealed class McpAiGuidanceProvider
             throw new McpProtocolException(
                 -32602,
                 "The SereinFlow AI guidance URI is not supported.",
-                new { code = "mcp.ai_guidance_uri_unsupported" });
+                new { code = McpErrorCodes.AiGuidanceUriUnsupported });
         }
 
         string content;
@@ -231,7 +232,7 @@ public sealed class McpAiGuidanceProvider
                 throw new McpProtocolException(
                     -32012,
                     "The configured SereinFlow AI guidance is too large.",
-                    new { code = "mcp.ai_guidance_too_large" });
+                    new { code = McpErrorCodes.AiGuidanceTooLarge });
 
             using var reader = new StreamReader(
                 stream,
@@ -258,7 +259,7 @@ public sealed class McpAiGuidanceProvider
             throw new McpProtocolException(
                 -32003,
                 "The configured SereinFlow AI guidance cannot be read.",
-                new { code = "mcp.ai_guidance_access_denied" });
+                new { code = McpErrorCodes.AiGuidanceAccessDenied });
         }
         catch (IOException)
         {
@@ -270,7 +271,7 @@ public sealed class McpAiGuidanceProvider
             throw new McpProtocolException(
                 -32012,
                 "The configured SereinFlow AI guidance is too large.",
-                new { code = "mcp.ai_guidance_too_large" });
+                new { code = McpErrorCodes.AiGuidanceTooLarge });
         }
 
         if (string.IsNullOrWhiteSpace(content))
@@ -286,5 +287,5 @@ public sealed class McpAiGuidanceProvider
         => new(
             -32004,
             "The SereinFlow AI guidance is not available.",
-            new { code = "mcp.ai_guidance_unavailable" });
+            new { code = McpErrorCodes.AiGuidanceUnavailable });
 }

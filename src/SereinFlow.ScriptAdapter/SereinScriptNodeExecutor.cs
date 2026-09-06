@@ -5,6 +5,7 @@ using ScriptLang;
 using ScriptLang.Runtime;
 using ScriptLang.Runtime.ByteCode;
 
+using SereinFlow.Contracts;
 namespace SereinFlow.ScriptAdapter;
 
 public interface IScriptNodeExecutor : INodeExecutor
@@ -30,7 +31,7 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
             throw new ArgumentNullException(nameof(request), "The script execution request cannot be null. 脚本执行请求不能为空。");
         var definition = request.Node.Script;
         if (definition is null)
-            return NodeExecutionResult.Error("script.definition_missing", "Script node definition is missing. 脚本节点定义缺失。");
+            return NodeExecutionResult.Error(ScriptErrorCodes.DefinitionMissing, "Script node definition is missing. 脚本节点定义缺失。");
 
         try
         {
@@ -76,7 +77,7 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
         }
         catch (OperationCanceledException)
         {
-            return NodeExecutionResult.Failure("script.cancelled", "Script execution was cancelled. 脚本执行已取消。");
+            return NodeExecutionResult.Failure(ScriptErrorCodes.Cancelled, "Script execution was cancelled. 脚本执行已取消。");
         }
         catch (ScriptExecutionException exception)
         {
@@ -89,15 +90,15 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
         }
         catch (NotSupportedException exception)
         {
-            return NodeExecutionResult.Error("script.value_unsupported", $"Script value is not supported. 脚本值不受支持。 {exception.Message}");
+            return NodeExecutionResult.Error(ScriptErrorCodes.ValueUnsupported, $"Script value is not supported. 脚本值不受支持。 {exception.Message}");
         }
         catch (InvalidOperationException exception)
         {
-            return NodeExecutionResult.Error("script.compile_failed", $"Script compilation failed. 脚本编译失败。 {exception.Message}");
+            return NodeExecutionResult.Error(ScriptErrorCodes.CompileFailed, $"Script compilation failed. 脚本编译失败。 {exception.Message}");
         }
         catch (Exception exception)
         {
-            return NodeExecutionResult.Error("script.runtime_failed", $"Script runtime execution failed. 脚本运行时执行失败。 {exception.Message}");
+            return NodeExecutionResult.Error(ScriptErrorCodes.RuntimeFailed, $"Script runtime execution failed. 脚本运行时执行失败。 {exception.Message}");
         }
     }
 
@@ -106,11 +107,11 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
         var contracts = definition.Inputs.ToDictionary(input => input.Id ?? input.Name, StringComparer.Ordinal);
         var unknown = inputs.Keys.FirstOrDefault(id => !contracts.ContainsKey(id));
         if (unknown is not null)
-            throw new ScriptExecutionException("script.input_unknown", $"Unknown script input '{unknown}'. 未知的脚本输入“{unknown}”。");
+            throw new ScriptExecutionException(ScriptErrorCodes.InputUnknown, $"Unknown script input '{unknown}'. 未知的脚本输入“{unknown}”。");
 
         var missing = definition.Inputs.FirstOrDefault(input => input.Required && !inputs.ContainsKey(input.Id ?? input.Name));
         if (missing is not null)
-            throw new ScriptExecutionException("script.input_missing", $"Required script input '{missing.Name}' is missing. 缺少必需的脚本输入“{missing.Name}”。");
+            throw new ScriptExecutionException(ScriptErrorCodes.InputMissing, $"Required script input '{missing.Name}' is missing. 缺少必需的脚本输入“{missing.Name}”。");
     }
 
     private static Dictionary<string, object?> MapOutputs(ScriptNodeDefinition definition, Value result)
@@ -125,7 +126,7 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
             };
 
         if (result is not ObjectValue objectResult)
-            throw new ScriptExecutionException("script.output_shape_invalid", "A script with multiple outputs must return an object. 包含多个输出的脚本必须返回对象。");
+            throw new ScriptExecutionException(ScriptErrorCodes.OutputShapeInvalid, "A script with multiple outputs must return an object. 包含多个输出的脚本必须返回对象。");
 
         var outputs = new Dictionary<string, object?>(StringComparer.Ordinal);
         foreach (var output in definition.Outputs)

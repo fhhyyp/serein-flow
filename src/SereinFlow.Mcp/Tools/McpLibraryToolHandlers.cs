@@ -66,7 +66,7 @@ internal static class McpLibraryToolHandlers
             validated.CurrentFamily,
             validated.TargetFamily);
         var entry = await scope.ServiceProvider.GetRequiredService<McpPreviewService>().CreateAsync(
-            "library.family.assign",
+            LibraryErrorCodes.FamilyAssign,
             principal,
             null,
             null,
@@ -96,7 +96,7 @@ internal static class McpLibraryToolHandlers
         var idempotency = scope.ServiceProvider.GetRequiredService<McpIdempotencyService>();
         var replay = await idempotency.FindAsync(
             principal.Id,
-            "library.family.assign",
+            LibraryErrorCodes.FamilyAssign,
             request.IdempotencyKey,
             requestPayload,
             cancellationToken);
@@ -105,7 +105,7 @@ internal static class McpLibraryToolHandlers
 
         var preview = scope.ServiceProvider.GetRequiredService<McpPreviewService>();
         var entry = await preview.RequireAsync(request.PreviewId, request.PreviewFingerprint, principal, cancellationToken);
-        if (!string.Equals(entry.Operation, "library.family.assign", StringComparison.Ordinal))
+        if (!string.Equals(entry.Operation, LibraryErrorCodes.FamilyAssign, StringComparison.Ordinal))
             throw new McpProtocolException(-32602, "The preview does not describe a library family assignment.");
 
         var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
@@ -118,7 +118,7 @@ internal static class McpLibraryToolHandlers
             throw new McpProtocolException(
                 -32011,
                 "The library family assignment is no longer valid. Create a new preview and review it again.",
-                new { code = "mcp.validation_failed", diagnostics = validated.Diagnostics });
+                new { code = McpErrorCodes.ValidationFailed, diagnostics = validated.Diagnostics });
         }
 
         LibraryFamilyDto? result;
@@ -138,11 +138,11 @@ internal static class McpLibraryToolHandlers
             throw new McpProtocolException(
                 -32011,
                 "The library family assignment is no longer valid. Create a new preview and review it again.",
-                new { code = "mcp.validation_failed", message = exception.Message });
+                new { code = McpErrorCodes.ValidationFailed, message = exception.Message });
         }
 
         if (result is null)
-            throw new McpProtocolException(-32004, "The library artifact was not found.", new { code = "library.not_found" });
+            throw new McpProtocolException(-32004, "The library artifact was not found.", new { code = LibraryErrorCodes.NotFound });
 
         await MarkPreviewAppliedAsync(preview, entry, cancellationToken);
         await idempotency.SaveAsync(
@@ -307,9 +307,9 @@ internal static class McpLibraryToolHandlers
             ? null
             : await catalog.FindAsync(libraryId, cancellationToken);
         if (string.IsNullOrWhiteSpace(libraryId))
-            diagnostics.Add(new("library.id_required", "The library ID is required.", "libraryId"));
+            diagnostics.Add(new(LibraryErrorCodes.IdRequired, "The library ID is required.", "libraryId"));
         else if (library is null)
-            diagnostics.Add(new("library.not_found", "The library artifact was not found.", "libraryId"));
+            diagnostics.Add(new(LibraryErrorCodes.NotFound, "The library artifact was not found.", "libraryId"));
 
         var families = await catalog.ListFamiliesAsync(includeArchivedArtifacts: true, cancellationToken: cancellationToken);
         var currentFamily = library is null || string.IsNullOrWhiteSpace(library.FamilyId)
@@ -319,9 +319,9 @@ internal static class McpLibraryToolHandlers
             ? null
             : families.SingleOrDefault(item => string.Equals(item.Id, familyId, StringComparison.OrdinalIgnoreCase));
         if (familyId is not null && targetFamily is null)
-            diagnostics.Add(new("library.family_not_found", "The requested library family was not found.", "familyId"));
+            diagnostics.Add(new(LibraryErrorCodes.FamilyNotFound, "The requested library family was not found.", "familyId"));
         if (familyId is null && string.IsNullOrWhiteSpace(name))
-            diagnostics.Add(new("library.family_name_required", "A family name is required when creating a library family.", "name"));
+            diagnostics.Add(new(LibraryErrorCodes.FamilyNameRequired, "A family name is required when creating a library family.", "name"));
 
         return new LibraryFamilyAssignmentValidation(normalized, diagnostics, currentFamily, targetFamily);
     }
@@ -461,7 +461,7 @@ internal static class McpLibraryToolHandlers
                 compatibility,
                 projectImpact);
             var entry = await scope.ServiceProvider.GetRequiredService<McpPreviewService>().CreateAsync(
-                "library.package", principal, projectId, null, null, stored, cancellationToken);
+                LibraryErrorCodes.Package, principal, projectId, null, null, stored, cancellationToken);
             staged = null;
             return new LibraryPackagePreviewDto(
                 entry.Id,
@@ -483,14 +483,14 @@ internal static class McpLibraryToolHandlers
             throw new McpProtocolException(
                 -32011,
                 exception.Message,
-                new { code = "mcp.library_package_invalid", statusCode = exception.StatusCode });
+                new { code = McpErrorCodes.LibraryPackageInvalid, statusCode = exception.StatusCode });
         }
         catch (InvalidOperationException exception)
         {
             throw new McpProtocolException(
                 -32012,
                 exception.Message,
-                new { code = "mcp.library_package_invalid", statusCode = 413 });
+                new { code = McpErrorCodes.LibraryPackageInvalid, statusCode = 413 });
         }
         finally
         {
@@ -505,12 +505,12 @@ internal static class McpLibraryToolHandlers
         RequireConfirmation(request);
         var requestPayload = Serialize(request);
         var idempotency = scope.ServiceProvider.GetRequiredService<McpIdempotencyService>();
-        var replay = await idempotency.FindAsync(principal.Id, "library.package", request.IdempotencyKey, requestPayload, cancellationToken);
+        var replay = await idempotency.FindAsync(principal.Id, LibraryErrorCodes.Package, request.IdempotencyKey, requestPayload, cancellationToken);
         if (replay is not null)
             return DeserializeStoredResponse(replay.ResponseJson);
         var preview = scope.ServiceProvider.GetRequiredService<McpPreviewService>();
         var entry = await preview.RequireAsync(request.PreviewId, request.PreviewFingerprint, principal, cancellationToken);
-        if (!string.Equals(entry.Operation, "library.package", StringComparison.Ordinal))
+        if (!string.Equals(entry.Operation, LibraryErrorCodes.Package, StringComparison.Ordinal))
             throw new McpProtocolException(-32602, "The preview does not describe a library package.");
         var stored = McpPreviewService.Deserialize<StoredLibraryPackagePreview>(entry);
         var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
@@ -546,7 +546,7 @@ internal static class McpLibraryToolHandlers
             throw new McpProtocolException(
                 -32004,
                 "The staged library package is no longer available. Create a new preview and apply it again.",
-                new { code = "mcp.preview_package_unavailable" });
+                new { code = McpErrorCodes.PreviewPackageUnavailable });
         }
         finally
         {
@@ -610,7 +610,7 @@ internal static class McpLibraryToolHandlers
                 .IsReferencedAsync(projectId, artifactId, cancellationToken))
         {
             throw new McpSecurityException(
-                "mcp.library_access_denied",
+                McpErrorCodes.LibraryAccessDenied,
                 "The MCP caller cannot use the requested library baseline for this project.",
                 403);
         }
@@ -630,7 +630,7 @@ internal static class McpLibraryToolHandlers
         var validation = await ValidateProjectLibraryAttachAsync(scope, request, cancellationToken);
         var stored = new StoredProjectLibraryAttachPreview(new(request.ProjectId, libraryId), validation);
         var entry = await scope.ServiceProvider.GetRequiredService<McpPreviewService>().CreateAsync(
-            "project.library.attach", principal, request.ProjectId, null, null, stored, cancellationToken);
+            ProjectErrorCodes.LibraryAttach, principal, request.ProjectId, null, null, stored, cancellationToken);
         return new ProjectLibraryAttachPreviewDto(
             entry.Id,
             request.ProjectId,
@@ -651,12 +651,12 @@ internal static class McpLibraryToolHandlers
         RequireConfirmation(request);
         var requestPayload = Serialize(request);
         var idempotency = scope.ServiceProvider.GetRequiredService<McpIdempotencyService>();
-        var replay = await idempotency.FindAsync(principal.Id, "project.library.attach", request.IdempotencyKey, requestPayload, cancellationToken);
+        var replay = await idempotency.FindAsync(principal.Id, ProjectErrorCodes.LibraryAttach, request.IdempotencyKey, requestPayload, cancellationToken);
         if (replay is not null)
             return DeserializeStoredResponse(replay.ResponseJson);
         var preview = scope.ServiceProvider.GetRequiredService<McpPreviewService>();
         var entry = await preview.RequireAsync(request.PreviewId, request.PreviewFingerprint, principal, cancellationToken);
-        if (!string.Equals(entry.Operation, "project.library.attach", StringComparison.Ordinal))
+        if (!string.Equals(entry.Operation, ProjectErrorCodes.LibraryAttach, StringComparison.Ordinal))
             throw new McpProtocolException(-32602, "The preview does not describe a project library attachment.");
         var stored = McpPreviewService.Deserialize<StoredProjectLibraryAttachPreview>(entry);
         scope.ServiceProvider.GetRequiredService<McpSecurityService>()
@@ -667,7 +667,7 @@ internal static class McpLibraryToolHandlers
             throw new McpProtocolException(
                 -32011,
                 "The project library attachment is no longer valid. Create a new preview and review it again.",
-                new { code = "mcp.validation_failed", diagnostics = currentDiagnostics });
+                new { code = McpErrorCodes.ValidationFailed, diagnostics = currentDiagnostics });
         }
         var result = await scope.ServiceProvider.GetRequiredService<ProjectLibraryService>().AddAsync(
             stored.Request.ProjectId,
@@ -690,27 +690,27 @@ internal static class McpLibraryToolHandlers
         var project = await scope.ServiceProvider.GetRequiredService<IProjectRepository>()
             .FindAsync(request.ProjectId, cancellationToken);
         if (project is null)
-            diagnostics.Add(new("project.not_found", "The project was not found. 未找到项目。", "projectId"));
+            diagnostics.Add(new(ProjectErrorCodes.NotFound, "The project was not found. 未找到项目。", "projectId"));
         else if (project.Status == SereinFlow.Domain.ProjectStatus.Archived)
-            diagnostics.Add(new("project.archived", "Archived projects cannot change library references. 已归档项目不能修改类库引用。", "projectId"));
+            diagnostics.Add(new(ProjectErrorCodes.Archived, "Archived projects cannot change library references. 已归档项目不能修改类库引用。", "projectId"));
 
         var libraryId = request.LibraryId?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(libraryId))
-            diagnostics.Add(new("library.id_required", "The library ID is required. 类库 ID 不能为空。", "libraryId"));
+            diagnostics.Add(new(LibraryErrorCodes.IdRequired, "The library ID is required. 类库 ID 不能为空。", "libraryId"));
         var library = string.IsNullOrWhiteSpace(libraryId)
             ? null
             : await scope.ServiceProvider.GetRequiredService<ILibraryCatalogService>()
                 .FindAsync(libraryId, cancellationToken);
         if (library is null)
-            diagnostics.Add(new("library.not_found", "The library artifact was not found. 未找到类库制品。", "libraryId"));
+            diagnostics.Add(new(LibraryErrorCodes.NotFound, "The library artifact was not found. 未找到类库制品。", "libraryId"));
         else if (library.Lifecycle != LibraryLifecycleDto.Available)
-            diagnostics.Add(new("library.archived", "Archived library artifacts cannot be attached. 已归档类库制品不能被接入。", "libraryId"));
+            diagnostics.Add(new(LibraryErrorCodes.Archived, "Archived library artifacts cannot be attached. 已归档类库制品不能被接入。", "libraryId"));
 
         if (library is not null
             && await scope.ServiceProvider.GetRequiredService<IProjectLibraryReferenceRepository>()
                 .IsReferencedAsync(request.ProjectId, library.Id, cancellationToken))
         {
-            diagnostics.Add(new("project_library.already_referenced", "The project already references this library artifact. 项目已引用该类库制品。", "libraryId"));
+            diagnostics.Add(new(ProjectLibraryErrorCodes.AlreadyReferenced, "The project already references this library artifact. 项目已引用该类库制品。", "libraryId"));
         }
 
         return diagnostics;

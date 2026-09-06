@@ -91,7 +91,7 @@ internal static class McpFlowToolHandlers
                 "The flow patch references are invalid.",
                 new
                 {
-                    code = "mcp.flow_patch.reference_invalid",
+                    code = McpErrorCodes.FlowPatchReferenceInvalid,
                     diagnosticId = Guid.NewGuid().ToString("N"),
                     fieldPath = "$.operations",
                     expected = "a valid operation sequence for the current flow",
@@ -111,7 +111,7 @@ internal static class McpFlowToolHandlers
             normalized.Request,
             normalized.Warnings);
         var preview = await scope.ServiceProvider.GetRequiredService<McpPreviewService>().CreateAsync(
-            "flow.patch",
+            FlowErrorCodes.Patch,
             principal,
             request.ProjectId,
             request.FlowId,
@@ -131,12 +131,12 @@ internal static class McpFlowToolHandlers
         RequireConfirmation(request);
         var requestPayload = Serialize(request);
         var idempotency = scope.ServiceProvider.GetRequiredService<McpIdempotencyService>();
-        var replay = await idempotency.FindAsync(principal.Id, "flow.patch", request.IdempotencyKey, requestPayload, cancellationToken);
+        var replay = await idempotency.FindAsync(principal.Id, FlowErrorCodes.Patch, request.IdempotencyKey, requestPayload, cancellationToken);
         if (replay is not null)
             return DeserializeStoredResponse(replay.ResponseJson);
         var previews = scope.ServiceProvider.GetRequiredService<McpPreviewService>();
         var entry = await previews.RequireAsync(request.PreviewId, request.PreviewFingerprint, principal, cancellationToken);
-        if (!string.Equals(entry.Operation, "flow.patch", StringComparison.Ordinal))
+        if (!string.Equals(entry.Operation, FlowErrorCodes.Patch, StringComparison.Ordinal))
             throw new McpProtocolException(-32602, "The preview does not describe a flow patch.");
         var stored = McpPreviewService.Deserialize<StoredFlowPatchPreview>(entry);
         var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
@@ -184,7 +184,7 @@ internal static class McpFlowToolHandlers
             throw new McpProtocolException(
                 -32603,
                 "The flow patch was committed but authoritative verification failed.",
-                new { code = "mcp.post_apply_verification_failed" });
+                new { code = McpErrorCodes.PostApplyVerificationFailed });
         }
         var response = FlowDiffService.RedactSensitive(persisted);
         await idempotency.SaveAsync(principal.Id, entry.Operation, request.IdempotencyKey, response, requestPayload, cancellationToken);
@@ -241,7 +241,7 @@ internal static class McpFlowToolHandlers
         if (production is not null && diff.Changes.Count == 0)
         {
             diagnostics = diagnostics.Append(new ValidationDiagnosticDto(
-                "flow.publish_no_change",
+                FlowErrorCodes.PublishNoChange,
                 "The current development version is already the production definition. 当前开发版本已经是生产定义。",
                 null)).ToArray();
         }
@@ -343,7 +343,7 @@ internal static class McpFlowToolHandlers
         var diff = scope.ServiceProvider.GetRequiredService<FlowDiffService>().Compare(current.Definition, source.Definition);
         if (diff.Changes.Count == 0)
             diagnostics = diagnostics.Concat([new ValidationDiagnosticDto(
-                "flow.rollback_no_change",
+                FlowErrorCodes.RollbackNoChange,
                 "The selected version is already the current track head. 选定版本已经是当前轨道头版本。",
                 null)]).ToArray();
         var stored = new StoredRollbackPreview(request, new FlowValidationResultDto(diagnostics.Length == 0, diagnostics), diff);

@@ -149,7 +149,7 @@ public sealed class RunSubmissionService
                 null,
                 StatusCodes.Status429TooManyRequests,
                 "The run queue is full. 运行队列已满。",
-                new { code = "run.queue_full" });
+                new { code = RunErrorCodes.QueueFull });
         }
 
         var preparation = await _runService.PrepareAsync(
@@ -181,13 +181,13 @@ public sealed class RunSubmissionService
         if (_queue.TryEnqueueReserved(item, reservation))
             return new RunSubmissionResult(prepared.Run, StatusCodes.Status202Accepted);
 
-        prepared.Run.Cancel("run.scheduler_unavailable", DateTimeOffset.UtcNow);
+        prepared.Run.Cancel(RunErrorCodes.SchedulerUnavailable, DateTimeOffset.UtcNow);
         await _runStore.SaveAsync(prepared.Run, CancellationToken.None);
         return new RunSubmissionResult(
             null,
             StatusCodes.Status503ServiceUnavailable,
             "The run scheduler is unavailable. 运行调度器不可用。",
-            new { code = "run.scheduler_unavailable" });
+            new { code = RunErrorCodes.SchedulerUnavailable });
     }
 }
 
@@ -597,7 +597,7 @@ public sealed class RunEventBroadcaster
                 channel.Writer.TryWrite(item);
         }
 
-        if (item.Type is "run.completed" or "run.failed" or "run.cancelled" or "run.timed_out" or "run.interrupted")
+        if (item.Type is RunErrorCodes.Completed or RunErrorCodes.Failed or RunErrorCodes.Cancelled or RunErrorCodes.TimedOut or RunErrorCodes.Interrupted)
         {
             _completedRuns[item.RunId] = DateTimeOffset.UtcNow;
             if (_channels.TryRemove(item.RunId, out var completed))
@@ -805,7 +805,7 @@ public sealed class RunExecutionHostedService : BackgroundService
                 var result = await interruptionService.InterruptAsync(
                     run.Id,
                     "engine_restart",
-                    "run.worker_lost",
+                    RunErrorCodes.WorkerLost,
                     "The worker was lost before the run reached a terminal state. Worker 在流程到达终态前已丢失。",
                     cancellationToken);
                 if (result.IsInterrupted)
@@ -841,7 +841,7 @@ public sealed class RunExecutionHostedService : BackgroundService
                 await CompletePendingRunAsync(
                     item,
                     FlowRunStatusDto.Cancelled,
-                    "run.cancelled",
+                    RunErrorCodes.Cancelled,
                     "The queued run was cancelled. 排队中的运行实例已取消。",
                     _queue.GetCancellationSource(item.RunId) ?? RunCancellationSources.Worker,
                     cancellationToken);
@@ -855,7 +855,7 @@ public sealed class RunExecutionHostedService : BackgroundService
             await CompletePendingRunAsync(
                 item,
                 FlowRunStatusDto.TimedOut,
-                "run.queue_timeout",
+                RunErrorCodes.QueueTimeout,
                 "The run exceeded the queue wait timeout. 运行实例超过了队列等待超时。",
                 RunCancellationSources.Worker,
                 cancellationToken);
@@ -931,7 +931,7 @@ public sealed class RunExecutionHostedService : BackgroundService
                 await runStore.SaveAsync(run, CancellationToken.None);
                 await PublishTerminalAsync(
                     run,
-                    new WorkerRunResultDto(WorkerProtocol.Version, run.Id, FlowRunStatusDto.Cancelled, "run.cancelled", "The queued run was cancelled. 排队中的运行实例已取消。"),
+                    new WorkerRunResultDto(WorkerProtocol.Version, run.Id, FlowRunStatusDto.Cancelled, RunErrorCodes.Cancelled, "The queued run was cancelled. 排队中的运行实例已取消。"),
                     eventStore,
                     CancellationToken.None);
                 return;
@@ -1009,7 +1009,7 @@ public sealed class RunExecutionHostedService : BackgroundService
         await runStore.SaveAsync(run, CancellationToken.None);
         await PublishTerminalAsync(
             run,
-            new WorkerRunResultDto(WorkerProtocol.Version, run.Id, FlowRunStatusDto.Cancelled, "worker.cancelled", "The worker run was cancelled. Worker 运行已取消。"),
+            new WorkerRunResultDto(WorkerProtocol.Version, run.Id, FlowRunStatusDto.Cancelled, WorkerErrorCodes.Cancelled, "The worker run was cancelled. Worker 运行已取消。"),
             eventStore,
             CancellationToken.None);
     }
@@ -1027,7 +1027,7 @@ public sealed class RunExecutionHostedService : BackgroundService
         await runStore.SaveAsync(run, CancellationToken.None);
         await PublishTerminalAsync(
             run,
-            new WorkerRunResultDto(WorkerProtocol.Version, run.Id, FlowRunStatusDto.Failed, "worker.run_failed", errorMessage),
+            new WorkerRunResultDto(WorkerProtocol.Version, run.Id, FlowRunStatusDto.Failed, WorkerErrorCodes.RunFailed, errorMessage),
             eventStore,
             CancellationToken.None);
     }
@@ -1055,20 +1055,20 @@ public sealed class RunExecutionHostedService : BackgroundService
 
         var type = workerEvent.EventType switch
         {
-            WorkerEventType.RunStarted => "run.started",
-            WorkerEventType.NodeStarted => "node.started",
-            WorkerEventType.NodeCompleted => "node.completed",
-            WorkerEventType.NodeFailed => "node.failed",
-            WorkerEventType.NodeErrored => "node.error",
-            WorkerEventType.RunCompleted => "run.completed",
-            WorkerEventType.RunCancelled => "run.cancelled",
-            WorkerEventType.DebugPaused => "debug.paused",
-            WorkerEventType.DebugTriggerReceived => "debug.trigger.received",
-            WorkerEventType.DebugTriggerQueued => "debug.trigger.queued",
-            WorkerEventType.DebugTriggerAdmitted => "debug.trigger.admitted",
-            WorkerEventType.DebugTriggerRejected => "debug.trigger.rejected",
-            WorkerEventType.DebugTriggerCompleted => "debug.trigger.completed",
-            WorkerEventType.DebugTriggerFailed => "debug.trigger.failed",
+            WorkerEventType.RunStarted => RunErrorCodes.Started,
+            WorkerEventType.NodeStarted => NodeErrorCodes.Started,
+            WorkerEventType.NodeCompleted => NodeErrorCodes.Completed,
+            WorkerEventType.NodeFailed => NodeErrorCodes.Failed,
+            WorkerEventType.NodeErrored => NodeErrorCodes.Error,
+            WorkerEventType.RunCompleted => RunErrorCodes.Completed,
+            WorkerEventType.RunCancelled => RunErrorCodes.Cancelled,
+            WorkerEventType.DebugPaused => DebugErrorCodes.Paused,
+            WorkerEventType.DebugTriggerReceived => DebugErrorCodes.TriggerReceived,
+            WorkerEventType.DebugTriggerQueued => DebugErrorCodes.TriggerQueued,
+            WorkerEventType.DebugTriggerAdmitted => DebugErrorCodes.TriggerAdmitted,
+            WorkerEventType.DebugTriggerRejected => DebugErrorCodes.TriggerRejected,
+            WorkerEventType.DebugTriggerCompleted => DebugErrorCodes.TriggerCompleted,
+            WorkerEventType.DebugTriggerFailed => DebugErrorCodes.TriggerFailed,
             _ => "log"
         };
         var item = new FlowRunEvent(
@@ -1168,10 +1168,10 @@ public sealed class RunExecutionHostedService : BackgroundService
     {
         var type = result.Status switch
         {
-            FlowRunStatusDto.Cancelled => "run.cancelled",
-            FlowRunStatusDto.TimedOut => "run.timed_out",
-            FlowRunStatusDto.Failed => "run.failed",
-            _ => "run.completed"
+            FlowRunStatusDto.Cancelled => RunErrorCodes.Cancelled,
+            FlowRunStatusDto.TimedOut => RunErrorCodes.TimedOut,
+            FlowRunStatusDto.Failed => RunErrorCodes.Failed,
+            _ => RunErrorCodes.Completed
         };
         var sequence = await eventStore.GetLastSequenceAsync(run.Id, cancellationToken) + 1;
         var item = new FlowRunEvent(

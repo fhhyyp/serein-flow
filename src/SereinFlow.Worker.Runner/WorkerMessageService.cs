@@ -60,17 +60,17 @@ public sealed class WorkerMessageService : IMessageService, IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(delivery);
         if (delivery.ProtocolVersion != WorkerProtocolConstants.Version)
-            return Reject(delivery, "message.protocol_mismatch", "The message protocol version is not supported. 消息协议版本不受支持。");
+            return Reject(delivery, MessageErrorCodes.ProtocolMismatch, "The message protocol version is not supported. 消息协议版本不受支持。");
         if (delivery.RunId != _runId)
-            return Reject(delivery, "message.run_mismatch", "The message belongs to another Worker run. 消息属于其他 Worker 运行。");
+            return Reject(delivery, MessageErrorCodes.RunMismatch, "The message belongs to another Worker run. 消息属于其他 Worker 运行。");
         if (delivery.MessageId == Guid.Empty)
-            return Reject(delivery, "message.id_required", "MessageId is required. MessageId 不能为空。");
+            return Reject(delivery, MessageErrorCodes.IdRequired, "MessageId is required. MessageId 不能为空。");
         if (string.IsNullOrWhiteSpace(delivery.Topic))
-            return Reject(delivery, "message.topic_required", "Message topic is required. 消息主题不能为空。");
+            return Reject(delivery, MessageErrorCodes.TopicRequired, "Message topic is required. 消息主题不能为空。");
         if (delivery.SerializationMode != WorkerMessageSerializationModeDto.Json)
-            return Reject(delivery, "message.external_json_required", "External ingress only accepts JSON messages. 外部入口只接受 JSON 消息。");
+            return Reject(delivery, MessageErrorCodes.ExternalJsonRequired, "External ingress only accepts JSON messages. 外部入口只接受 JSON 消息。");
         if (!Enum.IsDefined(delivery.ChannelKind))
-            return Reject(delivery, "message.channel_invalid", "The message channel kind is invalid. 消息通道类型无效。");
+            return Reject(delivery, MessageErrorCodes.ChannelInvalid, "The message channel kind is invalid. 消息通道类型无效。");
 
         var topic = NormalizeTopic(delivery.Topic);
         var endpoint = delivery.ChannelKind switch
@@ -80,26 +80,26 @@ public sealed class WorkerMessageService : IMessageService, IAsyncDisposable
             _ => null
         };
         if (endpoint is null)
-            return Reject(delivery, "message.endpoint_not_ready", "The message endpoint is not registered. 消息入口尚未注册。");
+            return Reject(delivery, MessageErrorCodes.EndpointNotReady, "The message endpoint is not registered. 消息入口尚未注册。");
 
         var options = endpoint.Options;
         if (!options.ExternalIngress)
-            return Reject(delivery, "message.endpoint_forbidden", "The message endpoint is not open to external ingress. 消息入口未开放外部投递。");
+            return Reject(delivery, MessageErrorCodes.EndpointForbidden, "The message endpoint is not open to external ingress. 消息入口未开放外部投递。");
         if (options.SerializationMode != MessageSerializationMode.Json)
-            return Reject(delivery, "message.endpoint_json_required", "The external endpoint must use JSON serialization. 外部入口必须使用 JSON 序列化。");
+            return Reject(delivery, MessageErrorCodes.EndpointJsonRequired, "The external endpoint must use JSON serialization. 外部入口必须使用 JSON 序列化。");
         if (!string.Equals(options.ContractId, delivery.ContractId, StringComparison.Ordinal))
-            return Reject(delivery, "message.contract_mismatch", "The message contract does not match the registered endpoint. 消息合同与已注册入口不匹配。");
+            return Reject(delivery, MessageErrorCodes.ContractMismatch, "The message contract does not match the registered endpoint. 消息合同与已注册入口不匹配。");
 
         var payloadBytes = Encoding.UTF8.GetByteCount(delivery.PayloadJson ?? string.Empty);
         if (payloadBytes > options.MaxPayloadBytes)
-            return Reject(delivery, "message.payload_too_large", $"Message payloads are limited to {options.MaxPayloadBytes} bytes. 消息载荷不能超过 {options.MaxPayloadBytes} 字节。");
+            return Reject(delivery, MessageErrorCodes.PayloadTooLarge, $"Message payloads are limited to {options.MaxPayloadBytes} bytes. 消息载荷不能超过 {options.MaxPayloadBytes} 字节。");
         try
         {
             using var document = JsonDocument.Parse(delivery.PayloadJson ?? string.Empty);
         }
         catch (JsonException exception)
         {
-            return Reject(delivery, "message.payload_invalid", $"The message payload is not valid JSON. 消息载荷不是有效 JSON。 {exception.Message}");
+            return Reject(delivery, MessageErrorCodes.PayloadInvalid, $"The message payload is not valid JSON. 消息载荷不是有效 JSON。 {exception.Message}");
         }
 
         var createdAt = delivery.CreatedAt == default ? DateTimeOffset.UtcNow : delivery.CreatedAt;
@@ -107,7 +107,7 @@ public sealed class WorkerMessageService : IMessageService, IAsyncDisposable
         if (expiresAt is null && options.MessageTtl is { } ttl)
             expiresAt = createdAt + ttl;
         if (expiresAt is not null && expiresAt <= DateTimeOffset.UtcNow)
-            return Reject(delivery, "message.expired", "The message has expired. 消息已过期。");
+            return Reject(delivery, MessageErrorCodes.Expired, "The message has expired. 消息已过期。");
 
         var envelope = MessageEnvelope.Json(
             delivery.MessageId,
@@ -136,7 +136,7 @@ public sealed class WorkerMessageService : IMessageService, IAsyncDisposable
                 _ => false
             };
             if (!accepted)
-                return Reject(delivery, "message.channel_full", "The message channel is full. 消息通道已满。");
+                return Reject(delivery, MessageErrorCodes.ChannelFull, "The message channel is full. 消息通道已满。");
 
             if (_acceptedMessageIds.Count >= MaximumDeduplicationEntries)
             {
@@ -164,7 +164,7 @@ public sealed class WorkerMessageService : IMessageService, IAsyncDisposable
         if (!channel.TryWrite(envelope))
         {
             throw new MessageServiceException(
-                "message.queue_full",
+                MessageErrorCodes.QueueFull,
                 "The message queue is full. 消息队列已满。",
                 normalizedTopic);
         }
@@ -195,7 +195,7 @@ public sealed class WorkerMessageService : IMessageService, IAsyncDisposable
             catch (ChannelClosedException exception)
             {
                 throw new MessageServiceException(
-                    "message.queue_closed",
+                    MessageErrorCodes.QueueClosed,
                     "The message queue was closed with the Worker run. 消息队列已随 Worker 运行关闭。",
                     topic,
                     exception);
@@ -221,7 +221,7 @@ public sealed class WorkerMessageService : IMessageService, IAsyncDisposable
         if (!eventTopic.TryPublish(envelope) && options.OverflowStrategy == MessageOverflowStrategy.Reject)
         {
             throw new MessageServiceException(
-                "message.event_full",
+                MessageErrorCodes.EventFull,
                 "At least one event subscription is full. 至少一个事件订阅者的缓冲区已满。",
                 normalizedTopic);
         }
@@ -332,7 +332,7 @@ public sealed class WorkerMessageService : IMessageService, IAsyncDisposable
             var json = JsonSerializer.Serialize(message, JsonOptions);
             if (Encoding.UTF8.GetByteCount(json) > options.MaxPayloadBytes)
                 throw new MessageServiceException(
-                    "message.payload_too_large",
+                    MessageErrorCodes.PayloadTooLarge,
                     $"Message payloads are limited to {options.MaxPayloadBytes} bytes. 消息载荷不能超过 {options.MaxPayloadBytes} 字节。",
                     topic);
             return MessageEnvelope.Json(id, topic, json, createdAt, expiresAt);
@@ -344,7 +344,7 @@ public sealed class WorkerMessageService : IMessageService, IAsyncDisposable
         catch (Exception exception)
         {
             throw new MessageServiceException(
-                "message.serialization_failed",
+                MessageErrorCodes.SerializationFailed,
                 "The message could not be serialized as JSON. 消息无法序列化为 JSON。",
                 topic,
                 exception);
@@ -368,7 +368,7 @@ public sealed class WorkerMessageService : IMessageService, IAsyncDisposable
                 ?? (default(T) is null
                     ? default!
                     : throw new MessageServiceException(
-                        "message.deserialization_null",
+                        MessageErrorCodes.DeserializationNull,
                         "The JSON message deserialized to null for a non-nullable target. JSON 消息反序列化为 null，但目标类型不可为空。",
                         topic));
         }
@@ -379,7 +379,7 @@ public sealed class WorkerMessageService : IMessageService, IAsyncDisposable
         catch (JsonException exception)
         {
             throw new MessageServiceException(
-                "message.deserialization_failed",
+                MessageErrorCodes.DeserializationFailed,
                 "The JSON message could not be converted to the requested type. JSON 消息无法转换为请求的类型。",
                 topic,
                 exception);
@@ -411,7 +411,7 @@ public sealed class WorkerMessageService : IMessageService, IAsyncDisposable
         if (expected != actual)
         {
             throw new MessageServiceException(
-                "message.channel_options_conflict",
+                MessageErrorCodes.ChannelOptionsConflict,
                 "The same topic was created with conflicting channel options. 同一主题使用了冲突的通道选项。",
                 topic);
         }
@@ -420,7 +420,7 @@ public sealed class WorkerMessageService : IMessageService, IAsyncDisposable
     private void EnsureOpen()
     {
         if (Volatile.Read(ref _disposed) == 1)
-            throw new MessageServiceException("message.service_closed", "The Worker message service is closed. Worker 消息服务已关闭。");
+            throw new MessageServiceException(MessageErrorCodes.ServiceClosed, "The Worker message service is closed. Worker 消息服务已关闭。");
     }
 
     private static string NormalizeTopic(string topic)
@@ -595,7 +595,7 @@ public sealed class WorkerMessageService : IMessageService, IAsyncDisposable
             catch (ChannelClosedException exception)
             {
                 throw new MessageServiceException(
-                    "message.subscription_closed",
+                    MessageErrorCodes.SubscriptionClosed,
                     "The event subscription is closed. 事件订阅已关闭。",
                     _topic,
                     exception);

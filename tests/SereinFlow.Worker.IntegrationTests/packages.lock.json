@@ -110,7 +110,7 @@
       "sereinflow.contracts": {
         "type": "Project",
         "dependencies": {
-          "SereinFlow.Library": "[1.0.1, )"
+          "SereinFlow.Library": "[1.2.0, )"
         }
       },
       "sereinflow.domain": {
@@ -122,6 +122,7 @@
       "sereinflow.runtime": {
         "type": "Project",
         "dependencies": {
+          "SereinFlow.Contracts": "[1.0.0, )",
           "SereinFlow.Domain": "[1.0.0, )",
           "SereinFlow.Runtime.Abstractions": "[1.0.0, )"
         }
@@ -130,7 +131,7 @@
         "type": "Project",
         "dependencies": {
           "SereinFlow.Domain": "[1.0.0, )",
-          "SereinFlow.Library": "[1.0.1, )"
+          "SereinFlow.Library": "[1.2.0, )"
         }
       },
       "sereinflow.scriptadapter": {
@@ -152,8 +153,8 @@
       "sereinflow.testlibrary": {
         "type": "Project",
         "dependencies": {
-          "SereinFlow.Library": "[1.0.1, )",
-          "SereinFlow.Runtime.Abstractions": "[1.0.0, )"
+          "SereinFlow.Contracts": "[1.0.0, )",
+          "SereinFlow.Library": "[1.2.0, )"
         }
       },
       "sereinflow.worker.client": {

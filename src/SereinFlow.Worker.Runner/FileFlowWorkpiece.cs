@@ -81,7 +81,7 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
         if (_runDirectory is null)
         {
             throw new FlowWorkpieceException(
-                "workpiece.not_configured",
+                WorkpieceErrorCodes.NotConfigured,
                 "The flow workpiece directory is not configured. 流程工件目录尚未配置。");
         }
 
@@ -128,7 +128,7 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
             catch (Exception exception)
             {
                 throw new FlowWorkpieceException(
-                    "workpiece.upload_failed",
+                    WorkpieceErrorCodes.UploadFailed,
                     "The workpiece could not be stored. 流程工件无法保存。",
                     exception);
             }
@@ -152,7 +152,7 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
             length += read;
             if (length > MaximumLength)
                 throw new FlowWorkpieceException(
-                    "workpiece.too_large",
+                    WorkpieceErrorCodes.TooLarge,
                     $"A workpiece cannot exceed {MaximumLength} bytes. 流程工件不能超过 {MaximumLength} 字节。");
             target.Write(buffer, 0, read);
         }
@@ -161,7 +161,7 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
     private static string RequireFileName(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
-            throw new FlowWorkpieceException("workpiece.name_required", "The workpiece name is required. 流程工件名称不能为空。");
+            throw new FlowWorkpieceException(WorkpieceErrorCodes.NameRequired, "The workpiece name is required. 流程工件名称不能为空。");
         var name = value.Trim();
         if (name is "." or ".."
             || name != Path.GetFileName(name)
@@ -169,7 +169,7 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
             || name.Contains(Path.AltDirectorySeparatorChar)
             || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
         {
-            throw new FlowWorkpieceException("workpiece.name_invalid", "The workpiece name must be a file name without a path. 流程工件名称必须是不含路径的文件名。");
+            throw new FlowWorkpieceException(WorkpieceErrorCodes.NameInvalid, "The workpiece name must be a file name without a path. 流程工件名称必须是不含路径的文件名。");
         }
         return name;
     }
@@ -177,17 +177,17 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
     private static string RequireNodeId(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
-            throw new FlowWorkpieceException("workpiece.node_id_required", "The node ID is required. 节点 ID 不能为空。");
+            throw new FlowWorkpieceException(WorkpieceErrorCodes.NodeIdRequired, "The node ID is required. 节点 ID 不能为空。");
         var nodeId = value.Trim();
         if (nodeId.Length > 256 || nodeId.Contains('\r') || nodeId.Contains('\n'))
-            throw new FlowWorkpieceException("workpiece.node_id_invalid", "The node ID is invalid. 节点 ID 无效。");
+            throw new FlowWorkpieceException(WorkpieceErrorCodes.NodeIdInvalid, "The node ID is invalid. 节点 ID 无效。");
         return nodeId;
     }
 
     private static Guid RequireExecutionId(Guid value)
     {
         if (value == Guid.Empty)
-            throw new FlowWorkpieceException("workpiece.execution_id_required", "The execution ID is required. 执行步骤 ID 不能为空。");
+            throw new FlowWorkpieceException(WorkpieceErrorCodes.ExecutionIdRequired, "The execution ID is required. 执行步骤 ID 不能为空。");
         return value;
     }
 
@@ -196,7 +196,7 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
         var value = string.IsNullOrWhiteSpace(explicitType) ? inferredType : explicitType;
         value = string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
         if (value.Length > 128 || value.Contains('\r') || value.Contains('\n') || !value.Contains('/'))
-            throw new FlowWorkpieceException("workpiece.content_type_invalid", "The workpiece content type is invalid. 流程工件 Content-Type 无效。");
+            throw new FlowWorkpieceException(WorkpieceErrorCodes.ContentTypeInvalid, "The workpiece content type is invalid. 流程工件 Content-Type 无效。");
         return value;
     }
 

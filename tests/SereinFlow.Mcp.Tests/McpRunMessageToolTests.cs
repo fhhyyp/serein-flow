@@ -127,7 +127,7 @@ public sealed class McpRunMessageToolTests
 
         Assert.Equal(-32602, exception.Code);
         var errorData = JsonSerializer.SerializeToElement(exception.ErrorData);
-        Assert.Equal("message.payload_required", errorData.GetProperty("code").GetString());
+        Assert.Equal(MessageErrorCodes.PayloadRequired, errorData.GetProperty("code").GetString());
         Assert.Equal(0, delivery.CallCount);
     }
 
@@ -140,7 +140,7 @@ public sealed class McpRunMessageToolTests
             ResultFactory = _ => new RunMessageDeliveryResult(
                 RunMessageDeliveryDisposition.RunNotFound,
                 null,
-                "run.not_found",
+                RunErrorCodes.NotFound,
                 "Run not found. 未找到运行实例。",
                 404)
         };
@@ -164,7 +164,7 @@ public sealed class McpRunMessageToolTests
 
         Assert.Equal(-32004, exception.Code);
         var errorData = JsonSerializer.SerializeToElement(exception.ErrorData);
-        Assert.Equal("run.not_found", errorData.GetProperty("code").GetString());
+        Assert.Equal(RunErrorCodes.NotFound, errorData.GetProperty("code").GetString());
     }
 
     private static FlowRun CreateRunningRun()

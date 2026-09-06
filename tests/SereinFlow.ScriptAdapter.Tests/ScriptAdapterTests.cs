@@ -50,7 +50,7 @@ public sealed class ScriptAdapterTests
                 []));
 
         Assert.False(result.IsSuccess);
-        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "script.source_too_large");
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == ScriptErrorCodes.SourceTooLarge);
     }
     [Fact]
     public void ConverterRoundTripsJsonCompatibleValues()
@@ -169,9 +169,9 @@ public sealed class ScriptAdapterTests
         var missing = await Execute(node, new Dictionary<string, object?>());
         var unknown = await Execute(node, new Dictionary<string, object?> { ["amount"] = 1, ["other"] = 2 });
 
-        Assert.Equal("script.input_missing", missing.ErrorCode);
+        Assert.Equal(ScriptErrorCodes.InputMissing, missing.ErrorCode);
         Assert.Contains("Required script input", missing.ErrorMessage);
-        Assert.Equal("script.input_unknown", unknown.ErrorCode);
+        Assert.Equal(ScriptErrorCodes.InputUnknown, unknown.ErrorCode);
         Assert.Contains("Unknown script input", unknown.ErrorMessage);
     }
 
@@ -184,7 +184,7 @@ public sealed class ScriptAdapterTests
         var result = await Execute(node, new Dictionary<string, object?>(), cancellation.Token);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("script.cancelled", result.ErrorCode);
+        Assert.Equal(ScriptErrorCodes.Cancelled, result.ErrorCode);
     }
 
     [Fact]
@@ -320,13 +320,13 @@ public sealed class ScriptAdapterTests
             var valid = CreateScriptDefinition("return 1", [], [new("result", "number")]);
             var first = store.RebuildProject("project", [valid]);
             Assert.True(first.IsSuccess);
-            Assert.True(File.Exists(Path.Combine(store.GetProjectPath("project"), "node.ssc")));
+            Assert.True(File.Exists(Path.Combine(store.GetProjectPath("project"), NodeErrorCodes.Ssc)));
 
             var invalid = CreateScriptDefinition("return (", [], [new("result", "number")]);
             var second = store.RebuildProject("project", [invalid]);
 
             Assert.False(second.IsSuccess);
-            Assert.False(File.Exists(Path.Combine(store.GetProjectPath("project"), "node.ssc")));
+            Assert.False(File.Exists(Path.Combine(store.GetProjectPath("project"), NodeErrorCodes.Ssc)));
         }
         finally
         {

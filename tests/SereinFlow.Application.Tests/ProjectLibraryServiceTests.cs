@@ -21,7 +21,7 @@ public sealed class ProjectLibraryServiceTests
 
         Assert.False(add.IsSuccess);
         Assert.Equal(409, add.StatusCode);
-        Assert.Equal("library.archived", add.Code);
+        Assert.Equal(LibraryErrorCodes.Archived, add.Code);
 
         await references.AddAsync(project.Id, LibraryId);
         var validation = await service.ValidateFlowLibrariesAsync(project.Id, CreateExternalLibraryFlow());
@@ -46,7 +46,7 @@ public sealed class ProjectLibraryServiceTests
 
         Assert.False(remove.IsSuccess);
         Assert.Equal(409, remove.StatusCode);
-        Assert.Equal("project_library.in_use", remove.Code);
+        Assert.Equal(ProjectLibraryErrorCodes.InUse, remove.Code);
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public sealed class ProjectLibraryServiceTests
 
         Assert.False(remove.IsSuccess);
         Assert.Equal(409, remove.StatusCode);
-        Assert.Equal("project_library.in_use_by_production_history", remove.Code);
+        Assert.Equal(ProjectLibraryErrorCodes.InUseByProductionHistory, remove.Code);
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public sealed class ProjectLibraryServiceTests
 
         Assert.True(add.IsSuccess);
         Assert.False(validation.IsValid);
-        Assert.Contains(validation.Diagnostics, diagnostic => diagnostic.Code == "project_library.not_referenced");
+        Assert.Contains(validation.Diagnostics, diagnostic => diagnostic.Code == ProjectLibraryErrorCodes.NotReferenced);
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public sealed class ProjectLibraryServiceTests
             CreateExternalLibraryFlow(dllVersion: "999.0.0"));
 
         Assert.False(validation.IsValid);
-        Assert.Contains(validation.Diagnostics, diagnostic => diagnostic.Code == "project_library.node_metadata_invalid");
+        Assert.Contains(validation.Diagnostics, diagnostic => diagnostic.Code == ProjectLibraryErrorCodes.NodeMetadataInvalid);
     }
 
     [Fact]
@@ -147,7 +147,7 @@ public sealed class ProjectLibraryServiceTests
         var validation = await service.ValidateFlowLibrariesAsync(project.Id, flow);
 
         Assert.False(validation.IsValid);
-        Assert.Contains(validation.Diagnostics, diagnostic => diagnostic.Code == "project_library.node_contract_invalid");
+        Assert.Contains(validation.Diagnostics, diagnostic => diagnostic.Code == ProjectLibraryErrorCodes.NodeContractInvalid);
     }
 
     [Fact]
@@ -156,7 +156,7 @@ public sealed class ProjectLibraryServiceTests
         var validation = ProjectLibraryService.ValidateNewProjectFlowLibraries(CreateExternalLibraryFlow());
 
         Assert.False(validation.IsValid);
-        Assert.Contains(validation.Diagnostics, diagnostic => diagnostic.Code == "project_library.not_referenced");
+        Assert.Contains(validation.Diagnostics, diagnostic => diagnostic.Code == ProjectLibraryErrorCodes.NotReferenced);
     }
 
     private static ProjectLibraryService CreateService(

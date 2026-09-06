@@ -440,7 +440,7 @@ internal static class McpReadModelToolHandlers
             var referenced = await scope.ServiceProvider.GetRequiredService<IProjectLibraryReferenceRepository>()
                 .IsReferencedAsync(principal!.ProjectId!.Value, library.Id, cancellationToken);
             if (!referenced)
-                throw new McpSecurityException("mcp.library_access_denied", "The MCP caller cannot access this library artifact.", 403);
+                throw new McpSecurityException(McpErrorCodes.LibraryAccessDenied, "The MCP caller cannot access this library artifact.", 403);
         }
         return library;
     }
@@ -675,25 +675,25 @@ internal static class McpReadModelToolHandlers
             && !string.Equals(entry.PrincipalId, principal.Id, StringComparison.Ordinal))
         {
             throw new McpSecurityException(
-                "mcp.preview_owner_mismatch",
+                McpErrorCodes.PreviewOwnerMismatch,
                 "The MCP preview belongs to another caller.",
                 403);
         }
         if (entry.ProjectId is null && principal is not null && !principal.IsLocal && !principal.IsAdministrator)
-            throw new McpSecurityException("mcp.preview_access_denied", "The MCP caller cannot access this global preview.", 403);
+            throw new McpSecurityException(McpErrorCodes.PreviewAccessDenied, "The MCP caller cannot access this global preview.", 403);
         if (entry.ProjectId is not null && principal is not null && !principal.CanAccess(entry.ProjectId.Value))
-            throw new McpSecurityException("mcp.project_access_denied", "The MCP caller cannot access this preview.", 403);
+            throw new McpSecurityException(McpErrorCodes.ProjectAccessDenied, "The MCP caller cannot access this preview.", 403);
         RequirePreviewPermission(security, principal, entry);
         var descriptor = new McpPreviewDescriptorDto(entry.Id, entry.Operation, entry.ProjectId, entry.FlowId, entry.Status, entry.ExpiresAt, entry.PreviewFingerprint);
         return entry.Operation switch
         {
-            "project.create" => McpProjectToolHandlers.ReadProjectCreatePreview(entry, descriptor),
-            "flow.patch" => ReadFlowPatchPreview(entry, descriptor),
+            ProjectErrorCodes.Create => McpProjectToolHandlers.ReadProjectCreatePreview(entry, descriptor),
+            FlowErrorCodes.Patch => ReadFlowPatchPreview(entry, descriptor),
             "flow.publish" => ReadPublishPreview(entry, descriptor),
             "flow.rollback" => ReadRollbackPreview(entry, descriptor),
-            "library.package" => ReadLibraryPackagePreview(entry, descriptor),
-            "project.library.attach" => ReadProjectLibraryAttachPreview(entry, descriptor),
-            "library.family.assign" => ReadLibraryFamilyAssignmentPreview(entry, descriptor),
+            LibraryErrorCodes.Package => ReadLibraryPackagePreview(entry, descriptor),
+            ProjectErrorCodes.LibraryAttach => ReadProjectLibraryAttachPreview(entry, descriptor),
+            LibraryErrorCodes.FamilyAssign => ReadLibraryFamilyAssignmentPreview(entry, descriptor),
             "library.upgrade" => ReadLibraryUpgradePreview(entry, descriptor),
             _ => descriptor,
         };

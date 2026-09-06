@@ -75,7 +75,7 @@ internal static class McpDebugToolHandlers
         var idempotency = context.Services.GetRequiredService<McpIdempotencyService>();
         var replay = await idempotency.FindAsync(
             principal.Id,
-            "debug.session.start",
+            DebugErrorCodes.SessionStart,
             idempotencyKey,
             requestPayload,
             cancellationToken);
@@ -105,7 +105,7 @@ internal static class McpDebugToolHandlers
             session.StateRevision);
         await idempotency.SaveAsync(
             principal.Id,
-            "debug.session.start",
+            DebugErrorCodes.SessionStart,
             idempotencyKey,
             response,
             requestPayload,
@@ -150,7 +150,7 @@ internal static class McpDebugToolHandlers
             throw new McpProtocolException(
                 -32004,
                 "Debug session not found. 未找到调试会话。",
-                new { code = "debug.session_not_found" });
+                new { code = DebugErrorCodes.SessionNotFound });
         }
 
         context.Security.Require(context.Principal, McpPermissionDto.DebugControl, session.ProjectId);
@@ -178,12 +178,12 @@ internal static class McpDebugToolHandlers
                 : throw new McpProtocolException(
                     -32602,
                     "The run status must be pending, running, succeeded, failed, cancelled, timedOut or interrupted.",
-                    new { code = "mcp.invalid_arguments", path = "status" });
+                    new { code = McpErrorCodes.InvalidArguments, path = "status" });
     }
 
     private static void ThrowStartFailure(FlowDebugSessionStartResult result)
     {
-        var code = result.ErrorCode ?? "debug.start_rejected";
+        var code = result.ErrorCode ?? DebugErrorCodes.StartRejected;
         throw new McpProtocolException(
             ToProtocolCode(result.StatusCode),
             result.ErrorTitle ?? "The debug session could not be started.",
@@ -192,7 +192,7 @@ internal static class McpDebugToolHandlers
 
     private static void ThrowCommandFailure(FlowDebugSessionCommandResult result)
     {
-        var code = result.ErrorCode ?? "debug.command_rejected";
+        var code = result.ErrorCode ?? DebugErrorCodes.CommandRejected;
         throw new McpProtocolException(
             ToProtocolCode(result.StatusCode),
             result.ErrorTitle ?? "The debug command was rejected.",

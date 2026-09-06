@@ -36,7 +36,7 @@ public sealed class LibraryCompatibilityAnalyzer : ILibraryCompatibilityAnalyzer
             issues.Add(Issue(
                 "manifest-unavailable",
                 LibraryCompatibilityClassificationDto.Unknown,
-                "library.upgrade_manifest_missing",
+                LibraryErrorCodes.UpgradeManifestMissing,
                 "A compatibility manifest is unavailable for one of the library artifacts. 某个类库工件缺少兼容性 Manifest。",
                 blocks: true));
             return new FlowLibraryUpgradePreviewDto(flow.Id, flow.Version, false, 0, issues);
@@ -59,7 +59,7 @@ public sealed class LibraryCompatibilityAnalyzer : ILibraryCompatibilityAnalyzer
             issues.Add(Issue(
                 "no-affected-nodes",
                 LibraryCompatibilityClassificationDto.Unknown,
-                "library.upgrade_source_not_used",
+                LibraryErrorCodes.UpgradeSourceNotUsed,
                 "The selected flow does not use the source library artifact. 所选流程未使用源类库工件。",
                 blocks: true));
         }
@@ -87,7 +87,7 @@ public sealed class LibraryCompatibilityAnalyzer : ILibraryCompatibilityAnalyzer
             issues.Add(Issue(
                 $"{node.Id}:source-node",
                 LibraryCompatibilityClassificationDto.Unknown,
-                "library.upgrade_source_contract_unknown",
+                LibraryErrorCodes.UpgradeSourceContractUnknown,
                 "The source node cannot be uniquely identified in the source manifest. 源节点无法在源 Manifest 中被唯一识别。",
                 canvas.Id,
                 node.Id,
@@ -105,8 +105,8 @@ public sealed class LibraryCompatibilityAnalyzer : ILibraryCompatibilityAnalyzer
                 $"{node.Id}:target-node",
                 classification,
                 classification == LibraryCompatibilityClassificationDto.Breaking
-                    ? "library.upgrade_node_removed"
-                    : "library.upgrade_node_match_unknown",
+                    ? LibraryErrorCodes.UpgradeNodeRemoved
+                    : LibraryErrorCodes.UpgradeNodeMatchUnknown,
                 classification == LibraryCompatibilityClassificationDto.Breaking
                     ? "The target library no longer provides this node contract. 目标类库不再提供该节点契约。"
                     : "The legacy node identity cannot be uniquely matched in the target library. 旧节点身份无法在目标类库中被唯一匹配。",
@@ -122,7 +122,7 @@ public sealed class LibraryCompatibilityAnalyzer : ILibraryCompatibilityAnalyzer
             issues.Add(Issue(
                 $"{node.Id}:node-kind",
                 LibraryCompatibilityClassificationDto.Breaking,
-                "library.upgrade_node_execution_changed",
+                LibraryErrorCodes.UpgradeNodeExecutionChanged,
                 "The target node changes its execution type or awaitable contract. 目标节点更改了执行类型或可等待契约。",
                 canvas.Id,
                 node.Id,
@@ -136,7 +136,7 @@ public sealed class LibraryCompatibilityAnalyzer : ILibraryCompatibilityAnalyzer
             issues.Add(Issue(
                 $"{node.Id}:return-type",
                 LibraryCompatibilityClassificationDto.Breaking,
-                "library.upgrade_return_type_changed",
+                LibraryErrorCodes.UpgradeReturnTypeChanged,
                 "The target node changes its return type. 目标节点更改了返回类型。",
                 canvas.Id,
                 node.Id,
@@ -165,7 +165,7 @@ public sealed class LibraryCompatibilityAnalyzer : ILibraryCompatibilityAnalyzer
                     issues.Add(Issue(
                         $"{node.Id}:parameter:{sourceParameter.ContractId}",
                         LibraryCompatibilityClassificationDto.Breaking,
-                        "library.upgrade_parameter_removed",
+                        LibraryErrorCodes.UpgradeParameterRemoved,
                         "The target library removes a parameter used by the flow. 目标类库移除了流程正在使用的参数。",
                         canvas.Id,
                         node.Id,
@@ -179,7 +179,7 @@ public sealed class LibraryCompatibilityAnalyzer : ILibraryCompatibilityAnalyzer
                     issues.Add(Issue(
                         $"{node.Id}:parameter:{sourceParameter.ContractId}",
                         LibraryCompatibilityClassificationDto.Compatible,
-                        "library.upgrade_parameter_removed_unused",
+                        LibraryErrorCodes.UpgradeParameterRemovedUnused,
                         "The target library removes an unused parameter; its inactive saved definition will be dropped. 目标类库移除了未使用参数；该参数未启用的已保存定义将被移除。",
                         canvas.Id,
                         node.Id,
@@ -197,7 +197,7 @@ public sealed class LibraryCompatibilityAnalyzer : ILibraryCompatibilityAnalyzer
                 issues.Add(Issue(
                     $"{node.Id}:parameter:{sourceParameter.ContractId}:{targetParameter.ContractId}",
                     classification,
-                    requiresMapping ? "library.upgrade_parameter_renamed" : "library.upgrade_parameter_changed",
+                    requiresMapping ? LibraryErrorCodes.UpgradeParameterRenamed : LibraryErrorCodes.UpgradeParameterChanged,
                     requiresMapping
                         ? "The target parameter accepts the previous stable ID as an alias; confirm the mapping before upgrade. 目标参数接受旧稳定 ID 作为别名；升级前请确认映射。"
                         : "The target parameter contract has a compatible metadata change. 目标参数契约发生了兼容的元数据变更。",
@@ -221,7 +221,7 @@ public sealed class LibraryCompatibilityAnalyzer : ILibraryCompatibilityAnalyzer
                 issues.Add(Issue(
                     $"{node.Id}:required:{targetParameter.ContractId}",
                     LibraryCompatibilityClassificationDto.RequiresRewire,
-                    "library.upgrade_required_parameter_added",
+                    LibraryErrorCodes.UpgradeRequiredParameterAdded,
                     "The target library adds a required parameter without a default value. 目标类库新增了没有默认值的必需参数。",
                     canvas.Id,
                     node.Id,
@@ -237,7 +237,7 @@ public sealed class LibraryCompatibilityAnalyzer : ILibraryCompatibilityAnalyzer
             issues.Add(Issue(
                 $"{node.Id}:exact",
                 LibraryCompatibilityClassificationDto.Exact,
-                "library.upgrade_exact",
+                LibraryErrorCodes.UpgradeExact,
                 "The node contract is exactly compatible. 节点契约完全兼容。",
                 canvas.Id,
                 node.Id,

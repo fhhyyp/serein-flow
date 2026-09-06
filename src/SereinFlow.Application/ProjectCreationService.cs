@@ -98,14 +98,14 @@ public sealed class ProjectCreationService
     {
         ArgumentNullException.ThrowIfNull(candidate);
         if (!candidate.Validation.IsValid)
-            return new(ProjectCreationStatus.Invalid, candidate, "flow.invalid", "The initial flow definition is invalid.");
+            return new(ProjectCreationStatus.Invalid, candidate, FlowErrorCodes.Invalid, "The initial flow definition is invalid.");
 
         if (await _projects.FindAsync(candidate.Project.Id, cancellationToken) is not null)
         {
             return new(
                 ProjectCreationStatus.Conflict,
                 candidate,
-                "project.already_exists",
+                ProjectErrorCodes.AlreadyExists,
                 "The project ID already exists. 项目 ID 已存在。");
         }
 
@@ -114,7 +114,7 @@ public sealed class ProjectCreationService
             return new(
                 ProjectCreationStatus.Conflict,
                 candidate,
-                "flow.already_exists",
+                FlowErrorCodes.AlreadyExists,
                 "The initial flow ID already exists. 初始流程 ID 已存在。");
         }
 

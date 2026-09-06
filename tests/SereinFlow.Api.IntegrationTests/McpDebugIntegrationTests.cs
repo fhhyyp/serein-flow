@@ -79,14 +79,14 @@ public sealed class McpDebugIntegrationTests : IClassFixture<McpHostIntegrationT
             JsonSerializer.SerializeToElement(new { sessionId = started.SessionId, commandSequence = 0L }, JsonOptions),
             CancellationToken.None));
         Assert.Equal(-32602, invalid.Code);
-        Assert.Contains("debug.invalid_command_sequence", JsonSerializer.Serialize(invalid.ErrorData));
+        Assert.Contains(DebugErrorCodes.InvalidCommandSequence, JsonSerializer.Serialize(invalid.ErrorData));
 
         var duplicate = await Assert.ThrowsAsync<McpProtocolException>(() => backend.CallToolAsync(
             "sereinflow_step_debug",
             JsonSerializer.SerializeToElement(new { sessionId = started.SessionId, commandSequence = 1L }, JsonOptions),
             CancellationToken.None));
         Assert.Equal(-32010, duplicate.Code);
-        Assert.Contains("debug.command_sequence_conflict", JsonSerializer.Serialize(duplicate.ErrorData));
+        Assert.Contains(DebugErrorCodes.CommandSequenceConflict, JsonSerializer.Serialize(duplicate.ErrorData));
 
         var continued = await CallAsync<McpDebugCommandAcceptedDto>(
             backend,

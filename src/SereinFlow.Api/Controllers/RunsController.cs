@@ -59,7 +59,7 @@ public sealed class RunsController : ApiControllerBase
                     return ApiProblem(
                         StatusCodes.Status400BadRequest,
                         "A run status filter is invalid. 运行状态筛选条件无效。",
-                        extensions: new Dictionary<string, object?> { ["code"] = "run.status_invalid" });
+                        extensions: new Dictionary<string, object?> { ["code"] = RunErrorCodes.StatusInvalid });
                 }
 
                 parsed.Add(item);
@@ -190,7 +190,7 @@ public sealed class RunsController : ApiControllerBase
             _ => ApiProblem(
                 result.StatusCode,
                 result.Message,
-                extensions: new Dictionary<string, object?> { ["code"] = result.ErrorCode ?? "message.rejected" })
+                extensions: new Dictionary<string, object?> { ["code"] = result.ErrorCode ?? MessageErrorCodes.Rejected })
         };
     }
 
@@ -221,7 +221,7 @@ public sealed class RunsController : ApiControllerBase
         var result = await _interruptions.InterruptAsync(
             runId,
             "operator_reconciliation",
-            "run.operator_interrupted",
+            RunErrorCodes.OperatorInterrupted,
             "The orphaned run was marked as interrupted by an operator. 孤儿运行实例已由操作人员标记为中断。",
             cancellationToken);
         return result.Disposition switch

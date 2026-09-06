@@ -1,3 +1,4 @@
+using SereinFlow.Contracts;
 using SereinFlow.Domain;
 using SereinFlow.Runtime.Abstractions;
 
@@ -74,7 +75,7 @@ public sealed class FlowRunner
                     var globalFailure = globalResults.FirstOrDefault(result => !result.IsSuccess);
                     if (globalFailure is not null)
                     {
-                        if (globalFailure.ErrorCode == "worker.cancelled" && linkedCancellation.IsCancellationRequested)
+                        if (globalFailure.ErrorCode == WorkerErrorCodes.Cancelled && linkedCancellation.IsCancellationRequested)
                             throw new OperationCanceledException(linkedCancellation.Token);
                         return globalFailure;
                     }
@@ -125,12 +126,12 @@ public sealed class FlowRunner
             cancellationToken.ThrowIfCancellationRequested();
             var currentNodeId = stack.Pop();
             if (!plan.Nodes.TryGetValue(currentNodeId, out var node))
-                return NodeExecutionResult.Error("flow.node_missing", $"Node '{currentNodeId}' does not exist. 节点“{currentNodeId}”不存在。");
+                return NodeExecutionResult.Error(FlowErrorCodes.NodeMissing, $"Node '{currentNodeId}' does not exist. 节点“{currentNodeId}”不存在。");
 
             if (!session.TryBeginStep(node.Id, out var step, out var executionId, out var limitError))
                 return NodeExecutionResult.Error(limitError!, "The flow execution limit was exceeded. 流程执行限制已超出。");
 
-            await PublishAsync(session, "node.started", node.Id, new Dictionary<string, object?>
+            await PublishAsync(session, NodeErrorCodes.Started, node.Id, new Dictionary<string, object?>
             {
                 ["step"] = step,
                 ["triggerInvocationId"] = session.InvocationId
@@ -180,7 +181,7 @@ public sealed class FlowRunner
             catch (Exception exception)
             {
                 lastResult = NodeExecutionResult.Error(
-                    "node.execution_failed",
+                    NodeErrorCodes.ExecutionFailed,
                     $"Node '{node.Id}' execution failed. 节点“{node.Id}”执行失败。 {exception.Message}") with
                 {
                     Inputs = CopyInputs(inputs)
@@ -200,8 +201,8 @@ public sealed class FlowRunner
             await PublishAsync(
                 session,
                 lastResult.IsSuccess
-                    ? "node.completed"
-                    : lastResult.NextBranch == ExecutionBranch.Error ? "node.error" : "node.failed",
+                    ? NodeErrorCodes.Completed
+                    : lastResult.NextBranch == ExecutionBranch.Error ? NodeErrorCodes.Error : NodeErrorCodes.Failed,
                 node.Id,
                 new Dictionary<string, object?>
                 {
@@ -231,15 +232,15 @@ public sealed class FlowRunner
         var executor = _executors.Get(node.Type);
         if (executor is not IGlobalFlipflopExecutor trigger)
         {
-            await PublishAsync(session, "node.failed", node.Id, new Dictionary<string, object?>
+            await PublishAsync(session, NodeErrorCodes.Failed, node.Id, new Dictionary<string, object?>
             {
                 ["success"] = false,
                 ["inputs"] = EmptyInputs,
                 ["outputs"] = EmptyInputs,
-                ["errorCode"] = "flipflop.executor_invalid",
+                ["errorCode"] = FlipFlopErrorCodes.ExecutorInvalid,
                 ["errorMessage"] = "The global Flipflop executor is invalid. 全局 Flipflop 执行器无效。"
             });
-            return NodeExecutionResult.Error("flipflop.executor_invalid", "The global Flipflop executor is invalid. 全局 Flipflop 执行器无效。");
+            return NodeExecutionResult.Error(FlipFlopErrorCodes.ExecutorInvalid, "The global Flipflop executor is invalid. 全局 Flipflop 执行器无效。");
         }
 
         while (!cancellationToken.IsCancellationRequested)
@@ -252,7 +253,7 @@ public sealed class FlowRunner
             {
                 if (!session.TryBeginStep(node.Id, out step, out executionId, out var limitError))
                 {
-                    await PublishAsync(session, "node.failed", node.Id, new Dictionary<string, object?>
+                    await PublishAsync(session, NodeErrorCodes.Failed, node.Id, new Dictionary<string, object?>
                     {
                         ["global"] = true,
                         ["success"] = false,
@@ -275,7 +276,7 @@ public sealed class FlowRunner
                 var triggerSessionOwnedByListener = true;
                 try
                 {
-                    await PublishAsync(session, "node.started", node.Id, new Dictionary<string, object?>
+                    await PublishAsync(session, NodeErrorCodes.Started, node.Id, new Dictionary<string, object?>
                     {
                         ["global"] = true,
                         ["step"] = step,
@@ -294,8 +295,8 @@ public sealed class FlowRunner
                     await PublishAsync(
                         session,
                         result.IsSuccess
-                            ? "node.completed"
-                            : result.NextBranch == ExecutionBranch.Error ? "node.error" : "node.failed",
+                            ? NodeErrorCodes.Completed
+                            : result.NextBranch == ExecutionBranch.Error ? NodeErrorCodes.Error : NodeErrorCodes.Failed,
                         node.Id,
                         new Dictionary<string, object?>
                     {
@@ -317,7 +318,7 @@ public sealed class FlowRunner
                     else
                     {
                         var debugInputs = CopyInputs(result.Inputs ?? inputs);
-                        await PublishAsync(session, "debug.trigger.received", node.Id, new Dictionary<string, object?>
+                        await PublishAsync(session, DebugErrorCodes.TriggerReceived, node.Id, new Dictionary<string, object?>
                         {
                             ["triggerInvocationId"] = invocationId,
                             ["flipflopNodeId"] = node.Id,
@@ -340,7 +341,7 @@ public sealed class FlowRunner
                             triggerSessionOwnedByListener = false;
                             if (queuePosition > 0)
                             {
-                                await PublishAsync(session, "debug.trigger.queued", node.Id, new Dictionary<string, object?>
+                                await PublishAsync(session, DebugErrorCodes.TriggerQueued, node.Id, new Dictionary<string, object?>
                                 {
                                     ["triggerInvocationId"] = invocationId,
                                     ["flipflopNodeId"] = node.Id,
@@ -350,11 +351,11 @@ public sealed class FlowRunner
                         }
                         else
                         {
-                            await PublishAsync(session, "debug.trigger.rejected", node.Id, new Dictionary<string, object?>
+                            await PublishAsync(session, DebugErrorCodes.TriggerRejected, node.Id, new Dictionary<string, object?>
                             {
                                 ["triggerInvocationId"] = invocationId,
                                 ["flipflopNodeId"] = node.Id,
-                                ["reason"] = "debug.trigger.queue_full",
+                                ["reason"] = DebugErrorCodes.TriggerQueueFull,
                                 ["maximumQueuedTriggers"] = _debugInvocationScheduler.MaximumQueuedInvocations
                             });
                         }
@@ -373,7 +374,7 @@ public sealed class FlowRunner
             catch (FlowDataBindingException exception)
             {
                 inputs = exception.ResolvedInputs;
-                await PublishAsync(session, "node.failed", node.Id, new Dictionary<string, object?>
+                await PublishAsync(session, NodeErrorCodes.Failed, node.Id, new Dictionary<string, object?>
                 {
                     ["global"] = true,
                     ["success"] = false,
@@ -390,14 +391,14 @@ public sealed class FlowRunner
             }
             catch (Exception exception)
             {
-                await PublishAsync(session, "node.failed", node.Id, new Dictionary<string, object?>
+                await PublishAsync(session, NodeErrorCodes.Failed, node.Id, new Dictionary<string, object?>
                 {
                     ["global"] = true,
                     ["success"] = false,
                     ["branch"] = ExecutionBranch.Error.ToString(),
                     ["inputs"] = inputs,
                     ["outputs"] = EmptyInputs,
-                    ["errorCode"] = "flipflop.execution_failed",
+                    ["errorCode"] = FlipFlopErrorCodes.ExecutionFailed,
                     ["errorMessage"] = $"Global Flipflop execution failed. 全局 Flipflop 执行失败。 {exception.Message}",
                     ["triggerInvocationId"] = invocationId
                 }, executionId);
@@ -428,7 +429,7 @@ public sealed class FlowRunner
         var invocationId = triggerSession.InvocationId;
         try
         {
-            await PublishAsync(rootSession, "debug.trigger.admitted", flipflopNode.Id, new Dictionary<string, object?>
+            await PublishAsync(rootSession, DebugErrorCodes.TriggerAdmitted, flipflopNode.Id, new Dictionary<string, object?>
             {
                 ["triggerInvocationId"] = invocationId,
                 ["flipflopNodeId"] = flipflopNode.Id
@@ -456,7 +457,7 @@ public sealed class FlowRunner
             foreach (var connection in plan.GetOutgoing(flipflopNode.Id, branch))
                 lastResult = await RunStackAsync(connection.ToNodeId, plan, triggerSession, cancellationToken);
 
-            await PublishAsync(rootSession, "debug.trigger.completed", flipflopNode.Id, new Dictionary<string, object?>
+            await PublishAsync(rootSession, DebugErrorCodes.TriggerCompleted, flipflopNode.Id, new Dictionary<string, object?>
             {
                 ["triggerInvocationId"] = invocationId,
                 ["flipflopNodeId"] = flipflopNode.Id,
@@ -472,11 +473,11 @@ public sealed class FlowRunner
         }
         catch (Exception exception)
         {
-            await PublishAsync(rootSession, "debug.trigger.failed", flipflopNode.Id, new Dictionary<string, object?>
+            await PublishAsync(rootSession, DebugErrorCodes.TriggerFailed, flipflopNode.Id, new Dictionary<string, object?>
             {
                 ["triggerInvocationId"] = invocationId,
                 ["flipflopNodeId"] = flipflopNode.Id,
-                ["errorCode"] = "debug.trigger.execution_failed",
+                ["errorCode"] = DebugErrorCodes.TriggerExecutionFailed,
                 ["errorMessage"] = exception.Message
             });
         }
@@ -487,14 +488,14 @@ public sealed class FlowRunner
         CancellationToken cancellationToken)
     {
         if (request.Context is not FlowExecutionSession session || session.Plan is null)
-            return NodeExecutionResult.Error("flowcall.context_invalid", "FlowCall requires a runtime execution session. FlowCall 需要运行时执行会话。");
+            return NodeExecutionResult.Error(FlowCallErrorCodes.ContextInvalid, "FlowCall requires a runtime execution session. FlowCall 需要运行时执行会话。");
 
         var target = request.Node.Runtime?.TargetNodeId;
         if (string.IsNullOrWhiteSpace(target))
-            return NodeExecutionResult.Error("flowcall.target_missing", "FlowCall target node is missing. FlowCall 目标节点缺失。");
+            return NodeExecutionResult.Error(FlowCallErrorCodes.TargetMissing, "FlowCall target node is missing. FlowCall 目标节点缺失。");
 
         if (!session.Plan.Nodes.TryGetValue(target, out var targetNode))
-            return NodeExecutionResult.Error("flowcall.target_missing", "FlowCall target node is missing. FlowCall 目标节点缺失。");
+            return NodeExecutionResult.Error(FlowCallErrorCodes.TargetMissing, "FlowCall target node is missing. FlowCall 目标节点缺失。");
 
         var callInputs = ResolveFlowCallInputs(request.Node, targetNode, request.Inputs);
         await using var callFrame = session.CreateFlowCallFrame(target, callInputs);
@@ -516,7 +517,7 @@ public sealed class FlowRunner
             && !IsCompatibleReturnType(actual, staticType))
         {
             return NodeExecutionResult.Error(
-                "flowcall.return_type_mismatch",
+                FlowCallErrorCodes.ReturnTypeMismatch,
                 $"FlowCall returned '{actual.GetType().FullName}' but the static return type is '{staticType}'. FlowCall 返回类型与静态返回类型不一致。");
         }
 
@@ -645,7 +646,7 @@ public sealed class FlowRunner
             ArgumentNullException.ThrowIfNull(entry);
             return runner.PublishAsync(
                 session,
-                "node.log",
+                NodeErrorCodes.Log,
                 nodeId,
                 new Dictionary<string, object?>(StringComparer.Ordinal)
                 {

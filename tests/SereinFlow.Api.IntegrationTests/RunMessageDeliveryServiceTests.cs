@@ -61,14 +61,14 @@ public sealed class RunMessageDeliveryServiceTests
         var invalidMessageId = await service.DeliverAsync(new RunMessageDeliveryCommand(
             run.Id, "topic", JsonSerializer.SerializeToElement(new { value = 1 }), MessageId: "not-a-guid"));
 
-        Assert.Equal((RunMessageDeliveryDisposition.RunNotFound, "run.not_found", 404),
+        Assert.Equal((RunMessageDeliveryDisposition.RunNotFound, RunErrorCodes.NotFound, 404),
             (missingRun.Disposition, missingRun.ErrorCode, missingRun.StatusCode));
-        Assert.Equal((RunMessageDeliveryDisposition.WorkerNotActive, "worker.not_active", 409),
+        Assert.Equal((RunMessageDeliveryDisposition.WorkerNotActive, WorkerErrorCodes.NotActive, 409),
             (inactive.Disposition, inactive.ErrorCode, inactive.StatusCode));
-        Assert.Equal("message.topic_invalid", invalidTopic.ErrorCode);
-        Assert.Equal("message.payload_required", missingPayload.ErrorCode);
-        Assert.Equal("message.channel_invalid", invalidChannel.ErrorCode);
-        Assert.Equal("message.id_invalid", invalidMessageId.ErrorCode);
+        Assert.Equal(MessageErrorCodes.TopicInvalid, invalidTopic.ErrorCode);
+        Assert.Equal(MessageErrorCodes.PayloadRequired, missingPayload.ErrorCode);
+        Assert.Equal(MessageErrorCodes.ChannelInvalid, invalidChannel.ErrorCode);
+        Assert.Equal(MessageErrorCodes.IdInvalid, invalidMessageId.ErrorCode);
         Assert.Empty(worker.Deliveries);
     }
 
@@ -84,7 +84,7 @@ public sealed class RunMessageDeliveryServiceTests
                 delivery.RunId,
                 delivery.MessageId,
                 delivery.Topic,
-                "message.endpoint_forbidden",
+                MessageErrorCodes.EndpointForbidden,
                 "a transport detail that must not cross the application boundary")
         };
         var service = new RunMessageDeliveryService(new TestRunStore(run), worker);
@@ -96,7 +96,7 @@ public sealed class RunMessageDeliveryServiceTests
 
         Assert.Equal(RunMessageDeliveryDisposition.EndpointForbidden, result.Disposition);
         Assert.Equal(403, result.StatusCode);
-        Assert.Equal("message.endpoint_forbidden", result.ErrorCode);
+        Assert.Equal(MessageErrorCodes.EndpointForbidden, result.ErrorCode);
         Assert.DoesNotContain("transport detail", result.Message, StringComparison.Ordinal);
         Assert.Equal(result.Message, result.Response!.Message);
     }

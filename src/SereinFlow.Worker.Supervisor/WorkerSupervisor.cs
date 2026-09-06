@@ -52,22 +52,22 @@ public sealed class WorkerSupervisor
         if (publishEvent is null)
             throw new ArgumentNullException(nameof(publishEvent), "The worker event publisher cannot be null. Worker 事件发布器不能为空。");
         if (request.ProtocolVersion != WorkerProtocolConstants.Version)
-            return Failure(request.RunId, "worker.protocol_mismatch", "The requested worker protocol version is not supported. 请求的 Worker 协议版本不受支持。");
+            return Failure(request.RunId, WorkerErrorCodes.ProtocolMismatch, "The requested worker protocol version is not supported. 请求的 Worker 协议版本不受支持。");
         if (!IsAllowedPath(request.ScriptArtifactRootPath, _launchOptions.AllowedScriptArtifactRoot)
             || !IsAllowedPath(request.LibraryPackageRootPath, _launchOptions.AllowedLibraryPackageRoot)
             || !IsAllowedPath(request.WorkpieceRootPath, _launchOptions.AllowedWorkpieceRoot))
         {
-            return Failure(request.RunId, "worker.path_outside_root", "Worker artifact paths are outside the configured service roots. Worker 缓存路径超出了服务端允许的根目录。");
+            return Failure(request.RunId, WorkerErrorCodes.PathOutsideRoot, "Worker artifact paths are outside the configured service roots. Worker 缓存路径超出了服务端允许的根目录。");
         }
         var runnerPath = ResolveRunnerPath();
         if (runnerPath is not null && !File.Exists(runnerPath))
         {
             var message = $"Worker Runner executable was not found at '{runnerPath}'. Worker Runner 可执行文件不存在：'{runnerPath}'。";
             RecordDiagnostic(request.RunId, "runner.path", message);
-            return Failure(request.RunId, "worker.runner_not_found", message);
+            return Failure(request.RunId, WorkerErrorCodes.RunnerNotFound, message);
         }
         if (request.Deadline <= DateTimeOffset.UtcNow)
-            return new WorkerRunResultDto(WorkerProtocolConstants.Version, request.RunId, FlowRunStatusDto.TimedOut, "worker.timed_out", "The run deadline elapsed before the runner started. Worker Runner 启动前运行截止时间已到。");
+            return new WorkerRunResultDto(WorkerProtocolConstants.Version, request.RunId, FlowRunStatusDto.TimedOut, WorkerErrorCodes.TimedOut, "The run deadline elapsed before the runner started. Worker Runner 启动前运行截止时间已到。");
 
         using var process = StartProcess();
         await using var transport = new StdioWorkerTransport(
@@ -84,17 +84,17 @@ public sealed class WorkerSupervisor
             var ready = await transport.ReceiveAsync(runCancellation.Token).AsTask()
                 .WaitAsync(_launchOptions.EffectiveHandshakeTimeout, runCancellation.Token);
             if (ready is null)
-                return await TerminateAndReturnAsync(process, request.RunId, "worker.crashed", "Runner closed its protocol stream before announcing readiness. Worker Runner 在宣布就绪前关闭了协议流。", FlowRunStatusDto.Failed);
+                return await TerminateAndReturnAsync(process, request.RunId, WorkerErrorCodes.Crashed, "Runner closed its protocol stream before announcing readiness. Worker Runner 在宣布就绪前关闭了协议流。", FlowRunStatusDto.Failed);
             if (ready.Kind != WorkerProtocolConstants.ReadyKind)
-                return await TerminateAndReturnAsync(process, request.RunId, "worker.handshake_failed", "Runner did not announce readiness. Worker Runner 未宣布就绪。", FlowRunStatusDto.Failed);
+                return await TerminateAndReturnAsync(process, request.RunId, WorkerErrorCodes.HandshakeFailed, "Runner did not announce readiness. Worker Runner 未宣布就绪。", FlowRunStatusDto.Failed);
 
             await transport.SendAsync(WorkerMessage.Create(WorkerProtocolConstants.HandshakeKind), runCancellation.Token);
             var accepted = await transport.ReceiveAsync(runCancellation.Token).AsTask()
                 .WaitAsync(_launchOptions.EffectiveHandshakeTimeout, runCancellation.Token);
             if (accepted is null)
-                return await TerminateAndReturnAsync(process, request.RunId, "worker.crashed", "Runner closed its protocol stream during the handshake. Worker Runner 在握手期间关闭了协议流。", FlowRunStatusDto.Failed);
+                return await TerminateAndReturnAsync(process, request.RunId, WorkerErrorCodes.Crashed, "Runner closed its protocol stream during the handshake. Worker Runner 在握手期间关闭了协议流。", FlowRunStatusDto.Failed);
             if (accepted.Kind != WorkerProtocolConstants.HandshakeAcceptedKind)
-                return await TerminateAndReturnAsync(process, request.RunId, "worker.protocol_mismatch", "Runner rejected the worker protocol handshake. Worker Runner 拒绝了 Worker 协议握手。", FlowRunStatusDto.Failed);
+                return await TerminateAndReturnAsync(process, request.RunId, WorkerErrorCodes.ProtocolMismatch, "Runner rejected the worker protocol handshake. Worker Runner 拒绝了 Worker 协议握手。", FlowRunStatusDto.Failed);
 
             await transport.SendAsync(
                 WorkerMessage.Create(WorkerProtocolConstants.RunKind, WorkerProtocolCodec.SerializePayload(request), request.RunId, request.Deadline),
@@ -121,7 +121,7 @@ public sealed class WorkerSupervisor
                 return await TerminateAndReturnAsync(
                     process,
                     request.RunId,
-                    timedOut ? "worker.timed_out" : "worker.cancelled",
+                    timedOut ? WorkerErrorCodes.TimedOut : WorkerErrorCodes.Cancelled,
                     timedOut
                         ? "The run deadline elapsed before the Worker run started. Worker 运行在启动前已达到截止时间。"
                         : "The Worker run was cancelled before it started. Worker 运行在启动前已取消。",
@@ -133,7 +133,7 @@ public sealed class WorkerSupervisor
                 request,
                 publishEvent,
                 timedOut ? FlowRunStatusDto.TimedOut : FlowRunStatusDto.Cancelled,
-                timedOut ? "worker.timed_out" : "worker.cancelled");
+                timedOut ? WorkerErrorCodes.TimedOut : WorkerErrorCodes.Cancelled);
         }
         catch (WorkerProtocolException exception)
         {
@@ -143,7 +143,7 @@ public sealed class WorkerSupervisor
         catch (Exception exception)
         {
             RecordDiagnostic(request.RunId, "supervisor", exception.ToString(), exception);
-            return await TerminateAndReturnAsync(process, request.RunId, "worker.crashed", "The runner exited before returning a valid result. Worker Runner 在返回有效结果前退出。", FlowRunStatusDto.Failed);
+            return await TerminateAndReturnAsync(process, request.RunId, WorkerErrorCodes.Crashed, "The runner exited before returning a valid result. Worker Runner 在返回有效结果前退出。", FlowRunStatusDto.Failed);
         }
         finally
         {
@@ -179,12 +179,12 @@ public sealed class WorkerSupervisor
                 nameof(request));
         }
         if (request.ProtocolVersion != WorkerProtocolConstants.Version)
-            throw new WorkerProtocolException("worker.protocol_mismatch", "The requested worker protocol version is not supported. 请求的 Worker 协议版本不受支持。");
+            throw new WorkerProtocolException(WorkerErrorCodes.ProtocolMismatch, "The requested worker protocol version is not supported. 请求的 Worker 协议版本不受支持。");
         if (!IsAllowedPath(request.ScriptArtifactRootPath, _launchOptions.AllowedScriptArtifactRoot)
             || !IsAllowedPath(request.LibraryPackageRootPath, _launchOptions.AllowedLibraryPackageRoot)
             || !IsAllowedPath(request.WorkpieceRootPath, _launchOptions.AllowedWorkpieceRoot))
         {
-            throw new WorkerProtocolException("worker.path_outside_root", "Worker artifact paths are outside the configured service roots. Worker 缓存路径超出了服务端允许的根目录。");
+            throw new WorkerProtocolException(WorkerErrorCodes.PathOutsideRoot, "Worker artifact paths are outside the configured service roots. Worker 缓存路径超出了服务端允许的根目录。");
         }
         var runnerPath = ResolveRunnerPath();
         if (runnerPath is not null && !File.Exists(runnerPath))
@@ -214,7 +214,7 @@ public sealed class WorkerSupervisor
             if (ready is null || ready.Kind != WorkerProtocolConstants.ReadyKind)
             {
                 throw new WorkerProtocolException(
-                    "worker.handshake_failed",
+                    WorkerErrorCodes.HandshakeFailed,
                     "Runner did not announce readiness. Worker Runner 未宣布就绪。");
             }
 
@@ -224,7 +224,7 @@ public sealed class WorkerSupervisor
             if (accepted is null || accepted.Kind != WorkerProtocolConstants.HandshakeAcceptedKind)
             {
                 throw new WorkerProtocolException(
-                    "worker.protocol_mismatch",
+                    WorkerErrorCodes.ProtocolMismatch,
                     "Runner rejected the worker protocol handshake. Worker Runner 拒绝了 Worker 协议握手。");
             }
 
@@ -275,7 +275,7 @@ public sealed class WorkerSupervisor
                 delivery.RunId,
                 delivery.MessageId,
                 delivery.Topic,
-                "worker.not_found",
+                WorkerErrorCodes.NotFound,
                 "The Worker run is not active. Worker 运行当前不活动。"));
     }
 
@@ -450,10 +450,10 @@ public sealed class WorkerSupervisor
             }
             catch (Exception exception)
             {
-                _supervisor.RecordDiagnostic(RunId, "debug.supervisor", exception.ToString(), exception);
+                _supervisor.RecordDiagnostic(RunId, DebugErrorCodes.Supervisor, exception.ToString(), exception);
                 return Failure(
                     RunId,
-                    "worker.crashed",
+                    WorkerErrorCodes.Crashed,
                     "The runner exited before returning a valid result. Worker Runner 在返回有效结果前退出。");
             }
             finally
@@ -504,7 +504,7 @@ public sealed class WorkerSupervisor
             if (completed == callerCancellationTask || completed == deadlineTask)
             {
                 var status = deadlineCancellation.IsCancellationRequested ? FlowRunStatusDto.TimedOut : FlowRunStatusDto.Cancelled;
-                var code = status == FlowRunStatusDto.TimedOut ? "worker.timed_out" : "worker.cancelled";
+                var code = status == FlowRunStatusDto.TimedOut ? WorkerErrorCodes.TimedOut : WorkerErrorCodes.Cancelled;
                 return await CancelAndReturnAsync(process, transport, request, publishEvent, status, code, readTask, lastSequence, messageSession);
             }
 
@@ -517,7 +517,7 @@ public sealed class WorkerSupervisor
 
             var message = await readTask;
             if (message is null)
-                return Failure(request.RunId, "worker.crashed", "The runner closed its protocol stream without a result. Worker Runner 在返回结果前关闭了协议流。");
+                return Failure(request.RunId, WorkerErrorCodes.Crashed, "The runner closed its protocol stream without a result. Worker Runner 在返回结果前关闭了协议流。");
 
             if (messageSession?.HandleControlMessage(message) == true)
             {
@@ -611,7 +611,7 @@ public sealed class WorkerSupervisor
         CancellationToken cancellationToken)
     {
         if (message.RunId is not null && message.RunId != request.RunId)
-            return (Failure(request.RunId, "worker.invalid_message", "Runner returned a message for another run. Worker Runner 返回了属于其他运行实例的消息。"), lastSequence);
+            return (Failure(request.RunId, WorkerErrorCodes.InvalidMessage, "Runner returned a message for another run. Worker Runner 返回了属于其他运行实例的消息。"), lastSequence);
 
         switch (message.Kind)
         {
@@ -619,7 +619,7 @@ public sealed class WorkerSupervisor
             {
                 var workerEvent = WorkerProtocolCodec.DeserializePayload<WorkerEventEnvelopeDto>(message);
                 if (workerEvent.RunId != request.RunId || workerEvent.Sequence <= lastSequence)
-                    return (Failure(request.RunId, "worker.event_sequence_invalid", "Runner event sequence is not strictly increasing. Worker Runner 的事件序列没有严格递增。"), lastSequence);
+                    return (Failure(request.RunId, WorkerErrorCodes.EventSequenceInvalid, "Runner event sequence is not strictly increasing. Worker Runner 的事件序列没有严格递增。"), lastSequence);
                 await publishEvent(workerEvent, cancellationToken);
                 return (null, workerEvent.Sequence);
             }
@@ -627,7 +627,7 @@ public sealed class WorkerSupervisor
             {
                 var result = WorkerProtocolCodec.DeserializePayload<WorkerRunResultDto>(message);
                 if (result.RunId != request.RunId || result.ProtocolVersion != WorkerProtocolConstants.Version)
-                    return (Failure(request.RunId, "worker.invalid_result", "Runner returned an invalid result. Worker Runner 返回了无效结果。"), lastSequence);
+                    return (Failure(request.RunId, WorkerErrorCodes.InvalidResult, "Runner returned an invalid result. Worker Runner 返回了无效结果。"), lastSequence);
                 return (result, lastSequence);
             }
             case WorkerProtocolConstants.ErrorKind:
@@ -642,7 +642,7 @@ public sealed class WorkerSupervisor
             case WorkerProtocolConstants.HandshakeAcceptedKind:
                 return (null, lastSequence);
             default:
-                return (Failure(request.RunId, "worker.invalid_message", $"Runner sent unsupported message '{message.Kind}'. Worker Runner 发送了不支持的消息“{message.Kind}”。"), lastSequence);
+                return (Failure(request.RunId, WorkerErrorCodes.InvalidMessage, $"Runner sent unsupported message '{message.Kind}'. Worker Runner 发送了不支持的消息“{message.Kind}”。"), lastSequence);
         }
     }
 
@@ -834,17 +834,17 @@ internal sealed class WorkerMessageSession
         if (Volatile.Read(ref _completed) == 1)
             return NotFound(delivery);
         if (delivery.ProtocolVersion != WorkerProtocolConstants.Version)
-            return Rejected(delivery, "message.protocol_mismatch", "The message protocol version is not supported. 消息协议版本不受支持。");
+            return Rejected(delivery, MessageErrorCodes.ProtocolMismatch, "The message protocol version is not supported. 消息协议版本不受支持。");
         if (delivery.RunId != _request.RunId)
-            return Rejected(delivery, "message.run_mismatch", "The message belongs to another Worker run. 消息属于其他 Worker 运行。");
+            return Rejected(delivery, MessageErrorCodes.RunMismatch, "The message belongs to another Worker run. 消息属于其他 Worker 运行。");
         if (delivery.MessageId == Guid.Empty)
-            return Rejected(delivery, "message.id_required", "MessageId is required. MessageId 不能为空。");
+            return Rejected(delivery, MessageErrorCodes.IdRequired, "MessageId is required. MessageId 不能为空。");
         if (string.IsNullOrWhiteSpace(delivery.Topic))
-            return Rejected(delivery, "message.topic_required", "Message topic is required. 消息主题不能为空。");
+            return Rejected(delivery, MessageErrorCodes.TopicRequired, "Message topic is required. 消息主题不能为空。");
         if (!Enum.IsDefined(delivery.ChannelKind))
-            return Rejected(delivery, "message.channel_invalid", "The message channel kind is not supported. 消息通道类型不受支持。");
+            return Rejected(delivery, MessageErrorCodes.ChannelInvalid, "The message channel kind is not supported. 消息通道类型不受支持。");
         if (delivery.SerializationMode != WorkerMessageSerializationModeDto.Json)
-            return Rejected(delivery, "message.external_json_required", "External ingress only accepts JSON messages. 外部入口只接受 JSON 消息。");
+            return Rejected(delivery, MessageErrorCodes.ExternalJsonRequired, "External ingress only accepts JSON messages. 外部入口只接受 JSON 消息。");
 
         var key = new MessageEndpointKey(delivery.ChannelKind, delivery.Topic.Trim());
         if (!_endpoints.TryGetValue(key, out var endpoint))
@@ -854,10 +854,10 @@ internal sealed class WorkerMessageSession
                 delivery.RunId,
                 delivery.MessageId,
                 delivery.Topic,
-                "message.endpoint_not_ready",
+                MessageErrorCodes.EndpointNotReady,
                 "The message endpoint is not registered. 消息入口尚未注册。");
         if (!endpoint.ExternalIngress)
-            return Rejected(delivery, "message.endpoint_forbidden", "The message endpoint is not open to external ingress. 消息入口未开放外部投递。");
+            return Rejected(delivery, MessageErrorCodes.EndpointForbidden, "The message endpoint is not open to external ingress. 消息入口未开放外部投递。");
 
         var requestId = Guid.NewGuid().ToString("N");
         var pending = new PendingDelivery(
@@ -865,7 +865,7 @@ internal sealed class WorkerMessageSession
             new TaskCompletionSource<WorkerMessageDeliveryResponseDto>(
                 TaskCreationOptions.RunContinuationsAsynchronously));
         if (!_pending.TryAdd(requestId, pending))
-            return Rejected(delivery, "message.correlation_conflict", "The message correlation ID was already in use. 消息关联 ID 已被使用。");
+            return Rejected(delivery, MessageErrorCodes.CorrelationConflict, "The message correlation ID was already in use. 消息关联 ID 已被使用。");
 
         try
         {
@@ -886,7 +886,7 @@ internal sealed class WorkerMessageSession
                 delivery.RunId,
                 delivery.MessageId,
                 delivery.Topic,
-                "message.delivery_timeout",
+                MessageErrorCodes.DeliveryTimeout,
                 "The Worker did not acknowledge the message before the delivery timeout. Worker 未在投递超时前确认消息。");
         }
         catch (WorkerTransportException exception)
@@ -908,7 +908,7 @@ internal sealed class WorkerMessageSession
                 delivery.RunId,
                 delivery.MessageId,
                 delivery.Topic,
-                "worker.transport_closed",
+                WorkerErrorCodes.TransportClosed,
                 exception.Message);
         }
         finally
@@ -922,7 +922,7 @@ internal sealed class WorkerMessageSession
         if (message.RunId != _request.RunId)
         {
             throw new WorkerProtocolException(
-                "message.run_mismatch",
+                MessageErrorCodes.RunMismatch,
                 "The Worker message belongs to another run. Worker 消息属于其他运行实例。");
         }
 
@@ -999,7 +999,7 @@ internal sealed class WorkerMessageSession
                 _request.RunId,
                 Guid.Empty,
                 string.Empty,
-                "worker.not_found",
+                WorkerErrorCodes.NotFound,
                 "The Worker run is no longer active. Worker 运行已不再活动。"));
         }
         _pending.Clear();
@@ -1015,7 +1015,7 @@ internal sealed class WorkerMessageSession
             || !Enum.IsDefined(endpoint.SerializationMode))
         {
             throw new WorkerProtocolException(
-                "message.endpoint_invalid",
+                MessageErrorCodes.EndpointInvalid,
                 "The Worker message endpoint registration is invalid. Worker 消息端点注册无效。");
         }
     }
@@ -1028,7 +1028,7 @@ internal sealed class WorkerMessageSession
             || string.IsNullOrWhiteSpace(topic))
         {
             throw new WorkerProtocolException(
-                "message.receipt_invalid",
+                MessageErrorCodes.ReceiptInvalid,
                 "The Worker message receipt is invalid. Worker 消息应答无效。");
         }
     }
@@ -1039,7 +1039,7 @@ internal sealed class WorkerMessageSession
             || !string.Equals(delivery.Topic.Trim(), topic.Trim(), StringComparison.Ordinal))
         {
             throw new WorkerProtocolException(
-                "message.receipt_mismatch",
+                MessageErrorCodes.ReceiptMismatch,
                 "The Worker message receipt does not match the delivery request. Worker 消息应答与投递请求不匹配。");
         }
     }
@@ -1051,7 +1051,7 @@ internal sealed class WorkerMessageSession
             delivery.RunId,
             delivery.MessageId,
             delivery.Topic,
-            "worker.not_found",
+            WorkerErrorCodes.NotFound,
             "The Worker run is not active. Worker 运行当前不活动。");
 
     private static WorkerMessageDeliveryResponseDto Rejected(WorkerMessageDeliveryDto delivery, string code, string message)

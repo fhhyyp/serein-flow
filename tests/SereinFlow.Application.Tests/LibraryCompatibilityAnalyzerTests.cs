@@ -40,7 +40,7 @@ public sealed class LibraryCompatibilityAnalyzerTests
         Assert.False(preview.CanApply);
         var issue = Assert.Single(preview.Issues);
         Assert.Equal(LibraryCompatibilityClassificationDto.Breaking, issue.Classification);
-        Assert.Equal("library.upgrade_parameter_removed", issue.Code);
+        Assert.Equal(LibraryErrorCodes.UpgradeParameterRemoved, issue.Code);
         Assert.True(issue.BlocksApplication);
     }
 
@@ -56,7 +56,7 @@ public sealed class LibraryCompatibilityAnalyzerTests
         Assert.True(preview.CanApply);
         var issue = Assert.Single(preview.Issues);
         Assert.Equal(LibraryCompatibilityClassificationDto.Compatible, issue.Classification);
-        Assert.Equal("library.upgrade_parameter_removed_unused", issue.Code);
+        Assert.Equal(LibraryErrorCodes.UpgradeParameterRemovedUnused, issue.Code);
         Assert.False(issue.BlocksApplication);
     }
 
@@ -75,7 +75,7 @@ public sealed class LibraryCompatibilityAnalyzerTests
         Assert.False(preview.CanApply);
         var issue = Assert.Single(preview.Issues);
         Assert.Equal(LibraryCompatibilityClassificationDto.Unknown, issue.Classification);
-        Assert.Equal("library.upgrade_source_contract_unknown", issue.Code);
+        Assert.Equal(LibraryErrorCodes.UpgradeSourceContractUnknown, issue.Code);
         Assert.True(issue.BlocksApplication);
     }
 

@@ -4,6 +4,7 @@ using SereinFlow.Domain;
 using ScriptLang;
 using ScriptLang.Runtime.ByteCode;
 
+using SereinFlow.Contracts;
 namespace SereinFlow.ScriptAdapter;
 
 public sealed record ScriptArtifact(
@@ -55,7 +56,7 @@ public sealed class ScriptArtifactStore
         if (duplicate is not null)
         {
             return new(false, new Dictionary<string, ScriptArtifact>(),
-                [new("script.duplicate_node", $"Script node '{duplicate.Key}' is defined more than once. 脚本节点“{duplicate.Key}”被重复定义。", NodeId: duplicate.Key)]);
+                [new(ScriptErrorCodes.DuplicateNode, $"Script node '{duplicate.Key}' is defined more than once. 脚本节点“{duplicate.Key}”被重复定义。", NodeId: duplicate.Key)]);
         }
 
         var projectPath = GetProjectPath(projectId);
@@ -73,7 +74,7 @@ public sealed class ScriptArtifactStore
             {
                 if (!IsSafeSegment(node.NodeId))
                 {
-                    diagnostics.Add(new("script.node_id_invalid", $"Script node ID '{node.NodeId}' cannot be used as an artifact name. 脚本节点 ID“{node.NodeId}”不能用作缓存名称。", NodeId: node.NodeId));
+                    diagnostics.Add(new(ScriptErrorCodes.NodeIdInvalid, $"Script node ID '{node.NodeId}' cannot be used as an artifact name. 脚本节点 ID“{node.NodeId}”不能用作缓存名称。", NodeId: node.NodeId));
                     return new(false, new Dictionary<string, ScriptArtifact>(), diagnostics);
                 }
                 var engine = new ScriptEngine();
@@ -103,7 +104,7 @@ public sealed class ScriptArtifactStore
         catch (Exception exception)
         {
             diagnostics.Add(new(
-                "script.compile_failed",
+                ScriptErrorCodes.CompileFailed,
                 $"Script artifact compilation failed. 脚本缓存编译失败。 {exception.Message}",
                 NodeId: nodes.FirstOrDefault()?.NodeId));
             return new(false, new Dictionary<string, ScriptArtifact>(), diagnostics);

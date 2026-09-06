@@ -1,3 +1,4 @@
+using SereinFlow.Contracts;
 namespace SereinFlow.Worker.Protocol;
 
 /// <summary>
@@ -17,11 +18,11 @@ public interface IWorkerTransport : IAsyncDisposable
 
 public static class WorkerTransportErrorCodes
 {
-    public const string Closed = "worker.transport_closed";
-    public const string ReceiveConcurrent = "worker.transport_receive_concurrent";
-    public const string SendFailed = "worker.transport_send_failed";
-    public const string ReceiveFailed = "worker.transport_receive_failed";
-    public const string InvalidFrame = "worker.transport_invalid_frame";
+    public const string Closed = WorkerErrorCodes.TransportClosed;
+    public const string ReceiveConcurrent = WorkerErrorCodes.TransportReceiveConcurrent;
+    public const string SendFailed = WorkerErrorCodes.TransportSendFailed;
+    public const string ReceiveFailed = WorkerErrorCodes.TransportReceiveFailed;
+    public const string InvalidFrame = WorkerErrorCodes.TransportInvalidFrame;
 }
 
 public enum WorkerTransportCloseReason
@@ -196,7 +197,7 @@ public sealed class StdioWorkerTransport : IWorkerTransport
                     return WorkerProtocolCodec.Deserialize(line);
                 }
                 catch (WorkerProtocolException exception)
-                    when (exception.Code == "worker.invalid_message"
+                    when (exception.Code == WorkerErrorCodes.InvalidMessage
                         && !line.TrimStart().StartsWith('{'))
                 {
                     // Keep the existing stdio compatibility behavior: ignore

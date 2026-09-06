@@ -1,6 +1,7 @@
 using SereinFlow.Application.Persistence;
 using SereinFlow.Domain;
 
+using SereinFlow.Contracts;
 namespace SereinFlow.Application;
 
 public sealed record ProjectArchiveResult(
@@ -39,7 +40,7 @@ public sealed class ProjectArchiveService
             return new ProjectArchiveResult(
                 false,
                 404,
-                "project.not_found",
+                ProjectErrorCodes.NotFound,
                 "Project was not found. 未找到项目。");
         }
 
@@ -53,7 +54,7 @@ public sealed class ProjectArchiveService
             return new ProjectArchiveResult(
                 false,
                 409,
-                "project.archive_environment_interface_exists",
+                ProjectErrorCodes.ArchiveEnvironmentInterfaceExists,
                 "The project is referenced by one or more environment interfaces and cannot be archived. 项目已被一个或多个环境接口引用，不能归档。");
         }
 
@@ -64,7 +65,7 @@ public sealed class ProjectArchiveService
             return new ProjectArchiveResult(
                 false,
                 409,
-                "project.version_conflict",
+                ProjectErrorCodes.VersionConflict,
                 "The project was changed by another editor. 项目已被其他编辑器修改。");
         }
 

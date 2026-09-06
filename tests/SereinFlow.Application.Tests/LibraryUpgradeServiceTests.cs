@@ -23,7 +23,7 @@ public sealed class LibraryUpgradeServiceTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(409, result.StatusCode);
-        Assert.Equal("project.archived", result.Code);
+        Assert.Equal(ProjectErrorCodes.Archived, result.Code);
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public sealed class LibraryUpgradeServiceTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(409, result.StatusCode);
-        Assert.Equal("library.archived", result.Code);
+        Assert.Equal(LibraryErrorCodes.Archived, result.Code);
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public sealed class LibraryUpgradeServiceTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(409, result.StatusCode);
-        Assert.Equal("library.upgrade_source_not_referenced", result.Code);
+        Assert.Equal(LibraryErrorCodes.UpgradeSourceNotReferenced, result.Code);
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public sealed class LibraryUpgradeServiceTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(409, result.StatusCode);
-        Assert.Equal("library.upgrade_flow_not_using_source", result.Code);
+        Assert.Equal(LibraryErrorCodes.UpgradeFlowNotUsingSource, result.Code);
     }
 
     [Fact]
@@ -91,7 +91,7 @@ public sealed class LibraryUpgradeServiceTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(409, result.StatusCode);
-        Assert.Equal("library.upgrade_source_not_referenced", result.Code);
+        Assert.Equal(LibraryErrorCodes.UpgradeSourceNotReferenced, result.Code);
     }
 
     private static UpgradeFixture CreateFixture(

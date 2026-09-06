@@ -161,14 +161,14 @@ public static class FlowDefinitionContractValidator
             if (definition.RunPolicy is null)
             {
                 return new FlowValidationResultDto(false, [new ValidationDiagnosticDto(
-                    "flow.run_policy_missing",
+                    FlowErrorCodes.RunPolicyMissing,
                     "The flow run policy is required. 流程运行策略不能为空。",
                     "runPolicy")]);
             }
             if (!Enum.IsDefined(definition.RunPolicy.ConcurrencyMode))
             {
                 return new FlowValidationResultDto(false, [new ValidationDiagnosticDto(
-                    "flow.run_policy_invalid",
+                    FlowErrorCodes.RunPolicyInvalid,
                     "The flow run policy is invalid. 流程运行策略无效。",
                     "runPolicy.concurrencyMode")]);
             }
@@ -194,7 +194,7 @@ public static class FlowDefinitionContractValidator
         catch (ArgumentException exception)
         {
             return new FlowValidationResultDto(false, [new ValidationDiagnosticDto(
-                "flow.invalid",
+                FlowErrorCodes.Invalid,
                 $"Flow definition is invalid. 流程定义无效。 {exception.Message}",
                 null)]);
         }

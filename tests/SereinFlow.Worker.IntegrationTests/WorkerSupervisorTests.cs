@@ -132,7 +132,7 @@ public sealed class WorkerSupervisorTests
             var result = await debug.Completion.WaitAsync(TimeSpan.FromSeconds(10));
 
             Assert.Equal(FlowRunStatusDto.Cancelled, result.Status);
-            Assert.Equal("worker.cancelled", result.ErrorCode);
+            Assert.Equal(WorkerErrorCodes.Cancelled, result.ErrorCode);
         }
         finally
         {
@@ -202,7 +202,7 @@ public sealed class WorkerSupervisorTests
         Assert.True(
             result.Status == FlowRunStatusDto.Cancelled,
             $"Expected a cancelled worker result but received {result.Status}; code={result.ErrorCode}; message={result.ErrorMessage}; diagnostics={string.Join(" | ", diagnostics)}");
-        Assert.Equal("worker.cancelled", result.ErrorCode);
+        Assert.Equal(WorkerErrorCodes.Cancelled, result.ErrorCode);
     }
 
     [Fact]
@@ -260,7 +260,7 @@ public sealed class WorkerSupervisorTests
         var result = await supervisor.RunAsync(request, static (_, _) => ValueTask.CompletedTask);
 
         Assert.Equal(FlowRunStatusDto.TimedOut, result.Status);
-        Assert.Equal("worker.timed_out", result.ErrorCode);
+        Assert.Equal(WorkerErrorCodes.TimedOut, result.ErrorCode);
     }
 
     [Fact]
@@ -275,7 +275,7 @@ public sealed class WorkerSupervisorTests
         Assert.True(
             result.Status == FlowRunStatusDto.TimedOut,
             $"Expected TimedOut but got {result.Status}; code={result.ErrorCode}; message={result.ErrorMessage}; diagnostics={string.Join(" | ", diagnostics)}");
-        Assert.Equal("worker.timed_out", result.ErrorCode);
+        Assert.Equal(WorkerErrorCodes.TimedOut, result.ErrorCode);
     }
 
     [Fact]
@@ -288,7 +288,7 @@ public sealed class WorkerSupervisorTests
         var result = await supervisor.RunAsync(request, static (_, _) => ValueTask.CompletedTask);
 
         Assert.Equal(FlowRunStatusDto.Failed, result.Status);
-        Assert.Equal("worker.runner_not_found", result.ErrorCode);
+        Assert.Equal(WorkerErrorCodes.RunnerNotFound, result.ErrorCode);
     }
 
     [Fact]
@@ -311,7 +311,7 @@ public sealed class WorkerSupervisorTests
             });
 
             Assert.Equal(FlowRunStatusDto.Failed, result.Status);
-            Assert.Equal("library.not_allowed", result.ErrorCode);
+            Assert.Equal(LibraryErrorCodes.NotAllowed, result.ErrorCode);
             var nodeError = Assert.Single(events, workerEvent => workerEvent.EventType == WorkerEventType.NodeErrored);
             Assert.Contains("\"errorCode\":\"library.not_allowed\"", nodeError.PayloadJson, StringComparison.Ordinal);
         }
@@ -373,11 +373,11 @@ public sealed class WorkerSupervisorTests
             });
 
             Assert.Equal(FlowRunStatusDto.Failed, result.Status);
-            Assert.Equal("device.not_ready", result.ErrorCode);
+            Assert.Equal(DeviceErrorCodes.NotReady, result.ErrorCode);
             var failed = Assert.Single(events, workerEvent => workerEvent.EventType == WorkerEventType.NodeFailed);
             using var payload = JsonDocument.Parse(failed.PayloadJson);
             Assert.Equal("Failure", payload.RootElement.GetProperty("branch").GetString());
-            Assert.Equal("device.not_ready", payload.RootElement.GetProperty("errorCode").GetString());
+            Assert.Equal(DeviceErrorCodes.NotReady, payload.RootElement.GetProperty("errorCode").GetString());
             Assert.DoesNotContain("流程上下文", payload.RootElement.GetProperty("inputs").EnumerateObject().Select(item => item.Name));
         }
         finally
@@ -409,11 +409,11 @@ public sealed class WorkerSupervisorTests
             });
 
             Assert.Equal(FlowRunStatusDto.Failed, result.Status);
-            Assert.Equal("device.faulted", result.ErrorCode);
+            Assert.Equal(DeviceErrorCodes.Faulted, result.ErrorCode);
             var errored = Assert.Single(events, workerEvent => workerEvent.EventType == WorkerEventType.NodeErrored);
             using var payload = JsonDocument.Parse(errored.PayloadJson);
             Assert.Equal("Error", payload.RootElement.GetProperty("branch").GetString());
-            Assert.Equal("device.faulted", payload.RootElement.GetProperty("errorCode").GetString());
+            Assert.Equal(DeviceErrorCodes.Faulted, payload.RootElement.GetProperty("errorCode").GetString());
         }
         finally
         {
@@ -551,7 +551,7 @@ public sealed class WorkerSupervisorTests
             var result = await supervisor.RunAsync(request, static (_, _) => ValueTask.CompletedTask);
 
             Assert.Equal(FlowRunStatusDto.Failed, result.Status);
-            Assert.Equal("library.service_dependency_forbidden", result.ErrorCode);
+            Assert.Equal(LibraryErrorCodes.ServiceDependencyForbidden, result.ErrorCode);
         }
         finally
         {
@@ -1187,8 +1187,8 @@ public sealed class WorkerSupervisorTests
             null,
             new NodeUiMetadataDto(
                 "message-flipflop",
-                "node.message.title",
-                "node.message.subtitle",
+                NodeErrorCodes.MessageTitle,
+                NodeErrorCodes.MessageSubtitle,
                 null,
                 "ready",
                 true,
@@ -1239,8 +1239,8 @@ public sealed class WorkerSupervisorTests
             null,
             new NodeUiMetadataDto(
                 "message-flipflop",
-                "node.message.title",
-                "node.message.subtitle",
+                NodeErrorCodes.MessageTitle,
+                NodeErrorCodes.MessageSubtitle,
                 null,
                 "ready",
                 true,
@@ -1264,8 +1264,8 @@ public sealed class WorkerSupervisorTests
             null,
             new NodeUiMetadataDto(
                 "message-action",
-                "node.message.action.title",
-                "node.message.action.subtitle",
+                NodeErrorCodes.MessageActionTitle,
+                NodeErrorCodes.MessageActionSubtitle,
                 null,
                 "ready",
                 true,

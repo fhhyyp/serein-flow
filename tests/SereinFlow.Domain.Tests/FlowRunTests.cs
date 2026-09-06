@@ -1,3 +1,4 @@
+using SereinFlow.Contracts;
 using SereinFlow.Domain;
 
 namespace SereinFlow.Domain.Tests;
@@ -172,14 +173,14 @@ public sealed class FlowRunTests
                 "Error",
                 "{\"input\":1}",
                 "{}",
-                "node.failed",
+                NodeErrorCodes.Failed,
                 "The node failed."),
             now.AddSeconds(2));
 
         Assert.Equal(FlowDebugSessionStatus.Failed, session.Status);
         Assert.Null(session.PauseState);
         Assert.Equal("error", session.LastNodeResult!.Outcome);
-        Assert.Equal("node.failed", session.LastNodeResult.ErrorCode);
+        Assert.Equal(NodeErrorCodes.Failed, session.LastNodeResult.ErrorCode);
         Assert.Equal("The node failed.", session.LastNodeResult.ErrorMessage);
     }
 }

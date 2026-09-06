@@ -32,16 +32,16 @@ internal static class McpToolAuthorization
     {
         var permission = entry.Operation switch
         {
-            "project.create" => McpPermissionDto.ProjectWrite,
-            "flow.patch" => McpPermissionDto.FlowWrite,
+            ProjectErrorCodes.Create => McpPermissionDto.ProjectWrite,
+            FlowErrorCodes.Patch => McpPermissionDto.FlowWrite,
             "flow.publish" => McpPermissionDto.FlowPublish,
             "flow.rollback" => McpPermissionDto.FlowRollback,
-            "library.package" => McpPermissionDto.LibraryImport,
-            "project.library.attach" => McpPermissionDto.LibraryManage,
+            LibraryErrorCodes.Package => McpPermissionDto.LibraryImport,
+            ProjectErrorCodes.LibraryAttach => McpPermissionDto.LibraryManage,
             "sereinflow_create_library_node_template" => McpPermissionDto.ProjectRead,
             _ => McpPermissionDto.ProjectRead,
         };
-        if (string.Equals(entry.Operation, "library.family.assign", StringComparison.Ordinal))
+        if (string.Equals(entry.Operation, LibraryErrorCodes.FamilyAssign, StringComparison.Ordinal))
         {
             security.RequireAdministrator(principal);
             security.Require(principal, McpPermissionDto.LibraryManage);

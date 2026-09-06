@@ -8,6 +8,7 @@ using SereinFlow.Runtime.Abstractions;
 using SereinFlow.ScriptAdapter;
 using NodeType = SereinFlow.Domain.NodeType;
 
+using SereinFlow.Contracts;
 namespace SereinFlow.Worker.Runner;
 
 internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecutor
@@ -41,7 +42,7 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
         {
             return _nodeType == NodeType.Action
                 ? NodeExecutionResult.Success()
-                : NodeExecutionResult.Error("flipflop.metadata_missing", "Flipflop method metadata is missing. Flipflop 方法元数据缺失。");
+                : NodeExecutionResult.Error(FlipFlopErrorCodes.MetadataMissing, "Flipflop method metadata is missing. Flipflop 方法元数据缺失。");
         }
 
         try
@@ -52,7 +53,7 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
             if (_nodeType == NodeType.Flipflop && !IsTask(method.ReturnType))
             {
                 return NodeExecutionResult.Error(
-                    "library.flipflop_return_type_invalid",
+                    LibraryErrorCodes.FlipflopReturnTypeInvalid,
                     "Flipflop methods must return Task or Task<T>. Flipflop 方法必须返回 Task 或 Task<T>。");
             }
 
@@ -102,8 +103,8 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
                     {
                         return NodeExecutionResult.Error(
                             exception is ScriptValueConversionException
-                                ? "script.value_conversion_failed"
-                                : "node.input_invalid",
+                                ? ScriptErrorCodes.ValueConversionFailed
+                                : NodeErrorCodes.InputInvalid,
                             $"Library input '{name}' cannot be converted to '{parameters[index].ParameterType.Name}'. 类库输入“{name}”无法转换为“{parameters[index].ParameterType.Name}”。 {exception.Message}") with
                         {
                             Inputs = SnapshotInputs(auditInputs)
@@ -130,7 +131,7 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
                         continue;
                     }
                     return NodeExecutionResult.Error(
-                        "node.input_missing",
+                        NodeErrorCodes.InputMissing,
                         $"Required library input '{name}' is missing. 缺少类库必需输入“{name}”。") with
                     {
                         Inputs = SnapshotInputs(auditInputs)
@@ -147,14 +148,14 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
                 {
                     if (exception is ScriptValueConversionException)
                     {
-                        return NodeExecutionResult.Error("script.value_conversion_failed", exception.Message) with
+                        return NodeExecutionResult.Error(ScriptErrorCodes.ValueConversionFailed, exception.Message) with
                         {
                             Inputs = SnapshotInputs(auditInputs)
                         };
                     }
 
                     return NodeExecutionResult.Error(
-                        "node.input_invalid",
+                        NodeErrorCodes.InputInvalid,
                         $"Library input '{name}' cannot be converted to '{parameters[index].ParameterType.Name}'. 类库输入“{name}”无法转换为“{parameters[index].ParameterType.Name}”。 {exception.Message}") with
                     {
                         Inputs = SnapshotInputs(auditInputs)
@@ -174,7 +175,7 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
                 var transfer = TransferResult(
                     invocationScope?.ServiceProvider
                         ?? throw new LibraryResultConverterException(
-                            "library.result_converter_scope_missing",
+                            LibraryErrorCodes.ResultConverterScopeMissing,
                             "A result converter requires an invocation scope. 节点结果转换器需要调用作用域。"),
                     resultAttribute.ConverterType,
                     valueResult);
@@ -238,14 +239,14 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
             }
             var detail = exception.InnerException?.Message ?? exception.Message;
             return _nodeType == NodeType.Flipflop
-                ? NodeExecutionResult.Error("flipflop.execution_failed", $"Flipflop method invocation failed. Flipflop 方法调用失败。 {detail}") with { Inputs = SnapshotInputs(auditInputs) }
-                : NodeExecutionResult.Error("library.invocation_failed", $"Library method invocation failed. 类库方法调用失败。 {detail}") with { Inputs = SnapshotInputs(auditInputs) };
+                ? NodeExecutionResult.Error(FlipFlopErrorCodes.ExecutionFailed, $"Flipflop method invocation failed. Flipflop 方法调用失败。 {detail}") with { Inputs = SnapshotInputs(auditInputs) }
+                : NodeExecutionResult.Error(LibraryErrorCodes.InvocationFailed, $"Library method invocation failed. 类库方法调用失败。 {detail}") with { Inputs = SnapshotInputs(auditInputs) };
         }
         catch (Exception exception)
         {
             return _nodeType == NodeType.Flipflop
-                ? NodeExecutionResult.Error("flipflop.execution_failed", $"Flipflop execution failed. Flipflop 执行失败。 {exception.Message}") with { Inputs = SnapshotInputs(auditInputs) }
-                : NodeExecutionResult.Error("library.invocation_failed", $"Library invocation failed. 类库调用失败。 {exception.Message}") with { Inputs = SnapshotInputs(auditInputs) };
+                ? NodeExecutionResult.Error(FlipFlopErrorCodes.ExecutionFailed, $"Flipflop execution failed. Flipflop 执行失败。 {exception.Message}") with { Inputs = SnapshotInputs(auditInputs) }
+                : NodeExecutionResult.Error(LibraryErrorCodes.InvocationFailed, $"Library invocation failed. 类库调用失败。 {exception.Message}") with { Inputs = SnapshotInputs(auditInputs) };
         }
         finally
         {
@@ -277,25 +278,25 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
                 .SingleOrDefault(static item => item.IsGenericType
                     && item.GetGenericTypeDefinition() == typeof(INodeResultConverter<,>))
                 ?? throw new LibraryResultConverterException(
-                    "library.result_converter_invalid",
+                    LibraryErrorCodes.ResultConverterInvalid,
                     $"Result converter '{converterType.FullName ?? converterType.Name}' does not implement a closed converter contract. 节点结果转换器未实现闭合的转换器合同。");
             var primitiveType = contract.GetGenericArguments()[0];
             if (primitive is null && primitiveType.IsValueType && Nullable.GetUnderlyingType(primitiveType) is null)
             {
                 throw new LibraryResultConverterException(
-                    "library.result_converter_input_invalid",
+                    LibraryErrorCodes.ResultConverterInputInvalid,
                     $"The result converter '{converterType.FullName ?? converterType.Name}' cannot receive a null value of '{primitiveType.FullName}'. 节点结果转换器无法接收“{primitiveType.FullName}”的 null 值。");
             }
             if (primitive is not null && !primitiveType.IsInstanceOfType(primitive))
             {
                 throw new LibraryResultConverterException(
-                    "library.result_converter_input_invalid",
+                    LibraryErrorCodes.ResultConverterInputInvalid,
                     $"The node returned '{primitive.GetType().FullName}' but converter '{converterType.FullName ?? converterType.Name}' expects '{primitiveType.FullName}'. 节点返回类型与结果转换器输入类型不匹配。");
             }
 
             var transferMethod = contract.GetMethod(nameof(INodeResultConverter<object, object>.Transfer))
                 ?? throw new LibraryResultConverterException(
-                    "library.result_converter_invalid",
+                    LibraryErrorCodes.ResultConverterInvalid,
                     $"Result converter '{converterType.FullName ?? converterType.Name}' has no Transfer method. 节点结果转换器缺少 Transfer 方法。");
             return transferMethod.Invoke(converter, [primitive]);
         }
@@ -311,14 +312,14 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
         {
             var detail = exception.InnerException?.Message ?? exception.Message;
             throw new LibraryResultConverterException(
-                "library.result_conversion_failed",
+                LibraryErrorCodes.ResultConversionFailed,
                 $"The node result could not be converted by '{converterType.FullName ?? converterType.Name}'. 节点结果无法由转换器转换。 {detail}",
                 exception.InnerException ?? exception);
         }
         catch (Exception exception)
         {
             throw new LibraryResultConverterException(
-                "library.result_conversion_failed",
+                LibraryErrorCodes.ResultConversionFailed,
                 $"The node result could not be converted by '{converterType.FullName ?? converterType.Name}'. 节点结果无法由转换器转换。 {exception.Message}",
                 exception);
         }
@@ -423,7 +424,7 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
         public void SelectFailure(string? code = null, string? message = null)
         {
             _branch = ExecutionBranch.Failure;
-            _code = string.IsNullOrWhiteSpace(code) ? "node.branch_failure" : code;
+            _code = string.IsNullOrWhiteSpace(code) ? NodeErrorCodes.BranchFailure : code;
             _message = string.IsNullOrWhiteSpace(message)
                 ? "The node selected the Failure branch. 节点选择了 Failure 分支。"
                 : message;
@@ -432,7 +433,7 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
         public void SelectError(string? code = null, string? message = null)
         {
             _branch = ExecutionBranch.Error;
-            _code = string.IsNullOrWhiteSpace(code) ? "node.branch_error" : code;
+            _code = string.IsNullOrWhiteSpace(code) ? NodeErrorCodes.BranchError : code;
             _message = string.IsNullOrWhiteSpace(message)
                 ? "The node selected the Error branch. 节点选择了 Error 分支。"
                 : message;

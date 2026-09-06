@@ -45,18 +45,18 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
     {
         cancellationToken.ThrowIfCancellationRequested();
         var runtime = node.Runtime ?? throw new LibraryRuntimeCacheException(
-            "library.metadata_missing",
+            LibraryErrorCodes.MetadataMissing,
             "The library method metadata is missing. 类库方法元数据缺失。");
-        var libraryId = RequireSafeSegment(runtime.LibraryId, "library.identifier_invalid", "The library identifier is invalid. 类库标识无效。");
+        var libraryId = RequireSafeSegment(runtime.LibraryId, LibraryErrorCodes.IdentifierInvalid, "The library identifier is invalid. 类库标识无效。");
         if (_allowedLibraryIds is not null && !_allowedLibraryIds.Contains(libraryId))
         {
             throw new LibraryRuntimeCacheException(
-                "library.not_allowed",
+                LibraryErrorCodes.NotAllowed,
                 "The library artifact is not authorized for this run. 当前运行未授权使用该类库制品。");
         }
-        var dllName = RequireSafeSegment(runtime.DllName, "library.assembly_invalid", "The library assembly file name is invalid. 类库程序集文件名无效。");
-        var className = RequireNonEmpty(runtime.ClassName, "library.type_invalid", "The library type name is invalid. 类库类型名称无效。");
-        var methodName = RequireNonEmpty(runtime.MethodName, "library.method_invalid", "The library method name is invalid. 类库方法名称无效。");
+        var dllName = RequireSafeSegment(runtime.DllName, LibraryErrorCodes.AssemblyInvalid, "The library assembly file name is invalid. 类库程序集文件名无效。");
+        var className = RequireNonEmpty(runtime.ClassName, LibraryErrorCodes.TypeInvalid, "The library type name is invalid. 类库类型名称无效。");
+        var methodName = RequireNonEmpty(runtime.MethodName, LibraryErrorCodes.MethodInvalid, "The library method name is invalid. 类库方法名称无效。");
         var parameterSignature = string.Join("\u001f", node.Parameters.Select(static parameter => parameter.Name));
         var key = new MethodKey(libraryId, dllName, className, methodName, parameterSignature);
         var lazy = _methods.GetOrAdd(key, _ => new Lazy<Task<ResolvedLibraryMethod>>(
@@ -110,7 +110,7 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         if (candidates.Length == 0)
         {
             throw new LibraryRuntimeCacheException(
-                "library.method_not_found",
+                LibraryErrorCodes.MethodNotFound,
                 "The library method was not found. 未找到类库方法。");
         }
 
@@ -129,7 +129,7 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         if (method is null)
         {
             throw new LibraryRuntimeCacheException(
-                "library.method_ambiguous",
+                LibraryErrorCodes.MethodAmbiguous,
                 "The library method overload is ambiguous. 类库方法重载不明确。");
         }
         return new ResolvedLibraryMethod(type, method);
@@ -162,7 +162,7 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         var library = await libraryLazy.Value;
         var type = library.Assembly.GetType(className, throwOnError: false, ignoreCase: false)
             ?? throw new LibraryRuntimeCacheException(
-                "library.type_not_found",
+                LibraryErrorCodes.TypeNotFound,
                 "The library type was not found. 未找到类库类型。");
 
         try
@@ -192,7 +192,7 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         }
 
         throw new LibraryRuntimeCacheException(
-            "library.native_loader_unavailable",
+            LibraryErrorCodes.NativeLoaderUnavailable,
             "The native library loader was not available for the loaded assembly. 已加载程序集没有可用的 Native 类库加载器。");
     }
 
@@ -201,7 +201,7 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         if (string.IsNullOrWhiteSpace(_packageRoot) || !Directory.Exists(_packageRoot))
         {
             throw new LibraryRuntimeCacheException(
-                "library.root_missing",
+                LibraryErrorCodes.RootMissing,
                 "The library package root is not configured. 类库包根目录未配置。");
         }
 
@@ -209,7 +209,7 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         if (!File.Exists(packagePath))
         {
             throw new LibraryRuntimeCacheException(
-                "library.not_found",
+                LibraryErrorCodes.NotFound,
                 $"Library package '{key.LibraryId}' was not found. 未找到类库包“{key.LibraryId}”。");
         }
 
@@ -223,13 +223,13 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         if (dllPaths.Length == 0)
         {
             throw new LibraryRuntimeCacheException(
-                "library.assembly_not_found",
+                LibraryErrorCodes.AssemblyNotFound,
                 "The library assembly was not found. 未找到类库程序集。");
         }
         if (dllPaths.Length > 1)
         {
             throw new LibraryRuntimeCacheException(
-                "library.assembly_ambiguous",
+                LibraryErrorCodes.AssemblyAmbiguous,
                 "The library package contains more than one matching assembly. 类库包包含多个匹配的程序集。");
         }
 
@@ -238,7 +238,7 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         var loadContext = new LibraryLoadContext($"sereinflow-{Path.GetFileName(_runRoot)}-{key.LibraryId}", dllPath);
         var libraryRoot = Path.GetDirectoryName(dllPath)
             ?? throw new LibraryRuntimeCacheException(
-                "library.assembly_path_invalid",
+                LibraryErrorCodes.AssemblyPathInvalid,
                 "The library assembly directory could not be determined. 无法确定类库程序集目录。");
         var nativeLibraryLoader = new WorkerNativeLibraryLoader(
             libraryRoot,
@@ -270,7 +270,7 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         if (archive.Entries.Count == 0)
         {
             throw new LibraryRuntimeCacheException(
-                "library.package_empty",
+                LibraryErrorCodes.PackageEmpty,
                 "The library package is empty. 类库包为空。");
         }
 
@@ -285,7 +285,7 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
             if (!seenPaths.Add(pathKey))
             {
                 throw new LibraryRuntimeCacheException(
-                    "library.package_duplicate_entry",
+                    LibraryErrorCodes.PackageDuplicateEntry,
                     "The library package contains duplicate entries. 类库包包含重复条目。");
             }
 
@@ -294,7 +294,7 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
             if (!IsWithinRoot(destinationPath, extractRoot))
             {
                 throw new LibraryRuntimeCacheException(
-                    "library.package_path_invalid",
+                    LibraryErrorCodes.PackagePathInvalid,
                     "The library package contains a path outside its extraction directory. 类库包包含超出解压目录的路径。");
             }
 
@@ -308,7 +308,7 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
             if (string.IsNullOrWhiteSpace(destinationDirectory))
             {
                 throw new LibraryRuntimeCacheException(
-                    "library.package_path_invalid",
+                    LibraryErrorCodes.PackagePathInvalid,
                     "The library package entry has no valid parent directory. 类库包条目没有有效的父目录。");
             }
 
@@ -324,7 +324,7 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
             || (normalizedName.Length >= 2 && normalizedName[1] == ':'))
         {
             throw new LibraryRuntimeCacheException(
-                "library.package_path_invalid",
+                LibraryErrorCodes.PackagePathInvalid,
                 "The library package contains an unsafe path. 类库包包含不安全的路径。");
         }
 
@@ -342,7 +342,7 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
                 || segment.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0))
         {
             throw new LibraryRuntimeCacheException(
-                "library.package_path_invalid",
+                LibraryErrorCodes.PackagePathInvalid,
                 "The library package contains an unsafe path. 类库包包含不安全的路径。");
         }
     }
@@ -354,7 +354,7 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
             return packages;
         var direct = Path.GetFullPath(Path.Combine(root, $"{libraryId}.zip"));
         return IsWithinRoot(direct, root) ? direct : throw new LibraryRuntimeCacheException(
-            "library.path_invalid",
+            LibraryErrorCodes.PathInvalid,
             "The library package path is outside the configured root. 类库包路径超出了配置根目录。");
     }
 

@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\SereinFlow.Library\SereinFlow.Library.csproj" />
+    <ProjectReference Include="..\..\src\SereinFlow.Contracts\SereinFlow.Contracts.csproj" />
   </ItemGroup>
 
   <Target Name="CreateTestLibraryUploadPackage" AfterTargets="Publish" Condition="'$(DesignTimeBuild)' != 'true'">
