@@ -22,6 +22,10 @@ SereinFlow safely.
 | `plugins/sereinflow-ai-toolkit` | Local MCP client and Skill source material. |
 | `docs` | Maintained technical references. |
 
+## Community & Technical Support
+
+If you need help using SereinFlow, join the QQ group **955830545** to contact me for technical support, usage discussions, or issue feedback.
+
 ## Prerequisites
 
 - .NET SDK `10.0.100` or a compatible SDK selected by

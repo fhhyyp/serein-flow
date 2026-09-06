@@ -19,6 +19,10 @@ Worker Runner 进程中执行。MCP 服务通过受控的工具、资源和提�
 | `plugins/sereinflow-ai-toolkit` | 本机 MCP 客户端与 Skill 源材料。 |
 | `docs` | 长期维护的技术参考资料。 |
 
+## 社区与技术支持
+
+如果你在使用 SereinFlow 时遇到问题，欢迎加入 QQ 群 **955830545** 联系我，获取技术支持、交流使用经验或反馈问题。
+
 ## 环境要求
 
 - .NET SDK `10.0.100`，或由 [`global.json`](global.json) 选择的兼容 SDK。
