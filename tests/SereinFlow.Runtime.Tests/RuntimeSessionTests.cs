@@ -89,6 +89,52 @@ public sealed class RuntimeSessionTests
     }
 
     [Fact]
+    public async Task EachNodeExecutionGetsAStableIdentityInTheRequestAndEvents()
+    {
+        var node = NodeDefinition.Create("action", NodeType.Action, "Action");
+        var definition = FlowDefinition.Create(
+            Guid.NewGuid(),
+            1,
+            [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])],
+            "action");
+        var executor = new CapturingExecutionIdentityExecutor();
+        var publisher = new RecordingPublisher();
+        var runner = new FlowRunner(
+            new ExecutionPlanBuilder(),
+            new NodeExecutorRegistry([executor]),
+            publisher);
+
+        await using var session = new FlowExecutionSession();
+        await runner.RunAsync(definition, session);
+
+        var started = Assert.Single(publisher.Events, item => item.Type == "node.started");
+        var terminal = Assert.Single(publisher.Events, item => item.Type == "node.completed");
+        var startedId = Assert.IsType<Guid>(started.Payload["executionId"]);
+        var terminalId = Assert.IsType<Guid>(terminal.Payload["executionId"]);
+
+        Assert.NotEqual(Guid.Empty, startedId);
+        Assert.Equal(startedId, terminalId);
+        Assert.Equal(startedId, executor.ExecutionId);
+        Assert.Equal(1, executor.Step);
+        Assert.Equal(startedId, executor.RuntimeExecutionId);
+    }
+
+    [Fact]
+    public async Task RepeatedNodeStepsReceiveDifferentExecutionIds()
+    {
+        await using var session = new FlowExecutionSession();
+
+        Assert.True(session.TryBeginStep("node-a", out var firstStep, out var firstId, out _));
+        Assert.True(session.TryBeginStep("node-a", out var secondStep, out var secondId, out _));
+
+        Assert.Equal(1, firstStep);
+        Assert.Equal(2, secondStep);
+        Assert.NotEqual(Guid.Empty, firstId);
+        Assert.NotEqual(Guid.Empty, secondId);
+        Assert.NotEqual(firstId, secondId);
+    }
+
+    [Fact]
     public async Task BindingFailureRetainsInputsResolvedBeforeTheMissingParameter()
     {
         var node = NodeDefinition.Create(
@@ -385,6 +431,25 @@ public sealed class RuntimeSessionTests
         public ValueTask<NodeExecutionResult> ExecuteAsync(NodeExecutionRequest request, CancellationToken cancellationToken)
         {
             request.Context.Write("observed", request.Context.Read("run"));
+            return ValueTask.FromResult(NodeExecutionResult.Success());
+        }
+    }
+
+    private sealed class CapturingExecutionIdentityExecutor : INodeExecutor
+    {
+        public NodeType NodeType => NodeType.Action;
+
+        public Guid ExecutionId { get; private set; }
+
+        public int Step { get; private set; }
+
+        public Guid RuntimeExecutionId { get; private set; }
+
+        public ValueTask<NodeExecutionResult> ExecuteAsync(NodeExecutionRequest request, CancellationToken cancellationToken)
+        {
+            ExecutionId = request.ExecutionId;
+            Step = request.Step;
+            RuntimeExecutionId = request.Runtime?.Environment.ExecutionId ?? Guid.Empty;
             return ValueTask.FromResult(NodeExecutionResult.Success());
         }
     }

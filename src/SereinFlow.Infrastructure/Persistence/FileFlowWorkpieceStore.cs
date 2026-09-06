@@ -58,7 +58,8 @@ public sealed class FileFlowWorkpieceStore : IFlowWorkpieceStore
                     info.ContentType,
                     info.Length,
                     info.CreatedAt,
-                    info.NodeId));
+                    info.NodeId,
+                    info.ExecutionId));
             }
             catch (JsonException)
             {

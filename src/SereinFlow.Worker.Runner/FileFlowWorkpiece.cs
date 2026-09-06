@@ -1,6 +1,7 @@
 using System.Text.Json;
 using SereinFlow.Contracts;
 using SereinFlow.Library;
+using SereinFlow.Runtime.Abstractions;
 
 namespace SereinFlow.Worker.Runner;
 
@@ -79,19 +80,28 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
     public FlowWorkpieceInfo UploadFile(string fileName, Stream content, string? contentType = null)
         => UploadCore(FlowWorkpieceKind.File, fileName, content, contentType, inferredContentType: null);
 
-    public FlowWorkpieceInfo UploadNodeOutput(string nodeId, string fileName, byte[] content, string? contentType = null)
+    public FlowWorkpieceInfo UploadNodeOutput(IFlowContext context, string fileName, byte[] content, string? contentType = null)
     {
+        ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(content);
-        return UploadNodeOutput(nodeId, fileName, new MemoryStream(content, writable: false), contentType);
+        return UploadNodeOutput(context, fileName, new MemoryStream(content, writable: false), contentType);
     }
 
-    public FlowWorkpieceInfo UploadNodeOutput(string nodeId, string fileName, Stream content, string? contentType = null)
+    public FlowWorkpieceInfo UploadNodeOutput(IFlowContext context, string fileName, Stream content, string? contentType = null)
     {
+        ArgumentNullException.ThrowIfNull(context);
         var kind = contentType?.StartsWith("image/", StringComparison.OrdinalIgnoreCase) == true
             ? FlowWorkpieceKind.Image
             : FlowWorkpieceKind.File;
         var inferredContentType = kind == FlowWorkpieceKind.Image ? InferImageContentType(fileName) : null;
-        return UploadCore(kind, fileName, content, contentType, inferredContentType, RequireNodeId(nodeId));
+        return UploadCore(
+            kind,
+            fileName,
+            content,
+            contentType,
+            inferredContentType,
+            RequireNodeId(context.NodeId),
+            RequireExecutionId(context.ExecutionId));
     }
 
     private FlowWorkpieceInfo UploadCore(
@@ -100,7 +110,8 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
         Stream content,
         string? contentType,
         string? inferredContentType,
-        string? nodeId = null)
+        string? nodeId = null,
+        Guid? executionId = null)
     {
         ArgumentNullException.ThrowIfNull(content);
         var normalizedName = RequireFileName(name);
@@ -145,7 +156,8 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
                     normalizedContentType,
                     length,
                     DateTimeOffset.UtcNow,
-                    nodeId);
+                    nodeId,
+                    executionId);
                 File.WriteAllText(temporaryMetadataPath, JsonSerializer.Serialize(info, MetadataOptions));
                 File.Move(temporaryMetadataPath, metadataPath);
                 return info;
@@ -213,6 +225,13 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
         return nodeId;
     }
 
+    private static Guid RequireExecutionId(Guid value)
+    {
+        if (value == Guid.Empty)
+            throw new FlowWorkpieceException("workpiece.execution_id_required", "The execution ID is required. 执行步骤 ID 不能为空。");
+        return value;
+    }
+
     private static string RequireContentType(string? explicitType, string? inferredType, string fallback)
     {
         var value = string.IsNullOrWhiteSpace(explicitType) ? inferredType : explicitType;
@@ -231,7 +250,7 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
             ".bmp" => "image/bmp",
             ".tif" or ".tiff" => "image/tiff",
             ".svg" => "image/svg+xml",
-            _ => "image/png",
+            _ => FlowWorkpieceContentTypes.Png,
         };
 
     private static JsonSerializerOptions CreateMetadataOptions()

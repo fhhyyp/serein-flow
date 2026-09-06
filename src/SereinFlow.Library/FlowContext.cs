@@ -22,6 +22,12 @@ public interface IFlowContext
     string NodeId { get; }
 
     /// <summary>
+    /// Gets the unique identifier of this node execution step within the flow run.
+    /// 获取本次节点执行步骤在流程运行中的唯一标识。
+    /// </summary>
+    Guid ExecutionId { get; }
+
+    /// <summary>
     /// Gets the token that is cancelled when the Worker stops or cancels the current flow run.
     /// 获取当 Worker 停止或取消当前流程运行时会被取消的令牌。
     /// </summary>

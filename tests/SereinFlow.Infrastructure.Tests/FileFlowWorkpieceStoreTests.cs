@@ -18,6 +18,7 @@ public sealed class FileFlowWorkpieceStoreTests
         var runDirectory = Path.Combine(directory.Path, runId.ToString("N"));
         Directory.CreateDirectory(runDirectory);
         var payload = new byte[] { 1, 2, 3, 4 };
+        var executionId = Guid.NewGuid();
         await File.WriteAllBytesAsync(Path.Combine(runDirectory, workpieceId + ".bin"), payload);
         var info = new FlowWorkpieceInfo(
             workpieceId,
@@ -26,7 +27,8 @@ public sealed class FileFlowWorkpieceStoreTests
             "image/png",
             payload.Length,
             DateTimeOffset.UtcNow,
-            "opencv-node");
+            "opencv-node",
+            executionId);
         await File.WriteAllTextAsync(
             Path.Combine(runDirectory, workpieceId + ".json"),
             JsonSerializer.Serialize(info, SereinJsonSerialization.CreateContractOptions()));
@@ -47,6 +49,7 @@ public sealed class FileFlowWorkpieceStoreTests
         Assert.Equal("inspection.png", item.Name);
         Assert.Equal(payload.Length, item.Length);
         Assert.Equal("opencv-node", item.NodeId);
+        Assert.Equal(executionId, item.ExecutionId);
 
         await using var stream = await store.OpenReadAsync(runId, workpieceId);
         Assert.NotNull(stream);

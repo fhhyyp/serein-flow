@@ -32,6 +32,7 @@ export interface DebugPauseBoundary {
   inputs?: unknown
   frameDepth?: number
   triggerInvocationId?: string
+  executionId?: string
 }
 
 interface UseFlowDebuggerOptions {
@@ -43,7 +44,7 @@ interface UseFlowDebuggerOptions {
   isWorkspaceLoading: Ref<boolean>
   isNormalRunActive: Ref<boolean>
   notice: Ref<string>
-  onPauseNode?: (nodeId: string) => void
+  onPauseNode?: (nodeId: string, executionId?: string) => void
 }
 
 const terminalSessionStatuses = new Set<FlowDebugSessionDto['status']>(['completed', 'cancelled', 'failed'])
@@ -202,6 +203,7 @@ export function useFlowDebugger(options: UseFlowDebuggerOptions) {
         inputs: value.inputs,
         frameDepth: typeof value.frameDepth === 'number' ? value.frameDepth : undefined,
         triggerInvocationId: typeof value.triggerInvocationId === 'string' ? value.triggerInvocationId : undefined,
+        executionId: typeof value.executionId === 'string' ? value.executionId : undefined,
       }
     } catch {
       return undefined
@@ -226,7 +228,7 @@ export function useFlowDebugger(options: UseFlowDebuggerOptions) {
       const boundary = parsePauseBoundary(event)
       if (boundary) {
         pauseBoundary.value = boundary
-        options.onPauseNode?.(boundary.nodeId)
+        options.onPauseNode?.(boundary.nodeId, boundary.executionId)
       }
       void refreshSession(session.id)
       return
@@ -271,6 +273,7 @@ export function useFlowDebugger(options: UseFlowDebuggerOptions) {
       const session = await getFlowDebugSession(sessionId)
       if (debugSession.value?.id !== sessionId) return
       debugSession.value = session
+      pauseBoundary.value = pauseBoundaryFromSession(session)
       if (terminalSessionStatuses.has(session.status)) {
         isStopping.value = false
         clearStoredDebugSessionId(session.projectId, session.flowId)
@@ -303,6 +306,7 @@ export function useFlowDebugger(options: UseFlowDebuggerOptions) {
         || session.projectId !== options.projectId.value
         || session.flowId !== options.flowId.value) return
       debugSession.value = session
+      pauseBoundary.value = pauseBoundaryFromSession(session)
       if (terminalSessionStatuses.has(session.status)) {
         clearStoredDebugSessionId(session.projectId, session.flowId)
         return
@@ -432,4 +436,18 @@ export function useFlowDebugger(options: UseFlowDebuggerOptions) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
+}
+
+function pauseBoundaryFromSession(session: FlowDebugSessionDto): DebugPauseBoundary | undefined {
+  const pauseState = session.status === 'paused' ? session.pauseState : undefined
+  if (!pauseState) return undefined
+  return {
+    nodeId: pauseState.nodeId,
+    nodeType: pauseState.nodeType,
+    step: pauseState.step,
+    inputs: pauseState.inputs,
+    frameDepth: pauseState.frameDepth,
+    triggerInvocationId: pauseState.invocationId,
+    executionId: pauseState.executionId,
+  }
 }

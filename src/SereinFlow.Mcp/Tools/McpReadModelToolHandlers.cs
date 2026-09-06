@@ -243,7 +243,8 @@ internal static class McpReadModelToolHandlers
             item.Length,
             item.CreatedAt,
             $"/api/runs/{item.RunId:D}/workpieces/{item.Id}",
-            item.NodeId);
+            item.NodeId,
+            item.ExecutionId);
 
     private static async Task<AiDebugStateWaitResultDto?> WaitForDebugStateAsync(
         IServiceScope scope,

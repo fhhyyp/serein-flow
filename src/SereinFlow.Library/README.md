@@ -88,22 +88,27 @@ public sealed class ImageNodes
         => _flowWorkpiece = flowWorkpiece;
 
     public FlowWorkpieceInfo SaveImage(byte[] png)
-        => _flowWorkpiece.UploadImage("inspection.png", png, "image/png");
+        => _flowWorkpiece.UploadImage("inspection.png", png, FlowWorkpieceContentTypes.Png);
 
     public FlowWorkpieceInfo SaveReport(Stream report)
         => _flowWorkpiece.UploadFile("report.txt", report, "text/plain");
 
     public FlowWorkpieceInfo SaveNodeOutput(IFlowContext context, byte[] json)
-        => _flowWorkpiece.UploadNodeOutput(context.NodeId, "result.json", json, "application/json");
+        => _flowWorkpiece.UploadNodeOutput(context, "result.json", json, FlowWorkpieceContentTypes.Json);
 }
 ```
 
+`FlowWorkpieceContentTypes.Png` and `FlowWorkpieceContentTypes.Json` are
+provided as compile-time constants for the common MIME types, so node
+libraries do not need to repeat the string literals.
+
 `UploadImage` accepts a byte array, stream, or base64/data URI. `UploadFile`
 and `UploadNodeOutput` accept a byte array or stream. `UploadNodeOutput` stores
-the supplied node ID in the workpiece metadata so the debugger can select the
-node's latest output while keeping all run workpieces visible. File names are
-restricted to a single file name, streams remain owned by the caller, and each
-workpiece is stored under the current run's server-managed workpiece directory.
+the node ID and execution-step ID from `IFlowContext` in the workpiece metadata
+so the debugger can select the first artifact from the exact execution while
+keeping all run workpieces visible. File names are restricted to a single file
+name, streams remain owned by the caller, and each workpiece is stored under the
+current run's server-managed workpiece directory.
 
 ## Native library dependencies
 

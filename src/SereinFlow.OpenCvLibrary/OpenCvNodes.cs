@@ -345,7 +345,7 @@ public sealed class OpenCvNodes
         try
         {
             Cv2.ImEncode(".png", result, out var encoded);
-            _ = _flowWorkpiece.UploadNodeOutput(flowContext.NodeId, fileName, encoded, "image/png");
+            _ = _flowWorkpiece.UploadNodeOutput(flowContext, fileName, encoded, FlowWorkpieceContentTypes.Png);
             return result;
         }
         catch

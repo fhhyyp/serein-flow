@@ -5,6 +5,7 @@ export type NodeExecutionStatus = 'running' | 'paused' | 'completed' | 'failed' 
 export interface NodeExecutionState {
   id: string
   nodeId: string
+  executionId?: string
   status: NodeExecutionStatus
   startedAt?: string
   endedAt?: string
@@ -93,10 +94,12 @@ function createState(
   status: NodeExecutionStatus,
 ): NodeExecutionState {
   const step = numberValue(payload?.step)
+  const executionId = stringValue(payload?.executionId)?.trim() || undefined
   const invocationId = stringValue(payload?.triggerInvocationId)
   const state: NodeExecutionState = {
-    id: executionId(nodeId, event.sequence, step, invocationId),
+    id: executionId ?? derivedExecutionId(nodeId, event.sequence, step, invocationId),
     nodeId,
+    ...(executionId ? { executionId } : {}),
     status,
     step,
     frameDepth: numberValue(payload?.frameDepth),
@@ -124,7 +127,12 @@ function findMatchingState(
   if (candidates.length === 0) return undefined
 
   const step = numberValue(payload?.step)
+  const executionId = stringValue(payload?.executionId)?.trim() || undefined
   const invocationId = stringValue(payload?.triggerInvocationId)
+  if (executionId) {
+    const exact = [...candidates].reverse().find((state) => state.executionId === executionId || state.id === executionId)
+    if (exact) return exact
+  }
   if (step !== undefined || invocationId !== undefined) {
     const exact = [...candidates].reverse().find((state) => (
       (step === undefined || state.step === step)
@@ -139,6 +147,7 @@ function findMatchingState(
 function updateContext(state: NodeExecutionState, payload: EventPayload | undefined): void {
   if (!payload) return
   const step = numberValue(payload.step)
+  const executionId = stringValue(payload.executionId)?.trim() || undefined
   const frameDepth = numberValue(payload.frameDepth)
   const invocationId = stringValue(payload.triggerInvocationId)
   const branch = stringValue(payload.branch)
@@ -146,6 +155,7 @@ function updateContext(state: NodeExecutionState, payload: EventPayload | undefi
   const errorMessage = stringValue(payload.errorMessage)
 
   if (step !== undefined) state.step = step
+  if (executionId !== undefined) state.executionId = executionId
   if (frameDepth !== undefined) state.frameDepth = frameDepth
   if (invocationId !== undefined) state.triggerInvocationId = invocationId
   if (branch !== undefined) state.branch = branch
@@ -156,7 +166,7 @@ function updateContext(state: NodeExecutionState, payload: EventPayload | undefi
   if (Object.hasOwn(payload, 'outputs')) state.outputs = payload.outputs
 }
 
-function executionId(nodeId: string, sequence: number, step?: number, invocationId?: string): string {
+function derivedExecutionId(nodeId: string, sequence: number, step?: number, invocationId?: string): string {
   return `${nodeId}:${invocationId ?? 'root'}:${step === undefined ? `event-${sequence}` : `step-${step}`}`
 }
 

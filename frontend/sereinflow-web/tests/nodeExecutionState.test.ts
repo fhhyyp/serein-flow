@@ -61,6 +61,20 @@ test('keeps repeated node executions distinct and carries terminal failure detai
   ])
 })
 
+test('uses the runtime execution ID to pair repeated node events', () => {
+  const states = buildNodeExecutionStates([
+    event(1, 'node.started', { step: 2, executionId: 'execution-1' }),
+    event(2, 'node.completed', { step: 2, executionId: 'execution-1', outputs: { result: 'first' } }),
+    event(3, 'node.started', { step: 4, executionId: 'execution-2' }),
+    event(4, 'node.completed', { step: 4, executionId: 'execution-2', outputs: { result: 'second' } }),
+  ])
+
+  assert.deepEqual(states.map((state) => ({ id: state.id, executionId: state.executionId, outputs: state.outputs })), [
+    { id: 'execution-1', executionId: 'execution-1', outputs: { result: 'first' } },
+    { id: 'execution-2', executionId: 'execution-2', outputs: { result: 'second' } },
+  ])
+})
+
 test('accepts legacy events and ignores malformed payloads without throwing', () => {
   const states = buildNodeExecutionStates([
     event(1, 'node.started', { step: 1 }),

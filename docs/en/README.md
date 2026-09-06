@@ -11,13 +11,14 @@ find the current material.
 
 - [MCP service reference](mcp-readonly-server.md): HTTP and stdio transports,
   authentication, resources, prompts, tools, and operational boundaries.
-- [Worker protocol v2](worker-protocol-v2.md): the versioned JSON Lines
-  contract between the API supervisor and disposable Worker Runner processes,
-  including message delivery control frames.
-- [Worker protocol v1 (historical)](worker-protocol-v1.md): the historical v1
-  JSON Lines contract and its stable error codes.
+- [Worker protocol](worker-protocol.md): the current v2 production protocol,
+  v1 historical compatibility differences, JSON Lines boundaries, session flow,
+  message bridging, and stable error codes.
 - [Worker message service](worker-message-service.md): the run-scoped
   queue, event bus, DI, and controlled external-ingress behavior.
+- [Node library development guide](node-library-development.md): the
+  `SereinFlow.Library` SDK, node metadata, inputs/outputs, injection, messaging,
+  workpieces, native dependencies, the OpenCV example, packaging, and upgrades.
 
 For first-time local setup and the recommended MCP client workflow, start with
 the repository [README](../../README.md).

@@ -705,7 +705,8 @@ public sealed record FlowDebugPauseStateDto(
     Guid? InvocationId,
     long BoundarySequence,
     JsonElement Inputs,
-    DateTimeOffset PausedAt);
+    DateTimeOffset PausedAt,
+    Guid? ExecutionId = null);
 
 public sealed record FlowDebugNodeResultDto(
     string NodeId,
@@ -844,7 +845,8 @@ public sealed record FlowWorkpieceDto(
     long Length,
     DateTimeOffset CreatedAt,
     string DownloadUrl,
-    string? NodeId = null);
+    string? NodeId = null,
+    Guid? ExecutionId = null);
 
 /// <summary>
 /// Immutable debug settings captured when a worker run starts. Breakpoints are
@@ -988,7 +990,8 @@ public sealed record WorkerDebugPauseDto(
     int Step,
     object? Inputs,
     int FrameDepth,
-    Guid? TriggerInvocationId = null);
+    Guid? TriggerInvocationId = null,
+    Guid? ExecutionId = null);
 
 public sealed record WorkerCancelRequestDto(
     int ProtocolVersion,

@@ -9,6 +9,7 @@ const props = withDefaults(defineProps<{
   executions: readonly NodeExecutionState[]
   nodeNames?: Record<string, string>
   selectedNodeId?: string
+  selectedExecutionId?: string
   compact?: boolean
 }>(), {
   nodeNames: () => ({}),
@@ -16,12 +17,19 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-  selectNode: [nodeId: string]
+  selectExecution: [execution: NodeExecutionState]
 }>()
 
 const selectedExecutionId = ref('')
 const timeline = computed(() => sortNodeExecutionStates(props.executions))
 const selectedExecution = computed(() => {
+  if (props.selectedExecutionId) {
+    const selectedState = timeline.value.find((state) => (
+      state.id === props.selectedExecutionId || state.executionId === props.selectedExecutionId
+    ))
+    if (selectedState) return selectedState
+  }
+
   if (props.selectedNodeId) {
     const selectedState = timeline.value.find((state) => state.id === selectedExecutionId.value)
     if (selectedState?.nodeId === props.selectedNodeId) return selectedState
@@ -31,7 +39,17 @@ const selectedExecution = computed(() => {
   return timeline.value.find((state) => state.id === selectedExecutionId.value) ?? timeline.value[0]
 })
 
-watch([timeline, () => props.selectedNodeId], ([states, selectedNodeId]) => {
+watch([timeline, () => props.selectedNodeId, () => props.selectedExecutionId], ([states, selectedNodeId, requestedExecutionId]) => {
+  if (requestedExecutionId) {
+    const selectedState = states.find((state) => (
+      state.id === requestedExecutionId || state.executionId === requestedExecutionId
+    ))
+    if (selectedState) {
+      selectedExecutionId.value = selectedState.id
+      return
+    }
+  }
+
   const selectedState = states.find((state) => state.id === selectedExecutionId.value)
   if (selectedNodeId && selectedState?.nodeId === selectedNodeId) return
 
@@ -49,7 +67,7 @@ watch([timeline, () => props.selectedNodeId], ([states, selectedNodeId]) => {
 
 function selectExecution(state: NodeExecutionState): void {
   selectedExecutionId.value = state.id
-  emit('selectNode', state.nodeId)
+  emit('selectExecution', state)
 }
 
 function nodeName(state: NodeExecutionState): string {

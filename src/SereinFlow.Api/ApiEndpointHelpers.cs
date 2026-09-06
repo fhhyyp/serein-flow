@@ -66,7 +66,8 @@ internal static class ApiEndpointHelpers
                     session.PauseState.InvocationId,
                     session.PauseState.BoundarySequence,
                     ParseDebugJson(session.PauseState.InputsJson),
-                    session.PauseState.PausedAt),
+                    session.PauseState.PausedAt,
+                    session.PauseState.ExecutionId),
             session.LastNodeResult is null
                 ? null
                 : new FlowDebugNodeResultDto(

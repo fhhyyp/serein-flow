@@ -8,7 +8,8 @@ public sealed record FlowDebugPauseState(
     Guid? InvocationId,
     long BoundarySequence,
     string InputsJson,
-    DateTimeOffset PausedAt);
+    DateTimeOffset PausedAt,
+    Guid? ExecutionId = null);
 
 public sealed record FlowDebugNodeResult(
     string NodeId,

@@ -2,13 +2,19 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Download, FileText, Image as ImageIcon, Maximize2, PackageOpen, RefreshCw, X } from 'lucide-vue-next'
 import { getFlowWorkpieceUrl, listFlowRunWorkpieces, type FlowWorkpieceDto } from '../../api/flowApi'
-import { latestFlowWorkpiece, latestFlowWorkpieceForNode, selectFlowWorkpieceId } from '../../flow/workpieceSelection'
+import {
+  firstFlowWorkpieceForExecution,
+  firstFlowWorkpieceForNode,
+  latestFlowWorkpiece,
+  selectFlowWorkpieceId,
+} from '../../flow/workpieceSelection'
 import { locale, t } from '../../i18n'
 
 const props = withDefaults(defineProps<{
   embedded?: boolean
   runId: string
   focusNodeId?: string
+  focusExecutionId?: string
   refreshSignal?: number
   live?: boolean
   compact?: boolean
@@ -19,7 +25,7 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-  'select-node': [nodeId: string]
+  'select-node': [nodeId: string, executionId?: string]
 }>()
 
 const workpieces = ref<FlowWorkpieceDto[]>([])
@@ -99,7 +105,7 @@ function handleImagePreviewKeydown(event: KeyboardEvent): void {
 
 function selectWorkpiece(workpiece: FlowWorkpieceDto): void {
   selectedId.value = workpiece.id
-  if (workpiece.nodeId) emit('select-node', workpiece.nodeId)
+  if (workpiece.nodeId) emit('select-node', workpiece.nodeId, workpiece.executionId)
 }
 
 async function refreshWorkpieces(background = false, selectLatest = false): Promise<void> {
@@ -112,9 +118,16 @@ async function refreshWorkpieces(background = false, selectLatest = false): Prom
     if (revision !== loadRevision) return
     const previous = workpieces.value
     workpieces.value = next
-    const focusedWorkpiece = latestFlowWorkpieceForNode(next, props.focusNodeId)
+    const currentSelection = next.find((workpiece) => workpiece.id === selectedId.value)
+    const focusedWorkpiece = props.focusExecutionId
+      ? firstFlowWorkpieceForExecution(next, props.focusExecutionId)
+      : firstFlowWorkpieceForNode(next, props.focusNodeId)
     if (focusedWorkpiece) {
-      selectedId.value = focusedWorkpiece.id
+      selectedId.value = props.focusExecutionId && currentSelection?.executionId === props.focusExecutionId
+        ? currentSelection.id
+        : focusedWorkpiece.id
+    } else if (props.focusExecutionId) {
+      selectedId.value = ''
     } else if (!props.focusNodeId) {
       selectedId.value = selectLatest
         ? latestFlowWorkpiece(next)?.id ?? ''
@@ -149,7 +162,11 @@ watch(() => props.runId, () => {
   selectedId.value = ''
   void refreshWorkpieces()
 })
-watch([() => props.focusNodeId, () => props.refreshSignal], ([focusNodeId, refreshSignal], [, previousRefreshSignal]) => {
+watch([() => props.focusNodeId, () => props.focusExecutionId, () => props.refreshSignal], ([focusNodeId, focusExecutionId, refreshSignal], [, previousFocusExecutionId, previousRefreshSignal]) => {
+  if (focusExecutionId !== previousFocusExecutionId || focusNodeId !== undefined) {
+    void refreshWorkpieces(true)
+    return
+  }
   void refreshWorkpieces(true, refreshSignal !== previousRefreshSignal && focusNodeId === undefined)
 })
 watch(() => props.live, syncAutoRefresh)
@@ -242,7 +259,7 @@ onBeforeUnmount(() => {
       <div
         v-if="imagePreviewWorkpiece"
         class="run-workpiece-image-lightbox"
-        @mousedown.self="closeImagePreview"
+        @mousedown.self="closeImagePreview()"
       >
         <section
           ref="imagePreviewDialog"
@@ -258,7 +275,7 @@ onBeforeUnmount(() => {
               <span>{{ t('workpiece.preview') }}</span>
               <strong :title="imagePreviewWorkpiece.name">{{ imagePreviewWorkpiece.name }}</strong>
             </div>
-            <button class="icon-button" type="button" :title="t('command.close')" :aria-label="t('command.close')" @click="closeImagePreview">
+            <button class="icon-button" type="button" :title="t('command.close')" :aria-label="t('command.close')" @click="closeImagePreview()">
               <X :size="17" />
             </button>
           </header>

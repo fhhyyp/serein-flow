@@ -33,6 +33,7 @@ const nodeTypes = markRaw({ workflow: FlowNodeCard })
 const workspaceRoot = ref<HTMLElement>()
 const activeCanvasId = ref('')
 const selectedNodeId = ref('')
+const selectedExecutionId = ref('')
 const workspaceSnapPreview = ref<{ groupId: string; targetGroupId?: string; dock?: DockPosition }>()
 
 const {
@@ -70,13 +71,17 @@ const latestOutputs = computed(() => {
   return values
 })
 const executionStates = computed(() => {
-  const durableOutputs = new Map<string, FlowRunOutputDto>()
+  const durableOutputsBySequence = new Map<number, FlowRunOutputDto>()
+  const durableOutputsByNode = new Map<string, FlowRunOutputDto>()
   for (const output of [...props.outputs].sort((left, right) => left.sequence - right.sequence)) {
-    durableOutputs.set(output.nodeId, output)
+    durableOutputsBySequence.set(output.sequence, output)
+    durableOutputsByNode.set(output.nodeId, output)
   }
   const states = buildNodeExecutionStates(props.events)
   const hydratedStates = states.map((state) => {
-    const output = durableOutputs.get(state.nodeId)
+    const output = (state.terminalSequence !== undefined
+      ? durableOutputsBySequence.get(state.terminalSequence)
+      : undefined) ?? durableOutputsByNode.get(state.nodeId)
     if (!output) return state
     return {
       ...state,
@@ -86,9 +91,13 @@ const executionStates = computed(() => {
       errorMessage: state.errorMessage ?? output.errorMessage,
     }
   })
-  const hydratedNodeIds = new Set(hydratedStates.map((state) => state.nodeId))
-  for (const output of durableOutputs.values()) {
-    if (hydratedNodeIds.has(output.nodeId)) continue
+  const hydratedOutputSequences = new Set(
+    hydratedStates
+      .map((state) => state.terminalSequence)
+      .filter((sequence): sequence is number => sequence !== undefined),
+  )
+  for (const output of durableOutputsBySequence.values()) {
+    if (hydratedOutputSequences.has(output.sequence)) continue
     const status: NodeExecutionState['status'] = output.outcome === 'error'
       ? 'error'
       : output.outcome === 'failed' ? 'failed' : 'completed'
@@ -114,6 +123,7 @@ const nodeNames = computed<Record<string, string>>(() => Object.fromEntries(
   ])),
 ))
 const selectedNode = computed(() => activeCanvas.value?.nodes.find((node) => node.id === selectedNodeId.value))
+const selectedWorkpieceExecutionId = computed(() => executionStates.value.find((state) => state.id === selectedExecutionId.value)?.executionId)
 const viewKey = computed(() => `${props.definition?.id ?? 'empty'}-${activeCanvas.value?.id ?? 'none'}`)
 const renderedElements = computed<Array<FlowNode | FlowEdge>>(() => {
   const canvas = activeCanvas.value
@@ -157,6 +167,7 @@ watch(() => props.definition?.id, () => {
   const snapshot = workspace.value
   activeCanvasId.value = snapshot?.activeCanvasId ?? ''
   selectedNodeId.value = ''
+  selectedExecutionId.value = ''
 }, { immediate: true })
 
 function nodeStatus(nodeId: string): NodeStatus {
@@ -174,6 +185,7 @@ function canvasLabel(canvas: CanvasState): string {
 function selectCanvas(canvasId: string): void {
   activeCanvasId.value = canvasId
   selectedNodeId.value = ''
+  selectedExecutionId.value = ''
 }
 
 function tabsForGroup(group: DockablePanelGroupState): WorkspacePanelTab[] {
@@ -199,16 +211,28 @@ function activatePanelFor(panelId: WorkspacePanelId): void {
 
 function selectNode(nodeId: string): void {
   selectedNodeId.value = nodeId
+  selectedExecutionId.value = executionStates.value.find((state) => state.nodeId === nodeId)?.id ?? ''
   showDockablePanel('inspector')
   activatePanelFor('inspector')
 }
 
-function selectExecutionNode(nodeId: string): void {
+function selectExecutionNode(nodeId: string, executionId?: string): void {
   const canvas = workspace.value?.canvases.find((candidate) => candidate.nodes.some((node) => node.id === nodeId))
   if (canvas) activeCanvasId.value = canvas.id
   selectedNodeId.value = nodeId
+  const selectedState = executionId
+    ? executionStates.value.find((state) => state.id === executionId || state.executionId === executionId)
+    : executionStates.value.find((state) => state.nodeId === nodeId)
+  selectedExecutionId.value = selectedState?.id ?? executionId ?? ''
   showDockablePanel('debug')
-  // The workpiece panel resolves the newest artifact produced by this node.
+  showDockablePanel('workpieces')
+}
+
+function selectExecution(execution: NodeExecutionState): void {
+  const canvas = workspace.value?.canvases.find((candidate) => candidate.nodes.some((node) => node.id === execution.nodeId))
+  if (canvas) activeCanvasId.value = canvas.id
+  selectedNodeId.value = execution.nodeId
+  selectedExecutionId.value = execution.id
   showDockablePanel('workpieces')
 }
 
@@ -352,6 +376,7 @@ function closeWorkspacePanel(panelId: WorkspacePanelId): void {
               v-else-if="panelId === 'workpieces'"
               :run-id="props.runId"
               :focus-node-id="selectedNodeId || undefined"
+              :focus-execution-id="selectedWorkpieceExecutionId || undefined"
               :embedded="true"
               @select-node="selectExecutionNode"
             />
@@ -361,8 +386,9 @@ function closeWorkspacePanel(panelId: WorkspacePanelId): void {
               :executions="executionStates"
               :node-names="nodeNames"
               :selected-node-id="selectedNodeId || undefined"
+              :selected-execution-id="selectedExecutionId || undefined"
               :compact="true"
-              @select-node="selectExecutionNode"
+              @select-execution="selectExecution"
             />
 
             <RunSnapshotNodeInspector

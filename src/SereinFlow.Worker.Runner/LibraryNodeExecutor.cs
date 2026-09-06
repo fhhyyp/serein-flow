@@ -67,7 +67,8 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
             var flowContext = new LibraryFlowContext(
                 request.Context is FlowExecutionSession session ? session.RunId : Guid.Empty,
                 request.Node.Id,
-                cancellationToken);
+                cancellationToken,
+                request.ExecutionId == Guid.Empty ? Guid.NewGuid() : request.ExecutionId);
             var ordinaryParameterIndex = 0;
             for (var index = 0; index < parameters.Length; index++)
             {
@@ -394,7 +395,11 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
         => inputs.TryGetValue(parameter.Id, out value)
             || inputs.TryGetValue(parameter.Name, out value);
 
-    private sealed class LibraryFlowContext(Guid runId, string nodeId, CancellationToken cancellationToken) : IFlowContext
+    private sealed class LibraryFlowContext(
+        Guid runId,
+        string nodeId,
+        CancellationToken cancellationToken,
+        Guid executionId) : IFlowContext
     {
         private ExecutionBranch _branch = ExecutionBranch.Success;
         private string? _code;
@@ -403,6 +408,8 @@ internal sealed class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecut
         public Guid RunId { get; } = runId;
 
         public string NodeId { get; } = nodeId;
+
+        public Guid ExecutionId { get; } = executionId;
 
         public CancellationToken CancellationToken { get; } = cancellationToken;
 

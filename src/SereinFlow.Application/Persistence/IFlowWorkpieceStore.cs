@@ -21,4 +21,5 @@ public sealed record FlowWorkpieceRecord(
     string ContentType,
     long Length,
     DateTimeOffset CreatedAt,
-    string? NodeId = null);
+    string? NodeId = null,
+    Guid? ExecutionId = null);

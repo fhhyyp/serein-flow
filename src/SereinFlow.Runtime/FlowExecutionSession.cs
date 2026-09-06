@@ -83,8 +83,15 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
     internal void AttachPlan(ExecutionPlan plan) => Plan = plan;
 
     public bool TryBeginStep(string nodeId, out string? errorCode)
+        => TryBeginStep(nodeId, out _, out _, out errorCode);
+
+    public bool TryBeginStep(string nodeId, out Guid executionId, out string? errorCode)
+        => TryBeginStep(nodeId, out _, out executionId, out errorCode);
+
+    public bool TryBeginStep(string nodeId, out int step, out Guid executionId, out string? errorCode)
     {
-        var step = Interlocked.Increment(ref _sharedState.StepCount);
+        step = Interlocked.Increment(ref _sharedState.StepCount);
+        executionId = Guid.NewGuid();
         if (step > MaxSteps)
         {
             errorCode = "flow.step_limit_exceeded";

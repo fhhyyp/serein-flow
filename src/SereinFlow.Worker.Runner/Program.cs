@@ -382,7 +382,8 @@ public static class RunnerHost
                 ["step"] = pause.Step,
                 ["inputs"] = ScriptValueConverter.ToAuditValue(pause.Inputs),
                 ["frameDepth"] = pause.FrameDepth,
-                ["triggerInvocationId"] = pause.TriggerInvocationId
+                ["triggerInvocationId"] = pause.TriggerInvocationId,
+                ["executionId"] = pause.ExecutionId
             };
             return PublishEnvelopeAsync(
                 new WorkerEventEnvelopeDto(
@@ -460,7 +461,8 @@ public static class RunnerHost
                     boundary.Step,
                     boundary.Inputs,
                     boundary.FrameDepth,
-                    boundary.InvocationId);
+                    boundary.InvocationId,
+                    boundary.ExecutionId);
                 return publisher.PublishDebugPausedAsync(pause, session.NextSequence(), token);
             });
             lock (_sync)

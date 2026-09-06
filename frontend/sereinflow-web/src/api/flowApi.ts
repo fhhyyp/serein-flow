@@ -316,6 +316,7 @@ export interface FlowDebugPauseStateDto {
   boundarySequence: number
   inputs: unknown
   pausedAt: string
+  executionId?: string
 }
 
 export interface FlowDebugNodeResultDto {
@@ -381,6 +382,7 @@ export interface FlowWorkpieceDto {
   createdAt: string
   downloadUrl: string
   nodeId?: string
+  executionId?: string
 }
 
 export interface RunExecutionSettingsDto {

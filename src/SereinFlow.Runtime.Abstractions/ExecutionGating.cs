@@ -14,7 +14,8 @@ public sealed record NodeExecutionBoundary(
     int Step,
     IReadOnlyDictionary<string, object?> Inputs,
     int FrameDepth,
-    Guid? InvocationId = null);
+    Guid? InvocationId = null,
+    Guid? ExecutionId = null);
 
 public enum ExecutionGateDecision
 {

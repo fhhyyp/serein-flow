@@ -1,4 +1,4 @@
-import { computed, onBeforeUnmount, onMounted, reactive, ref, type Ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, type Ref, watch } from 'vue'
 import {
   createSnapshotDockableWorkspaceLayout,
   normalizeDockableWorkspaceLayout,

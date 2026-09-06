@@ -127,14 +127,14 @@ public sealed class FlowRunner
             if (!plan.Nodes.TryGetValue(currentNodeId, out var node))
                 return NodeExecutionResult.Error("flow.node_missing", $"Node '{currentNodeId}' does not exist. 节点“{currentNodeId}”不存在。");
 
-            if (!session.TryBeginStep(node.Id, out var limitError))
+            if (!session.TryBeginStep(node.Id, out var step, out var executionId, out var limitError))
                 return NodeExecutionResult.Error(limitError!, "The flow execution limit was exceeded. 流程执行限制已超出。");
 
             await PublishAsync(session, "node.started", node.Id, new Dictionary<string, object?>
             {
-                ["step"] = session.StepCount,
+                ["step"] = step,
                 ["triggerInvocationId"] = session.InvocationId
-            });
+            }, executionId);
 
             IReadOnlyDictionary<string, object?> inputs = EmptyInputs;
             try
@@ -145,10 +145,11 @@ public sealed class FlowRunner
                         session.RunId,
                         node.Id,
                         node.Type,
-                        session.StepCount,
+                        step,
                         CopyInputs(inputs),
                         session.FrameDepth,
-                        session.InvocationId),
+                        session.InvocationId,
+                        executionId),
                     cancellationToken);
                 if (gateDecision == ExecutionGateDecision.Cancel)
                 {
@@ -159,7 +160,9 @@ public sealed class FlowRunner
                 }
 
                 var executor = _executors.Get(node.Type);
-                lastResult = await executor.ExecuteAsync(CreateExecutionRequest(node, plan, session, inputs), cancellationToken);
+                lastResult = await executor.ExecuteAsync(
+                    CreateExecutionRequest(node, plan, session, inputs, step, executionId),
+                    cancellationToken);
                 lastResult = AttachInputs(lastResult, inputs);
             }
             catch (FlowDataBindingException exception)
@@ -209,7 +212,7 @@ public sealed class FlowRunner
                     ["inputs"] = lastResult.Inputs ?? inputs,
                     ["outputs"] = lastResult.TransferOutputs ?? lastResult.Outputs,
                     ["triggerInvocationId"] = session.InvocationId
-                });
+                }, executionId);
 
             var branch = lastResult.NextBranch;
             var selected = plan.GetOutgoing(node.Id, branch);
@@ -243,9 +246,11 @@ public sealed class FlowRunner
         {
             IReadOnlyDictionary<string, object?> inputs = EmptyInputs;
             Guid? invocationId = null;
+            var step = 0;
+            var executionId = Guid.Empty;
             try
             {
-                if (!session.TryBeginStep(node.Id, out var limitError))
+                if (!session.TryBeginStep(node.Id, out step, out executionId, out var limitError))
                 {
                     await PublishAsync(session, "node.failed", node.Id, new Dictionary<string, object?>
                     {
@@ -273,11 +278,13 @@ public sealed class FlowRunner
                     await PublishAsync(session, "node.started", node.Id, new Dictionary<string, object?>
                     {
                         ["global"] = true,
-                        ["step"] = session.StepCount,
+                        ["step"] = step,
                         ["triggerInvocationId"] = invocationId
-                    });
+                    }, executionId);
                     inputs = _dataResolver.Resolve(node, plan, triggerSession);
-                    var result = await trigger.WaitForTriggerAsync(CreateExecutionRequest(node, plan, triggerSession, inputs), cancellationToken);
+                    var result = await trigger.WaitForTriggerAsync(
+                        CreateExecutionRequest(node, plan, triggerSession, inputs, step, executionId),
+                        cancellationToken);
                     result = AttachInputs(result, inputs);
                     foreach (var output in result.Outputs)
                         triggerSession.Write($"{node.Id}.{output.Key}", output.Value);
@@ -300,7 +307,7 @@ public sealed class FlowRunner
                         ["inputs"] = result.Inputs ?? inputs,
                         ["outputs"] = result.TransferOutputs ?? result.Outputs,
                         ["triggerInvocationId"] = invocationId
-                    });
+                    }, executionId);
 
                     if (_debugInvocationScheduler is null)
                     {
@@ -324,6 +331,8 @@ public sealed class FlowRunner
                                 triggerSession,
                                 result.NextBranch,
                                 debugInputs,
+                                step,
+                                executionId,
                                 cancellationToken),
                             () => triggerSession.DisposeAsync().AsTask(),
                             out var queuePosition))
@@ -374,7 +383,7 @@ public sealed class FlowRunner
                     ["errorCode"] = exception.Code,
                     ["errorMessage"] = exception.Message,
                     ["triggerInvocationId"] = invocationId
-                });
+                }, executionId);
                 foreach (var connection in plan.GetOutgoing(node.Id, ExecutionBranch.Failure))
                     await RunStackAsync(connection.ToNodeId, plan, session, cancellationToken);
                 await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken);
@@ -391,7 +400,7 @@ public sealed class FlowRunner
                     ["errorCode"] = "flipflop.execution_failed",
                     ["errorMessage"] = $"Global Flipflop execution failed. 全局 Flipflop 执行失败。 {exception.Message}",
                     ["triggerInvocationId"] = invocationId
-                });
+                }, executionId);
                 // An exception escaping a global listener still follows the
                 // node's Error branch before the listener waits again.
                 // 全局监听器发生未处理异常时，先进入 Error 分支，再继续等待下一次触发。
@@ -411,6 +420,8 @@ public sealed class FlowRunner
         FlowExecutionSession triggerSession,
         ExecutionBranch branch,
         IReadOnlyDictionary<string, object?> inputs,
+        int step,
+        Guid executionId,
         CancellationToken cancellationToken)
     {
         await using var ownedTriggerSession = triggerSession;
@@ -427,10 +438,11 @@ public sealed class FlowRunner
                     rootSession.RunId,
                     flipflopNode.Id,
                     flipflopNode.Type,
-                    rootSession.StepCount,
+                    step,
                     CopyInputs(inputs),
                     triggerSession.FrameDepth,
-                    invocationId),
+                    invocationId,
+                    executionId),
                 cancellationToken);
             if (decision == ExecutionGateDecision.Cancel)
             {
@@ -554,7 +566,9 @@ public sealed class FlowRunner
         NodeDefinition node,
         ExecutionPlan plan,
         FlowExecutionSession session,
-        IReadOnlyDictionary<string, object?> inputs)
+        IReadOnlyDictionary<string, object?> inputs,
+        int step,
+        Guid executionId)
     {
         var canvasId = plan.Definition.Canvases
             .FirstOrDefault(canvas => canvas.Nodes.Any(candidate => string.Equals(candidate.Id, node.Id, StringComparison.Ordinal)))
@@ -566,12 +580,14 @@ public sealed class FlowRunner
             plan.Definition.Id,
             canvasId,
             node.Id,
-            session.FrameDepth);
+            session.FrameDepth,
+            step,
+            executionId);
         var runtime = new NodeExecutionRuntime(
             environment,
-            new NodeEventSink(this, session, node.Id),
+            new NodeEventSink(this, session, node.Id, executionId),
             () => session.CancellationToken.IsCancellationRequested);
-        return new NodeExecutionRequest(node, session, inputs, runtime);
+        return new NodeExecutionRequest(node, session, inputs, runtime, step, executionId);
     }
 
     private static NodeExecutionResult AttachInputs(
@@ -584,7 +600,11 @@ public sealed class FlowRunner
     private static Dictionary<string, object?> CopyInputs(IReadOnlyDictionary<string, object?> values)
         => new Dictionary<string, object?>(values, StringComparer.Ordinal);
 
-    private sealed class NodeEventSink(FlowRunner runner, FlowExecutionSession session, string nodeId) : INodeExecutionEventSink
+    private sealed class NodeEventSink(
+        FlowRunner runner,
+        FlowExecutionSession session,
+        string nodeId,
+        Guid executionId) : INodeExecutionEventSink
     {
         public ValueTask PublishLogAsync(NodeExecutionLogEntry entry, CancellationToken cancellationToken)
         {
@@ -598,7 +618,7 @@ public sealed class FlowRunner
                     ["level"] = entry.Level,
                     ["message"] = entry.Message,
                     ["value"] = entry.Value
-                });
+                }, executionId);
         }
     }
 
@@ -606,12 +626,15 @@ public sealed class FlowRunner
         FlowExecutionSession session,
         string type,
         string nodeId,
-        IReadOnlyDictionary<string, object?> payload)
+        IReadOnlyDictionary<string, object?> payload,
+        Guid? executionId = null)
     {
         var payloadWithFrame = new Dictionary<string, object?>(payload, StringComparer.Ordinal)
         {
             ["frameDepth"] = session.FrameDepth
         };
+        if (executionId is Guid id)
+            payloadWithFrame["executionId"] = id;
         await _eventPublisher.PublishAsync(
             new RuntimeEvent(session.RunId, session.NextSequence(), DateTimeOffset.UtcNow, type, nodeId, payloadWithFrame),
             session.CancellationToken);

@@ -1,3 +1,5 @@
+using SereinFlow.Runtime.Abstractions;
+
 namespace SereinFlow.Library;
 
 /// <summary>
@@ -24,7 +26,8 @@ public sealed record FlowWorkpieceInfo(
     string ContentType,
     long Length,
     DateTimeOffset CreatedAt,
-    string? NodeId = null);
+    string? NodeId = null,
+    Guid? ExecutionId = null);
 
 /// <summary>
 /// Stores non-JSON node data in the current flow run and exposes a small reference that can be
@@ -33,7 +36,10 @@ public sealed record FlowWorkpieceInfo(
 /// </summary>
 public interface IFlowWorkpiece
 {
-    /// <summary>Uploads image bytes.</summary>
+    /// <summary>
+    /// Uploads image bytes. Use <see cref="FlowWorkpieceContentTypes.Png"/>
+    /// when the image is PNG encoded.
+    /// </summary>
     FlowWorkpieceInfo UploadImage(string imageName, byte[] content, string? contentType = null);
 
     /// <summary>Uploads image data from the current stream position.</summary>
@@ -50,13 +56,13 @@ public interface IFlowWorkpiece
 
     /// <summary>
     /// Uploads a file and associates it with the currently executing flow node.
-    /// The node ID is persisted with the workpiece so the debugger can select
-    /// the artifact produced by the selected execution step.
+    /// The node ID and execution ID are persisted with the workpiece so the
+    /// debugger can select the artifact produced by the selected execution step.
     /// 上传文件并将其绑定到当前执行的流程节点；节点 ID 会随工件元数据保存，
-    /// 供调试器按执行步骤自动选中节点产出的工件。
+    /// 执行 ID 也会随工件元数据保存，供调试器精确选中本次执行步骤产出的工件。
     /// </summary>
-    FlowWorkpieceInfo UploadNodeOutput(string nodeId, string fileName, byte[] content, string? contentType = null);
+    FlowWorkpieceInfo UploadNodeOutput(IFlowContext context, string fileName, byte[] content, string? contentType = null);
 
     /// <summary>Uploads node output data from the current stream position.</summary>
-    FlowWorkpieceInfo UploadNodeOutput(string nodeId, string fileName, Stream content, string? contentType = null);
+    FlowWorkpieceInfo UploadNodeOutput(IFlowContext context, string fileName, Stream content, string? contentType = null);
 }

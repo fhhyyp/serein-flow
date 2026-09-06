@@ -523,6 +523,7 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
         {
             using var payload = JsonDocument.Parse(workerEvent.PayloadJson);
             var invocationId = ReadPayloadGuid(payload.RootElement, "triggerInvocationId");
+            var executionId = ReadPayloadGuid(payload.RootElement, "executionId");
             session.Pause(
                 new FlowDebugPauseState(
                     workerEvent.NodeId ?? string.Empty,
@@ -532,7 +533,8 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
                     invocationId,
                     workerEvent.Sequence,
                     ReadPayloadJson(payload.RootElement, "inputs"),
-                    workerEvent.Timestamp),
+                    workerEvent.Timestamp,
+                    executionId),
                 workerEvent.Timestamp,
                 invocationId,
                 invocationId is null ? null : session.ActiveFlipflopNodeId ?? workerEvent.NodeId);

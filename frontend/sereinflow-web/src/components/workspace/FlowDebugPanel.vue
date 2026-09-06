@@ -14,6 +14,7 @@ const props = withDefaults(defineProps<{
   executions: readonly NodeExecutionState[]
   nodeNames?: Record<string, string>
   selectedNodeId?: string
+  selectedExecutionId?: string
   isControlling: boolean
   isStopping: boolean
 }>(), {
@@ -25,7 +26,7 @@ const emit = defineEmits<{
   step: []
   stop: []
   inspect: []
-  selectNode: [nodeId: string]
+  selectExecution: [execution: NodeExecutionState]
   close: []
 }>()
 
@@ -59,7 +60,7 @@ const invocationShortId = computed(() => props.session?.activeInvocationId?.slic
       <div v-if="props.session.queuedTriggerCount > 0"><dt>{{ t('debug.queuedTriggers') }}</dt><dd><ListOrdered :size="13" />{{ props.session.queuedTriggerCount }}</dd></div>
     </dl>
 
-    <NodeExecutionInspector :executions="props.executions" :node-names="props.nodeNames" :selected-node-id="props.selectedNodeId" compact @select-node="emit('selectNode', $event)" />
+    <NodeExecutionInspector :executions="props.executions" :node-names="props.nodeNames" :selected-node-id="props.selectedNodeId" :selected-execution-id="props.selectedExecutionId" compact @select-execution="emit('selectExecution', $event)" />
 
     <footer class="flow-debug-panel__controls">
       <button class="flow-debug-panel__control" type="button" :title="t('debug.continue')" :aria-label="t('debug.continue')" :disabled="!isPaused || props.isControlling || props.isStopping" @click="emit('continue')"><Play :size="16" fill="currentColor" /></button>

@@ -8,7 +8,7 @@ import {
   normalizeDockableWorkspaceLayout,
 } from '../src/flow/dockableWorkspace.ts'
 import { reflowDockableResize } from '../src/flow/dockableResize.ts'
-import { latestFlowWorkpieceForNode, selectFlowWorkpieceId } from '../src/flow/workpieceSelection.ts'
+import { firstFlowWorkpieceForExecution, firstFlowWorkpieceForNode, latestFlowWorkpieceForNode, selectFlowWorkpieceId } from '../src/flow/workpieceSelection.ts'
 
 function workpiece(id: string, createdAt: string): FlowWorkpieceDto {
   return {
@@ -21,6 +21,10 @@ function workpiece(id: string, createdAt: string): FlowWorkpieceDto {
     createdAt,
     downloadUrl: `/workpieces/${id}`,
   }
+}
+
+function executionWorkpiece(id: string, createdAt: string, nodeId: string, executionId: string): FlowWorkpieceDto {
+  return { ...workpiece(id, createdAt), nodeId, executionId }
 }
 
 test('dockable layout keeps panel groups and active tabs across normalization', () => {
@@ -165,4 +169,13 @@ test('workpiece focus selects the latest matching node output without filtering 
 
   assert.equal(latestFlowWorkpieceForNode([source, output, latestOutput], 'opencv-gray')?.id, 'output-latest')
   assert.equal(latestFlowWorkpieceForNode([source, output, latestOutput], 'missing'), undefined)
+})
+
+test('workpiece focus resolves the first artifact for a repeated execution', () => {
+  const firstExecution = executionWorkpiece('first-step', '2026-09-05T09:00:00.000Z', 'opencv-gray', 'execution-1')
+  const secondExecution = executionWorkpiece('second-step', '2026-09-05T09:01:00.000Z', 'opencv-gray', 'execution-2')
+  const extraFirstArtifact = executionWorkpiece('first-step-extra', '2026-09-05T09:02:00.000Z', 'opencv-gray', 'execution-1')
+
+  assert.equal(firstFlowWorkpieceForExecution([secondExecution, extraFirstArtifact, firstExecution], 'execution-1')?.id, 'first-step')
+  assert.equal(firstFlowWorkpieceForNode([secondExecution, extraFirstArtifact, firstExecution], 'opencv-gray')?.id, 'first-step')
 })

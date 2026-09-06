@@ -16,7 +16,7 @@
   <PropertyGroup>
     <AssemblyName>SereinFlow.OpenCvLibrary</AssemblyName>
     <RootNamespace>SereinFlow.OpenCvLibrary</RootNamespace>
-    <Version>1.0.3</Version>
+    <Version>1.0.4</Version>
     <!-- 指定输出目录，避免 publish 产生额外层级 -->
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <!--<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>-->

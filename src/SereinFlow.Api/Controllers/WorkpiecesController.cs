@@ -65,5 +65,6 @@ public sealed class WorkpiecesController : ApiControllerBase
             item.Length,
             item.CreatedAt,
             $"/api/runs/{item.RunId:D}/workpieces/{item.Id}",
-            item.NodeId);
+            item.NodeId,
+            item.ExecutionId);
 }

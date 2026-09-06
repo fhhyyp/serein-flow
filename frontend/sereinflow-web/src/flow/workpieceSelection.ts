@@ -20,6 +20,29 @@ export function latestFlowWorkpieceForNode(
   return latestFlowWorkpiece(workpieces.filter((workpiece) => workpiece.nodeId === nodeId))
 }
 
+export function firstFlowWorkpiece(workpieces: readonly FlowWorkpieceDto[]): FlowWorkpieceDto | undefined {
+  return workpieces.reduce<FlowWorkpieceDto | undefined>((first, workpiece) => {
+    if (!first || createdAtValue(workpiece) < createdAtValue(first)) return workpiece
+    return first
+  }, undefined)
+}
+
+export function firstFlowWorkpieceForNode(
+  workpieces: readonly FlowWorkpieceDto[],
+  nodeId?: string,
+): FlowWorkpieceDto | undefined {
+  if (!nodeId) return undefined
+  return firstFlowWorkpiece(workpieces.filter((workpiece) => workpiece.nodeId === nodeId))
+}
+
+export function firstFlowWorkpieceForExecution(
+  workpieces: readonly FlowWorkpieceDto[],
+  executionId?: string,
+): FlowWorkpieceDto | undefined {
+  if (!executionId) return undefined
+  return firstFlowWorkpiece(workpieces.filter((workpiece) => workpiece.executionId === executionId))
+}
+
 export function selectFlowWorkpieceId(
   previous: readonly FlowWorkpieceDto[],
   next: readonly FlowWorkpieceDto[],

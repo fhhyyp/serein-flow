@@ -62,6 +62,7 @@ import { useNodeDrop } from './composables/useNodeDrop'
 import { useWorkspaceShortcuts } from './composables/useWorkspaceShortcuts'
 import { useDockableWorkspace } from './composables/useDockableWorkspace'
 import { workspaceToFlowDefinition } from './flow/flowDtoMapper'
+import type { NodeExecutionState } from './flow/nodeExecutionState'
 import type {
   DockablePanelGroupState,
   DockableWorkspaceMode,
@@ -375,21 +376,45 @@ function focusDebugCanvasNode(nodeId: string): void {
 function handleCanvasNodeClick(event: { node: { id: string } }): void {
   onNodeClick(event)
   if (!debugSession.value) return
+  const execution = debugExecutionStates.value.find((state) => state.nodeId === event.node.id)
   selectedDebugNodeId.value = event.node.id
+  selectedDebugExecutionId.value = execution?.id
   workpieceFocusNodeId.value = event.node.id
+  workpieceFocusExecutionId.value = execution?.executionId
+  showDockablePanel('workpieces')
 }
 
-function focusDebugWorkpieceNode(nodeId: string): void {
+function focusDebugWorkpieceNode(nodeId: string, executionId?: string): void {
   if (!debugSession.value) return
+  const execution = executionId
+    ? debugExecutionStates.value.find((state) => state.id === executionId || state.executionId === executionId)
+    : debugExecutionStates.value.find((state) => state.nodeId === nodeId)
   selectedDebugNodeId.value = nodeId
+  selectedDebugExecutionId.value = execution?.id
   workpieceFocusNodeId.value = nodeId
+  workpieceFocusExecutionId.value = executionId ?? execution?.executionId
   showDockablePanel('debug')
   focusDebugCanvasNode(nodeId)
 }
 
-function handleDebugPause(nodeId: string): void {
+function focusDebugExecution(execution: NodeExecutionState): void {
+  if (!debugSession.value) return
+  selectedDebugNodeId.value = execution.nodeId
+  selectedDebugExecutionId.value = execution.id
+  workpieceFocusNodeId.value = execution.nodeId
+  workpieceFocusExecutionId.value = execution.executionId
+  showDockablePanel('debug')
+  focusDebugCanvasNode(execution.nodeId)
+}
+
+function handleDebugPause(nodeId: string, executionId?: string): void {
   selectedDebugNodeId.value = nodeId
-  workpieceFocusNodeId.value = undefined
+  const execution = executionId
+    ? debugExecutionStates.value.find((state) => state.id === executionId || state.executionId === executionId)
+    : debugExecutionStates.value.find((state) => state.nodeId === nodeId)
+  selectedDebugExecutionId.value = execution?.id
+  workpieceFocusNodeId.value = nodeId
+  workpieceFocusExecutionId.value = executionId ?? execution?.executionId
   focusDebugCanvasNode(nodeId)
   workpieceRefreshRevision.value += 1
 }
@@ -447,7 +472,9 @@ const visibleActiveOutput = computed({
 
 const activeWorkpieceRunId = computed(() => debugSession.value?.runId ?? lastRunId.value ?? '')
 const selectedDebugNodeId = ref<string>()
+const selectedDebugExecutionId = ref<string>()
 const workpieceFocusNodeId = ref<string>()
+const workpieceFocusExecutionId = ref<string>()
 const workpieceRefreshRevision = ref(0)
 const canUseDebugDisplayMode = computed(() => Boolean(flowId.value))
 const panelDefinitions = computed<WorkspacePanelTab[]>(() => [
@@ -844,7 +871,9 @@ watch([isDebugActive, () => workspaceView.value, () => debugSession.value?.id], 
 watch(() => debugSession.value?.id, (sessionId, previousSessionId) => {
   if (sessionId !== previousSessionId) {
     selectedDebugNodeId.value = undefined
+    selectedDebugExecutionId.value = undefined
     workpieceFocusNodeId.value = undefined
+    workpieceFocusExecutionId.value = undefined
   }
 })
 
@@ -859,7 +888,9 @@ watch(() => selectedNode.value?.id, (nodeId) => {
 watch(() => debugSession.value?.status, (status, previousStatus) => {
   if (previousStatus && status && status !== previousStatus && ['completed', 'cancelled', 'failed'].includes(status)) {
     selectedDebugNodeId.value = undefined
+    selectedDebugExecutionId.value = undefined
     workpieceFocusNodeId.value = undefined
+    workpieceFocusExecutionId.value = undefined
     workpieceRefreshRevision.value += 1
   }
 })
@@ -1510,6 +1541,7 @@ function setLanguage(nextLocale: Locale): void {
               :executions="debugExecutionStates"
               :node-names="debugNodeNames"
               :selected-node-id="selectedDebugNodeId"
+              :selected-execution-id="selectedDebugExecutionId"
               :is-controlling="isDebugControlling"
               :is-stopping="isDebugStopping"
               :embedded="true"
@@ -1517,13 +1549,14 @@ function setLanguage(nextLocale: Locale): void {
               @step="stepDebug"
               @stop="stopDebug"
               @inspect="inspectDebugNode"
-              @select-node="focusDebugWorkpieceNode"
+              @select-execution="focusDebugExecution"
               @close="closeWorkspacePanel('debug')"
             />
             <RunWorkpiecePanel
               v-else-if="panelId === 'workpieces' && activeWorkpieceRunId"
               :run-id="activeWorkpieceRunId"
               :focus-node-id="debugSession ? workpieceFocusNodeId : undefined"
+              :focus-execution-id="debugSession ? workpieceFocusExecutionId : undefined"
               :refresh-signal="workpieceRefreshRevision"
               :live="isRunning || isDebugActive"
               :embedded="true"

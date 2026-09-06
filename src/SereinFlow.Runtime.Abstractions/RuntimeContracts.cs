@@ -15,7 +15,9 @@ public sealed record NodeExecutionRequest(
     NodeDefinition Node,
     IExecutionContext Context,
     IReadOnlyDictionary<string, object?> Inputs,
-    NodeExecutionRuntime? Runtime = null);
+    NodeExecutionRuntime? Runtime = null,
+    int Step = 0,
+    Guid ExecutionId = default);
 
 /// <summary>
 /// Immutable metadata exposed to a node execution. It is intentionally smaller
@@ -28,7 +30,9 @@ public sealed record NodeExecutionEnvironment(
     Guid FlowId,
     string CanvasId,
     string NodeId,
-    int FrameDepth);
+    int FrameDepth,
+    int Step = 0,
+    Guid? ExecutionId = null);
 
 /// <summary>
 /// A structured log entry emitted by a node executor. The runtime assigns the

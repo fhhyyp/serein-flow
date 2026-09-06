@@ -9,11 +9,12 @@
 
 - [MCP 服务参考](mcp-readonly-server.md)：HTTP 和 stdio 传输、鉴权、资源、提示词、
   工具与运行边界。
-- [Worker Protocol v2](worker-protocol-v2.md)：API Supervisor 与临时 Worker Runner
-  进程间的版本化 JSON Lines 协议，以及消息投递控制消息。
-- [Worker Protocol v1（历史版本）](worker-protocol-v1.md)：旧版 JSON Lines 协议和稳定错误码。
+- [Worker 协议](worker-protocol.md)：统一说明当前 v2 生产协议、v1 历史兼容差异、
+  JSON Lines 边界、会话流程、消息桥接和稳定错误码。
 - [Worker 消息服务](worker-message-service.md)：运行级队列、事件总线、Worker
   DI 注入和活动运行的受控外部消息入口。
+- [节点类库开发指南](node-library-development.md)：`SereinFlow.Library` SDK、节点特性、
+  参数/返回值、注入、消息、工件、Native 依赖、OpenCV 示例、打包和升级兼容性。
 
 首次本机启动和 MCP 客户端配置流程请阅读仓库根目录的
 [中文 README](../../README.zh-CN.md)。
