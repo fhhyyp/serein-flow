@@ -722,6 +722,8 @@ h2 { overflow-wrap: anywhere; }
 .focus-settings-option input:disabled { cursor: not-allowed; }
 .focus-settings-option:has(input:disabled) { cursor: not-allowed; }
 .canvas-tools { height: 32px; flex: 0 0 auto; gap: 8px; }
+.canvas-selection-count { max-width: 140px; overflow: hidden; color: var(--accent); font-family: var(--mono); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.canvas-selection-hint { max-width: 300px; overflow: hidden; color: var(--subtle); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .save-state { gap: 5px; color: var(--success); font-size: 12px; white-space: nowrap; }
 .flow-validation-diagnostics { display: grid; min-height: 0; flex: 1; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; background: #fffaf9; }
 .flow-validation-diagnostics__header { display: flex; min-height: 46px; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #f5d9d5; padding: 8px 16px; }
@@ -759,6 +761,7 @@ h2 { overflow-wrap: anywhere; }
 .serein-flow .vue-flow__node.canvas-focus-highlighted { opacity: 1; transition: opacity 180ms ease; }
 .serein-flow .vue-flow__node.selected .workflow-node, .workflow-node.selected { border-color: var(--accent); outline: 2px solid var(--accent-soft); outline-offset: 2px; box-shadow: 0 0 0 1px var(--accent), 0 6px 16px rgb(3 105 161 / 14%); }
 .serein-flow .vue-flow__edge-path { stroke-width: 2; }
+.serein-flow .vue-flow__nodesselection-rect { border-color: transparent; background: transparent; }
 .serein-flow .vue-flow__edge.canvas-focus-dimmed { opacity: .14; transition: opacity 180ms ease; }
 .serein-flow .vue-flow__edge.canvas-focus-highlighted { opacity: 1; transition: opacity 180ms ease; }
 .serein-flow .vue-flow__edge.canvas-focus-highlighted .vue-flow__edge-path { stroke-width: 2.75; }
@@ -1320,6 +1323,7 @@ h2 { overflow-wrap: anywhere; }
   .language-button span { display: none; }
   .canvas-toolbar { min-height: 44px; padding: 7px 12px; }
   .save-state { display: none; }
+  .canvas-selection-hint { display: none; }
   .canvas-tabs { max-width: calc(100vw - 174px); }
   .canvas-tabs button { padding: 0 7px; font-size: 12px; }
   .canvas-notice { max-width: calc(100% - 28px); text-align: center; }

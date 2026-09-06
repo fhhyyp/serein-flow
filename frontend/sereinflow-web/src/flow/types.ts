@@ -121,6 +121,8 @@ export interface FlowNode {
   id: string
   position: XYPosition
   width?: number
+  /** Transient Vue Flow selection state; never persisted to a flow definition. */
+  selected?: boolean
   class?: string | string[]
   data: FlowNodeData
   type: 'workflow'
@@ -130,6 +132,8 @@ export interface FlowEdge {
   id: string
   source: string
   target: string
+  /** Transient Vue Flow selection state; never persisted to a flow definition. */
+  selected?: boolean
   sourceHandle?: string | null
   targetHandle?: string | null
   type?: string

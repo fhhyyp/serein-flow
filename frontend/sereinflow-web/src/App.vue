@@ -156,6 +156,7 @@ const savedWorkspaceFingerprint = ref('')
 const isRestoringWorkspace = ref(false)
 const isSwitchingCanvas = ref(false)
 const workspaceView = ref<'console' | 'editor'>('console')
+const isEditorActive = computed(() => workspaceView.value === 'editor')
 const workspaceRoot = ref<HTMLElement>()
 const {
   layout: dockableLayout,
@@ -331,7 +332,10 @@ const {
   renderedElements,
   selectedNode,
   selectedEdge,
+  selectedNodeCount,
+  selectedEdgeCount,
   selectNode,
+  selectAllNodes,
   onNodeClick,
   onEdgeClick,
   clearSelection,
@@ -376,7 +380,10 @@ function focusDebugCanvasNode(nodeId: string): void {
 
 function handleCanvasNodeClick(event: { node: { id: string } }): void {
   onNodeClick(event)
-  if (!debugSession.value) return
+  // A completed debug session remains available so its results can still be
+  // inspected. It must not make normal editor clicks reopen the workpieces
+  // panel after the user has switched back to edit mode.
+  if (!debugSession.value || dockableDisplayMode.value !== 'debug') return
   const execution = debugExecutionStates.value.find((state) => state.nodeId === event.node.id)
   selectedDebugNodeId.value = event.node.id
   selectedDebugExecutionId.value = execution?.id
@@ -1320,7 +1327,7 @@ function updateConcurrencyMode(mode: FlowConcurrencyMode): void {
   markWorkspaceChanged()
 }
 
-useWorkspaceShortcuts({ canvasDeleteConfirmOpen, cancelCanvasRemoval, saveFlow, undo, redo })
+useWorkspaceShortcuts({ canvasDeleteConfirmOpen, isEditorActive, cancelCanvasRemoval, saveFlow, undo, redo, selectAllNodes })
 
 onMounted(() => {
   void initializeWorkspace()
@@ -1479,6 +1486,8 @@ function setLanguage(nextLocale: Locale): void {
               :save-state-key="saveStateKey"
               :selected-node="selectedNode"
               :selected-edge="selectedEdge"
+              :selected-node-count="selectedNodeCount"
+              :selected-edge-count="selectedEdgeCount"
               :is-canvas-drop-active="isCanvasDropActive"
               :notice="notice"
               :pending-canvas-delete="pendingCanvasDelete"
@@ -1493,6 +1502,7 @@ function setLanguage(nextLocale: Locale): void {
               @update-connection-line-type="updateConnectionLineType"
               @update-canvas-focus-setting="updateCanvasFocusSetting"
               @remove-selection="removeSelection"
+              @select-all-nodes="selectAllNodes"
               @request-canvas-removal="requestCanvasRemoval"
               @cancel-canvas-removal="cancelCanvasRemoval"
               @confirm-canvas-removal="confirmCanvasRemoval"

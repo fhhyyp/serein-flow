@@ -43,6 +43,18 @@ test('a selected node focuses every direct execution and parameter connection', 
   assert.deepEqual([...focus.focusedEdgeIds].sort(), ['data-input', 'execution-output'])
 })
 
+test('multiple selected nodes focus only the selected nodes', () => {
+  const focus = canvasFocusState(
+    nodes.map((item) => ({ ...item, selected: item.id === 'source' || item.id === 'selected' })),
+    edges,
+    'selected',
+  )
+
+  assert.equal(focus.active, true)
+  assert.deepEqual([...focus.focusedNodeIds].sort(), ['selected', 'source'])
+  assert.deepEqual([...focus.focusedEdgeIds].sort(), ['data-input', 'execution-output'])
+})
+
 test('a selected edge focuses only its endpoints and the selected connection', () => {
   const focus = canvasFocusState(nodes, edges, undefined, 'data-input')
 

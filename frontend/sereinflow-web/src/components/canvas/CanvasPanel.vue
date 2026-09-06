@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { markRaw } from 'vue'
-import { LayoutGrid, LocateFixed, Plus, Save, Settings2, Check, Trash2, X } from 'lucide-vue-next'
+import { Check, LayoutGrid, ListChecks, LocateFixed, Plus, Save, Settings2, Trash2, X } from 'lucide-vue-next'
 import {
   ConnectionMode,
+  SelectionMode,
   VueFlow,
   type Connection,
   type EdgeChange,
@@ -41,6 +42,8 @@ const props = defineProps<{
   saveStateKey: string
   selectedNode: FlowNode | undefined
   selectedEdge: FlowEdge | undefined
+  selectedNodeCount: number
+  selectedEdgeCount: number
   isCanvasDropActive: boolean
   notice: string
   pendingCanvasDelete?: CanvasState
@@ -58,6 +61,7 @@ const emit = defineEmits<{
   'update-connection-line-type': [semantic: ConnectionSemantic, event: Event]
   'update-canvas-focus-setting': [setting: CanvasFocusSettingKey, event: Event]
   'remove-selection': []
+  'select-all-nodes': []
   'request-canvas-removal': []
   'cancel-canvas-removal': []
   'confirm-canvas-removal': []
@@ -98,6 +102,7 @@ function updateCustomCanvasName(event: Event): void {
         </div>
       </div>
       <div class="canvas-tools">
+        <span v-if="props.currentCanvasNodeCount > 0 && props.selectedNodeCount === 0" class="canvas-selection-hint">{{ t('canvas.selectionHint') }}</span>
         <span class="save-state" role="status"><Check v-if="!props.isDirty && !props.saveFailed && !props.saveConflict && !props.isSaving && !props.isWorkspaceLoading" :size="14" /><Save v-else :size="14" />{{ t(props.saveStateKey) }}</span>
         <div class="connection-settings">
           <button class="icon-button compact" type="button" :title="t('canvas.canvasSettings')" :aria-label="t('canvas.canvasSettings')" :aria-expanded="props.connectionSettingsOpen" @click="emit('toggle-connection-settings')"><Settings2 :size="15" /></button>
@@ -125,12 +130,14 @@ function updateCustomCanvasName(event: Event): void {
             </section>
           </div>
         </div>
-        <button class="icon-button" type="button" :title="t('command.delete')" :aria-label="t('command.delete')" :disabled="!props.selectedNode && !props.selectedEdge" @click="emit('remove-selection')"><Trash2 :size="16" /></button>
+        <span v-if="props.selectedNodeCount > 1" class="canvas-selection-count" role="status" aria-live="polite">{{ t('canvas.selectedNodes', { count: props.selectedNodeCount }) }}</span>
+        <button class="icon-button compact" type="button" :title="t('canvas.selectAllNodes')" :aria-label="t('canvas.selectAllNodes')" :disabled="props.currentCanvasNodeCount === 0" @click="emit('select-all-nodes')"><ListChecks :size="15" /></button>
+        <button class="icon-button" type="button" :title="t('command.delete')" :aria-label="t('command.delete')" :disabled="props.selectedNodeCount === 0 && props.selectedEdgeCount === 0" @click="emit('remove-selection')"><Trash2 :size="16" /></button>
         <button class="icon-button canvas-delete-button" type="button" :title="t('canvas.remove')" :aria-label="t('canvas.remove')" :disabled="props.currentCanvasLifecycle === 'main'" @click="emit('request-canvas-removal')"><X :size="16" /></button>
       </div>
     </div>
     <div class="canvas-area" :class="{ 'canvas-drop-active': props.isCanvasDropActive }" @dragenter.prevent="emit('canvas-dragenter', $event)" @dragover.prevent="emit('canvas-dragover', $event)" @dragleave="emit('canvas-dragleave', $event)" @drop.prevent="emit('canvas-drop', $event)">
-      <VueFlow id="workspace-editor" :key="props.canvasRenderKey" :model-value="props.renderedElements" :node-types="nodeTypes" :connection-mode="ConnectionMode.Strict" :is-valid-connection="props.isValidConnection" :nodes-draggable="true" :elements-selectable="true" :min-zoom="0.2" :max-zoom="2" :snap-to-grid="true" :snap-grid="[16, 16]" :fit-view-on-init="true" :delete-key-code="['Backspace', 'Delete']" class="serein-flow" @connect="emit('connect', $event)" @nodes-change="emit('nodes-change', $event)" @edges-change="emit('edges-change', $event)" @node-click="emit('node-click', $event)" @edge-click="emit('edge-click', $event)" @pane-click="emit('pane-click')"><template #connection-line="connectionLineProps"><FlowConnectionLine v-bind="connectionLineProps" :line-types="props.connectionLineTypes" /></template></VueFlow>
+      <VueFlow id="workspace-editor" :key="props.canvasRenderKey" :model-value="props.renderedElements" :node-types="nodeTypes" :connection-mode="ConnectionMode.Strict" :is-valid-connection="props.isValidConnection" :nodes-draggable="true" :elements-selectable="true" :select-nodes-on-drag="true" :selection-key-code="'Shift'" :multi-selection-key-code="['Control', 'Meta']" :selection-mode="SelectionMode.Partial" :min-zoom="0.2" :max-zoom="2" :snap-to-grid="true" :snap-grid="[16, 16]" :fit-view-on-init="true" :delete-key-code="['Backspace', 'Delete']" class="serein-flow" @connect="emit('connect', $event)" @nodes-change="emit('nodes-change', $event)" @edges-change="emit('edges-change', $event)" @node-click="emit('node-click', $event)" @edge-click="emit('edge-click', $event)" @pane-click="emit('pane-click')"><template #connection-line="connectionLineProps"><FlowConnectionLine v-bind="connectionLineProps" :line-types="props.connectionLineTypes" /></template></VueFlow>
       <div v-if="props.currentCanvasNodeCount === 0" class="canvas-empty-state" aria-live="polite"><div class="canvas-empty-state__mark"><LayoutGrid :size="20" /></div><strong>{{ t('canvas.emptyTitle') }}</strong><p>{{ t('canvas.emptyHint') }}</p><span>{{ t('canvas.emptySecondary') }}</span></div>
       <span v-if="props.isCanvasDropActive" class="canvas-drop-hint">{{ t('canvas.dropNode') }}</span>
       <Transition name="canvas-notice"><p v-if="props.notice" class="canvas-notice" role="status">{{ props.notice }}</p></Transition><div class="canvas-legend" aria-hidden="true"><span><i class="legend-port execution"></i>{{ t('edge.flow') }}</span><span><i class="legend-port data"></i>{{ t('edge.value') }}</span></div>

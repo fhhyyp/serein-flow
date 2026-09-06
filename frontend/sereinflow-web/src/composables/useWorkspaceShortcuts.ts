@@ -2,10 +2,12 @@ import { onBeforeUnmount, onMounted, type Ref } from 'vue'
 
 interface UseWorkspaceShortcutsOptions {
   canvasDeleteConfirmOpen: Ref<boolean>
+  isEditorActive: Ref<boolean>
   cancelCanvasRemoval: () => void
   saveFlow: () => void
   undo: () => void
   redo: () => void
+  selectAllNodes: () => void
 }
 
 function isTextEntryTarget(target: EventTarget | null): boolean {
@@ -37,6 +39,12 @@ export function useWorkspaceShortcuts(options: UseWorkspaceShortcutsOptions): vo
     }
 
     if (isTextEntryTarget(event.target)) {
+      return
+    }
+
+    if (options.isEditorActive.value && hasModifier && key === 'a') {
+      event.preventDefault()
+      options.selectAllNodes()
       return
     }
 

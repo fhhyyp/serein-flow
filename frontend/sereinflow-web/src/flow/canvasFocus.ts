@@ -47,9 +47,11 @@ function unfocusedState(nodes: readonly FlowNode[], edges: readonly FlowEdge[]):
 }
 
 /**
- * Derives the visible neighborhood from the persisted selection without
- * changing the graph itself. Data edges are treated like execution edges so
- * parameter sources and return-value consumers stay in the focused context.
+ * Derives the visible neighborhood from the editor selection without changing
+ * the graph itself. Data edges are treated like execution edges so parameter
+ * sources and return-value consumers stay in the focused context. A
+ * multi-node selection intentionally focuses only the selected nodes; using
+ * one node as the relationship root would make batch selection misleading.
  */
 export function canvasFocusState(
   nodes: readonly FlowNode[],
@@ -58,9 +60,21 @@ export function canvasFocusState(
   selectedEdgeId?: string,
   settings: CanvasFocusSettings = defaultCanvasFocusSettings,
 ): CanvasFocusState {
-  const active = settings.enabled && Boolean(selectedNodeId || selectedEdgeId)
+  const selectedNodeIds = nodes.filter((node) => node.selected).map((node) => node.id)
+  const active = settings.enabled && Boolean(selectedNodeId || selectedEdgeId || selectedNodeIds.length > 0)
   if (!active) {
     return unfocusedState(nodes, edges)
+  }
+
+  if (selectedNodeIds.length > 1) {
+    const focusedEdgeIds = new Set(edges
+      .filter((edge) => selectedNodeIds.includes(edge.source) || selectedNodeIds.includes(edge.target))
+      .map((edge) => edge.id))
+    return {
+      active: true,
+      focusedNodeIds: new Set(selectedNodeIds),
+      focusedEdgeIds,
+    }
   }
 
   if (selectedEdgeId) {
@@ -76,20 +90,21 @@ export function canvasFocusState(
     }
   }
 
-  if (!selectedNodeId || !nodes.some((node) => node.id === selectedNodeId)) {
+  const primaryNodeId = selectedNodeId ?? selectedNodeIds[0]
+  if (!primaryNodeId || !nodes.some((node) => node.id === primaryNodeId)) {
     return unfocusedState(nodes, edges)
   }
 
   const focusedEdgeIds = new Set(edges.filter((edge) => {
     if (edge.data.semantic === 'data') {
-      return (edge.target === selectedNodeId && settings.parameterSources)
-        || (edge.source === selectedNodeId && settings.parameterConsumers)
+      return (edge.target === primaryNodeId && settings.parameterSources)
+        || (edge.source === primaryNodeId && settings.parameterConsumers)
     }
 
-    return (edge.target === selectedNodeId && settings.callers)
-      || (edge.source === selectedNodeId && settings.callees)
+    return (edge.target === primaryNodeId && settings.callers)
+      || (edge.source === primaryNodeId && settings.callees)
   }).map((edge) => edge.id))
-  const focusedNodeIds = new Set([selectedNodeId])
+  const focusedNodeIds = new Set([primaryNodeId])
   for (const edge of edges) {
     if (focusedEdgeIds.has(edge.id)) {
       focusedNodeIds.add(edge.source)

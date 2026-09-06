@@ -36,8 +36,8 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
   })
   const renderedCanvas = computed(() => {
     const canvas = cloneCanvasGraph(currentCanvas.value)
-    // cloneCanvasGraph deliberately copies graph elements only; selection is
-    // editor state on CanvasState and must come from the original canvas.
+    // cloneCanvasGraph deliberately copies graph elements only; the current
+    // selection is transient editor state and must come from the original graph.
     const focus = canvasFocusState(
       canvas.nodes,
       canvas.edges,
@@ -52,7 +52,7 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
       const existingClasses = Array.isArray(node.class) ? node.class : node.class ? [node.class] : []
       return {
         ...node,
-        selected: node.id === currentCanvas.value.selectedNodeId,
+        selected: node.selected === true || node.id === currentCanvas.value.selectedNodeId,
         class: focusClass ? [...existingClasses, focusClass].join(' ') : node.class,
       }
     })
@@ -73,18 +73,67 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
     ...renderedCanvas.value.nodes,
     ...renderedCanvas.value.edges,
   ])
-  const selectedNode = computed(() => currentCanvas.value.nodes.find((node) => node.id === currentCanvas.value.selectedNodeId))
-  const selectedEdge = computed(() => currentCanvas.value.edges.find((edge) => edge.id === currentCanvas.value.selectedEdgeId))
+  const selectedNode = computed(() => currentCanvas.value.nodes.find((node) => node.id === currentCanvas.value.selectedNodeId)
+    ?? currentCanvas.value.nodes.find((node) => node.selected))
+  const selectedEdge = computed(() => currentCanvas.value.edges.find((edge) => edge.id === currentCanvas.value.selectedEdgeId)
+    ?? currentCanvas.value.edges.find((edge) => edge.selected))
+  const selectedNodeCount = computed(() => {
+    const selected = currentCanvas.value.nodes.filter((node) => node.selected).length
+    return selected || (currentCanvas.value.selectedNodeId
+      && currentCanvas.value.nodes.some((node) => node.id === currentCanvas.value.selectedNodeId) ? 1 : 0)
+  })
+  const selectedEdgeCount = computed(() => {
+    const selected = currentCanvas.value.edges.filter((edge) => edge.selected).length
+    return selected || (currentCanvas.value.selectedEdgeId
+      && currentCanvas.value.edges.some((edge) => edge.id === currentCanvas.value.selectedEdgeId) ? 1 : 0)
+  })
   const nodeDragHistoryOpen = ref(false)
 
+  function syncPrimaryNodeSelection(): void {
+    const selectedNodeIds = nodes.value.filter((node) => node.selected).map((node) => node.id)
+    if (selectedNodeIds.length === 0) {
+      currentCanvas.value.selectedNodeId = undefined
+      return
+    }
+
+    if (currentCanvas.value.selectedNodeId && selectedNodeIds.includes(currentCanvas.value.selectedNodeId)) {
+      return
+    }
+
+    currentCanvas.value.selectedNodeId = selectedNodeIds.at(-1)
+  }
+
+  function syncPrimaryEdgeSelection(): void {
+    const selectedEdgeIds = edges.value.filter((edge) => edge.selected).map((edge) => edge.id)
+    if (selectedEdgeIds.length === 0) {
+      currentCanvas.value.selectedEdgeId = undefined
+      return
+    }
+
+    if (currentCanvas.value.selectedEdgeId && selectedEdgeIds.includes(currentCanvas.value.selectedEdgeId)) {
+      return
+    }
+
+    currentCanvas.value.selectedEdgeId = selectedEdgeIds.at(-1)
+  }
+
   function selectNode(nodeId: string): void {
+    nodes.value = nodes.value.map((node) => ({ ...node, selected: node.id === nodeId }))
+    edges.value = edges.value.map((edge) => edge.selected ? { ...edge, selected: false } : edge)
     currentCanvas.value.selectedNodeId = nodeId
     currentCanvas.value.selectedEdgeId = undefined
     options.mobilePanel.value = 'inspector'
   }
 
   function onNodeClick(event: { node: { id: string } }): void {
-    selectNode(event.node.id)
+    const node = nodes.value.find((item) => item.id === event.node.id)
+    if (node?.selected) {
+      currentCanvas.value.selectedNodeId = node.id
+    } else {
+      syncPrimaryNodeSelection()
+    }
+    currentCanvas.value.selectedEdgeId = undefined
+    options.mobilePanel.value = 'inspector'
   }
 
   function onEdgeClick(event: { edge: { id: string } }): void {
@@ -94,8 +143,19 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
   }
 
   function clearSelection(): void {
+    nodes.value = nodes.value.map((node) => node.selected ? { ...node, selected: false } : node)
+    edges.value = edges.value.map((edge) => edge.selected ? { ...edge, selected: false } : edge)
     currentCanvas.value.selectedNodeId = undefined
     currentCanvas.value.selectedEdgeId = undefined
+  }
+
+  function selectAllNodes(): void {
+    if (nodes.value.length === 0) return
+    nodes.value = nodes.value.map((node) => ({ ...node, selected: true }))
+    edges.value = edges.value.map((edge) => edge.selected ? { ...edge, selected: false } : edge)
+    currentCanvas.value.selectedNodeId ??= nodes.value[0]?.id
+    currentCanvas.value.selectedEdgeId = undefined
+    options.mobilePanel.value = 'inspector'
   }
 
   function isValidConnection(connection: Connection): boolean {
@@ -250,6 +310,7 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
 
     const changedNodes = applyNodeChanges(changes, nodes.value as never) as unknown as FlowNode[]
     nodes.value = applyNodePositionChanges(changedNodes, positionChanges)
+    syncPrimaryNodeSelection()
     if (removedIds.size > 0 || positionChanges.length > 0) {
       options.markWorkspaceChanged()
     }
@@ -266,6 +327,7 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
       .filter((id) => edges.value.some((edge) => edge.id === id)))
 
     if (removedIds.size === 0) {
+      syncPrimaryEdgeSelection()
       return
     }
 
@@ -277,6 +339,7 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
     if (removedEdges.some((edge) => edge.id === currentCanvas.value.selectedEdgeId)) {
       currentCanvas.value.selectedEdgeId = undefined
     }
+    syncPrimaryEdgeSelection()
     options.markWorkspaceChanged()
   }
 
@@ -333,25 +396,32 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
   }
 
   function removeSelection(): void {
-    if (selectedEdge.value) {
+    const selectedNodeIds = new Set(nodes.value
+      .filter((node) => node.selected || node.id === currentCanvas.value.selectedNodeId)
+      .map((node) => node.id))
+    if (selectedNodeIds.size > 0) {
       options.recordWorkspaceMutation()
-      resetDataEdgeSource(selectedEdge.value)
-      edges.value = edges.value.filter((edge) => edge.id !== selectedEdge.value?.id)
+      const connected = edges.value.filter((edge) => selectedNodeIds.has(edge.source) || selectedNodeIds.has(edge.target))
+      connected.forEach(resetDataEdgeSource)
+      edges.value = edges.value.filter((edge) => !selectedNodeIds.has(edge.source) && !selectedNodeIds.has(edge.target))
+      nodes.value = nodes.value.filter((node) => !selectedNodeIds.has(node.id))
+      currentCanvas.value.selectedNodeId = undefined
       currentCanvas.value.selectedEdgeId = undefined
       options.markWorkspaceChanged()
-      options.notice.value = t('canvas.edgeRemoved')
       return
     }
 
-    if (selectedNode.value) {
+    const selectedEdgeIds = new Set(edges.value
+      .filter((edge) => edge.selected || edge.id === currentCanvas.value.selectedEdgeId)
+      .map((edge) => edge.id))
+    if (selectedEdgeIds.size > 0) {
       options.recordWorkspaceMutation()
-      const nodeId = selectedNode.value.id
-      const connected = edges.value.filter((edge) => edge.source === nodeId || edge.target === nodeId)
-      connected.forEach(resetDataEdgeSource)
-      edges.value = edges.value.filter((edge) => edge.source !== nodeId && edge.target !== nodeId)
-      nodes.value = nodes.value.filter((node) => node.id !== nodeId)
-      currentCanvas.value.selectedNodeId = undefined
+      const removedEdges = edges.value.filter((edge) => selectedEdgeIds.has(edge.id))
+      removedEdges.forEach(resetDataEdgeSource)
+      edges.value = edges.value.filter((edge) => !selectedEdgeIds.has(edge.id))
+      currentCanvas.value.selectedEdgeId = undefined
       options.markWorkspaceChanged()
+      options.notice.value = t('canvas.edgeRemoved')
     }
   }
 
@@ -361,7 +431,10 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
     renderedElements,
     selectedNode,
     selectedEdge,
+    selectedNodeCount,
+    selectedEdgeCount,
     selectNode,
+    selectAllNodes,
     onNodeClick,
     onEdgeClick,
     clearSelection,
