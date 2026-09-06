@@ -131,6 +131,9 @@ public sealed class DataConnectionResolver
 
     private static object? ParseJson(string? valueJson)
     {
+        if (string.IsNullOrWhiteSpace(valueJson))
+            return null;
+
         return TryParseJson(valueJson, out var value) ? value : valueJson;
     }
 
