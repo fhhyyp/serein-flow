@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
@@ -47,7 +48,7 @@ public sealed class LibraryNodeTemplateService
                 "$.libraryId",
                 "a library attached to this project",
                 "Attach the library through the separate preview/apply workflow before creating a node template.",
-                409);
+                StatusCodes.Status409Conflict);
         }
 
         var library = await _libraries.FindAsync(request.LibraryId, cancellationToken);
@@ -58,7 +59,7 @@ public sealed class LibraryNodeTemplateService
                 "$.libraryId",
                 "an existing library artifact",
                 "Read the project edit model and select an available library.",
-                404);
+                StatusCodes.Status404NotFound);
         }
 
         var contract = library.Nodes.SingleOrDefault(node => string.Equals(
@@ -72,7 +73,7 @@ public sealed class LibraryNodeTemplateService
                 "$.libraryNodeContractId",
                 "a contract ID published by the selected library",
                 "Read the library contract from the project edit model.",
-                404);
+                StatusCodes.Status404NotFound);
         }
 
         if (contract.Type is not (NodeTypeDto.Action or NodeTypeDto.Flipflop))
@@ -82,7 +83,7 @@ public sealed class LibraryNodeTemplateService
                 "$.libraryNodeContractId",
                 "an action or flipflop library contract",
                 "Only scanned method-node contracts can produce a library node template.",
-                422);
+                StatusCodes.Status422UnprocessableEntity);
         }
 
         var node = CreateNode(contract, request.Position);
@@ -213,7 +214,7 @@ public sealed class LibraryNodeTemplateService
         string fieldPath,
         string expected,
         string remediation,
-        int statusCode = 400)
+        int statusCode = StatusCodes.Status400BadRequest)
         => new(code, fieldPath, expected, remediation, statusCode);
 }
 

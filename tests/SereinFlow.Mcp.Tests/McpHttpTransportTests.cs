@@ -65,7 +65,7 @@ public sealed class McpHttpTransportTests
         var response = await server.HandleRequestAsync(new string('x', 33));
 
         Assert.NotNull(response);
-        Assert.Contains("-32012", response, StringComparison.Ordinal);
+        Assert.Contains(McpProtocolErrorCodes.RequestTooLarge.ToString(System.Globalization.CultureInfo.InvariantCulture), response, StringComparison.Ordinal);
     }
 
     private sealed class FakeBackend : ISereinFlowMcpBackend

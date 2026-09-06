@@ -60,13 +60,13 @@ internal static class McpPromptCatalog
             ],
             "sereinflow.upgrade-library" => [McpAiGuidance.LibraryUpgradeResourceUri],
             "sereinlang.compile" => [McpAiGuidance.SereinLangSyntaxResourceUri],
-            _ => throw new McpProtocolException(-32602, $"The SereinFlow prompt '{name}' is not supported.")
+            _ => throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"The SereinFlow prompt '{name}' is not supported.")
         };
         var guidance = await Task.WhenAll(guidanceUris.Select(uri => guidanceProvider.ReadAsync(uri, cancellationToken)));
         var guidanceText = string.Join(
             "\n\n",
             guidance.Select(resource => resource.Value as string
-                ?? throw new McpProtocolException(-32004, "The SereinFlow AI guidance is not available.")));
+                ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The SereinFlow AI guidance is not available.")));
         var description = name switch
         {
             "sereinflow.inspect" => "SereinFlow project inspection",
@@ -76,7 +76,7 @@ internal static class McpPromptCatalog
             "sereinflow.package-library" => "SereinFlow source-to-package library workflow",
             "sereinflow.upgrade-library" => "SereinFlow project library upgrade workflow",
             "sereinlang.compile" => "SereinLang standalone syntax compilation workflow",
-            _ => throw new McpProtocolException(-32602, $"The SereinFlow prompt '{name}' is not supported.")
+            _ => throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"The SereinFlow prompt '{name}' is not supported.")
         };
 
         return Result(
@@ -106,21 +106,21 @@ internal static class McpPromptCatalog
         if (arguments.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
             return "No additional request was supplied.";
         if (arguments.ValueKind != JsonValueKind.Object)
-            throw new McpProtocolException(-32602, "MCP prompt arguments must be a JSON object.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP prompt arguments must be a JSON object.");
         if (!arguments.TryGetProperty("request", out var request)
             || request.ValueKind == JsonValueKind.Null
             || request.ValueKind == JsonValueKind.Undefined)
         {
             if (string.Equals(promptName, "sereinflow.inspect", StringComparison.Ordinal))
                 return "No additional request was supplied.";
-            throw new McpProtocolException(-32602, "MCP prompt argument 'request' is required.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP prompt argument 'request' is required.");
         }
         if (request.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(request.GetString()))
-            throw new McpProtocolException(-32602, "MCP prompt argument 'request' must be a non-empty string.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP prompt argument 'request' must be a non-empty string.");
 
         var value = request.GetString()!.Trim();
         if (value.Length > MaxRequestLength)
-            throw new McpProtocolException(-32602, "MCP prompt argument 'request' exceeds the configured length limit.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP prompt argument 'request' exceeds the configured length limit.");
         return value;
     }
 }

@@ -26,7 +26,7 @@ internal static class McpRunMessageToolHandlers
         if (!arguments.TryGetProperty("payload", out var payloadValue))
         {
             throw new McpProtocolException(
-                -32602,
+                McpProtocolErrorCodes.InvalidParams,
                 "MCP parameter 'payload' is required and must be a JSON value.",
                 new { code = MessageErrorCodes.PayloadRequired, path = "payload" });
         }
@@ -76,7 +76,7 @@ internal static class McpRunMessageToolHandlers
             ThrowFailure(result);
 
         var response = result.Response
-            ?? throw new McpProtocolException(-32603, "The message delivery response was empty.", new { code = MessageErrorCodes.Rejected });
+            ?? throw new McpProtocolException(McpProtocolErrorCodes.InternalError, "The message delivery response was empty.", new { code = MessageErrorCodes.Rejected });
         await idempotency.SaveAsync(
             principal.Id,
             Operation,
@@ -93,7 +93,7 @@ internal static class McpRunMessageToolHandlers
         if (!Guid.TryParse(value, out var runId) || runId == Guid.Empty)
         {
             throw new McpProtocolException(
-                -32602,
+                McpProtocolErrorCodes.InvalidParams,
                 "MCP parameter 'runId' must be a non-empty GUID.",
                 new { code = McpErrorCodes.InvalidArguments, path = "runId" });
         }
@@ -108,7 +108,7 @@ internal static class McpRunMessageToolHandlers
             || value.ValueKind != JsonValueKind.String)
         {
             throw new McpProtocolException(
-                -32602,
+                McpProtocolErrorCodes.InvalidParams,
                 $"MCP parameter '{name}' is required and must be a string.",
                 new { code = McpErrorCodes.InvalidArguments, path = name });
         }
@@ -135,7 +135,7 @@ internal static class McpRunMessageToolHandlers
 
     private static McpProtocolException InvalidChannelKind()
         => new(
-            -32602,
+            McpProtocolErrorCodes.InvalidParams,
             "The message channel kind must be 'queue' or 'eventBus'. 消息通道类型必须是 queue 或 eventBus。",
             new { code = MessageErrorCodes.ChannelInvalid, path = "channelKind" });
 
@@ -146,13 +146,5 @@ internal static class McpRunMessageToolHandlers
             new { code = result.ErrorCode ?? MessageErrorCodes.Rejected });
 
     private static int ToProtocolCode(int statusCode)
-        => statusCode switch
-        {
-            400 => -32602,
-            403 => -32003,
-            404 => -32004,
-            409 => -32010,
-            429 or 504 => -32005,
-            _ => -32000,
-        };
+        => McpProtocolErrorCodes.FromHttpStatus(statusCode);
 }

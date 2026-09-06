@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
@@ -46,7 +47,7 @@ public sealed class McpIdempotencyService
             throw new McpSecurityException(
                 McpErrorCodes.IdempotencyConflict,
                 "The idempotency key was already used for a different MCP request.",
-                409);
+                StatusCodes.Status409Conflict);
         }
         return entry;
     }

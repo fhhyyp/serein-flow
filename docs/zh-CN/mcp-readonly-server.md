@@ -89,6 +89,35 @@ stdio 模式只注册 MCP、Application、Storage 和 stdio 所需服务，不�
 非零状态退出。stdout 只输出 JSON-RPC，启动错误、日志和内部诊断写入 stderr。
 正常 EOF 会清理并正常退出。
 
+## JSON-RPC 协议错误码
+
+`McpProtocolException` 在代码中统一使用
+`McpProtocolErrorCodes` 的命名常量，不再直接散落数值字面量；JSON-RPC 线上的
+`error.code` 仍然保持数字格式。`error.data.code` 中的业务诊断继续使用稳定的
+字符串错误码，例如 `mcp.invalid_arguments`。
+
+| 常量 | 线上错误码 | 含义 |
+| --- | ---: | --- |
+| `ParseError` | `-32700` | 请求体不是有效 JSON。 |
+| `InvalidRequest` | `-32600` | JSON-RPC 外层请求结构无效。 |
+| `MethodNotFound` | `-32601` | 请求的 MCP 方法或工具不受支持。 |
+| `InvalidParams` | `-32602` | 请求参数或工具负载无效。 |
+| `InternalError` | `-32603` | 服务端发生未预期异常。 |
+| `GenericServerError` | `-32000` | 服务端失败，但没有更具体的映射。 |
+| `Unauthenticated` | `-32001` | 需要鉴权或鉴权失败。 |
+| `PermissionDenied` | `-32003` | 调用方已鉴权，但没有所需权限。 |
+| `ResourceNotFound` | `-32004` | 请求的项目、流程、预览、资源或密钥不存在。 |
+| `TransientFailure` | `-32005` | 请求被限流，或依赖服务超时。 |
+| `Conflict` | `-32010` | 资源已变化，或与当前变更发生冲突。 |
+| `OperationRejected` | `-32011` | 请求已理解，但当前不能应用。 |
+| `RequestTooLarge` | `-32012` | 请求超过配置的大小限制。 |
+| `ResponseTooLarge` | `-32013` | 响应超过配置的大小限制。 |
+| `LibraryInspectionUnavailable` | `-32020` | 当前宿主未提供类库包检查能力。 |
+
+客户端应使用 JSON-RPC 的数字 `error.code` 处理协议分支，并使用
+`error.data.code` 判断 SereinFlow 业务诊断和修复方式。数字协议码与
+`SereinFlow.Contracts` 中按类型划分的字符串业务错误码不是同一套值，不能混用。
+
 ## 数据路径配置
 
 数据库和类库目录属于服务器宿主配置，不是 MCP 客户端参数。统一配置位于
@@ -307,6 +336,6 @@ ID 的节点，则入口引用会保留。若要改用其他入口节点，请�
 数据库、类库或 staging 路径，也不得搜索服务源码、读取服务器数据库或反编译
 上传程序集来解释远程错误。
 
-未预期异常返回 JSON-RPC `-32603`，带有 `data.code = "mcp.internal_error"`
+未预期异常返回 JSON-RPC `InternalError`（`-32603`），带有 `data.code = "mcp.internal_error"`
 和 `diagnosticId`；HTTP 工具超时返回 `mcp.tool_timeout` 和同样的诊断 ID。
 客户端应将诊断 ID 提供给服务运维人员。

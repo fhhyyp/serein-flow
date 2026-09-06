@@ -1,4 +1,5 @@
 using SereinFlow.Application.Persistence;
+using Microsoft.AspNetCore.Http;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
 
@@ -48,7 +49,7 @@ public sealed class McpApiKeyManagementService
                 throw new McpSecurityException(
                     McpErrorCodes.KeySetupAlreadyCompleted,
                     "MCP API key setup has already been completed.",
-                    409);
+                    StatusCodes.Status409Conflict);
             }
 
             return await CreateAsync(
@@ -85,7 +86,7 @@ public sealed class McpApiKeyManagementService
             throw new McpSecurityException(
                 McpErrorCodes.KeyAlreadyRevoked,
                 "The MCP API key has already been revoked.",
-                409);
+                StatusCodes.Status409Conflict);
         }
 
         var replacement = McpSecurityService.RotateKeyWithEntry(existing);
@@ -96,7 +97,7 @@ public sealed class McpApiKeyManagementService
 
     private async Task<McpApiKeyEntry> FindAsync(string id, CancellationToken cancellationToken)
         => await _keys.FindAsync(id, cancellationToken)
-            ?? throw new McpSecurityException(McpErrorCodes.KeyNotFound, "The MCP API key was not found.", 404);
+            ?? throw new McpSecurityException(McpErrorCodes.KeyNotFound, "The MCP API key was not found.", StatusCodes.Status404NotFound);
 
     private async Task ValidateProjectAsync(Guid? projectId, CancellationToken cancellationToken)
     {
@@ -105,13 +106,13 @@ public sealed class McpApiKeyManagementService
 
         var project = await _projects.FindAsync(projectId.Value, cancellationToken);
         if (project is null)
-            throw new McpSecurityException(McpErrorCodes.ProjectNotFound, "The API key project was not found.", 404);
+            throw new McpSecurityException(McpErrorCodes.ProjectNotFound, "The API key project was not found.", StatusCodes.Status404NotFound);
         if (project.Status == ProjectStatus.Archived)
         {
             throw new McpSecurityException(
                 McpErrorCodes.ProjectArchived,
                 "An API key cannot be bound to an archived project.",
-                409);
+                StatusCodes.Status409Conflict);
         }
     }
 }

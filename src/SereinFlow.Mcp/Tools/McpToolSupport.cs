@@ -25,12 +25,12 @@ internal static class McpToolSupport
     internal static McpPermissionDto[] ReadPermissions(JsonElement arguments)
     {
         if (!arguments.TryGetProperty("permissions", out var value) || value.ValueKind != JsonValueKind.Array)
-            throw new McpProtocolException(-32602, "MCP parameter 'permissions' must be an array.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP parameter 'permissions' must be an array.");
         var permissions = new List<McpPermissionDto>();
         foreach (var item in value.EnumerateArray())
         {
             if (item.ValueKind != JsonValueKind.String || !McpPermissionNames.TryParse(item.GetString(), out var permission))
-                throw new McpProtocolException(-32602, "MCP parameter 'permissions' contains an invalid permission.");
+                throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP parameter 'permissions' contains an invalid permission.");
             permissions.Add(permission);
         }
         return permissions.Distinct().ToArray();
@@ -43,7 +43,7 @@ internal static class McpToolSupport
             ? null
             : DateTimeOffset.TryParse(value, out var parsed)
                 ? parsed
-                : throw new McpProtocolException(-32602, $"MCP parameter '{name}' must be an ISO date.");
+                : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' must be an ISO date.");
     }
 
     internal static T Deserialize<T>(JsonElement arguments)
@@ -51,7 +51,7 @@ internal static class McpToolSupport
         try
         {
             return arguments.Deserialize<T>(ContractJsonOptions)
-                ?? throw new McpProtocolException(-32602, "MCP arguments cannot be null.");
+                ?? throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP arguments cannot be null.");
         }
         catch (JsonException exception)
         {
@@ -60,7 +60,7 @@ internal static class McpToolSupport
         catch (NotSupportedException)
         {
             throw new McpProtocolException(
-                -32602,
+                McpProtocolErrorCodes.InvalidParams,
                 "MCP arguments contain an unsupported contract value.",
                 new { code = McpErrorCodes.InvalidArguments });
         }
@@ -71,7 +71,7 @@ internal static class McpToolSupport
         var path = string.IsNullOrWhiteSpace(exception.Path) ? null : exception.Path;
         var location = path is null ? string.Empty : $" at '{path}'";
         return new McpProtocolException(
-            -32602,
+            McpProtocolErrorCodes.InvalidParams,
             $"MCP arguments are invalid{location}.",
             new { code = McpErrorCodes.InvalidArguments, path });
     }
@@ -81,14 +81,14 @@ internal static class McpToolSupport
         var path = string.IsNullOrWhiteSpace(exception.Path) ? null : exception.Path;
         var location = path is null ? string.Empty : $" at '{path}'";
         return new McpProtocolException(
-            -32602,
+            McpProtocolErrorCodes.InvalidParams,
             $"The flow patch value is invalid{location}. Use camelCase enum strings such as 'action' and 'data'; legacy numeric enum values are also accepted.",
             new { code = McpErrorCodes.InvalidPatchValue, path });
     }
 
     internal static McpProtocolException InvalidFlowPatchContract(FlowPatchContractException exception)
         => new(
-            -32602,
+            McpProtocolErrorCodes.InvalidParams,
             "The flow patch contract is invalid.",
             new
             {
@@ -102,7 +102,7 @@ internal static class McpToolSupport
 
     internal static McpProtocolException InvalidLibraryNodeTemplate(LibraryNodeTemplateException exception)
         => new(
-            -32602,
+            McpProtocolErrorCodes.InvalidParams,
             "The library node template request is invalid.",
             new
             {
@@ -121,28 +121,28 @@ internal static class McpToolSupport
             ? null
             : Guid.TryParse(value, out var parsed)
                 ? parsed
-                : throw new McpProtocolException(-32602, $"MCP parameter '{name}' must be a GUID.");
+                : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' must be a GUID.");
     }
 
     internal static long GetLong(JsonElement arguments, string name)
         => GetOptionalLong(arguments, name)
-            ?? throw new McpProtocolException(-32602, $"MCP parameter '{name}' is required.");
+            ?? throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' is required.");
 
     internal static FlowVersionTrackDto ParseTrack(string value)
         => Enum.TryParse<FlowVersionTrackDto>(value, true, out var track) && Enum.IsDefined(track)
             ? track
-            : throw new McpProtocolException(-32602, "The flow version track must be development or production.");
+            : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The flow version track must be development or production.");
 
     internal static void RequireConfirmation(McpMutationApplyRequestDto request)
     {
         if (!string.Equals(request.Confirmation, "APPLY", StringComparison.Ordinal))
-            throw new McpProtocolException(-32602, "The confirmation value must be APPLY.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The confirmation value must be APPLY.");
         if (string.IsNullOrWhiteSpace(request.IdempotencyKey))
-            throw new McpProtocolException(-32602, "The idempotency key is required.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The idempotency key is required.");
     }
 
     internal static McpProtocolException VersionConflict(long? currentVersion)
-        => new(-32010, "The flow version changed before the MCP mutation was applied.", new { currentVersion });
+        => new(McpProtocolErrorCodes.Conflict, "The flow version changed before the MCP mutation was applied.", new { currentVersion });
 
     internal static async Task<FlowValidationResultDto> ValidateExecutableFlowAsync(
         IServiceScope scope,
@@ -164,7 +164,7 @@ internal static class McpToolSupport
             return;
 
         throw new McpProtocolException(
-            -32011,
+            McpProtocolErrorCodes.OperationRejected,
             message,
             new { code = McpErrorCodes.ValidationFailed, diagnostics = validation.Diagnostics });
     }
@@ -178,7 +178,7 @@ internal static class McpToolSupport
             return;
 
         throw new McpProtocolException(
-            -32603,
+            McpProtocolErrorCodes.InternalError,
             "The mutation was committed but its MCP preview state could not be recorded.",
             new { code = McpErrorCodes.PreviewStatePersistFailed });
     }
@@ -194,11 +194,11 @@ internal static class McpToolSupport
         security.Require(principal, permission, projectId);
         var project = await scope.ServiceProvider.GetRequiredService<IProjectRepository>()
             .FindAsync(projectId, cancellationToken)
-            ?? throw new McpProtocolException(-32004, "The project was not found.");
+            ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The project was not found.");
         if (project.Status == SereinFlow.Domain.ProjectStatus.Archived)
         {
             throw new McpProtocolException(
-                -32011,
+                McpProtocolErrorCodes.OperationRejected,
                 "Archived projects cannot be changed by this MCP operation.",
                 new { code = ProjectErrorCodes.Archived });
         }
@@ -272,7 +272,7 @@ internal static class McpToolSupport
             ? FlowVersionTrackDto.Development
             : Enum.TryParse<FlowVersionTrackDto>(value, true, out var track) && Enum.IsDefined(track)
                 ? track
-                : throw new McpProtocolException(-32602, "The flow version track must be development or production.");
+                : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The flow version track must be development or production.");
     }
 
     internal static FlowVersionTrackDto? ReadOptionalTrack(JsonElement arguments)
@@ -282,7 +282,7 @@ internal static class McpToolSupport
             ? null
             : Enum.TryParse<FlowVersionTrackDto>(value, true, out var track) && Enum.IsDefined(track)
                 ? track
-                : throw new McpProtocolException(-32602, "The flow version track must be development or production.");
+                : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The flow version track must be development or production.");
     }
 
     internal static Guid GetGuid(JsonElement arguments, string name)
@@ -290,14 +290,14 @@ internal static class McpToolSupport
         var value = GetRequiredString(arguments, name);
         return Guid.TryParse(value, out var parsed)
             ? parsed
-            : throw new McpProtocolException(-32602, $"MCP parameter '{name}' must be a GUID.");
+            : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' must be a GUID.");
     }
 
     internal static string GetRequiredString(JsonElement arguments, string name)
     {
         var value = GetOptionalString(arguments, name);
         return string.IsNullOrWhiteSpace(value)
-            ? throw new McpProtocolException(-32602, $"MCP parameter '{name}' is required.")
+            ? throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' is required.")
             : value.Trim();
     }
 
@@ -307,7 +307,7 @@ internal static class McpToolSupport
             || !arguments.TryGetProperty(name, out var value))
             return null;
         if (value.ValueKind != JsonValueKind.String)
-            throw new McpProtocolException(-32602, $"MCP parameter '{name}' must be a string.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' must be a string.");
         return value.GetString();
     }
 
@@ -317,7 +317,7 @@ internal static class McpToolSupport
             || !arguments.TryGetProperty(name, out var value))
             return null;
         if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt32(out var parsed))
-            throw new McpProtocolException(-32602, $"MCP parameter '{name}' must be an integer.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' must be an integer.");
         return parsed;
     }
 
@@ -327,7 +327,7 @@ internal static class McpToolSupport
             || !arguments.TryGetProperty(name, out var value))
             return null;
         if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt64(out var parsed))
-            throw new McpProtocolException(-32602, $"MCP parameter '{name}' must be an integer.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' must be an integer.");
         return parsed;
     }
 
@@ -337,7 +337,7 @@ internal static class McpToolSupport
             || !arguments.TryGetProperty(name, out var value))
             return null;
         if (value.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
-            throw new McpProtocolException(-32602, $"MCP parameter '{name}' must be a boolean.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' must be a boolean.");
         return value.GetBoolean();
     }
 }

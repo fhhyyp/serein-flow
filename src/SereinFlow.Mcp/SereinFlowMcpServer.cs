@@ -94,7 +94,7 @@ public sealed class SereinFlowMcpServer
                 output,
                 null,
                 null,
-                new McpProtocolException(-32012, "The MCP request exceeds the configured size limit."),
+                new McpProtocolException(McpProtocolErrorCodes.RequestTooLarge, "The MCP request exceeds the configured size limit."),
                 cancellationToken);
             return;
         }
@@ -106,7 +106,7 @@ public sealed class SereinFlowMcpServer
             using var document = JsonDocument.Parse(line);
             root = document.RootElement.Clone();
             if (root.ValueKind != JsonValueKind.Object)
-                throw new McpProtocolException(-32600, "The MCP message must be a JSON object.");
+                throw new McpProtocolException(McpProtocolErrorCodes.InvalidRequest, "The MCP message must be a JSON object.");
             hasId = root.TryGetProperty("id", out id);
         }
         catch (JsonException exception)
@@ -115,7 +115,7 @@ public sealed class SereinFlowMcpServer
                 output,
                 null,
                 null,
-                new McpProtocolException(-32700, "The MCP message contains invalid JSON.", exception.Message),
+                new McpProtocolException(McpProtocolErrorCodes.ParseError, "The MCP message contains invalid JSON.", exception.Message),
                 cancellationToken);
             return;
         }
@@ -134,7 +134,7 @@ public sealed class SereinFlowMcpServer
                     output,
                     id,
                     null,
-                    new McpProtocolException(-32600, "The MCP request method is missing."),
+                    new McpProtocolException(McpProtocolErrorCodes.InvalidRequest, "The MCP request method is missing."),
                     cancellationToken);
             }
             return;
@@ -171,7 +171,7 @@ public sealed class SereinFlowMcpServer
                     id,
                     null,
                     new McpProtocolException(
-                        exception.StatusCode == 401 ? -32001 : -32003,
+                        McpProtocolErrorCodes.FromHttpStatus(exception.StatusCode),
                         exception.Message,
                         new { code = exception.Code }),
                     cancellationToken);
@@ -194,7 +194,7 @@ public sealed class SereinFlowMcpServer
                     id,
                     null,
                     new McpProtocolException(
-                        -32603,
+                        McpProtocolErrorCodes.InternalError,
                         "The MCP request failed internally.",
                         new { code = McpErrorCodes.InternalError, diagnosticId }),
                     cancellationToken);
@@ -236,7 +236,7 @@ public sealed class SereinFlowMcpServer
             "prompts/get" => await GetPromptAsync(parameters, cancellationToken),
             "tools/call" => await CallToolAsync(parameters, cancellationToken),
             "shutdown" => RequestShutdown(),
-            _ => throw new McpProtocolException(-32601, $"MCP method '{method}' is not supported.")
+            _ => throw new McpProtocolException(McpProtocolErrorCodes.MethodNotFound, $"MCP method '{method}' is not supported.")
         };
     }
 
@@ -318,7 +318,7 @@ public sealed class SereinFlowMcpServer
             || value.ValueKind != JsonValueKind.String
             || string.IsNullOrWhiteSpace(value.GetString()))
         {
-            throw new McpProtocolException(-32602, $"MCP parameter '{name}' is required.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' is required.");
         }
 
         return value.GetString()!.Trim();
@@ -355,7 +355,7 @@ public sealed class SereinFlowMcpServer
             {
                 jsonrpc = McpProtocolConstants.JsonRpcVersion,
                 id,
-                error = new { code = -32013, message = "The MCP response exceeds the configured size limit." }
+                error = new { code = McpProtocolErrorCodes.ResponseTooLarge, message = "The MCP response exceeds the configured size limit." }
             }, JsonOptions);
         }
         await output.WriteLineAsync(serialized);

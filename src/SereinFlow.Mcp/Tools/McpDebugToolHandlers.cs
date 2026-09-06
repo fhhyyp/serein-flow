@@ -148,7 +148,7 @@ internal static class McpDebugToolHandlers
         if (session is null)
         {
             throw new McpProtocolException(
-                -32004,
+                McpProtocolErrorCodes.ResourceNotFound,
                 "Debug session not found. 未找到调试会话。",
                 new { code = DebugErrorCodes.SessionNotFound });
         }
@@ -176,7 +176,7 @@ internal static class McpDebugToolHandlers
             : Enum.TryParse<FlowRunStatusDto>(value, true, out var status) && Enum.IsDefined(status)
                 ? status
                 : throw new McpProtocolException(
-                    -32602,
+                    McpProtocolErrorCodes.InvalidParams,
                     "The run status must be pending, running, succeeded, failed, cancelled, timedOut or interrupted.",
                     new { code = McpErrorCodes.InvalidArguments, path = "status" });
     }
@@ -200,13 +200,5 @@ internal static class McpDebugToolHandlers
     }
 
     private static int ToProtocolCode(int statusCode)
-        => statusCode switch
-        {
-            400 => -32602,
-            404 => -32004,
-            409 => -32010,
-            422 => -32011,
-            429 or 503 => -32005,
-            _ => -32000
-        };
+        => McpProtocolErrorCodes.FromHttpStatus(statusCode);
 }

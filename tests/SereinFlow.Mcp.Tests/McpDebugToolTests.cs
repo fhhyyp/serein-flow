@@ -98,7 +98,7 @@ public sealed class McpDebugToolTests
             "sereinflow_list_debug_sessions",
             JsonSerializer.SerializeToElement(new { projectId = secondProjectId }),
             CancellationToken.None));
-        Assert.Equal(-32003, otherProjectDenied.Code);
+        Assert.Equal(McpProtocolErrorCodes.PermissionDenied, otherProjectDenied.Code);
 
         host.Services.GetRequiredService<IMcpPrincipalAccessor>().Current = new McpPrincipal(
             "run-reader",
@@ -155,7 +155,7 @@ public sealed class McpDebugToolTests
                 idempotencyKey = "debug-start-once"
             }),
             CancellationToken.None));
-        Assert.Equal(-32010, conflict.Code);
+        Assert.Equal(McpProtocolErrorCodes.Conflict, conflict.Code);
     }
 
     [Fact]
@@ -178,7 +178,7 @@ public sealed class McpDebugToolTests
 
         var denied = await Assert.ThrowsAsync<McpProtocolException>(() => backend.CallToolAsync(
             "sereinflow_continue_debug", arguments, CancellationToken.None));
-        Assert.Equal(-32003, denied.Code);
+        Assert.Equal(McpProtocolErrorCodes.PermissionDenied, denied.Code);
 
         host.Services.GetRequiredService<IMcpPrincipalAccessor>().Current = new McpPrincipal(
             "correct-project-debug-controller",
@@ -191,7 +191,7 @@ public sealed class McpDebugToolTests
 
         var duplicate = await Assert.ThrowsAsync<McpProtocolException>(() => backend.CallToolAsync(
             "sereinflow_continue_debug", arguments, CancellationToken.None));
-        Assert.Equal(-32010, duplicate.Code);
+        Assert.Equal(McpProtocolErrorCodes.Conflict, duplicate.Code);
     }
 
     private static T Deserialize<T>(object? value)

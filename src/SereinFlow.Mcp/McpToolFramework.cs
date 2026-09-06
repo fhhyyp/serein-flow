@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
@@ -106,7 +107,7 @@ public sealed class McpToolContext
 
     public McpPrincipal RequirePrincipal()
         => Principal
-            ?? throw new McpSecurityException(McpErrorCodes.Unauthenticated, "MCP authentication is required.", 401);
+            ?? throw new McpSecurityException(McpErrorCodes.Unauthenticated, "MCP authentication is required.", StatusCodes.Status401Unauthorized);
 }
 
 /// <summary>
@@ -196,7 +197,7 @@ public sealed class McpToolExecutor
                     arguments,
                     principal,
                     "rejected",
-                    (-32602).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    McpProtocolErrorCodes.InvalidParams.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     null,
                     stopwatch.Elapsed);
             }
@@ -208,11 +209,11 @@ public sealed class McpToolExecutor
                     arguments,
                     principal,
                     "rejected",
-                    (-32602).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    McpProtocolErrorCodes.InvalidParams.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     null,
                     stopwatch.Elapsed);
             }
-            throw new McpProtocolException(-32602, "MCP tool arguments must be a JSON object.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP tool arguments must be a JSON object.");
         }
         if (!catalog.TryGet(name, out var tool) || tool is null)
         {
@@ -223,10 +224,10 @@ public sealed class McpToolExecutor
                 arguments,
                 principal,
                 "rejected",
-                (-32601).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                McpProtocolErrorCodes.MethodNotFound.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 null,
                 stopwatch.Elapsed);
-            throw new McpProtocolException(-32601, $"MCP tool '{name}' is not supported.");
+            throw new McpProtocolException(McpProtocolErrorCodes.MethodNotFound, $"MCP tool '{name}' is not supported.");
         }
 
         try
@@ -240,7 +241,7 @@ public sealed class McpToolExecutor
             using var mutationGate = await _mutationGate.AcquireAsync(tool, arguments, cancellationToken);
             var value = await tool.ExecuteAsync(context, arguments, cancellationToken);
             if (value is null)
-                throw new McpProtocolException(-32004, "The requested SereinFlow resource was not found.");
+                throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The requested SereinFlow resource was not found.");
 
             stopwatch.Stop();
             await _audit.RecordAsync(tool.Descriptor.Name, tool.DefaultAuditTrack, arguments, principal, "succeeded", null, value, stopwatch.Elapsed);
@@ -251,13 +252,7 @@ public sealed class McpToolExecutor
             stopwatch.Stop();
             await _audit.RecordAsync(tool.Descriptor.Name, tool.DefaultAuditTrack, arguments, principal, "denied", exception.Code, null, stopwatch.Elapsed);
             throw new McpProtocolException(
-                exception.StatusCode switch
-                {
-                    401 => -32001,
-                    403 => -32003,
-                    409 => -32010,
-                    _ => -32000
-                },
+                McpProtocolErrorCodes.FromHttpStatus(exception.StatusCode),
                 exception.Message,
                 new { code = exception.Code });
         }
@@ -315,7 +310,7 @@ public sealed class McpMutationGate
             || value.ValueKind != JsonValueKind.String
             || string.IsNullOrWhiteSpace(value.GetString()))
         {
-            throw new McpProtocolException(-32602, $"MCP parameter '{name}' is required.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' is required.");
         }
 
         return value.GetString()!.Trim();

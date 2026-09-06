@@ -107,6 +107,36 @@ or revoked key causes the process to exit with a nonzero status. stdout outputs
 only JSON-RPC; startup errors, logs, and internal diagnostics go to stderr.
 Normal EOF performs cleanup and exits normally.
 
+## JSON-RPC Protocol Error Codes
+
+`McpProtocolException` uses the named constants in
+`McpProtocolErrorCodes` instead of raw numeric literals. The JSON-RPC wire
+response still exposes the protocol code as a number. Business diagnostics in
+`error.data.code` remain stable string codes such as `mcp.invalid_arguments`.
+
+| Constant | Wire code | Meaning |
+| --- | ---: | --- |
+| `ParseError` | `-32700` | The request body is not valid JSON. |
+| `InvalidRequest` | `-32600` | The JSON-RPC envelope is invalid. |
+| `MethodNotFound` | `-32601` | The requested MCP method or tool is not supported. |
+| `InvalidParams` | `-32602` | Request parameters or a tool payload are invalid. |
+| `InternalError` | `-32603` | The server failed unexpectedly. |
+| `GenericServerError` | `-32000` | A server-side failure has no more specific mapping. |
+| `Unauthenticated` | `-32001` | Authentication is required or failed. |
+| `PermissionDenied` | `-32003` | The caller is authenticated but not authorized. |
+| `ResourceNotFound` | `-32004` | The requested project, flow, preview, resource, or key was not found. |
+| `TransientFailure` | `-32005` | The request was throttled or a dependent service timed out. |
+| `Conflict` | `-32010` | The resource changed or conflicts with the requested mutation. |
+| `OperationRejected` | `-32011` | The operation is understood but cannot be applied. |
+| `RequestTooLarge` | `-32012` | The request exceeds the configured size limit. |
+| `ResponseTooLarge` | `-32013` | The response exceeds the configured size limit. |
+| `LibraryInspectionUnavailable` | `-32020` | Library package inspection is unavailable in the host. |
+
+Clients should branch on the numeric `error.code` for JSON-RPC handling and
+use `error.data.code` for SereinFlow-specific remediation. The numeric values
+are protocol values; they are not interchangeable with the string business
+error-code families in `SereinFlow.Contracts`.
+
 ## Data Path Configuration
 
 The database and library directories are server-host configuration, not MCP
@@ -372,7 +402,7 @@ server's database, library, or staging paths through client parameters or
 environment variables. Do not search the service source, read its database, or
 decompile uploaded assemblies to explain a remote error.
 
-Unexpected failures return JSON-RPC `-32603` with `data.code =
+Unexpected failures return JSON-RPC `InternalError` (`-32603`) with `data.code =
 "mcp.internal_error"` and a `diagnosticId`. HTTP tool timeouts return
 `mcp.tool_timeout` with the same diagnostic ID. Provide the diagnostic ID to
 the service operator.

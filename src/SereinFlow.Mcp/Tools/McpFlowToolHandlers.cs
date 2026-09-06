@@ -55,7 +55,7 @@ internal static class McpFlowToolHandlers
 
         var request = normalized.Request;
         if (request.ProjectId == Guid.Empty || request.FlowId == Guid.Empty || request.ExpectedDevelopmentVersion < 1)
-            throw new McpProtocolException(-32602, "The flow patch request is invalid.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The flow patch request is invalid.");
         await RequireActiveProjectAsync(
             scope,
             scope.ServiceProvider.GetRequiredService<McpSecurityService>(),
@@ -65,7 +65,7 @@ internal static class McpFlowToolHandlers
             cancellationToken);
         var flows = scope.ServiceProvider.GetRequiredService<IFlowDefinitionRepository>();
         var current = await flows.FindAsync(request.ProjectId, request.FlowId, cancellationToken)
-            ?? throw new McpProtocolException(-32004, "The flow definition was not found.");
+            ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The flow definition was not found.");
         if (current.Version != request.ExpectedDevelopmentVersion)
             throw VersionConflict(current.Version);
 
@@ -87,7 +87,7 @@ internal static class McpFlowToolHandlers
         catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
         {
             throw new McpProtocolException(
-                -32602,
+                McpProtocolErrorCodes.InvalidParams,
                 "The flow patch references are invalid.",
                 new
                 {
@@ -102,7 +102,7 @@ internal static class McpFlowToolHandlers
 
         var preparation = await scope.ServiceProvider.GetRequiredService<FlowDefinitionWriteService>()
             .PrepareAsync(request.ProjectId, request.FlowId, candidate, cancellationToken)
-            ?? throw new McpProtocolException(-32004, "The flow definition was not found.");
+            ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The flow definition was not found.");
         var stored = new StoredFlowPatchPreview(
             normalized.LegacyRequest,
             preparation.Candidate,
@@ -137,7 +137,7 @@ internal static class McpFlowToolHandlers
         var previews = scope.ServiceProvider.GetRequiredService<McpPreviewService>();
         var entry = await previews.RequireAsync(request.PreviewId, request.PreviewFingerprint, principal, cancellationToken);
         if (!string.Equals(entry.Operation, FlowErrorCodes.Patch, StringComparison.Ordinal))
-            throw new McpProtocolException(-32602, "The preview does not describe a flow patch.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe a flow patch.");
         var stored = McpPreviewService.Deserialize<StoredFlowPatchPreview>(entry);
         var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
         await RequireActiveProjectAsync(
@@ -148,10 +148,10 @@ internal static class McpFlowToolHandlers
             McpPermissionDto.FlowWrite,
             cancellationToken);
         if (!stored.Validation.IsValid || stored.Diff.Changes.Count == 0)
-            throw new McpProtocolException(-32011, "The flow patch preview cannot be applied.");
+            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The flow patch preview cannot be applied.");
         var flows = scope.ServiceProvider.GetRequiredService<IFlowDefinitionRepository>();
         var current = await flows.FindAsync(stored.Request.ProjectId, stored.Request.FlowId, cancellationToken)
-            ?? throw new McpProtocolException(-32004, "The flow definition was not found.");
+            ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The flow definition was not found.");
         if (current.Version != stored.Request.ExpectedDevelopmentVersion)
             throw VersionConflict(current.Version);
         var currentDiff = scope.ServiceProvider.GetRequiredService<FlowDiffService>().Compare(current, stored.CandidateDefinition);
@@ -167,9 +167,9 @@ internal static class McpFlowToolHandlers
         if (write.Status == FlowDefinitionWriteStatus.Conflict)
             throw VersionConflict(write.CurrentVersion);
         if (write.Status == FlowDefinitionWriteStatus.Archived)
-            throw new McpProtocolException(-32011, "Archived projects cannot save flow definitions.");
+            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "Archived projects cannot save flow definitions.");
         if (write.Status != FlowDefinitionWriteStatus.Saved || write.Saved is null)
-            throw new McpProtocolException(-32011, "The flow patch preview cannot be applied.");
+            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The flow patch preview cannot be applied.");
         var saved = write.Saved;
         await MarkPreviewAppliedAsync(previews, entry, cancellationToken);
         var persisted = await flows.FindAsync(
@@ -182,7 +182,7 @@ internal static class McpFlowToolHandlers
             || !string.Equals(persisted.Checksum, FlowDiffService.GetChecksum(persisted), StringComparison.Ordinal))
         {
             throw new McpProtocolException(
-                -32603,
+                McpProtocolErrorCodes.InternalError,
                 "The flow patch was committed but authoritative verification failed.",
                 new { code = McpErrorCodes.PostApplyVerificationFailed });
         }
@@ -206,11 +206,11 @@ internal static class McpFlowToolHandlers
         security.Require(principal, McpPermissionDto.ProjectRead, projectId);
         var service = scope.ServiceProvider.GetRequiredService<AiReadModelService>();
         var fromVersionDetail = await service.GetFlowVersionAsync(projectId, flowId, fromVersion, cancellationToken)
-            ?? throw new McpProtocolException(-32004, "The source flow version was not found.");
+            ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The source flow version was not found.");
         var toVersionDetail = await service.GetFlowVersionAsync(projectId, flowId, toVersion, cancellationToken)
-            ?? throw new McpProtocolException(-32004, "The target flow version was not found.");
+            ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The target flow version was not found.");
         if (fromVersionDetail.Version.Track != track || toVersionDetail.Version.Track != track)
-            throw new McpProtocolException(-32004, "The requested versions are not on the selected track.");
+            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The requested versions are not on the selected track.");
         var diffService = scope.ServiceProvider.GetRequiredService<FlowDiffService>();
         return new FlowVersionComparisonDto(
             fromVersionDetail with { Definition = FlowDiffService.RedactSensitive(fromVersionDetail.Definition) },
@@ -229,7 +229,7 @@ internal static class McpFlowToolHandlers
             McpPermissionDto.FlowPublish,
             cancellationToken);
         var flow = await scope.ServiceProvider.GetRequiredService<IFlowDefinitionRepository>().FindAsync(request.ProjectId, request.FlowId, cancellationToken)
-            ?? throw new McpProtocolException(-32004, "The flow definition was not found.");
+            ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The flow definition was not found.");
         if (flow.Version != request.ExpectedDevelopmentVersion)
             throw VersionConflict(flow.Version);
         var executableValidation = await ValidateExecutableFlowAsync(scope, request.ProjectId, flow, cancellationToken);
@@ -286,7 +286,7 @@ internal static class McpFlowToolHandlers
             cancellationToken);
         var versions = scope.ServiceProvider.GetRequiredService<IFlowVersionRepository>();
         var current = await scope.ServiceProvider.GetRequiredService<IFlowDefinitionRepository>().FindAsync(stored.Request.ProjectId, stored.Request.FlowId, cancellationToken)
-            ?? throw new McpProtocolException(-32004, "The flow definition was not found.");
+            ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The flow definition was not found.");
         if (current.Version != stored.Request.ExpectedDevelopmentVersion)
             throw VersionConflict(current.Version);
         var currentValidation = await ValidateExecutableFlowAsync(scope, stored.Request.ProjectId, current, cancellationToken);
@@ -297,7 +297,7 @@ internal static class McpFlowToolHandlers
         var currentProduction = await versions.FindProductionDefinitionAsync(stored.Request.ProjectId, stored.Request.FlowId, cancellationToken);
         if (currentProduction is not null
             && string.Equals(FlowDiffService.GetChecksum(currentProduction), FlowDiffService.GetChecksum(current), StringComparison.Ordinal))
-            throw new McpProtocolException(-32011, "The development definition is already published.");
+            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The development definition is already published.");
         var result = await versions.PublishAsync(
             stored.Request.ProjectId,
             stored.Request.FlowId,
@@ -320,7 +320,7 @@ internal static class McpFlowToolHandlers
     {
         var request = Deserialize<RollbackFlowPreviewRequestDto>(arguments);
         if (request.SourceVersion < 1 || request.ExpectedHeadVersion < 1 || !Enum.IsDefined(request.Track))
-            throw new McpProtocolException(-32602, "The rollback request is invalid.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The rollback request is invalid.");
         await RequireActiveProjectAsync(
             scope,
             scope.ServiceProvider.GetRequiredService<McpSecurityService>(),
@@ -330,9 +330,9 @@ internal static class McpFlowToolHandlers
             cancellationToken);
         var versions = scope.ServiceProvider.GetRequiredService<IFlowVersionRepository>();
         var source = await versions.FindVersionAsync(request.ProjectId, request.FlowId, request.SourceVersion, cancellationToken)
-            ?? throw new McpProtocolException(-32004, "The rollback source version was not found.");
+            ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The rollback source version was not found.");
         if (source.Version.Track != request.Track)
-            throw new McpProtocolException(-32004, "The rollback source version is not on the selected track.");
+            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The rollback source version is not on the selected track.");
         var head = (await versions.ListVersionsAsync(request.ProjectId, request.FlowId, request.Track, cancellationToken)).FirstOrDefault(item => item.IsCurrent);
         if (head is null || head.Version != request.ExpectedHeadVersion)
             throw VersionConflict(head?.Version);
@@ -390,9 +390,9 @@ internal static class McpFlowToolHandlers
             stored.Request.FlowId,
             stored.Request.SourceVersion,
             cancellationToken)
-            ?? throw new McpProtocolException(-32004, "The rollback source version was not found.");
+            ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The rollback source version was not found.");
         if (source.Version.Track != stored.Request.Track)
-            throw new McpProtocolException(-32004, "The rollback source version is not on the selected track.");
+            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The rollback source version is not on the selected track.");
         var currentValidation = await ValidateExecutableFlowAsync(
             scope,
             stored.Request.ProjectId,

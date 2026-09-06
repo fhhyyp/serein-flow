@@ -257,7 +257,7 @@ public sealed class McpBackendIntegrationTests
             JsonSerializer.SerializeToElement(new { libraryId = artifact.Id, name = "Denied" }),
             CancellationToken.None));
 
-        Assert.Equal(-32003, exception.Code);
+        Assert.Equal(McpProtocolErrorCodes.PermissionDenied, exception.Code);
     }
 
     [Fact]
@@ -298,7 +298,7 @@ public sealed class McpBackendIntegrationTests
             }),
             CancellationToken.None));
 
-        Assert.Equal(-32003, exception.Code);
+        Assert.Equal(McpProtocolErrorCodes.PermissionDenied, exception.Code);
     }
 
     [Fact]
@@ -647,7 +647,7 @@ public sealed class McpBackendIntegrationTests
             }),
             CancellationToken.None));
 
-        Assert.Equal(-32602, exception.Code);
+        Assert.Equal(McpProtocolErrorCodes.InvalidParams, exception.Code);
         var diagnostic = JsonSerializer.SerializeToElement(exception.ErrorData, JsonOptions);
         Assert.Equal(McpErrorCodes.FlowPatchUnexpectedField, diagnostic.GetProperty("code").GetString());
         Assert.Equal("$.operations[0].ignored", diagnostic.GetProperty("fieldPath").GetString());
@@ -749,7 +749,7 @@ public sealed class McpBackendIntegrationTests
             }),
             CancellationToken.None));
 
-        Assert.Equal(-32602, exception.Code);
+        Assert.Equal(McpProtocolErrorCodes.InvalidParams, exception.Code);
         Assert.Equal(McpErrorCodes.FlowPatchFieldInvalid, ((JsonElement)JsonSerializer.SerializeToElement(exception.ErrorData, JsonOptions)).GetProperty("code").GetString());
     }
     private static readonly string[] ProjectReadPermissionNames = ["project.read"];
@@ -840,7 +840,7 @@ public sealed class McpBackendIntegrationTests
             JsonSerializer.SerializeToElement(new { name = "Not allowed" }),
             CancellationToken.None));
 
-        Assert.Equal(-32003, exception.Code);
+        Assert.Equal(McpProtocolErrorCodes.PermissionDenied, exception.Code);
     }
 
     [Fact]
@@ -1027,7 +1027,7 @@ public sealed class McpBackendIntegrationTests
             }),
             CancellationToken.None));
 
-        Assert.Equal(-32010, exception.Code);
+        Assert.Equal(McpProtocolErrorCodes.Conflict, exception.Code);
         Assert.Equal(directPublish.Version!.Version, await versions.FindProductionVersionAsync(project.Id, flow.Id));
     }
 

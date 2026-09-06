@@ -100,7 +100,7 @@ public sealed class McpRunMessageToolTests
             }),
             CancellationToken.None));
 
-        Assert.Equal(-32003, exception.Code);
+        Assert.Equal(McpProtocolErrorCodes.PermissionDenied, exception.Code);
         Assert.Equal(0, delivery.CallCount);
     }
 
@@ -125,7 +125,7 @@ public sealed class McpRunMessageToolTests
             }),
             CancellationToken.None));
 
-        Assert.Equal(-32602, exception.Code);
+        Assert.Equal(McpProtocolErrorCodes.InvalidParams, exception.Code);
         var errorData = JsonSerializer.SerializeToElement(exception.ErrorData);
         Assert.Equal(MessageErrorCodes.PayloadRequired, errorData.GetProperty("code").GetString());
         Assert.Equal(0, delivery.CallCount);
@@ -162,7 +162,7 @@ public sealed class McpRunMessageToolTests
             }),
             CancellationToken.None));
 
-        Assert.Equal(-32004, exception.Code);
+        Assert.Equal(McpProtocolErrorCodes.ResourceNotFound, exception.Code);
         var errorData = JsonSerializer.SerializeToElement(exception.ErrorData);
         Assert.Equal(RunErrorCodes.NotFound, errorData.GetProperty("code").GetString());
     }

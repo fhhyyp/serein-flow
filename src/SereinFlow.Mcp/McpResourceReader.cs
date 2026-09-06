@@ -32,7 +32,7 @@ public sealed class McpResourceReader
         if (!Uri.TryCreate(uri, UriKind.Absolute, out var parsed)
             || !string.Equals(parsed.Scheme, "sereinflow", StringComparison.OrdinalIgnoreCase))
         {
-            throw new McpProtocolException(-32602, "The SereinFlow resource URI is invalid.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The SereinFlow resource URI is invalid.");
         }
 
         var collection = parsed.Host.ToLowerInvariant();
@@ -113,11 +113,11 @@ public sealed class McpResourceReader
                     context, versionProjectId, versionFlowId, segments[4], version, cancellationToken),
             "mcp-previews" when segments.Length == 1 && Guid.TryParse(segments[0], out var previewId)
                 => await McpReadModelToolHandlers.ReadPreviewResourceAsync(context, previewId, cancellationToken),
-            _ => throw new McpProtocolException(-32602, "The SereinFlow resource URI is not supported.")
+            _ => throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The SereinFlow resource URI is not supported.")
         };
 
         if (value is null)
-            throw new McpProtocolException(-32004, "The requested SereinFlow resource was not found.");
+            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The requested SereinFlow resource was not found.");
 
         return new McpResourceReadResult(uri, value);
     }

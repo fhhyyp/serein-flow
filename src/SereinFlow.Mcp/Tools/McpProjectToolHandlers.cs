@@ -42,7 +42,7 @@ internal static class McpProjectToolHandlers
         security.RequireAdministrator(principal);
         var request = Deserialize<CreateProjectMcpRequestDto>(arguments);
         if (string.IsNullOrWhiteSpace(request.Name))
-            throw new McpProtocolException(-32602, "MCP parameter 'name' is required.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP parameter 'name' is required.");
 
         ProjectCreationCandidate candidate;
         try
@@ -52,7 +52,7 @@ internal static class McpProjectToolHandlers
         }
         catch (ArgumentException exception)
         {
-            throw new McpProtocolException(-32602, exception.Message);
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, exception.Message);
         }
 
         var stored = new StoredProjectCreatePreview(
@@ -108,7 +108,7 @@ internal static class McpProjectToolHandlers
             principal,
             cancellationToken);
         if (!string.Equals(entry.Operation, "project.create", StringComparison.Ordinal))
-            throw new McpProtocolException(-32602, "The preview does not describe project creation.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe project creation.");
 
         var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
         security.RequireAdministrator(principal);
@@ -120,7 +120,7 @@ internal static class McpProjectToolHandlers
         if (!candidate.Validation.IsValid)
         {
             throw new McpProtocolException(
-                -32011,
+                McpProtocolErrorCodes.OperationRejected,
                 "The project creation preview is no longer valid.",
                 new { code = McpErrorCodes.ValidationFailed, diagnostics = candidate.Validation.Diagnostics });
         }
@@ -130,12 +130,12 @@ internal static class McpProjectToolHandlers
         if (result.Status == ProjectCreationStatus.Conflict)
         {
             throw new McpProtocolException(
-                -32010,
+                McpProtocolErrorCodes.Conflict,
                 result.ErrorMessage ?? "The project already exists.",
                 new { code = result.ErrorCode });
         }
         if (result.Status != ProjectCreationStatus.Created)
-            throw new McpProtocolException(-32011, "The project creation preview cannot be applied.");
+            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The project creation preview cannot be applied.");
 
         var response = CreateWorkspace(candidate);
         await MarkPreviewAppliedAsync(previews, entry, cancellationToken);

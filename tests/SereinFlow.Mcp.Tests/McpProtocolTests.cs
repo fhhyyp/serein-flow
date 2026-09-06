@@ -123,10 +123,10 @@ public sealed class McpProtocolTests
         await server.RunAsync(input, output);
 
         using var document = JsonDocument.Parse(output.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries)[0]);
-        Assert.Equal(-32601, document.RootElement.GetProperty("error").GetProperty("code").GetInt32());
+        Assert.Equal(McpProtocolErrorCodes.MethodNotFound, document.RootElement.GetProperty("error").GetProperty("code").GetInt32());
         Assert.False(document.RootElement.TryGetProperty("result", out _));
         using var second = JsonDocument.Parse(output.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries)[1]);
-        Assert.Equal(-32602, second.RootElement.GetProperty("error").GetProperty("code").GetInt32());
+        Assert.Equal(McpProtocolErrorCodes.InvalidParams, second.RootElement.GetProperty("error").GetProperty("code").GetInt32());
         Assert.False(second.RootElement.TryGetProperty("result", out _));
     }
 
@@ -140,7 +140,7 @@ public sealed class McpProtocolTests
 
         using var document = JsonDocument.Parse(response!);
         var error = document.RootElement.GetProperty("error");
-        Assert.Equal(-32603, error.GetProperty("code").GetInt32());
+        Assert.Equal(McpProtocolErrorCodes.InternalError, error.GetProperty("code").GetInt32());
         Assert.Equal("The MCP request failed internally.", error.GetProperty("message").GetString());
         var data = error.GetProperty("data");
         Assert.Equal(McpErrorCodes.InternalError, data.GetProperty("code").GetString());

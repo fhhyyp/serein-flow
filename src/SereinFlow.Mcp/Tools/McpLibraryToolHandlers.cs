@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
@@ -106,7 +107,7 @@ internal static class McpLibraryToolHandlers
         var preview = scope.ServiceProvider.GetRequiredService<McpPreviewService>();
         var entry = await preview.RequireAsync(request.PreviewId, request.PreviewFingerprint, principal, cancellationToken);
         if (!string.Equals(entry.Operation, LibraryErrorCodes.FamilyAssign, StringComparison.Ordinal))
-            throw new McpProtocolException(-32602, "The preview does not describe a library family assignment.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe a library family assignment.");
 
         var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
         security.RequireAdministrator(principal);
@@ -116,7 +117,7 @@ internal static class McpLibraryToolHandlers
         if (validated.Diagnostics.Count > 0)
         {
             throw new McpProtocolException(
-                -32011,
+                McpProtocolErrorCodes.OperationRejected,
                 "The library family assignment is no longer valid. Create a new preview and review it again.",
                 new { code = McpErrorCodes.ValidationFailed, diagnostics = validated.Diagnostics });
         }
@@ -136,13 +137,13 @@ internal static class McpLibraryToolHandlers
         catch (ArgumentException exception)
         {
             throw new McpProtocolException(
-                -32011,
+                McpProtocolErrorCodes.OperationRejected,
                 "The library family assignment is no longer valid. Create a new preview and review it again.",
                 new { code = McpErrorCodes.ValidationFailed, message = exception.Message });
         }
 
         if (result is null)
-            throw new McpProtocolException(-32004, "The library artifact was not found.", new { code = LibraryErrorCodes.NotFound });
+            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The library artifact was not found.", new { code = LibraryErrorCodes.NotFound });
 
         await MarkPreviewAppliedAsync(preview, entry, cancellationToken);
         await idempotency.SaveAsync(
@@ -218,7 +219,7 @@ internal static class McpLibraryToolHandlers
             request.IdempotencyKey);
         RequireConfirmation(applyEnvelope);
         if (request.Flows is null || request.Flows.Count == 0)
-            throw new McpProtocolException(-32602, "At least one flow must be selected for a library upgrade.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "At least one flow must be selected for a library upgrade.");
 
         var requestPayload = Serialize(request);
         var idempotency = scope.ServiceProvider.GetRequiredService<McpIdempotencyService>();
@@ -234,7 +235,7 @@ internal static class McpLibraryToolHandlers
         var preview = scope.ServiceProvider.GetRequiredService<McpPreviewService>();
         var entry = await preview.RequireAsync(request.PreviewId, request.PreviewFingerprint, principal, cancellationToken);
         if (!string.Equals(entry.Operation, "library.upgrade", StringComparison.Ordinal))
-            throw new McpProtocolException(-32602, "The preview does not describe a library upgrade.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe a library upgrade.");
 
         var stored = McpPreviewService.Deserialize<StoredLibraryUpgradePreview>(entry);
         var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
@@ -333,9 +334,9 @@ internal static class McpLibraryToolHandlers
         => new(
             result.StatusCode switch
             {
-                400 => -32602,
-                404 => -32004,
-                _ => -32011,
+                StatusCodes.Status400BadRequest => McpProtocolErrorCodes.InvalidParams,
+                StatusCodes.Status404NotFound => McpProtocolErrorCodes.ResourceNotFound,
+                _ => McpProtocolErrorCodes.OperationRejected,
             },
             result.Message ?? "The library upgrade could not be completed.",
             new { code = result.Code, statusCode = result.StatusCode, currentVersion = result.CurrentVersion });
@@ -354,7 +355,7 @@ internal static class McpLibraryToolHandlers
     {
         var request = Deserialize<LibraryNodeTemplateRequestDto>(arguments);
         if (request.ProjectId == Guid.Empty)
-            throw new McpProtocolException(-32602, "The library node template request is invalid.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The library node template request is invalid.");
         await RequireActiveProjectAsync(
             scope,
             scope.ServiceProvider.GetRequiredService<McpSecurityService>(),
@@ -380,7 +381,7 @@ internal static class McpLibraryToolHandlers
     {
         var request = Deserialize<ScriptCompileRequestDto>(arguments);
         if (string.IsNullOrWhiteSpace(request.Source))
-            throw new McpProtocolException(-32602, "The SereinLang source is required.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The SereinLang source is required.");
         return await scope.ServiceProvider
             .GetRequiredService<SereinFlow.ScriptAdapter.ISereinLangCompiler>()
             .CompileAsync(request, cancellationToken);
@@ -392,7 +393,7 @@ internal static class McpLibraryToolHandlers
         var packageBase64 = GetRequiredString(arguments, "packageBase64");
         var fileUploadSettings = scope.ServiceProvider.GetRequiredService<IFileUploadSettings>();
         if (packageBase64.Length > FileUploadLimits.GetBase64EncodedLimit(fileUploadSettings.MaxLibraryUploadBytes))
-            throw new McpProtocolException(-32012, "The library package request is too large.");
+            throw new McpProtocolException(McpProtocolErrorCodes.RequestTooLarge, "The library package request is too large.");
         byte[] bytes;
         try
         {
@@ -400,13 +401,13 @@ internal static class McpLibraryToolHandlers
         }
         catch (FormatException exception)
         {
-            throw new McpProtocolException(-32602, "The library package must be valid base64.", exception.Message);
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The library package must be valid base64.", exception.Message);
         }
         var projectId = TryGetGuid(arguments, "projectId");
         var familyId = GetOptionalString(arguments, "familyId");
         var baselineArtifactId = GetOptionalString(arguments, "baselineArtifactId");
         if (!string.IsNullOrWhiteSpace(familyId) && !string.IsNullOrWhiteSpace(baselineArtifactId))
-            throw new McpProtocolException(-32602, "Specify either familyId or baselineArtifactId, not both.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "Specify either familyId or baselineArtifactId, not both.");
         var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
         if (projectId is not null)
             await RequireActiveProjectAsync(
@@ -442,7 +443,7 @@ internal static class McpLibraryToolHandlers
                 familyId,
                 baselineArtifactId,
                 cancellationToken)
-                ?? throw new McpProtocolException(-32020, "Library package inspection is not configured in this host.");
+                ?? throw new McpProtocolException(McpProtocolErrorCodes.LibraryInspectionUnavailable, "Library package inspection is not configured in this host.");
             var compatibility = inspection.Compatibility;
             var projectImpact = projectId is null || compatibility is null
                 ? null
@@ -481,16 +482,16 @@ internal static class McpLibraryToolHandlers
         catch (LibraryUploadException exception)
         {
             throw new McpProtocolException(
-                -32011,
+                McpProtocolErrorCodes.OperationRejected,
                 exception.Message,
                 new { code = McpErrorCodes.LibraryPackageInvalid, statusCode = exception.StatusCode });
         }
         catch (InvalidOperationException exception)
         {
             throw new McpProtocolException(
-                -32012,
+                McpProtocolErrorCodes.RequestTooLarge,
                 exception.Message,
-                new { code = McpErrorCodes.LibraryPackageInvalid, statusCode = 413 });
+                new { code = McpErrorCodes.LibraryPackageInvalid, statusCode = StatusCodes.Status413PayloadTooLarge });
         }
         finally
         {
@@ -511,7 +512,7 @@ internal static class McpLibraryToolHandlers
         var preview = scope.ServiceProvider.GetRequiredService<McpPreviewService>();
         var entry = await preview.RequireAsync(request.PreviewId, request.PreviewFingerprint, principal, cancellationToken);
         if (!string.Equals(entry.Operation, LibraryErrorCodes.Package, StringComparison.Ordinal))
-            throw new McpProtocolException(-32602, "The preview does not describe a library package.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe a library package.");
         var stored = McpPreviewService.Deserialize<StoredLibraryPackagePreview>(entry);
         var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
         if (stored.ProjectId is null)
@@ -529,7 +530,7 @@ internal static class McpLibraryToolHandlers
         {
             await using var package = staging.OpenRead(stored.StagingPath);
             if (package.Length != stored.SizeBytes || !string.Equals(await ComputeSha256Async(package, cancellationToken), stored.PackageSha256, StringComparison.OrdinalIgnoreCase))
-                throw new McpProtocolException(-32010, "The staged library package changed after preview.");
+                throw new McpProtocolException(McpProtocolErrorCodes.Conflict, "The staged library package changed after preview.");
             package.Position = 0;
             var result = await scope.ServiceProvider.GetRequiredService<ILibraryCatalogService>().UploadAsync(
                 package,
@@ -544,7 +545,7 @@ internal static class McpLibraryToolHandlers
         catch (FileNotFoundException)
         {
             throw new McpProtocolException(
-                -32004,
+                McpProtocolErrorCodes.ResourceNotFound,
                 "The staged library package is no longer available. Create a new preview and apply it again.",
                 new { code = McpErrorCodes.PreviewPackageUnavailable });
         }
@@ -612,7 +613,7 @@ internal static class McpLibraryToolHandlers
             throw new McpSecurityException(
                 McpErrorCodes.LibraryAccessDenied,
                 "The MCP caller cannot use the requested library baseline for this project.",
-                403);
+                StatusCodes.Status403Forbidden);
         }
     }
 
@@ -657,7 +658,7 @@ internal static class McpLibraryToolHandlers
         var preview = scope.ServiceProvider.GetRequiredService<McpPreviewService>();
         var entry = await preview.RequireAsync(request.PreviewId, request.PreviewFingerprint, principal, cancellationToken);
         if (!string.Equals(entry.Operation, ProjectErrorCodes.LibraryAttach, StringComparison.Ordinal))
-            throw new McpProtocolException(-32602, "The preview does not describe a project library attachment.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe a project library attachment.");
         var stored = McpPreviewService.Deserialize<StoredProjectLibraryAttachPreview>(entry);
         scope.ServiceProvider.GetRequiredService<McpSecurityService>()
             .Require(principal, McpPermissionDto.LibraryManage, stored.Request.ProjectId);
@@ -665,7 +666,7 @@ internal static class McpLibraryToolHandlers
         if (currentDiagnostics.Count > 0)
         {
             throw new McpProtocolException(
-                -32011,
+                McpProtocolErrorCodes.OperationRejected,
                 "The project library attachment is no longer valid. Create a new preview and review it again.",
                 new { code = McpErrorCodes.ValidationFailed, diagnostics = currentDiagnostics });
         }
@@ -675,7 +676,7 @@ internal static class McpLibraryToolHandlers
             cancellationToken,
             origin: "mcp");
         if (!result.IsSuccess)
-            throw new McpProtocolException(-32011, result.Message ?? "The project library attachment failed.", result.Code);
+            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, result.Message ?? "The project library attachment failed.", result.Code);
         await MarkPreviewAppliedAsync(preview, entry, cancellationToken);
         await idempotency.SaveAsync(principal.Id, entry.Operation, request.IdempotencyKey, result, requestPayload, cancellationToken);
         return result;

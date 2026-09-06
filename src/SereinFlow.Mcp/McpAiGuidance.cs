@@ -212,7 +212,7 @@ public sealed class McpAiGuidanceProvider
         if (!_filePaths.TryGetValue(uri, out var filePath))
         {
             throw new McpProtocolException(
-                -32602,
+                McpProtocolErrorCodes.InvalidParams,
                 "The SereinFlow AI guidance URI is not supported.",
                 new { code = McpErrorCodes.AiGuidanceUriUnsupported });
         }
@@ -230,7 +230,7 @@ public sealed class McpAiGuidanceProvider
 
             if (stream.Length > _maxBytes)
                 throw new McpProtocolException(
-                    -32012,
+                    McpProtocolErrorCodes.RequestTooLarge,
                     "The configured SereinFlow AI guidance is too large.",
                     new { code = McpErrorCodes.AiGuidanceTooLarge });
 
@@ -257,7 +257,7 @@ public sealed class McpAiGuidanceProvider
         catch (UnauthorizedAccessException)
         {
             throw new McpProtocolException(
-                -32003,
+                McpProtocolErrorCodes.PermissionDenied,
                 "The configured SereinFlow AI guidance cannot be read.",
                 new { code = McpErrorCodes.AiGuidanceAccessDenied });
         }
@@ -269,7 +269,7 @@ public sealed class McpAiGuidanceProvider
         if (Encoding.UTF8.GetByteCount(content) > _maxBytes)
         {
             throw new McpProtocolException(
-                -32012,
+                McpProtocolErrorCodes.RequestTooLarge,
                 "The configured SereinFlow AI guidance is too large.",
                 new { code = McpErrorCodes.AiGuidanceTooLarge });
         }
@@ -285,7 +285,7 @@ public sealed class McpAiGuidanceProvider
 
     private static McpProtocolException Unavailable()
         => new(
-            -32004,
+            McpProtocolErrorCodes.ResourceNotFound,
             "The SereinFlow AI guidance is not available.",
             new { code = McpErrorCodes.AiGuidanceUnavailable });
 }

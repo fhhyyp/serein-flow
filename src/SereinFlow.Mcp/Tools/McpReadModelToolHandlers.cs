@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
@@ -260,12 +261,12 @@ internal static class McpReadModelToolHandlers
             McpPermissionDto.DebugRead,
             McpPermissionDto.RunRead);
         var afterRevision = GetOptionalLong(arguments, "afterRevision")
-            ?? throw new McpProtocolException(-32602, "MCP parameter 'afterRevision' is required.");
+            ?? throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP parameter 'afterRevision' is required.");
         var timeoutSeconds = GetOptionalInt(arguments, "timeoutSeconds") ?? 15;
         if (afterRevision < 0)
-            throw new McpProtocolException(-32602, "MCP parameter 'afterRevision' cannot be negative.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP parameter 'afterRevision' cannot be negative.");
         if (timeoutSeconds is < 0 or > 60)
-            throw new McpProtocolException(-32602, "MCP parameter 'timeoutSeconds' must be between 0 and 60.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP parameter 'timeoutSeconds' must be between 0 and 60.");
 
         var result = await service.WaitForDebugStateChangeAsync(
             GetGuid(arguments, "sessionId"),
@@ -440,7 +441,7 @@ internal static class McpReadModelToolHandlers
             var referenced = await scope.ServiceProvider.GetRequiredService<IProjectLibraryReferenceRepository>()
                 .IsReferencedAsync(principal!.ProjectId!.Value, library.Id, cancellationToken);
             if (!referenced)
-                throw new McpSecurityException(McpErrorCodes.LibraryAccessDenied, "The MCP caller cannot access this library artifact.", 403);
+                throw new McpSecurityException(McpErrorCodes.LibraryAccessDenied, "The MCP caller cannot access this library artifact.", StatusCodes.Status403Forbidden);
         }
         return library;
     }
@@ -551,7 +552,7 @@ internal static class McpReadModelToolHandlers
         var result = await scope.ServiceProvider.GetRequiredService<ProjectLibraryService>()
             .ListAsync(projectId, cancellationToken);
         if (!result.IsSuccess)
-            throw new McpProtocolException(-32004, result.Message ?? "The project was not found.", new { code = result.Code });
+            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, result.Message ?? "The project was not found.", new { code = result.Code });
         var normalized = options.Normalize();
         var items = (result.References ?? [])
             .OrderBy(static reference => reference.LibraryId, StringComparer.Ordinal)
@@ -578,7 +579,7 @@ internal static class McpReadModelToolHandlers
         var result = await scope.ServiceProvider.GetRequiredService<LibraryUpgradeService>()
             .GetPlanAsync(projectId, upgradeId, cancellationToken);
         if (!result.IsSuccess || result.Value is null)
-            throw new McpProtocolException(-32004, result.Message ?? "The library upgrade preview was not found.", new { code = result.Code });
+            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, result.Message ?? "The library upgrade preview was not found.", new { code = result.Code });
         return result.Value;
     }
 
@@ -668,7 +669,7 @@ internal static class McpReadModelToolHandlers
         CancellationToken cancellationToken)
     {
         var entry = await scope.ServiceProvider.GetRequiredService<IMcpPreviewStore>().FindAsync(previewId, cancellationToken)
-            ?? throw new McpProtocolException(-32004, "The MCP preview was not found.");
+            ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The MCP preview was not found.");
         if (principal is not null
             && !principal.IsLocal
             && !principal.IsAdministrator
@@ -677,12 +678,12 @@ internal static class McpReadModelToolHandlers
             throw new McpSecurityException(
                 McpErrorCodes.PreviewOwnerMismatch,
                 "The MCP preview belongs to another caller.",
-                403);
+                StatusCodes.Status403Forbidden);
         }
         if (entry.ProjectId is null && principal is not null && !principal.IsLocal && !principal.IsAdministrator)
-            throw new McpSecurityException(McpErrorCodes.PreviewAccessDenied, "The MCP caller cannot access this global preview.", 403);
+            throw new McpSecurityException(McpErrorCodes.PreviewAccessDenied, "The MCP caller cannot access this global preview.", StatusCodes.Status403Forbidden);
         if (entry.ProjectId is not null && principal is not null && !principal.CanAccess(entry.ProjectId.Value))
-            throw new McpSecurityException(McpErrorCodes.ProjectAccessDenied, "The MCP caller cannot access this preview.", 403);
+            throw new McpSecurityException(McpErrorCodes.ProjectAccessDenied, "The MCP caller cannot access this preview.", StatusCodes.Status403Forbidden);
         RequirePreviewPermission(security, principal, entry);
         var descriptor = new McpPreviewDescriptorDto(entry.Id, entry.Operation, entry.ProjectId, entry.FlowId, entry.Status, entry.ExpiresAt, entry.PreviewFingerprint);
         return entry.Operation switch
