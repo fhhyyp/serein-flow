@@ -310,6 +310,7 @@ const {
   availableCanvasLifecycles,
   canvasLabel,
   selectCanvas,
+  reorderCanvas,
   addCanvas,
   toggleCanvasMenu,
   addCustomCanvas,
@@ -1494,6 +1495,7 @@ function setLanguage(nextLocale: Locale): void {
               :canvas-delete-confirm-open="canvasDeleteConfirmOpen"
               :canvas-label="canvasLabel"
               @select-canvas="selectCanvas"
+              @reorder-canvases="reorderCanvas"
               @toggle-canvas-menu="toggleCanvasMenu"
               @add-canvas="addCanvas"
               @add-custom-canvas="addCustomCanvas"

@@ -149,6 +149,7 @@ test('the workbench DTO round trip retains user-created multi-canvas execution a
   assert.equal(init?.edges[0]?.id, 'exec-prepare-catalog')
   assert.equal(main?.nodes.find((node) => node.id === 'normalize')?.data.parameters[0]?.sourceNodeId, 'flipflop')
   assert.equal(restored.entryNodeId, 'prepare')
+  assert.deepEqual(restored.canvases.map((canvas) => canvas.id), ['main', 'init'])
   assert.deepEqual(restored.canvasFocusSettings, original.canvasFocusSettings)
 })
 
@@ -209,6 +210,22 @@ test('custom canvas names and lifecycle survive DTO round trips', () => {
   assert.equal(restoredCustom?.lifecycle, 'custom')
   assert.equal(restoredCustom?.name, '审计流程')
   assert.equal(restored.activeCanvasId, 'main')
+})
+
+test('a preferred canvas remains active when a saved definition is reloaded', () => {
+  const main = createInitialCanvases()[0]!
+  const definition = workspaceToFlowDefinition({
+    canvases: [
+      main,
+      { ...main, id: 'init', nameKey: 'canvas.init', lifecycle: 'init' },
+    ],
+    activeCanvasId: 'init',
+    nextNodeNumber: 1,
+  }, { id: 'flow', version: 1 })
+
+  assert.equal(flowDefinitionToWorkspace(definition).activeCanvasId, 'main')
+  assert.equal(flowDefinitionToWorkspace(definition, 'init').activeCanvasId, 'init')
+  assert.equal(flowDefinitionToWorkspace(definition, 'missing').activeCanvasId, 'main')
 })
 
 test('restored parameter connections target the rendered parameter handle', () => {

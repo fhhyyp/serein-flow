@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { markRaw } from 'vue'
+import { markRaw, ref } from 'vue'
 import { Check, LayoutGrid, ListChecks, LocateFixed, Plus, Save, Settings2, Trash2, X } from 'lucide-vue-next'
 import {
   ConnectionMode,
@@ -18,6 +18,8 @@ import { connectionLineTypeOptions, type ConnectionLineSettings } from '../../fl
 import type { CanvasFocusSettingKey, CanvasFocusSettings } from '../../flow/canvasFocus'
 
 const nodeTypes = markRaw({ workflow: FlowNodeCard })
+const draggedCanvasId = ref<string>()
+const dropTargetCanvasId = ref<string>()
 
 const props = defineProps<{
   canvases: CanvasState[]
@@ -53,6 +55,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'select-canvas': [canvasId: string]
+  'reorder-canvases': [sourceCanvasId: string, targetCanvasId: string]
   'toggle-canvas-menu': []
   'add-canvas': [lifecycle: CanvasState['lifecycle']]
   'add-custom-canvas': []
@@ -83,6 +86,43 @@ const emit = defineEmits<{
 function updateCustomCanvasName(event: Event): void {
   emit('update:customCanvasNameDraft', (event.target as HTMLInputElement).value)
 }
+
+function startCanvasDrag(event: DragEvent, canvasId: string): void {
+  draggedCanvasId.value = canvasId
+  dropTargetCanvasId.value = undefined
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', canvasId)
+  }
+}
+
+function dragOverCanvas(event: DragEvent, canvasId: string): void {
+  event.preventDefault()
+  if (!draggedCanvasId.value || draggedCanvasId.value === canvasId) {
+    return
+  }
+
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move'
+  }
+  dropTargetCanvasId.value = canvasId
+}
+
+function dropCanvas(event: DragEvent, targetCanvasId: string): void {
+  event.preventDefault()
+  const sourceCanvasId = draggedCanvasId.value || event.dataTransfer?.getData('text/plain')
+  clearCanvasDragState()
+  if (!sourceCanvasId || sourceCanvasId === targetCanvasId) {
+    return
+  }
+
+  emit('reorder-canvases', sourceCanvasId, targetCanvasId)
+}
+
+function clearCanvasDragState(): void {
+  draggedCanvasId.value = undefined
+  dropTargetCanvasId.value = undefined
+}
 </script>
 
 <template>
@@ -90,7 +130,24 @@ function updateCustomCanvasName(event: Event): void {
     <div class="canvas-toolbar">
       <div class="canvas-tab-row">
         <div class="canvas-tabs" role="tablist" :aria-label="t('canvas.options')">
-          <button v-for="canvas in props.canvases" :id="`canvas-tab-${canvas.id}`" :key="canvas.id" type="button" role="tab" :aria-selected="canvas.id === props.activeCanvasId" :class="{ active: canvas.id === props.activeCanvasId }" @click="emit('select-canvas', canvas.id)">{{ props.canvasLabel(canvas) }}</button>
+          <button
+            v-for="canvas in props.canvases"
+            :id="`canvas-tab-${canvas.id}`"
+            :key="canvas.id"
+            type="button"
+            role="tab"
+            :aria-selected="canvas.id === props.activeCanvasId"
+            :draggable="props.canvases.length > 1"
+            :title="props.canvases.length > 1 ? t('canvas.reorderHint') : undefined"
+            :class="{ active: canvas.id === props.activeCanvasId, dragging: canvas.id === draggedCanvasId, 'drop-target': canvas.id === dropTargetCanvasId }"
+            @click="emit('select-canvas', canvas.id)"
+            @dragstart="startCanvasDrag($event, canvas.id)"
+            @dragenter="dragOverCanvas($event, canvas.id)"
+            @dragover="dragOverCanvas($event, canvas.id)"
+            @dragleave="dropTargetCanvasId = undefined"
+            @drop="dropCanvas($event, canvas.id)"
+            @dragend="clearCanvasDragState"
+          >{{ props.canvasLabel(canvas) }}</button>
         </div>
         <div class="canvas-menu">
           <button class="icon-button compact" type="button" :title="t('canvas.add')" :aria-label="t('canvas.add')" :aria-expanded="props.canvasMenuOpen" @click="emit('toggle-canvas-menu')"><Plus :size="15" /></button>

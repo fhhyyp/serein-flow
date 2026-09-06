@@ -69,9 +69,12 @@ export function workspaceToFlowDefinition(snapshot: WorkspaceSnapshot, identity:
   }
 }
 
-export function flowDefinitionToWorkspace(definition: FlowDefinitionDto): WorkspaceSnapshot {
+export function flowDefinitionToWorkspace(definition: FlowDefinitionDto, preferredActiveCanvasId?: string): WorkspaceSnapshot {
   const canvases = definition.canvases.map(toCanvasState)
-  const activeCanvasId = canvases.find((canvas) => canvas.lifecycle === 'main')?.id ?? canvases[0]?.id ?? 'main'
+  const defaultActiveCanvasId = canvases.find((canvas) => canvas.lifecycle === 'main')?.id ?? canvases[0]?.id ?? 'main'
+  const activeCanvasId = preferredActiveCanvasId && canvases.some((canvas) => canvas.id === preferredActiveCanvasId)
+    ? preferredActiveCanvasId
+    : defaultActiveCanvasId
   return {
     canvases,
     activeCanvasId,

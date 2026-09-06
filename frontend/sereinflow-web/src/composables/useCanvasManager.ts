@@ -1,5 +1,6 @@
 import { computed, nextTick, ref, type ComputedRef, type Ref } from 'vue'
 import { t } from '../i18n'
+import { reorderCanvases } from '../flow/canvasOrder'
 import type { CanvasLifecycle, CanvasState } from '../flow/types'
 
 interface UseCanvasManagerOptions {
@@ -53,6 +54,19 @@ export function useCanvasManager(options: UseCanvasManagerOptions) {
     void nextTick().then(() => {
       options.isSwitchingCanvas.value = false
     })
+  }
+
+  function reorderCanvas(sourceCanvasId: string, targetCanvasId: string): void {
+    const sourceCanvas = options.canvases.value.find((canvas) => canvas.id === sourceCanvasId)
+    const targetCanvas = options.canvases.value.find((canvas) => canvas.id === targetCanvasId)
+    if (!sourceCanvas || !targetCanvas || sourceCanvasId === targetCanvasId) {
+      return
+    }
+
+    options.recordWorkspaceMutation()
+    options.canvases.value = reorderCanvases(options.canvases.value, sourceCanvasId, targetCanvasId)
+    options.markWorkspaceChanged()
+    options.notice.value = t('canvas.reordered')
   }
 
   function addCanvas(lifecycle: CanvasLifecycle): void {
@@ -157,6 +171,7 @@ export function useCanvasManager(options: UseCanvasManagerOptions) {
     nextCustomCanvasNumber,
     canvasLabel,
     selectCanvas,
+    reorderCanvas,
     addCanvas,
     toggleCanvasMenu,
     addCustomCanvas,

@@ -198,8 +198,15 @@ export function useProjectSession(options: UseProjectSessionOptions) {
     }
   }
 
-  function applyServerWorkspace(definition: ReturnType<typeof workspaceToFlowDefinition>): void {
-    const workspace = { ...flowDefinitionToWorkspace(definition), projectName: options.projectName.value }
+  function applyServerWorkspace(
+    definition: ReturnType<typeof workspaceToFlowDefinition>,
+    preserveActiveCanvas = false,
+  ): void {
+    const preferredActiveCanvasId = preserveActiveCanvas ? options.activeCanvasId.value : undefined
+    const workspace = {
+      ...flowDefinitionToWorkspace(definition, preferredActiveCanvasId),
+      projectName: options.projectName.value,
+    }
     options.restoreWorkspace(workspace)
     options.clearHistory()
     options.localizeEdges()
@@ -368,7 +375,10 @@ export function useProjectSession(options: UseProjectSessionOptions) {
 
     const definition = await loadFlow(options.projectId.value, options.flowId.value)
     options.flowVersion.value = definition.version
-    applyServerWorkspace(definition)
+    // Saving changes the version and the workspace sync then reloads the flow.
+    // Keep the user's current canvas through that refresh when it still exists.
+    // 保存会变更版本，工作区同步随后会重新加载流程；当前画布仍存在时保留用户选择。
+    applyServerWorkspace(definition, true)
     options.projectWorkspaces.value = options.projectWorkspaces.value.map((workspace) =>
       workspace.project.id === options.projectId.value
         ? {

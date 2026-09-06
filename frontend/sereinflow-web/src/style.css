@@ -684,9 +684,12 @@ h2 { overflow-wrap: anywhere; }
 .version-pill--production { border-color: #a8d7b7; background: var(--success-soft); color: var(--success); }
 .canvas-tab-row { display: flex; min-width: 0; align-items: center; gap: 3px; }
 .canvas-tabs { display: flex; min-width: 0; max-width: 100%; gap: 2px; overflow-x: auto; }
-.canvas-tabs button { height: 28px; border: 0; border-bottom: 2px solid transparent; padding: 0 9px; background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; font-weight: 500; white-space: nowrap; transition: border-color 180ms ease, color 180ms ease; }
+.canvas-tabs button { height: 28px; border: 0; border-bottom: 2px solid transparent; padding: 0 9px; background: transparent; color: var(--muted); cursor: grab; font-size: 13px; font-weight: 500; white-space: nowrap; transition: border-color 180ms ease, color 180ms ease, background-color 180ms ease, opacity 180ms ease; }
+.canvas-tabs button:active { cursor: grabbing; }
 .canvas-tabs button:hover { color: var(--ink); }
 .canvas-tabs button.active { border-bottom-color: var(--accent); color: var(--accent); }
+.canvas-tabs button.dragging { opacity: .45; }
+.canvas-tabs button.drop-target { border-left: 2px solid var(--accent); background: var(--accent-soft); color: var(--ink); }
 .icon-button.compact { width: 28px; height: 28px; flex: 0 0 auto; }
 .canvas-menu { position: relative; flex: 0 0 auto; }
 .canvas-popover { position: absolute; z-index: 20; top: 32px; left: 0; display: grid; min-width: 220px; border: 1px solid var(--line-strong); border-radius: 4px; padding: 4px; background: var(--surface); box-shadow: 0 10px 24px rgb(15 23 42 / 8%); }
