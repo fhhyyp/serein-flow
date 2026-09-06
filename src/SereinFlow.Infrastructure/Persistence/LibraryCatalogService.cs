@@ -89,6 +89,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
     private readonly LibraryCatalogOptions _options;
     private readonly ILogger<SqliteLibraryCatalogService>? _logger;
     private readonly IFileUploadSettings? _fileUploadSettings;
+    private readonly IWorkspaceChangePublisher? _changePublisher;
     // The catalog is scoped because it consumes scoped repository services,
     // while uploads must still be serialized across concurrent HTTP requests.
     // Keep the gate process-wide instead of tying it to one request scope.
@@ -113,7 +114,8 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         IUnitOfWork unitOfWork,
         LibraryCatalogOptions options,
         ILogger<SqliteLibraryCatalogService>? logger = null,
-        IFileUploadSettings? fileUploadSettings = null)
+        IFileUploadSettings? fileUploadSettings = null,
+        IWorkspaceChangePublisher? changePublisher = null)
     {
         _libraries = libraries ?? throw new ArgumentNullException(nameof(libraries), "The library repository cannot be null. 类库仓储不能为空。");
         _families = families ?? throw new ArgumentNullException(nameof(families), "The library family repository cannot be null. 类库族仓储不能为空。");
@@ -121,6 +123,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         _options = options ?? throw new ArgumentNullException(nameof(options), "Library catalog options cannot be null. 类库目录选项不能为空。");
         _logger = logger;
         _fileUploadSettings = fileUploadSettings;
+        _changePublisher = changePublisher;
         Directory.CreateDirectory(_options.RootPath);
         Directory.CreateDirectory(PackagesPath);
     }
@@ -175,6 +178,14 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         string fileName,
         long? declaredLength = null,
         CancellationToken cancellationToken = default)
+        => await UploadAsync(package, fileName, declaredLength, cancellationToken, "web");
+
+    public async Task<LibraryUploadResultDto> UploadAsync(
+        Stream package,
+        string fileName,
+        long? declaredLength,
+        CancellationToken cancellationToken,
+        string origin)
     {
         if (package is null)
             throw new ArgumentNullException(nameof(package), "The library package stream cannot be null. 类库包流不能为空。");
@@ -236,7 +247,13 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
                 throw;
             }
 
-            return new LibraryUploadResultDto(library, false);
+            var result = new LibraryUploadResultDto(library, false);
+            await PublishCatalogChangeAsync(
+                library.Id,
+                "library.catalog.changed",
+                "library.package.import",
+                origin);
+            return result;
         }
         catch (LibraryUploadException)
         {
@@ -365,6 +382,12 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
     public async Task<bool> ArchiveAsync(
         string libraryId,
         CancellationToken cancellationToken = default)
+        => await ArchiveAsync(libraryId, cancellationToken, "web");
+
+    public async Task<bool> ArchiveAsync(
+        string libraryId,
+        CancellationToken cancellationToken,
+        string origin)
     {
         if (string.IsNullOrWhiteSpace(libraryId))
         {
@@ -378,18 +401,25 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             return false;
         }
 
-        return await SetLifecycleAsync(libraryId, LibraryLifecycleDto.Archived, cancellationToken);
+        return await SetLifecycleAsync(libraryId, LibraryLifecycleDto.Archived, cancellationToken, origin);
     }
 
     public async Task<bool> SetLifecycleAsync(
         string libraryId,
         LibraryLifecycleDto lifecycle,
         CancellationToken cancellationToken = default)
+        => await SetLifecycleAsync(libraryId, lifecycle, cancellationToken, "web");
+
+    public async Task<bool> SetLifecycleAsync(
+        string libraryId,
+        LibraryLifecycleDto lifecycle,
+        CancellationToken cancellationToken,
+        string origin)
     {
         if (string.IsNullOrWhiteSpace(libraryId))
             return false;
 
-        return await _unitOfWork.ExecuteAsync(async token =>
+        var updated = await _unitOfWork.ExecuteAsync(async token =>
         {
             var row = await _libraries.GetByIdAsync(libraryId.Trim(), token);
             if (row is null)
@@ -414,6 +444,16 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
             return true;
         }, cancellationToken);
+        if (updated)
+        {
+            await PublishCatalogChangeAsync(
+                libraryId,
+                "library.catalog.changed",
+                "library.lifecycle.change",
+                origin);
+        }
+
+        return updated;
     }
 
     public async Task<IReadOnlyList<LibraryFamilyDto>> ListFamiliesAsync(
@@ -438,12 +478,19 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         string libraryId,
         AssignLibraryFamilyRequestDto request,
         CancellationToken cancellationToken = default)
+        => await AssignFamilyAsync(libraryId, request, cancellationToken, "web");
+
+    public async Task<LibraryFamilyDto?> AssignFamilyAsync(
+        string libraryId,
+        AssignLibraryFamilyRequestDto request,
+        CancellationToken cancellationToken,
+        string origin)
     {
         ArgumentNullException.ThrowIfNull(request);
         if (string.IsNullOrWhiteSpace(libraryId))
             return null;
 
-        return await _unitOfWork.ExecuteAsync(async token =>
+        var result = await _unitOfWork.ExecuteAsync(async token =>
         {
             var library = await _libraries.GetByIdAsync(libraryId.Trim(), token);
             if (library is null)
@@ -502,11 +549,27 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
             return MapFamily(family, members.Select(member => Map(member, family.Name)).ToArray());
         }, cancellationToken);
+        if (result is not null)
+        {
+            await PublishCatalogChangeAsync(
+                libraryId,
+                "library.catalog.changed",
+                "library.family.assign",
+                origin);
+        }
+
+        return result;
     }
 
     public async Task<LibraryDto?> ReindexAsync(
         string libraryId,
         CancellationToken cancellationToken = default)
+        => await ReindexAsync(libraryId, cancellationToken, "web");
+
+    public async Task<LibraryDto?> ReindexAsync(
+        string libraryId,
+        CancellationToken cancellationToken,
+        string origin)
     {
         if (string.IsNullOrWhiteSpace(libraryId))
         {
@@ -545,7 +608,13 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             var family = string.IsNullOrWhiteSpace(row.FamilyId)
                 ? null
                 : await _families.GetByIdAsync(row.FamilyId, cancellationToken);
-            return Map(row, family?.Name);
+            var result = Map(row, family?.Name);
+            await PublishCatalogChangeAsync(
+                libraryId,
+                "library.catalog.changed",
+                "library.catalog.reindex",
+                origin);
+            return result;
         }
         finally
         {
@@ -585,6 +654,30 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         }
 
         return reindexed;
+    }
+
+    private async Task PublishCatalogChangeAsync(
+        string libraryId,
+        string changeType,
+        string operation,
+        string origin)
+    {
+        if (_changePublisher is null)
+            return;
+
+        await _changePublisher.PublishAsync(
+            new WorkspaceChangeEventDto(
+                Guid.NewGuid(),
+                DateTimeOffset.UtcNow,
+                changeType,
+                null,
+                null,
+                null,
+                null,
+                origin,
+                operation,
+                LibraryIds: [libraryId]),
+            CancellationToken.None);
     }
 
     private static LibraryDto Map(LibraryRecord row, string? familyName = null)

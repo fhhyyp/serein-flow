@@ -40,6 +40,29 @@ public sealed class FlowDiffRedactionTests
     }
 
     [Fact]
+    public void PreservesScalarDiffValuesWhileRedactingStructuredPayloads()
+    {
+        var before = CreateDefinition("source", "value") with { EntryNodeId = "old-node" };
+        var after = before with
+        {
+            EntryNodeId = "node",
+            Canvases = [before.Canvases[0] with { Name = "Renamed canvas" }],
+            Version = before.Version,
+        };
+
+        var diff = new FlowDiffService().Compare(before, after);
+        var redacted = FlowDiffService.RedactSensitive(diff);
+
+        var entryChange = Assert.Single(redacted.Changes, change => change.Path == "entryNodeId");
+        Assert.Equal("old-node", entryChange.Before);
+        Assert.Equal("node", entryChange.After);
+
+        var canvasNameChange = Assert.Single(redacted.Changes, change => change.Path == "canvases.main.name");
+        Assert.Equal("Main", canvasNameChange.Before);
+        Assert.Equal("Renamed canvas", canvasNameChange.After);
+    }
+
+    [Fact]
     public void ChecksumIgnoresVersionHistoryMetadata()
     {
         var definition = CreateDefinition("source", "value");

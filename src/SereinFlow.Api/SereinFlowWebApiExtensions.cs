@@ -2,6 +2,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
+using SereinFlow.Application;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Api;
@@ -16,6 +17,7 @@ internal static class SereinFlowWebApiExtensions
             .AddJsonOptions(options => ConfigureJson(options.JsonSerializerOptions));
         services.Configure<ApiBehaviorOptions>(options =>
             options.SuppressModelStateInvalidFilter = true);
+        services.AddSingleton<IWorkspaceChangePublisher, WorkspaceChangePublisher>();
         return services;
     }
 

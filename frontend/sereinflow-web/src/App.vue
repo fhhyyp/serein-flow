@@ -57,6 +57,7 @@ import { useFlowRunner } from './composables/useFlowRunner'
 import { useFlowDebugger } from './composables/useFlowDebugger'
 import { useCanvasManager } from './composables/useCanvasManager'
 import { useProjectSession } from './composables/useProjectSession'
+import { useWorkspaceSync } from './composables/useWorkspaceSync'
 import { useFlowGraph } from './composables/useFlowGraph'
 import { useNodeDrop } from './composables/useNodeDrop'
 import { useWorkspaceShortcuts } from './composables/useWorkspaceShortcuts'
@@ -926,6 +927,7 @@ const {
   openProject: loadProject,
   startNewProject: beginNewProject,
   initializeWorkspace,
+  reloadCurrentFlow,
 } = useProjectSession({
   recoveryWorkspace,
   canvases,
@@ -959,6 +961,18 @@ const {
   clearHistory,
   syncHistoryAvailability,
   localizeEdges,
+})
+
+const { libraryRefreshRevision } = useWorkspaceSync({
+  projectId,
+  flowId,
+  flowVersion,
+  isDirty,
+  isSaving,
+  isWorkspaceLoading,
+  notice,
+  reloadCurrentFlow,
+  refreshLibraryCatalog,
 })
 
 function undo(): void {
@@ -1572,6 +1586,7 @@ function setLanguage(nextLocale: Locale): void {
       :project-id="projectId"
       :project-name="projectName"
       :flows="currentProjectFlows"
+      :refresh-revision="libraryRefreshRevision"
       @close="projectLibraryOpen = false"
       @changed="replaceProjectLibraries"
     />

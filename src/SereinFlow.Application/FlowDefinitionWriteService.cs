@@ -1,3 +1,4 @@
+using System.Text.Json;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
@@ -39,15 +40,18 @@ public sealed class FlowDefinitionWriteService
     private readonly IProjectRepository _projects;
     private readonly IFlowDefinitionRepository _flows;
     private readonly ProjectLibraryService _projectLibraries;
+    private readonly IWorkspaceChangePublisher? _changePublisher;
 
     public FlowDefinitionWriteService(
         IProjectRepository projects,
         IFlowDefinitionRepository flows,
-        ProjectLibraryService projectLibraries)
+        ProjectLibraryService projectLibraries,
+        IWorkspaceChangePublisher? changePublisher = null)
     {
         _projects = projects ?? throw new ArgumentNullException(nameof(projects));
         _flows = flows ?? throw new ArgumentNullException(nameof(flows));
         _projectLibraries = projectLibraries ?? throw new ArgumentNullException(nameof(projectLibraries));
+        _changePublisher = changePublisher;
     }
 
     public async Task<FlowDefinitionPreparationResult?> PrepareAsync(
@@ -83,7 +87,8 @@ public sealed class FlowDefinitionWriteService
         Guid flowId,
         FlowDefinitionDto candidate,
         long expectedVersion,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string origin = "web")
     {
         if (candidate.Id != flowId || expectedVersion < 1)
         {
@@ -115,11 +120,166 @@ public sealed class FlowDefinitionWriteService
             preparation.Candidate,
             expectedVersion,
             cancellationToken);
-        return saved is null
-            ? new(
+        if (saved is null)
+        {
+            return new(
                 FlowDefinitionWriteStatus.Conflict,
                 preparation,
-                CurrentVersion: (await _flows.FindAsync(projectId, flowId, cancellationToken))?.Version)
-            : new(FlowDefinitionWriteStatus.Saved, preparation, saved, saved.Version);
+                CurrentVersion: (await _flows.FindAsync(projectId, flowId, cancellationToken))?.Version);
+        }
+
+        if (_changePublisher is not null)
+        {
+            var scope = GetChangeScope(preparation.Current, preparation.Candidate);
+            await _changePublisher.PublishAsync(
+                new WorkspaceChangeEventDto(
+                    Guid.NewGuid(),
+                    DateTimeOffset.UtcNow,
+                    "flow.changed",
+                    projectId,
+                    flowId,
+                    saved.Version,
+                    saved.Checksum,
+                    origin,
+                    "flow.save",
+                    scope.CanvasIds,
+                    scope.NodeIds,
+                    scope.ConnectionIds,
+                    scope.ParameterIds,
+                    LibraryIds: ProjectLibraryService.GetLibraryIds(saved)),
+                CancellationToken.None);
+        }
+
+        return new(FlowDefinitionWriteStatus.Saved, preparation, saved, saved.Version);
     }
+
+    private static ChangeScope GetChangeScope(FlowDefinitionDto before, FlowDefinitionDto after)
+    {
+        var canvasIds = new HashSet<string>(StringComparer.Ordinal);
+        var nodeIds = new HashSet<string>(StringComparer.Ordinal);
+        var connectionIds = new HashSet<string>(StringComparer.Ordinal);
+        var parameterIds = new HashSet<string>(StringComparer.Ordinal);
+        var beforeCanvases = before.Canvases.ToDictionary(static canvas => canvas.Id, StringComparer.Ordinal);
+        var afterCanvases = after.Canvases.ToDictionary(static canvas => canvas.Id, StringComparer.Ordinal);
+
+        foreach (var canvasId in beforeCanvases.Keys.Union(afterCanvases.Keys).Order(StringComparer.Ordinal))
+        {
+            if (!beforeCanvases.TryGetValue(canvasId, out var oldCanvas))
+            {
+                AddCanvasScope(afterCanvases[canvasId], canvasIds, nodeIds, connectionIds, parameterIds);
+                continue;
+            }
+
+            if (!afterCanvases.TryGetValue(canvasId, out var newCanvas))
+            {
+                AddCanvasScope(oldCanvas, canvasIds, nodeIds, connectionIds, parameterIds);
+                continue;
+            }
+
+            if (oldCanvas.Lifecycle != newCanvas.Lifecycle
+                || !string.Equals(oldCanvas.Name, newCanvas.Name, StringComparison.Ordinal))
+            {
+                canvasIds.Add(canvasId);
+            }
+
+            var oldNodes = oldCanvas.Nodes.ToDictionary(static node => node.Id, StringComparer.Ordinal);
+            var newNodes = newCanvas.Nodes.ToDictionary(static node => node.Id, StringComparer.Ordinal);
+            foreach (var nodeId in oldNodes.Keys.Union(newNodes.Keys).Order(StringComparer.Ordinal))
+            {
+                if (!oldNodes.TryGetValue(nodeId, out var oldNode))
+                {
+                    AddNodeScope(newNodes[nodeId], canvasIds, nodeIds, parameterIds, canvasId);
+                    continue;
+                }
+
+                if (!newNodes.TryGetValue(nodeId, out var newNode))
+                {
+                    AddNodeScope(oldNode, canvasIds, nodeIds, parameterIds, canvasId);
+                    continue;
+                }
+
+                if (!string.Equals(Serialize(oldNode), Serialize(newNode), StringComparison.Ordinal))
+                {
+                    canvasIds.Add(canvasId);
+                    nodeIds.Add(nodeId);
+                }
+
+                var oldParameters = oldNode.Parameters.ToDictionary(ParameterKey, StringComparer.Ordinal);
+                var newParameters = newNode.Parameters.ToDictionary(ParameterKey, StringComparer.Ordinal);
+                foreach (var parameterId in oldParameters.Keys.Union(newParameters.Keys).Order(StringComparer.Ordinal))
+                {
+                    if (!newParameters.TryGetValue(parameterId, out var newParameter)
+                        || !oldParameters.TryGetValue(parameterId, out var oldParameter)
+                        || !string.Equals(Serialize(oldParameter), Serialize(newParameter), StringComparison.Ordinal))
+                    {
+                        canvasIds.Add(canvasId);
+                        nodeIds.Add(nodeId);
+                        parameterIds.Add(parameterId);
+                    }
+                }
+            }
+
+            var oldConnections = oldCanvas.Connections.ToDictionary(static connection => connection.Id, StringComparer.Ordinal);
+            var newConnections = newCanvas.Connections.ToDictionary(static connection => connection.Id, StringComparer.Ordinal);
+            foreach (var connectionId in oldConnections.Keys.Union(newConnections.Keys).Order(StringComparer.Ordinal))
+            {
+                if (!newConnections.TryGetValue(connectionId, out var newConnection)
+                    || !oldConnections.TryGetValue(connectionId, out var oldConnection)
+                    || !string.Equals(Serialize(oldConnection), Serialize(newConnection), StringComparison.Ordinal))
+                {
+                    canvasIds.Add(canvasId);
+                    connectionIds.Add(connectionId);
+                }
+            }
+        }
+
+        return new(
+            canvasIds.Order(StringComparer.Ordinal).ToArray(),
+            nodeIds.Order(StringComparer.Ordinal).ToArray(),
+            connectionIds.Order(StringComparer.Ordinal).ToArray(),
+            parameterIds.Order(StringComparer.Ordinal).ToArray());
+    }
+
+    private static void AddCanvasScope(
+        CanvasDto canvas,
+        HashSet<string> canvasIds,
+        HashSet<string> nodeIds,
+        HashSet<string> connectionIds,
+        HashSet<string> parameterIds)
+    {
+        canvasIds.Add(canvas.Id);
+        foreach (var node in canvas.Nodes)
+        {
+            nodeIds.Add(node.Id);
+            foreach (var parameter in node.Parameters)
+                parameterIds.Add(ParameterKey(parameter));
+        }
+        foreach (var connection in canvas.Connections)
+            connectionIds.Add(connection.Id);
+    }
+
+    private static void AddNodeScope(
+        NodeDto node,
+        HashSet<string> canvasIds,
+        HashSet<string> nodeIds,
+        HashSet<string> parameterIds,
+        string canvasId)
+    {
+        canvasIds.Add(canvasId);
+        nodeIds.Add(node.Id);
+        foreach (var parameter in node.Parameters)
+            parameterIds.Add(ParameterKey(parameter));
+    }
+
+    private static string ParameterKey(NodeParameterDto parameter)
+        => parameter.Ui?.Id ?? parameter.Name;
+
+    private static string Serialize<T>(T value)
+        => JsonSerializer.Serialize(value);
+
+    private sealed record ChangeScope(
+        IReadOnlyList<string> CanvasIds,
+        IReadOnlyList<string> NodeIds,
+        IReadOnlyList<string> ConnectionIds,
+        IReadOnlyList<string> ParameterIds);
 }

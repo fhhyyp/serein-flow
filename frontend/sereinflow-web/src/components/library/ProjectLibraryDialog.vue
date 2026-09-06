@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { Archive, ArrowUpRight, Link2, PackagePlus, RefreshCw, Unlink, X } from 'lucide-vue-next'
 import {
   listEnvironmentLibraries,
@@ -19,6 +19,7 @@ const props = defineProps<{
   projectId: string
   projectName: string
   flows: FlowDefinitionSummaryDto[]
+  refreshRevision: number
 }>()
 
 const emit = defineEmits<{
@@ -116,6 +117,7 @@ async function handleUpgradeApplied(): Promise<void> {
 }
 
 onMounted(() => { void refresh() })
+watch(() => props.refreshRevision, () => { void refresh() })
 </script>
 
 <template>

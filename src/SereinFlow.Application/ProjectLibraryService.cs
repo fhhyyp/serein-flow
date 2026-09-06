@@ -23,19 +23,22 @@ public sealed class ProjectLibraryService
     private readonly IFlowVersionRepository? _versions;
     private readonly IProjectLibraryReferenceRepository _references;
     private readonly ILibraryCatalogService _catalog;
+    private readonly IWorkspaceChangePublisher? _changePublisher;
 
     public ProjectLibraryService(
         IProjectRepository projects,
         IFlowDefinitionRepository flows,
         IProjectLibraryReferenceRepository references,
         ILibraryCatalogService catalog,
-        IFlowVersionRepository? versions = null)
+        IFlowVersionRepository? versions = null,
+        IWorkspaceChangePublisher? changePublisher = null)
     {
         _projects = projects;
         _flows = flows;
         _references = references;
         _catalog = catalog;
         _versions = versions;
+        _changePublisher = changePublisher;
     }
 
     public async Task<ProjectLibraryOperationResult> ListAsync(
@@ -60,7 +63,8 @@ public sealed class ProjectLibraryService
     public async Task<ProjectLibraryOperationResult> AddAsync(
         Guid projectId,
         string libraryId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string origin = "web")
     {
         var project = await _projects.FindAsync(projectId, cancellationToken);
         if (project is null)
@@ -87,13 +91,16 @@ public sealed class ProjectLibraryService
         }
 
         await _references.AddAsync(projectId, library.Id, cancellationToken);
-        return await ListAsync(projectId, cancellationToken);
+        var result = await ListAsync(projectId, cancellationToken);
+        await PublishLibraryChangeAsync(projectId, library.Id, "project.library.changed", "project.library.attach", origin);
+        return result;
     }
 
     public async Task<ProjectLibraryOperationResult> RemoveAsync(
         Guid projectId,
         string libraryId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string origin = "web")
     {
         var project = await _projects.FindAsync(projectId, cancellationToken);
         if (project is null)
@@ -130,7 +137,9 @@ public sealed class ProjectLibraryService
         }
 
         await _references.RemoveAsync(projectId, libraryId, cancellationToken);
-        return await ListAsync(projectId, cancellationToken);
+        var result = await ListAsync(projectId, cancellationToken);
+        await PublishLibraryChangeAsync(projectId, libraryId, "project.library.changed", "project.library.detach", origin);
+        return result;
     }
 
     public async Task<FlowValidationResultDto> ValidateFlowLibrariesAsync(
@@ -253,4 +262,29 @@ public sealed class ProjectLibraryService
 
     private static ProjectLibraryOperationResult ProjectArchived()
         => new(false, 409, "project.archived", "Archived projects cannot change library references. 已归档项目不能修改类库引用。");
+
+    private async Task PublishLibraryChangeAsync(
+        Guid projectId,
+        string libraryId,
+        string changeType,
+        string operation,
+        string origin)
+    {
+        if (_changePublisher is null)
+            return;
+
+        await _changePublisher.PublishAsync(
+            new WorkspaceChangeEventDto(
+                Guid.NewGuid(),
+                DateTimeOffset.UtcNow,
+                changeType,
+                projectId,
+                null,
+                null,
+                null,
+                origin,
+                operation,
+                LibraryIds: [libraryId]),
+            CancellationToken.None);
+    }
 }

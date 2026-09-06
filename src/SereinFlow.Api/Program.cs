@@ -63,6 +63,7 @@ app.UseSereinFlowApiDocumentation();
 app.MapSereinFlowMcp();
 app.MapControllers();
 app.MapHub<RunEventsHub>("/hubs/runs");
+app.MapHub<WorkspaceEventsHub>("/hubs/workspace");
 
 
 app.Run();

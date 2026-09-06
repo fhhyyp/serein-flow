@@ -153,6 +153,19 @@ public sealed class FlowDiffService
     {
         if (string.IsNullOrWhiteSpace(value))
             return value;
+
+        // Scalar diff values such as canvas names and entry node IDs are not
+        // JSON payloads. Preserve them so a redacted diff can still explain
+        // the structural change. Sensitive node/parameter payloads are
+        // serialized objects or arrays and continue through the redaction
+        // path below.
+        // 画布名称、入口节点 ID 等标量差异不是 JSON 载荷，应保留它们，
+        // 这样脱敏后的差异仍能说明结构变化。节点/参数敏感载荷会被序列化为
+        // 对象或数组，继续走下面的脱敏路径。
+        var trimmed = value.TrimStart();
+        if (trimmed.Length == 0 || (trimmed[0] != '{' && trimmed[0] != '['))
+            return value;
+
         try
         {
             var node = JsonNode.Parse(value);
@@ -163,6 +176,8 @@ public sealed class FlowDiffService
         }
         catch (JsonException)
         {
+            // A value that looked like structured JSON but could not be
+            // parsed is safer to omit than to return unredacted.
             return null;
         }
     }

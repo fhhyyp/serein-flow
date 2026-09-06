@@ -26,6 +26,7 @@ public sealed class LibraryUpgradeService
     private readonly ILibraryCatalogService _catalog;
     private readonly ILibraryCompatibilityAnalyzer _analyzer;
     private readonly IFlowLibraryUpgradeStore _store;
+    private readonly IWorkspaceChangePublisher? _changePublisher;
 
     public LibraryUpgradeService(
         IProjectRepository projects,
@@ -33,7 +34,8 @@ public sealed class LibraryUpgradeService
         IProjectLibraryReferenceRepository references,
         ILibraryCatalogService catalog,
         ILibraryCompatibilityAnalyzer analyzer,
-        IFlowLibraryUpgradeStore store)
+        IFlowLibraryUpgradeStore store,
+        IWorkspaceChangePublisher? changePublisher = null)
     {
         _projects = projects;
         _flows = flows;
@@ -41,6 +43,7 @@ public sealed class LibraryUpgradeService
         _catalog = catalog;
         _analyzer = analyzer;
         _store = store;
+        _changePublisher = changePublisher;
     }
 
     public async Task<LibraryUpgradeOperationResult<LibraryUpgradePlanDto>> PreviewAsync(
@@ -131,7 +134,8 @@ public sealed class LibraryUpgradeService
         Guid projectId,
         Guid planId,
         ApplyLibraryUpgradeRequestDto request,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string origin = "web")
     {
         ArgumentNullException.ThrowIfNull(request);
         if (request.ExpectedFlowVersion < 1)
@@ -281,6 +285,24 @@ public sealed class LibraryUpgradeService
         }
 
         var saved = commit.Definition!;
+        if (_changePublisher is not null)
+        {
+            await _changePublisher.PublishAsync(
+                new WorkspaceChangeEventDto(
+                    Guid.NewGuid(),
+                    DateTimeOffset.UtcNow,
+                    "flow.changed",
+                    projectId,
+                    saved.Id,
+                    saved.Version,
+                    saved.Checksum,
+                    origin,
+                    "library.upgrade",
+                    saved.Canvases.Select(static canvas => canvas.Id).ToArray(),
+                    LibraryIds: [plan.SourceArtifactId, target.Id]),
+                CancellationToken.None);
+        }
+
         return new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(
             true,
             200,
@@ -305,7 +327,8 @@ public sealed class LibraryUpgradeService
         Guid projectId,
         Guid planId,
         ApplyLibraryUpgradeBatchRequestDto request,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string origin = "web")
     {
         ArgumentNullException.ThrowIfNull(request);
         var requests = request.Flows?.ToArray() ?? [];
@@ -331,7 +354,7 @@ public sealed class LibraryUpgradeService
         foreach (var item in requests)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var result = await ApplyAsync(projectId, planId, item, cancellationToken);
+            var result = await ApplyAsync(projectId, planId, item, cancellationToken, origin);
             if (result.IsSuccess && result.Value is not null)
             {
                 succeeded.Add(result.Value);

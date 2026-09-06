@@ -359,6 +359,23 @@ export interface FlowRunEventDto {
   payloadJson: string
 }
 
+export interface WorkspaceChangeEventDto {
+  eventId: string
+  occurredAt: string
+  changeType: 'flow.changed' | 'project.library.changed' | 'library.catalog.changed' | string
+  projectId?: string | null
+  flowId?: string | null
+  version?: number | null
+  checksum?: string | null
+  origin: 'web' | 'mcp' | 'system' | string
+  operation: string
+  canvasIds?: string[] | null
+  nodeIds?: string[] | null
+  connectionIds?: string[] | null
+  parameterIds?: string[] | null
+  libraryIds?: string[] | null
+}
+
 export interface FlowRunOutputDto {
   runId: string
   sequence: number
@@ -764,6 +781,137 @@ export function subscribeFlowRunEvents(
     closed = true
     try { socket?.close() } catch { /* ignore close failures */ }
     sseCleanup?.()
+  }
+}
+
+export function subscribeWorkspaceChanges(
+  projectId: string,
+  onEvent: (event: WorkspaceChangeEventDto) => void,
+  onConnected?: () => void,
+  onError?: () => void,
+): () => void {
+  let closed = false
+  let socket: WebSocket | undefined
+  let reconnectTimer: ReturnType<typeof setTimeout> | undefined
+  let reconnectAttempt = 0
+
+  const clearReconnectTimer = () => {
+    if (reconnectTimer !== undefined) {
+      clearTimeout(reconnectTimer)
+      reconnectTimer = undefined
+    }
+  }
+
+  const scheduleReconnect = () => {
+    if (closed || reconnectTimer !== undefined) return
+    const delay = Math.min(5_000, 500 * 2 ** Math.min(reconnectAttempt, 4))
+    reconnectAttempt += 1
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = undefined
+      connect()
+    }, delay)
+  }
+
+  const fail = () => {
+    if (closed) return
+    onError?.()
+    try { socket?.close() } catch { /* ignore close failures */ }
+    scheduleReconnect()
+  }
+
+  const connect = () => {
+    if (closed || socket) return
+    if (typeof WebSocket === 'undefined') {
+      onError?.()
+      scheduleReconnect()
+      return
+    }
+
+    const configured = apiBaseUrl || window.location.origin
+    const base = new URL(configured)
+    base.protocol = base.protocol === 'https:' ? 'wss:' : 'ws:'
+    base.pathname = `${base.pathname.replace(/\/$/, '')}/hubs/workspace`
+    base.search = ''
+    let buffer = ''
+    let handshaken = false
+    let failed = false
+
+    try {
+      socket = new WebSocket(base.toString())
+      socket.onopen = () => {
+        reconnectAttempt = 0
+        socket?.send(JSON.stringify({ protocol: 'json', version: 1 }) + '\u001e')
+      }
+      socket.onmessage = (message) => {
+        buffer += typeof message.data === 'string' ? message.data : ''
+        const records = buffer.split('\u001e')
+        buffer = records.pop() ?? ''
+        for (const record of records) {
+          if (!record) continue
+          let payload: any
+          try {
+            payload = JSON.parse(record)
+          } catch {
+            failed = true
+            fail()
+            return
+          }
+
+          if (!handshaken) {
+            if (payload.error) {
+              failed = true
+              fail()
+              return
+            }
+            handshaken = true
+            socket?.send(JSON.stringify({
+              type: 1,
+              invocationId: `subscribe-project-${projectId}`,
+              target: 'SubscribeProject',
+              arguments: [projectId],
+            }) + '\u001e')
+            socket?.send(JSON.stringify({
+              type: 1,
+              invocationId: 'subscribe-global',
+              target: 'SubscribeGlobal',
+              arguments: [],
+            }) + '\u001e')
+            onConnected?.()
+            continue
+          }
+
+          if (payload.type === 1
+            && payload.target === 'workspaceChanged'
+            && payload.arguments?.[0]) {
+            onEvent(payload.arguments[0] as WorkspaceChangeEventDto)
+          }
+        }
+      }
+      socket.onerror = () => {
+        if (!failed) {
+          failed = true
+          fail()
+        }
+      }
+      socket.onclose = () => {
+        socket = undefined
+        if (!closed) {
+          if (!failed) onError?.()
+          scheduleReconnect()
+        }
+      }
+    } catch {
+      socket = undefined
+      fail()
+    }
+  }
+
+  connect()
+  return () => {
+    closed = true
+    clearReconnectTimer()
+    try { socket?.close() } catch { /* ignore close failures */ }
+    socket = undefined
   }
 }
 

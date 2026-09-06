@@ -51,7 +51,67 @@ public sealed class FlowDefinitionWriteServiceTests
         Assert.Equal(0, flows.UpdateCount);
     }
 
-    private static FlowDefinitionWriteService CreateWriter(Project project, InMemoryFlowRepository flows)
+    [Fact]
+    public async Task SavedDefinitionPublishesOneCommitEventWithAffectedScopes()
+    {
+        var project = Project.Create("write-test");
+        var current = CreateDefinition();
+        var flows = new InMemoryFlowRepository(project.Id, current);
+        var publisher = new RecordingWorkspaceChangePublisher();
+        var writer = CreateWriter(project, flows, publisher);
+        var parameter = new NodeParameterDto(
+            "value",
+            "1",
+            DataSourceDto.Literal,
+            false,
+            new NodeParameterUiMetadataDto(
+                "value",
+                "parameter.value",
+                "number",
+                "1",
+                null,
+                null,
+                null,
+                null,
+                Type: "System.Int32",
+                InputMode: "manual"));
+        var node = new NodeDto(
+            "node",
+            NodeTypeDto.Action,
+            "Node",
+            0,
+            0,
+            [],
+            [parameter],
+            null,
+            new NodeUiMetadataDto("action", "node.action.title", "node.action.subtitle", null, "ready", false, null));
+        var candidate = current with
+        {
+            EntryNodeId = node.Id,
+            Canvases = [current.Canvases[0] with { Nodes = [node] }],
+        };
+
+        var result = await writer.WriteAsync(
+            project.Id,
+            current.Id,
+            candidate,
+            current.Version,
+            origin: "mcp");
+
+        Assert.Equal(FlowDefinitionWriteStatus.Saved, result.Status);
+        var change = Assert.Single(publisher.Events);
+        Assert.Equal("flow.changed", change.ChangeType);
+        Assert.Equal("mcp", change.Origin);
+        Assert.Equal(["main"], change.CanvasIds);
+        Assert.Equal(["node"], change.NodeIds);
+        Assert.Equal(["value"], change.ParameterIds);
+        Assert.Empty(change.ConnectionIds!);
+    }
+
+    private static FlowDefinitionWriteService CreateWriter(
+        Project project,
+        InMemoryFlowRepository flows,
+        IWorkspaceChangePublisher? publisher = null)
     {
         var projects = new InMemoryProjectRepository(project);
         var references = new EmptyProjectLibraryReferenceRepository();
@@ -59,7 +119,8 @@ public sealed class FlowDefinitionWriteServiceTests
         return new(
             projects,
             flows,
-            new ProjectLibraryService(projects, flows, references, catalog));
+            new ProjectLibraryService(projects, flows, references, catalog),
+            publisher);
     }
 
     private static FlowDefinitionDto CreateDefinition()
@@ -124,5 +185,16 @@ public sealed class FlowDefinitionWriteServiceTests
         public Task<bool> ArchiveAsync(string libraryId, CancellationToken cancellationToken = default) => Task.FromResult(false);
         public Task<LibraryDto?> ReindexAsync(string libraryId, CancellationToken cancellationToken = default) => Task.FromResult<LibraryDto?>(null);
         public Task<int> ReindexOutdatedAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
+    }
+
+    private sealed class RecordingWorkspaceChangePublisher : IWorkspaceChangePublisher
+    {
+        public List<WorkspaceChangeEventDto> Events { get; } = [];
+
+        public Task PublishAsync(WorkspaceChangeEventDto change, CancellationToken cancellationToken = default)
+        {
+            Events.Add(change);
+            return Task.CompletedTask;
+        }
     }
 }

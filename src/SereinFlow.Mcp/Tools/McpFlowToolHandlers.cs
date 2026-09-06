@@ -162,7 +162,8 @@ internal static class McpFlowToolHandlers
             stored.Request.FlowId,
             stored.CandidateDefinition,
             stored.Request.ExpectedDevelopmentVersion,
-            cancellationToken);
+            cancellationToken,
+            origin: "mcp");
         if (write.Status == FlowDefinitionWriteStatus.Conflict)
             throw VersionConflict(write.CurrentVersion);
         if (write.Status == FlowDefinitionWriteStatus.Archived)

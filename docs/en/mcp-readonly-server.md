@@ -299,6 +299,19 @@ canonical camelCase enum values. During the compatibility period, the flow
 public contract still accepts legacy v1 input, but responses always return v2
 `normalizedOperations` and `normalizationWarnings`.
 
+When a library node has a required input without a literal default, submitting
+`addNode` alone is expected to fail with
+`node.missing_required_parameter`. Add the node and all required data
+connection(s) in the same ordered patch; the connection operation binds the
+target parameter before final validation. Apply only when the combined preview
+returns `canApply: true`.
+
+The successful Apply response intentionally redacts parameter literals and
+script source. When exact parameter values are needed, reread the authoritative
+flow after Apply with `includeFlowLiteralValues: true`.
+`updateCanvas` replaces the complete canvas object, so a canvas rename must
+preserve its existing nodes and connections in the payload.
+
 The v2 connection payload for `addConnection` and `replaceConnection` must
 provide both `branch` and `dataSource`; either may be `null`. `kind` and
 `dataSource` are separate enums: an execution connection uses

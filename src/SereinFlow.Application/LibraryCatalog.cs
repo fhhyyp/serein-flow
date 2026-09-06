@@ -29,6 +29,14 @@ public interface ILibraryCatalogService
         long? declaredLength = null,
         CancellationToken cancellationToken = default);
 
+    Task<LibraryUploadResultDto> UploadAsync(
+        Stream package,
+        string fileName,
+        long? declaredLength,
+        CancellationToken cancellationToken,
+        string origin)
+        => UploadAsync(package, fileName, declaredLength, cancellationToken);
+
     /// <summary>
     /// Inspects a package without persisting it. MCP may retain the original
     /// bytes only in a bounded, controlled staging area until preview expiry.
@@ -49,6 +57,12 @@ public interface ILibraryCatalogService
         string libraryId,
         CancellationToken cancellationToken = default);
 
+    Task<bool> ArchiveAsync(
+        string libraryId,
+        CancellationToken cancellationToken,
+        string origin)
+        => ArchiveAsync(libraryId, cancellationToken);
+
     /// <summary>
     /// Rebuilds the safe metadata catalog from the immutable ZIP package.
     /// 从不可变 ZIP 包重新构建安全元数据目录。
@@ -56,6 +70,12 @@ public interface ILibraryCatalogService
     Task<LibraryDto?> ReindexAsync(
         string libraryId,
         CancellationToken cancellationToken = default);
+
+    Task<LibraryDto?> ReindexAsync(
+        string libraryId,
+        CancellationToken cancellationToken,
+        string origin)
+        => ReindexAsync(libraryId, cancellationToken);
 
     /// <summary>
     /// Rebuilds packages created by an older catalog scanner version.
@@ -79,6 +99,13 @@ public interface ILibraryCatalogService
         CancellationToken cancellationToken = default)
         => Task.FromResult<LibraryFamilyDto?>(null);
 
+    Task<LibraryFamilyDto?> AssignFamilyAsync(
+        string libraryId,
+        AssignLibraryFamilyRequestDto request,
+        CancellationToken cancellationToken,
+        string origin)
+        => AssignFamilyAsync(libraryId, request, cancellationToken);
+
     /// <summary>
     /// Changes catalog visibility only. Package bytes and existing flow/run
     /// bindings remain available for deterministic execution and audit.
@@ -90,6 +117,15 @@ public interface ILibraryCatalogService
         CancellationToken cancellationToken = default)
         => lifecycle == LibraryLifecycleDto.Archived
             ? ArchiveAsync(libraryId, cancellationToken)
+            : Task.FromResult(false);
+
+    Task<bool> SetLifecycleAsync(
+        string libraryId,
+        LibraryLifecycleDto lifecycle,
+        CancellationToken cancellationToken,
+        string origin)
+        => lifecycle == LibraryLifecycleDto.Archived
+            ? ArchiveAsync(libraryId, cancellationToken, origin)
             : Task.FromResult(false);
 }
 

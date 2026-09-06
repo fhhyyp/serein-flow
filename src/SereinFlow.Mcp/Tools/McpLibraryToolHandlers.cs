@@ -130,7 +130,8 @@ internal static class McpLibraryToolHandlers
                     validated.Request.FamilyId,
                     validated.Request.Name,
                     validated.Request.Description),
-                cancellationToken);
+                cancellationToken,
+                origin: "mcp");
         }
         catch (ArgumentException exception)
         {
@@ -255,7 +256,8 @@ internal static class McpLibraryToolHandlers
                 stored.Plan.ProjectId,
                 stored.Plan.Id,
                 request.Flows[0],
-                cancellationToken);
+                cancellationToken,
+                origin: "mcp");
             if (!result.IsSuccess || result.Value is null)
                 throw LibraryUpgradeFailure(result);
             response = result.Value;
@@ -267,7 +269,8 @@ internal static class McpLibraryToolHandlers
                 stored.Plan.ProjectId,
                 stored.Plan.Id,
                 new ApplyLibraryUpgradeBatchRequestDto(request.Flows),
-                cancellationToken);
+                cancellationToken,
+                origin: "mcp");
             if (!result.IsSuccess || result.Value is null)
                 throw LibraryUpgradeFailure(result);
             response = result.Value;
@@ -529,7 +532,11 @@ internal static class McpLibraryToolHandlers
                 throw new McpProtocolException(-32010, "The staged library package changed after preview.");
             package.Position = 0;
             var result = await scope.ServiceProvider.GetRequiredService<ILibraryCatalogService>().UploadAsync(
-                package, stored.FileName, stored.SizeBytes, cancellationToken);
+                package,
+                stored.FileName,
+                stored.SizeBytes,
+                cancellationToken,
+                origin: "mcp");
             await MarkPreviewAppliedAsync(preview, entry, cancellationToken);
             await idempotency.SaveAsync(principal.Id, entry.Operation, request.IdempotencyKey, result, requestPayload, cancellationToken);
             return result;
@@ -663,7 +670,10 @@ internal static class McpLibraryToolHandlers
                 new { code = "mcp.validation_failed", diagnostics = currentDiagnostics });
         }
         var result = await scope.ServiceProvider.GetRequiredService<ProjectLibraryService>().AddAsync(
-            stored.Request.ProjectId, stored.Request.LibraryId, cancellationToken);
+            stored.Request.ProjectId,
+            stored.Request.LibraryId,
+            cancellationToken,
+            origin: "mcp");
         if (!result.IsSuccess)
             throw new McpProtocolException(-32011, result.Message ?? "The project library attachment failed.", result.Code);
         await MarkPreviewAppliedAsync(preview, entry, cancellationToken);

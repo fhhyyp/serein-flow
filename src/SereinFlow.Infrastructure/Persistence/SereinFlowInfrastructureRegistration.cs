@@ -127,7 +127,8 @@ public static class SereinFlowInfrastructureRegistration
                 serviceProvider.GetRequiredService<IUnitOfWork>(),
                 new LibraryCatalogOptions(options.LibraryDirectory),
                 serviceProvider.GetRequiredService<ILogger<SqliteLibraryCatalogService>>(),
-                serviceProvider.GetRequiredService<IFileUploadSettings>()));
+                serviceProvider.GetRequiredService<IFileUploadSettings>(),
+                serviceProvider.GetService<IWorkspaceChangePublisher>()));
         return services;
     }
 }

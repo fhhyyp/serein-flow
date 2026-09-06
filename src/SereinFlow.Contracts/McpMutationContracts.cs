@@ -274,6 +274,29 @@ public sealed record McpMutationApplyRequestDto(
     string Confirmation,
     string IdempotencyKey);
 
+/// <summary>
+/// Best-effort notification that an authoritative project or environment
+/// state changed. The event is an invalidation hint; clients must reread the
+/// affected resource instead of treating the event as the source of truth.
+/// 权威项目或环境状态发生变化时发送的尽力通知。事件只是失效提示，客户端仍应
+/// 重新读取受影响资源，不能把事件本身当作最终数据源。
+/// </summary>
+public sealed record WorkspaceChangeEventDto(
+    Guid EventId,
+    DateTimeOffset OccurredAt,
+    string ChangeType,
+    Guid? ProjectId,
+    Guid? FlowId,
+    long? Version,
+    string? Checksum,
+    string Origin,
+    string Operation,
+    IReadOnlyList<string>? CanvasIds = null,
+    IReadOnlyList<string>? NodeIds = null,
+    IReadOnlyList<string>? ConnectionIds = null,
+    IReadOnlyList<string>? ParameterIds = null,
+    IReadOnlyList<string>? LibraryIds = null);
+
 public sealed record McpPreviewDescriptorDto(
     Guid PreviewId,
     string Operation,

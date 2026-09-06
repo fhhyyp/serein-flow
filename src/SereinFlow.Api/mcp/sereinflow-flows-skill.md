@@ -93,3 +93,16 @@ Treat `schemaVersion`, `enumEncoding`, `normalizedOperations` and
 discriminator, enum, ID or reference diagnostic is a hard stop. Report its
 stable `mcp.flow_patch.*` code, `diagnosticId`, `fieldPath`, expected value and
 remediation.
+
+When adding a library node with a required input that has no literal default,
+`addNode` by itself is expected to fail validation with
+`node.missing_required_parameter`. Add the node and its required data
+connection(s) in the same ordered patch; the connection operation then binds
+the target parameter before final validation. Apply only after the combined
+preview reports `canApply: true`.
+
+The Apply response intentionally redacts parameter literals and script source.
+After a successful Apply, reread the authoritative flow with
+`includeFlowLiteralValues: true` when the exact parameter values are needed.
+`updateCanvas` replaces the complete canvas object, so a canvas rename must
+preserve its existing nodes and connections in the payload.

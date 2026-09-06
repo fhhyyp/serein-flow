@@ -361,12 +361,33 @@ export function useProjectSession(options: UseProjectSessionOptions) {
     }
   }
 
+  async function reloadCurrentFlow(): Promise<boolean> {
+    if (!options.projectId.value || !options.flowId.value) {
+      return false
+    }
+
+    const definition = await loadFlow(options.projectId.value, options.flowId.value)
+    options.flowVersion.value = definition.version
+    applyServerWorkspace(definition)
+    options.projectWorkspaces.value = options.projectWorkspaces.value.map((workspace) =>
+      workspace.project.id === options.projectId.value
+        ? {
+            ...workspace,
+            flows: workspace.flows.map((flow) => flow.id === definition.id
+              ? { ...flow, version: definition.version, entryNodeId: definition.entryNodeId }
+              : flow),
+          }
+        : workspace)
+    return true
+  }
+
   return {
     beginProjectRename,
     cancelProjectRename,
     submitProjectRename,
     saveFlow,
     applyServerWorkspace,
+    reloadCurrentFlow,
     openProject,
     startNewProject,
     initializeWorkspace,

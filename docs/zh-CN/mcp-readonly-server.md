@@ -251,6 +251,15 @@ v2 请求使用 `schemaVersion: "2.0"`、`op` 判别字段、具名 payload 和�
 `normalizedOperations` 与
 `normalizationWarnings`。
 
+类库节点的必需输入若没有字面量默认值，单独提交 `addNode` 预期会被
+`node.missing_required_parameter` 阻止。应在同一个有序 Patch 中同时添加节点
+和所有必需的数据连接；连接操作会在最终校验前绑定目标参数。只有组合预览返回
+`canApply: true` 时才可执行 Apply。
+
+Apply 成功返回的流程会主动脱敏参数字面量和脚本源码。需要核对实际参数值时，
+应在 Apply 后重新读取权威流程，并设置 `includeFlowLiteralValues: true`。
+`updateCanvas` 会替换完整画布对象，因此画布改名时必须在载荷中保留原有节点和连接。
+
 `addConnection` 和 `replaceConnection` 的 v2 连接载荷必须同时
 提供 `branch` 与 `dataSource`，两者都可以为 `null`。`kind` 与
 `dataSource` 是两个独立枚举：执行连线使用
