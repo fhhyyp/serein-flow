@@ -11,4 +11,7 @@ public static class FlowWorkpieceContentTypes
 
     /// <summary>JSON content type.</summary>
     public const string Json = "application/json";
+
+    /// <summary>UTF-8 plain text content type.</summary>
+    public const string Text = "text/plain; charset=utf-8";
 }

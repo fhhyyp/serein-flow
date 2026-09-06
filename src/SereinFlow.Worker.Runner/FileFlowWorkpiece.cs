@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using SereinFlow.Contracts;
 using SereinFlow.Library;
@@ -9,6 +10,8 @@ namespace SereinFlow.Worker.Runner;
 /// Run-scoped file implementation of the public workpiece contract. Data is
 /// written to a temporary file first; the metadata sidecar is published only
 /// after the data file has been atomically moved into place.
+/// 运行作用域文件对公共工件契约的实现。
+/// 数据首先写入临时文件；只有在数据文件被原子性地移动到最终位置后，元数据侧才会发布。
 /// </summary>
 internal sealed class FileFlowWorkpiece : IFlowWorkpiece
 {
@@ -26,65 +29,21 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
         _runDirectory = _root is null ? null : Path.Combine(_root, runId.ToString("N"));
     }
 
-    public FlowWorkpieceInfo UploadImage(string imageName, byte[] content, string? contentType = null)
-    {
-        ArgumentNullException.ThrowIfNull(content);
-        return UploadImage(imageName, new MemoryStream(content, writable: false), contentType);
-    }
-
-    public FlowWorkpieceInfo UploadImage(string imageName, Stream content, string? contentType = null)
-        => UploadCore(FlowWorkpieceKind.Image, imageName, content, contentType, inferredContentType: null);
-
-    public FlowWorkpieceInfo UploadImage(string imageName, string base64, string? contentType = null)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(base64);
-        var payload = base64.Trim();
-        string? dataUriContentType = null;
-        if (payload.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
-        {
-            var separator = payload.IndexOf(',');
-            if (separator < 0)
-                throw new FlowWorkpieceException("workpiece.image_base64_invalid", "The image data URI is invalid. 图片 data URI 无效。");
-
-            var header = payload[5..separator];
-            if (!header.Contains(";base64", StringComparison.OrdinalIgnoreCase))
-                throw new FlowWorkpieceException("workpiece.image_base64_invalid", "The image data URI must contain base64 data. 图片 data URI 必须包含 base64 数据。");
-            dataUriContentType = header[..header.IndexOf(';')];
-            payload = payload[(separator + 1)..];
-        }
-
-        byte[] bytes;
-        try
-        {
-            bytes = Convert.FromBase64String(payload);
-        }
-        catch (FormatException exception)
-        {
-            throw new FlowWorkpieceException("workpiece.image_base64_invalid", "The image base64 value is invalid. 图片 base64 值无效。", exception);
-        }
-
-        return UploadCore(
-            FlowWorkpieceKind.Image,
-            imageName,
-            new MemoryStream(bytes, writable: false),
-            contentType,
-            dataUriContentType);
-    }
-
-    public FlowWorkpieceInfo UploadFile(string fileName, byte[] content, string? contentType = null)
-    {
-        ArgumentNullException.ThrowIfNull(content);
-        return UploadFile(fileName, new MemoryStream(content, writable: false), contentType);
-    }
-
-    public FlowWorkpieceInfo UploadFile(string fileName, Stream content, string? contentType = null)
-        => UploadCore(FlowWorkpieceKind.File, fileName, content, contentType, inferredContentType: null);
-
     public FlowWorkpieceInfo UploadNodeOutput(IFlowContext context, string fileName, byte[] content, string? contentType = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(content);
         return UploadNodeOutput(context, fileName, new MemoryStream(content, writable: false), contentType);
+    }
+
+    public FlowWorkpieceInfo UploadNodeOutput(IFlowContext context, string fileName, string content, string? contentType = null)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        return UploadNodeOutput(
+            context,
+            fileName,
+            Encoding.UTF8.GetBytes(content),
+            contentType ?? FlowWorkpieceContentTypes.Text);
     }
 
     public FlowWorkpieceInfo UploadNodeOutput(IFlowContext context, string fileName, Stream content, string? contentType = null)

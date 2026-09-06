@@ -37,24 +37,6 @@ public sealed record FlowWorkpieceInfo(
 public interface IFlowWorkpiece
 {
     /// <summary>
-    /// Uploads image bytes. Use <see cref="FlowWorkpieceContentTypes.Png"/>
-    /// when the image is PNG encoded.
-    /// </summary>
-    FlowWorkpieceInfo UploadImage(string imageName, byte[] content, string? contentType = null);
-
-    /// <summary>Uploads image data from the current stream position.</summary>
-    FlowWorkpieceInfo UploadImage(string imageName, Stream content, string? contentType = null);
-
-    /// <summary>Uploads a base64 image, including an optional data-URI prefix.</summary>
-    FlowWorkpieceInfo UploadImage(string imageName, string base64, string? contentType = null);
-
-    /// <summary>Uploads file bytes.</summary>
-    FlowWorkpieceInfo UploadFile(string fileName, byte[] content, string? contentType = null);
-
-    /// <summary>Uploads file data from the current stream position.</summary>
-    FlowWorkpieceInfo UploadFile(string fileName, Stream content, string? contentType = null);
-
-    /// <summary>
     /// Uploads a file and associates it with the currently executing flow node.
     /// The node ID and execution ID are persisted with the workpiece so the
     /// debugger can select the artifact produced by the selected execution step.
@@ -63,6 +45,17 @@ public interface IFlowWorkpiece
     /// </summary>
     FlowWorkpieceInfo UploadNodeOutput(IFlowContext context, string fileName, byte[] content, string? contentType = null);
 
-    /// <summary>Uploads node output data from the current stream position.</summary>
+    /// <summary>
+    /// Uploads UTF-8 text as a node output. Use a <c>.txt</c> file name when a text file is
+    /// desired; the default content type is <c>text/plain; charset=utf-8</c>.
+    /// 以 UTF-8 文本上传节点输出。需要文本文件时请使用 <c>.txt</c> 文件名；默认类型为
+    /// <c>text/plain; charset=utf-8</c>。
+    /// </summary>
+    FlowWorkpieceInfo UploadNodeOutput(IFlowContext context, string fileName, string content, string? contentType = null);
+
+    /// <summary>
+    /// Uploads node output data from the current stream position.
+    /// 从当前流位置上传节点输出数据
+    /// </summary>
     FlowWorkpieceInfo UploadNodeOutput(IFlowContext context, string fileName, Stream content, string? contentType = null);
 }
