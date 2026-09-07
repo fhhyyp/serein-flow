@@ -13,6 +13,8 @@
   JSON Lines 边界、会话流程、消息桥接和稳定错误码。
 - [Worker 消息服务](worker-message-service.md)：运行级队列、事件总线、Worker
   DI 注入和活动运行的受控外部消息入口。
+- [.NET 客户端 SDK](client-sdk.md)：第三方程序通过 HTTP 调用流程、读取运行、
+  订阅事件、推送消息和下载工件。
 - [节点类库开发指南](node-library-development.md)：`SereinFlow.Library` SDK、节点特性、
   参数/返回值、注入、消息、工件、Native 依赖、OpenCV 示例、打包和升级兼容性。
 

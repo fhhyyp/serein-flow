@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "SereinFlow.Client.AspNetCore": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:10847;http://localhost:10848"
+    }
+  }
+}

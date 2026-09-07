@@ -18,6 +18,7 @@ public sealed class RunsController : ApiControllerBase
     private readonly IFlowDebugSessionStore _debugSessions;
     private readonly RunEventBroadcaster _eventBroadcaster;
     private readonly IRunMessageDeliveryService _messageDelivery;
+    private readonly SereinFlowApiAuthorizationService _authorization;
 
     public RunsController(
         IFlowRunStore runs,
@@ -27,7 +28,8 @@ public sealed class RunsController : ApiControllerBase
         RunInterruptionService interruptions,
         IFlowDebugSessionStore debugSessions,
         RunEventBroadcaster eventBroadcaster,
-        IRunMessageDeliveryService messageDelivery)
+        IRunMessageDeliveryService messageDelivery,
+        SereinFlowApiAuthorizationService authorization)
     {
         _runs = runs;
         _outputs = outputs;
@@ -37,6 +39,7 @@ public sealed class RunsController : ApiControllerBase
         _debugSessions = debugSessions;
         _eventBroadcaster = eventBroadcaster;
         _messageDelivery = messageDelivery;
+        _authorization = authorization;
     }
 
     [HttpGet]
@@ -98,10 +101,26 @@ public sealed class RunsController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Get([FromRoute] Guid runId, CancellationToken cancellationToken)
     {
+        var preAuthorization = await _authorization.AuthorizeAsync(
+            HttpContext,
+            McpPermissionDto.RunRead,
+            projectId: null,
+            cancellationToken);
+        var preFailure = ToAuthorizationFailure(preAuthorization);
+        if (preFailure is not null)
+            return preFailure;
+
         var run = await _runs.FindAsync(runId, cancellationToken);
-        return run is null
-            ? ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。")
-            : Ok(ToRunDto(run));
+        if (run is null)
+            return ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
+
+        var authorization = await _authorization.AuthorizeAsync(
+            HttpContext,
+            McpPermissionDto.RunRead,
+            run.ProjectId,
+            cancellationToken);
+        var failure = ToAuthorizationFailure(authorization);
+        return failure ?? Ok(ToRunDto(run));
     }
 
     [HttpGet("{runId:guid}/debug-session")]
@@ -120,6 +139,28 @@ public sealed class RunsController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> GetSnapshot([FromRoute] Guid runId, CancellationToken cancellationToken)
     {
+        var preAuthorization = await _authorization.AuthorizeAsync(
+            HttpContext,
+            McpPermissionDto.RunRead,
+            projectId: null,
+            cancellationToken);
+        var preFailure = ToAuthorizationFailure(preAuthorization);
+        if (preFailure is not null)
+            return preFailure;
+
+        var run = await _runs.FindAsync(runId, cancellationToken);
+        if (run is null)
+            return ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
+
+        var authorization = await _authorization.AuthorizeAsync(
+            HttpContext,
+            McpPermissionDto.RunRead,
+            run.ProjectId,
+            cancellationToken);
+        var failure = ToAuthorizationFailure(authorization);
+        if (failure is not null)
+            return failure;
+
         var snapshot = await _runs.GetSnapshotAsync(runId, cancellationToken);
         return snapshot is null
             ? ApiProblem(StatusCodes.Status404NotFound, "Run snapshot not found. 未找到运行快照。")
@@ -131,8 +172,27 @@ public sealed class RunsController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> GetOutputs([FromRoute] Guid runId, CancellationToken cancellationToken)
     {
-        if (await _runs.FindAsync(runId, cancellationToken) is null)
+        var preAuthorization = await _authorization.AuthorizeAsync(
+            HttpContext,
+            McpPermissionDto.RunRead,
+            projectId: null,
+            cancellationToken);
+        var preFailure = ToAuthorizationFailure(preAuthorization);
+        if (preFailure is not null)
+            return preFailure;
+
+        var run = await _runs.FindAsync(runId, cancellationToken);
+        if (run is null)
             return ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
+
+        var authorization = await _authorization.AuthorizeAsync(
+            HttpContext,
+            McpPermissionDto.RunRead,
+            run.ProjectId,
+            cancellationToken);
+        var failure = ToAuthorizationFailure(authorization);
+        if (failure is not null)
+            return failure;
 
         var outputs = await _outputs.ListAsync(runId, cancellationToken);
         return Ok(outputs.Select(ToRunOutputDto).ToArray());
@@ -144,9 +204,26 @@ public sealed class RunsController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult> Cancel([FromRoute] Guid runId, CancellationToken cancellationToken)
     {
+        var preAuthorization = await _authorization.AuthorizeAsync(
+            HttpContext,
+            McpPermissionDto.RunExecute,
+            projectId: null,
+            cancellationToken);
+        var preFailure = ToAuthorizationFailure(preAuthorization);
+        if (preFailure is not null)
+            return preFailure;
+
         var run = await _runs.FindAsync(runId, cancellationToken);
         if (run is null)
             return ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
+        var authorization = await _authorization.AuthorizeAsync(
+            HttpContext,
+            McpPermissionDto.RunExecute,
+            run.ProjectId,
+            cancellationToken);
+        var failure = ToAuthorizationFailure(authorization);
+        if (failure is not null)
+            return failure;
         if (run.IsTerminal)
             return ApiProblem(StatusCodes.Status409Conflict, "The run is already complete. 运行实例已经完成。");
 
@@ -169,6 +246,28 @@ public sealed class RunsController : ApiControllerBase
         [FromBody] RunMessageIngressRequestDto? request,
         CancellationToken cancellationToken)
     {
+        var preAuthorization = await _authorization.AuthorizeAsync(
+            HttpContext,
+            McpPermissionDto.RunMessagePublish,
+            projectId: null,
+            cancellationToken);
+        var preFailure = ToAuthorizationFailure(preAuthorization);
+        if (preFailure is not null)
+            return preFailure;
+
+        var run = await _runs.FindAsync(runId, cancellationToken);
+        if (run is null)
+            return ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
+
+        var authorization = await _authorization.AuthorizeAsync(
+            HttpContext,
+            McpPermissionDto.RunMessagePublish,
+            run.ProjectId,
+            cancellationToken);
+        var failure = ToAuthorizationFailure(authorization);
+        if (failure is not null)
+            return failure;
+
         var command = new RunMessageDeliveryCommand(
             runId,
             topic,
@@ -200,9 +299,26 @@ public sealed class RunsController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult> Interrupt([FromRoute] Guid runId, CancellationToken cancellationToken)
     {
+        var preAuthorization = await _authorization.AuthorizeAsync(
+            HttpContext,
+            McpPermissionDto.RunExecute,
+            projectId: null,
+            cancellationToken);
+        var preFailure = ToAuthorizationFailure(preAuthorization);
+        if (preFailure is not null)
+            return preFailure;
+
         var run = await _runs.FindAsync(runId, cancellationToken);
         if (run is null)
             return ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
+        var authorization = await _authorization.AuthorizeAsync(
+            HttpContext,
+            McpPermissionDto.RunExecute,
+            run.ProjectId,
+            cancellationToken);
+        var failure = ToAuthorizationFailure(authorization);
+        if (failure is not null)
+            return failure;
         if (run.IsTerminal)
             return ApiProblem(StatusCodes.Status409Conflict, "The run is already complete. 运行实例已经完成。");
         if (run.Status != FlowRunStatus.Running)
@@ -244,8 +360,27 @@ public sealed class RunsController : ApiControllerBase
         [FromQuery] long? afterSequence,
         CancellationToken cancellationToken)
     {
-        if (await _runs.FindAsync(runId, cancellationToken) is null)
+        var preAuthorization = await _authorization.AuthorizeAsync(
+            HttpContext,
+            McpPermissionDto.RunRead,
+            projectId: null,
+            cancellationToken);
+        var preFailure = ToAuthorizationFailure(preAuthorization);
+        if (preFailure is not null)
+            return preFailure;
+
+        var run = await _runs.FindAsync(runId, cancellationToken);
+        if (run is null)
             return ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
+
+        var authorization = await _authorization.AuthorizeAsync(
+            HttpContext,
+            McpPermissionDto.RunRead,
+            run.ProjectId,
+            cancellationToken);
+        var failure = ToAuthorizationFailure(authorization);
+        if (failure is not null)
+            return failure;
 
         var events = (await _events.GetAfterAsync(runId, afterSequence ?? 0, cancellationToken))
             .Select(item => new FlowRunEventDto(item.RunId, item.Sequence, item.Timestamp, item.Type, item.NodeId, item.PayloadJson));
@@ -257,10 +392,48 @@ public sealed class RunsController : ApiControllerBase
     [Produces("text/event-stream")]
     public async Task StreamEvents([FromRoute] Guid runId, CancellationToken cancellationToken)
     {
+        var preAuthorization = await _authorization.AuthorizeAsync(
+            HttpContext,
+            McpPermissionDto.RunRead,
+            projectId: null,
+            cancellationToken);
+        if (!preAuthorization.IsAllowed)
+        {
+            HttpContext.Response.StatusCode = preAuthorization.StatusCode;
+            await Response.WriteAsJsonAsync(
+                new
+                {
+                    status = preAuthorization.StatusCode,
+                    title = preAuthorization.Message,
+                    code = preAuthorization.Code,
+                },
+                cancellationToken);
+            return;
+        }
+
         var run = await _runs.FindAsync(runId, cancellationToken);
         if (run is null)
         {
             HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        var authorization = await _authorization.AuthorizeAsync(
+            HttpContext,
+            McpPermissionDto.RunRead,
+            run.ProjectId,
+            cancellationToken);
+        if (!authorization.IsAllowed)
+        {
+            HttpContext.Response.StatusCode = authorization.StatusCode;
+            await Response.WriteAsJsonAsync(
+                new
+                {
+                    status = authorization.StatusCode,
+                    title = authorization.Message,
+                    code = authorization.Code,
+                },
+                cancellationToken);
             return;
         }
 

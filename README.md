@@ -18,6 +18,7 @@ SereinFlow safely.
 | Path | Purpose |
 | --- | --- |
 | `src/SereinFlow.Api` | ASP.NET Core API and the HTTP/stdio MCP host. |
+| `src/SereinFlow.SDK` | Typed HTTP client SDK for third-party applications. |
 | `frontend/sereinflow-web` | Vue + Vite web console. |
 | `plugins/sereinflow-ai-toolkit` | Local MCP client and Skill source material. |
 | `docs` | Maintained technical references. |
@@ -190,6 +191,7 @@ dotnet publish tests\SereinFlow.TestLibrary\SereinFlow.TestLibrary.csproj -c Rel
 
 - [Documentation index](docs/en/README.md)
 - [MCP service reference](docs/en/mcp-readonly-server.md)
+- [.NET client SDK](docs/en/client-sdk.md)
 - [Worker protocol (v2 current, v1 historical compatibility)](docs/en/worker-protocol.md)
 - [中文文档索引 | Chinese documentation index](docs/zh-CN/README.md)
 

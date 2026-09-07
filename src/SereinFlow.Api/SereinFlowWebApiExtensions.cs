@@ -18,6 +18,7 @@ internal static class SereinFlowWebApiExtensions
         services.Configure<ApiBehaviorOptions>(options =>
             options.SuppressModelStateInvalidFilter = true);
         services.AddSingleton<IWorkspaceChangePublisher, WorkspaceChangePublisher>();
+        services.AddScoped<SereinFlowApiAuthorizationService>();
         return services;
     }
 

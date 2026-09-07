@@ -7,6 +7,16 @@ namespace SereinFlow.Api.Controllers;
 [ApiController]
 public abstract class ApiControllerBase : ControllerBase
 {
+    protected ActionResult? ToAuthorizationFailure(SereinFlowApiAuthorizationResult result)
+        => result.IsAllowed
+            ? null
+            : ApiProblem(
+                result.StatusCode,
+                result.Message,
+                extensions: string.IsNullOrWhiteSpace(result.Code)
+                    ? null
+                    : new Dictionary<string, object?> { ["code"] = result.Code });
+
     protected ObjectResult ApiProblem(
         int statusCode,
         string? title,

@@ -16,6 +16,7 @@ public sealed class PublicFlowInvocationController : ApiControllerBase
     private readonly IFlowRunStore _runs;
     private readonly IFlowRunOutputStore _outputs;
     private readonly RunExecutionQueue _queue;
+    private readonly SereinFlowApiAuthorizationService _authorization;
 
     public PublicFlowInvocationController(
         IFlowInterfaceRepository interfaces,
@@ -23,7 +24,8 @@ public sealed class PublicFlowInvocationController : ApiControllerBase
         RunSubmissionService submissions,
         IFlowRunStore runs,
         IFlowRunOutputStore outputs,
-        RunExecutionQueue queue)
+        RunExecutionQueue queue,
+        SereinFlowApiAuthorizationService authorization)
     {
         _interfaces = interfaces;
         _versions = versions;
@@ -31,6 +33,7 @@ public sealed class PublicFlowInvocationController : ApiControllerBase
         _runs = runs;
         _outputs = outputs;
         _queue = queue;
+        _authorization = authorization;
     }
 
     [HttpPost("flows/{interfaceId:guid}/invoke")]
@@ -43,9 +46,27 @@ public sealed class PublicFlowInvocationController : ApiControllerBase
         [FromBody] PublicFlowInvocationRequestDto request,
         CancellationToken cancellationToken)
     {
+        var preAuthorization = await _authorization.AuthorizeAsync(
+            HttpContext,
+            McpPermissionDto.RunExecute,
+            projectId: null,
+            cancellationToken);
+        var preFailure = ToAuthorizationFailure(preAuthorization);
+        if (preFailure is not null)
+            return preFailure;
+
         var flowInterface = await _interfaces.FindAsync(interfaceId, cancellationToken);
         if (flowInterface is null || !flowInterface.IsEnabled)
             return ApiProblem(StatusCodes.Status404NotFound, "The flow interface is unavailable. 流程接口不可用。");
+
+        var authorization = await _authorization.AuthorizeAsync(
+            HttpContext,
+            McpPermissionDto.RunExecute,
+            flowInterface.ProjectId,
+            cancellationToken);
+        var authorizationFailure = ToAuthorizationFailure(authorization);
+        if (authorizationFailure is not null)
+            return authorizationFailure;
 
         if (await _versions.FindProductionDefinitionAsync(
                 flowInterface.ProjectId,
@@ -95,9 +116,27 @@ public sealed class PublicFlowInvocationController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> GetTask([FromRoute] Guid taskId, CancellationToken cancellationToken)
     {
+        var preAuthorization = await _authorization.AuthorizeAsync(
+            HttpContext,
+            McpPermissionDto.RunRead,
+            projectId: null,
+            cancellationToken);
+        var preFailure = ToAuthorizationFailure(preAuthorization);
+        if (preFailure is not null)
+            return preFailure;
+
         var run = await _runs.FindAsync(taskId, cancellationToken);
         if (run is null)
             return ApiProblem(StatusCodes.Status404NotFound, "Task not found. 任务不存在。");
+
+        var authorization = await _authorization.AuthorizeAsync(
+            HttpContext,
+            McpPermissionDto.RunRead,
+            run.ProjectId,
+            cancellationToken);
+        var authorizationFailure = ToAuthorizationFailure(authorization);
+        if (authorizationFailure is not null)
+            return authorizationFailure;
 
         return Ok(new PublicFlowInvocationResponseDto(
             run.Id,

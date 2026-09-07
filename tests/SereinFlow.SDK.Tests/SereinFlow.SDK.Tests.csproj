@@ -1,14 +1,13 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="coverlet.collector" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
@@ -16,8 +15,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\SereinFlow.Api\SereinFlow.Api.csproj" />
     <ProjectReference Include="..\..\src\SereinFlow.SDK\SereinFlow.SDK.csproj" />
+    <ProjectReference Include="..\..\src\SereinFlow.SDK.DependencyInjection\SereinFlow.SDK.DependencyInjection.csproj" />
   </ItemGroup>
 
   <ItemGroup>

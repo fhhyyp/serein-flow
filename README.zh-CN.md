@@ -15,6 +15,7 @@ Worker Runner 进程中执行。MCP 服务通过受控的工具、资源和提�
 | 目录 | 说明 |
 | --- | --- |
 | `src/SereinFlow.Api` | ASP.NET Core API 与 HTTP/stdio MCP 宿主。 |
+| `src/SereinFlow.SDK` | 面向第三方程序的类型安全 HTTP 客户端 SDK。 |
 | `frontend/sereinflow-web` | Vue + Vite Web 控制台。 |
 | `plugins/sereinflow-ai-toolkit` | 本机 MCP 客户端与 Skill 源材料。 |
 | `docs` | 长期维护的技术参考资料。 |
@@ -172,6 +173,7 @@ dotnet publish tests\SereinFlow.TestLibrary\SereinFlow.TestLibrary.csproj -c Rel
 
 - [文档索引](docs/zh-CN/README.md)
 - [MCP 服务参考](docs/zh-CN/mcp-readonly-server.md)
+- [.NET 客户端 SDK](docs/zh-CN/client-sdk.md)
 - [Worker 协议（v2 当前、v1 历史兼容）](docs/zh-CN/worker-protocol.md)
 - [English documentation index](docs/en/README.md)
 

@@ -9,11 +9,16 @@ public sealed class FlowExecutionController : ApiControllerBase
 {
     private readonly RunSubmissionService _submissions;
     private readonly FlowDebugSessionService _debugSessions;
+    private readonly SereinFlowApiAuthorizationService _authorization;
 
-    public FlowExecutionController(RunSubmissionService submissions, FlowDebugSessionService debugSessions)
+    public FlowExecutionController(
+        RunSubmissionService submissions,
+        FlowDebugSessionService debugSessions,
+        SereinFlowApiAuthorizationService authorization)
     {
         _submissions = submissions;
         _debugSessions = debugSessions;
+        _authorization = authorization;
     }
 
     [HttpPost("runs")]
@@ -26,7 +31,19 @@ public sealed class FlowExecutionController : ApiControllerBase
         [FromRoute] Guid flowId,
         [FromBody] RunFlowRequestDto request,
         CancellationToken cancellationToken)
-        => ToRunSubmissionResponse(await _submissions.SubmitAsync(projectId, flowId, request, cancellationToken));
+    {
+        var authorization = await _authorization.AuthorizeAsync(
+            HttpContext,
+            McpPermissionDto.RunExecute,
+            projectId,
+            cancellationToken);
+        var failure = ToAuthorizationFailure(authorization);
+        if (failure is not null)
+            return failure;
+
+        return ToRunSubmissionResponse(
+            await _submissions.SubmitAsync(projectId, flowId, request, cancellationToken));
+    }
 
     [HttpPost("debug-sessions")]
     [ProducesResponseType(typeof(FlowDebugSessionDto), StatusCodes.Status202Accepted)]

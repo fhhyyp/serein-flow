@@ -16,6 +16,8 @@ find the current material.
   message bridging, and stable error codes.
 - [Worker message service](worker-message-service.md): the run-scoped
   queue, event bus, DI, and controlled external-ingress behavior.
+- [.NET client SDK](client-sdk.md): invoke flows over HTTP, inspect runs,
+  stream events, publish messages, and download workpieces.
 - [Node library development guide](node-library-development.md): the
   `SereinFlow.Library` SDK, node metadata, inputs/outputs, injection, messaging,
   workpieces, native dependencies, the OpenCV example, packaging, and upgrades.

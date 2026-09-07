@@ -365,15 +365,6 @@
           "Microsoft.Extensions.Primitives": "10.0.11"
         }
       },
-      "Microsoft.Extensions.Options": {
-        "type": "Transitive",
-        "resolved": "10.0.11",
-        "contentHash": "eY1GAKcTfD2maP27J84X9IovT3yjHJ2dVDzPmDg6/XqYvt3jMzJhtfQCLjG9pVsZGAd+8DQ2QrjaDcs2+VQLGw==",
-        "dependencies": {
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.11",
-          "Microsoft.Extensions.Primitives": "10.0.11"
-        }
-      },
       "Microsoft.Extensions.Options.ConfigurationExtensions": {
         "type": "Transitive",
         "resolved": "10.0.11",
@@ -760,6 +751,12 @@
           "SereinFlow.Runtime.Abstractions": "[1.0.0, )"
         }
       },
+      "sereinflow.sdk": {
+        "type": "Project",
+        "dependencies": {
+          "SereinFlow.Contracts": "[1.0.0, )"
+        }
+      },
       "sereinflow.worker.client": {
         "type": "Project",
         "dependencies": {
@@ -800,6 +797,16 @@
         "contentHash": "PSmotV19c7E3lKed++uYo1kSiXFI+uTl37CBSrhq+CfLC3FCHjG7R91+xPnNehQfHS1b0Tzo/CCLPWH3qaEheg==",
         "dependencies": {
           "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.11"
+        }
+      },
+      "Microsoft.Extensions.Options": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.11, )",
+        "resolved": "10.0.11",
+        "contentHash": "eY1GAKcTfD2maP27J84X9IovT3yjHJ2dVDzPmDg6/XqYvt3jMzJhtfQCLjG9pVsZGAd+8DQ2QrjaDcs2+VQLGw==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.11",
+          "Microsoft.Extensions.Primitives": "10.0.11"
         }
       },
       "SqlSugarCore": {
