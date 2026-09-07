@@ -623,7 +623,16 @@ public sealed class FlowPatchContractNormalizer
             RequireNullableFiniteNumber(payload, "width", $"{path}.width");
 
             var flowCallFields = new[] { "targetNodeId", "targetFlowId", "targetCanvasId", "isPublic", "flowCallParameterBindings" };
-            var libraryFields = new[] { "libraryId", "className", "methodName", "dllName", "dllVersion", "returnType", "isAwaitable", "libraryNodeContractId", "flowLibraryName" };
+            // Return type metadata is shared by built-in Script/FlowCall nodes
+            // and library nodes. Treating it as library-only rejects the
+            // server-provided built-in templates (for example
+            // `ScriptLang.Runtime.Value` and `System.Object`) before the patch
+            // can be previewed. Keep awaitability library-only because it
+            // describes the reflected library method contract, not a built-in
+            // node's result type.
+            // 返回类型元数据同时用于内置 Script/FlowCall 节点和库节点。若将其
+            // 误判为库专属字段，服务端提供的内置模板会在预览前被拒绝。
+            var libraryFields = new[] { "libraryId", "className", "methodName", "dllName", "dllVersion", "isAwaitable", "libraryNodeContractId", "flowLibraryName" };
             if (nodeType != "flowCall" && HasAnyProperty(payload, flowCallFields))
                 throw Invalid(McpErrorCodes.FlowPatchUnexpectedField, path, "flow-call metadata only on a flowCall node", "Remove flow-call metadata or use a flowCall node type.");
             if (nodeType is not ("action" or "flipflop") && HasAnyProperty(payload, libraryFields))

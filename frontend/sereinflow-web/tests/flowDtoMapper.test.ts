@@ -361,3 +361,41 @@ test('enum parameter metadata remains available after a workspace DTO round trip
   assert.deepEqual(definition.canvases[0]?.nodes[0]?.parameters[0]?.ui?.enumMetadata, snapshot.canvases[0]?.nodes[0]?.data.parameters[0]?.enumMetadata)
   assert.deepEqual(parameter?.enumMetadata, snapshot.canvases[0]?.nodes[0]?.data.parameters[0]?.enumMetadata)
 })
+
+test('FlowCall-only runtime metadata survives a workspace DTO round trip', () => {
+  const snapshot: WorkspaceSnapshot = {
+    canvases: [{
+      id: 'main',
+      nameKey: 'canvas.main',
+      lifecycle: 'main',
+      nodes: [{
+        id: 'call',
+        type: 'workflow',
+        position: { x: 0, y: 0 },
+        data: {
+          kind: 'flowCall',
+          titleKey: 'node.kind.flowCall',
+          subtitleKey: 'node.flowCallSubtitle',
+          status: 'ready',
+          hasDataOutput: true,
+          runtime: {
+            targetCanvasId: 'main',
+            isPublic: true,
+            flowCallParameterBindings: [{ callParameterId: 'input', targetParameterId: 'input' }],
+          },
+          parameters: [],
+        },
+      }],
+      edges: [],
+    }],
+    activeCanvasId: 'main',
+    nextNodeNumber: 2,
+  }
+
+  const restored = flowDefinitionToWorkspace(workspaceToFlowDefinition(snapshot, { id: 'flow', version: 1 }))
+  const runtime = restored.canvases[0]?.nodes[0]?.data.runtime
+
+  assert.equal(runtime?.targetCanvasId, 'main')
+  assert.equal(runtime?.isPublic, true)
+  assert.deepEqual(runtime?.flowCallParameterBindings, [{ callParameterId: 'input', targetParameterId: 'input' }])
+})

@@ -37,7 +37,8 @@ internal static class ApiEndpointHelpers
             run.IsListenerRun,
             run.QueuedAt,
             (FlowRunExecutionKindDto)run.ExecutionKind,
-            run.DebugSessionId);
+            run.DebugSessionId,
+            run.DefinitionChecksum);
 
     internal static FlowDebugSessionDto ToFlowDebugSessionDto(FlowDebugSession session)
         => new(

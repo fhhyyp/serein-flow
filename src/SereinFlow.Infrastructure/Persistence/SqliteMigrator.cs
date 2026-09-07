@@ -31,6 +31,7 @@ public sealed class SqliteMigrator
     private const int AddLibraryDllHashVersion = 24;
     private const int AddMcpAuditFlowVersionVersion = 25;
     private const int AddEnvironmentFileUploadSettingsVersion = 28;
+    private const int AddFlowRunDefinitionBindingVersion = 29;
     private readonly SqlSugarClient _client;
 
     public SqliteMigrator(SqlSugarClient client)
@@ -91,6 +92,7 @@ public sealed class SqliteMigrator
                     Id TEXT NOT NULL PRIMARY KEY,
                     FlowId TEXT NOT NULL,
                     FlowVersion INTEGER NOT NULL,
+                    DefinitionChecksum TEXT NOT NULL DEFAULT '',
                     Status TEXT NOT NULL,
                     StartedAt TEXT NULL,
                     EndedAt TEXT NULL,
@@ -904,6 +906,46 @@ public sealed class SqliteMigrator
                     _client.Ado.ExecuteCommand("ALTER TABLE RunEnvironmentSettings ADD COLUMN MaxLibraryUploadBytes INTEGER NOT NULL DEFAULT 104857600;");
                 if (!applied.Contains(AddEnvironmentFileUploadSettingsVersion))
                     RecordMigration(AddEnvironmentFileUploadSettingsVersion, "environment-file-upload-settings-v1");
+                _client.Ado.CommitTran();
+            }
+            catch
+            {
+                _client.Ado.RollbackTran();
+                throw;
+            }
+        }
+
+        applied = _client.Ado.SqlQuery<int>("SELECT Version FROM SchemaMigrations ORDER BY Version");
+        if (!applied.Contains(AddFlowRunDefinitionBindingVersion))
+        {
+            _client.Ado.BeginTran();
+            try
+            {
+                if (HasTable("FlowRuns") && !HasColumn("FlowRuns", "DefinitionChecksum"))
+                {
+                    _client.Ado.ExecuteCommand(
+                        "ALTER TABLE FlowRuns ADD COLUMN DefinitionChecksum TEXT NOT NULL DEFAULT ''; ");
+                }
+
+                if (HasTable("FlowRuns") && HasTable("FlowRunDefinitions"))
+                {
+                    _client.Ado.ExecuteCommand("""
+                        UPDATE FlowRuns
+                        SET DefinitionChecksum = (
+                            SELECT Checksum
+                            FROM FlowRunDefinitions
+                            WHERE FlowRunDefinitions.RunId = FlowRuns.Id
+                        )
+                        WHERE (DefinitionChecksum IS NULL OR DefinitionChecksum = '')
+                          AND EXISTS (
+                            SELECT 1
+                            FROM FlowRunDefinitions
+                            WHERE FlowRunDefinitions.RunId = FlowRuns.Id
+                          );
+                        """);
+                }
+
+                RecordMigration(AddFlowRunDefinitionBindingVersion, "flow-run-definition-binding-v1");
                 _client.Ado.CommitTran();
             }
             catch

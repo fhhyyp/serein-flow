@@ -15,6 +15,7 @@ public static class RunErrorCodes
     public const string SchedulerUnavailable = "run.scheduler_unavailable";
     public const string WorkerLost = "run.worker_lost";
     public const string QueueTimeout = "run.queue_timeout";
+    public const string CandidateDefinitionNotAllowed = "run.candidate_definition_not_allowed";
     public const string Read = "run.read";
 }
 
@@ -427,6 +428,9 @@ public static class McpErrorCodes
     public const string LibraryNodeTemplateLibraryNotFound = "mcp.library_node_template.library_not_found";
     public const string LibraryNodeTemplateContractNotFound = "mcp.library_node_template.contract_not_found";
     public const string LibraryNodeTemplateNodeTypeUnsupported = "mcp.library_node_template.node_type_unsupported";
+    public const string BuiltinNodeTemplateIdInvalid = "mcp.builtin_node_template.id_invalid";
+    public const string BuiltinNodeTemplatePositionInvalid = "mcp.builtin_node_template.position_invalid";
+    public const string BuiltinNodeTemplateNotFound = "mcp.builtin_node_template.not_found";
     public const string FlowPatchOperationsInvalid = "mcp.flow_patch.operations_invalid";
     public const string FlowPatchOperationRequired = "mcp.flow_patch.operation_required";
     public const string FlowPatchLegacyInput = "mcp.flow_patch.legacy_input";

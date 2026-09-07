@@ -19,6 +19,7 @@ public static class SereinFlowApplicationRegistration
         services.AddSingleton<ILibraryCompatibilityAnalyzer, LibraryCompatibilityAnalyzer>();
         services.AddScoped<LibraryUpgradeService>();
         services.AddSingleton<IBuiltinNodeCatalog, BuiltinNodeCatalog>();
+        services.AddScoped<BuiltinNodeTemplateService>();
         services.AddScoped<FlowDiffService>();
         services.AddScoped<FlowPatchService>();
         services.AddScoped<FlowPatchContractNormalizer>();

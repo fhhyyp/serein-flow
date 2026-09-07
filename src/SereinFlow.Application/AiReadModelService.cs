@@ -561,7 +561,8 @@ public sealed class AiReadModelService
             run.EndedAt,
             run.ErrorSummary,
             run.CancellationReason,
-            run.DebugSessionId);
+            run.DebugSessionId,
+            run.DefinitionChecksum);
 
     private static AiRunEventDto MapEvent(FlowRunEvent item, int maxJsonBytes)
     {

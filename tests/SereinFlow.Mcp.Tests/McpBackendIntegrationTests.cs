@@ -669,6 +669,20 @@ public sealed class McpBackendIntegrationTests
     }
 
     [Fact]
+    public async Task BuiltinNodeTemplateToolPublishesAReadOnlyTypedSchema()
+    {
+        using var host = CreateHost();
+        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
+        var tool = (await backend.ListToolsAsync(CancellationToken.None))
+            .Single(item => item.Name == "sereinflow_create_builtin_node_template");
+        var properties = tool.InputSchema.GetProperty("properties");
+
+        Assert.Equal("string", properties.GetProperty("builtinNodeId").GetProperty("type").GetString());
+        Assert.Equal("object", properties.GetProperty("position").GetProperty("type").GetString());
+        Assert.Contains("builtinNodeId", tool.InputSchema.GetProperty("required").EnumerateArray().Select(static item => item.GetString()));
+    }
+
+    [Fact]
     public async Task FlowPatchAcceptsStringEnumsAndApplyReadsBackAuthoritativeState()
     {
         using var host = CreateHost();

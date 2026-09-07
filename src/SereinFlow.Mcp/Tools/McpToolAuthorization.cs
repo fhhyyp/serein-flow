@@ -39,6 +39,7 @@ internal static class McpToolAuthorization
             LibraryErrorCodes.Package => McpPermissionDto.LibraryImport,
             ProjectErrorCodes.LibraryAttach => McpPermissionDto.LibraryManage,
             "sereinflow_create_library_node_template" => McpPermissionDto.ProjectRead,
+            "sereinflow_create_builtin_node_template" => McpPermissionDto.ProjectRead,
             _ => McpPermissionDto.ProjectRead,
         };
         if (string.Equals(entry.Operation, LibraryErrorCodes.FamilyAssign, StringComparison.Ordinal))

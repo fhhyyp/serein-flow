@@ -23,6 +23,8 @@ public sealed class SqlitePersistenceTests
         Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 17"));
         Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 18"));
         Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 25"));
+        Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM SchemaMigrations WHERE Version = 29"));
+        Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM pragma_table_info('FlowRuns') WHERE name = 'DefinitionChecksum'"));
         Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'FlowProductionHeads'"));
         Assert.Equal(1L, database.Scalar<long>("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'FlowVersionCounters'"));
         Assert.Equal(1L, database.Scalar<long>("PRAGMA foreign_keys"));

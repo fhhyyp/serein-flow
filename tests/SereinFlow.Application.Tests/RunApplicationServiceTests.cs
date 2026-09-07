@@ -59,6 +59,32 @@ public sealed class RunApplicationServiceTests
         Assert.Equal(definition.Version, result.CurrentVersion);
     }
 
+    [Fact]
+    public async Task FormalRunsRejectDefinitionCandidates()
+    {
+        var project = Project.Create("Formal run candidate", id: Guid.NewGuid());
+        var definition = CreateDefinition();
+        var service = new RunApplicationService(
+            new SingleProjectRepository(project),
+            new SingleFlowDefinitionRepository(project.Id, definition),
+            null!,
+            new ProjectLibraryService(null!, null!, null!, null!));
+
+        var result = await service.PrepareAsync(
+            project.Id,
+            definition.Id,
+            new RunFlowRequestDto(definition.Version, null, null, null, null),
+            FlowRunExecutionKind.Production,
+            definitionOverride: definition with { EntryNodeId = "candidate-entry" });
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(409, result.StatusCode);
+        Assert.NotNull(result.ErrorBody);
+        Assert.Equal(
+            RunErrorCodes.CandidateDefinitionNotAllowed,
+            result.ErrorBody!.GetType().GetProperty("code")?.GetValue(result.ErrorBody));
+    }
+
     private static FlowDefinitionDto CreateDefinition()
     {
         var node = new NodeDto(

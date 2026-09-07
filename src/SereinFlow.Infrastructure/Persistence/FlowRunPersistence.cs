@@ -85,6 +85,26 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(options);
+        if (run.FlowId != definition.Id || run.FlowVersion != definition.Version)
+        {
+            throw new InvalidOperationException(
+                "The run identity does not match its immutable flow snapshot. 运行实例身份与不可变流程快照不匹配。");
+        }
+
+        var definitionChecksum = definition.Checksum?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(definitionChecksum))
+        {
+            throw new InvalidOperationException(
+                "An immutable flow snapshot requires a checksum. 不可变流程快照必须包含校验和。");
+        }
+
+        if (!string.IsNullOrWhiteSpace(run.DefinitionChecksum)
+            && !string.Equals(run.DefinitionChecksum, definitionChecksum, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "The run checksum does not match its immutable flow snapshot. 运行实例校验和与不可变流程快照不匹配。");
+        }
+
         var serialized = JsonSerializer.Serialize(definition, JsonOptions);
         var projectInputsJson = options.ProjectInputs is null ? null : JsonSerializer.Serialize(options.ProjectInputs, JsonOptions);
         return _unitOfWork.ExecuteAsync(async token =>
@@ -95,6 +115,7 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
                 ProjectId = run.ProjectId == Guid.Empty ? null : run.ProjectId.ToString("D"),
                 FlowId = run.FlowId.ToString("D"),
                 FlowVersion = run.FlowVersion,
+                DefinitionChecksum = definitionChecksum,
                 Status = run.Status.ToString(),
                 CreatedAt = run.CreatedAt.ToString("O"),
                 Deadline = run.Deadline?.ToString("O"),
@@ -135,7 +156,11 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
         {
             var run = Map(row);
             var definition = await GetSnapshotAsync(run.Id, cancellationToken);
-            if (definition is null)
+            if (definition is null
+                || string.IsNullOrWhiteSpace(run.DefinitionChecksum)
+                || !string.Equals(run.DefinitionChecksum, definition.Checksum, StringComparison.Ordinal)
+                || run.FlowId != definition.Id
+                || run.FlowVersion != definition.Version)
                 continue;
 
             IReadOnlyDictionary<string, JsonElement>? inputs = null;
@@ -210,6 +235,14 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
 
     public FlowRun CreateWithSnapshot(FlowRun run, FlowDefinitionDto definition)
     {
+        if (run.FlowId != definition.Id || run.FlowVersion != definition.Version)
+            throw new InvalidOperationException("The run identity does not match its immutable flow snapshot. 运行实例身份与不可变流程快照不匹配。");
+        if (string.IsNullOrWhiteSpace(definition.Checksum))
+            throw new InvalidOperationException("An immutable flow snapshot requires a checksum. 不可变流程快照必须包含校验和。");
+        if (!string.IsNullOrWhiteSpace(run.DefinitionChecksum)
+            && !string.Equals(run.DefinitionChecksum, definition.Checksum, StringComparison.Ordinal))
+            throw new InvalidOperationException("The run checksum does not match its immutable flow snapshot. 运行实例校验和与不可变流程快照不匹配。");
+
         var serialized = JsonSerializer.Serialize(definition, JsonOptions);
         return _unitOfWork.ExecuteAsync(async cancellationToken =>
         {
@@ -219,6 +252,7 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
                 ProjectId = run.ProjectId == Guid.Empty ? null : run.ProjectId.ToString("D"),
                 FlowId = run.FlowId.ToString("D"),
                 FlowVersion = run.FlowVersion,
+                DefinitionChecksum = definition.Checksum,
                 Status = run.Status.ToString(),
                 CreatedAt = run.CreatedAt.ToString("O"),
                 ConcurrencyMode = run.ConcurrencyMode.ToString(),
@@ -306,7 +340,8 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
             Enum.TryParse<FlowRunExecutionKind>(row.ExecutionKind, out var executionKind)
                 ? executionKind
                 : FlowRunExecutionKind.Production,
-            Guid.TryParse(row.DebugSessionId, out var debugSessionId) ? debugSessionId : null);
+            Guid.TryParse(row.DebugSessionId, out var debugSessionId) ? debugSessionId : null,
+            row.DefinitionChecksum);
 
     private static bool IsExclusiveConflict(SqlSugarException exception)
         => exception.Message.Contains("UX_FlowRuns_ActiveExclusiveFlow", StringComparison.OrdinalIgnoreCase)

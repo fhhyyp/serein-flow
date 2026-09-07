@@ -18,6 +18,7 @@ public sealed class RunApplicationService
 {
     private readonly IProjectRepository _projects;
     private readonly IFlowDefinitionRepository _flows;
+    private readonly IFlowVersionRepository? _versions;
     private readonly IFlowRunStore _runs;
     private readonly ProjectLibraryService _projectLibraries;
 
@@ -25,10 +26,12 @@ public sealed class RunApplicationService
         IProjectRepository projects,
         IFlowDefinitionRepository flows,
         IFlowRunStore runs,
-        ProjectLibraryService projectLibraries)
+        ProjectLibraryService projectLibraries,
+        IFlowVersionRepository? versions = null)
     {
         _projects = projects;
         _flows = flows;
+        _versions = versions;
         _runs = runs;
         _projectLibraries = projectLibraries;
     }
@@ -41,7 +44,8 @@ public sealed class RunApplicationService
         Guid? debugSessionId = null,
         IReadOnlyCollection<string>? breakpointNodeIds = null,
         FlowDefinitionDto? definitionOverride = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        FlowVersionTrackDto definitionTrack = FlowVersionTrackDto.Development)
     {
         var project = await _projects.FindAsync(projectId, cancellationToken);
         if (project is null)
@@ -52,16 +56,25 @@ public sealed class RunApplicationService
         if (definitionOverride is not null && definitionOverride.Id != flowId)
             return RunPreparationResult.FlowNotFound;
 
-        var persistedDefinition = definitionOverride is null || request.ExpectedFlowVersion is not null
-            ? await _flows.FindAsync(projectId, flowId, cancellationToken)
-            : null;
-        if (definitionOverride is null && persistedDefinition is null)
+        var persistedDefinition = definitionTrack == FlowVersionTrackDto.Production
+            ? _versions is null
+                ? null
+                : await _versions.FindProductionDefinitionAsync(projectId, flowId, cancellationToken)
+            : await _flows.FindAsync(projectId, flowId, cancellationToken);
+        if (persistedDefinition is null)
             return RunPreparationResult.FlowNotFound;
 
-        if (request.ExpectedFlowVersion is not null && persistedDefinition is null)
-            return RunPreparationResult.FlowNotFound;
         if (request.ExpectedFlowVersion is not null && request.ExpectedFlowVersion != persistedDefinition!.Version)
             return RunPreparationResult.VersionConflict(persistedDefinition!.Version);
+
+        if (definitionOverride is not null)
+        {
+            if (executionKind != FlowRunExecutionKind.Debug)
+                return RunPreparationResult.CandidateDefinitionNotAllowed;
+
+            if (definitionOverride.Version != persistedDefinition.Version)
+                return RunPreparationResult.VersionConflict(persistedDefinition.Version);
+        }
 
         var definition = definitionOverride ?? persistedDefinition!;
 
@@ -111,7 +124,8 @@ public sealed class RunApplicationService
             concurrencyMode,
             isListenerRun,
             executionKind: executionKind,
-            debugSessionId: debugSessionId);
+            debugSessionId: debugSessionId,
+            definitionChecksum: definition.Checksum);
         // The execution deadline is bound when the scheduler actually obtains
         // a Worker slot. Before that, QueueWaitTimeoutSeconds governs waiting.
         // 实际执行截止时间在调度器取得 Worker 槽位时绑定；排队等待由独立超时控制。
@@ -173,6 +187,16 @@ public sealed record RunPreparationResult(
 
     public static RunPreparationResult VersionConflict(long currentVersion)
         => new(null, 409, "Flow definition was changed by another editor. 流程定义已被其他编辑器修改。", null, currentVersion);
+
+    public static RunPreparationResult CandidateDefinitionNotAllowed { get; } = new(
+        null,
+        409,
+        "Only a saved flow definition may start a formal run. 正式运行只能使用已保存的流程定义。",
+        new
+        {
+            code = RunErrorCodes.CandidateDefinitionNotAllowed,
+            message = "Only a saved flow definition may start a formal run. 正式运行只能使用已保存的流程定义。"
+        });
 
     public static RunPreparationResult Invalid(object validation)
         => new(null, 400, null, validation);

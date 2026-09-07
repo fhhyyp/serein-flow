@@ -7,6 +7,7 @@ public sealed class FlowRun
         Guid projectId,
         Guid flowId,
         long flowVersion,
+        string definitionChecksum,
         DateTimeOffset createdAt,
         FlowConcurrencyMode concurrencyMode,
         bool isListenerRun,
@@ -17,6 +18,7 @@ public sealed class FlowRun
         ProjectId = projectId;
         FlowId = flowId;
         FlowVersion = flowVersion;
+        DefinitionChecksum = definitionChecksum?.Trim() ?? string.Empty;
         CreatedAt = createdAt;
         QueuedAt = createdAt;
         ConcurrencyMode = concurrencyMode;
@@ -33,6 +35,12 @@ public sealed class FlowRun
     public Guid FlowId { get; }
 
     public long FlowVersion { get; }
+
+    /// <summary>
+    /// The checksum of the immutable definition snapshot selected for this run.
+    /// 运行实例选定的不可变流程定义快照校验和。
+    /// </summary>
+    public string DefinitionChecksum { get; }
 
     public FlowRunStatus Status { get; private set; }
 
@@ -88,7 +96,8 @@ public sealed class FlowRun
         bool isListenerRun,
         Guid? id = null,
         FlowRunExecutionKind executionKind = FlowRunExecutionKind.Production,
-        Guid? debugSessionId = null)
+        Guid? debugSessionId = null,
+        string definitionChecksum = "")
     {
         if (flowId == Guid.Empty)
         {
@@ -121,6 +130,7 @@ public sealed class FlowRun
             projectId,
             flowId,
             flowVersion,
+            definitionChecksum,
             createdAt,
             concurrencyMode,
             isListenerRun,
@@ -144,7 +154,8 @@ public sealed class FlowRun
         DateTimeOffset? queuedAt = null,
         DateTimeOffset? deadline = null,
         FlowRunExecutionKind executionKind = FlowRunExecutionKind.Production,
-        Guid? debugSessionId = null)
+        Guid? debugSessionId = null,
+        string definitionChecksum = "")
     {
         var run = Start(
             projectId,
@@ -155,7 +166,8 @@ public sealed class FlowRun
             isListenerRun,
             id,
             executionKind,
-            debugSessionId);
+            debugSessionId,
+            definitionChecksum);
         run.Status = status;
         run.QueuedAt = queuedAt ?? createdAt;
         run.StartedAt = startedAt;

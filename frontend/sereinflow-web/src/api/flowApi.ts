@@ -272,6 +272,7 @@ export interface FlowRunDto {
   queuedAt?: string
   executionKind?: 'production' | 'debug'
   debugSessionId?: string
+  definitionChecksum?: string
 }
 
 export type FlowDebugSessionStatus = 'pending' | 'running' | 'paused' | 'completed' | 'cancelled' | 'failed'

@@ -209,7 +209,8 @@ public sealed record AiRunSummaryDto(
     DateTimeOffset? EndedAt,
     string? ErrorSummary,
     string? CancellationReason,
-    Guid? DebugSessionId);
+    Guid? DebugSessionId,
+    string? DefinitionChecksum = null);
 
 public sealed record AiRunEventDto(
     Guid RunId,

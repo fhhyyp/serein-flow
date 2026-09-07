@@ -666,7 +666,8 @@ public sealed record FlowRunDto(
     bool IsListenerRun = false,
     DateTimeOffset? QueuedAt = null,
     FlowRunExecutionKindDto ExecutionKind = FlowRunExecutionKindDto.Production,
-    Guid? DebugSessionId = null);
+    Guid? DebugSessionId = null,
+    string? DefinitionChecksum = null);
 
 public sealed record StartFlowDebugSessionRequestDto(
     IReadOnlyList<string>? BreakpointNodeIds,

@@ -374,7 +374,7 @@ function hasDataOutputFromDto(node: NodeDto): boolean {
 
 function toRuntimeMetadata(node: NodeDto) {
   const ui = node.ui
-  if (!ui || [ui.category, ui.libraryId, ui.flowLibraryName, ui.className, ui.methodName, ui.dllName, ui.dllVersion, ui.returnType, ui.targetNodeId, ui.targetFlowId, ui.isAwaitable, ui.staticReturnType, ui.isDynamicReturnType, ui.libraryNodeContractId].every((value) => value === undefined)) {
+  if (!ui || [ui.category, ui.libraryId, ui.flowLibraryName, ui.className, ui.methodName, ui.dllName, ui.dllVersion, ui.returnType, ui.targetNodeId, ui.targetFlowId, ui.isAwaitable, ui.staticReturnType, ui.isDynamicReturnType, ui.targetCanvasId, ui.isPublic, ui.flowCallParameterBindings, ui.libraryNodeContractId].every((value) => value === undefined)) {
     return undefined
   }
 

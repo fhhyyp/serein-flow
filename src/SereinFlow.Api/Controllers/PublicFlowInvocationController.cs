@@ -47,11 +47,10 @@ public sealed class PublicFlowInvocationController : ApiControllerBase
         if (flowInterface is null || !flowInterface.IsEnabled)
             return ApiProblem(StatusCodes.Status404NotFound, "The flow interface is unavailable. 流程接口不可用。");
 
-        var productionDefinition = await _versions.FindProductionDefinitionAsync(
-            flowInterface.ProjectId,
-            flowInterface.FlowId,
-            cancellationToken);
-        if (productionDefinition is null)
+        if (await _versions.FindProductionDefinitionAsync(
+                flowInterface.ProjectId,
+                flowInterface.FlowId,
+                cancellationToken) is null)
         {
             return ApiProblem(
                 StatusCodes.Status409Conflict,
@@ -59,9 +58,9 @@ public sealed class PublicFlowInvocationController : ApiControllerBase
                 extensions: new Dictionary<string, object?> { ["code"] = FlowErrorCodes.ProductionVersionRequired });
         }
 
-        var submission = await _submissions.SubmitDefinitionAsync(
+        var submission = await _submissions.SubmitProductionAsync(
             flowInterface.ProjectId,
-            productionDefinition,
+            flowInterface.FlowId,
             new RunFlowRequestDto(null, request.ProjectInputs, request.TimeoutSeconds, request.MaxSteps, request.MaxNodeVisits),
             cancellationToken);
         if (!submission.IsAccepted)

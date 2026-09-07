@@ -1,6 +1,7 @@
 import type { Ref } from 'vue'
 import { FlowApiError, createProject, listProjects, loadFlow, renameProject, saveFlow as saveFlowRequest, type FlowValidationDiagnostic, type ProjectWorkspaceDto } from '../api/flowApi'
 import { t } from '../i18n'
+import { createUuid } from '../utils/uuid'
 import type { ConnectionLineSettings } from '../flow/connectionLine'
 import { normalizeConnectionLineTypes } from '../flow/connectionLine'
 import type { CanvasFocusSettings } from '../flow/canvasFocus'
@@ -151,7 +152,7 @@ export function useProjectSession(options: UseProjectSessionOptions) {
     try {
       let savedDefinition
       if (!options.projectId.value || !options.flowId.value) {
-        const newFlowId = crypto.randomUUID()
+        const newFlowId = createUuid()
         const definition = workspaceToFlowDefinition(snapshot, { id: newFlowId, version: 1 })
         const workspace = await createProject({ name: options.projectName.value, definition })
         options.projectId.value = workspace.project.id
@@ -257,7 +258,7 @@ export function useProjectSession(options: UseProjectSessionOptions) {
     options.flowVersion.value = 1
     options.projectVersion.value = 1
     options.projectName.value = t('project.newProject')
-    const newFlowId = crypto.randomUUID()
+    const newFlowId = createUuid()
     const initialSnapshot: WorkspaceSnapshot = {
       canvases: createInitialCanvases(),
       activeCanvasId: 'main',

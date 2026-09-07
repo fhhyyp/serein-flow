@@ -58,6 +58,106 @@ public sealed class FlowPatchContractNormalizerTests
     }
 
     [Fact]
+    public void AllowsReturnTypeMetadataOnBuiltInScriptAndFlowCallNodes()
+    {
+        var normalized = new FlowPatchContractNormalizer().Normalize(Request(
+            new
+            {
+                op = "addNode",
+                canvasId = "main",
+                node = new
+                {
+                    id = "node-script",
+                    type = "script",
+                    displayName = "Script",
+                    x = 20,
+                    y = 40,
+                    ports = Array.Empty<object>(),
+                    parameters = Array.Empty<object>(),
+                    script = Script("node-script"),
+                    ui = new
+                    {
+                        kind = "script",
+                        titleKey = "node.kind.script",
+                        subtitleKey = "node.scriptSubtitle",
+                        description = (string?)null,
+                        status = "ready",
+                        hasDataOutput = true,
+                        width = 260,
+                        category = "basic",
+                        returnType = "ScriptLang.Runtime.Value"
+                    }
+                }
+            },
+            new
+            {
+                op = "addNode",
+                canvasId = "main",
+                node = new
+                {
+                    id = "node-flow-call",
+                    type = "flowCall",
+                    displayName = "FlowCall",
+                    x = 20,
+                    y = 40,
+                    ports = Array.Empty<object>(),
+                    parameters = Array.Empty<object>(),
+                    script = (object?)null,
+                    ui = new
+                    {
+                        kind = "flowCall",
+                        titleKey = "node.kind.flowCall",
+                        subtitleKey = "node.flowCallSubtitle",
+                        description = (string?)null,
+                        status = "ready",
+                        hasDataOutput = true,
+                        width = 260,
+                        category = "basic",
+                        returnType = "System.Object"
+                    }
+                }
+            }));
+
+        Assert.Equal(["addNode", "addNode"], normalized.Request.Operations.Select(operation => operation.Op));
+    }
+
+    [Fact]
+    public void RejectsObsoleteFlowLibraryNodeContractIdField()
+    {
+        var exception = Assert.Throws<FlowPatchContractException>(() => new FlowPatchContractNormalizer().Normalize(Request(new
+        {
+            op = "addNode",
+            canvasId = "main",
+            node = new
+            {
+                id = "node-action",
+                type = "action",
+                displayName = "Action",
+                x = 20,
+                y = 40,
+                ports = Array.Empty<object>(),
+                parameters = Array.Empty<object>(),
+                script = (object?)null,
+                ui = new
+                {
+                    kind = "action",
+                    titleKey = "node.catalogMethod",
+                    subtitleKey = "node.catalogSubtitle",
+                    description = (string?)null,
+                    status = "ready",
+                    hasDataOutput = true,
+                    width = 260,
+                    category = "method",
+                    flowLibraryNodeContractId = "legacy-contract"
+                }
+            }
+        })));
+
+        Assert.Equal(McpErrorCodes.FlowPatchUnexpectedField, exception.Code);
+        Assert.Equal("$.operations[0].node.ui.flowLibraryNodeContractId", exception.FieldPath);
+    }
+
+    [Fact]
     public void RejectsDuplicateIdsAndUnresolvedReferencesBeforeMutation()
     {
         var normalizer = new FlowPatchContractNormalizer();

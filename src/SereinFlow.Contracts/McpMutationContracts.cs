@@ -208,6 +208,16 @@ public sealed record LibraryNodeTemplateDto(
     string LibrarySha256,
     string ContractRevision);
 
+public sealed record BuiltinNodeTemplateRequestDto(
+    Guid ProjectId,
+    string BuiltinNodeId,
+    NodeTemplatePositionDto Position);
+
+public sealed record BuiltinNodeTemplateDto(
+    NodeDto Node,
+    string TemplateSource,
+    string BuiltinNodeId);
+
 public sealed record CreateProjectMcpRequestDto(
     string Name,
     string? FlowName = null);

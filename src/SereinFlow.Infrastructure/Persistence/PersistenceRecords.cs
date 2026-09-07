@@ -64,6 +64,7 @@ public sealed class FlowRunRecord
     public string? ProjectId { get; set; }
     public string FlowId { get; set; } = string.Empty;
     public long FlowVersion { get; set; }
+    public string DefinitionChecksum { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public string? StartedAt { get; set; }
     public string? EndedAt { get; set; }

@@ -10,6 +10,22 @@ When the state is paused, send `sereinflow_step_debug` or
 production head is eligible for environment execution; development and
 production tracks are separate.
 
+Every submitted run is immutably bound to the tuple `(flowId, version,
+checksum)` of the persisted definition selected at submission time. Run
+inspection exposes the selected `definitionChecksum`; do not infer the
+definition from a cached edit model, a stale version resource, or an unsaved
+candidate. The production invocation path reloads the persisted production
+head before starting the run. A candidate or override definition is never
+accepted for a formal production run. A debug candidate is allowed only when
+its flow ID and version match the current persisted development definition;
+the run records the checksum of that exact candidate definition.
+
+If the tuple cannot be established or a pending run's stored tuple no longer
+matches its persisted definition, the run must not be started. Treat
+`run.candidate_definition_not_allowed` and any flow/version/checksum mismatch
+as a hard stop: reread the authoritative version resource and do not retry
+with the candidate or a new cache value.
+
 Use these canonical parameter values in new calls: `track`, when supplied to a
 topology, run-inspection, version-comparison or rollback tool, is
 `development` or `production`; the topology tool defaults to `development`.

@@ -19,6 +19,21 @@ public sealed class FlowRunTests
     }
 
     [Fact]
+    public void RunRetainsItsImmutableDefinitionChecksum()
+    {
+        var run = FlowRun.Start(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            4,
+            DateTimeOffset.UtcNow,
+            FlowConcurrencyMode.Parallel,
+            false,
+            definitionChecksum: " checksum-v4 ");
+
+        Assert.Equal("checksum-v4", run.DefinitionChecksum);
+    }
+
+    [Fact]
     public void RunCancellationIsIdempotentBeforeTerminalState()
     {
         var run = FlowRun.Start(Guid.NewGuid(), 1, DateTimeOffset.UtcNow);
