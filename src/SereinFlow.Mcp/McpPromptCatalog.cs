@@ -49,7 +49,7 @@ internal static class McpPromptCatalog
         IReadOnlyList<string> guidanceUris = name switch
         {
             "sereinflow.inspect" => [McpAiGuidance.SereinFlowProjectsResourceUri],
-            "sereinflow.edit-flow" => [McpAiGuidance.SereinFlowFlowsResourceUri],
+            "sereinflow.edit-flow" => [McpAiGuidance.SereinFlowFlowsResourceUri, McpAiGuidance.SereinFlowUiUxResourceUri],
             "sereinflow.debug-run" => [McpAiGuidance.SereinFlowRuntimeResourceUri, McpAiGuidance.SereinFlowWorkpiecesResourceUri],
             "sereinflow.publish-flow" => [McpAiGuidance.SereinFlowReleaseResourceUri],
             "sereinflow.package-library" =>

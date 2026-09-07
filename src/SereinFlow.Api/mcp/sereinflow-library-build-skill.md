@@ -67,11 +67,8 @@ RID output directories, and removes its temporary staging directory after
 creating the archive.
 
 Let MSBuild evaluate `AssemblyName`, `Version`, `TargetPath`, `TargetDir`,
-`TargetFramework` and `EnableDynamicLoading`; the latter must be `true`. When
-multiple `.csproj` files exist, prefer the one defining `CreatePackage` and
-the library identity properties, otherwise ask which project to use. Stop on
-restore or build errors.
+`TargetFramework` and `EnableDynamicLoading`; the latter must be `true`. The
+ZIP validation rules are defined by the `zip` skill.
 
 Report the absolute project path, build output directory, ZIP path, file count,
-size and SHA-256 before previewing it. The ZIP validation rules are defined by
-the `zip` skill.
+size and SHA-256 before previewing it.

@@ -22,6 +22,7 @@ public static class McpAiGuidance
 
     public const string SereinFlowProjectsResourceUri = "sereinflow://ai/skills/sereinflow/projects";
     public const string SereinFlowFlowsResourceUri = "sereinflow://ai/skills/sereinflow/flows";
+    public const string SereinFlowUiUxResourceUri = "sereinflow://ai/skills/sereinflow/ui-ux";
     public const string SereinFlowRuntimeResourceUri = "sereinflow://ai/skills/sereinflow/runtime";
     public const string SereinFlowWorkpiecesResourceUri = "sereinflow://ai/skills/sereinflow/workpieces";
     public const string SereinFlowApiKeysResourceUri = "sereinflow://ai/skills/sereinflow/api-keys";
@@ -38,7 +39,8 @@ public static class McpAiGuidance
     public static IReadOnlyList<McpAiGuidanceResource> ModuleResources { get; } =
     [
         new("sereinflow.projects", SereinFlowProjectsResourceUri, "sereinflow-projects", "Project discovery and read-only project inspection", "mcp/sereinflow-projects-skill.md"),
-        new("sereinflow.flows", SereinFlowFlowsResourceUri, "sereinflow-flows", "Flow editing, patch and layout rules", "mcp/sereinflow-flows-skill.md"),
+        new("sereinflow.flows", SereinFlowFlowsResourceUri, "sereinflow-flows", "Flow editing and patch contract rules", "mcp/sereinflow-flows-skill.md"),
+        new("sereinflow.ui-ux", SereinFlowUiUxResourceUri, "sereinflow-ui-ux", "Flow canvas layout and visual organization guidance", "mcp/sereinflow-ui-ux-skill.md"),
         new("sereinflow.runtime", SereinFlowRuntimeResourceUri, "sereinflow-runtime", "Run, debug and post-change verification rules", "mcp/sereinflow-runtime-skill.md"),
         new("sereinflow.workpieces", SereinFlowWorkpiecesResourceUri, "sereinflow-workpieces", "Run workpiece inspection, image preview and file download rules", "mcp/sereinflow-workpieces-skill.md"),
         new("sereinflow.api-keys", SereinFlowApiKeysResourceUri, "sereinflow-api-keys", "MCP API key lifecycle and secret handling rules", "mcp/sereinflow-api-keys-skill.md"),

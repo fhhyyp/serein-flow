@@ -5,14 +5,17 @@ node positions, dimensions, ports, parameters, connections and current version
 as the edit contract.
 
 Flow changes start with `sereinflow_preview_flow_patch` using schema version
-`2.0`, camelCase enum values and typed operations. Allowed operations are
+`2.0`, camelCase enum values and typed operations. New requests must use the
+Schema 2.0 `op`/named-payload form. The service retains legacy v1 input only
+to read existing callers and persisted previews; AI clients must not generate
+v1 requests. Allowed operations are
 `addCanvas`, `updateCanvas`, `removeCanvas`, `addNode`, `replaceNode`,
 `removeNode`, `setNodeParameter`, `addNodeParameter`, `removeNodeParameter`,
 `addConnection`, `replaceConnection`, `removeConnection`, `setEntryNode`,
 `setRunPolicy` and `replaceScriptSource`.
-Do not use the legacy `operation` / `value` envelope. Remove connections before
-removing parameters or nodes, and handle canvas contents before removing a
-canvas. `addNodeParameter` appends one complete parameter contract; use it for
+Remove connections before removing parameters or nodes, and handle canvas
+contents before removing a canvas. `addNodeParameter` appends one complete
+parameter contract; use it for
 an additional variadic member with a unique `ui.id` in the existing
 `variadicGroupId`. `removeNodeParameter` requires its incoming data connections
 to be removed first. The operation is applied through the same preview/apply
@@ -83,10 +86,27 @@ use the canonical node template returned by
 `sereinflow_create_library_node_template`; do not rebuild its ports, parameter
 IDs or runtime metadata.
 
-Place every node in a non-overlapping bounding box inside the edit-model
-canvas, with clearance from existing nodes and boundaries. Keep the main path
-left to right, branch rows separate and connections away from node bodies.
-Move only affected existing nodes when layout changes are required.
+For built-in `Script` and `FlowCall` nodes, use the read-only
+`sereinflow_create_builtin_node_template` after reading the current edit model.
+Pass the selected `builtinNodeId` from the model's built-in-node catalog and a
+finite canvas `position`. Put the returned `node` unchanged into an `addNode`
+or `replaceNode` operation; it is a complete Schema 2.0 node and already
+contains execution ports, data-output metadata, parameters and runtime UI
+metadata. Do not reconstruct a FlowCall node from its display name or copy a
+stale template.
+
+FlowCall runtime metadata is part of the Schema 2.0 contract. Preserve
+`returnType`, `targetFlowId`, `targetNodeId`, `targetCanvasId`, `isPublic` and
+`flowCallParameterBindings` when a FlowCall node is edited. A missing binding
+list is represented by `null` when the target has no parameters. For library
+nodes, `libraryNodeContractId` is the pure node `contractId` returned by the
+library/edit model; do not send the legacy `flowLibraryNodeContractId` field
+or combine a library ID with the node contract ID.
+
+Keep every node within the edit-model canvas and avoid overlapping existing
+nodes. Move only affected existing nodes when layout changes are required.
+For visual organization preferences, also read
+`sereinflow://ai/skills/sereinflow/ui-ux`.
 
 Treat `schemaVersion`, `enumEncoding`, `normalizedOperations` and
 `normalizationWarnings` in the preview as the contract. A field,

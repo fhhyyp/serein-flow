@@ -156,6 +156,9 @@ sereinflow://ai/skills/sereinflow-library-package
 路由索引刻意保持简短。客户端只应读取与当前请求匹配的能力资源，因此语法检查不必
 加载流程、发布和 C# 打包规则。原先的本地 Skill 已由服务器资源替代；每个能力还提供
 更小的任务模块，包括用于图像预览和文件下载的运行工件模块，客户端不会复制这些内容。
+流程画布布局和视觉组织规范单独提供于
+`sereinflow://ai/skills/sereinflow/ui-ux`；通过 MCP 排列节点和连线时，应与流程补丁
+模块一起加载。
 
 每次读取资源时，服务器都会从部署目录加载对应文件，因此运维人员更新单个 Markdown
 文件后，无需重建或重新安装客户端插件。文件路径只由服务器配置选择，并限制在服务器
@@ -231,6 +234,15 @@ sereinlang.compile
 `pending`、`running`、`succeeded`、`failed`、`cancelled`、`timedOut` 或
 `interrupted`。
 
+每次提交的运行都会绑定到提交时选定的已保存定义三元组
+`(flowId, version, checksum)`，且该绑定不可变。运行详情会返回
+`definitionChecksum`。不得使用过期的编辑模型、过期版本资源或未保存候选推断运行定义。
+生产调用会重新加载已保存的生产轨道头版本；正式生产运行不接受候选或覆盖定义。
+Debug 候选只有在流程 ID 和版本都匹配当前已保存开发版本时才允许使用，且运行会绑定
+该候选定义本身的校验和。
+遇到 `run.candidate_definition_not_allowed` 或任意流程/版本/校验和不匹配时，
+必须停止并重新读取权威版本资源。
+
 活动运行消息发布使用独立的变更工具
 `sereinflow_publish_run_message`，不属于 `debug.control`。工具需要
 `run.message.publish` 权限和必填的 `idempotencyKey`，输入的 `payload` 是任意
@@ -258,7 +270,8 @@ JSON 值（包括数组、字符串、数值、布尔值和 `null`），`channel
 内的重复消息。常见业务错误码包括 `run.not_found`、`worker.not_active`、
 `worker.not_found`、`message.endpoint_not_ready`、`message.endpoint_forbidden`、
 `message.contract_mismatch`、`message.channel_full` 和
-`message.delivery_timeout`。
+`message.delivery_timeout`。正式运行尝试使用未保存候选时返回
+`run.candidate_definition_not_allowed`。
 
 MCP API 密钥管理工具仅限管理员使用。使用
 `sereinflow_list_mcp_api_keys` 读取当前状态后，再按明确请求调用创建、轮换或
@@ -276,9 +289,9 @@ MCP API 密钥管理工具仅限管理员使用。使用
 
 流程修改使用 `sereinflow_preview_flow_patch` 预览，再由显式确认的对应应用工具执行；
 v2 请求使用 `schemaVersion: "2.0"`、`op` 判别字段、具名 payload 和规范的 camelCase
-枚举值。兼容期仍接受流程公共合同的旧版 v1 输入，但响应始终返回 v2 的
-`normalizedOperations` 与
-`normalizationWarnings`。
+枚举值。新请求必须使用 Schema 2.0；服务端仅为读取既有调用和历史预览而兼容旧版
+v1，AI 客户端不得主动生成 v1 请求。响应始终返回 v2 的
+`normalizedOperations` 与 `normalizationWarnings`。
 
 类库节点的必需输入若没有字面量默认值，单独提交 `addNode` 预期会被
 `node.missing_required_parameter` 阻止。应在同一个有序 Patch 中同时添加节点
@@ -303,6 +316,18 @@ Action/Flipflop 合同，返回完整的规范 `NodeDto`、运行时类库元数
 字面量、枚举/可变参数元数据、包 SHA-256 和 `contractRevision`。将返回的节点原样
 放进 v2 `addNode`；类库 attach/detach 仍是独立的预览/应用操作，不属于流程补丁。
 
+对于内置 `Script` 和 `FlowCall` 节点，应先读取当前流程编辑模型，再调用只读的
+`sereinflow_create_builtin_node_template`。传入编辑模型内置节点目录中的
+`builtinNodeId` 和有限的画布 `position`。将返回的 `node` 原样放入 `addNode` 或
+`replaceNode`；它已经是完整的 Schema 2.0 节点，包含执行端口、数据输出元数据、
+参数和运行时 UI 元数据。
+
+FlowCall 的运行时元数据属于 Schema 2.0 合同，编辑时必须保留 `returnType`、
+`targetFlowId`、`targetNodeId`、`targetCanvasId`、`isPublic` 和
+`flowCallParameterBindings`。目标没有参数时，绑定列表使用 `null` 表示。对于类库节点，
+`libraryNodeContractId` 必须是纯节点 `contractId`；禁止发送旧字段
+`flowLibraryNodeContractId`，也不要把类库 ID 与节点契约 ID 拼接后传入。
+
 流程补丁还支持 `addNodeParameter` 和 `removeNodeParameter` 进行参数级编辑。使用
 `addNodeParameter` 时必须提供完整的参数合同和唯一的 `ui.id`；向可变参数组添加
 成员时应使用此 MCP 操作。使用 `removeNodeParameter` 前，必须先移除传入该参数的
@@ -317,17 +342,9 @@ ID 的节点，则入口引用会保留。若要改用其他入口节点，请�
 
 ## 节点绘制约束
 
-绘制前先读取 `sereinflow_get_flow_edit_model`，依据实际节点位置、尺寸、端口、
-连接和画布边界布局。每个节点必须有不重叠的 bounding box，并与现有节点、其他
-新节点和画布边界保持安全间距。通常约 `260 px` 宽的节点，列间距使用约
-`340-420 px`；参数较多时增加间距，横向至少保留 `80 px` 清晰区，分支行至少
-保留 `64 px`。
-
-主执行路径从左向右，同一执行阶段对齐；成功、失败、错误分支使用独立行并向
-右侧展开。连接尽量短且少交叉；数据连接不能穿过节点主体或端口列表，必要时
-使用节点上下方的专用通道。新增节点造成重叠时只移动受影响节点，并在同一个
-预览中包含坐标变化；提交预览前检查所有节点是否越界、重叠以及连接
-是否穿过节点。
+绘制前先读取 `sereinflow_get_flow_edit_model`。每个节点必须位于画布边界内，且
+不得与现有或新增节点重叠。只移动受影响的既有节点，并在同一个预览中包含坐标
+变化。具体间距、分支对齐和连线路由偏好属于 UI 编辑器规则，不属于 MCP 合同。
 
 ## 安全与诊断
 

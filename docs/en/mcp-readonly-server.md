@@ -181,6 +181,10 @@ by server Resources; each capability also exposes smaller task modules,
 including the run workpiece module for image preview and file-download rules.
 These contents are not copied into the client plugin.
 
+Flow canvas layout and visual organization guidance is available separately at
+`sereinflow://ai/skills/sereinflow/ui-ux`; load it together with the flow patch
+module when an MCP client is arranging nodes and connections.
+
 Each Resource is loaded from the server deployment on every read. An operator
 can therefore update one Markdown file without rebuilding or reinstalling the
 client plugin. The backing files are selected only by server configuration and
@@ -271,6 +275,17 @@ default to `development` when omitted. The optional `status` filter of
 `sereinflow_list_runs` accepts `pending`, `running`, `succeeded`, `failed`,
 `cancelled`, `timedOut`, or `interrupted`.
 
+Every submitted run is immutably bound to `(flowId, version, checksum)` from
+the persisted definition selected at submission time. Run inspection exposes
+`definitionChecksum`. Do not substitute a cached edit model, stale version
+resource, or unsaved candidate. Production invocation reloads the persisted
+production head; a candidate or override definition is not accepted for a
+formal production run. Debug candidates are allowed only when their flow ID
+and version match the current persisted development definition; the run binds
+to the checksum of that exact candidate. Treat
+`run.candidate_definition_not_allowed` and any flow/version/checksum mismatch
+as a hard stop and reread the authoritative version resource.
+
 Publishing a message to an active run uses the separate mutation tool
 `sereinflow_publish_run_message` and is not part of `debug.control`. The tool
 requires the `run.message.publish` permission and a required `idempotencyKey`.
@@ -303,7 +318,8 @@ deduplicates messages inside the Broker by stable `messageId`. Common business
 error codes include `run.not_found`, `worker.not_active`, `worker.not_found`,
 `message.endpoint_not_ready`, `message.endpoint_forbidden`,
 `message.contract_mismatch`, `message.channel_full`, and
-`message.delivery_timeout`.
+`message.delivery_timeout`. A formal run that attempts to use an unsaved
+candidate returns `run.candidate_definition_not_allowed`.
 
 MCP API-key management tools are administrator-only. Use
 `sereinflow_list_mcp_api_keys` to read the current state, then call create,
@@ -325,8 +341,9 @@ When creating a key, `permissions` must use these stable dotted names:
 Flow changes use `sereinflow_preview_flow_patch` first, followed by the
 corresponding apply tool after explicit confirmation. v2 requests use
 `schemaVersion: "2.0"`, an `op` discriminator, named payload fields, and
-canonical camelCase enum values. During the compatibility period, the flow
-public contract still accepts legacy v1 input, but responses always return v2
+canonical camelCase enum values. New requests must use Schema 2.0; the service
+retains legacy v1 input only to read existing callers and persisted previews.
+AI clients must not generate v1 requests. Responses always return v2
 `normalizedOperations` and `normalizationWarnings`.
 
 When a library node has a required input without a literal default, submitting
@@ -360,6 +377,21 @@ default literals, enum/variadic metadata, package SHA-256, and
 Library attach/detach remains a separate preview/apply operation and is not part
 of the flow patch.
 
+For built-in `Script` and `FlowCall` nodes, first call the read-only
+`sereinflow_create_builtin_node_template` after reading the current flow edit
+model. Pass a `builtinNodeId` from the model's built-in-node catalog and a
+finite canvas `position`. Put the returned `node` unchanged into an `addNode`
+or `replaceNode` operation; it is a complete Schema 2.0 node with execution
+ports, data-output metadata, parameters and runtime UI metadata.
+
+FlowCall runtime metadata must preserve `returnType`, `targetFlowId`,
+`targetNodeId`, `targetCanvasId`, `isPublic`, and
+`flowCallParameterBindings`. A missing binding list is represented by `null`
+when the target has no parameters. For library nodes,
+`libraryNodeContractId` is the pure node `contractId`; do not send the legacy
+`flowLibraryNodeContractId` field or combine a library ID with the node
+contract ID.
+
 The flow patch also supports `addNodeParameter` and `removeNodeParameter` for
 parameter-level edits. Use `addNodeParameter` with a complete parameter
 contract and a unique `ui.id`; this is the MCP operation for adding another
@@ -377,22 +409,11 @@ node first, then issue `setEntryNode` with the ID of another remaining node.
 
 ## Node Layout Constraints
 
-Before drawing, read `sereinflow_get_flow_edit_model` and lay out nodes using
-the actual positions, dimensions, ports, parameters, connections, and canvas
-bounds. Every node must have a non-overlapping bounding box and safe clearance
-from existing nodes, other new nodes, and canvas boundaries. A node width of
-about `260 px` is typical; use roughly `340-420 px` between columns. Increase
-the spacing when parameters require it, keeping at least `80 px` of horizontal
-clarity and `64 px` between branch rows.
-
-Keep the main execution path left to right and align nodes in the same
-execution stage. Put success, failure, and error branches on separate rows and
-expand them to the right. Keep connections short with few crossings. Data
-connections must not pass through node bodies or parameter lists; use dedicated
-channels above or below nodes when necessary. If new nodes cause overlap, move
-only affected nodes and include the coordinate changes in the same preview.
-Before submitting the preview, check that no node is out of bounds or
-overlapping and that no connection crosses a node.
+Before drawing, read `sereinflow_get_flow_edit_model`. Keep every node within
+the canvas bounds and avoid overlapping existing or new nodes. Move only
+affected existing nodes and include coordinate changes in the same preview.
+Detailed spacing, branch alignment and connection-routing preferences belong to
+the UI editor rather than the MCP contract.
 
 ## Security and Diagnostics
 

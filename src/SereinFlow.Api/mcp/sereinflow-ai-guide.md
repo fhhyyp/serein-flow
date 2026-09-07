@@ -1,6 +1,6 @@
 # SereinFlow MCP Guide
 
-Guide version: 9
+Guide version: 11
 
 This is the MCP entry point for AI guidance. After `initialize`, read this
 Resource and then read only the smallest module Resource needed for the
@@ -13,6 +13,7 @@ client. Current tool schemas and read Resources are authoritative.
 | --- | --- |
 | Project discovery or inspection | `sereinflow://ai/skills/sereinflow/projects` |
 | Flow editing, nodes, connections or scripts | `sereinflow://ai/skills/sereinflow/flows` |
+| Flow canvas layout and UI/UX | `sereinflow://ai/skills/sereinflow/ui-ux` |
 | Runs, execution or debugging | `sereinflow://ai/skills/sereinflow/runtime` |
 | Run images, files or other uploaded workpieces | `sereinflow://ai/skills/sereinflow/workpieces` |
 | MCP API key administration | `sereinflow://ai/skills/sereinflow/api-keys` |
@@ -34,8 +35,9 @@ second-level route:
 - `sereinflow://ai/skills/sereinflow-library-package`
 
 A request spanning capabilities may read the smallest set of modules in task
-order. For example, library attachment plus flow editing reads `import` and
-`flows`; source-to-package work reads `build`, `zip` and `metadata`.
+order. For example, flow editing with canvas layout reads `flows` and `ui-ux`;
+library attachment plus flow editing reads `import` and `flows`; source-to-package
+work reads `build`, `zip` and `metadata`.
 
 If workflow prompts are preferred, call `prompts/list` and then `prompts/get`.
 Each Prompt has a fixed scope; it does not classify free-text intent or add

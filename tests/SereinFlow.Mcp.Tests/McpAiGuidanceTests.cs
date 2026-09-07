@@ -19,6 +19,9 @@ public sealed class McpAiGuidanceTests
         Assert.Equal(
             "mcp/sereinflow-workpieces-skill.md",
             options.ModuleFilePaths["sereinflow.workpieces"]);
+        Assert.Equal(
+            "mcp/sereinflow-ui-ux-skill.md",
+            options.ModuleFilePaths["sereinflow.ui-ux"]);
     }
 
     [Fact]
@@ -273,6 +276,42 @@ public sealed class McpAiGuidanceTests
 
             Assert.Contains("# runtime guidance", text, StringComparison.Ordinal);
             Assert.Contains("# workpiece guidance", text, StringComparison.Ordinal);
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task EditFlowPromptLoadsFlowAndUiUxGuidance()
+    {
+        var root = Directory.CreateTempSubdirectory("sereinflow-mcp-flow-ui-ux-prompt-");
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(root.FullName, "flows.md"), "# flow guidance");
+            await File.WriteAllTextAsync(Path.Combine(root.FullName, "ui-ux.md"), "# ui ux guidance");
+            var provider = new McpAiGuidanceProvider(
+                new McpAiGuidanceOptions
+                {
+                    ModuleFilePaths = new Dictionary<string, string>
+                    {
+                        ["sereinflow.flows"] = "flows.md",
+                        ["sereinflow.ui-ux"] = "ui-ux.md"
+                    },
+                    MaxBytes = 4096
+                },
+                root.FullName);
+
+            var result = await McpPromptCatalog.GetAsync(
+                "sereinflow.edit-flow",
+                System.Text.Json.JsonSerializer.SerializeToElement(new { request = "Lay out a flow" }),
+                provider,
+                CancellationToken.None);
+            var text = result.Messages.Single().Content.Text;
+
+            Assert.Contains("# flow guidance", text, StringComparison.Ordinal);
+            Assert.Contains("# ui ux guidance", text, StringComparison.Ordinal);
         }
         finally
         {
