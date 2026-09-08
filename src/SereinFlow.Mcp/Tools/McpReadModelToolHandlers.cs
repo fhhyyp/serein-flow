@@ -243,7 +243,7 @@ internal static class McpReadModelToolHandlers
             item.ContentType,
             item.Length,
             item.CreatedAt,
-            $"/api/runs/{item.RunId:D}/workpieces/{item.Id}",
+            SereinFlowApiUris.RunWorkpiece(item.RunId, item.Id),
             item.NodeId,
             item.ExecutionId);
 

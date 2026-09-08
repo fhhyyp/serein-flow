@@ -172,6 +172,14 @@ ContentRoot 下。MCP 调用方只能请求固定的资源 URI，不能选择任
 可以在 `SereinFlow:Mcp:AiGuidance:Modules:<resource-key>` 下覆盖。每个文件都受共享的
 `SereinFlow:Mcp:AiGuidance:MaxBytes` 大小限制。
 
+Guidance 资源也可以在运行时通过配置覆盖 URI 和文件路径：
+`SereinFlow:Mcp:AiGuidance:Resources:<resource-key>:Uri` 和
+`SereinFlow:Mcp:AiGuidance:Resources:<resource-key>:FilePath`。资源 Key 使用
+`ai.guide`、`sereinflow`、`sereinlang`、`sereinflow.projects` 等注册表 Key。
+Provider 每次读取资源、列出资源或生成 Prompt 时都会重新读取当前配置，因此文件内容、URI
+和 Prompt 中引用的资源会在配置变更后生效，无需重启 MCP 进程。URI 必须使用绝对的
+`sereinflow` URI，不能包含模板、query 或 fragment，也不能覆盖已有的直接资源 URI。
+
 ```text
 sereinflow://projects
 sereinflow://archived-projects

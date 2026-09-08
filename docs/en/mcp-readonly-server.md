@@ -202,6 +202,16 @@ can override the four index paths with
 overridden under `SereinFlow:Mcp:AiGuidance:Modules:<resource-key>`. Every file
 is subject to the shared `SereinFlow:Mcp:AiGuidance:MaxBytes` limit.
 
+Guidance resources can also override their URI and file path at runtime with
+`SereinFlow:Mcp:AiGuidance:Resources:<resource-key>:Uri` and
+`SereinFlow:Mcp:AiGuidance:Resources:<resource-key>:FilePath`. Resource keys include
+`ai.guide`, `sereinflow`, `sereinlang`, and `sereinflow.projects`. The provider
+re-reads the current configuration whenever it lists or reads resources or
+generates a prompt, so URI changes, file changes, and prompt references take
+effect without restarting the MCP process. URIs must be absolute `sereinflow`
+URIs without templates, query strings, or fragments, and cannot collide with a
+direct MCP resource URI.
+
 ```text
 sereinflow://projects
 sereinflow://archived-projects

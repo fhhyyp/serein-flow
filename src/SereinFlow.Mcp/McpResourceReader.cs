@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using System.Globalization;
 using SereinFlow.Application;
 using SereinFlow.Contracts;
 
@@ -26,93 +27,62 @@ public sealed class McpResourceReader
 
     public async Task<McpResourceReadResult> ReadAsync(string uri, CancellationToken cancellationToken)
     {
-        if (McpAiGuidance.IsGuidanceUri(uri))
+        if (_aiGuidanceProvider.IsGuidanceUri(uri))
             return await _aiGuidanceProvider.ReadAsync(uri, cancellationToken);
 
-        if (!Uri.TryCreate(uri, UriKind.Absolute, out var parsed)
-            || !string.Equals(parsed.Scheme, "sereinflow", StringComparison.OrdinalIgnoreCase))
+        if (!McpResourceUriParser.TryParse(uri, out var match) || match is null)
         {
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The SereinFlow resource URI is invalid.");
         }
-
-        var collection = parsed.Host.ToLowerInvariant();
-        var segments = parsed.AbsolutePath
-            .Split('/', StringSplitOptions.RemoveEmptyEntries)
-            .Select(Uri.UnescapeDataString)
-            .ToArray();
 
         using var scope = _scopeFactory.CreateScope();
         var context = new McpToolContext(
             scope,
             scope.ServiceProvider.GetRequiredService<McpSecurityService>(),
             _principalAccessor.Current);
-        object? value = collection switch
+        var parameters = match.Parameters;
+        object? value = match.Id switch
         {
-            "projects" when segments.Length == 0
+            McpResourceId.Projects
                 => await McpReadModelToolHandlers.ReadProjectsResourceAsync(context, cancellationToken),
-            "archived-projects" when segments.Length == 0
+            McpResourceId.ArchivedProjects
                 => await McpReadModelToolHandlers.ReadArchivedProjectsResourceAsync(context, cancellationToken),
-            "projects" when segments.Length == 1 && Guid.TryParse(segments[0], out var projectId)
-                => await McpReadModelToolHandlers.ReadProjectResourceAsync(context, projectId, cancellationToken),
-            "projects" when segments.Length == 4
-                && Guid.TryParse(segments[0], out var topologyProjectId)
-                && string.Equals(segments[1], "flows", StringComparison.OrdinalIgnoreCase)
-                && Guid.TryParse(segments[2], out var topologyFlowId)
-                && string.Equals(segments[3], "topology", StringComparison.OrdinalIgnoreCase)
-                => await McpReadModelToolHandlers.ReadTopologyResourceAsync(context, topologyProjectId, topologyFlowId, cancellationToken),
-            "libraries" when segments.Length == 0
+            McpResourceId.Project
+                => await McpReadModelToolHandlers.ReadProjectResourceAsync(context, Guid.Parse(parameters["projectId"]), cancellationToken),
+            McpResourceId.FlowTopology
+                => await McpReadModelToolHandlers.ReadTopologyResourceAsync(context, Guid.Parse(parameters["projectId"]), Guid.Parse(parameters["flowId"]), cancellationToken),
+            McpResourceId.Libraries
                 => await McpReadModelToolHandlers.ReadLibrariesResourceAsync(context, cancellationToken),
-            "archived-libraries" when segments.Length == 0
+            McpResourceId.ArchivedLibraries
                 => await McpReadModelToolHandlers.ReadArchivedLibrariesResourceAsync(context, cancellationToken),
-            "libraries" when segments.Length == 1
-                => await McpReadModelToolHandlers.ReadLibraryResourceAsync(context, segments[0], cancellationToken),
-            "library-families" when segments.Length == 0
+            McpResourceId.Library
+                => await McpReadModelToolHandlers.ReadLibraryResourceAsync(context, parameters["libraryId"], cancellationToken),
+            McpResourceId.LibraryFamilies
                 => await McpReadModelToolHandlers.ReadLibraryFamiliesResourceAsync(context, cancellationToken),
-            "library-families" when segments.Length == 1
-                => await McpReadModelToolHandlers.ReadLibraryFamilyResourceAsync(context, segments[0], cancellationToken),
-            "projects" when segments.Length == 2
-                && Guid.TryParse(segments[0], out var librariesProjectId)
-                && string.Equals(segments[1], "libraries", StringComparison.OrdinalIgnoreCase)
-                => await McpReadModelToolHandlers.ReadProjectLibrariesResourceAsync(context, librariesProjectId, cancellationToken),
-            "projects" when segments.Length == 3
-                && Guid.TryParse(segments[0], out var libraryUpgradeProjectId)
-                && string.Equals(segments[1], "library-upgrades", StringComparison.OrdinalIgnoreCase)
-                && Guid.TryParse(segments[2], out var upgradeId)
-                => await McpReadModelToolHandlers.ReadLibraryUpgradeResourceAsync(
-                    context, libraryUpgradeProjectId, upgradeId, cancellationToken),
-            "runs" when segments.Length == 0
+            McpResourceId.LibraryFamily
+                => await McpReadModelToolHandlers.ReadLibraryFamilyResourceAsync(context, parameters["familyId"], cancellationToken),
+            McpResourceId.ProjectLibraries
+                => await McpReadModelToolHandlers.ReadProjectLibrariesResourceAsync(context, Guid.Parse(parameters["projectId"]), cancellationToken),
+            McpResourceId.LibraryUpgrade
+                => await McpReadModelToolHandlers.ReadLibraryUpgradeResourceAsync(context, Guid.Parse(parameters["projectId"]), Guid.Parse(parameters["upgradeId"]), cancellationToken),
+            McpResourceId.Runs
                 => await McpDebugToolHandlers.ReadRunsResourceAsync(context, cancellationToken),
-            "runs" when segments.Length == 1 && Guid.TryParse(segments[0], out var runId)
-                => await McpReadModelToolHandlers.ReadRunResourceAsync(context, runId, cancellationToken),
-            "runs" when segments.Length == 2
-                && Guid.TryParse(segments[0], out var workpiecesRunId)
-                && string.Equals(segments[1], "workpieces", StringComparison.OrdinalIgnoreCase)
-                => await McpReadModelToolHandlers.ReadRunWorkpiecesResourceAsync(context, workpiecesRunId, cancellationToken),
-            "runs" when segments.Length == 3
-                && Guid.TryParse(segments[0], out var workpieceRunId)
-                && string.Equals(segments[1], "workpieces", StringComparison.OrdinalIgnoreCase)
-                => await McpReadModelToolHandlers.ReadRunWorkpieceResourceAsync(context, workpieceRunId, segments[2], cancellationToken),
-            "debug-sessions" when segments.Length == 0
+            McpResourceId.Run
+                => await McpReadModelToolHandlers.ReadRunResourceAsync(context, Guid.Parse(parameters["runId"]), cancellationToken),
+            McpResourceId.RunWorkpieces
+                => await McpReadModelToolHandlers.ReadRunWorkpiecesResourceAsync(context, Guid.Parse(parameters["runId"]), cancellationToken),
+            McpResourceId.RunWorkpiece
+                => await McpReadModelToolHandlers.ReadRunWorkpieceResourceAsync(context, Guid.Parse(parameters["runId"]), parameters["workpieceId"], cancellationToken),
+            McpResourceId.DebugSessions
                 => await McpDebugToolHandlers.ReadDebugSessionsResourceAsync(context, cancellationToken),
-            "debug-sessions" when segments.Length == 1 && Guid.TryParse(segments[0], out var sessionId)
-                => await McpReadModelToolHandlers.ReadDebugResourceAsync(context, sessionId, cancellationToken),
-            "projects" when segments.Length == 5
-                && Guid.TryParse(segments[0], out var versionsProjectId)
-                && string.Equals(segments[1], "flows", StringComparison.OrdinalIgnoreCase)
-                && Guid.TryParse(segments[2], out var versionsFlowId)
-                && string.Equals(segments[3], "versions", StringComparison.OrdinalIgnoreCase)
-                => await McpReadModelToolHandlers.ReadVersionsResourceAsync(
-                    context, versionsProjectId, versionsFlowId, segments[4], cancellationToken),
-            "projects" when segments.Length == 6
-                && Guid.TryParse(segments[0], out var versionProjectId)
-                && string.Equals(segments[1], "flows", StringComparison.OrdinalIgnoreCase)
-                && Guid.TryParse(segments[2], out var versionFlowId)
-                && string.Equals(segments[3], "versions", StringComparison.OrdinalIgnoreCase)
-                && long.TryParse(segments[5], out var version)
-                => await McpReadModelToolHandlers.ReadVersionResourceAsync(
-                    context, versionProjectId, versionFlowId, segments[4], version, cancellationToken),
-            "mcp-previews" when segments.Length == 1 && Guid.TryParse(segments[0], out var previewId)
-                => await McpReadModelToolHandlers.ReadPreviewResourceAsync(context, previewId, cancellationToken),
+            McpResourceId.DebugSession
+                => await McpReadModelToolHandlers.ReadDebugResourceAsync(context, Guid.Parse(parameters["sessionId"]), cancellationToken),
+            McpResourceId.FlowVersions
+                => await McpReadModelToolHandlers.ReadVersionsResourceAsync(context, Guid.Parse(parameters["projectId"]), Guid.Parse(parameters["flowId"]), parameters["track"], cancellationToken),
+            McpResourceId.FlowVersion
+                => await McpReadModelToolHandlers.ReadVersionResourceAsync(context, Guid.Parse(parameters["projectId"]), Guid.Parse(parameters["flowId"]), parameters["track"], long.Parse(parameters["version"], CultureInfo.InvariantCulture), cancellationToken),
+            McpResourceId.Preview
+                => await McpReadModelToolHandlers.ReadPreviewResourceAsync(context, Guid.Parse(parameters["previewId"]), cancellationToken),
             _ => throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The SereinFlow resource URI is not supported.")
         };
 

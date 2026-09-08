@@ -10,26 +10,8 @@ namespace SereinFlow.Mcp;
 /// </summary>
 public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
 {
-    private static readonly IReadOnlyList<McpResourceDescriptor> Resources = CreateResources();
-
     private static readonly IReadOnlyList<McpResourceTemplateDescriptor> ResourceTemplates =
-    [
-        new("sereinflow://projects/{projectId}", "project", "One SereinFlow project"),
-        new("sereinflow://projects/{projectId}/flows/{flowId}/topology", "flow topology", "A development flow topology"),
-        new("sereinflow://projects/{projectId}/flows/{flowId}/versions/{track}", "flow versions", "Flow version history for one track"),
-        new("sereinflow://projects/{projectId}/flows/{flowId}/versions/{track}/{version}", "flow version", "One immutable flow version"),
-        new("sereinflow://mcp-previews/{previewId}", "MCP preview", "One pending or completed MCP mutation preview"),
-        new("sereinflow://libraries/{libraryId}", "library", "One SereinFlow library contract"),
-        new("sereinflow://library-families/{familyId}", "library family", "One SereinFlow library family and its artifacts"),
-        new("sereinflow://projects/{projectId}/libraries", "project libraries", "Library artifacts referenced by one project"),
-        new("sereinflow://projects/{projectId}/library-upgrades/{upgradeId}", "library upgrade", "One persisted project library upgrade plan"),
-        new("sereinflow://runs", "runs", "Bounded SereinFlow run summaries"),
-        new("sereinflow://debug-sessions", "debug sessions", "Bounded active debug session summaries"),
-        new("sereinflow://runs/{runId}", "run inspection", "A bounded run timeline, node output and debug inspection"),
-        new("sereinflow://runs/{runId}/workpieces", "run workpieces", "Metadata for image and file workpieces uploaded by a run"),
-        new("sereinflow://runs/{runId}/workpieces/{workpieceId}", "run workpiece", "One image or file workpiece uploaded by a run"),
-        new("sereinflow://debug-sessions/{sessionId}", "debug session", "A structured debug session state")
-    ];
+        McpResourceCatalog.Templates;
 
     private readonly McpResourceReader _resourceReader;
     private readonly McpAiGuidanceProvider _aiGuidanceProvider;
@@ -49,7 +31,7 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
     }
 
     public Task<IReadOnlyList<McpResourceDescriptor>> ListResourcesAsync(CancellationToken cancellationToken)
-        => Task.FromResult(Resources);
+        => Task.FromResult<IReadOnlyList<McpResourceDescriptor>>(CreateResources());
 
     public Task<IReadOnlyList<McpResourceTemplateDescriptor>> ListResourceTemplatesAsync(CancellationToken cancellationToken)
         => Task.FromResult(ResourceTemplates);
@@ -72,32 +54,11 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
         CancellationToken cancellationToken)
         => _toolExecutor.ExecuteAsync(_toolCatalog, name, arguments, cancellationToken);
 
-    private static List<McpResourceDescriptor> CreateResources()
+    private List<McpResourceDescriptor> CreateResources()
     {
-        var resources = new List<McpResourceDescriptor>
-        {
-            new(McpAiGuidance.ResourceUri, McpAiGuidance.ResourceName, "Compact capability index for SereinFlow AI guidance", McpAiGuidance.MimeType),
-            new(McpAiGuidance.SereinFlowResourceUri, "sereinflow", "SereinFlow capability index", McpAiGuidance.MimeType),
-            new(McpAiGuidance.SereinLangResourceUri, "sereinlang", "SereinLang capability index", McpAiGuidance.MimeType),
-            new(McpAiGuidance.LibraryPackageResourceUri, "sereinflow-library-package", "Library package capability index", McpAiGuidance.MimeType)
-        };
-
-        resources.AddRange(McpAiGuidance.ModuleResources.Select(static resource =>
-            new McpResourceDescriptor(
-                resource.Uri,
-                resource.Name,
-                resource.Description,
-                McpAiGuidance.MimeType)));
-        resources.AddRange(
-        [
-            new("sereinflow://projects", "projects", "Non-archived SereinFlow project summaries"),
-            new("sereinflow://archived-projects", "archived-projects", "Archived SereinFlow project summaries"),
-            new("sereinflow://libraries", "libraries", "Available SereinFlow library artifacts"),
-            new("sereinflow://archived-libraries", "archived-libraries", "Archived SereinFlow library artifacts"),
-            new("sereinflow://library-families", "library-families", "SereinFlow library families and immutable artifact versions"),
-            new("sereinflow://runs", "runs", "Bounded SereinFlow run summaries"),
-            new("sereinflow://debug-sessions", "debug-sessions", "Bounded active debug session summaries")
-        ]);
+        var resources = _aiGuidanceProvider.GetResourceDescriptors().ToList();
+        resources.AddRange(McpResourceCatalog.DirectResources.Select(static resource =>
+            new McpResourceDescriptor(resource.UriTemplate, resource.Name, resource.Description, resource.MimeType)));
         return resources;
     }
 }

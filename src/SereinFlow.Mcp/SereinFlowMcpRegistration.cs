@@ -15,6 +15,11 @@ using System.Text.Json;
 
 namespace SereinFlow.Mcp;
 
+public static class McpHttpDefaults
+{
+    public const string EndpointPath = "/mcp";
+}
+
 public sealed class SereinFlowMcpOptions
 {
     public const string SectionName = "SereinFlow:Mcp";
@@ -72,7 +77,7 @@ public static class SereinFlowMcpServiceCollectionExtensions
         var options = SereinFlowMcpOptions.FromConfiguration(configuration);
         services.AddSingleton(options);
         services.TryAddSingleton<McpAiGuidanceProvider>(_ => new McpAiGuidanceProvider(
-            options.AiGuidance,
+            configuration,
             contentRootPath ?? AppContext.BaseDirectory));
 
         services.AddCors(cors => cors.AddPolicy("sereinflow-mcp", policy =>
@@ -108,7 +113,8 @@ public static class SereinFlowMcpServiceCollectionExtensions
                 checked((int)options.MaxRequestBytes),
                 checked((int)options.MaxResponseBytes),
                 serviceProvider.GetRequiredService<IMcpRequestContextAccessor>(),
-                serviceProvider.GetRequiredService<IFileUploadSettings>()));
+                serviceProvider.GetRequiredService<IFileUploadSettings>(),
+                serviceProvider.GetRequiredService<McpAiGuidanceProvider>()));
 
         return services;
     }
@@ -118,7 +124,7 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
 {
     public static IEndpointConventionBuilder MapSereinFlowMcp(
         this IEndpointRouteBuilder endpoints,
-        string pattern = "/mcp")
+        string pattern = McpHttpDefaults.EndpointPath)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
         var options = endpoints.ServiceProvider.GetRequiredService<SereinFlowMcpOptions>();

@@ -58,8 +58,8 @@ public sealed class McpDebugToolTests
         Assert.Contains(listedResources, item => item.Uri == "sereinflow://runs");
         Assert.Contains(listedResources, item => item.Uri == "sereinflow://debug-sessions");
         var templates = await resources.ListResourceTemplatesAsync(CancellationToken.None);
-        Assert.Contains(templates, item => item.UriTemplate == "sereinflow://runs");
-        Assert.Contains(templates, item => item.UriTemplate == "sereinflow://debug-sessions");
+        Assert.DoesNotContain(templates, item => item.UriTemplate == "sereinflow://runs");
+        Assert.DoesNotContain(templates, item => item.UriTemplate == "sereinflow://debug-sessions");
     }
 
     [Fact]

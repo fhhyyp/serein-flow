@@ -25,6 +25,21 @@ public sealed class McpAiGuidanceTests
     }
 
     [Fact]
+    public void EveryTypedGuidanceIdResolvesToOneRegisteredResource()
+    {
+        var registeredUris = McpAiGuidance.AllResources
+            .Select(static resource => resource.Uri)
+            .ToHashSet(StringComparer.Ordinal);
+
+        foreach (var id in Enum.GetValues<McpAiGuidanceId>())
+            Assert.Contains(McpAiGuidance.GetUri(id), registeredUris);
+
+        Assert.Equal(
+            Enum.GetValues<McpAiGuidanceId>().Length,
+            McpAiGuidance.AllResources.Select(static resource => resource.Uri).Distinct(StringComparer.Ordinal).Count());
+    }
+
+    [Fact]
     public void AllowsFocusedModulePathOverrides()
     {
         var options = McpAiGuidanceOptions.FromConfiguration(
@@ -64,6 +79,40 @@ public sealed class McpAiGuidanceTests
 
         Assert.Throws<InvalidOperationException>(() =>
             McpAiGuidanceOptions.FromConfiguration(configuration));
+    }
+
+    [Fact]
+    public async Task RuntimeConfigurationCanReplaceGuidanceUriAndContent()
+    {
+        var root = Directory.CreateTempSubdirectory("sereinflow-mcp-dynamic-guidance-");
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(root.FullName, "dynamic-v1.md"), "# dynamic-v1");
+            await File.WriteAllTextAsync(Path.Combine(root.FullName, "dynamic-v2.md"), "# dynamic-v2");
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["SereinFlow:Mcp:AiGuidance:Resources:ai.guide:Uri"] = "sereinflow://ai/runtime-guide-v1",
+                    ["SereinFlow:Mcp:AiGuidance:Resources:ai.guide:FilePath"] = "dynamic-v1.md"
+                })
+                .Build();
+            var provider = new McpAiGuidanceProvider(configuration, root.FullName);
+
+            Assert.Equal("sereinflow://ai/runtime-guide-v1", provider.GetUri(McpAiGuidanceId.Guide));
+            Assert.Equal("# dynamic-v1", (await provider.ReadAsync(CancellationToken.None)).Value);
+
+            configuration["SereinFlow:Mcp:AiGuidance:Resources:ai.guide:Uri"] = "sereinflow://ai/runtime-guide-v2";
+            configuration["SereinFlow:Mcp:AiGuidance:Resources:ai.guide:FilePath"] = "dynamic-v2.md";
+
+            Assert.Equal("sereinflow://ai/runtime-guide-v2", provider.GetUri(McpAiGuidanceId.Guide));
+            Assert.True(provider.IsGuidanceUri("sereinflow://ai/runtime-guide-v2"));
+            Assert.Equal("# dynamic-v2", (await provider.ReadAsync("sereinflow://ai/runtime-guide-v2", CancellationToken.None)).Value);
+            Assert.False(provider.IsGuidanceUri("sereinflow://ai/runtime-guide-v1"));
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
     }
 
     [Fact]

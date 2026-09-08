@@ -23,6 +23,7 @@ public sealed class SereinFlowMcpServer
     private readonly int _maxResponseBytes;
     private readonly IMcpRequestContextAccessor? _requestContextAccessor;
     private readonly IFileUploadSettings? _fileUploadSettings;
+    private readonly McpAiGuidanceProvider? _aiGuidanceProvider;
     private bool _shutdownRequested;
 
     public SereinFlowMcpServer(
@@ -31,7 +32,8 @@ public sealed class SereinFlowMcpServer
         int maxRequestBytes = 16 * 1024 * 1024,
         int maxResponseBytes = 4 * 1024 * 1024,
         IMcpRequestContextAccessor? requestContextAccessor = null,
-        IFileUploadSettings? fileUploadSettings = null)
+        IFileUploadSettings? fileUploadSettings = null,
+        McpAiGuidanceProvider? aiGuidanceProvider = null)
     {
         _backend = backend ?? throw new ArgumentNullException(nameof(backend));
         _diagnostics = diagnostics ?? TextWriter.Null;
@@ -41,6 +43,7 @@ public sealed class SereinFlowMcpServer
         _maxResponseBytes = maxResponseBytes;
         _requestContextAccessor = requestContextAccessor;
         _fileUploadSettings = fileUploadSettings;
+        _aiGuidanceProvider = aiGuidanceProvider;
     }
 
     public async Task RunAsync(
@@ -293,8 +296,13 @@ public sealed class SereinFlowMcpServer
         };
     }
 
-    private static object CreateInitializeResult()
-        => new
+    private object CreateInitializeResult()
+    {
+        var guideUri = _aiGuidanceProvider?.GetUri(McpAiGuidanceId.Guide) ?? McpAiGuidance.ResourceUri;
+        var sereinFlowUri = _aiGuidanceProvider?.GetUri(McpAiGuidanceId.SereinFlow) ?? McpAiGuidance.SereinFlowResourceUri;
+        var sereinLangUri = _aiGuidanceProvider?.GetUri(McpAiGuidanceId.SereinLang) ?? McpAiGuidance.SereinLangResourceUri;
+        var libraryPackageUri = _aiGuidanceProvider?.GetUri(McpAiGuidanceId.LibraryPackage) ?? McpAiGuidance.LibraryPackageResourceUri;
+        return new
         {
             protocolVersion = McpProtocolConstants.ProtocolVersion,
             capabilities = new
@@ -308,8 +316,9 @@ public sealed class SereinFlowMcpServer
                 name = McpProtocolConstants.ServerName,
                 version = McpProtocolConstants.ServerVersion
             },
-            instructions = "SereinFlow MCP exposes project, flow, runtime and run-message, release, SereinLang, library, and MCP API-key capabilities. Read the routing index at sereinflow://ai/guide, then follow it to only the smallest focused skill Resource for the request; the capability index URIs sereinflow://ai/skills/sereinflow, sereinflow://ai/skills/sereinlang and sereinflow://ai/skills/sereinflow-library-package remain available when a second-level route is needed. Discover current tools, resources and prompts as needed before acting. Mutations use task-level authorization: read, preview, inspect, apply with the protocol confirmation fields, and reread. Run-message publication requires run.message.publish and an idempotencyKey; accepted means Worker broker acceptance, not downstream completion. API-key administration is administrator-only and returned secrets are shown once. Do not ask for duplicate confirmation between dependent calls; pause for unexpected, destructive, production, permission, secret, or conflicting changes."
+            instructions = $"SereinFlow MCP exposes project, flow, runtime and run-message, release, SereinLang, library, and MCP API-key capabilities. Read the routing index at {guideUri}, then follow it to only the smallest focused skill Resource for the request; the capability index URIs {sereinFlowUri}, {sereinLangUri} and {libraryPackageUri} remain available when a second-level route is needed. Discover current tools, resources and prompts as needed before acting. Mutations use task-level authorization: read, preview, inspect, apply with the protocol confirmation fields, and reread. Run-message publication requires run.message.publish and an idempotencyKey; accepted means Worker broker acceptance, not downstream completion. API-key administration is administrator-only and returned secrets are shown once. Do not ask for duplicate confirmation between dependent calls; pause for unexpected, destructive, production, permission, secret, or conflicting changes."
         };
+    }
 
     private static string GetRequiredString(JsonElement parameters, string name)
     {

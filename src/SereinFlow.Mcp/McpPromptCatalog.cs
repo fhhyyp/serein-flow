@@ -46,23 +46,23 @@ internal static class McpPromptCatalog
     {
         ArgumentNullException.ThrowIfNull(guidanceProvider);
         var request = GetRequest(arguments, name);
-        IReadOnlyList<string> guidanceUris = name switch
+        IReadOnlyList<McpAiGuidanceId> guidanceIds = name switch
         {
-            "sereinflow.inspect" => [McpAiGuidance.SereinFlowProjectsResourceUri],
-            "sereinflow.edit-flow" => [McpAiGuidance.SereinFlowFlowsResourceUri, McpAiGuidance.SereinFlowUiUxResourceUri],
-            "sereinflow.debug-run" => [McpAiGuidance.SereinFlowRuntimeResourceUri, McpAiGuidance.SereinFlowWorkpiecesResourceUri],
-            "sereinflow.publish-flow" => [McpAiGuidance.SereinFlowReleaseResourceUri],
+            "sereinflow.inspect" => [McpAiGuidanceId.SereinFlowProjects],
+            "sereinflow.edit-flow" => [McpAiGuidanceId.SereinFlowFlows, McpAiGuidanceId.SereinFlowUiUx],
+            "sereinflow.debug-run" => [McpAiGuidanceId.SereinFlowRuntime, McpAiGuidanceId.SereinFlowWorkpieces],
+            "sereinflow.publish-flow" => [McpAiGuidanceId.SereinFlowRelease],
             "sereinflow.package-library" =>
             [
-                McpAiGuidance.LibraryBuildResourceUri,
-                McpAiGuidance.LibraryZipResourceUri,
-                McpAiGuidance.LibraryMetadataResourceUri
+                McpAiGuidanceId.LibraryBuild,
+                McpAiGuidanceId.LibraryZip,
+                McpAiGuidanceId.LibraryMetadata
             ],
-            "sereinflow.upgrade-library" => [McpAiGuidance.LibraryUpgradeResourceUri],
-            "sereinlang.compile" => [McpAiGuidance.SereinLangSyntaxResourceUri],
+            "sereinflow.upgrade-library" => [McpAiGuidanceId.LibraryUpgrade],
+            "sereinlang.compile" => [McpAiGuidanceId.SereinLangSyntax],
             _ => throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"The SereinFlow prompt '{name}' is not supported.")
         };
-        var guidance = await Task.WhenAll(guidanceUris.Select(uri => guidanceProvider.ReadAsync(uri, cancellationToken)));
+        var guidance = await Task.WhenAll(guidanceIds.Select(id => guidanceProvider.ReadAsync(id, cancellationToken)));
         var guidanceText = string.Join(
             "\n\n",
             guidance.Select(resource => resource.Value as string

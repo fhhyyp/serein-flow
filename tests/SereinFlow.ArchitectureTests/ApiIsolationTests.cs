@@ -98,6 +98,42 @@ public sealed class ApiIsolationTests
     }
 
     [Fact]
+    public void McpResourceUriLiteralsAreKeptInTheirProtocolCatalogs()
+    {
+        var mcpRoot = Path.Combine(FindRepositoryRoot(), "src", "SereinFlow.Mcp");
+        var allowedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "McpResourceUris.cs",
+            "McpAiGuidance.cs"
+        };
+        var offenders = Directory
+            .EnumerateFiles(mcpRoot, "*.cs", SearchOption.AllDirectories)
+            .Where(static path => !path.Contains("\\bin\\", StringComparison.OrdinalIgnoreCase))
+            .Where(static path => !path.Contains("\\obj\\", StringComparison.OrdinalIgnoreCase))
+            .Where(path => !allowedFiles.Contains(Path.GetFileName(path)))
+            .Where(path => File.ReadAllText(path).Contains("sereinflow://", StringComparison.Ordinal))
+            .Select(path => Path.GetRelativePath(mcpRoot, path))
+            .ToArray();
+
+        Assert.Empty(offenders);
+    }
+
+    [Fact]
+    public void WorkpieceHttpLinkLiteralHasOneOwner()
+    {
+        var sourceRoot = Path.Combine(FindRepositoryRoot(), "src");
+        var owners = Directory
+            .EnumerateFiles(sourceRoot, "*.cs", SearchOption.AllDirectories)
+            .Where(static path => !path.Contains("\\bin\\", StringComparison.OrdinalIgnoreCase))
+            .Where(static path => !path.Contains("\\obj\\", StringComparison.OrdinalIgnoreCase))
+            .Where(path => File.ReadAllText(path).Contains("/api/runs/{runId:D}/workpieces/", StringComparison.Ordinal))
+            .Select(path => Path.GetRelativePath(sourceRoot, path))
+            .ToArray();
+
+        Assert.Equal([Path.Combine("SereinFlow.Contracts", "ApiUris.cs")], owners);
+    }
+
+    [Fact]
     public void McpToolImplementationsAreKeptInTheToolsFolder()
     {
         var mcpRoot = Path.Combine(FindRepositoryRoot(), "src", "SereinFlow.Mcp");
