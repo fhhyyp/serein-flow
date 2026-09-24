@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { Bug, LayoutGrid, PanelLeft, Settings2 } from 'lucide-vue-next'
+import { Bug, Check, LayoutGrid, PanelLeft, RotateCcw } from 'lucide-vue-next'
 import { t } from '../../i18n'
 import type { DockableWorkspaceMode, WorkspacePanelId, WorkspacePanelTab } from '../../flow/dockableWorkspace'
 
@@ -23,9 +23,11 @@ const emit = defineEmits<{
   toggle: [panelId: WorkspacePanelId]
   reset: []
   'change-mode': [mode: DockableWorkspaceMode]
+  open: []
 }>()
 
 const root = ref<HTMLElement>()
+const trigger = ref<HTMLButtonElement>()
 const open = ref(false)
 
 function onDocumentPointerdown(event: PointerEvent): void {
@@ -36,7 +38,15 @@ function onDocumentPointerdown(event: PointerEvent): void {
 }
 
 function onWindowKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Escape') open.value = false
+  if (event.key === 'Escape' && open.value) {
+    open.value = false
+    trigger.value?.focus()
+  }
+}
+
+function toggleOpen(): void {
+  if (!open.value) emit('open')
+  open.value = !open.value
 }
 
 function selectMode(mode: DockableWorkspaceMode): void {
@@ -59,20 +69,21 @@ onBeforeUnmount(() => {
 <template>
   <div ref="root" class="workspace-panel-menu">
     <button
+      ref="trigger"
       class="workspace-panel-menu__trigger"
       :class="{ open }"
       type="button"
       :title="t('panel.workspacePanels')"
       :aria-label="t('panel.workspacePanels')"
-      aria-haspopup="menu"
+      aria-haspopup="dialog"
       :aria-expanded="open"
-      @click="open = !open"
+      @click="toggleOpen"
     >
       <PanelLeft :size="15" aria-hidden="true" />
       <span>{{ t('panel.workspacePanels') }}</span>
     </button>
-    <aside v-if="open" class="workspace-panel-switcher" :aria-label="t('panel.workspacePanels')" @keydown.esc="open = false">
-      <div class="workspace-panel-switcher__heading"><span>{{ t('panel.workspacePanels') }}</span><button type="button" :title="t('panel.resetLayout')" :aria-label="t('panel.resetLayout')" @click="emit('reset')"><Settings2 :size="14" /></button></div>
+    <aside v-if="open" class="workspace-panel-switcher" role="dialog" :aria-label="t('panel.workspacePanels')">
+      <div class="workspace-panel-switcher__heading">{{ t('panel.workspacePanels') }}</div>
       <template v-if="props.showDisplayModes">
         <div class="workspace-panel-switcher__mode-label">{{ t('panel.displayMode') }}</div>
         <div class="workspace-panel-switcher__modes" role="radiogroup" :aria-label="t('panel.displayMode')">
@@ -83,12 +94,15 @@ onBeforeUnmount(() => {
             <Bug :size="14" /><span>{{ t('panel.debugMode') }}</span>
           </button>
         </div>
+        <p v-if="!props.debugModeAvailable" class="workspace-panel-switcher__hint">{{ t('panel.debugModeUnavailable') }}</p>
       </template>
-      <button v-for="item in props.items" :key="item.id" type="button" class="workspace-panel-switcher__item" :class="{ active: item.visible, required: item.required }" :disabled="!item.available || item.required" :aria-pressed="item.visible" @click="emit('toggle', item.id)">
+      <div class="workspace-panel-switcher__section-label">{{ t('panel.visiblePanels') }}</div>
+      <button v-for="item in props.items" :key="item.id" type="button" role="checkbox" class="workspace-panel-switcher__item" :class="{ active: item.visible, required: item.required }" :disabled="!item.available || item.required" :aria-checked="item.visible" @click="emit('toggle', item.id)">
         <component :is="item.icon" :size="14" />
         <span>{{ item.label }}</span>
-        <i :class="{ on: item.visible }" aria-hidden="true"></i>
+        <i class="workspace-panel-switcher__check" :class="{ on: item.visible }" aria-hidden="true"><Check v-if="item.visible" :size="12" :stroke-width="3" /></i>
       </button>
+      <button type="button" class="workspace-panel-switcher__reset" @click="emit('reset'); open = false"><RotateCcw :size="14" />{{ t('panel.resetLayout') }}</button>
     </aside>
   </div>
 </template>

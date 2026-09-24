@@ -489,7 +489,7 @@ const selectedDebugExecutionId = ref<string>()
 const workpieceFocusNodeId = ref<string>()
 const workpieceFocusExecutionId = ref<string>()
 const workpieceRefreshRevision = ref(0)
-const canUseDebugDisplayMode = computed(() => Boolean(flowId.value))
+const canUseDebugDisplayMode = computed(() => Boolean(debugSession.value))
 const panelDefinitions = computed<WorkspacePanelTab[]>(() => [
   { id: 'canvas', label: t('panel.canvas'), icon: markRaw(LayoutGrid), closable: false },
   { id: 'nodes', label: t('panel.nodes'), icon: markRaw(PanelLeft) },
