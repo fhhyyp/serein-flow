@@ -1,10 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Cors;
 using SereinFlow.Application;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Api.Controllers;
 
 [ApiController]
+[EnableCors("sereinflow-webapi")]
+[ServiceFilter(typeof(SereinFlowRestAuthorizationFilter))]
+[ServiceFilter(typeof(SereinFlowApiExceptionFilter))]
 public abstract class ApiControllerBase : ControllerBase
 {
     protected ActionResult? ToAuthorizationFailure(SereinFlowApiAuthorizationResult result)

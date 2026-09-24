@@ -8,6 +8,7 @@ namespace SereinFlow.Api.Controllers;
 public sealed class HealthController : ApiControllerBase
 {
     [HttpGet]
+    [SereinFlowAnonymous]
     [AllowAnonymous]
     [ProducesResponseType(typeof(HealthCheckResponse), StatusCodes.Status200OK)]
     public ActionResult<HealthCheckResponse> Get()

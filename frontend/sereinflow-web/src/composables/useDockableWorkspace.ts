@@ -2,6 +2,8 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, type Ref, watch } 
 import {
   createDefaultDockableWorkspaceLayout,
   createDebugDockableWorkspaceLayout,
+  fitDebugDockableWorkspaceLayout,
+  resizeFreeDockableGroups,
   normalizeDockableWorkspaceLayout,
   type DockablePanelGroupState,
   type DockableWorkspaceMode,
@@ -9,8 +11,11 @@ import {
   type DockPosition,
   type WorkspacePanelId,
   type WorkspaceSize,
+  type WorkspaceInsets,
 } from '../flow/dockableWorkspace'
 import { reflowDockableResize } from '../flow/dockableResize'
+import { splitDockRect, type DockRect, type DockSplitZone } from '../flow/dockableSplit'
+import { snapFreePanelMove, snapFreePanelResize } from '../flow/dockableSnap'
 
 const storageKey = 'sereinflow.canvas-dock-layout.v3'
 const legacyStorageKey = 'sereinflow.canvas-dock-layout.v2'
@@ -22,6 +27,7 @@ type WorkspaceModeGeometry = Record<DockableWorkspaceMode, boolean>
 interface LoadedModeLayouts {
   layouts: WorkspaceModeLayouts
   geometryCustomized: WorkspaceModeGeometry
+  savedWorkspaceSize?: WorkspaceSize
 }
 
 function createModeLayout(mode: DockableWorkspaceMode, size: WorkspaceSize): DockableWorkspaceLayout {
@@ -58,6 +64,7 @@ function loadModeLayouts(size: WorkspaceSize): LoadedModeLayouts {
         storageVersion?: number
         layouts?: Partial<Record<DockableWorkspaceMode, unknown>>
         geometryCustomized?: Partial<WorkspaceModeGeometry>
+        workspaceSize?: Partial<WorkspaceSize>
       }
       if ((stored.storageVersion === 1 || stored.storageVersion === 2 || stored.storageVersion === storageVersion) && stored.layouts) {
         const editLayout = normalizeDockableWorkspaceLayout(stored.layouts.edit, size, defaults.edit) ?? defaults.edit
@@ -81,6 +88,10 @@ function loadModeLayouts(size: WorkspaceSize): LoadedModeLayouts {
               edit: true,
               debug: false,
             },
+          savedWorkspaceSize: Number.isFinite(stored.workspaceSize?.width) && Number.isFinite(stored.workspaceSize?.height)
+            && (stored.workspaceSize?.width ?? 0) > 0 && (stored.workspaceSize?.height ?? 0) > 0
+            ? { width: stored.workspaceSize!.width!, height: stored.workspaceSize!.height! }
+            : undefined,
         }
       }
     }
@@ -135,6 +146,7 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
   const layout = reactive<DockableWorkspaceLayout>(cloneLayout(modeLayouts.edit))
   let resizeObserver: ResizeObserver | undefined
   let saveTimer: number | undefined
+  let hasMeasuredWorkspace = false
 
   const groups = computed(() => layout.groups)
   const visibleGroups = computed(() => layout.groups.filter((group) =>
@@ -154,6 +166,7 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
         syncActiveModeLayout()
         window.localStorage.setItem(storageKey, JSON.stringify({
           storageVersion,
+          workspaceSize: { ...workspaceSize },
           geometryCustomized: { ...geometryCustomized },
           layouts: {
             edit: cloneLayout(modeLayouts.edit),
@@ -177,6 +190,10 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
       dock: group.dock,
     }
     Object.assign(group, patch)
+    if (previous.dock === 'free' && group.dock === 'free'
+      && ('width' in patch || 'height' in patch)) {
+      Object.assign(group, snapFreePanelResize(previous, group, occupiedRects(groupId), workspaceSize))
+    }
     if ('x' in patch || 'y' in patch || 'width' in patch || 'height' in patch || 'dock' in patch || 'collapsed' in patch) {
       geometryCustomized[displayMode.value] = true
     }
@@ -184,6 +201,10 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
       .filter((candidate) => candidate.panelIds.some((panelId) => layout.panels[panelId].visible))
       .map((candidate) => candidate.id))
     reflowDockableResize(layout.groups, groupId, previous, group, visibleGroupIds, workspaceSize)
+    if (displayMode.value === 'debug' && groupId === layout.panels.debug.groupId
+      && group.dock === 'right' && 'width' in patch) {
+      fitDebugDockableWorkspaceLayout(layout, workspaceSize)
+    }
     scheduleSave()
   }
 
@@ -252,6 +273,13 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
     focusGroup(groupId)
   }
 
+  function snapGroup(groupId: string): void {
+    const group = layout.groups.find((item) => item.id === groupId)
+    if (!group || group.dock !== 'free') return
+    Object.assign(group, snapFreePanelMove(group, occupiedRects(groupId), workspaceSize))
+    scheduleSave()
+  }
+
   function combinePanel(panelId: WorkspacePanelId, targetGroupId: string): void {
     const sourceGroup = groupForPanel(panelId)
     const targetGroup = layout.groups.find((item) => item.id === targetGroupId)
@@ -270,6 +298,31 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
     } else if (!sourceGroup.panelIds.includes(sourceGroup.activePanelId)) {
       sourceGroup.activePanelId = sourceGroup.panelIds.find((id) => layout.panels[id].visible) ?? sourceGroup.panelIds[0]!
     }
+    scheduleSave()
+  }
+
+  function splitPanel(panelId: WorkspacePanelId, targetGroupId: string, zone: Exclude<DockSplitZone, 'center'>, targetRect: DockRect): void {
+    const initialSource = groupForPanel(panelId)
+    const targetGroup = layout.groups.find((group) => group.id === targetGroupId)
+    if (!initialSource || !targetGroup || (initialSource.id === targetGroup.id && initialSource.panelIds.length <= 1)) return
+    const sourceGroupId = initialSource.panelIds.length > 1 ? detachPanel(panelId) : initialSource.id
+    const sourceGroup = layout.groups.find((group) => group.id === sourceGroupId)
+    if (!sourceGroup) return
+    const split = splitDockRect(targetRect, zone)
+    const place = (group: DockablePanelGroupState, rect: DockRect) => {
+      Object.assign(group, {
+        dock: 'free' as const,
+        collapsed: false,
+        x: rect.left,
+        y: rect.top,
+        width: rect.right - rect.left,
+        height: rect.bottom - rect.top,
+      })
+    }
+    place(targetGroup, split.target)
+    place(sourceGroup, split.source)
+    geometryCustomized[displayMode.value] = true
+    focusGroup(sourceGroup.id)
     scheduleSave()
   }
 
@@ -325,13 +378,25 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
     }
   }
 
-  function edgeGroupExtent(group: DockablePanelGroupState): number {
+  function edgeGroupExtent(group: DockablePanelGroupState, size = workspaceSize): number {
     if (group.collapsed) return 76
     const raw = group.dock === 'left' || group.dock === 'right' ? group.width : group.height
     const maximum = group.dock === 'left' || group.dock === 'right'
-      ? workspaceSize.width
-      : workspaceSize.height
+      ? size.width
+      : size.height
     return Math.max(0, Math.min(raw, maximum))
+  }
+
+  function workspaceInsetsForSize(size: WorkspaceSize): WorkspaceInsets {
+    const insets = { left: 0, right: 0, top: 0, bottom: 0 }
+    const visible = layout.groups.filter((group) => group.panelIds.some((panelId) => layout.panels[panelId].visible))
+    for (const dock of ['left', 'right', 'top', 'bottom'] as const) {
+      const peers = visible.filter((group) => group.dock === dock)
+      const total = peers.reduce((sum, group) => sum + edgeGroupExtent(group, size), 0)
+      const capacity = dock === 'left' || dock === 'right' ? size.width : size.height
+      insets[dock] = Math.min(total, capacity)
+    }
+    return insets
   }
 
   function visibleLayoutGroups(excludeGroupId: string): DockablePanelGroupState[] {
@@ -436,7 +501,12 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
       width: Math.max(1, element.clientWidth),
       height: Math.max(1, element.clientHeight),
     }
+    const previousSize = !hasMeasuredWorkspace && loadedLayouts.savedWorkspaceSize
+      ? loadedLayouts.savedWorkspaceSize
+      : { ...workspaceSize }
+    const previousInsets = workspaceInsetsForSize(previousSize)
     const sizeChanged = nextSize.width !== workspaceSize.width || nextSize.height !== workspaceSize.height
+    const geometrySizeChanged = nextSize.width !== previousSize.width || nextSize.height !== previousSize.height
     workspaceSize.width = nextSize.width
     workspaceSize.height = nextSize.height
     if (sizeChanged && !geometryCustomized[displayMode.value]) {
@@ -445,8 +515,14 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
       layout.panels = next.panels
       layout.nextGroupNumber = next.nextGroupNumber
     } else {
+      if (geometrySizeChanged && (hasMeasuredWorkspace || loadedLayouts.savedWorkspaceSize)) {
+        resizeFreeDockableGroups(layout.groups, previousSize, nextSize,
+          previousInsets, workspaceInsetsForSize(nextSize))
+      }
       clampGroupsToWorkspace()
     }
+    if (displayMode.value === 'debug') fitDebugDockableWorkspaceLayout(layout, workspaceSize)
+    hasMeasuredWorkspace = true
     for (const group of layout.groups) {
       if (group.dock === 'free' && group.panelIds.some((panelId) => layout.panels[panelId].visible)) placeFreeGroup(group)
     }
@@ -494,7 +570,9 @@ export function useDockableWorkspace(workspaceElement: Ref<HTMLElement | undefin
     showPanel,
     hidePanel,
     dockGroup,
+    snapGroup,
     combinePanel,
+    splitPanel,
     detachPanel,
     focusGroup,
     resetLayout,

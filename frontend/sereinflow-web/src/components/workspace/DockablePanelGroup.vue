@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, ref, type Component } from 'vue'
 import { ChevronDown, ChevronUp, Grip, Move, PanelBottom, PanelLeft, PanelRight, PanelTop, Plus, X } from 'lucide-vue-next'
 import { t } from '../../i18n'
+import { dockSplitZoneAtPoint } from '../../flow/dockableSplit'
 import type {
   DockablePanelGroupState,
   DockPosition,
@@ -43,6 +44,8 @@ const props = withDefaults(defineProps<{
   layoutPriority?: 'full-row' | 'center-column'
   canvasInsets?: { top: number; right: number; bottom: number; left: number }
   dropTargeted?: boolean
+  splitTargets?: boolean
+  dragIndividualTabs?: boolean
 }>(), {
   groupOptions: () => [],
   canvasGroup: false,
@@ -50,6 +53,8 @@ const props = withDefaults(defineProps<{
   layoutPriority: 'center-column',
   canvasInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
   dropTargeted: false,
+  splitTargets: false,
+  dragIndividualTabs: false,
 })
 
 const emit = defineEmits<{
@@ -155,6 +160,14 @@ function panelRect(): DOMRect | undefined {
 
 function targetGroupAtPoint(clientX: number, clientY: number): string | undefined {
   if (typeof document === 'undefined') return undefined
+  if (props.splitTargets && props.tabs.length > 1) {
+    const own = panelRect()
+    if (own && clientX >= own.left && clientX <= own.right && clientY >= own.top && clientY <= own.bottom) {
+      const chrome = root.value?.querySelector<HTMLElement>('.dock-panel__chrome')?.getBoundingClientRect()
+      if (chrome && clientY <= chrome.bottom) return undefined
+      return dockSplitZoneAtPoint(own, clientX, clientY) === 'center' ? undefined : props.group.id
+    }
+  }
   const candidates = Array.from(document.querySelectorAll<HTMLElement>('[data-dock-group]'))
   return candidates
     .filter((element) => element.getAttribute('data-dock-group') !== props.group.id)
@@ -163,10 +176,9 @@ function targetGroupAtPoint(clientX: number, clientY: number): string | undefine
       const bounds = element.getBoundingClientRect()
       const inside = clientX >= bounds.left && clientX <= bounds.right && clientY >= bounds.top && clientY <= bounds.bottom
       if (!inside) return false
-      if (!element.classList.contains('dock-panel--canvas')) return true
+      if (props.splitTargets || !element.classList.contains('dock-panel--canvas')) return true
       const chrome = element.querySelector<HTMLElement>('.dock-panel__chrome')?.getBoundingClientRect()
-      return Boolean(chrome
-        && clientX >= chrome.left && clientX <= chrome.right
+      return Boolean(chrome && clientX >= chrome.left && clientX <= chrome.right
         && clientY >= chrome.top && clientY <= chrome.bottom)
     })?.getAttribute('data-dock-group') ?? undefined
 }
@@ -176,9 +188,11 @@ function beginMove(event: PointerEvent, panelId = activeTab.value?.id): void {
   const workspace = workspaceRect()
   const panel = panelRect()
   if (!workspace || !panel) return
+  const individualTabDrag = props.dragIndividualTabs && props.tabs.length > 1
   event.preventDefault()
   menuOpen.value = false
-  moving.value = true
+  // A tab drag leaves its group in place until the drop target is known.
+  moving.value = !individualTabDrag
   emit('activate', props.group.id, panelId)
   const startX = panel.left - workspace.left
   const startY = panel.top - workspace.top
@@ -193,6 +207,15 @@ function beginMove(event: PointerEvent, panelId = activeTab.value?.id): void {
     if (!moved) return
     const width = panel.width
     const height = panel.height
+    if (individualTabDrag) {
+      emit('drag-preview', {
+        dock: edgeDockAtPoint(moveEvent.clientX, moveEvent.clientY),
+        targetGroupId: targetGroupAtPoint(moveEvent.clientX, moveEvent.clientY),
+        clientX: moveEvent.clientX,
+        clientY: moveEvent.clientY,
+      })
+      return
+    }
     if (props.group.dock !== 'free') {
       emit('update:group', { dock: 'free', x: startX, y: startY, width, height })
     }

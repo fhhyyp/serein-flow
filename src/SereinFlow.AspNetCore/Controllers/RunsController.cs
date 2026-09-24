@@ -97,6 +97,7 @@ public sealed class RunsController : ApiControllerBase
     }
 
     [HttpGet("{runId:guid}")]
+    [SereinFlowScopedAuthorization]
     [ProducesResponseType(typeof(FlowRunDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Get([FromRoute] Guid runId, CancellationToken cancellationToken)
@@ -135,6 +136,7 @@ public sealed class RunsController : ApiControllerBase
     }
 
     [HttpGet("{runId:guid}/snapshot")]
+    [SereinFlowScopedAuthorization]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> GetSnapshot([FromRoute] Guid runId, CancellationToken cancellationToken)
@@ -168,6 +170,7 @@ public sealed class RunsController : ApiControllerBase
     }
 
     [HttpGet("{runId:guid}/outputs")]
+    [SereinFlowScopedAuthorization]
     [ProducesResponseType(typeof(FlowRunOutputDto[]), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> GetOutputs([FromRoute] Guid runId, CancellationToken cancellationToken)
@@ -199,6 +202,7 @@ public sealed class RunsController : ApiControllerBase
     }
 
     [HttpPost("{runId:guid}/cancel")]
+    [SereinFlowScopedAuthorization]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -233,6 +237,7 @@ public sealed class RunsController : ApiControllerBase
     }
 
     [HttpPost("{runId:guid}/messages/{topic}")]
+    [SereinFlowScopedAuthorization]
     [ProducesResponseType(typeof(WorkerMessageDeliveryResponseDto), StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -294,6 +299,7 @@ public sealed class RunsController : ApiControllerBase
     }
 
     [HttpPost("{runId:guid}/interrupt")]
+    [SereinFlowScopedAuthorization]
     [ProducesResponseType(typeof(FlowRunDto), StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -353,6 +359,7 @@ public sealed class RunsController : ApiControllerBase
     }
 
     [HttpGet("{runId:guid}/events")]
+    [SereinFlowScopedAuthorization]
     [ProducesResponseType(typeof(FlowRunEventDto[]), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> GetEvents(
@@ -388,6 +395,7 @@ public sealed class RunsController : ApiControllerBase
     }
 
     [HttpGet("{runId:guid}/events/stream")]
+    [SereinFlowScopedAuthorization]
     [ApiExplorerSettings(IgnoreApi = true)]
     [Produces("text/event-stream")]
     public async Task StreamEvents([FromRoute] Guid runId, CancellationToken cancellationToken)

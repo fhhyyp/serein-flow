@@ -388,12 +388,7 @@
       "sereinflow.api": {
         "type": "Project",
         "dependencies": {
-          "SereinFlow.Application": "[1.0.0, )",
-          "SereinFlow.Contracts": "[1.0.0, )",
-          "SereinFlow.Infrastructure": "[1.0.0, )",
-          "SereinFlow.Mcp": "[1.0.0, )",
-          "SereinFlow.Worker.Client": "[1.0.0, )",
-          "Swashbuckle.AspNetCore": "[6.6.2, )"
+          "SereinFlow.AspNetCore": "[1.0.0, )"
         }
       },
       "sereinflow.application": {
@@ -403,6 +398,17 @@
           "SereinFlow.Domain": "[1.0.0, )",
           "SereinFlow.Runtime": "[1.0.0, )",
           "SereinFlow.Runtime.Abstractions": "[1.0.0, )"
+        }
+      },
+      "sereinflow.aspnetcore": {
+        "type": "Project",
+        "dependencies": {
+          "SereinFlow.Application": "[1.0.0, )",
+          "SereinFlow.Contracts": "[1.0.0, )",
+          "SereinFlow.Infrastructure": "[1.0.0, )",
+          "SereinFlow.Mcp": "[1.0.0, )",
+          "SereinFlow.Worker.Client": "[1.0.0, )",
+          "Swashbuckle.AspNetCore": "[6.6.2, )"
         }
       },
       "sereinflow.contracts": {

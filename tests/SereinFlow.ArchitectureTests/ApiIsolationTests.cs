@@ -167,7 +167,7 @@ public sealed class ApiIsolationTests
     public void RestSurfaceUsesControllersWithoutMinimalApiMappingFiles()
     {
         var root = FindRepositoryRoot();
-        var apiRoot = Path.Combine(root, "src", "SereinFlow.Api");
+        var apiRoot = Path.Combine(root, "src", "SereinFlow.AspNetCore");
         var mappingFiles = Directory.EnumerateFiles(apiRoot, "*EndpointMapping.cs", SearchOption.AllDirectories);
         Assert.Empty(mappingFiles);
 

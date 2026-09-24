@@ -49,6 +49,7 @@ public sealed class EnvironmentController : ApiControllerBase
     }
 
     [HttpPost("mcp-keys/setup")]
+    [SereinFlowAnonymous]
     [ProducesResponseType(typeof(CreatedMcpApiKeyDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]

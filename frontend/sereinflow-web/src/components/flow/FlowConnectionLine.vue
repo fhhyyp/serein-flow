@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import {
-  getBezierPath,
   getSimpleBezierPath,
   getSmoothStepPath,
   getStraightPath,
@@ -9,6 +8,7 @@ import {
 import { computed } from 'vue'
 import { connectionLineStyleFor, semanticFromConnectionHandles, type ConnectionLineSettings } from '../../flow/connectionLine'
 import { executionBranchFromHandle } from '../../flow/connectionSeats'
+import { CONNECTION_ARROW_GAP, bezierConnectionPath, smoothStepConnectionPath } from '../../flow/connectionPaths'
 
 interface FlowConnectionLineProps extends ConnectionLineProps {
   lineTypes?: ConnectionLineSettings
@@ -45,10 +45,10 @@ const path = computed(() => {
     case 'step':
       return getSmoothStepPath({ ...params, borderRadius: 0 })[0]
     case 'smoothstep':
-      return getSmoothStepPath(params)[0]
+      return smoothStepConnectionPath(params, props.targetHandle ? CONNECTION_ARROW_GAP : 0)
     case 'default':
     default:
-      return getBezierPath(params)[0]
+      return bezierConnectionPath(params, props.targetHandle ? CONNECTION_ARROW_GAP : 0)
   }
 })
 

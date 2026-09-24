@@ -37,6 +37,7 @@ public sealed class PublicFlowInvocationController : ApiControllerBase
     }
 
     [HttpPost("flows/{interfaceId:guid}/invoke")]
+    [SereinFlowScopedAuthorization]
     [ProducesResponseType(typeof(PublicFlowInvocationResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(PublicFlowInvocationResponseDto), StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -112,6 +113,7 @@ public sealed class PublicFlowInvocationController : ApiControllerBase
     }
 
     [HttpGet("tasks/{taskId:guid}")]
+    [SereinFlowScopedAuthorization]
     [ProducesResponseType(typeof(PublicFlowInvocationResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> GetTask([FromRoute] Guid taskId, CancellationToken cancellationToken)

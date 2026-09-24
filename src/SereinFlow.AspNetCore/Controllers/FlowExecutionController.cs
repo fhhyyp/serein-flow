@@ -22,6 +22,7 @@ public sealed class FlowExecutionController : ApiControllerBase
     }
 
     [HttpPost("runs")]
+    [SereinFlowScopedAuthorization]
     [ProducesResponseType(typeof(FlowRunDto), StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

@@ -17,6 +17,13 @@ export interface WorkspaceSize {
   height: number
 }
 
+export interface WorkspaceInsets {
+  left: number
+  right: number
+  top: number
+  bottom: number
+}
+
 export interface DockablePanelGroupState {
   id: string
   x: number
@@ -148,6 +155,62 @@ export function createDebugDockableWorkspaceLayout(size: WorkspaceSize = { width
   layout.panels.workpieces.visible = true
   layout.panels.debug.visible = true
   return layout
+}
+
+// Keep the two free panels in the debugger's left column attached to each other
+// and to the right-hand session panel after a workspace resize or an older saved layout.
+export function fitDebugDockableWorkspaceLayout(layout: DockableWorkspaceLayout, size: WorkspaceSize): void {
+  const canvas = layout.groups.find((group) => group.id === layout.panels.canvas.groupId)
+  const workpieces = layout.groups.find((group) => group.id === layout.panels.workpieces.groupId)
+  const session = layout.groups.find((group) => group.id === layout.panels.debug.groupId)
+  if (!canvas || !workpieces || !session
+    || !layout.panels.canvas.visible || !layout.panels.workpieces.visible || !layout.panels.debug.visible
+    || canvas.collapsed || workpieces.collapsed || session.collapsed
+    || canvas.id === workpieces.id || canvas.dock !== 'free' || workpieces.dock !== 'free' || session.dock !== 'right') return
+
+  const maxGap = Math.max(120, size.height * .15)
+  if (Math.abs(canvas.x) > 8 || Math.abs(canvas.y) > 8 || Math.abs(workpieces.x) > 8
+    || Math.abs(canvas.width - workpieces.width) > Math.max(120, size.width * .1)
+    || workpieces.y < canvas.height - 8 || workpieces.y > canvas.height + maxGap) return
+
+  const columnWidth = size.width - Math.min(session.width, size.width)
+  if (columnWidth < 240 || size.height < 320) return
+  const split = Math.min(size.height - 160, Math.max(160,
+    Math.round(size.height * canvas.height / Math.max(1, canvas.height + workpieces.height))))
+  Object.assign(canvas, { x: 0, y: 0, width: columnWidth, height: split })
+  Object.assign(workpieces, { x: 0, y: split, width: columnWidth, height: size.height - split })
+}
+
+export function resizeFreeDockableGroups(
+  groups: DockablePanelGroupState[],
+  previousSize: WorkspaceSize,
+  nextSize: WorkspaceSize,
+  previousInsets: WorkspaceInsets,
+  nextInsets: WorkspaceInsets,
+): void {
+  const map = (value: number, oldStart: number, oldEnd: number, oldLimit: number,
+    newStart: number, newEnd: number, newLimit: number): number => {
+    if (oldEnd <= oldStart) return Math.round(value * newLimit / Math.max(1, oldLimit))
+    if (value < oldStart) return Math.round(value * newStart / Math.max(1, oldStart))
+    if (value > oldEnd) return Math.round(newEnd + (value - oldEnd) * (newLimit - newEnd) / Math.max(1, oldLimit - oldEnd))
+    return Math.round(newStart + (value - oldStart) * (newEnd - newStart) / (oldEnd - oldStart))
+  }
+  const oldRight = previousSize.width - previousInsets.right
+  const newRight = nextSize.width - nextInsets.right
+  const oldBottom = previousSize.height - previousInsets.bottom
+  const newBottom = nextSize.height - nextInsets.bottom
+  for (const group of groups) {
+    if (group.dock !== 'free') continue
+    const x = map(group.x, previousInsets.left, oldRight, previousSize.width,
+      nextInsets.left, newRight, nextSize.width)
+    const right = map(group.x + group.width, previousInsets.left, oldRight, previousSize.width,
+      nextInsets.left, newRight, nextSize.width)
+    const y = map(group.y, previousInsets.top, oldBottom, previousSize.height,
+      nextInsets.top, newBottom, nextSize.height)
+    const bottom = map(group.y + group.height, previousInsets.top, oldBottom, previousSize.height,
+      nextInsets.top, newBottom, nextSize.height)
+    Object.assign(group, { x, y, width: right - x, height: bottom - y })
+  }
 }
 
 export function createSnapshotDockableWorkspaceLayout(size: WorkspaceSize = { width: 1_920, height: 980 }): DockableWorkspaceLayout {

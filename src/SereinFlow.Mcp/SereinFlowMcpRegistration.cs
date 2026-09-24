@@ -68,38 +68,46 @@ public static class SereinFlowMcpServiceCollectionExtensions
 {
     public static IServiceCollection AddSereinFlowMcp(
         this IServiceCollection services,
-        IConfiguration configuration,
+        IConfiguration? configuration = null,
         string? contentRootPath = null)
     {
         ArgumentNullException.ThrowIfNull(services);
-        ArgumentNullException.ThrowIfNull(configuration);
 
-        var options = SereinFlowMcpOptions.FromConfiguration(configuration);
-        services.AddSingleton(options);
-        services.TryAddSingleton<McpAiGuidanceProvider>(_ => new McpAiGuidanceProvider(
-            configuration,
-            contentRootPath ?? AppContext.BaseDirectory));
+        services.AddSingleton(serviceProvider => SereinFlowMcpOptions.FromConfiguration(
+            configuration ?? serviceProvider.GetRequiredService<IConfiguration>()));
+        services.TryAddSingleton<McpAiGuidanceProvider>(serviceProvider => new McpAiGuidanceProvider(
+            configuration ?? serviceProvider.GetRequiredService<IConfiguration>(),
+            contentRootPath
+                ?? serviceProvider.GetService<Microsoft.Extensions.Hosting.IHostEnvironment>()?.ContentRootPath
+                ?? AppContext.BaseDirectory));
 
-        services.AddCors(cors => cors.AddPolicy("sereinflow-mcp", policy =>
+        services.AddCors();
+        services.AddOptions<CorsOptions>().Configure<IConfiguration>((cors, resolvedConfiguration) =>
         {
-            policy.AllowAnyHeader().AllowAnyMethod();
-            if (options.AllowedOrigins.Length > 0)
-                policy.WithOrigins(options.AllowedOrigins);
-            else
-                policy.SetIsOriginAllowed(static _ => false);
-        }));
+            var options = SereinFlowMcpOptions.FromConfiguration(configuration ?? resolvedConfiguration);
+            cors.AddPolicy("sereinflow-mcp", policy =>
+            {
+                policy.AllowAnyHeader().AllowAnyMethod();
+                if (options.AllowedOrigins.Length > 0)
+                    policy.WithOrigins(options.AllowedOrigins);
+                else
+                    policy.SetIsOriginAllowed(static _ => false);
+            });
+        });
 
         services.TryAddScoped<ISereinLangCompiler, SereinLangCompiler>();
         services.TryAddScoped<McpSecurityService>(serviceProvider =>
             new McpSecurityService(
                 serviceProvider.GetRequiredService<IMcpApiKeyStore>(),
-                configuration["SereinFlow:Mcp:BootstrapAdminKey"]));
+                (configuration ?? serviceProvider.GetRequiredService<IConfiguration>())["SereinFlow:Mcp:BootstrapAdminKey"]));
         services.TryAddSingleton<IMcpPrincipalAccessor, McpPrincipalAccessor>();
         services.TryAddSingleton<IMcpRequestContextAccessor, McpRequestContextAccessor>();
         services.TryAddSingleton<McpHttpSessionRegistry>();
-        services.TryAddSingleton<McpRequestLimiter>(_ => new McpRequestLimiter(
-            options.MaxConcurrentRequests,
-            options.MaxRequestsPerMinute));
+        services.TryAddSingleton<McpRequestLimiter>(serviceProvider =>
+        {
+            var options = serviceProvider.GetRequiredService<SereinFlowMcpOptions>();
+            return new McpRequestLimiter(options.MaxConcurrentRequests, options.MaxRequestsPerMinute);
+        });
         services.TryAddSingleton<McpMutationGate>();
         services.TryAddSingleton<McpToolAuditService>();
         services.TryAddSingleton<McpToolExecutor>();
@@ -107,14 +115,17 @@ public static class SereinFlowMcpServiceCollectionExtensions
         services.TryAddSingleton<McpToolCatalog>(_ => SereinFlowMcpToolCatalogFactory.Create());
         services.TryAddSingleton<ISereinFlowMcpBackend, SereinFlowMcpBackend>();
         services.TryAddSingleton<SereinFlowMcpServer>(serviceProvider =>
-            new SereinFlowMcpServer(
+        {
+            var options = serviceProvider.GetRequiredService<SereinFlowMcpOptions>();
+            return new SereinFlowMcpServer(
                 serviceProvider.GetRequiredService<ISereinFlowMcpBackend>(),
                 Console.Error,
                 checked((int)options.MaxRequestBytes),
                 checked((int)options.MaxResponseBytes),
                 serviceProvider.GetRequiredService<IMcpRequestContextAccessor>(),
                 serviceProvider.GetRequiredService<IFileUploadSettings>(),
-                serviceProvider.GetRequiredService<McpAiGuidanceProvider>()));
+                serviceProvider.GetRequiredService<McpAiGuidanceProvider>());
+        });
 
         return services;
     }

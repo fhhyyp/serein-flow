@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SqlSugar;
 using SereinFlow.Application.Persistence;
@@ -25,19 +26,32 @@ public static class SereinFlowInfrastructureRegistration
         SereinFlowStorageOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        services.TryAddSingleton<IFileUploadSettings, FileUploadSettings>();
-        var database = new SqliteDatabase(new SqliteDatabaseOptions(options.DatabasePath));
-        database.Initialize();
-
         services.AddSingleton(options);
+        return services.AddSereinFlowStorage();
+    }
+
+    public static IServiceCollection AddSereinFlowStorage(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        services.TryAddSingleton<IFileUploadSettings, FileUploadSettings>();
+        services.TryAddSingleton(serviceProvider => SereinFlowStorageOptions.FromConfiguration(
+            serviceProvider.GetRequiredService<IConfiguration>(),
+            serviceProvider.GetRequiredService<IHostEnvironment>().ContentRootPath));
+        services.AddSingleton(serviceProvider =>
+        {
+            var options = serviceProvider.GetRequiredService<SereinFlowStorageOptions>();
+            var database = new SqliteDatabase(new SqliteDatabaseOptions(options.DatabasePath));
+            database.Initialize();
+            return database;
+        });
         services.AddSingleton<IFlowWorkpieceStore, FileFlowWorkpieceStore>();
-        services.AddSingleton(database);
         // SqlSugarClient contains mutable connection/transaction state. Use a
         // scoped client so concurrent API requests cannot share one ADO reader
         // or transaction and block event persistence/flow reads.
         // SqlSugarClient 包含可变连接/事务状态，必须按作用域创建，避免并发
         // API 请求共享 ADO 读取器或事务，进而阻塞事件持久化和流程读取。
-        services.AddScoped<ISqlSugarClient>(_ => database.CreateClient());
+        services.AddScoped<ISqlSugarClient>(serviceProvider =>
+            serviceProvider.GetRequiredService<SqliteDatabase>().CreateClient());
         services.AddScoped(typeof(IRepository<>), typeof(SqlSugarRepository<>));
         services.AddScoped<IUnitOfWork, SqlSugarUnitOfWork>();
         // These adapters retain a SqliteDatabase compatibility constructor for
@@ -117,7 +131,7 @@ public static class SereinFlowInfrastructureRegistration
             new SqlSugarMcpIdempotencyStore(
                 serviceProvider.GetRequiredService<IRepository<McpIdempotencyRecord>>()));
         services.AddSingleton(serviceProvider => new McpPackageStagingService(
-            options.McpPackageStagingDirectory,
+            serviceProvider.GetRequiredService<SereinFlowStorageOptions>().McpPackageStagingDirectory,
             fileUploadSettings: serviceProvider.GetRequiredService<IFileUploadSettings>()));
 
         services.AddScoped<ILibraryCatalogService>(serviceProvider =>
@@ -125,7 +139,7 @@ public static class SereinFlowInfrastructureRegistration
                 serviceProvider.GetRequiredService<IRepository<LibraryRecord>>(),
                 serviceProvider.GetRequiredService<IRepository<LibraryFamilyRecord>>(),
                 serviceProvider.GetRequiredService<IUnitOfWork>(),
-                new LibraryCatalogOptions(options.LibraryDirectory),
+                new LibraryCatalogOptions(serviceProvider.GetRequiredService<SereinFlowStorageOptions>().LibraryDirectory),
                 serviceProvider.GetRequiredService<ILogger<SqliteLibraryCatalogService>>(),
                 serviceProvider.GetRequiredService<IFileUploadSettings>(),
                 serviceProvider.GetService<IWorkspaceChangePublisher>()));

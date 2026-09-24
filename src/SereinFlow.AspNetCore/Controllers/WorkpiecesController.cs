@@ -22,6 +22,7 @@ public sealed class WorkpiecesController : ApiControllerBase
     }
 
     [HttpGet]
+    [SereinFlowScopedAuthorization]
     [ProducesResponseType(typeof(FlowWorkpieceDto[]), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> List(
@@ -55,6 +56,7 @@ public sealed class WorkpiecesController : ApiControllerBase
     }
 
     [HttpGet("{workpieceId}")]
+    [SereinFlowScopedAuthorization]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Get(

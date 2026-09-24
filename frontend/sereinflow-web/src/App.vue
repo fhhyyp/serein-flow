@@ -62,6 +62,7 @@ import { useFlowGraph } from './composables/useFlowGraph'
 import { useNodeDrop } from './composables/useNodeDrop'
 import { useWorkspaceShortcuts } from './composables/useWorkspaceShortcuts'
 import { useDockableWorkspace } from './composables/useDockableWorkspace'
+import { dockSplitZoneAtPoint, splitDockRect, type DockSplitZone } from './flow/dockableSplit'
 import { workspaceToFlowDefinition } from './flow/flowDtoMapper'
 import type { NodeExecutionState } from './flow/nodeExecutionState'
 import type {
@@ -168,7 +169,9 @@ const {
   showPanel: showDockablePanel,
   hidePanel: hideDockablePanel,
   dockGroup: dockDockableGroup,
+  snapGroup: snapDockableGroup,
   combinePanel: combineDockablePanel,
+  splitPanel: splitDockablePanel,
   detachPanel: detachDockablePanel,
   resetLayout: resetDockableLayout,
   setDisplayMode: setDockableDisplayMode,
@@ -344,6 +347,7 @@ const {
   updateConnectionLineType,
   updateCanvasFocusSetting,
   onConnect,
+  onEdgeUpdate,
   onNodesChange,
   onEdgesChange,
   updateParameterSource,
@@ -533,8 +537,9 @@ interface WorkspaceSnapPreview {
   groupId: string
   dock?: EdgeDockPosition
   targetGroupId?: string
+  targetRect?: WorkspaceRect
   region?: WorkspaceRect
-  zone?: WorkspaceDropZone
+  zone?: WorkspaceDropZone | DockSplitZone
 }
 
 function isEdgeDockPosition(dock: DockPosition): dock is EdgeDockPosition {
@@ -678,7 +683,11 @@ function dropRectForZone(region: WorkspaceRect, zone: WorkspaceDropZone): Worksp
 const workspaceSnapPreview = ref<WorkspaceSnapPreview>()
 const workspaceDropZones = computed(() => {
   const region = workspaceSnapPreview.value?.region
-  if (!region || workspaceSnapPreview.value?.targetGroupId) return []
+  if (!region) return []
+  if (workspaceSnapPreview.value?.targetGroupId) return [{
+    id: workspaceSnapPreview.value.zone ?? 'center',
+    style: { left: `${region.left}px`, top: `${region.top}px`, width: `${region.right - region.left}px`, height: `${region.bottom - region.top}px` },
+  }]
   const width = region.right - region.left
   const height = region.bottom - region.top
   const edgeWidth = Math.min(132, Math.max(56, Math.round(width * .24)))
@@ -695,11 +704,26 @@ const workspaceDropZones = computed(() => {
 const snapPreviewLabel = computed(() => {
   const preview = workspaceSnapPreview.value
   if (!preview) return ''
-  if (preview.targetGroupId) return t('panel.combineHint')
+  if (preview.targetGroupId) return preview.zone === 'center' ? t('panel.combineHint') : t('panel.splitHint')
   if (preview.dock) return t('panel.dockHint')
   if (preview.zone === 'fill') return t('panel.fillHint')
   return preview.zone ? t('panel.splitHint') : ''
 })
+
+const snapPreviewLabelStyle = computed(() => {
+  const region = workspaceSnapPreview.value?.region
+  return region ? { left: `${(region.left + region.right) / 2}px`, top: `${(region.top + region.bottom) / 2}px` } : undefined
+})
+
+function renderedWorkspaceRect(groupId: string): WorkspaceRect | undefined {
+  const root = workspaceRoot.value
+  const element = Array.from(root?.querySelectorAll<HTMLElement>('[data-dock-group]') ?? [])
+    .find((candidate) => candidate.dataset.dockGroup === groupId)
+  if (!root || !element) return undefined
+  const bounds = root.getBoundingClientRect()
+  const rect = element.getBoundingClientRect()
+  return { left: rect.left - bounds.left, top: rect.top - bounds.top, right: rect.right - bounds.left, bottom: rect.bottom - bounds.top }
+}
 
 function previewWorkspaceMove(groupId: string, event?: { dock?: DockPosition; targetGroupId?: string; clientX?: number; clientY?: number }): void {
   if (!event?.dock && !event?.targetGroupId && (event?.clientX === undefined || event.clientY === undefined)) {
@@ -707,9 +731,16 @@ function previewWorkspaceMove(groupId: string, event?: { dock?: DockPosition; ta
     return
   }
   if (event.targetGroupId) {
+    const targetRect = renderedWorkspaceRect(event.targetGroupId)
+    const bounds = workspaceRoot.value?.getBoundingClientRect()
+    if (!targetRect || !bounds || event.clientX === undefined || event.clientY === undefined) return
+    const zone = dockSplitZoneAtPoint(targetRect, event.clientX - bounds.left, event.clientY - bounds.top)
     workspaceSnapPreview.value = {
       groupId,
       targetGroupId: event.targetGroupId,
+      targetRect,
+      region: zone === 'center' ? targetRect : splitDockRect(targetRect, zone).source,
+      zone,
     }
     return
   }
@@ -827,16 +858,49 @@ function finishWorkspaceMove(groupId: string, event: { panelId: WorkspacePanelId
     focusDockableGroup(groupId)
     return
   }
-  if (event.targetGroupId && event.targetGroupId !== groupId && event.moved) {
-    combineDockablePanel(event.panelId, event.targetGroupId)
+  const sourceGroup = dockableGroups.value.find((group) => group.id === groupId)
+  const movingTab = Boolean(sourceGroup && sourceGroup.panelIds.length > 1)
+  if (event.targetGroupId && event.moved
+    && (event.targetGroupId !== groupId || (movingTab && preview?.zone && preview.zone !== 'center'))) {
+    if (preview?.targetGroupId === event.targetGroupId && preview.targetRect && preview.zone && preview.zone !== 'center'
+      && preview.zone !== 'fill') {
+      splitDockablePanel(event.panelId, event.targetGroupId, preview.zone, preview.targetRect)
+    } else combineDockablePanel(event.panelId, event.targetGroupId)
     return
   }
   const dock = event.moved
     ? (event.dockTarget && isEdgeDockPosition(event.dockTarget) ? event.dockTarget : dockForPointer(event.clientX, event.clientY))
     : undefined
-  if (dock) dockDockableGroup(groupId, dock)
-  else if (event.moved && preview?.region && preview.zone) applyBlankWorkspaceDrop(groupId, event.panelId, preview.region, preview.zone)
-  else focusDockableGroup(groupId)
+  if (dock) {
+    if (movingTab) dockWorkspacePanel(event.panelId, dock)
+    else dockDockableGroup(groupId, dock)
+  }
+  else if (event.moved && preview?.region && preview.zone && preview.zone !== 'center') applyBlankWorkspaceDrop(groupId, event.panelId, preview.region, preview.zone)
+  else {
+    const bounds = workspaceRoot.value?.getBoundingClientRect()
+    const localX = bounds ? event.clientX - bounds.left : 0
+    const localY = bounds ? event.clientY - bounds.top : 0
+    const sourceRect = renderedWorkspaceRect(groupId)
+    if (event.moved && movingTab && bounds && (!sourceRect || !containsPoint(sourceRect, localX, localY))) {
+      const detachedId = detachDockablePanel(event.panelId)
+      const detached = dockableGroups.value.find((group) => group.id === detachedId)
+      if (detached) {
+        const width = Math.min(detached.width, Math.max(320, Math.round(dockableWorkspaceSize.width * .45)))
+        const height = Math.min(detached.height, Math.max(240, Math.round(dockableWorkspaceSize.height * .55)))
+        updateDockableGroup(detached.id, {
+          x: Math.max(0, Math.min(dockableWorkspaceSize.width - width, Math.round(localX - width / 2))),
+          y: Math.max(0, Math.min(dockableWorkspaceSize.height - height, Math.round(localY - 20))),
+          width,
+          height,
+        })
+        snapDockableGroup(detached.id)
+        focusDockableGroup(detached.id)
+      }
+    } else {
+      if (event.moved) snapDockableGroup(groupId)
+      focusDockableGroup(groupId)
+    }
+  }
 }
 
 function dockWorkspacePanel(panelId: WorkspacePanelId, dock: DockPosition): void {
@@ -1411,17 +1475,14 @@ function setLanguage(nextLocale: Locale): void {
 
     <main v-if="workspaceView === 'editor'" ref="workspaceRoot" class="workspace-grid">
       <div v-if="workspaceSnapPreview" class="workspace-docking-preview" aria-hidden="true">
-        <div v-if="workspaceSnapPreview.targetGroupId && snapPreviewLabel" class="workspace-docking-preview__label workspace-docking-preview__label--combine">{{ snapPreviewLabel }}</div>
-        <template v-else>
-          <div
-            v-for="zone in workspaceDropZones"
-            :key="zone.id"
-            class="workspace-docking-preview__zone"
-            :class="[`workspace-docking-preview__zone--${zone.id}`, { active: workspaceSnapPreview.zone === zone.id }]"
-            :style="zone.style"
-          ></div>
-          <div v-if="snapPreviewLabel" class="workspace-docking-preview__label">{{ snapPreviewLabel }}</div>
-        </template>
+        <div
+          v-for="zone in workspaceDropZones"
+          :key="zone.id"
+          class="workspace-docking-preview__zone"
+          :class="[`workspace-docking-preview__zone--${zone.id}`, { active: workspaceSnapPreview.zone === zone.id }]"
+          :style="zone.style"
+        ></div>
+        <div v-if="snapPreviewLabel" class="workspace-docking-preview__label" :style="snapPreviewLabelStyle">{{ snapPreviewLabel }}</div>
       </div>
       <template v-for="group in dockableGroups" :key="group.id">
         <DockablePanelGroup
@@ -1436,6 +1497,8 @@ function setLanguage(nextLocale: Locale): void {
           :layout-priority="dockedLayoutPriority"
           :canvas-insets="workspaceInsets"
           :drop-targeted="workspaceSnapPreview?.targetGroupId === group.id"
+          :split-targets="true"
+          :drag-individual-tabs="true"
           @update:group="updateWorkspaceGroup(group.id, $event)"
           @activate="activateWorkspacePanel"
           @drag-preview="previewWorkspaceMove(group.id, $event)"
@@ -1513,6 +1576,7 @@ function setLanguage(nextLocale: Locale): void {
               @canvas-dragleave="handleCanvasDragLeave"
               @canvas-drop="handleCanvasDrop"
               @connect="onConnect"
+              @edge-update="onEdgeUpdate"
               @nodes-change="onNodesChange"
               @edges-change="onEdgesChange"
               @node-click="handleCanvasNodeClick"

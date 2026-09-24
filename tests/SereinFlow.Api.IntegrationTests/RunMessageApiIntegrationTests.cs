@@ -74,6 +74,7 @@ public sealed class RunMessageApiIntegrationTests
                 configuration.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["SereinFlow:DataRoot"] = _dataRoot,
+                    ["SereinFlow:Api:RequireAuthentication"] = "false",
                     ["SereinFlow:ApiDocumentation:Enabled"] = "true",
                 });
             });

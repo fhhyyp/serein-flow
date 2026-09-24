@@ -1,0 +1,19 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { Position } from '@vue-flow/core'
+import { CONNECTION_ARROW_GAP, smoothStepConnectionPath } from '../src/flow/connectionPaths.ts'
+
+test('segment arrow ends six pixels before the target card', () => {
+  const points = {
+    sourceX: 381,
+    sourceY: 276,
+    sourcePosition: Position.Right,
+    targetX: 475,
+    targetY: 140,
+    targetPosition: Position.Left,
+  }
+
+  assert.equal(CONNECTION_ARROW_GAP, 6)
+  assert.match(smoothStepConnectionPath(points), /L469 140$/)
+  assert.match(smoothStepConnectionPath(points, 0), /L475 140$/)
+})

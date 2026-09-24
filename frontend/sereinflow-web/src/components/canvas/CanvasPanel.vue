@@ -7,9 +7,12 @@ import {
   VueFlow,
   type Connection,
   type EdgeChange,
+  type EdgeUpdateEvent,
   type NodeChange,
 } from '@vue-flow/core'
 import FlowConnectionLine from '../flow/FlowConnectionLine.vue'
+import FlowBezierEdge from '../flow/FlowBezierEdge.vue'
+import FlowSmoothStepEdge from '../flow/FlowSmoothStepEdge.vue'
 import FlowNodeCard from '../flow/FlowNodeCard.vue'
 import CanvasDeleteConfirmDialog from './CanvasDeleteConfirmDialog.vue'
 import { t } from '../../i18n'
@@ -18,6 +21,7 @@ import { connectionLineTypeOptions, type ConnectionLineSettings } from '../../fl
 import type { CanvasFocusSettingKey, CanvasFocusSettings } from '../../flow/canvasFocus'
 
 const nodeTypes = markRaw({ workflow: FlowNodeCard })
+const edgeTypes = markRaw({ default: FlowBezierEdge, smoothstep: FlowSmoothStepEdge })
 const draggedCanvasId = ref<string>()
 const dropTargetCanvasId = ref<string>()
 
@@ -73,6 +77,7 @@ const emit = defineEmits<{
   'canvas-dragleave': [event: DragEvent]
   'canvas-drop': [event: DragEvent]
   connect: [connection: Connection]
+  'edge-update': [event: EdgeUpdateEvent]
   'nodes-change': [changes: NodeChange[]]
   'edges-change': [changes: EdgeChange[]]
   'node-click': [event: { node: { id: string } }]
@@ -194,7 +199,7 @@ function clearCanvasDragState(): void {
       </div>
     </div>
     <div class="canvas-area" :class="{ 'canvas-drop-active': props.isCanvasDropActive }" @dragenter.prevent="emit('canvas-dragenter', $event)" @dragover.prevent="emit('canvas-dragover', $event)" @dragleave="emit('canvas-dragleave', $event)" @drop.prevent="emit('canvas-drop', $event)">
-      <VueFlow id="workspace-editor" :key="props.canvasRenderKey" :model-value="props.renderedElements" :node-types="nodeTypes" :connection-mode="ConnectionMode.Strict" :is-valid-connection="props.isValidConnection" :nodes-draggable="true" :elements-selectable="true" :select-nodes-on-drag="true" :selection-key-code="'Shift'" :multi-selection-key-code="['Control', 'Meta']" :selection-mode="SelectionMode.Partial" :min-zoom="0.2" :max-zoom="2" :snap-to-grid="true" :snap-grid="[16, 16]" :fit-view-on-init="true" :delete-key-code="['Backspace', 'Delete']" class="serein-flow" @connect="emit('connect', $event)" @nodes-change="emit('nodes-change', $event)" @edges-change="emit('edges-change', $event)" @node-click="emit('node-click', $event)" @edge-click="emit('edge-click', $event)" @pane-click="emit('pane-click')"><template #connection-line="connectionLineProps"><FlowConnectionLine v-bind="connectionLineProps" :line-types="props.connectionLineTypes" /></template></VueFlow>
+      <VueFlow id="workspace-editor" :key="props.canvasRenderKey" :model-value="props.renderedElements" :node-types="nodeTypes" :edge-types="edgeTypes" :connection-mode="ConnectionMode.Strict" :is-valid-connection="props.isValidConnection" :edges-updatable="'target'" :nodes-draggable="true" :elements-selectable="true" :select-nodes-on-drag="true" :selection-key-code="'Shift'" :multi-selection-key-code="['Control', 'Meta']" :selection-mode="SelectionMode.Partial" :min-zoom="0.2" :max-zoom="2" :snap-to-grid="true" :snap-grid="[16, 16]" :fit-view-on-init="true" :delete-key-code="['Backspace', 'Delete']" class="serein-flow" @connect="emit('connect', $event)" @edge-update="emit('edge-update', $event)" @nodes-change="emit('nodes-change', $event)" @edges-change="emit('edges-change', $event)" @node-click="emit('node-click', $event)" @edge-click="emit('edge-click', $event)" @pane-click="emit('pane-click')"><template #connection-line="connectionLineProps"><FlowConnectionLine v-bind="connectionLineProps" :line-types="props.connectionLineTypes" /></template></VueFlow>
       <div v-if="props.currentCanvasNodeCount === 0" class="canvas-empty-state" aria-live="polite"><div class="canvas-empty-state__mark"><LayoutGrid :size="20" /></div><strong>{{ t('canvas.emptyTitle') }}</strong><p>{{ t('canvas.emptyHint') }}</p><span>{{ t('canvas.emptySecondary') }}</span></div>
       <span v-if="props.isCanvasDropActive" class="canvas-drop-hint">{{ t('canvas.dropNode') }}</span>
       <Transition name="canvas-notice"><p v-if="props.notice" class="canvas-notice" role="status">{{ props.notice }}</p></Transition><div class="canvas-legend" aria-hidden="true"><span><i class="legend-port execution"></i>{{ t('edge.flow') }}</span><span><i class="legend-port data"></i>{{ t('edge.value') }}</span></div>

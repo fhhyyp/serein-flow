@@ -38,7 +38,7 @@ public sealed class SereinFlowApiAuthorizationService
         Guid? projectId,
         CancellationToken cancellationToken = default)
     {
-        if (!_configuration.GetValue<bool>("SereinFlow:Api:RequireAuthentication"))
+        if (!_configuration.GetValue("SereinFlow:Api:RequireAuthentication", true))
             return SereinFlowApiAuthorizationResult.Allowed;
 
         var authorization = context.Request.Headers.Authorization.FirstOrDefault();

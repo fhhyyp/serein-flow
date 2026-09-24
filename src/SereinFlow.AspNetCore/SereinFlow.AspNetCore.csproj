@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <SatelliteResourceLanguages>zh-Hans</SatelliteResourceLanguages>
+    <IsPackable>true</IsPackable>
+    <PackageId>SereinFlow.AspNetCore</PackageId>
+    <PackageVersion Condition="'$(PackageVersion)' == ''">0.1.0</PackageVersion>
+    <Authors>SereinFlow</Authors>
+    <Description>ASP.NET Core hosting for SereinFlow REST API, SignalR and HTTP MCP.</Description>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Swashbuckle.AspNetCore" />
+    <ProjectReference Include="../SereinFlow.Application/SereinFlow.Application.csproj" />
+    <ProjectReference Include="../SereinFlow.Contracts/SereinFlow.Contracts.csproj" />
+    <ProjectReference Include="../SereinFlow.Infrastructure/SereinFlow.Infrastructure.csproj" />
+    <ProjectReference Include="../SereinFlow.Mcp/SereinFlow.Mcp.csproj" />
+    <ProjectReference Include="../SereinFlow.Worker.Client/SereinFlow.Worker.Client.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(SereinFlowWorkerPublishDir)' != ''">
+    <None Include="$(SereinFlowWorkerPublishDir)/**/*" Pack="true"
+          PackagePath="worker/%(RecursiveDir)%(Filename)%(Extension)"
+          Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="buildTransitive/SereinFlow.AspNetCore.targets" Pack="true"
+          PackagePath="buildTransitive/SereinFlow.AspNetCore.targets" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.AspNetCore.Builder" />
+    <Using Include="Microsoft.AspNetCore.Hosting" />
+    <Using Include="Microsoft.AspNetCore.Http" />
+    <Using Include="Microsoft.AspNetCore.Routing" />
+    <Using Include="Microsoft.Extensions.Configuration" />
+    <Using Include="Microsoft.Extensions.DependencyInjection" />
+    <Using Include="Microsoft.Extensions.Hosting" />
+    <Using Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+
+  <Target Name="VerifySereinFlowWorkerPackageAssets" BeforeTargets="GenerateNuspec">
+    <Error Condition="'$(SereinFlowWorkerPublishDir)' == ''"
+           Text="SereinFlow.AspNetCore requires a published Worker Runner. Use eng/pack-aspnetcore.ps1 or set SereinFlowWorkerPublishDir to a complete dotnet publish directory." />
+    <Error Condition="!Exists('$(SereinFlowWorkerPublishDir)/SereinFlow.Worker.Runner.dll') or !Exists('$(SereinFlowWorkerPublishDir)/SereinFlow.Worker.Runner.deps.json') or !Exists('$(SereinFlowWorkerPublishDir)/SereinFlow.Worker.Runner.runtimeconfig.json')"
+           Text="SereinFlowWorkerPublishDir is missing the Worker Runner dll, deps.json or runtimeconfig.json." />
+  </Target>
+
+</Project>

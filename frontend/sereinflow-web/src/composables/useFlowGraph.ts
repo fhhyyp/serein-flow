@@ -1,5 +1,5 @@
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
-import { MarkerType, applyNodeChanges, type Connection, type EdgeChange, type NodeChange } from '@vue-flow/core'
+import { MarkerType, applyNodeChanges, type Connection, type EdgeChange, type EdgeUpdateEvent, type NodeChange } from '@vue-flow/core'
 import { applyNodePositionChanges, cloneCanvasGraph, removeEdgesById } from '../flow/canvasGraph'
 import { canvasFocusState, type CanvasFocusSettingKey, type CanvasFocusSettings } from '../flow/canvasFocus'
 import { canonicalParameterId, executionBranchFromHandle, resolveConnectionSemantic } from '../flow/connectionSeats'
@@ -158,13 +158,13 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
     options.mobilePanel.value = 'inspector'
   }
 
-  function isValidConnection(connection: Connection): boolean {
+  function isValidConnection(connection: Connection & { id?: string }): boolean {
     const semantic = resolveConnectionSemantic(connection.sourceHandle, connection.targetHandle)
     if (!semantic || connection.source === connection.target || !connection.source || !connection.target) {
       return false
     }
 
-    const connectionId = 'id' in connection && typeof connection.id === 'string' ? connection.id : undefined
+    const connectionId = connection.id
     const duplicate = edges.value.some((edge) =>
       edge.id !== connectionId
       && edge.source === connection.source
@@ -172,7 +172,13 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
       && edge.sourceHandle === connection.sourceHandle
       && edge.targetHandle === connection.targetHandle,
     )
-    return !duplicate
+    const occupiedParameter = semantic === 'data' && edges.value.some((edge) =>
+      edge.id !== connectionId
+      && edge.data.semantic === 'data'
+      && edge.target === connection.target
+      && edge.targetHandle === connection.targetHandle,
+    )
+    return !duplicate && !occupiedParameter
   }
 
   function createEdge(connection: Connection, semantic: ConnectionSemantic, targetParameterId?: string): FlowEdge {
@@ -183,7 +189,7 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
     }
     const lineType = connectionLineStyleFor(semantic, options.connectionLineTypes).lineType
     return {
-      id: `${semantic}-${connection.source}-${connection.target}-${connection.targetHandle ?? 'flow'}`,
+      id: `${semantic}-${connection.source}-${connection.sourceHandle ?? 'out'}-${connection.target}-${connection.targetHandle ?? 'flow'}`,
       source: connection.source,
       target: connection.target,
       sourceHandle: connection.sourceHandle,
@@ -249,19 +255,60 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
       ? canonicalParameterId(connection.targetHandle.replace(/^param-/, ''))
       : undefined
     edges.value = [...edges.value, createEdge(connection, semantic, targetParameterId)]
+    setDataEdgeSource(connection, targetParameterId)
+    options.markWorkspaceChanged()
+  }
 
-    if (semantic === 'data' && targetParameterId) {
-      const targetNode = currentCanvas.value.nodes.find((node) => node.id === connection.target)
-      const parameter = targetNode?.data.parameters.find((item) => item.id === targetParameterId)
-      if (parameter && targetNode) {
-        parameter.source = 'previousNode'
-        parameter.sourceNodeId = connection.source
-        parameter.sourcePortId = connection.sourceHandle ?? 'data-out'
-        selectNode(targetNode.id)
-      }
+  function onEdgeUpdate({ edge, connection }: EdgeUpdateEvent): void {
+    if (options.isRestoringWorkspace.value || options.isSwitchingCanvas.value) {
+      return
     }
 
+    const original = edges.value.find((item) => item.id === edge.id)
+    if (!original || connection.source !== original.source || connection.sourceHandle !== original.sourceHandle) {
+      return
+    }
+    if (connection.target === original.target && connection.targetHandle === original.targetHandle) {
+      return
+    }
+
+    const semantic = resolveConnectionSemantic(connection.sourceHandle, connection.targetHandle)
+    if (semantic !== original.data.semantic || !isValidConnection({ ...connection, id: original.id })) {
+      options.notice.value = t('canvas.invalidConnection')
+      return
+    }
+
+    const targetParameterId = semantic === 'data' && connection.targetHandle
+      ? canonicalParameterId(connection.targetHandle.replace(/^param-/, ''))
+      : undefined
+    const replacement = createEdge(connection, semantic, targetParameterId)
+    replacement.data.lineType = original.data.lineType
+    replacement.selected = original.selected
+
+    options.recordWorkspaceMutation()
+    resetDataEdgeSource(original)
+    edges.value = edges.value.map((item) => item.id === original.id ? replacement : item)
+    if (currentCanvas.value.selectedEdgeId === original.id) {
+      currentCanvas.value.selectedEdgeId = replacement.id
+    }
+    setDataEdgeSource(connection, targetParameterId)
     options.markWorkspaceChanged()
+    options.notice.value = t('canvas.edgeReconnected')
+  }
+
+  function setDataEdgeSource(connection: Connection, targetParameterId: string | undefined): void {
+    if (!targetParameterId) {
+      return
+    }
+
+    const targetNode = currentCanvas.value.nodes.find((node) => node.id === connection.target)
+    const parameter = targetNode?.data.parameters.find((item) => item.id === targetParameterId)
+    if (parameter && targetNode) {
+      parameter.source = 'previousNode'
+      parameter.sourceNodeId = connection.source
+      parameter.sourcePortId = connection.sourceHandle ?? 'data-out'
+      selectNode(targetNode.id)
+    }
   }
 
   function resetDataEdgeSource(edge: FlowEdge): void {
@@ -442,6 +489,7 @@ export function useFlowGraph(options: UseFlowGraphOptions) {
     updateConnectionLineType,
     updateCanvasFocusSetting,
     onConnect,
+    onEdgeUpdate,
     onNodesChange,
     onEdgesChange,
     resetDataEdgeSource,

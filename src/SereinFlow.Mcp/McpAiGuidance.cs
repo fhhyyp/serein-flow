@@ -367,7 +367,10 @@ public sealed class McpAiGuidanceProvider
                     $"{McpAiGuidanceOptions.SectionName}:FilePath must remain inside the server content root.");
             }
 
-            var resolved = new ResolvedGuidanceResource(resource with { Uri = uri }, path);
+            var embeddedName = string.Equals(relativePath, resource.DefaultFilePath, StringComparison.OrdinalIgnoreCase)
+                ? $"SereinFlow.Mcp.Guidance.{Path.GetFileName(relativePath)}"
+                : null;
+            var resolved = new ResolvedGuidanceResource(resource with { Uri = uri }, path, embeddedName);
             if (McpResourceCatalog.DirectResources.Any(
                     direct => string.Equals(direct.UriTemplate, uri, StringComparison.Ordinal)))
             {
@@ -408,13 +411,7 @@ public sealed class McpAiGuidanceProvider
         string content;
         try
         {
-            await using var stream = new FileStream(resource.FilePath, new FileStreamOptions
-            {
-                Mode = FileMode.Open,
-                Access = FileAccess.Read,
-                Share = FileShare.ReadWrite | FileShare.Delete,
-                Options = FileOptions.Asynchronous | FileOptions.SequentialScan
-            });
+            await using var stream = OpenResourceStream(resource);
 
             if (stream.Length > maxBytes)
                 throw new McpProtocolException(
@@ -471,7 +468,31 @@ public sealed class McpAiGuidanceProvider
             McpAiGuidance.MimeType);
     }
 
-    private sealed record ResolvedGuidanceResource(McpAiGuidanceResource Resource, string FilePath);
+    private static Stream OpenResourceStream(ResolvedGuidanceResource resource)
+    {
+        try
+        {
+            return new FileStream(resource.FilePath, new FileStreamOptions
+            {
+                Mode = FileMode.Open,
+                Access = FileAccess.Read,
+                Share = FileShare.ReadWrite | FileShare.Delete,
+                Options = FileOptions.Asynchronous | FileOptions.SequentialScan
+            });
+        }
+        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
+        {
+            if (resource.EmbeddedResourceName is null)
+                throw;
+            return typeof(McpAiGuidanceProvider).Assembly.GetManifestResourceStream(resource.EmbeddedResourceName)
+                ?? throw Unavailable();
+        }
+    }
+
+    private sealed record ResolvedGuidanceResource(
+        McpAiGuidanceResource Resource,
+        string FilePath,
+        string? EmbeddedResourceName);
 
     private sealed record GuidanceSnapshot(
         Dictionary<McpAiGuidanceId, ResolvedGuidanceResource> ById,

@@ -2,6 +2,8 @@
 import { computed, markRaw, ref, watch } from 'vue'
 import { Bug, LayoutGrid, ListOrdered, LockKeyhole, PackageOpen, Settings2, Terminal } from 'lucide-vue-next'
 import { ConnectionMode, VueFlow } from '@vue-flow/core'
+import FlowBezierEdge from '../flow/FlowBezierEdge.vue'
+import FlowSmoothStepEdge from '../flow/FlowSmoothStepEdge.vue'
 import FlowNodeCard from '../flow/FlowNodeCard.vue'
 import RunSnapshotNodeInspector from './RunSnapshotNodeInspector.vue'
 import RunSnapshotOutputViewer from './RunSnapshotOutputViewer.vue'
@@ -30,6 +32,7 @@ const props = defineProps<{
 }>()
 
 const nodeTypes = markRaw({ workflow: FlowNodeCard })
+const edgeTypes = markRaw({ default: FlowBezierEdge, smoothstep: FlowSmoothStepEdge })
 const workspaceRoot = ref<HTMLElement>()
 const activeCanvasId = ref('')
 const selectedNodeId = ref('')
@@ -351,6 +354,7 @@ function closeWorkspacePanel(panelId: WorkspacePanelId): void {
                 :key="viewKey"
                 :model-value="renderedElements"
                 :node-types="nodeTypes"
+                :edge-types="edgeTypes"
                 :connection-mode="ConnectionMode.Strict"
                 :nodes-draggable="false"
                 :nodes-connectable="false"

@@ -8,19 +8,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Update="mcp\*.md">
+    <Content Include="..\SereinFlow.Mcp\Guidance\*.md" Link="mcp\%(Filename)%(Extension)">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </None>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Swashbuckle.AspNetCore" />
-    <ProjectReference Include="..\SereinFlow.Application\SereinFlow.Application.csproj" />
-    <ProjectReference Include="..\SereinFlow.Contracts\SereinFlow.Contracts.csproj" />
-    <ProjectReference Include="..\SereinFlow.Infrastructure\SereinFlow.Infrastructure.csproj" />
-    <ProjectReference Include="..\SereinFlow.Mcp\SereinFlow.Mcp.csproj" />
-    <ProjectReference Include="..\SereinFlow.Worker.Client\SereinFlow.Worker.Client.csproj" />
+    <ProjectReference Include="..\SereinFlow.AspNetCore\SereinFlow.AspNetCore.csproj" />
   </ItemGroup>
 
   <Target Name="BuildWorkerRunner" BeforeTargets="Build">

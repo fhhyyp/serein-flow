@@ -7,6 +7,7 @@
 
 ## 参考资料
 
+- [ASP.NET Core 宿主接入](aspnetcore-hosting.md)：在现有 Web 项目中启用 REST、SignalR 和 HTTP MCP。
 - [MCP 服务参考](mcp-readonly-server.md)：HTTP 和 stdio 传输、鉴权、资源、提示词、
   工具与运行边界。
 - [Worker 协议](worker-protocol.md)：统一说明当前 v2 生产协议、v1 历史兼容差异、

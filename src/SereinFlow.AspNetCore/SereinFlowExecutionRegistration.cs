@@ -11,24 +11,26 @@ public static class SereinFlowExecutionRegistration
 {
     public static IServiceCollection AddSereinFlowExecution(
         this IServiceCollection services,
-        IConfiguration configuration,
-        string contentRootPath)
+        IConfiguration? configuration = null,
+        string? contentRootPath = null)
     {
         ArgumentNullException.ThrowIfNull(services);
-        ArgumentNullException.ThrowIfNull(configuration);
-        ArgumentException.ThrowIfNullOrWhiteSpace(contentRootPath);
 
-        services.Configure<RunExecutionOptions>(configuration.GetSection("SereinFlow:RunExecution"));
+        services.AddOptions<RunExecutionOptions>().Configure<IConfiguration>((options, resolvedConfiguration) =>
+            resolvedConfiguration.GetSection("SereinFlow:RunExecution").Bind(options));
         services.AddScoped<RunSubmissionService>();
         services.AddScoped<RunInterruptionService>();
         services.AddScoped<IRunMessageDeliveryService, RunMessageDeliveryService>();
 
-        var workerRunnerPath = ResolveWorkerRunnerPath(
-            configuration["SereinFlow:WorkerRunnerPath"],
-            contentRootPath);
-        var workerRunnerFileName = IsManagedWorkerAssembly(workerRunnerPath) ? "dotnet" : workerRunnerPath;
         services.AddSingleton<SupervisorWorkerRunClient>(serviceProvider =>
         {
+            var resolvedConfiguration = configuration ?? serviceProvider.GetRequiredService<IConfiguration>();
+            var resolvedContentRoot = contentRootPath
+                ?? serviceProvider.GetRequiredService<IHostEnvironment>().ContentRootPath;
+            var workerRunnerPath = ResolveWorkerRunnerPath(
+                resolvedConfiguration["SereinFlow:WorkerRunnerPath"],
+                resolvedContentRoot);
+            var workerRunnerFileName = IsManagedWorkerAssembly(workerRunnerPath) ? "dotnet" : workerRunnerPath;
             var logger = serviceProvider.GetRequiredService<ILogger<SupervisorWorkerRunClient>>();
             var storage = serviceProvider.GetRequiredService<SereinFlow.Infrastructure.Configuration.SereinFlowStorageOptions>();
             return new SupervisorWorkerRunClient(
@@ -63,33 +65,38 @@ public static class SereinFlowExecutionRegistration
         var candidates = new List<string>();
         if (!string.IsNullOrWhiteSpace(configuredPath))
         {
-            candidates.Add(Path.IsPathRooted(configuredPath)
+            var configured = Path.IsPathRooted(configuredPath)
                 ? Path.GetFullPath(configuredPath)
-                : Path.GetFullPath(Path.Combine(contentRootPath, configuredPath)));
+                : Path.GetFullPath(Path.Combine(contentRootPath, configuredPath));
+            if (!File.Exists(configured))
+                throw new InvalidOperationException($"Configured SereinFlow:WorkerRunnerPath does not exist: '{configured}'.");
+            ValidateManagedRunnerFiles(configured);
+            return configured;
         }
 
-        var contentRoot = new DirectoryInfo(contentRootPath);
-        for (var ancestor = contentRoot; ancestor is not null; ancestor = ancestor.Parent)
+        foreach (var fileName in new[] { "SereinFlow.Worker.Runner.exe", "SereinFlow.Worker.Runner", "SereinFlow.Worker.Runner.dll" })
+            candidates.Add(Path.Combine(AppContext.BaseDirectory, "sereinflow", "worker", fileName));
+
+        // Only the repository's official host may use source-tree build output.
+        // A package consumer must resolve the bundled Runner or configure an explicit path.
+        for (var ancestor = new DirectoryInfo(contentRootPath); ancestor is not null; ancestor = ancestor.Parent)
         {
-            foreach (var projectRoot in new[] { ancestor.FullName, Path.Combine(ancestor.FullName, "src") })
-            {
-                foreach (var configuration in new[] { "Debug", "Release" })
-                {
-                    var outputRoot = Path.Combine(projectRoot, "SereinFlow.Worker.Runner", "bin", configuration, "net10.0");
-                    candidates.Add(Path.Combine(outputRoot, "SereinFlow.Worker.Runner.exe"));
-                    candidates.Add(Path.Combine(outputRoot, "SereinFlow.Worker.Runner"));
-                    candidates.Add(Path.Combine(outputRoot, "SereinFlow.Worker.Runner.dll"));
-                }
-            }
-        }
+            if (!string.Equals(ancestor.Name, "SereinFlow.Api", StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(ancestor.Parent?.Name, "src", StringComparison.OrdinalIgnoreCase))
+                continue;
 
-        candidates.Add(Path.Combine(AppContext.BaseDirectory, "SereinFlow.Worker.Runner.exe"));
-        candidates.Add(Path.Combine(AppContext.BaseDirectory, "SereinFlow.Worker.Runner"));
-        candidates.Add(Path.Combine(AppContext.BaseDirectory, "SereinFlow.Worker.Runner.dll"));
+            foreach (var configuration in new[] { "Debug", "Release" })
+                candidates.Add(Path.Combine(ancestor.Parent!.FullName, "SereinFlow.Worker.Runner", "bin",
+                    configuration, "net10.0", "SereinFlow.Worker.Runner.dll"));
+            break;
+        }
 
         var existing = candidates.FirstOrDefault(File.Exists);
         if (existing is not null)
+        {
+            ValidateManagedRunnerFiles(existing);
             return existing;
+        }
 
         var requested = candidates.FirstOrDefault() ?? Path.Combine(AppContext.BaseDirectory, "SereinFlow.Worker.Runner.dll");
         throw new InvalidOperationException(
@@ -98,4 +105,18 @@ public static class SereinFlowExecutionRegistration
 
     private static bool IsManagedWorkerAssembly(string path)
         => string.Equals(Path.GetExtension(path), ".dll", StringComparison.OrdinalIgnoreCase);
+
+    private static void ValidateManagedRunnerFiles(string path)
+    {
+        if (!IsManagedWorkerAssembly(path))
+            return;
+        var directory = Path.GetDirectoryName(path)!;
+        var name = Path.GetFileNameWithoutExtension(path);
+        foreach (var suffix in new[] { ".deps.json", ".runtimeconfig.json" })
+        {
+            var required = Path.Combine(directory, name + suffix);
+            if (!File.Exists(required))
+                throw new InvalidOperationException($"Worker Runner deployment is incomplete. Missing '{required}'.");
+        }
+    }
 }

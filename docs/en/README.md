@@ -9,6 +9,7 @@ find the current material.
 
 ## References
 
+- [ASP.NET Core hosting](aspnetcore-hosting.md): add REST, SignalR, and HTTP MCP to an existing web application.
 - [MCP service reference](mcp-readonly-server.md): HTTP and stdio transports,
   authentication, resources, prompts, tools, and operational boundaries.
 - [Worker protocol](worker-protocol.md): the current v2 production protocol,

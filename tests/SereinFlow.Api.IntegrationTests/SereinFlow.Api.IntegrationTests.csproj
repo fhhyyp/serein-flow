@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\SereinFlow.AspNetCore\SereinFlow.AspNetCore.csproj" />
     <ProjectReference Include="..\..\src\SereinFlow.Api\SereinFlow.Api.csproj" />
     <ProjectReference Include="..\..\src\SereinFlow.SDK\SereinFlow.SDK.csproj" />
   </ItemGroup>

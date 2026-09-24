@@ -1,0 +1,9 @@
+<Project>
+  <ItemGroup>
+    <ContentWithTargetPath Include="$(MSBuildThisFileDirectory)../worker/**/*"
+                           TargetPath="sereinflow/worker/%(RecursiveDir)%(Filename)%(Extension)"
+                           CopyToOutputDirectory="PreserveNewest"
+                           CopyToPublishDirectory="PreserveNewest"
+                           Visible="false" />
+  </ItemGroup>
+</Project>

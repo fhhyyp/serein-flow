@@ -1,8 +1,5 @@
 using SereinFlow.Api;
-using SereinFlow.Application;
-using SereinFlow.Infrastructure.Configuration;
-using SereinFlow.Infrastructure.Persistence;
-using SereinFlow.Mcp;
+using SereinFlow.AspNetCore;
 
 if (args.Any(static argument => string.Equals(argument, "--mcp-stdio", StringComparison.OrdinalIgnoreCase)))
 {
@@ -11,6 +8,7 @@ if (args.Any(static argument => string.Equals(argument, "--mcp-stdio", StringCom
 }
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration["SereinFlow:Api:RequireAuthentication"] ??= "false";
 
 builder.Services.AddProblemDetails(options =>
 {
@@ -27,44 +25,16 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy
     .AllowAnyOrigin()
     .AllowAnyHeader()
     .AllowAnyMethod()));
-builder.Services.AddSereinFlowWebApi();
-builder.Services.AddSereinFlowApiDocumentation();
-builder.Services.AddSignalR();
-
-var storageOptions = SereinFlowStorageOptions.FromConfiguration(
-    builder.Configuration,
-    builder.Environment.ContentRootPath);
-builder.Services.AddSereinFlowStorage(storageOptions);
-builder.Services.AddSereinFlowApplication();
-var mcpOptions = SereinFlowMcpOptions.FromConfiguration(builder.Configuration);
-builder.Services.AddSereinFlowMcp(builder.Configuration, builder.Environment.ContentRootPath);
-builder.Services.AddSereinFlowExecution(
-    builder.Configuration,
-    builder.Environment.ContentRootPath);
-builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+builder.Services.AddSereinFlow(options =>
 {
-    options.MultipartBodyLengthLimit = FileUploadLimits.GetApiRequestBodyLimit(
-        FileUploadLimits.MaximumMaxFileSizeBytes);
-});
-builder.WebHost.ConfigureKestrel(options =>
-{
-    options.Limits.MaxRequestBodySize = Math.Max(
-        FileUploadLimits.GetApiRequestBodyLimit(FileUploadLimits.MaximumMaxFileSizeBytes),
-        FileUploadLimits.GetMcpRequestBodyLimit(
-            FileUploadLimits.MaximumMaxFileSizeBytes,
-            mcpOptions.MaxRequestBytes));
+    options.UseWebApi(api => api.AllowAnyOrigin = true);
+    options.UseMcp();
 });
 
 var app = builder.Build();
 
-app.UseExceptionHandler();
-app.UseCors();
-app.UseSereinFlowApiDocumentation();
-app.MapSereinFlowMcp();
-app.MapControllers();
-app.MapHub<RunEventsHub>("/hubs/runs");
-app.MapHub<WorkspaceEventsHub>("/hubs/workspace");
-
+app.UseSereinFlow();
+app.MapSereinFlow();
 
 app.Run();
 

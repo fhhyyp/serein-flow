@@ -5,9 +5,13 @@ import {
   createDefaultDockableWorkspaceLayout,
   createDebugDockableWorkspaceLayout,
   createSnapshotDockableWorkspaceLayout,
+  fitDebugDockableWorkspaceLayout,
+  resizeFreeDockableGroups,
   normalizeDockableWorkspaceLayout,
 } from '../src/flow/dockableWorkspace.ts'
 import { reflowDockableResize } from '../src/flow/dockableResize.ts'
+import { dockSplitZoneAtPoint, splitDockRect } from '../src/flow/dockableSplit.ts'
+import { snapFreePanelMove, snapFreePanelResize } from '../src/flow/dockableSnap.ts'
 import { firstFlowWorkpieceForExecution, firstFlowWorkpieceForNode, latestFlowWorkpieceForNode, selectFlowWorkpieceId } from '../src/flow/workpieceSelection.ts'
 
 function workpiece(id: string, createdAt: string): FlowWorkpieceDto {
@@ -87,6 +91,72 @@ test('debug layout keeps the canvas and workpieces on the left and debugger on t
   assert.equal(layout.panels.debug.visible, true)
   assert.equal(layout.panels.nodes.visible, false)
   assert.equal(layout.panels.output.visible, false)
+})
+
+test('debug layout closes saved gaps and fills the resized workspace', () => {
+  const layout = createDebugDockableWorkspaceLayout({ width: 1_200, height: 720 })
+  const canvas = layout.groups.find((group) => group.id === 'canvas')!
+  const workpieces = layout.groups.find((group) => group.id === 'workpieces')!
+  const session = layout.groups.find((group) => group.id === 'debug')!
+  canvas.width -= 36
+  workpieces.width -= 36
+  workpieces.y += 80
+  workpieces.height -= 80
+
+  fitDebugDockableWorkspaceLayout(layout, { width: 1_400, height: 800 })
+
+  assert.equal(canvas.width, 1_400 - session.width)
+  assert.equal(workpieces.width, canvas.width)
+  assert.equal(workpieces.y, canvas.height)
+  assert.equal(workpieces.y + workpieces.height, 800)
+})
+
+test('target panel edges split into adjacent panels while its center combines tabs', () => {
+  const rect = { left: 0, top: 0, right: 800, bottom: 600 }
+  assert.equal(dockSplitZoneAtPoint(rect, 30, 300), 'left')
+  assert.equal(dockSplitZoneAtPoint(rect, 770, 300), 'right')
+  assert.equal(dockSplitZoneAtPoint(rect, 400, 30), 'top')
+  assert.equal(dockSplitZoneAtPoint(rect, 400, 570), 'bottom')
+  assert.equal(dockSplitZoneAtPoint(rect, 400, 300), 'center')
+  const { source, target } = splitDockRect(rect, 'left')
+  assert.equal(source.right, target.left)
+  assert.equal(source.left, rect.left)
+  assert.equal(target.right, rect.right)
+  assert.equal(source.top, target.top)
+  assert.equal(source.bottom, target.bottom)
+})
+
+test('free panels snap to adjacent panels when moved or resized', () => {
+  const peers = [{ left: 0, top: 0, right: 400, bottom: 300 }]
+  const size = { width: 800, height: 600 }
+  assert.deepEqual(snapFreePanelMove({ x: 412, y: 8, width: 388, height: 300 }, peers, size), { x: 400, y: 0, width: 400, height: 300 })
+  assert.deepEqual(
+    snapFreePanelResize(
+      { x: 0, y: 300, width: 400, height: 300 },
+      { x: 0, y: 314, width: 400, height: 286 },
+      peers,
+      size,
+    ),
+    { x: 0, y: 300, width: 400, height: 300 },
+  )
+})
+
+test('workspace resizing keeps split panels flush with a fixed-width side dock', () => {
+  const layout = createDefaultDockableWorkspaceLayout({ width: 1_280, height: 720 })
+  const left = layout.groups.find((group) => group.id === 'nodes')!
+  const canvas = layout.groups.find((group) => group.id === 'canvas')!
+  Object.assign(left, { x: 0, y: 0, width: 512, height: 720, dock: 'free' })
+  Object.assign(canvas, { x: 512, y: 0, width: 512, height: 720, dock: 'free' })
+
+  resizeFreeDockableGroups([left, canvas],
+    { width: 1_280, height: 720 }, { width: 1_440, height: 800 },
+    { left: 0, right: 256, top: 0, bottom: 0 },
+    { left: 0, right: 256, top: 0, bottom: 0 })
+
+  assert.equal(left.x + left.width, canvas.x)
+  assert.equal(canvas.x + canvas.width, 1_440 - 256)
+  assert.equal(left.height, 800)
+  assert.equal(canvas.height, 800)
 })
 
 test('snapshot layout keeps all run-session panels available in the debugger group', () => {
