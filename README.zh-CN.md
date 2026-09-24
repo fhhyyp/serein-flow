@@ -2,6 +2,8 @@
 
 [English documentation](README.md)
 
+**文档门户：** [SereinFlow 使用教程与当前 API 说明](http://sereinflow.ningxi.cc)。
+
 SereinFlow 是一个面向 Web 的工作流编排与执行系统，提供可视化 Web 控制台、
 ASP.NET Core API、隔离的 Worker Runner，以及用于 AI 工具集成的 MCP 服务。
 
@@ -168,14 +170,6 @@ npm run build
 ```powershell
 dotnet publish tests\SereinFlow.TestLibrary\SereinFlow.TestLibrary.csproj -c Release
 ```
-
-## 文档
-
-- [文档索引](docs/zh-CN/README.md)
-- [MCP 服务参考](docs/zh-CN/mcp-readonly-server.md)
-- [.NET 客户端 SDK](docs/zh-CN/client-sdk.md)
-- [Worker 协议（v2 当前、v1 历史兼容）](docs/zh-CN/worker-protocol.md)
-- [English documentation index](docs/en/README.md)
 
 ## 安全说明
 

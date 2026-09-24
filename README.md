@@ -2,6 +2,8 @@
 
 [中文文档 | Chinese documentation](README.zh-CN.md)
 
+**Documentation portal:** [SereinFlow tutorials and current API reference](http://sereinflow.ningxi.cc) (Chinese).
+
 SereinFlow is a web-first workflow orchestration and execution system. It
 combines a visual web console, an ASP.NET Core API, isolated Worker Runner
 processes, and an MCP service for AI-tool integration.
@@ -186,14 +188,6 @@ complete publish output and required archive layout:
 ```powershell
 dotnet publish tests\SereinFlow.TestLibrary\SereinFlow.TestLibrary.csproj -c Release
 ```
-
-## Documentation
-
-- [Documentation index](docs/en/README.md)
-- [MCP service reference](docs/en/mcp-readonly-server.md)
-- [.NET client SDK](docs/en/client-sdk.md)
-- [Worker protocol (v2 current, v1 historical compatibility)](docs/en/worker-protocol.md)
-- [中文文档索引 | Chinese documentation index](docs/zh-CN/README.md)
 
 ## Security Notes
 

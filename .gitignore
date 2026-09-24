@@ -40,6 +40,9 @@ frontend/sereinflow-web/dist/
 frontend/sereinflow-web/.vite/
 frontend/sereinflow-web/coverage/
 frontend/sereinflow-web/output-vite.err
+frontend/sereinflow-docs/node_modules/
+frontend/sereinflow-docs/.vitepress/cache/
+frontend/sereinflow-docs/.vitepress/dist/
 /.artifacts
 /NuGet/Migrations
 /.dotnet-cli/.dotnet
