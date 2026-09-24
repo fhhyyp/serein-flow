@@ -2,6 +2,34 @@
   "version": 2,
   "dependencies": {
     "net10.0": {
+      "Microsoft.Data.Sqlite": {
+        "type": "Direct",
+        "requested": "[10.0.11, )",
+        "resolved": "10.0.11",
+        "contentHash": "7je7UELzm131GiLYc4PpZvfKXIgIyzPM+v+tjcd/nbnuWRfgcONYKzDTqJlURxwVCFsVnlpmq6y6yn4qvR8QXQ==",
+        "dependencies": {
+          "Microsoft.Data.Sqlite.Core": "10.0.11",
+          "SQLitePCLRaw.bundle_e_sqlite3": "2.1.12",
+          "SQLitePCLRaw.core": "2.1.12"
+        }
+      },
+      "SqlSugarCore": {
+        "type": "Direct",
+        "requested": "[5.1.4.217, )",
+        "resolved": "5.1.4.217",
+        "contentHash": "yV2Gr+zAdxHGHGPFgpLeLjhFqtUfThaed2d90C5s+17z5pbZZFRAPV1Xk7M25XFJCVrUpafzp3XbMzF3JmAMDw==",
+        "dependencies": {
+          "Microsoft.Data.SqlClient": "5.2.2",
+          "Microsoft.Data.Sqlite": "10.0.9",
+          "MySqlConnector": "2.2.5",
+          "Newtonsoft.Json": "13.0.2",
+          "Npgsql": "5.0.18",
+          "Oracle.ManagedDataAccess.Core": "23.8.0",
+          "Oscar.Data.SqlClient": "4.0.4",
+          "SqlSugarCore.Dm": "8.8.1",
+          "SqlSugarCore.Kdbndp": "9.3.8.413"
+        }
+      },
       "Swashbuckle.AspNetCore": {
         "type": "Direct",
         "requested": "[6.6.2, )",
@@ -391,34 +419,6 @@
         "dependencies": {
           "SereinFlow.Contracts": "[1.0.0, )",
           "SereinFlow.Worker.Protocol": "[1.0.0, )"
-        }
-      },
-      "Microsoft.Data.Sqlite": {
-        "type": "CentralTransitive",
-        "requested": "[10.0.11, )",
-        "resolved": "10.0.11",
-        "contentHash": "7je7UELzm131GiLYc4PpZvfKXIgIyzPM+v+tjcd/nbnuWRfgcONYKzDTqJlURxwVCFsVnlpmq6y6yn4qvR8QXQ==",
-        "dependencies": {
-          "Microsoft.Data.Sqlite.Core": "10.0.11",
-          "SQLitePCLRaw.bundle_e_sqlite3": "2.1.12",
-          "SQLitePCLRaw.core": "2.1.12"
-        }
-      },
-      "SqlSugarCore": {
-        "type": "CentralTransitive",
-        "requested": "[5.1.4.217, )",
-        "resolved": "5.1.4.217",
-        "contentHash": "yV2Gr+zAdxHGHGPFgpLeLjhFqtUfThaed2d90C5s+17z5pbZZFRAPV1Xk7M25XFJCVrUpafzp3XbMzF3JmAMDw==",
-        "dependencies": {
-          "Microsoft.Data.SqlClient": "5.2.2",
-          "Microsoft.Data.Sqlite": "10.0.9",
-          "MySqlConnector": "2.2.5",
-          "Newtonsoft.Json": "13.0.2",
-          "Npgsql": "5.0.18",
-          "Oracle.ManagedDataAccess.Core": "23.8.0",
-          "Oscar.Data.SqlClient": "4.0.4",
-          "SqlSugarCore.Dm": "8.8.1",
-          "SqlSugarCore.Kdbndp": "9.3.8.413"
         }
       }
     }

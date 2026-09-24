@@ -16,11 +16,21 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Swashbuckle.AspNetCore" />
+    <!-- Keep external runtime dependencies explicit: internal project packages are bundled below. -->
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="SqlSugarCore" />
     <ProjectReference Include="../SereinFlow.Application/SereinFlow.Application.csproj" />
     <ProjectReference Include="../SereinFlow.Contracts/SereinFlow.Contracts.csproj" />
     <ProjectReference Include="../SereinFlow.Infrastructure/SereinFlow.Infrastructure.csproj" />
     <ProjectReference Include="../SereinFlow.Mcp/SereinFlow.Mcp.csproj" />
     <ProjectReference Include="../SereinFlow.Worker.Client/SereinFlow.Worker.Client.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(SereinFlowHostPublishDir)' != ''">
+    <ProjectReference Update="@(ProjectReference)" PrivateAssets="all" />
+    <None Include="$(SereinFlowHostPublishDir)/SereinFlow.*.dll;$(SereinFlowHostPublishDir)/ScriptLang.dll"
+          Exclude="$(SereinFlowHostPublishDir)/SereinFlow.AspNetCore.dll"
+          Pack="true" PackagePath="lib/net10.0/" Visible="false" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(SereinFlowWorkerPublishDir)' != ''">
@@ -45,7 +55,11 @@
     <Using Include="Microsoft.Extensions.Logging" />
   </ItemGroup>
 
-  <Target Name="VerifySereinFlowWorkerPackageAssets" BeforeTargets="GenerateNuspec">
+  <Target Name="VerifySereinFlowPackageAssets" BeforeTargets="GenerateNuspec">
+    <Error Condition="'$(SereinFlowHostPublishDir)' == ''"
+           Text="SereinFlow.AspNetCore requires published host assemblies. Use eng/pack-aspnetcore.ps1." />
+    <Error Condition="!Exists('$(SereinFlowHostPublishDir)/SereinFlow.Application.dll') or !Exists('$(SereinFlowHostPublishDir)/SereinFlow.Worker.Client.dll') or !Exists('$(SereinFlowHostPublishDir)/ScriptLang.dll')"
+           Text="SereinFlowHostPublishDir is missing required host assemblies." />
     <Error Condition="'$(SereinFlowWorkerPublishDir)' == ''"
            Text="SereinFlow.AspNetCore requires a published Worker Runner. Use eng/pack-aspnetcore.ps1 or set SereinFlowWorkerPublishDir to a complete dotnet publish directory." />
     <Error Condition="!Exists('$(SereinFlowWorkerPublishDir)/SereinFlow.Worker.Runner.dll') or !Exists('$(SereinFlowWorkerPublishDir)/SereinFlow.Worker.Runner.deps.json') or !Exists('$(SereinFlowWorkerPublishDir)/SereinFlow.Worker.Runner.runtimeconfig.json')"

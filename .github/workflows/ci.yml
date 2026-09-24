@@ -35,11 +35,11 @@ jobs:
 
       - name: Build local package feed
         shell: pwsh
-        run: ./eng/pack-aspnetcore.ps1 -OutputDirectory ./artifacts/aspnetcore-feed
+        run: ./eng/pack-aspnetcore.ps1 -OutputDirectory ./artifacts/aspnetcore-package
 
       - name: Publish and run a clean consumer
         shell: pwsh
-        run: ./eng/verify-aspnetcore-package.ps1 -FeedDirectory ./artifacts/aspnetcore-feed
+        run: ./eng/verify-aspnetcore-package.ps1 -FeedDirectory ./artifacts/aspnetcore-package
 
   verify:
     name: Build and test

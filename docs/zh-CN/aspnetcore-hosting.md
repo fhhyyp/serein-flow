@@ -26,4 +26,4 @@ app.Run();
 
 Swagger 默认只在 Development 启用，可通过 `options.UseWebApi(api => api.EnableSwagger = true)` 显式启用，或配置 `SereinFlow:ApiDocumentation:Enabled`；`OpenApiRouteTemplate` 和 `SwaggerUiRoutePrefix` 可更改路径。REST/Hub 使用 `sereinflow-webapi` 命名 CORS 策略，默认不开放跨域；可配置 `api.AllowedOrigins` 或 `SereinFlow:Api:Cors:AllowedOrigins`，官方宿主显式设置 `AllowAnyOrigin=true` 保持旧行为。REST 上传限额和 MCP 请求限额需要同时考虑反向代理配置。SereinFlow Controller 使用自己的异常过滤器，不替换宿主的全局异常处理；`UseSereinFlow()` 会调用 `UseCors()`，宿主应测试自己的 CORS 中间件顺序。
 
-本仓库可运行 `eng/pack-aspnetcore.ps1` 在本地生成 NuGet feed；直接 `dotnet pack` 门面项目会因缺少已发布的 Worker 目录而拒绝生成不完整的包。发布包的验收还需使用仓库外的空白项目完成 restore、publish 和运行验证，不能仅凭打包成功判断可交付。
+运行 `eng/pack-aspnetcore.ps1` 会生成单个 `SereinFlow.AspNetCore` NuGet 包：宿主所需的仓库内程序集位于 `lib/net10.0/`，Worker Runner 的完整发布目录位于 `worker/`。使用者只需发布这个包；SQLite、SqlSugar 和 Swagger 等第三方依赖仍由 NuGet 还原。直接 `dotnet pack` 门面项目会因缺少已发布的宿主及 Worker 文件而拒绝生成不完整的包。发布包的验收还需使用仓库外的空白项目完成 restore、publish 和运行验证，不能仅凭打包成功判断可交付。
