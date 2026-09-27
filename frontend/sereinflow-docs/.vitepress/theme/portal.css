@@ -53,6 +53,24 @@
 .flow-portal .VPNavBarAppearance,
 .flow-portal .VPNavBarExtra,
 .flow-portal .VPNavScreenAppearance { display: none; }
+.VPNavBarTranslations,
+.VPNavScreenTranslations,
+.VPNavBarExtra .group.translations { display: none; }
+.flow-language-switch {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  margin-left: 12px;
+  padding: 0 10px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 6px;
+  color: var(--vp-c-text-1);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.flow-language-switch:hover { color: var(--vp-c-brand-1); border-color: var(--vp-c-brand-1); }
+.flow-language-switch:focus-visible { outline: 2px solid var(--vp-c-brand-1); outline-offset: 2px; }
 .flow-portal .DocSearch-Button {
   border: 1px solid #31554024;
   border-radius: 6px;
@@ -124,6 +142,19 @@
   letter-spacing: .4px;
 }
 .flow-actions { margin-top: 32px; }
+.flow-github {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  margin-left: 12px;
+  padding: 0 18px;
+  border: 1px solid #08745d;
+  border-radius: 5px;
+  color: #075b49;
+  font-size: 13px;
+  font-weight: 600;
+}
+.flow-github:hover { background: #e5f2ea; }
 .flow-primary {
   display: inline-flex;
   align-items: center;
@@ -196,6 +227,18 @@
   .flow-hero { gap: 16px; }
   .flow-copy h1 { font-size: 64px; letter-spacing: -3px; }
   .flow-description { font-size: 13px; }
+}
+@media (max-width: 767px) {
+  .flow-portal { min-width: 0; }
+  .flow-shell { padding: 0 24px; }
+  .flow-hero { grid-template-columns: 1fr; gap: 0; padding: 50px 0 0; }
+  .flow-copy { padding-bottom: 0; }
+  .flow-copy h1 { font-size: clamp(46px, 12vw, 64px); letter-spacing: -2.5px; }
+  .flow-atmosphere { min-height: 220px; }
+  .flow-footer { flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; padding-bottom: 12px; }
+  .flow-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+  .flow-github { margin-left: 0; }
+  .flow-language-switch { margin-left: 4px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .flow-home.is-paused *,
