@@ -671,7 +671,7 @@
       "sereinflow.api": {
         "type": "Project",
         "dependencies": {
-          "SereinFlow.AspNetCore": "[1.0.0, )"
+          "SereinFlow.AspNetCore": "[0.1.0, )"
         }
       },
       "sereinflow.application": {
@@ -686,11 +686,13 @@
       "sereinflow.aspnetcore": {
         "type": "Project",
         "dependencies": {
+          "Microsoft.Data.Sqlite": "[10.0.11, )",
           "SereinFlow.Application": "[1.0.0, )",
           "SereinFlow.Contracts": "[1.0.0, )",
           "SereinFlow.Infrastructure": "[1.0.0, )",
           "SereinFlow.Mcp": "[1.0.0, )",
           "SereinFlow.Worker.Client": "[1.0.0, )",
+          "SqlSugarCore": "[5.1.4.217, )",
           "Swashbuckle.AspNetCore": "[6.6.2, )"
         }
       },
