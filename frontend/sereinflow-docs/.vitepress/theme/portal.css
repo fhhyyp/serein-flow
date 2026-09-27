@@ -1,0 +1,204 @@
+/* Light portal colors also apply when the document theme is dark. */
+.flow-portal {
+  min-width: 1024px;
+  --vp-c-bg: #f6f9f5;
+  --vp-c-bg-alt: #f0f5f0;
+  --vp-c-bg-elv: #ffffff;
+  --vp-c-bg-soft: #eaf1eb;
+  --vp-c-text-1: #173a32;
+  --vp-c-text-2: #50665d;
+  --vp-c-text-3: #5b7469;
+  --vp-c-brand-1: #08785f;
+  --vp-c-brand-2: #05614c;
+  --vp-c-brand-3: #08785f;
+  --vp-c-brand-soft: #16896814;
+  --vp-c-divider: #254f3624;
+  --vp-c-gutter: #254f3624;
+  --vp-nav-bg-color: #f6f9f5ed;
+  --flow-ink: #163e32;
+  --flow-line: #214f3826;
+  color: var(--flow-ink);
+  background: #f6f9f5;
+  color-scheme: light;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.flow-portal input,
+.flow-portal textarea,
+.flow-portal [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+.flow-portal .VPHome { margin-bottom: 0; }
+.flow-portal .VPFooter { display: none; }
+.flow-portal .VPNavBar {
+  background: #f6f9f5e6;
+  backdrop-filter: blur(18px);
+}
+.flow-portal .VPNavBar .container { max-width: 1440px; }
+.flow-portal .VPNavBar .divider-line { background: var(--flow-line); }
+.flow-portal .VPNavBarTitle .title {
+  font-size: 19px;
+  letter-spacing: -.7px;
+}
+.flow-portal .VPNavBarTitle .title::before {
+  content: '';
+  width: 22px;
+  height: 24px;
+  margin-right: 10px;
+  background: #087f66;
+  mask: url('/favicon.svg') center / contain no-repeat;
+}
+.flow-portal .VPNavBarMenuLink { font-size: 12px; }
+.flow-portal .VPNavBarAppearance,
+.flow-portal .VPNavBarExtra,
+.flow-portal .VPNavScreenAppearance { display: none; }
+.flow-portal .DocSearch-Button {
+  border: 1px solid #31554024;
+  border-radius: 6px;
+  background: #fff8;
+}
+.flow-portal .DocSearch-Button-Key {
+  border-color: #31554026;
+  background: #edf3ed;
+}
+.flow-portal .DocSearch-Button-Keys { opacity: .7; }
+
+.flow-home {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: calc(100svh - var(--vp-nav-height));
+  cursor: default;
+}
+.flow-backdrop,
+.flow-paper {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.flow-backdrop { z-index: -2; }
+.flow-paper {
+  z-index: -1;
+  background:
+    linear-gradient(90deg, #f6f9f5f5 0%, #f6f9f5de 29%, #f6f9f570 44%, transparent 60%),
+    linear-gradient(0deg, #f6f9f5 1%, #f6f9f5b8 12%, transparent 30%);
+}
+.flow-home a,
+.flow-home button { cursor: pointer; }
+.flow-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100svh - var(--vp-nav-height));
+  max-width: 1440px;
+  margin: auto;
+  padding: 0 64px;
+}
+.flow-hero {
+  position: relative;
+  display: grid;
+  flex: 1;
+  grid-template-columns: .85fr 1.15fr;
+  gap: 24px;
+  align-items: center;
+  min-height: 440px;
+  padding: 32px 0;
+}
+.flow-copy { position: relative; z-index: 1; padding-bottom: 28px; }
+.flow-copy h1 {
+  margin: 0;
+  color: #173e31;
+  font-size: clamp(60px, 6.2vw, 90px);
+  font-weight: 600;
+  line-height: 1.17;
+  letter-spacing: -4px;
+}
+.flow-copy h1 > span { color: #0d9176; }
+.flow-description {
+  margin: 26px 0 0;
+  color: #50695b;
+  font-size: 15px;
+  line-height: 1.8;
+  letter-spacing: .4px;
+}
+.flow-actions { margin-top: 32px; }
+.flow-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  min-height: 48px;
+  padding: 0 24px;
+  border: 1px solid #08745d;
+  border-radius: 5px;
+  background: #08765e;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background .2s;
+}
+.flow-primary:hover { background: #095842; }
+.flow-primary svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  transition: transform .2s;
+}
+.flow-primary:hover svg { transform: translateX(3px); }
+.flow-atmosphere { position: relative; align-self: stretch; min-height: 380px; }
+.flow-footer {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 22px;
+  min-height: 72px;
+}
+.flow-mouse-hint { color: #5c7b69; font-size: 10px; letter-spacing: .5px; }
+.flow-motion-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 8px;
+  border-radius: 4px;
+  color: #3d6853;
+  font-size: 10px;
+  transition: color .2s, background .2s;
+}
+.flow-motion-toggle:hover { color: #054d3c; background: #deeee36b; }
+.flow-motion-toggle svg {
+  width: 11px;
+  height: 11px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.flow-home a:focus-visible,
+.flow-home button:focus-visible { outline: 2px solid #057961; outline-offset: 5px; }
+@media (max-height: 820px) {
+  .flow-copy h1 { font-size: 72px; }
+  .flow-hero { min-height: 420px; padding: 24px 0; }
+  .flow-atmosphere { min-height: 350px; }
+  .flow-footer { min-height: 60px; }
+}
+@media (max-width: 1199px) {
+  .flow-portal .VPNavBarSearch .DocSearch-Button { justify-content: center; width: 36px; padding: 0; }
+  .flow-portal .VPNavBarSearch .DocSearch-Button-Placeholder,
+  .flow-portal .VPNavBarSearch .DocSearch-Button-Keys { display: none; }
+  .flow-shell { padding-right: 40px; padding-left: 40px; }
+  .flow-hero { gap: 16px; }
+  .flow-copy h1 { font-size: 64px; letter-spacing: -3px; }
+  .flow-description { font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flow-home.is-paused *,
+  .flow-home.is-paused *::before,
+  .flow-home.is-paused *::after { animation: none !important; transition: none !important; }
+}
