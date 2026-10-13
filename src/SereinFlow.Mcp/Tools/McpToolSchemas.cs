@@ -195,11 +195,11 @@ internal static class McpToolSchemas
                 ["nodeId"] = StringSchema(),
                 ["source"] = StringSchema(),
                 ["languageVersion"] = StringSchema(),
-                ["sourceHash"] = StringSchema(),
+                ["sourceHash"] = NullableSchema(StringSchema("Optional metadata; the server derives the hash from source.")),
                 ["inputs"] = ArraySchema(ScriptContractValueSchema()),
                 ["outputs"] = ArraySchema(ScriptContractValueSchema()),
             },
-            ["nodeId", "source", "languageVersion", "sourceHash", "inputs", "outputs"]);
+            ["nodeId", "source", "languageVersion", "inputs", "outputs"]);
 
     private static object RunPolicyValueSchema()
         => ObjectSchema(

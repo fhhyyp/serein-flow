@@ -348,6 +348,15 @@ When creating a key, `permissions` must use these stable dotted names:
 `projectId` and must not set `isAdministrator: true`; an administrator key sets
 `isAdministrator: true` and must not provide `projectId`.
 
+Library import starts with `sereinflow_preview_library_package`, providing the
+completed ZIP as `packageBase64` and its `fileName`. Use the server-derived
+package `sha256` and DLL hash metadata returned by the preview; local hash
+calculation is optional. `sereinflow_apply_library_package` uses `previewId`,
+`previewFingerprint`, `confirmation: "APPLY"`, and `idempotencyKey`, and does not
+resend package bytes or hashes. The server verifies the staged package size and
+SHA-256 against the preview before import. A changed package requires a new
+preview.
+
 Flow changes use `sereinflow_preview_flow_patch` first, followed by the
 corresponding apply tool after explicit confirmation. v2 requests use
 `schemaVersion: "2.0"`, an `op` discriminator, named payload fields, and
@@ -393,6 +402,11 @@ model. Pass a `builtinNodeId` from the model's built-in-node catalog and a
 finite canvas `position`. Put the returned `node` unchanged into an `addNode`
 or `replaceNode` operation; it is a complete Schema 2.0 node with execution
 ports, data-output metadata, parameters and runtime UI metadata.
+
+In script node payloads, `script.sourceHash` is optional metadata and may be
+omitted or `null`. The server derives the authoritative hash from `script.source`;
+clients do not need to calculate or synchronize it while editing. For source-only
+changes, use `replaceScriptSource` with `canvasId`, `nodeId`, and `source`.
 
 FlowCall runtime metadata must preserve `returnType`, `targetFlowId`,
 `targetNodeId`, `targetCanvasId`, `isPublic`, and

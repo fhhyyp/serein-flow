@@ -1,8 +1,6 @@
-using System.Security.Cryptography;
-
 namespace SereinFlow.Application;
 
-public sealed record McpStagedPackage(string Path, long SizeBytes, string Sha256);
+public sealed record McpStagedPackage(string Path, long SizeBytes);
 
 /// <summary>
 /// Stores package bytes only in a generated, bounded temporary location while
@@ -44,7 +42,6 @@ public sealed class McpPackageStagingService : IDisposable
         var maxBytes = _fileUploadSettings?.MaxLibraryUploadBytes ?? _maxBytes;
         var path = Path.Combine(_rootPath, $"mcp-{Guid.NewGuid():N}.zip");
         long size = 0;
-        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         try
         {
             await using var destination = new FileStream(
@@ -63,11 +60,10 @@ public sealed class McpPackageStagingService : IDisposable
                 size += read;
                 if (size > maxBytes)
                     throw new InvalidOperationException("The staged MCP package exceeds the configured size limit.");
-                hash.AppendData(buffer, 0, read);
                 await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
             }
             await destination.FlushAsync(cancellationToken);
-            return new McpStagedPackage(path, size, Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant());
+            return new McpStagedPackage(path, size);
         }
         catch
         {

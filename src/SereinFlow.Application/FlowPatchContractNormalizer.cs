@@ -578,7 +578,7 @@ public sealed class FlowPatchContractNormalizer
             _ = ReadRequiredString(payload, "nodeId", $"{path}.nodeId");
             _ = ReadRequiredString(payload, "source", $"{path}.source");
             _ = ReadRequiredString(payload, "languageVersion", $"{path}.languageVersion");
-            _ = ReadRequiredString(payload, "sourceHash", $"{path}.sourceHash");
+            _ = ReadOptionalString(payload, "sourceHash", $"{path}.sourceHash");
         }
         ValidateScriptValues(RequireProperty(payload, "inputs", $"{path}.inputs"), $"{path}.inputs", legacyEnums);
         ValidateScriptValues(RequireProperty(payload, "outputs", $"{path}.outputs"), $"{path}.outputs", legacyEnums);

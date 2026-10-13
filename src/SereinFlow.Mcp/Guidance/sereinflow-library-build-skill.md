@@ -71,4 +71,6 @@ Let MSBuild evaluate `AssemblyName`, `Version`, `TargetPath`, `TargetDir`,
 ZIP validation rules are defined by the `zip` skill.
 
 Report the absolute project path, build output directory, ZIP path, file count,
-size and SHA-256 before previewing it.
+and size before previewing it. Local SHA-256 calculation is optional. Use the
+server-derived package SHA-256 returned by `sereinflow_preview_library_package`
+when reporting the package hash.

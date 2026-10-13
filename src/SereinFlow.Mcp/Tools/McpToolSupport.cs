@@ -208,20 +208,6 @@ internal static class McpToolSupport
     internal static string Serialize<T>(T value)
         => JsonSerializer.Serialize(value, ContractJsonOptions);
 
-    internal static async Task<string> ComputeSha256Async(Stream stream, CancellationToken cancellationToken)
-    {
-        using var hash = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
-        var buffer = new byte[64 * 1024];
-        while (true)
-        {
-            var read = await stream.ReadAsync(buffer.AsMemory(), cancellationToken);
-            if (read == 0)
-                break;
-            hash.AppendData(buffer, 0, read);
-        }
-        return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
-    }
-
     internal static JsonElement DeserializeStoredResponse(string responseJson)
         => JsonSerializer.Deserialize<JsonElement>(responseJson, ContractJsonOptions);
 

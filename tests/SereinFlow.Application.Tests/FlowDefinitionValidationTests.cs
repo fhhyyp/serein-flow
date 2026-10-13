@@ -7,6 +7,26 @@ namespace SereinFlow.Application.Tests;
 public sealed class FlowDefinitionValidationTests
 {
     [Fact]
+    public void ScriptNormalizationDerivesHashFromSourceInsteadOfClientMetadata()
+    {
+        const string source = "return 1";
+        var node = new NodeDto(
+            "script-node", NodeTypeDto.Script, "Script", 0, 0, [], [],
+            new ScriptNodeDataDto("script-node", source, "0.1", "stale-source-hash", [], []));
+        var definition = new FlowDefinitionDto(
+            Guid.NewGuid(), FlowDefinition.CurrentSchemaVersion, 1,
+            [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])],
+            node.Id, string.Empty);
+
+        var normalized = FlowDefinitionContractNormalizer.NormalizeForExecution(definition);
+
+        var script = Assert.Single(Assert.Single(normalized.Canvases).Nodes).Script;
+        Assert.NotNull(script);
+        Assert.Equal(ScriptNodeDefinition.ComputeSourceHash(source), script.SourceHash);
+        Assert.Equal(FlowDiffService.GetChecksum(normalized), normalized.Checksum);
+    }
+
+    [Fact]
     public void BlankEditorDraftCanPersistButCannotExecute()
     {
         var definition = CreateBlankDraft();

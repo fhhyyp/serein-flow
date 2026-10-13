@@ -457,7 +457,7 @@ internal static class McpLibraryToolHandlers
                 projectId,
                 staged.Path,
                 staged.SizeBytes,
-                staged.Sha256,
+                inspection.Library.Sha256,
                 inspection,
                 compatibility,
                 projectImpact);
@@ -529,18 +529,22 @@ internal static class McpLibraryToolHandlers
         try
         {
             await using var package = staging.OpenRead(stored.StagingPath);
-            if (package.Length != stored.SizeBytes || !string.Equals(await ComputeSha256Async(package, cancellationToken), stored.PackageSha256, StringComparison.OrdinalIgnoreCase))
+            if (package.Length != stored.SizeBytes)
                 throw new McpProtocolException(McpProtocolErrorCodes.Conflict, "The staged library package changed after preview.");
-            package.Position = 0;
-            var result = await scope.ServiceProvider.GetRequiredService<ILibraryCatalogService>().UploadAsync(
+            var result = await scope.ServiceProvider.GetRequiredService<ILibraryCatalogService>().UploadVerifiedAsync(
                 package,
                 stored.FileName,
                 stored.SizeBytes,
-                cancellationToken,
-                origin: "mcp");
+                stored.PackageSha256,
+                origin: "mcp",
+                cancellationToken: cancellationToken);
             await MarkPreviewAppliedAsync(preview, entry, cancellationToken);
             await idempotency.SaveAsync(principal.Id, entry.Operation, request.IdempotencyKey, result, requestPayload, cancellationToken);
             return result;
+        }
+        catch (LibraryUploadException exception) when (exception.StatusCode == StatusCodes.Status409Conflict)
+        {
+            throw new McpProtocolException(McpProtocolErrorCodes.Conflict, exception.Message);
         }
         catch (FileNotFoundException)
         {

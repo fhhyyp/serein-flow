@@ -95,6 +95,11 @@ contains execution ports, data-output metadata, parameters and runtime UI
 metadata. Do not reconstruct a FlowCall node from its display name or copy a
 stale template.
 
+`script.sourceHash` is optional metadata in node payloads and may be omitted
+or `null`. The server derives the authoritative hash from `script.source`;
+clients do not need to calculate or synchronize it while editing. For source-only
+changes, use `replaceScriptSource` with `canvasId`, `nodeId` and `source`.
+
 FlowCall runtime metadata is part of the Schema 2.0 contract. Preserve
 `returnType`, `targetFlowId`, `targetNodeId`, `targetCanvasId`, `isPublic` and
 `flowCallParameterBindings` when a FlowCall node is edited. A missing binding

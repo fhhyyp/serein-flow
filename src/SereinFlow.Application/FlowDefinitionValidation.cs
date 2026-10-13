@@ -237,7 +237,7 @@ public static class FlowDefinitionContractNormalizer
                         {
                             Script = node.Script with
                             {
-                                SourceHash = ScriptNodeDefinition.ComputeSourceHash(node.Script.Source),
+                                SourceHash = plan.Nodes[node.Id].Script!.SourceHash,
                                 Inputs = node.Parameters.Select(parameter => new ScriptValueContractDto(
                                     parameter.Name,
                                     parameter.Ui?.ValueKind ?? "System.Object",

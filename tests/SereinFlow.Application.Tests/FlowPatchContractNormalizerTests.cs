@@ -57,6 +57,45 @@ public sealed class FlowPatchContractNormalizerTests
         Assert.Equal("$.operations[0].node.script", wrongTypePayload.FieldPath);
     }
 
+    [Theory]
+    [InlineData(false, null)]
+    [InlineData(true, null)]
+    [InlineData(true, "")]
+    [InlineData(true, "stale-source-hash")]
+    public void ScriptSourceHashIsOptionalMetadata(bool includeHash, string? sourceHash)
+    {
+        var script = new Dictionary<string, object?>
+        {
+            ["nodeId"] = "node-script",
+            ["source"] = "return 1",
+            ["languageVersion"] = "0.1",
+            ["inputs"] = Array.Empty<object>(),
+            ["outputs"] = Array.Empty<object>(),
+        };
+        if (includeHash)
+            script["sourceHash"] = sourceHash;
+
+        var normalized = new FlowPatchContractNormalizer().Normalize(Request(new
+        {
+            op = "addNode",
+            canvasId = "main",
+            node = new
+            {
+                id = "node-script",
+                type = "script",
+                displayName = "Script",
+                x = 0,
+                y = 0,
+                ports = Array.Empty<object>(),
+                parameters = Array.Empty<object>(),
+                script,
+            },
+        }));
+
+        Assert.Equal("addNode", Assert.Single(normalized.Request.Operations).Op);
+        Assert.Empty(normalized.Warnings);
+    }
+
     [Fact]
     public void AllowsReturnTypeMetadataOnBuiltInScriptAndFlowCallNodes()
     {

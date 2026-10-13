@@ -295,6 +295,13 @@ MCP API 密钥管理工具仅限管理员使用。使用
 `isAdministrator: true`；管理员 key 设置 `isAdministrator: true` 且不得提供
 `projectId`。
 
+类库导入先调用 `sereinflow_preview_library_package`，通过 `packageBase64` 和
+`fileName` 提交完成的 ZIP。包 `sha256` 和 DLL 哈希元数据使用预览返回的服务端
+计算结果，客户端本地计算哈希为可选操作。`sereinflow_apply_library_package` 只使用
+`previewId`、`previewFingerprint`、`confirmation: "APPLY"` 和 `idempotencyKey`，
+无需重新发送包字节或哈希。服务端在导入前核对暂存包的大小和 SHA-256 是否与预览
+一致；包发生变化时需要重新创建并审阅预览。
+
 流程修改使用 `sereinflow_preview_flow_patch` 预览，再由显式确认的对应应用工具执行；
 v2 请求使用 `schemaVersion: "2.0"`、`op` 判别字段、具名 payload 和规范的 camelCase
 枚举值。新请求必须使用 Schema 2.0；服务端仅为读取既有调用和历史预览而兼容旧版
@@ -329,6 +336,10 @@ Action/Flipflop 合同，返回完整的规范 `NodeDto`、运行时类库元数
 `builtinNodeId` 和有限的画布 `position`。将返回的 `node` 原样放入 `addNode` 或
 `replaceNode`；它已经是完整的 Schema 2.0 节点，包含执行端口、数据输出元数据、
 参数和运行时 UI 元数据。
+
+脚本节点载荷中的 `script.sourceHash` 是可选元数据，可省略或传入 `null`。服务端
+从 `script.source` 计算权威哈希，客户端编辑源码时无需计算或同步该字段。仅修改
+源码时，使用 `replaceScriptSource` 并提供 `canvasId`、`nodeId` 和 `source`。
 
 FlowCall 的运行时元数据属于 Schema 2.0 合同，编辑时必须保留 `returnType`、
 `targetFlowId`、`targetNodeId`、`targetCanvasId`、`isPublic` 和

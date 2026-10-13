@@ -38,6 +38,20 @@ public interface ILibraryCatalogService
         => UploadAsync(package, fileName, declaredLength, cancellationToken);
 
     /// <summary>
+    /// Imports a previewed package only when its copied bytes match the preview.
+    /// The size and hash must be checked before deduplication or persistence.
+    /// 复制包时校验预览的大小和哈希，校验通过后才可去重或持久化。
+    /// </summary>
+    Task<LibraryUploadResultDto> UploadVerifiedAsync(
+        Stream package,
+        string fileName,
+        long expectedSizeBytes,
+        string expectedSha256,
+        string origin = "mcp",
+        CancellationToken cancellationToken = default)
+        => throw new NotSupportedException("This library catalog does not support importing previewed packages.");
+
+    /// <summary>
     /// Inspects a package without persisting it. MCP may retain the original
     /// bytes only in a bounded, controlled staging area until preview expiry.
     /// 仅扫描而不持久化类库包；MCP 仅可在预览过期前将原始字节保存在受限暂存区。

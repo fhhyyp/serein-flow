@@ -81,6 +81,86 @@ public sealed class LibraryCatalogTests
     }
 
     [Fact]
+    public async Task VerifiedUploadImportsTheInspectedPackageAndRemainsIdempotent()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"sereinflow-library-{Guid.NewGuid():N}.db");
+        var libraryRoot = Path.Combine(Path.GetTempPath(), $"sereinflow-library-{Guid.NewGuid():N}");
+        try
+        {
+            using var database = new SqliteDatabase(new SqliteDatabaseOptions(databasePath));
+            database.Initialize();
+            ILibraryCatalogService catalog = new SqliteLibraryCatalogService(database, new LibraryCatalogOptions(libraryRoot));
+            const string fileName = "SereinFlow.TestLibrary-1.2.3.zip";
+            await using var package = CreatePackage(fileName, "SereinFlow.TestLibrary.dll", typeof(生产线节点).Assembly.Location);
+            var inspection = await catalog.InspectAsync(package, fileName);
+            Assert.NotNull(inspection);
+            Assert.Empty(await catalog.ListAsync());
+
+            package.Position = 0;
+            var uploaded = await catalog.UploadVerifiedAsync(
+                package, fileName, inspection.Library.SizeBytes, inspection.Library.Sha256.ToUpperInvariant());
+            package.Position = 0;
+            var duplicate = await catalog.UploadVerifiedAsync(
+                package, fileName, inspection.Library.SizeBytes, inspection.Library.Sha256);
+
+            Assert.False(uploaded.AlreadyExists);
+            Assert.True(duplicate.AlreadyExists);
+            Assert.Equal(inspection.Library.Id, uploaded.Library.Id);
+            Assert.Equal(uploaded.Library.Id, duplicate.Library.Id);
+            Assert.Single(await catalog.ListAsync());
+        }
+        finally
+        {
+            TryDelete(databasePath);
+            TryDeleteDirectory(libraryRoot);
+        }
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task VerifiedUploadRejectsMismatchedHashOrSizeBeforePersistenceAndDeduplication(
+        bool alreadyUploaded,
+        bool mismatchedSize)
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"sereinflow-library-{Guid.NewGuid():N}.db");
+        var libraryRoot = Path.Combine(Path.GetTempPath(), $"sereinflow-library-{Guid.NewGuid():N}");
+        try
+        {
+            using var database = new SqliteDatabase(new SqliteDatabaseOptions(databasePath));
+            database.Initialize();
+            ILibraryCatalogService catalog = new SqliteLibraryCatalogService(database, new LibraryCatalogOptions(libraryRoot));
+            const string fileName = "SereinFlow.TestLibrary-1.2.3.zip";
+            await using var package = CreatePackage(fileName, "SereinFlow.TestLibrary.dll", typeof(生产线节点).Assembly.Location);
+            var inspection = await catalog.InspectAsync(package, fileName);
+            Assert.NotNull(inspection);
+            package.Position = 0;
+            if (alreadyUploaded)
+            {
+                await catalog.UploadAsync(package, fileName);
+                package.Position = 0;
+            }
+
+            var error = await Assert.ThrowsAsync<LibraryUploadException>(() => catalog.UploadVerifiedAsync(
+                package, fileName,
+                inspection.Library.SizeBytes + (mismatchedSize ? 1 : 0),
+                mismatchedSize ? inspection.Library.Sha256 : new string('0', 64)));
+
+            Assert.Equal(409, error.StatusCode);
+            Assert.Equal(alreadyUploaded ? 1 : 0, (await catalog.ListAsync()).Count);
+            Assert.Empty(Directory.GetFiles(libraryRoot, ".upload-*.tmp"));
+            Assert.Equal(alreadyUploaded ? 1 : 0, Directory.GetFiles(Path.Combine(libraryRoot, "packages"), "*.zip").Length);
+        }
+        finally
+        {
+            TryDelete(databasePath);
+            TryDeleteDirectory(libraryRoot);
+        }
+    }
+
+    [Fact]
     public async Task UploadRejectsDllWhenAssemblyNameDoesNotMatchPackageName()
     {
         var databasePath = Path.Combine(Path.GetTempPath(), $"sereinflow-library-{Guid.NewGuid():N}.db");

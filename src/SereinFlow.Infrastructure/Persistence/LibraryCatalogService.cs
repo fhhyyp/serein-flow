@@ -185,6 +185,27 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         long? declaredLength,
         CancellationToken cancellationToken,
         string origin)
+        => await UploadCoreAsync(package, fileName, declaredLength, origin, expectedSha256: null, cancellationToken);
+
+    public Task<LibraryUploadResultDto> UploadVerifiedAsync(
+        Stream package,
+        string fileName,
+        long expectedSizeBytes,
+        string expectedSha256,
+        string origin = "mcp",
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedSha256);
+        return UploadCoreAsync(package, fileName, expectedSizeBytes, origin, expectedSha256, cancellationToken);
+    }
+
+    private async Task<LibraryUploadResultDto> UploadCoreAsync(
+        Stream package,
+        string fileName,
+        long? declaredLength,
+        string origin,
+        string? expectedSha256,
+        CancellationToken cancellationToken)
     {
         if (package is null)
             throw new ArgumentNullException(nameof(package), "The library package stream cannot be null. 类库包流不能为空。");
@@ -199,6 +220,11 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         try
         {
             var (size, sha256) = await CopyToTemporaryFileAsync(package, temporaryPath, cancellationToken);
+            if (expectedSha256 is not null
+                && (size != declaredLength || !string.Equals(sha256, expectedSha256, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new LibraryUploadException("The staged library package changed after preview.", 409);
+            }
             var existing = await FindAsyncCore(sha256, cancellationToken);
             if (existing is not null)
             {

@@ -342,6 +342,17 @@ public sealed class McpBackendIntegrationTests
                 && op.GetProperty("enum")[0].GetString() == "setRunPolicy");
         Assert.Equal("string", runPolicy.GetProperty("properties").GetProperty("runPolicy").GetProperty("properties").GetProperty("concurrencyMode").GetProperty("oneOf")[0].GetProperty("type").GetString());
         Assert.False(runPolicy.GetProperty("additionalProperties").GetBoolean());
+
+        var addNode = alternatives.EnumerateArray()
+            .Single(item => item.GetProperty("properties").TryGetProperty("op", out var op)
+                && op.GetProperty("enum")[0].GetString() == "addNode");
+        var scriptNode = addNode.GetProperty("properties").GetProperty("node").GetProperty("oneOf")
+            .EnumerateArray().Single(item => item.GetProperty("properties").GetProperty("type")
+                .GetProperty("enum")[0].GetString() == "script");
+        var script = scriptNode.GetProperty("properties").GetProperty("script");
+        Assert.DoesNotContain("sourceHash", script.GetProperty("required").EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal("null", script.GetProperty("properties").GetProperty("sourceHash")
+            .GetProperty("oneOf")[1].GetProperty("type").GetString());
     }
 
     [Fact]
