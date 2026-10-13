@@ -24,5 +24,7 @@ AddSereinFlow
 | 让多个节点共用业务对象 | 在类库内用 `[FlowService]` 注册，详见[服务注入](/library/services)。 |
 | 在已有 ASP.NET Core 站点中提供 SereinFlow | 在宿主调用[三步接入](/integration/hosting)。 |
 | 从另一段 .NET 代码发起流程 | 注册[客户端 SDK](/integration/client-di)。 |
+| 修改脚本编译、执行或缓存 | 在 [ScriptAdapter](/script/script-adapter) 中扩展，并接入 Worker 注册。 |
+| 给脚本增加可导入的方法或属性 | 在 [ScriptModules](/script/script-modules) 中声明原型并注册模块。 |
 
 `AddSereinFlowStorage`、`AddSereinFlowApplication`、`AddSereinFlowExecution` 等方法确实存在于当前源码，但普通宿主接入已经由 `AddSereinFlow` 统一完成。除非你正在开发 SereinFlow 本身，否则按统一入口接入更容易保持服务之间的配置一致。

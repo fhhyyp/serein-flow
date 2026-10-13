@@ -24,6 +24,7 @@ Drag in a second script node, connect the first node to it with a flow connectio
 
 ## Next steps
 
+- [Use SereinScript](/en/script/usage) covers code editing, inputs and outputs, logs, and shared variables.
 - [Projects and flows](/en/modules/projects-and-flows) explains what you created.
 - [Runs and results](/en/modules/runs) explains states, events, and outputs.
 - [Run a flow with the API](/en/guide/run-with-api) runs the same flow outside the console.

@@ -24,6 +24,7 @@
 
 ## 接下来读什么
 
+- [使用 SereinScript](/script/usage)：编辑代码、配置输入输出、记录日志与共享变量。
 - [项目与流程](/modules/projects-and-flows)：弄懂刚才创建了哪些东西。
 - [运行与结果](/modules/runs)：看懂运行状态、事件和输出。
 - [用 API 运行流程](/guide/run-with-api)：在网页之外启动同一个流程。

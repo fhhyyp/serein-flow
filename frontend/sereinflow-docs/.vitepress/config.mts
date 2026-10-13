@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitepress'
+import sereinlang from './sereinlang.tmLanguage.json'
 
 const repository = 'https://github.com/fhhyyp/serein-flow'
 
@@ -10,6 +11,10 @@ const sections = {
   modules: {
     zh: ['认识各模块', ['先看全貌', ''], ['项目与流程', 'projects-and-flows'], ['节点与类库', 'nodes-and-libraries'], ['版本与发布', 'versions'], ['运行与结果', 'runs'], ['调试流程', 'debugging'], ['公开流程接口', 'public-interfaces'], ['环境设置与密钥', 'environment']],
     en: ['Concepts', ['Overview', ''], ['Projects and flows', 'projects-and-flows'], ['Nodes and libraries', 'nodes-and-libraries'], ['Versions and publishing', 'versions'], ['Runs and results', 'runs'], ['Debugging', 'debugging'], ['Public interfaces', 'public-interfaces'], ['Environment and keys', 'environment']],
+  },
+  script: {
+    zh: ['SereinScript', ['使用与开发概览', ''], ['在流程中使用脚本', 'usage'], ['扩展 ScriptAdapter', 'script-adapter'], ['扩展 ScriptModules', 'script-modules']],
+    en: ['SereinScript', ['Usage and development', ''], ['Use scripts in flows', 'usage'], ['Extend ScriptAdapter', 'script-adapter'], ['Extend ScriptModules', 'script-modules']],
   },
   library: {
     zh: ['编写节点类库', ['先看全貌', ''], ['写出第一个节点', 'first-node'], ['节点参数与执行方式', 'node-contracts'], ['注册自己的服务', 'services'], ['使用内置服务', 'built-in-services'], ['加载 native DLL', 'native-dll'], ['打包、上传与排错', 'package-upload']],
@@ -44,8 +49,8 @@ function sidebar(locale: 'zh' | 'en') {
 function nav(locale: 'zh' | 'en') {
   const prefix = locale === 'en' ? '/en' : ''
   const items = locale === 'en'
-    ? [['Get started', '/guide/getting-started'], ['Concepts', '/modules/'], ['Node libraries', '/library/'], ['Integration', '/integration/'], ['REST API', '/api/']]
-    : [['开始使用', '/guide/getting-started'], ['认识各模块', '/modules/'], ['编写节点类库', '/library/'], ['服务与接入', '/integration/'], ['REST API', '/api/']]
+    ? [['Get started', '/guide/getting-started'], ['Concepts', '/modules/'], ['SereinScript', '/script/'], ['Node libraries', '/library/'], ['Integration', '/integration/'], ['REST API', '/api/']]
+    : [['开始使用', '/guide/getting-started'], ['认识各模块', '/modules/'], ['SereinScript', '/script/'], ['编写节点类库', '/library/'], ['服务与接入', '/integration/'], ['REST API', '/api/']]
   return items.map(([text, path]) => ({ text, link: prefix + path }))
 }
 
@@ -54,6 +59,9 @@ export default defineConfig({
   title: 'SereinFlow',
   description: 'SereinFlow 工作流编排与执行文档',
   cleanUrls: true,
+  markdown: {
+    languages: [sereinlang],
+  },
   sitemap: { hostname: 'http://sereinflow.ningxi.cc' },
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],

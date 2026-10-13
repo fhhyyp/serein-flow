@@ -6,6 +6,8 @@ Each block in a flow is a **node**. It can run a script or call a method in an u
 
 The built-in catalog currently includes Script and FlowCall nodes. Script runs SereinScript; FlowCall invokes an exposed node on another canvas.
 
+See [Use SereinScript](/en/script/usage) for editing, syntax, input/output behavior, and built-in modules. Start with [SereinScript usage and development](/en/script/) to extend execution or add C# modules.
+
 For device connections or business logic, build a .NET node library and upload it as a ZIP. Then reference the library from a project so its nodes appear in that project's catalog.
 
 ## Read and write flow variables in scripts

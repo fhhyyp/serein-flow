@@ -24,5 +24,7 @@ Uploaded nodes run in a Worker. It only supplies public node services and object
 | Share an object between nodes | Register it with `[FlowService]` in the library; see [Services](/en/library/services). |
 | Add SereinFlow to an ASP.NET Core site | Follow [host setup](/en/integration/hosting). |
 | Start flows from another .NET process | Register the [client SDK](/en/integration/client-di). |
+| Change script compilation, execution, or caching | Extend [ScriptAdapter](/en/script/script-adapter) and update Worker registration. |
+| Add importable script methods or properties | Declare prototypes and register modules in [ScriptModules](/en/script/script-modules). |
 
 The source also contains `AddSereinFlowStorage`, `AddSereinFlowApplication`, and `AddSereinFlowExecution`. Normal host integration uses `AddSereinFlow` to keep those registrations aligned.
