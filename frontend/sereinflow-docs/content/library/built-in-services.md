@@ -45,6 +45,10 @@ public sealed class BatchNodes(LibraryVariableService variables)
 
 `Snapshot()` 可在锁保护下复制当前变量表，复制后的字典与原表独立，值仍保留对象引用。运行期间也可以通过 HTTP/MCP 读写变量，并在工作区的 **流程变量** 面板动态查看，接口与类型约定见[运行 API](/api/runs#流程变量表)。
 
+脚本节点通过 `import { variables } from "sereinflow"` 使用同一张表，支持
+`variables.contain(name)`、`variables.get(name)` 和 `variables.set(name, value)`。
+示例与转换规则见[脚本流程变量](/modules/nodes-and-libraries#在脚本中读写流程变量)。
+
 ## 等待一条消息
 
 `IMessageService.CreateMessageQueue()` 创建队列视图。相同主题中的一条消息只会被一个接收者取走。下面的等待节点允许外部 API 向 `device.inbox` 投递 JSON 消息：

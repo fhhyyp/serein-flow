@@ -2,6 +2,7 @@ using System.Collections;
 using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
+using SereinFlow.ScriptModules;
 using ScriptLang.Runtime;
 
 namespace SereinFlow.ScriptAdapter;
@@ -14,36 +15,7 @@ namespace SereinFlow.ScriptAdapter;
 public static class ScriptValueConverter
 {
     public static Value ToScriptValue(object? value)
-    {
-        if (value is JsonElement element)
-            return FromJsonElement(element);
-
-        return value switch
-        {
-            null => Value.Null,
-            Value scriptValue => scriptValue,
-            bool boolean => BoolValue.Create(boolean),
-            byte number => NumberValueFactory.Create((int)number),
-            short number => NumberValueFactory.Create((int)number),
-            int number => NumberValueFactory.Create(number),
-            uint number => NumberValueFactory.Create((long)number),
-            long number => NumberValueFactory.Create(number),
-            ulong number => NumberValueFactory.Create(Convert.ToDecimal(number, CultureInfo.InvariantCulture)),
-            float number => NumberValueFactory.Create(number),
-            double number => NumberValueFactory.Create(number),
-            decimal number => NumberValueFactory.Create(number),
-            string text => StringValue.Create(text),
-            char character => StringValue.Create(character.ToString()),
-            DateTime dateTime => new DateTimeValue(dateTime),
-            TimeSpan timeSpan => new TimeSpanValue(timeSpan),
-            IDictionary dictionary => FromDictionary(dictionary),
-            IEnumerable sequence when value is not string => FromSequence(sequence),
-            // CLR objects are meaningful only inside the current Worker run.
-            // They are never allowed to pass into audit/protocol JSON directly.
-            // CLR 对象只在当前 Worker Run 内有意义，绝不能直接进入审计或协议 JSON。
-            _ => new ClrObjectValue(value)
-        };
-    }
+        => SereinFlowScriptValueConverter.ToScriptValue(value);
 
     /// <summary>
     /// Produces a JSON-safe, diagnostic representation. CLR object/method and
@@ -89,7 +61,7 @@ public static class ScriptValueConverter
         if (maxDepth < 0)
             return new Dictionary<string, object?> { ["$kind"] = "DepthLimit" };
         if (value is JsonElement element)
-            return ToAuditValue(FromJsonElement(element), maxDepth, maxItems);
+            return ToAuditValue(ToScriptValue(element), maxDepth, maxItems);
         if (value is IDictionary dictionary)
         {
             if (dictionary.Count > maxItems)
@@ -137,42 +109,6 @@ public static class ScriptValueConverter
     // 保留该兼容名称供显式需要可序列化表示的调用方使用；流程内部传递不会调用它。
     public static object? ToClrValue(Value value, int maxDepth = 32, int maxItems = 10_000)
         => ToAuditValue(value, maxDepth, maxItems);
-
-    private static Value FromJsonElement(JsonElement element)
-        => element.ValueKind switch
-        {
-            JsonValueKind.Null or JsonValueKind.Undefined => Value.Null,
-            JsonValueKind.True => BoolValue.True,
-            JsonValueKind.False => BoolValue.False,
-            JsonValueKind.String => StringValue.Create(element.GetString()),
-            JsonValueKind.Number when element.TryGetInt32(out var intValue) => NumberValueFactory.Create(intValue),
-            JsonValueKind.Number when element.TryGetInt64(out var longValue) => NumberValueFactory.Create(longValue),
-            JsonValueKind.Number when element.TryGetDecimal(out var decimalValue) => NumberValueFactory.Create(decimalValue),
-            JsonValueKind.Number => NumberValueFactory.Create(element.GetDouble()),
-            JsonValueKind.Array => new ArrayValue(element.EnumerateArray().Select(FromJsonElement).ToList()),
-            JsonValueKind.Object => new ObjectValue(element.EnumerateObject().ToDictionary(p => p.Name, p => FromJsonElement(p.Value), StringComparer.Ordinal)),
-            _ => throw new NotSupportedException($"JSON value kind '{element.ValueKind}' is not supported. 不支持 JSON 值类型“{element.ValueKind}”。")
-        };
-
-    private static ObjectValue FromDictionary(IDictionary dictionary)
-    {
-        var result = new Dictionary<string, Value>(StringComparer.Ordinal);
-        foreach (DictionaryEntry entry in dictionary)
-        {
-            if (entry.Key is not string key || string.IsNullOrWhiteSpace(key))
-                throw new NotSupportedException("Script object keys must be non-empty strings. 脚本对象键必须是非空字符串。");
-            result[key] = ToScriptValue(entry.Value);
-        }
-        return new ObjectValue(result);
-    }
-
-    private static ArrayValue FromSequence(IEnumerable sequence)
-    {
-        var result = new List<Value>();
-        foreach (var item in sequence)
-            result.Add(ToScriptValue(item));
-        return new ArrayValue(result);
-    }
 
     private static object?[] ToAuditArray(ArrayValue array, int maxDepth, int maxItems)
     {

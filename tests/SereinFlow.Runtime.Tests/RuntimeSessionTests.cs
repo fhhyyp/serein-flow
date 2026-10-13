@@ -555,6 +555,7 @@ public sealed class RuntimeSessionTests
             CallerOutputWasHidden = request.Context.Read("call.result") is null;
             FrameDepth = Assert.IsType<FlowExecutionSession>(request.Context).FrameDepth;
             Variables = Assert.IsType<FlowExecutionSession>(request.Context).Variables;
+            Assert.Same(Variables, request.Runtime!.Variables);
             Variables.Set("shared", Variables.Get<int>("shared") + 1);
             return ValueTask.FromResult(NodeExecutionResult.Success(
                 new Dictionary<string, object?> { ["result"] = Input }));
@@ -611,6 +612,7 @@ public sealed class RuntimeSessionTests
         public async ValueTask<NodeExecutionResult> WaitForTriggerAsync(NodeExecutionRequest request, CancellationToken cancellationToken)
         {
             Variables = Assert.IsType<FlowExecutionSession>(request.Context).Variables;
+            Assert.Same(Variables, request.Runtime!.Variables);
             Started.TrySetResult();
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             return NodeExecutionResult.Success();

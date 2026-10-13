@@ -8,6 +8,34 @@ The built-in catalog currently includes Script and FlowCall nodes. Script runs S
 
 For device connections or business logic, build a .NET node library and upload it as a ZIP. Then reference the library from a project so its nodes appear in that project's catalog.
 
+## Read and write flow variables in scripts
+
+Import `variables` to share the current run's table with C# library nodes,
+listener triggers and FlowCall frames:
+
+```sereinlang
+import { variables } from "sereinflow"
+variables.set("batch.count", 42)
+if variables.contain("batch.count") {
+    return variables.get("batch.count")
+}
+return null
+```
+
+`get(name)` returns null when absent or null; `contain(name)` distinguishes the
+two. `set(name, value)` creates or replaces a variable. Names must be non-empty,
+non-whitespace, case-sensitive strings. Here `42` is stored as an `int`, readable
+in C# with `Get<int>("batch.count")`.
+
+Arrays and objects are copied into CLR containers; call `set` to save script
+mutations. CLR handles retain identity. Functions and method values cannot be
+stored. Collection conversion is bounded to 32 nesting levels and 10,000 items
+per container. Each table operation is locked; multiple `get`/`set` calls do not
+form an atomic update. Inspect values in **Flow variables** during a run and in
+its saved final snapshot afterward. See
+[Built-in services](/en/library/built-in-services#share-flow-variables) and
+[Runs API](/en/api/runs#flow-variables) for sharing rules and routes.
+
 ## Uploading and referencing are separate
 
 1. `POST /api/libraries/upload` registers the library package.

@@ -56,6 +56,12 @@ and mutations of stored objects separately.
 
 `Snapshot()` copies the current table under its lock while retaining object references. Active-run variables can also be read/written through HTTP/MCP and inspected in the **Flow variables** workspace panel. See [Runs API](/en/api/runs#flow-variables) for routes and value types.
 
+Script nodes use the same table through `import { variables } from "sereinflow"`,
+with `variables.contain(name)`, `variables.get(name)` and
+`variables.set(name, value)`. See
+[Script flow variables](/en/modules/nodes-and-libraries#read-and-write-flow-variables-in-scripts)
+for examples and conversion rules.
+
 ## Wait for a message
 
 `IMessageService.CreateMessageQueue()` creates a queue view. A message on a topic is consumed by one receiver. This node allows the external API to publish JSON to `device.inbox`:

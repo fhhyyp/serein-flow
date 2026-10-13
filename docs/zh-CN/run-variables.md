@@ -2,6 +2,31 @@
 
 每次运行拥有一张 `LibraryVariableService` 表。节点、触发器、`FlowCall` 调用帧及所有上传类库共用它，其他运行独立。节点通过构造函数注入或 `IFlowContext.Variables` 访问；方法说明见[节点类库开发](node-library-development.md#92-流程变量表libraryvariableservice)。`Snapshot()` 在表内锁保护下复制当前名称和值，引用对象仍保留原始引用。
 
+## 脚本读写
+
+`SereinFlow.ScriptModules` 在内置 `sereinflow` 模块中导出 `variables`，与 C# 节点的
+`LibraryVariableService` 共用同一张表：
+
+```sereinlang
+import { variables, log } from "sereinflow"
+variables.set("batch.count", 42)
+variables.set("batch.note", null)
+if variables.contain("batch.count") {
+    log.info(variables.get("batch.count"))
+}
+return variables.get("batch.count")
+```
+
+`contain(name)` 判断变量存在，包括值为 null 的变量；`get(name)` 在不存在或值为 null 时
+返回 null；`set(name, value)` 新增或覆盖并返回 null。名称必须是非空、非纯空白的字符串，
+区分大小写。脚本写入的 `42` 按 `System.Int32` 存储，C# 可直接 `Get<int>("batch.count")`。
+
+脚本数组存为 `object?[]`，对象存为 `Dictionary<string, object?>`。这些容器转换时复制，
+脚本修改后需再次 `set` 保存；CLR 句柄及容器内的句柄保留原引用。HTTP/MCP 写入的 JSON 可按
+脚本对象或数组读取。不支持存储脚本函数和方法值。集合转换最多嵌套 32 层、每个容器最多
+10,000 项，循环引用报错。单次读写有锁保护，多次 `get`/`set` 不构成原子更新。
+详见 [ScriptModules 说明](../../src/SereinFlow.ScriptModules/README.md)。
+
 ## HTTP 读写
 
 | 方法 | 路径 | 权限 |

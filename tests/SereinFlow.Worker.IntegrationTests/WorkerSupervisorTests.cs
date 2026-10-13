@@ -683,6 +683,84 @@ public sealed class WorkerSupervisorTests
         }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SupervisorSharesVariablesBetweenScriptsLibrariesAndExternalDebugWrites(bool debugRun)
+    {
+        var packageRoot = CreateTestLibraryPackageRoot();
+        try
+        {
+            var events = new List<WorkerEventEnvelopeDto>();
+            var supervisor = CreateSupervisor(allowedLibraryPackageRoot: packageRoot);
+            var first = CreateVariableScriptNode("write", """
+                import { variables } from "sereinflow"
+                variables.set("test.variables.count", 41)
+                return variables.get("test.variables.count")
+                """);
+            var library = CreateLibraryServiceNode("library", "Increment shared variable", typeof(VariableNodes), nameof(VariableNodes.ShareVariables));
+            var last = CreateVariableScriptNode("read", """
+                import { variables } from "sereinflow"
+                variables.set("script.observed", variables.get("test.variables.count"))
+                return variables.get("script.observed")
+                """);
+            var definition = new FlowDefinitionDto(Guid.NewGuid(), 5, 1,
+                [new CanvasDto("main", CanvasLifecycleDto.Main, [first, library, last],
+                    [new ConnectionDto("write-library", first.Id, "success", library.Id, "execute", ConnectionKindDto.Execution, ExecutionBranchDto.Success, null, 0),
+                     new ConnectionDto("library-read", library.Id, "success", last.Id, "execute", ConnectionKindDto.Execution, ExecutionBranchDto.Success, null, 0)])],
+                first.Id, "test");
+            var request = new WorkerRunRequestDto(WorkerProtocol.Version, Guid.NewGuid(), definition.Id, 1,
+                JsonSerializer.Serialize(definition), DateTimeOffset.UtcNow.AddSeconds(20),
+                LibraryPackageRootPath: packageRoot, AllowedLibraryIds: [TestLibraryArtifactId]);
+            WorkerRunResultDto result;
+            if (debugRun)
+            {
+                request = request with { Debug = new WorkerDebugOptionsDto(Guid.NewGuid(), [last.Id]) };
+                var pause = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                await using var debug = await supervisor.StartDebugAsync(request, (workerEvent, _) =>
+                {
+                    events.Add(workerEvent);
+                    if (workerEvent.EventType == WorkerEventType.DebugPaused) pause.TrySetResult();
+                    return ValueTask.CompletedTask;
+                });
+                await pause.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                var read = await supervisor.AccessVariablesAsync(new(WorkerProtocol.Version, request.RunId, "get", "test.variables.count"));
+                Assert.Equal(42, read.Variable!.Value!.Value.GetInt32());
+                var write = await supervisor.AccessVariablesAsync(new(WorkerProtocol.Version, request.RunId, "set",
+                    "test.variables.count", JsonSerializer.SerializeToElement(60), "int32"));
+                Assert.Equal(200, write.StatusCode);
+                await debug.ContinueAsync(1);
+                result = await debug.Completion.WaitAsync(TimeSpan.FromSeconds(10));
+            }
+            else
+            {
+                result = await supervisor.RunAsync(request, (workerEvent, _) =>
+                {
+                    events.Add(workerEvent);
+                    return ValueTask.CompletedTask;
+                });
+            }
+            Assert.Equal(FlowRunStatusDto.Succeeded, result.Status);
+            Assert.Equal("42", GetLibraryNodeResult(events, library.Id));
+            var expected = debugRun ? 60 : 42;
+            var completed = Assert.Single(events, item => item.EventType == WorkerEventType.NodeCompleted && item.NodeId == last.Id);
+            using var payload = JsonDocument.Parse(completed.PayloadJson);
+            Assert.Equal(expected, payload.RootElement.GetProperty("outputs").GetProperty("result").GetInt32());
+            Assert.True(result.FinalVariables!.IsFinal);
+            foreach (var name in new[] { "test.variables.count", "script.observed" })
+            {
+                var variable = Assert.Single(result.FinalVariables.Variables, item => item.Name == name);
+                Assert.Equal("System.Int32", variable.ClrType);
+                Assert.Equal(expected, variable.Value!.Value.GetInt32());
+            }
+        }
+        finally { TryDeleteDirectory(packageRoot); }
+    }
+
+    private static NodeDto CreateVariableScriptNode(string id, string source)
+        => new(id, NodeTypeDto.Script, id, 0, 0, [], [], new ScriptNodeDataDto(id, source, "1",
+            SereinFlow.Domain.ScriptNodeDefinition.ComputeSourceHash(source), [], [new ScriptValueContractDto("result", "System.Int32", false)]));
+
     [Fact]
     public async Task SupervisorDeliversJsonMessageToRegisteredActiveFlipflopEndpoint()
     {

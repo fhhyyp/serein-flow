@@ -8,6 +8,29 @@
 
 如果需要连接设备、处理业务数据等，可以编写 .NET 节点类库，打成 ZIP 包并上传。上传后，先让项目引用这个类库，节点才会出现在项目可用的目录里。
 
+## 在脚本中读写流程变量
+
+脚本可导入 `variables`，与同一次运行中的 C# 类库节点、触发器和 FlowCall 子流程共用变量表：
+
+```sereinlang
+import { variables } from "sereinflow"
+variables.set("batch.count", 42)
+if variables.contain("batch.count") {
+    return variables.get("batch.count")
+}
+return null
+```
+
+`get(name)` 在变量不存在或值为 null 时返回 null；`contain(name)` 可区分两种情况。
+`set(name, value)` 新增或覆盖变量。名称区分大小写，必须是非空、非纯空白的字符串。
+上面的 `42` 存为 `int`，C# 节点可直接用 `Get<int>("batch.count")` 读取。
+
+数组、对象会转为 CLR 容器，转换时复制，脚本修改后需再次 `set` 保存；CLR 对象句柄保留原引用。
+函数和方法值不能存入变量表，集合转换最多嵌套 32 层、每个容器最多 10,000 项。
+每次表内读写受锁保护，多次 `get`/`set` 组成的更新并非原子操作。
+运行时在 **流程变量** 面板查看，结束后可在运行快照中查看已保存的最终值。
+接口和共享规则见[内置服务](/library/built-in-services#共用流程变量)及[运行 API](/api/runs#流程变量表)。
+
 ## 上传与引用是两步
 
 1. `POST /api/libraries/upload` 上传类库包，让服务器认识它。

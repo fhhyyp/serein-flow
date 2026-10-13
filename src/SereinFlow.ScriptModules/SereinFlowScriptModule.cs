@@ -1,4 +1,5 @@
 using SereinFlow.Runtime.Abstractions;
+using SereinFlow.Library;
 using ScriptLang;
 using ScriptLang.Runtime;
 
@@ -7,10 +8,9 @@ namespace SereinFlow.ScriptModules
 
 /// <summary>
 /// Registers the SereinFlow-provided script module for one Script node invocation.
-/// Each registration owns distinct module instances so concurrent triggers and
-/// FlowCall frames can never share runtime state.
-/// 为一次 Script 节点调用注册 SereinFlow 提供的脚本模块。每次注册均拥有独立模块实例，
-/// 因此并发触发器和 FlowCall 调用帧不会共享运行状态。
+/// Each registration owns distinct module instances and invocation metadata;
+/// variables intentionally share the current run's table across all contexts.
+/// 为一次 Script 节点调用注册独立模块实例及调用元数据；变量共用当前运行的变量表。
 /// </summary>
 public static class SereinFlowScriptModuleRegistration
 {
@@ -23,14 +23,17 @@ public static class SereinFlowScriptModuleRegistration
 
         var log = new SereinFlowLogModule(context);
         var environment = new SereinFlowEnvironmentModule(context);
+        var variables = new SereinFlowVariableModule(context);
         engine.PrototypeManager.Register(log);
         engine.PrototypeManager.Register(environment);
+        engine.PrototypeManager.Register(variables);
         engine.ImportResolver.RegisterBuiltinModule(
             ModuleName,
             new ObjectValue(new Dictionary<string, Value>(StringComparer.Ordinal)
             {
                 ["log"] = new ClrObjectValue(log),
-                ["env"] = new ClrObjectValue(environment)
+                ["env"] = new ClrObjectValue(environment),
+                ["variables"] = new ClrObjectValue(variables)
             }));
     }
 }
@@ -55,6 +58,15 @@ public sealed class SereinFlowScriptModuleContext
     public NodeExecutionEnvironment? Environment => _runtime?.Environment;
 
     public bool IsCancellationRequested => _cancellationToken.IsCancellationRequested || (_runtime?.IsCancellationRequested ?? false);
+
+    internal LibraryVariableService GetVariables()
+    {
+        _cancellationToken.ThrowIfCancellationRequested();
+        if (_runtime?.IsCancellationRequested == true)
+            throw new OperationCanceledException("The flow run was cancelled. 流程运行已取消。", _cancellationToken);
+        return _runtime?.Variables
+            ?? throw new NotSupportedException("Flow variables require an active run variable table. 流程变量需要宿主提供运行级变量表。");
+    }
 
     public async Task<Value> PublishLogAsync(string level, Value value)
     {
@@ -139,6 +151,35 @@ internal sealed partial class SereinFlowEnvironmentModule
     [PrototypeProperty]
     public static BoolValue IsCancellationRequested(SereinFlowEnvironmentModule target)
         => BoolValue.Create(target._context.IsCancellationRequested);
+}
+
+[PrototypeExtension(PushThis = true, NamingFormat = NamingFormat.Js)]
+internal sealed partial class SereinFlowVariableModule
+{
+    private readonly SereinFlowScriptModuleContext _context;
+
+    public SereinFlowVariableModule(SereinFlowScriptModuleContext context)
+    {
+        _context = context ?? throw new ArgumentNullException(nameof(context));
+    }
+
+    public partial bool IsTarget(Value value) => value is ClrObjectValue clr && clr.Value is SereinFlowVariableModule;
+
+    [PrototypeFunction]
+    public static BoolValue Contain(SereinFlowVariableModule target, StringValue name)
+        => BoolValue.Create(target._context.GetVariables().Contain(name.Value));
+
+    [PrototypeFunction]
+    public static Value Get(SereinFlowVariableModule target, StringValue name)
+        => SereinFlowScriptValueConverter.ToScriptValue(target._context.GetVariables().Get(name.Value));
+
+    [PrototypeFunction]
+    public static Value Set(SereinFlowVariableModule target, StringValue name, Value value)
+    {
+        var variables = target._context.GetVariables();
+        variables.Set(name.Value, SereinFlowScriptValueConverter.ToVariableValue(value));
+        return Value.Null;
+    }
 }
 
 }

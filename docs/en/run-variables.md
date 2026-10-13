@@ -2,6 +2,35 @@
 
 Each run owns one `LibraryVariableService`, shared by node contexts, listener triggers, FlowCall frames, and uploaded libraries. Other runs have independent tables. Nodes use constructor injection or `IFlowContext.Variables`; see [Node library development](node-library-development.md#92-flow-variables-libraryvariableservice). `Snapshot()` copies the table under its lock while retaining stored object references.
 
+## Script access
+
+`SereinFlow.ScriptModules` exports `variables` from the built-in `sereinflow`
+module. It shares the C# nodes' `LibraryVariableService` table:
+
+```sereinlang
+import { variables, log } from "sereinflow"
+variables.set("batch.count", 42)
+variables.set("batch.note", null)
+if variables.contain("batch.count") {
+    log.info(variables.get("batch.count"))
+}
+return variables.get("batch.count")
+```
+
+`contain(name)` checks presence, including stored null. `get(name)` returns null
+when absent or null. `set(name, value)` creates or replaces a variable and returns
+null. Names must be non-empty, non-whitespace, case-sensitive strings. Script `42`
+is stored as `System.Int32`, readable in C# with `Get<int>("batch.count")`.
+
+Script arrays become `object?[]` and objects become `Dictionary<string, object?>`.
+Containers are copied during conversion; call `set` to save script mutations.
+CLR handles retain identity, including nested handles. JSON written through
+HTTP/MCP is readable as script objects and arrays. Script functions and method
+values cannot be stored. Conversion is bounded to 32 nesting levels and 10,000
+items per container; cycles fail. Each read/write is locked; multiple `get`/`set`
+calls do not form an atomic update. See the
+[ScriptModules README](../../src/SereinFlow.ScriptModules/README.md).
+
 ## HTTP access
 
 | Method | Route | Permission |

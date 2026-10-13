@@ -1,4 +1,5 @@
 using SereinFlow.Domain;
+using LibraryVariableService = SereinFlow.Library.LibraryVariableService;
 
 namespace SereinFlow.Runtime.Abstractions;
 
@@ -74,16 +75,24 @@ public sealed class NodeExecutionRuntime
     public NodeExecutionRuntime(
         NodeExecutionEnvironment environment,
         INodeExecutionEventSink? eventSink = null,
-        Func<bool>? isCancellationRequested = null)
+        Func<bool>? isCancellationRequested = null,
+        LibraryVariableService? variables = null)
     {
         Environment = environment ?? throw new ArgumentNullException(nameof(environment));
         EventSink = eventSink ?? NullNodeExecutionEventSink.Instance;
         _isCancellationRequested = isCancellationRequested ?? (static () => false);
+        Variables = variables;
     }
 
     public NodeExecutionEnvironment Environment { get; }
 
     public INodeExecutionEventSink EventSink { get; }
+
+    /// <summary>
+    /// The table shared by all node invocations in this run, when supplied by the host.
+    /// 宿主提供的运行级变量表，由本次运行的全部节点调用共用。
+    /// </summary>
+    public LibraryVariableService? Variables { get; }
 
     public bool IsCancellationRequested => _isCancellationRequested();
 }

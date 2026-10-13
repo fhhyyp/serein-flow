@@ -621,7 +621,8 @@ public sealed class FlowRunner
         var runtime = new NodeExecutionRuntime(
             environment,
             new NodeEventSink(this, session, node.Id, executionId),
-            () => session.CancellationToken.IsCancellationRequested);
+            () => session.CancellationToken.IsCancellationRequested,
+            session.Variables);
         return new NodeExecutionRequest(node, session, inputs, runtime, step, executionId);
     }
 
