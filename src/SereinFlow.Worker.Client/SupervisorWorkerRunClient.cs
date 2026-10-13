@@ -23,7 +23,7 @@ public sealed record SupervisorWorkerRunClientOptions(
     TimeSpan? MessageDeliveryTimeout = null,
     string? AllowedWorkpieceRoot = null);
 
-public sealed class SupervisorWorkerRunClient : IWorkerDebugRunClient, IWorkerMessageRunClient
+public sealed class SupervisorWorkerRunClient : IWorkerDebugRunClient, IWorkerMessageRunClient, IWorkerVariableRunClient
 {
     private readonly WorkerSupervisor _supervisor;
 
@@ -95,6 +95,10 @@ public sealed class SupervisorWorkerRunClient : IWorkerDebugRunClient, IWorkerMe
         WorkerMessageDeliveryDto delivery,
         CancellationToken cancellationToken = default)
         => _supervisor.DeliverMessageAsync(delivery, cancellationToken);
+
+    public Task<WorkerVariableResponseDto> AccessVariablesAsync(
+        WorkerVariableRequestDto request, CancellationToken cancellationToken = default)
+        => _supervisor.AccessVariablesAsync(request, cancellationToken);
 
     private sealed class SupervisorDebugRunHandle(WorkerSupervisor.DebugRunSession session) : IWorkerDebugRunHandle
     {

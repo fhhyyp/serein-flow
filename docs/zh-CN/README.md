@@ -7,6 +7,8 @@
 
 ## 参考资料
 
+- [流程变量表](run-variables.md)：节点共享变量、HTTP/MCP 读写、前端动态查看和 JSON 投影边界。
+
 - [ASP.NET Core 宿主接入](aspnetcore-hosting.md)：在现有 Web 项目中启用 REST、SignalR 和 HTTP MCP。
 - [MCP 服务参考](mcp-readonly-server.md)：HTTP 和 stdio 传输、鉴权、资源、提示词、
   工具与运行边界。

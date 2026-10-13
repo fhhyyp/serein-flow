@@ -21,6 +21,7 @@ public static class SereinFlowExecutionRegistration
         services.AddScoped<RunSubmissionService>();
         services.AddScoped<RunInterruptionService>();
         services.AddScoped<IRunMessageDeliveryService, RunMessageDeliveryService>();
+        services.AddScoped<IRunVariableService, RunVariableService>();
 
         services.AddSingleton<SupervisorWorkerRunClient>(serviceProvider =>
         {
@@ -48,6 +49,8 @@ public static class SereinFlowExecutionRegistration
         services.AddSingleton<IWorkerDebugRunClient>(serviceProvider =>
             serviceProvider.GetRequiredService<SupervisorWorkerRunClient>());
         services.AddSingleton<IWorkerMessageRunClient>(serviceProvider =>
+            serviceProvider.GetRequiredService<SupervisorWorkerRunClient>());
+        services.AddSingleton<IWorkerVariableRunClient>(serviceProvider =>
             serviceProvider.GetRequiredService<SupervisorWorkerRunClient>());
         services.AddSingleton<RunExecutionQueue>();
         services.AddSingleton<RunEventBroadcaster>();

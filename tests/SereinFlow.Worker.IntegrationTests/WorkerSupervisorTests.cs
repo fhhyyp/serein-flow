@@ -595,6 +595,95 @@ public sealed class WorkerSupervisorTests
     }
 
     [Fact]
+    public async Task SupervisorReadsAndWritesTheNodeVariableTableWhileDebugIsPaused()
+    {
+        var packageRoot = CreateTestLibraryPackageRoot();
+        try
+        {
+            var events = new List<WorkerEventEnvelopeDto>();
+            var firstPause = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var secondPause = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var supervisor = CreateSupervisor(allowedLibraryPackageRoot: packageRoot);
+            var request = CreateTwoNodeLibraryServiceRequest(DateTimeOffset.UtcNow.AddSeconds(20),
+                packageRoot, typeof(VariableNodes), nameof(VariableNodes.ShareVariables)) with
+            {
+                Debug = new WorkerDebugOptionsDto(Guid.NewGuid(), ["library-service-first", "library-service-second"])
+            };
+            await using var debug = await supervisor.StartDebugAsync(request, (workerEvent, _) =>
+            {
+                events.Add(workerEvent);
+                if (workerEvent.EventType == WorkerEventType.DebugPaused)
+                {
+                    using var payload = JsonDocument.Parse(workerEvent.PayloadJson);
+                    if (payload.RootElement.GetProperty("nodeId").GetString() == "library-service-first") firstPause.TrySetResult();
+                    else secondPause.TrySetResult();
+                }
+                return ValueTask.CompletedTask;
+            });
+            await firstPause.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            var empty = await supervisor.AccessVariablesAsync(new(WorkerProtocol.Version, request.RunId, "list"));
+            Assert.Empty(empty.Snapshot!.Variables);
+            var nullWrite = await supervisor.AccessVariablesAsync(new(WorkerProtocol.Version, request.RunId, "set",
+                "note", JsonSerializer.SerializeToElement<object?>(null), "null"));
+            Assert.Equal(200, nullWrite.StatusCode);
+            Assert.True(nullWrite.Variable!.ValueAvailable);
+            Assert.Null(nullWrite.Variable.Value);
+            var write = await supervisor.AccessVariablesAsync(new(WorkerProtocol.Version, request.RunId, "set",
+                "test.variables.count", JsonSerializer.SerializeToElement(42), "int32"));
+            Assert.Equal(200, write.StatusCode);
+            await debug.ContinueAsync(1);
+            await secondPause.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            var read = await supervisor.AccessVariablesAsync(new(WorkerProtocol.Version, request.RunId, "get", "test.variables.count"));
+            Assert.Equal(43, read.Variable!.Value!.Value.GetInt32());
+            Assert.Equal("System.Int32", read.Variable.ClrType);
+            Assert.Equal("43", GetLibraryNodeResult(events, "library-service-first"));
+            await debug.ContinueAsync(2);
+            var completed = await debug.Completion.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Equal(FlowRunStatusDto.Succeeded, completed.Status);
+            Assert.True(completed.FinalVariables!.IsFinal);
+            Assert.Equal(44, Assert.Single(completed.FinalVariables.Variables, variable => variable.Name == "test.variables.count").Value!.Value.GetInt32());
+            Assert.Equal("44", GetLibraryNodeResult(events, "library-service-second"));
+            await debug.DisposeAsync();
+            Assert.Equal(409, (await supervisor.AccessVariablesAsync(new(WorkerProtocol.Version, request.RunId, "list"))).StatusCode);
+        }
+        finally { TryDeleteDirectory(packageRoot); }
+    }
+
+    [Fact]
+    public async Task SupervisorSharesVariablesAcrossNodeContextsAndIsolatesRuns()
+    {
+        var packageRoot = CreateTestLibraryPackageRoot();
+        try
+        {
+            var supervisor = CreateSupervisor(allowedLibraryPackageRoot: packageRoot);
+            for (var run = 0; run < 2; run++)
+            {
+                var events = new List<WorkerEventEnvelopeDto>();
+                var request = CreateTwoNodeLibraryServiceRequest(
+                    DateTimeOffset.UtcNow.AddSeconds(15),
+                    packageRoot,
+                    typeof(VariableNodes),
+                    nameof(VariableNodes.ShareVariables));
+                var result = await supervisor.RunAsync(request, (workerEvent, _) =>
+                {
+                    events.Add(workerEvent);
+                    return ValueTask.CompletedTask;
+                });
+
+                Assert.Equal(FlowRunStatusDto.Succeeded, result.Status);
+                Assert.Equal("1", GetLibraryNodeResult(events, "library-service-first"));
+                Assert.Equal("2", GetLibraryNodeResult(events, "library-service-second"));
+                Assert.True(result.FinalVariables!.IsFinal);
+                Assert.Equal(2, Assert.Single(result.FinalVariables.Variables, variable => variable.Name == "test.variables.count").Value!.Value.GetInt32());
+            }
+        }
+        finally
+        {
+            TryDeleteDirectory(packageRoot);
+        }
+    }
+
+    [Fact]
     public async Task SupervisorDeliversJsonMessageToRegisteredActiveFlipflopEndpoint()
     {
         var packageRoot = CreateTestLibraryPackageRoot();

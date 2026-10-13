@@ -18,6 +18,9 @@ One run is one execution. Save the returned `runId` to inspect status, node outp
 | `POST` | `/api/runs/{runId}/cancel` | Cancel an unfinished run |
 | `POST` | `/api/runs/{runId}/interrupt` | Mark an unmanaged run interrupted |
 | `POST` | `/api/runs/{runId}/messages/{topic}` | Publish a message to an active run |
+| `GET` | `/api/runs/{runId}/variables?offset=0&take=100` | Read active-run variables |
+| `GET` | `/api/runs/{runId}/variables/{name}` | Read one variable |
+| `PUT` | `/api/runs/{runId}/variables/{name}` | Set a variable with run.variable.write |
 | `GET` | `/api/runs/{runId}/workpieces` | List generated files |
 | `GET` | `/api/runs/{runId}/workpieces/{workpieceId}` | Read a file; `download=true` downloads it |
 
@@ -47,3 +50,18 @@ After `202`, poll `GET /api/runs/{runId}` until the state leaves `pending` or `r
 For messages, `{topic}` names a topic in the active run. The body contains `payload` and may include `messageId`, `contractId`, and `channelKind`. The flow must allow external ingress. Reuse an `Idempotency-Key` header for safe retries.
 
 List workpieces, then use the returned `workpieceId` to read or download a file. See [Runs and results](/en/modules/runs). `/interrupt` is only for a record that has lost Worker management but still appears running; use `/cancel` for normal cancellation.
+## Flow variables
+
+`GET /api/runs/{runId}/variables?offset=0&take=100` reads a sorted page; `GET /api/runs/{runId}/variables/{name}` reads one variable. Both require project-scoped `run.read`. `PUT /api/runs/{runId}/variables/{name}` requires `run.variable.write` and an explicit body:
+
+```json
+{ "value": 42, "valueType": "int32" }
+```
+
+Supported types are `null`, `boolean`, `string`, `int32`, `int64`, `double`, `decimal`, and `json`. An `int32` is stored as `System.Int32`, so nodes can use `Get<int>(name)`. A `json` value is stored as `JsonElement`. Strings are not implicitly parsed as numbers, and assembly-qualified type names are rejected.
+
+List responses contain `variables`, `totalCount`, `hasMore`, and `capturedAt`; `take` defaults to 100 and accepts 1–200. Each entry has its name, CLR type, `valueAvailable`, JSON `value`, and raw `valueJson` text preserving numeric precision. Complex CLR objects expose type metadata only; inspection does not execute arbitrary getters or `ToString()`. JSON values are bounded to 16 KiB and responses to 512 KB, with unavailable markers for oversized projections.
+
+MCP exposes `sereinflow_get_run_variables` (`runId`, optional `name` or pagination) and `sereinflow_set_run_variable` (`runId`, `name`, `value`, `valueType`, `idempotencyKey`). Successful retries with the same key replay the response without another write.
+
+Open **Flow variables** from the editor or run snapshot panel switcher. Active runs refresh every second; finished runs load a saved final snapshot, including when reopened later. Ordinary and debug Workers capture final variables once before exit and persist them with the terminal event. `isFinal` identifies saved snapshots; `isTruncated` marks the 2,000-entry or 256 KB storage limit. Safe JSON values and type metadata are saved; original CLR objects such as `Mat` are not. Older runs, crashes, and forced termination may return `409 variable.snapshot_unavailable`. Missing variables return `404`, writes to finished runs `409`, invalid values `400`, oversized writes `413`, and acknowledgement timeouts `504`.

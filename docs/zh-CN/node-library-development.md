@@ -49,12 +49,10 @@ Worker 运行 ──► 解压到本次运行目录、隔离加载程序集、�
 仓库内的 `TestLibrary` 和 `OpenCvLibrary` 为便于联调，使用对 `SereinFlow.Library.csproj` 的 `ProjectReference`。新类库应使用下列命名空间中的 SDK 契约：
 
 ```csharp
-using SereinFlow.Core.Api;             // FlowLibrary、FlowNode、NodeParam、NodeResult 等
-using SereinFlow.Library;              // 消息、工件、Native、服务生命周期
-using SereinFlow.Runtime.Abstractions; // IFlowContext（类型属于 SDK 程序集）
+using SereinFlow.Library; // 特性、IFlowContext、变量、消息、工件、Native 和服务生命周期
 ```
 
-`SereinFlow.Contracts` 仍保留类型转发以支持旧二进制，但新类库应直接引用 `SereinFlow.Library`，不要在类库中复制旧的 `DynamicFlow`、`NodeAction` 或自定义同名特性。
+所有公开 SDK 类型统一使用 `SereinFlow.Library` 命名空间。使用旧 `SereinFlow.Core.Api` 或 `SereinFlow.Runtime.Abstractions.IFlowContext` 的类库需要更新 `using` 并重新编译；类型转发无法保留被重命名类型的旧标识。新类库应直接引用 `SereinFlow.Library`，不要复制旧的 `DynamicFlow`、`NodeAction` 或自定义同名特性。
 
 ## 3. 节点容器、节点标注和稳定身份
 
@@ -143,7 +141,7 @@ public string Describe(
 }
 ```
 
-`IFlowContext` 只提供受限的节点上下文，不提供任意流程数据、环境变量、密钥、API 仓储或 `IServiceProvider`。
+`IFlowContext` 提供受限的节点上下文和运行级 `Variables` 变量表，不提供引擎内部流程数据、环境变量、密钥、API 仓储或 `IServiceProvider`。
 
 ### 4.2 返回值
 
@@ -325,6 +323,7 @@ OpenCV 类库的每个处理节点都把结果编码为 PNG 后调用 `UploadNod
 Worker 为每个上传类库的受限容器预注册：
 
 - `IMessageService`：运行级消息队列/事件总线；
+- `LibraryVariableService`：所有类库及流程上下文共用的运行级变量表，与 `IFlowContext.Variables` 为同一实例；
 - `IFlowWorkpiece`：运行级工件服务；
 - `IFlowNativeLibraryLoader`：当前类库包的 Native 加载器。
 
@@ -339,7 +338,41 @@ public sealed class DeviceNodes(
 }
 ```
 
-### 9.2 用 `FlowService` 声明类库自己的依赖
+### 9.2 流程变量表：`LibraryVariableService`
+
+每次流程运行创建一张变量表，所有节点、全局触发器上下文、`FlowCall` 调用帧和上传类库共享它。可以从构造函数注入 `LibraryVariableService`，也可以通过方法参数 `IFlowContext.Variables` 访问；两者指向同一个实例。不同运行互相隔离，原始 CLR 对象仅存于本次 Worker 内存；结束时保存一次有界 JSON 投影及类型信息，供历史运行查看。
+
+```csharp
+using SereinFlow.Library;
+
+[FlowLibrary("批次变量")]
+public sealed class BatchNodes(LibraryVariableService variables)
+{
+    [FlowNode]
+    public void Save(IFlowContext context)
+    {
+        variables.Set("batch.count", 42);
+        context.Variables.Set<string?>("batch.note", null);
+    }
+
+    [FlowNode]
+    public int Read() => variables.Get<int>("batch.count");
+}
+```
+
+| 方法 | 语义 |
+| --- | --- |
+| `bool Contain(string name)` | 判断名称是否存在；值为 null 时也返回 true。 |
+| `object? Get(string name)` | 返回原始对象；不存在时返回 null。 |
+| `T? Get<T>(string name)` | 强制转换或拆箱为 T；不存在时返回 `default(T)`。 |
+| `bool TryGet<T>(string name, out T? value)` | 不存在时返回 false 和 `default(T)`；存在时强制转换或拆箱并返回 true。 |
+| `void Set<T>(string name, T value)` | 新增或覆盖变量；允许 null。 |
+
+名称区分大小写，不能为 null、空字符串或纯空白。底层以 `object` 存储，值类型装箱，引用类型保留原引用。泛型读取遵循 CLR 强制转换/拆箱规则，不自动解析字符串或转换数值类型：存入 `int` 后不能以 `long` 读取。类型不匹配时，`Get<T>` 和 `TryGet<T>` 均抛出 `InvalidCastException`；null 可读为引用类型或可空值类型，读为非可空值类型也抛出该异常。`Get<int>` 在变量不存在时返回 0，可用 `Contain` 或 `TryGet` 区分不存在与已存入的 0。
+
+每个读写操作均受锁保护，但多个方法组成的“读取再更新”操作不会自动成为原子操作，存储的引用对象自身也不由表内锁保护；这两种情况由调用方同步。
+
+### 9.3 用 `FlowService` 声明类库自己的依赖
 
 只有同一上传程序集中的具体、闭合类可以通过 `FlowService` 注册：
 
@@ -438,7 +471,7 @@ public sealed class MessageNodes(IMessageService messages)
 固定依赖可在程序集或节点类上声明：
 
 ```csharp
-using SereinFlow.Core.Api;
+using SereinFlow.Library;
 
 [assembly: NativeLibraryDirectory(
     "runtimes/{rid}/native",

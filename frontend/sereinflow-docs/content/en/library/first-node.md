@@ -19,7 +19,7 @@ Outside this repository you can reference the `SereinFlow.Library` package inste
 Create `QualityNodes.cs`:
 
 ```csharp
-using SereinFlow.Core.Api;
+using SereinFlow.Library;
 
 namespace MyFlowNodes;
 

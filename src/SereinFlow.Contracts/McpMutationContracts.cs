@@ -22,6 +22,7 @@ public enum McpPermissionDto
     SensitiveRead,
     RunMessagePublish,
     RunExecute,
+    RunVariableWrite,
 }
 
 /// <summary>
@@ -52,6 +53,7 @@ public static class McpPermissionNames
             [McpPermissionDto.SensitiveRead] = "sensitive.read",
             [McpPermissionDto.RunMessagePublish] = "run.message.publish",
             [McpPermissionDto.RunExecute] = "run.execute",
+            [McpPermissionDto.RunVariableWrite] = "run.variable.write",
         };
 
     public static string ToName(McpPermissionDto permission)

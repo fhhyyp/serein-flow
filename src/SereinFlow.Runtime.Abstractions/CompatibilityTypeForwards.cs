@@ -1,9 +1,7 @@
 using System.Runtime.CompilerServices;
 
-// Existing node libraries referenced Runtime.Abstractions directly. Forward
-// the public context contract so those binaries continue to resolve while new
-// libraries can depend only on SereinFlow.Library.
-// 既有节点类库可能直接引用 Runtime.Abstractions。通过类型转发保持这些二进制可解析，
-// 新类库则只需依赖 SereinFlow.Library。
-[assembly: TypeForwardedTo(typeof(SereinFlow.Runtime.Abstractions.IFlowContext))]
-[assembly: TypeForwardedTo(typeof(SereinFlow.Runtime.Abstractions.FlowContextContract))]
+// Forward the canonical SDK contracts to SereinFlow.Library. Libraries using
+// the former Runtime.Abstractions namespace must update their imports and rebuild.
+// 将规范化后的 SDK 契约转发至 SereinFlow.Library；使用旧命名空间的类库需更新引用并重新编译。
+[assembly: TypeForwardedTo(typeof(SereinFlow.Library.IFlowContext))]
+[assembly: TypeForwardedTo(typeof(SereinFlow.Library.FlowContextContract))]

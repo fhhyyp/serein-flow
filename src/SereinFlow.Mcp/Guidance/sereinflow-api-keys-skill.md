@@ -9,7 +9,7 @@ keys cannot be project-scoped.
 `project.read`, `project.write`, `library.read`, `run.read`, `debug.read`,
 `flow.write`, `debug.control`, `flow.publish`, `flow.rollback`,
 `script.compile`, `library.import`, `library.manage`, `mcp.keys.manage`,
-`sensitive.read` and `run.message.publish`. A project-scoped key supplies
+`sensitive.read`, `run.message.publish` and `run.variable.write`. A project-scoped key supplies
 `projectId` with `isAdministrator: false` (or omits that optional flag); an
 administrator key supplies `isAdministrator: true` and omits `projectId`.
 

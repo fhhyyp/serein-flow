@@ -42,8 +42,14 @@ SereinFlow.TestLibrary-1.6.1\
 - `监听设备配置变更`：Flipflop，返回 `Task<设备配置摘要>`，用于验证 Flipflop 的枚举参数转换和异步输出。
 
 类库源码通过独立的 `SereinFlow.Library` NuGet SDK 使用
-`SereinFlow.Core.Api` 下的 `FlowLibrary`、`FlowNode`、`NodeParam` 和
-`NodeType`，以及 `SereinFlow.Runtime.Abstractions.IFlowContext`。该 SDK
+`SereinFlow.Library` 下的 `FlowLibrary`、`FlowNode`、`NodeParam` 和
+`NodeType`，以及 `SereinFlow.Library.IFlowContext`。该 SDK
 不依赖 SereinFlow Domain、Application 或 Worker；类库不应复制这些特性，
 也不应继续使用旧版 `DynamicFlow`/`NodeAction` 标注。服务端通过稳定的完整
 类型名读取 PE 元数据，不使用属性名后缀匹配，也不需要在 API 进程加载 DLL。
+
+所有 SDK 公开类型统一位于 `SereinFlow.Library` 命名空间。旧类库需更新引用并重新编译。
+`VariableNodes.ShareVariables` 验证构造函数注入的 `LibraryVariableService` 与
+`IFlowContext.Variables` 为同一实例：连续节点调用共用计数，新的流程运行重新从 1 开始。
+变量表还与触发器、`FlowCall` 子流程上下文共用，每次读写受锁保护；泛型读取按 CLR
+强制转换/拆箱规则处理，类型不匹配时抛出 `InvalidCastException`。

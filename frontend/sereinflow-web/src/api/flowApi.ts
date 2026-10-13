@@ -578,6 +578,30 @@ export async function getFlowRun(runId: string): Promise<FlowRunDto> {
   return request<FlowRunDto>(`/api/runs/${runId}`)
 }
 
+export interface RunVariableDto {
+  name: string
+  clrType: string | null
+  valueAvailable: boolean
+  value: unknown
+  valueJson?: string | null
+  unavailableReason?: string | null
+}
+
+export interface RunVariableSnapshotDto {
+  runId: string
+  variables: RunVariableDto[]
+  totalCount: number
+  offset: number
+  hasMore: boolean
+  capturedAt: string
+  isFinal?: boolean
+  isTruncated?: boolean
+}
+
+export async function getFlowRunVariables(runId: string, offset = 0, take = 100, signal?: AbortSignal): Promise<RunVariableSnapshotDto> {
+  return request<RunVariableSnapshotDto>(`/api/runs/${encodeURIComponent(runId)}/variables?offset=${offset}&take=${take}`, { signal })
+}
+
 export async function listFlowRuns(options: { statuses?: FlowRunDto['status'][]; projectId?: string; take?: number } = {}): Promise<FlowRunDto[]> {
   const query = new URLSearchParams()
   if (options.statuses?.length) {
@@ -916,9 +940,10 @@ export function subscribeWorkspaceChanges(
   }
 }
 
-async function request<T>(path: string, options: { method?: 'POST' | 'PUT' | 'DELETE'; body?: unknown } = {}): Promise<T> {
+async function request<T>(path: string, options: { method?: 'POST' | 'PUT' | 'DELETE'; body?: unknown; signal?: AbortSignal } = {}): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     method: options.method,
+    signal: options.signal,
     headers: options.body ? { 'content-type': 'application/json' } : undefined,
     body: options.body ? JSON.stringify(options.body) : undefined,
   })

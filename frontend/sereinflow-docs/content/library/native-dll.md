@@ -23,7 +23,7 @@ MyFlowNodes-1.0.0.zip
 如果每次使用类库都需要这些文件，推荐在程序集上声明：
 
 ```csharp
-using SereinFlow.Core.Api;
+using SereinFlow.Library;
 
 [assembly: NativeLibraryDirectory(
     "runtimes/{rid}/native",
@@ -40,7 +40,6 @@ using SereinFlow.Core.Api;
 如果只在某个节点工作时才需要依赖，可以把 `IFlowNativeLibraryLoader` 写进节点构造函数：
 
 ```csharp
-using SereinFlow.Core.Api;
 using SereinFlow.Library;
 
 [FlowLibrary("设备工具")]

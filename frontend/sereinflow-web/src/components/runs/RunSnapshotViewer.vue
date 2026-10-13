@@ -8,6 +8,7 @@ import FlowNodeCard from '../flow/FlowNodeCard.vue'
 import RunSnapshotNodeInspector from './RunSnapshotNodeInspector.vue'
 import RunSnapshotOutputViewer from './RunSnapshotOutputViewer.vue'
 import RunWorkpiecePanel from './RunWorkpiecePanel.vue'
+import RunVariablePanel from './RunVariablePanel.vue'
 import DockablePanelGroup from '../workspace/DockablePanelGroup.vue'
 import WorkspacePanelSwitcher, { type WorkspacePanelItem } from '../workspace/WorkspacePanelSwitcher.vue'
 import { t } from '../../i18n'
@@ -29,6 +30,7 @@ const props = defineProps<{
   events: FlowRunEventDto[]
   eventsError?: string
   isDebugRun?: boolean
+  live?: boolean
 }>()
 
 const nodeTypes = markRaw({ workflow: FlowNodeCard })
@@ -155,6 +157,7 @@ const renderedElements = computed<Array<FlowNode | FlowEdge>>(() => {
 const panelDefinitions = computed<WorkspacePanelTab[]>(() => [
   { id: 'canvas', label: t('panel.canvas'), icon: markRaw(LayoutGrid), closable: false },
   { id: 'workpieces', label: t('panel.workpieces'), icon: markRaw(PackageOpen) },
+  { id: 'variables', label: t('variables.title'), icon: markRaw(ListOrdered) },
   { id: 'debug', label: t('console.snapshotExecution'), icon: markRaw(ListOrdered) },
   { id: 'inspector', label: t('console.snapshotProperties'), icon: markRaw(Settings2) },
   { id: 'output', label: t('console.snapshotRunOutput'), icon: markRaw(Terminal) },
@@ -376,6 +379,7 @@ function closeWorkspacePanel(panelId: WorkspacePanelId): void {
               <div class="canvas-legend run-snapshot-viewer__legend" aria-hidden="true"><span><i class="legend-port execution"></i>{{ t('edge.flow') }}</span><span><i class="legend-port data"></i>{{ t('edge.value') }}</span></div>
             </div>
 
+            <RunVariablePanel v-else-if="panelId === 'variables'" :run-id="props.runId" :live="props.live" :embedded="true" />
             <RunWorkpiecePanel
               v-else-if="panelId === 'workpieces'"
               :run-id="props.runId"

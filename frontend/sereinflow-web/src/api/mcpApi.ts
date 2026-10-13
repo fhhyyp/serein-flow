@@ -15,6 +15,7 @@ export type McpPermission =
   | 'library.manage'
   | 'mcp.keys.manage'
   | 'sensitive.read'
+  | 'run.variable.write'
 
 export interface McpApiKeyDto {
   id: string

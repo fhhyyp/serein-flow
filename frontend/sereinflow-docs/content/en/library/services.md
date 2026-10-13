@@ -5,7 +5,7 @@ When two nodes use the same device, put the device access in a C# class marked w
 ## Minimal example
 
 ```csharp
-using SereinFlow.Core.Api;
+using SereinFlow.Library;
 
 namespace MyFlowNodes;
 

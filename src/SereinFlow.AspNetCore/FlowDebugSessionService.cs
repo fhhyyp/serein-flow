@@ -473,8 +473,8 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
                     run.Cancel(DebugErrorCodes.Stop, DateTimeOffset.UtcNow);
                 else
                     run.Complete(ToDomainStatus(result.Status), DateTimeOffset.UtcNow, result.ErrorMessage);
-                await runStore.SaveAsync(run, CancellationToken.None);
                 await PublishTerminalAsync(run, result, eventStore, CancellationToken.None);
+                await runStore.SaveAsync(run, CancellationToken.None);
             }
 
             var session = await debugStore.FindAsync(sessionId, CancellationToken.None);
@@ -639,7 +639,7 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
             type,
             null,
             JsonSerializer.Serialize(
-                new { result.Status, result.ErrorCode, result.ErrorMessage, cancellationSource = run.CancellationReason },
+                new { result.Status, result.ErrorCode, result.ErrorMessage, cancellationSource = run.CancellationReason, variables = result.FinalVariables },
                 SereinJsonSerialization.CreateWebOptions()));
         await eventStore.AppendAsync([item], cancellationToken);
         await PublishLiveAsync(new FlowRunEventDto(

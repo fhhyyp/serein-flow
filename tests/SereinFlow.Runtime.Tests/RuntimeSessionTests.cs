@@ -15,9 +15,12 @@ public sealed class RuntimeSessionTests
         var disposable = new TrackingDisposable();
         first.Resources.Register(disposable);
         first.Write("value", 42);
+        first.Variables.Set("value", 42);
 
         Assert.Equal(42, first.Read("value"));
         Assert.Null(second.Read("value"));
+        Assert.Equal(42, first.Variables.Get<int>("value"));
+        Assert.False(second.Variables.Contain("value"));
         Assert.Equal(1, first.NextSequence());
         Assert.Equal(1, second.NextSequence());
 
@@ -402,6 +405,7 @@ public sealed class RuntimeSessionTests
 
         await using var session = new FlowExecutionSession();
         session.Write("call.result", "must-not-leak");
+        session.Variables.Set("shared", 42);
         var result = await runner.RunAsync(definition, session);
 
         Assert.True(result.IsSuccess);
@@ -410,6 +414,8 @@ public sealed class RuntimeSessionTests
         Assert.Equal(1, action.FrameDepth);
         Assert.Equal(7L, session.Read("call.result"));
         Assert.Null(session.Read("target.result"));
+        Assert.Same(session.Variables, action.Variables);
+        Assert.Equal(43, session.Variables.Get<int>("shared"));
     }
 
     [Fact]
@@ -493,6 +499,7 @@ public sealed class RuntimeSessionTests
 
         var runTask = runner.RunAsync(definition, session, cancellation.Token).AsTask();
         await executor.Started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Same(session.Variables, executor.Variables);
         cancellation.Cancel();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => runTask);
@@ -540,11 +547,15 @@ public sealed class RuntimeSessionTests
 
         public int FrameDepth { get; private set; }
 
+        public SereinFlow.Library.LibraryVariableService? Variables { get; private set; }
+
         public ValueTask<NodeExecutionResult> ExecuteAsync(NodeExecutionRequest request, CancellationToken cancellationToken)
         {
             Input = request.Inputs["target-value"];
             CallerOutputWasHidden = request.Context.Read("call.result") is null;
             FrameDepth = Assert.IsType<FlowExecutionSession>(request.Context).FrameDepth;
+            Variables = Assert.IsType<FlowExecutionSession>(request.Context).Variables;
+            Variables.Set("shared", Variables.Get<int>("shared") + 1);
             return ValueTask.FromResult(NodeExecutionResult.Success(
                 new Dictionary<string, object?> { ["result"] = Input }));
         }
@@ -592,11 +603,14 @@ public sealed class RuntimeSessionTests
 
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+        public SereinFlow.Library.LibraryVariableService? Variables { get; private set; }
+
         public ValueTask<NodeExecutionResult> ExecuteAsync(NodeExecutionRequest request, CancellationToken cancellationToken)
             => WaitForTriggerAsync(request, cancellationToken);
 
         public async ValueTask<NodeExecutionResult> WaitForTriggerAsync(NodeExecutionRequest request, CancellationToken cancellationToken)
         {
+            Variables = Assert.IsType<FlowExecutionSession>(request.Context).Variables;
             Started.TrySetResult();
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             return NodeExecutionResult.Success();

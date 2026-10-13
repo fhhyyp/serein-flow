@@ -8,6 +8,7 @@ export type WorkspacePanelId =
   | 'diagnostics'
   | 'debug'
   | 'workpieces'
+  | 'variables'
 
 export type DockPosition = 'free' | 'left' | 'right' | 'top' | 'bottom' | 'fill'
 export type DockableWorkspaceMode = 'edit' | 'debug'
@@ -64,6 +65,7 @@ export const workspacePanelIds: WorkspacePanelId[] = [
   'diagnostics',
   'debug',
   'workpieces',
+  'variables',
 ]
 
 function group(
@@ -96,6 +98,7 @@ export function createDefaultDockableWorkspaceLayout(size: WorkspaceSize = { wid
     group('diagnostics', ['diagnostics'], { x: 0, y: 0, width, height: diagnosticsHeight, dock: 'bottom' }, 13),
     group('debug', ['debug'], { x: Math.max(320, Math.round(width * .32)), y: 96, width: Math.min(520, Math.max(380, Math.round(width * .38))), height: Math.min(620, height - 32), dock: 'free' }, 14),
     group('workpieces', ['workpieces'], { x: Math.max(320, Math.round(width * .38)), y: 118, width: Math.min(600, Math.max(420, Math.round(width * .42))), height: Math.min(520, height - 40), dock: 'free' }, 15),
+    group('variables', ['variables'], { x: Math.max(320, Math.round(width * .36)), y: 132, width: Math.min(620, Math.max(420, Math.round(width * .44))), height: Math.min(520, height - 40), dock: 'free' }, 16),
   ]
   groups.find((item) => item.id === 'diagnostics')!.collapsed = true
 
@@ -110,6 +113,7 @@ export function createDefaultDockableWorkspaceLayout(size: WorkspaceSize = { wid
       diagnostics: { visible: false, groupId: 'diagnostics' },
       debug: { visible: false, groupId: 'debug' },
       workpieces: { visible: false, groupId: 'workpieces' },
+      variables: { visible: false, groupId: 'variables' },
     },
     nextGroupNumber: 1,
   }
@@ -222,7 +226,7 @@ export function createSnapshotDockableWorkspaceLayout(size: WorkspaceSize = { wi
       const workpiecesHeight = Math.max(150, Math.round(height * .24))
       return [
         group('snapshot-canvas', ['canvas'], { x: 0, y: 0, width, height: canvasHeight, dock: 'free' }, 10),
-        group('snapshot-workpieces', ['workpieces'], { x: 0, y: canvasHeight, width, height: workpiecesHeight, dock: 'free' }, 11),
+        group('snapshot-workpieces', ['workpieces', 'variables'], { x: 0, y: canvasHeight, width, height: workpiecesHeight, dock: 'free' }, 11),
         group('snapshot-session', ['debug', 'inspector', 'output'], { x: 0, y: canvasHeight + workpiecesHeight, width, height: Math.max(160, height - canvasHeight - workpiecesHeight), dock: 'free' }, 12),
       ]
     })()
@@ -233,7 +237,7 @@ export function createSnapshotDockableWorkspaceLayout(size: WorkspaceSize = { wi
       const sessionWidth = Math.max(320, width - leftWidth)
       return [
         group('snapshot-canvas', ['canvas'], { x: 0, y: 0, width: leftWidth, height: canvasHeight, dock: 'free' }, 10),
-        group('snapshot-workpieces', ['workpieces'], { x: 0, y: canvasHeight, width: leftWidth, height: workpiecesHeight, dock: 'free' }, 11),
+        group('snapshot-workpieces', ['workpieces', 'variables'], { x: 0, y: canvasHeight, width: leftWidth, height: workpiecesHeight, dock: 'free' }, 11),
         group('snapshot-session', ['debug', 'inspector', 'output'], { x: leftWidth, y: 0, width: sessionWidth, height, dock: 'right' }, 12),
       ]
     })()
@@ -249,6 +253,7 @@ export function createSnapshotDockableWorkspaceLayout(size: WorkspaceSize = { wi
       diagnostics: { visible: false, groupId: 'diagnostics' },
       debug: { visible: true, groupId: 'snapshot-session' },
       workpieces: { visible: true, groupId: 'snapshot-workpieces' },
+      variables: { visible: false, groupId: 'snapshot-workpieces' },
     },
     nextGroupNumber: 1,
   }

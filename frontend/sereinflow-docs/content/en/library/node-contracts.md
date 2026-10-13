@@ -20,9 +20,7 @@ Published flows rely on these IDs. Changing display text is safer than changing 
 `NodeType.Flipflop` waits for an external trigger, such as a queue message. Return `Task` or `Task<T>` and pass `IFlowContext.CancellationToken` to the wait so cancellation can end it promptly:
 
 ```csharp
-using SereinFlow.Core.Api;
 using SereinFlow.Library;
-using SereinFlow.Runtime.Abstractions;
 
 [FlowLibrary("Device messages")]
 public sealed class DeviceNodes(IMessageService messages)
@@ -42,6 +40,10 @@ public sealed class DeviceNodes(IMessageService messages)
 
 `IFlowContext` is a **method parameter**, not a constructor dependency. It exposes `RunId`, `NodeId`, `ExecutionId`, and a cancellation token. Use `SelectSuccess()`, `SelectFailure(code, message)`, or `SelectError(code, message)` to select a branch.
 
+`context.Variables` exposes the table shared by nodes, listener triggers, and
+FlowCall frames in this run. See [Built-in services](/en/library/built-in-services)
+for its methods and concurrency behavior.
+
 ## Complex return values
 
 SereinFlow passes the C# result to downstream nodes in the current run, and also writes a public result to events and API outputs. The public result must be JSON-compatible. Large byte arrays, OpenCV `Mat`, and device connections should be handled separately:
@@ -58,9 +60,7 @@ SereinFlow passes the C# result to downstream nodes in the current run, and also
 
 ```csharp
 using System.Text;
-using SereinFlow.Core.Api;
 using SereinFlow.Library;
-using SereinFlow.Runtime.Abstractions;
 
 public sealed record ReportFile(string FileName, byte[] Content);
 

@@ -19,7 +19,7 @@ dotnet add reference ..\src\SereinFlow.Library\SereinFlow.Library.csproj
 在 `QualityNodes.cs` 中写入：
 
 ```csharp
-using SereinFlow.Core.Api;
+using SereinFlow.Library;
 
 namespace MyFlowNodes;
 

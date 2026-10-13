@@ -19,6 +19,9 @@
 | `POST` | `/api/runs/{runId}/interrupt` | 将失去 Worker 管理的运行标为中断 |
 | `POST` | `/api/runs/{runId}/messages/{topic}` | 向活动运行发消息 |
 | `GET` | `/api/runs/{runId}/workpieces` | 列出生成的文件 |
+| `GET` | `/api/runs/{runId}/variables?offset=0&take=100` | 分页读取活动运行变量 |
+| `GET` | `/api/runs/{runId}/variables/{name}` | 读取单个变量 |
+| `PUT` | `/api/runs/{runId}/variables/{name}` | 设置变量，需 `run.variable.write` 权限 |
 | `GET` | `/api/runs/{runId}/workpieces/{workpieceId}` | 读取文件；`download=true` 下载 |
 
 ## 启动请求
@@ -41,6 +44,24 @@
 启动返回 `202` 后，定期查询 `GET /api/runs/{runId}`，直到状态从 `pending` 或 `running` 变为结束状态。成功状态为 `succeeded`；失败时可查看 `errorSummary` 和事件。
 
 持续监听事件的 `/events/stream` 会保持连接，每产生一条新事件就发给客户端。这种方式叫 SSE；它没有放进 OpenAPI 页面。客户端断线后，带上最后收到的 `Last-Event-ID` 可以从后续事件继续读取。
+
+## 流程变量表
+
+变量属于一个运行实例，节点、触发器和子流程共用；普通运行和调试暂停期间都可读写。读取需要 `run.read` 权限，设置需要 `run.variable.write` 权限，并受到项目范围限制。
+
+写入请求示例：
+
+```json
+{ "value": 42, "valueType": "int32" }
+```
+
+`valueType` 必需，可选 `null`、`boolean`、`string`、`int32`、`int64`、`double`、`decimal` 或 `json`。`int32` 在节点中按 `Get<int>(name)` 读取；`json` 存为 `JsonElement`，按 `Get<JsonElement>(name)` 读取。数值不会自动从字符串转换，也不能指定程序集限定类型名。
+
+列表按名称排序，`take` 默认 100、范围 1–200。响应包含名称、CLR 类型、`valueAvailable`、JSON `value` 和保留数值精度的 `valueJson` 文本，以及 `totalCount`、`hasMore`、`capturedAt`。复杂对象只展示类型，不执行属性 getter 或 `ToString()`；超大值会标注无法展示。单值最多 16 KiB JSON，整个响应最多 512 KB。
+
+MCP 使用 `sereinflow_get_run_variables`（`runId`，可选 `name` 或分页参数）和 `sereinflow_set_run_variable`（`runId`、`name`、`value`、`valueType`、`idempotencyKey`）。成功的相同写入请求会按幂等键重放响应。
+
+前端工作区和运行快照窗口都有 **流程变量** 面板，运行时每秒刷新，支持手动刷新和每页 25 项的分页。Worker 退出前采集一次最终变量快照，普通和调试运行均随结束事件保存；结束后及重新打开历史运行时，面板读取保存的快照。`isFinal` 表示最终快照，`isTruncated` 表示达到最多 2,000 项或 256 KB 的保存上限。只保存安全 JSON 投影及类型信息，不保存 `Mat` 等原始 CLR 对象。旧运行、崩溃和强制终止可能没有快照，会返回 `409 variable.snapshot_unavailable`。缺失变量返回 `404`，已结束运行的写入返回 `409`，非法类型返回 `400`，过大写入返回 `413`，应答超时返回 `504`。
 
 ## 消息与工件
 

@@ -1,8 +1,7 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
-using SereinFlow.Core.Api;
-using SereinFlow.Domain;
 using SereinFlow.Library;
+using SereinFlow.Domain;
 using SereinFlow.Runtime;
 using SereinFlow.Runtime.Abstractions;
 using NodeType = SereinFlow.Domain.NodeType;
@@ -155,14 +154,15 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
         return (scope, target);
     }
 
-    private static LibraryFlowContext CreateFlowContext(
+    private LibraryFlowContext CreateFlowContext(
         NodeExecutionRequest request,
         CancellationToken cancellationToken)
         => new(
             request.Context is FlowExecutionSession session ? session.RunId : Guid.Empty,
             request.Node.Id,
             cancellationToken,
-            request.ExecutionId == Guid.Empty ? Guid.NewGuid() : request.ExecutionId);
+            request.ExecutionId == Guid.Empty ? Guid.NewGuid() : request.ExecutionId,
+            _services.Variables);
 
     private NodeExecutionResult CreateExecutionResult(
         LibraryFlowContext flowContext,

@@ -18,3 +18,7 @@ You can also start without breakpoints and observe the session. The session ID c
 Increment `commandSequence` for each new command in a session. It prevents network retries from executing an old command twice.
 
 Try **Debug flow** in the console first, then follow [Debug sessions API](/en/api/debug) to automate the same steps.
+
+## Inspect flow variables
+
+Open **Flow variables** from the panel switcher to inspect names, CLR types, and values shared by this run. Inspection works while paused, refreshes every second while open, and supports manual refresh and paging. The Worker saves a final bounded projection before normal exit; finished runs and reopened historical snapshots load that saved data. Original CLR objects are not persisted. You can also set variables through MCP before continuing execution; see [Runs API](/en/api/runs#flow-variables).

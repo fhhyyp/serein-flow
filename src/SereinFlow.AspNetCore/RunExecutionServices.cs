@@ -986,8 +986,8 @@ public sealed class RunExecutionHostedService : BackgroundService
                 run.Cancel(ResolveCancellationSource(item.RunId, stoppingToken), DateTimeOffset.UtcNow);
             else
                 run.Complete(ToDomainStatus(result.Status), DateTimeOffset.UtcNow, result.ErrorMessage);
-            await runStore.SaveAsync(run, CancellationToken.None);
             await PublishTerminalAsync(run, result, eventStore, CancellationToken.None);
+            await runStore.SaveAsync(run, CancellationToken.None);
             _logger.LogInformation(
                 "Flow run {RunId} finished with status {Status}. 流程实例已结束。",
                 item.RunId,
@@ -1196,7 +1196,7 @@ public sealed class RunExecutionHostedService : BackgroundService
             type,
             null,
             JsonSerializer.Serialize(
-                new { result.Status, result.ErrorCode, result.ErrorMessage, cancellationSource = run.CancellationReason },
+                new { result.Status, result.ErrorCode, result.ErrorMessage, cancellationSource = run.CancellationReason, variables = result.FinalVariables },
                 SereinJsonSerialization.CreateWebOptions()));
         await eventStore.AppendAsync([item], cancellationToken);
         var dto = new FlowRunEventDto(item.RunId, item.Sequence, item.Timestamp, item.Type, item.NodeId, item.PayloadJson);

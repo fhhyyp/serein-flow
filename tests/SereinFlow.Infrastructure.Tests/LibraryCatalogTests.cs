@@ -1,8 +1,7 @@
 using System.IO.Compression;
 using SereinFlow.Application;
-using SereinFlow.Core.Api;
+using SereinFlow.Library;
 using SereinFlow.Infrastructure.Persistence;
-using SereinFlow.Runtime.Abstractions;
 using SereinFlow.TestLibrary;
 
 namespace SereinFlow.Infrastructure.Tests;
@@ -14,6 +13,9 @@ public sealed class LibraryCatalogTests
     {
         Assert.Equal("SereinFlow.Library", typeof(FlowLibraryAttribute).Assembly.GetName().Name);
         Assert.Equal("SereinFlow.Library", typeof(IFlowContext).Assembly.GetName().Name);
+        Assert.All(
+            typeof(FlowLibraryAttribute).Assembly.GetExportedTypes(),
+            type => Assert.Equal("SereinFlow.Library", type.Namespace));
         Assert.DoesNotContain(
             typeof(FlowLibraryAttribute).Assembly.GetReferencedAssemblies(),
             reference => reference.Name is "SereinFlow.Domain" or "SereinFlow.Application" or "SereinFlow.Runtime.Abstractions");

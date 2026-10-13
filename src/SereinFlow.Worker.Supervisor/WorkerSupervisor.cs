@@ -28,7 +28,7 @@ public sealed record RunnerLaunchOptions(
     public TimeSpan EffectiveMessageDeliveryTimeout => MessageDeliveryTimeout ?? TimeSpan.FromSeconds(5);
 }
 
-public sealed class WorkerSupervisor
+public sealed partial class WorkerSupervisor
 {
     private readonly RunnerLaunchOptions _launchOptions;
     private readonly ConcurrentDictionary<Guid, WorkerMessageSession> _messageSessions = new();
@@ -600,7 +600,8 @@ public sealed class WorkerSupervisor
             runId,
             FlowRunStatusDto.TimedOut,
             fallbackCode,
-            "The run deadline elapsed. 运行截止时间已到。");
+            "The run deadline elapsed. 运行截止时间已到。",
+            result.FinalVariables);
     }
 
     private static async Task<(WorkerRunResultDto? Result, long LastSequence)> HandleMessageAsync(
@@ -633,7 +634,7 @@ public sealed class WorkerSupervisor
             case WorkerProtocolConstants.ErrorKind:
             {
                 var error = WorkerProtocolCodec.DeserializePayload<WorkerErrorDto>(message);
-                return (Failure(request.RunId, error.Code, error.Message), lastSequence);
+                return (Failure(request.RunId, error.Code, error.Message) with { FinalVariables = error.FinalVariables }, lastSequence);
             }
             case WorkerProtocolConstants.CancelAcknowledgedKind:
             case WorkerProtocolConstants.HeartbeatAcknowledgedKind:
@@ -808,7 +809,7 @@ public sealed class WorkerSupervisor
     }
 }
 
-internal sealed class WorkerMessageSession
+internal sealed partial class WorkerMessageSession
 {
     private readonly IWorkerTransport _transport;
     private readonly WorkerRunRequestDto _request;
@@ -928,6 +929,8 @@ internal sealed class WorkerMessageSession
 
         switch (message.Kind)
         {
+            case WorkerProtocolConstants.VariableResponseKind:
+                return HandleVariableResponse(message);
             case WorkerProtocolConstants.MessageRegisterKind:
             {
                 var endpoint = WorkerProtocolCodec.DeserializePayload<WorkerMessageEndpointDto>(message);
@@ -991,6 +994,7 @@ internal sealed class WorkerMessageSession
     {
         if (Interlocked.Exchange(ref _completed, 1) == 1)
             return;
+        CompleteVariables();
         foreach (var pending in _pending.Values)
         {
             pending.Completion.TrySetResult(new WorkerMessageDeliveryResponseDto(

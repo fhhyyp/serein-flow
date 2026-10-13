@@ -1,8 +1,6 @@
 using System;
 using OpenCvSharp;
-using SereinFlow.Core.Api;
 using SereinFlow.Library;
-using SereinFlow.Runtime.Abstractions;
 
 namespace SereinFlow.OpenCvLibrary;
 
@@ -40,13 +38,17 @@ public sealed class MatConverter : INodeResultConverter<Mat, object>
 public sealed class OpenCvNodes
 {
     private readonly IFlowWorkpiece _flowWorkpiece;
+    private readonly LibraryVariableService _variables;
 
     /// <summary>
-    /// Creates the node container with the run-scoped workpiece service.
-    /// 使用运行级工件服务创建节点容器。
+    /// Creates the node container with the run-scoped workpiece and variable services.
+    /// 使用运行级工件服务和共享变量表创建节点容器。
     /// </summary>
-    public OpenCvNodes(IFlowWorkpiece flowWorkpiece)
-        => _flowWorkpiece = flowWorkpiece ?? throw new ArgumentNullException(nameof(flowWorkpiece));
+    public OpenCvNodes(IFlowWorkpiece flowWorkpiece, LibraryVariableService variables)
+    {
+        _flowWorkpiece = flowWorkpiece ?? throw new ArgumentNullException(nameof(flowWorkpiece));
+        _variables = variables ?? throw new ArgumentNullException(nameof(variables));
+    }
 
     /// <summary>
     /// Creates a deterministic BGR sample image for demos and smoke tests.
@@ -346,12 +348,47 @@ public sealed class OpenCvNodes
         {
             Cv2.ImEncode(".png", result, out var encoded);
             _ = _flowWorkpiece.UploadNodeOutput(flowContext, fileName, encoded, FlowWorkpieceContentTypes.Png);
+            RecordVariables(result, fileName, flowContext);
             return result;
         }
         catch
         {
             result.Dispose();
             throw;
+        }
+    }
+
+    private void RecordVariables(Mat image, string fileName, IFlowContext flowContext)
+    {
+        var variables = flowContext.Variables;
+        if (!ReferenceEquals(_variables, variables))
+            throw new InvalidOperationException("构造函数与节点上下文必须共用同一张运行级变量表。");
+
+        // Table operations lock individually. Serialize this library's compound updates across
+        // node instances, including first-image initialization and the read-modify-write counter.
+        // 变量表逐次操作加锁；额外同步本类库各节点实例的初始化及计数器读改写。
+        lock (variables)
+        {
+            if (!variables.Contain("opencv.first.width"))
+            {
+                variables.Set("opencv.first.width", image.Width);
+                variables.Set("opencv.first.height", image.Height);
+                variables.Set("opencv.first.channels", image.Channels());
+            }
+
+            var processedCount = _variables.TryGet<int>("opencv.processed.count", out var count) ? count : 0;
+            var firstWidth = _variables.Get<int>("opencv.first.width");
+            var firstHeight = _variables.Get<int>("opencv.first.height");
+
+            variables.Set("opencv.processed.count", checked(processedCount + 1));
+            variables.Set("opencv.last.nodeId", flowContext.NodeId);
+            variables.Set("opencv.last.fileName", fileName);
+            variables.Set("opencv.last.width", image.Width);
+            variables.Set("opencv.last.height", image.Height);
+            variables.Set("opencv.last.channels", image.Channels());
+            variables.Set("opencv.last.scaleX", (double)image.Width / firstWidth);
+            variables.Set("opencv.last.scaleY", (double)image.Height / firstHeight);
+            variables.Set("opencv.last.image", image);
         }
     }
 

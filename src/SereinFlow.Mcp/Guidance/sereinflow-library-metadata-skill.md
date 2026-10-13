@@ -3,14 +3,26 @@
 Use the public SDK types:
 
 ```csharp
-using SereinFlow.Core.Api;
-using SereinFlow.Runtime.Abstractions;
+using SereinFlow.Library;
 ```
 
 Use `FlowLibraryAttribute`, `FlowNodeAttribute`, `NodeParamAttribute`,
 `FlowServiceAttribute`, `FlowServiceLifetime`, `NodeType` and `IFlowContext`.
 Do not define or retain local copies of these types or legacy `DynamicFlow` /
 `NodeAction` metadata; the current scanner ignores or rejects the legacy form.
+
+All public SDK types use `SereinFlow.Library`. Libraries compiled against the
+former SDK namespaces must update their imports and rebuild.
+
+`LibraryVariableService` is a built-in constructor dependency shared by all
+libraries and flow contexts in one run; `IFlowContext.Variables` exposes the
+same instance, including listener triggers and FlowCall frames. Use `Contain`,
+`Get`, `Get<T>`, `TryGet<T>`, and `Set<T>` for locked table access. Missing values
+return null or `default(T)`, and `TryGet<T>` returns false only when absent.
+Generic reads use CLR casts/unboxing and throw `InvalidCastException` on a type
+mismatch, including stored null read as a non-nullable value type. Variable
+names are case-sensitive and non-empty. Values are not persisted across runs;
+mutations of stored objects and read-modify-write sequences require caller synchronization.
 
 ```csharp
 [FlowLibrary("OpenCV Image Processing Demo")]

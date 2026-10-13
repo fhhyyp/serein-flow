@@ -1004,7 +1004,8 @@ public sealed record WorkerRunResultDto(
     Guid RunId,
     FlowRunStatusDto Status,
     string? ErrorCode,
-    string? ErrorMessage);
+    string? ErrorMessage,
+    RunVariableSnapshotDto? FinalVariables = null);
 
 public sealed record ProblemDetailsDto(
     string Type,

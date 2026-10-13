@@ -1,7 +1,6 @@
-using SereinFlow.Core.Api;
+using SereinFlow.Library;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
-using SereinFlow.Library;
 using SereinFlow.Runtime;
 using SereinFlow.Runtime.Abstractions;
 
@@ -11,7 +10,8 @@ internal sealed class LibraryFlowContext(
     Guid runId,
     string nodeId,
     CancellationToken cancellationToken,
-    Guid executionId) : IFlowContext
+    Guid executionId,
+    LibraryVariableService variables) : IFlowContext
 {
     private ExecutionBranch _branch = ExecutionBranch.Success;
     private string? _code;
@@ -24,6 +24,8 @@ internal sealed class LibraryFlowContext(
     public Guid ExecutionId { get; } = executionId;
 
     public CancellationToken CancellationToken { get; } = cancellationToken;
+
+    public LibraryVariableService Variables { get; } = variables;
 
     public void SelectSuccess()
     {

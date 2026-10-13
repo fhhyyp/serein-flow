@@ -9,6 +9,8 @@ find the current material.
 
 ## References
 
+- [Run variables](run-variables.md): shared node variables, HTTP/MCP access, live frontend inspection, and JSON projection limits.
+
 - [ASP.NET Core hosting](aspnetcore-hosting.md): add REST, SignalR, and HTTP MCP to an existing web application.
 - [MCP service reference](mcp-readonly-server.md): HTTP and stdio transports,
   authentication, resources, prompts, tools, and operational boundaries.

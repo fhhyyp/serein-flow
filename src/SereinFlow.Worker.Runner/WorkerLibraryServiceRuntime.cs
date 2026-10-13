@@ -2,9 +2,7 @@ using System.Collections.Concurrent;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using SereinFlow.Contracts;
-using SereinFlow.Core.Api;
 using SereinFlow.Library;
-using SereinFlow.Runtime.Abstractions;
 
 namespace SereinFlow.Worker.Runner;
 
@@ -24,13 +22,17 @@ internal sealed class WorkerLibraryServiceRuntime : IAsyncDisposable
     public WorkerLibraryServiceRuntime(
         IMessageService messageService,
         IFlowWorkpiece workpiece,
+        LibraryVariableService variables,
         Func<Assembly, IFlowNativeLibraryLoader> nativeLibraryLoaderFactory)
     {
         _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
         _workpiece = workpiece ?? throw new ArgumentNullException(nameof(workpiece));
+        Variables = variables ?? throw new ArgumentNullException(nameof(variables));
         _nativeLibraryLoaderFactory = nativeLibraryLoaderFactory
             ?? throw new ArgumentNullException(nameof(nativeLibraryLoaderFactory));
     }
+
+    public LibraryVariableService Variables { get; }
 
     public AsyncServiceScope CreateInvocationScope(Assembly libraryAssembly)
     {
@@ -44,6 +46,7 @@ internal sealed class WorkerLibraryServiceRuntime : IAsyncDisposable
                         assembly,
                         _messageService,
                         _workpiece,
+                        Variables,
                         _nativeLibraryLoaderFactory(assembly)),
                     LazyThreadSafetyMode.ExecutionAndPublication));
             return provider.Value.CreateInvocationScope();
@@ -150,6 +153,7 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
         Assembly assembly,
         IMessageService messageService,
         IFlowWorkpiece workpiece,
+        LibraryVariableService variables,
         IFlowNativeLibraryLoader nativeLibraryLoader)
     {
         var serviceTypes = DiscoverServiceTypes(assembly);
@@ -157,6 +161,7 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
         IServiceCollection services = new ServiceCollection();
         services.AddSingleton(messageService);
         services.AddSingleton(workpiece);
+        services.AddSingleton(variables);
         services.AddSingleton(nativeLibraryLoader);
 
         foreach (var registration in registrations.Implementations)

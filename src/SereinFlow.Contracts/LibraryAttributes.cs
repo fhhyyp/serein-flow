@@ -1,10 +1,9 @@
 using System.Runtime.CompilerServices;
-using SereinFlow.Core.Api;
 using SereinFlow.Library;
 
-// Keep the original Contracts assembly as a binary-compatible forwarding
-// facade. New libraries should reference SereinFlow.Library directly.
-// 保留原 Contracts 程序集作为二进制兼容的转发外观；新类库应直接引用 SereinFlow.Library。
+// Forward the canonical SDK types. Libraries using the former Core.Api
+// namespace must update their imports and rebuild against SereinFlow.Library.
+// 转发规范化后的 SDK 类型；使用旧 Core.Api 命名空间的类库需更新引用并重新编译。
 [assembly: TypeForwardedTo(typeof(FlowLibraryAttribute))]
 [assembly: TypeForwardedTo(typeof(FlowNodeAttribute))]
 [assembly: TypeForwardedTo(typeof(NodeResultAttribute))]

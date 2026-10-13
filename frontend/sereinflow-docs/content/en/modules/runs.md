@@ -21,3 +21,7 @@ Events are ordered by `sequence`. Pass `afterSequence` to fetch only newer event
 ## When to debug
 
 If a result is unexpected, start a **debug session**, set a breakpoint, and step through execution. It owns a separate debug run. See [Debug sessions API](/en/api/debug) and [Runs API](/en/api/runs).
+
+## Live variables
+
+Open **Flow variables** after starting a run, or from its active-run snapshot viewer, to inspect the table shared by nodes, triggers, and FlowCall frames. The panel refreshes every second and supports paging. Variables exist only in the active Worker and cannot be recovered from historical records; see [Runs API](/en/api/runs#flow-variables) for permissions and write types.

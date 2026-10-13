@@ -7,10 +7,67 @@ libraries. Reference it from an SDK-style class library project:
 <PackageReference Include="SereinFlow.Library" Version="1.0.0" />
 ```
 
-Use `SereinFlow.Core.Api` for `FlowLibrary`, `FlowNode`, `NodeParam`, and
-`NodeType`. Use `SereinFlow.Runtime.Abstractions.IFlowContext` when a node
-needs to select an execution branch. The SDK has no dependency on SereinFlow
-Domain or server implementation assemblies.
+All public SDK types use the `SereinFlow.Library` namespace, including metadata
+attributes, `IFlowContext`, and built-in services:
+
+```csharp
+using SereinFlow.Library;
+```
+
+Libraries using the former `SereinFlow.Core.Api` or
+`SereinFlow.Runtime.Abstractions.IFlowContext` names must update their imports
+and rebuild. Type forwarding does not preserve a renamed type's old identity.
+The SDK has no dependency on SereinFlow Domain or server implementation assemblies.
+
+## Run-local variables
+
+`LibraryVariableService` is a variable table shared by every node context,
+listener trigger, FlowCall frame, and uploaded library in one flow run.
+Request it in the node constructor or use `IFlowContext.Variables`; both expose
+the same instance. Different runs have separate tables. Original CLR objects live only in the
+Worker; a bounded final JSON projection and type metadata are saved for historical inspection.
+
+```csharp
+[FlowLibrary("Variables")]
+public sealed class VariableNodes(LibraryVariableService variables)
+{
+    [FlowNode]
+    public void Save(IFlowContext context)
+    {
+        variables.Set("batch.count", 42);
+        context.Variables.Set<string?>("batch.note", null);
+    }
+
+    [FlowNode]
+    public int Read() => variables.Get<int>("batch.count");
+}
+```
+
+| Operation | Behavior |
+| --- | --- |
+| `bool Contain(string name)` | True when the name exists, including a stored null. |
+| `object? Get(string name)` | Original object; null when absent. |
+| `T? Get<T>(string name)` | Cast/unbox to `T`; `default(T)` when absent. |
+| `bool TryGet<T>(string name, out T? value)` | False and `default(T)` when absent; otherwise casts/unboxes and returns true. |
+| `void Set<T>(string name, T value)` | Create or replace a value, including null. |
+
+Each operation is protected by a lock. Names are case-sensitive and cannot be
+null, empty, or whitespace. Values are stored as `object`, boxing value types
+and retaining original references. Generic reads use CLR casts/unboxing:
+an `int` cannot be read as `long`, and strings are not parsed. An incompatible
+type throws `InvalidCastException` from both `Get<T>` and `TryGet<T>`.
+Stored null can be read as a reference or nullable type; reading it as a
+non-nullable value type also throws `InvalidCastException`. For `Get<int>`, a
+missing variable returns `0`; use `Contain` or `TryGet` to distinguish absence.
+The lock protects table access; synchronize changes to stored objects and
+read-modify-write sequences separately.
+
+`Snapshot()` copies the current variable table under its lock. Active Workers
+also expose variable reads and writes over HTTP/MCP, with project-scoped
+`run.read` and `run.variable.write` permissions. Writes require an explicit
+built-in value type; arbitrary CLR objects remain in the Worker. The frontend's
+Flow variables panel refreshes every second while open and retains its last
+fetched snapshot after the Worker stops.
 
 ## Run-local messaging
 

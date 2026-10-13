@@ -1,6 +1,5 @@
 using System.Text;
 using SereinFlow.Library;
-using SereinFlow.Runtime.Abstractions;
 using SereinFlow.Worker.Runner;
 
 namespace SereinFlow.Worker.IntegrationTests;
@@ -30,6 +29,7 @@ public sealed class FileFlowWorkpieceTests
 
     private sealed class TestFlowContext(Guid runId, string nodeId, Guid executionId) : IFlowContext
     {
+        public LibraryVariableService Variables { get; } = new();
         public Guid RunId { get; } = runId;
 
         public string NodeId { get; } = nodeId;

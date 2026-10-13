@@ -5,7 +5,7 @@ using System;
 // them from PE metadata without loading the uploaded assembly.
 // 这些类型是上传节点类库使用的独立公共 SDK 契约。必须保持其命名空间和成员名稳定，
 // 因为服务端会在不加载上传程序集的情况下从 PE 元数据中读取它们。
-namespace SereinFlow.Core.Api;
+namespace SereinFlow.Library;
 
 /// <summary>
 /// Marks a class as the container of nodes exposed by a SereinFlow library.

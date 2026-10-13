@@ -55,6 +55,15 @@ internal static class SereinFlowMcpToolCatalogFactory
                 ["maxItems"] = NumberSchema(), ["maxJsonBytes"] = NumberSchema(),
                 ["includeFlowLiteralValues"] = BooleanSchema(), ["includeScriptSource"] = BooleanSchema()
             }, required: ["runId"])),
+        Tool("sereinflow_get_run_variables", "Read live run variables or the saved final snapshot with CLR types and bounded JSON values. Supply name for one variable; otherwise use offset/take (1-200). Complex CLR objects expose metadata only. Requires run.read; older runs or forcibly terminated Workers may have no saved snapshot.", Schema(
+            properties: new Dictionary<string, object?> { ["runId"] = StringSchema(), ["name"] = StringSchema(), ["offset"] = NumberSchema(), ["take"] = NumberSchema() }, required: ["runId"])),
+        Tool("sereinflow_set_run_variable", "Set one live run variable using an explicit built-in CLR value type. Requires run.variable.write and an idempotencyKey; does not persist across runs.", Schema(
+            properties: new Dictionary<string, object?>
+            {
+                ["runId"] = StringSchema(), ["name"] = StringSchema(), ["value"] = new { },
+                ["valueType"] = StringEnumSchema("Stored value type.", "null", "boolean", "string", "int32", "int64", "double", "decimal", "json"),
+                ["idempotencyKey"] = StringSchema("A fresh key for this exact variable write request.")
+            }, required: ["runId", "name", "value", "valueType", "idempotencyKey"])),
         Tool("sereinflow_list_run_workpieces", "List image and file workpieces uploaded by nodes in one run.", Schema(
             properties: new Dictionary<string, object?> { ["runId"] = StringSchema() }, required: ["runId"])),
         Tool("sereinflow_get_run_workpiece", "Read metadata and the API download URL for one run workpiece.", Schema(
@@ -249,6 +258,11 @@ internal static class SereinFlowMcpToolCatalogFactory
                 static (context, arguments, cancellationToken) => McpReadModelToolHandlers.GetLibraryUpgradeAsync(context, arguments, cancellationToken)),
             Read("sereinflow_get_run_inspection", McpPermissionDto.RunRead,
                 static (context, arguments, cancellationToken) => McpReadModelToolHandlers.GetRunInspectionAsync(context, arguments, cancellationToken)),
+            Read("sereinflow_get_run_variables", McpPermissionDto.RunRead,
+                static (context, arguments, cancellationToken) => McpRunVariableToolHandlers.GetAsync(context, arguments, cancellationToken)),
+            Mutation("sereinflow_set_run_variable", McpPermissionDto.RunVariableWrite,
+                static (context, arguments, cancellationToken) => McpRunVariableToolHandlers.SetAsync(context, arguments, cancellationToken),
+                requiresIdempotencyKey: true),
             ReadAny("sereinflow_list_run_workpieces",
                 static (context, arguments, cancellationToken) => McpReadModelToolHandlers.ListRunWorkpiecesAsync(context, arguments, cancellationToken)),
             ReadAny("sereinflow_get_run_workpiece",

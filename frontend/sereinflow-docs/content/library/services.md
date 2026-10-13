@@ -5,7 +5,7 @@
 ## 一个最小例子
 
 ```csharp
-using SereinFlow.Core.Api;
+using SereinFlow.Library;
 
 namespace MyFlowNodes;
 

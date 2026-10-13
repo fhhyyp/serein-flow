@@ -28,6 +28,7 @@ import InspectorPanel from './components/inspector/InspectorPanel.vue'
 import RunConsole from './components/runs/RunConsole.vue'
 import FlowDebugPanel from './components/workspace/FlowDebugPanel.vue'
 import RunWorkpiecePanel from './components/runs/RunWorkpiecePanel.vue'
+import RunVariablePanel from './components/runs/RunVariablePanel.vue'
 import {
   publishFlowVersion,
   type FlowConcurrencyMode,
@@ -484,6 +485,17 @@ const visibleActiveOutput = computed({
 })
 
 const activeWorkpieceRunId = computed(() => debugSession.value?.runId ?? lastRunId.value ?? '')
+const activeVariableRunId = ref('')
+watch([lastRunId, () => debugSession.value?.runId], ([normalRun, debugRun], [previousNormal, previousDebug]) => {
+  if (debugRun && debugRun !== previousDebug && isDebugActive.value) activeVariableRunId.value = debugRun
+  else if (normalRun && normalRun !== previousNormal) activeVariableRunId.value = normalRun
+  else if (debugRun && debugRun !== previousDebug) activeVariableRunId.value = debugRun
+  else if (!normalRun && !debugRun) activeVariableRunId.value = ''
+}, { immediate: true })
+const variableRunIsLive = computed(() => Boolean(
+  (activeVariableRunId.value === lastRunId.value && isRunning.value)
+  || (activeVariableRunId.value === debugSession.value?.runId && isDebugActive.value),
+))
 const selectedDebugNodeId = ref<string>()
 const selectedDebugExecutionId = ref<string>()
 const workpieceFocusNodeId = ref<string>()
@@ -498,11 +510,13 @@ const panelDefinitions = computed<WorkspacePanelTab[]>(() => [
   { id: 'diagnostics', label: t('panel.diagnostics'), icon: markRaw(AlertTriangle) },
   { id: 'debug', label: t('panel.debug'), icon: markRaw(Bug) },
   { id: 'workpieces', label: t('panel.workpieces'), icon: markRaw(PackageOpen) },
+  { id: 'variables', label: t('variables.title'), icon: markRaw(Database) },
 ])
 
 function isPanelAvailable(panelId: WorkspacePanelId): boolean {
   if (panelId === 'debug') return Boolean(debugSession.value)
   if (panelId === 'workpieces') return Boolean(activeWorkpieceRunId.value)
+  if (panelId === 'variables') return Boolean(activeVariableRunId.value)
   return true
 }
 
@@ -1641,6 +1655,12 @@ function setLanguage(nextLocale: Locale): void {
               @inspect="inspectDebugNode"
               @select-execution="focusDebugExecution"
               @close="closeWorkspacePanel('debug')"
+            />
+            <RunVariablePanel
+              v-else-if="panelId === 'variables' && activeVariableRunId"
+              :run-id="activeVariableRunId"
+              :live="variableRunIsLive"
+              :embedded="true"
             />
             <RunWorkpiecePanel
               v-else-if="panelId === 'workpieces' && activeWorkpieceRunId"

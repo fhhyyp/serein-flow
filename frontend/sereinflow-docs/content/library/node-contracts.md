@@ -20,9 +20,7 @@
 `NodeType.Flipflop` 用来**等待一次外部触发**，例如等待队列里出现消息。它的方法应返回 `Task` 或 `Task<T>`，并把 `IFlowContext.CancellationToken` 交给等待操作。取消流程时，等待才能及时结束。
 
 ```csharp
-using SereinFlow.Core.Api;
 using SereinFlow.Library;
-using SereinFlow.Runtime.Abstractions;
 
 [FlowLibrary("设备消息")]
 public sealed class DeviceNodes(IMessageService messages)
@@ -41,6 +39,8 @@ public sealed class DeviceNodes(IMessageService messages)
 ```
 
 `IFlowContext` 是**方法参数**，由当前节点调用提供，不能作为节点类的构造函数参数。它有本次运行的 `RunId`、当前 `NodeId`、这次执行步骤的 `ExecutionId` 和取消令牌。需要走特定分支时，可调用 `SelectSuccess()`、`SelectFailure(code, message)` 或 `SelectError(code, message)`。
+
+`context.Variables` 提供本次运行共用的变量表，节点、触发器和子流程之间可以通过它交换 CLR 值。具体方法和线程安全语义见[使用内置服务](/library/built-in-services)。
 
 ## 返回复杂对象时
 
@@ -62,9 +62,7 @@ public sealed class DeviceNodes(IMessageService messages)
 
 ```csharp
 using System.Text;
-using SereinFlow.Core.Api;
 using SereinFlow.Library;
-using SereinFlow.Runtime.Abstractions;
 
 public sealed record ReportFile(string FileName, byte[] Content);
 

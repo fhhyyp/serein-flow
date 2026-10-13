@@ -148,3 +148,9 @@ v1 的基础会话顺序与当前 v2 的基础部分相同：`ready -> handshake
 - SDK 消息语义和 HTTP/MCP 投递边界见[Worker 消息服务](worker-message-service.md)；
 - 节点类库如何产生消息入口、Flipflop 和 `IFlowContext` 见[节点类库开发指南](node-library-development.md)；
 - v1/v2 的旧路径保留为兼容性说明页，正文统一指向本文。
+
+## 活动运行变量表（v2 扩展）
+
+Supervisor 发送 worker.variables.request（WorkerVariableRequestDto），并用 requestId 和 runId 关联 worker.variables.response。支持 list、get、set，协议版本仍为 2；调试暂停期间也可读写。查询返回有界 JSON 投影和 CLR 类型，写入只接受明确的内置类型。应答不占用运行事件序号，普通参数校验失败不会终止流程；Worker 退出或应答超时会结束等待中的请求。API、MCP、类型和大小约定见[流程变量表](run-variables.md)。
+
+Worker 在发送终结结果前生成一次最终变量投影，置于 `WorkerRunResultDto.finalVariables`；执行阶段异常的 `WorkerErrorDto` 也可携带该字段。该字段可选，旧 Worker 未提供时视为没有快照。成功、失败、正常取消和正常超时都覆盖；强制结束和崩溃可能无法采集。最终快照有 `isFinal` 和 `isTruncated` 标识，最多保存 2,000 项、256 KB。API 将它作为结束事件中的 `variables` 持久化，已结束运行的读取和前端历史快照从该数据读取，写入仍仅限活动 Worker。

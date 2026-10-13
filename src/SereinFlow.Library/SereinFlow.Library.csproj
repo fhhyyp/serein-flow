@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <RootNamespace>SereinFlow.Library</RootNamespace>
     <IsPackable>true</IsPackable>
     <PackageId>SereinFlow.Library</PackageId>
     <PackageVersion Condition="'$(PackageVersion)' == ''">1.2.0</PackageVersion>

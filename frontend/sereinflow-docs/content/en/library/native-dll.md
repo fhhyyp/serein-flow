@@ -23,7 +23,7 @@ Include files needed by the Worker's OS and architecture. Do not mix binaries fo
 If every use of the library needs the native files, add an assembly attribute in a file such as `NativeLibraryManifest.cs`:
 
 ```csharp
-using SereinFlow.Core.Api;
+using SereinFlow.Library;
 
 [assembly: NativeLibraryDirectory(
     "runtimes/{rid}/native",
@@ -38,7 +38,6 @@ using SereinFlow.Core.Api;
 When a dependency is needed only for one node, inject `IFlowNativeLibraryLoader`:
 
 ```csharp
-using SereinFlow.Core.Api;
 using SereinFlow.Library;
 
 [FlowLibrary("Device tools")]

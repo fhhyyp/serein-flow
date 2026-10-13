@@ -186,3 +186,9 @@ integrations should use v2 and must not mix the two versions in one session.
   libraries create message endpoints, Flipflops, and `IFlowContext` usage.
 - The old v1/v2 paths remain as compatibility note pages that point to this
   unified document.
+
+## Active-run variables (v2 extension)
+
+The Supervisor sends worker.variables.request with a WorkerVariableRequestDto and correlates worker.variables.response by requestId and runId. Operations are list, get, and set; the protocol version remains 2. Reads return bounded JSON projections plus CLR type metadata, and writes accept explicit built-in value types. The same channel works during debug pauses. Responses do not consume runtime event sequence numbers, and ordinary validation errors do not terminate the flow. Pending requests complete when the Worker exits or the acknowledgement timeout expires. See [Run variables](run-variables.md) for API, MCP, type, and size contracts.
+
+Before returning its terminal result, the Worker captures final variables once in the optional `WorkerRunResultDto.finalVariables` field. Execution-stage `WorkerErrorDto` messages can carry the same field; older Workers that omit it have no saved snapshot. Successful, failed, cooperatively cancelled and cooperatively timed-out exits are covered; crashes or forced termination may prevent capture. Final snapshots carry `isFinal` and `isTruncated` and retain up to 2,000 entries and 256 KB. The API persists the projection as `variables` in the terminal event, so HTTP/MCP reads and historical frontend snapshots remain available after exit. Writes still require an active Worker.

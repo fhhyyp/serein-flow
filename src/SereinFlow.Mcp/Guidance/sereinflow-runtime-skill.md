@@ -44,6 +44,19 @@ Worker broker accepted the message; reread run inspection and downstream
 outputs or events to verify Flipflop processing. Do not treat acceptance as
 business completion or blindly retry with a new idempotency key.
 
+Use `sereinflow_get_run_variables` to inspect the active run's shared variable
+table (`runId`, optional exact `name`, or `offset`/`take` paging). It requires
+project-scoped `run.read`. Use `sereinflow_set_run_variable` with `runId`, `name`,
+`value`, `valueType`, and `idempotencyKey` to write; it requires `run.variable.write`.
+Supported types are null, boolean, string, int32, int64, double, decimal, and json.
+Use int32 for nodes reading `Get<int>`; json stores a JsonElement. Values are not
+carried into later runs. Completed runs expose a saved final snapshot when the
+Worker exited normally; older runs, crashes or forced termination may return
+variable.snapshot_unavailable. Final snapshots include isFinal and isTruncated,
+are limited to 2,000 entries and 256 KB, and cannot be written. Complex CLR objects
+expose type metadata only; oversized projections are marked unavailable. Reread
+the written variable to verify changes; another node may update it concurrently.
+
 After any successful mutation, reread the affected resource and verify its
 version, checksum, counts and state. An apply response is an acknowledgement,
 not the authoritative projection. If readback does not match, report

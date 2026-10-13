@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using SereinFlow.Contracts;
+using SereinFlow.Library;
 using SereinFlow.Runtime.Abstractions;
 
 namespace SereinFlow.Runtime;
@@ -52,6 +53,12 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
     }
 
     public Guid RunId { get; }
+
+    /// <summary>
+    /// Gets the variable table shared with listener contexts and FlowCall frames in this run.
+    /// 获取本次运行与监听上下文、FlowCall 调用帧共用的变量表。
+    /// </summary>
+    public LibraryVariableService Variables => _sharedState.Variables;
 
     public ResourceLeaseRegistry Resources { get; }
 
@@ -223,6 +230,7 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
 
     private sealed class SharedExecutionState
     {
+        public LibraryVariableService Variables { get; } = new();
         public long Sequence;
         public int StepCount;
         public ConcurrentDictionary<string, int> NodeVisits { get; } = new(StringComparer.Ordinal);

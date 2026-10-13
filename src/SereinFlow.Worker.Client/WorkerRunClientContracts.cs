@@ -30,6 +30,13 @@ public interface IWorkerMessageRunClient
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>Reads and writes the variable table owned by an active Worker run.</summary>
+public interface IWorkerVariableRunClient
+{
+    Task<WorkerVariableResponseDto> AccessVariablesAsync(
+        WorkerVariableRequestDto request, CancellationToken cancellationToken = default);
+}
+
 /// <summary>
 /// Optional extension for Worker clients that support a long-lived debug
 /// session. Normal production execution continues to use <see cref="IWorkerRunClient"/>.

@@ -49,6 +49,7 @@ const permissionOptions: Array<{ value: McpPermission; label: string; hint: stri
   { value: 'library.read', label: '类库读取', hint: '检查类库和节点目录' },
   { value: 'script.compile', label: '脚本编译', hint: '检查 SereinLang 语法' },
   { value: 'run.read', label: '运行读取', hint: '查看运行状态和输出' },
+  { value: 'run.variable.write', label: '流程变量写入', hint: '设置活动运行的变量值' },
   { value: 'debug.read', label: '调试读取', hint: '查看调试会话信息' },
   { value: 'flow.write', label: '流程写入', hint: '修改流程草稿' },
   { value: 'flow.publish', label: '流程发布', hint: '发布生产版本' },

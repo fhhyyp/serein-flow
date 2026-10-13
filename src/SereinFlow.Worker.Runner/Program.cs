@@ -7,6 +7,7 @@ using SereinFlow.Runtime;
 using SereinFlow.Runtime.Abstractions;
 using SereinFlow.ScriptAdapter;
 using SereinFlow.Worker.Protocol;
+using NodeType = SereinFlow.Domain.NodeType;
 
 namespace SereinFlow.Worker.Runner;
 
@@ -66,11 +67,17 @@ public static class RunnerHost
         var debugController = request.Debug is null
             ? null
             : new DebugRunController(request.RunId, request.Debug);
-        var runTask = ExecuteRunAsync(request, transport, messageService,  debugController, deadlineCancellation.Token, runCancellation.Token);
+        await using var session = new FlowExecutionSession(
+            request.RunId,
+            runCancellation.Token,
+            request.MaxSteps > 0 ? request.MaxSteps : 10_000,
+            request.MaxNodeVisits > 0 ? request.MaxNodeVisits : 1_000);
+        var runTask = ExecuteRunAsync(request, transport, messageService, session, debugController, deadlineCancellation.Token, runCancellation.Token);
         await WorkerRunMessageLoop.RunAsync(
             request,
             transport,
             messageService,
+            session.Variables,
             runTask,
             debugController,
             runCancellation,
@@ -82,6 +89,7 @@ public static class RunnerHost
         WorkerRunRequestDto request,
         IWorkerTransport transport,
         WorkerMessageService messageService,
+        FlowExecutionSession session,
         DebugRunController? debugController,
         CancellationToken deadlineCancellationToken,
         CancellationToken cancellationToken)
@@ -89,11 +97,6 @@ public static class RunnerHost
         try
         {
             var definition = FlowDefinitionMapper.Map(request.DefinitionJson);
-            await using var session = new FlowExecutionSession(
-                request.RunId,
-                cancellationToken,
-                request.MaxSteps > 0 ? request.MaxSteps : 10_000,
-                request.MaxNodeVisits > 0 ? request.MaxNodeVisits : 1_000);
             if (request.ProjectInputs is not null)
             {
                 foreach (var input in request.ProjectInputs)
@@ -138,6 +141,7 @@ public static class RunnerHost
             await using var libraryServiceRuntime = new WorkerLibraryServiceRuntime(
                 messageService,
                 flowWorkpiece,
+                session.Variables,
                 libraryRuntimeCache.GetNativeLibraryLoader);
             var executors = new NodeExecutorRegistry([
                 new LibraryNodeExecutor(NodeType.Action, libraryRuntimeCache, libraryServiceRuntime),
@@ -164,7 +168,8 @@ public static class RunnerHost
                         request.RunId,
                         status,
                         result.ErrorCode,
-                        result.ErrorMessage)),
+                        result.ErrorMessage,
+                        WorkerVariableService.CaptureFinal(request.RunId, session.Variables))),
                     request.RunId),
                 CancellationToken.None);
         }
@@ -181,13 +186,15 @@ public static class RunnerHost
                         timedOut ? WorkerErrorCodes.TimedOut : WorkerErrorCodes.Cancelled,
                         timedOut
                             ? "The worker run timed out. Worker 运行已超时。"
-                            : "The worker run was cancelled. Worker 运行已取消。")),
+                            : "The worker run was cancelled. Worker 运行已取消。",
+                        WorkerVariableService.CaptureFinal(request.RunId, session.Variables))),
                     request.RunId),
                 CancellationToken.None);
         }
         catch (Exception exception)
         {
-            await SendErrorAsync(transport, WorkerErrorCodes.RunFailed, $"The worker run failed. Worker 运行失败。 {exception.Message}", CancellationToken.None, request.RunId);
+            await SendErrorAsync(transport, WorkerErrorCodes.RunFailed, $"The worker run failed. Worker 运行失败。 {exception.Message}", CancellationToken.None, request.RunId,
+                WorkerVariableService.CaptureFinal(request.RunId, session.Variables));
         }
     }
 
@@ -239,11 +246,12 @@ public static class RunnerHost
         }
     }
 
-    private static ValueTask SendErrorAsync(IWorkerTransport transport, string code, string message, CancellationToken cancellationToken, Guid? runId = null)
+    private static ValueTask SendErrorAsync(IWorkerTransport transport, string code, string message, CancellationToken cancellationToken, Guid? runId = null,
+        RunVariableSnapshotDto? finalVariables = null)
         => transport.SendAsync(
             WorkerMessage.Create(
                 WorkerProtocolConstants.ErrorKind,
-                WorkerProtocolCodec.SerializePayload(new WorkerErrorDto(code, message)),
+                WorkerProtocolCodec.SerializePayload(new WorkerErrorDto(code, message, finalVariables)),
                 runId),
             cancellationToken);
 

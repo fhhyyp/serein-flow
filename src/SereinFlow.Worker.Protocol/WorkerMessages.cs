@@ -28,6 +28,8 @@ public static class WorkerProtocolConstants
     public const string MessageRejectedKind = MessageErrorCodes.Rejected;
     public const string MessageRegisterKind = MessageErrorCodes.Register;
     public const string MessageUnregisterKind = MessageErrorCodes.Unregister;
+    public const string VariableRequestKind = VariableErrorCodes.Request;
+    public const string VariableResponseKind = VariableErrorCodes.Response;
 }
 
 public sealed record WorkerMessage(
@@ -49,7 +51,7 @@ public sealed record WorkerMessage(
         => new(WorkerProtocolConstants.Version, kind, requestId ?? Guid.NewGuid().ToString("N"), runId, sequence, deadline, payloadJson);
 }
 
-public sealed record WorkerErrorDto(string Code, string Message);
+public sealed record WorkerErrorDto(string Code, string Message, RunVariableSnapshotDto? FinalVariables = null);
 
 public static class WorkerProtocolCodec
 {

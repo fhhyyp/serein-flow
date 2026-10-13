@@ -1,4 +1,5 @@
 using SereinFlow.Contracts;
+using SereinFlow.Library;
 using SereinFlow.Worker.Protocol;
 
 namespace SereinFlow.Worker.Runner;
@@ -9,6 +10,7 @@ internal static class WorkerRunMessageLoop
         WorkerRunRequestDto request,
         IWorkerTransport transport,
         WorkerMessageService messageService,
+        LibraryVariableService variables,
         Task runTask,
         DebugRunController? debugController,
         CancellationTokenSource runCancellation,
@@ -62,6 +64,25 @@ internal static class WorkerRunMessageLoop
                 && message.RunId == request.RunId)
             {
                 await SendDeliveryResultAsync(request, transport, messageService, message, cancellationToken);
+            }
+            else if (message.Kind == WorkerProtocolConstants.VariableRequestKind
+                && message.RunId == request.RunId)
+            {
+                WorkerVariableResponseDto response;
+                try
+                {
+                    var command = WorkerProtocolCodec.DeserializePayload<WorkerVariableRequestDto>(message);
+                    response = WorkerVariableService.Execute(request.RunId, variables, command);
+                }
+                catch (WorkerProtocolException)
+                {
+                    response = new(WorkerProtocolConstants.Version, request.RunId, 400,
+                        Code: VariableErrorCodes.InvalidRequest, Message: "Invalid variable request. 变量请求无效。");
+                }
+                await transport.SendAsync(WorkerMessage.Create(
+                    WorkerProtocolConstants.VariableResponseKind,
+                    WorkerProtocolCodec.SerializePayload(response), request.RunId,
+                    requestId: message.RequestId), cancellationToken);
             }
 
             readTask = transport.ReceiveAsync(cancellationToken).AsTask();

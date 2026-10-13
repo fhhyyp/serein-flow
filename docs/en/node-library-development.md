@@ -54,17 +54,17 @@ A production library can reference the published SDK package:
 ```
 
 The repository's `TestLibrary` and `OpenCvLibrary` use a project reference for
-local integration. Use these SDK namespaces:
+local integration. All public SDK types use one namespace:
 
 ```csharp
-using SereinFlow.Core.Api;             // FlowLibrary, FlowNode, NodeParam, NodeResult, ...
-using SereinFlow.Library;              // messaging, workpieces, native loading, lifetimes
-using SereinFlow.Runtime.Abstractions; // IFlowContext (defined by the SDK assembly)
+using SereinFlow.Library; // attributes, IFlowContext, variables, messaging, workpieces, native loading
 ```
 
-`SereinFlow.Contracts` remains a type-forwarding compatibility facade for old
-binaries. New libraries should reference `SereinFlow.Library` directly and
-should not copy legacy `DynamicFlow`, `NodeAction`, or same-named attributes.
+Libraries using the former `SereinFlow.Core.Api` or
+`SereinFlow.Runtime.Abstractions.IFlowContext` names must update their imports
+and rebuild; type forwarding cannot preserve a renamed type's old identity.
+Reference `SereinFlow.Library` directly and do not copy legacy `DynamicFlow`,
+`NodeAction`, or same-named attributes.
 
 ## 3. Library containers, node metadata, and stable identity
 
@@ -159,7 +159,7 @@ public string Describe(
 }
 ```
 
-`IFlowContext` exposes restricted node context, not arbitrary flow data,
+`IFlowContext` exposes restricted node context and run-local `Variables`, not internal flow data,
 environment variables, secrets, API repositories, or `IServiceProvider`.
 
 ### 4.2 Return values
@@ -372,6 +372,7 @@ The Worker pre-registers these services in the restricted container for each
 uploaded library:
 
 - `IMessageService`, the run-level queue/event-bus service;
+- `LibraryVariableService`, the run-local table shared by all libraries and contexts, also exposed as `IFlowContext.Variables`;
 - `IFlowWorkpiece`, the run-level workpiece service;
 - `IFlowNativeLibraryLoader`, the loader for the current library package.
 
@@ -386,7 +387,52 @@ public sealed class DeviceNodes(
 }
 ```
 
-### 9.2 Library-owned services with `FlowService`
+### 9.2 Flow variables: `LibraryVariableService`
+
+Each flow run owns one variable table shared by node contexts, global listener
+triggers, FlowCall frames, and uploaded libraries. Constructor injection of
+`LibraryVariableService` and `IFlowContext.Variables` expose the same instance.
+Different runs have separate tables. Original CLR objects remain in Worker memory; a bounded
+final JSON projection and type metadata are saved at completion for historical inspection.
+
+```csharp
+using SereinFlow.Library;
+
+[FlowLibrary("Batch variables")]
+public sealed class BatchNodes(LibraryVariableService variables)
+{
+    [FlowNode]
+    public void Save(IFlowContext context)
+    {
+        variables.Set("batch.count", 42);
+        context.Variables.Set<string?>("batch.note", null);
+    }
+
+    [FlowNode]
+    public int Read() => variables.Get<int>("batch.count");
+}
+```
+
+| Method | Behavior |
+| --- | --- |
+| `bool Contain(string name)` | True when the name exists, including a stored null. |
+| `object? Get(string name)` | Original object; null when absent. |
+| `T? Get<T>(string name)` | Cast/unbox to T; `default(T)` when absent. |
+| `bool TryGet<T>(string name, out T? value)` | False and `default(T)` when absent; otherwise casts/unboxes and returns true. |
+| `void Set<T>(string name, T value)` | Create or replace a variable, including null. |
+
+Names are case-sensitive and cannot be null, empty, or whitespace. Values are
+stored as `object`, boxing value types and retaining references. Generic reads
+use CLR casts/unboxing without numeric conversion or text parsing: an `int`
+cannot be read as `long`. Both generic read methods throw `InvalidCastException`
+on a type mismatch, including reading stored null as a non-nullable value type.
+Null is valid for reference and nullable types. A missing `Get<int>` returns 0;
+use `Contain` or `TryGet` to distinguish absence from a stored zero.
+
+Every operation is protected by a lock. Synchronize mutations of stored objects
+and multi-operation read-modify-write sequences separately.
+
+### 9.3 Library-owned services with `FlowService`
 
 Only concrete, closed classes from the same uploaded assembly can be registered:
 
@@ -503,7 +549,7 @@ for the HTTP/MCP delivery contract.
 Fixed dependencies can be declared at assembly or node-class level:
 
 ```csharp
-using SereinFlow.Core.Api;
+using SereinFlow.Library;
 
 [assembly: NativeLibraryDirectory(
     "runtimes/{rid}/native",

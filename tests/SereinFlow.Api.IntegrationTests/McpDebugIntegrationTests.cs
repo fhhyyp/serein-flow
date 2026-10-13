@@ -62,6 +62,11 @@ public sealed class McpDebugIntegrationTests : IClassFixture<McpHostIntegrationT
         Assert.Equal(FlowDebugSessionStatusDto.Paused.ToString(), firstPause.State.Status);
         Assert.Equal("first", firstPause.State.CurrentNodeId);
 
+        _ = await CallAsync<RunVariableDto>(backend, "sereinflow_set_run_variable", new
+        {
+            runId = started.RunId, name = "debug.final.count", value = 42, valueType = "int32", idempotencyKey = "mcp-debug-final-variable"
+        });
+
         var step = await CallAsync<McpDebugCommandAcceptedDto>(
             backend,
             "sereinflow_step_debug",
@@ -98,6 +103,10 @@ public sealed class McpDebugIntegrationTests : IClassFixture<McpHostIntegrationT
             new { sessionId = started.SessionId, afterRevision = continued.StateRevision, timeoutSeconds = 10 });
         Assert.False(completed.TimedOut);
         Assert.Equal(FlowDebugSessionStatusDto.Completed.ToString(), completed.State.Status);
+
+        var finalVariables = await CallAsync<RunVariableSnapshotDto>(backend, "sereinflow_get_run_variables", new { runId = started.RunId });
+        Assert.True(finalVariables.IsFinal);
+        Assert.Equal(42, Assert.Single(finalVariables.Variables, variable => variable.Name == "debug.final.count").Value!.Value.GetInt32());
 
         var runs = await CallAsync<AiPageDto<AiRunSummaryDto>>(
             backend,

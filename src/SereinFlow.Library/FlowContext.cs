@@ -1,11 +1,11 @@
-namespace SereinFlow.Runtime.Abstractions;
+namespace SereinFlow.Library;
 
 /// <summary>
 /// Provides restricted per-node context to trusted node-library methods. It allows a node to
-/// select an execution branch without exposing arbitrary flow data, environment variables, or
-/// host services.
-/// 向受信任的节点类库方法提供受限的节点上下文。它允许节点选择执行分支，但不会公开任意流程数据、
-/// 环境变量或宿主服务。
+/// select an execution branch and access run-local variables without exposing internal flow data,
+/// environment variables, or host services.
+/// 向受信任的节点类库方法提供受限的节点上下文，允许选择执行分支和访问运行级变量，
+/// 但不会公开引擎内部流程数据、环境变量或宿主服务。
 /// </summary>
 public interface IFlowContext
 {
@@ -32,6 +32,12 @@ public interface IFlowContext
     /// 获取当 Worker 停止或取消当前流程运行时会被取消的令牌。
     /// </summary>
     CancellationToken CancellationToken { get; }
+
+    /// <summary>
+    /// Gets the variable table shared by all contexts in the current flow run.
+    /// 获取当前流程运行中所有上下文共用的变量表。
+    /// </summary>
+    LibraryVariableService Variables { get; }
 
     /// <summary>
     /// Selects the success branch for the current node invocation.
