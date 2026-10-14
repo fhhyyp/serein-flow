@@ -340,7 +340,9 @@ public sealed class McpAiGuidanceProvider
         return await ReadAsync(resource, snapshot.MaxBytes, cancellationToken);
     }
 
-    private GuidanceSnapshot CreateSnapshot()
+    internal string ContentRootPath => _root;
+
+    internal GuidanceSnapshot CreateSnapshot()
     {
         var options = _optionsAccessor();
         var byId = new Dictionary<McpAiGuidanceId, ResolvedGuidanceResource>();
@@ -367,9 +369,7 @@ public sealed class McpAiGuidanceProvider
                     $"{McpAiGuidanceOptions.SectionName}:FilePath must remain inside the server content root.");
             }
 
-            var embeddedName = string.Equals(relativePath, resource.DefaultFilePath, StringComparison.OrdinalIgnoreCase)
-                ? $"SereinFlow.Mcp.Guidance.{Path.GetFileName(relativePath)}"
-                : null;
+            var embeddedName = $"SereinFlow.Mcp.Guidance.{Path.GetFileName(resource.DefaultFilePath)}";
             var resolved = new ResolvedGuidanceResource(resource with { Uri = uri }, path, embeddedName);
             if (McpResourceCatalog.DirectResources.Any(
                     direct => string.Equals(direct.UriTemplate, uri, StringComparison.Ordinal)))
@@ -408,10 +408,23 @@ public sealed class McpAiGuidanceProvider
         long maxBytes,
         CancellationToken cancellationToken)
     {
+        var content = await ReadContentAsync(resource, maxBytes, embeddedOnly: false, cancellationToken);
+        return new McpResourceReadResult(resource.Resource.Uri, content.Text, McpAiGuidance.MimeType);
+    }
+
+    internal static async Task<GuidanceContent> ReadContentAsync(
+        ResolvedGuidanceResource resource,
+        long maxBytes,
+        bool embeddedOnly,
+        CancellationToken cancellationToken)
+    {
         string content;
+        var source = McpAiGuidanceSourceDto.Embedded;
         try
         {
-            await using var stream = OpenResourceStream(resource);
+            await using var stream = embeddedOnly
+                ? OpenEmbeddedResourceStream(resource)
+                : OpenResourceStream(resource, out source);
 
             if (stream.Length > maxBytes)
                 throw new McpProtocolException(
@@ -462,16 +475,14 @@ public sealed class McpAiGuidanceProvider
         if (string.IsNullOrWhiteSpace(content))
             throw Unavailable();
 
-        return new McpResourceReadResult(
-            resource.Resource.Uri,
-            content,
-            McpAiGuidance.MimeType);
+        return new GuidanceContent(content, source);
     }
 
-    private static Stream OpenResourceStream(ResolvedGuidanceResource resource)
+    private static Stream OpenResourceStream(ResolvedGuidanceResource resource, out McpAiGuidanceSourceDto source)
     {
         try
         {
+            source = McpAiGuidanceSourceDto.Disk;
             return new FileStream(resource.FilePath, new FileStreamOptions
             {
                 Mode = FileMode.Open,
@@ -482,19 +493,23 @@ public sealed class McpAiGuidanceProvider
         }
         catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
         {
-            if (resource.EmbeddedResourceName is null)
-                throw;
-            return typeof(McpAiGuidanceProvider).Assembly.GetManifestResourceStream(resource.EmbeddedResourceName)
-                ?? throw Unavailable();
+            source = McpAiGuidanceSourceDto.Embedded;
+            return OpenEmbeddedResourceStream(resource);
         }
     }
 
-    private sealed record ResolvedGuidanceResource(
+    private static Stream OpenEmbeddedResourceStream(ResolvedGuidanceResource resource)
+        => typeof(McpAiGuidanceProvider).Assembly.GetManifestResourceStream(resource.EmbeddedResourceName)
+            ?? throw Unavailable();
+
+    internal sealed record GuidanceContent(string Text, McpAiGuidanceSourceDto Source);
+
+    internal sealed record ResolvedGuidanceResource(
         McpAiGuidanceResource Resource,
         string FilePath,
-        string? EmbeddedResourceName);
+        string EmbeddedResourceName);
 
-    private sealed record GuidanceSnapshot(
+    internal sealed record GuidanceSnapshot(
         Dictionary<McpAiGuidanceId, ResolvedGuidanceResource> ById,
         Dictionary<string, ResolvedGuidanceResource> ByUri,
         long MaxBytes);

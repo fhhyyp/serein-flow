@@ -172,6 +172,29 @@ ContentRoot 下。MCP 调用方只能请求固定的资源 URI，不能选择任
 可以在 `SereinFlow:Mcp:AiGuidance:Modules:<resource-key>` 下覆盖。每个文件都受共享的
 `SereinFlow:Mcp:AiGuidance:MaxBytes` 大小限制。
 
+读取顺序为宿主磁盘文件优先、程序集内置 Markdown 兜底。默认路径和配置覆盖的路径
+都遵循这个顺序；只有文件或目录不存在时才回退，空内容、超限或访问失败仍会报错。
+技能清单随程序集注册，读取和管理操作使用同一个 Provider，无需在启动时导出文件。
+
+前端“环境设置”中连接管理员 MCP 密钥后，可以在“MCP 可用技能”中查看、编辑、保存
+以及恢复默认。保存按当前服务端配置创建或替换覆盖文件，下一次 MCP 读取或生成
+Prompt 时生效；恢复默认删除覆盖文件，保留程序集内置内容。覆盖目录需要可写，升级
+部署时应保留这些自定义文件。已有客户端缓存需要由客户端重新读取。
+
+管理员 REST 管理接口如下（即使其他 REST 接口允许匿名访问，也必须携带管理员
+Bearer 密钥）：
+
+| 方法 | 路径 | 用途 |
+| --- | --- | --- |
+| GET | `/api/environment/settings/mcp-skills` | 列出注册技能和当前内容来源 |
+| GET | `/api/environment/settings/mcp-skills/{key}` | 读取内容、版本标识和大小限制 |
+| PUT | `/api/environment/settings/mcp-skills/{key}` | 保存 `{ "content": "...", "expectedRevision": "..." }` |
+| POST | `/api/environment/settings/mcp-skills/{key}/reset` | 恢复默认，提交 `{ "expectedRevision": "..." }` |
+
+管理请求只能选择注册的技能 Key，不能提交磁盘路径或新增技能。保存使用同目录临时
+文件和原子替换，并拒绝符号链接或目录联接。保存和恢复默认都必须使用最近读取的
+`revision`；内容、来源、URI 或配置路径发生变化时返回 HTTP 409，避免覆盖其他编辑。
+
 Guidance 资源也可以在运行时通过配置覆盖 URI 和文件路径：
 `SereinFlow:Mcp:AiGuidance:Resources:<resource-key>:Uri` 和
 `SereinFlow:Mcp:AiGuidance:Resources:<resource-key>:FilePath`。资源 Key 使用

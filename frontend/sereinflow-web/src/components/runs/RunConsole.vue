@@ -63,6 +63,7 @@ const runs = ref<FlowRunDto[]>([])
 const interfaces = ref<FlowInterfaceDto[]>([])
 const isLoading = ref(true)
 const isSettingsSaving = ref(false)
+const mcpKeySettings = ref<InstanceType<typeof McpKeySettings>>()
 const isInterfaceSaving = ref(false)
 const loadErrorKey = ref('')
 const noticeKey = ref('')
@@ -525,11 +526,13 @@ function shortHash(value: string): string { return value.length <= 12 ? value : 
 function interfaceModeKey(mode: FlowInvocationMode): string { return mode === 'synchronous' ? 'console.interfaceSync' : 'console.interfaceAsync' }
 function interfaceEnabledKey(flowInterface: FlowInterfaceDto): string { return flowInterface.isEnabled ? 'console.enabled' : 'console.disabled' }
 function selectView(view: ConsoleView): void {
+  if (activeView.value === 'settings' && view !== 'settings' && mcpKeySettings.value?.confirmLeave() === false) return
   activeView.value = view
   noticeKey.value = ''
   if (Date.now() - lastDirectoryRefreshAt > 15_000) void refreshDirectoryData()
 }
 
+defineExpose({ confirmLeave: () => mcpKeySettings.value?.confirmLeave() ?? true })
 onMounted(() => { void refreshAll(); refreshTimer = window.setInterval(() => void refreshRunData(false), 2_000) })
 onBeforeUnmount(() => {
   if (refreshTimer !== undefined) window.clearInterval(refreshTimer)
@@ -581,7 +584,7 @@ onBeforeUnmount(() => {
        <template v-else-if="activeView === 'settings'">
          <p class="operations-console__intro">{{ t('console.environmentSettingsHint') }}</p>
          <form class="environment-settings" @submit.prevent="saveSettings"><label><span>{{ t('runs.queueCapacity') }}</span><input v-model.number="settingsForm.queueCapacity" type="number" min="1" max="10000" required /></label><label><span>{{ t('runs.activeWorkers') }}</span><input v-model.number="settingsForm.maxConcurrentRuns" type="number" min="1" max="1024" required /></label><label><span>{{ t('runs.listenerWorkers') }}</span><input v-model.number="settingsForm.maxConcurrentListenerRuns" type="number" min="0" max="1024" required /></label><label><span>{{ t('runs.projectLimit') }}</span><input v-model.number="settingsForm.maxConcurrentRunsPerProject" type="number" min="1" max="1024" required /></label><label><span>{{ t('console.queueWaitTimeout') }}</span><input v-model.number="settingsForm.queueWaitTimeoutSeconds" type="number" min="1" max="86400" required /></label><label><span>{{ t('console.shutdownGrace') }}</span><input v-model.number="settingsForm.shutdownGracePeriodSeconds" type="number" min="1" max="300" required /></label><label><span>{{ t('console.syncTimeout') }}</span><input v-model.number="settingsForm.synchronousInvocationTimeoutSeconds" type="number" min="1" max="300" required /></label><label><span>{{ t('console.maxLibraryUploadSize') }}</span><input v-model.number="maxLibraryUploadMegabytes" type="number" min="1" max="512" step="1" required /><small>{{ t('console.maxLibraryUploadSizeHint') }}</small></label><div class="environment-settings__actions"><button class="command-button run" type="submit" :disabled="isSettingsSaving"><Save :size="15" /><span>{{ t('console.saveSettings') }}</span></button></div></form>
-        <McpKeySettings :project-workspaces="activeWorkspaces" />
+        <McpKeySettings ref="mcpKeySettings" :project-workspaces="activeWorkspaces" />
       </template>
 
       <template v-else-if="activeView === 'libraries'">

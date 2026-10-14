@@ -54,6 +54,41 @@ export interface McpKeyProjectOption {
   name: string
 }
 
+export interface McpSkillResourceDto {
+  key: string
+  uri: string
+  name: string
+  description: string
+  source: 'embedded' | 'disk'
+}
+
+export interface McpSkillContentDto {
+  resource: McpSkillResourceDto
+  content: string
+  revision: string
+  maxBytes: number
+}
+
+export async function listMcpSkills(secret: string): Promise<McpSkillResourceDto[]> {
+  return request<McpSkillResourceDto[]>('/api/environment/settings/mcp-skills', { secret })
+}
+
+export async function readMcpSkill(secret: string, key: string): Promise<McpSkillContentDto> {
+  return request<McpSkillContentDto>(`/api/environment/settings/mcp-skills/${encodeURIComponent(key)}`, { secret })
+}
+
+export async function saveMcpSkill(secret: string, key: string, content: string, expectedRevision: string): Promise<McpSkillContentDto> {
+  return request<McpSkillContentDto>(`/api/environment/settings/mcp-skills/${encodeURIComponent(key)}`, {
+    method: 'PUT', secret, body: { content, expectedRevision },
+  })
+}
+
+export async function resetMcpSkill(secret: string, key: string, expectedRevision: string): Promise<McpSkillContentDto> {
+  return request<McpSkillContentDto>(`/api/environment/settings/mcp-skills/${encodeURIComponent(key)}/reset`, {
+    method: 'POST', secret, body: { expectedRevision },
+  })
+}
+
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 const sessionCredentialKey = 'sereinflow.mcp.management-key'
 const rememberedCredentialKey = 'sereinflow.mcp.management-key.remembered'
@@ -140,7 +175,7 @@ export function mcpKeyProjectOptions(workspaces: ProjectWorkspaceDto[]): McpKeyP
 
 async function request<T>(
   path: string,
-  options: { method?: 'POST' | 'DELETE'; secret?: string; body?: unknown } = {},
+  options: { method?: 'POST' | 'PUT' | 'DELETE'; secret?: string; body?: unknown } = {},
 ): Promise<T> {
   const headers: Record<string, string> = {}
   if (options.body !== undefined) headers['content-type'] = 'application/json'

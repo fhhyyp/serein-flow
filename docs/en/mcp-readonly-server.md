@@ -202,6 +202,37 @@ can override the four index paths with
 overridden under `SereinFlow:Mcp:AiGuidance:Modules:<resource-key>`. Every file
 is subject to the shared `SereinFlow:Mcp:AiGuidance:MaxBytes` limit.
 
+The host's disk file takes precedence over the embedded Markdown shipped in
+the assembly. Both default and configured paths follow this order. Only a
+missing file or directory triggers fallback; empty content, size violations,
+and access failures remain errors. The skill catalog is registered with the
+assembly, and reads and management share one provider without exporting files
+at startup.
+
+In the web console's Environment settings, connect an administrator MCP key
+to view, edit, save, and restore Available MCP skills. Saving creates or
+replaces the override at the currently configured server path. The next MCP
+read or prompt receives the update. Restoring defaults deletes the override
+and keeps the embedded content. The override directory must be writable;
+preserve custom files during deployment upgrades. Clients must refresh any
+content they have already cached.
+
+These REST management endpoints always require an administrator Bearer key,
+even when other REST endpoints permit anonymous access:
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/api/environment/settings/mcp-skills` | List registered skills and their current source |
+| GET | `/api/environment/settings/mcp-skills/{key}` | Read content, revision, and size limit |
+| PUT | `/api/environment/settings/mcp-skills/{key}` | Save `{ "content": "...", "expectedRevision": "..." }` |
+| POST | `/api/environment/settings/mcp-skills/{key}/reset` | Restore defaults with `{ "expectedRevision": "..." }` |
+
+Requests select registered skill keys rather than disk paths, and cannot add
+new skills. Saves use a temporary file in the same directory and atomic
+replacement, rejecting file symlinks and directory junctions. Saving and
+restoring require the latest `revision`. Changes to content, source, URI, or
+configured path return HTTP 409 to protect other edits.
+
 Guidance resources can also override their URI and file path at runtime with
 `SereinFlow:Mcp:AiGuidance:Resources:<resource-key>:Uri` and
 `SereinFlow:Mcp:AiGuidance:Resources:<resource-key>:FilePath`. Resource keys include

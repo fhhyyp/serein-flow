@@ -19,8 +19,10 @@ import {
 } from '../../api/mcpApi'
 import type { ProjectWorkspaceDto } from '../../api/flowApi'
 import { t } from '../../i18n'
+import McpSkillSettings from './McpSkillSettings.vue'
 
 const props = defineProps<{ projectWorkspaces: ProjectWorkspaceDto[] }>()
+const skillSettings = ref<InstanceType<typeof McpSkillSettings>>()
 
 const initialCredential = getMcpManagementCredential()
 const managementSecret = ref(initialCredential)
@@ -71,7 +73,7 @@ async function loadKeys(secret = managementSecret.value): Promise<boolean> {
     return true
   } catch (exception) {
     if (exception instanceof McpApiError && exception.status === 401) {
-      clearCredential()
+      if (skillSettings.value?.confirmDiscard() !== false) clearCredential(true)
       error.value = t('console.mcpKeyUnauthorized')
     } else {
       error.value = errorMessage(exception)
@@ -199,7 +201,8 @@ async function copySecret(): Promise<void> {
   notice.value = t('console.mcpKeyCopied')
 }
 
-function clearCredential(): void {
+function clearCredential(force = false): void {
+  if (!force && skillSettings.value && !skillSettings.value.confirmDiscard()) return
   clearMcpManagementCredential()
   managementSecret.value = undefined
   credentialInput.value = ''
@@ -231,6 +234,7 @@ function errorMessage(exception: unknown): string {
 }
 
 onMounted(() => { void loadKeys() })
+defineExpose({ confirmLeave: () => skillSettings.value?.confirmDiscard() ?? true })
 </script>
 
 <template>
@@ -261,7 +265,7 @@ onMounted(() => { void loadKeys() })
     </div>
 
     <template v-else>
-      <div class="mcp-key-settings__toolbar"><span><ShieldCheck :size="15" />{{ t('console.mcpKeyConnected') }}</span><button class="command-button quiet" type="button" @click="clearCredential"><Unplug :size="15" /><span>{{ t('console.mcpKeyDisconnect') }}</span></button></div>
+      <div class="mcp-key-settings__toolbar"><span><ShieldCheck :size="15" />{{ t('console.mcpKeyConnected') }}</span><button class="command-button quiet" type="button" @click="clearCredential()"><Unplug :size="15" /><span>{{ t('console.mcpKeyDisconnect') }}</span></button></div>
       <div class="mcp-key-settings__create">
         <div class="mcp-key-settings__subheading"><div><h3>{{ t('console.mcpKeyCreateTitle') }}</h3><p>{{ t('console.mcpKeyCreateHint') }}</p></div></div>
         <div class="mcp-key-settings__form">
@@ -275,4 +279,5 @@ onMounted(() => { void loadKeys() })
       <div class="operations-table-wrap"><table class="operations-table operations-table--mcp-keys"><thead><tr><th>{{ t('console.mcpKeyName') }}</th><th>{{ t('console.mcpKeyScope') }}</th><th>{{ t('console.mcpKeyPermissions') }}</th><th>{{ t('console.mcpKeyCreated') }}</th><th>{{ t('console.mcpKeyStatus') }}</th><th>{{ t('console.mcpKeyActions') }}</th></tr></thead><tbody v-if="keys.length"><tr v-for="key in keys" :key="key.id"><td><strong>{{ key.name }}</strong><small><code>{{ key.keyPrefix }}…</code></small></td><td>{{ key.isAdministrator ? t('console.mcpKeyAdministrator') : (projectOptions.find((project) => project.id === key.projectId)?.name ?? t('console.mcpKeyProjectUnknown')) }}</td><td><span class="mcp-key-settings__permission-count">{{ key.permissions.length }}</span></td><td>{{ formatDate(key.createdAt) }}</td><td><span :class="['mcp-key-settings__status', `mcp-key-settings__status--${keyStatus(key)}`]">{{ t(`console.mcpKeyStatus.${keyStatus(key)}`) }}</span></td><td class="operations-table__actions"><button v-if="keyStatus(key) === 'active'" class="icon-button" type="button" :title="t('console.mcpKeyRotate')" :aria-label="t('console.mcpKeyRotate')" :disabled="isSaving" @click="rotateKey(key)"><RefreshCw :size="15" /></button><button v-if="keyStatus(key) === 'active'" class="icon-button icon-button--danger" type="button" :title="t('console.mcpKeyRevoke')" :aria-label="t('console.mcpKeyRevoke')" :disabled="isSaving" @click="revokeKey(key)"><Trash2 :size="15" /></button></td></tr></tbody><tbody v-else><tr><td class="operations-table__empty" colspan="6">{{ t('console.mcpKeyEmpty') }}</td></tr></tbody></table></div>
     </template>
   </section>
+  <McpSkillSettings v-if="connected && managementSecret" ref="skillSettings" :secret="managementSecret" />
 </template>

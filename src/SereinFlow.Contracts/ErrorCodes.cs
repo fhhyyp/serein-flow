@@ -400,6 +400,10 @@ public static class McpErrorCodes
     public const string AiGuidanceTooLarge = "mcp.ai_guidance_too_large";
     public const string AiGuidanceAccessDenied = "mcp.ai_guidance_access_denied";
     public const string AiGuidanceUnavailable = "mcp.ai_guidance_unavailable";
+    public const string AiGuidanceKeyUnsupported = "mcp.ai_guidance_key_unsupported";
+    public const string AiGuidanceContentInvalid = "mcp.ai_guidance_content_invalid";
+    public const string AiGuidanceConflict = "mcp.ai_guidance_conflict";
+    public const string AiGuidanceSaveFailed = "mcp.ai_guidance_save_failed";
     public const string PreviewOwnerMismatch = "mcp.preview_owner_mismatch";
     public const string PreviewAccessDenied = "mcp.preview_access_denied";
     public const string ProjectAccessDenied = "mcp.project_access_denied";

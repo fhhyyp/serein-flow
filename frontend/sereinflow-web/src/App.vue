@@ -158,6 +158,7 @@ const savedWorkspaceFingerprint = ref('')
 const isRestoringWorkspace = ref(false)
 const isSwitchingCanvas = ref(false)
 const workspaceView = ref<'console' | 'editor'>('console')
+const runConsole = ref<InstanceType<typeof RunConsole>>()
 const isEditorActive = computed(() => workspaceView.value === 'editor')
 const workspaceRoot = ref<HTMLElement>()
 const {
@@ -1106,11 +1107,13 @@ function locateSaveDiagnostic(diagnostic: FlowValidationDiagnostic): void {
 }
 
 async function openProjectInEditor(workspace: ProjectWorkspaceDto, requestedFlowId?: string): Promise<void> {
+  if (runConsole.value?.confirmLeave() === false) return
   await loadProject(workspace, requestedFlowId)
   workspaceView.value = 'editor'
 }
 
 async function startNewProjectInEditor(): Promise<void> {
+  if (runConsole.value?.confirmLeave() === false) return
   workspaceView.value = 'editor'
   await beginNewProject()
 }
@@ -1481,6 +1484,7 @@ function setLanguage(nextLocale: Locale): void {
 
     <RunConsole
       v-if="workspaceView === 'console'"
+      ref="runConsole"
       :project-workspaces="projectWorkspaces"
       @open-flow="openProjectInEditor"
       @start-new-project="startNewProjectInEditor"

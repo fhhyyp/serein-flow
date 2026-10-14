@@ -5,7 +5,7 @@ using SereinFlow.Application;
 
 namespace SereinFlow.Api;
 
-/// <summary>Marks actions that perform their own project-scoped API-key authorization.</summary>
+/// <summary>Marks actions that perform their own API-key authorization.</summary>
 [AttributeUsage(AttributeTargets.Method)]
 public sealed class SereinFlowScopedAuthorizationAttribute : Attribute;
 

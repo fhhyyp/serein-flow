@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
+using SereinFlow.Mcp;
 
 namespace SereinFlow.Api;
 
@@ -24,6 +25,10 @@ public static class SereinFlowWebApiExtensions
         services.AddScoped<SereinFlowApiAuthorizationService>();
         services.AddScoped<SereinFlowRestAuthorizationFilter>();
         services.AddScoped<SereinFlowApiExceptionFilter>();
+        services.TryAddSingleton(provider => new McpAiGuidanceManagementService(
+            provider.GetService<McpAiGuidanceProvider>() ?? new McpAiGuidanceProvider(
+                provider.GetRequiredService<IConfiguration>(),
+                provider.GetRequiredService<IHostEnvironment>().ContentRootPath)));
         services.TryAddScoped<McpSecurityService>(provider => new McpSecurityService(
             provider.GetRequiredService<IMcpApiKeyStore>(),
             provider.GetRequiredService<IConfiguration>()["SereinFlow:Mcp:BootstrapAdminKey"]));
