@@ -13,8 +13,8 @@ const sections = {
     en: ['Concepts', ['Overview', ''], ['Projects and flows', 'projects-and-flows'], ['Nodes and libraries', 'nodes-and-libraries'], ['Versions and publishing', 'versions'], ['Runs and results', 'runs'], ['Debugging', 'debugging'], ['Public interfaces', 'public-interfaces'], ['Environment and keys', 'environment']],
   },
   script: {
-    zh: ['SereinScript', ['使用与开发概览', ''], ['在流程中使用脚本', 'usage'], ['扩展 ScriptAdapter', 'script-adapter'], ['扩展 ScriptModules', 'script-modules']],
-    en: ['SereinScript', ['Usage and development', ''], ['Use scripts in flows', 'usage'], ['Extend ScriptAdapter', 'script-adapter'], ['Extend ScriptModules', 'script-modules']],
+    zh: ['SereinScript', ['使用与开发概览', ''], ['在流程中使用脚本', 'usage'], ['扩展 ScriptAdapter', 'script-adapter'], ['ScriptModules 使用与扩展', 'script-modules']],
+    en: ['SereinScript', ['Usage and development', ''], ['Use scripts in flows', 'usage'], ['Extend ScriptAdapter', 'script-adapter'], ['ScriptModules usage and extensions', 'script-modules']],
   },
   library: {
     zh: ['编写节点类库', ['先看全貌', ''], ['写出第一个节点', 'first-node'], ['节点参数与执行方式', 'node-contracts'], ['注册自己的服务', 'services'], ['使用内置服务', 'built-in-services'], ['加载 native DLL', 'native-dll'], ['打包、上传与排错', 'package-upload']],
